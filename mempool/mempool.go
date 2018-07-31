@@ -89,13 +89,14 @@ func (mp *MemPool) Start() {
 }
 
 // Size returns current maintaining number of transactions
-// and number of orphan transaction 
+// and number of orphan transaction
 func (mp *MemPool) Size() (int, int) {
 	mp.RLock()
 	defer mp.RUnlock()
 	return len(mp.cache), mp.orphan
 }
-// Receive handles requested messages from other services 
+
+// Receive handles requested messages from other services
 func (mp *MemPool) Receive(context actor.Context) {
 	mp.BaseComponent.Receive(context)
 

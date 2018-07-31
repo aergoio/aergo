@@ -32,7 +32,7 @@ func (h *nonceHeap) Pop() interface{} {
 	return x
 }
 
-// MemPoolList is main structure for managing transaction list 
+// MemPoolList is main structure for managing transaction list
 type MemPoolList struct {
 	sync.RWMutex
 	items map[uint64]*types.Tx
@@ -87,7 +87,7 @@ func (mpl *MemPoolList) Put(tx *types.Tx) error {
 	return nil
 }
 
-// Merge moves transactions of given MemPoolList to itself 
+// Merge moves transactions of given MemPoolList to itself
 func (mpl *MemPoolList) Merge(l *MemPoolList) (int, error) {
 	defer mpl.checkSanity()
 	defer l.checkSanity()

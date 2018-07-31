@@ -20,7 +20,7 @@ func (mp *MemPool) generateInfiniteTx() {
 		{0x02, 0x00, 0x00, 0x00},
 		{0x03, 0x00, 0x00, 0x00},
 	}
-	
+
 	sampleSize := len(SAMPLES)
 	var nonce []uint64
 	for i := 0; i < sampleSize; i++ {
@@ -120,5 +120,3 @@ func getBalanceByAccMock(acc string) uint64 {
 func getCurrentBestBlockNoMock() types.BlockNo {
 	return bestBlockNo
 }
-
-

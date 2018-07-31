@@ -5,8 +5,8 @@
 package mempool
 
 import (
-	"encoding/hex"
 	"encoding/binary"
+	"encoding/hex"
 	"math/rand"
 	"testing"
 
@@ -31,11 +31,9 @@ func _itobU32(argv uint32) []byte {
 	return bs
 }
 
-
 func getAccount(tx *types.Tx) string {
 	return hex.EncodeToString(tx.GetBody().GetAccount())
 }
-
 
 func simulateBlockGen(txs ...*types.Tx) error {
 	lock.Lock()
