@@ -86,7 +86,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	return nil
 }
 
-// Bytes returns a binary representaion of bh.
+// Bytes returns a binary represenation of bh.
 func (bh *BlockHeader) Bytes() ([]byte, error) {
 	var buf bytes.Buffer
 	if err := writeBlockHeader(&buf, bh); err != nil {
