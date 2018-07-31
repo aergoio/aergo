@@ -6,7 +6,6 @@
 package mempool
 
 import (
-	"encoding/hex"
 	"math/rand"
 	"sync"
 	"time"
@@ -15,18 +14,13 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-var (
-	SAMPLES = [][]byte{
+func (mp *MemPool) generateInfiniteTx() {
+	SAMPLES := [][]byte{
 		{0x01, 0x00, 0x00, 0x00},
 		{0x02, 0x00, 0x00, 0x00},
 		{0x03, 0x00, 0x00, 0x00},
-		{0x04, 0x00, 0x00, 0x00},
-		{0x05, 0x00, 0x00, 0x00},
 	}
-)
-
-func (mp *MemPool) generateInfiniteTx() {
-
+	
 	sampleSize := len(SAMPLES)
 	var nonce []uint64
 	for i := 0; i < sampleSize; i++ {
@@ -62,6 +56,11 @@ func (mp *MemPool) generateInfiniteTx() {
 }
 
 func (mp *MemPool) generateSampleTxs(maxCount int) error {
+	SAMPLES := [][]byte{
+		{0x01, 0x00, 0x00, 0x00},
+		{0x02, 0x00, 0x00, 0x00},
+		{0x03, 0x00, 0x00, 0x00},
+	}
 	sampleSize := len(SAMPLES)
 	count := rand.Intn(maxCount)
 	account := SAMPLES[rand.Intn(sampleSize)]
@@ -80,10 +79,6 @@ func (mp *MemPool) generateSampleTxs(maxCount int) error {
 		mp.Debugf("create temp tx : %s %s", err, txs[i].GetBody().String())
 	}
 	return nil
-}
-
-func getAccount(tx *types.Tx) string {
-	return hex.EncodeToString(tx.GetBody().GetAccount())
 }
 
 const defaultBalance = uint64(10000000)
@@ -126,19 +121,4 @@ func getCurrentBestBlockNoMock() types.BlockNo {
 	return bestBlockNo
 }
 
-func simulateBlockGen(txs ...*types.Tx) error {
-	lock.Lock()
-	defer lock.Unlock()
-	for _, tx := range txs {
-		acc := getAccount(tx)
-		n := tx.GetBody().GetNonce()
-		nonce[acc] = n
-		_, ok := balance[acc]
-		if !ok {
-			balance[acc] = defaultBalance
-		}
-		balance[acc] -= tx.GetBody().GetAmount()
-	}
-	bestBlockNo++
-	return nil
-}
+

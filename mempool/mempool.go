@@ -25,6 +25,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+// MemPool is main structure of mempool service
 type MemPool struct {
 	*component.BaseComponent
 
@@ -59,6 +60,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	}
 }
 
+// Start runs mempool servivce
 func (mp *MemPool) Start() {
 	if mp.testConfig {
 		initStubData()
@@ -77,7 +79,7 @@ func (mp *MemPool) Start() {
 	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
-			for _ = range time.Tick(1e9) {
+			for range time.Tick(1e9) {
 				l, o := mp.Size()
 				mp.Infof("mempool metrics len:%d orphan:%d", l, o)
 			}
@@ -86,12 +88,14 @@ func (mp *MemPool) Start() {
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
 
+// Size returns current maintaining number of transactions
+// and number of orphan transaction 
 func (mp *MemPool) Size() (int, int) {
 	mp.RLock()
 	defer mp.RUnlock()
 	return len(mp.cache), mp.orphan
 }
-
+// Receive handles requested messages from other services 
 func (mp *MemPool) Receive(context actor.Context) {
 	mp.BaseComponent.Receive(context)
 
@@ -172,7 +176,11 @@ func (mp *MemPool) put(tx *types.Tx) error {
 		}
 		mp.orphan++
 	} else {
-		mp.rearrange(acc)
+		err = mp.rearrange(acc)
+		if err != nil {
+			panic(err)
+		}
+
 	}
 	mp.cache[key] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())

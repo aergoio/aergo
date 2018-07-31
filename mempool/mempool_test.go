@@ -5,6 +5,7 @@
 package mempool
 
 import (
+	"encoding/hex"
 	"encoding/binary"
 	"math/rand"
 	"testing"
@@ -28,6 +29,29 @@ func _itobU32(argv uint32) []byte {
 	bs := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bs, argv)
 	return bs
+}
+
+
+func getAccount(tx *types.Tx) string {
+	return hex.EncodeToString(tx.GetBody().GetAccount())
+}
+
+
+func simulateBlockGen(txs ...*types.Tx) error {
+	lock.Lock()
+	defer lock.Unlock()
+	for _, tx := range txs {
+		acc := getAccount(tx)
+		n := tx.GetBody().GetNonce()
+		nonce[acc] = n
+		_, ok := balance[acc]
+		if !ok {
+			balance[acc] = defaultBalance
+		}
+		balance[acc] -= tx.GetBody().GetAmount()
+	}
+	bestBlockNo++
+	return nil
 }
 func initTest() {
 	serverCtx := config.NewServerContext("", "")

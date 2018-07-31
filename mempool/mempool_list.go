@@ -32,6 +32,7 @@ func (h *nonceHeap) Pop() interface{} {
 	return x
 }
 
+// MemPoolList is main structure for managing transaction list 
 type MemPoolList struct {
 	sync.RWMutex
 	items map[uint64]*types.Tx
@@ -41,6 +42,7 @@ type MemPoolList struct {
 	checkNonce bool
 }
 
+// NewMemPoolList creates new object for MemPoolList
 func NewMemPoolList(nonce uint64, check bool) *MemPoolList {
 	return &MemPoolList{
 		items: map[uint64]*types.Tx{},
@@ -50,9 +52,12 @@ func NewMemPoolList(nonce uint64, check bool) *MemPoolList {
 		checkNonce: check,
 	}
 }
+
+// Len returns number of maintaining transactions
 func (mpl *MemPoolList) Len() int {
 	return mpl.heap.Len()
 }
+
 func (mpl *MemPoolList) updateMinNonce() {
 	if mpl.Len() > 0 {
 		mpl.minNonce = (*mpl.heap)[0]
@@ -64,6 +69,8 @@ func (mpl *MemPoolList) putLocked(tx *types.Tx) {
 	mpl.items[nonce] = tx
 	mpl.updateMinNonce()
 }
+
+// Put inserts given transaction if not already exists
 func (mpl *MemPoolList) Put(tx *types.Tx) error {
 	defer mpl.checkSanity()
 	mpl.Lock()
@@ -80,8 +87,7 @@ func (mpl *MemPoolList) Put(tx *types.Tx) error {
 	return nil
 }
 
-// TODO lock consideration
-// improve
+// Merge moves transactions of given MemPoolList to itself 
 func (mpl *MemPoolList) Merge(l *MemPoolList) (int, error) {
 	defer mpl.checkSanity()
 	defer l.checkSanity()
@@ -100,6 +106,8 @@ func (mpl *MemPoolList) Merge(l *MemPoolList) (int, error) {
 	}
 	return added, nil
 }
+
+// FilterByPrice removes transactions which has amount larger than given balance
 func (mpl *MemPoolList) FilterByPrice(bal uint64) int {
 	defer mpl.checkSanity()
 	mpl.Lock()
@@ -127,6 +135,7 @@ func (mpl *MemPoolList) FilterByPrice(bal uint64) int {
 	return len(delList)
 }
 
+// SetMinNonce set minimum nonce of all maintaining transactions
 func (mpl *MemPoolList) SetMinNonce(nonce uint64) int {
 	defer mpl.checkSanity()
 	mpl.Lock()
@@ -143,6 +152,7 @@ func (mpl *MemPoolList) SetMinNonce(nonce uint64) int {
 	return evict
 }
 
+// Get retrieves single transaction which has same nonce with given parameter
 func (mpl *MemPoolList) Get(nonce uint64) *types.Tx {
 	mpl.RLock()
 	defer mpl.RUnlock()
@@ -171,6 +181,8 @@ func (mpl *MemPoolList) delLocked(nonce uint64) *types.Tx {
 	mpl.updateMinNonce()
 	return rv
 }
+
+// Del removes single transaction which has exactly same nonce with given parameter
 func (mpl *MemPoolList) Del(nonce uint64) *types.Tx {
 	defer mpl.checkSanity()
 	mpl.Lock()
@@ -178,6 +190,7 @@ func (mpl *MemPoolList) Del(nonce uint64) *types.Tx {
 	return mpl.delLocked(nonce)
 }
 
+// GetAll retreives all transactions
 func (mpl *MemPoolList) GetAll() []*types.Tx {
 	mpl.RLock()
 	defer mpl.RUnlock()
@@ -196,7 +209,7 @@ func (mpl *MemPoolList) GetAll() []*types.Tx {
 	return val
 }
 
-// GetMinNonce returns pair of int (size total queued ,total orphan)
+// GetMinNonce returns minimum nonce of maintaining transactions
 func (mpl *MemPoolList) GetMinNonce() uint64 {
 	mpl.RLock()
 	defer mpl.RUnlock()
@@ -234,9 +247,4 @@ func (mpl *MemPoolList) checkSanity() {
 				panic("mempooll panic : 2 different account in list")
 			}
 		}*/
-}
-func (mpl *MemPoolList) CheckSanity() {
-	mpl.RLock()
-	defer mpl.RUnlock()
-	mpl.checkSanity()
 }
