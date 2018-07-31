@@ -46,7 +46,7 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		beginBlock:       make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
-		maxBlockBodySize: types.MaxBlockSize - util.BHSize(),
+		maxBlockBodySize: util.MaxBlockBodySize(),
 		sID:              id.Pretty(),
 		privKey:          privKey,
 	}

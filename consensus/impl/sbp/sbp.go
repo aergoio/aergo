@@ -39,7 +39,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    cfg.Consensus.BlockInterval,
-		maxBlockBodySize: types.MaxBlockSize - util.BHSize(),
+		maxBlockBodySize: util.MaxBlockBodySize(),
 		onReorganizing:   util.BcNoReorganizing,
 	}, nil
 }

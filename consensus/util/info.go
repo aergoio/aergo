@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/pkg/log"
@@ -62,12 +63,11 @@ func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 	return result.(*message.MemPoolGetRsp).Txs
 }
 
-// BHSize returns the block header size.
+// MaxBlockBodySize returns the maximum block body size.
 //
 // TODO: This is not an exact size. Let's make it exact!
-func BHSize() int {
-	tmpBh := &types.BlockHeader{}
-	return proto.Size(tmpBh)
+func MaxBlockBodySize() int {
+	return blockchain.DefaultMaxBlockSize - proto.Size(&types.BlockHeader{})
 }
 
 // OnReorganizing is a utility function which reports whether *onReorg is set
