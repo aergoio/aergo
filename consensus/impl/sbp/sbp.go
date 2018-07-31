@@ -10,11 +10,9 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 const (
-	blockMax     = 1 << 20
 	slotQueueMax = 100
 )
 
@@ -41,7 +39,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    cfg.Consensus.BlockInterval,
-		maxBlockBodySize: blockMax,
+		maxBlockBodySize: types.MaxBlockSize - util.BHSize(),
 		onReorganizing:   util.BcNoReorganizing,
 	}, nil
 }
@@ -93,29 +91,25 @@ func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start(quitC <-chan interface{}) {
-	gatherTXs := func() []*types.Tx {
-		txs := util.FetchTXs(s)
-		if len(txs) == 0 {
-			return txs
-		}
-
-		end := 0
-		size := 0
-		for i, tx := range txs {
-			size += proto.Size(tx)
-			if size > s.maxBlockBodySize {
-				break
+	txDo := util.NewTxDo(
+		func(txIn *types.Tx) error {
+			select {
+			case <-quitC:
+				return util.ErrQuit
+			default:
+				return nil
 			}
-			end = i
-		}
-		return txs[0 : end+1]
-	}
+		})
 
 	for {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block := types.NewBlock(prevBlock, gatherTXs())
+				txs, err := util.GatherTXs(util.FetchTXs(s), txDo, s.maxBlockBodySize)
+				if err != nil {
+					return
+				}
+				block := types.NewBlock(prevBlock, txs)
 				logger.Infof("block produced: no=%d, hash=%v",
 					block.GetHeader().GetBlockNo(), block.ID())
 

@@ -1,0 +1,40 @@
+package util
+
+import (
+	"errors"
+	"fmt"
+	"testing"
+
+	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestComposite(t *testing.T) {
+	txDo := NewTxDo(
+		func(tx *types.Tx) error {
+			fmt.Println("x")
+			return nil
+		},
+		func(tx *types.Tx) error {
+			fmt.Println("y")
+			return nil
+		},
+	)
+	err := txDo(nil)
+	assert.New(t).Nil(err)
+}
+
+func TestCompositeError(t *testing.T) {
+	txDo := NewTxDo(
+		func(tx *types.Tx) error {
+			fmt.Println("haha")
+			return nil
+		},
+		func(tx *types.Tx) error {
+			fmt.Println("blah")
+			return errors.New("blah blah error")
+		},
+	)
+	err := txDo(nil)
+	assert.New(t).NotNil(err)
+}
