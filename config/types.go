@@ -12,6 +12,7 @@ const (
 	//defaultLogLevel    = "info"
 )
 
+// Config defines configurations of each services
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
@@ -22,6 +23,7 @@ type Config struct {
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 }
 
+// BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
 	LogLevel       string `mapstructure:"loglevel" description:"Default log level for all components, {debug, info, warn, error, fatal}, or may specify levels for componets <component1>=<level> <component2>=<level> ..."`
@@ -33,6 +35,7 @@ type BaseConfig struct {
 	EnableDebugMsg bool   `mapstructure:"enabledebugmsg" description:"enable msg debugging to anlaysis component's message stats"`
 }
 
+// RPCConfig defines configurations for rpc service
 type RPCConfig struct {
 	// RPC and REST
 	NetServiceAddr string `mapstructure:"netserviceaddr" description:"RPC N2C network service address"`
@@ -44,10 +47,12 @@ type RPCConfig struct {
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
+// RESTConfig defines configurations for rest server
 type RESTConfig struct {
 	RestPort int `mapstructure:"restport" description:"Rest port(default:8080)"`
 }
 
+// P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
 	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N ip address, used when machine has multiple network interface or is over the proxy"`
@@ -60,14 +65,17 @@ type P2PConfig struct {
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 }
 
+// BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
 	PlaceHolder bool `mapstructure:"blockchainplaceholder"`
 }
 
+// MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
 	ShowMetrics bool `mapstructure:"showmetrics" description:"show mempool metric periodically"`
 }
 
+// ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
 	EnableBp      bool     `mapstructure:"enablebp" description:"enable block production"`
 	EnableDpos    bool     `mapstructure:"enabledpos" description:"enable DPoS consensus"`
