@@ -416,7 +416,7 @@ func (ps *peerManager) startListener() {
 		panic(err.Error())
 	}
 	ps.log.Infof("Self node pid is %s, and listening for connections. with addr %s", ps.SelfNodeID().Pretty(), listens)
-	//newHost.Network().Notify(&ConnNotifee{ps: ps, log: ps.log})
+	newHost.Network().Notify(&ConnNotifee{ps: ps, log: ps.log})
 
 	ps.Host = newHost
 
