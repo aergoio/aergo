@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestComposite(t *testing.T) {
-	txDo := NewTxDo(
+func TestGatherTXs(t *testing.T) {
+	txOp := NewTxDo(
 		func(tx *types.Tx) error {
 			fmt.Println("x")
 			return nil
@@ -18,13 +18,12 @@ func TestComposite(t *testing.T) {
 		func(tx *types.Tx) error {
 			fmt.Println("y")
 			return nil
-		},
-	)
-	err := txDo(nil)
+		})
+	err := txOp.Apply(nil)
 	assert.New(t).Nil(err)
 }
 
-func TestCompositeError(t *testing.T) {
+func TestGatherTXsWithError(t *testing.T) {
 	txDo := NewTxDo(
 		func(tx *types.Tx) error {
 			fmt.Println("haha")
@@ -33,8 +32,7 @@ func TestCompositeError(t *testing.T) {
 		func(tx *types.Tx) error {
 			fmt.Println("blah")
 			return errors.New("blah blah error")
-		},
-	)
-	err := txDo(nil)
+		})
+	err := txDo.Apply(nil)
 	assert.New(t).NotNil(err)
 }

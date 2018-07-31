@@ -92,6 +92,7 @@ func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start(quitC <-chan interface{}) {
 	txDo := util.NewTxDo(
+		util.NewBlockLimitOp(s.maxBlockBodySize),
 		func(txIn *types.Tx) error {
 			select {
 			case <-quitC:
@@ -105,10 +106,11 @@ func (s *SimpleBlockFactory) Start(quitC <-chan interface{}) {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				txs, err := util.GatherTXs(util.FetchTXs(s), txDo, s.maxBlockBodySize)
+				txs, err := util.GatherTXs(util.FetchTXs(s), txDo)
 				if err != nil {
 					return
 				}
+
 				block := types.NewBlock(prevBlock, txs)
 				logger.Infof("block produced: no=%d, hash=%v",
 					block.GetHeader().GetBlockNo(), block.ID())

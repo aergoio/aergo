@@ -172,5 +172,9 @@ func (bf *BlockFactory) gatherTXs(txIn []*types.Tx) ([]*types.Tx, error) {
 		return bf.checkBpTimeout()
 	}
 
-	return util.GatherTXs(txIn, util.NewTxDo(checkTimeout), bf.maxBlockBodySize)
+	txOp := util.NewTxDo(
+		util.NewBlockLimitOp(bf.maxBlockBodySize),
+		checkTimeout)
+
+	return util.GatherTXs(txIn, txOp)
 }

@@ -10,40 +10,58 @@ import (
 var (
 	// ErrQuit indicates that shutdown is initiated.
 	ErrQuit = errors.New("shutdown initiated")
+
+	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 
-// TxDo is the type of arguments for CompositeTxDo.
-type TxDo func(tx *types.Tx) error
+// TxOp is an interface used by GatherTXs for apply some transaction related operation.
+type TxOp interface {
+	Apply(tx *types.Tx) error
+}
+
+// TxOpFn is the type of arguments for CompositeTxDo.
+type TxOpFn func(tx *types.Tx) error
+
+// Apply applies f to tx.
+func (f TxOpFn) Apply(tx *types.Tx) error {
+	return f(tx)
+}
 
 // NewTxDo returns a function which applies each function in fn.x
-func NewTxDo(fn ...TxDo) TxDo {
-	return func(tx *types.Tx) error {
+func NewTxDo(fn ...TxOpFn) TxOp {
+	return TxOpFn(func(tx *types.Tx) error {
 		for _, f := range fn {
-			if err := f(tx); err != nil {
+			if err := f.Apply(tx); err != nil {
 				return err
 			}
 		}
 
 		return nil
-	}
+	})
+}
+
+// NewBlockLimitOp returns a TxOpFn which returns errBlockSizeLimit when the
+// size of the collected transactions exceeds the maximum block size.
+func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
+	size := 0
+	return TxOpFn(func(tx *types.Tx) error {
+		if size += proto.Size(tx); size > maxBlockBodySize {
+			return errBlockSizeLimit
+		}
+		return nil
+	})
 }
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(txIn []*types.Tx, txDo TxDo, maxBlockBodySize int) ([]*types.Tx, error) {
+func GatherTXs(txIn []*types.Tx, txDo TxOp) ([]*types.Tx, error) {
 	if len(txIn) == 0 {
 		return txIn, nil
 	}
 
 	end := 0
-	size := 0
 	for i, tx := range txIn {
-		size += proto.Size(tx)
-		if size > maxBlockBodySize {
-			break
-		}
-
-		err := txDo(tx)
+		err := txDo.Apply(tx)
 		if err == ErrQuit {
 			return nil, err
 		} else if err != nil {
@@ -51,7 +69,6 @@ func GatherTXs(txIn []*types.Tx, txDo TxDo, maxBlockBodySize int) ([]*types.Tx, 
 			// conditions may be needed.
 			break
 		}
-
 		end = i
 	}
 
