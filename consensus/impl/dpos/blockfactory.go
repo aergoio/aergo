@@ -14,13 +14,11 @@ import (
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
 const (
-	blockMax     = 1 << 20
 	slotQueueMax = 100
 )
 
@@ -48,7 +46,7 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		beginBlock:       make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
-		maxBlockBodySize: blockMax - util.BHSize(),
+		maxBlockBodySize: types.MaxBlockSize - util.BHSize(),
 		sID:              id.Pretty(),
 		privKey:          privKey,
 	}
@@ -142,17 +140,6 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) checkBpTimeout() error {
-	select {
-	case <-bf.bpTimeoutC:
-		return errBpTimeout
-	case <-bf.quit:
-		return errQuit
-	default:
-		return nil
-	}
-}
-
 func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 	txs, err := bf.gatherTXs(util.FetchTXs(bf))
 	if err != nil {
@@ -169,31 +156,21 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 	return block, nil
 }
 
+func (bf *BlockFactory) checkBpTimeout() error {
+	select {
+	case <-bf.bpTimeoutC:
+		return errBpTimeout
+	case <-bf.quit:
+		return errQuit
+	default:
+		return nil
+	}
+}
+
 func (bf *BlockFactory) gatherTXs(txIn []*types.Tx) ([]*types.Tx, error) {
-	if len(txIn) == 0 {
-		return txIn, nil
+	checkTimeout := func(txIn *types.Tx) error {
+		return bf.checkBpTimeout()
 	}
 
-	end := 0
-	size := 0
-	for i, tx := range txIn {
-		size += proto.Size(tx)
-		if size > bf.maxBlockBodySize {
-			break
-		}
-
-		// TODO: tx execution
-
-		err := bf.checkBpTimeout()
-		if err == errBpTimeout {
-			break
-		} else if err == errQuit {
-			return nil, err
-		}
-
-		// TODO: update state DB
-		end = i
-	}
-
-	return txIn[0 : end+1], nil
+	return util.GatherTXs(txIn, util.NewTxDo(checkTimeout), bf.maxBlockBodySize)
 }

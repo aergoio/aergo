@@ -64,7 +64,7 @@ func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 
 // BHSize returns the block header size.
 //
-// TODO: make it exact!
+// TODO: This is not an exact size. Let's make it exact!
 func BHSize() int {
 	tmpBh := &types.BlockHeader{}
 	return proto.Size(tmpBh)

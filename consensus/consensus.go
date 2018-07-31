@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	logger *log.Logger
-	quitC  chan interface{}
+	logger = log.NewLogger(log.Consensus)
+	quitC  = make(chan interface{})
 )
 
 // ErrorConsensus is a basic error struct for consensus modules.
@@ -33,8 +33,6 @@ func (e ErrorConsensus) Error() string {
 }
 
 func init() {
-	logger = log.NewLogger(log.Consensus)
-	quitC = make(chan interface{})
 }
 
 // Consensus is an interface for a consensus implementation.

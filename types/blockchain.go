@@ -18,6 +18,11 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+const (
+	// MaxBlockSize is the maximum size of a block.
+	MaxBlockSize = 1 << 20
+)
+
 type Hash [sha256.Size]byte
 
 type BlockNo = uint64
