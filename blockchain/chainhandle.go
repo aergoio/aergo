@@ -60,9 +60,9 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	}
 
 	for block != nil {
-		prev := types.ToBlockKey(block.Header.PrevBlockHash)
-		bc := state.NewStateCache()
-		bs, err := cs.sdb.NewBlockState(prev)
+		blockHash := types.ToBlockKey(block.GetHash())
+		prevHash := types.ToBlockKey(block.GetHeader().GetPrevBlockHash())
+		bs, err := cs.sdb.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
 		if err != nil {
 			return err
 		}
@@ -70,14 +70,12 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		dbtx := cs.cdb.store.NewTx(true)
 		// FIXME: Only can do in case of main chain
 		for i, tx := range txs {
-			err := cs.processTx(&dbtx, bs, bc, tx, block.Hash, i)
+			err := cs.processTx(&dbtx, bs, tx, block.Hash, i)
 			if err != nil {
 				return err
 			}
 		}
-		cs.sdb.PutStateCache(bc)
-		bkey := types.ToBlockKey(block.Hash)
-		err = cs.sdb.PutBlockState(bkey, bs)
+		err = cs.sdb.Apply(bs)
 		if err != nil {
 			// FIXME: is that enough?
 			return err
@@ -106,7 +104,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	return nil
 }
 
-func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, bc *state.StateCache, tx *types.Tx, blockHash []byte, idx int) error {
+func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
 	txBody := tx.GetBody()
 	senderKey := types.ToAccountKey(txBody.Account)
 	senderState, err := cs.sdb.GetBlockAccount(bs, senderKey)

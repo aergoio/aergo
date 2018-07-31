@@ -6,83 +6,57 @@
 package state
 
 import (
-	"crypto/sha512"
-	"errors"
+	"fmt"
 	"os"
 	"path"
 	"sync"
 
 	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
-	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
 
 const (
-	stateName = "state"
+	stateName     = "state"
+	stateAccounts = "state.accounts"
+	stateLatest   = "state.latest"
 )
 
 var (
 	logger = log.NewLogger(log.StateDB)
 )
 
-type StateCache struct {
-	cache map[types.StateKey]*types.State
+type BlockInfo struct {
+	blockNo   types.BlockNo
+	blockHash types.BlockKey
+	prevHash  types.BlockKey
 }
-
-func NewStateCache() *StateCache {
-	return &StateCache{
-		cache: make(map[types.StateKey]*types.State),
-	}
-}
-
-func (sc *StateCache) Get(skey types.StateKey) *types.State {
-	return sc.cache[skey]
-}
-
-func (sc *StateCache) Put(state *types.State) types.StateKey {
-	skey := types.ToStateKeyPb(state)
-	sc.cache[skey] = state
-	return skey
-}
-
 type BlockState struct {
-	Accounts map[types.AccountKey]types.StateKey
+	BlockInfo
+	accounts map[types.AccountKey]*types.State
+	undolog  map[types.AccountKey]*types.State
 }
 
-func NewBlockState() *BlockState {
+func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *BlockState {
 	return &BlockState{
-		Accounts: make(map[types.AccountKey]types.StateKey),
-	}
-}
-func (bs *BlockState) PutAccounts(bstate *BlockState) {
-	for i, v := range bstate.Accounts {
-		bs.Accounts[i] = v
+		BlockInfo: BlockInfo{
+			blockNo:   blockNo,
+			blockHash: blockHash,
+			prevHash:  prevHash,
+		},
+		accounts: make(map[types.AccountKey]*types.State),
+		undolog:  make(map[types.AccountKey]*types.State),
 	}
 }
 
-func (bs *BlockState) PutAccount(akey types.AccountKey, skey types.StateKey) {
-	bs.Accounts[akey] = skey
+/*
+func (bs *BlockState) PutAccount(akey types.AccountKey, state *types.State) {
+	bs.accounts[akey] = state
 }
-
-func (bs *BlockState) CalculateRootHash() []byte {
-	hasher := func(data ...[]byte) []byte {
-		hasher := sha512.New512_256()
-		for i := 0; i < len(data); i++ {
-			hasher.Write(data[i])
-		}
-		return hasher.Sum(nil)
-	}
-	smt := trie.NewSMT(32, hasher, nil)
-	keys := trie.DataArray{}
-	vals := trie.DataArray{}
-	for k, v := range bs.Accounts {
-		keys = append(keys, k[:])
-		vals = append(vals, v[:])
-	}
-	smt.Update(keys, vals)
-	return smt.Root
+func (bs *BlockState) GetAccount(akey types.AccountKey) *types.State {
+	return bs.accounts[akey]
 }
+*/
 
 // StateDB ...
 // type StateDB interface {
@@ -92,16 +66,14 @@ func (bs *BlockState) CalculateRootHash() []byte {
 
 type CachedStateDB struct {
 	sync.RWMutex
-	bstates map[types.BlockKey]*BlockState
-	cache   map[types.StateKey]*types.State
-	latest  types.BlockKey
-	statedb db.DB
+	accounts map[types.AccountKey]*types.State
+	latest   *BlockInfo
+	statedb  db.DB
 }
 
 func NewCachedStateDB() *CachedStateDB {
 	return &CachedStateDB{
-		bstates: make(map[types.BlockKey]*BlockState),
-		cache:   make(map[types.StateKey]*types.State),
+		accounts: make(map[types.AccountKey]*types.State),
 	}
 }
 
@@ -110,23 +82,41 @@ func InitDB(basePath, dbName string) db.DB {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
-	st := db.NewDB(db.BadgerImpl, dbPath)
-	return st
+	dbInst := db.NewDB(db.BadgerImpl, dbPath)
+	return dbInst
 }
 
 func (sdb *CachedStateDB) Init(dataDir string) error {
+	sdb.Lock()
+	defer sdb.Unlock()
+	// init db
 	if sdb.statedb == nil {
 		sdb.statedb = InitDB(dataDir, stateName)
+	}
+	// load data from db
+	err := sdb.load()
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (sdb *CachedStateDB) Close() {
+func (sdb *CachedStateDB) Close() error {
+	sdb.Lock()
+	defer sdb.Unlock()
+	// save data to db
+	err := sdb.save()
+	if err != nil {
+		return err
+	}
+	// close db
 	if sdb.statedb != nil {
 		sdb.statedb.Close()
 	}
+	return nil
 }
 
+/*
 func (sdb *CachedStateDB) GetBestBlockState() (*BlockState, error) {
 	return sdb.GetBlockState(sdb.latest)
 }
@@ -135,7 +125,7 @@ func (sdb *CachedStateDB) GetBlockState(bkey types.BlockKey) (*BlockState, error
 		return bstate, nil
 	}
 	bs := &BlockState{}
-	err := sdb.getData(bkey[:], bs)
+	err := sdb.loadData(bkey[:], bs)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +133,7 @@ func (sdb *CachedStateDB) GetBlockState(bkey types.BlockKey) (*BlockState, error
 	return bs, nil
 }
 func (sdb *CachedStateDB) PutBlockState(bkey types.BlockKey, bs *BlockState) error {
-	sdb.putData(bkey[:], bs)
+	sdb.saveData(bkey[:], bs)
 	sdb.bstates[bkey] = bs
 	sdb.latest = bkey
 	return nil
@@ -182,4 +172,67 @@ func (sdb *CachedStateDB) NewBlockState(prev types.BlockKey) (*BlockState, error
 	bs := NewBlockState()
 	bs.PutAccounts(prevbs)
 	return bs, nil
+}
+*/
+
+func (sdb *CachedStateDB) GetBlockAccount(bstate *BlockState, akey types.AccountKey) (*types.State, error) {
+	if akey == types.EmptyAccountKey {
+		return nil, fmt.Errorf("Failed to get block account: invalid account key")
+	}
+	if account, ok := bstate.accounts[akey]; ok {
+		return types.Clone(account).(*types.State), nil
+	}
+
+	if state, ok := sdb.accounts[akey]; ok {
+		return types.Clone(state).(*types.State), nil
+	}
+	state := types.NewState(akey)
+	sdb.accounts[akey] = state
+	return types.Clone(state).(*types.State), nil
+}
+
+// func (sdb *CachedStateDB) PutAccount(akey types.AccountKey, state *types.State) error {
+// 	sdb.accounts[akey] = state
+// 	return nil
+// }
+
+func (sdb *CachedStateDB) Apply(bstate *BlockState) error {
+	if sdb.latest.blockNo+1 != bstate.blockNo {
+		return fmt.Errorf("Failed to apply: invalid block no")
+	}
+	if sdb.latest.blockHash != bstate.prevHash {
+		return fmt.Errorf("Failed to apply: invalid previous block")
+	}
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	sdb.saveData(bstate.blockHash[:], bstate)
+	for i, v := range bstate.accounts {
+		sdb.accounts[i] = v
+	}
+	sdb.latest = &bstate.BlockInfo
+	sdb.save()
+	return nil
+}
+
+func (sdb *CachedStateDB) Rollback(blockNo types.BlockNo) error {
+	if sdb.latest.blockNo <= blockNo {
+		return fmt.Errorf("Failed to rollback: invalid block no")
+	}
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	for sdb.latest.blockNo > blockNo {
+		bs := &BlockState{}
+		err := sdb.loadData(sdb.latest.blockHash[:], bs)
+		if err != nil {
+			return err
+		}
+		for k, v := range bs.undolog {
+			sdb.accounts[k] = v
+		}
+		sdb.latest = &bs.BlockInfo
+	}
+	sdb.save()
+	return nil
 }
