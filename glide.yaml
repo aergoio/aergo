@@ -1,0 +1,91 @@
+package: github.com/aergoio/aergo
+homepage: https://github.com/aergoio/aergo
+license: MIT
+excludeDirs:
+- p2p/mocks
+import:
+- package: github.com/AsynkronIT/protoactor-go
+  subpackages:
+  - actor
+- package: github.com/dgraph-io/badger
+  version: ~1.5.2
+- package: github.com/gogo/protobuf
+  version: ~1.0.0
+  subpackages:
+  - jsonpb
+  - proto
+- package: github.com/golang/protobuf
+  version: ~1.1.0
+  subpackages:
+  - proto
+  - ptypes/timestamp
+- package: github.com/jessevdk/go-flags
+  version: ~1.4.0
+- package: github.com/joonix/log
+- package: github.com/libp2p/go-libp2p
+  version: ~6.0.4
+- package: github.com/libp2p/go-libp2p-crypto
+  version: ~1.6.2
+- package: github.com/libp2p/go-libp2p-host
+  version: ~3.0.3
+- package: github.com/libp2p/go-libp2p-net
+  version: ~3.0.4
+- package: github.com/libp2p/go-libp2p-peer
+  version: ~2.3.4
+- package: github.com/libp2p/go-libp2p-peerstore
+  version: ~1.4.21
+- package: github.com/mr-tron/base58
+  subpackages:
+  - base58
+- package: github.com/multiformats/go-multicodec
+  version: ~0.1.5
+  subpackages:
+  - protobuf
+- package: github.com/satori/go.uuid
+  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+- package: github.com/sirupsen/logrus
+  version: ~1.0.5
+- package: github.com/spf13/cobra
+  version: ~0.0.3
+- package: github.com/spf13/pflag
+  version: ~1.0.1
+- package: github.com/spf13/viper
+  version: ~1.0.2
+- package: github.com/x-cray/logrus-prefixed-formatter
+  version: ~0.5.2
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc
+  version: ~1.13.0
+  subpackages:
+  - codes
+  - status
+- package: github.com/libp2p/go-addr-util
+  version: ~2.0.3
+- package: github.com/libp2p/go-libp2p-interface-connmgr
+  version: ~0.0.10
+- package: github.com/libp2p/go-libp2p-protocol
+  version: ~1.0.0
+- package: github.com/multiformats/go-multiaddr-net
+  version: ~1.6.2
+- package: github.com/multiformats/go-multistream
+  version: ~0.3.7
+- package: github.com/multiformats/go-multiaddr
+  version: ~1.2.7
+- package: github.com/multiformats/go-multiaddr-dns
+  version: 0.2.2
+- package: github.com/libp2p/go-reuseport
+  version: ~0.1.15
+- package: golang.org/x/sys
+  version: 1b2967e3c290b7c545b3db0deeda16e9be4f98a2
+- package: github.com/davecgh/go-spew
+  version: ~1.1.0
+- package: github.com/zalando/go-keyring
+- package: github.com/mattn/go-colorable
+  version: ~0.0.9
+testImport:
+- package: github.com/stretchr/testify
+  version: ~1.2.2
+  subpackages:
+  - assert

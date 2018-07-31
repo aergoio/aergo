@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package types;
+option go_package = "github.com/aergoio/aergo/types";
+
+//import "google/protobuf/any.proto";
+//import "google/protobuf/timestamp.proto";
+
+message Block {
+	bytes hash = 1;
+	BlockHeader header = 2;
+	BlockBody body = 3;
+}
+
+message BlockHeader {
+	bytes prevBlockHash = 1;
+	uint64 blockNo = 2;
+	int64 timestamp = 3;
+	bytes blocksRootHash = 4;
+	bytes txsRootHash = 5;
+        bytes pubKey = 6;
+        bytes sign = 7;
+}
+
+message BlockBody {
+	repeated Tx txs = 1;
+}
+
+message TxList {
+	repeated Tx txs = 1;
+}
+
+message Tx {
+	bytes hash = 1;
+	TxBody body = 2;
+}
+
+message TxBody {
+	uint64 nonce = 1;
+	bytes account = 2;
+	bytes recipient = 3;
+	uint64 amount = 4;
+	bytes payload = 5;
+	bytes sign = 6;
+}
+
+message TxIdx {
+	bytes blockHash = 1;
+	int32 idx = 2;
+}
+
+message State {
+ 	bytes account = 1;
+ 	uint64 nonce = 2;
+ 	uint64 balance = 3;
+}

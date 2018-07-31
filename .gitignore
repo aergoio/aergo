@@ -1,0 +1,20 @@
+# vendors
+/vendor
+
+# build result
+/bin
+debug
+debug.test
+Gopkg.lock
+
+# vim swp file
+*.swp
+*.tmp
+
+# IDE specific
+.vscode
+.idea
+.iml
+
+# developer workspace specific
+/conf
