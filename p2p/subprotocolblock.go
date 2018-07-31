@@ -360,6 +360,32 @@ func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHa
 	return true
 }
 
+// replying chain tree
+func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, missing []message.BlockHash) {
+	// find block info from chainservice
+	blockInfos := make([]*types.Block, 0, len(missing))
+	for _, hash := range missing {
+		foundBlock, err := extractBlockFromRequest(p.iserv.CallRequest(message.ChainSvc,
+			&message.GetBlock{BlockHash: hash}))
+		if err != nil || foundBlock == nil {
+			continue
+		}
+		blockInfos = append(blockInfos, foundBlock)
+	}
+	status := types.ResultStatus_OK
+	if 0 == len(blockInfos) {
+		status = types.ResultStatus_NOT_FOUND
+	}
+
+	// generate response message
+	resp := &types.GetBlockResponse{MessageData: &types.MessageData{},
+		Status: status,
+		Blocks: blockInfos}
+
+	// ???: have to check arguemnts
+	remotePeer.sendMessage(newPbMsgRequestOrder(false, true, getBlocksResponse, resp))
+}
+
 // remote peer requests handler
 func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	p.log.Debugf("Received GetMissingRequest request")
@@ -399,9 +425,12 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	// generate response message
 	p.log.Debugf("Sending GetMssingRequest response to %s. Message id: %s...", peerID.Pretty(), data.MessageData.Id)
 
-	for i := 0; i < len(missing.Hashes); i++ {
-		p.NotifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
-	}
+	p.sendMissingResp(remotePeer, missing.Hashes)
+	/*
+		for i := 0; i < len(missing.Hashes); i++ {
+			p.NotifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
+		}
+	*/
 }
 
 // remote GetBlock response handler
