@@ -23,7 +23,8 @@ import (
 )
 
 var (
-	logger  *log.Logger
+	logger = log.NewLogger(log.DPOS)
+
 	lastJob *slot.Slot
 )
 
@@ -40,10 +41,6 @@ type DPoS struct {
 type bpInfo struct {
 	bestBlock *types.Block
 	slot      *slot.Slot
-}
-
-func init() {
-	logger = log.NewLogger(log.DPOS)
 }
 
 // New returns a new DPos object
@@ -67,7 +64,8 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
-	return time.NewTicker(param.LoopInterval)
+	return time.NewTicker(param.BlockInterval / 10)
+
 }
 
 // QueueJob send a block triggering infomation to jq.
@@ -122,7 +120,7 @@ func (dpos *DPoS) SetReorganizing() {
 	util.SetReorganizing(&dpos.onReorganizing)
 }
 
-// SetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
+// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
 func (dpos *DPoS) UnsetReorganizing() {
 	util.UnsetReorganizing(&dpos.onReorganizing)
 }

@@ -81,7 +81,7 @@ func (s *SimpleBlockFactory) SetReorganizing() {
 	util.SetReorganizing(&s.onReorganizing)
 }
 
-// SetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
+// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
 func (s *SimpleBlockFactory) UnsetReorganizing() {
 	util.UnsetReorganizing(&s.onReorganizing)
 }
