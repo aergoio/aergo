@@ -68,7 +68,7 @@ func (dpos *DPoS) Ticker() *time.Ticker {
 
 }
 
-// QueueJob send a block triggering infomation to jq.
+// QueueJob send a block triggering information to jq.
 func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 	bpi := dpos.getBpInfo(now, lastJob)
 	if bpi != nil {

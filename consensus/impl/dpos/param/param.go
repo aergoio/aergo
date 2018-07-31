@@ -27,7 +27,7 @@ func init() {
 	Init(DefaultBlockIntervalSec)
 }
 
-// Init initilizes the DPoS paramters.
+// Init initilizes the DPoS parameters.
 func Init(blockIntervalSec int64) {
 	BlockIntervalSec = blockIntervalSec
 	BlockIntervalMs = BlockIntervalSec * 1000

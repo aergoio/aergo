@@ -76,7 +76,7 @@ func (s *Slot) IsFor(bpIdx uint16) bool {
 	return s.nextBpIndex() == int64(bpIdx)
 }
 
-// GetBpTimeout returns the time avaliable for block production.
+// GetBpTimeout returns the time available for block production.
 func (s *Slot) GetBpTimeout() int64 {
 	rTime := s.RemainingTimeMS()
 

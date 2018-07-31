@@ -49,7 +49,7 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 	return time.NewTicker(param.BlockInterval)
 }
 
-// QueueJob send a block triggering infomation to jq.
+// QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b := util.GetBestBlock(s); b != nil {
 		jq <- b
