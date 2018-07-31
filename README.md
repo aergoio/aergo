@@ -1,3 +1,6 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/aergoio/aergo)](https://goreportcard.com/report/github.com/aergoio/aergo)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 # Aergo - The Most Practical Blockchain Platform for Blockchain Businesses
 
 Official Chain Software of Aergo Protocol
