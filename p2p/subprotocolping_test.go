@@ -24,7 +24,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	mockIStream.On("Conn").Return(mockConn)
 	mockIStream.On("Protocol").Return(protocol.ID(statusRequest))
 	mockConn.On("RemotePeer").Return(samplePeerID)
-	mockP2PS.On("GetPeer", samplePeerID).Return(nil, false)
+	mockP2PS.On("LookupPeer", samplePeerID).Return(nil, false)
 
 	type fields struct {
 		actorServ ActorService

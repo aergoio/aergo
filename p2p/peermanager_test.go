@@ -235,6 +235,29 @@ func (_m *MockP2PService) Connect(ctx context.Context, pi pstore.PeerInfo) error
 }
 
 // GetPeer provides a mock function with given fields: ID
+func (_m *MockP2PService) LookupPeer(ID peer.ID) (*RemotePeer, bool) {
+	ret := _m.Called(ID)
+
+	var r0 *RemotePeer
+	if rf, ok := ret.Get(0).(func(peer.ID) *RemotePeer); ok {
+		r0 = rf(ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*RemotePeer)
+		}
+	}
+
+	var r1 bool
+	if rf, ok := ret.Get(1).(func(peer.ID) bool); ok {
+		r1 = rf(ID)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	return r0, r1
+}
+
+// GetPeer provides a mock function with given fields: ID
 func (_m *MockP2PService) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 	ret := _m.Called(ID)
 

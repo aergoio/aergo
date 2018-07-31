@@ -61,6 +61,9 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
+	// LookupPeer search for peer, which is registered(handshaked) or connectected but not registerd yet.
+	LookupPeer(ID peer.ID) (*RemotePeer, bool)
+	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
 	GetPeers() []*RemotePeer
 	GetPeerAddresses() []*types.PeerAddress
@@ -657,6 +660,11 @@ func (ps *peerManager) SendProtoMessage(data proto.Message, s inet.Stream) bool 
 	}
 	writer.Flush()
 	return true
+}
+
+func (ps *peerManager) LookupPeer(ID peer.ID) (*RemotePeer, bool) {
+	// it will be changed later ...
+	return ps.GetPeer(ID)
 }
 
 func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {

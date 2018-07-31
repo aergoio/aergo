@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bytes"
 	"context"
 	"time"
 
@@ -49,7 +48,6 @@ type RemotePeer struct {
 	// used to access request data from response handlers
 	requests    map[string]msgOrder
 	consumeChan chan string
-	hsChan      chan *types.Status
 }
 
 // msgOrder is abstraction information about the message that will be sent to peer
@@ -77,7 +75,6 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.
 
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
-		hsChan:      make(chan *types.Status),
 	}
 }
 
@@ -91,8 +88,8 @@ RUNLOOP:
 		select {
 		case <-pingTicker.C:
 			p.sendPing()
-		case hsMsg := <-p.hsChan:
-			p.startHandshake(hsMsg)
+		// case hsMsg := <-p.hsChan:
+		// 	p.startHandshake(hsMsg)
 		case <-p.stopChan:
 			p.status = STOPPED
 			break RUNLOOP
@@ -101,7 +98,6 @@ RUNLOOP:
 	p.log.Infof("Finishing peer %s ", p.meta.ID.Pretty())
 	pingTicker.Stop()
 	p.closeWrite <- struct{}{}
-	close(p.hsChan)
 	close(p.stopChan)
 }
 
@@ -130,17 +126,13 @@ func (p *RemotePeer) sendMessage(msg msgOrder) {
 	p.write <- msg
 }
 
-func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
-	p.hsChan <- statusMsg
-}
-
 // consumeRequest remove request from request history.
 func (p *RemotePeer) consumeRequest(requestID string) {
 	p.consumeChan <- requestID
 }
 
 // startHandshake is run only in AergoPeer.RunPeer go routine
-func (p *RemotePeer) startHandshake(statusMsg *types.Status) {
+func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
 	if p.status != STARTING {
 		p.goAwayMsg("Invalid status msg")
 		return
@@ -151,27 +143,22 @@ func (p *RemotePeer) startHandshake(statusMsg *types.Status) {
 	p.meta.IPAddress = receivedMeta.IPAddress
 	p.meta.Port = receivedMeta.Port
 
-	//
-	myBestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
+	// TODO: check protocol version, blacklist, key authentication or etc.
+	err := p.checkProtocolVersion()
 	if err != nil {
-		p.log.Errorf("Failed to get best block: %v", err.Error())
-		p.goAwayMsg("internal error ")
+		p.log.Infof("invalid protocol version of peer %v", p.meta.ID.Pretty())
+		p.goAwayMsg("Handshake failed")
 		return
 	}
-	sameBestHash := bytes.Equal(myBestBlock.Hash, statusMsg.BestBlockHash)
-	if sameBestHash && myBestBlock.GetHeader().BlockNo == statusMsg.BestHeight {
-		// two node has exact best block.
-		p.log.Debugf("peer %s is in sync status ", p.meta.ID.Pretty())
-	} else {
-		// TODO: 다른 상황에 대한 처리를 추가하자.
 
-	}
-
+	// If all checked and validated. it's now handshaked. and then run sync.
 	p.log.Infof("peer %s is handshaked and now running status", p.meta.ID.Pretty())
 	p.status = RUNNING
 
 	// notice to p2pmanager that handshaking is finished
 	p.ps.NotifyPeerHandshake(p.meta.ID)
+
+	p.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: p.meta.ID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
@@ -247,4 +234,9 @@ func (p *RemotePeer) goAwayMsg(msg string) {
 	p.log.Infof("Peer is closing since by %s ", msg)
 	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
 	p.ps.RemovePeer(p.meta.ID)
+}
+
+func (p *RemotePeer) checkProtocolVersion() error {
+	// TODO modify interface and put check code here
+	return nil
 }

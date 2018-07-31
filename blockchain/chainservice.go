@@ -189,6 +189,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Tx:  res,
 			Err: err,
 		})
+	case *message.SyncBlockState:
+		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:

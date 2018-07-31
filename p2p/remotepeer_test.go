@@ -29,7 +29,6 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 		write:        make(chan msgOrder),
 		closeWrite:   make(chan struct{}),
 		consumeChan:  make(chan string, 1),
-		hsChan:       make(chan *types.Status),
 	}
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
 	mockActorServ.On("requestSync", mock.Anything, mock.AnythingOfType("message.GetBlockRsp")).Return(dummyBestBlock, true)

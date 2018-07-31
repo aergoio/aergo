@@ -234,3 +234,22 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 
 	return rhashes, rnos
 }
+
+func (cs *ChainService) checkBlockHandshake(peerID peer.ID, bestHeight uint64, bestHash []byte) {
+	myBestBlock, err := cs.getBestBlock()
+	if err != nil {
+		cs.Logger.Errorf("Failed to get best block: %v", err.Error())
+		return
+	}
+	sameBestHash := bytes.Equal(myBestBlock.Hash, bestHash)
+	if sameBestHash && myBestBlock.GetHeader().BlockNo == bestHeight {
+		// two node has exact best block.
+		cs.Logger.Debugf("peer %s is in sync status ", peerID.Pretty())
+		return
+	} else {
+		// TODO: 다른 상황에 대한 처리를 추가하자.
+
+	}
+
+	return
+}

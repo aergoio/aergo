@@ -102,7 +102,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 
 func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	requester, ok := p.ps.GetPeer(peerID)
+	requester, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
