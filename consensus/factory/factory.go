@@ -13,6 +13,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 )
 
+var quitC = make(chan interface{})
+
 // New returns consensus.Consensus based on the configuration parameters.
 func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
 	var c consensus.Consensus

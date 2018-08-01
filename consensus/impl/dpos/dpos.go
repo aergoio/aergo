@@ -35,6 +35,7 @@ type DPoS struct {
 	bpc            *bp.Cluster
 	bf             *BlockFactory
 	onReorganizing util.BcReorgStatus
+	quit           chan interface{}
 }
 
 // Status shows DPoS consensus's current status
@@ -51,14 +52,18 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	if err != nil {
 		return nil, err
 	}
+
 	id, privKey := p2p.GetMyID()
+
+	quitC := make(chan interface{})
 
 	return &DPoS{
 		ID:             id,
 		ComponentHub:   hub,
 		bpc:            bpc,
-		bf:             NewBlockFactory(hub, id, privKey),
+		bf:             NewBlockFactory(hub, id, privKey, quitC),
 		onReorganizing: util.BcNoReorganizing,
+		quit:           quitC,
 	}, nil
 }
 
@@ -86,6 +91,12 @@ func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 func (dpos *DPoS) IsTransactionValid(tx *types.Tx) bool {
 	// TODO: put a transaction validity check code here.
 	return true
+}
+
+// QuitChan returns the channel from which consensus-related goroutines check when
+// shutdown is initiated.
+func (dpos *DPoS) QuitChan() chan interface{} {
+	return dpos.quit
 }
 
 // IsBlockValid checks the DPoS consensus level validity of a block

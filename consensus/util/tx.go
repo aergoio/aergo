@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 
+	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -27,8 +28,8 @@ func (f TxOpFn) Apply(tx *types.Tx) error {
 	return f(tx)
 }
 
-// NewTxDo returns a function which applies each function in fn.x
-func NewTxDo(fn ...TxOpFn) TxOp {
+// NewCompTxOp returns a function which applies each function in fn.
+func NewCompTxOp(fn ...TxOpFn) TxOp {
 	return TxOpFn(func(tx *types.Tx) error {
 		for _, f := range fn {
 			if err := f.Apply(tx); err != nil {
@@ -54,14 +55,15 @@ func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(txIn []*types.Tx, txDo TxOp) ([]*types.Tx, error) {
+func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, error) {
+	txIn := FetchTXs(hs)
 	if len(txIn) == 0 {
 		return txIn, nil
 	}
 
 	end := 0
 	for i, tx := range txIn {
-		err := txDo.Apply(tx)
+		err := txOp.Apply(tx)
 		if err == ErrQuit {
 			return nil, err
 		} else if err != nil {

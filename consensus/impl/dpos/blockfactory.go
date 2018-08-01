@@ -37,11 +37,12 @@ type BlockFactory struct {
 	maxBlockBodySize int
 	sID              string
 	privKey          crypto.PrivKey
+	txOp             util.TxOp
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.PrivKey) *BlockFactory {
-	return &BlockFactory{
+func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.PrivKey, quitC <-chan interface{}) *BlockFactory {
+	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		beginBlock:       make(chan *bpInfo),
@@ -49,13 +50,23 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 		maxBlockBodySize: util.MaxBlockBodySize(),
 		sID:              id.Pretty(),
 		privKey:          privKey,
+		quit:             quitC,
 	}
+
+	bf.txOp = util.NewCompTxOp(
+		// block size limit check
+		util.NewBlockLimitOp(bf.maxBlockBodySize),
+		// timeout check
+		func(txIn *types.Tx) error {
+			return bf.checkBpTimeout()
+		},
+	)
+
+	return bf
 }
 
 // Start run a DPoS block factory service.
-func (bf *BlockFactory) Start(quitC <-chan interface{}) {
-	bf.quit = quitC
-
+func (bf *BlockFactory) Start() {
 	go func() {
 		go bf.worker()
 		go bf.controller()
@@ -141,7 +152,7 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
-	txs, err := bf.gatherTXs(util.FetchTXs(bf))
+	txs, err := util.GatherTXs(bf, bf.txOp)
 	if err != nil {
 		return nil, err
 	}
@@ -165,16 +176,4 @@ func (bf *BlockFactory) checkBpTimeout() error {
 	default:
 		return nil
 	}
-}
-
-func (bf *BlockFactory) gatherTXs(txIn []*types.Tx) ([]*types.Tx, error) {
-	checkTimeout := func(txIn *types.Tx) error {
-		return bf.checkBpTimeout()
-	}
-
-	txOp := util.NewTxDo(
-		util.NewBlockLimitOp(bf.maxBlockBodySize),
-		checkTimeout)
-
-	return util.GatherTXs(txIn, txOp)
 }

@@ -31,17 +31,34 @@ type SimpleBlockFactory struct {
 	blockInterval    int64
 	maxBlockBodySize int
 	onReorganizing   util.BcReorgStatus
+	txOp             util.TxOp
+	quit             chan interface{}
 }
 
 // New returns a SimpleBlockFactory.
 func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
-	return &SimpleBlockFactory{
+	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    cfg.Consensus.BlockInterval,
 		maxBlockBodySize: util.MaxBlockBodySize(),
 		onReorganizing:   util.BcNoReorganizing,
-	}, nil
+		quit:             make(chan interface{}),
+	}
+
+	s.txOp = util.NewCompTxOp(
+		util.NewBlockLimitOp(s.maxBlockBodySize),
+		func(txIn *types.Tx) error {
+			select {
+			case <-s.quit:
+				return util.ErrQuit
+			default:
+				return nil
+			}
+		},
+	)
+
+	return s, nil
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.
@@ -68,6 +85,12 @@ func (s *SimpleBlockFactory) IsBlockValid(block *types.Block) error {
 	return nil
 }
 
+// QuitChan returns the channel from which consensus-related goroutines check
+// when shutdown is initiated.
+func (s *SimpleBlockFactory) QuitChan() chan interface{} {
+	return s.quit
+}
+
 // IsBlockReorganizing reports whether the blockchain is currently under
 // reorganization.
 func (s *SimpleBlockFactory) IsBlockReorganizing() bool {
@@ -90,23 +113,12 @@ func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 }
 
 // Start run a simple block factory service.
-func (s *SimpleBlockFactory) Start(quitC <-chan interface{}) {
-	txDo := util.NewTxDo(
-		util.NewBlockLimitOp(s.maxBlockBodySize),
-		func(txIn *types.Tx) error {
-			select {
-			case <-quitC:
-				return util.ErrQuit
-			default:
-				return nil
-			}
-		})
-
+func (s *SimpleBlockFactory) Start() {
 	for {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				txs, err := util.GatherTXs(util.FetchTXs(s), txDo)
+				txs, err := util.GatherTXs(s, s.txOp)
 				if err != nil {
 					return
 				}
@@ -117,7 +129,7 @@ func (s *SimpleBlockFactory) Start(quitC <-chan interface{}) {
 
 				util.ConnectBlock(s, block)
 			}
-		case <-quitC:
+		case <-s.quit:
 			return
 		}
 	}

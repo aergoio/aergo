@@ -10,7 +10,7 @@ import (
 )
 
 func TestGatherTXs(t *testing.T) {
-	txOp := NewTxDo(
+	txOp := NewCompTxOp(
 		func(tx *types.Tx) error {
 			fmt.Println("x")
 			return nil
@@ -24,7 +24,7 @@ func TestGatherTXs(t *testing.T) {
 }
 
 func TestGatherTXsWithError(t *testing.T) {
-	txDo := NewTxDo(
+	txDo := NewCompTxOp(
 		func(tx *types.Tx) error {
 			fmt.Println("haha")
 			return nil

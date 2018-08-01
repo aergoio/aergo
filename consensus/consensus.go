@@ -15,7 +15,6 @@ import (
 
 var (
 	logger = log.NewLogger(log.Consensus)
-	quitC  = make(chan interface{})
 )
 
 // ErrorConsensus is a basic error struct for consensus modules.
@@ -32,15 +31,13 @@ func (e ErrorConsensus) Error() string {
 	return errMsg
 }
 
-func init() {
-}
-
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainInfo
 	Ticker() *time.Ticker
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
+	QuitChan() chan interface{}
 }
 
 // ChainInfo includes chainstatus and validation API.
@@ -54,7 +51,7 @@ type ChainInfo interface {
 
 // BlockFactory is an interface for a block factory implementation.
 type BlockFactory interface {
-	Start(quitC <-chan interface{})
+	Start()
 	JobQueue() chan<- interface{}
 }
 
@@ -65,7 +62,7 @@ func Start(c Consensus) {
 		logger.Errorf("failed to start consensus service (no Consensus or BlockFactory)")
 	}
 
-	go bf.Start(quitC)
+	go bf.Start()
 
 	go func() {
 		ticker := c.Ticker()
@@ -76,7 +73,7 @@ func Start(c Consensus) {
 
 			c.QueueJob(now, bf.JobQueue())
 			select {
-			case <-quitC:
+			case <-c.QuitChan():
 				return
 			default:
 			}
@@ -85,6 +82,6 @@ func Start(c Consensus) {
 }
 
 // Stop shutdown consensus service.
-func Stop() {
-	close(quitC)
+func Stop(c Consensus) {
+	close(c.QuitChan())
 }
