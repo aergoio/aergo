@@ -81,9 +81,9 @@ import:
   version: 1b2967e3c290b7c545b3db0deeda16e9be4f98a2
 - package: github.com/davecgh/go-spew
   version: ~1.1.0
-- package: github.com/zalando/go-keyring
 - package: github.com/mattn/go-colorable
   version: ~0.0.9
+- package: github.com/rcrowley/go-metrics
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2
