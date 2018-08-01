@@ -53,6 +53,18 @@ func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
 	})
 }
 
+// GenerateBlock generate & return a new block
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp) (*types.Block, error) {
+	txs, err := GatherTXs(hs, txOp)
+	if err != nil {
+		return nil, err
+	}
+
+	block := types.NewBlock(prevBlock, txs)
+
+	return block, nil
+}
+
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
 func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, error) {
@@ -67,8 +79,11 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, error) 
 		if err == ErrQuit {
 			return nil, err
 		} else if err != nil {
-			// TODO: Currently, there's only break condition. Later skip
-			// conditions may be needed.
+			// Actually, this is not an error. Here the error is used to
+			// indicate the block production timeout.
+			//
+			// TODO: Currently, there's only loop break condition except for
+			// ErrQuit. Later skip conditions may be needed.
 			break
 		}
 		end = i
