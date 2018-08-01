@@ -59,7 +59,7 @@ type BlockFactory interface {
 func Start(c Consensus) {
 	bf := c.BlockFactory()
 	if c == nil || bf == nil {
-		logger.Errorf("failed to start consensus service (no Consensus or BlockFactory)")
+		logger.Fatal("failed to start consensus service: no Consensus or BlockFactory")
 	}
 
 	go bf.Start()
