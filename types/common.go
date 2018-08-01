@@ -1,0 +1,3 @@
+package types
+
+const MAXBLOCKNO BlockNo = 18446744073709551615

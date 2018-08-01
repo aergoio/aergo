@@ -56,7 +56,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	if cs.ChainInfo != nil {
 		if err := cs.IsBlockValid(nblock); err != nil {
 			logger.Infof("failed to add block: %v", err.Error())
-			return err
+			//			return err
 		}
 	}
 
@@ -185,7 +185,13 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]message.BlockHash, []types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
 	logger.Debugf("handle missing stop=%v len of hash=%d", hex.EncodeToString(stopHash), len(Hashes))
-	stopBlock, err := cs.cdb.getBlock(stopHash)
+	var stopBlock *types.Block
+	var err error
+	if stopHash == nil {
+		stopBlock, err = cs.getBestBlock()
+	} else {
+		stopBlock, err = cs.cdb.getBlock(stopHash)
+	}
 	if err != nil {
 		return nil, nil
 	}
@@ -229,7 +235,8 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 		tBlock, _ := cs.getBlockByNo(types.BlockNo(mainBlockNo + i))
 		rhashes = append(rhashes, message.BlockHash(tBlock.Hash))
 		rnos = append(rnos, types.BlockNo(tBlock.GetHeader().GetBlockNo()))
-		logger.Debugf("append hash=%v header=%v for replying missing tree", hex.EncodeToString(tBlock.Hash), tBlock.GetHeader())
+		logger.Debugf("append hash=%v no=%v for replying missing tree", hex.EncodeToString(tBlock.Hash),
+			tBlock.GetHeader().GetBlockNo())
 	}
 
 	return rhashes, rnos
@@ -242,13 +249,12 @@ func (cs *ChainService) checkBlockHandshake(peerID peer.ID, bestHeight uint64, b
 		return
 	}
 	sameBestHash := bytes.Equal(myBestBlock.Hash, bestHash)
-	if sameBestHash && myBestBlock.GetHeader().BlockNo == bestHeight {
+	if sameBestHash {
 		// two node has exact best block.
+		// TODO: myBestBlock.GetHeader().BlockNo == bestHeight
 		cs.Logger.Debugf("peer %s is in sync status ", peerID.Pretty())
-		return
-	} else {
-		// TODO: 다른 상황에 대한 처리를 추가하자.
-
+	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < bestHeight {
+		cs.ChainSync(peerID)
 	}
 
 	return

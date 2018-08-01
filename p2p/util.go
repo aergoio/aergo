@@ -139,8 +139,8 @@ func warnLogUnknownPeer(logger log.ILogger, protocol protocol.ID, peerID peer.ID
 func debugLogReceiveMsg(logger log.ILogger, protocol protocol.ID, msgID string, peerID peer.ID,
 	additional interface{}) {
 	if additional != nil {
-		logger.Debugf("Received %v:%s request from %s. %v", protocol, msgID, peerID.Pretty(),
-			additional)
+		//		logger.Debugf("Received %v:%s request from %s. %v", protocol, msgID, peerID.Pretty(),
+		//			additional)
 	} else {
 		logger.Debugf("Received %v:%s request from %s", protocol, msgID, peerID.Pretty())
 	}

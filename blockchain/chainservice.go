@@ -7,7 +7,7 @@ package blockchain
 
 import (
 	"encoding/hex"
-	"reflect"
+	//"reflect"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
 	cfg "github.com/aergoio/aergo/config"
@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 type ChainService struct {
@@ -76,6 +77,19 @@ func (cs *ChainService) Start() {
 	}
 
 	return
+}
+
+// Sync with peer
+func (cs *ChainService) ChainSync(peerID peer.ID) {
+	// handlt it like normal block (orphan)
+	logger.Debugf("Best Block Request")
+	anchors := cs.getAnchorsFromHash(nil)
+	hashes := make([]message.BlockHash, 0)
+	for _, a := range anchors {
+		hashes = append(hashes, message.BlockHash(a))
+		logger.Debugf("request blocks for sync: (%v)")
+	}
+	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
 }
 
 // SetValidationAPI send the Validation v of the chosen Consensus to ChainService cs.
@@ -194,9 +208,9 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
-		logger.Debugf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
+		//logger.Debugf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
 	default:
-		logger.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
+		//logger.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 	}
 }
 

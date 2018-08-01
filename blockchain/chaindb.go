@@ -274,23 +274,23 @@ func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, hex.EncodeToString(blockHash))
+	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, hex.EncodeToString(blockHash))
 	return cdb.getBlock(blockHash)
 }
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
+	if blockHash == nil {
+		return nil, fmt.Errorf("block hash invalid(nil)")
+	}
 	buf := types.Block{}
 	err := cdb.loadData(blockHash, &buf)
 	if err != nil {
 		return nil, fmt.Errorf("block not found: blockHash=%v", hex.EncodeToString(blockHash))
 	}
 
-	logger.Debugf("getblockbyHash Hash=%v", hex.EncodeToString(blockHash))
+	//logger.Debugf("getblockbyHash Hash=%v", hex.EncodeToString(blockHash))
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
-	if blockNo < 0 {
-		return nil, fmt.Errorf("invalid block range: blockNo=%d", blockNo)
-	}
 	blockKey := ItobU64(uint64(blockNo))
 	blockHash := cdb.store.Get(blockKey)
 	if blockHash == nil || len(blockHash) == 0 {
