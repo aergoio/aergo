@@ -17,11 +17,16 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+var (
+	logger = log.NewLogger(log.RPC)
 )
 
 // AergoRPCService implements GRPC server which is defined in rpc.proto
@@ -376,6 +381,40 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 	rsp := result.(*message.GetPeersRsp)
 
 	return &types.PeerList{Peers: rsp.Peers}, nil
+}
+
+// State handle rpc request state
+func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.Empty) (*types.NodeStatus, error) {
+	//result, err := rpc.hub.RequestFuture(message.P2PSvc,
+	status := rpc.hub.Status()
+
+	result := &types.NodeStatus{}
+	for k, v := range status {
+		module := &types.ModuleStatus{
+			Name: k,
+		}
+		for ik, iv := range v.GetAll() {
+			for iik, iiv := range iv {
+				var stat float64
+				switch value := iiv.(type) {
+				case int64:
+					stat = float64(value)
+				case float64:
+					stat = value
+				default:
+					logger.Warnf("unresolve value in  node state: %v", value)
+				}
+				internal := &types.InternalStat{
+					Name: ik + "/" + iik,
+					Stat: stat,
+				}
+				module.Stat = append(module.Stat, internal)
+			}
+		}
+		result.Status = append(result.Status, module)
+	}
+
+	return result, nil
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {

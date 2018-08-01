@@ -13,7 +13,7 @@ type StatusRsp struct {
 	MsgNum map[string]int
 }
 
-type Status int
+type Status = int
 
 const (
 	StartedStatus Status = 1 + iota

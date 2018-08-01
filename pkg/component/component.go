@@ -7,7 +7,6 @@ package component
 
 import (
 	"container/list"
-	"reflect"
 	"time"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
@@ -47,7 +46,7 @@ func (base *BaseComponent) GetName() string {
 func (base *BaseComponent) Start(inheritant IComponent) {
 	workerProps := actor.FromInstance(inheritant)
 	if base.enableDebugMsg {
-		workerProps = workerProps.WithMiddleware(base.MsgInCounter)
+		workerProps = workerProps.WithMailbox(newMailBoxLogger(base.hub.Metrics(base.name)))
 	}
 	base.pid = actor.Spawn(workerProps)
 	// Wait for the messaging hub to be fully initilized. - Incomplete
@@ -92,18 +91,6 @@ func (base *BaseComponent) Hub() *ComponentHub {
 
 func (base *BaseComponent) Receive(context actor.Context) {
 
-	if base.enableDebugMsg {
-		typeName := reflect.TypeOf(context.Message()).String()
-
-		tsList := base.msgCount[typeName]
-		elem := tsList.Front()
-
-		if elem != nil {
-			base.lastHandleMsgTs = elem.Value.(int64)
-			tsList.Remove(elem)
-		}
-	}
-
 	switch context.Message().(type) {
 
 	case *actor.Started:
@@ -121,42 +108,5 @@ func (base *BaseComponent) Receive(context actor.Context) {
 	case *actor.Restarting:
 		//base.Info("Restarting, actor is about restart")
 		base.status = RestartingStatus
-
-	case *StatusReq:
-		msgNumMap := make(map[string]int)
-		for typeName, tsList := range base.msgCount {
-			msgNumMap[typeName] = tsList.Len()
-		}
-
-		if base.enableDebugMsg {
-			context.Respond(&StatusRsp{
-				MsgNum: msgNumMap,
-				MsgLat: time.Now().UnixNano() - base.lastHandleMsgTs,
-				Status: base.status,
-			})
-		} else {
-			context.Respond(&StatusRsp{
-				Status: base.status,
-			})
-		}
 	}
-}
-
-func (base *BaseComponent) MsgInCounter(next actor.ActorFunc) actor.ActorFunc {
-	fn := func(context actor.Context) {
-		typeName := reflect.TypeOf(context.Message()).String()
-
-		var tsList *list.List
-		var contains bool
-		if tsList, contains = base.msgCount[typeName]; !contains {
-			tsList = list.New()
-			base.msgCount[typeName] = tsList
-		}
-
-		tsList.PushBack(time.Now().UnixNano())
-
-		next(context)
-	}
-
-	return fn
 }

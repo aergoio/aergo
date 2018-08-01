@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
@@ -19,6 +20,7 @@ type ICompSyncRequester interface {
 
 type ComponentHub struct {
 	components map[string]IComponent
+	status     map[string]metrics.Registry
 }
 
 type hubInitSync struct {
@@ -31,8 +33,8 @@ var hubInit hubInitSync
 func NewComponentHub() *ComponentHub {
 	hub := ComponentHub{
 		components: make(map[string]IComponent),
+		status:     make(map[string]metrics.Registry),
 	}
-
 	return &hub
 }
 
@@ -67,23 +69,16 @@ func (hub *ComponentHub) Stop() {
 
 func (hub *ComponentHub) Register(component IComponent) {
 	hub.components[component.GetName()] = component
+	hub.status[component.GetName()] = metrics.NewRegistry()
 	component.SetHub(hub)
 }
 
-func (hub *ComponentHub) Status() (map[string]*StatusRsp, error) {
-	var retCompStatus map[string]*StatusRsp
-	retCompStatus = make(map[string]*StatusRsp)
+func (hub *ComponentHub) Metrics(name string) metrics.Registry {
+	return hub.status[name]
+}
 
-	for _, comp := range hub.components {
-		// todo Masure time spent and add to result
-		rawResponse, err := comp.RequestFuture(&StatusReq{}, time.Second*10).Result()
-		if err != nil {
-			return nil, err
-		}
-		retCompStatus[comp.GetName()] = rawResponse.(*StatusRsp)
-	}
-
-	return retCompStatus, nil
+func (hub *ComponentHub) Status() map[string]metrics.Registry {
+	return hub.status
 }
 
 func (hub *ComponentHub) Request(targetName string, message interface{}, sender IComponent) {

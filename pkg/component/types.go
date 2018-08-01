@@ -14,6 +14,7 @@ import (
 
 type IComponent interface {
 	GetName() string
+
 	Start()
 	Stop()
 	Request(message interface{}, sender IComponent)

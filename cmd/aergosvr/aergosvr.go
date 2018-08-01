@@ -121,15 +121,5 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// wait... TODO need to break out when system finished.
 	for {
 		time.Sleep(time.Minute)
-		if cfg.EnableDebugMsg {
-			status, err := compMng.Status()
-			if err != nil {
-				svrlog.Errorf("Status Request Timeout (10s). Some component is to slow: %v", err)
-			} else {
-				for compName, statusRsp := range status {
-					svrlog.Debugf("Msg Status of %s: %+v", compName, *statusRsp)
-				}
-			}
-		}
 	}
 }
