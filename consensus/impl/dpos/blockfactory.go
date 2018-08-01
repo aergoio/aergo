@@ -22,16 +22,13 @@ const (
 	slotQueueMax = 100
 )
 
-var (
-	errBpTimeout = errors.New("block production timeout")
-	errQuit      = errors.New("shutdown initiated")
-)
+var errBpTimeout = errors.New("block production timeout")
 
 // BlockFactory is the main data structure for DPoS block factory.
 type BlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
-	beginBlock       chan *bpInfo
+	workerQueue      chan *bpInfo
 	bpTimeoutC       chan interface{}
 	quit             <-chan interface{}
 	maxBlockBodySize int
@@ -45,7 +42,7 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
-		beginBlock:       make(chan *bpInfo),
+		workerQueue:      make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
 		maxBlockBodySize: util.MaxBlockBodySize(),
 		sID:              id.Pretty(),
@@ -83,12 +80,12 @@ func (bf *BlockFactory) controller() {
 		// This is only for draining an unconsumed message, which means
 		// the previous block is generated within timeout. This code
 		// is needed since an empty block will be generated without it.
-		if err := bf.checkBpTimeout(); err == errQuit {
+		if err := bf.checkBpTimeout(); err == util.ErrQuit {
 			return err
 		}
 
 		select {
-		case bf.beginBlock <- bpi:
+		case bf.workerQueue <- bpi:
 		default:
 			logger.Errorf(
 				"skip block production for the slot %v (best block: %v) due to a pending job",
@@ -117,7 +114,7 @@ func (bf *BlockFactory) controller() {
 					return spew.Sdump(bpi.slot)
 				}))
 
-			if err := beginBlock(bpi); err == errQuit {
+			if err := beginBlock(bpi); err == util.ErrQuit {
 				return
 			}
 
@@ -132,9 +129,9 @@ func (bf *BlockFactory) controller() {
 func (bf *BlockFactory) worker() {
 	for {
 		select {
-		case bpi := <-bf.beginBlock:
+		case bpi := <-bf.workerQueue:
 			block, err := bf.generateBlock(bpi)
-			if err == errQuit {
+			if err == util.ErrQuit {
 				return
 			} else if err != nil {
 				logger.Infof("failed to produce block: %s", err.Error())
@@ -168,7 +165,7 @@ func (bf *BlockFactory) checkBpTimeout() error {
 	case <-bf.bpTimeoutC:
 		return errBpTimeout
 	case <-bf.quit:
-		return errQuit
+		return util.ErrQuit
 	default:
 		return nil
 	}
