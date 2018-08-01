@@ -133,16 +133,14 @@ func (bf *BlockFactory) worker() {
 	for {
 		select {
 		case bpi := <-bf.beginBlock:
-			if err := bf.checkBpTimeout(); err != nil {
-				continue
-			}
-
 			block, err := bf.generateBlock(bpi)
 			if err == errQuit {
 				return
+			} else if err != nil {
+				logger.Infof("failed to produce block: %s", err.Error())
+				continue
 			}
 
-			// TODO: Send the generated block to ChainManager.
 			util.ConnectBlock(bf, block)
 
 		case <-bf.quit:
@@ -152,12 +150,10 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
-	txs, err := util.GatherTXs(bf, bf.txOp)
+	block, err := util.GenerateBlock(bf, bpi.bestBlock, bf.txOp)
 	if err != nil {
 		return nil, err
 	}
-
-	block := types.NewBlock(bpi.bestBlock, txs)
 	if err := block.Sign(bf.privKey); err != nil {
 		return nil, err
 	}

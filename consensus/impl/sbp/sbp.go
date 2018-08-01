@@ -118,14 +118,14 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				txs, err := util.GatherTXs(s, s.txOp)
-				if err != nil {
+				block, err := util.GenerateBlock(s, prevBlock, s.txOp)
+				if err == util.ErrQuit {
 					return
+				} else if err != nil {
+					logger.Infof("failed to produce block: %s", err.Error())
+					continue
 				}
-
-				block := types.NewBlock(prevBlock, txs)
-				logger.Infof("block produced: no=%d, hash=%v",
-					block.GetHeader().GetBlockNo(), block.ID())
+				logger.Infof("block produced: no=%d, hash=%v", block.GetHeader().GetBlockNo(), block.ID())
 
 				util.ConnectBlock(s, block)
 			}
