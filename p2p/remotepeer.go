@@ -176,6 +176,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.log.Warn(err.Error())
 		return
 	}
+	defer s.Close()
 
 	err = m.SendOver(s)
 	if err != nil {
