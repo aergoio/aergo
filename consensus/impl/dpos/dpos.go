@@ -106,9 +106,13 @@ func (dpos *DPoS) IsBlockValid(block *types.Block) error {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	if !dpos.bpc.Has(id) {
+	sec := block.GetHeader().GetTimestamp()
+
+	// Check whether the BP ID belongs to those of the current BP members and
+	// its corresponding BP index is consistent with the block timestamp.
+	if idx, ok := dpos.bpc.BpID2Index(id); !ok || !slot.Unix(sec).IsFor(idx) {
 		return &consensus.ErrorConsensus{
-			Msg: fmt.Sprintf("BP %v not in an BP cluster", id.Pretty()),
+			Msg: fmt.Sprintf("BP %v is not permitted for the time slot %v", block.ID(), time.Unix(sec, 0)),
 		}
 	}
 
