@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// collect all component's statuses
-	statusMap, _ := compHub.Status()
+	statusMap := compHub.Status()
 	fmt.Println(statusMap)
 
 	compHub.Stop()
