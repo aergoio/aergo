@@ -1,5 +1,5 @@
-hash: 73e223c1fbd4a9aa79441ebf807c20f918693bdd486088417abf702aa042e628
-updated: 2018-07-23T10:39:54.392202+09:00
+hash: 84bf99a9b738c3a3d8a6d68fba98664e0158692eea7c408b635c44de2dd8118d
+updated: 2018-08-02T15:10:49.032935773+09:00
 imports:
 - name: github.com/agl/ed25519
   version: 5312a61534124124185d41f09206b9fef1d88403
@@ -246,6 +246,8 @@ imports:
   version: 603baefff989777996bf283da430d693e78eba3a
 - name: github.com/pkg/errors
   version: 816c9085562cd7ee03e7f8188a1cfd942858cded
+- name: github.com/rcrowley/go-metrics
+  version: e2704e165165ec55d062f5919b4b29494e9fa790
 - name: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
@@ -290,8 +292,6 @@ imports:
   - queue
 - name: github.com/x-cray/logrus-prefixed-formatter
   version: bb2702d423886830dee131692131d35648c382e2
-- name: github.com/zalando/go-keyring
-  version: 6d81c293b3fbc8a9b1bcf4bc9c167c2e1d1f52cf
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
@@ -383,3 +383,5 @@ testImports:
   subpackages:
   - assert
   - mock
+  - require
+  - suite
