@@ -135,6 +135,8 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, bc
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderKey, senderState.ToString(),
 	// 	receiverKey, receiverState.ToString())
+	cs.cdb.addTx(dbtx, tx, blockHash, idx)
+
 	return nil
 }
 
