@@ -115,7 +115,7 @@ func (ns *P2P) Receive(context actor.Context) {
 	case *message.GetMissingBlocks:
 		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	default:
-		ns.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
+		ns.Debug("unhandled message:", reflect.TypeOf(msg).String())
 	}
 }
 
