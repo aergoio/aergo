@@ -47,6 +47,15 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 		binary.LittleEndian.PutUint64(b, uint64(number))
 		blockQuery = b
 	} else {
+
+		if len(hash)%4 > 0 {
+			toAdd := 4 - len(hash)%4
+			for toAdd > 0 {
+				hash = hash + "="
+				toAdd--
+			}
+			fmt.Printf("Trying to append change input to %s by appending filling char =\n", hash)
+		}
 		decoded, err := util.DecodeB64(hash)
 		if err != nil {
 			fmt.Printf("decode error: %s", err.Error())
