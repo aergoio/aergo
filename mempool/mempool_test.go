@@ -7,16 +7,15 @@ package mempool
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"math/rand"
-	"testing"
-
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
+	"math/rand"
+	"testing"
 )
 
 const (
-	maxAccount   = 10
-	maxRecipient = 10
+	maxAccount   = 1000
+	maxRecipient = 1000
 )
 
 var (
@@ -193,6 +192,45 @@ func TestOrphanTransaction(t *testing.T) {
 	}
 
 }
+func TestBasics2(t *testing.T) {
+	initTest()
+	defer deinitTest()
+	txs := make([]*types.Tx, 0)
+
+	accCount := 1
+	txCount := 100
+	nonce := make([]uint64, txCount)
+	for i := 0; i < txCount; i++ {
+		nonce[i] = uint64(i + 1)
+		//nonce[i] = uint64(txCount -i+1)
+	}
+	for i := 0; i < accCount; i++ {
+		rand.Shuffle(txCount, func(i, j int) {
+			nonce[i], nonce[j] = nonce[j], nonce[i]
+		})
+		for j := 0; j < txCount; j++ {
+			tmp := genTx(i, 0, nonce[j], uint64(i+1))
+			txs = append(txs, tmp)
+		}
+	}
+
+	for _, tx := range txs {
+		errs := pool.puts(tx)
+
+		if errs[0] != nil {
+			t.Errorf("th - tx should be added(%s),", errs)
+		}
+	}
+
+	txsMempool, err := pool.get()
+	if err != nil {
+		t.Errorf("Getting tx should be succeeded, %s", err)
+	}
+	t.Log(len(txsMempool))
+	if !sameTxs(txs, txsMempool) {
+		t.Error("should be same")
+	}
+}
 
 // gen sequential transactions
 // check mempool internal states
@@ -201,11 +239,12 @@ func TestBasics(t *testing.T) {
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
-	accCount := 10
+	accCount := 500
 	txCount := 1000
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)
+		//nonce[i] = uint64(txCount -i+1)
 	}
 	for i := 0; i < accCount; i++ {
 		rand.Shuffle(txCount, func(i, j int) {
@@ -223,7 +262,7 @@ func TestBasics(t *testing.T) {
 	}
 	for i := 0; i < len(errs); i++ {
 		if errs[i] != nil {
-			t.Errorf("%dth - tx should be added,", i)
+			t.Errorf("%dth - tx should be added(%s),", i, errs[i])
 		}
 	}
 	txsMempool, err := pool.get()

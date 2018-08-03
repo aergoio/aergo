@@ -37,8 +37,7 @@ type MemPool struct {
 
 	orphan     int
 	cache      map[types.TransactionKey]*types.Tx
-	pool       map[types.AccountKey]*MemPoolList
-	pending    map[types.AccountKey]*MemPoolList
+	pool       map[types.AccountKey]*TxList
 	stateCache map[types.AccountKey]*types.State
 
 	// misc configs
@@ -53,8 +52,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger(log.MemPoolSvc), cfg.EnableDebugMsg),
 		cfg:           cfg,
 		cache:         map[types.TransactionKey]*types.Tx{},
-		pool:          map[types.AccountKey]*MemPoolList{},
-		pending:       map[types.AccountKey]*MemPoolList{},
+		pool:          map[types.AccountKey]*TxList{},
 		stateCache:    map[types.AccountKey]*types.State{},
 		//testConfig:    true, // FIXME test config should be removed
 	}
@@ -75,7 +73,6 @@ func (mp *MemPool) Start() {
 		rsp := result.(message.GetBestBlockNoRsp)
 		mp.curBestBlockNo = rsp.BlockNo*/
 	}
-	//mp.SetLevel("debug")
 	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
@@ -86,6 +83,10 @@ func (mp *MemPool) Start() {
 		}()
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
+}
+
+func (mp *MemPool) Stop() {
+	mp.Info("TODO: dump txs into files")
 }
 
 // Size returns current maintaining number of transactions
@@ -133,7 +134,7 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 	count := 0
 	txs := make([]*types.Tx, 0)
 	for _, list := range mp.pool {
-		for _, v := range list.GetAll() {
+		for _, v := range list.Get() {
 			txs = append(txs, v)
 			count++
 		}
@@ -148,46 +149,33 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
 	key := types.ToTransactionKey(tx.Hash)
+	acc := tx.GetBody().GetAccount()
+
+	//n := tx.GetBody().GetNonce()
+	//mp.Debugf("tx adding into mempool (%d)%s", n, key)
 	mp.Lock()
 	defer mp.Unlock()
-
-	//mp.Debugf("tx adding into mempool <-[%s]", tx.GetBody().String())
 	if _, found := mp.cache[key]; found {
 		return message.ErrTxAlreadyInMempool
 	}
-	err := mp.validate(tx)
+	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
-	acc := tx.GetBody().GetAccount()
-	list, err := mp.acquireMemPoolList(acc, false)
-	if err != nil {
-		return err
-	}
-	if err := list.Put(tx); err != nil {
-		if err != message.ErrTxNonceToohigh {
-			return err
-		}
-		orphan, err := mp.acquireMemPoolList(acc, true)
-		if err != nil {
-			return err
-		}
-		if err = orphan.Put(tx); err != nil {
-			return err
-		}
-		mp.orphan++
-	} else {
-		err = mp.rearrange(acc)
-		if err != nil {
-			panic(err)
-		}
 
+	err = mp.validate(tx)
+	if err != nil {
+		return err
 	}
+	err, diff := list.Put(tx)
+	if err != nil {
+		mp.Debug(err)
+		return err
+	}
+	mp.orphan -= diff
 	mp.cache[key] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
 
-	//TODO go routine for shootint tx top2p component
-	// FIXME must solve pingpong problem (in here or in p2p module)
 	if !mp.testConfig {
 		mp.notifyNewTx(*tx)
 	}
@@ -200,35 +188,6 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 		errs[i] = mp.put(tx)
 	}
 	return errs
-}
-
-func (mp *MemPool) adjust(acc []byte, n uint64, bal uint64) {
-	key := types.ToAccountKey(acc)
-	adjust := false
-
-	if orphan, ok := mp.pending[key]; ok {
-		tmp := orphan.SetMinNonce(n)
-		mp.orphan -= tmp
-		if orphan.Len() > 0 {
-			tmp := orphan.FilterByPrice(bal)
-			mp.orphan -= tmp
-			adjust = true
-		} else {
-			delete(mp.pending, key)
-		}
-	}
-	if list, ok := mp.pool[key]; ok {
-		list.SetMinNonce(n)
-		adjust = true
-	}
-	if adjust {
-		err := mp.rearrange(acc)
-		if err == nil && mp.pool[key].Len() == 0 {
-			mp.Debugf("pool for %s deleted", acc)
-			delete(mp.pool, key)
-		}
-
-	}
 }
 
 // input tx based ? or pool based?
@@ -249,18 +208,15 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 				mp.Error("getting Account status failed:", err)
 				// TODO : ????
 			}
-			mp.adjust(acc, ns.Nonce, ns.Balance)
+			list, err := mp.acquireMemPoolList(acc)
+			if err == nil {
+				mp.orphan -= list.SetMinNonce(ns.Nonce + 1)
+			}
+
 			accSet[key] = true
 		}
 		delete(mp.cache, h) // need lock
 	}
-	/*
-		mp.Debugf(" #######middle#########", blockNo)
-		for k, v := range addrBalMap {
-			mp.Debugf("k:%s bal:%d, nonce:%d", k, v, addrNonceMap[k])
-		}
-		mp.Debugf(" #######end -middle#########", blockNo)
-	*/
 	return nil
 
 }
@@ -293,28 +249,6 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 	return nil
 }
 
-//already has lock
-func (mp *MemPool) rearrange(acc []byte) error {
-	key := types.ToAccountKey(acc)
-	orphan := mp.getMemPoolList(acc, true)
-	if orphan == nil {
-		return nil
-	}
-	ready, err := mp.acquireMemPoolList(acc, false)
-	if err != nil {
-		return err
-	}
-	merged, err := ready.Merge(orphan)
-	if err != nil {
-		return err
-	}
-	mp.orphan -= merged
-	if orphan.Len() == 0 {
-		delete(mp.pending, key)
-		mp.Debugf("pending for %s deleted", acc)
-	}
-	return nil
-}
 func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
@@ -324,36 +258,25 @@ func (mp *MemPool) exists(hash []byte) *types.Tx {
 	return nil
 }
 
-func (mp *MemPool) acquireMemPoolList(acc []byte, orphan bool) (*MemPoolList, error) {
-	list := mp.getMemPoolList(acc, orphan)
+func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
+	list := mp.getMemPoolList(acc)
 	if list != nil {
 		return list, nil
 	}
-	m := mp.pool
-	if orphan {
-		m = mp.pending
-	}
-
 	var nonce uint64
-	if !orphan {
-		ns, err := mp.getAccountState(acc, false)
-		if err != nil {
-			return nil, err
-		}
-		nonce = ns.Nonce
+	ns, err := mp.getAccountState(acc, false)
+	if err != nil {
+		return nil, err
 	}
+	nonce = ns.Nonce
 
 	key := types.ToAccountKey(acc)
-	m[key] = NewMemPoolList(nonce+1, !orphan)
-	return m[key], nil
+	mp.pool[key] = NewTxList(nonce + 1)
+	return mp.pool[key], nil
 }
-func (mp *MemPool) getMemPoolList(acc []byte, orphan bool) *MemPoolList {
+func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	key := types.ToAccountKey(acc)
-	m := mp.pool
-	if orphan {
-		m = mp.pending
-	}
-	return m[key]
+	return mp.pool[key]
 }
 func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
 	result, err := mp.Hub().RequestFuture(message.ChainSvc,
