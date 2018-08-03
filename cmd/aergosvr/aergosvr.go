@@ -77,7 +77,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	if cfg.EnableProfile {
 		svrlog.Info("Enable Profiling on localhost:", cfg.ProfilePort)
 		go func() {
-			svrlog.Info(http.ListenAndServe(fmt.Sprintf("localhost:%d", cfg.ProfilePort), nil))
+			svrlog.Info(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil))
 		}()
 	}
 
