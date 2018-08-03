@@ -85,6 +85,7 @@ func (mp *MemPool) Start() {
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
 
+// Stop handles clean-up for mempool service
 func (mp *MemPool) Stop() {
 	mp.Info("TODO: dump txs into files")
 }
@@ -167,7 +168,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	err, diff := list.Put(tx)
+	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Debug(err)
 		return err
@@ -274,10 +275,12 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 	mp.pool[key] = NewTxList(nonce + 1)
 	return mp.pool[key], nil
 }
+
 func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	key := types.ToAccountKey(acc)
 	return mp.pool[key]
 }
+
 func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
 	result, err := mp.Hub().RequestFuture(message.ChainSvc,
 		&message.GetState{Account: acc}, time.Second).Result()
@@ -291,6 +294,7 @@ func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
 	mp.stateCache[types.ToAccountKey(acc)] = rsp.State
 	return rsp.State, nil
 }
+
 func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, error) {
 	if mp.testConfig {
 		strAcc := hex.EncodeToString(acc)
