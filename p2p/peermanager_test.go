@@ -297,7 +297,7 @@ func (_m *MockP2PService) GetPeers() []*RemotePeer {
 }
 
 // GetPeerAddresses provides a mock function with given fields:
-func (_m *MockP2PService) GetPeerAddresses() []*types.PeerAddress {
+func (_m *MockP2PService) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState) {
 	ret := _m.Called()
 
 	var r0 []*types.PeerAddress
@@ -309,7 +309,14 @@ func (_m *MockP2PService) GetPeerAddresses() []*types.PeerAddress {
 		}
 	}
 
-	return r0
+	var r1 []types.PeerState
+	if rf, ok := ret.Get(1).(func() []types.PeerState); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).([]types.PeerState)
+	}
+
+	return r0, r1
 }
 
 // GetStatus provides a mock function with given fields:

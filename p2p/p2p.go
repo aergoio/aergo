@@ -110,8 +110,8 @@ func (ns *P2P) Receive(context actor.Context) {
 	case *message.NotifyNewTransactions:
 		ns.txs.NotifyNewTX(*msg)
 	case *message.GetPeers:
-		peers := ns.p2ps.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers})
+		peers, states := ns.p2ps.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	case *message.GetMissingBlocks:
 		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	default:

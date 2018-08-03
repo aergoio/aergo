@@ -66,7 +66,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
 	GetPeers() []*RemotePeer
-	GetPeerAddresses() []*types.PeerAddress
+	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 
 	// deprecated methods... use sendmessage helper functions instead
 	NewMessageData(messageID string, gossip bool) *types.MessageData
@@ -683,13 +683,15 @@ func (ps *peerManager) GetPeers() []*RemotePeer {
 	return peers
 }
 
-func (ps *peerManager) GetPeerAddresses() []*types.PeerAddress {
+func (ps *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState) {
 	peers := make([]*types.PeerAddress, 0, len(ps.remotePeers))
+	states := make([]types.PeerState, 0, len(ps.remotePeers))
 	for _, aPeer := range ps.remotePeers {
 		addr := aPeer.meta.ToPeerAddress()
 		peers = append(peers, &addr)
+		states = append(states, aPeer.status)
 	}
-	return peers
+	return peers, states
 }
 
 // ConnNotifee listen event of libp2p connection

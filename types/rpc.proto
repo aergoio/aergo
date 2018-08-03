@@ -121,6 +121,7 @@ message Personal {
 
 message PeerList {
   repeated PeerAddress peers= 1;
+  repeated int32 states = 2;
 }
 
 message ListParams {

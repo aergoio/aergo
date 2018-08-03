@@ -379,8 +379,12 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 		return nil, err
 	}
 	rsp := result.(*message.GetPeersRsp)
+	states := make([]int32, len(rsp.States))
+	for i, state := range rsp.States {
+		states[i] = int32(state)
+	}
 
-	return &types.PeerList{Peers: rsp.Peers}, nil
+	return &types.PeerList{Peers: rsp.Peers, States: states}, nil
 }
 
 // State handle rpc request state

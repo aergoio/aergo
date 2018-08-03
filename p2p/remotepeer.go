@@ -16,19 +16,6 @@ import (
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
-// PeerStatus shows running status of peer
-type PeerStatus int32
-
-// indicating status of remote peer
-const (
-	DISCONNECTED = iota
-	// STARTING means connection is estabished, but not fully handshaked yet.
-	STARTING
-	// RUNNING means normally workings now
-	RUNNING
-	STOPPED
-)
-
 const defaultPingInterval = time.Second * 60
 
 // RemotePeer represent remote peer to which is connected
@@ -37,7 +24,7 @@ type RemotePeer struct {
 	pingDuration time.Duration
 
 	meta      PeerMeta
-	status    PeerStatus
+	status    types.PeerState
 	actorServ ActorService
 	ps        PeerManager
 	stopChan  chan struct{}
@@ -68,7 +55,7 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.
 	return RemotePeer{
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
-		status:       STARTING,
+		status:       types.STARTING,
 		stopChan:     make(chan struct{}),
 		write:        make(chan msgOrder),
 		closeWrite:   make(chan struct{}),
@@ -91,7 +78,7 @@ RUNLOOP:
 		// case hsMsg := <-p.hsChan:
 		// 	p.startHandshake(hsMsg)
 		case <-p.stopChan:
-			p.status = STOPPED
+			p.status = types.STOPPED
 			break RUNLOOP
 		}
 	}
@@ -133,7 +120,7 @@ func (p *RemotePeer) consumeRequest(requestID string) {
 
 // startHandshake is run only in AergoPeer.RunPeer go routine
 func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
-	if p.status != STARTING {
+	if p.status != types.STARTING {
 		p.goAwayMsg("Invalid status msg")
 		return
 	}
@@ -153,7 +140,7 @@ func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
 
 	// If all checked and validated. it's now handshaked. and then run sync.
 	p.log.Infof("peer %s is handshaked and now running status", p.meta.ID.Pretty())
-	p.status = RUNNING
+	p.status = types.RUNNING
 
 	// notice to p2pmanager that handshaking is finished
 	p.ps.NotifyPeerHandshake(p.meta.ID)

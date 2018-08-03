@@ -16,7 +16,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -40,18 +40,20 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	}
 	defer client.Close()
 
-	msg2, err := client.GetPeers(context.Background(), &aergorpc.Empty{})
+	msg2, err := client.GetPeers(context.Background(), &types.Empty{})
 	if err != nil {
 		fmt.Printf("Failed to get peer from server: %s\n", err.Error())
 		return
 	}
 	// address and peerid should be encoded, respectively
 	resultView := make([]map[string]string, 0, len(msg2.Peers))
-	for _, peer := range msg2.Peers {
+	for i, peer := range msg2.Peers {
 		peerData := make(map[string]string)
+		peerState := types.PeerState(msg2.States[i]).String()
 		peerData["Address"] = net.IP(peer.Address).String()
 		peerData["Port"] = strconv.Itoa(int(peer.Port))
 		peerData["PeerID"] = base58.Encode(peer.PeerID)
+		peerData["State"] = peerState
 		resultView = append(resultView, peerData)
 	}
 	encoder := json.NewEncoder(os.Stdout)
