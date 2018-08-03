@@ -168,29 +168,6 @@ func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcu
 		}
 		return s.interiorHash(update, rnode, height-1, root, shortcut, store, keys, values), nil
 	default:
-		if height < 240 { // 16 height~= 65000 nodes / goroutines
-			// FIXME : if all the accounts being updated have the same 16 first bits then goroutines are useless here. Check for number of running goroutines instead.
-			lupdate, err := s.update(lnode, lkeys, lvalues, height-1, shortcut, store, nil)
-			if err != nil {
-				if ch != nil {
-					ch <- result{nil, err}
-				}
-				return nil, err
-			}
-			rupdate, err := s.update(rnode, rkeys, rvalues, height-1, shortcut, store, nil)
-			if err != nil {
-				if ch != nil {
-					ch <- result{nil, err}
-				}
-				return nil, err
-			}
-			if ch != nil {
-				ch <- result{s.interiorHash(lupdate, rupdate, height-1, root, shortcut, store, keys, values), nil}
-				return nil, nil
-			}
-			return s.interiorHash(lupdate, rupdate, height-1, root, shortcut, store, keys, values), nil
-		}
-
 		// keys are separated between the left and right branches
 		// update the branches in parallel
 		lch := make(chan result, 1)
