@@ -78,7 +78,7 @@ func (mp *MemPool) Start() {
 		go func() {
 			for range time.Tick(1e9) {
 				l, o := mp.Size()
-				mp.Infof("mempool metrics len:%d orphan:%d", l, o)
+				mp.Infof("mempool metrics len:%d orphan:%d pool(%d)", l, o, len(mp.pool))
 			}
 		}()
 	}
@@ -204,7 +204,7 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 		h := types.ToTransactionKey(v.Hash)
 
 		if !accSet[key] {
-			ns, err := mp.getAccountState(v.GetBody().GetAccount(), true)
+			ns, err := mp.getAccountState(acc, true)
 			if err != nil {
 				mp.Error("getting Account status failed:", err)
 				// TODO : ????
@@ -212,8 +212,10 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 			list, err := mp.acquireMemPoolList(acc)
 			if err == nil {
 				mp.orphan -= list.SetMinNonce(ns.Nonce + 1)
+				if list.Len() == 0 {
+					mp.delMemPoolList(acc)
+				}
 			}
-
 			accSet[key] = true
 		}
 		delete(mp.cache, h) // need lock
@@ -279,6 +281,11 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	key := types.ToAccountKey(acc)
 	return mp.pool[key]
+}
+
+func (mp *MemPool) delMemPoolList(acc []byte) {
+	key := types.ToAccountKey(acc)
+	delete(mp.pool, key)
 }
 
 func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
