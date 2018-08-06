@@ -184,6 +184,9 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		bs.PutAccount(receiverID, receiverState, &receiverChange)
 	}
+	if txBody.Payload != nil {
+		ApplyCode(txBody.Payload, txBody.Account)
+	}
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)
 

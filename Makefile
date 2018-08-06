@@ -3,7 +3,8 @@
 .PHONY: clean protoclean protoc deps test aergosvr aergocli prepare compile build
 BINPATH = $(shell pwd)/bin
 REPOPATH = github.com/aergoio/aergo
-
+LIBPATH = $(shell pwd)/libtool
+LIBTOOLS = luajit
 
 default: compile
 	@echo "Done"
@@ -18,7 +19,7 @@ all: clean prepare build
 	@echo "Done All"
 
 
-deps:
+deps: liball
 	glide install
 
 # FIXME: make recursive to subdirectories
@@ -36,6 +37,13 @@ aergosvr: cmd/aergosvr/*.go
 aergocli: cmd/aergocli/*.go
 	go build -o $(BINPATH)/aergocli ./cmd/aergocli
 	@echo "Done buidling aergocli."
+
+liball:
+	@for dir in $(LIBTOOLS); do \
+		$(MAKE) PREFIX=$(LIBPATH) -C $(LIBPATH)/src/$$dir all install; \
+		if [ $$? != 0 ]; then exit 1; fi; \
+	done
+	@echo "Done building libs."
 
 test:
 	@go test -timeout 60s ./...
