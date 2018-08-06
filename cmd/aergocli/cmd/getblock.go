@@ -40,14 +40,17 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 		panic("Internal error. wrong RPC client type")
 	}
 	defer client.Close()
-
+	fflags := cmd.Flags()
+	if fflags.Changed("number") == false && fflags.Changed("hash") == false {
+		fmt.Println("no block --hash or --number specified")
+		return
+	}
 	var blockQuery []byte
 	if hash == "" {
 		b := make([]byte, 8)
 		binary.LittleEndian.PutUint64(b, uint64(number))
 		blockQuery = b
 	} else {
-
 		if len(hash)%4 > 0 {
 			toAdd := 4 - len(hash)%4
 			for toAdd > 0 {
