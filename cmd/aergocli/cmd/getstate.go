@@ -38,6 +38,11 @@ func execGetState(cmd *cobra.Command, args []string) {
 		panic("Internal error. wrong RPC client type")
 	}
 	defer client.Close()
+	fflags := cmd.Flags()
+	if fflags.Changed("address") == false {
+		fmt.Println("no --address specified")
+		return
+	}
 	param, err := base58.Decode(address)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
@@ -45,7 +50,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 	msg, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: param})
 	if nil == err {
-		fmt.Printf("{account:%s, nonce:%d, balance:%d}",
+		fmt.Printf("{account:%s, nonce:%d, balance:%d}\n",
 			base58.Encode(msg.GetAccount()), msg.GetNonce(), msg.GetBalance())
 	} else {
 		fmt.Printf("Failed: %s\n", err.Error())
