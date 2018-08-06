@@ -38,7 +38,8 @@ func NewBlock(prevBlock *Block, txs []*Tx) *Block {
 	header := BlockHeader{
 		PrevBlockHash: prevBlockHash,
 		BlockNo:       blockNo,
-		Timestamp:     time.Now().Unix(),
+		// FIXME: modify timestamp value if time format is completed.
+		Timestamp: time.Now().UnixNano(),
 		//BlockRootHash: nil,
 		//StateRootHash: nil,
 	}
