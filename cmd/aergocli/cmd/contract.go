@@ -9,54 +9,30 @@ package cmd
 #include <lauxlib.h>
 #include <luajit.h>
 
-static int loadjitmodule(lua_State *L)
+static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u)
 {
-	lua_getglobal(L, "require");
-	lua_pushliteral(L, "jit.");
-	lua_pushvalue(L, -3);
-	lua_concat(L, 2);
-
-	if (lua_pcall(L, 1, 1, 0)) {
-		const char *msg = lua_tostring(L, -1);
-		if (msg && strncmp(msg, "module ", 7) != 0) {
-			return -1;
-		}
-	}
-
-	lua_getfield(L, -1, "start");
-
-	if (lua_isnil(L, -1))
-		return -1;
-	lua_remove(L, -2);
-
-	return 0;
+	return (fwrite(p, sz, 1, (FILE *)u) != 1) && (sz != 0);
 }
 
 const char *compile(char *code, char *byte)
 {
-	int err;
 	lua_State *L = luaL_newstate();
-
 	luaL_openlibs(L);
-	lua_pushliteral(L, "bcsave");
 
-	if (loadjitmodule(L) != 0) {
-		return "can't load jit module";
-	}
-
-	lua_pushstring(L, code);
-	lua_pushstring(L, byte);
-
-	err = lua_pcall(L, 2, 0, 0);
-	if (err != 0) {
+	if (luaL_loadfile(L, code) != 0) {
 		return lua_tostring(L, -1);
 	}
+	FILE *D = fopen(byte, "wb");
+	if (lua_dump(L, kpt_lua_Writer, D) != 0) {
+		return lua_tostring(L, -1);
+	}
+	fclose(D);
 	return NULL;
 }
 */
 import "C"
 import (
-		"fmt"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"unsafe"
@@ -108,21 +84,21 @@ var deployCmd = &cobra.Command{
 		defer client.Close()
 		var err error
 
-		dat, err := ioutil.ReadFile(args[1])
+		code, err := ioutil.ReadFile(args[1])
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatal(err.Error())
 		}
 		param, err := base58.Decode(args[0])
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		msg, err := client.GetState(context.Background(), &types.SingleBytes{Value: param})
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: param})
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		tx := &types.Tx{Body: &types.TxBody{Nonce: msg.GetNonce() + 1,
+		tx := &types.Tx{Body: &types.TxBody{Nonce: state.GetNonce() + 1,
 			Account: []byte(param),
-			Payload: []byte(dat)},
+			Payload: []byte(code)},
 		}
 
 		sign, err := client.SignTX(context.Background(), tx)
