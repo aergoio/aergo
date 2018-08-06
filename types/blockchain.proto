@@ -52,6 +52,11 @@ message TxIdx {
 	int32 idx = 2;
 }
 
+message TxInBlock {
+	TxIdx txIdx = 1;
+	Tx tx = 2;
+}
+
 message State {
  	bytes account = 1;
  	uint64 nonce = 2;

@@ -298,23 +298,24 @@ func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	}
 	return blockHash, nil
 }
-func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, error) {
-	var txIdx types.TxIdx
-	err := cdb.loadData(txHash, &txIdx)
+func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
+	txIdx := &types.TxIdx{}
+
+	err := cdb.loadData(txHash, txIdx)
 	if err != nil {
-		return nil, fmt.Errorf("tx not found: txHash=%v", hex.EncodeToString(txHash))
+		return nil, nil, fmt.Errorf("tx not found: txHash=%v", hex.EncodeToString(txHash))
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
-		return nil, fmt.Errorf("block not found: blockHash=%v", hex.EncodeToString(txIdx.BlockHash))
+		return nil, nil, fmt.Errorf("block not found: blockHash=%v", hex.EncodeToString(txIdx.BlockHash))
 	}
 	txs := block.GetBody().GetTxs()
 	if txIdx.Idx >= int32(len(txs)) {
-		return nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
+		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
 	logger.Debugf("getTx Hash=%v", hex.EncodeToString(txHash))
-	return tx, nil
+	return tx, txIdx, nil
 }
 
 type ChainTree struct {

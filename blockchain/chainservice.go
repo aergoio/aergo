@@ -197,11 +197,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Blocknos: mnos,
 		})
 	case *message.GetTx:
-		tx, err := cs.getTx(msg.TxHash)
-		res := tx.Clone()
+		tx, txIdx, err := cs.getTx(msg.TxHash)
 		context.Respond(message.GetTxRsp{
-			Tx:  res,
-			Err: err,
+			Tx:    tx,
+			TxIds: txIdx,
+			Err:   err,
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)

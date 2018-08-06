@@ -36,7 +36,7 @@ service AergoRPCService {
     // };    
   }
 
-  rpc GetBlockTX(SingleBytes) returns (Tx) {
+  rpc GetBlockTX(SingleBytes) returns (TxInBlock) {
   }
 
   rpc CommitTX(TxList) returns (CommitResultList) {

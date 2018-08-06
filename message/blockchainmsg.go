@@ -61,8 +61,9 @@ type GetTx struct {
 	TxHash []byte
 }
 type GetTxRsp struct {
-	Tx  *types.Tx
-	Err error
+	Tx    *types.Tx
+	TxIds *types.TxIdx
+	Err   error
 }
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.

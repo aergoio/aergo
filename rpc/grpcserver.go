@@ -184,7 +184,7 @@ func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*
 }
 
 // GetBlockTX handle rpc request gettx
-func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
+func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleBytes) (*types.TxInBlock, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetTx{TxHash: in.Value}, defaultActorTimeout).Result()
 	if err != nil {
@@ -194,7 +194,7 @@ func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleByte
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	return rsp.Tx, rsp.Err
+	return &types.TxInBlock{Tx: rsp.Tx, TxIdx: rsp.TxIds}, rsp.Err
 }
 
 var emptyBytes = make([]byte, 0)

@@ -39,7 +39,7 @@ func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	return cs.cdb.getHashByNo(blockNo)
 }
 
-func (cs *ChainService) getTx(txHash []byte) (*types.Tx, error) {
+func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return cs.cdb.getTx(txHash)
 }
 
