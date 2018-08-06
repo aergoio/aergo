@@ -65,16 +65,26 @@ import (
 	*/
 	"C"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+)
+import (
+	"context"
+
+	"github.com/mr-tron/base58/base58"
 )
 
 func init() {
 	rootCmd.AddCommand(compileCmd)
+	rootCmd.AddCommand(deployCmd)
 }
 
 var compileCmd = &cobra.Command{
-	Use:   "compile",
+	Use:   "compile [sourcefile] [bytefile]",
 	Short: "compile contract",
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 2 {
 			fmt.Printf("Fail:Not enough arguments\n")
@@ -95,5 +105,54 @@ var compileCmd = &cobra.Command{
 		}
 		b := b64.StdEncoding.EncodeToString([]byte(dat))
 		fmt.Println(b)
+	},
+}
+
+var deployCmd = &cobra.Command{
+	Use:   "deploy [address] [bytefile]",
+	Short: "deploy contract",
+	Args:  cobra.MinimumNArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		serverAddr := GetServerAddress()
+		opts := []grpc.DialOption{grpc.WithInsecure()}
+		var client *util.ConnClient
+		var ok bool
+		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
+			panic("Internal error. wrong RPC client type")
+		}
+		defer client.Close()
+		var err error
+
+		dat, err := ioutil.ReadFile(args[1])
+		if err != nil {
+			fmt.Printf("Failed read bytefile")
+		}
+		param, err := base58.Decode(args[0])
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		msg, err := client.GetState(context.Background(),
+			&types.SingleBytes{Value: param})
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		tx := &types.Tx{Body: &types.TxBody{Nonce: msg.GetNonce() + 1,
+			Account: []byte(param),
+			Payload: []byte(dat)}}
+
+		sign, err := client.SignTX(context.Background(), tx)
+		if nil != err || sign == nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		txs := []*types.Tx{sign}
+		commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+
+		for i, r := range commit.Results {
+			fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		}
+
 	},
 }
