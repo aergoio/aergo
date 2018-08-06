@@ -2,11 +2,17 @@ language: go
 
 go:
   - "1.10.x"
-  - master
 
 before_install:
   - go get -t github.com/Masterminds/glide
+  - go get -t github.com/codeclimate/test-reporter
   - glide install
   
+before_script:
+  - test-reporter before-build
+
 script:
-  - go test -v ./...
+  - go test -coverprofile c.out ./...
+
+after_script:
+  - test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
