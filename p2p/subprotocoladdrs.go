@@ -66,11 +66,14 @@ func (p *AddressesProtocol) GetAddresses(peerID peer.ID, size uint32) bool {
 // remote peer requests handler
 func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	reqPeer, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
 
 	// get request data
 	data := &types.AddressesRequest{}
@@ -96,7 +99,7 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 	}
 	resp.Peers = addrList
 	// send response
-	reqPeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, addressesResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, addressesResponse, resp))
 }
 
 func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
@@ -119,11 +122,15 @@ func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress)
 // remote ping response handler
 func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	reqPeer, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.AddressesResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
@@ -141,7 +148,7 @@ func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
 		return
 	}
 
-	reqPeer.consumeRequest(data.MessageData.Id)
+	remotePeer.consumeRequest(data.MessageData.Id)
 	if len(data.GetPeers()) > 0 {
 		p.checkAndAddPeerAddresses(data.GetPeers())
 	}

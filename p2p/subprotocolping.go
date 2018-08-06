@@ -50,11 +50,14 @@ func (p *PingProtocol) initWith(p2pservice PeerManager) {
 // remote peer requests handler
 func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	requester, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
 
 	// get request data
 	data := &types.Ping{}
@@ -65,29 +68,26 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
-	// find my best block
-	// bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
-	// if err != nil {
-	// 	// TODO: response error
-	// 	return
-	// }
 
 	// generate response message
 	p.log.Debugf("Sending pong to %s. MSG ID %s.", s.Conn().RemotePeer().Pretty(), data.MessageData.Id)
 	resp := &types.Pong{MessageData: &types.MessageData{}} // BestBlockHash: bestBlock.GetHash(),
 	// BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 
-	requester.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, false, pingResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, false, pingResponse, resp))
 }
 
 // remote ping response handler
 func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	requester, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
 
 	data := &types.Pong{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -97,16 +97,20 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
-	requester.consumeRequest(data.MessageData.Id)
+	remotePeer.consumeRequest(data.MessageData.Id)
 }
 
 func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	requester, ok := p.ps.LookupPeer(peerID)
+	remotePeer, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	// get request data
 	data := &types.Status{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -122,6 +126,25 @@ func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 		return
 	}
 
+	peerState := remotePeer.State()
+	if peerState != types.STARTING && peerState != types.HANDSHAKING {
+		remotePeer.goAwayMsg("Invalid status msg")
+		return
+	}
+
+	remotePeer.updateMetaInfo(data)
+	// TODO: check protocol version, blacklist, key authentication or etc.
+	err = remotePeer.checkProtocolVersion()
+	if err != nil {
+		p.log.Infof("invalid protocol version of peer %v", remotePeer.meta.ID.Pretty())
+		remotePeer.goAwayMsg("Handshake failed")
+		return
+	}
+
+	// if state is han
+	if peerState == types.STARTING {
+		remotePeer.sendStatus()
+	}
 	p.log.Debug("starting handshake ")
-	requester.handshakePeer(data)
+	remotePeer.handshakePeer(data)
 }
