@@ -28,6 +28,8 @@ do
 		./aergocli signtx --jsontx \
 			"{\"account\":\"$NEWKEY\", \
 			\"nonce\": $j , \
+			\"price\": 1 , \
+			\"limit\": 100 , \
 			\"recipient\":\"2kVUWgX7xfBsTCQsUCRx9wKNdLwK\", \
 			\"amount\": 256 }" >> "$TARGET_DIR/$NEWKEY.trx" 2> /dev/null
 

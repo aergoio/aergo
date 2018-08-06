@@ -53,7 +53,7 @@ func (x CommitStatus) String() string {
 	return proto.EnumName(CommitStatus_name, int32(x))
 }
 func (CommitStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{0}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{0}
 }
 
 type VerifyStatus int32
@@ -79,7 +79,7 @@ func (x VerifyStatus) String() string {
 	return proto.EnumName(VerifyStatus_name, int32(x))
 }
 func (VerifyStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{1}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{1}
 }
 
 type InternalStat struct {
@@ -94,7 +94,7 @@ func (m *InternalStat) Reset()         { *m = InternalStat{} }
 func (m *InternalStat) String() string { return proto.CompactTextString(m) }
 func (*InternalStat) ProtoMessage()    {}
 func (*InternalStat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{0}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{0}
 }
 func (m *InternalStat) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InternalStat.Unmarshal(m, b)
@@ -140,7 +140,7 @@ func (m *ModuleStatus) Reset()         { *m = ModuleStatus{} }
 func (m *ModuleStatus) String() string { return proto.CompactTextString(m) }
 func (*ModuleStatus) ProtoMessage()    {}
 func (*ModuleStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{1}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{1}
 }
 func (m *ModuleStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ModuleStatus.Unmarshal(m, b)
@@ -185,7 +185,7 @@ func (m *NodeStatus) Reset()         { *m = NodeStatus{} }
 func (m *NodeStatus) String() string { return proto.CompactTextString(m) }
 func (*NodeStatus) ProtoMessage()    {}
 func (*NodeStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{2}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{2}
 }
 func (m *NodeStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NodeStatus.Unmarshal(m, b)
@@ -225,7 +225,7 @@ func (m *BlockchainStatus) Reset()         { *m = BlockchainStatus{} }
 func (m *BlockchainStatus) String() string { return proto.CompactTextString(m) }
 func (*BlockchainStatus) ProtoMessage()    {}
 func (*BlockchainStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{3}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{3}
 }
 func (m *BlockchainStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockchainStatus.Unmarshal(m, b)
@@ -273,7 +273,7 @@ func (m *Input) Reset()         { *m = Input{} }
 func (m *Input) String() string { return proto.CompactTextString(m) }
 func (*Input) ProtoMessage()    {}
 func (*Input) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{4}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{4}
 }
 func (m *Input) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Input.Unmarshal(m, b)
@@ -335,7 +335,7 @@ func (m *Output) Reset()         { *m = Output{} }
 func (m *Output) String() string { return proto.CompactTextString(m) }
 func (*Output) ProtoMessage()    {}
 func (*Output) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{5}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{5}
 }
 func (m *Output) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Output.Unmarshal(m, b)
@@ -393,7 +393,7 @@ func (m *Empty) Reset()         { *m = Empty{} }
 func (m *Empty) String() string { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()    {}
 func (*Empty) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{6}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{6}
 }
 func (m *Empty) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Empty.Unmarshal(m, b)
@@ -424,7 +424,7 @@ func (m *SingleBytes) Reset()         { *m = SingleBytes{} }
 func (m *SingleBytes) String() string { return proto.CompactTextString(m) }
 func (*SingleBytes) ProtoMessage()    {}
 func (*SingleBytes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{7}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{7}
 }
 func (m *SingleBytes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SingleBytes.Unmarshal(m, b)
@@ -463,7 +463,7 @@ func (m *Personal) Reset()         { *m = Personal{} }
 func (m *Personal) String() string { return proto.CompactTextString(m) }
 func (*Personal) ProtoMessage()    {}
 func (*Personal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{8}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{8}
 }
 func (m *Personal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Personal.Unmarshal(m, b)
@@ -509,7 +509,7 @@ func (m *PeerList) Reset()         { *m = PeerList{} }
 func (m *PeerList) String() string { return proto.CompactTextString(m) }
 func (*PeerList) ProtoMessage()    {}
 func (*PeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{9}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{9}
 }
 func (m *PeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerList.Unmarshal(m, b)
@@ -558,7 +558,7 @@ func (m *ListParams) Reset()         { *m = ListParams{} }
 func (m *ListParams) String() string { return proto.CompactTextString(m) }
 func (*ListParams) ProtoMessage()    {}
 func (*ListParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{10}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{10}
 }
 func (m *ListParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListParams.Unmarshal(m, b)
@@ -624,7 +624,7 @@ func (m *BlockHeaderList) Reset()         { *m = BlockHeaderList{} }
 func (m *BlockHeaderList) String() string { return proto.CompactTextString(m) }
 func (*BlockHeaderList) ProtoMessage()    {}
 func (*BlockHeaderList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{11}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{11}
 }
 func (m *BlockHeaderList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockHeaderList.Unmarshal(m, b)
@@ -663,7 +663,7 @@ func (m *CommitResult) Reset()         { *m = CommitResult{} }
 func (m *CommitResult) String() string { return proto.CompactTextString(m) }
 func (*CommitResult) ProtoMessage()    {}
 func (*CommitResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{12}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{12}
 }
 func (m *CommitResult) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitResult.Unmarshal(m, b)
@@ -708,7 +708,7 @@ func (m *CommitResultList) Reset()         { *m = CommitResultList{} }
 func (m *CommitResultList) String() string { return proto.CompactTextString(m) }
 func (*CommitResultList) ProtoMessage()    {}
 func (*CommitResultList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{13}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{13}
 }
 func (m *CommitResultList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitResultList.Unmarshal(m, b)
@@ -747,7 +747,7 @@ func (m *VerifyResult) Reset()         { *m = VerifyResult{} }
 func (m *VerifyResult) String() string { return proto.CompactTextString(m) }
 func (*VerifyResult) ProtoMessage()    {}
 func (*VerifyResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_rpc_533c879ac537a890, []int{14}
+	return fileDescriptor_rpc_3ed42104c0f9833b, []int{14}
 }
 func (m *VerifyResult) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VerifyResult.Unmarshal(m, b)
@@ -1335,9 +1335,9 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "rpc.proto",
 }
 
-func init() { proto.RegisterFile("rpc.proto", fileDescriptor_rpc_533c879ac537a890) }
+func init() { proto.RegisterFile("rpc.proto", fileDescriptor_rpc_3ed42104c0f9833b) }
 
-var fileDescriptor_rpc_533c879ac537a890 = []byte{
+var fileDescriptor_rpc_3ed42104c0f9833b = []byte{
 	// 998 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x56, 0x6d, 0x6f, 0xe2, 0x46,
 	0x10, 0xc6, 0x24, 0x90, 0x64, 0x80, 0x8b, 0xbb, 0x8d, 0x52, 0x4a, 0xab, 0x04, 0xed, 0x55, 0x2d,
