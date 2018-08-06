@@ -44,24 +44,30 @@ func TestListDel(t *testing.T) {
 		}
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
-	ret := mpl.SetMinNonce(uint64(2))
-	if ret != 0 || mpl.Len() != 2 {
-		t.Error(ret, mpl.Len())
+	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
+	ret, txs := mpl.SetMinNonce(uint64(2))
+	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
+		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret = mpl.SetMinNonce(uint64(4))
-	if ret != 0 || mpl.Len() != 0 {
-		t.Error(ret, mpl.Len())
+	ret, txs = mpl.SetMinNonce(uint64(4))
+	if ret != 0 || mpl.Len() != 0 || len(txs) != 2 {
+		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret = mpl.SetMinNonce(uint64(8))
-	if ret != 2 || mpl.Len() != 0 {
-		t.Error(ret, mpl.Len())
+	ret, txs = mpl.SetMinNonce(uint64(8))
+	if ret != 2 || mpl.Len() != 0 || len(txs) != 2 {
+		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret = mpl.SetMinNonce(uint64(15))
-	if ret != 92 || mpl.Len() != count-15 {
-		t.Error(ret, mpl.Len())
+	ret, txs = mpl.SetMinNonce(uint64(15))
+	if ret != 92 || mpl.Len() != count-14 || len(txs) != 6 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+
+	txs = mpl.Get()
+	if txs[0].GetBody().GetNonce() != 15 {
+		t.Error(txs[0].GetBody().GetNonce())
 	}
 
 }

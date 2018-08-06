@@ -198,10 +198,10 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 	mp.Lock()
 	defer mp.Unlock()
 
+	// better to have account slice
 	for _, v := range txs {
 		acc := v.GetBody().GetAccount()
 		key := types.ToAccountKey(acc)
-		h := types.ToTransactionKey(v.Hash)
 
 		if !accSet[key] {
 			ns, err := mp.getAccountState(acc, true)
@@ -211,14 +211,18 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 			}
 			list, err := mp.acquireMemPoolList(acc)
 			if err == nil {
-				mp.orphan -= list.SetMinNonce(ns.Nonce + 1)
-				if list.Len() == 0 {
+				diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
+				mp.orphan -= diff
+				if list.Empty() {
 					mp.delMemPoolList(acc)
+				}
+				for _, tx := range delTxs {
+					h := types.ToTransactionKey(tx.Hash)
+					delete(mp.cache, h) // need lock
 				}
 			}
 			accSet[key] = true
 		}
-		delete(mp.cache, h) // need lock
 	}
 	return nil
 

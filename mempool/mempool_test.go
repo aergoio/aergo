@@ -7,10 +7,11 @@ package mempool
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/types"
 	"math/rand"
 	"testing"
+
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -272,6 +273,27 @@ func TestBasics(t *testing.T) {
 	t.Log(len(txsMempool))
 	if !sameTxs(txs, txsMempool) {
 		t.Error("should be same")
+	}
+}
+
+func TestDeleteOTxs(t *testing.T) {
+	initTest()
+	defer deinitTest()
+	txs := make([]*types.Tx, 0)
+	for i := 0; i < 5; i++ {
+		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
+		txs = append(txs, tmp)
+	}
+	pool.puts(txs...)
+	if ps, _ := pool.Size(); ps != 5 {
+		t.Errorf("pool should contain 5 , %d", ps)
+	}
+
+	txs[4] = genTx(0, 1, 5, 150)
+	simulateBlockGen(txs...)
+	pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs...)
+	if r, o := pool.Size(); r != 0 || o != 0 {
+		t.Error("pool should contain nothing", r, o)
 	}
 }
 

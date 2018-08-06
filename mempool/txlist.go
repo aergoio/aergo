@@ -6,9 +6,10 @@
 package mempool
 
 import (
+	"sync"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"sync"
 )
 
 // TxList is internal struct for transactions per account
@@ -34,6 +35,13 @@ func (tl *TxList) Len() int {
 	tl.RLock()
 	defer tl.RUnlock()
 	return tl.len()
+}
+
+// Empty check TxList is empty including orphan
+func (tl *TxList) Empty() bool {
+	tl.RLock()
+	defer tl.RUnlock()
+	return tl.len() == 0 && len(tl.deps) == 0
 }
 
 // Put inserts transaction into TxList
@@ -63,35 +71,40 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) SetMinNonce(n uint64) int {
+func (tl *TxList) SetMinNonce(n uint64) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 	defer func() { tl.min = n }()
 
-	delcnt := 0
+	delOrphan := 0
+	var delTxs []*types.Tx
 	processed := n - tl.min
 	if processed < uint64(tl.len()) {
+		delTxs = tl.list[0:processed]
 		tl.list = tl.list[processed:]
-		return delcnt
+		return delOrphan, delTxs
 	}
 
+	delTxs = append(delTxs, tl.list...)
 	tl.list = nil
+
 	for k, v := range tl.deps {
 		l := v[len(v)-1].GetBody().GetNonce()
 		if l < n {
 			delete(tl.deps, k)
 			delete(tl.parent, l)
-			delcnt += len(v)
+			delOrphan += len(v)
+			delTxs = append(delTxs, v...)
 		}
 		if k < n && n <= l {
 			delete(tl.deps, k)
 			delete(tl.parent, l)
-			tl.list = v[n-k:]
-			delcnt += len(v)
-			break
+			tl.list = v[n-k-1:]
+			delTxs = append(delTxs, v[0:n-k-1]...)
+			delOrphan += len(v)
 		}
 	}
-	return delcnt
+	return delOrphan, delTxs
 }
 
 // FilterByPrice will evict transactions that needs more amount than balance
