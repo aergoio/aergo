@@ -1,6 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aergoio/aergo)](https://goreportcard.com/report/github.com/aergoio/aergo)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Travis_ci](https://travis-ci.org/aergoio/aergo.svg?branch=master)](https://travis-ci.org/aergoio/aergo.svg?branch=master)
+[![Travis_ci](https://travis-ci.org/aergoio/aergo.svg?branch=master)](https://travis-ci.org/aergoio/aergo)
 
 # Aergo - The Most Practical Blockchain Platform for Blockchain Businesses
 
