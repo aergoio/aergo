@@ -55,32 +55,6 @@ func (mp *MemPool) generateInfiniteTx() {
 	}
 }
 
-func (mp *MemPool) generateSampleTxs(maxCount int) error {
-	SAMPLES := [][]byte{
-		{0x01, 0x00, 0x00, 0x00},
-		{0x02, 0x00, 0x00, 0x00},
-		{0x03, 0x00, 0x00, 0x00},
-	}
-	sampleSize := len(SAMPLES)
-	count := rand.Intn(maxCount)
-	account := SAMPLES[rand.Intn(sampleSize)]
-	ns, _ := mp.getAccountState(account, false)
-	txs := make([]*types.Tx, count+1)
-	for i := 1; i < count+1; i++ {
-		txs[i] = &types.Tx{
-			Body: &types.TxBody{
-				Nonce:     ns.Nonce + uint64(i),
-				Account:   account,
-				Recipient: SAMPLES[rand.Intn(sampleSize)],
-				Amount:    (rand.Uint64() % ns.Balance) + 1,
-			},
-		}
-		err := mp.put(txs[i])
-		mp.Debugf("create temp tx : %s %s", err, txs[i].GetBody().String())
-	}
-	return nil
-}
-
 const defaultBalance = uint64(10000000)
 
 var (

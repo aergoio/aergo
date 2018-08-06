@@ -7,6 +7,7 @@ package message
 
 import (
 	"errors"
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -35,11 +36,6 @@ var (
 
 // MemPoolSvc is exported name for MemPool service
 const MemPoolSvc = "MemPoolSvc"
-
-// MemPoolGenerateSampleTxs is for internal use only, will be deprecated
-type MemPoolGenerateSampleTxs struct {
-	MaxCount int
-}
 
 // MemPoolPut is interface of MemPool service for inserting transactions
 type MemPoolPut struct {

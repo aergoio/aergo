@@ -14,6 +14,7 @@ TODO
 import (
 	"bytes"
 	"encoding/hex"
+	"reflect"
 	"sync"
 	"time"
 
@@ -103,8 +104,6 @@ func (mp *MemPool) Receive(context actor.Context) {
 	mp.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
-	case *message.MemPoolGenerateSampleTxs:
-		context.Respond(mp.generateSampleTxs(msg.MaxCount))
 	case *message.MemPoolPut:
 		errs := mp.puts(msg.Txs...)
 		context.Respond(&message.MemPoolPutRsp{
@@ -126,6 +125,8 @@ func (mp *MemPool) Receive(context actor.Context) {
 		context.Respond(&message.MemPoolExistRsp{
 			Tx: tx,
 		})
+	default:
+		mp.Debug("unhandled message:", reflect.TypeOf(msg).String())
 	}
 }
 
