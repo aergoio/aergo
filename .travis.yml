@@ -4,9 +4,9 @@ go:
   - "1.10.x"
   - master
 
-before_script:
+before_install:
   - go get -t github.com/Masterminds/glide
   - glide install
   
- script:
+script:
   - go test -v ./...
