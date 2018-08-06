@@ -308,13 +308,25 @@ func (ps *peerManager) addDesignatedPeers() {
 func (ps *peerManager) runManagePeers() {
 	addrDuration := time.Minute * 3
 	addrTicker := time.NewTicker(addrDuration)
+	reconnectRunners := make(map[peer.ID]*reconnectRunner)
 MANLOOP:
 	for {
 		select {
 		case meta := <-ps.addPeerChannel:
-			ps.addOutboundPeer(meta)
+			if ps.addOutboundPeer(meta) {
+				if recon, found := reconnectRunners[meta.ID]; found {
+					recon.cancel <- struct{}{}
+					delete(reconnectRunners, meta.ID)
+				}
+			}
 		case id := <-ps.removePeerChannel:
-			ps.removePeer(id)
+			if ps.removePeer(id) {
+				if meta, found := ps.designatedPeers[id]; found {
+					reconnector := newReconnectRunner(meta, ps)
+					go reconnector.runReconnect()
+					reconnectRunners[id] = reconnector
+				}
+			}
 		case <-addrTicker.C:
 			ps.checkAndCollectPeerListFromAll()
 		case peerID := <-ps.hsPeerChannel:
@@ -326,6 +338,10 @@ MANLOOP:
 		}
 	}
 	addrTicker.Stop()
+	for _, reconnector := range reconnectRunners {
+		reconnector.cancel <- struct{}{}
+	}
+
 	// cleanup peers
 	for peerID := range ps.remotePeers {
 		ps.removePeer(peerID)
