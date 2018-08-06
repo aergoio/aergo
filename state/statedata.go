@@ -6,32 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
-
-/*
-func (sdb *CachedStateDB) GetState(skey types.StateKey) (*types.State, error) {
-	if state, ok := sdb.cache[skey]; ok {
-		return state, nil
-	}
-	buf := &types.State{}
-	err := sdb.loadData(skey[:], buf)
-	if err != nil {
-		return nil, err
-	}
-	state := buf
-	sdb.cache[skey] = state
-	return state, nil
-}
-func (sdb *CachedStateDB) PutState(skey types.StateKey, state *types.State) error {
-	sdb.cache[skey] = state
-	err := sdb.saveData(skey[:], state)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-*/
 
 func (sdb *CachedStateDB) saveData(key []byte, data interface{}) error {
 	if key == nil {
@@ -83,7 +60,7 @@ func (sdb *CachedStateDB) loadData(key []byte, data interface{}) error {
 	return err
 }
 
-func (sdb *CachedStateDB) save() error {
+func (sdb *CachedStateDB) saveStateDB() error {
 	logger.Debug("- sdb.latest.blockNo=", sdb.latest.blockNo)
 	logger.Debug("- sdb.latest.blockHash=", sdb.latest.blockHash)
 	logger.Debug("- sdb.accounts.size=", len(sdb.accounts))
@@ -98,7 +75,7 @@ func (sdb *CachedStateDB) save() error {
 	return nil
 }
 
-func (sdb *CachedStateDB) load() error {
+func (sdb *CachedStateDB) loadStateDB() error {
 	err := sdb.loadData([]byte(stateLatest), sdb.latest)
 	if err != nil {
 		return err
@@ -111,4 +88,24 @@ func (sdb *CachedStateDB) load() error {
 	logger.Debug("- sdb.latest.blockHash=", sdb.latest.blockHash)
 	logger.Debug("- sdb.accounts.size=", len(sdb.accounts))
 	return nil
+}
+
+func (sdb *CachedStateDB) saveBlockState(data *BlockState) error {
+	bkey := data.blockHash
+	if bkey == types.EmptyBlockKey {
+		return fmt.Errorf("Invalid Key to save BlockState: empty")
+	}
+	err := sdb.saveData(bkey[:], data)
+	return err
+}
+func (sdb *CachedStateDB) loadBlockState(bkey types.BlockKey) (*BlockState, error) {
+	if bkey == types.EmptyBlockKey {
+		return nil, fmt.Errorf("Invalid Key to load BlockState: empty")
+	}
+	data := &BlockState{}
+	err := sdb.loadData(bkey[:], data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

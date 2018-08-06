@@ -179,7 +179,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		}
 	case *message.GetState:
 		akey := types.ToAccountKey(msg.Account)
-		state, err := cs.sdb.GetAccount(akey)
+		state, err := cs.sdb.GetAccountState(akey)
 		if err != nil {
 			logger.Debugf("failed to get state for account %v, error %v", akey, err)
 		}
