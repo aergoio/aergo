@@ -71,6 +71,10 @@ func (p *BlockProtocol) onGetBlockRequest(s inet.Stream) {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	// get request data
 	data := &types.GetBlockRequest{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -122,6 +126,9 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 		return
 	}
 
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.GetBlockResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
@@ -140,7 +147,7 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 	// got block
 	p.log.Debugf("Request chainservice to add %d blocks", len(data.Blocks))
 	for _, block := range data.Blocks {
-		p.iserv.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: s.Conn().RemotePeer(), Block: block})
+		p.iserv.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block})
 	}
 
 }
@@ -192,6 +199,9 @@ func (p *BlockProtocol) onGetBlockHeadersRequest(s inet.Stream) {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
 
 	// get request data
 	data := &types.GetBlockHeadersRequest{}
@@ -266,6 +276,10 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.GetBlockHeadersResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
@@ -301,11 +315,15 @@ func (p *BlockProtocol) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 // remote NotifyNewBlock response handler
 func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	_, exists := p.ps.GetPeer(peerID)
+	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.NewBlockNotice{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
@@ -396,6 +414,9 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 		return
 	}
 
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	// get request data
 	data := &types.GetMissingRequest{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -404,7 +425,9 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 		p.log.Info(err)
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, data.Hashes)
+	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, log.DoLazyEval(func() string {
+		return bytesArrToString(data.Hashes)
+	}))
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
 		p.log.Info("Failed to authenticate message")

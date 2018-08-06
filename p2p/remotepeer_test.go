@@ -20,24 +20,16 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	mockActorServ := new(MockActorService)
 	dummyP2PServ := new(MockP2PService)
 
-	target := RemotePeer{log: log.NewLogger(log.TEST).WithCtx("test", "peer"),
-		pingDuration: time.Second * 10, // not want to ping
-		meta:         PeerMeta{ID: peer.ID("ddddd")},
-		ps:           dummyP2PServ,
-		actorServ:    mockActorServ,
-		stopChan:     make(chan struct{}),
-		write:        make(chan msgOrder),
-		closeWrite:   make(chan struct{}),
-		consumeChan:  make(chan string, 1),
-	}
+	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, dummyP2PServ, mockActorServ,
+		log.NewLogger(log.TEST).WithCtx("test", "peer"))
+	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
 	mockActorServ.On("requestSync", mock.Anything, mock.AnythingOfType("message.GetBlockRsp")).Return(dummyBestBlock, true)
 	target.log.SetLevel("DEBUG")
 	go target.runPeer()
 
 	time.Sleep(testDuration)
-	target.Stop()
-
+	target.stop()
 }
 
 func TestAergoPeer_writeToPeer(t *testing.T) {

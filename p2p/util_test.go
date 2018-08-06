@@ -7,9 +7,12 @@ package p2p
 import (
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aergoio/aergo/pkg/log"
 	addrutil "github.com/libp2p/go-addr-util"
@@ -88,6 +91,25 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 			warnLogUnknownPeer(logger, tt.args.protocol, peerID)
 			debugLogReceiveMsg(logger, tt.args.protocol, msgID, peerID, tt.args.additional)
 		})
+	}
+}
+
+func TestTimerBehavior(t *testing.T) {
+	counter := int32(0)
+	ticked := make(chan int32)
+	duration := time.Millisecond * 50
+	target := time.AfterFunc(duration, func() {
+		fmt.Printf("Timer fired! %d \n", atomic.LoadInt32(&counter))
+		atomic.AddInt32(&counter, 1)
+		ticked <- counter
+	})
+	assert.Equal(t, int32(1), <-ticked)
+	fmt.Println("Waking up")
+	stopResult := target.Stop()
+	assert.Equal(t, false, stopResult)
+	for i := 2; i < 10; i++ {
+		target.Reset(duration * 2)
+		assert.Equal(t, int32(i), <-ticked)
 	}
 }
 

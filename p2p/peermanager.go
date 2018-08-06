@@ -280,7 +280,7 @@ MANLOOP:
 	for {
 		select {
 		case meta := <-ps.addPeerChannel:
-			ps.addPeer(meta)
+			ps.addOutboundPeer(meta)
 		case id := <-ps.removePeerChannel:
 			ps.removePeer(id)
 		case <-addrTicker.C:
@@ -300,8 +300,8 @@ MANLOOP:
 	}
 }
 
-// addPeer should be called in runManagePeer() only
-func (ps *peerManager) addPeer(meta PeerMeta) {
+// addOutboundPeer should be called in runManagePeer() only
+func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
 	if err != nil {
@@ -309,7 +309,8 @@ func (ps *peerManager) addPeer(meta PeerMeta) {
 		return
 	}
 	var peerID = meta.ID
-
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
 		ps.log.Infof("Peer %s is already managed by peerService.", newPeer.meta.ID.Pretty())
@@ -319,37 +320,35 @@ func (ps *peerManager) addPeer(meta PeerMeta) {
 	if meta.Outbound {
 		ps.log.Debugf("Adding outbound peer %s of address %s", peerID.Pretty(), peerAddr.String())
 		// if peer exists in peerstore already, reuse that peer again.
-		if !ps.checkInPeerstore(peerID, peerAddr) {
+		if !ps.checkInPeerstore(peerID) {
 			ps.Peerstore().AddAddr(peerID, peerAddr, pstore.PermanentAddrTTL)
 		}
 		aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
 		newPeer = &aPeer
 		ps.remotePeers[peerID] = newPeer
 		ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
+		newPeer.state = types.HANDSHAKING
+	} else {
+		// // inbound peer should already be listed in peerstore of libp2p. If not, that peer is deleted just before
+		// if ps.checkInPeerstore(peerID) {
+		// 	ps.log.Debugf("Adding inbound peer %s of address %s", peerID.Pretty(), peerAddr.String())
+		// 	// address can be changed after handshaking...
+		// 	aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
+		// 	newPeer = &aPeer
+		// 	ps.remotePeers[peerID] = newPeer
+		// 	ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
+		// }
+	}
+	if newPeer != nil {
 		for _, listener := range ps.eventListeners {
 			listener.OnAddPeer(peerID)
 		}
-	} else {
-		// inbound peer should already be listed in peerstore of libp2p. If not, that peer is deleted just before
-		if ps.checkInPeerstore(peerID, peerAddr) {
-			ps.log.Debugf("Adding inbound peer %s of address %s", peerID.Pretty(), peerAddr.String())
-			// address can be changed after handshaking...
-			aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
-			newPeer = &aPeer
-			ps.remotePeers[peerID] = newPeer
-			ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
-			for _, listener := range ps.eventListeners {
-				listener.OnAddPeer(peerID)
-			}
-		}
-	}
-	if newPeer != nil {
 		go newPeer.runPeer()
 		newPeer.sendStatus()
 	}
 }
 
-func (ps *peerManager) checkInPeerstore(peerID peer.ID, peerAddr ma.Multiaddr) bool {
+func (ps *peerManager) checkInPeerstore(peerID peer.ID) bool {
 	found := false
 	for _, existingPeerID := range ps.Peerstore().Peers() {
 		if existingPeerID == peerID {
@@ -377,9 +376,11 @@ func (ps *peerManager) NotifyPeerAddressReceived(metas []PeerMeta) {
 }
 
 func (ps *peerManager) removePeer(peerID peer.ID) bool {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 	target, ok := ps.remotePeers[peerID]
 	if ok {
-		target.Stop()
+		target.stop()
 		delete(ps.remotePeers, peerID)
 	}
 	for _, existingPeerID := range ps.Peerstore().Peers() {
@@ -419,7 +420,6 @@ func (ps *peerManager) startListener() {
 		panic(err.Error())
 	}
 	ps.log.Infof("Self node pid is %s, and listening for connections. with addr %s", ps.SelfNodeID().Pretty(), listens)
-	newHost.Network().Notify(&ConnNotifee{ps: ps, log: ps.log})
 
 	ps.Host = newHost
 
@@ -538,7 +538,7 @@ func (ps *peerManager) tryConnectPeers() {
 			continue
 		}
 		// in same go rountine.
-		ps.addPeer(meta)
+		ps.addOutboundPeer(meta)
 		remained--
 		if remained <= 0 {
 			break
@@ -662,15 +662,44 @@ func (ps *peerManager) SendProtoMessage(data proto.Message, s inet.Stream) bool 
 	return true
 }
 
-func (ps *peerManager) LookupPeer(ID peer.ID) (*RemotePeer, bool) {
-	// it will be changed later ...
-	return ps.GetPeer(ID)
+func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+
+	peer, found := ps.remotePeers[peerID]
+
+	if found {
+		return peer, true
+	}
+	// adding inbound peer
+	if ps.checkInPeerstore(peerID) {
+		ps.log.Debugf("Adding inbound peer %s with dummy address", peerID.Pretty())
+		// address can be changed after handshaking...
+		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
+		ps.remotePeers[peerID] = &aPeer
+		for _, listener := range ps.eventListeners {
+			listener.OnAddPeer(peerID)
+		}
+		go aPeer.runPeer()
+		return &aPeer, true
+	}
+	return nil, false
 }
 
 func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+
 	// vs code's lint does not allow direct return of map operation
 	ptr, ok := ps.remotePeers[ID]
-	return ptr, ok
+	if !ok {
+		return nil, false
+	}
+	if ptr.state == types.RUNNING {
+		return ptr, ok
+	} else {
+		return nil, false
+	}
 }
 
 func (ps *peerManager) GetPeers() []*RemotePeer {
@@ -689,60 +718,7 @@ func (ps *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 	for _, aPeer := range ps.remotePeers {
 		addr := aPeer.meta.ToPeerAddress()
 		peers = append(peers, &addr)
-		states = append(states, aPeer.status)
+		states = append(states, aPeer.state)
 	}
 	return peers, states
 }
-
-// ConnNotifee listen event of libp2p connection
-type ConnNotifee struct {
-	ps  PeerManager
-	log log.ILogger
-}
-
-// Listen called when network starts listening on an addr
-func (n *ConnNotifee) Listen(network inet.Network, addr ma.Multiaddr) {
-
-}
-
-// ListenClose called when network starts listening on an addr
-func (n *ConnNotifee) ListenClose(network inet.Network, addr ma.Multiaddr) {
-
-}
-
-// Connected called when a connection opened
-func (n *ConnNotifee) Connected(network inet.Network, conn inet.Conn) {
-	n.log.Debugf("New Connection  %s is connected. addrs are %v ", conn.RemotePeer().Pretty(), conn.RemoteMultiaddr())
-	val, err := conn.RemoteMultiaddr().ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		return
-	}
-	port, err := strconv.Atoi(val)
-	if err != nil {
-		return
-	}
-	ipAddr, err := conn.RemoteMultiaddr().ValueForProtocol(ma.P_IP4)
-	if err != nil {
-		return
-	}
-	meta := PeerMeta{ID: conn.RemotePeer(), IPAddress: ipAddr, Port: uint32(port)}
-	n.log.Debugf("Trying to add peer using %s, %s, %d ", meta.ID.Pretty(), ipAddr, port)
-	n.ps.AddNewPeer(meta)
-}
-
-// Disconnected called when a connection closed
-func (n *ConnNotifee) Disconnected(network inet.Network, conn inet.Conn) {
-	n.log.Debugf("Connection %s is disconnected ", conn.RemotePeer().Pretty())
-}
-
-// OpenedStream called when a stream opened
-func (n *ConnNotifee) OpenedStream(network inet.Network, stream inet.Stream) {
-
-}
-
-// ClosedStream called when a stream closed
-func (n *ConnNotifee) ClosedStream(network inet.Network, stream inet.Stream) {
-
-}
-
-var _ inet.Notifiee = (*ConnNotifee)(nil)
