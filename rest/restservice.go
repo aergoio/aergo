@@ -14,7 +14,7 @@ import (
 	"reflect"
 	//"sync"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 	bc "github.com/aergoio/aergo/blockchain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"

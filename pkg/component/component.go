@@ -9,7 +9,7 @@ import (
 	"container/list"
 	"time"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/pkg/log"
 )
 

@@ -7,7 +7,7 @@ package p2p
 import (
 	"testing"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"

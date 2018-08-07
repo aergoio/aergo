@@ -4,13 +4,10 @@ license: MIT
 excludeDirs:
 - p2p/mocks
 import:
-- package: github.com/AsynkronIT/protoactor-go
-  subpackages:
-  - actor
 - package: github.com/dgraph-io/badger
   version: ~1.5.2
 - package: github.com/gogo/protobuf
-  version: ~1.0.0
+  version: ~1.1.0
   subpackages:
   - jsonpb
   - proto
@@ -84,6 +81,7 @@ import:
 - package: github.com/mattn/go-colorable
   version: ~0.0.9
 - package: github.com/rcrowley/go-metrics
+- package: github.com/aergoio/aergo-actor
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2

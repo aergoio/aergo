@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/AsynkronIT/protoactor-go/mailbox"
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-actor/mailbox"
 	metrics "github.com/rcrowley/go-metrics"
 )
 

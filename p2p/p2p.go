@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"

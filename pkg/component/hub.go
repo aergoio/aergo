@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 	metrics "github.com/rcrowley/go-metrics"
 )
 

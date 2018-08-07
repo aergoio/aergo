@@ -1,15 +1,8 @@
-hash: 84bf99a9b738c3a3d8a6d68fba98664e0158692eea7c408b635c44de2dd8118d
-updated: 2018-08-02T15:10:49.032935773+09:00
+hash: f4574eb33bab376a70e7b34c09d6d7765a7e200285b6d0b5eb88312850ea0e8f
+updated: 2018-08-07T19:01:36.0030275+09:00
 imports:
-- name: github.com/agl/ed25519
-  version: 5312a61534124124185d41f09206b9fef1d88403
-  subpackages:
-  - edwards25519
-  - extra25519
-- name: github.com/AndreasBriese/bbloom
-  version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
-- name: github.com/AsynkronIT/protoactor-go
-  version: 3992780c0af683deb5ec3746f4ec5845139c6e42
+- name: github.com/aergoio/aergo-actor
+  version: af6175a375ba07f2a560cfab8f583ca8aa0d6947
   subpackages:
   - actor
   - eventstream
@@ -17,6 +10,13 @@ imports:
   - internal/queue/mpsc
   - log
   - mailbox
+- name: github.com/agl/ed25519
+  version: 5312a61534124124185d41f09206b9fef1d88403
+  subpackages:
+  - edwards25519
+  - extra25519
+- name: github.com/AndreasBriese/bbloom
+  version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
 - name: github.com/btcsuite/btcd
   version: fdfc19097e7ac6b57035062056f5b7b4638b8898
   subpackages:
@@ -53,7 +53,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/gogo/protobuf
-  version: 1adfc126b41513cc696b209667c8656ea7aac67c
+  version: 636bf0302bc95575d69441b25a2603156ffdddf1
   subpackages:
   - gogoproto
   - io

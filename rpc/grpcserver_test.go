@@ -14,7 +14,7 @@ import (
 
 	"github.com/aergoio/aergo/p2p"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/aergoio/aergo-actor/actor"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
