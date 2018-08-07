@@ -133,7 +133,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	return nil
 }
 func (cdb *ChainDB) generateGenesisBlock(seed int64) {
-	genesisBlock := types.NewBlock(nil, nil)
+	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
 	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)

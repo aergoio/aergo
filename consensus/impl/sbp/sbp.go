@@ -118,7 +118,7 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, err := util.GenerateBlock(s, prevBlock, s.txOp)
+				block, err := util.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
 				if err == util.ErrQuit {
 					return
 				} else if err != nil {

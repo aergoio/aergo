@@ -12,18 +12,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"time"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+//
 type Hash [sha256.Size]byte
 
+// BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, txs []*Tx) *Block {
+func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 	var prevBlockHash []byte
 	var blockNo BlockNo
 
@@ -38,8 +39,7 @@ func NewBlock(prevBlock *Block, txs []*Tx) *Block {
 	header := BlockHeader{
 		PrevBlockHash: prevBlockHash,
 		BlockNo:       blockNo,
-		// FIXME: modify timestamp value if time format is completed.
-		Timestamp: time.Now().UnixNano(),
+		Timestamp:     ts,
 		//BlockRootHash: nil,
 		//StateRootHash: nil,
 	}

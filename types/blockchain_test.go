@@ -20,7 +20,7 @@ func TestBlockHashOldNew(t *testing.T) {
 	}
 
 	txIn := make([]*Tx, 0)
-	block := NewBlock(nil, txIn)
+	block := NewBlock(nil, txIn, 0)
 
 	h1 := blockHash(block)
 	h2 := block.CalculateBlockHash()

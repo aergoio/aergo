@@ -36,7 +36,8 @@ func TestSlotRotation(t *testing.T) {
 
 func TestSlotConversion(t *testing.T) {
 	slot := Now()
-	assert.Equal(t, slot.timeSec, slot.timeMs/1000, "inconsistent slot members")
+	assert.Equal(t, nsToMs(slot.timeNs), slot.timeMs, "inconsistent slot members")
+	fmt.Println(slot.timeNs, slot.timeMs)
 }
 
 func TestSlotValidNow(t *testing.T) {

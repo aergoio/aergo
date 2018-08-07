@@ -49,7 +49,7 @@ func TestBlockSignBasic(t *testing.T) {
 		return valid
 	}
 
-	block := types.NewBlock(nil, make([]*types.Tx, 0))
+	block := types.NewBlock(nil, make([]*types.Tx, 0), 0)
 
 	privKey, pubKey := genKeyPair(signAssert)
 	sig := sign(block, privKey)
@@ -59,7 +59,7 @@ func TestBlockSignBasic(t *testing.T) {
 
 func TestBlockSign(t *testing.T) {
 	signAssert := assert.New(t)
-	block := types.NewBlock(nil, make([]*types.Tx, 0))
+	block := types.NewBlock(nil, make([]*types.Tx, 0), 0)
 
 	privKey, _ := genKeyPair(signAssert)
 	signAssert.Nil(block.Sign(privKey))

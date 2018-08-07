@@ -106,13 +106,14 @@ func (dpos *DPoS) IsBlockValid(block *types.Block) error {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	sec := block.GetHeader().GetTimestamp()
-
+	ns := block.GetHeader().GetTimestamp()
+	idx, ok := dpos.bpc.BpID2Index(id)
+	s := slot.NewFromUnixNano(ns)
 	// Check whether the BP ID belongs to those of the current BP members and
 	// its corresponding BP index is consistent with the block timestamp.
-	if idx, ok := dpos.bpc.BpID2Index(id); !ok || !slot.Unix(sec).IsFor(idx) {
+	if !ok || !s.IsFor(idx) {
 		return &consensus.ErrorConsensus{
-			Msg: fmt.Sprintf("BP %v is not permitted for the time slot %v", block.ID(), time.Unix(sec, 0)),
+			Msg: fmt.Sprintf("BP %v is not permitted for the time slot %v", block.ID(), time.Unix(0, ns)),
 		}
 	}
 
@@ -177,7 +178,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 }
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
-	blockSlot := slot.Unix(block.Header.Timestamp)
+	blockSlot := slot.NewFromUnixNano(block.Header.Timestamp)
 	if slot.LessEqual(s, blockSlot) {
 		return false
 	}

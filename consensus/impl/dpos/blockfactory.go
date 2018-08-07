@@ -147,7 +147,7 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
-	block, err := util.GenerateBlock(bf, bpi.bestBlock, bf.txOp)
+	block, err := util.GenerateBlock(bf, bpi.bestBlock, bf.txOp, bpi.slot.UnixNano())
 	if err != nil {
 		return nil, err
 	}

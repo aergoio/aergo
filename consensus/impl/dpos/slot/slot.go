@@ -6,12 +6,13 @@ import (
 	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 )
 
-// Slot is a DPoS slot implmentation
+// Slot is a DPoS slot implmentation.
 type Slot struct {
-	timeSec   int64
-	timeMs    int64
-	prevIndex int64
-	nextIndex int64
+	timeNs      int64 // nanosecond
+	timeMs      int64 // millisecond
+	scaleFactor int64 // scale factor to millisecond
+	prevIndex   int64
+	nextIndex   int64
 }
 
 // Now returns a Slot corresponding to the current local time.
@@ -19,19 +20,25 @@ func Now() *Slot {
 	return Time(time.Now())
 }
 
-// Unix returns a Slot corresponding to a UNIX time value (s).
-func Unix(sec int64) *Slot {
-	return fromUnixMs(sec * 1000)
+// NewFromUnixNano returns a Slot corresponding to a UNIX time value (ns).
+func NewFromUnixNano(ns int64) *Slot {
+	return fromUnixNs(ns)
+}
+
+// UnixNano returns UNIX time in ns.
+func (s *Slot) UnixNano() int64 {
+	return s.timeNs
 }
 
 // Time returns a Slot corresponting to the given time.
 func Time(t time.Time) *Slot {
-	return fromUnixMs(nsToMs(t.UnixNano()))
+	return fromUnixNs(t.UnixNano())
 }
 
-func fromUnixMs(ms int64) *Slot {
+func fromUnixNs(ns int64) *Slot {
+	ms := nsToMs(ns)
 	return &Slot{
-		timeSec:   msToSec(ms),
+		timeNs:    ns,
 		timeMs:    ms,
 		prevIndex: msToPrevIndex(ms),
 		nextIndex: msToNextIndex(ms),

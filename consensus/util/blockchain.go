@@ -54,13 +54,13 @@ func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp) (*types.Block, error) {
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, error) {
 	txs, err := GatherTXs(hs, txOp)
 	if err != nil {
 		return nil, err
 	}
 
-	block := types.NewBlock(prevBlock, txs)
+	block := types.NewBlock(prevBlock, txs, ts)
 
 	return block, nil
 }
