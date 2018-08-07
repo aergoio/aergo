@@ -56,7 +56,7 @@ func NewCluster(ids []string) (*Cluster, error) {
 		c.index[bpID] = index
 	}
 
-	if len(c.member) != param.BlockProducers {
+	if len(c.index) != param.BlockProducers {
 		return nil, errBpSize{required: param.BlockProducers, given: uint16(len(ids))}
 	}
 

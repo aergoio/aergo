@@ -107,13 +107,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	if cfg.Consensus.EnableBp {
 		c, err := factory.New(cfg, compMng)
-		if err == nil {
-			// ???
-			consensus.Start(c)
-		} else {
+		if err != nil {
 			svrlog.Errorf("failed to start consensus service: %s. server shutdown", err.Error())
 			os.Exit(1)
 		}
+		consensus.Start(c)
 		chainsvc.SendChainInfo(c)
 	} else {
 		chainsvc.SendChainInfo(nil)
