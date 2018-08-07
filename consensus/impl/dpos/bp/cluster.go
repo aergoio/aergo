@@ -18,7 +18,7 @@ type errBpSize struct {
 }
 
 func (e errBpSize) Error() string {
-	return fmt.Sprintf("wrong # of block producers - %v (required - %v)", e.given, e.required)
+	return fmt.Sprintf("insufficient or redundant block producers  - %v (required - %v)", e.given, e.required)
 }
 
 // Cluster represents a cluster of block producers.
@@ -54,6 +54,10 @@ func NewCluster(ids []string) (*Cluster, error) {
 		index := uint16(i)
 		c.member[index] = newBlockProducer(bpID)
 		c.index[bpID] = index
+	}
+
+	if len(c.member) != param.BlockProducers {
+		return nil, errBpSize{required: param.BlockProducers, given: uint16(len(ids))}
 	}
 
 	return c, nil
