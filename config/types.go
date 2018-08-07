@@ -72,7 +72,8 @@ type BlockchainConfig struct {
 
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics bool `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	ShowMetrics  bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	DumpFilePath string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
 
 // ConsensusConfig defines configurations for consensus service
@@ -137,6 +138,7 @@ blockchainplaceholder = {{.Blockchain.PlaceHolder}}
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
+dumpfilepath = "{{.Mempool.DumpFilePath}}"
 
 [consensus]
 enablebp = {{.Consensus.EnableBp}}

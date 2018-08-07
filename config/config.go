@@ -91,7 +91,8 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
-		ShowMetrics: false,
+		ShowMetrics:  false,
+		DumpFilePath: ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}
 }
 

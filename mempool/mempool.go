@@ -5,17 +5,16 @@
 
 package mempool
 
-/*
-TODO
-1. nonce map -> per account list
-2. account -> type def
-3 inter-actor comm
-*/
 import (
+	"bufio"
 	"bytes"
+	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
+	"os"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
@@ -24,6 +23,13 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
+)
+
+const (
+	initial = iota
+	loading = iota
+	running = iota
 )
 
 // MemPool is main structure of mempool service
@@ -41,6 +47,8 @@ type MemPool struct {
 	pool       map[types.AccountKey]*TxList
 	stateCache map[types.AccountKey]*types.State
 
+	dumpPath string
+	status   int32
 	// misc configs
 	testConfig bool
 }
@@ -55,6 +63,8 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		cache:         map[types.TransactionKey]*types.Tx{},
 		pool:          map[types.AccountKey]*TxList{},
 		stateCache:    map[types.AccountKey]*types.State{},
+		dumpPath:      cfg.Mempool.DumpFilePath,
+		status:        initial,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 }
@@ -88,7 +98,7 @@ func (mp *MemPool) Start() {
 
 // Stop handles clean-up for mempool service
 func (mp *MemPool) Stop() {
-	mp.Info("TODO: dump txs into files")
+	mp.dumpTxsToFile()
 }
 
 // Size returns current maintaining number of transactions
@@ -125,6 +135,8 @@ func (mp *MemPool) Receive(context actor.Context) {
 		context.Respond(&message.MemPoolExistRsp{
 			Tx: tx,
 		})
+	case *actor.Started:
+		mp.loadTxs() // FIXME :work-around for actor settled
 	default:
 		mp.Debug("unhandled message:", reflect.TypeOf(msg).String())
 	}
@@ -142,7 +154,6 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 		}
 	}
 	mp.Debugf("len :%d orphan:%d, total tx returned:%d", len(mp.cache), mp.orphan, count)
-
 	return txs, nil
 }
 
@@ -153,8 +164,6 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	key := types.ToTransactionKey(tx.Hash)
 	acc := tx.GetBody().GetAccount()
 
-	//n := tx.GetBody().GetNonce()
-	//mp.Debugf("tx adding into mempool (%d)%s", n, key)
 	mp.Lock()
 	defer mp.Unlock()
 	if _, found := mp.cache[key]; found {
@@ -164,7 +173,6 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-
 	err = mp.validate(tx)
 	if err != nil {
 		return err
@@ -177,11 +185,9 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	mp.orphan -= diff
 	mp.cache[key] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
-
 	if !mp.testConfig {
 		mp.notifyNewTx(*tx)
 	}
-
 	return nil
 }
 func (mp *MemPool) puts(txs ...*types.Tx) []error {
@@ -277,7 +283,6 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return nil, err
 	}
 	nonce = ns.Nonce
-
 	key := types.ToAccountKey(acc)
 	mp.pool[key] = NewTxList(nonce + 1)
 	return mp.pool[key], nil
@@ -329,4 +334,89 @@ func (mp *MemPool) notifyNewTx(tx types.Tx) {
 	mp.Hub().Request(message.P2PSvc, &message.NotifyNewTransactions{
 		Txs: []*types.Tx{&tx},
 	}, mp)
+}
+
+func (mp *MemPool) loadTxs() {
+	time.Sleep(time.Second) // FIXME
+	if !atomic.CompareAndSwapInt32(&mp.status, initial, loading) {
+		return
+	}
+	defer atomic.StoreInt32(&mp.status, running)
+	file, err := os.Open(mp.dumpPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			mp.Errorf("Unable to open dump file: %v", err)
+		}
+		return
+	}
+	reader := csv.NewReader(bufio.NewReader(file))
+
+	var drop, count int
+	for {
+		rc, err := reader.Read()
+		if err != nil {
+			break
+		}
+		count++
+		dataBuf, err := base64.StdEncoding.DecodeString(rc[0])
+		if err == nil {
+			buf := types.Tx{}
+			if proto.Unmarshal(dataBuf, &buf) == nil {
+				mp.put(&buf) // nolint: errcheck
+				continue
+			}
+		}
+		drop++
+	}
+
+	mp.Infof("loading mempool done: %d txs(%d drops)", len(mp.cache), mp.orphan)
+}
+
+func (mp *MemPool) isRunning() bool {
+	if atomic.LoadInt32(&mp.status) != running {
+		mp.Info("skip to dump txs because mempool is not running yet")
+		return false
+	}
+	return true
+}
+func (mp *MemPool) dumpTxsToFile() {
+
+	if !mp.isRunning() {
+		return
+	}
+	if len, _ := mp.Size(); len == 0 {
+		os.Remove(mp.dumpPath) // nolint: errcheck
+		return
+	}
+
+	file, err := os.Create(mp.dumpPath)
+	if err != nil {
+		mp.Errorf("Unable to create file: %v", err)
+		return
+	}
+	defer file.Close() // nolint: errcheck
+
+	writer := csv.NewWriter(bufio.NewWriter(file))
+	defer writer.Flush() //nolint: errcheck
+
+	mp.Lock()
+	defer mp.Unlock()
+	count := 0
+	for _, list := range mp.pool {
+		for _, v := range list.GetAll() {
+			data, err := proto.Marshal(v)
+			if err != nil {
+				continue
+			}
+
+			strData := base64.StdEncoding.EncodeToString(data)
+			err = writer.Write([]string{strData})
+			if err != nil {
+				mp.Info(err)
+				break
+			}
+			count++
+		}
+	}
+	mp.Infof("Dump %d txs into %s\n", count, mp.dumpPath)
 }

@@ -21,6 +21,7 @@ func (mp *MemPool) generateInfiniteTx() {
 		{0x03, 0x00, 0x00, 0x00},
 	}
 
+	time.Sleep(time.Second * 2)
 	sampleSize := len(SAMPLES)
 	var nonce []uint64
 	for i := 0; i < sampleSize; i++ {
@@ -28,7 +29,7 @@ func (mp *MemPool) generateInfiniteTx() {
 		nonce = append(nonce, ns.Nonce+1)
 	}
 
-	chunk := 100
+	chunk := 1000
 	txs := make([]*types.Tx, chunk)
 	for {
 		for i := 0; i < chunk; i++ {
@@ -41,17 +42,16 @@ func (mp *MemPool) generateInfiniteTx() {
 					Amount:    1,
 				},
 			}
+			tx.Hash = tx.CalculateTxHash()
 			nonce[acc]++
 			txs[i] = tx
 
 		}
 		mp.Hub().RequestFuture(message.MemPoolSvc,
-			&message.MemPoolPut{Txs: txs}, time.Second*100).Result()
+			&message.MemPoolPut{Txs: txs}, time.Second*100).Result() // nolint: errcheck
 
 		//	err := mp.put(tx)
-
 		//mp.Debugf("create temp tx : %s %s", err, tx.GetBody().String())
-
 	}
 }
 

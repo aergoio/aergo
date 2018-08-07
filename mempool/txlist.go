@@ -121,6 +121,19 @@ func (tl *TxList) Get() []*types.Tx {
 	return tl.list
 }
 
+// GetAll returns all transactions including orphans
+func (tl *TxList) GetAll() []*types.Tx {
+	tl.Lock()
+	defer tl.Unlock()
+	var all []*types.Tx
+	all = append(all, tl.list...)
+	for _, v := range tl.deps {
+		all = append(all, v...)
+	}
+	return all
+
+}
+
 func (tl *TxList) len() int {
 	return len(tl.list)
 }
