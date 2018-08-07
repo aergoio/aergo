@@ -97,8 +97,9 @@ var deployCmd = &cobra.Command{
 			log.Fatal(err.Error())
 		}
 		tx := &types.Tx{Body: &types.TxBody{Nonce: state.GetNonce() + 1,
-			Account: []byte(param),
-			Payload: []byte(code)},
+			Account:   []byte(param),
+			Recipient: []byte(param),
+			Payload:   []byte(code)},
 		}
 
 		sign, err := client.SignTX(context.Background(), tx)
