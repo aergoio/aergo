@@ -43,13 +43,21 @@ import "C"
 import (
 	"fmt"
 	"unsafe"
+	"github.com/aergoio/aergo/pkg/log"
 )
+
+var ctrLog *log.Logger
+
+func init() {
+	ctrLog = log.NewLogger(log.Contract)
+}
 
 func ApplyCode(code []byte, codeName []byte) error {
 	if err := C.vm_run((*C.char)(unsafe.Pointer(&code[0])), C.size_t(len(code)),
 		(*C.char)(unsafe.Pointer(&codeName))); err != nil {
 		errMsg := C.GoString(err)
 		C.free(unsafe.Pointer(err))
+		ctrLog.Error(errMsg)
 		return fmt.Errorf(errMsg)
 	}
 	return nil
