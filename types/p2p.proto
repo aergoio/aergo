@@ -21,7 +21,7 @@ message MessageData {
     // nodePubKey Authoring node Secp256k1 public key (32bytes) - protobufs serielized
     bytes nodePubKey = 6;
     // signature of message data + method specific data by message authoring node. format: string([]bytes)
-    string sign = 7;
+    bytes sign = 7;
 }
 
 // Not all response contains ResultStatus value.

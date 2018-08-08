@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -90,7 +89,6 @@ const failed bool = false
 
 // Receive got actor message and then handle it.
 func (ns *P2P) Receive(context actor.Context) {
-	ns.BaseComponent.Receive(context)
 
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
@@ -115,7 +113,7 @@ func (ns *P2P) Receive(context actor.Context) {
 	case *message.GetMissingBlocks:
 		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	default:
-		ns.Debug("unhandled message:", reflect.TypeOf(msg).String())
+		ns.BaseComponent.Receive(context)
 	}
 }
 

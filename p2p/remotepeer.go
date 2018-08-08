@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/message"
@@ -24,17 +25,24 @@ type RemotePeer struct {
 	pingDuration time.Duration
 
 	meta      PeerMeta
-	status    types.PeerState
+	state     types.PeerState
 	actorServ ActorService
 	ps        PeerManager
 	stopChan  chan struct{}
 
 	write      chan msgOrder
 	closeWrite chan struct{}
+	read       chan readMsg
+	op         chan OpOrder
+
+	readLock *sync.Mutex
 
 	// used to access request data from response handlers
 	requests    map[string]msgOrder
 	consumeChan chan string
+
+	sentStatus, gotStatus bool
+	failCounter           uint32
 }
 
 // msgOrder is abstraction information about the message that will be sent to peer
@@ -50,19 +58,46 @@ type msgOrder interface {
 	SendOver(s inet.Stream) error
 }
 
+type readMsg struct {
+	in inet.Stream
+}
+
+type OpType int
+
+const (
+	OpInitHS OpType = iota // do first handshaking of peer
+	OpHandleHS
+	OpStop // stop peer
+)
+
+type OpOrder struct {
+	op     OpType
+	param1 interface{}
+	param2 interface{}
+}
+
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.ILogger) RemotePeer {
 	return RemotePeer{
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
-		status:       types.STARTING,
-		stopChan:     make(chan struct{}),
-		write:        make(chan msgOrder),
-		closeWrite:   make(chan struct{}),
+		state:        types.STARTING,
+
+		stopChan:   make(chan struct{}),
+		write:      make(chan msgOrder),
+		closeWrite: make(chan struct{}),
+		readLock:   &sync.Mutex{},
+		op:         make(chan OpOrder, 20),
+		read:       make(chan readMsg),
 
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
 	}
+}
+
+// State returns current state of peer
+func (p *RemotePeer) State() types.PeerState {
+	return p.state
 }
 
 // runPeer should be called by go routine
@@ -75,10 +110,12 @@ RUNLOOP:
 		select {
 		case <-pingTicker.C:
 			p.sendPing()
+		case op := <-p.op:
+			p.processOp(op)
 		// case hsMsg := <-p.hsChan:
 		// 	p.startHandshake(hsMsg)
 		case <-p.stopChan:
-			p.status = types.STOPPED
+			p.state = types.STOPPED
 			break RUNLOOP
 		}
 	}
@@ -104,8 +141,19 @@ RUNLOOP:
 	close(p.consumeChan)
 }
 
+func (p *RemotePeer) processOp(op OpOrder) {
+	switch op.op {
+	case OpInitHS:
+		p.initiateHandshake()
+	case OpHandleHS:
+		p.handleHandshake(op.param1.(*types.Status))
+	case OpStop:
+		// do stop
+	}
+}
+
 // Stop stops aPeer works
-func (p *RemotePeer) Stop() {
+func (p *RemotePeer) stop() {
 	p.stopChan <- struct{}{}
 }
 
@@ -118,18 +166,39 @@ func (p *RemotePeer) consumeRequest(requestID string) {
 	p.consumeChan <- requestID
 }
 
-// startHandshake is run only in AergoPeer.RunPeer go routine
-func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
-	if p.status != types.STARTING {
+func (p *RemotePeer) initiateHandshake() {
+	// FIXME change read operations and then remove it
+	p.readLock.Lock()
+	defer p.readLock.Unlock()
+
+	if p.state != types.STARTING {
 		p.goAwayMsg("Invalid status msg")
 		return
 	}
+	p.sendStatus()
+	p.state = types.HANDSHAKING
+}
 
+func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 	// check address. and apply current
 	receivedMeta := FromPeerAddress(statusMsg.Sender)
 	p.meta.IPAddress = receivedMeta.IPAddress
 	p.meta.Port = receivedMeta.Port
+}
 
+// startHandshake is run only in AergoPeer.RunPeer go routine
+func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
+	// FIXME change read operations and then remove it
+	p.readLock.Lock()
+	defer p.readLock.Unlock()
+
+	peerState := p.State()
+	if peerState != types.STARTING && peerState != types.HANDSHAKING {
+		p.goAwayMsg("Invalid status msg")
+		return
+	}
+
+	p.updateMetaInfo(statusMsg)
 	// TODO: check protocol version, blacklist, key authentication or etc.
 	err := p.checkProtocolVersion()
 	if err != nil {
@@ -138,9 +207,14 @@ func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
 		return
 	}
 
+	// if state is han
+	if peerState == types.STARTING {
+		p.sendStatus()
+	}
+
 	// If all checked and validated. it's now handshaked. and then run sync.
 	p.log.Infof("peer %s is handshaked and now running status", p.meta.ID.Pretty())
-	p.status = types.RUNNING
+	p.state = types.RUNNING
 
 	// notice to p2pmanager that handshaking is finished
 	p.ps.NotifyPeerHandshake(p.meta.ID)
@@ -149,7 +223,6 @@ func (p *RemotePeer) handshakePeer(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	p.log.Debugf("Writing message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
 	// sign the data
 	if m.IsNeedSign() {
 		err := m.SignWith(p.ps)
@@ -158,9 +231,12 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 			return
 		}
 	}
+
 	s, err := p.ps.NewStream(context.Background(), p.meta.ID, m.GetProtocolID())
 	if err != nil {
-		p.log.Warn(err.Error())
+		p.log.Warnf("Error while sending %v:%v - %s", m.GetProtocolID(), m.GetRequestID(), err.Error())
+		// problem in connection starting disconnect
+		p.ps.RemovePeer(p.meta.ID)
 		return
 	}
 
@@ -169,6 +245,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.log.Warn(err.Error())
 		return
 	}
+	p.log.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
 	if m.ResponseExpected() {
 		p.requests[m.GetRequestID()] = m
 	}
@@ -218,7 +295,7 @@ func (p *RemotePeer) sendStatus() {
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
-	p.log.Infof("Peer is closing since by %s ", msg)
+	p.log.Infof("Peer %s is closing since by %s ", p.meta.ID.Pretty(), msg)
 	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
 	p.ps.RemovePeer(p.meta.ID)
 }

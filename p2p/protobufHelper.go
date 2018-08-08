@@ -110,7 +110,7 @@ func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
 		return err
 	}
 	// TOCO check if this string conversion is safe. This conversion will corrupt data if []byte is binary data.
-	messageData.Sign = string(signature)
+	messageData.Sign = signature
 	return nil
 
 }

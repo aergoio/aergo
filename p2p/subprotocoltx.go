@@ -62,6 +62,9 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 		return
 	}
 
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	// get request data
 	data := &types.GetTransactionsRequest{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -112,11 +115,15 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 // remote GetTransactions response handler
 func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	_, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.GetTransactionsResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
@@ -193,11 +200,15 @@ func (p *TxProtocol) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 // remote NotifynewTXs response handler
 func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	_, ok := p.ps.GetPeer(peerID)
+	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+
+	remotePeer.readLock.Lock()
+	defer remotePeer.readLock.Unlock()
+
 	data := &types.NewTransactionsNotice{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
