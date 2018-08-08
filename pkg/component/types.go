@@ -18,7 +18,7 @@ type IComponent interface {
 	Start()
 	Stop()
 	Request(message interface{}, sender IComponent)
-	RequestFuture(message interface{}, timeout time.Duration) *actor.Future
+	RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future
 	Pid() *actor.PID
 
 	Receive(actor.Context)

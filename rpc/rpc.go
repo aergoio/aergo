@@ -100,12 +100,12 @@ func (ns *RPC) SendRequest(actor string, msg interface{}) {
 
 // FutureRequest implement interface method of ActorService
 func (ns *RPC) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return ns.hub.RequestFuture(actor, msg, defaultTTL)
+	return ns.hub.RequestFuture(actor, msg, defaultTTL, "rpc.(*RPC).FutureRequest")
 }
 
 // CallRequest implement interface method of ActorService
 func (ns *RPC) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.hub.RequestFuture(actor, msg, defaultTTL)
+	future := ns.hub.RequestFuture(actor, msg, defaultTTL, "rpc.(*RPC).CallRequest")
 
 	return future.Result()
 }

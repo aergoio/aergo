@@ -43,12 +43,25 @@ func (base *BaseComponent) GetName() string {
 	return base.name
 }
 
+func resumeDecider(_ interface{}) actor.Directive {
+	return actor.ResumeDirective
+}
+
 func (base *BaseComponent) Start(inheritant IComponent) {
-	workerProps := actor.FromInstance(inheritant)
+	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
+	workerProps := actor.FromInstance(inheritant).WithSupervisor(skipResumeStrategy)
 	if base.enableDebugMsg {
 		workerProps = workerProps.WithMailbox(newMailBoxLogger(base.hub.Metrics(base.name)))
 	}
-	base.pid = actor.Spawn(workerProps)
+	var err error
+	// create and spawn an actor using the name as an unique id
+	base.pid, err = actor.SpawnNamed(workerProps, base.GetName())
+	// if a same name of pid already exists, retry by attaching a sequential id
+	// from actor.ProcessRegistry
+	for ; err != nil; base.pid, err = actor.SpawnPrefix(workerProps, base.GetName()) {
+		//TODO add log msg
+	}
+
 	// Wait for the messaging hub to be fully initilized. - Incomplete
 	// initilization leads to a crash.
 	hubInit.wait()
@@ -68,13 +81,13 @@ func (base *BaseComponent) Request(message interface{}, sender IComponent) {
 	}
 }
 
-func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration) *actor.Future {
+func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
 
 	if base.pid == nil {
 		base.Fatal("PID is empty")
 	}
 
-	return base.pid.RequestFuture(message, timeout)
+	return base.pid.RequestFuturePrefix(message, tip, timeout)
 }
 
 func (base *BaseComponent) Pid() *actor.PID {

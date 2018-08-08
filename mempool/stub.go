@@ -48,7 +48,7 @@ func (mp *MemPool) generateInfiniteTx() {
 
 		}
 		mp.Hub().RequestFuture(message.MemPoolSvc,
-			&message.MemPoolPut{Txs: txs}, time.Second*100).Result() // nolint: errcheck
+			&message.MemPoolPut{Txs: txs}, time.Second*100, "mempool.(*MemPool).generateInfiniteTx").Result() // nolint: errcheck
 
 		//	err := mp.put(tx)
 		//mp.Debugf("create temp tx : %s %s", err, tx.GetBody().String())

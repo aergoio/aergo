@@ -2,7 +2,7 @@ hash: f4574eb33bab376a70e7b34c09d6d7765a7e200285b6d0b5eb88312850ea0e8f
 updated: 2018-08-07T19:01:36.0030275+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
-  version: af6175a375ba07f2a560cfab8f583ca8aa0d6947
+  version: 25f0d0e3e467b3a0837800dd06309effae33d0f8
   subpackages:
   - actor
   - eventstream

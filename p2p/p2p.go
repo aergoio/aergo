@@ -126,12 +126,12 @@ func (ns *P2P) SendRequest(actor string, msg interface{}) {
 
 // FutureRequest implement interface method of ActorService
 func (ns *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return ns.hub.RequestFuture(actor, msg, defaultTTL)
+	return ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).FutureRequest")
 }
 
 // CallRequest implement interface method of ActorService
 func (ns *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.hub.RequestFuture(actor, msg, defaultTTL)
+	future := ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).CallRequest")
 
 	return future.Result()
 }

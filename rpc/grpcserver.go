@@ -45,7 +45,8 @@ var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*types.BlockchainStatus, error) {
 	//last, _ := rpc.ChainService.GetBestBlock()
-	result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout).Result()
+	result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout,
+		"rpc.(*AergoRPCService).Blockchain").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 		hash := in.Hash
 		for idx < maxFetchSize {
 			foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
-				&message.GetBlock{BlockHash: hash}, defaultActorTimeout))
+				&message.GetBlock{BlockHash: hash}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#1"))
 			if !ok || nil == foundBlock {
 				break
 			}
@@ -99,7 +100,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 		}
 		for i := types.BlockNo(in.Height); i >= end; i-- {
 			foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
-				&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout))
+				&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
 			if !ok || nil == foundBlock {
 				break
 			}
@@ -150,9 +151,11 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 	}
 	if len(in.Value) < 32 {
 		number := uint64(binary.LittleEndian.Uint64(in.Value))
-		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlockByNo{BlockNo: number}, defaultActorTimeout).Result()
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlockByNo{BlockNo: number},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetBlock#1").Result()
 	} else {
-		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlock{BlockHash: in.Value}, defaultActorTimeout).Result()
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlock{BlockHash: in.Value},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetBlock#2").Result()
 	}
 	if err != nil {
 		return nil, err
@@ -186,7 +189,7 @@ func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*
 // GetBlockTX handle rpc request gettx
 func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleBytes) (*types.TxInBlock, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetTx{TxHash: in.Value}, defaultActorTimeout).Result()
+		&message.GetTx{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetBlockTX").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +234,8 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		if (i > 0 && i%chunk == 0) || i == len(in.Txs)-1 {
 			//send tx message to mempool
 			result, err := rpc.hub.RequestFuture(message.MemPoolSvc,
-				&message.MemPoolPut{Txs: in.Txs[start : start+cnt]}, defaultActorTimeout).Result()
+				&message.MemPoolPut{Txs: in.Txs[start : start+cnt]},
+				defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX").Result()
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +269,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 // GetState handle rpc request getstate
 func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes) (*types.State, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetState{Account: in.Value}, defaultActorTimeout).Result()
+		&message.GetState{Account: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetState").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +285,7 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 // CreateAccount handle rpc request newaccount
 func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.CreateAccount{Passphrase: in.Passphrase}, defaultActorTimeout).Result()
+		&message.CreateAccount{Passphrase: in.Passphrase}, defaultActorTimeout, "rpc.(*AergoRPCService).CreateAccount").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +299,7 @@ func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Persona
 // GetAccounts handle rpc request getaccounts
 func (rpc *AergoRPCService) GetAccounts(ctx context.Context, in *types.Empty) (*types.AccountList, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.GetAccounts{}, defaultActorTimeout).Result()
+		&message.GetAccounts{}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccounts").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +313,8 @@ func (rpc *AergoRPCService) GetAccounts(ctx context.Context, in *types.Empty) (*
 // LockAccount handle rpc request lockaccount
 func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.LockAccount{Account: in.Account, Passphrase: in.Passphrase}, defaultActorTimeout).Result()
+		&message.LockAccount{Account: in.Account, Passphrase: in.Passphrase},
+		defaultActorTimeout, "rpc.(*AergoRPCService).LockAccount").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +328,8 @@ func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal)
 // UnlockAccount handle rpc request unlockaccount
 func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.UnlockAccount{Account: in.Account, Passphrase: in.Passphrase}, defaultActorTimeout).Result()
+		&message.UnlockAccount{Account: in.Account, Passphrase: in.Passphrase},
+		defaultActorTimeout, "rpc.(*AergoRPCService).UnlockAccount").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +343,7 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 // SignTX handle rpc request signtx
 func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.SignTx{Tx: in}, defaultActorTimeout).Result()
+		&message.SignTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).SignTX").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +357,7 @@ func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx
 // VerifyTX handle rpc request verifytx
 func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.VerifyResult, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.VerifyTx{Tx: in}, defaultActorTimeout).Result()
+		&message.VerifyTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).VerifyTX").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +377,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 // GetPeers handle rpc request getpeers
 func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*types.PeerList, error) {
 	result, err := rpc.hub.RequestFuture(message.P2PSvc,
-		&message.GetPeers{}, halfMinute).Result()
+		&message.GetPeers{}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
 	if err != nil {
 		return nil, err
 	}

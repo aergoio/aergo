@@ -31,7 +31,8 @@ var logger = log.NewLogger(log.Consensus)
 
 // GetBestBlock returns the current best block from chainservice
 func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
-	result, err := hs.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second).Result()
+	result, err := hs.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second,
+		"consensus/util/info.GetBestBlock").Result()
 	if err != nil {
 		logger.Errorf("failed to get best block info: %v", err.Error())
 		return nil
@@ -41,7 +42,8 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 
 // ConnectBlock send an AddBlock request to the chain service.
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block) {
-	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block}, time.Second).Result()
+	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block},
+		time.Second, "consensus/util/info.ConnectBlock").Result()
 	if err != nil {
 		logger.Errorf("failed to connect block: no=%d, hash=%s, prev=%s",
 			block.Header.BlockNo,
@@ -54,7 +56,8 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block) {
 // FetchTXs requests to mempool and returns types.Tx array.
 func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 	//bf.RequestFuture(message.MemPoolSvc, &message.MemPoolGenerateSampleTxs{MaxCount: 3}, time.Second)
-	result, err := hs.RequestFuture(message.MemPoolSvc, &message.MemPoolGet{}, time.Second).Result()
+	result, err := hs.RequestFuture(message.MemPoolSvc, &message.MemPoolGet{}, time.Second,
+		"consensus/util/info.FetchTXs").Result()
 	if err != nil {
 		logger.Infof("can't fetch transactions from mempool - %v", err)
 		return make([]*types.Tx, 0)

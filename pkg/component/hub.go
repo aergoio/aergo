@@ -15,7 +15,7 @@ import (
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
 type ICompSyncRequester interface {
-	RequestFuture(targetName string, message interface{}, timeout time.Duration) *actor.Future
+	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 
 type ComponentHub struct {
@@ -91,12 +91,12 @@ func (hub *ComponentHub) Request(targetName string, message interface{}, sender 
 }
 
 func (hub *ComponentHub) RequestFuture(
-	targetName string, message interface{}, timeout time.Duration) *actor.Future {
+	targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future {
 
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
 		panic("Unregistered Component")
 	}
 
-	return targetComponent.RequestFuture(message, timeout)
+	return targetComponent.RequestFuture(message, timeout, tip)
 }

@@ -32,7 +32,7 @@ func main() {
 	compHub.Request(message.HelloService, &message.HelloReq{Who: "Roger"}, testServer)
 
 	// request and wait
-	rawResponse, err := compHub.RequestFuture(message.HelloService, &component.StatusReq{}, time.Second).Result()
+	rawResponse, err := compHub.RequestFuture(message.HelloService, &component.StatusReq{}, time.Second, "examples/component.main").Result()
 	if err != nil {
 		fmt.Println(err)
 	} else {
