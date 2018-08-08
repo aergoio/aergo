@@ -9,7 +9,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func (sdb *CachedStateDB) saveData(key []byte, data interface{}) error {
+func (sdb *ChainStateDB) saveData(key []byte, data interface{}) error {
 	if key == nil {
 		return fmt.Errorf("Failed to set data: key is nil")
 	}
@@ -39,7 +39,7 @@ func (sdb *CachedStateDB) saveData(key []byte, data interface{}) error {
 	return nil
 }
 
-func (sdb *CachedStateDB) loadData(key []byte, data interface{}) error {
+func (sdb *ChainStateDB) loadData(key []byte, data interface{}) error {
 	if key == nil {
 		return fmt.Errorf("Failed to get data: key is nil")
 	}
@@ -65,7 +65,7 @@ func (sdb *CachedStateDB) loadData(key []byte, data interface{}) error {
 	return err
 }
 
-func (sdb *CachedStateDB) saveStateDB() error {
+func (sdb *ChainStateDB) saveStateDB() error {
 	// logger.Debugf("- ### saveStateDB")
 	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
 	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
@@ -80,7 +80,7 @@ func (sdb *CachedStateDB) saveStateDB() error {
 	return nil
 }
 
-func (sdb *CachedStateDB) loadStateDB() error {
+func (sdb *ChainStateDB) loadStateDB() error {
 	// logger.Debug("- ### loadStateDB")
 	err := sdb.loadData([]byte(stateLatest), &sdb.latest)
 	if err != nil {
@@ -95,7 +95,7 @@ func (sdb *CachedStateDB) loadStateDB() error {
 	return nil
 }
 
-func (sdb *CachedStateDB) saveBlockState(data *BlockState) error {
+func (sdb *ChainStateDB) saveBlockState(data *BlockState) error {
 	bkey := data.BlockHash
 	if bkey == types.EmptyBlockKey {
 		return fmt.Errorf("Invalid Key to save BlockState: empty")
@@ -103,7 +103,7 @@ func (sdb *CachedStateDB) saveBlockState(data *BlockState) error {
 	err := sdb.saveData(bkey[:], data)
 	return err
 }
-func (sdb *CachedStateDB) loadBlockState(bkey types.BlockKey) (*BlockState, error) {
+func (sdb *ChainStateDB) loadBlockState(bkey types.BlockKey) (*BlockState, error) {
 	if bkey == types.EmptyBlockKey {
 		return nil, fmt.Errorf("Invalid Key to load BlockState: empty")
 	}

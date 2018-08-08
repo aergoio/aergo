@@ -6,6 +6,7 @@
 package state
 
 import (
+	"crypto/sha512"
 	"fmt"
 	"os"
 	"path"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -40,6 +42,16 @@ type BlockState struct {
 	accounts map[types.AccountKey]*StateEntry
 }
 
+func NewStateEntry(state, undo *types.State) *StateEntry {
+	if undo != nil && undo.IsEmpty() {
+		undo = nil
+	}
+	return &StateEntry{
+		State: state,
+		Undo:  undo,
+	}
+}
+
 func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *BlockState {
 	return &BlockState{
 		BlockInfo: BlockInfo{
@@ -55,23 +67,31 @@ func (bs *BlockState) PutAccount(akey types.AccountKey, state, change *types.Sta
 	if prev, ok := bs.accounts[akey]; ok {
 		prev.State = change
 	} else {
-		bs.accounts[akey] = &StateEntry{
-			State: change,
-			Undo:  state,
-		}
+		bs.accounts[akey] = NewStateEntry(change, state)
 	}
 }
 
-type CachedStateDB struct {
+type ChainStateDB struct {
 	sync.RWMutex
 	accounts map[types.AccountKey]*types.State
+	trie     *trie.SMT
 	latest   *BlockInfo
 	statedb  db.DB
 }
 
-func NewCachedStateDB() *CachedStateDB {
-	return &CachedStateDB{
+func NewStateDB() *ChainStateDB {
+	hasher := func(data ...[]byte) []byte {
+		hasher := sha512.New512_256()
+		for i := 0; i < len(data); i++ {
+			hasher.Write(data[i])
+		}
+		return hasher.Sum(nil)
+	}
+	smt := trie.NewSMT(32, hasher, nil)
+
+	return &ChainStateDB{
 		accounts: make(map[types.AccountKey]*types.State),
+		trie:     smt,
 	}
 }
 
@@ -84,7 +104,7 @@ func InitDB(basePath, dbName string) db.DB {
 	return dbInst
 }
 
-func (sdb *CachedStateDB) Init(dataDir string) error {
+func (sdb *ChainStateDB) Init(dataDir string) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -98,7 +118,7 @@ func (sdb *CachedStateDB) Init(dataDir string) error {
 	return err
 }
 
-func (sdb *CachedStateDB) Close() error {
+func (sdb *ChainStateDB) Close() error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -115,7 +135,7 @@ func (sdb *CachedStateDB) Close() error {
 	return nil
 }
 
-func (sdb *CachedStateDB) SetGenesis(genesisBlock *types.Block) error {
+func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	sdb.latest = &BlockInfo{
 		BlockNo:   0,
 		BlockHash: types.ToBlockKey(genesisBlock.Hash),
@@ -125,7 +145,7 @@ func (sdb *CachedStateDB) SetGenesis(genesisBlock *types.Block) error {
 	return err
 }
 
-func (sdb *CachedStateDB) GetAccountState(akey types.AccountKey) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccountState(akey types.AccountKey) (*types.State, error) {
 	if akey == types.EmptyAccountKey {
 		return nil, fmt.Errorf("Failed to get block account: invalid account key")
 	}
@@ -136,7 +156,7 @@ func (sdb *CachedStateDB) GetAccountState(akey types.AccountKey) (*types.State, 
 	sdb.accounts[akey] = state
 	return state, nil
 }
-func (sdb *CachedStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*types.State, error) {
 	if akey == types.EmptyAccountKey {
 		return nil, fmt.Errorf("Failed to get block account: invalid account key")
 	}
@@ -146,7 +166,7 @@ func (sdb *CachedStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*ty
 	}
 	return sdb.GetAccountState(akey)
 }
-func (sdb *CachedStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey) (*types.State, error) {
 	state, err := sdb.GetAccount(bs, akey)
 	if err != nil {
 		return nil, err
@@ -155,7 +175,7 @@ func (sdb *CachedStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey)
 	return &res, nil
 }
 
-func (sdb *CachedStateDB) Apply(bstate *BlockState) error {
+func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	if sdb.latest.BlockNo+1 != bstate.BlockNo {
 		return fmt.Errorf("Failed to apply: invalid block no")
 	}
@@ -166,15 +186,23 @@ func (sdb *CachedStateDB) Apply(bstate *BlockState) error {
 	defer sdb.Unlock()
 
 	sdb.saveBlockState(bstate)
+	keys := trie.DataArray{bstate.BlockInfo.BlockHash[:]}
+	vals := trie.DataArray{bstate.BlockInfo.PrevHash[:]}
 	for k, v := range bstate.accounts {
 		sdb.accounts[k] = v.State
+		keys = append(keys, k[:])
+		vals = append(vals, v.State.GetHash())
 	}
+	if len(keys) > 0 && len(vals) > 0 {
+		sdb.trie.Update(keys, vals)
+	}
+	// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 	sdb.latest = &bstate.BlockInfo
 	err := sdb.saveStateDB()
 	return err
 }
 
-func (sdb *CachedStateDB) Rollback(blockNo types.BlockNo) error {
+func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 	if sdb.latest.BlockNo <= blockNo {
 		return fmt.Errorf("Failed to rollback: invalid block no")
 	}
@@ -186,11 +214,23 @@ func (sdb *CachedStateDB) Rollback(blockNo types.BlockNo) error {
 		if err != nil {
 			return err
 		}
+		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
+		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
 		for k, v := range bs.accounts {
 			sdb.accounts[k] = v.Undo
+			keys = append(keys, k[:])
+			vals = append(vals, v.State.GetHash())
 		}
+		if len(keys) > 0 && len(vals) > 0 {
+			sdb.trie.Update(keys, vals)
+		}
+		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 		sdb.latest = &bs.BlockInfo
 	}
 	err := sdb.saveStateDB()
 	return err
+}
+
+func (sdb *ChainStateDB) GetHash() []byte {
+	return sdb.trie.Root
 }

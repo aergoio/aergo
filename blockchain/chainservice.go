@@ -26,7 +26,7 @@ type ChainService struct {
 
 	cfg *cfg.Config
 	cdb *ChainDB
-	sdb *state.CachedStateDB
+	sdb *state.ChainStateDB
 	op  *OrphanPool
 
 	cac chan consensus.ChainInfo
@@ -43,7 +43,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cfg:           cfg,
 		cac:           make(chan consensus.ChainInfo),
 		cdb:           NewChainDB(),
-		sdb:           state.NewCachedStateDB(),
+		sdb:           state.NewStateDB(),
 		op:            NewOrphanPool(),
 	}
 }
