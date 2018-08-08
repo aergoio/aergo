@@ -268,7 +268,7 @@ func (ps *peerManager) addDesignatedPeers() {
 			Designated: true,
 			Outbound:   true,
 		}
-		ps.log.Infof("Adding peer %s of address %s:%d", peerID.Pretty(), peerAddrString, peerPort)
+		ps.log.Infof("Adding Desginated peer %s of address %s:%d", peerID.Pretty(), peerAddrString, peerPort)
 		ps.addPeerChannel <- peerMeta
 	}
 }
@@ -327,7 +327,6 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 		newPeer = &aPeer
 		ps.remotePeers[peerID] = newPeer
 		ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
-		newPeer.state = types.HANDSHAKING
 	} else {
 		// // inbound peer should already be listed in peerstore of libp2p. If not, that peer is deleted just before
 		// if ps.checkInPeerstore(peerID) {
@@ -344,7 +343,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 			listener.OnAddPeer(peerID)
 		}
 		go newPeer.runPeer()
-		newPeer.sendStatus()
+		newPeer.op <- OpOrder{op: OpInitHS}
 	}
 }
 
@@ -524,7 +523,7 @@ func (ps *peerManager) tryFillPool(metas *[]PeerMeta) {
 			added = append(added, meta)
 		}
 	}
-	ps.log.Debugf("Fiil %d peer addresses: %v ", len(added), added)
+	ps.log.Debugf("Fill %d peer addresses: %v ", len(added), added)
 
 	ps.tryConnectPeers()
 }
@@ -553,7 +552,7 @@ func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
 	sign := data.Sign
-	data.Sign = ""
+	data.Sign = []byte{}
 
 	// marshall data without the signature to protobufs3 binary format
 	bin, err := proto.Marshal(message)

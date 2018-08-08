@@ -103,7 +103,6 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 }
 
 func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	p.log.Debugf("Checking %d peers whether to added or not in peerstore; %s", len(peers), AddressesToStringMap(peers))
 	selfPeerID := p.ps.ID()
 	peerMetas := make([]PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
@@ -115,6 +114,7 @@ func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {
+		p.log.Debugf("Checking %d peers whether to added or not in peerstore; %s", len(peerMetas), peerMetas)
 		p.ps.NotifyPeerAddressReceived(peerMetas)
 	}
 }

@@ -7,6 +7,8 @@ package p2p
 import (
 	"net"
 
+	"strconv"
+
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -20,6 +22,10 @@ type PeerMeta struct {
 	ID         peer.ID
 	Designated bool // Designated means this peer is designated in config file and connect to in startup phase
 	Outbound   bool
+}
+
+func (m PeerMeta) String() string {
+	return m.ID.Pretty() + "/" + m.IPAddress + ":" + strconv.Itoa(int(m.Port))
 }
 
 // FromPeerAddress convert PeerAddress to PeerMeta
