@@ -27,13 +27,13 @@ var (
 )
 
 type BlockInfo struct {
-	blockNo   types.BlockNo
-	blockHash types.BlockKey
-	prevHash  types.BlockKey
+	BlockNo   types.BlockNo
+	BlockHash types.BlockKey
+	PrevHash  types.BlockKey
 }
 type StateEntry struct {
-	state *types.State
-	undo  *types.State
+	State *types.State
+	Undo  *types.State
 }
 type BlockState struct {
 	BlockInfo
@@ -43,9 +43,9 @@ type BlockState struct {
 func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *BlockState {
 	return &BlockState{
 		BlockInfo: BlockInfo{
-			blockNo:   blockNo,
-			blockHash: blockHash,
-			prevHash:  prevHash,
+			BlockNo:   blockNo,
+			BlockHash: blockHash,
+			PrevHash:  prevHash,
 		},
 		accounts: make(map[types.AccountKey]*StateEntry),
 	}
@@ -53,11 +53,11 @@ func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *B
 
 func (bs *BlockState) PutAccount(akey types.AccountKey, state, change *types.State) {
 	if prev, ok := bs.accounts[akey]; ok {
-		prev.state = change
+		prev.State = change
 	} else {
 		bs.accounts[akey] = &StateEntry{
-			state: change,
-			undo:  state,
+			State: change,
+			Undo:  state,
 		}
 	}
 }
@@ -115,6 +115,16 @@ func (sdb *CachedStateDB) Close() error {
 	return nil
 }
 
+func (sdb *CachedStateDB) SetGenesis(genesisBlock *types.Block) error {
+	sdb.latest = &BlockInfo{
+		BlockNo:   0,
+		BlockHash: types.ToBlockKey(genesisBlock.Hash),
+	}
+	// TODO: process initial coin tx
+	err := sdb.saveStateDB()
+	return err
+}
+
 func (sdb *CachedStateDB) GetAccountState(akey types.AccountKey) (*types.State, error) {
 	if akey == types.EmptyAccountKey {
 		return nil, fmt.Errorf("Failed to get block account: invalid account key")
@@ -132,7 +142,7 @@ func (sdb *CachedStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*ty
 	}
 
 	if prev, ok := bs.accounts[akey]; ok {
-		return prev.state, nil
+		return prev.State, nil
 	}
 	return sdb.GetAccountState(akey)
 }
@@ -141,14 +151,15 @@ func (sdb *CachedStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey)
 	if err != nil {
 		return nil, err
 	}
-	return types.Clone(state).(*types.State), nil
+	res := types.Clone(*state).(types.State)
+	return &res, nil
 }
 
 func (sdb *CachedStateDB) Apply(bstate *BlockState) error {
-	if sdb.latest.blockNo+1 != bstate.blockNo {
+	if sdb.latest.BlockNo+1 != bstate.BlockNo {
 		return fmt.Errorf("Failed to apply: invalid block no")
 	}
-	if sdb.latest.blockHash != bstate.prevHash {
+	if sdb.latest.BlockHash != bstate.PrevHash {
 		return fmt.Errorf("Failed to apply: invalid previous block")
 	}
 	sdb.Lock()
@@ -156,30 +167,30 @@ func (sdb *CachedStateDB) Apply(bstate *BlockState) error {
 
 	sdb.saveBlockState(bstate)
 	for k, v := range bstate.accounts {
-		sdb.accounts[k] = v.state
+		sdb.accounts[k] = v.State
 	}
 	sdb.latest = &bstate.BlockInfo
-	sdb.saveStateDB()
-	return nil
+	err := sdb.saveStateDB()
+	return err
 }
 
 func (sdb *CachedStateDB) Rollback(blockNo types.BlockNo) error {
-	if sdb.latest.blockNo <= blockNo {
+	if sdb.latest.BlockNo <= blockNo {
 		return fmt.Errorf("Failed to rollback: invalid block no")
 	}
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	for sdb.latest.blockNo > blockNo {
-		bs, err := sdb.loadBlockState(sdb.latest.blockHash)
+	for sdb.latest.BlockNo > blockNo {
+		bs, err := sdb.loadBlockState(sdb.latest.BlockHash)
 		if err != nil {
 			return err
 		}
 		for k, v := range bs.accounts {
-			sdb.accounts[k] = v.undo
+			sdb.accounts[k] = v.Undo
 		}
 		sdb.latest = &bs.BlockInfo
 	}
-	sdb.saveStateDB()
-	return nil
+	err := sdb.saveStateDB()
+	return err
 }

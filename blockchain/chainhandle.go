@@ -114,8 +114,8 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		return err
 	}
 
-	senderChange := types.Clone(senderState).(*types.State)
-	receiverChange := types.Clone(receiverState).(*types.State)
+	senderChange := types.Clone(*senderState).(types.State)
+	receiverChange := types.Clone(*receiverState).(types.State)
 	if senderKey != receiverKey {
 		if senderChange.Balance < txBody.Amount {
 			senderChange.Balance = 0 // FIXME: reject insufficient tx.
@@ -123,10 +123,10 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 			senderChange.Balance = senderState.Balance - txBody.Amount
 		}
 		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-		bs.PutAccount(receiverKey, receiverState, receiverChange)
+		bs.PutAccount(receiverKey, receiverState, &receiverChange)
 	}
 	senderChange.Nonce = txBody.Nonce
-	bs.PutAccount(senderKey, senderState, senderChange)
+	bs.PutAccount(senderKey, senderState, &senderChange)
 
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderKey, senderState.ToString(),

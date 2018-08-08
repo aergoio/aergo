@@ -62,21 +62,38 @@ func (cs *ChainService) Start() {
 	cs.receiveChainInfo()
 
 	// init chaindb
-	if err := cs.cdb.Init(cs.cfg.GenesisSeed, cs.cfg.DataDir); err != nil {
-		logger.Info("failed to initialize chaindb.", err)
-		return
+	if err := cs.cdb.Init(cs.cfg.DataDir); err != nil {
+		logger.Fatal("failed to initialize chaindb: ", err)
+	}
+
+	// init statedb
+	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {
+		logger.Fatal("failed to initialize statedb: ", err)
+	}
+
+	// init genesis block
+	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
+		logger.Fatal("failed to initialize genesis block: ", err)
+	}
+
+	return
+}
+
+func (cs *ChainService) initGenesis(seed int64) error {
+	gh, _ := cs.cdb.getHashByNo(0)
+	if gh == nil || len(gh) == 0 {
+		if cs.cdb.latest == 0 {
+			genesisBlock := cs.cdb.generateGenesisBlock(seed)
+			err := cs.sdb.SetGenesis(genesisBlock)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
 	logger.Infof("chain initialized: seed=%v, genesis=%s",
 		gb.Header.Timestamp, EncodeB64(gb.Hash))
-
-	// init statedb
-	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {
-		logger.Info("failed to initialize statedb.", err)
-		return
-	}
-
-	return
+	return nil
 }
 
 // Sync with peer

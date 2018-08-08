@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/aergoio/aergo/types"
@@ -30,8 +29,12 @@ func (sdb *CachedStateDB) saveData(key []byte, data interface{}) error {
 			return err
 		}
 		raw = buffer.Bytes()
+		if err != nil {
+			return err
+		}
 	}
-	logger.Debugf("- putData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
+	// logger.Debugf("- saveData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
+	// logger.Debugf("- saveData: data=%v", data)
 	sdb.statedb.Set(key, raw)
 	return nil
 }
@@ -44,7 +47,8 @@ func (sdb *CachedStateDB) loadData(key []byte, data interface{}) error {
 		return nil
 	}
 	raw := sdb.statedb.Get(key)
-	logger.Debugf("- loadData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
+
+	// logger.Debugf("- loadData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
 	if raw == nil || len(raw) == 0 {
 		return nil
 	}
@@ -57,13 +61,14 @@ func (sdb *CachedStateDB) loadData(key []byte, data interface{}) error {
 		dec := gob.NewDecoder(reader)
 		err = dec.Decode(data)
 	}
+	// logger.Debugf("- loadData: data=%v", data)
 	return err
 }
 
 func (sdb *CachedStateDB) saveStateDB() error {
-	logger.Debug("- sdb.latest.blockNo=", sdb.latest.blockNo)
-	logger.Debug("- sdb.latest.blockHash=", sdb.latest.blockHash)
-	logger.Debug("- sdb.accounts.size=", len(sdb.accounts))
+	// logger.Debugf("- ### saveStateDB")
+	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
+	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
 	err := sdb.saveData([]byte(stateAccounts), sdb.accounts)
 	if err != nil {
 		return err
@@ -76,22 +81,22 @@ func (sdb *CachedStateDB) saveStateDB() error {
 }
 
 func (sdb *CachedStateDB) loadStateDB() error {
-	err := sdb.loadData([]byte(stateLatest), sdb.latest)
+	// logger.Debug("- ### loadStateDB")
+	err := sdb.loadData([]byte(stateLatest), &sdb.latest)
 	if err != nil {
 		return err
 	}
-	err = sdb.loadData([]byte(stateAccounts), sdb.accounts)
+	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
+	err = sdb.loadData([]byte(stateAccounts), &sdb.accounts)
 	if err != nil {
 		return err
 	}
-	logger.Debug("- sdb.latest.blockNo=", sdb.latest.blockNo)
-	logger.Debug("- sdb.latest.blockHash=", sdb.latest.blockHash)
-	logger.Debug("- sdb.accounts.size=", len(sdb.accounts))
+	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
 	return nil
 }
 
 func (sdb *CachedStateDB) saveBlockState(data *BlockState) error {
-	bkey := data.blockHash
+	bkey := data.BlockHash
 	if bkey == types.EmptyBlockKey {
 		return fmt.Errorf("Invalid Key to save BlockState: empty")
 	}
