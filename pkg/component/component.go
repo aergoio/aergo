@@ -49,7 +49,7 @@ func resumeDecider(_ interface{}) actor.Directive {
 
 func (base *BaseComponent) Start(inheritant IComponent) {
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
-	workerProps := actor.FromInstance(inheritant).WithSupervisor(skipResumeStrategy)
+	workerProps := actor.FromInstance(inheritant).WithGuardian(skipResumeStrategy)
 	if base.enableDebugMsg {
 		workerProps = workerProps.WithMailbox(newMailBoxLogger(base.hub.Metrics(base.name)))
 	}
