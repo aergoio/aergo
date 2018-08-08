@@ -45,11 +45,18 @@ liball:
 	done
 	@echo "Done building libs."
 
+liball-clean:
+	@for dir in $(LIBTOOLS); do \
+		$(MAKE) PREFIX=$(LIBPATH) -C $(LIBPATH)/src/$$dir clean; \
+		if [ $$? != 0 ]; then exit 1; fi; \
+	done
+	@echo "Clean libs."
+
 test:
 	@go test -timeout 60s ./...
 
 
-clean:
+clean: liball-clean
 	go clean
 	rm -f $(BINPATH)/aergosvr
 	rm -f $(BINPATH)/aergocli
