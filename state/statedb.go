@@ -7,7 +7,7 @@ package state
 
 import (
 	"crypto/sha512"
-	"errors"
+	"fmt"
 	"os"
 	"path"
 	"sync"
@@ -19,53 +19,67 @@ import (
 )
 
 const (
-	stateName = "state"
+	stateName     = "state"
+	stateAccounts = stateName + ".accounts"
+	stateLatest   = stateName + ".latest"
 )
 
 var (
 	logger = log.NewLogger(log.StateDB)
 )
 
-type StateCache struct {
-	cache map[types.StateKey]*types.State
+type BlockInfo struct {
+	BlockNo   types.BlockNo
+	BlockHash types.BlockKey
+	PrevHash  types.BlockKey
 }
-
-func NewStateCache() *StateCache {
-	return &StateCache{
-		cache: make(map[types.StateKey]*types.State),
-	}
+type StateEntry struct {
+	State *types.State
+	Undo  *types.State
 }
-
-func (sc *StateCache) Get(skey types.StateKey) *types.State {
-	return sc.cache[skey]
-}
-
-func (sc *StateCache) Put(state *types.State) types.StateKey {
-	skey := types.ToStateKeyPb(state)
-	sc.cache[skey] = state
-	return skey
-}
-
 type BlockState struct {
-	Accounts map[types.AccountKey]types.StateKey
+	BlockInfo
+	accounts map[types.AccountKey]*StateEntry
 }
 
-func NewBlockState() *BlockState {
+func NewStateEntry(state, undo *types.State) *StateEntry {
+	if undo != nil && undo.IsEmpty() {
+		undo = nil
+	}
+	return &StateEntry{
+		State: state,
+		Undo:  undo,
+	}
+}
+
+func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *BlockState {
 	return &BlockState{
-		Accounts: make(map[types.AccountKey]types.StateKey),
-	}
-}
-func (bs *BlockState) PutAccounts(bstate *BlockState) {
-	for i, v := range bstate.Accounts {
-		bs.Accounts[i] = v
+		BlockInfo: BlockInfo{
+			BlockNo:   blockNo,
+			BlockHash: blockHash,
+			PrevHash:  prevHash,
+		},
+		accounts: make(map[types.AccountKey]*StateEntry),
 	}
 }
 
-func (bs *BlockState) PutAccount(akey types.AccountKey, skey types.StateKey) {
-	bs.Accounts[akey] = skey
+func (bs *BlockState) PutAccount(akey types.AccountKey, state, change *types.State) {
+	if prev, ok := bs.accounts[akey]; ok {
+		prev.State = change
+	} else {
+		bs.accounts[akey] = NewStateEntry(change, state)
+	}
 }
 
-func (bs *BlockState) CalculateRootHash() []byte {
+type ChainStateDB struct {
+	sync.RWMutex
+	accounts map[types.AccountKey]*types.State
+	trie     *trie.SMT
+	latest   *BlockInfo
+	statedb  db.DB
+}
+
+func NewStateDB() *ChainStateDB {
 	hasher := func(data ...[]byte) []byte {
 		hasher := sha512.New512_256()
 		for i := 0; i < len(data); i++ {
@@ -74,34 +88,10 @@ func (bs *BlockState) CalculateRootHash() []byte {
 		return hasher.Sum(nil)
 	}
 	smt := trie.NewSMT(32, hasher, nil)
-	keys := trie.DataArray{}
-	vals := trie.DataArray{}
-	for k, v := range bs.Accounts {
-		keys = append(keys, k[:])
-		vals = append(vals, v[:])
-	}
-	smt.Update(keys, vals)
-	return smt.Root
-}
 
-// StateDB ...
-// type StateDB interface {
-// 	GetAccount(akey types.AccountKey) (*types.State, error)
-// 	PutAccount(akey types.AccountKey, state *types.State) error
-// }
-
-type CachedStateDB struct {
-	sync.RWMutex
-	bstates map[types.BlockKey]*BlockState
-	cache   map[types.StateKey]*types.State
-	latest  types.BlockKey
-	statedb db.DB
-}
-
-func NewCachedStateDB() *CachedStateDB {
-	return &CachedStateDB{
-		bstates: make(map[types.BlockKey]*BlockState),
-		cache:   make(map[types.StateKey]*types.State),
+	return &ChainStateDB{
+		accounts: make(map[types.AccountKey]*types.State),
+		trie:     smt,
 	}
 }
 
@@ -110,76 +100,137 @@ func InitDB(basePath, dbName string) db.DB {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
-	st := db.NewDB(db.BadgerImpl, dbPath)
-	return st
+	dbInst := db.NewDB(db.BadgerImpl, dbPath)
+	return dbInst
 }
 
-func (sdb *CachedStateDB) Init(dataDir string) error {
+func (sdb *ChainStateDB) Init(dataDir string) error {
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	// init db
 	if sdb.statedb == nil {
 		sdb.statedb = InitDB(dataDir, stateName)
 	}
-	return nil
+
+	// load data from db
+	err := sdb.loadStateDB()
+	return err
 }
 
-func (sdb *CachedStateDB) Close() {
+func (sdb *ChainStateDB) Close() error {
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	// save data to db
+	err := sdb.saveStateDB()
+	if err != nil {
+		return err
+	}
+
+	// close db
 	if sdb.statedb != nil {
 		sdb.statedb.Close()
 	}
-}
-
-func (sdb *CachedStateDB) GetBestBlockState() (*BlockState, error) {
-	return sdb.GetBlockState(sdb.latest)
-}
-func (sdb *CachedStateDB) GetBlockState(bkey types.BlockKey) (*BlockState, error) {
-	if bstate, ok := sdb.bstates[bkey]; ok {
-		return bstate, nil
-	}
-	bs := &BlockState{}
-	err := sdb.getData(bkey[:], bs)
-	if err != nil {
-		return nil, err
-	}
-	sdb.bstates[bkey] = bs
-	return bs, nil
-}
-func (sdb *CachedStateDB) PutBlockState(bkey types.BlockKey, bs *BlockState) error {
-	sdb.putData(bkey[:], bs)
-	sdb.bstates[bkey] = bs
-	sdb.latest = bkey
 	return nil
 }
-func (sdb *CachedStateDB) PutStateCache(sc *StateCache) {
-	if sc == nil {
-		return
+
+func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
+	sdb.latest = &BlockInfo{
+		BlockNo:   0,
+		BlockHash: types.ToBlockKey(genesisBlock.Hash),
 	}
-	for k, v := range sc.cache {
-		sdb.PutState(k, v)
-	}
+	// TODO: process initial coin tx
+	err := sdb.saveStateDB()
+	return err
 }
 
-func (sdb *CachedStateDB) GetBlockAccount(bstate *BlockState, akey types.AccountKey) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccountState(akey types.AccountKey) (*types.State, error) {
 	if akey == types.EmptyAccountKey {
-		return nil, errors.New("failed to get account state. account key is empty")
+		return nil, fmt.Errorf("Failed to get block account: invalid account key")
 	}
-	if skey, ok := bstate.Accounts[akey]; ok {
-		return sdb.GetState(skey)
+	if state, ok := sdb.accounts[akey]; ok {
+		return state, nil
 	}
-	return types.NewState(akey), nil
+	state := types.NewState(akey)
+	sdb.accounts[akey] = state
+	return state, nil
 }
-func (sdb *CachedStateDB) GetAccount(akey types.AccountKey) (*types.State, error) {
-	bstate, err := sdb.GetBestBlockState()
+func (sdb *ChainStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*types.State, error) {
+	if akey == types.EmptyAccountKey {
+		return nil, fmt.Errorf("Failed to get block account: invalid account key")
+	}
+
+	if prev, ok := bs.accounts[akey]; ok {
+		return prev.State, nil
+	}
+	return sdb.GetAccountState(akey)
+}
+func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey) (*types.State, error) {
+	state, err := sdb.GetAccount(bs, akey)
 	if err != nil {
 		return nil, err
 	}
-	return sdb.GetBlockAccount(bstate, akey)
+	res := types.Clone(*state).(types.State)
+	return &res, nil
 }
 
-func (sdb *CachedStateDB) NewBlockState(prev types.BlockKey) (*BlockState, error) {
-	prevbs, err := sdb.GetBlockState(prev)
-	if err != nil {
-		return nil, err
+func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
+	if sdb.latest.BlockNo+1 != bstate.BlockNo {
+		return fmt.Errorf("Failed to apply: invalid block no")
 	}
-	bs := NewBlockState()
-	bs.PutAccounts(prevbs)
-	return bs, nil
+	if sdb.latest.BlockHash != bstate.PrevHash {
+		return fmt.Errorf("Failed to apply: invalid previous block")
+	}
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	sdb.saveBlockState(bstate)
+	keys := trie.DataArray{bstate.BlockInfo.BlockHash[:]}
+	vals := trie.DataArray{bstate.BlockInfo.PrevHash[:]}
+	for k, v := range bstate.accounts {
+		sdb.accounts[k] = v.State
+		keys = append(keys, k[:])
+		vals = append(vals, v.State.GetHash())
+	}
+	if len(keys) > 0 && len(vals) > 0 {
+		sdb.trie.Update(keys, vals)
+	}
+	// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
+	sdb.latest = &bstate.BlockInfo
+	err := sdb.saveStateDB()
+	return err
+}
+
+func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
+	if sdb.latest.BlockNo <= blockNo {
+		return fmt.Errorf("Failed to rollback: invalid block no")
+	}
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	for sdb.latest.BlockNo > blockNo {
+		bs, err := sdb.loadBlockState(sdb.latest.BlockHash)
+		if err != nil {
+			return err
+		}
+		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
+		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
+		for k, v := range bs.accounts {
+			sdb.accounts[k] = v.Undo
+			keys = append(keys, k[:])
+			vals = append(vals, v.State.GetHash())
+		}
+		if len(keys) > 0 && len(vals) > 0 {
+			sdb.trie.Update(keys, vals)
+		}
+		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
+		sdb.latest = &bs.BlockInfo
+	}
+	err := sdb.saveStateDB()
+	return err
+}
+
+func (sdb *ChainStateDB) GetHash() []byte {
+	return sdb.trie.Root
 }

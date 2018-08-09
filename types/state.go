@@ -3,6 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"reflect"
 
 	proto "github.com/golang/protobuf/proto"
@@ -69,6 +70,18 @@ func NewState(akey AccountKey) *State {
 		Nonce:   0,
 		Balance: 0,
 	}
+}
+
+func (st *State) IsEmpty() bool {
+	return st.Nonce == 0 && st.Balance == 0
+}
+
+func (st *State) GetHash() []byte {
+	digest := sha256.New()
+	digest.Write(st.Account)
+	binary.Write(digest, binary.LittleEndian, st.Nonce)
+	binary.Write(digest, binary.LittleEndian, st.Balance)
+	return digest.Sum(nil)
 }
 
 func (st *State) Clone() *State {

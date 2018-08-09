@@ -60,24 +60,19 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	}
 
 	for block != nil {
-		prev := types.ToBlockKey(block.Header.PrevBlockHash)
-		bc := state.NewStateCache()
-		bs, err := cs.sdb.NewBlockState(prev)
-		if err != nil {
-			return err
-		}
+		blockHash := types.ToBlockKey(block.GetHash())
+		prevHash := types.ToBlockKey(block.GetHeader().GetPrevBlockHash())
+		bstate := state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
 		txs := block.GetBody().GetTxs()
 		dbtx := cs.cdb.store.NewTx(true)
 		// FIXME: Only can do in case of main chain
 		for i, tx := range txs {
-			err := cs.processTx(&dbtx, bs, bc, tx, block.Hash, i)
+			err := cs.processTx(&dbtx, bstate, tx, block.Hash, i)
 			if err != nil {
 				return err
 			}
 		}
-		cs.sdb.PutStateCache(bc)
-		bkey := types.ToBlockKey(block.Hash)
-		err = cs.sdb.PutBlockState(bkey, bs)
+		err := cs.sdb.Apply(bstate)
 		if err != nil {
 			// FIXME: is that enough?
 			return err
@@ -106,37 +101,39 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	return nil
 }
 
-func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, bc *state.StateCache, tx *types.Tx, blockHash []byte, idx int) error {
+func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
 	txBody := tx.GetBody()
 	senderKey := types.ToAccountKey(txBody.Account)
-	senderState, err := cs.sdb.GetBlockAccount(bs, senderKey)
+	senderState, err := cs.sdb.GetAccountClone(bs, senderKey)
 	if err != nil {
 		return err
 	}
 	receiverKey := types.ToAccountKey(txBody.Recipient)
-	receiverState, err := cs.sdb.GetBlockAccount(bs, receiverKey)
+	receiverState, err := cs.sdb.GetAccountClone(bs, receiverKey)
 	if err != nil {
 		return err
 	}
+
+	senderChange := types.Clone(*senderState).(types.State)
+	receiverChange := types.Clone(*receiverState).(types.State)
 	if senderKey != receiverKey {
-		if senderState.Balance < txBody.Amount {
-			senderState.Balance = 0 // FIXME: reject insufficient tx.
+		if senderChange.Balance < txBody.Amount {
+			senderChange.Balance = 0 // FIXME: reject insufficient tx.
 		} else {
-			senderState.Balance = senderState.Balance - txBody.Amount
+			senderChange.Balance = senderState.Balance - txBody.Amount
 		}
-		receiverState.Balance = receiverState.Balance + txBody.Amount
-		receiverStateKey := bc.Put(receiverState)
-		bs.PutAccount(receiverKey, receiverStateKey)
+		receiverChange.Balance = receiverChange.Balance + txBody.Amount
+		bs.PutAccount(receiverKey, receiverState, &receiverChange)
 	}
-	senderState.Nonce = txBody.Nonce
-	senderStateKey := bc.Put(senderState)
-	bs.PutAccount(senderKey, senderStateKey)
+	senderChange.Nonce = txBody.Nonce
+	bs.PutAccount(senderKey, senderState, &senderChange)
+
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderKey, senderState.ToString(),
 	// 	receiverKey, receiverState.ToString())
-	cs.cdb.addTx(dbtx, tx, blockHash, idx)
 
-	return nil
+	err = cs.cdb.addTx(dbtx, tx, blockHash, idx)
+	return err
 }
 
 // find an orphan block which is the child of the added block

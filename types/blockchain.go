@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"io"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -269,15 +268,4 @@ func (tx *Tx) Clone() *Tx {
 	}
 	res.Hash = tx.CalculateTxHash()
 	return res
-}
-
-func StrAddress(addr []byte) string {
-	return base64.StdEncoding.EncodeToString(addr)
-}
-func StrAddressDecode(addrStr string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(addrStr)
-}
-
-func (s *State) ToString() string {
-	return fmt.Sprintf("n=%d,bal=%d", s.Nonce, s.Balance)
 }

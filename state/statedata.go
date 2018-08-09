@@ -9,29 +9,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func (sdb *CachedStateDB) GetState(skey types.StateKey) (*types.State, error) {
-	if state, ok := sdb.cache[skey]; ok {
-		return state, nil
-	}
-	buf := &types.State{}
-	err := sdb.getData(skey[:], buf)
-	if err != nil {
-		return nil, err
-	}
-	state := buf
-	sdb.cache[skey] = state
-	return state, nil
-}
-func (sdb *CachedStateDB) PutState(skey types.StateKey, state *types.State) error {
-	sdb.cache[skey] = state
-	err := sdb.putData(skey[:], state)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sdb *CachedStateDB) putData(key []byte, data interface{}) error {
+func (sdb *ChainStateDB) saveData(key []byte, data interface{}) error {
 	if key == nil {
 		return fmt.Errorf("Failed to set data: key is nil")
 	}
@@ -51,14 +29,17 @@ func (sdb *CachedStateDB) putData(key []byte, data interface{}) error {
 			return err
 		}
 		raw = buffer.Bytes()
+		if err != nil {
+			return err
+		}
 	}
-	// logger.Debugf("putData: key=%v, raw(%d)=%v",
-	// 	hex.EncodeToString(key), len(raw), hex.EncodeToString(raw))
+	// logger.Debugf("- saveData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
+	// logger.Debugf("- saveData: data=%v", data)
 	sdb.statedb.Set(key, raw)
 	return nil
 }
 
-func (sdb *CachedStateDB) getData(key []byte, data interface{}) error {
+func (sdb *ChainStateDB) loadData(key []byte, data interface{}) error {
 	if key == nil {
 		return fmt.Errorf("Failed to get data: key is nil")
 	}
@@ -66,8 +47,8 @@ func (sdb *CachedStateDB) getData(key []byte, data interface{}) error {
 		return nil
 	}
 	raw := sdb.statedb.Get(key)
-	// logger.Debugf("getData: key=%v, raw(%d)=%v",
-	// 	hex.EncodeToString(key), len(raw), hex.EncodeToString(raw))
+
+	// logger.Debugf("- loadData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
 	if raw == nil || len(raw) == 0 {
 		return nil
 	}
@@ -80,5 +61,56 @@ func (sdb *CachedStateDB) getData(key []byte, data interface{}) error {
 		dec := gob.NewDecoder(reader)
 		err = dec.Decode(data)
 	}
+	// logger.Debugf("- loadData: data=%v", data)
 	return err
+}
+
+func (sdb *ChainStateDB) saveStateDB() error {
+	// logger.Debugf("- ### saveStateDB")
+	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
+	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
+	err := sdb.saveData([]byte(stateAccounts), sdb.accounts)
+	if err != nil {
+		return err
+	}
+	err = sdb.saveData([]byte(stateLatest), sdb.latest)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sdb *ChainStateDB) loadStateDB() error {
+	// logger.Debug("- ### loadStateDB")
+	err := sdb.loadData([]byte(stateLatest), &sdb.latest)
+	if err != nil {
+		return err
+	}
+	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
+	err = sdb.loadData([]byte(stateAccounts), &sdb.accounts)
+	if err != nil {
+		return err
+	}
+	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
+	return nil
+}
+
+func (sdb *ChainStateDB) saveBlockState(data *BlockState) error {
+	bkey := data.BlockHash
+	if bkey == types.EmptyBlockKey {
+		return fmt.Errorf("Invalid Key to save BlockState: empty")
+	}
+	err := sdb.saveData(bkey[:], data)
+	return err
+}
+func (sdb *ChainStateDB) loadBlockState(bkey types.BlockKey) (*BlockState, error) {
+	if bkey == types.EmptyBlockKey {
+		return nil, fmt.Errorf("Invalid Key to load BlockState: empty")
+	}
+	data := &BlockState{}
+	err := sdb.loadData(bkey[:], data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

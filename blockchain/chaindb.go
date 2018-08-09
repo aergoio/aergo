@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	latestKey = []byte("latest")
+	latestKey = []byte(chainDBName + ".latest")
 )
 
 type ChainDB struct {
@@ -43,7 +43,7 @@ func NewChainDB() *ChainDB {
 	return cdb
 }
 
-func (cdb *ChainDB) Init(seed int64, dataDir string) error {
+func (cdb *ChainDB) Init(dataDir string) error {
 	if cdb.store == nil {
 		cdb.store = state.InitDB(dataDir, chainDBName)
 	}
@@ -52,13 +52,13 @@ func (cdb *ChainDB) Init(seed int64, dataDir string) error {
 	if err := cdb.loadChainData(); err != nil {
 		return err
 	}
-	// if empty then create new genesis block
-	// if cdb.latest == 0 && len(cdb.blocks) == 0 {
-	blockKey := ItobU64(0)
-	blockHash := cdb.store.Get(blockKey)
-	if cdb.latest == 0 && (blockHash == nil || len(blockHash) == 0) {
-		cdb.generateGenesisBlock(seed)
-	}
+	// // if empty then create new genesis block
+	// // if cdb.latest == 0 && len(cdb.blocks) == 0 {
+	// blockKey := ItobU64(0)
+	// blockHash := cdb.store.Get(blockKey)
+	// if cdb.latest == 0 && (blockHash == nil || len(blockHash) == 0) {
+	// 	cdb.generateGenesisBlock(seed)
+	// }
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) generateGenesisBlock(seed int64) {
+func (cdb *ChainDB) generateGenesisBlock(seed int64) *types.Block {
 	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
 	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
@@ -139,6 +139,7 @@ func (cdb *ChainDB) generateGenesisBlock(seed int64) {
 	cdb.addBlock(&tx, genesisBlock)
 	tx.Commit()
 	logger.Info("generate Genesis Block")
+	return genesisBlock
 }
 
 func (cdb *ChainDB) needReorg(block *types.Block) bool {
