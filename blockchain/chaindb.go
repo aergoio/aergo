@@ -7,7 +7,6 @@ package blockchain
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -90,7 +89,7 @@ func (cdb *ChainDB) loadChainData() error {
 			buf.Hash = bHash
 		} else if !bytes.Equal(buf.Hash, bHash) {
 			return fmt.Errorf("invalid Block Hash: hash=%s, check=%s",
-				hex.EncodeToString(buf.Hash), hex.EncodeToString(bHash))
+				EncodeB64(buf.Hash), EncodeB64(bHash))
 		}
 		for _, v := range buf.Body.Txs {
 			tHash := v.CalculateTxHash()
@@ -98,7 +97,7 @@ func (cdb *ChainDB) loadChainData() error {
 				v.Hash = tHash
 			} else if !bytes.Equal(v.Hash, tHash) {
 				return fmt.Errorf("invalid Transaction Hash: hash=%s, check=%s",
-					hex.EncodeToString(v.Hash), hex.EncodeToString(tHash))
+					EncodeB64(v.Hash), EncodeB64(tHash))
 			}
 		}
 		cdb.blocks[i] = &buf
@@ -151,7 +150,7 @@ func (cdb *ChainDB) needReorg(block *types.Block) bool {
 	}
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
-	logger.Debugf("needReorg Check: my prev (%v) vs latest prev (%v)", hex.EncodeToString(prevHash), hex.EncodeToString(latestHash))
+	logger.Debugf("needReorg Check: my prev (%v) vs latest prev (%v)", EncodeB64(prevHash), EncodeB64(latestHash))
 	if err != nil {
 		// assertion case
 		return false
@@ -192,7 +191,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 			Hash:    tblock.Hash,
 		}
 		elems = append(elems, newElem)
-		logger.Debugf("Reorg elem added [%d] %v -> %v", blockNo, hex.EncodeToString(tblock.Hash), hex.EncodeToString(mHash))
+		logger.Debugf("Reorg elem added [%d] %v -> %v", blockNo, EncodeB64(tblock.Hash), EncodeB64(mHash))
 	}
 
 	tx := cdb.store.NewTx(true)
@@ -274,7 +273,7 @@ func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, hex.EncodeToString(blockHash))
+	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, EncodeB64(blockHash))
 	return cdb.getBlock(blockHash)
 }
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
@@ -284,10 +283,10 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	buf := types.Block{}
 	err := cdb.loadData(blockHash, &buf)
 	if err != nil {
-		return nil, fmt.Errorf("block not found: blockHash=%v", hex.EncodeToString(blockHash))
+		return nil, fmt.Errorf("block not found: blockHash=%v", EncodeB64(blockHash))
 	}
 
-	//logger.Debugf("getblockbyHash Hash=%v", hex.EncodeToString(blockHash))
+	//logger.Debugf("getblockbyHash Hash=%v", EncodeB64(blockHash))
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
@@ -303,18 +302,18 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 
 	err := cdb.loadData(txHash, txIdx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("tx not found: txHash=%v", hex.EncodeToString(txHash))
+		return nil, nil, fmt.Errorf("tx not found: txHash=%v", EncodeB64(txHash))
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
-		return nil, nil, fmt.Errorf("block not found: blockHash=%v", hex.EncodeToString(txIdx.BlockHash))
+		return nil, nil, fmt.Errorf("block not found: blockHash=%v", EncodeB64(txIdx.BlockHash))
 	}
 	txs := block.GetBody().GetTxs()
 	if txIdx.Idx >= int32(len(txs)) {
 		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
-	logger.Debugf("getTx Hash=%v", hex.EncodeToString(txHash))
+	logger.Debugf("getTx Hash=%v", EncodeB64(txHash))
 	return tx, txIdx, nil
 }
 
@@ -333,9 +332,9 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		hash, _ := cdb.getHashByNo(i)
 		tree = append(tree, ChainInfo{
 			Height: i,
-			Hash:   hex.EncodeToString(hash),
+			Hash:   EncodeB64(hash),
 		})
-		logger.Infof("GetChainTree: %v", hex.EncodeToString(hash))
+		logger.Infof("GetChainTree: %v", EncodeB64(hash))
 	}
 	jsonBytes, err := json.Marshal(tree)
 	if err != nil {

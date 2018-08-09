@@ -7,7 +7,6 @@ package blockchain
 
 import (
 	"bytes"
-	"encoding/hex"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/db"
@@ -91,8 +90,8 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		}
 		logger.Infof("block added (transactions processed: %v)", len(txs))
 
-		logger.Infof("Block Added: no=%d, hash=%s prev=%s", block.GetHeader().GetBlockNo(), hex.EncodeToString(block.GetHash()),
-			hex.EncodeToString(block.GetHeader().GetPrevBlockHash()))
+		logger.Infof("Block Added: no=%d, hash=%s prev=%s", block.GetHeader().GetBlockNo(), EncodeB64(block.GetHash()),
+			EncodeB64(block.GetHeader().GetPrevBlockHash()))
 		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
 		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
 			// FIXME: remove legacy
@@ -186,7 +185,7 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 
 func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]message.BlockHash, []types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
-	logger.Debugf("handle missing stop=%v len of hash=%d", hex.EncodeToString(stopHash), len(Hashes))
+	logger.Debugf("handle missing stop=%v len of hash=%d", EncodeB64(stopHash), len(Hashes))
 	var stopBlock *types.Block
 	var err error
 	if stopHash == nil {
@@ -230,14 +229,14 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 	mainBlockNo := mainblock.GetHeader().GetBlockNo()
 	var loop = stopBlock.GetHeader().GetBlockNo() - mainBlockNo
 	logger.Debugf("Get hashes of missing part from (%d, %v) to (%d, %v)",
-		mainBlockNo, hex.EncodeToString(mainhash), stopBlock.GetHeader().GetBlockNo(), hex.EncodeToString(stopBlock.Hash))
+		mainBlockNo, EncodeB64(mainhash), stopBlock.GetHeader().GetBlockNo(), EncodeB64(stopBlock.Hash))
 	rhashes := make([]message.BlockHash, 0, loop)
 	rnos := make([]types.BlockNo, 0, loop)
 	for i := uint64(0); i < loop; i++ {
 		tBlock, _ := cs.getBlockByNo(types.BlockNo(mainBlockNo + i))
 		rhashes = append(rhashes, message.BlockHash(tBlock.Hash))
 		rnos = append(rnos, types.BlockNo(tBlock.GetHeader().GetBlockNo()))
-		logger.Debugf("append hash=%v no=%v for replying missing tree", hex.EncodeToString(tBlock.Hash),
+		logger.Debugf("append hash=%v no=%v for replying missing tree", EncodeB64(tBlock.Hash),
 			tBlock.GetHeader().GetBlockNo())
 	}
 

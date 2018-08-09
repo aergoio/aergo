@@ -6,7 +6,7 @@
 package blockchain
 
 import (
-	"encoding/hex"
+
 	//"reflect"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -68,7 +68,7 @@ func (cs *ChainService) Start() {
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
 	logger.Infof("chain initialized: seed=%v, genesis=%s",
-		gb.Header.Timestamp, hex.EncodeToString(gb.Hash))
+		gb.Header.Timestamp, EncodeB64(gb.Hash))
 
 	// init statedb
 	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {

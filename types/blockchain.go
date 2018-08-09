@@ -8,8 +8,8 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -125,22 +125,22 @@ func (block *Block) BpID() (id peer.ID, err error) {
 	return
 }
 
-// ID returns the hex encoded formated ID (hash) of block.
+// ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.GetHash()
 	if hash != nil {
-		return hex.EncodeToString(hash)
+		return base64.StdEncoding.EncodeToString(hash)
 	}
 
 	return ""
 
 }
 
-// PrevID returns the hex encoded formated ID (hash) of the parent block.
+// PrevID returns the base64 encoded formated ID (hash) of the parent block.
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return hex.EncodeToString(hash)
+		return base64.StdEncoding.EncodeToString(hash)
 	}
 
 	return ""
@@ -272,10 +272,10 @@ func (tx *Tx) Clone() *Tx {
 }
 
 func StrAddress(addr []byte) string {
-	return hex.EncodeToString(addr)
+	return base64.StdEncoding.EncodeToString(addr)
 }
 func StrAddressDecode(addrStr string) ([]byte, error) {
-	return hex.DecodeString(addrStr)
+	return base64.StdEncoding.DecodeString(addrStr)
 }
 
 func (s *State) ToString() string {

@@ -19,7 +19,7 @@ var printHex bool
 
 func init() {
 	rootCmd.AddCommand(blockchainCmd)
-	blockchainCmd.Flags().BoolVar(&printHex, "hex", true, "Print bytes to hex format")
+	blockchainCmd.Flags().BoolVar(&printHex, "hex", false, "Print bytes to hex format")
 }
 
 var blockchainCmd = &cobra.Command{

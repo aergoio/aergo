@@ -2,7 +2,7 @@ package types
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"reflect"
 
 	proto "github.com/golang/protobuf/proto"
@@ -26,7 +26,7 @@ func ToBlockKey(blockHash []byte) BlockKey {
 	return BlockKey(buf)
 }
 func (key BlockKey) String() string {
-	return hex.EncodeToString(key[:])
+	return base64.StdEncoding.EncodeToString(key[:])
 }
 
 func ToTransactionKey(txHash []byte) TransactionKey {
@@ -35,7 +35,7 @@ func ToTransactionKey(txHash []byte) TransactionKey {
 	return TransactionKey(buf)
 }
 func (key TransactionKey) String() string {
-	return hex.EncodeToString(key[:])
+	return base64.StdEncoding.EncodeToString(key[:])
 }
 
 func ToAccountKey(account []byte) AccountKey {
@@ -43,7 +43,7 @@ func ToAccountKey(account []byte) AccountKey {
 	return AccountKey(buf)
 }
 func (key AccountKey) String() string {
-	return hex.EncodeToString(key[:])
+	return base64.StdEncoding.EncodeToString(key[:])
 }
 func ToStateKeyPb(state *State) StateKey {
 	if state == nil {
@@ -60,7 +60,7 @@ func ToStateKey(state []byte) StateKey {
 	return StateKey(buf)
 }
 func (key StateKey) String() string {
-	return hex.EncodeToString(key[:])
+	return base64.StdEncoding.EncodeToString(key[:])
 }
 
 func NewState(akey AccountKey) *State {

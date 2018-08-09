@@ -85,10 +85,6 @@ func (as *AccountService) Stop() {
 
 func (as *AccountService) Receive(context actor.Context) {
 	as.BaseComponent.Receive(context)
-
-	msg := context.Message()
-
-	as.Debugf("Received message %s", msg)
 	switch msg := context.Message().(type) {
 	case *message.GetAccounts:
 		accountList := as.getAccounts()
