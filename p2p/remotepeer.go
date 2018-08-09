@@ -281,11 +281,11 @@ func (p *RemotePeer) sendStatus() {
 		p.log.Errorf("Failed to get best block %v", err.Error())
 		return
 	}
-	meta := p.ps.SelfMeta().ToPeerAddress()
+	selfAddr := p.ps.SelfMeta().ToPeerAddress()
 	// create message data
 	statusMsg := &types.Status{
 		MessageData:   &types.MessageData{},
-		Sender:        &meta,
+		Sender:        &selfAddr,
 		BestBlockHash: bestBlock.GetHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
