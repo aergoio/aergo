@@ -225,6 +225,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 			TxIds: txIdx,
 			Err:   err,
 		})
+	case *message.GetReceipt:
+		receipt := GetReceipt(msg.TxHash)
+		context.Respond(message.GetReceiptRsp{
+			Receipt: receipt,
+		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case actor.SystemMessage,

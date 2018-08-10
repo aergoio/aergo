@@ -7,7 +7,9 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
+	"strconv"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/enc"
@@ -167,7 +169,19 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	if err != nil {
 		return err
 	}
-	receiverID := types.ToAccountID(txBody.Recipient)
+	recipient := txBody.Recipient
+	receiverID := types.EmptyAccountKey
+	var createContract bool
+	if len(recipient) > 0 {
+		receiverID = types.ToAccountID(recipient)
+	} else {
+		createContract = true
+		h := sha256.New()
+		h.Write(txBody.Account)
+		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
+		recipient = h.Sum(nil)
+		receiverID = types.ToAccountID(recipient)
+	}
 	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
 	if err != nil {
 		return err
@@ -185,7 +199,11 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		bs.PutAccount(receiverID, receiverState, &receiverChange)
 	}
 	if txBody.Payload != nil {
-		err = ApplyCode(txBody.Payload, txBody.Account)
+		if createContract {
+			err = CreateContract(txBody.Payload, recipient, tx.Hash)
+		} else {
+			err = ApplyCode(txBody.Payload, recipient, tx.Hash)
+		}
 		if err != nil {
 			return err
 		}

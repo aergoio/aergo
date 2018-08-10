@@ -68,3 +68,8 @@ message State {
  	uint64 nonce = 2;
  	uint64 balance = 3;
 }
+
+message Receipt {
+	bytes contractAddress = 1;
+	string status = 2;
+}

@@ -7,7 +7,7 @@ package blockchain
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm -ldl
+#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a
 
 #include <string.h>
 #include <stdlib.h>
@@ -42,23 +42,82 @@ static const char* vm_run(const char *code, size_t sz, const char *name)
 import "C"
 import (
 	"fmt"
-	"unsafe"
+		"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo/types"
+		"github.com/mr-tron/base58/base58"
+	"encoding/json"
 )
 
-var ctrLog *log.Logger
+const dbName = "contracts.db"
+
+var (
+	ctrLog     *log.Logger
+	contractDB db.DB
+)
+
+type Contract struct {
+	code []byte
+}
 
 func init() {
 	ctrLog = log.NewLogger(log.Contract)
+	contractDB = db.NewDB(db.BadgerImpl, dbName)
 }
 
-func ApplyCode(code []byte, codeName []byte) error {
-	if err := C.vm_run((*C.char)(unsafe.Pointer(&code[0])), C.size_t(len(code)),
-		(*C.char)(unsafe.Pointer(&codeName))); err != nil {
-		errMsg := C.GoString(err)
-		C.free(unsafe.Pointer(err))
+func ApplyCode(code, contractAddress, txHash []byte) error {
+	var err error
+	contract := getContract(contractAddress)
+	if contract == nil {
+		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
+		ctrLog.Warn(err.Error())
+	}
+	var abi types.ABI
+	json.Unmarshal(code, &abi)
+	ctrLog.Debugf("contract call: %#v", abi)
+	/*
+	vm := NewLuaVM(code, call)
+	vm.Run()
+	if cErrMsg := C.vm_run((*C.char)(unsafe.Pointer(&contract.code[0])),
+		C.size_t(len(contract.code)),
+		(*C.char)(unsafe.Pointer(&contractAddress)),
+	); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Error(errMsg)
-		return fmt.Errorf(errMsg)
+		err = errors.New(errMsg)
+	}
+	*/
+	receipt := types.NewReceipt(contractAddress, "SUCCESS")
+	if err != nil {
+		receipt.Status = err.Error()
+	}
+	contractDB.Set(txHash, receipt.Bytes())
+	return err
+}
+
+func CreateContract(code, contractAddress, txHash []byte) error {
+	ctrLog.WithCtx("contractAddress", base58.Encode(contractAddress)).Debug("new contract is deployed")
+	contractDB.Set(contractAddress, code)
+	receipt := types.NewReceipt(contractAddress, "CREATED")
+	contractDB.Set(txHash, receipt.Bytes())
+	return nil
+}
+
+func getContract(contractAddress []byte) *Contract {
+	val := contractDB.Get(contractAddress)
+	if len(val) > 0 {
+		return &Contract{
+			code: val,
+		}
 	}
 	return nil
+}
+
+func GetReceipt(txHash []byte) *types.Receipt {
+	val := contractDB.Get(txHash)
+	if len(val) == 0 {
+		return nil
+	}
+	return types.NewReceiptFromBytes(val)
 }
