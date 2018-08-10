@@ -4,9 +4,9 @@ package types
 
 import "strconv"
 
-const _PeerState_name = "DISCONNECTEDSTARTINGHANDSHAKINGRUNNINGSTOPPED"
+const _PeerState_name = "STARTINGHANDSHAKINGRUNNINGDOWNSTOPPED"
 
-var _PeerState_index = [...]uint8{0, 12, 20, 31, 38, 45}
+var _PeerState_index = [...]uint8{0, 8, 19, 26, 30, 37}
 
 func (i PeerState) String() string {
 	if i < 0 || i >= PeerState(len(_PeerState_index)-1) {

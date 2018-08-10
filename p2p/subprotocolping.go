@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	inet "github.com/libp2p/go-libp2p-net"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
@@ -18,10 +19,10 @@ import (
 
 // pattern: /protocol-name/request-or-response-message/version
 const (
-	pingRequest   = "/ping/pingreq/0.1"
-	pingResponse  = "/ping/pingresp/0.1"
-	statusRequest = "/ping/status/0.1"
-	goAway        = "/ping/goaway/0.1"
+	pingRequest   protocol.ID = "/ping/pingreq/0.1"
+	pingResponse  protocol.ID = "/ping/pingresp/0.1"
+	statusRequest protocol.ID = "/ping/status/0.1"
+	goAway        protocol.ID = "/ping/goaway/0.1"
 )
 
 // PingProtocol type

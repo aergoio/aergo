@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p-peer"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -23,13 +24,13 @@ import (
 
 // pattern: /protocol-name/request-or-response-message/version
 const (
-	getBlocksRequest        = "/blk/getreq/0.2"
-	getBlocksResponse       = "/blk/getresp/0.2"
-	getBlockHeadersRequest  = "/blk/headerreq/0.1"
-	getBlockHeadersResponse = "/blk/headerresp/0.1"
-	getMissingRequest       = "/blk/getmreq/0.1"
-	getMissingResponse      = "/blk/getmresp/0.1"
-	notifyNewBlockRequest   = "/blk/newblockreq/0.1"
+	getBlocksRequest        protocol.ID = "/blk/getreq/0.2"
+	getBlocksResponse       protocol.ID = "/blk/getresp/0.2"
+	getBlockHeadersRequest  protocol.ID = "/blk/headerreq/0.1"
+	getBlockHeadersResponse protocol.ID = "/blk/headerresp/0.1"
+	getMissingRequest       protocol.ID = "/blk/getmreq/0.1"
+	getMissingResponse      protocol.ID = "/blk/getmresp/0.1"
+	notifyNewBlockRequest   protocol.ID = "/blk/newblockreq/0.1"
 )
 
 // BlockProtocol handle block messages.

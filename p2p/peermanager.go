@@ -536,6 +536,11 @@ func (ps *peerManager) tryConnectPeers() {
 			delete(ps.peerPool, ID)
 			continue
 		}
+		if meta.IPAddress == "" || meta.Port == 0 {
+			ps.log.Warnf("Invalid peer meta informations %s - %s:%d ", meta.ID.Pretty(),
+				meta.IPAddress, meta.Port)
+			continue
+		}
 		// in same go rountine.
 		ps.addOutboundPeer(meta)
 		remained--
@@ -694,11 +699,7 @@ func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 	if !ok {
 		return nil, false
 	}
-	if ptr.state == types.RUNNING {
-		return ptr, ok
-	} else {
-		return nil, false
-	}
+	return ptr, ok
 }
 
 func (ps *peerManager) GetPeers() []*RemotePeer {

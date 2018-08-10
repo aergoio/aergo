@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	peer "github.com/libp2p/go-libp2p-peer"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -23,9 +24,11 @@ import (
 )
 
 // pattern: /protocol-name/request-or-response-message/version
-const getTXsRequest = "/tx/getreq/0.1"
-const getTxsResponse = "/tx/getresp/0.1"
-const notifyNewTxRequest = "/blk/newtxreq/0.1"
+const (
+	getTXsRequest      protocol.ID = "/tx/getreq/0.1"
+	getTxsResponse     protocol.ID = "/tx/getresp/0.1"
+	notifyNewTxRequest protocol.ID = "/blk/newtxreq/0.1"
+)
 
 // TxProtocol handle tx messages.
 // Relaying is not implemented yet.

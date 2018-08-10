@@ -83,6 +83,11 @@ func newPbMsgBroadcastOrder(sign bool, protocolID protocol.ID, message pbMessage
 func (pr *pbMessageOrder) GetRequestID() string {
 	return pr.message.GetMessageData().Id
 }
+
+func (pr *pbMessageOrder) Timestamp() int64 {
+	return pr.message.GetMessageData().Timestamp
+}
+
 func (pr *pbMessageOrder) IsRequest() bool {
 	return pr.request
 }

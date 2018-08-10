@@ -103,6 +103,7 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			p.setState(types.RUNNING)
 			go p.runWrite()
 
 			p.writeToPeer(mockOrder)
@@ -111,7 +112,6 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			p.closeWrite <- struct{}{}
 			mockPeerManager.AssertNumberOfCalls(t, "NewStream", tt.wants.streamCall)
-			mockOrder.AssertNumberOfCalls(t, "SendOver", tt.wants.sendCnt)
 			mockOrder.AssertNumberOfCalls(t, "SendOver", tt.wants.sendCnt)
 			assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
 		})
@@ -203,6 +203,34 @@ func TestRemotePeer_sendStatus(t *testing.T) {
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
 			mockActorServ.AssertNumberOfCalls(t, "CallRequest", 1)
+		})
+	}
+}
+
+func TestRemotePeer_pruneRequests(t *testing.T) {
+	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	tests := []struct {
+		name     string
+		loglevel string
+	}{
+		{"T1", "info"},
+		//		{"T2", "debug"},
+		// TODO: Add test cases.
+	}
+	// prevLevel := logger.Level()
+	// defer logger.SetLevel(prevLevel)
+	for _, tt := range tests {
+		// logger.SetLevel(tt.loglevel)
+		mockActorServ := new(MockActorService)
+		mockPeerManager := new(MockP2PService)
+		t.Run(tt.name, func(t *testing.T) {
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			p.requests["r1"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
+			p.requests["r2"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
+			p.requests["rn"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
+			p.pruneRequests()
+
+			assert.Equal(t, 1, len(p.requests))
 		})
 	}
 }

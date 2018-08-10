@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-peer"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -23,8 +24,10 @@ import (
 )
 
 // pattern: /protocol-name/request-or-response-message/version
-const addressesRequest = "/peer/addressesreq/0.1"
-const addressesResponse = "/peer/addressesresp/0.1"
+const (
+	addressesRequest  protocol.ID = "/peer/addressesreq/0.1"
+	addressesResponse protocol.ID = "/peer/addressesresp/0.1"
+)
 
 // AddressesProtocol type
 type AddressesProtocol struct {

@@ -26,6 +26,7 @@ type RemotePeer struct {
 
 	meta      PeerMeta
 	state     types.PeerState
+	stateLock *sync.Mutex
 	actorServ ActorService
 	ps        PeerManager
 	stopChan  chan struct{}
@@ -48,6 +49,7 @@ type RemotePeer struct {
 // msgOrder is abstraction information about the message that will be sent to peer
 type msgOrder interface {
 	GetRequestID() string
+	Timestamp() int64
 	IsRequest() bool
 	IsGossip() bool
 	IsNeedSign() bool
@@ -76,12 +78,17 @@ type OpOrder struct {
 	param2 interface{}
 }
 
+const (
+	cleanRequestDuration = time.Hour
+)
+
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.ILogger) RemotePeer {
 	return RemotePeer{
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
+		stateLock:    &sync.Mutex{},
 
 		stopChan:   make(chan struct{}),
 		write:      make(chan msgOrder),
@@ -97,7 +104,16 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.
 
 // State returns current state of peer
 func (p *RemotePeer) State() types.PeerState {
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
+
 	return p.state
+}
+
+func (p *RemotePeer) setState(newState types.PeerState) {
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
+	p.state = newState
 }
 
 // runPeer should be called by go routine
@@ -105,7 +121,7 @@ func (p *RemotePeer) runPeer() {
 	p.log.Debugf("Starting peer %s ", p.meta.ID.Pretty())
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
-RUNLOOP:
+READNOPLOOP:
 	for {
 		select {
 		case <-pingTicker.C:
@@ -115,8 +131,8 @@ RUNLOOP:
 		// case hsMsg := <-p.hsChan:
 		// 	p.startHandshake(hsMsg)
 		case <-p.stopChan:
-			p.state = types.STOPPED
-			break RUNLOOP
+			p.setState(types.STOPPED)
+			break READNOPLOOP
 		}
 	}
 	p.log.Infof("Finishing peer %s ", p.meta.ID.Pretty())
@@ -126,17 +142,22 @@ RUNLOOP:
 }
 
 func (p *RemotePeer) runWrite() {
-RUNLOOP:
+	cleanupTicker := time.NewTicker(cleanRequestDuration)
+
+WRITELOOP:
 	for {
 		select {
 		case m := <-p.write:
 			p.writeToPeer(m)
 		case rID := <-p.consumeChan:
 			delete(p.requests, rID)
+		case <-cleanupTicker.C:
+			p.pruneRequests()
 		case <-p.closeWrite:
-			break RUNLOOP
+			break WRITELOOP
 		}
 	}
+	cleanupTicker.Stop()
 	close(p.write)
 	close(p.consumeChan)
 }
@@ -171,12 +192,12 @@ func (p *RemotePeer) initiateHandshake() {
 	p.readLock.Lock()
 	defer p.readLock.Unlock()
 
-	if p.state != types.STARTING {
+	if p.State() != types.STARTING {
 		p.goAwayMsg("Invalid status msg")
 		return
 	}
 	p.sendStatus()
-	p.state = types.HANDSHAKING
+	p.setState(types.HANDSHAKING)
 }
 
 func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
@@ -214,7 +235,7 @@ func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 
 	// If all checked and validated. it's now handshaked. and then run sync.
 	p.log.Infof("peer %s is handshaked and now running status", p.meta.ID.Pretty())
-	p.state = types.RUNNING
+	p.setState(types.RUNNING)
 
 	// notice to p2pmanager that handshaking is finished
 	p.ps.NotifyPeerHandshake(p.meta.ID)
@@ -223,6 +244,14 @@ func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
+	// check peer's status
+	// TODO code smell. hardcoded check and need memory barrier for peer state
+	if m.GetProtocolID() != statusRequest && p.State() != types.RUNNING {
+		p.log.Debugf("Canceling sending %v:%v to %s since not running state, but.",
+			m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty(), p.State())
+		return
+	}
+
 	// sign the data
 	if m.IsNeedSign() {
 		err := m.SignWith(p.ps)
@@ -234,7 +263,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 
 	s, err := p.ps.NewStream(context.Background(), p.meta.ID, m.GetProtocolID())
 	if err != nil {
-		p.log.Warnf("Error while sending %v:%v - %s", m.GetProtocolID(), m.GetRequestID(), err.Error())
+		p.log.Warnf("Error while sending %v:%v to %s - %s", m.GetProtocolID(), m.GetRequestID(), err.Error())
 		// problem in connection starting disconnect
 		p.ps.RemovePeer(p.meta.ID)
 		return
@@ -303,4 +332,25 @@ func (p *RemotePeer) goAwayMsg(msg string) {
 func (p *RemotePeer) checkProtocolVersion() error {
 	// TODO modify interface and put check code here
 	return nil
+}
+
+func (p *RemotePeer) pruneRequests() {
+	debugLog := p.log.IsDebugEnabled()
+	deletedCnt := 0
+	var deletedReqs []string
+	expireTime := time.Now().Add(-1 * time.Hour).Unix()
+	for key, m := range p.requests {
+		if m.Timestamp() < expireTime {
+			delete(p.requests, key)
+			if debugLog {
+				deletedReqs = append(deletedReqs, string(m.GetProtocolID())+"/"+key+time.Unix(m.Timestamp(), 0).String())
+			}
+			deletedCnt++
+		}
+	}
+	p.log.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
+	if debugLog {
+		p.log.Debugf("%v", deletedReqs)
+	}
+
 }
