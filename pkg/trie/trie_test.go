@@ -123,11 +123,11 @@ func TestDifferentKeySize(t *testing.T) {
 	}
 	smt.Update(keys[0:1], DataArray{DefaultLeaf})
 	newValue, _ := smt.Get(keys[0])
-	if !bytes.Equal(DefaultLeaf, newValue) {
+	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	newValue, _ = smt.Get(make([]byte, keySize))
-	if !bytes.Equal(DefaultLeaf, newValue) {
+	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	ap, _ := smt.MerkleProof(keys[8])
@@ -151,7 +151,7 @@ func TestDelete(t *testing.T) {
 	// To delete a key, just set it's value to Default leaf hash.
 	newRoot, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, false, true, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
-	if !bytes.Equal(DefaultLeaf, newValue) {
+	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.

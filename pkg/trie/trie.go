@@ -306,6 +306,9 @@ func (s *SMT) Get(key []byte) ([]byte, error) {
 // get fetches the value of a key given a trie root
 func (s *SMT) get(root []byte, key []byte, height uint64) ([]byte, error) {
 	if height == 0 {
+		if bytes.Equal(root, DefaultLeaf) {
+			return nil, nil
+		}
 		return root, nil
 	}
 	// Fetch the children of the node
