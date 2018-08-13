@@ -1,5 +1,5 @@
-hash: f4574eb33bab376a70e7b34c09d6d7765a7e200285b6d0b5eb88312850ea0e8f
-updated: 2018-08-07T19:01:36.0030275+09:00
+hash: c4efd46ce3081a6d1d2d1eda553c5763c225fd2c00fa2a2bd120bb7e9bf304a4
+updated: 2018-08-13T21:23:40.3739427+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 25f0d0e3e467b3a0837800dd06309effae33d0f8
@@ -126,7 +126,7 @@ imports:
 - name: github.com/joonix/log
   version: d2d3f2f4a80658c67a0bc44021dcac30f3017c06
 - name: github.com/libp2p/go-addr-util
-  version: 56c6a7f748424cab4ff68da653ff01363e3cd745
+  version: 26ae616f0dac754fff557513e984f930fbd88a92
 - name: github.com/libp2p/go-conn-security
   version: 1f43a64c9d5d3796daca8d9e9dd2f2001272a706
   subpackages:
@@ -136,7 +136,7 @@ imports:
 - name: github.com/libp2p/go-flow-metrics
   version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
 - name: github.com/libp2p/go-libp2p
-  version: cdc6d1940763222a9f338a14903bb383384dc46c
+  version: cc70c4be36f765ba9fb92d6e0528722773af607d
   subpackages:
   - config
   - p2p/host/basic
@@ -151,9 +151,9 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: c2196843b63fc9da2999045ca7fbae64e53b6461
+  version: 3a144e88cb78109859a56673fba16b4ecf100911
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: ba1fa6b3d7aed40798c930634ba109bcd7b879d9
+  version: 98fc99ba761842156907db43045f546e8e6bba3d
 - name: github.com/libp2p/go-libp2p-interface-pnet
   version: 86e6fc84b906599eac696308369896ece0ced63b
 - name: github.com/libp2p/go-libp2p-loggables
@@ -163,11 +163,11 @@ imports:
 - name: github.com/libp2p/go-libp2p-nat
   version: b2342fe96714ea4535cd80706967f7deab0706e9
 - name: github.com/libp2p/go-libp2p-net
-  version: d387f776809c666d02d69953e860be9f5bad5640
+  version: 768042eff9184fcd5fb7fea7ecbd845f9e940e20
 - name: github.com/libp2p/go-libp2p-peer
-  version: a26c4b782bfe3b2570c539f69dc7777a45117a90
+  version: 554a9b76b860b599d3ef0806a142fdd2c2e9a3d6
 - name: github.com/libp2p/go-libp2p-peerstore
-  version: 49898a5f59ac4bea31b49d0c62ba214a6da16dbd
+  version: 3a59fa1e0084b0ffefa9f386092efe408095f0d2
   subpackages:
   - addr
 - name: github.com/libp2p/go-libp2p-protocol
@@ -189,7 +189,7 @@ imports:
   subpackages:
   - mpool
 - name: github.com/libp2p/go-reuseport
-  version: c2c3368efe65c8b85ddff6b278df5bef3ce235e2
+  version: 562c3ba3003e80c9829992a6c1a760d51eb0792b
   subpackages:
   - poll
   - singlepoll
@@ -248,6 +248,11 @@ imports:
   version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/rcrowley/go-metrics
   version: e2704e165165ec55d062f5919b4b29494e9fa790
+- name: github.com/rs/zerolog
+  version: 77db4b4f350e31be66a57c332acb7721cf9ff9bb
+  subpackages:
+  - internal/cbor
+  - internal/json
 - name: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
@@ -265,7 +270,7 @@ imports:
 - name: github.com/spf13/jwalterweatherman
   version: 7c0cea34c8ece3fbeb2b27ab9b59511d360fb394
 - name: github.com/spf13/pflag
-  version: 583c0c0531f06d5278b7d917446061adc344b5cd
+  version: 9a97c102cda95a86cec2345a6f09f55a939babf5
 - name: github.com/spf13/viper
   version: b5e8006cbee93ec955a89ab31e0e3ce3204f3736
 - name: github.com/whyrusleeping/go-logging

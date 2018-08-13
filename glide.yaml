@@ -82,6 +82,8 @@ import:
   version: ~0.0.9
 - package: github.com/rcrowley/go-metrics
 - package: github.com/aergoio/aergo-actor
+- package: github.com/rs/zerolog
+  version: v1.8.0
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2
