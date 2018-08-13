@@ -15,7 +15,7 @@ package blockchain
 #include <lauxlib.h>
 #include <luajit.h>
 
-static const char* vm_run(const char *code, size_t sz, const char *name)
+static const char *vm_loadbuff(const char *code, size_t sz, const char *name, lua_State **p)
 {
 	int err;
 	lua_State *L = luaL_newstate();
@@ -25,17 +25,32 @@ static const char* vm_run(const char *code, size_t sz, const char *name)
 	err = luaL_loadbuffer(L, code, sz, name);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
 		return errMsg;
 	}
-
 	err = lua_pcall(L, 0, 0, 0);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
 		return errMsg;
 	}
-	lua_close(L);
+	*p = L;
+	return NULL;
+}
+
+static void vm_getfield(lua_State *L, const char *name)
+{
+	lua_getfield(L, LUA_GLOBALSINDEX, name);
+}
+
+static const char *vm_pcall(lua_State *L, int argc)
+{
+	int err;
+	const char *errMsg = NULL;
+
+	err = lua_pcall(L, argc, 0, 0);
+	if (err != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+		return errMsg;
+	}
 	return NULL;
 }
 */
@@ -43,7 +58,9 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"unsafe"
 
+	"errors"
 	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
@@ -58,11 +75,65 @@ var (
 )
 
 type Contract struct {
-	code []byte
+	code    []byte
+	address []byte
+}
+
+type ContractExec struct {
+	L        *C.lua_State
+	contract *Contract
+	err      error
 }
 
 func init() {
 	ctrLog = log.NewLogger(log.Contract)
+}
+
+func newContractExec(contract *Contract) *ContractExec {
+	ce := &ContractExec{
+		contract: contract,
+	}
+	if cErrMsg := C.vm_loadbuff((*C.char)(unsafe.Pointer(&contract.code[0])),
+		C.size_t(len(contract.code)),
+		C.CString(string(contract.address)),
+		&ce.L,
+	); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		C.free(unsafe.Pointer(cErrMsg))
+		ctrLog.Error(errMsg)
+		ce.err = errors.New(errMsg)
+	}
+	return ce
+}
+
+func (ce *ContractExec) call(abi *types.ABI) {
+	if ce.err != nil {
+		return
+	}
+	C.vm_getfield(ce.L, C.CString(abi.Name))
+	for _, v := range abi.Args {
+		switch arg := v.(type) {
+		case string:
+			C.lua_pushstring(ce.L, C.CString(arg))
+		case int:
+			C.lua_pushinteger(ce.L, C.long(arg))
+		default:
+			ce.err = errors.New("unsupported type")
+			return
+		}
+	}
+	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args))); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		C.free(unsafe.Pointer(cErrMsg))
+		ctrLog.Error(errMsg)
+		ce.err = errors.New(errMsg)
+	}
+}
+
+func (ce *ContractExec) close() {
+	if ce != nil && ce.L != nil {
+		C.lua_close(ce.L)
+	}
 }
 
 func ApplyCode(code, contractAddress, txHash []byte) error {
@@ -73,21 +144,15 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 		ctrLog.Warn(err.Error())
 	}
 	var abi types.ABI
-	json.Unmarshal(code, &abi)
-	ctrLog.Debugf("contract call: %#v", abi)
-	/*
-		vm := NewLuaVM(code, call)
-		vm.Run()
-		if cErrMsg := C.vm_run((*C.char)(unsafe.Pointer(&contract.code[0])),
-			C.size_t(len(contract.code)),
-			(*C.char)(unsafe.Pointer(&contractAddress)),
-		); cErrMsg != nil {
-			errMsg := C.GoString(cErrMsg)
-			C.free(unsafe.Pointer(cErrMsg))
-			ctrLog.Error(errMsg)
-			err = errors.New(errMsg)
-		}
-	*/
+	err = json.Unmarshal(code, &abi)
+	var ce *ContractExec
+	defer ce.close()
+	if err == nil {
+		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
+		ce = newContractExec(contract)
+		ce.call(&abi)
+		err = ce.err
+	}
 	receipt := types.NewReceipt(contractAddress, "SUCCESS")
 	if err != nil {
 		receipt.Status = err.Error()
@@ -108,7 +173,8 @@ func getContract(contractAddress []byte) *Contract {
 	val := contractDB.Get(contractAddress)
 	if len(val) > 0 {
 		return &Contract{
-			code: val,
+			code:    val,
+			address: contractAddress[:],
 		}
 	}
 	return nil
