@@ -179,7 +179,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		h := sha256.New()
 		h.Write(txBody.Account)
 		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
-		recipient = h.Sum(nil)
+		recipient = h.Sum(nil)[:20]
 		receiverID = types.ToAccountID(recipient)
 	}
 	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)

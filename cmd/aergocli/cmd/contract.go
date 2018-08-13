@@ -32,6 +32,8 @@ const char *compile(char *code, char *byte)
 */
 import "C"
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -39,15 +41,10 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
-import (
-	"context"
-
-		"github.com/mr-tron/base58/base58"
-	"encoding/json"
-	)
 
 var client *util.ConnClient
 
@@ -132,7 +129,7 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				contract, err := util.DecodeB64(args[1])
+				contract, err := base58.Decode(args[1])
 				if err != nil {
 					log.Fatal(err)
 				}

@@ -131,7 +131,7 @@ func (ce *ContractExec) call(abi *types.ABI) {
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args))); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Error(errMsg)
+		ctrLog.WithCtx("error", errMsg).Warnf("contract %s", base58.Encode(ce.contract.address))
 		ce.err = errors.New(errMsg)
 	}
 }
@@ -160,10 +160,7 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
 		ce = newContractExec(contract)
 		ce.call(&abi)
-		if ce.err != nil {
-			ctrLog.WithCtx("error", ce.err).Warn("contract %s", base58.Encode(contractAddress))
-			err = ce.err
-		}
+		err = ce.err
 	}
 	receipt := types.NewReceipt(contractAddress, "SUCCESS")
 	if err != nil {
