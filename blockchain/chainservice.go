@@ -183,6 +183,9 @@ func (cs *ChainService) Receive(context actor.Context) {
 		} else {
 			block := msg.Block.Clone()
 			err := cs.addBlock(block, msg.PeerID)
+			if err != nil {
+				logger.Infof("failed add block: %s", err.Error())
+			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
 				BlockHash: block.GetHash(),

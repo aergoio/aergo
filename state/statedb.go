@@ -177,7 +177,7 @@ func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey) 
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	if sdb.latest.BlockNo+1 != bstate.BlockNo {
-		return fmt.Errorf("Failed to apply: invalid block no")
+		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
 	}
 	if sdb.latest.BlockHash != bstate.PrevHash {
 		return fmt.Errorf("Failed to apply: invalid previous block")
