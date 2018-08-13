@@ -22,6 +22,51 @@ import (
 	//"github.com/dgraph-io/badger/options"
 )
 
+func TestEmptyModTrie(t *testing.T) {
+	smt := NewModSMT(32, hash, nil)
+	if !bytes.Equal(smt.DefaultHash(256), smt.Root) {
+		t.Fatal("empty trie root hash not correct")
+	}
+}
+
+func TestModUpdateAndGet(t *testing.T) {
+	smt := NewModSMT(32, hash, nil)
+
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.get(root, key, smt.TrieHeight)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("value not updated")
+		}
+	}
+
+	// Append to the trie
+	newKeys := getFreshData(5, 32)
+	newValues := getFreshData(5, 32)
+	newRoot, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
+	if bytes.Equal(root, newRoot) {
+		t.Fatal("trie not updated")
+	}
+	for i, newKey := range newKeys {
+		newValue, _ := smt.get(newRoot, newKey, smt.TrieHeight)
+		if !bytes.Equal(newValues[i], newValue) {
+			t.Fatal("failed to get value")
+		}
+	}
+	// Check old keys are still stored
+	for i, key := range keys {
+		value, _ := smt.get(root, key, smt.TrieHeight)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("failed to get value")
+		}
+	}
+}
+
 func TestModPublicUpdateAndGet(t *testing.T) {
 	smt := NewModSMT(32, hash, nil)
 	// Add data to empty trie
