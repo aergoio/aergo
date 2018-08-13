@@ -13,8 +13,6 @@ import (
 	"github.com/aergoio/aergo/pkg/log"
 )
 
-var _ log.ILogger = (*BaseComponent)(nil)
-
 type BaseComponent struct {
 	*log.Logger
 	name            string
@@ -77,14 +75,14 @@ func (base *BaseComponent) Request(message interface{}, sender IComponent) {
 	if base.pid != nil {
 		base.pid.Request(message, sender.Pid())
 	} else {
-		base.Fatal("PID is empty")
+		log.Default().Fatal().Msg("PID is empty")
 	}
 }
 
 func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
 
 	if base.pid == nil {
-		base.Fatal("PID is empty")
+		log.Default().Fatal().Msg("PID is empty")
 	}
 
 	return base.pid.RequestFuturePrefix(message, tip, timeout)

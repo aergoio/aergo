@@ -38,12 +38,12 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 	key := types.ToBlockKey(block.Header.PrevBlockHash)
 	cachedblock, exists := op.cache[key]
 	if exists {
-		logger.Debugf("already exist %v %v", block.GetHash(), cachedblock.block.GetHash())
+		logger.Debug().Bytes("hash", block.GetHash()).Bytes("cashed", cachedblock.block.GetHash()).Msg("already exist")
 		return fmt.Errorf("orphan block already exist")
 	}
 
 	if op.maxCnt == op.curCnt {
-		logger.Debugf("orphan block pool is full")
+		logger.Debug().Msg("orphan block pool is full")
 		// replace one
 		op.removeOldest()
 	}
@@ -52,7 +52,7 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 		expiretime: time.Now().Add(time.Hour),
 	}
 	op.curCnt++
-	logger.Debugf("add Orphan Block %v", types.ToBlockKey(block.GetHash()))
+	logger.Debug().Bytes("hash", block.GetHash()).Msg("add Orphan Block")
 	return nil
 }
 
@@ -78,7 +78,7 @@ func (op *OrphanPool) removeOldest() {
 	var oldest *OrphanBlock
 	for key, orphan := range op.cache {
 		if time.Now().After(orphan.expiretime) {
-			logger.Debugf("orphan block removed(expired) %v", key)
+			logger.Debug().Str("hash", key.String()).Msg("orphan block removed(expired)")
 			op.removeOrphan(key)
 		}
 
@@ -91,7 +91,7 @@ func (op *OrphanPool) removeOldest() {
 	// remove oldest one
 	if op.curCnt == op.maxCnt {
 		key := types.ToBlockKey(oldest.block.Header.PrevBlockHash)
-		logger.Debugf("orphan block removed(oldest) %v", key)
+		logger.Debug().Str("hash", key.String()).Msg("orphan block removed(oldest)")
 		op.removeOrphan(key)
 	}
 }

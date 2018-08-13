@@ -20,7 +20,7 @@ func main() {
 	compHub := component.NewComponentHub()
 
 	testServer := &server.TestServer{
-		BaseComponent: component.NewBaseComponent("TestServer", log.NewLogger(log.TEST), true),
+		BaseComponent: component.NewBaseComponent("TestServer", log.Default(), true),
 	}
 	helloService := service.NexExampleServie("Den")
 

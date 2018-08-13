@@ -90,7 +90,7 @@ type peerManager struct {
 	remotePeers  map[peer.ID]*RemotePeer
 	peerPool     map[peer.ID]PeerMeta
 	conf         *cfg.P2PConfig
-	log          log.ILogger
+	log          *log.Logger
 	mutex        *sync.Mutex
 
 	status component.Status
@@ -124,7 +124,7 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger log.ILogger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) PeerManager {
 	//logger.SetLevel("debug")
 	hl := &peerManager{
 		iServ: iServ,
@@ -182,15 +182,15 @@ func (ps *peerManager) init() {
 		if err == nil {
 			priv, err = crypto.UnmarshalPrivateKey(dat)
 			if err != nil {
-				ps.log.Warnf("invalid keyfile %s. It's not private key file", ps.conf.NPKey)
+				ps.log.Warn().Str("npkey", ps.conf.NPKey).Msg("invalid keyfile. It's not private key file")
 			}
 			pub = priv.GetPublic()
 		} else {
-			ps.log.Warnf("invalid keyfile path %s", ps.conf.NPKey)
+			ps.log.Warn().Str("npkey", ps.conf.NPKey).Msg("invalid keyfile path")
 		}
 	}
 	if nil == priv {
-		ps.log.Infof("No valid private key file is found. use temporary pk instead.")
+		ps.log.Info().Msg("No valid private key file is found. use temporary pk instead")
 		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	}
 	pid, _ := peer.IDFromPublicKey(pub)
@@ -202,11 +202,10 @@ func (ps *peerManager) init() {
 	if nil == listenAddr {
 		panic("invalid NetProtocolAddr " + ps.conf.NetProtocolAddr)
 	} else if !listenAddr.IsUnspecified() {
-		ps.log.Infof("Using NetProtocolAddr %s:%d in configfile", ps.conf.NetProtocolAddr, listenPort)
+		ps.log.Info().Str("ps.conf.NetProtocolAddr", ps.conf.NetProtocolAddr).Int("listenPort", listenPort).Msg("Using NetProtocolAddr in configfile")
 	} else {
 		listenAddr, err = externalIP()
-		ps.log.Infof("No NetProtocolAddr is specified. Look for ip address and using it %s:%d ",
-			listenAddr.To4(), listenPort)
+		ps.log.Info().Str("addr", listenAddr.To4().String()).Int("port", listenPort).Msg("No NetProtocolAddr is specified")
 		if err != nil {
 			panic("Couldn't find listening ip address: " + err.Error())
 		}
@@ -240,25 +239,25 @@ func (ps *peerManager) addDesignatedPeers() {
 		target = strings.Replace(target, "/p2p/", "/ipfs/", 1)
 		targetAddr, err := ma.NewMultiaddr(target)
 		if err != nil {
-			ps.log.Warnf("invalid NPAddPeer address: %s (err: %s)", target, err.Error())
+			ps.log.Warn().Err(err).Str("target", target).Msg("invalid NPAddPeer address")
 			continue
 		}
 		splitted := strings.Split(targetAddr.String(), "/")
 		if len(splitted) != 7 {
-			ps.log.Warnf("invalid NPAddPeer address: %s", target)
+			ps.log.Warn().Str("target", target).Msg("invalid NPAddPeer address")
 			continue
 		}
 		peerAddrString := splitted[2]
 		peerPortString := splitted[4]
 		peerPort, err := strconv.Atoi(peerPortString)
 		if err != nil {
-			ps.log.Warnf("invalid Peer port : %s", peerPortString)
+			ps.log.Warn().Str("port", peerPortString).Msg("invalid Peer port")
 			continue
 		}
 		peerIDString := splitted[6]
 		peerID, err := peer.IDB58Decode(peerIDString)
 		if err != nil {
-			ps.log.Warnf("invalid PeerID: %s", peerIDString)
+			ps.log.Warn().Str("peer_id", peerIDString).Msg("invalid PeerID")
 			continue
 		}
 		peerMeta := PeerMeta{
@@ -268,7 +267,7 @@ func (ps *peerManager) addDesignatedPeers() {
 			Designated: true,
 			Outbound:   true,
 		}
-		ps.log.Infof("Adding Desginated peer %s of address %s:%d", peerID.Pretty(), peerAddrString, peerPort)
+		ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Desginated peer")
 		ps.addPeerChannel <- peerMeta
 	}
 }
@@ -305,7 +304,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
 	if err != nil {
-		ps.log.Warnf("invalid NPAddPeer address: %s (err: %s)", addrString, err.Error())
+		ps.log.Warn().Err(err).Str("addr", addrString).Msg("invalid NPAddPeer address")
 		return
 	}
 	var peerID = meta.ID
@@ -313,12 +312,12 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	defer ps.mutex.Unlock()
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
-		ps.log.Infof("Peer %s is already managed by peerService.", newPeer.meta.ID.Pretty())
+		ps.log.Info().Str("peer_id", newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
 		// TODO check and modify meta information of peer if needed.
 		return
 	}
 	if meta.Outbound {
-		ps.log.Debugf("Adding outbound peer %s of address %s", peerID.Pretty(), peerAddr.String())
+		ps.log.Debug().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
 		// if peer exists in peerstore already, reuse that peer again.
 		if !ps.checkInPeerstore(peerID) {
 			ps.Peerstore().AddAddr(peerID, peerAddr, pstore.PermanentAddrTTL)
@@ -326,7 +325,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 		aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
 		newPeer = &aPeer
 		ps.remotePeers[peerID] = newPeer
-		ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
+		ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
 	} else {
 		// // inbound peer should already be listed in peerstore of libp2p. If not, that peer is deleted just before
 		// if ps.checkInPeerstore(peerID) {
@@ -415,11 +414,12 @@ func (ps *peerManager) startListener() {
 
 	newHost, err := libp2p.New(context.Background(), libp2p.Identity(ps.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...))
 	if err != nil {
-		ps.log.Fatalf("Couldn't listen from %s: %s", listen.String(), err.Error())
+		ps.log.Fatal().Err(err).Str("addr", listen.String()).Msg("Couldn't listen from")
 		panic(err.Error())
 	}
-	ps.log.Infof("Self node pid is %s, and listening for connections. with addr %s", ps.SelfNodeID().Pretty(), listens)
 
+	ps.log.Info().Str("pid", ps.SelfNodeID().Pretty()).Str("addr[0]", listens[0].String()).Str("addr[1]", listens[1].String()).
+		Msg("Set self node's pid, and listening for connections")
 	ps.Host = newHost
 
 	// listen subprotocols also
@@ -500,7 +500,8 @@ func (ps *peerManager) checkAndCollectPeerList(ID peer.ID) {
 	}
 	peer, ok := ps.GetPeer(ID)
 	if !ok {
-		ps.log.Warnf("invalid peer id %s", ID.Pretty())
+		//ps.log.Warnf("invalid peer id %s", ID.Pretty())
+		ps.log.Warn().Str("peer_id", ID.Pretty()).Msg("invalid peer id")
 		return
 	}
 	ps.iServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
@@ -523,7 +524,7 @@ func (ps *peerManager) tryFillPool(metas *[]PeerMeta) {
 			added = append(added, meta)
 		}
 	}
-	ps.log.Debugf("Fill %d peer addresses: %v ", len(added), added)
+	ps.log.Debug().Msgf("Fill %d peer addresses: %v ", len(added), added)
 
 	ps.tryConnectPeers()
 }
@@ -537,8 +538,8 @@ func (ps *peerManager) tryConnectPeers() {
 			continue
 		}
 		if meta.IPAddress == "" || meta.Port == 0 {
-			ps.log.Warnf("Invalid peer meta informations %s - %s:%d ", meta.ID.Pretty(),
-				meta.IPAddress, meta.Port)
+			ps.log.Warn().Str("peer_id", meta.ID.Pretty()).Str("addr", meta.IPAddress).
+				Uint32("port", meta.Port).Msg("Invalid peer meta informations")
 			continue
 		}
 		// in same go rountine.
@@ -562,7 +563,7 @@ func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// marshall data without the signature to protobufs3 binary format
 	bin, err := proto.Marshal(message)
 	if err != nil {
-		ps.log.Warn("failed to marshal pb message")
+		ps.log.Warn().Msg("failed to marshal pb message")
 		return false
 	}
 
@@ -572,7 +573,7 @@ func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// restore peer peer.ID binary format from base58 encoded node peer.ID data
 	peerID, err := peer.IDB58Decode(data.PeerID)
 	if err != nil {
-		ps.log.Warn("Failed to decode node peer.ID from base58")
+		ps.log.Warn().Msg("Failed to decode node peer.ID from base58")
 		return false
 	}
 
@@ -605,7 +606,7 @@ func (ps *peerManager) SignData(data []byte) ([]byte, error) {
 func (ps *peerManager) VerifyData(data []byte, signature []byte, peerID peer.ID, pubKeyData []byte) bool {
 	key, err := crypto.UnmarshalPublicKey(pubKeyData)
 	if err != nil {
-		ps.log.Warn("Failed to extract key from message key data")
+		ps.log.Warn().Msg("Failed to extract key from message key data")
 		return false
 	}
 
@@ -613,19 +614,19 @@ func (ps *peerManager) VerifyData(data []byte, signature []byte, peerID peer.ID,
 	idFromKey, err := peer.IDFromPublicKey(key)
 
 	if err != nil {
-		ps.log.Warn("Failed to extract peer peer.ID from public key")
+		ps.log.Warn().Msg("Failed to extract peer peer.ID from public key")
 		return false
 	}
 
 	// verify that message author node peer.ID matches the provided node public key
 	if idFromKey != peerID {
-		ps.log.Warn("Node peer.ID and provided public key mismatch")
+		ps.log.Warn().Msg("Node peer.ID and provided public key mismatch")
 		return false
 	}
 
 	res, err := key.Verify(data, signature)
 	if err != nil {
-		ps.log.Warn("Error authenticating data")
+		ps.log.Warn().Msg("Error authenticating data")
 		return false
 	}
 
@@ -659,7 +660,7 @@ func (ps *peerManager) SendProtoMessage(data proto.Message, s inet.Stream) bool 
 	enc := protobufCodec.Multicodec(nil).Encoder(writer)
 	err := enc.Encode(data)
 	if err != nil {
-		ps.log.Warn(err)
+		ps.log.Warn().Err(err).Msg("fail to encode in SendProtoMessage")
 		return false
 	}
 	writer.Flush()
@@ -677,7 +678,7 @@ func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
 	}
 	// adding inbound peer
 	if ps.checkInPeerstore(peerID) {
-		ps.log.Debugf("Adding inbound peer %s with dummy address", peerID.Pretty())
+		ps.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Adding inbound peer with dummy address")
 		// address can be changed after handshaking...
 		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
 		ps.remotePeers[peerID] = &aPeer

@@ -26,6 +26,6 @@ func (ts *TestServer) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.HelloRsp:
-		ts.Info(msg.Greeting)
+		ts.Info().Msg(msg.Greeting)
 	}
 }

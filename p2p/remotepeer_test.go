@@ -22,8 +22,8 @@ var sampleErr error
 var logger *log.Logger
 
 func init() {
-	logger = log.NewLogger(log.TEST)
-	logger.SetLevel("fatal")
+	logger = log.NewLogger("test")
+
 	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
 }
@@ -37,7 +37,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
 	mockActorServ.On("requestSync", mock.Anything, mock.AnythingOfType("message.GetBlockRsp")).Return(dummyBestBlock, true)
-	target.log.SetLevel("DEBUG")
+
 	go target.runPeer()
 
 	time.Sleep(testDuration)

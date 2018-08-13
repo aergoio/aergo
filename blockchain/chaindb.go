@@ -138,7 +138,7 @@ func (cdb *ChainDB) generateGenesisBlock(seed int64) *types.Block {
 	tx := cdb.store.NewTx(true)
 	cdb.addBlock(&tx, genesisBlock)
 	tx.Commit()
-	logger.Info("generate Genesis Block")
+	logger.Info().Msg("generate Genesis Block")
 	return genesisBlock
 }
 
@@ -146,12 +146,12 @@ func (cdb *ChainDB) needReorg(block *types.Block) bool {
 	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
 	// assumption: not an orphan
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debugf("needReorg Check: blockNo(%v) latest(%v)", blockNo, cdb.latest)
+		logger.Debug().Uint64("blockNo", blockNo).Uint64("latest", cdb.latest).Msg("needReorg Check")
 		return false
 	}
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
-	logger.Debugf("needReorg Check: my prev (%v) vs latest prev (%v)", EncodeB64(prevHash), EncodeB64(latestHash))
+	logger.Debug().Str("prev", EncodeB64(prevHash)).Str("latest", EncodeB64(latestHash)).Msg("needReorg Check")
 	if err != nil {
 		// assertion case
 		return false
@@ -172,7 +172,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 
 	tblock := block
 	blockNo := tblock.GetHeader().GetBlockNo()
-	logger.Debugf("Reorg Started to %d", blockNo)
+	logger.Debug().Uint64("blockNo", blockNo).Msg("Reorg Started")
 	elems := make([]reorgElem, 0)
 	for blockNo > 0 {
 		// get prev block info
@@ -181,7 +181,8 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 		mHash, _ := cdb.getHashByNo(tblock.GetHeader().GetBlockNo())
 		blockNo--
 		if blockNo != tblock.GetHeader().GetBlockNo() {
-			logger.Fatalf("Reorg Failed invalid blockno %d %d", blockNo, tblock.GetHeader().GetBlockNo())
+			logger.Fatal().Uint64("blockNo", blockNo).Uint64("TBlockNo", tblock.GetHeader().GetBlockNo()).
+				Msg("Reorg Failed invalid blockno")
 		}
 		if bytes.Equal(tblock.Hash, mHash) {
 			// branch root found
@@ -192,7 +193,8 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 			Hash:    tblock.Hash,
 		}
 		elems = append(elems, newElem)
-		logger.Debugf("Reorg elem added [%d] %v -> %v", blockNo, EncodeB64(tblock.Hash), EncodeB64(mHash))
+		logger.Debug().Uint64("blockNo", blockNo).Str("from", EncodeB64(tblock.Hash)).
+			Str("to", EncodeB64(mHash)).Msg("Reorg Failed invalid blockno")
 	}
 
 	tx := cdb.store.NewTx(true)
@@ -200,7 +202,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 		blockKey := ItobU64(uint64(elem.BlockNo))
 		// change main chain info
 		tx.Set(blockKey, elem.Hash)
-		logger.Debugf("Reorg changed (%d, %v)", blockNo, elem.Hash)
+		logger.Debug().Uint64("blockNo", blockNo).Bytes("hash", elem.Hash).Msg("Reorg changed")
 	}
 	tx.Commit()
 
@@ -208,7 +210,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 		cdb.UnsetReorganizing()
 	}
 
-	logger.Debugf("Reorg End")
+	logger.Debug().Msg("Reorg End")
 }
 
 type txInfo struct {
@@ -240,14 +242,14 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// assumption: not an orphan
 	// fork can be here
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debugf("branch block: no=%d, hash=%s", blockNo, block.ID())
+		logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("branch block")
 		longest = false
 	}
 
 	if cdb.needReorg(block) {
 		cdb.reorg(block)
 	}
-	logger.Debugf("addBlock: no=%d, hash=%s", blockNo, block.ID())
+	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("addBlock")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err
@@ -314,7 +316,8 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
-	logger.Debugf("getTx Hash=%v", EncodeB64(txHash))
+	logger.Debug().Str("hash", EncodeB64(txHash)).Msg("getTx")
+
 	return tx, txIdx, nil
 }
 
@@ -335,11 +338,11 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 			Height: i,
 			Hash:   EncodeB64(hash),
 		})
-		logger.Infof("GetChainTree: %v", EncodeB64(hash))
+		logger.Info().Str("hash", EncodeB64(hash)).Msg("GetChainTree")
 	}
 	jsonBytes, err := json.Marshal(tree)
 	if err != nil {
-		logger.Info("GetChainTree failed")
+		logger.Info().Msg("GetChainTree failed")
 	}
 	return jsonBytes, nil
 }

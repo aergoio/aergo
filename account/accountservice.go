@@ -41,7 +41,7 @@ var _ component.IComponent = (*AccountService)(nil)
 //NewAccountService create account service
 func NewAccountService(cfg *cfg.Config) *AccountService {
 	return &AccountService{
-		BaseComponent: component.NewBaseComponent(message.AccountsSvc, log.NewLogger(log.AccountsSvc), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.AccountsSvc, log.NewLogger("account"), cfg.EnableDebugMsg),
 		cfg:           cfg,
 		accounts:      []*types.Account{},
 		unlocked:      map[string]*aergokey{},
@@ -135,7 +135,7 @@ func (as *AccountService) createAccount(passphrase string) (*types.Account, erro
 	//gen new key
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
-		as.Errorf("could not generate key : %s", err)
+		as.Error().Err(err).Msg("could not generate key")
 		return nil, err
 	}
 	//gen new address
@@ -145,7 +145,7 @@ func (as *AccountService) createAccount(passphrase string) (*types.Account, erro
 	encryptkey := hashBytes(address, []byte(passphrase))
 	encrypted, err := encrypt(address, encryptkey, privkey.Serialize())
 	if err != nil {
-		as.Errorf("could not encrypt key : %s", err)
+		as.Error().Err(err).Msg("could not encrypt key")
 		return nil, err
 	}
 	as.storage.Set(hashBytes(address, encryptkey), encrypted)
@@ -180,7 +180,7 @@ func (as *AccountService) unlockAccount(address []byte, passphrase string) (*typ
 
 	key, err := as.getKey(address, passphrase)
 	if key == nil {
-		as.Errorf("could not find the key : %s", err)
+		as.Error().Err(err).Msg("could not find the key")
 		return nil, err
 	}
 	as.unlocked[EncodeB64(address)], _ = btcec.PrivKeyFromBytes(btcec.S256(), key)
@@ -190,7 +190,7 @@ func (as *AccountService) unlockAccount(address []byte, passphrase string) (*typ
 func (as *AccountService) lockAccount(address []byte, passphrase string) (*types.Account, error) {
 	key, err := as.getKey(address, passphrase)
 	if key == nil {
-		as.Errorf("could not load the key : %s", err)
+		as.Error().Err(err).Msg("could not load the key")
 		return nil, err
 	}
 	//TODO: zeroing key
@@ -232,7 +232,7 @@ func (as *AccountService) signTx(tx *types.Tx) error {
 	//TODO: race condition? if lock account at this moment ...
 	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
 	if err != nil {
-		as.Errorf("could not sign: %s", err)
+		as.Error().Err(err).Msg("could not sign")
 		return err
 	}
 	txbody.Sign = sign
@@ -251,7 +251,7 @@ func (as *AccountService) verifyTx(tx *types.Tx) error {
 
 	pubkey, _, err := btcec.RecoverCompact(btcec.S256(), txbody.Sign, hash)
 	if err != nil {
-		as.Errorf("could not recover sign: %s", err)
+		as.Error().Err(err).Msg("could not recover sign")
 		return err
 	}
 	address := generateAddress(pubkey.ToECDSA())

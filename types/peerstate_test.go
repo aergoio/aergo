@@ -14,9 +14,9 @@ func TestPeerState_Get(t *testing.T) {
 
 	concurrentCnt := 100
 	epoch := 100
-	logger := log.NewLogger(log.TEST)
+	logger := log.NewLogger("test")
 
-	logger.Info("================= Without atomic ops.")
+	logger.Info().Msg("================= Without atomic ops.")
 	target := STARTING
 	wg.Add(concurrentCnt)
 	for i := 0; i < concurrentCnt; i++ {
@@ -30,8 +30,8 @@ func TestPeerState_Get(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	logger.Infof("Expected %d , actual  = %d", concurrentCnt*epoch, int32(target))
-	logger.Info("================= With atomic ops.")
+	logger.Info().Msgf("Expected %d , actual = %d", concurrentCnt*epoch, int32(target))
+	logger.Info().Msg("================= With atomic ops.")
 	var ocounter, ncounter [5]int32
 
 	target = STARTING
@@ -55,6 +55,6 @@ func TestPeerState_Get(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		assert.Equal(t, ocounter[i], ncounter[i])
 	}
-	logger.Infof("Values %v", ocounter)
-	logger.Info("Done")
+	logger.Info().Msgf("Values %v", ocounter)
+	logger.Info().Msg("Done")
 }

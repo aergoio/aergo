@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
 	aergorpc "github.com/aergoio/aergo/types"
 	"google.golang.org/grpc"
 )
@@ -47,7 +46,7 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 
 	netsvc := &RPC{
 		conf:          cfg,
-		BaseComponent: component.NewBaseComponent("rpc", log.NewLogger(log.RPC), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent("rpc", logger, cfg.EnableDebugMsg),
 		hub:           hub,
 		grpcServer:    grpcServer,
 		actualServer:  actualServer,

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	logger = log.NewLogger(log.Consensus)
+	logger = log.NewLogger("consensus")
 )
 
 // ErrorConsensus is a basic error struct for consensus modules.
@@ -59,7 +59,7 @@ type BlockFactory interface {
 func Start(c Consensus) {
 	bf := c.BlockFactory()
 	if c == nil || bf == nil {
-		logger.Fatal("failed to start consensus service: no Consensus or BlockFactory")
+		logger.Fatal().Msg("failed to start consensus service: no Consensus or BlockFactory")
 	}
 
 	go bf.Start()

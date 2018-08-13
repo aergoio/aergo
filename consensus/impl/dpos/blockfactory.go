@@ -87,7 +87,7 @@ func (bf *BlockFactory) controller() {
 		select {
 		case bf.workerQueue <- bpi:
 		default:
-			logger.Errorf(
+			logger.Error().Msgf(
 				"skip block production for the slot %v (best block: %v) due to a pending job",
 				spew.Sdump(bpi.slot), bpi.bestBlock.ID())
 		}
@@ -96,7 +96,7 @@ func (bf *BlockFactory) controller() {
 
 	notifyBpTimeout := func(bpi *bpInfo) {
 		timeout := bpi.slot.GetBpTimeout()
-		logger.Debugf("block production timeout: %vms", timeout)
+		logger.Debug().Int64("timeout", timeout).Msg("block production timeout")
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		// TODO: skip when the triggered block has already been genearted!
 		bf.bpTimeoutC <- struct{}{}
@@ -106,7 +106,7 @@ func (bf *BlockFactory) controller() {
 		select {
 		case info := <-bf.jobQueue:
 			bpi := info.(*bpInfo)
-			logger.Debugf("received bpInfo: %v %v",
+			logger.Debug().Msgf("received bpInfo: %v %v",
 				log.DoLazyEval(func() string {
 					return bpi.bestBlock.ID()
 				}),
@@ -134,7 +134,7 @@ func (bf *BlockFactory) worker() {
 			if err == util.ErrQuit {
 				return
 			} else if err != nil {
-				logger.Infof("failed to produce block: %s", err.Error())
+				logger.Info().Err(err).Msg("failed to produce block")
 				continue
 			}
 
@@ -155,7 +155,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 		return nil, err
 	}
 
-	logger.Infof("block %v produced by BP %v", block.ID(), bf.sID)
+	logger.Info().Msgf("block %v produced by BP %v", block.ID(), bf.sID)
 
 	return block, nil
 }

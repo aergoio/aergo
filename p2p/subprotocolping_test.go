@@ -29,7 +29,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	type fields struct {
 		actorServ ActorService
 		ps        PeerManager
-		logger    log.ILogger
+		logger    *log.Logger
 	}
 	type args struct {
 		s inet.Stream
@@ -44,7 +44,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 			"normal",
 			&fields{
 				actorServ: &MockActorService{},
-				logger:    log.NewLogger(log.TEST).WithCtx("test", "p2p"),
+				logger:    log.NewLogger("test.p2p"),
 				ps:        mockP2PS,
 			},
 			args{s: mockIStream},

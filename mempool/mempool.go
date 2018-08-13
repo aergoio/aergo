@@ -58,7 +58,7 @@ var _ component.IComponent = (*MemPool)(nil)
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	return &MemPool{
-		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger(log.MemPoolSvc), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger("mempool"), cfg.EnableDebugMsg),
 		cfg:           cfg,
 		cache:         map[types.TransactionKey]*types.Tx{},
 		pool:          map[types.AccountKey]*TxList{},
@@ -89,7 +89,7 @@ func (mp *MemPool) Start() {
 		go func() {
 			for range time.Tick(1e9) {
 				l, o := mp.Size()
-				mp.Infof("mempool metrics len:%d orphan:%d pool(%d)", l, o, len(mp.pool))
+				mp.Info().Int("len", l).Int("orphan", o).Int("len", len(mp.pool)).Msg("mempool metrics")
 			}
 		}()
 	}
@@ -138,7 +138,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 	default:
-		mp.Debug("unhandled message:", reflect.TypeOf(msg).String())
+		mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
 	}
 }
 
@@ -153,7 +153,7 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 			count++
 		}
 	}
-	mp.Debugf("len :%d orphan:%d, total tx returned:%d", len(mp.cache), mp.orphan, count)
+	mp.Debug().Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
 
@@ -179,7 +179,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	}
 	diff, err := list.Put(tx)
 	if err != nil {
-		mp.Debug(err)
+		mp.Debug().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
 	mp.orphan -= diff
@@ -213,7 +213,7 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 		if !accSet[key] {
 			ns, err := mp.getAccountState(acc, true)
 			if err != nil {
-				mp.Error("getting Account status failed:", err)
+				mp.Error().Err(err).Msg("getting Account status failed")
 				// TODO : ????
 			}
 			list, err := mp.acquireMemPoolList(acc)
@@ -345,7 +345,7 @@ func (mp *MemPool) loadTxs() {
 	file, err := os.Open(mp.dumpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			mp.Errorf("Unable to open dump file: %v", err)
+			mp.Error().Err(err).Msg("Unable to open dump file")
 		}
 		return
 	}
@@ -369,12 +369,12 @@ func (mp *MemPool) loadTxs() {
 		drop++
 	}
 
-	mp.Infof("loading mempool done: %d txs(%d drops)", len(mp.cache), mp.orphan)
+	mp.Info().Int("len", len(mp.cache)).Int("orphan", mp.orphan).Msg("loading mempool done")
 }
 
 func (mp *MemPool) isRunning() bool {
 	if atomic.LoadInt32(&mp.status) != running {
-		mp.Info("skip to dump txs because mempool is not running yet")
+		mp.Info().Msg("skip to dump txs because mempool is not running yet")
 		return false
 	}
 	return true
@@ -391,7 +391,7 @@ func (mp *MemPool) dumpTxsToFile() {
 
 	file, err := os.Create(mp.dumpPath)
 	if err != nil {
-		mp.Errorf("Unable to create file: %v", err)
+		mp.Error().Err(err).Msg("Unable to create file")
 		return
 	}
 	defer file.Close() // nolint: errcheck
@@ -412,11 +412,11 @@ func (mp *MemPool) dumpTxsToFile() {
 			strData := base64.StdEncoding.EncodeToString(data)
 			err = writer.Write([]string{strData})
 			if err != nil {
-				mp.Info(err)
+				mp.Info().Err(err).Msg("writing encoded tx fail")
 				break
 			}
 			count++
 		}
 	}
-	mp.Infof("Dump %d txs into %s\n", count, mp.dumpPath)
+	mp.Info().Int("count", count).Str("path", mp.dumpPath).Msg("dump txs")
 }

@@ -16,7 +16,7 @@ func HandleKillSig(handler func(), logger *log.Logger) {
 	signal.Notify(sigChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	go func() {
 		for signal := range sigChannel {
-			logger.Infof("Receive signal %s, Shutting down...", signal)
+			logger.Info().Msgf("Receive signal %s, Shutting down...", signal)
 			handler()
 			os.Exit(1)
 		}

@@ -38,11 +38,11 @@ type TxProtocol struct {
 	ps       PeerManager
 	reqMutex sync.Mutex
 
-	log log.ILogger
+	log *log.Logger
 }
 
 // NewTxProtocol creates transaction subprotocol
-func NewTxProtocol(logger log.ILogger, chainsvc *blockchain.ChainService) *TxProtocol {
+func NewTxProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *TxProtocol {
 	p := &TxProtocol{reqMutex: sync.Mutex{},
 		log: logger,
 	}
@@ -69,7 +69,7 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -78,14 +78,14 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Info(err)
+		p.log.Info().Err(err).Msg("fail to decode")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, len(data.Hashes))
 
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Info("Failed to authenticate message")
+		p.log.Info().Msg("Failed to authenticate message")
 		return
 	}
 
@@ -133,7 +133,7 @@ func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -146,13 +146,13 @@ func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, len(data.Txs))
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Info("Failed to authenticate message")
+		p.log.Info().Msg("Failed to authenticate message")
 		return
 	}
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
-		p.log.Debugf("Request mempool to add %d txs", len(data.Txs))
+		p.log.Debug().Msgf("Request mempool to add %d txs", len(data.Txs))
 		p.iserv.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 	}
 }
@@ -163,19 +163,19 @@ var emptyArr = make([]byte, 0)
 func (p *TxProtocol) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
-		p.log.Warnf("Invalid peer %s, check for bug", peerID.Pretty())
+		p.log.Warn().Str("peer_id", peerID.Pretty()).Msg("Invalid peer. check for bug")
 		return false
 	}
-	p.log.Debugf("%s: Sending GetTransactions request to: %s...(%d txs)", p.ps.ID(), peerID, len(txHashes))
+	p.log.Debug().Msgf("%s: Sending GetTransactions request to: %s...(%d txs)", p.ps.ID(), peerID, len(txHashes))
 	if len(txHashes) == 0 {
-		p.log.Warnf("empty hash list")
+		p.log.Warn().Msg("empty hash list")
 		return false
 	}
 
 	hashes := make([][]byte, len(txHashes))
 	for i, hash := range txHashes {
 		if len(hash) == 0 {
-			p.log.Warnf("empty hash value requested.")
+			p.log.Warn().Msg("empty hash value requested.")
 			return false
 		}
 		hashes[i] = ([]byte)(hash)
@@ -190,13 +190,13 @@ func (p *TxProtocol) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 
 // NotifyNewTX notice tx(s) id created
 func (p *TxProtocol) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	p.log.Debugf("%s: Notifying new transactions ", p.ps.ID())
+	p.log.Debug().Msgf("%s: Notifying new transactions ", p.ps.ID())
 
 	hashes := make([][]byte, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
 		hashes[i] = tx.Hash
 	}
-	p.log.Debugf("Notifying newTXs to %d peers, txHashes: %s",
+	p.log.Debug().Msgf("Notifying newTXs to %d peers, txHashes: %s",
 		len(p.ps.GetPeers()), bytesArrToString(hashes))
 	// send to peers
 	for _, peer := range p.ps.GetPeers() {
@@ -223,7 +223,7 @@ func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -243,7 +243,7 @@ func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
 	}
 	// create message data
 	p.iserv.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	p.log.Debugf("Request GetTransactions to %s.", peerID.Pretty())
+	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Request GetTransactions")
 }
 
 func bytesArrToString(bbarray [][]byte) string {

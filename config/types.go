@@ -9,7 +9,6 @@ const (
 	EnvironmentPrefix = "AG"
 
 	//defaultLogFileName = "aergo.log"
-	//defaultLogLevel    = "info"
 )
 
 // Config defines configurations of each services
@@ -26,7 +25,6 @@ type Config struct {
 // BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
-	LogLevel       string `mapstructure:"loglevel" description:"Default log level for all components, {debug, info, warn, error, fatal}, or may specify levels for componets <component1>=<level> <component2>=<level> ..."`
 	GenesisPath    string `mapstructure:"genesispath" description:"Genesis Block File Location"`
 	GenesisSeed    int64  `mapstructure:"genesisseed" description:"Generate Genesis Block using a single long seed"`
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
@@ -101,7 +99,6 @@ map = does not support
 const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
-loglevel = "{{.BaseConfig.LogLevel}}"
 genesispath = "{{.BaseConfig.GenesisPath}}"
 genesisseed = {{.BaseConfig.GenesisSeed}} # unix time
 enableprofile = {{.BaseConfig.EnableProfile}}

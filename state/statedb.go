@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	logger = log.NewLogger(log.StateDB)
+	logger = log.NewLogger("state_db")
 )
 
 type BlockInfo struct {

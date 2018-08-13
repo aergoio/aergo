@@ -31,14 +31,14 @@ const (
 
 // AddressesProtocol type
 type AddressesProtocol struct {
-	log log.ILogger
+	log *log.Logger
 
 	ps       PeerManager
 	reqMutex sync.Mutex
 }
 
 // NewAddressesProtocol create address sub protocol handler
-func NewAddressesProtocol(logger log.ILogger) *AddressesProtocol {
+func NewAddressesProtocol(logger *log.Logger) *AddressesProtocol {
 	p := &AddressesProtocol{log: logger,
 		reqMutex: sync.Mutex{},
 	}
@@ -55,7 +55,8 @@ func (p *AddressesProtocol) initWith(p2pservice PeerManager) {
 func (p *AddressesProtocol) GetAddresses(peerID peer.ID, size uint32) bool {
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
-		p.log.Warnf("Message %s to Unknown peer %s, check if a bug.", "addressRequest", peerID.Pretty())
+		p.log.Warn().Str("peer_id", peerID.Pretty()).Msg("Message addressRequest to Unknown peer, check if a bug")
+
 		return false
 	}
 	senderAddr := p.ps.SelfMeta().ToPeerAddress()
@@ -76,7 +77,7 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 	}
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -88,7 +89,7 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Info(err)
+		p.log.Info().Err(err).Msg("fail to decode")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
@@ -122,7 +123,7 @@ func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {
-		p.log.Debugf("Checking %d peers whether to added or not in peerstore; %s", len(peerMetas), peerMetas)
+		p.log.Debug().Msgf("Checking %d peers whether to added or not in peerstore; %s", len(peerMetas), peerMetas)
 		p.ps.NotifyPeerAddressReceived(peerMetas)
 	}
 }
@@ -140,7 +141,7 @@ func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -157,7 +158,7 @@ func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
 		}))
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Info("Failed to authenticate message")
+		p.log.Info().Msg("Failed to authenticate message")
 		return
 	}
 

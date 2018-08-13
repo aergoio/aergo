@@ -22,10 +22,10 @@ func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
 	// collect 10 latest hashes
 	latestNo := cs.getBestBlockNo()
 	for i := 0; i < 10; i++ {
-		logger.Infof("Latest %d", latestNo)
+		logger.Info().Uint64("Num", latestNo).Msg("Latest")
 		blockHash, err := cs.getHashByNo(latestNo)
 		if err != nil {
-			logger.Infof("assertion - hash get failed")
+			logger.Info().Msg("assertion - hash get failed")
 			// assertion!
 			return nil
 		}

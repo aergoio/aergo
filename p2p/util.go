@@ -131,16 +131,18 @@ func externalIP() (net.IP, error) {
 }
 
 // warnLogUnknownPeer log warning that tell unknown peer sent message
-func warnLogUnknownPeer(logger log.ILogger, protocol protocol.ID, peerID peer.ID) {
-	logger.Warnf("Message %v from Unknown peer %s, ignoring it.", protocol, peerID.Pretty())
+func warnLogUnknownPeer(logger *log.Logger, protocol protocol.ID, peerID peer.ID) {
+	logger.Warn().Str("protocol", string(protocol)).Str("peer_id", peerID.Pretty()).
+		Msg("Message from Unknown peer, ignoring it.")
 }
 
-func debugLogReceiveMsg(logger log.ILogger, protocol protocol.ID, msgID string, peerID peer.ID,
+func debugLogReceiveMsg(logger *log.Logger, protocol protocol.ID, msgID string, peerID peer.ID,
 	additional interface{}) {
 	if additional != nil {
 		//		logger.Debugf("Received %v:%s request from %s. %v", protocol, msgID, peerID.Pretty(),
 		//			additional)
 	} else {
-		logger.Debugf("Received %v:%s request from %s", protocol, msgID, peerID.Pretty())
+		logger.Debug().Str("protocol", string(protocol)).Str("msg_id", msgID).Str("from_id", peerID.Pretty()).
+			Msg("Receive a request")
 	}
 }

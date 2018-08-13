@@ -30,12 +30,12 @@ type PingProtocol struct {
 	actorServ ActorService
 	ps        PeerManager
 
-	log      log.ILogger
+	log      *log.Logger
 	reqMutex sync.Mutex
 }
 
 // NewPingProtocol create ping subprotocol
-func NewPingProtocol(logger log.ILogger) *PingProtocol {
+func NewPingProtocol(logger *log.Logger) *PingProtocol {
 	p := &PingProtocol{log: logger,
 		reqMutex: sync.Mutex{}}
 	return p
@@ -62,7 +62,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -71,13 +71,13 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Warnf("Failed to decode ping request. %s", err.Error())
+		p.log.Warn().Err(err).Msg("Failed to decode ping request")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
 
 	// generate response message
-	p.log.Debugf("Sending pong to %s. MSG ID %s.", s.Conn().RemotePeer().Pretty(), data.MessageData.Id)
+	p.log.Debug().Msgf("Sending pong to %s. MSG ID %s.", s.Conn().RemotePeer().Pretty(), data.MessageData.Id)
 	resp := &types.Pong{MessageData: &types.MessageData{}} // BestBlockHash: bestBlock.GetHash(),
 	// BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 
@@ -97,7 +97,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
@@ -105,7 +105,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Warnf("Failed to decode pong request. %s", err.Error())
+		p.log.Warn().Err(err).Msg("Failed to decode pong request")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
@@ -114,7 +114,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 
 func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	p.log.Debugf("Got status message from %s ", peerID.Pretty())
+	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got status message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
@@ -129,23 +129,22 @@ func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Warnf("Failed to decode ping request. %s", err.Error())
+		p.log.Warn().Err(err).Msg("Failed to decode ping request")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Warn("Failed to authenticate message")
+		p.log.Warn().Msg("Failed to authenticate message")
 		return
 	}
-
-	p.log.Debug("starting handshake to %s ", peerID.Pretty())
+	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("starting handshake")
 	remotePeer.op <- OpOrder{op: OpHandleHS, param1: data}
 }
 
 func (p *PingProtocol) onGoaway(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	p.log.Debugf("Got goaway message from %s ", peerID.Pretty())
+	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got goaway message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
@@ -160,16 +159,16 @@ func (p *PingProtocol) onGoaway(s inet.Stream) {
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
-		p.log.Warnf("Failed to decode goaway request. %s", err.Error())
+		p.log.Warn().Err(err).Msg("Failed to decode goaway request")
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
 	valid := p.ps.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Warn("Failed to authenticate message")
+		p.log.Warn().Msg("Failed to authenticate message")
 		return
 	}
 
-	p.log.Debug("Remote Peer %s kick out me: %s ", peerID.Pretty(), data.Message)
+	p.log.Debug().Msgf("Remote Peer %s kick out me: %s ", peerID.Pretty(), data.Message)
 	p.ps.RemovePeer(peerID)
 }

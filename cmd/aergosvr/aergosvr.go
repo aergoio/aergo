@@ -64,20 +64,15 @@ func initConfig() {
 }
 
 func rootRun(cmd *cobra.Command, args []string) {
-	moduleLogLevels, err := log.ParseLevels(cfg.BaseConfig.LogLevel)
-	if err != nil {
-		fmt.Printf(err.Error())
-		os.Exit(1)
-	}
-	log.SetModuleLevels(moduleLogLevels)
 
-	svrlog = log.NewLogger(log.ASVR)
-	svrlog.Info("AERGO SVR STARTED")
+	svrlog = log.NewLogger("asvr")
+	svrlog.Info().Msg("AERGO SVR STARTED")
 
 	if cfg.EnableProfile {
-		svrlog.Info("Enable Profiling on localhost:", cfg.ProfilePort)
+		svrlog.Info().Msgf("Enable Profiling on localhost:", cfg.ProfilePort)
 		go func() {
-			svrlog.Info(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil))
+			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
+			svrlog.Info().Err(err).Msg("Run Profile Server")
 		}()
 	}
 
@@ -94,12 +89,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 	compMng.Register(p2psvc)
 
 	if cfg.EnableRest {
-		svrlog.Info("Start Rest server")
+		svrlog.Info().Msg("Start Rest server")
 		restsvc := rest.NewRestService(cfg, chainsvc)
 		compMng.Register(restsvc)
 		//restsvc.Start()
 	} else {
-		svrlog.Info("Do not Start Rest server")
+		svrlog.Info().Msg("Do not Start Rest server")
 	}
 
 	compMng.Start()
@@ -108,7 +103,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	if cfg.Consensus.EnableBp {
 		c, err := factory.New(cfg, compMng)
 		if err != nil {
-			svrlog.Errorf("failed to start consensus service: %s. server shutdown", err.Error())
+			svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
 			os.Exit(1)
 		}
 		consensus.Start(c)

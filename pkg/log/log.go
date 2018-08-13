@@ -1,185 +1,188 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
- */
-
 package log
 
 import (
-	"fmt"
-	"runtime"
+	"os"
+	"strings"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
-var defaultLevel = logrus.DebugLevel
+var baseLogger = zerolog.New(os.Stdout)
+var baseLevel = zerolog.InfoLevel
+var logInitLock sync.Mutex
+var isLogInit = false
+var viperConf = viper.New()
 
-var (
-	loggers     []*Logger
-	loggersLock sync.Mutex
-)
+var confFilePathKey = "logconfig"
+var confEnvPrefix = "arglib"
+var defaultConfFileName = "arglog"
 
-func addLogger(logger *Logger) {
-	loggersLock.Lock()
-	loggers = append(loggers, logger)
-	loggersLock.Unlock()
+var mySubLogger1 = NewLogger("sub1")
+var mySubLogger2 = NewLogger("sub2")
+
+func loadConfigFile() *viper.Viper {
+	// init viper
+	viperConf.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viperConf.SetEnvPrefix(confEnvPrefix)
+
+	// bind flag
+	pflag.String(confFilePathKey, "", "a config file path for an arglib logger")
+	pflag.Parse()
+	viperConf.BindPFlags(pflag.CommandLine)
+
+	viperConf.AutomaticEnv()
+
+	// search a default conf file
+	viperConf.SetConfigType("toml")
+	viperConf.SetConfigName(defaultConfFileName)
+	viperConf.AddConfigPath(".")
+
+	// set the config file if path exist at environment
+	if viperConf.GetString(confFilePathKey) != "" {
+		confFilePath := viperConf.GetString(confFilePathKey)
+		viperConf.SetConfigFile(confFilePath)
+		baseLogger.Info().Str("file", confFilePath).Msg("Init Logger using a configuration file")
+	}
+
+	// try to read the configuration file
+	err := viperConf.ReadInConfig()
+	if err != nil {
+		switch err.(type) {
+		case viper.ConfigFileNotFoundError:
+			baseLogger.Info().Msg("Init Logger using a default configuration")
+		default:
+			baseLogger.Error().Err(err).Msg("Fail to read a logger's config file")
+		}
+	}
+
+	return viperConf
 }
 
-func setLoggerLevels() {
-	loggersLock.Lock()
-	for _, v := range loggers {
-		v.setLevel(moduleLevels[v.module])
-	}
-	defer loggersLock.Unlock()
+func initLog() {
+	loadConfigFile()
 
+	// set output writer
+	outputWriter := viperConf.GetString("formatter")
+	if outputWriter != "" {
+		switch strings.ToLower(outputWriter) {
+		case "json":
+			baseLogger = baseLogger.Output(os.Stdout)
+		case "console":
+			baseLogger = baseLogger.Output(
+				zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false})
+		case "console_no_color":
+			baseLogger = baseLogger.Output(
+				zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true})
+		default:
+			baseLogger.Warn().Str("formatter", outputWriter).Msg("Invalid Message Formatter. Only allowed; console/console_no_color/json")
+			baseLogger = baseLogger.Output(os.Stdout)
+		}
+	}
+
+	// set a caller print option
+	if viperConf.GetBool("caller") {
+		baseLogger = baseLogger.With().Caller().Logger()
+	}
+
+	// set timestamp format
+	// there is a nice example in time/format.go
+	// ANSIC       = "Mon Jan _2 15:04:05 2006"
+	// UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
+	// RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
+	// RFC822      = "02 Jan 06 15:04 MST"
+	// RFC822Z     = "02 Jan 06 15:04 -0700" // RFC822 with numeric zone
+	// RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
+	// RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
+	// RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+	// RFC3339     = "2006-01-02T15:04:05Z07:00"
+	// RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+	// Kitchen     = "3:04PM"
+	// Stamp      = "Jan _2 15:04:05"
+	// StampMilli = "Jan _2 15:04:05.000"
+	// StampMicro = "Jan _2 15:04:05.000000"
+	// StampNano  = "Jan _2 15:04:05.000000000"
+
+	zerolog.TimeFieldFormat = viperConf.GetString("timefieldforamt")
+
+	// set a base log level
+	level := viperConf.GetString("level")
+	var zLevel zerolog.Level
+	if level == "" {
+		baseLogger.Info().Msg("Set the level as default: info")
+		zLevel = zerolog.InfoLevel
+	} else {
+		var err error
+		if zLevel, err = zerolog.ParseLevel(level); err != nil {
+			baseLogger.Warn().Err(err).Msg("Fail to parse and set a default log level. set the level as info")
+			zLevel = zerolog.InfoLevel
+		}
+	}
+
+	baseLogger = baseLogger.With().Timestamp().Logger().Level(zLevel)
+	baseLevel = zLevel
+}
+
+func NewLogger(moduleName string) *Logger {
+	logInitLock.Lock()
+	defer logInitLock.Unlock()
+
+	// init logger only once at a start
+	if !isLogInit {
+		initLog()
+		isLogInit = true
+	}
+
+	// create sub logger
+	zLogger := baseLogger.With().Str("module", moduleName).Logger()
+
+	// try to load sub config
+	var zLevel zerolog.Level
+	subViperConf := viperConf.Sub(moduleName)
+	if subViperConf != nil {
+		level := subViperConf.GetString("level")
+		var err error
+
+		if zLevel, err = zerolog.ParseLevel(level); err != nil {
+			zLevel = zerolog.InfoLevel
+		}
+
+		// set sub logger's level
+		zLogger = zLogger.Level(zLevel)
+	}
+
+	return &Logger{
+		Logger: &zLogger,
+		name:   moduleName,
+		level:  zLevel,
+	}
+}
+
+func Default() *Logger {
+	logInitLock.Lock()
+	defer logInitLock.Unlock()
+
+	// init logger only once at a start
+	if !isLogInit {
+		initLog()
+		isLogInit = true
+	}
+
+	return &Logger{
+		Logger: &baseLogger,
+		name:   "",
+		level:  baseLevel,
+	}
+}
+
+func (logger *Logger) IsDebugEnabled() bool {
+	return baseLevel == zerolog.DebugLevel
 }
 
 type Logger struct {
-	entry  *logrus.Entry
-	ctx    []interface{}
-	module Module
-}
-
-func NewLogger(module Module) *Logger {
-	lLogger := &logrus.Logger{
-		Level:     moduleLevels[module],
-		Out:       newSyncWriter(),
-		Formatter: NewDebugFormatter(),
-	}
-	logger := &Logger{
-		entry:  lLogger.WithField("module", module.String()),
-		module: module,
-	}
-	addLogger(logger)
-
-	return logger
-}
-
-func (l *Logger) Debug(msg ...interface{}) {
-	if l.level() >= logrus.DebugLevel {
-		l.withFields().Debug(msg...)
-	}
-}
-
-func (l *Logger) Info(msg ...interface{}) {
-	if l.level() >= logrus.InfoLevel {
-		l.withFields().Info(msg...)
-	}
-}
-
-func (l *Logger) Warn(msg ...interface{}) {
-	if l.level() >= logrus.WarnLevel {
-		l.withFields().Warn(msg...)
-	}
-}
-
-func (l *Logger) Error(msg ...interface{}) {
-	if l.level() >= logrus.ErrorLevel {
-		l.withFields().Error(msg...)
-	}
-}
-
-func (l *Logger) Fatal(msg ...interface{}) {
-	if l.level() >= logrus.FatalLevel {
-		l.withFields().Fatal(msg...)
-	}
-}
-
-func (l *Logger) Debugf(formattedMsg string, args ...interface{}) {
-	if l.level() >= logrus.DebugLevel {
-		l.withFields().Debugf(formattedMsg, args...)
-	}
-}
-
-func (l *Logger) Infof(formattedMsg string, args ...interface{}) {
-	if l.level() >= logrus.InfoLevel {
-		l.withFields().Infof(formattedMsg, args...)
-	}
-}
-
-func (l *Logger) Warnf(formattedMsg string, args ...interface{}) {
-	if l.level() >= logrus.WarnLevel {
-		l.withFields().Warnf(formattedMsg, args...)
-	}
-}
-
-func (l *Logger) Errorf(formattedMsg string, args ...interface{}) {
-	if l.level() >= logrus.ErrorLevel {
-		l.withFields().Errorf(formattedMsg, args...)
-	}
-}
-
-func (l *Logger) Fatalf(formattedMsg string, args ...interface{}) {
-	if l.level() >= logrus.FatalLevel {
-		l.withFields().Fatalf(formattedMsg, args...)
-	}
-}
-
-func (l *Logger) WithCtx(keyValues ...interface{}) *Logger {
-	ctx := make([]interface{}, len(l.ctx)+len(keyValues))
-	copy(ctx, l.ctx[:])
-	copy(ctx[len(l.ctx):], keyValues[:])
-	return &Logger{
-		entry:  l.entry,
-		ctx:    ctx,
-		module: l.module,
-	}
-}
-
-func (l *Logger) withFields() *logrus.Entry {
-	ctx := l.ctx
-	s := len(ctx)
-	fields := make(logrus.Fields, len(l.entry.Data)+s/2)
-	for i := 0; i < s; i += 2 {
-		switch v := ctx[i].(type) {
-		case string:
-			fields[v] = ctx[i+1]
-		}
-	}
-	for k, v := range l.entry.Data {
-		fields[k] = v
-	}
-	var ok bool
-	_, file, line, ok := runtime.Caller(2)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	short := file
-	for i := len(file) - 1; i > 0; i-- {
-		if file[i] == '/' {
-			short = file[i+1:]
-			break
-		}
-	}
-	file = short
-	fields["src"] = fmt.Sprintf("%s:%d", file, line)
-	return l.entry.WithFields(fields)
-}
-
-func (l *Logger) SetLevel(level string) {
-	n, err := logrus.ParseLevel(level)
-	if err == nil {
-		l.setLevel(n)
-	} else {
-		l.Error(err)
-		l.setLevel(defaultLevel)
-	}
-}
-
-func (l *Logger) setLevel(level logrus.Level) {
-	l.entry.Logger.SetLevel(level)
-}
-
-func (l *Logger) Level() string {
-	return l.entry.Logger.Level.String()
-}
-
-func (l *Logger) level() logrus.Level {
-	return l.entry.Logger.Level
-}
-
-func (l *Logger) IsDebugEnabled() bool {
-	return l.level() >= logrus.DebugLevel
+	*zerolog.Logger
+	name  string
+	level zerolog.Level
 }

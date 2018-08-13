@@ -43,12 +43,12 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
-	logger.Debugf("add Block %v", types.ToBlockKey(nblock.GetHash()))
+	logger.Debug().Bytes("hash", nblock.GetHash()).Msg("add Block")
 	if cs.ChainInfo != nil {
 		// Check block validity by calling the corresponding interface
 		// implemented in a Consensus module.
 		if err := cs.IsBlockValid(nblock); err != nil {
-			logger.Infof("failed to add block: %v", err.Error())
+			logger.Info().Err(err).Msg("failed to add block")
 			return err
 		}
 	}
@@ -86,10 +86,9 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 			// FIXME: is that enough?
 			return err
 		}
-		logger.Infof("block added (transactions processed: %v)", len(txs))
-
-		logger.Infof("Block Added: no=%d, hash=%s prev=%s", block.GetHeader().GetBlockNo(), EncodeB64(block.GetHash()),
-			EncodeB64(block.GetHeader().GetPrevBlockHash()))
+		logger.Info().Int("processed_txn", len(txs)).Uint64("blockNo", block.GetHeader().GetBlockNo()).
+			Str("hash", EncodeB64(block.GetHash())).
+			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).Msg("Block Added")
 		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
 		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
 			// FIXME: remove legacy
@@ -163,7 +162,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		// logging???
-		logger.Debugf("add Orphan Block failed %v", types.ToBlockKey(block.GetHash()))
+		logger.Debug().Bytes("hash", block.GetHash()).Msg("add Orphan Block failed")
 
 		return err
 	}
@@ -172,7 +171,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
-		logger.Debugf("request block for orphan handle %v", types.ToBlockKey(a))
+		logger.Debug().Str("hash", EncodeB64(a)).Msg("request block for orphan handle")
 	}
 	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
 
@@ -185,7 +184,7 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 
 func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]message.BlockHash, []types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
-	logger.Debugf("handle missing stop=%v len of hash=%d", EncodeB64(stopHash), len(Hashes))
+	logger.Debug().Str("hash", EncodeB64(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
 	var stopBlock *types.Block
 	var err error
 	if stopHash == nil {
@@ -221,23 +220,24 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 
 	// TODO: handle the case that can't find the hash in main chain
 	if mainblock == nil {
-		logger.Debugf("Can't search same ancestor")
+		logger.Debug().Msg("Can't search same ancestor")
 		return nil, nil
 	}
 
 	// 3. collect missing parts and reply them
 	mainBlockNo := mainblock.GetHeader().GetBlockNo()
 	var loop = stopBlock.GetHeader().GetBlockNo() - mainBlockNo
-	logger.Debugf("Get hashes of missing part from (%d, %v) to (%d, %v)",
-		mainBlockNo, EncodeB64(mainhash), stopBlock.GetHeader().GetBlockNo(), EncodeB64(stopBlock.Hash))
+	logger.Debug().Uint64("mainBlockNo", mainBlockNo).Str("mainHash", EncodeB64(mainhash)).
+		Uint64("stopBlockNo", stopBlock.GetHeader().GetBlockNo()).Str("stopHash", EncodeB64(stopBlock.Hash)).
+		Msg("Get hashes of missing part")
 	rhashes := make([]message.BlockHash, 0, loop)
 	rnos := make([]types.BlockNo, 0, loop)
 	for i := uint64(0); i < loop; i++ {
 		tBlock, _ := cs.getBlockByNo(types.BlockNo(mainBlockNo + i))
 		rhashes = append(rhashes, message.BlockHash(tBlock.Hash))
 		rnos = append(rnos, types.BlockNo(tBlock.GetHeader().GetBlockNo()))
-		logger.Debugf("append hash=%v no=%v for replying missing tree", EncodeB64(tBlock.Hash),
-			tBlock.GetHeader().GetBlockNo())
+		logger.Debug().Uint64("blockNo", tBlock.GetHeader().GetBlockNo()).Str("hash", EncodeB64(tBlock.Hash)).
+			Msg("append block for replying missing tree")
 	}
 
 	return rhashes, rnos
@@ -246,14 +246,14 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, bestHeight uint64, bestHash []byte) {
 	myBestBlock, err := cs.getBestBlock()
 	if err != nil {
-		cs.Logger.Errorf("Failed to get best block: %v", err.Error())
+		logger.Error().Err(err).Msg("Failed to get best block")
 		return
 	}
 	sameBestHash := bytes.Equal(myBestBlock.Hash, bestHash)
 	if sameBestHash {
 		// two node has exact best block.
 		// TODO: myBestBlock.GetHeader().BlockNo == bestHeight
-		cs.Logger.Debugf("peer %s is in sync status ", peerID.Pretty())
+		logger.Debug().Str("peer", peerID.Pretty()).Msg("peer is in sync status")
 	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < bestHeight {
 		cs.ChainSync(peerID)
 	}

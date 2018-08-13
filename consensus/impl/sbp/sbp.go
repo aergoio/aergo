@@ -19,7 +19,7 @@ const (
 var logger *log.Logger
 
 func init() {
-	logger = log.NewLogger(log.SBP)
+	logger = log.NewLogger("sbp")
 }
 
 // SimpleBlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
@@ -122,10 +122,11 @@ func (s *SimpleBlockFactory) Start() {
 				if err == util.ErrQuit {
 					return
 				} else if err != nil {
-					logger.Infof("failed to produce block: %s", err.Error())
+					logger.Info().Err(err).Msg("failed to produce block")
 					continue
 				}
-				logger.Infof("block produced: no=%d, hash=%v", block.GetHeader().GetBlockNo(), block.ID())
+				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
+					Err(err).Msg("block produced")
 
 				util.ConnectBlock(s, block)
 			}

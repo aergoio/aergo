@@ -38,8 +38,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(&mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		log.NewLogger(log.TEST).WithCtx("test", "p2p"),
-	).(*peerManager)
+		log.NewLogger("test.p2p")).(*peerManager)
 
 	target.Host = &mockHost{pstore.NewPeerstore()}
 	target.selfMeta.ID = peer.ID("gwegw")

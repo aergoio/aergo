@@ -39,7 +39,7 @@ const defaultTTL = time.Second * 4
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
 
 	netsvc := &P2P{
-		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger(log.P2PSvc), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger("p2p"), cfg.EnableDebugMsg),
 		hub:           hub,
 	}
 

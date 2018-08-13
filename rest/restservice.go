@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	//"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -34,7 +33,7 @@ var _ component.IComponent = (*RestService)(nil)
 //var wait sync.WaitGroup
 
 var (
-	logger = log.NewLogger(log.Rest)
+	logger = log.NewLogger("rest")
 )
 
 func NewRestService(cfg *cfg.Config, bc *bc.ChainService) *RestService {
@@ -54,18 +53,19 @@ func (cs *RestService) Start() {
 		http.HandleFunc("/chaintree", func(w http.ResponseWriter, r *http.Request) {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				logger.Errorf("Error reading body: %v", err)
+				logger.Error().Err(err).Msg("Error reading body")
 				http.Error(w, "can't read body", http.StatusBadRequest)
 				return
 			}
-			logger.Debugf("Recieved: ", string(body))
+			logger.Debug().Str("body", string(body)).Msg("Recieved")
 			// Sorry, Just for ChainTree lookup now
 			i, _ := cs.bc.GetChainTree()
 			w.Write(i)
 		})
-		logger.Infof("Rest Service Started using port(%v)", cs.cfg.REST.RestPort)
+		logger.Info().Int("port", cs.cfg.REST.RestPort).Msg("Rest Service Started")
 		portNo := fmt.Sprintf(":%v", cs.cfg.REST.RestPort)
-		logger.Info(http.ListenAndServe(portNo, nil))
+		err := http.ListenAndServe(portNo, nil)
+		logger.Info().Err(err).Msg("Start rest server")
 	}()
 }
 
@@ -77,8 +77,4 @@ func (cs *RestService) Stop() {
 func (cs *RestService) Receive(context actor.Context) {
 	cs.BaseComponent.Receive(context)
 
-	switch msg := context.Message().(type) {
-	default:
-		logger.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
-	}
 }

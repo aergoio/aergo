@@ -48,7 +48,6 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 	return BaseConfig{
 		DataDir:        ctx.ExpandPathEnv("$HOME/data"),
-		LogLevel:       "debug",
 		GenesisPath:    ctx.ExpandPathEnv("$HOME/data/genesis.block"),
 		GenesisSeed:    1530838800, // time.Parse(time.RFC3339, "2018-07-06T10:00:00+09:00")
 		EnableProfile:  false,

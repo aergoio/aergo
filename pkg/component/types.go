@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/pkg/log"
 )
 
 type IComponent interface {
@@ -25,6 +24,4 @@ type IComponent interface {
 
 	SetHub(hub *ComponentHub)
 	Hub() *ComponentHub
-
-	log.ILogger
 }

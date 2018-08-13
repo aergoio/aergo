@@ -1,0 +1,47 @@
+# TOML Configuration File for arglib Logger (https://github.com/toml-lang/toml)
+
+# A default log level for all sub modules
+# must be one of this; debug/info/warn/error/fatal/panic
+#
+# level = "info"
+
+# A log output formatter
+# can be choosen among this; console, console_no_color, json 
+#
+# formatter = "json" 
+
+# Enabling source file and line printer
+#
+# caller = false
+
+# A time stamp field format. 
+# e.g. in a time/format.go file
+# ANSIC       = "Mon Jan _2 15:04:05 2006"
+# UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
+# RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
+# RFC822      = "02 Jan 06 15:04 MST"
+# RFC822Z     = "02 Jan 06 15:04 -0700" // RFC822 with numeric zone
+# RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
+# RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
+# RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+# RFC3339     = "2006-01-02T15:04:05Z07:00"
+# RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+# Kitchen     = "3:04PM"
+# Stamp      = "Jan _2 15:04:05"
+# StampMilli = "Jan _2 15:04:05.000"
+# StampMicro = "Jan _2 15:04:05.000000"
+# StampNano  = "Jan _2 15:04:05.000000000"
+#
+# timefieldforamt = "3:04 PM"
+
+
+# if there is a sub module and it has deferent options from defaults,
+# sub modules can be configed using a map struct of toml
+# currently, only setting sub modules's level is allowed
+#
+# [sub_module_1_name]
+# level = "error"
+#
+# [sub_module_2_name]
+# level = "error"
+

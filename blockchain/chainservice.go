@@ -34,7 +34,7 @@ type ChainService struct {
 
 var _ component.IComponent = (*ChainService)(nil)
 var (
-	logger = log.NewLogger(log.ChainSvc)
+	logger = log.NewLogger("chain")
 )
 
 func NewChainService(cfg *cfg.Config) *ChainService {
@@ -63,17 +63,17 @@ func (cs *ChainService) Start() {
 
 	// init chaindb
 	if err := cs.cdb.Init(cs.cfg.DataDir); err != nil {
-		logger.Fatal("failed to initialize chaindb: ", err)
+		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 	}
 
 	// init statedb
 	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {
-		logger.Fatal("failed to initialize statedb: ", err)
+		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 	}
 
 	// init genesis block
 	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
-		logger.Fatal("failed to initialize genesis block: ", err)
+		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
 	return
@@ -91,20 +91,20 @@ func (cs *ChainService) initGenesis(seed int64) error {
 		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Infof("chain initialized: seed=%v, genesis=%s",
-		gb.Header.Timestamp, EncodeB64(gb.Hash))
+	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", EncodeB64(gb.Hash)).Msg("chain initialized")
+
 	return nil
 }
 
 // Sync with peer
 func (cs *ChainService) ChainSync(peerID peer.ID) {
 	// handlt it like normal block (orphan)
-	logger.Debugf("Best Block Request")
+	logger.Debug().Msg("Best Block Request")
 	anchors := cs.getAnchorsFromHash(nil)
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
-		logger.Debugf("request blocks for sync: (%v)")
+		logger.Debug().Str("hash", EncodeB64(a)).Msg("request blocks for sync")
 	}
 	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
 }
@@ -146,7 +146,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.GetBestBlock:
 		block, err := cs.getBestBlock()
 		if err != nil {
-			logger.Errorf("failed to get best block. error %v", err)
+			logger.Error().Err(err).Msg("failed to get best block")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBestBlockRsp{
@@ -157,7 +157,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bkey := types.ToBlockKey(msg.BlockHash)
 		block, err := cs.getBlock(bkey[:])
 		if err != nil {
-			logger.Errorf("failed to get block. block %v, error %v", bkey, err)
+			logger.Error().Err(err).Bytes("hash", msg.BlockHash).Msg("failed to get block")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
@@ -167,7 +167,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.GetBlockByNo:
 		block, err := cs.getBlockByNo(msg.BlockNo)
 		if err != nil {
-			logger.Errorf("failed to get block by no. block no %v, error %v", msg.BlockNo, err)
+			logger.Error().Err(err).Uint64("blockNo", msg.BlockNo).Msg("failed to get block by no")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockByNoRsp{
@@ -176,15 +176,15 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.AddBlock:
 		bkey := types.ToBlockKey(msg.Block.GetHash())
-		logger.Debugf("Add Block chainservice %v", bkey)
+		logger.Debug().Bytes("hash", msg.Block.GetHash()).Msg("Add Block chainservice")
 		_, err := cs.getBlock(bkey[:])
 		if err == nil {
-			logger.Debugf("already exist %v", bkey)
+			logger.Debug().Bytes("hash", msg.Block.GetHash()).Msg("already exist")
 		} else {
 			block := msg.Block.Clone()
 			err := cs.addBlock(block, msg.PeerID)
 			if err != nil {
-				logger.Infof("failed add block: %s", err.Error())
+				logger.Info().Err(err).Msg("failed add block")
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
@@ -195,13 +195,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
-			logger.Debug("failed to remove txs from mempool: ", err)
+			logger.Debug().Err(err).Msg("failed to remove txs from mempool")
 		}
 	case *message.GetState:
 		akey := types.ToAccountKey(msg.Account)
 		state, err := cs.sdb.GetAccountState(akey)
 		if err != nil {
-			logger.Debugf("failed to get state for account %v, error %v", akey, err)
+			logger.Debug().Bytes("hash", msg.Account).Err(err).Msg("failed to get state for account")
 		}
 		res := state.Clone()
 		context.Respond(message.GetStateRsp{

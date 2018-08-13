@@ -23,7 +23,7 @@ var _ component.IComponent = (*ExampleService)(nil)
 
 func NexExampleServie(myname string) *ExampleService {
 	return &ExampleService{
-		BaseComponent: component.NewBaseComponent(message.HelloService, log.NewLogger(log.TEST), true),
+		BaseComponent: component.NewBaseComponent(message.HelloService, log.Default(), true),
 		myname:        myname,
 	}
 }

@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	logger = log.NewLogger(log.RPC)
+	logger = log.NewLogger("rpc")
 )
 
 // AergoRPCService implements GRPC server which is defined in rpc.proto
@@ -409,7 +409,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.Empty) (*ty
 				case float64:
 					stat = value
 				default:
-					logger.Warnf("unresolve value in  node state: %v", value)
+					logger.Warn().Interface("type", value).Msg("unresolve value in node state")
 				}
 				internal := &types.InternalStat{
 					Name: ik + "/" + iik,

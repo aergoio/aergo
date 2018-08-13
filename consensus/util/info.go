@@ -27,14 +27,14 @@ const (
 // BcReorgStatus is a type alias for blockchain reorganization status.
 type BcReorgStatus = int32
 
-var logger = log.NewLogger(log.Consensus)
+var logger = log.NewLogger("consensus")
 
 // GetBestBlock returns the current best block from chainservice
 func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 	result, err := hs.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second,
 		"consensus/util/info.GetBestBlock").Result()
 	if err != nil {
-		logger.Errorf("failed to get best block info: %v", err.Error())
+		logger.Error().Err(err).Msg("failed to get best block info")
 		return nil
 	}
 	return result.(message.GetBestBlockRsp).Block
@@ -45,10 +45,12 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block) {
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block},
 		time.Second, "consensus/util/info.ConnectBlock").Result()
 	if err != nil {
-		logger.Errorf("failed to connect block: no=%d, hash=%s, prev=%s",
-			block.Header.BlockNo,
-			block.ID(),
-			block.PrevID())
+
+		logger.Error().Uint64("no", block.Header.BlockNo).
+			Str("hash", block.ID()).
+			Str("prev", block.PrevID()).
+			Msg("failed to connect block")
+
 		return
 	}
 }
@@ -59,7 +61,7 @@ func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 	result, err := hs.RequestFuture(message.MemPoolSvc, &message.MemPoolGet{}, time.Second,
 		"consensus/util/info.FetchTXs").Result()
 	if err != nil {
-		logger.Infof("can't fetch transactions from mempool - %v", err)
+		logger.Info().Err(err).Msg("can't fetch transactions from mempool")
 		return make([]*types.Tx, 0)
 	}
 

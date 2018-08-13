@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	logger = log.NewLogger(log.DPOS)
+	logger = log.NewLogger("dpos")
 
 	lastJob *slot.Slot
 )
@@ -144,7 +144,7 @@ func (dpos *DPoS) UnsetReorganizing() {
 func (dpos *DPoS) bpIdx() uint16 {
 	idx, exist := dpos.bpc.BpID2Index(dpos.ID)
 	if !exist {
-		logger.Fatalf("BP %s has no correct BP membership", dpos.ID.Pretty())
+		logger.Fatal().Str("id", dpos.ID.Pretty()).Msg("BP has no correct BP membership")
 	}
 
 	return idx
