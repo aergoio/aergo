@@ -97,12 +97,31 @@ func (s *modSMT) Update(keys, values DataArray) ([]byte, error) {
 // It returns the root of the updated tree.
 func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch chan<- (result)) ([]byte, error) {
 	if height == 0 {
+		if bytes.Equal(DefaultLeaf, values[0]) {
+			// delete the key-value from the trie
+			if !bytes.Equal(DefaultLeaf, root) {
+				// Delete old liveCache node if it is not default
+				var node Hash
+				copy(node[:], root)
+				s.db.liveMux.Lock()
+				delete(s.db.liveCache, node)
+				s.db.liveMux.Unlock()
+			}
+			if ch != nil {
+				// if this update() call is a goroutine, return the result through the channel
+				ch <- result{DefaultLeaf, nil}
+				return nil, nil
+			}
+			return DefaultLeaf, nil
+		}
+
 		if ch != nil {
 			ch <- result{s.leafHash(keys[0], values[0], height-1, root), nil}
 			return nil, nil
 		}
 		return s.leafHash(keys[0], values[0], height-1, root), nil
 	}
+
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
 	if err != nil {
 		if ch != nil {
@@ -125,9 +144,26 @@ func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch c
 	lvalues, rvalues := values[:splitIndex], values[splitIndex:]
 
 	if bytes.Equal(s.defaultHashes[height-1], lnode) && bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
+		if bytes.Equal(DefaultLeaf, values[0]) {
+			// delete the key-value from the trie
+			if !bytes.Equal(s.defaultHashes[height], root) {
+				// Delete old liveCache node if it is not default
+				var node Hash
+				copy(node[:], root)
+				s.db.liveMux.Lock()
+				delete(s.db.liveCache, node)
+				s.db.liveMux.Unlock()
+			}
+			if ch != nil {
+				// if this update() call is a goroutine, return the result through the channel
+				ch <- result{s.defaultHashes[height], nil}
+				return nil, nil
+			}
+			return s.defaultHashes[height], nil
+		}
 		// if the subtree contains only one key, store the key/value in a shortcut node
-		// if this update() call is a goroutine, return the result through the channel
 		if ch != nil {
+			// if this update() call is a goroutine, return the result through the channel
 			ch <- result{s.leafHash(keys[0], values[0], height-1, root), nil}
 			return nil, nil
 		}
@@ -303,6 +339,10 @@ func (s *modSMT) Get(key []byte) ([]byte, error) {
 
 // get fetches the value of a key given a trie root
 func (s *modSMT) get(root []byte, key []byte, height uint64) ([]byte, error) {
+	if bytes.Equal(root, s.defaultHashes[height]) {
+		// the trie does not contain the key
+		return nil, nil
+	}
 	if height == 0 {
 		k, v, isShortcut, err := s.loadChildren(root)
 		if err != nil {
