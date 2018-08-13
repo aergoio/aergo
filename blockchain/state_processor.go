@@ -117,6 +117,12 @@ func (ce *ContractExec) call(abi *types.ABI) {
 			C.lua_pushstring(ce.L, C.CString(arg))
 		case int:
 			C.lua_pushinteger(ce.L, C.long(arg))
+		case bool:
+			var b int
+			if arg {
+				b = 1
+			}
+			C.lua_pushboolean(ce.L, C.int(b))
 		default:
 			ce.err = errors.New("unsupported type")
 			return
@@ -145,13 +151,19 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 	}
 	var abi types.ABI
 	err = json.Unmarshal(code, &abi)
+	if err != nil {
+		ctrLog.WithCtx("error", err).Warn("contract %s", base58.Encode(contractAddress))
+	}
 	var ce *ContractExec
 	defer ce.close()
 	if err == nil {
 		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
 		ce = newContractExec(contract)
 		ce.call(&abi)
-		err = ce.err
+		if ce.err != nil {
+			ctrLog.WithCtx("error", ce.err).Warn("contract %s", base58.Encode(contractAddress))
+			err = ce.err
+		}
 	}
 	receipt := types.NewReceipt(contractAddress, "SUCCESS")
 	if err != nil {
