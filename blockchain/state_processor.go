@@ -41,15 +41,16 @@ static const char* vm_run(const char *code, size_t sz, const char *name)
 */
 import "C"
 import (
+	"encoding/json"
 	"fmt"
-		"github.com/aergoio/aergo/pkg/db"
+
+	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
-		"github.com/mr-tron/base58/base58"
-	"encoding/json"
+	"github.com/mr-tron/base58/base58"
 )
 
-const dbName = "contracts.db"
+const contractDbName = "contracts.db"
 
 var (
 	ctrLog     *log.Logger
@@ -62,7 +63,6 @@ type Contract struct {
 
 func init() {
 	ctrLog = log.NewLogger(log.Contract)
-	contractDB = db.NewDB(db.BadgerImpl, dbName)
 }
 
 func ApplyCode(code, contractAddress, txHash []byte) error {
@@ -76,17 +76,17 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 	json.Unmarshal(code, &abi)
 	ctrLog.Debugf("contract call: %#v", abi)
 	/*
-	vm := NewLuaVM(code, call)
-	vm.Run()
-	if cErrMsg := C.vm_run((*C.char)(unsafe.Pointer(&contract.code[0])),
-		C.size_t(len(contract.code)),
-		(*C.char)(unsafe.Pointer(&contractAddress)),
-	); cErrMsg != nil {
-		errMsg := C.GoString(cErrMsg)
-		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Error(errMsg)
-		err = errors.New(errMsg)
-	}
+		vm := NewLuaVM(code, call)
+		vm.Run()
+		if cErrMsg := C.vm_run((*C.char)(unsafe.Pointer(&contract.code[0])),
+			C.size_t(len(contract.code)),
+			(*C.char)(unsafe.Pointer(&contractAddress)),
+		); cErrMsg != nil {
+			errMsg := C.GoString(cErrMsg)
+			C.free(unsafe.Pointer(cErrMsg))
+			ctrLog.Error(errMsg)
+			err = errors.New(errMsg)
+		}
 	*/
 	receipt := types.NewReceipt(contractAddress, "SUCCESS")
 	if err != nil {

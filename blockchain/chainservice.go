@@ -6,8 +6,8 @@
 package blockchain
 
 import (
-
-	//"reflect"
+	"os"
+	"path"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -16,6 +16,8 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -92,6 +94,12 @@ func (cs *ChainService) initGenesis(seed int64) error {
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
 	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+
+	dbPath := path.Join(cs.cfg.DataDir, contractDbName)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	contractDB = db.NewDB(db.BadgerImpl, dbPath)
 
 	return nil
 }
