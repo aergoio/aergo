@@ -60,6 +60,11 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	// get request data
 	data := &types.Ping{}
@@ -90,6 +95,11 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	data := &types.Pong{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))

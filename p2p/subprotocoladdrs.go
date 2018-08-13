@@ -74,6 +74,11 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
 		return
 	}
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
@@ -133,6 +138,11 @@ func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	data := &types.AddressesResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))

@@ -133,7 +133,6 @@ func externalIP() (net.IP, error) {
 // warnLogUnknownPeer log warning that tell unknown peer sent message
 func warnLogUnknownPeer(logger log.ILogger, protocol protocol.ID, peerID peer.ID) {
 	logger.Warnf("Message %v from Unknown peer %s, ignoring it.", protocol, peerID.Pretty())
-
 }
 
 func debugLogReceiveMsg(logger log.ILogger, protocol protocol.ID, msgID string, peerID peer.ID,

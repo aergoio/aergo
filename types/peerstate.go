@@ -1,5 +1,7 @@
 package types
 
+import "sync/atomic"
+
 // PeerState indicated current state of peer, but
 type PeerState int32
 
@@ -16,5 +18,19 @@ const (
 	// STOPPED is totally finished peer, and maybe local server is shutting down.
 	STOPPED
 )
+
+// Get returns current state with concurrent manner
+func (s *PeerState) Get() PeerState {
+	return PeerState(atomic.LoadInt32((*int32)(s)))
+}
+
+// SetAndGet change state in atomic manner
+func (s *PeerState) SetAndGet(ns PeerState) PeerState {
+	return PeerState(atomic.SwapInt32((*int32)(s), int32(ns)))
+}
+
+func (s *PeerState) IncreaseAndGet() PeerState {
+	return PeerState(atomic.AddInt32((*int32)(s), 1))
+}
 
 //go:generate stringer -type=PeerState

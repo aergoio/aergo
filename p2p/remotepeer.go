@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,7 +27,6 @@ type RemotePeer struct {
 
 	meta      PeerMeta
 	state     types.PeerState
-	stateLock *sync.Mutex
 	actorServ ActorService
 	ps        PeerManager
 	stopChan  chan struct{}
@@ -36,7 +36,8 @@ type RemotePeer struct {
 	read       chan readMsg
 	op         chan OpOrder
 
-	readLock *sync.Mutex
+	hsLock   *sync.Mutex
+	readLock dummyMutex
 
 	// used to access request data from response handlers
 	requests    map[string]msgOrder
@@ -45,6 +46,11 @@ type RemotePeer struct {
 	sentStatus, gotStatus bool
 	failCounter           uint32
 }
+
+type dummyMutex struct{}
+
+func (d *dummyMutex) Lock()   {}
+func (d *dummyMutex) Unlock() {}
 
 // msgOrder is abstraction information about the message that will be sent to peer
 type msgOrder interface {
@@ -66,10 +72,14 @@ type readMsg struct {
 
 type OpType int
 
+// Op series are for asking to process operation about remote peer.
 const (
-	OpInitHS OpType = iota // do first handshaking of peer
+	// OpInitHS initiate handshaking, sending status message to remote peer
+	OpInitHS OpType = iota
+	// OpHandleHS handle status message from remote peer.
 	OpHandleHS
-	OpStop // stop peer
+	// OpStop stops peer
+	OpStop
 )
 
 type OpOrder struct {
@@ -88,12 +98,11 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
-		stateLock:    &sync.Mutex{},
 
 		stopChan:   make(chan struct{}),
 		write:      make(chan msgOrder),
 		closeWrite: make(chan struct{}),
-		readLock:   &sync.Mutex{},
+		hsLock:     &sync.Mutex{},
 		op:         make(chan OpOrder, 20),
 		read:       make(chan readMsg),
 
@@ -104,16 +113,22 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log log.
 
 // State returns current state of peer
 func (p *RemotePeer) State() types.PeerState {
-	p.stateLock.Lock()
-	defer p.stateLock.Unlock()
-
-	return p.state
+	return p.state.Get()
 }
 
 func (p *RemotePeer) setState(newState types.PeerState) {
-	p.stateLock.Lock()
-	defer p.stateLock.Unlock()
-	p.state = newState
+	p.state.SetAndGet(newState)
+}
+
+func (p *RemotePeer) checkState() error {
+	switch p.State() {
+	case types.HANDSHAKING:
+		return fmt.Errorf("not handshaked")
+	case types.STOPPED:
+		return fmt.Errorf("peer stopped")
+	default:
+		return nil
+	}
 }
 
 // runPeer should be called by go routine
@@ -189,8 +204,8 @@ func (p *RemotePeer) consumeRequest(requestID string) {
 
 func (p *RemotePeer) initiateHandshake() {
 	// FIXME change read operations and then remove it
-	p.readLock.Lock()
-	defer p.readLock.Unlock()
+	p.hsLock.Lock()
+	defer p.hsLock.Unlock()
 
 	if p.State() != types.STARTING {
 		p.goAwayMsg("Invalid status msg")
@@ -210,8 +225,8 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 // startHandshake is run only in AergoPeer.RunPeer go routine
 func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 	// FIXME change read operations and then remove it
-	p.readLock.Lock()
-	defer p.readLock.Unlock()
+	p.hsLock.Lock()
+	defer p.hsLock.Unlock()
 
 	peerState := p.State()
 	if peerState != types.STARTING && peerState != types.HANDSHAKING {

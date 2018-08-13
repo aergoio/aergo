@@ -75,6 +75,11 @@ func (p *BlockProtocol) onGetBlockRequest(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	// get request data
 	data := &types.GetBlockRequest{}
@@ -129,6 +134,11 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	data := &types.GetBlockResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -203,6 +213,11 @@ func (p *BlockProtocol) onGetBlockHeadersRequest(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	// get request data
 	data := &types.GetBlockHeadersRequest{}
@@ -280,6 +295,11 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	data := &types.GetBlockHeadersResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -324,6 +344,11 @@ func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
 
 	remotePeer.readLock.Lock()
 	defer remotePeer.readLock.Unlock()
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		return
+	}
 
 	data := &types.NewBlockNotice{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
@@ -412,6 +437,11 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
+		return
+	}
+	perr := remotePeer.checkState()
+	if perr != nil {
+		p.log.Infof("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
 		return
 	}
 
