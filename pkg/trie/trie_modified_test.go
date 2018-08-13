@@ -137,6 +137,42 @@ func TestDifferentKeySizeMod(t *testing.T) {
 	*/
 }
 
+func TestDeleteMod(t *testing.T) {
+	smt := NewModSMT(32, hash, nil)
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	value, _ := smt.get(root, keys[0], smt.TrieHeight)
+	if !bytes.Equal(values[0], value) {
+		t.Fatal("trie not updated")
+	}
+
+	// Delete from trie
+	// To delete a key, just set it's value to Default leaf hash.
+	newRoot, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
+	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
+	if len(newValue) != 0 {
+		t.Fatal("Failed to delete from trie")
+	}
+	// Remove deleted key from keys and check root with a clean trie.
+	smt2 := NewModSMT(32, hash, nil)
+	cleanRoot, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
+	if !bytes.Equal(newRoot, cleanRoot) {
+		t.Fatal("roots mismatch")
+	}
+
+	//Empty the trie
+	var newValues DataArray
+	for i := 0; i < 10; i++ {
+		newValues = append(newValues, DefaultLeaf)
+	}
+	root, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
+	if !bytes.Equal(smt.DefaultHash(256), root) {
+		t.Fatal("empty trie root hash not correct")
+	}
+}
+
 /*
 func TestLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
