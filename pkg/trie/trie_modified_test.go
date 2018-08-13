@@ -96,6 +96,47 @@ func TestModPublicUpdateAndGet(t *testing.T) {
 	}
 }
 
+func TestDifferentKeySizeMod(t *testing.T) {
+	keySize := 20
+	smt := NewModSMT(uint64(keySize), hash, nil)
+	// Add data to empty trie
+	keys := getFreshData(10, keySize)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	newValues := getFreshData(10, 32)
+	smt.Update(keys, newValues)
+	// Check all keys have been modified
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(newValues[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	smt.Update(keys[0:1], DataArray{DefaultLeaf})
+	newValue, _ := smt.Get(keys[0])
+	if len(newValue) != 0 {
+		t.Fatal("Failed to delete from trie")
+	}
+	newValue, _ = smt.Get(make([]byte, keySize))
+	if len(newValue) != 0 {
+		t.Fatal("Failed to delete from trie")
+	}
+	/*
+		ap, _ := smt.MerkleProof(keys[8])
+		if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
+			t.Fatalf("failed to verify inclusion proof")
+		}
+	*/
+}
+
 /*
 func TestLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
