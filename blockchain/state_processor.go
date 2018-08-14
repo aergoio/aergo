@@ -13,6 +13,7 @@ package blockchain
 */
 import "C"
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,8 +42,9 @@ type ContractExec struct {
 	err      error
 }
 
-type LState = C.struct_lua_State
-type LExContext = C.struct_exec_context
+func init() {
+	ctrLog = log.NewLogger(log.Contract)
+}
 
 type LuaExecutor struct {
 	instanceID []byte
@@ -51,18 +53,17 @@ type LuaExecutor struct {
 	exContext  *LExContext
 }
 
-func NewLuaExecutor(
-	instanceID []byte,
-	/*	ismState *State,
-		sqlState ISQLState,*/
-	definition []byte,
-	excontext *LExContext,
-) *LuaExecutor {
-	return &LuaExecutor{
-		instanceID,
-		nil,
-		definition,
-		excontext,
+func NewBlockchainCtx(Sender []byte, blockHash []byte, txHash []byte, blockHeight uint64,
+	timestamp int64, node string, confirmed bool, contractID []byte) *LBlockchainCtx {
+	context := LBlockchainCtx{
+		sender:      C.CString(base58.Encode(Sender)),
+		blockHash:   C.CString(hex.EncodeToString(blockHash)),
+		txHash:      C.CString(hex.EncodeToString(txHash)),
+		blockHeight: C.ulong(blockHeight),
+		timestamp:   C.long(timestamp),
+		node:        C.CString(node),
+		confirmed:   C.int(iconfirmed),
+		contractId:  C.CString(base58.Encode(contractID)),
 	}
 }
 
@@ -70,13 +71,13 @@ func init() {
 	ctrLog = log.NewLogger(log.Contract)
 }
 
-func newContractExec(contract *Contract) *ContractExec {
+func newContractExec(contract *Contract, bcCtx *LBlockchainCtx) *ContractExec {
 	ce := &ContractExec{
 		contract: contract,
 	}
 	if cErrMsg := C.vm_loadbuff((*C.char)(unsafe.Pointer(&contract.code[0])),
 		C.size_t(len(contract.code)),
-		C.CString(string(contract.address)),
+		C.CString(string(contract.address)), bcCtx,
 		&ce.L,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
@@ -139,7 +140,7 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 	defer ce.close()
 	if err == nil {
 		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
-		ce = newContractExec(contract)
+		ce = newContractExec(contract, bcCtx)
 		ce.call(&abi)
 		err = ce.err
 	}

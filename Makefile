@@ -5,6 +5,7 @@ BINPATH = $(shell pwd)/bin
 REPOPATH = github.com/aergoio/aergo
 LIBPATH = $(shell pwd)/libtool
 LIBTOOLS = luajit
+CFLAGS = -g -I$(LIBPATH)/include/luajit-2.0
 
 default: compile
 	@echo "Done"

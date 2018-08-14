@@ -146,7 +146,7 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).Msg("process txs and update state")
 
 	for i, tx := range txs {
-		err := cs.processTx(dbtx, bstate, tx, block.Hash, i)
+		err := cs.processTx(dbtx, bstate, tx, block, i)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", block.ID()).Int("txidx", i).Msg("failed to process tx")
 			return err
@@ -162,7 +162,11 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 	return nil
 }
 
-func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
+func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, block *types.Block, idx int) error {
+	txBody := tx.GetBody()
+	blockHash := block.GetHash()
+	senderKey := types.ToAccountKey(txBody.Account)
+	senderState, err := cs.sdb.GetBlockAccount(bs, senderKey)
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
@@ -202,7 +206,10 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		if createContract {
 			err = CreateContract(txBody.Payload, recipient, tx.Hash)
 		} else {
-			err = ApplyCode(txBody.Payload, recipient, tx.Hash)
+			bcCtx := NewBlockchainCtx(txBody.GetAccount(), blockHash, tx.GetHash(),
+				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
+
+			err = ApplyCode(txBody.Payload, recipient, tx.Hash, bcCtx)
 		}
 		if err != nil {
 			return err

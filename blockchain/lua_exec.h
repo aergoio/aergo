@@ -1,20 +1,19 @@
 #include <stdint.h>
-#include <sys/time.h>
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
 
-struct exec_context {
+typedef struct blockchain_ctx {
     char *sender;
+    char *contractId;
     char *blockHash;
     char *txHash;
-    int32_t blockHeight;
-    struct timeval timestamp;
+    uint64_t blockHeight;
+    int64_t timestamp;
     char *node;
     int32_t confirmed;
-};
+} bc_ctx_t;
 
-lua_State *new_lstate(uint64_t max_inst_count);
-void preloadSystem(lua_State *);
-const char* vm_run(lua_State *L, const char *code, size_t sz, const char *name);
-void setLuaExecContext(lua_State *L, struct exec_context *exec);
+void vm_getfield(lua_State *L, const char *name);
+const char *vm_loadbuff(const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx, lua_State **p);
+const char *vm_pcall(lua_State *L, int argc);
