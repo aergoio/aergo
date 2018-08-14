@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -27,12 +26,6 @@ func loadConfigFile() *viper.Viper {
 	// init viper
 	viperConf.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viperConf.SetEnvPrefix(confEnvPrefix)
-
-	// bind flag
-	pflag.String(confFilePathKey, "", "a config file path for an arglib logger")
-	pflag.Parse()
-	viperConf.BindPFlags(pflag.CommandLine)
-
 	viperConf.AutomaticEnv()
 
 	// search a default conf file
