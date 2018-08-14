@@ -1,5 +1,5 @@
-hash: 59e8a1f10d2f424147b84bb276a4e495a816d95903ec4bfaaf0ca5bb94465e3f
-updated: 2018-08-14T14:14:59.280161+09:00
+hash: 99715ff01e6129ad59ca298ce5635e075e322d3ca3a7a6faee62f5a61d7d64d4
+updated: 2018-08-16T13:48:36.087456+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 25f0d0e3e467b3a0837800dd06309effae33d0f8
@@ -103,6 +103,10 @@ imports:
   - scpd
   - soap
   - ssdp
+- name: github.com/improbable-eng/grpc-web
+  version: 72eb701d6f320ca324b3347c7925a720b553eae5
+  subpackages:
+  - go/grpcweb
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/ipfs/go-log
@@ -250,6 +254,8 @@ imports:
   version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/rcrowley/go-metrics
   version: e2704e165165ec55d062f5919b4b29494e9fa790
+- name: github.com/rs/cors
+  version: 15587285ef6b6e7a3f657e2e00f9f271883bcf22
 - name: github.com/rs/zerolog
   version: 77db4b4f350e31be66a57c332acb7721cf9ff9bb
   subpackages:
@@ -259,6 +265,8 @@ imports:
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
   version: 3e01752db0189b9157070a0e1668a620f9a85da2
+- name: github.com/soheilhy/cmux
+  version: e09e9389d85d8492d313d73d1469c029e710623f
 - name: github.com/spaolacci/murmur3
   version: f09979ecbc725b9e6d41a297405f65e7e8804acc
 - name: github.com/spf13/afero

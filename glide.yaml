@@ -86,6 +86,12 @@ import:
   version: v1.8.0
 - package: github.com/hashicorp/golang-lru
   version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+- package: github.com/improbable-eng/grpc-web
+  version: ~0.6.2
+  subpackages:
+  - go/grpcweb
+- package: github.com/soheilhy/cmux
+  version: ~0.1.4
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2
