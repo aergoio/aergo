@@ -19,6 +19,13 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// constants for indicating logitem of p2p
+const (
+	LogPeerID  = "peer_id"
+	LogProtoID = "protocol_id"
+	LogBlkHash = "blk_hash"
+)
+
 // ActorService is collection of helper methods to use actor
 // FIXME move to more general package. it used in p2p and rpc
 type ActorService interface {

@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/golang-lru"
+
+	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
@@ -46,6 +49,8 @@ type RemotePeer struct {
 
 	sentStatus, gotStatus bool
 	failCounter           uint32
+
+	blkHashCache *lru.Cache
 }
 
 type dummyMutex struct{}
@@ -94,8 +99,8 @@ const (
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) RemotePeer {
-	return RemotePeer{
+func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
+	peer := RemotePeer{
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
@@ -110,6 +115,13 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
 	}
+
+	var err error
+	peer.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	if err != nil {
+		panic("Failed to create remotepeer " + err.Error())
+	}
+	return &peer
 }
 
 // State returns current state of peer
@@ -269,6 +281,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	}
 
 	// sign the data
+	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
 	if m.IsNeedSign() {
 		err := m.SignWith(p.ps)
 		if err != nil {
@@ -374,4 +387,12 @@ func (p *RemotePeer) pruneRequests() {
 		p.log.Debug().Msg(strings.Join(deletedReqs[:], ","))
 	}
 
+}
+
+func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
+	// lru cache can accept hashable key
+	b64hash := blockchain.EncodeB64(data.BlockHash)
+
+	p.blkHashCache.Add(b64hash, data.BlockHash)
+	p.ps.HandleNewBlockNotice(p.meta.ID, b64hash, data)
 }

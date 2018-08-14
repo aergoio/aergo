@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bufio"
-	"reflect"
 	"sync"
 
 	"github.com/libp2p/go-libp2p-peer"
@@ -314,7 +313,6 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 		return
 	}
 
-	// TODO: send back to caller
 	// send block headers to blockchain service
 	p.log.Debug().Msgf("Got blockHeaders response %v \n %v", data.Hashes, data.Headers)
 	remotePeer.consumeRequest(data.MessageData.Id)
@@ -322,13 +320,19 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 
 // NotifyNewBlock send notice message of new block to a peer
 func (p *BlockProtocol) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
+	// create message data
 	for _, neighbor := range p.ps.GetPeers() {
-		p.log.Debug().Str("peer_id", neighbor.meta.ID.Pretty()).Msg("Notifying new block")
-		// create message data
 		req := &types.NewBlockNotice{MessageData: &types.MessageData{},
 			BlockHash: newBlock.Block.Hash,
 			BlockNo:   newBlock.BlockNo}
-		neighbor.sendMessage(newPbMsgBroadcastOrder(false, notifyNewBlockRequest, req))
+		msg := newPbMsgBroadcastOrder(false, notifyNewBlockRequest, req)
+		if neighbor.State() == types.RUNNING {
+			p.log.Debug().Str(LogPeerID, neighbor.meta.ID.Pretty()).Msg("Notifying new block")
+			// FIXME need to check if remote peer knows this hash already.
+			// but can't do that in peer's write goroutine, since the context is gone in
+			// protobuf serialization.
+			neighbor.sendMessage(msg)
+		}
 	}
 	return true
 }
@@ -359,23 +363,7 @@ func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID,
 		log.DoLazyEval(func() string { return blockchain.EncodeB64(data.BlockHash) }))
 
-	// request block info if selfnode does not have block already
-	rawResp, err := p.iserv.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
-	if err != nil {
-		p.log.Warn().Err(err).Msg("actor return error on getblock")
-		return
-	}
-	resp, ok := rawResp.(message.GetBlockRsp)
-	if !ok {
-		p.log.Warn().Msgf("chainservice return unexpected type : %v", reflect.TypeOf(rawResp))
-
-		return
-	}
-	if resp.Err != nil {
-		p.log.Debug().Msgf("chainservice responded that block %s not found. so request back to notifier: %s", blockchain.EncodeB64(data.BlockHash), peerID.Pretty())
-		p.iserv.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
-			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
-	}
+	remotePeer.handleNewBlockNotice(data)
 
 }
 

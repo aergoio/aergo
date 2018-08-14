@@ -579,3 +579,8 @@ func (_m *MockP2PService) Stop() error {
 
 	return r0
 }
+
+// NewMessageData provides a mock function with given fields: messageID, gossip
+func (_m *MockP2PService) HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice) {
+	_m.Called(peerID, b64hash, data)
+}

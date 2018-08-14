@@ -84,6 +84,8 @@ import:
 - package: github.com/aergoio/aergo-actor
 - package: github.com/rs/zerolog
   version: v1.8.0
+- package: github.com/hashicorp/golang-lru
+  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2

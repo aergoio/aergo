@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -42,6 +44,12 @@ type peerInfo struct {
 	privKey *crypto.PrivKey
 }
 
+// TODO this value better related to max peer and block produce interval, not constant
+const (
+	DefaultGlobalInvCacheSize = 100
+	DefaultPeerInvCacheSize   = 30
+)
+
 // PeerManager is internal service that provide peer management
 type PeerManager interface {
 	host.Host
@@ -60,6 +68,8 @@ type PeerManager interface {
 	RemovePeer(peerID peer.ID)
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
+
+	HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice)
 
 	// LookupPeer search for peer, which is registered(handshaked) or connectected but not registerd yet.
 	LookupPeer(ID peer.ID) (*RemotePeer, bool)
@@ -101,6 +111,8 @@ type peerManager struct {
 	fillPoolChannel   chan []PeerMeta
 	finishChannel     chan struct{}
 	eventListeners    []PeerEventListener
+
+	invCache *lru.Cache
 }
 
 var _ PeerManager = (*peerManager)(nil)
@@ -145,6 +157,11 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) Pee
 		finishChannel:     make(chan struct{}),
 	}
 
+	var err error
+	hl.invCache, err = lru.New(DefaultGlobalInvCacheSize)
+	if err != nil {
+		panic("Failed to create peermanager " + err.Error())
+	}
 	// additional initializations
 	hl.init()
 
@@ -323,7 +340,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 			ps.Peerstore().AddAddr(peerID, peerAddr, pstore.PermanentAddrTTL)
 		}
 		aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
-		newPeer = &aPeer
+		newPeer = aPeer
 		ps.remotePeers[peerID] = newPeer
 		ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
 	} else {
@@ -681,12 +698,12 @@ func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
 		ps.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Adding inbound peer with dummy address")
 		// address can be changed after handshaking...
 		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
-		ps.remotePeers[peerID] = &aPeer
+		ps.remotePeers[peerID] = aPeer
 		for _, listener := range ps.eventListeners {
 			listener.OnAddPeer(peerID)
 		}
 		go aPeer.runPeer()
-		return &aPeer, true
+		return aPeer, true
 	}
 	return nil, false
 }
@@ -722,4 +739,32 @@ func (ps *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 		states = append(states, aPeer.state)
 	}
 	return peers, states
+}
+
+func (ps *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice) {
+	// TODO check if evicted return value is needed.
+	ok, _ := ps.invCache.ContainsOrAdd(b64hash, data.BlockHash)
+	if ok {
+		ps.log.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// this notice is already sent to chainservice
+		return
+	}
+
+	// request block info if selfnode does not have block already
+	rawResp, err := ps.iServ.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
+	if err != nil {
+		ps.log.Warn().Err(err).Msg("actor return error on getblock")
+		return
+	}
+	resp, ok := rawResp.(message.GetBlockRsp)
+	if !ok {
+		ps.log.Warn().Str("expected", "message.GetBlockRsp").Str("actual", reflect.TypeOf(rawResp).Name()).Msg("chainservice returned unexpected type")
+		return
+	}
+	if resp.Err != nil {
+		ps.log.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
+		ps.iServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
+			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
+	}
+
 }
