@@ -173,6 +173,29 @@ func TestDeleteMod(t *testing.T) {
 	}
 }
 
+func TestMerkleProofMod(t *testing.T) {
+	smt := NewModSMT(32, hash, nil)
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+
+	for i, key := range keys {
+		ap, _, _, _, _ := smt.MerkleProof(key)
+		if !smt.VerifyMerkleProof(ap, key, values[i]) {
+			t.Fatalf("failed to verify inclusion proof")
+		}
+	}
+	emptyKey := hash([]byte("non-member"))
+	ap, included, proofKey, proofValue, _ := smt.MerkleProof(emptyKey)
+	if included {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+	if !smt.VerifyMerkleProofEmpty(ap, emptyKey, proofKey, proofValue) {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+}
+
 /*
 func TestLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
