@@ -7,61 +7,17 @@ package blockchain
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a
-
+#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -m
 #include <string.h>
-#include <stdlib.h>
-#include <lualib.h>
-#include <lauxlib.h>
-#include <luajit.h>
-
-static const char *vm_loadbuff(const char *code, size_t sz, const char *name, lua_State **p)
-{
-	int err;
-	lua_State *L = luaL_newstate();
-	const char *errMsg = NULL;
-
-	luaL_openlibs(L);
-	err = luaL_loadbuffer(L, code, sz, name);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
-	err = lua_pcall(L, 0, 0, 0);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
-	*p = L;
-	return NULL;
-}
-
-static void vm_getfield(lua_State *L, const char *name)
-{
-	lua_getfield(L, LUA_GLOBALSINDEX, name);
-}
-
-static const char *vm_pcall(lua_State *L, int argc)
-{
-	int err;
-	const char *errMsg = NULL;
-
-	err = lua_pcall(L, argc, 0, 0);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
-	return NULL;
-}
+#include "lua_exec.h"
 */
 import "C"
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"unsafe"
 
-	"errors"
-	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -83,6 +39,31 @@ type ContractExec struct {
 	L        *C.lua_State
 	contract *Contract
 	err      error
+}
+
+type LState = C.struct_lua_State
+type LExContext = C.struct_exec_context
+
+type LuaExecutor struct {
+	instanceID []byte
+	luaState   *LState
+	definition []byte
+	exContext  *LExContext
+}
+
+func NewLuaExecutor(
+	instanceID []byte,
+	/*	ismState *State,
+		sqlState ISQLState,*/
+	definition []byte,
+	excontext *LExContext,
+) *LuaExecutor {
+	return &LuaExecutor{
+		instanceID,
+		nil,
+		definition,
+		excontext,
+	}
 }
 
 func init() {
