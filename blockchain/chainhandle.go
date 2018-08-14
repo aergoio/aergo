@@ -43,12 +43,12 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
-	logger.Debug().Bytes("hash", nblock.GetHash()).Msg("add Block")
+	logger.Debug().Str("hash", EncodeB64(nblock.GetHash())).Msg("add Block")
 	if cs.ChainInfo != nil {
 		// Check block validity by calling the corresponding interface
 		// implemented in a Consensus module.
 		if err := cs.IsBlockValid(nblock); err != nil {
-			logger.Info().Err(err).Msg("failed to add block")
+			logger.Error().Err(err).Msg("failed to add block")
 			return err
 		}
 	}
@@ -162,7 +162,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		// logging???
-		logger.Debug().Bytes("hash", block.GetHash()).Msg("add Orphan Block failed")
+		logger.Debug().Str("hash", EncodeB64(block.GetHash())).Msg("add Orphan Block failed")
 
 		return err
 	}

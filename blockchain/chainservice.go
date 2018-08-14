@@ -157,7 +157,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bkey := types.ToBlockKey(msg.BlockHash)
 		block, err := cs.getBlock(bkey[:])
 		if err != nil {
-			logger.Error().Err(err).Bytes("hash", msg.BlockHash).Msg("failed to get block")
+			logger.Error().Err(err).Str("hash", EncodeB64(msg.BlockHash)).Msg("failed to get block")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
@@ -176,15 +176,15 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.AddBlock:
 		bkey := types.ToBlockKey(msg.Block.GetHash())
-		logger.Debug().Bytes("hash", msg.Block.GetHash()).Msg("Add Block chainservice")
+		logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("Add Block chainservice")
 		_, err := cs.getBlock(bkey[:])
 		if err == nil {
-			logger.Debug().Bytes("hash", msg.Block.GetHash()).Msg("already exist")
+			logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("already exist")
 		} else {
 			block := msg.Block.Clone()
 			err := cs.addBlock(block, msg.PeerID)
 			if err != nil {
-				logger.Info().Err(err).Msg("failed add block")
+				logger.Error().Err(err).Msg("failed add block")
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
@@ -195,13 +195,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
-			logger.Debug().Err(err).Msg("failed to remove txs from mempool")
+			logger.Error().Err(err).Msg("failed to remove txs from mempool")
 		}
 	case *message.GetState:
 		akey := types.ToAccountKey(msg.Account)
 		state, err := cs.sdb.GetAccountState(akey)
 		if err != nil {
-			logger.Debug().Bytes("hash", msg.Account).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", EncodeB64(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
 		res := state.Clone()
 		context.Respond(message.GetStateRsp{

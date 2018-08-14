@@ -202,7 +202,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 		blockKey := ItobU64(uint64(elem.BlockNo))
 		// change main chain info
 		tx.Set(blockKey, elem.Hash)
-		logger.Debug().Uint64("blockNo", blockNo).Bytes("hash", elem.Hash).Msg("Reorg changed")
+		logger.Debug().Uint64("blockNo", blockNo).Str("hash", EncodeB64(elem.Hash)).Msg("Reorg changed")
 	}
 	tx.Commit()
 
@@ -242,14 +242,14 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// assumption: not an orphan
 	// fork can be here
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("branch block")
+		logger.Debug().Uint64("blockNo", blockNo).Str("id", block.ID()).Msg("branch block")
 		longest = false
 	}
 
 	if cdb.needReorg(block) {
 		cdb.reorg(block)
 	}
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("addBlock")
+	logger.Debug().Uint64("blockNo", blockNo).Str("id", block.ID()).Msg("addBlock")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err

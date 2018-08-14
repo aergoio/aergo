@@ -38,7 +38,7 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 	key := types.ToBlockKey(block.Header.PrevBlockHash)
 	cachedblock, exists := op.cache[key]
 	if exists {
-		logger.Debug().Bytes("hash", block.GetHash()).Bytes("cashed", cachedblock.block.GetHash()).Msg("already exist")
+		logger.Debug().Str("hash", EncodeB64(block.GetHash())).Str("cashed", EncodeB64(cachedblock.block.GetHash())).Msg("already exist")
 		return fmt.Errorf("orphan block already exist")
 	}
 
@@ -52,7 +52,7 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 		expiretime: time.Now().Add(time.Hour),
 	}
 	op.curCnt++
-	logger.Debug().Bytes("hash", block.GetHash()).Msg("add Orphan Block")
+	logger.Debug().Str("hash", EncodeB64(block.GetHash())).Msg("add Orphan Block")
 	return nil
 }
 
