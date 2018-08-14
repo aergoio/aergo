@@ -130,8 +130,15 @@ func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch c
 		return nil, err
 	}
 	if isShortcut == 1 {
-		if !bytes.Equal(keys[0], lnode) || len(keys) != 1 {
-			// this is called if a new account is being added
+		// check if the keys are updating the shortcut node
+		up := false
+		for _, k := range keys {
+			if bytes.Equal(k, lnode) {
+				up = true
+				break
+			}
+		}
+		if !up {
 			keys, values = s.addShortcutToDataArray(keys, values, lnode, rnode)
 		}
 		// The shortcut node was added to keys and values so consider this subtree default.
