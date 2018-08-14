@@ -152,6 +152,7 @@ func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch c
 
 	if bytes.Equal(s.defaultHashes[height-1], lnode) && bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
 		if bytes.Equal(DefaultLeaf, values[0]) {
+			// TODO : if the sibling is also a shortcut node, then the sibling should move up to parent.
 			// delete the key-value from the trie
 			if !bytes.Equal(s.defaultHashes[height], root) {
 				// Delete old liveCache node if it is not default
