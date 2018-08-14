@@ -9,64 +9,71 @@ import (
 	proto "github.com/golang/protobuf/proto"
 )
 
-type BlockKey Hash
-type AccountKey Hash
-type StateKey Hash
-type TransactionKey Hash
+// HashID is a fixed size bytes
+type HashID [sha256.Size]byte
 
-var (
-	EmptyBlockKey       = BlockKey{}
-	EmptyAccountKey     = AccountKey{}
-	EmptyStateKey       = StateKey{}
-	EmptyTransactionKey = TransactionKey{}
-)
+// BlockID is a HashID to identify a block
+type BlockID HashID
 
-func ToBlockKey(blockHash []byte) BlockKey {
-	buf := BlockKey{}
-	copy(buf[:], blockHash)
-	return BlockKey(buf)
-}
-func (key BlockKey) String() string {
-	return base64.StdEncoding.EncodeToString(key[:])
-}
+// AccountID is a HashID to identify an account
+type AccountID HashID
 
-func ToTransactionKey(txHash []byte) TransactionKey {
-	buf := TransactionKey{}
-	copy(buf[:], txHash)
-	return TransactionKey(buf)
+// StateID is a HashID to identify a state
+type StateID HashID
+
+// TransactionID is a HashID to identify a transactions
+type TransactionID HashID
+
+func ToHashID(hash []byte) HashID {
+	buf := HashID{}
+	copy(buf[:], hash)
+	return HashID(buf)
 }
-func (key TransactionKey) String() string {
-	return base64.StdEncoding.EncodeToString(key[:])
+func (id HashID) String() string {
+	return base64.StdEncoding.EncodeToString(id[:])
 }
 
-func ToAccountKey(account []byte) AccountKey {
-	buf := sha256.Sum256(account)
-	return AccountKey(buf)
+func ToBlockID(blockHash []byte) BlockID {
+	return BlockID(ToHashID(blockHash))
 }
-func (key AccountKey) String() string {
-	return base64.StdEncoding.EncodeToString(key[:])
+func (id BlockID) String() string {
+	return HashID(id).String()
 }
-func ToStateKeyPb(state *State) StateKey {
+
+func ToTransactionID(txHash []byte) TransactionID {
+	return TransactionID(ToHashID(txHash))
+}
+func (id TransactionID) String() string {
+	return HashID(id).String()
+}
+
+func ToAccountID(account []byte) AccountID {
+	return AccountID(sha256.Sum256(account))
+}
+func (id AccountID) String() string {
+	return HashID(id).String()
+}
+
+func ToStateIDPb(state *State) StateID {
 	if state == nil {
-		return EmptyStateKey
+		return StateID{}
 	}
 	bytes, err := proto.Marshal(state)
 	if err != nil {
-		return EmptyStateKey
+		return StateID{}
 	}
-	return ToStateKey(bytes)
+	return ToStateID(bytes)
 }
-func ToStateKey(state []byte) StateKey {
-	buf := sha256.Sum256(state)
-	return StateKey(buf)
+func ToStateID(state []byte) StateID {
+	return StateID(sha256.Sum256(state))
 }
-func (key StateKey) String() string {
-	return base64.StdEncoding.EncodeToString(key[:])
+func (id StateID) String() string {
+	return HashID(id).String()
 }
 
-func NewState(akey AccountKey) *State {
+func NewState(id AccountID) *State {
 	return &State{
-		Account: akey[:],
+		Account: id[:],
 		Nonce:   0,
 		Balance: 0,
 	}

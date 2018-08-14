@@ -63,8 +63,8 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	block := nblock
 
 	for block != nil {
-		blockHash := types.ToBlockKey(block.GetHash())
-		prevHash := types.ToBlockKey(block.GetHeader().GetPrevBlockHash())
+		blockHash := types.ToBlockID(block.GetHash())
+		prevHash := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
 		bstate := state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
 		txs := block.GetBody().GetTxs()
 		dbtx := cs.cdb.store.NewTx(true)
@@ -105,34 +105,34 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 
 func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
 	txBody := tx.GetBody()
-	senderKey := types.ToAccountKey(txBody.Account)
-	senderState, err := cs.sdb.GetAccountClone(bs, senderKey)
+	senderID := types.ToAccountID(txBody.Account)
+	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
-	receiverKey := types.ToAccountKey(txBody.Recipient)
-	receiverState, err := cs.sdb.GetAccountClone(bs, receiverKey)
+	receiverID := types.ToAccountID(txBody.Recipient)
+	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
 	if err != nil {
 		return err
 	}
 
 	senderChange := types.Clone(*senderState).(types.State)
 	receiverChange := types.Clone(*receiverState).(types.State)
-	if senderKey != receiverKey {
+	if senderID != receiverID {
 		if senderChange.Balance < txBody.Amount {
 			senderChange.Balance = 0 // FIXME: reject insufficient tx.
 		} else {
 			senderChange.Balance = senderState.Balance - txBody.Amount
 		}
 		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-		bs.PutAccount(receiverKey, receiverState, &receiverChange)
+		bs.PutAccount(receiverID, receiverState, &receiverChange)
 	}
 	senderChange.Nonce = txBody.Nonce
-	bs.PutAccount(senderKey, senderState, &senderChange)
+	bs.PutAccount(senderID, senderState, &senderChange)
 
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
-	// 	txBody.Amount, senderKey, senderState.ToString(),
-	// 	receiverKey, receiverState.ToString())
+	// 	txBody.Amount, senderID, senderState.ToString(),
+	// 	receiverID, receiverState.ToString())
 
 	err = cs.cdb.addTx(dbtx, tx, blockHash, idx)
 	return err

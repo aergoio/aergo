@@ -20,14 +20,14 @@ type OrphanBlock struct {
 
 type OrphanPool struct {
 	sync.RWMutex
-	cache  map[types.BlockKey]*OrphanBlock
+	cache  map[types.BlockID]*OrphanBlock
 	maxCnt int
 	curCnt int
 }
 
 func NewOrphanPool() *OrphanPool {
 	return &OrphanPool{
-		cache:  map[types.BlockKey]*OrphanBlock{},
+		cache:  map[types.BlockID]*OrphanBlock{},
 		maxCnt: 1000,
 		curCnt: 0,
 	}
@@ -35,8 +35,8 @@ func NewOrphanPool() *OrphanPool {
 
 // add Orphan into the orphan cache pool
 func (op *OrphanPool) addOrphan(block *types.Block) error {
-	key := types.ToBlockKey(block.Header.PrevBlockHash)
-	cachedblock, exists := op.cache[key]
+	id := types.ToBlockID(block.Header.PrevBlockHash)
+	cachedblock, exists := op.cache[id]
 	if exists {
 		logger.Debug().Str("hash", EncodeB64(block.GetHash())).Str("cashed", EncodeB64(cachedblock.block.GetHash())).Msg("already exist")
 		return fmt.Errorf("orphan block already exist")
@@ -47,7 +47,7 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 		// replace one
 		op.removeOldest()
 	}
-	op.cache[key] = &OrphanBlock{
+	op.cache[id] = &OrphanBlock{
 		block:      block,
 		expiretime: time.Now().Add(time.Hour),
 	}
@@ -56,17 +56,17 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 	return nil
 }
 
-// get the BlockKey of Root Block of Orphan branch
-func (op *OrphanPool) getRoot(block *types.Block) types.BlockKey {
-	orphanRoot := types.ToBlockKey(block.Header.PrevBlockHash)
-	prevKey := orphanRoot
+// get the BlockID of Root Block of Orphan branch
+func (op *OrphanPool) getRoot(block *types.Block) types.BlockID {
+	orphanRoot := types.ToBlockID(block.Header.PrevBlockHash)
+	prevID := orphanRoot
 	for {
-		orphan, exists := op.cache[prevKey]
+		orphan, exists := op.cache[prevID]
 		if !exists {
 			break
 		}
-		orphanRoot = prevKey
-		prevKey = types.ToBlockKey(orphan.block.Header.PrevBlockHash)
+		orphanRoot = prevID
+		prevID = types.ToBlockID(orphan.block.Header.PrevBlockHash)
 	}
 
 	return orphanRoot
@@ -90,14 +90,14 @@ func (op *OrphanPool) removeOldest() {
 
 	// remove oldest one
 	if op.curCnt == op.maxCnt {
-		key := types.ToBlockKey(oldest.block.Header.PrevBlockHash)
-		logger.Debug().Str("hash", key.String()).Msg("orphan block removed(oldest)")
-		op.removeOrphan(key)
+		id := types.ToBlockID(oldest.block.Header.PrevBlockHash)
+		logger.Debug().Str("hash", id.String()).Msg("orphan block removed(oldest)")
+		op.removeOrphan(id)
 	}
 }
 
-// remove one single element by key (must succeed)
-func (op *OrphanPool) removeOrphan(key types.BlockKey) {
-	delete(op.cache, key)
+// remove one single element by id (must succeed)
+func (op *OrphanPool) removeOrphan(id types.BlockID) {
+	delete(op.cache, id)
 	op.curCnt--
 }

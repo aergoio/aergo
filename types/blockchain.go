@@ -16,9 +16,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-//
-type Hash [sha256.Size]byte
-
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 

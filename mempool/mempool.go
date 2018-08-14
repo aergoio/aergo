@@ -43,9 +43,9 @@ type MemPool struct {
 	curBestBlockNo types.BlockNo
 
 	orphan     int
-	cache      map[types.TransactionKey]*types.Tx
-	pool       map[types.AccountKey]*TxList
-	stateCache map[types.AccountKey]*types.State
+	cache      map[types.TransactionID]*types.Tx
+	pool       map[types.AccountID]*TxList
+	stateCache map[types.AccountID]*types.State
 
 	dumpPath string
 	status   int32
@@ -60,9 +60,9 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	return &MemPool{
 		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger("mempool"), cfg.EnableDebugMsg),
 		cfg:           cfg,
-		cache:         map[types.TransactionKey]*types.Tx{},
-		pool:          map[types.AccountKey]*TxList{},
-		stateCache:    map[types.AccountKey]*types.State{},
+		cache:         map[types.TransactionID]*types.Tx{},
+		pool:          map[types.AccountID]*TxList{},
+		stateCache:    map[types.AccountID]*types.State{},
 		dumpPath:      cfg.Mempool.DumpFilePath,
 		status:        initial,
 		//testConfig:    true, // FIXME test config should be removed
@@ -161,12 +161,12 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // validate
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
-	key := types.ToTransactionKey(tx.Hash)
+	id := types.ToTransactionID(tx.Hash)
 	acc := tx.GetBody().GetAccount()
 
 	mp.Lock()
 	defer mp.Unlock()
-	if _, found := mp.cache[key]; found {
+	if _, found := mp.cache[id]; found {
 		return message.ErrTxAlreadyInMempool
 	}
 	list, err := mp.acquireMemPoolList(acc)
@@ -183,7 +183,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 		return err
 	}
 	mp.orphan -= diff
-	mp.cache[key] = tx
+	mp.cache[id] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
 	if !mp.testConfig {
 		mp.notifyNewTx(*tx)
@@ -201,16 +201,16 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 // input tx based ? or pool based?
 // concurrency consideration,
 func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx) error {
-	accSet := map[types.AccountKey]bool{}
+	accSet := map[types.AccountID]bool{}
 	mp.Lock()
 	defer mp.Unlock()
 
 	// better to have account slice
 	for _, v := range txs {
 		acc := v.GetBody().GetAccount()
-		key := types.ToAccountKey(acc)
+		id := types.ToAccountID(acc)
 
-		if !accSet[key] {
+		if !accSet[id] {
 			ns, err := mp.getAccountState(acc, true)
 			if err != nil {
 				mp.Error().Err(err).Msg("getting Account status failed")
@@ -224,11 +224,11 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 					mp.delMemPoolList(acc)
 				}
 				for _, tx := range delTxs {
-					h := types.ToTransactionKey(tx.Hash)
+					h := types.ToTransactionID(tx.Hash)
 					delete(mp.cache, h) // need lock
 				}
 			}
-			accSet[key] = true
+			accSet[id] = true
 		}
 	}
 	return nil
@@ -266,7 +266,7 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
-	if v, ok := mp.cache[types.ToTransactionKey(hash)]; ok {
+	if v, ok := mp.cache[types.ToTransactionID(hash)]; ok {
 		return v
 	}
 	return nil
@@ -283,19 +283,19 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return nil, err
 	}
 	nonce = ns.Nonce
-	key := types.ToAccountKey(acc)
-	mp.pool[key] = NewTxList(nonce + 1)
-	return mp.pool[key], nil
+	id := types.ToAccountID(acc)
+	mp.pool[id] = NewTxList(nonce + 1)
+	return mp.pool[id], nil
 }
 
 func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
-	key := types.ToAccountKey(acc)
-	return mp.pool[key]
+	id := types.ToAccountID(acc)
+	return mp.pool[id]
 }
 
 func (mp *MemPool) delMemPoolList(acc []byte) {
-	key := types.ToAccountKey(acc)
-	delete(mp.pool, key)
+	id := types.ToAccountID(acc)
+	delete(mp.pool, id)
 }
 
 func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
@@ -308,7 +308,7 @@ func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
 	if rsp.Err != nil {
 		return nil, rsp.Err
 	}
-	mp.stateCache[types.ToAccountKey(acc)] = rsp.State
+	mp.stateCache[types.ToAccountID(acc)] = rsp.State
 	return rsp.State, nil
 }
 
@@ -320,7 +320,7 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
-	if v, ok := mp.stateCache[types.ToAccountKey(acc)]; ok && !refresh {
+	if v, ok := mp.stateCache[types.ToAccountID(acc)]; ok && !refresh {
 		return v, nil
 	}
 	rsp, err := mp.setAccountState(acc)

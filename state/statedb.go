@@ -28,10 +28,15 @@ var (
 	logger = log.NewLogger("state_db")
 )
 
+var (
+	emptyBlockID   = types.BlockID{}
+	emptyAccountID = types.AccountID{}
+)
+
 type BlockInfo struct {
 	BlockNo   types.BlockNo
-	BlockHash types.BlockKey
-	PrevHash  types.BlockKey
+	BlockHash types.BlockID
+	PrevHash  types.BlockID
 }
 type StateEntry struct {
 	State *types.State
@@ -39,7 +44,7 @@ type StateEntry struct {
 }
 type BlockState struct {
 	BlockInfo
-	accounts map[types.AccountKey]*StateEntry
+	accounts map[types.AccountID]*StateEntry
 }
 
 func NewStateEntry(state, undo *types.State) *StateEntry {
@@ -52,28 +57,28 @@ func NewStateEntry(state, undo *types.State) *StateEntry {
 	}
 }
 
-func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockKey) *BlockState {
+func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockID) *BlockState {
 	return &BlockState{
 		BlockInfo: BlockInfo{
 			BlockNo:   blockNo,
 			BlockHash: blockHash,
 			PrevHash:  prevHash,
 		},
-		accounts: make(map[types.AccountKey]*StateEntry),
+		accounts: make(map[types.AccountID]*StateEntry),
 	}
 }
 
-func (bs *BlockState) PutAccount(akey types.AccountKey, state, change *types.State) {
-	if prev, ok := bs.accounts[akey]; ok {
+func (bs *BlockState) PutAccount(aid types.AccountID, state, change *types.State) {
+	if prev, ok := bs.accounts[aid]; ok {
 		prev.State = change
 	} else {
-		bs.accounts[akey] = NewStateEntry(change, state)
+		bs.accounts[aid] = NewStateEntry(change, state)
 	}
 }
 
 type ChainStateDB struct {
 	sync.RWMutex
-	accounts map[types.AccountKey]*types.State
+	accounts map[types.AccountID]*types.State
 	trie     *trie.SMT
 	latest   *BlockInfo
 	statedb  db.DB
@@ -90,7 +95,7 @@ func NewStateDB() *ChainStateDB {
 	smt := trie.NewSMT(32, hasher, nil)
 
 	return &ChainStateDB{
-		accounts: make(map[types.AccountKey]*types.State),
+		accounts: make(map[types.AccountID]*types.State),
 		trie:     smt,
 	}
 }
@@ -138,36 +143,36 @@ func (sdb *ChainStateDB) Close() error {
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	sdb.latest = &BlockInfo{
 		BlockNo:   0,
-		BlockHash: types.ToBlockKey(genesisBlock.Hash),
+		BlockHash: types.ToBlockID(genesisBlock.Hash),
 	}
 	// TODO: process initial coin tx
 	err := sdb.saveStateDB()
 	return err
 }
 
-func (sdb *ChainStateDB) GetAccountState(akey types.AccountKey) (*types.State, error) {
-	if akey == types.EmptyAccountKey {
-		return nil, fmt.Errorf("Failed to get block account: invalid account key")
+func (sdb *ChainStateDB) GetAccountState(aid types.AccountID) (*types.State, error) {
+	if aid == emptyAccountID {
+		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
-	if state, ok := sdb.accounts[akey]; ok {
+	if state, ok := sdb.accounts[aid]; ok {
 		return state, nil
 	}
-	state := types.NewState(akey)
-	sdb.accounts[akey] = state
+	state := types.NewState(aid)
+	sdb.accounts[aid] = state
 	return state, nil
 }
-func (sdb *ChainStateDB) GetAccount(bs *BlockState, akey types.AccountKey) (*types.State, error) {
-	if akey == types.EmptyAccountKey {
-		return nil, fmt.Errorf("Failed to get block account: invalid account key")
+func (sdb *ChainStateDB) GetAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
+	if aid == emptyAccountID {
+		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
 
-	if prev, ok := bs.accounts[akey]; ok {
+	if prev, ok := bs.accounts[aid]; ok {
 		return prev.State, nil
 	}
-	return sdb.GetAccountState(akey)
+	return sdb.GetAccountState(aid)
 }
-func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, akey types.AccountKey) (*types.State, error) {
-	state, err := sdb.GetAccount(bs, akey)
+func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
+	state, err := sdb.GetAccount(bs, aid)
 	if err != nil {
 		return nil, err
 	}

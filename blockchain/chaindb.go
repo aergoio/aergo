@@ -75,8 +75,8 @@ func (cdb *ChainDB) Init(dataDir string) error {
 	}
 	// // if empty then create new genesis block
 	// // if cdb.latest == 0 && len(cdb.blocks) == 0 {
-	// blockKey := ItobU64(0)
-	// blockHash := cdb.store.Get(blockKey)
+	// blockID := ItobU64(0)
+	// blockHash := cdb.store.Get(blockID)
 	// if cdb.latest == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
@@ -99,9 +99,9 @@ func (cdb *ChainDB) loadChainData() error {
 	/* TODO: just checking DB
 	cdb.blocks = make([]*types.Block, latestInt+1)
 	for i := uint32(0); i <= latestInt; i++ {
-		blockKey := ItobU32(i)
+		blockID := ItobU32(i)
 		buf := types.Block{}
-		err := cdb.loadData(blockKey, &buf)
+		err := cdb.loadData(blockID, &buf)
 		if err != nil {
 			return err
 		}
@@ -220,9 +220,9 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 
 	tx := cdb.store.NewTx(true)
 	for _, elem := range elems {
-		blockKey := ItobU64(uint64(elem.BlockNo))
+		blockID := ItobU64(uint64(elem.BlockNo))
 		// change main chain info
-		tx.Set(blockKey, elem.Hash)
+		tx.Set(blockID, elem.Hash)
 		logger.Debug().Uint64("blockNo", blockNo).Str("hash", EncodeB64(elem.Hash)).Msg("Reorg changed")
 	}
 	tx.Commit()
@@ -256,7 +256,7 @@ func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, 
 // store block info to DB
 func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
-	blockKey := ItobU64(blockNo)
+	blockID := ItobU64(blockNo)
 	longest := true
 
 	// FIXME: blockNo 0 exception handling
@@ -277,8 +277,8 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	}
 	tx := *dbtx
 	if longest {
-		tx.Set(latestKey, blockKey)
-		tx.Set(blockKey, block.GetHash())
+		tx.Set(latestKey, blockID)
+		tx.Set(blockID, block.GetHash())
 	}
 	tx.Set(block.GetHash(), blockBytes)
 
@@ -314,11 +314,11 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
-	blockKey := ItobU64(blockNo)
+	blockID := ItobU64(blockNo)
 	if cdb.store == nil {
 		return nil, ErrNoChainDB
 	}
-	blockHash := cdb.store.Get(blockKey)
+	blockHash := cdb.store.Get(blockID)
 	if len(blockHash) == 0 {
 		return nil, &ErrNoBlock{id: blockNo}
 	}

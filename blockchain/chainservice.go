@@ -152,8 +152,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetBlock:
-		bkey := types.ToBlockKey(msg.BlockHash)
-		block, err := cs.getBlock(bkey[:])
+		bid := types.ToBlockID(msg.BlockHash)
+		block, err := cs.getBlock(bid[:])
 		if err != nil {
 			logger.Error().Err(err).Str("hash", EncodeB64(msg.BlockHash)).Msg("failed to get block")
 		}
@@ -173,9 +173,9 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
-		bkey := types.ToBlockKey(msg.Block.GetHash())
+		bid := types.ToBlockID(msg.Block.GetHash())
 		logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("Add Block chainservice")
-		_, err := cs.getBlock(bkey[:])
+		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("already exist")
 		} else {
@@ -196,8 +196,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Error().Err(err).Msg("failed to remove txs from mempool")
 		}
 	case *message.GetState:
-		akey := types.ToAccountKey(msg.Account)
-		state, err := cs.sdb.GetAccountState(akey)
+		id := types.ToAccountID(msg.Account)
+		state, err := cs.sdb.GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", EncodeB64(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
