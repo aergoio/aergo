@@ -59,12 +59,13 @@ func (s *modSMT) merkleProof(root []byte, height uint64, key []byte) ([][]byte, 
 
 // VerifyMerkleProof verifies that key/value is included in the trie with latest root
 func (s *modSMT) VerifyMerkleProof(ap [][]byte, key, value []byte) bool {
-	leafHash := s.hash(key, value)
+	leafHash := s.hash(key, value, []byte{1})
 	return bytes.Equal(s.Root, s.verifyMerkleProof(ap, s.TrieHeight, key, leafHash))
 }
 
 // VerifyMerkleProofEmpty checks that the proofKey is included in the trie
 // and that key and proofKey have the same bits up to len(ap)
+// In modSMT, a merkle proof consists of an audit path + an optional proof node
 func (s *modSMT) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue []byte) bool {
 	if bytes.Equal(ap[0], DefaultLeaf) {
 		// a shortcut node cannot be at height 0 if ap[0] == DefaultLeaf, it would be one level up

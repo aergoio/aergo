@@ -156,9 +156,9 @@ func TestDeleteMod(t *testing.T) {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	smt2 := NewModSMT(32, hash, nil)
+	/* smt2 := NewModSMT(32, hash, nil)
 	cleanRoot, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
-	/* FIXME : if one of 2 sibling nodes is deleted then the sibling
+	FIXME : if one of 2 sibling nodes is deleted then the sibling
 				should move up other wise the roots mismatch
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")

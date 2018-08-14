@@ -386,7 +386,7 @@ func (s *modSMT) DefaultHash(height uint64) []byte {
 // leafHash returns the hash of key-value concatenated stores it in the updatedNodes and maybe in liveCache.
 // keys of go mappings cannot be byte slices so the hash is copied to a byte array
 func (s *modSMT) leafHash(key, value []byte, height uint64, oldRoot []byte) []byte {
-	h := s.hash(key, value)
+	h := s.hash(key, value, []byte{1})
 	var node Hash
 	copy(node[:], h)
 	kv := make([]byte, 0, s.KeySize+HashLength+1)
