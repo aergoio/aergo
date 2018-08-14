@@ -7,7 +7,9 @@ package blockchain
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -m
+#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
+
+#include <stdlib.h>
 #include <string.h>
 #include "lua_exec.h"
 */
@@ -59,8 +61,8 @@ func NewBlockchainCtx(Sender []byte, blockHash []byte, txHash []byte, blockHeigh
 		sender:      C.CString(base58.Encode(Sender)),
 		blockHash:   C.CString(hex.EncodeToString(blockHash)),
 		txHash:      C.CString(hex.EncodeToString(txHash)),
-		blockHeight: C.ulong(blockHeight),
-		timestamp:   C.long(timestamp),
+		blockHeight: C.ulonglong(blockHeight),
+		timestamp:   C.longlong(timestamp),
 		node:        C.CString(node),
 		confirmed:   C.int(iconfirmed),
 		contractId:  C.CString(base58.Encode(contractID)),

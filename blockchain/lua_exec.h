@@ -1,7 +1,9 @@
-#include <stdint.h>
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
+
+#define uint64_t unsigned long long
+#define int64_t long long
 
 typedef struct blockchain_ctx {
     char *sender;
