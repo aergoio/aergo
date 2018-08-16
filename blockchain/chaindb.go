@@ -214,7 +214,7 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 			Hash:    tblock.Hash,
 		}
 		elems = append(elems, newElem)
-		logger.Debug().Uint64("blockNo", blockNo).Str("from", EncodeB64(tblock.Hash)).
+		logger.Debug().Uint64("blockNo", blockNo).Str("from", tblock.ID()).
 			Str("to", EncodeB64(mHash)).Msg("Reorg Failed invalid blockno")
 	}
 

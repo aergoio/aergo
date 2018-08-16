@@ -174,15 +174,16 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.AddBlock:
 		bid := types.ToBlockID(msg.Block.GetHash())
-		logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("Add Block chainservice")
+		logger.Debug().Str("hash", msg.Block.ID()).
+			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
-			logger.Debug().Str("hash", EncodeB64(msg.Block.GetHash())).Msg("already exist")
+			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
 			block := msg.Block.Clone()
 			err := cs.addBlock(block, msg.PeerID)
 			if err != nil {
-				logger.Error().Err(err).Msg("failed add block")
+				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
