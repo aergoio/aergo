@@ -136,6 +136,20 @@ func (_m *MockStream) SetWriteDeadline(_a0 time.Time) error {
 	return r0
 }
 
+// Stat provides a mock function with given fields:
+func (_m *MockStream) Stat() net.Stat {
+	ret := _m.Called()
+
+	var r0 net.Stat
+	if rf, ok := ret.Get(0).(func() net.Stat); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(net.Stat)
+	}
+
+	return r0
+}
+
 // Write provides a mock function with given fields: p
 func (_m *MockStream) Write(p []byte) (int, error) {
 	ret := _m.Called(p)
