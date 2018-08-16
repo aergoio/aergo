@@ -11,7 +11,7 @@ default: compile
 
 prepare: deps
 
-compile: aergocli aergosvr
+compile: aergocli aergosvr aergoluac
 
 build: test compile
 
@@ -37,6 +37,10 @@ aergosvr: cmd/aergosvr/*.go
 aergocli: cmd/aergocli/*.go
 	go build -o $(BINPATH)/aergocli ./cmd/aergocli
 	@echo "Done buidling aergocli."
+
+aergoluac: ./cmd/aergoluac/*.go
+	go build -o $(BINPATH)/aergoluac ./cmd/aergoluac
+	@echo "Done buidling aergoluac."
 
 liball:
 	@for dir in $(LIBTOOLS); do \

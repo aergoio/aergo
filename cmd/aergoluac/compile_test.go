@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"log"
@@ -10,7 +10,7 @@ import (
 )
 
 func TestCompile1(t *testing.T) {
-	cmd := exec.Command("../../..//bin/aergocli", "contract", "compile", "good.lua", "good.bc")
+	cmd := exec.Command("../../bin/aergoluac", "good.lua", "good.bc")
 	err := cmd.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -27,7 +27,7 @@ func TestCompile1(t *testing.T) {
 }
 
 func TestCompile2(t *testing.T) {
-	cmd := exec.Command("../../..//bin/aergocli", "contract", "compile", "bad.lua", "bad.bc")
+	cmd := exec.Command("../../bin/aergoluac", "bad.lua", "bad.bc")
 	err := cmd.Start()
 	if err != nil {
 		log.Fatal(err)
