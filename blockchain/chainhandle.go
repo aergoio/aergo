@@ -43,7 +43,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
-	logger.Debug().Str("hash", EncodeB64(nblock.GetHash())).Msg("add Block")
+	logger.Debug().Str("hash", nblock.ID()).Msg("add Block")
 	if cs.ChainInfo != nil {
 		// Check block validity by calling the corresponding interface
 		// implemented in a Consensus module.
@@ -87,7 +87,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 			return err
 		}
 		logger.Info().Int("processed_txn", len(txs)).Uint64("blockNo", block.GetHeader().GetBlockNo()).
-			Str("hash", EncodeB64(block.GetHash())).
+			Str("hash", block.ID()).
 			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).Msg("Block Added")
 		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
 		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
@@ -162,7 +162,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		// logging???
-		logger.Debug().Str("hash", EncodeB64(block.GetHash())).Msg("add Orphan Block failed")
+		logger.Debug().Str("hash", block.ID()).Msg("add Orphan Block failed")
 
 		return err
 	}

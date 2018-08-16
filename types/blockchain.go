@@ -78,6 +78,8 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 	block.Header.Sign = sig
 
+	//block hash must be recomputed
+	block.Hash = block.CalculateBlockHash()
 	return nil
 }
 

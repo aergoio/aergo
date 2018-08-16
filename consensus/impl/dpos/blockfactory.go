@@ -155,7 +155,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 		return nil, err
 	}
 
-	logger.Info().Msgf("block %v produced by BP %v", block.ID(), bf.sID)
+	logger.Info().Msgf("block %v(no=%v) produced by BP %v", block.ID(), block.GetHeader().GetBlockNo(), bf.sID)
 
 	return block, nil
 }
