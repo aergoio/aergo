@@ -85,7 +85,7 @@ func (s *modSMT) Update(keys, values DataArray) ([]byte, error) {
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
-	update, err := s.update(s.Root, keys, values, s.TrieHeight, nil)
+	update, _, err := s.update(s.Root, keys, values, s.TrieHeight, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -93,56 +93,72 @@ func (s *modSMT) Update(keys, values DataArray) ([]byte, error) {
 	return s.Root, err
 }
 
+// mresult is used to contain the result of goroutines and is sent through a channel.
+type mresult struct {
+	update []byte
+	// flag if a node was deleted and a shortcut node maybe has to move up the tree
+	deleted bool
+	err     error
+}
+
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch chan<- (result)) ([]byte, error) {
+func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
 	if height == 0 {
+		// Delete the key-value from the trie if it is being set to DefaultLeaf
 		if bytes.Equal(DefaultLeaf, values[0]) {
-			// delete the key-value from the trie
 			if !bytes.Equal(DefaultLeaf, root) {
 				// Delete old liveCache node if it is not default
-				var node Hash
-				copy(node[:], root)
-				s.db.liveMux.Lock()
-				delete(s.db.liveCache, node)
-				s.db.liveMux.Unlock()
+				s.deleteCacheNode(root)
 			}
 			if ch != nil {
-				// if this update() call is a goroutine, return the result through the channel
-				ch <- result{DefaultLeaf, nil}
-				return nil, nil
+				ch <- mresult{DefaultLeaf, true, nil}
 			}
-			return DefaultLeaf, nil
+			return DefaultLeaf, true, nil
 		}
-
+		node := s.leafHash(keys[0], values[0], height-1, root)
 		if ch != nil {
-			ch <- result{s.leafHash(keys[0], values[0], height-1, root), nil}
-			return nil, nil
+			ch <- mresult{node, false, nil}
 		}
-		return s.leafHash(keys[0], values[0], height-1, root), nil
+		return node, false, nil
 	}
 
+	// Load the node to update
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
 	if err != nil {
 		if ch != nil {
-			ch <- result{nil, err}
+			ch <- mresult{nil, false, err}
 		}
-		return nil, err
+		return nil, false, err
 	}
+
+	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
-		// check if the keys are updating the shortcut node
-		up := false
-		for _, k := range keys {
-			if bytes.Equal(k, lnode) {
-				up = true
-				break
-			}
-		}
-		if !up {
-			keys, values = s.addShortcutToDataArray(keys, values, lnode, rnode)
-		}
+		s.maybeAddShortcutToDataArray(keys, values, lnode, rnode)
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
+	}
+
+	// Store shortcut node
+	if bytes.Equal(s.defaultHashes[height-1], lnode) &&
+		bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
+		// Delete the key-value from the trie if it is being set to DefaultLeaf
+		if bytes.Equal(DefaultLeaf, values[0]) {
+			if !bytes.Equal(s.defaultHashes[height], root) {
+				// Delete old liveCache node if it is not default
+				s.deleteCacheNode(root)
+			}
+			if ch != nil {
+				ch <- mresult{s.defaultHashes[height], true, nil}
+			}
+			return s.defaultHashes[height], true, nil
+		}
+		// We are adding 1 key to an empty subtree so store it as a shortcut
+		node := s.leafHash(keys[0], values[0], height-1, root)
+		if ch != nil {
+			ch <- mresult{node, false, nil}
+		}
+		return node, false, nil
 	}
 
 	// Split the keys array so each branch can be updated in parallel
@@ -150,93 +166,160 @@ func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch c
 	splitIndex := len(lkeys)
 	lvalues, rvalues := values[:splitIndex], values[splitIndex:]
 
-	if bytes.Equal(s.defaultHashes[height-1], lnode) && bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
-		if bytes.Equal(DefaultLeaf, values[0]) {
-			// TODO : if the sibling is also a shortcut node, then the sibling should move up to parent.
-			// delete the key-value from the trie
-			if !bytes.Equal(s.defaultHashes[height], root) {
-				// Delete old liveCache node if it is not default
-				var node Hash
-				copy(node[:], root)
-				s.db.liveMux.Lock()
-				delete(s.db.liveCache, node)
-				s.db.liveMux.Unlock()
-			}
-			if ch != nil {
-				// if this update() call is a goroutine, return the result through the channel
-				ch <- result{s.defaultHashes[height], nil}
-				return nil, nil
-			}
-			return s.defaultHashes[height], nil
-		}
-		// if the subtree contains only one key, store the key/value in a shortcut node
-		if ch != nil {
-			// if this update() call is a goroutine, return the result through the channel
-			ch <- result{s.leafHash(keys[0], values[0], height-1, root), nil}
-			return nil, nil
-		}
-		return s.leafHash(keys[0], values[0], height-1, root), nil
-	}
-
 	switch {
 	case lkeys.Len() == 0 && rkeys.Len() > 0:
 		// all the keys go in the right subtree
-		update, err := s.update(rnode, keys, values, height-1, nil)
+		update, deleted, err := s.update(rnode, keys, values, height-1, nil)
 		if err != nil {
 			if ch != nil {
-				ch <- result{nil, err}
+				ch <- mresult{nil, false, err}
 			}
-			return nil, err
+			return nil, false, err
 		}
-		// if this update() call is a goroutine, return the result through the channel
+		// Move up a shortcut node if necessary.
+		if deleted {
+			// If update deleted a subtree, check it's sibling return it if it is a shortcut
+			if bytes.Equal(s.defaultHashes[height-1], update) {
+				_, _, isShortcut, err := s.loadChildren(lnode)
+				if err != nil {
+					if ch != nil {
+						ch <- mresult{nil, false, err}
+					}
+					return nil, false, err
+				}
+				if isShortcut == 1 {
+					// root is never default when moving up a shortcut
+					s.deleteCacheNode(root)
+					// Return the left sibling node to move it up
+					if ch != nil {
+						ch <- mresult{lnode, true, nil}
+					}
+					return lnode, true, nil
+				}
+			}
+			// If deleted then update is a shortcut node (because not default),
+			// return it if the sibling is default.
+			if bytes.Equal(s.defaultHashes[height-1], lnode) {
+				// root is never default when moving up a shortcut
+				s.deleteCacheNode(root)
+				// Return the shortcut node to move it up
+				if ch != nil {
+					ch <- mresult{update, true, nil}
+				}
+				return update, true, nil
+			}
+		}
+		node := s.interiorHash(lnode, update, height-1, root)
 		if ch != nil {
-			ch <- result{s.interiorHash(lnode, update, height-1, root), nil}
-			return nil, nil
+			ch <- mresult{node, false, nil}
 		}
-		return s.interiorHash(lnode, update, height-1, root), nil
+		return node, false, nil
 	case lkeys.Len() > 0 && rkeys.Len() == 0:
 		// all the keys go in the left subtree
-		update, err := s.update(lnode, keys, values, height-1, nil)
+		update, deleted, err := s.update(lnode, keys, values, height-1, nil)
 		if err != nil {
 			if ch != nil {
-				ch <- result{nil, err}
+				ch <- mresult{nil, false, err}
 			}
-			return nil, err
+			return nil, false, err
 		}
-		// if this update() call is a goroutine, return the result through the channel
+		// Move up a shortcut node if necessary.
+		if deleted {
+			// If update deleted a subtree, check it's sibling return it if it is a shortcut
+			if bytes.Equal(s.defaultHashes[height-1], update) {
+				_, _, isShortcut, err := s.loadChildren(rnode)
+				if err != nil {
+					if ch != nil {
+						ch <- mresult{nil, false, err}
+					}
+					return nil, false, err
+				}
+				if isShortcut == 1 {
+					// root is never default when moving up a shortcut
+					s.deleteCacheNode(root)
+					// Return the right sibling node to move it up
+					if ch != nil {
+						ch <- mresult{rnode, true, nil}
+					}
+					return rnode, true, nil
+				}
+			}
+			// If deleted then update is a shortcut node (because not default),
+			// return it if the sibling is default.
+			if bytes.Equal(s.defaultHashes[height-1], rnode) {
+				// root is never default when moving up a shortcut
+				s.deleteCacheNode(root)
+				// Return the shortcut node to move it up
+				if ch != nil {
+					ch <- mresult{update, true, nil}
+				}
+				return update, true, nil
+			}
+		}
+		node := s.interiorHash(update, rnode, height-1, root)
 		if ch != nil {
-			ch <- result{s.interiorHash(update, rnode, height-1, root), nil}
-			return nil, nil
+			ch <- mresult{node, false, nil}
 		}
-		return s.interiorHash(update, rnode, height-1, root), nil
+		return node, false, nil
 	default:
 		// keys are separated between the left and right branches
 		// update the branches in parallel
-		lch := make(chan result, 1)
-		rch := make(chan result, 1)
+		lch := make(chan mresult, 1)
+		rch := make(chan mresult, 1)
 		go s.update(lnode, lkeys, lvalues, height-1, lch)
 		go s.update(rnode, rkeys, rvalues, height-1, rch)
 		lresult := <-lch
 		rresult := <-rch
 		if lresult.err != nil {
 			if ch != nil {
-				ch <- result{nil, lresult.err}
+				ch <- mresult{nil, false, lresult.err}
 			}
-			return nil, lresult.err
+			return nil, false, lresult.err
 		}
 		if rresult.err != nil {
 			if ch != nil {
-				ch <- result{nil, rresult.err}
+				ch <- mresult{nil, false, rresult.err}
 			}
-			return nil, rresult.err
+			return nil, false, rresult.err
 		}
-		// if this update() call is a goroutine, return the result through the channel
+
+		// Move up a shortcut node if it's sibling is default
+		if lresult.deleted && rresult.deleted {
+			// root is never default when moving up a shortcut
+			s.deleteCacheNode(root)
+			if bytes.Equal(s.defaultHashes[height-1], lresult.update) && bytes.Equal(s.defaultHashes[height-1], rresult.update) {
+				if ch != nil {
+					ch <- mresult{s.defaultHashes[height], false, nil}
+				}
+				return s.defaultHashes[height], false, nil
+			}
+			if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
+				if ch != nil {
+					ch <- mresult{rresult.update, true, nil}
+				}
+				return rresult.update, true, nil
+			}
+			if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
+				if ch != nil {
+					ch <- mresult{lresult.update, true, nil}
+				}
+				return lresult.update, true, nil
+			}
+		}
+		node := s.interiorHash(lresult.update, rresult.update, height-1, root)
 		if ch != nil {
-			ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root), nil}
-			return nil, nil
+			ch <- mresult{node, false, nil}
 		}
-		return s.interiorHash(lresult.update, rresult.update, height-1, root), nil
+		return node, false, nil
 	}
+}
+
+func (s *modSMT) deleteCacheNode(root []byte) {
+	var node Hash
+	copy(node[:], root)
+	s.db.liveMux.Lock()
+	delete(s.db.liveCache, node)
+	s.db.liveMux.Unlock()
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
@@ -247,6 +330,20 @@ func (s *modSMT) splitKeys(keys DataArray, height uint64) (DataArray, DataArray)
 		}
 	}
 	return keys, nil
+}
+
+func (s *modSMT) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
+	up := false
+	for _, k := range keys {
+		if bytes.Equal(k, shortcutKey) {
+			up = true
+			break
+		}
+	}
+	if !up {
+		keys, values = s.addShortcutToDataArray(keys, values, shortcutKey, shortcutVal)
+	}
+	return keys, values
 }
 
 // addShortcutToDataArray adds a shortcut key to the keys array to be updated.
@@ -405,11 +502,7 @@ func (s *modSMT) leafHash(key, value []byte, height uint64, oldRoot []byte) []by
 	s.db.updatedMux.Unlock()
 	if !bytes.Equal(s.defaultHashes[height+1], oldRoot) && !bytes.Equal(h, oldRoot) {
 		// Delete old liveCache node if it has been updated and is not default
-		var node Hash
-		copy(node[:], oldRoot)
-		s.db.liveMux.Lock()
-		delete(s.db.liveCache, node)
-		s.db.liveMux.Unlock()
+		s.deleteCacheNode(oldRoot)
 	}
 	return h
 }
@@ -440,12 +533,7 @@ func (s *modSMT) interiorHash(left, right []byte, height uint64, oldRoot []byte)
 
 	if !bytes.Equal(s.defaultHashes[height+1], oldRoot) && !bytes.Equal(h, oldRoot) {
 		// Delete old liveCache node if it has been updated and is not default
-		var node Hash
-		copy(node[:], oldRoot)
-		s.db.liveMux.Lock()
-		delete(s.db.liveCache, node)
-		s.db.liveMux.Unlock()
-		//NOTE this could delete a node used by another part of the tree if some values are equal.
+		s.deleteCacheNode(oldRoot)
 	}
 	return h
 }

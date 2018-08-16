@@ -35,7 +35,7 @@ func TestModUpdateAndGet(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -48,7 +48,7 @@ func TestModUpdateAndGet(t *testing.T) {
 	// Append to the trie
 	newKeys := getFreshData(5, 32)
 	newValues := getFreshData(5, 32)
-	newRoot, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
+	newRoot, _, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
 	if bytes.Equal(root, newRoot) {
 		t.Fatal("trie not updated")
 	}
@@ -142,7 +142,7 @@ func TestDeleteMod(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
 	value, _ := smt.get(root, keys[0], smt.TrieHeight)
 	if !bytes.Equal(values[0], value) {
 		t.Fatal("trie not updated")
@@ -150,27 +150,26 @@ func TestDeleteMod(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
+	newRoot, _, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	/* smt2 := NewModSMT(32, hash, nil)
-	cleanRoot, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
-	FIXME : if one of 2 sibling nodes is deleted then the sibling
-				should move up other wise the roots mismatch
+	smt2 := NewModSMT(32, hash, nil)
+	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
+	//FIXME : if one of 2 sibling nodes is deleted then the sibling
+	//			should move up other wise the roots mismatch
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
-	*/
 
 	//Empty the trie
 	var newValues DataArray
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
-	root, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
+	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
 	}
