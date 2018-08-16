@@ -75,8 +75,8 @@ func (cdb *ChainDB) Init(dataDir string) error {
 	}
 	// // if empty then create new genesis block
 	// // if cdb.latest == 0 && len(cdb.blocks) == 0 {
-	// blockID := ItobU64(0)
-	// blockHash := cdb.store.Get(blockID)
+	// blockIdx := types.BlockNoToBytes(0)
+	// blockHash := cdb.store.Get(blockIdx)
 	// if cdb.latest == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
@@ -95,13 +95,13 @@ func (cdb *ChainDB) loadChainData() error {
 	if latestBytes == nil || len(latestBytes) == 0 {
 		return nil
 	}
-	latestInt := BtoiU64(latestBytes)
+	latestNo := types.BlockNoFromBytes(latestBytes)
 	/* TODO: just checking DB
-	cdb.blocks = make([]*types.Block, latestInt+1)
-	for i := uint32(0); i <= latestInt; i++ {
-		blockID := ItobU32(i)
+	cdb.blocks = make([]*types.Block, latestNo+1)
+	for i := uint32(0); i <= latestNo; i++ {
+		blockIdx := types.BlockNoToBytes(i)
 		buf := types.Block{}
-		err := cdb.loadData(blockID, &buf)
+		err := cdb.loadData(blockIdx, &buf)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (cdb *ChainDB) loadChainData() error {
 		cdb.blocks[i] = &buf
 	}
 	*/
-	cdb.latest = types.BlockNo(latestInt)
+	cdb.latest = latestNo
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
@@ -220,9 +220,9 @@ func (cdb *ChainDB) reorg(block *types.Block) {
 
 	tx := cdb.store.NewTx(true)
 	for _, elem := range elems {
-		blockID := ItobU64(uint64(elem.BlockNo))
+		blockIdx := types.BlockNoToBytes(elem.BlockNo)
 		// change main chain info
-		tx.Set(blockID, elem.Hash)
+		tx.Set(blockIdx, elem.Hash)
 		logger.Debug().Uint64("blockNo", blockNo).Str("hash", EncodeB64(elem.Hash)).Msg("Reorg changed")
 	}
 	tx.Commit()
@@ -256,7 +256,7 @@ func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, 
 // store block info to DB
 func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
-	blockID := ItobU64(blockNo)
+	blockIdx := types.BlockNoToBytes(blockNo)
 	longest := true
 
 	// FIXME: blockNo 0 exception handling
@@ -277,8 +277,8 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	}
 	tx := *dbtx
 	if longest {
-		tx.Set(latestKey, blockID)
-		tx.Set(blockID, block.GetHash())
+		tx.Set(latestKey, blockIdx)
+		tx.Set(blockIdx, block.GetHash())
 	}
 	tx.Set(block.GetHash(), blockBytes)
 
@@ -314,11 +314,11 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
-	blockID := ItobU64(blockNo)
+	blockIdx := types.BlockNoToBytes(blockNo)
 	if cdb.store == nil {
 		return nil, ErrNoChainDB
 	}
-	blockHash := cdb.store.Get(blockID)
+	blockHash := cdb.store.Get(blockIdx)
 	if len(blockHash) == 0 {
 		return nil, &ErrNoBlock{id: blockNo}
 	}

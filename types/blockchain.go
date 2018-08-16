@@ -19,6 +19,19 @@ import (
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
+// BlockNoToBytes represents to serialize block no to bytes
+func BlockNoToBytes(bn BlockNo) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, bn)
+	return buf
+}
+
+// BlockNoFromBytes represents to deserialize bytes to block no
+func BlockNoFromBytes(raw []byte) BlockNo {
+	buf := binary.LittleEndian.Uint64(raw)
+	return BlockNo(buf)
+}
+
 // NewBlock represents to create a block to store transactions.
 func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 	var prevBlockHash []byte

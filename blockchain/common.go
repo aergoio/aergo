@@ -7,7 +7,6 @@ package blockchain
 
 import (
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 
 	"github.com/golang/protobuf/proto"
@@ -23,15 +22,15 @@ func ToJSON(pb proto.Message) string {
 	return string(buf)
 }
 
-func ItobU64(argv uint64) []byte {
-	bs := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bs, argv)
-	return bs
-}
-func BtoiU64(argv []byte) uint64 {
-	is := binary.LittleEndian.Uint64(argv)
-	return is
-}
+// func ItobU64(argv uint64) []byte {
+// 	bs := make([]byte, 8)
+// 	binary.LittleEndian.PutUint64(bs, argv)
+// 	return bs
+// }
+// func BtoiU64(argv []byte) uint64 {
+// 	is := binary.LittleEndian.Uint64(argv)
+// 	return is
+// }
 
 func EncodeB64(bs []byte) string {
 	return base64.StdEncoding.EncodeToString(bs)
