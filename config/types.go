@@ -36,8 +36,8 @@ type BaseConfig struct {
 // RPCConfig defines configurations for rpc service
 type RPCConfig struct {
 	// RPC and REST
-	NetServiceAddr string `mapstructure:"netserviceaddr" description:"RPC N2C network service address"`
-	NetServicePort int    `mapstructure:"netserviceport" description:"RPC N2C network service port"`
+	NetServiceAddr string `mapstructure:"netserviceaddr" description:"RPC service address"`
+	NetServicePort int    `mapstructure:"netserviceport" description:"RPC service port"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`

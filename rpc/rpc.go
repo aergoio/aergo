@@ -8,7 +8,9 @@ package rpc
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"time"
+	"strings"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
@@ -16,6 +18,12 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	aergorpc "github.com/aergoio/aergo/types"
 	"google.golang.org/grpc"
+
+	"github.com/aergoio/aergo/pkg/log"
+
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/soheilhy/cmux"
+
 )
 
 // RPC is actor for providing rpc service
@@ -27,7 +35,11 @@ type RPC struct {
 	hub *component.ComponentHub
 
 	grpcServer   *grpc.Server
+	grpcWebServer   *grpcweb.WrappedGrpcServer
 	actualServer aergorpc.AergoRPCServiceServer
+	httpServer *http.Server
+
+	log          *log.Logger
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -44,47 +56,96 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 
 	grpcServer := grpc.NewServer(opts...)
 
+	grpcWebServer := grpcweb.WrapServer(grpcServer)
+
 	netsvc := &RPC{
 		conf:          cfg,
 		BaseComponent: component.NewBaseComponent("rpc", logger, cfg.EnableDebugMsg),
 		hub:           hub,
 		grpcServer:    grpcServer,
+		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
+		log: 	       log.NewLogger("rpc"),
 	}
 	actualServer.actorHelper = netsvc
+
+	netsvc.httpServer = &http.Server{
+		Handler:        netsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
+		ReadTimeout:    4 * time.Second,
+		WriteTimeout:   4 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
 
 	return netsvc
 }
 
-// Start start rpc service
+// Start start rpc service.
 func (ns *RPC) Start() {
 	ns.BaseComponent.Start(ns)
+	aergorpc.RegisterAergoRPCServiceServer(ns.grpcServer, ns.actualServer)
 	go ns.serve()
 }
 
-// Stop stops rpc service
+// Stop stops rpc service.
 func (ns *RPC) Stop() {
+	ns.httpServer.Close()
 	ns.grpcServer.Stop()
 	ns.BaseComponent.Stop()
 }
 
+// Create HTTP handler that redirects matching requests to the grpc-web wrapper.
+func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) {
+			grpcWebServer.ServeHTTP(w, r)
+		} else {
+			otherHandler.ServeHTTP(w, r)
+		}
+	})
+}
+
+// Serve GRPC server over TCP
+func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
+	if err := server.Serve(l); err != nil {
+		panic(err)
+	}
+}
+
+// Serve HTTP server over TCP
+func (ns *RPC) serveHTTP(l net.Listener, server *http.Server) {
+	if err := server.Serve(l); err != nil {
+		panic(err)
+	}
+}
+
+// Serve TCP multiplexer
 func (ns *RPC) serve() {
-
-	aergorpc.RegisterAergoRPCServiceServer(ns.grpcServer, ns.actualServer)
-
 	ipAddr := net.ParseIP(ns.conf.RPC.NetServiceAddr)
 	if ipAddr == nil {
-		//TODO: warning?
-		panic("wrong IP address format")
+		panic("Wrong IP address format in RPC.NetServiceAddr")
 	}
-	conn, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ipAddr, ns.conf.RPC.NetServicePort))
+
+	addr := fmt.Sprintf("%s:%d", ipAddr, ns.conf.RPC.NetServicePort)
+
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic(err)
 	}
 
-	err = ns.grpcServer.Serve(conn)
-	if err != nil {
-		panic(err)
+	// Setup TCP multiplexer
+	tcpm := cmux.New(l)
+	grpcL := tcpm.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	httpL := tcpm.Match(cmux.HTTP1Fast())
+
+	ns.log.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
+
+	// Server both servers
+	go ns.serveGRPC(grpcL, ns.grpcServer)
+	go ns.serveHTTP(httpL, ns.httpServer)
+
+	// Serve TCP multiplexer
+	if err := tcpm.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
+		ns.log.Fatal().Msg(fmt.Sprintf("%v", err))
 	}
 
 	return
