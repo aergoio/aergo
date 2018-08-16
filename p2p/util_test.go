@@ -7,6 +7,7 @@ package p2p
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -111,6 +112,69 @@ func TestTimerBehavior(t *testing.T) {
 		target.Reset(duration * 2)
 		assert.Equal(t, int32(i), <-ticked)
 	}
+}
+
+func FailTestNormalMapInConcurrent(t *testing.T) {
+	iterSize := 10000
+	target := make(map[string]string)
+	wg := sync.WaitGroup{}
+	waitChan := make(chan int)
+	wg.Add(1)
+	go func() {
+		for i := 0; i < iterSize; i++ {
+			target[strconv.Itoa(i)] = "var " + strconv.Itoa(i)
+			if i == (iterSize >> 2) {
+				wg.Done()
+			}
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		for key, val := range target {
+			fmt.Printf("%s is %s\n", key, val)
+		}
+		waitChan <- 0
+	}()
+
+	<-waitChan
+	fmt.Printf("Remains %d\n", len(target))
+}
+
+func TestSyncMap(t *testing.T) {
+	iterSize := 1000
+	target := sync.Map{}
+	wg := sync.WaitGroup{}
+	waitChan := make(chan int)
+	wg.Add(1)
+	go func() {
+		for i := 0; i < iterSize; i++ {
+			target.Store(strconv.Itoa(i), "var "+strconv.Itoa(i))
+			if i == (iterSize >> 2) {
+				wg.Done()
+			}
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		target.Range(func(key interface{}, val interface{}) bool {
+			fmt.Printf("%s is %s\n", key, val)
+			return true
+		})
+		waitChan <- 0
+	}()
+
+	<-waitChan
+	fmt.Printf("Remains %d\n", func(m *sync.Map) int {
+		keys := make([]string, 0, iterSize*2)
+		m.Range(func(key interface{}, val interface{}) bool {
+			keys = append(keys, key.(string))
+			return true
+		})
+		fmt.Println(keys)
+		return len(keys)
+	}(&target))
 }
 
 type MockLogger struct {

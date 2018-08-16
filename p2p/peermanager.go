@@ -102,6 +102,7 @@ type peerManager struct {
 	conf         *cfg.P2PConfig
 	log          *log.Logger
 	mutex        *sync.Mutex
+	peerCache    []*RemotePeer
 
 	status component.Status
 
@@ -146,6 +147,7 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) Pee
 
 		remotePeers: make(map[peer.ID]*RemotePeer, 100),
 		peerPool:    make(map[peer.ID]PeerMeta, 100),
+		peerCache:   make([]*RemotePeer, 100),
 
 		subProtocols:      make([]subProtocol, 0, 4),
 		status:            component.StoppedStatus,
@@ -243,7 +245,7 @@ func (ps *peerManager) run() {
 	// addtion should start after all modules are started
 	// FIXME: adhoc code
 	go func() {
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 2)
 		ps.addDesignatedPeers()
 	}()
 }
@@ -333,34 +335,19 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 		// TODO check and modify meta information of peer if needed.
 		return
 	}
-	if meta.Outbound {
-		ps.log.Debug().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
-		// if peer exists in peerstore already, reuse that peer again.
-		if !ps.checkInPeerstore(peerID) {
-			ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
-		}
-		aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
-		newPeer = aPeer
-		ps.remotePeers[peerID] = newPeer
-		ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
-	} else {
-		// // inbound peer should already be listed in peerstore of libp2p. If not, that peer is deleted just before
-		// if ps.checkInPeerstore(peerID) {
-		// 	ps.log.Debugf("Adding inbound peer %s of address %s", peerID.Pretty(), peerAddr.String())
-		// 	// address can be changed after handshaking...
-		// 	aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
-		// 	newPeer = &aPeer
-		// 	ps.remotePeers[peerID] = newPeer
-		// 	ps.log.Infof("Peer %s(address %s) is added to peerstore", peerID.Pretty(), peerAddr)
-		// }
+	ps.log.Debug().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
+	// if peer exists in peerstore already, reuse that peer again.
+	if !ps.checkInPeerstore(peerID) {
+		ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 	}
-	if newPeer != nil {
-		for _, listener := range ps.eventListeners {
-			listener.OnAddPeer(peerID)
-		}
-		go newPeer.runPeer()
-		newPeer.op <- OpOrder{op: OpInitHS}
+	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	ps.insertPeer(peerID, newPeer)
+	ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
+	for _, listener := range ps.eventListeners {
+		listener.OnAddPeer(peerID)
 	}
+	go newPeer.runPeer()
+	newPeer.op <- OpOrder{op: OpInitHS}
 }
 
 func (ps *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -396,7 +383,7 @@ func (ps *peerManager) removePeer(peerID peer.ID) bool {
 	target, ok := ps.remotePeers[peerID]
 	if ok {
 		target.stop()
-		delete(ps.remotePeers, peerID)
+		ps.deletePeer(peerID)
 	}
 	for _, existingPeerID := range ps.Peerstore().Peers() {
 		if existingPeerID == peerID {
@@ -698,7 +685,7 @@ func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
 		ps.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Adding inbound peer with dummy address")
 		// address can be changed after handshaking...
 		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
-		ps.remotePeers[peerID] = aPeer
+		ps.insertPeer(peerID, aPeer)
 		for _, listener := range ps.eventListeners {
 			listener.OnAddPeer(peerID)
 		}
@@ -721,13 +708,9 @@ func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 }
 
 func (ps *peerManager) GetPeers() []*RemotePeer {
-	peers := make([]*RemotePeer, len(ps.remotePeers))
-	i := 0
-	for _, aPeer := range ps.remotePeers {
-		peers[i] = aPeer
-		i++
-	}
-	return peers
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	return ps.peerCache
 }
 
 func (ps *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState) {
@@ -766,5 +749,30 @@ func (ps *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data
 		ps.iServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
+
+}
+
+// this method should be called inside ps.mutex
+func (ps *peerManager) insertPeer(ID peer.ID, peer *RemotePeer) {
+	ps.remotePeers[ID] = peer
+
+	// TODO need tuning?
+	newSlice := make([]*RemotePeer, 0, len(ps.remotePeers))
+	for _, peer := range ps.remotePeers {
+		newSlice = append(newSlice, peer)
+	}
+	ps.peerCache = newSlice
+}
+
+// this method should be called inside ps.mutex
+func (ps *peerManager) deletePeer(ID peer.ID) {
+	delete(ps.remotePeers, ID)
+
+	// TODO need tuning?
+	newSlice := make([]*RemotePeer, 0, len(ps.remotePeers))
+	for _, peer := range ps.remotePeers {
+		newSlice = append(newSlice, peer)
+	}
+	ps.peerCache = newSlice
 
 }
