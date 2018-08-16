@@ -243,7 +243,7 @@ func (ps *peerManager) run() {
 	// addtion should start after all modules are started
 	// FIXME: adhoc code
 	go func() {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 3)
 		ps.addDesignatedPeers()
 	}()
 }
@@ -337,7 +337,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 		ps.log.Debug().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
 		// if peer exists in peerstore already, reuse that peer again.
 		if !ps.checkInPeerstore(peerID) {
-			ps.Peerstore().AddAddr(peerID, peerAddr, pstore.PermanentAddrTTL)
+			ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 		}
 		aPeer := newRemotePeer(meta, ps, ps.iServ, ps.log)
 		newPeer = aPeer

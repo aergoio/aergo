@@ -6,6 +6,7 @@ package p2p
 
 import (
 	"net"
+	"time"
 
 	"strconv"
 
@@ -15,6 +16,13 @@ import (
 
 // PeerMeta contains non changeable information of peer node during connected state
 // TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
+
+// TTLs are node ttl
+const (
+	DesignatedNodeTTL time.Duration = time.Minute * 60
+	DefaultNodeTTL    time.Duration = time.Minute * 10
+)
+
 type PeerMeta struct {
 	// IPAddress is human readable form of ip address such as "192.168.0.1" or "2001:0db8:0a0b:12f0:33:1"
 	IPAddress  string
@@ -40,4 +48,13 @@ func (m PeerMeta) ToPeerAddress() types.PeerAddress {
 	addr := types.PeerAddress{Address: []byte(net.ParseIP(m.IPAddress)), Port: m.Port,
 		PeerID: []byte(m.ID)}
 	return addr
+}
+
+// TTL return node's ttl
+func (m PeerMeta) TTL() time.Duration {
+	if m.Designated {
+		return DesignatedNodeTTL
+	} else {
+		return defaultTTL
+	}
 }
