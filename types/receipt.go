@@ -2,8 +2,10 @@ package types
 
 import (
 	"bytes"
-	"github.com/gogo/protobuf/jsonpb"
 	"encoding/json"
+	"strings"
+
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/mr-tron/base58/base58"
 )
 
@@ -37,7 +39,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(`{"contractAddress":"`)
 	b.WriteString(base58.Encode(r.ContractAddress))
 	b.WriteString(`","status":"`)
-	b.WriteString(r.Status)
+	b.WriteString(strings.Replace(r.Status, "\"", "'", -1))
 	b.WriteString(`"}`)
 	return b.Bytes(), nil
 }

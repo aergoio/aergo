@@ -79,7 +79,7 @@ func newContractExec(contract *Contract, bcCtx *LBlockchainCtx) *ContractExec {
 	}
 	if cErrMsg := C.vm_loadbuff((*C.char)(unsafe.Pointer(&contract.code[0])),
 		C.size_t(len(contract.code)),
-		C.CString(string(contract.address)), bcCtx,
+		C.CString(base58.Encode(contract.address)), bcCtx,
 		&ce.L,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
