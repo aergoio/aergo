@@ -22,8 +22,29 @@ const (
 )
 
 var (
+	// ErrNoChainDB reports chaindb is not prepared.
+	ErrNoChainDB = fmt.Errorf("chaindb not prepared")
+
 	latestKey = []byte(chainDBName + ".latest")
 )
+
+// ErrNoBlock reports there is no such a block with id (hash or block number).
+type ErrNoBlock struct {
+	id interface{}
+}
+
+func (e ErrNoBlock) Error() string {
+	var idStr string
+
+	switch id := e.id.(type) {
+	case []byte:
+		idStr = fmt.Sprintf("blockHash=%v", EncodeB64(id))
+	default:
+		idStr = fmt.Sprintf("blockNo=%v", id)
+	}
+
+	return fmt.Sprintf("block not found: %s", idStr)
+}
 
 type ChainDB struct {
 	consensus.ChainInfo
@@ -286,17 +307,20 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	buf := types.Block{}
 	err := cdb.loadData(blockHash, &buf)
 	if err != nil {
-		return nil, fmt.Errorf("block not found: blockHash=%v", EncodeB64(blockHash))
+		return nil, &ErrNoBlock{id: blockHash}
 	}
 
 	//logger.Debugf("getblockbyHash Hash=%v", EncodeB64(blockHash))
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
-	blockKey := ItobU64(uint64(blockNo))
+	blockKey := ItobU64(blockNo)
+	if cdb.store == nil {
+		return nil, ErrNoChainDB
+	}
 	blockHash := cdb.store.Get(blockKey)
-	if blockHash == nil || len(blockHash) == 0 {
-		return nil, fmt.Errorf("block not found: blockNo=%d", blockNo)
+	if len(blockHash) == 0 {
+		return nil, &ErrNoBlock{id: blockNo}
 	}
 	return blockHash, nil
 }
@@ -309,7 +333,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
-		return nil, nil, fmt.Errorf("block not found: blockHash=%v", EncodeB64(txIdx.BlockHash))
+		return nil, nil, &ErrNoBlock{txIdx.BlockHash}
 	}
 	txs := block.GetBody().GetTxs()
 	if txIdx.Idx >= int32(len(txs)) {

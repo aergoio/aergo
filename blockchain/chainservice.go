@@ -75,8 +75,6 @@ func (cs *ChainService) Start() {
 	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
-
-	return
 }
 
 func (cs *ChainService) initGenesis(seed int64) error {
