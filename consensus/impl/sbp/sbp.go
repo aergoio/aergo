@@ -5,7 +5,6 @@ import (
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/pkg/log"
@@ -63,7 +62,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (s *SimpleBlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(param.BlockInterval)
+	return time.NewTicker(consensus.BlockInterval)
 }
 
 // QueueJob send a block triggering information to jq.

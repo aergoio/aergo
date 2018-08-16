@@ -8,7 +8,6 @@ package bp
 import (
 	"fmt"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
@@ -34,13 +33,9 @@ type blockProducer struct {
 }
 
 // NewCluster returns a new bp.Cluster.
-func NewCluster(ids []string) (*Cluster, error) {
-	if len(ids) != param.BlockProducers {
-		return nil, errBpSize{required: param.BlockProducers, given: uint16(len(ids))}
-	}
-
+func NewCluster(ids []string, blockProducers uint16) (*Cluster, error) {
 	c := &Cluster{
-		size:   param.BlockProducers,
+		size:   blockProducers,
 		member: make(map[uint16]*blockProducer),
 		index:  make(map[peer.ID]uint16),
 	}
@@ -56,8 +51,8 @@ func NewCluster(ids []string) (*Cluster, error) {
 		c.index[bpID] = index
 	}
 
-	if len(c.index) != param.BlockProducers {
-		return nil, errBpSize{required: param.BlockProducers, given: uint16(len(ids))}
+	if len(c.index) != int(blockProducers) {
+		return nil, errBpSize{required: blockProducers, given: uint16(len(ids))}
 	}
 
 	return c, nil

@@ -13,7 +13,19 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const (
+	// DefaultBlockIntervalSec  is the default block generation interval in seconds.
+	DefaultBlockIntervalSec = int64(1) // block production interval in sec
+
+)
+
 var (
+	// BlockIntervalSec is the block genration interval in seconds.
+	BlockIntervalSec = DefaultBlockIntervalSec
+
+	// BlockInterval is the maximum block generation time limit.
+	BlockInterval time.Duration
+
 	logger = log.NewLogger("consensus")
 )
 

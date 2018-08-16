@@ -6,7 +6,7 @@
 package config
 
 import (
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/pkg/config"
 )
 
@@ -98,7 +98,7 @@ func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
 		EnableBp:      true,
-		BlockInterval: param.DefaultBlockIntervalSec,
+		BlockInterval: consensus.DefaultBlockIntervalSec,
 		BpIds:         []string{},
 	}
 }
