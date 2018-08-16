@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/p2p"
@@ -20,6 +19,11 @@ import (
 	"github.com/aergoio/aergo/pkg/log"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
+)
+
+const (
+	// blockProducers is the number of block producers
+	blockProducers = 23
 )
 
 var (
@@ -46,9 +50,9 @@ type bpInfo struct {
 
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
-	param.Init(cfg.Consensus.BlockInterval)
+	Init(cfg.Consensus.BlockInterval)
 
-	bpc, err := bp.NewCluster(cfg.Consensus.BpIds)
+	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +71,17 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	}, nil
 }
 
+// Init initilizes the DPoS parameters.
+func Init(blockIntervalSec int64) {
+	slot.Init(blockIntervalSec, blockProducers)
+
+	consensus.BlockIntervalSec = blockIntervalSec
+	consensus.BlockInterval = time.Duration(consensus.BlockIntervalSec) * time.Second
+}
+
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
-	return time.NewTicker(param.BlockInterval / 10)
+	return time.NewTicker(consensus.BlockInterval / 10)
 
 }
 
@@ -179,11 +191,14 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
 	blockSlot := slot.NewFromUnixNano(block.Header.Timestamp)
+	// The block corresponding to the current slot has already been generated.
 	if slot.LessEqual(s, blockSlot) {
 		return false
 	}
 
-	if !slot.IsNextTo(s, blockSlot) && s.RemainingTimeMS() > param.BpMinTimeLimitMs {
+	// Check whether the remaining time is enough until the next block
+	// generation time.
+	if !slot.IsNextTo(s, blockSlot) && !s.TimesUp() {
 		return false
 	}
 

@@ -5,16 +5,19 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	BlockProducers = 32
+)
+
 func TestNewClusterInvalid(t *testing.T) {
 	randIds := func() []string {
-		ids := make([]string, param.BlockProducers)
-		for i := 0; i < param.BlockProducers; i++ {
+		ids := make([]string, BlockProducers)
+		for i := 0; i < BlockProducers; i++ {
 			ids[i] = fmt.Sprintf("%v", rand.Int31())
 		}
 		return ids
@@ -29,7 +32,7 @@ func TestNewClusterInvalid(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		bpc, err := NewCluster(tc.ids)
+		bpc, err := NewCluster(tc.ids, BlockProducers)
 		fmt.Println(tc.name, "--> ", err.Error())
 		assert.NotNil(t, err)
 		assert.Nil(t, bpc)
@@ -46,15 +49,15 @@ func TestNewCluster(t *testing.T) {
 	}
 
 	genIds := func() []string {
-		ids := make([]string, param.BlockProducers)
-		for i := 0; i < param.BlockProducers; i++ {
+		ids := make([]string, BlockProducers)
+		for i := 0; i < BlockProducers; i++ {
 			ids[i] = genID()
 			fmt.Println(ids[i])
 		}
 		return ids
 	}
 
-	bpc, err := NewCluster(genIds())
+	bpc, err := NewCluster(genIds(), BlockProducers)
 	assert.Nil(t, err)
 	assert.NotNil(t, bpc, "Cluster alloc failed")
 }

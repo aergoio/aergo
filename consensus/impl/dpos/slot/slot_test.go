@@ -9,17 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSlotRotation(t *testing.T) {
 	const (
-		nSlots = param.BlockProducers / 4
+		nSlots     = 5
+		bpInterval = 1
 	)
 
-	ticker := time.NewTicker(param.BlockInterval)
-	slots := make(map[int64]interface{})
+	Init(bpInterval, nSlots)
+
+	ticker := time.NewTicker(time.Second)
+	slots := make(map[int64]interface{}, nSlots)
 	i := 0
 	for now := range ticker.C {
 		idx := Time(now).nextBpIndex()

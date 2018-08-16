@@ -3,16 +3,34 @@ package slot
 import (
 	"time"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/param"
+	"github.com/aergoio/aergo/consensus"
+)
+
+var (
+	// blockIntervalMs is the block genration interval in milli-seconds.
+	blockIntervalMs int64
+	// bpMinTimeLimitMs is the minimum block generation time limit in milli-sconds.
+	bpMinTimeLimitMs int64
+	// bpMaxTimeLimitMs is the maximum block generation time limit in milli-seconds.
+	bpMaxTimeLimitMs int64
+
+	blockProducers uint16
 )
 
 // Slot is a DPoS slot implmentation.
 type Slot struct {
-	timeNs      int64 // nanosecond
-	timeMs      int64 // millisecond
-	scaleFactor int64 // scale factor to millisecond
-	prevIndex   int64
-	nextIndex   int64
+	timeNs    int64 // nanosecond
+	timeMs    int64 // millisecond
+	prevIndex int64
+	nextIndex int64
+}
+
+// Init initilizes various slot parameters
+func Init(blockIntervalSec int64, bps uint16) {
+	blockIntervalMs = consensus.BlockIntervalSec * 1000
+	bpMinTimeLimitMs = blockIntervalMs / 4
+	bpMaxTimeLimitMs = blockIntervalMs / 2
+	blockProducers = bps
 }
 
 // Now returns a Slot corresponding to the current local time.
@@ -87,8 +105,8 @@ func (s *Slot) IsFor(bpIdx uint16) bool {
 func (s *Slot) GetBpTimeout() int64 {
 	rTime := s.RemainingTimeMS()
 
-	if rTime >= param.BpMaxTimeLimitMs {
-		return param.BpMaxTimeLimitMs
+	if rTime >= bpMaxTimeLimitMs {
+		return bpMaxTimeLimitMs
 	}
 
 	return rTime
@@ -97,7 +115,12 @@ func (s *Slot) GetBpTimeout() int64 {
 // RemainingTimeMS returns the remaining duration until the next block
 // generation time.
 func (s *Slot) RemainingTimeMS() int64 {
-	return s.nextIndex*param.BlockIntervalMs - nsToMs(time.Now().UnixNano())
+	return s.nextIndex*blockIntervalMs - nsToMs(time.Now().UnixNano())
+}
+
+// TimesUp reports whether the reminaing time <= BpMinTimeLimitMs
+func (s Slot) TimesUp() bool {
+	return s.RemainingTimeMS() <= bpMinTimeLimitMs
 }
 
 func (s *Slot) nextBpIndex() int64 {
@@ -105,7 +128,7 @@ func (s *Slot) nextBpIndex() int64 {
 }
 
 func absToBpIndex(idx int64) int64 {
-	return idx % param.BlockProducers
+	return idx % int64(blockProducers)
 }
 
 func msToPrevIndex(ms int64) int64 {
@@ -113,11 +136,11 @@ func msToPrevIndex(ms int64) int64 {
 }
 
 func msToNextIndex(ms int64) int64 {
-	return msToIndex(ms + param.BlockIntervalMs)
+	return msToIndex(ms + blockIntervalMs)
 }
 
 func msToIndex(ms int64) int64 {
-	return (ms - 1) / param.BlockIntervalMs
+	return (ms - 1) / blockIntervalMs
 }
 
 func nsToMs(ns int64) int64 {
