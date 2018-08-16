@@ -7,12 +7,12 @@ import (
 )
 
 var (
-	// BlockIntervalMs is the block genration interval in milli-seconds.
-	BlockIntervalMs int64
-	// BpMinTimeLimitMs is the minimum block generation time limit in milli-sconds.
-	BpMinTimeLimitMs int64
-	// BpMaxTimeLimitMs is the maximum block generation time limit in milli-seconds.
-	BpMaxTimeLimitMs int64
+	// blockIntervalMs is the block genration interval in milli-seconds.
+	blockIntervalMs int64
+	// bpMinTimeLimitMs is the minimum block generation time limit in milli-sconds.
+	bpMinTimeLimitMs int64
+	// bpMaxTimeLimitMs is the maximum block generation time limit in milli-seconds.
+	bpMaxTimeLimitMs int64
 
 	blockProducers uint16
 )
@@ -27,9 +27,9 @@ type Slot struct {
 
 // Init initilizes various slot parameters
 func Init(blockIntervalSec int64, bps uint16) {
-	BlockIntervalMs = consensus.BlockIntervalSec * 1000
-	BpMinTimeLimitMs = BlockIntervalMs / 4
-	BpMaxTimeLimitMs = BlockIntervalMs / 2
+	blockIntervalMs = consensus.BlockIntervalSec * 1000
+	bpMinTimeLimitMs = blockIntervalMs / 4
+	bpMaxTimeLimitMs = blockIntervalMs / 2
 	blockProducers = bps
 }
 
@@ -105,8 +105,8 @@ func (s *Slot) IsFor(bpIdx uint16) bool {
 func (s *Slot) GetBpTimeout() int64 {
 	rTime := s.RemainingTimeMS()
 
-	if rTime >= BpMaxTimeLimitMs {
-		return BpMaxTimeLimitMs
+	if rTime >= bpMaxTimeLimitMs {
+		return bpMaxTimeLimitMs
 	}
 
 	return rTime
@@ -115,12 +115,12 @@ func (s *Slot) GetBpTimeout() int64 {
 // RemainingTimeMS returns the remaining duration until the next block
 // generation time.
 func (s *Slot) RemainingTimeMS() int64 {
-	return s.nextIndex*BlockIntervalMs - nsToMs(time.Now().UnixNano())
+	return s.nextIndex*blockIntervalMs - nsToMs(time.Now().UnixNano())
 }
 
 // TimesUp reports whether the reminaing time <= BpMinTimeLimitMs
 func (s Slot) TimesUp() bool {
-	return s.RemainingTimeMS() <= BpMinTimeLimitMs
+	return s.RemainingTimeMS() <= bpMinTimeLimitMs
 }
 
 func (s *Slot) nextBpIndex() int64 {
@@ -136,11 +136,11 @@ func msToPrevIndex(ms int64) int64 {
 }
 
 func msToNextIndex(ms int64) int64 {
-	return msToIndex(ms + BlockIntervalMs)
+	return msToIndex(ms + blockIntervalMs)
 }
 
 func msToIndex(ms int64) int64 {
-	return (ms - 1) / BlockIntervalMs
+	return (ms - 1) / blockIntervalMs
 }
 
 func nsToMs(ns int64) int64 {

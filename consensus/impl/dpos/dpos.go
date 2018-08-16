@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	// BlockProducers is the number of block producers
-	BlockProducers = 23
+	// blockProducers is the number of block producers
+	blockProducers = 23
 )
 
 var (
@@ -52,7 +52,7 @@ type bpInfo struct {
 func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
 	Init(cfg.Consensus.BlockInterval)
 
-	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, BlockProducers)
+	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 
 // Init initilizes the DPoS parameters.
 func Init(blockIntervalSec int64) {
-	slot.Init(blockIntervalSec, BlockProducers)
+	slot.Init(blockIntervalSec, blockProducers)
 
 	consensus.BlockIntervalSec = blockIntervalSec
 	consensus.BlockInterval = time.Duration(consensus.BlockIntervalSec) * time.Second
