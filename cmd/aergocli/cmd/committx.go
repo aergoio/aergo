@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
-	"time"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -36,10 +35,7 @@ var jsonTx string
 var jsonPath string
 
 func init() {
-	nonce = uint64(1000000000 * time.Now().Unix())
-
 	rootCmd.AddCommand(committxCmd)
-
 	committxCmd.Flags().StringVar(&jsonTx, "jsontx", "", "Transaction list json")
 	committxCmd.Flags().StringVar(&jsonPath, "jsontxpath", "", "Transaction list json file path")
 }
@@ -70,7 +66,6 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 			return
 		}
 		msg, err = client.CommitTX(context.Background(), &types.TxList{Txs: txlist})
-		//fmt.Printf("commit tx: %s\n", msg)
 		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
 			return
