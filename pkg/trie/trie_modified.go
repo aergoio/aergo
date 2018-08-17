@@ -15,13 +15,13 @@ import (
 
 // TODO make a secure trie that hashes keys with a random seed to be sure the trie is sparse.
 
-// modSMT is a modified sparse Merkle tree.
+// Trie is a modified sparse Merkle tree.
 // Instead of storing values at the leaves of the tree,
 // the values are stored at the subtree root that contains only that value.
 // If the tree is sparse, this requires fewer hashing operations.
 // SMT optimises storage by creating shortcutnodes so subtree nodes wouldn't have to be stored
-// modSMT also optimises execution by not requiering subtrees to be hashed.
-type modSMT struct {
+// Trie also optimises execution by not requiering subtrees to be hashed.
+type Trie struct {
 	db *CacheDB
 	// Root is the current root of the smt.
 	Root []byte
@@ -47,8 +47,8 @@ type modSMT struct {
 }
 
 // NewSMT creates a new SMT given a keySize and a hash function.
-func NewModSMT(keySize uint64, hash func(data ...[]byte) []byte, store db.DB) *modSMT {
-	s := &modSMT{
+func NewTrie(keySize uint64, hash func(data ...[]byte) []byte, store db.DB) *Trie {
+	s := &Trie{
 		hash:             hash,
 		TrieHeight:       keySize * 8,
 		CacheHeightLimit: 233, // 246, //234, // based on the number of nodes we can keep in memory.
@@ -64,7 +64,7 @@ func NewModSMT(keySize uint64, hash func(data ...[]byte) []byte, store db.DB) *m
 }
 
 // loadDefaultHashes creates the default hashes and stores them in cache
-func (s *modSMT) loadDefaultHashes() []byte {
+func (s *Trie) loadDefaultHashes() []byte {
 	s.defaultHashes = make([][]byte, s.TrieHeight+1)
 	s.defaultHashes[0] = DefaultLeaf
 	var h []byte
@@ -80,7 +80,7 @@ func (s *modSMT) loadDefaultHashes() []byte {
 }
 
 // Update adds a sorted list of keys and their values to the trie
-func (s *modSMT) Update(keys, values DataArray) ([]byte, error) {
+func (s *Trie) Update(keys, values DataArray) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
@@ -103,7 +103,7 @@ type mresult struct {
 
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
+func (s *Trie) update(root []byte, keys, values DataArray, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
 	if height == 0 {
 		// Delete the key-value from the trie if it is being set to DefaultLeaf
 		if bytes.Equal(DefaultLeaf, values[0]) {
@@ -314,7 +314,7 @@ func (s *modSMT) update(root []byte, keys, values DataArray, height uint64, ch c
 	}
 }
 
-func (s *modSMT) deleteCacheNode(root []byte) {
+func (s *Trie) deleteCacheNode(root []byte) {
 	var node Hash
 	copy(node[:], root)
 	s.db.liveMux.Lock()
@@ -323,7 +323,7 @@ func (s *modSMT) deleteCacheNode(root []byte) {
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
-func (s *modSMT) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
+func (s *Trie) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
 	for i, key := range keys {
 		if bitIsSet(key, height) {
 			return keys[:i], keys[i:]
@@ -332,7 +332,7 @@ func (s *modSMT) splitKeys(keys DataArray, height uint64) (DataArray, DataArray)
 	return keys, nil
 }
 
-func (s *modSMT) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
+func (s *Trie) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
 	up := false
 	for _, k := range keys {
 		if bytes.Equal(k, shortcutKey) {
@@ -348,7 +348,7 @@ func (s *modSMT) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey
 
 // addShortcutToDataArray adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *modSMT) addShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
+func (s *Trie) addShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
 	newKeys := make(DataArray, 0, len(keys)+1)
 	newVals := make(DataArray, 0, len(keys)+1)
 
@@ -388,7 +388,7 @@ func (s *modSMT) addShortcutToDataArray(keys, values DataArray, shortcutKey, sho
 
 // loadChildren looks for the children of a node.
 // if the node is not stored in cache, it will be loaded from db.
-func (s *modSMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
+func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	var node Hash
 	copy(node[:], root)
 
@@ -438,12 +438,12 @@ func (s *modSMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 }
 
 // Get fetches the value of a key by going down the current trie root.
-func (s *modSMT) Get(key []byte) ([]byte, error) {
+func (s *Trie) Get(key []byte) ([]byte, error) {
 	return s.get(s.Root, key, s.TrieHeight)
 }
 
 // get fetches the value of a key given a trie root
-func (s *modSMT) get(root []byte, key []byte, height uint64) ([]byte, error) {
+func (s *Trie) get(root []byte, key []byte, height uint64) ([]byte, error) {
 	if bytes.Equal(root, s.defaultHashes[height]) {
 		// the trie does not contain the key
 		return nil, nil
@@ -476,13 +476,13 @@ func (s *modSMT) get(root []byte, key []byte, height uint64) ([]byte, error) {
 }
 
 // DefaultHash is a getter for the defaultHashes array
-func (s *modSMT) DefaultHash(height uint64) []byte {
+func (s *Trie) DefaultHash(height uint64) []byte {
 	return s.defaultHashes[height]
 }
 
 // leafHash returns the hash of key-value concatenated stores it in the updatedNodes and maybe in liveCache.
 // keys of go mappings cannot be byte slices so the hash is copied to a byte array
-func (s *modSMT) leafHash(key, value []byte, height uint64, oldRoot []byte) []byte {
+func (s *Trie) leafHash(key, value []byte, height uint64, oldRoot []byte) []byte {
 	h := s.hash(key, value, []byte{1})
 	var node Hash
 	copy(node[:], h)
@@ -510,7 +510,7 @@ func (s *modSMT) leafHash(key, value []byte, height uint64, oldRoot []byte) []by
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
 // the key is the hash and the value is the appended child nodes.
 // keys of go mappings cannot be byte slices so the hash is copied to a byte array
-func (s *modSMT) interiorHash(left, right []byte, height uint64, oldRoot []byte) []byte {
+func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) []byte {
 	h := s.hash(left, right)
 	var node Hash
 	copy(node[:], h)
@@ -539,7 +539,7 @@ func (s *modSMT) interiorHash(left, right []byte, height uint64, oldRoot []byte)
 }
 
 // Commit stores the updated nodes to disk
-func (s *modSMT) Commit() {
+func (s *Trie) Commit() {
 	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])

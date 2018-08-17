@@ -14,13 +14,13 @@ import (
 // a leaf node is on the path of the non included key.
 // The modified SMT cannot provide a proof that a key is Default (not set in the tree)
 // returns the audit path, true (key included), key, value on the path if false (non inclusion), error
-func (s *modSMT) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
+func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
 	return s.merkleProof(s.Root, s.TrieHeight, key)
 }
 
 // MerkleProofCompressed returns a compressed merkle proof like MerkleProofCompressed
 // This version 1st calls MerkleProof and then removes the default nodes.
-func (s *modSMT) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool, []byte, []byte, error) {
+func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool, []byte, []byte, error) {
 	// create a regular merkle proof and then compress it
 	mpFull, included, proofKey, proofVal, err := s.merkleProof(s.Root, s.TrieHeight, key)
 	if err != nil {
@@ -44,7 +44,7 @@ func (s *modSMT) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bo
 // a leaf node is on the path of the non included key.
 // The modified SMT cannot provide a proof that a key is Default (not set in the tree)
 // returns the audit path, true (key included), key, value on the path if false (non inclusion), error
-func (s *modSMT) merkleProof(root []byte, height uint64, key []byte) ([][]byte, bool, []byte, []byte, error) {
+func (s *Trie) merkleProof(root []byte, height uint64, key []byte) ([][]byte, bool, []byte, []byte, error) {
 	if height == 0 {
 		if bytes.Equal(root, DefaultLeaf) {
 			// if we reach DefaultLeaf without running into a leaf, then the key is not included
@@ -83,15 +83,15 @@ func (s *modSMT) merkleProof(root []byte, height uint64, key []byte) ([][]byte, 
 }
 
 // VerifyMerkleProof verifies that key/value is included in the trie with latest root
-func (s *modSMT) VerifyMerkleProof(ap [][]byte, key, value []byte) bool {
+func (s *Trie) VerifyMerkleProof(ap [][]byte, key, value []byte) bool {
 	leafHash := s.hash(key, value, []byte{1})
 	return bytes.Equal(s.Root, s.verifyMerkleProof(ap, s.TrieHeight, key, leafHash))
 }
 
 // VerifyMerkleProofEmpty checks that the proofKey is included in the trie
 // and that key and proofKey have the same bits up to len(ap)
-// In modSMT, a merkle proof consists of an audit path + an optional proof node
-func (s *modSMT) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue []byte) bool {
+// InTrie , a merkle proof consists of an audit path + an optional proof node
+func (s *Trie) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue []byte) bool {
 	if uint64(len(ap)) == s.TrieHeight {
 		//if bytes.Equal(ap[0], DefaultLeaf) {
 		// if the proof goes down to the DefaultLeaf, then there is no shortcut on the way
@@ -113,13 +113,13 @@ func (s *modSMT) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue [
 }
 
 // VerifyMerkleProofCompressed verifies that key/value is included in the trie with latest root
-func (s *modSMT) VerifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, key, value []byte) bool {
+func (s *Trie) VerifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, key, value []byte) bool {
 	leafHash := s.hash(key, value, []byte{1})
 	return bytes.Equal(s.Root, s.verifyMerkleProofCompressed(bitmap, ap, length, s.TrieHeight, uint64(len(ap)), key, leafHash))
 }
 
 // verifyMerkleProof verifies that a key/value is included in the trie with given root
-func (s *modSMT) verifyMerkleProof(ap [][]byte, height uint64, key, leafHash []byte) []byte {
+func (s *Trie) verifyMerkleProof(ap [][]byte, height uint64, key, leafHash []byte) []byte {
 	if height == s.TrieHeight-uint64(len(ap)) {
 		return leafHash
 	}
@@ -130,7 +130,7 @@ func (s *modSMT) verifyMerkleProof(ap [][]byte, height uint64, key, leafHash []b
 }
 
 // verifyMerkleProof verifies that a key/value is included in the trie with given root
-func (s *modSMT) verifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, height uint64, apIndex uint64, key, leafHash []byte) []byte {
+func (s *Trie) verifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, height uint64, apIndex uint64, key, leafHash []byte) []byte {
 	if height == s.TrieHeight-length {
 		return leafHash
 	}
@@ -151,8 +151,8 @@ func (s *modSMT) verifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length 
 // if the proof didnt run into a shortcut, it verifies as usual, otherwise
 // it checks that the proofKey is included in the trie
 // and that key and proofKey have the same bits up to the proofKey shortcut (length)
-// In modSMT, a merkle proof consists of an audit path + an optional proof node
-func (s *modSMT) VerifyMerkleProofCompressedEmpty(bitmap []byte, ap [][]byte, length uint64, key, proofKey, proofValue []byte) bool {
+// InTrie , a merkle proof consists of an audit path + an optional proof node
+func (s *Trie) VerifyMerkleProofCompressedEmpty(bitmap []byte, ap [][]byte, length uint64, key, proofKey, proofValue []byte) bool {
 	if length == s.TrieHeight {
 		// if the proof goes down to the DefaultLeaf, then there is no shortcut on the way
 		return bytes.Equal(s.Root, s.verifyMerkleProofCompressed(bitmap, ap, length, s.TrieHeight, uint64(len(ap)), key, DefaultLeaf))

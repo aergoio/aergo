@@ -23,14 +23,14 @@ import (
 	//"github.com/dgraph-io/badger/options"
 )
 
-func TestEmptyTrie(t *testing.T) {
+func TestSmtEmptyTrie(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	if !bytes.Equal(smt.DefaultHash(256), smt.Root) {
 		t.Fatal("empty trie root hash not correct")
 	}
 }
 
-func TestUpdateAndGet(t *testing.T) {
+func TestSmtUpdateAndGet(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 
 	// Add data to empty trie
@@ -68,7 +68,7 @@ func TestUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestPublicUpdateAndGet(t *testing.T) {
+func TestSmtPublicUpdateAndGet(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -97,7 +97,7 @@ func TestPublicUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestDifferentKeySize(t *testing.T) {
+func TestSmtDifferentKeySize(t *testing.T) {
 	keySize := 20
 	smt := NewSMT(uint64(keySize), hash, nil)
 	// Add data to empty trie
@@ -136,7 +136,7 @@ func TestDifferentKeySize(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestSmtDelete(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -173,7 +173,7 @@ func TestDelete(t *testing.T) {
 
 }
 
-func TestMerkleProof(t *testing.T) {
+func TestSmtMerkleProof(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -193,7 +193,7 @@ func TestMerkleProof(t *testing.T) {
 	}
 }
 
-func TestMerkleProofCompressed(t *testing.T) {
+func TestSmtMerkleProofCompressed(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -225,7 +225,7 @@ func TestMerkleProofCompressed(t *testing.T) {
 	}
 }
 
-func TestMerkleProofCompressed2(t *testing.T) {
+func TestSmtMerkleProofCompressed2(t *testing.T) {
 	smt := NewSMT(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -240,7 +240,7 @@ func TestMerkleProofCompressed2(t *testing.T) {
 	}
 }
 
-func TestCommit(t *testing.T) {
+func TestSmtCommit(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -262,7 +262,7 @@ func TestCommit(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-func TestRevert(t *testing.T) {
+func TestSmtRevert(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -309,7 +309,7 @@ func TestRevert(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-func TestRaisesError(t *testing.T) {
+func TestSmtRaisesError(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -345,7 +345,7 @@ func TestRaisesError(t *testing.T) {
 }
 
 /*
-func TestLiveCache(t *testing.T) {
+func TestSmtLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)

@@ -22,15 +22,15 @@ import (
 	//"github.com/dgraph-io/badger/options"
 )
 
-func TestEmptyModTrie(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTrieEmpty(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	if !bytes.Equal(smt.DefaultHash(256), smt.Root) {
 		t.Fatal("empty trie root hash not correct")
 	}
 }
 
-func TestModUpdateAndGet(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTrieUpdateAndGet(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -67,8 +67,8 @@ func TestModUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestModPublicUpdateAndGet(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTriePublicUpdateAndGet(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -96,9 +96,9 @@ func TestModPublicUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestDifferentKeySizeMod(t *testing.T) {
+func TestTrieDifferentKeySize(t *testing.T) {
 	keySize := 20
-	smt := NewModSMT(uint64(keySize), hash, nil)
+	smt := NewTrie(uint64(keySize), hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, keySize)
 	values := getFreshData(10, 32)
@@ -135,8 +135,8 @@ func TestDifferentKeySizeMod(t *testing.T) {
 	}
 }
 
-func TestDeleteMod(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTrieDelete(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -154,7 +154,7 @@ func TestDeleteMod(t *testing.T) {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	smt2 := NewModSMT(32, hash, nil)
+	smt2 := NewTrie(32, hash, nil)
 	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
 	//FIXME : if one of 2 sibling nodes is deleted then the sibling
 	//			should move up other wise the roots mismatch
@@ -173,8 +173,8 @@ func TestDeleteMod(t *testing.T) {
 	}
 }
 
-func TestMerkleProofMod(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTrieMerkleProof(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -196,8 +196,8 @@ func TestMerkleProofMod(t *testing.T) {
 	}
 }
 
-func TestMerkleProofCompressedMod(t *testing.T) {
-	smt := NewModSMT(32, hash, nil)
+func TestTrieMerkleProofCompressed(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -219,14 +219,14 @@ func TestMerkleProofCompressedMod(t *testing.T) {
 	}
 }
 
-func TestCommitMod(t *testing.T) {
+func TestTrieCommit(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewModSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -241,15 +241,14 @@ func TestCommitMod(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-/*
-func TestRevert(t *testing.T) {
+func TestTrieRevert(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	smt.Commit()
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -289,15 +288,14 @@ func TestRevert(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-*/
-func TestRaisesErrorMod(t *testing.T) {
+func TestTrieRaisesError(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewModSMT(20, hash, st)
+	smt := NewTrie(20, hash, st)
 	// Add data to empty trie
 	keys := getFreshData(10, 20)
 	values := getFreshData(10, 20)
@@ -326,7 +324,7 @@ func TestRaisesErrorMod(t *testing.T) {
 }
 
 /*
-func TestLiveCache(t *testing.T) {
+func TestTrieLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -334,7 +332,7 @@ func TestLiveCache(t *testing.T) {
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
 	//st, _ := db.NewBadgerDB(dbPath)
-	smt := NewModSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	keys := getFreshData(1000, 32)
 	values := getFreshData(1000, 32)
 	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)

@@ -12,7 +12,7 @@ import (
 
 // Revert rewinds the state tree to a previous version
 // All the nodes (subtree roots and values) reverted are deleted from the database.
-func (s *modSMT) Revert(toOldRoot []byte) error {
+func (s *Trie) Revert(toOldRoot []byte) error {
 	if bytes.Equal(s.Root, toOldRoot) {
 		return fmt.Errorf("Trying to revers to the same root %x", s.Root)
 	}
@@ -54,7 +54,7 @@ func (s *modSMT) Revert(toOldRoot []byte) error {
 }
 
 // maybeDeleteSubTree compares the subtree nodes of 2 tries and keeps only the older one
-func (s *modSMT) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte) error {
+func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte) error {
 	if height == 0 {
 		if !bytes.Equal(original, maybeDelete) {
 			*toBeDeleted = append(*toBeDeleted, maybeDelete)
@@ -105,7 +105,7 @@ func (s *modSMT) maybeDeleteSubTree(original []byte, maybeDelete []byte, height 
 }
 
 // deleteSubTree deletes all the nodes contained in a tree
-func (s *modSMT) deleteSubTree(root []byte, height uint64, toBeDeleted *[][]byte) error {
+func (s *Trie) deleteSubTree(root []byte, height uint64, toBeDeleted *[][]byte) error {
 	if height == 0 {
 		return nil
 	}
