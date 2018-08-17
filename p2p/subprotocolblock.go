@@ -322,6 +322,9 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 func (p *BlockProtocol) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	// create message data
 	for _, neighbor := range p.ps.GetPeers() {
+		if neighbor == nil {
+			continue
+		}
 		req := &types.NewBlockNotice{MessageData: &types.MessageData{},
 			BlockHash: newBlock.Block.Hash,
 			BlockNo:   newBlock.BlockNo}
