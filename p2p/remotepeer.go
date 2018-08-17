@@ -297,6 +297,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.ps.RemovePeer(p.meta.ID)
 		return
 	}
+	defer s.Close()
 
 	err = m.SendOver(s)
 	if err != nil {
@@ -313,8 +314,6 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *RemotePeer) sendPing() {
-	p.log.Debug().Str("peer_id", p.meta.ID.Pretty()).Msg("Sending ping")
-
 	// find my best block
 	bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	if err != nil {
