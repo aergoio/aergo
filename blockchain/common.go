@@ -7,9 +7,6 @@ package blockchain
 
 import (
 	"encoding/base64"
-	"encoding/json"
-
-	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -17,10 +14,10 @@ const (
 	DefaultMaxBlockSize = 1 << 20
 )
 
-func ToJSON(pb proto.Message) string {
-	buf, _ := json.Marshal(pb)
-	return string(buf)
-}
+// func ToJSON(pb proto.Message) string {
+// 	buf, _ := json.Marshal(pb)
+// 	return string(buf)
+// }
 
 // func ItobU64(argv uint64) []byte {
 // 	bs := make([]byte, 8)
