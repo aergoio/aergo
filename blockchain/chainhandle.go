@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -204,12 +204,12 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	}
 	if txBody.Payload != nil {
 		if createContract {
-			err = CreateContract(txBody.Payload, recipient, tx.Hash)
+			err = contract.Create(txBody.Payload, recipient, tx.Hash)
 		} else {
-			bcCtx := NewBlockchainCtx(txBody.GetAccount(), blockHash, tx.GetHash(),
+			bcCtx := contract.NewContext(txBody.GetAccount(), blockHash, tx.GetHash(),
 				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
 
-			err = ApplyCode(txBody.Payload, recipient, tx.Hash, bcCtx)
+			err = contract.Call(txBody.Payload, recipient, tx.Hash, bcCtx)
 		}
 		if err != nil {
 			return err

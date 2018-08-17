@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package blockchain
+package contract
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
@@ -11,7 +11,7 @@ package blockchain
 
 #include <stdlib.h>
 #include <string.h>
-#include "lua_exec.h"
+#include "vm.h"
 */
 import "C"
 import (
@@ -26,11 +26,11 @@ import (
 	"github.com/mr-tron/base58/base58"
 )
 
-const contractDbName = "contracts.db"
+const DbName = "contracts.db"
 
 var (
-	ctrLog     *log.Logger
-	contractDB db.DB
+	ctrLog *log.Logger
+	DB     db.DB
 )
 
 type Contract struct {
@@ -38,33 +38,36 @@ type Contract struct {
 	address []byte
 }
 
-type ContractExec struct {
-	L        *C.lua_State
-	contract *Contract
-	err      error
+type LState = C.struct_lua_State
+type LBlockchainCtx = C.struct_blockchain_ctx
+
+type Executor struct {
+	L             *LState
+	contract      *Contract
+	err           error
+	blockchainCtx *LBlockchainCtx
 }
 
 func init() {
 	ctrLog = log.NewLogger(log.Contract)
 }
 
-type LuaExecutor struct {
-	instanceID []byte
-	luaState   *LState
-	definition []byte
-	exContext  *LExContext
-}
-
-func NewBlockchainCtx(Sender []byte, blockHash []byte, txHash []byte, blockHeight uint64,
+func NewContext(Sender, blockHash, txHash []byte, blockHeight uint64,
 	timestamp int64, node string, confirmed bool, contractID []byte) *LBlockchainCtx {
-	context := LBlockchainCtx{
+
+	var iConfirmed int
+	if confirmed {
+		iConfirmed = 1
+	}
+
+	return &LBlockchainCtx{
 		sender:      C.CString(base58.Encode(Sender)),
 		blockHash:   C.CString(hex.EncodeToString(blockHash)),
 		txHash:      C.CString(hex.EncodeToString(txHash)),
 		blockHeight: C.ulonglong(blockHeight),
 		timestamp:   C.longlong(timestamp),
 		node:        C.CString(node),
-		confirmed:   C.int(iconfirmed),
+		confirmed:   C.int(iConfirmed),
 		contractId:  C.CString(base58.Encode(contractID)),
 	}
 }
@@ -73,8 +76,8 @@ func init() {
 	ctrLog = log.NewLogger(log.Contract)
 }
 
-func newContractExec(contract *Contract, bcCtx *LBlockchainCtx) *ContractExec {
-	ce := &ContractExec{
+func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
+	ce := &Executor{
 		contract: contract,
 	}
 	if cErrMsg := C.vm_loadbuff((*C.char)(unsafe.Pointer(&contract.code[0])),
@@ -90,7 +93,7 @@ func newContractExec(contract *Contract, bcCtx *LBlockchainCtx) *ContractExec {
 	return ce
 }
 
-func (ce *ContractExec) call(abi *types.ABI) {
+func (ce *Executor) call(abi *types.ABI) {
 	if ce.err != nil {
 		return
 	}
@@ -120,13 +123,13 @@ func (ce *ContractExec) call(abi *types.ABI) {
 	}
 }
 
-func (ce *ContractExec) close() {
+func (ce *Executor) close() {
 	if ce != nil && ce.L != nil {
 		C.lua_close(ce.L)
 	}
 }
 
-func ApplyCode(code, contractAddress, txHash []byte) error {
+func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 	var err error
 	contract := getContract(contractAddress)
 	if contract == nil {
@@ -138,11 +141,11 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 	if err != nil {
 		ctrLog.WithCtx("error", err).Warn("contract %s", base58.Encode(contractAddress))
 	}
-	var ce *ContractExec
+	var ce *Executor
 	defer ce.close()
 	if err == nil {
 		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
-		ce = newContractExec(contract, bcCtx)
+		ce = newExecutor(contract, bcCtx)
 		ce.call(&abi)
 		err = ce.err
 	}
@@ -150,20 +153,20 @@ func ApplyCode(code, contractAddress, txHash []byte) error {
 	if err != nil {
 		receipt.Status = err.Error()
 	}
-	contractDB.Set(txHash, receipt.Bytes())
+	DB.Set(txHash, receipt.Bytes())
 	return err
 }
 
-func CreateContract(code, contractAddress, txHash []byte) error {
+func Create(code, contractAddress, txHash []byte) error {
 	ctrLog.WithCtx("contractAddress", base58.Encode(contractAddress)).Debug("new contract is deployed")
-	contractDB.Set(contractAddress, code)
+	DB.Set(contractAddress, code)
 	receipt := types.NewReceipt(contractAddress, "CREATED")
-	contractDB.Set(txHash, receipt.Bytes())
+	DB.Set(txHash, receipt.Bytes())
 	return nil
 }
 
 func getContract(contractAddress []byte) *Contract {
-	val := contractDB.Get(contractAddress)
+	val := DB.Get(contractAddress)
 	if len(val) > 0 {
 		return &Contract{
 			code:    val,
@@ -174,7 +177,7 @@ func getContract(contractAddress []byte) *Contract {
 }
 
 func GetReceipt(txHash []byte) *types.Receipt {
-	val := contractDB.Get(txHash)
+	val := DB.Get(txHash)
 	if len(val) == 0 {
 		return nil
 	}
