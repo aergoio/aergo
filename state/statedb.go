@@ -33,6 +33,7 @@ type BlockInfo struct {
 	BlockHash types.BlockKey
 	PrevHash  types.BlockKey
 }
+
 type StateEntry struct {
 	State *types.State
 	Undo  *types.State
@@ -209,8 +210,9 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	for sdb.latest.BlockNo > blockNo {
-		bs, err := sdb.loadBlockState(sdb.latest.BlockHash)
+	target := sdb.latest
+	for target.BlockNo > blockNo {
+		bs, err := sdb.loadBlockState(target.BlockHash)
 		if err != nil {
 			return err
 		}
@@ -226,6 +228,10 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 		sdb.latest = &bs.BlockInfo
+		target = &BlockInfo{
+			BlockNo:   sdb.latest.BlockNo - 1,
+			BlockHash: sdb.latest.PrevHash,
+		}
 	}
 	err := sdb.saveStateDB()
 	return err
