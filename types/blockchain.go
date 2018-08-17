@@ -254,6 +254,8 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Recipient)
 	binary.Write(digest, binary.LittleEndian, txBody.Amount)
 	digest.Write(txBody.Payload)
+	binary.Write(digest, binary.LittleEndian, txBody.Limit)
+	binary.Write(digest, binary.LittleEndian, txBody.Price)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
@@ -271,6 +273,8 @@ func (tx *Tx) Clone() *Tx {
 		Recipient: Clone(tx.Body.Recipient).([]byte),
 		Amount:    tx.Body.Amount,
 		Payload:   Clone(tx.Body.Payload).([]byte),
+		Limit:     tx.Body.Limit,
+		Price:     tx.Body.Price,
 		Sign:      Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
