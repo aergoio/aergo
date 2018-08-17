@@ -142,10 +142,16 @@ func (sdb *ChainStateDB) Close() error {
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
-	sdb.latest = &BlockInfo{
+	gbInfo := &BlockInfo{
 		BlockNo:   0,
 		BlockHash: types.ToBlockID(genesisBlock.Hash),
 	}
+	sdb.latest = gbInfo
+
+	// save state of genesis block
+	bstate := NewBlockState(gbInfo.BlockNo, gbInfo.BlockHash, types.BlockKey{})
+	sdb.saveBlockState(bstate)
+
 	// TODO: process initial coin tx
 	err := sdb.saveStateDB()
 	return err
