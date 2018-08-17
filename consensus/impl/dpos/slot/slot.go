@@ -2,8 +2,6 @@ package slot
 
 import (
 	"time"
-
-	"github.com/aergoio/aergo/consensus"
 )
 
 var (
@@ -27,7 +25,7 @@ type Slot struct {
 
 // Init initilizes various slot parameters
 func Init(blockIntervalSec int64, bps uint16) {
-	blockIntervalMs = consensus.BlockIntervalSec * 1000
+	blockIntervalMs = blockIntervalSec * 1000
 	bpMinTimeLimitMs = blockIntervalMs / 4
 	bpMaxTimeLimitMs = blockIntervalMs / 2
 	blockProducers = bps

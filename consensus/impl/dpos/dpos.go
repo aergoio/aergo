@@ -73,8 +73,8 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 
 // Init initilizes the DPoS parameters.
 func Init(cfg *config.ConsensusConfig) {
-	slot.Init(cfg.BlockInterval, blockProducers)
 	consensus.InitBlockInterval(cfg.BlockInterval)
+	slot.Init(cfg.BlockInterval, blockProducers)
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.
