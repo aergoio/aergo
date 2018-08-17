@@ -186,7 +186,8 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
 	}
 	if sdb.latest.BlockHash != bstate.PrevHash {
-		return fmt.Errorf("Failed to apply: invalid previous block")
+		return fmt.Errorf("Failed to apply: invalid previous block latest=%v, bstate=%v",
+			sdb.latest.BlockHash, bstate.PrevHash)
 	}
 	sdb.Lock()
 	defer sdb.Unlock()
@@ -216,10 +217,15 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 	defer sdb.Unlock()
 
 	target := sdb.latest
-	for target.BlockNo > blockNo {
+	for target.BlockNo >= blockNo {
 		bs, err := sdb.loadBlockState(target.BlockHash)
 		if err != nil {
 			return err
+		}
+		sdb.latest = &bs.BlockInfo
+
+		if target.BlockNo == blockNo {
+			break
 		}
 		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
 		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
@@ -232,7 +238,7 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			sdb.trie.Update(keys, vals)
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
-		sdb.latest = &bs.BlockInfo
+
 		target = &BlockInfo{
 			BlockNo:   sdb.latest.BlockNo - 1,
 			BlockHash: sdb.latest.PrevHash,
