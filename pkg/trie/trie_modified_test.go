@@ -9,14 +9,14 @@ import (
 	"bytes"
 	//"runtime"
 	//"io/ioutil"
-	//"os"
-	//"path"
+	"os"
+	"path"
 	//"time"
 	//"encoding/hex"
 	//"fmt"
 	//"math/rand"
 	//"sort"
-	//"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo/pkg/db"
 	"testing"
 	//"github.com/dgraph-io/badger"
 	//"github.com/dgraph-io/badger/options"
@@ -217,6 +217,112 @@ func TestMerkleProofCompressedMod(t *testing.T) {
 	if !smt.VerifyMerkleProofCompressedEmpty(bitmap, ap, length, emptyKey, proofKey, proofValue) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
+}
+
+func TestCommitMod(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewModSMT(32, hash, st)
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+	smt.Commit()
+	// liveCache is deleted so the key is fetched in badger db
+	smt.db.liveCache = make(map[Hash][]byte)
+	value, _ := smt.Get(keys[0])
+	if !bytes.Equal(values[0], value) {
+		t.Fatal("failed to get value in commited db")
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
+/*
+func TestRevert(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewSMT(32, hash, st)
+	smt.Commit()
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	root, _ := smt.Update(keys, values)
+	smt.Commit()
+
+	newValues := getFreshData(10, 32)
+	smt.Update(keys, newValues)
+	smt.Commit()
+	newValues = getFreshData(10, 32)
+	newRoot, _ := smt.Update(keys, newValues)
+	smt.Commit()
+
+	smt.Revert(root)
+
+	if !bytes.Equal(smt.Root, root) {
+		t.Fatal("revert failed")
+	}
+	if len(smt.pastTries) != 2 { // contains empty trie + reverted trie
+		t.Fatal("past tries not updated after revert")
+	}
+	// Check all keys have been reverted
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("revert failed, values not updated")
+		}
+	}
+	if len(smt.db.liveCache) != 256 {
+		t.Fatal("live cache not reset after revert")
+	}
+	if len(smt.db.store.Get(newRoot)) != 0 {
+		t.Fatal("nodes not deleted from database")
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
+*/
+func TestRaisesErrorMod(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewModSMT(20, hash, st)
+	// Add data to empty trie
+	keys := getFreshData(10, 20)
+	values := getFreshData(10, 20)
+	smt.Update(keys, values)
+	smt.db.liveCache = make(map[Hash][]byte)
+	smt.db.updatedNodes = make(map[Hash][]byte)
+	smt.loadDefaultHashes()
+
+	// Check errors are raised is a keys is not in cache nore db
+	for _, key := range keys {
+		_, err := smt.Get(key)
+		if err == nil {
+			t.Fatal("Error not created if database doesnt have a node")
+		}
+	}
+	_, _, _, _, _, _, err := smt.MerkleProofCompressed(keys[0])
+	if err == nil {
+		t.Fatal("Error not created if database doesnt have a node")
+	}
+	_, err = smt.Update(keys, values)
+	if err == nil {
+		t.Fatal("Error not created if database doesnt have a node")
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
 }
 
 /*
