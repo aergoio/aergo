@@ -113,7 +113,7 @@ func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 
 // Serve HTTP server over TCP
 func (ns *RPC) serveHTTP(l net.Listener, server *http.Server) {
-	if err := server.Serve(l); err != nil {
+	if err := server.Serve(l); err != nil && err != http.ErrServerClosed {
 		panic(err)
 	}
 }
