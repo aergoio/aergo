@@ -14,29 +14,28 @@ import (
 	//"time"
 	//"encoding/hex"
 	//"fmt"
-	"math/rand"
-	"sort"
-	"testing"
-
+	//"math/rand"
+	//"sort"
 	"github.com/aergoio/aergo/pkg/db"
+	"testing"
 	//"github.com/dgraph-io/badger"
 	//"github.com/dgraph-io/badger/options"
 )
 
-func TestSmtEmptyTrie(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTrieEmpty(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	if !bytes.Equal(smt.DefaultHash(256), smt.Root) {
 		t.Fatal("empty trie root hash not correct")
 	}
 }
 
-func TestSmtUpdateAndGet(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTrieUpdateAndGet(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, false, true, nil)
+	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -49,7 +48,7 @@ func TestSmtUpdateAndGet(t *testing.T) {
 	// Append to the trie
 	newKeys := getFreshData(5, 32)
 	newValues := getFreshData(5, 32)
-	newRoot, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, false, true, nil)
+	newRoot, _, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
 	if bytes.Equal(root, newRoot) {
 		t.Fatal("trie not updated")
 	}
@@ -68,8 +67,8 @@ func TestSmtUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestSmtPublicUpdateAndGet(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTriePublicUpdateAndGet(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -97,9 +96,9 @@ func TestSmtPublicUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestSmtDifferentKeySize(t *testing.T) {
+func TestTrieDifferentKeySize(t *testing.T) {
 	keySize := 20
-	smt := NewSMT(uint64(keySize), hash, nil)
+	smt := NewTrie(uint64(keySize), hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, keySize)
 	values := getFreshData(10, 32)
@@ -130,18 +129,18 @@ func TestSmtDifferentKeySize(t *testing.T) {
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
-	ap, _ := smt.MerkleProof(keys[8])
+	ap, _, _, _, _ := smt.MerkleProof(keys[8])
 	if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
 		t.Fatalf("failed to verify inclusion proof")
 	}
 }
 
-func TestSmtDelete(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTrieDelete(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, false, true, nil)
+	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
 	value, _ := smt.get(root, keys[0], smt.TrieHeight)
 	if !bytes.Equal(values[0], value) {
 		t.Fatal("trie not updated")
@@ -149,14 +148,16 @@ func TestSmtDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, false, true, nil)
+	newRoot, _, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	smt2 := NewSMT(32, hash, nil)
-	cleanRoot, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, false, true, nil)
+	smt2 := NewTrie(32, hash, nil)
+	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
+	//FIXME : if one of 2 sibling nodes is deleted then the sibling
+	//			should move up other wise the roots mismatch
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
@@ -166,88 +167,66 @@ func TestSmtDelete(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
-	root, _ = smt.update(root, keys, newValues, smt.TrieHeight, false, true, nil)
+	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
 	}
-
 }
 
-func TestSmtMerkleProof(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTrieMerkleProof(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		ap, _ := smt.MerkleProof(key)
+		ap, _, _, _, _ := smt.MerkleProof(key)
 		if !smt.VerifyMerkleProof(ap, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
 		}
 	}
 	emptyKey := hash([]byte("non-member"))
-	ap, _ := smt.MerkleProof(emptyKey)
-	if !smt.VerifyMerkleProof(ap, emptyKey, DefaultLeaf) {
+	ap, included, proofKey, proofValue, _ := smt.MerkleProof(emptyKey)
+	if included {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+	if !smt.VerifyMerkleProofEmpty(ap, emptyKey, proofKey, proofValue) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
 
-func TestSmtMerkleProofCompressed(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
+func TestTrieMerkleProofCompressed(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		bitmap, ap, _ := smt.MerkleProofCompressed(key)
-		bitmap2, ap2, _ := smt.MerkleProofCompressed2(key)
-		if !smt.VerifyMerkleProofCompressed(bitmap, ap, key, values[i]) {
+		bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key)
+		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
-		}
-		if !smt.VerifyMerkleProofCompressed(bitmap2, ap2, key, values[i]) {
-			t.Fatalf("failed to verify inclusion proof")
-		}
-		if !bytes.Equal(bitmap, bitmap2) {
-			t.Fatal("the 2 versions of compressed merkle proofs don't match")
-		}
-		for i, a := range ap {
-			if !bytes.Equal(a, ap2[i]) {
-				t.Fatal("the 2 versions of compressed merkle proofs don't match")
-			}
 		}
 	}
 	emptyKey := hash([]byte("non-member"))
-	bitmap, ap, _ := smt.MerkleProofCompressed(emptyKey)
-	if !smt.VerifyMerkleProofCompressed(bitmap, ap, emptyKey, DefaultLeaf) {
+	bitmap, ap, length, included, proofKey, proofValue, _ := smt.MerkleProofCompressed(emptyKey)
+	if included {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+	if !smt.VerifyMerkleProofCompressedEmpty(bitmap, ap, length, emptyKey, proofKey, proofValue) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
 
-func TestSmtMerkleProofCompressed2(t *testing.T) {
-	smt := NewSMT(32, hash, nil)
-	// Add data to empty trie
-	keys := getFreshData(10, 32)
-	values := getFreshData(10, 32)
-	smt.Update(keys, values)
-
-	for i, key := range keys {
-		bitmap2, ap2, _ := smt.MerkleProofCompressed2(key)
-		if !smt.VerifyMerkleProofCompressed(bitmap2, ap2, key, values[i]) {
-			t.Fatalf("failed to verify inclusion proof")
-		}
-	}
-}
-
-func TestSmtCommit(t *testing.T) {
+func TestTrieCommit(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -262,14 +241,14 @@ func TestSmtCommit(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-func TestSmtRevert(t *testing.T) {
+func TestTrieRevert(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	smt.Commit()
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -309,14 +288,14 @@ func TestSmtRevert(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-func TestSmtRaisesError(t *testing.T) {
+func TestTrieRaisesError(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewSMT(20, hash, st)
+	smt := NewTrie(20, hash, st)
 	// Add data to empty trie
 	keys := getFreshData(10, 20)
 	values := getFreshData(10, 20)
@@ -332,7 +311,7 @@ func TestSmtRaisesError(t *testing.T) {
 			t.Fatal("Error not created if database doesnt have a node")
 		}
 	}
-	_, _, err := smt.MerkleProofCompressed(keys[0])
+	_, _, _, _, _, _, err := smt.MerkleProofCompressed(keys[0])
 	if err == nil {
 		t.Fatal("Error not created if database doesnt have a node")
 	}
@@ -345,7 +324,7 @@ func TestSmtRaisesError(t *testing.T) {
 }
 
 /*
-func TestSmtLiveCache(t *testing.T) {
+func TestTrieLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -353,7 +332,7 @@ func TestSmtLiveCache(t *testing.T) {
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
 	//st, _ := db.NewBadgerDB(dbPath)
-	smt := NewSMT(32, hash, st)
+	smt := NewTrie(32, hash, st)
 	keys := getFreshData(1000, 32)
 	values := getFreshData(1000, 32)
 	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
@@ -396,152 +375,23 @@ func TestSmtLiveCache(t *testing.T) {
 		fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
 		fmt.Println("cache size : ", len(smt.db.liveCache))
 		smt.Commit()
-		for i, key := range newkeys {
-			val, _ := smt.Get(key)
-			if !bytes.Equal(newvalues[i], val) {
-				t.Fatal("new keys were not updated")
-			}
-		}
-		//start = time.Now()
-		//smt.Update(keys, newvalues)
-		//end = time.Now()
-		//elapsed = end.Sub(start)
-		//fmt.Println("elapsed2 : ", elapsed)
-
-		// deleted keys are not getting collected from liveCache by GC
-		// this doesnt seem to work well if liveCache is over 1Million keys
 		/*
-			if i%100 == 0 {
-				temp := smt.db.liveCache
-				smt.db.liveCache = make(map[Hash][]byte, len(temp)*3)
-				for k, v := range temp {
-					smt.db.liveCache[k] = v
+			for i, key := range newkeys {
+				val, _ := smt.Get(key)
+				if !bytes.Equal(newvalues[i], val) {
+					t.Fatal("new keys were not updated")
 				}
 			}
-
-		//runtime.GC()
 	}
-
 	start = time.Now()
 	smt.Update(keys, newvalues)
 	end = time.Now()
-	fmt.Println("\n Updating 1k accounts in a 10M account tree")
+	fmt.Println("\n Updating 1k accounts in a 1M account tree")
 	fmt.Println("elapsed : ", elapsed)
 	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
 	fmt.Println("cache size : ", len(smt.db.liveCache))
 
 	st.Close()
 	os.RemoveAll(".aergo")
-}
-*/
-
-func getFreshData(size, length int) DataArray {
-	var data DataArray
-	for i := 0; i < size; i++ {
-		key := make([]byte, 32)
-		_, err := rand.Read(key)
-		if err != nil {
-			panic(err)
-		}
-		data = append(data, hash(key)[:length])
-	}
-	sort.Sort(DataArray(data))
-	return data
-}
-
-/*
-func TestDB(t *testing.T) {
-	dbPath := path.Join(".aergo", "db")
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		_ = os.MkdirAll(dbPath, 0711)
-	}
-	st := db.NewDB(db.BadgerImpl, dbPath)
-	j := 0
-	for {
-		fmt.Println(j)
-		kv := getFreshData(10000, 32)
-		txn := st.NewTx(true)
-		for i := 0; i < 10000; i++ {
-			txn.Set(kv[i], kv[i])
-		}
-		txn.Commit()
-		j++
-	}
-}
-
-func TestDB(t *testing.T) {
-	dir, err := ioutil.TempDir(".", "badger")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer os.RemoveAll(dir)
-	opts := badger.DefaultOptions
-	opts.Dir = dir
-	opts.ValueDir = dir
-	opts.TableLoadingMode = options.FileIO
-	opts.ValueLogLoadingMode = options.FileIO
-	//opts.ValueLogMaxEntries = 10
-	//opts.Truncate = true
-	db, err := badger.Open(opts)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer db.Close()
-
-	err = db.View(func(txn *badger.Txn) error {
-		_, err := txn.Get([]byte("key"))
-		// We expect ErrKeyNotFound
-		fmt.Println(err)
-		return nil
-	})
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	txn := db.NewTransaction(true) // Read-write txn
-	err = txn.Set([]byte("key"), []byte("value"))
-	if err != nil {
-		fmt.Println(err)
-	}
-	err = txn.Commit(nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	err = db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte("key"))
-		if err != nil {
-			return err
-		}
-		val, err := item.Value()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s\n", string(val))
-		return nil
-	})
-
-	if err != nil {
-		fmt.Println(err)
-	}
-	j := 0
-	k0 := getFreshData(1, 32)
-	for {
-		fmt.Println(j)
-		txn := db.NewTransaction(true) // Read-write txn
-		for i := 0; i < 10000; i++ {
-			kv := getFreshData(1, 32)
-			err = txn.Set(k0[0], kv[0])
-			if err != nil {
-				fmt.Println(err)
-			}
-		}
-		err = txn.Commit(nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-		j++
-	}
 }
 */
