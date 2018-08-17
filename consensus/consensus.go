@@ -29,6 +29,14 @@ var (
 	logger = log.NewLogger("consensus")
 )
 
+// InitBlockInterval initializes block interval parameters.
+func InitBlockInterval(blockIntervalSec int64) {
+	if blockIntervalSec > 0 {
+		BlockIntervalSec = blockIntervalSec
+		BlockInterval = time.Second * time.Duration(BlockIntervalSec)
+	}
+}
+
 // ErrorConsensus is a basic error struct for consensus modules.
 type ErrorConsensus struct {
 	Msg string

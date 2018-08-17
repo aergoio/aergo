@@ -50,7 +50,7 @@ type bpInfo struct {
 
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
-	Init(cfg.Consensus.BlockInterval)
+	Init(cfg.Consensus)
 
 	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
 	if err != nil {
@@ -72,11 +72,9 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 }
 
 // Init initilizes the DPoS parameters.
-func Init(blockIntervalSec int64) {
-	slot.Init(blockIntervalSec, blockProducers)
-
-	consensus.BlockIntervalSec = blockIntervalSec
-	consensus.BlockInterval = time.Duration(consensus.BlockIntervalSec) * time.Second
+func Init(cfg *config.ConsensusConfig) {
+	slot.Init(cfg.BlockInterval, blockProducers)
+	consensus.InitBlockInterval(cfg.BlockInterval)
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.

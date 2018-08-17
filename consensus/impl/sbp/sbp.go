@@ -36,10 +36,7 @@ type SimpleBlockFactory struct {
 
 // New returns a SimpleBlockFactory.
 func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
-	if cfg.Consensus.BlockInterval > 0 {
-		consensus.BlockIntervalSec = cfg.Consensus.BlockInterval
-		consensus.BlockInterval = time.Second * time.Duration(consensus.BlockIntervalSec)
-	}
+	consensus.InitBlockInterval(cfg.Consensus.BlockInterval)
 
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
