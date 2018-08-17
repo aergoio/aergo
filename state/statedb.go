@@ -86,18 +86,8 @@ type ChainStateDB struct {
 }
 
 func NewStateDB() *ChainStateDB {
-	hasher := func(data ...[]byte) []byte {
-		hasher := sha512.New512_256()
-		for i := 0; i < len(data); i++ {
-			hasher.Write(data[i])
-		}
-		return hasher.Sum(nil)
-	}
-	smt := trie.NewTrie(32, hasher, nil)
-
 	return &ChainStateDB{
 		accounts: make(map[types.AccountID]*types.State),
-		trie:     smt,
 	}
 }
 
@@ -118,6 +108,16 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	if sdb.statedb == nil {
 		sdb.statedb = InitDB(dataDir, stateName)
 	}
+
+	// init trie
+	hasher := func(data ...[]byte) []byte {
+		hasher := sha512.New512_256()
+		for i := 0; i < len(data); i++ {
+			hasher.Write(data[i])
+		}
+		return hasher.Sum(nil)
+	}
+	sdb.trie = trie.NewTrie(32, hasher, sdb.statedb)
 
 	// load data from db
 	err := sdb.loadStateDB()
