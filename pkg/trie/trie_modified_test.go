@@ -129,12 +129,10 @@ func TestDifferentKeySizeMod(t *testing.T) {
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
-	/*
-		ap, _ := smt.MerkleProof(keys[8])
-		if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
-			t.Fatalf("failed to verify inclusion proof")
-		}
-	*/
+	ap, _, _, _, _ := smt.MerkleProof(keys[8])
+	if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
+		t.Fatalf("failed to verify inclusion proof")
+	}
 }
 
 func TestDeleteMod(t *testing.T) {
@@ -194,6 +192,29 @@ func TestMerkleProofMod(t *testing.T) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 	if !smt.VerifyMerkleProofEmpty(ap, emptyKey, proofKey, proofValue) {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+}
+
+func TestMerkleProofCompressedMod(t *testing.T) {
+	smt := NewModSMT(32, hash, nil)
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+
+	for i, key := range keys {
+		bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key)
+		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
+			t.Fatalf("failed to verify inclusion proof")
+		}
+	}
+	emptyKey := hash([]byte("non-member"))
+	bitmap, ap, length, included, proofKey, proofValue, _ := smt.MerkleProofCompressed(emptyKey)
+	if included {
+		t.Fatalf("failed to verify non inclusion proof")
+	}
+	if !smt.VerifyMerkleProofCompressedEmpty(bitmap, ap, length, emptyKey, proofKey, proofValue) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
