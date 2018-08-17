@@ -138,16 +138,17 @@ func init() {
 
 // NewPeerManager creates a peer manager object.
 func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) PeerManager {
+	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	hl := &peerManager{
 		iServ: iServ,
-		conf:  cfg.P2P,
+		conf:  p2pConf,
 		log:   logger,
 		mutex: &sync.Mutex{},
 
-		remotePeers: make(map[peer.ID]*RemotePeer, 100),
-		peerPool:    make(map[peer.ID]PeerMeta, 100),
-		peerCache:   make([]*RemotePeer, 100),
+		remotePeers: make(map[peer.ID]*RemotePeer, p2pConf.NPMaxPeers),
+		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
+		peerCache:   make([]*RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		subProtocols:      make([]subProtocol, 0, 4),
 		status:            component.StoppedStatus,
