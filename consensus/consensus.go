@@ -24,7 +24,7 @@ var (
 	BlockIntervalSec = DefaultBlockIntervalSec
 
 	// BlockInterval is the maximum block generation time limit.
-	BlockInterval time.Duration
+	BlockInterval = time.Second * time.Duration(DefaultBlockIntervalSec)
 
 	logger = log.NewLogger("consensus")
 )

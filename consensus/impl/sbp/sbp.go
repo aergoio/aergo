@@ -27,7 +27,7 @@ func init() {
 type SimpleBlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
-	blockInterval    int64
+	blockInterval    time.Duration
 	maxBlockBodySize int
 	onReorganizing   util.BcReorgStatus
 	txOp             util.TxOp
@@ -36,10 +36,15 @@ type SimpleBlockFactory struct {
 
 // New returns a SimpleBlockFactory.
 func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
+	if cfg.Consensus.BlockInterval > 0 {
+		consensus.BlockIntervalSec = cfg.Consensus.BlockInterval
+		consensus.BlockInterval = time.Second * time.Duration(consensus.BlockIntervalSec)
+	}
+
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
-		blockInterval:    cfg.Consensus.BlockInterval,
+		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: util.MaxBlockBodySize(),
 		onReorganizing:   util.BcNoReorganizing,
 		quit:             make(chan interface{}),
@@ -62,7 +67,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (s *SimpleBlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval)
+	return time.NewTicker(s.blockInterval)
 }
 
 // QueueJob send a block triggering information to jq.
