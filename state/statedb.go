@@ -6,10 +6,12 @@
 package state
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -187,6 +189,42 @@ func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, aid types.AccountID) (*
 	return &res, nil
 }
 
+func (sdb *ChainStateDB) updateTrie(bstate *BlockState, undo bool) error {
+	size := len(bstate.accounts)
+	if size <= 0 {
+		// do nothing
+		return nil
+	}
+	accs := make([]types.AccountID, 0, size)
+	for k := range bstate.accounts {
+		accs = append(accs, k)
+	}
+	sort.Slice(accs, func(i, j int) bool {
+		return bytes.Compare(accs[i][:], accs[j][:]) == -1
+	})
+	keys := make(trie.DataArray, size)
+	vals := make(trie.DataArray, size)
+	for i, v := range accs {
+		keys[i] = v[:]
+		if undo {
+			vals[i] = bstate.accounts[v].Undo.GetHash()
+		} else {
+			vals[i] = bstate.accounts[v].State.GetHash()
+		}
+	}
+	if size > 0 {
+		_, err := sdb.trie.Update(keys, vals)
+		return err
+	}
+	sdb.trie.Commit()
+	return nil
+}
+
+func (sdb *ChainStateDB) revertTrie(bstate *BlockState) error {
+	// TODO: Use root hash of previous block state to revert instead of manual update
+	return sdb.updateTrie(bstate, true)
+}
+
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	if sdb.latest.BlockNo+1 != bstate.BlockNo {
 		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
@@ -199,19 +237,13 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	defer sdb.Unlock()
 
 	sdb.saveBlockState(bstate)
-	keys := trie.DataArray{bstate.BlockInfo.BlockHash[:]}
-	vals := trie.DataArray{bstate.BlockInfo.PrevHash[:]}
-	for k, v := range bstate.accounts {
-		sdb.accounts[k] = v.State
-		keys = append(keys, k[:])
-		vals = append(vals, v.State.GetHash())
-	}
-	if len(keys) > 0 && len(vals) > 0 {
-		sdb.trie.Update(keys, vals)
+	err := sdb.updateTrie(bstate, false)
+	if err != nil {
+		return err
 	}
 	// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 	sdb.latest = &bstate.BlockInfo
-	err := sdb.saveStateDB()
+	err = sdb.saveStateDB()
 	return err
 }
 
@@ -233,15 +265,9 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 		if target.BlockNo == blockNo {
 			break
 		}
-		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
-		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
-		for k, v := range bs.accounts {
-			sdb.accounts[k] = v.Undo
-			keys = append(keys, k[:])
-			vals = append(vals, v.State.GetHash())
-		}
-		if len(keys) > 0 && len(vals) > 0 {
-			sdb.trie.Update(keys, vals)
+		err = sdb.revertTrie(bs)
+		if err != nil {
+			return err
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 
