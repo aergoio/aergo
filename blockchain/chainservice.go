@@ -157,7 +157,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bkey := types.ToBlockKey(msg.BlockHash)
 		block, err := cs.getBlock(bkey[:])
 		if err != nil {
-			logger.Error().Err(err).Str("hash", EncodeB64(msg.BlockHash)).Msg("failed to get block")
+			logger.Error().Err(err).Msg("failed to get block")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
@@ -177,7 +177,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.AddBlock:
 		bkey := types.ToBlockKey(msg.Block.GetHash())
 		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("Add Block chainservice")
+			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bkey[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
