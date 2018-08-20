@@ -72,4 +72,5 @@ message State {
 message Receipt {
 	bytes contractAddress = 1;
 	string status = 2;
+	string ret = 3;
 }

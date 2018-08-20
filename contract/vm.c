@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "system_module.h"
+#include "util.h"
 
 const char *luaExecContext= "__exec_context__";
 
@@ -55,15 +56,28 @@ void vm_getfield(lua_State *L, const char *name)
 	lua_getfield(L, LUA_GLOBALSINDEX, name);
 }
 
-const char *vm_pcall(lua_State *L, int argc)
+const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
 	const char *errMsg = NULL;
+	int nr = lua_gettop(L);
 
-	err = lua_pcall(L, argc, 0, 0);
+	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
 	}
+	*nresult = lua_gettop(L) - nr + 1;
 	return NULL;
+}
+
+const char *vm_get_json_ret(lua_State *L, int nresult)
+{
+	sbuff_t sbuf;
+	lua_util_sbuf_init(&sbuf, 64);
+
+	lua_pushstring(L, lua_util_get_json_from_ret(L, nresult, &sbuf));
+	free(sbuf.buf);
+	
+	return lua_tostring(L, -1);
 }

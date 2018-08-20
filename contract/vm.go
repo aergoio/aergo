@@ -46,6 +46,7 @@ type Executor struct {
 	contract      *Contract
 	err           error
 	blockchainCtx *LBlockchainCtx
+	jsonRet       string
 }
 
 func init() {
@@ -115,12 +116,15 @@ func (ce *Executor) call(abi *types.ABI) {
 			return
 		}
 	}
-	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args))); cErrMsg != nil {
+	nret := C.int(0)
+	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args)), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.WithCtx("error", errMsg).Warnf("contract %s", base58.Encode(ce.contract.address))
 		ce.err = errors.New(errMsg)
+		return
 	}
+	ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
 }
 
 func (ce *Executor) close() {
@@ -149,7 +153,7 @@ func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 		ce.call(&abi)
 		err = ce.err
 	}
-	receipt := types.NewReceipt(contractAddress, "SUCCESS")
+	receipt := types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
 	if err != nil {
 		receipt.Status = err.Error()
 	}
@@ -160,7 +164,7 @@ func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 func Create(code, contractAddress, txHash []byte) error {
 	ctrLog.WithCtx("contractAddress", base58.Encode(contractAddress)).Debug("new contract is deployed")
 	DB.Set(contractAddress, code)
-	receipt := types.NewReceipt(contractAddress, "CREATED")
+	receipt := types.NewReceipt(contractAddress, "CREATED", "{}")
 	DB.Set(txHash, receipt.Bytes())
 	return nil
 }

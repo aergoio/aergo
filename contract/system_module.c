@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "vm.h"
 
+extern const bc_ctx_t *getLuaExecContext(lua_State *L);
+
 static int systemPrint(lua_State *L)
 {
 	printf ("systemPrinted");
