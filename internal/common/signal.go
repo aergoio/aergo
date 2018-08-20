@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 )
 
 // HandleKillSig gets killing signals (interrupt, quit and terminate) and calls

@@ -18,7 +18,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo-lib/db"
 	//"github.com/dgraph-io/badger"
 	//"github.com/dgraph-io/badger/options"
 )

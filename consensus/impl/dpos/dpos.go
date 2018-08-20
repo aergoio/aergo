@@ -16,7 +16,7 @@ import (
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )

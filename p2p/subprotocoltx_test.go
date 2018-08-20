@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
 )

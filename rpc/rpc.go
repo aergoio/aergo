@@ -19,7 +19,7 @@ import (
 	aergorpc "github.com/aergoio/aergo/types"
 	"google.golang.org/grpc"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/soheilhy/cmux"

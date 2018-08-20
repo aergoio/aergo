@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 

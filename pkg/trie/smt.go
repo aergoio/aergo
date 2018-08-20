@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo-lib/db"
 )
 
 const (

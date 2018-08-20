@@ -8,8 +8,8 @@ package blockchain
 import (
 	"bytes"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"

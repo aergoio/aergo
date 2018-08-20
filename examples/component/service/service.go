@@ -11,7 +11,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/examples/component/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 )
 
 type ExampleService struct {

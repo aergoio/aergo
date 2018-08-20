@@ -7,7 +7,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 

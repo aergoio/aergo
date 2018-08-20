@@ -6,8 +6,8 @@
 package config
 
 import (
+	"github.com/aergoio/aergo-lib/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/pkg/config"
 )
 
 type ServerContext struct {

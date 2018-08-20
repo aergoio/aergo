@@ -16,7 +16,7 @@ import (
 
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-protocol"

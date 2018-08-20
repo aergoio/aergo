@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 )
 
 type BaseComponent struct {

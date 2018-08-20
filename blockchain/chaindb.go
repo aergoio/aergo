@@ -10,8 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/pkg/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/gogo/protobuf/proto"

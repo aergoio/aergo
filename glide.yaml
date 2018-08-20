@@ -4,8 +4,6 @@ license: MIT
 excludeDirs:
 - p2p/mocks
 import:
-- package: github.com/dgraph-io/badger
-  version: ~1.5.2
 - package: github.com/gogo/protobuf
   version: ~1.1.0
   subpackages:
@@ -16,9 +14,6 @@ import:
   subpackages:
   - proto
   - ptypes/timestamp
-- package: github.com/jessevdk/go-flags
-  version: ~1.4.0
-- package: github.com/joonix/log
 - package: github.com/libp2p/go-libp2p
   version: ~6.0.4
 - package: github.com/libp2p/go-libp2p-crypto
@@ -40,16 +35,8 @@ import:
   - protobuf
 - package: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
-- package: github.com/sirupsen/logrus
-  version: ~1.0.5
 - package: github.com/spf13/cobra
   version: ~0.0.3
-- package: github.com/spf13/pflag
-  version: ~1.0.1
-- package: github.com/spf13/viper
-  version: ~1.0.2
-- package: github.com/x-cray/logrus-prefixed-formatter
-  version: ~0.5.2
 - package: golang.org/x/net
   subpackages:
   - context
@@ -74,16 +61,10 @@ import:
   version: 0.2.2
 - package: github.com/libp2p/go-reuseport
   version: ~0.1.15
-- package: golang.org/x/sys
-  version: 1b2967e3c290b7c545b3db0deeda16e9be4f98a2
 - package: github.com/davecgh/go-spew
   version: ~1.1.0
-- package: github.com/mattn/go-colorable
-  version: ~0.0.9
 - package: github.com/rcrowley/go-metrics
 - package: github.com/aergoio/aergo-actor
-- package: github.com/rs/zerolog
-  version: v1.8.0
 - package: github.com/hashicorp/golang-lru
   version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
 - package: github.com/improbable-eng/grpc-web
@@ -92,6 +73,7 @@ import:
   - go/grpcweb
 - package: github.com/soheilhy/cmux
   version: ~0.1.4
+- package: github.com/aergoio/aergo-lib
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2

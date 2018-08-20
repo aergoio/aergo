@@ -11,7 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/libp2p/go-libp2p-crypto"

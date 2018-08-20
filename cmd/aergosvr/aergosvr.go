@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/spf13/cobra"

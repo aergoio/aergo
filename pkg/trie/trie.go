@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo-lib/db"
 )
 
 // TODO make a secure trie that hashes keys with a random seed to be sure the trie is sparse.

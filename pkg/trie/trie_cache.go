@@ -8,7 +8,7 @@ package trie
 import (
 	"sync"
 
-	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo-lib/db"
 )
 
 type CacheDB struct {

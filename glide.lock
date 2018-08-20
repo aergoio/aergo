@@ -1,5 +1,5 @@
-hash: 99715ff01e6129ad59ca298ce5635e075e322d3ca3a7a6faee62f5a61d7d64d4
-updated: 2018-08-16T13:48:36.087456+09:00
+hash: 47bee377428b65db7c467bc9352d2119a1c06248080648d5ddc770dc2c92c1fe
+updated: 2018-08-20T13:21:04.5900427+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 25f0d0e3e467b3a0837800dd06309effae33d0f8
@@ -10,6 +10,12 @@ imports:
   - internal/queue/mpsc
   - log
   - mailbox
+- name: github.com/aergoio/aergo-lib
+  version: b5a0a25300e54200bba2e4ad9c73f1334c327a76
+  subpackages:
+  - config
+  - db
+  - log
 - name: github.com/agl/ed25519
   version: 5312a61534124124185d41f09206b9fef1d88403
   subpackages:
@@ -26,7 +32,7 @@ imports:
   subpackages:
   - semver
 - name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
 - name: github.com/dgraph-io/badger
@@ -82,6 +88,8 @@ imports:
   - keccakpg
 - name: github.com/hashicorp/golang-lru
   version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  subpackages:
+  - simplelru
 - name: github.com/hashicorp/hcl
   version: ef8a98b0bbce4a65b5aa4c368430a80ddc533168
   subpackages:
@@ -127,10 +135,6 @@ imports:
   - context
   - periodic
   - ratelimit
-- name: github.com/jessevdk/go-flags
-  version: c6ca198ec95c841fdb89fc0de7496fed11ab854e
-- name: github.com/joonix/log
-  version: d2d3f2f4a80658c67a0bc44021dcac30f3017c06
 - name: github.com/libp2p/go-addr-util
   version: 26ae616f0dac754fff557513e984f930fbd88a92
 - name: github.com/libp2p/go-conn-security
@@ -263,8 +267,6 @@ imports:
   - internal/json
 - name: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
-- name: github.com/sirupsen/logrus
-  version: 3e01752db0189b9157070a0e1668a620f9a85da2
 - name: github.com/soheilhy/cmux
   version: e09e9389d85d8492d313d73d1469c029e710623f
 - name: github.com/spaolacci/murmur3
@@ -282,7 +284,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 9a97c102cda95a86cec2345a6f09f55a939babf5
 - name: github.com/spf13/viper
-  version: b5e8006cbee93ec955a89ab31e0e3ce3204f3736
+  version: 907c19d40d9a6c9bb55f040ff4ae45271a4754b9
 - name: github.com/whyrusleeping/go-logging
   version: 0457bb6b88fc1973573aaf6b5145d8d3ae972390
 - name: github.com/whyrusleeping/go-multiplex
@@ -305,8 +307,6 @@ imports:
   version: f338bf48899950e415caffa02222a7273fbdeaf6
   subpackages:
   - queue
-- name: github.com/x-cray/logrus-prefixed-formatter
-  version: bb2702d423886830dee131692131d35648c382e2
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
@@ -398,5 +398,3 @@ testImports:
   subpackages:
   - assert
   - mock
-  - require
-  - suite

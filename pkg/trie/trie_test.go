@@ -16,8 +16,9 @@ import (
 	//"fmt"
 	//"math/rand"
 	//"sort"
-	"github.com/aergoio/aergo/pkg/db"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/db"
 	//"github.com/dgraph-io/badger"
 	//"github.com/dgraph-io/badger/options"
 )

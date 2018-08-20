@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-peer"

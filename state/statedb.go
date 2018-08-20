@@ -12,8 +12,8 @@ import (
 	"path"
 	"sync"
 
-	"github.com/aergoio/aergo/pkg/db"
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
