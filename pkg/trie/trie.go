@@ -79,6 +79,63 @@ func (s *Trie) loadDefaultHashes() []byte {
 	return h
 }
 
+// LoadCache loads the first layers of the merkle tree given a root
+// This is called after a node restarts so that it doesnt become slow with db reads
+func (s *Trie) LoadCache(root []byte) error {
+	s.loadDefaultHashes()
+	ch := make(chan error, 1)
+	s.loadCache(root, s.TrieHeight, ch)
+	return <-ch
+}
+
+// loadCache loads the first layers of the merkle tree given a root
+func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
+	if height <= s.CacheHeightLimit+1 {
+		ch <- nil
+		return
+	}
+	if bytes.Equal(root, s.defaultHashes[height]) {
+		ch <- nil
+		return
+	}
+	// Load the node from db
+	s.db.lock.Lock()
+	val := s.db.store.Get(root)
+	s.db.lock.Unlock()
+	nodeSize := len(val)
+	if nodeSize == 0 {
+		ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+		return
+	}
+	//Store node in cache.
+	var node Hash
+	copy(node[:], root)
+	s.db.liveMux.Lock()
+	s.db.liveCache[node] = val
+	s.db.liveMux.Unlock()
+	isShortcut := val[nodeSize-1]
+	if isShortcut == 1 {
+		ch <- nil
+		return
+	}
+
+	lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
+
+	lch := make(chan error, 1)
+	rch := make(chan error, 1)
+	go s.loadCache(lnode, height-1, lch)
+	go s.loadCache(rnode, height-1, rch)
+	if err := <-lch; err != nil {
+		ch <- err
+		return
+	}
+	if err := <-rch; err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
 // Update adds a sorted list of keys and their values to the trie
 func (s *Trie) Update(keys, values DataArray) ([]byte, error) {
 	s.lock.Lock()
@@ -518,10 +575,9 @@ func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) [
 	children = append(children, left...)
 	children = append(children, right...)
 	children = append(children, byte(0))
-	// Cache the node if it's children are not default and if it's height is over CacheHeightLimit
-	if (!bytes.Equal(s.defaultHashes[height], left) ||
-		!bytes.Equal(s.defaultHashes[height], right)) &&
-		height > s.CacheHeightLimit {
+	// FIXME test if it is possible to use a caching stratergy instead of a fixed CacheHeightLimit
+	// if !bytes.Equal(s.defaultHashes[height], left) && !bytes.Equal(s.defaultHashes[height], right)) {
+	if height > s.CacheHeightLimit {
 		s.db.liveMux.Lock()
 		s.db.liveCache[node] = children
 		s.db.liveMux.Unlock()

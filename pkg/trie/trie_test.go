@@ -323,6 +323,36 @@ func TestTrieRaisesError(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
+func TestTrieLoadCache(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewTrie(32, hash, st)
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+	smt.Commit()
+
+	// Simulate node restart by deleting and loading cache
+	cacheSize := len(smt.db.liveCache)
+	smt.db.liveCache = make(map[Hash][]byte)
+
+	err := smt.LoadCache(smt.Root)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cacheSize != len(smt.db.liveCache) {
+		t.Fatal("Cache loading from db incorrect")
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
 /*
 func TestTrieLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
