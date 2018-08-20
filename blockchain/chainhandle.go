@@ -105,37 +105,42 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 
 func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
 	txBody := tx.GetBody()
-	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
-	if err != nil {
-		return err
-	}
-	receiverID := types.ToAccountID(txBody.Recipient)
-	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
-	if err != nil {
-		return err
-	}
-
-	senderChange := types.Clone(*senderState).(types.State)
-	receiverChange := types.Clone(*receiverState).(types.State)
-	if senderID != receiverID {
-		if senderChange.Balance < txBody.Amount {
-			senderChange.Balance = 0 // FIXME: reject insufficient tx.
-		} else {
-			senderChange.Balance = senderState.Balance - txBody.Amount
+	if txBody.Limit == 0 {
+		err := cs.processVoteTx(dbtx, bs, txBody)
+		if err != nil {
+			return err
 		}
-		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-		bs.PutAccount(receiverID, receiverState, &receiverChange)
-	}
-	senderChange.Nonce = txBody.Nonce
-	bs.PutAccount(senderID, senderState, &senderChange)
+	} else {
+		senderID := types.ToAccountID(txBody.Account)
+		senderState, err := cs.sdb.GetAccountClone(bs, senderID)
+		if err != nil {
+			return err
+		}
+		receiverID := types.ToAccountID(txBody.Recipient)
+		receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
+		if err != nil {
+			return err
+		}
 
+		senderChange := types.Clone(*senderState).(types.State)
+		receiverChange := types.Clone(*receiverState).(types.State)
+		if senderID != receiverID {
+			if senderChange.Balance < txBody.Amount {
+				senderChange.Balance = 0 // FIXME: reject insufficient tx.
+			} else {
+				senderChange.Balance = senderState.Balance - txBody.Amount
+			}
+			receiverChange.Balance = receiverChange.Balance + txBody.Amount
+			bs.PutAccount(receiverID, receiverState, &receiverChange)
+		}
+		senderChange.Nonce = txBody.Nonce
+		bs.PutAccount(senderID, senderState, &senderChange)
+	}
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderID, senderState.ToString(),
 	// 	receiverID, receiverState.ToString())
 
-	err = cs.cdb.addTx(dbtx, tx, blockHash, idx)
-	return err
+	return cs.cdb.addTx(dbtx, tx, blockHash, idx)
 }
 
 // find an orphan block which is the child of the added block

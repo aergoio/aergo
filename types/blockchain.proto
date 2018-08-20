@@ -62,3 +62,12 @@ message State {
  	uint64 nonce = 2;
  	uint64 balance = 3;
 }
+
+message Vote {
+	bytes candidate = 1;
+	uint64 amount = 2;
+}
+
+message VoteList {
+	repeated Vote votes = 1;
+}

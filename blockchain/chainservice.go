@@ -30,6 +30,10 @@ type ChainService struct {
 	op  *OrphanPool
 
 	cac chan consensus.ChainInfo
+
+	//TODO : will be changed to use state DB
+	votes  map[string]uint64            //candidate, sum of votes
+	voters map[string]map[string]uint64 // voter, candidate, amount of votes
 }
 
 var _ component.IComponent = (*ChainService)(nil)
@@ -45,6 +49,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cdb:           NewChainDB(),
 		sdb:           state.NewStateDB(),
 		op:            NewOrphanPool(),
+
+		votes:  map[string]uint64{},
+		voters: map[string]map[string]uint64{},
 	}
 }
 
@@ -223,6 +230,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
+	case *message.GetElected:
+		top := cs.getVotes(msg.N)
+		context.Respond(&message.GetElectedRsp{
+			Top: top,
+		})
+
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
