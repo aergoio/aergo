@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-const testDuration = time.Second * 2
+const testDuration = time.Second >> 1
 
 var samplePeerID peer.ID
 var sampleErr error
@@ -101,6 +101,7 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			mockOrder.On("GetProtocolID").Return(protocol.ID("dummy"))
 			mockOrder.On("GetRequestID").Return("test_req")
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
+			mockStream.On("Close").Return(nil)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.setState(types.RUNNING)
@@ -109,7 +110,7 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			p.writeToPeer(mockOrder)
 
 			// FIXME wait in more relaiable way
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			p.closeWrite <- struct{}{}
 			mockPeerManager.AssertNumberOfCalls(t, "NewStream", tt.wants.streamCall)
 			mockOrder.AssertNumberOfCalls(t, "SendOver", tt.wants.sendCnt)

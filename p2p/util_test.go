@@ -131,9 +131,10 @@ func FailTestNormalMapInConcurrent(t *testing.T) {
 
 	go func() {
 		wg.Wait()
-		for key, val := range target {
-			fmt.Printf("%s is %s\n", key, val)
-		}
+		// for key, val := range target {
+		// 	fmt.Printf("%s is %s\n", key, val)
+		// }
+		fmt.Printf("%d values after ", len(target))
 		waitChan <- 0
 	}()
 
@@ -158,10 +159,10 @@ func TestSyncMap(t *testing.T) {
 
 	go func() {
 		wg.Wait()
-		target.Range(func(key interface{}, val interface{}) bool {
-			fmt.Printf("%s is %s\n", key, val)
-			return true
-		})
+		// target.Range(func(key interface{}, val interface{}) bool {
+		// 	fmt.Printf("%s is %s\n", key, val)
+		// 	return true
+		// })
 		waitChan <- 0
 	}()
 
@@ -172,7 +173,7 @@ func TestSyncMap(t *testing.T) {
 			keys = append(keys, key.(string))
 			return true
 		})
-		fmt.Println(keys)
+		//		fmt.Println(keys)
 		return len(keys)
 	}(&target))
 }

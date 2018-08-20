@@ -117,7 +117,7 @@ func TestGetPeers(t *testing.T) {
 	cnt := 0
 	go func() {
 		wg.Wait()
-		for _, _ = range target.GetPeers() {
+		for _ = range target.GetPeers() {
 			cnt++
 		}
 		assert.True(t, cnt > (iterSize>>2))
