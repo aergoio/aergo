@@ -3,7 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/pkg/db"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -17,8 +17,6 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
 
 	// assumption: not an orphan
-	logger.Debug().Uint64("blockNo", blockNo).Uint64("latest", cdb.latest).Msg("need reorg check")
-
 	if blockNo > 0 && blockNo != cdb.latest+1 {
 		return false
 	}
@@ -32,14 +30,16 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 
 	isNeed := !bytes.Equal(prevHash, latestHash)
 	if isNeed {
-		logger.Debug().Str("prev", EncodeB64(prevHash)).Str("latest", EncodeB64(latestHash)).
+		logger.Debug().Uint64("blockNo", blockNo).Uint64("latestNo", cdb.latest).Str("prev", EncodeB64(prevHash)).Str("latest", EncodeB64(latestHash)).
 			Msg("need reorg true")
 	}
 
 	return isNeed
 }
 
-func (cs *ChainService) reorg(dbtx *db.Transaction, block *types.Block) error {
+func (cs *ChainService) reorg(block *types.Block) error {
+	reorgtx := cs.cdb.store.NewTx(true)
+
 	cdb := cs.cdb
 	if cdb.ChainInfo != nil {
 		cdb.SetReorganizing()
@@ -47,14 +47,12 @@ func (cs *ChainService) reorg(dbtx *db.Transaction, block *types.Block) error {
 	logger.Info().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 		Msg("reorg started")
 
-	elems, err := cs.rollbackChain(dbtx, block)
+	elems, err := cs.rollbackChain(&reorgtx, block)
 	if err != nil {
-		//FIXME: panic??
-		logger.Error().Msg("failed reorg rollback")
-		return err
+		panic(err)
 	}
 
-	if err := cs.rollforwardChain(dbtx, elems); err != nil {
+	if err := cs.rollforwardChain(&reorgtx, elems); err != nil {
 		logger.Error().Msg("failed reorg replay")
 		return err
 	}
@@ -66,6 +64,8 @@ func (cs *ChainService) reorg(dbtx *db.Transaction, block *types.Block) error {
 	}
 
 	logger.Info().Msg("reorg end")
+
+	reorgtx.Commit()
 
 	return nil
 }
@@ -153,9 +153,10 @@ func (cs *ChainService) rollforwardChain(dbtx *db.Transaction, elems []reorgElem
 		logger.Debug().Uint64("blockNo", uint64(elem.BlockNo)).
 			Str("hash", EncodeB64(elem.Hash)).Msg("roll forward")
 
-		blockKey := ItobU64(uint64(elem.BlockNo))
+		blockIdx := types.BlockNoToBytes(elem.BlockNo)
+
 		// change main chain info
-		(*dbtx).Set(blockKey, elem.Hash)
+		(*dbtx).Set(blockIdx, elem.Hash)
 
 		//TODO proces block tx
 		block, err := cdb.getBlock(elem.Hash)
@@ -166,6 +167,12 @@ func (cs *ChainService) rollforwardChain(dbtx *db.Transaction, elems []reorgElem
 			return err
 		}
 
+		if cdb.latest+1 != elem.BlockNo {
+			return fmt.Errorf("roll forward failed. invalid latest no(%d), block(%d, %v)",
+				cdb.latest, elem.BlockNo, block.ID())
+		}
+
+		cdb.setLatest(elem.BlockNo)
 	}
 
 	return nil

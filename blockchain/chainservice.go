@@ -81,8 +81,11 @@ func (cs *ChainService) initGenesis(seed int64) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
 		if cs.cdb.latest == 0 {
-			genesisBlock := cs.cdb.generateGenesisBlock(seed)
-			err := cs.sdb.SetGenesis(genesisBlock)
+			genesisBlock, err := cs.cdb.generateGenesisBlock(seed)
+			if err != nil {
+				return err
+			}
+			err = cs.sdb.SetGenesis(genesisBlock)
 			if err != nil {
 				return err
 			}

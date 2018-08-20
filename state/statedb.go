@@ -149,7 +149,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	sdb.latest = gbInfo
 
 	// save state of genesis block
-	bstate := NewBlockState(gbInfo.BlockNo, gbInfo.BlockHash, types.BlockKey{})
+	bstate := NewBlockState(gbInfo.BlockNo, gbInfo.BlockHash, types.BlockID{})
 	sdb.saveBlockState(bstate)
 
 	// TODO: process initial coin tx

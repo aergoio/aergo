@@ -152,39 +152,44 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) generateGenesisBlock(seed int64) *types.Block {
+func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
 	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)
-	cdb.addBlock(&tx, genesisBlock)
+	if err := cdb.addBlock(&tx, genesisBlock); err != nil {
+		return nil, err
+	}
 	tx.Commit()
 	logger.Info().Msg("generate Genesis Block")
-	return genesisBlock
+	return genesisBlock, nil
 }
 
 func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {
 	cdb.latest = newLatest
 }
 
-func (cdb *ChainDB) isNewBestBlock(block *types.Block) bool {
+func (cdb *ChainDB) isNewBestBlock(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		return false
+		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("no new best block.block no is not latest+1")
+
+		return false, nil
 	}
 
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
 	if err != nil { //need assertion
-		return false
+		return false, fmt.Errorf("failed to getting block hash by no(%v)", cdb.getBestBlockNo())
 	}
 
 	isNewBest := bytes.Equal(prevHash, latestHash)
-	if isNewBest {
-		logger.Debug().Uint64("blkno", blockNo).Str("hash", block.ID()).Msg("new best block")
-	}
 
-	return isNewBest
+	logger.Debug().Bool("isNewBest", isNewBest).Uint64("blkno", blockNo).Str("hash", block.ID()).
+		Str("latest", EncodeB64(latestHash)).Str("prev", EncodeB64(prevHash)).
+		Msg("check if new best block")
+
+	return isNewBest, nil
 }
 
 type txInfo struct {
