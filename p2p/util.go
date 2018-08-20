@@ -7,12 +7,13 @@ package p2p
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"reflect"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
@@ -23,6 +24,7 @@ import (
 const (
 	LogPeerID  = "peer_id"
 	LogProtoID = "protocol_id"
+	LogMsgID   = "msg_id"
 	LogBlkHash = "blk_hash"
 )
 
@@ -146,10 +148,10 @@ func warnLogUnknownPeer(logger *log.Logger, protocol protocol.ID, peerID peer.ID
 func debugLogReceiveMsg(logger *log.Logger, protocol protocol.ID, msgID string, peerID peer.ID,
 	additional interface{}) {
 	if additional != nil {
-		//		logger.Debugf("Received %v:%s request from %s. %v", protocol, msgID, peerID.Pretty(),
-		//			additional)
+		logger.Debug().Str("protocol", string(protocol)).Str("msg_id", msgID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+			Msg("Received a message")
 	} else {
 		logger.Debug().Str("protocol", string(protocol)).Str("msg_id", msgID).Str("from_id", peerID.Pretty()).
-			Msg("Receive a request")
+			Msg("Received a message")
 	}
 }

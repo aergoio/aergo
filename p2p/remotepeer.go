@@ -14,9 +14,9 @@ import (
 
 	"github.com/hashicorp/golang-lru"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-protocol"
@@ -146,7 +146,7 @@ func (p *RemotePeer) checkState() error {
 
 // runPeer should be called by go routine
 func (p *RemotePeer) runPeer() {
-	p.log.Debug().Str("peer_id", p.meta.ID.Pretty()).Msg("Starting peer")
+	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
 READNOPLOOP:
@@ -163,7 +163,7 @@ READNOPLOOP:
 			break READNOPLOOP
 		}
 	}
-	p.log.Info().Str("peer_id", p.meta.ID.Pretty()).Msg("Finishing peer")
+	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
 	pingTicker.Stop()
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
@@ -171,6 +171,11 @@ READNOPLOOP:
 
 func (p *RemotePeer) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestDuration)
+	defer func() {
+		if r := recover(); r != nil {
+			p.log.Panic().Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
+		}
+	}()
 
 WRITELOOP:
 	for {
@@ -182,6 +187,7 @@ WRITELOOP:
 		case <-cleanupTicker.C:
 			p.pruneRequests()
 		case <-p.closeWrite:
+			p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Quitting runWrite")
 			break WRITELOOP
 		}
 	}
@@ -251,7 +257,7 @@ func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 	// TODO: check protocol version, blacklist, key authentication or etc.
 	err := p.checkProtocolVersion()
 	if err != nil {
-		p.log.Info().Str("peer_id", p.meta.ID.Pretty()).Msg("invalid protocol version of peer")
+		p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("invalid protocol version of peer")
 		p.goAwayMsg("Handshake failed")
 		return
 	}
@@ -262,7 +268,7 @@ func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 	}
 
 	// If all checked and validated. it's now handshaked. and then run sync.
-	p.log.Info().Str("peer_id", p.meta.ID.Pretty()).Msg("peer is handshaked and now running status")
+	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("peer is handshaked and now running status")
 	p.setState(types.RUNNING)
 
 	// notice to p2pmanager that handshaking is finished
@@ -275,8 +281,8 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	// check peer's status
 	// TODO code smell. hardcoded check and need memory barrier for peer state
 	if m.GetProtocolID() != statusRequest && p.State() != types.RUNNING {
-		p.log.Debug().Msgf("Canceling sending %v:%v to %s since not running state, but.",
-			m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty(), p.State())
+		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).
+			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
 
@@ -292,7 +298,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 
 	s, err := p.ps.NewStream(context.Background(), p.meta.ID, m.GetProtocolID())
 	if err != nil {
-		p.log.Warn().Err(err).Msgf("Error while sending %v:%v to %s", m.GetProtocolID(), m.GetRequestID())
+		p.log.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
 		// problem in connection starting disconnect
 		p.ps.RemovePeer(p.meta.ID)
 		return
@@ -304,8 +310,8 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.log.Warn().Err(err).Msg("fail to SendOver")
 		return
 	}
-	p.log.Debug().Str("peer_id", p.meta.ID.Pretty()).Str("protocol_id", string(m.GetProtocolID())).
-		Str("request_id", m.GetRequestID()).Msg("Send message")
+	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).
+		Str(LogMsgID, m.GetRequestID()).Msg("Send message")
 	//p.log.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
 	if m.ResponseExpected() {
 		p.requests[m.GetRequestID()] = m
@@ -332,7 +338,7 @@ func (p *RemotePeer) sendPing() {
 
 // sendStatus is called once when a peer is added.()
 func (p *RemotePeer) sendStatus() {
-	p.log.Info().Str("peer_id", p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
+	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
 
 	// find my best block
 	bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
@@ -354,7 +360,7 @@ func (p *RemotePeer) sendStatus() {
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
-	p.log.Info().Str("peer_id", p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
+	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
 	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
 	p.ps.RemovePeer(p.meta.ID)
 }
@@ -379,7 +385,7 @@ func (p *RemotePeer) pruneRequests() {
 		}
 	}
 	//p.log.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
-	p.log.Info().Int("count", deletedCnt).Str("peer_id", p.meta.ID.Pretty()).
+	p.log.Info().Int("count", deletedCnt).Str(LogPeerID, p.meta.ID.Pretty()).
 		Time("until", time.Unix(expireTime, 0)).Msg("Pruned requests, but no response to peer")
 	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {

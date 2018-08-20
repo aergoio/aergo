@@ -16,9 +16,9 @@ import (
 
 	inet "github.com/libp2p/go-libp2p-net"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/multiformats/go-multicodec/protobuf"
 )
@@ -58,6 +58,8 @@ func (p *TxProtocol) initWith(p2pservice PeerManager) {
 
 // remote peer requests handler
 func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
@@ -122,6 +124,8 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 
 // remote GetTransactions response handler
 func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
@@ -212,6 +216,8 @@ func (p *TxProtocol) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 
 // remote NotifynewTXs response handler
 func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {

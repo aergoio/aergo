@@ -51,6 +51,8 @@ func (p *PingProtocol) initWith(p2pservice PeerManager) {
 
 // remote peer requests handler
 func (p *PingProtocol) onPingRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
@@ -86,6 +88,8 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 
 // remote ping response handler
 func (p *PingProtocol) onPingResponse(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
@@ -113,6 +117,8 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 }
 
 func (p *PingProtocol) onStatusRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got status message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
@@ -143,6 +149,8 @@ func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 }
 
 func (p *PingProtocol) onGoaway(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got goaway message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
