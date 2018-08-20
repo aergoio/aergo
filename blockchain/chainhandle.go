@@ -64,8 +64,6 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	block := nblock
 
 	for block != nil {
-		dbtx := cs.cdb.store.NewTx(true)
-
 		/* reorgnize
 		   if new bestblock then process Txs
 		   add block
@@ -73,17 +71,24 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		   connect next orphan
 		*/
 		if cs.needReorg(block) {
-			cs.reorg(&dbtx, block)
+			cs.reorg(block)
 		}
 
-		if cs.cdb.isNewBestBlock(block) {
+		dbtx := cs.cdb.store.NewTx(true)
+
+		var isNew bool
+		var err error
+		if isNew, err = cs.cdb.isNewBestBlock(block); err != nil {
+			return err
+		}
+
+		if isNew {
 			if err := cs.processTxsAndState(&dbtx, block); err != nil {
 				return err
 			}
 		}
 
-		err := cs.cdb.addBlock(&dbtx, block)
-		if err != nil {
+		if err = cs.cdb.addBlock(&dbtx, block); err != nil {
 			logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to add block")
 			return err
 		}
@@ -91,9 +96,11 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		dbtx.Commit()
 
 		logger.Info().Int("processed_txn", len(block.GetBody().GetTxs())).
+			Uint64("latest", cs.cdb.latest).
 			Uint64("blockNo", block.GetHeader().GetBlockNo()).
 			Str("hash", block.ID()).
-			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).Msg("block added")
+			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).
+			Msg("block added")
 		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
 		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
 			// FIXME: remove legacy

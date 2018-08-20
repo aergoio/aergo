@@ -146,24 +146,27 @@ func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {
 	cdb.latest = newLatest
 }
 
-func (cdb *ChainDB) isNewBestBlock(block *types.Block) bool {
+func (cdb *ChainDB) isNewBestBlock(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		return false
+		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("no new best block.block no is not latest+1")
+
+		return false, nil
 	}
 
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
 	if err != nil { //need assertion
-		return false
+		return false, fmt.Errorf("failed to getting block hash by no(%v)", cdb.getBestBlockNo())
 	}
 
 	isNewBest := bytes.Equal(prevHash, latestHash)
-	if isNewBest {
-		logger.Debug().Uint64("blkno", blockNo).Str("hash", block.ID()).Msg("new best block")
-	}
 
-	return isNewBest
+	logger.Debug().Bool("isNewBest", isNewBest).Uint64("blkno", blockNo).Str("hash", block.ID()).
+		Str("latest", EncodeB64(latestHash)).Str("prev", EncodeB64(prevHash)).
+		Msg("check if new best block")
+
+	return isNewBest, nil
 }
 
 type txInfo struct {
