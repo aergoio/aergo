@@ -14,9 +14,9 @@ import (
 
 	inet "github.com/libp2p/go-libp2p-net"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/multiformats/go-multicodec/protobuf"
 )
@@ -65,6 +65,8 @@ func (p *BlockProtocol) initWith(p2pservice PeerManager) {
 
 // remote peer requests handler
 func (p *BlockProtocol) onGetBlockRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
@@ -124,6 +126,8 @@ func (p *BlockProtocol) onGetBlockRequest(s inet.Stream) {
 
 // remote GetBlock response handler
 func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
@@ -203,6 +207,8 @@ func (p *BlockProtocol) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 
 // remote peer requests handler
 func (p *BlockProtocol) onGetBlockHeadersRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
@@ -285,6 +291,8 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 
 // remote GetBlock response handler
 func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
@@ -342,6 +350,8 @@ func (p *BlockProtocol) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 
 // remote NotifyNewBlock response handler
 func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
@@ -397,7 +407,7 @@ func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHa
 }
 
 // replying chain tree
-func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, missing []message.BlockHash) {
+func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
 	// find block info from chainservice
 	blockInfos := make([]*types.Block, 0, len(missing))
 	for _, hash := range missing {
@@ -419,11 +429,13 @@ func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, missing []messag
 		Blocks: blockInfos}
 
 	// ???: have to check arguemnts
-	remotePeer.sendMessage(newPbMsgRequestOrder(false, true, getBlocksResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, true, getBlocksResponse, resp))
 }
 
 // remote peer requests handler
 func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
+	defer s.Close()
+
 	p.log.Debug().Msg("Received GetMissingRequest request")
 	peerID := s.Conn().RemotePeer()
 	remotePeer, exists := p.ps.GetPeer(peerID)
@@ -472,7 +484,7 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	// generate response message
 	p.log.Debug().Msgf("Sending GetMssingRequest response to %s. Message id: %s...", peerID.Pretty(), data.MessageData.Id)
 
-	p.sendMissingResp(remotePeer, missing.Hashes)
+	p.sendMissingResp(remotePeer, data.MessageData.Id, missing.Hashes)
 	/*
 		for i := 0; i < len(missing.Hashes); i++ {
 			p.NotifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
@@ -483,6 +495,8 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 // remote GetBlock response handler
 /*
 func (p *BlockProtocol) onGetMissingResponse(s inet.Stream) {
+	defer s.Close()
+
 	remotePeer, exists := p.ps.GetPeer(s.Conn().RemotePeer())
 	if !exists {
 		p.log.Warnf("Request to invalid peer %s ", s.Conn().RemotePeer().Pretty())

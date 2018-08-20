@@ -69,6 +69,8 @@ func (p *AddressesProtocol) GetAddresses(peerID peer.ID, size uint32) bool {
 
 // remote peer requests handler
 func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
@@ -130,6 +132,8 @@ func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress)
 
 // remote ping response handler
 func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
+	defer s.Close()
+
 	peerID := s.Conn().RemotePeer()
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
