@@ -134,7 +134,7 @@ func (ns *RPC) serve() {
 
 	// Setup TCP multiplexer
 	tcpm := cmux.New(l)
-	grpcL := tcpm.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	httpL := tcpm.Match(cmux.HTTP1Fast())
 
 	ns.log.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
