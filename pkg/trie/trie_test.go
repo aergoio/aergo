@@ -353,75 +353,62 @@ func TestTrieLoadCache(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-/*
-func TestTrieLiveCache(t *testing.T) {
+func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
+	//b.ReportAllocs()
+	newvalues := getFreshData(1000, 32)
+	//fmt.Println("\nLoading b.N x 1000 accounts")
+	for i := 0; i < b.N; i++ {
+		//start := time.Now()
+		newkeys := getFreshData(1000, 32)
+		smt.Update(newkeys, newvalues)
+		smt.Commit()
+		/*
+			end := time.Now()
+			elapsed := end.Sub(start)
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			fmt.Println(i, " : elapsed : ", elapsed,
+				"\ndb read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter,
+				"\ncache size : ", len(smt.db.liveCache),
+				"\nRAM : ", m.Sys/1024/1024, " MiB")
+		*/
+	}
+}
+
+//go test -run=xxx -bench=. -benchmem -test.benchtime=20s
+func BenchmarkCacheHeightLimit233(b *testing.B) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-
-	//st, _ := db.NewBadgerDB(dbPath)
 	smt := NewTrie(32, hash, st)
-	keys := getFreshData(1000, 32)
-	values := getFreshData(1000, 32)
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-
-	start := time.Now()
-	smt.Update(keys, values)
-	end := time.Now()
-	fmt.Println("\nLoad all accounts")
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-	elapsed := end.Sub(start)
-	fmt.Println("elapsed : ", elapsed)
-
-	smt.Commit()
-
-	newvalues := getFreshData(1000, 32)
-	start = time.Now()
-	smt.Update(keys, newvalues)
-	end = time.Now()
-	fmt.Println("\n2nd update")
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-	elapsed = end.Sub(start)
-	fmt.Println("elapsed : ", elapsed)
-
-	smt.Commit()
-
-	fmt.Println("\nLoading 10M accounts")
-	for i := 0; i < 10000; i++ {
-		newkeys := getFreshData(1000, 32)
-		start = time.Now()
-		smt.Update(newkeys, newvalues)
-		end = time.Now()
-		elapsed = end.Sub(start)
-		fmt.Println(i, " : elapsed : ", elapsed)
-		fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-		fmt.Println("cache size : ", len(smt.db.liveCache))
-		smt.Commit()
-		/*
-			for i, key := range newkeys {
-				val, _ := smt.Get(key)
-				if !bytes.Equal(newvalues[i], val) {
-					t.Fatal("new keys were not updated")
-				}
-			}
-	}
-	start = time.Now()
-	smt.Update(keys, newvalues)
-	end = time.Now()
-	fmt.Println("\n Updating 1k accounts in a 1M account tree")
-	fmt.Println("elapsed : ", elapsed)
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-
+	smt.CacheHeightLimit = 233
+	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
 	os.RemoveAll(".aergo")
 }
-*/
+func BenchmarkCacheHeightLimit238(b *testing.B) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(32, hash, st)
+	smt.CacheHeightLimit = 238
+	benchmark10MAccounts10Ktps(smt, b)
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+func BenchmarkCacheHeightLimit245(b *testing.B) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(32, hash, st)
+	smt.CacheHeightLimit = 245
+	benchmark10MAccounts10Ktps(smt, b)
+	st.Close()
+	os.RemoveAll(".aergo")
+}
