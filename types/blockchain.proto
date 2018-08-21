@@ -33,7 +33,6 @@ message TxList {
 message Tx {
 	bytes hash = 1;
 	TxBody body = 2;
-	uint64 size = 3;
 }
 
 message TxBody {
@@ -45,6 +44,7 @@ message TxBody {
 	uint64 limit = 6;
 	uint64 price = 7;
 	bytes sign = 8;
+	uint64 type = 9;
 }
 
 message TxIdx {

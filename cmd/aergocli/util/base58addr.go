@@ -21,6 +21,7 @@ type InOutTxBody struct {
 	Limit     uint64
 	Price     uint64
 	Sign      []byte
+	Type      uint64
 }
 
 func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
@@ -43,6 +44,7 @@ func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 		tx.Body.Limit = in.Body.Limit
 		tx.Body.Price = in.Body.Price
 		tx.Body.Sign = in.Body.Sign
+		tx.Body.Type = in.Body.Type
 		txs[i] = tx
 	}
 
@@ -68,6 +70,7 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	body.Limit = in.Limit
 	body.Price = in.Price
 	body.Sign = in.Sign
+	body.Type = in.Type
 
 	return body, nil
 }
@@ -83,6 +86,7 @@ func ConvBase58Addr(tx *types.Tx) string {
 	out.Body.Limit = tx.Body.Limit
 	out.Body.Price = tx.Body.Price
 	out.Body.Sign = tx.Body.Sign
+	out.Body.Type = tx.Body.Type
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""
