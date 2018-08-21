@@ -373,9 +373,12 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 				s.db.liveMux.Unlock()
 			}
 			// store new node in db
-			s.db.updatedMux.Lock()
-			s.db.updatedNodes[node] = kv
-			s.db.updatedMux.Unlock()
+			if !bytes.Equal(s.defaultHashes[height+1], h) {
+				// When deleting, don't rewrite a default hash in db
+				s.db.updatedMux.Lock()
+				s.db.updatedNodes[node] = kv
+				s.db.updatedMux.Unlock()
+			}
 		}
 		if !bytes.Equal(s.defaultHashes[height+1], oldRoot) && !bytes.Equal(h, oldRoot) {
 			// Delete old liveCache node if it has been updated and is not default
