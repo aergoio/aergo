@@ -67,6 +67,7 @@ type ChainConsensus interface {
 	IsBlockReorganizing() bool
 	SetReorganizing()
 	UnsetReorganizing()
+	StatusUpdate()
 }
 
 // BlockFactory is an interface for a block factory implementation.

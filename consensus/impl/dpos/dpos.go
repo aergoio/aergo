@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
@@ -16,7 +17,6 @@ import (
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -149,6 +149,10 @@ func (dpos *DPoS) SetReorganizing() {
 // UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
 func (dpos *DPoS) UnsetReorganizing() {
 	util.UnsetReorganizing(&dpos.onReorganizing)
+}
+
+// StatusUpdate updates the last irreversible block (LIB).
+func (dpos *DPoS) StatusUpdate() {
 }
 
 func (dpos *DPoS) bpIdx() uint16 {

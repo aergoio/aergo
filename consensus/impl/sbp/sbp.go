@@ -3,11 +3,11 @@ package sbp
 import (
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -106,6 +106,10 @@ func (s *SimpleBlockFactory) SetReorganizing() {
 // UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
 func (s *SimpleBlockFactory) UnsetReorganizing() {
 	util.UnsetReorganizing(&s.onReorganizing)
+}
+
+// StatusUpdate currently does nothing.
+func (s *SimpleBlockFactory) StatusUpdate() {
 }
 
 // BlockFactory returns s itself.
