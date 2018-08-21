@@ -70,14 +70,17 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		   if new bestblock then update context
 		   connect next orphan
 		*/
-		if cs.needReorg(block) {
+		need, err := cs.needReorg(block)
+		if err != nil {
+			return err
+		}
+		if need {
 			cs.reorg(block)
 		}
 
 		dbtx := cs.cdb.store.NewTx(true)
 
 		var isNew bool
-		var err error
 		if isNew, err = cs.cdb.isNewBestBlock(block); err != nil {
 			return err
 		}
@@ -102,11 +105,13 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).
 			Msg("block added")
 		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
-		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
-			// FIXME: remove legacy
-			BlockNo: block.GetHeader().GetBlockNo(),
-			Txs:     block.GetBody().GetTxs(),
-		}, cs)
+		if isNew {
+			cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
+				// FIXME: remove legacy
+				BlockNo: block.GetHeader().GetBlockNo(),
+				Txs:     block.GetBody().GetTxs(),
+			}, cs)
+		}
 
 		if block, err = cs.connectOrphan(block); err != nil {
 			return err
@@ -161,6 +166,7 @@ func (cs *ChainService) rollbackBlock(dbtx *db.Transaction, block *types.Block) 
 			blockNo, cs.cdb.latest)
 	}
 
+	// rollbacked tx는 mempool에 다시 push
 	for _, tx := range txs {
 		cs.cdb.deleteTx(dbtx, tx)
 	}

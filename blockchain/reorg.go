@@ -12,20 +12,24 @@ type reorgElem struct {
 	Hash    []byte
 }
 
-func (cs *ChainService) needReorg(block *types.Block) bool {
+func (cs *ChainService) needReorg(block *types.Block) (bool, error) {
 	cdb := cs.cdb
 	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
 
 	// assumption: not an orphan
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		return false
+		if blockNo > cdb.latest+1 {
+			return false, fmt.Errorf("orphan occured in needreorg check blockno=%d, latest=%d hash=%v",
+				blockNo, cdb.latest, block.ID())
+		}
+		return false, nil
 	}
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
 
 	if err != nil {
 		// assertion case
-		return false
+		return false, nil
 	}
 
 	isNeed := !bytes.Equal(prevHash, latestHash)
@@ -34,15 +38,18 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 			Msg("need reorg true")
 	}
 
-	return isNeed
+	return isNeed, nil
 }
 
 func (cs *ChainService) reorg(block *types.Block) error {
 	reorgtx := cs.cdb.store.NewTx(true)
-
 	cdb := cs.cdb
+
+	//FIXME: need tx rollback when error?
+
 	if cdb.ChainInfo != nil {
 		cdb.SetReorganizing()
+		defer cdb.UnsetReorganizing()
 	}
 	logger.Info().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 		Msg("reorg started")
@@ -55,12 +62,6 @@ func (cs *ChainService) reorg(block *types.Block) error {
 	if err := cs.rollforwardChain(&reorgtx, elems); err != nil {
 		logger.Error().Msg("failed reorg replay")
 		return err
-	}
-
-	//TODO update cdb.bestblock
-
-	if cdb.ChainInfo != nil {
-		cdb.UnsetReorganizing()
 	}
 
 	logger.Info().Msg("reorg end")
@@ -149,7 +150,8 @@ func (cs *ChainService) collectReorgTarget(block *types.Block, elems []reorgElem
 func (cs *ChainService) rollforwardChain(dbtx *db.Transaction, elems []reorgElem) error {
 	cdb := cs.cdb
 
-	for _, elem := range elems {
+	for i := len(elems) - 1; i >= 0; i-- {
+		elem := elems[i]
 		logger.Debug().Uint64("blockNo", uint64(elem.BlockNo)).
 			Str("hash", EncodeB64(elem.Hash)).Msg("roll forward")
 
@@ -158,7 +160,7 @@ func (cs *ChainService) rollforwardChain(dbtx *db.Transaction, elems []reorgElem
 		// change main chain info
 		(*dbtx).Set(blockIdx, elem.Hash)
 
-		//TODO proces block tx
+		//FIXME: processed tx del -> mempool
 		block, err := cdb.getBlock(elem.Hash)
 		if err != nil {
 			return err
