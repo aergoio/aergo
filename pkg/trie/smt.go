@@ -349,9 +349,7 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 			children = append(children, right...)
 			children = append(children, byte(0))
 			// Cache the node if it's children are not default and if it's height is over CacheHeightLimit
-			if (!bytes.Equal(s.defaultHashes[height], left) ||
-				!bytes.Equal(s.defaultHashes[height], right)) &&
-				height > s.CacheHeightLimit {
+			if height > s.CacheHeightLimit {
 				s.db.liveMux.Lock()
 				s.db.liveCache[node] = children
 				s.db.liveMux.Unlock()
@@ -367,10 +365,9 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 			kv = append(kv, keys[0]...)
 			kv = append(kv, values[0]...)
 			kv = append(kv, byte(1))
-			// Cache the shortcut node if it's children are not default and if it's height is over CacheHeightLimit
-			if (!bytes.Equal(s.defaultHashes[height], left) ||
-				!bytes.Equal(s.defaultHashes[height], right)) &&
+			if !bytes.Equal(s.defaultHashes[height+1], h) &&
 				height > s.CacheHeightLimit {
+				// When deleting, the shortcut node for the newly default key should not be created.
 				s.db.liveMux.Lock()
 				s.db.liveCache[node] = kv
 				s.db.liveMux.Unlock()

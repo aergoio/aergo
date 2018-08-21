@@ -577,7 +577,9 @@ func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) [
 	children = append(children, left...)
 	children = append(children, right...)
 	children = append(children, byte(0))
-	// FIXME test if it is possible to use a caching stratergy instead of a fixed CacheHeightLimit
+	// TODO test if it is possible to use a caching stratergy instead of a fixed CacheHeightLimit
+	// a caching stratergy also requires modifying loadCache()
+	// stratergy : cache if shortcut or both children are not default
 	// if !bytes.Equal(s.defaultHashes[height], left) && !bytes.Equal(s.defaultHashes[height], right)) {
 	if height > s.CacheHeightLimit {
 		s.db.liveMux.Lock()
