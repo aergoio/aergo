@@ -90,6 +90,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			Amount:    uint64(amount),
 			Price:     price,
 			Limit:     0,
+			Type:      types.TxType_GOVERNANCE,
 			Nonce:     state.GetNonce() + 1,
 		},
 	}
