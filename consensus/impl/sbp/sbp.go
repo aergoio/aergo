@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -79,7 +80,7 @@ func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 }
 
 // IsBlockValid checks the consensus level validity of a block.
-func (s *SimpleBlockFactory) IsBlockValid(block *types.Block) error {
+func (s *SimpleBlockFactory) IsBlockValid(*types.Block, *types.Block, peer.ID) error {
 	// SimpleBlockFactory has no block valid check.
 	return nil
 }

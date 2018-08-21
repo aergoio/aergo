@@ -77,7 +77,7 @@ func Init(cfg *config.ConsensusConfig) {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval / 10)
+	return time.NewTicker(consensus.BlockInterval / 100)
 
 }
 
@@ -108,17 +108,25 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 }
 
 // IsBlockValid checks the DPoS consensus level validity of a block
-func (dpos *DPoS) IsBlockValid(block *types.Block) error {
+func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
 	id, err := block.BpID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
+	if id == peerID && block.PrevID() != bestBlock.ID() {
+		return &consensus.ErrorConsensus{
+			Msg: fmt.Sprintf(
+				"reorganization occurred after block production: parent: %v (curr: %v), best block: %v",
+				block.PrevID(), block.ID(), bestBlock.ID()),
+		}
+	}
+
 	ns := block.GetHeader().GetTimestamp()
 	idx, ok := dpos.bpc.BpID2Index(id)
 	s := slot.NewFromUnixNano(ns)
-	// Check whether the BP ID belongs to those of the current BP members and
-	// its corresponding BP index is consistent with the block timestamp.
+	// Check whether the BP ID is one of the current BP members and its
+	// corresponding BP index is consistent with the block timestamp.
 	if !ok || !s.IsFor(idx) {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf("BP %v is not permitted for the time slot %v", block.ID(), time.Unix(0, ns)),
