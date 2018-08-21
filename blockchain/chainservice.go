@@ -10,11 +10,11 @@ import (
 	//"reflect"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -22,14 +22,14 @@ import (
 
 type ChainService struct {
 	*component.BaseComponent
-	consensus.ChainInfo
+	consensus.ChainConsensus
 
 	cfg *cfg.Config
 	cdb *ChainDB
 	sdb *state.ChainStateDB
 	op  *OrphanPool
 
-	cac chan consensus.ChainInfo
+	cc chan consensus.ChainConsensus
 }
 
 var _ component.IComponent = (*ChainService)(nil)
@@ -41,7 +41,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	return &ChainService{
 		BaseComponent: component.NewBaseComponent(message.ChainSvc, logger, cfg.EnableDebugMsg),
 		cfg:           cfg,
-		cac:           make(chan consensus.ChainInfo),
+		cc:            make(chan consensus.ChainConsensus),
 		cdb:           NewChainDB(),
 		sdb:           state.NewStateDB(),
 		op:            NewOrphanPool(),
@@ -50,10 +50,10 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 func (cs *ChainService) receiveChainInfo() {
 	// Get a Validation interface from the consensus service
-	cs.ChainInfo = <-cs.cac
-	cs.cdb.ChainInfo = cs.ChainInfo
+	cs.ChainConsensus = <-cs.cc
+	cs.cdb.ChainConsensus = cs.ChainConsensus
 	// Disable the channel. warning: don't read from this channel!!!
-	cs.cac = nil
+	cs.cc = nil
 }
 
 func (cs *ChainService) Start() {
@@ -111,8 +111,8 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 }
 
 // SetValidationAPI send the Validation v of the chosen Consensus to ChainService cs.
-func (cs *ChainService) SendChainInfo(ca consensus.ChainInfo) {
-	cs.cac <- ca
+func (cs *ChainService) SendChainInfo(ca consensus.ChainConsensus) {
+	cs.cc <- ca
 }
 
 func (cs *ChainService) Stop() {
