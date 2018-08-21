@@ -209,19 +209,22 @@ func hashBytes(b1 []byte, b2 []byte) []byte {
 	return h.Sum(nil)
 }
 
-func hashWithoutSign(txbody *types.TxBody) []byte {
+func hashWithoutSign(txBody *types.TxBody) []byte {
 	h := sha256.New()
-	binary.Write(h, binary.LittleEndian, txbody.Nonce)
-	h.Write(txbody.Account)
-	h.Write(txbody.Recipient)
-	binary.Write(h, binary.LittleEndian, txbody.Amount)
-	h.Write(txbody.Payload)
+	binary.Write(h, binary.LittleEndian, txBody.Nonce)
+	h.Write(txBody.Account)
+	h.Write(txBody.Recipient)
+	binary.Write(h, binary.LittleEndian, txBody.Amount)
+	binary.Write(h, binary.LittleEndian, txBody.Limit)
+	binary.Write(h, binary.LittleEndian, txBody.Price)
+	h.Write(txBody.Payload)
+	binary.Write(h, binary.LittleEndian, txBody.Type)
 	return h.Sum(nil)
 }
 
 func (as *AccountService) signTx(tx *types.Tx) error {
-	txbody := tx.Body
 	//hash tx
+	txbody := tx.Body
 	hash := hashWithoutSign(txbody)
 	//get key
 	key, exist := as.unlocked[EncodeB64(txbody.Account)]
@@ -229,7 +232,6 @@ func (as *AccountService) signTx(tx *types.Tx) error {
 		return message.ErrShouldUnlockAccount
 	}
 	//sign tx
-	//TODO: race condition? if lock account at this moment ...
 	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
 	if err != nil {
 		as.Error().Err(err).Msg("could not sign")
@@ -237,10 +239,6 @@ func (as *AccountService) signTx(tx *types.Tx) error {
 	}
 	txbody.Sign = sign
 	//txbody.Sign = sign
-	/*
-		sign, _ := key.Sign(hash)
-		txbody.Sign = sign.Serialize()
-	*/
 	tx.Hash = tx.CalculateTxHash()
 	return nil
 }

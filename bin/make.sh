@@ -11,7 +11,7 @@ fi
 NR_ACC=$1
 NR_TX=$2
 TARGET_DIR=$3
-
+TO_ACC=2pFvu7PWU2jRFMCKv5zcgrX6NqKb
 rm -fr $TARGET_DIR
 mkdir -p $TARGET_DIR
 
@@ -30,8 +30,9 @@ do
 			\"nonce\": $j , \
 			\"price\": 1 , \
 			\"limit\": 100 , \
-			\"recipient\":\"2kVUWgX7xfBsTCQsUCRx9wKNdLwK\", \
-			\"amount\": 256 }" >> "$TARGET_DIR/$NEWKEY.trx" 2> /dev/null
+			\"recipient\":\"$TO_ACC\", \
+			\"type\": 10, \
+			\"amount\": 25000 }" >> "$TARGET_DIR/$NEWKEY.trx" 2> /dev/null
 
 		echo "," >> $TARGET_DIR/$NEWKEY.trx
 	done

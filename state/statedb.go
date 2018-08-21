@@ -38,6 +38,7 @@ type BlockInfo struct {
 	BlockHash types.BlockID
 	PrevHash  types.BlockID
 }
+
 type StateEntry struct {
 	State *types.State
 	Undo  *types.State
@@ -141,10 +142,16 @@ func (sdb *ChainStateDB) Close() error {
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
-	sdb.latest = &BlockInfo{
+	gbInfo := &BlockInfo{
 		BlockNo:   0,
 		BlockHash: types.ToBlockID(genesisBlock.Hash),
 	}
+	sdb.latest = gbInfo
+
+	// save state of genesis block
+	bstate := NewBlockState(gbInfo.BlockNo, gbInfo.BlockHash, types.BlockID{})
+	sdb.saveBlockState(bstate)
+
 	// TODO: process initial coin tx
 	err := sdb.saveStateDB()
 	return err
@@ -185,7 +192,8 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
 	}
 	if sdb.latest.BlockHash != bstate.PrevHash {
-		return fmt.Errorf("Failed to apply: invalid previous block")
+		return fmt.Errorf("Failed to apply: invalid previous block latest=%v, bstate=%v",
+			sdb.latest.BlockHash, bstate.PrevHash)
 	}
 	sdb.Lock()
 	defer sdb.Unlock()
@@ -214,10 +222,16 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	for sdb.latest.BlockNo > blockNo {
-		bs, err := sdb.loadBlockState(sdb.latest.BlockHash)
+	target := sdb.latest
+	for target.BlockNo >= blockNo {
+		bs, err := sdb.loadBlockState(target.BlockHash)
 		if err != nil {
 			return err
+		}
+		sdb.latest = &bs.BlockInfo
+
+		if target.BlockNo == blockNo {
+			break
 		}
 		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
 		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
@@ -230,7 +244,11 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			sdb.trie.Update(keys, vals)
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
-		sdb.latest = &bs.BlockInfo
+
+		target = &BlockInfo{
+			BlockNo:   sdb.latest.BlockNo - 1,
+			BlockHash: sdb.latest.PrevHash,
+		}
 	}
 	err := sdb.saveStateDB()
 	return err

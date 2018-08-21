@@ -124,7 +124,7 @@ func (cdb *ChainDB) loadChainData() error {
 		cdb.blocks[i] = &buf
 	}
 	*/
-	cdb.latest = latestNo
+	cdb.setLatest(latestNo)
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
@@ -152,86 +152,44 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) generateGenesisBlock(seed int64) *types.Block {
+func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
 	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)
-	cdb.addBlock(&tx, genesisBlock)
+	if err := cdb.addBlock(&tx, genesisBlock); err != nil {
+		return nil, err
+	}
 	tx.Commit()
 	logger.Info().Msg("generate Genesis Block")
-	return genesisBlock
+	return genesisBlock, nil
 }
 
-func (cdb *ChainDB) needReorg(block *types.Block) bool {
-	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
-	// assumption: not an orphan
+func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {
+	cdb.latest = newLatest
+}
+
+func (cdb *ChainDB) isNewBestBlock(block *types.Block) (bool, error) {
+	blockNo := block.GetHeader().GetBlockNo()
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Uint64("blockNo", blockNo).Uint64("latest", cdb.latest).Msg("needReorg Check")
-		return false
+		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("no new best block.block no is not latest+1")
+
+		return false, nil
 	}
+
 	prevHash := block.GetHeader().GetPrevBlockHash()
 	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
-	logger.Debug().Str("prev", EncodeB64(prevHash)).Str("latest", EncodeB64(latestHash)).Msg("needReorg Check")
-	if err != nil {
-		// assertion case
-		return false
+	if err != nil { //need assertion
+		return false, fmt.Errorf("failed to getting block hash by no(%v)", cdb.getBestBlockNo())
 	}
 
-	return !bytes.Equal(prevHash, latestHash)
-}
+	isNewBest := bytes.Equal(prevHash, latestHash)
 
-type reorgElem struct {
-	BlockNo types.BlockNo
-	Hash    []byte
-}
+	logger.Debug().Bool("isNewBest", isNewBest).Uint64("blkno", blockNo).Str("hash", block.ID()).
+		Str("latest", EncodeB64(latestHash)).Str("prev", EncodeB64(prevHash)).
+		Msg("check if new best block")
 
-func (cdb *ChainDB) reorg(block *types.Block) {
-	if cdb.ChainInfo != nil {
-		cdb.SetReorganizing()
-	}
-
-	tblock := block
-	blockNo := tblock.GetHeader().GetBlockNo()
-	logger.Debug().Uint64("blockNo", blockNo).Msg("Reorg Started")
-	elems := make([]reorgElem, 0)
-	for blockNo > 0 {
-		// get prev block info
-		prevHash := tblock.GetHeader().GetPrevBlockHash()
-		tblock, _ = cdb.getBlock(prevHash)
-		mHash, _ := cdb.getHashByNo(tblock.GetHeader().GetBlockNo())
-		blockNo--
-		if blockNo != tblock.GetHeader().GetBlockNo() {
-			logger.Fatal().Uint64("blockNo", blockNo).Uint64("TBlockNo", tblock.GetHeader().GetBlockNo()).
-				Msg("Reorg Failed invalid blockno")
-		}
-		if bytes.Equal(tblock.Hash, mHash) {
-			// branch root found
-			break
-		}
-		newElem := reorgElem{
-			BlockNo: tblock.GetHeader().GetBlockNo(),
-			Hash:    tblock.Hash,
-		}
-		elems = append(elems, newElem)
-		logger.Debug().Uint64("blockNo", blockNo).Str("from", EncodeB64(tblock.Hash)).
-			Str("to", EncodeB64(mHash)).Msg("Reorg Failed invalid blockno")
-	}
-
-	tx := cdb.store.NewTx(true)
-	for _, elem := range elems {
-		blockIdx := types.BlockNoToBytes(elem.BlockNo)
-		// change main chain info
-		tx.Set(blockIdx, elem.Hash)
-		logger.Debug().Uint64("blockNo", blockNo).Str("hash", EncodeB64(elem.Hash)).Msg("Reorg changed")
-	}
-	tx.Commit()
-
-	if cdb.ChainInfo != nil {
-		cdb.UnsetReorganizing()
-	}
-
-	logger.Debug().Msg("Reorg End")
+	return isNewBest, nil
 }
 
 type txInfo struct {
@@ -253,6 +211,10 @@ func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, 
 	return nil
 }
 
+func (cdb *ChainDB) deleteTx(dbtx *db.Transaction, tx *types.Tx) {
+	(*dbtx).Delete(tx.Hash)
+}
+
 // store block info to DB
 func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
@@ -263,14 +225,11 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// assumption: not an orphan
 	// fork can be here
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Uint64("blockNo", blockNo).Str("id", block.ID()).Msg("branch block")
+		logger.Debug().Str("hash", block.ID()).Msg("block is branch")
 		longest = false
 	}
 
-	if cdb.needReorg(block) {
-		cdb.reorg(block)
-	}
-	logger.Debug().Uint64("blockNo", blockNo).Str("id", block.ID()).Msg("addBlock")
+	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err
@@ -284,7 +243,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 
 	// to avoid exception, set here
 	if longest {
-		cdb.latest = blockNo
+		cdb.setLatest(blockNo)
 	}
 
 	return nil

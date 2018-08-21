@@ -12,9 +12,9 @@ Gopkg.lock
 *.tmp
 
 # IDE specific
-.vscode
-.idea
-.iml
+*.vscode
+*.idea
+*.iml
 
 # developer workspace specific
 /conf

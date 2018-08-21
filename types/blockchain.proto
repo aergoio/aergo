@@ -30,10 +30,14 @@ message TxList {
 	repeated Tx txs = 1;
 }
 
+enum TxType {
+	NORMAL = 0;
+	GOVERNANCE = 1;
+}
+
 message Tx {
 	bytes hash = 1;
 	TxBody body = 2;
-	uint64 size = 3;
 }
 
 message TxBody {
@@ -45,6 +49,7 @@ message TxBody {
 	uint64 limit = 6;
 	uint64 price = 7;
 	bytes sign = 8;
+	TxType type = 9;
 }
 
 message TxIdx {
