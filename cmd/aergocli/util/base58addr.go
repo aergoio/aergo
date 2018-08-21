@@ -21,7 +21,7 @@ type InOutTxBody struct {
 	Limit     uint64
 	Price     uint64
 	Sign      []byte
-	Type      uint64
+	Type      types.TxType
 }
 
 func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
