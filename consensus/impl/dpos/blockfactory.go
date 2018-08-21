@@ -7,11 +7,12 @@ package dpos
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/libp2p/go-libp2p-crypto"
@@ -84,6 +85,12 @@ func (bf *BlockFactory) controller() {
 			return err
 		}
 
+		timeLeft := bpi.slot.RemainingTimeMS()
+		if timeLeft <= 0 {
+			logger.Debug().Int64("remaining time", timeLeft).Msg("skip block production - no time left")
+			return fmt.Errorf("no time left to produce block")
+		}
+
 		select {
 		case bf.workerQueue <- bpi:
 		default:
@@ -114,8 +121,11 @@ func (bf *BlockFactory) controller() {
 					return spew.Sdump(bpi.slot)
 				}))
 
-			if err := beginBlock(bpi); err == util.ErrQuit {
+			err := beginBlock(bpi)
+			if err == util.ErrQuit {
 				return
+			} else if err != nil {
+				continue
 			}
 
 			notifyBpTimeout(bpi)

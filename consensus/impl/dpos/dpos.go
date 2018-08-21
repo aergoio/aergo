@@ -194,5 +194,11 @@ func isBpTiming(block *types.Block, s *slot.Slot) bool {
 		return false
 	}
 
+	timeLeft := s.RemainingTimeMS()
+	if timeLeft < 0 {
+		logger.Debug().Int64("remaining time", timeLeft).Msg("no time left to produce block")
+		return false
+	}
+
 	return true
 }
