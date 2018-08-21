@@ -47,7 +47,7 @@ func (e ErrNoBlock) Error() string {
 }
 
 type ChainDB struct {
-	consensus.ChainInfo
+	consensus.ChainConsensus
 
 	latest types.BlockNo
 	//	blocks []*types.Block

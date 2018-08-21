@@ -3,12 +3,13 @@ package sbp
 import (
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -29,7 +30,6 @@ type SimpleBlockFactory struct {
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
 	maxBlockBodySize int
-	onReorganizing   util.BcReorgStatus
 	txOp             util.TxOp
 	quit             chan interface{}
 }
@@ -43,7 +43,6 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: util.MaxBlockBodySize(),
-		onReorganizing:   util.BcNoReorganizing,
 		quit:             make(chan interface{}),
 	}
 
@@ -81,7 +80,7 @@ func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 }
 
 // IsBlockValid checks the consensus level validity of a block.
-func (s *SimpleBlockFactory) IsBlockValid(block *types.Block) error {
+func (s *SimpleBlockFactory) IsBlockValid(*types.Block, *types.Block, peer.ID) error {
 	// SimpleBlockFactory has no block valid check.
 	return nil
 }
@@ -92,20 +91,8 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// IsBlockReorganizing reports whether the blockchain is currently under
-// reorganization.
-func (s *SimpleBlockFactory) IsBlockReorganizing() bool {
-	return util.OnReorganizing(&s.onReorganizing)
-}
-
-// SetReorganizing sets dpos.onReorganizing to 'OnReorganization.'
-func (s *SimpleBlockFactory) SetReorganizing() {
-	util.SetReorganizing(&s.onReorganizing)
-}
-
-// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
-func (s *SimpleBlockFactory) UnsetReorganizing() {
-	util.UnsetReorganizing(&s.onReorganizing)
+// StatusUpdate currently does nothing.
+func (s *SimpleBlockFactory) StatusUpdate() {
 }
 
 // BlockFactory returns s itself.
