@@ -120,7 +120,7 @@ func TestTrieDifferentKeySize(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	smt.Update(keys[0:1], DataArray{DefaultLeaf})
+	smt.Update(keys[0:1], [][]byte{DefaultLeaf})
 	newValue, _ := smt.Get(keys[0])
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -148,7 +148,7 @@ func TestTrieDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
+	newRoot, _, _ := smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -163,7 +163,7 @@ func TestTrieDelete(t *testing.T) {
 	}
 
 	//Empty the trie
-	var newValues DataArray
+	var newValues [][]byte
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}

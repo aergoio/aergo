@@ -121,7 +121,7 @@ func TestSmtDifferentKeySize(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	smt.Update(keys[0:1], DataArray{DefaultLeaf})
+	smt.Update(keys[0:1], [][]byte{DefaultLeaf})
 	newValue, _ := smt.Get(keys[0])
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -149,7 +149,7 @@ func TestSmtDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, false, true, nil)
+	newRoot, _ := smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, false, true, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -162,7 +162,7 @@ func TestSmtDelete(t *testing.T) {
 	}
 
 	//Empty the trie
-	var newValues DataArray
+	var newValues [][]byte
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
@@ -344,6 +344,20 @@ func TestSmtRaisesError(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
+func getFreshData(size, length int) [][]byte {
+	var data [][]byte
+	for i := 0; i < size; i++ {
+		key := make([]byte, 32)
+		_, err := rand.Read(key)
+		if err != nil {
+			panic(err)
+		}
+		data = append(data, hash(key)[:length])
+	}
+	sort.Sort(DataArray(data))
+	return data
+}
+
 /*
 func TestSmtLiveCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
@@ -434,20 +448,6 @@ func TestSmtLiveCache(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 */
-
-func getFreshData(size, length int) DataArray {
-	var data DataArray
-	for i := 0; i < size; i++ {
-		key := make([]byte, 32)
-		_, err := rand.Read(key)
-		if err != nil {
-			panic(err)
-		}
-		data = append(data, hash(key)[:length])
-	}
-	sort.Sort(DataArray(data))
-	return data
-}
 
 /*
 func TestDB(t *testing.T) {
