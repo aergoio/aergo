@@ -29,7 +29,6 @@ type SimpleBlockFactory struct {
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
 	maxBlockBodySize int
-	onReorganizing   util.BcReorgStatus
 	txOp             util.TxOp
 	quit             chan interface{}
 }
@@ -43,7 +42,6 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: util.MaxBlockBodySize(),
-		onReorganizing:   util.BcNoReorganizing,
 		quit:             make(chan interface{}),
 	}
 
@@ -90,22 +88,6 @@ func (s *SimpleBlockFactory) IsBlockValid(block *types.Block) error {
 // when shutdown is initiated.
 func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
-}
-
-// IsBlockReorganizing reports whether the blockchain is currently under
-// reorganization.
-func (s *SimpleBlockFactory) IsBlockReorganizing() bool {
-	return util.OnReorganizing(&s.onReorganizing)
-}
-
-// SetReorganizing sets dpos.onReorganizing to 'OnReorganization.'
-func (s *SimpleBlockFactory) SetReorganizing() {
-	util.SetReorganizing(&s.onReorganizing)
-}
-
-// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
-func (s *SimpleBlockFactory) UnsetReorganizing() {
-	util.UnsetReorganizing(&s.onReorganizing)
 }
 
 // StatusUpdate currently does nothing.

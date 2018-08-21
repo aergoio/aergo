@@ -3,6 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 )
@@ -43,14 +44,8 @@ func (cs *ChainService) needReorg(block *types.Block) (bool, error) {
 
 func (cs *ChainService) reorg(block *types.Block) error {
 	reorgtx := cs.cdb.store.NewTx(true)
-	cdb := cs.cdb
 
 	//FIXME: need tx rollback when error?
-
-	if cdb.ChainInfo != nil {
-		cdb.SetReorganizing()
-		defer cdb.UnsetReorganizing()
-	}
 	logger.Info().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 		Msg("reorg started")
 

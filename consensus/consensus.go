@@ -64,9 +64,6 @@ type Consensus interface {
 type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block) error
-	IsBlockReorganizing() bool
-	SetReorganizing()
-	UnsetReorganizing()
 	StatusUpdate()
 }
 
@@ -88,10 +85,6 @@ func Start(c Consensus) {
 	go func() {
 		ticker := c.Ticker()
 		for now := range ticker.C {
-			if c.IsBlockReorganizing() {
-				continue
-			}
-
 			c.QueueJob(now, bf.JobQueue())
 			select {
 			case <-c.QuitChan():

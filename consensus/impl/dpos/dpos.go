@@ -36,10 +36,9 @@ var (
 type DPoS struct {
 	ID peer.ID
 	*component.ComponentHub
-	bpc            *bp.Cluster
-	bf             *BlockFactory
-	onReorganizing util.BcReorgStatus
-	quit           chan interface{}
+	bpc  *bp.Cluster
+	bf   *BlockFactory
+	quit chan interface{}
 }
 
 // Status shows DPoS consensus's current status
@@ -62,12 +61,11 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		ID:             id,
-		ComponentHub:   hub,
-		bpc:            bpc,
-		bf:             NewBlockFactory(hub, id, privKey, quitC),
-		onReorganizing: util.BcNoReorganizing,
-		quit:           quitC,
+		ID:           id,
+		ComponentHub: hub,
+		bpc:          bpc,
+		bf:           NewBlockFactory(hub, id, privKey, quitC),
+		quit:         quitC,
 	}, nil
 }
 
@@ -133,22 +131,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block) error {
 	}
 
 	return nil
-}
-
-// IsBlockReorganizing reports whether the blockchain is currently under
-// reorganization.
-func (dpos *DPoS) IsBlockReorganizing() bool {
-	return util.OnReorganizing(&dpos.onReorganizing)
-}
-
-// SetReorganizing sets dpos.onReorganizing to 'OnReorganization.'
-func (dpos *DPoS) SetReorganizing() {
-	util.SetReorganizing(&dpos.onReorganizing)
-}
-
-// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
-func (dpos *DPoS) UnsetReorganizing() {
-	util.UnsetReorganizing(&dpos.onReorganizing)
 }
 
 // StatusUpdate updates the last irreversible block (LIB).
