@@ -79,8 +79,65 @@ func (s *Trie) loadDefaultHashes() []byte {
 	return h
 }
 
+// LoadCache loads the first layers of the merkle tree given a root
+// This is called after a node restarts so that it doesnt become slow with db reads
+func (s *Trie) LoadCache(root []byte) error {
+	s.loadDefaultHashes()
+	ch := make(chan error, 1)
+	s.loadCache(root, s.TrieHeight, ch)
+	return <-ch
+}
+
+// loadCache loads the first layers of the merkle tree given a root
+func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
+	if height <= s.CacheHeightLimit+1 {
+		ch <- nil
+		return
+	}
+	if bytes.Equal(root, s.defaultHashes[height]) {
+		ch <- nil
+		return
+	}
+	// Load the node from db
+	s.db.lock.Lock()
+	val := s.db.store.Get(root)
+	s.db.lock.Unlock()
+	nodeSize := len(val)
+	if nodeSize == 0 {
+		ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+		return
+	}
+	//Store node in cache.
+	var node Hash
+	copy(node[:], root)
+	s.db.liveMux.Lock()
+	s.db.liveCache[node] = val
+	s.db.liveMux.Unlock()
+	isShortcut := val[nodeSize-1]
+	if isShortcut == 1 {
+		ch <- nil
+		return
+	}
+
+	lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
+
+	lch := make(chan error, 1)
+	rch := make(chan error, 1)
+	go s.loadCache(lnode, height-1, lch)
+	go s.loadCache(rnode, height-1, rch)
+	if err := <-lch; err != nil {
+		ch <- err
+		return
+	}
+	if err := <-rch; err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
 // Update adds a sorted list of keys and their values to the trie
-func (s *Trie) Update(keys, values DataArray) ([]byte, error) {
+func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
@@ -103,7 +160,7 @@ type mresult struct {
 
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *Trie) update(root []byte, keys, values DataArray, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
+func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
 	if height == 0 {
 		// Delete the key-value from the trie if it is being set to DefaultLeaf
 		if bytes.Equal(DefaultLeaf, values[0]) {
@@ -134,7 +191,7 @@ func (s *Trie) update(root []byte, keys, values DataArray, height uint64, ch cha
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
-		s.maybeAddShortcutToDataArray(keys, values, lnode, rnode)
+		s.maybeAddShortcutToKV(keys, values, lnode, rnode)
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
 	}
@@ -167,7 +224,7 @@ func (s *Trie) update(root []byte, keys, values DataArray, height uint64, ch cha
 	lvalues, rvalues := values[:splitIndex], values[splitIndex:]
 
 	switch {
-	case lkeys.Len() == 0 && rkeys.Len() > 0:
+	case len(lkeys) == 0 && len(rkeys) > 0:
 		// all the keys go in the right subtree
 		update, deleted, err := s.update(rnode, keys, values, height-1, nil)
 		if err != nil {
@@ -214,7 +271,7 @@ func (s *Trie) update(root []byte, keys, values DataArray, height uint64, ch cha
 			ch <- mresult{node, false, nil}
 		}
 		return node, false, nil
-	case lkeys.Len() > 0 && rkeys.Len() == 0:
+	case len(lkeys) > 0 && len(rkeys) == 0:
 		// all the keys go in the left subtree
 		update, deleted, err := s.update(lnode, keys, values, height-1, nil)
 		if err != nil {
@@ -323,7 +380,7 @@ func (s *Trie) deleteCacheNode(root []byte) {
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
-func (s *Trie) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
+func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	for i, key := range keys {
 		if bitIsSet(key, height) {
 			return keys[:i], keys[i:]
@@ -332,7 +389,9 @@ func (s *Trie) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
 	return keys, nil
 }
 
-func (s *Trie) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
+// maybeAddShortcutToKV adds a shortcut to the keys array to be updated if
+// the shortcut key is not already in the keys array
+func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	up := false
 	for _, k := range keys {
 		if bytes.Equal(k, shortcutKey) {
@@ -341,16 +400,16 @@ func (s *Trie) maybeAddShortcutToDataArray(keys, values DataArray, shortcutKey, 
 		}
 	}
 	if !up {
-		keys, values = s.addShortcutToDataArray(keys, values, shortcutKey, shortcutVal)
+		keys, values = s.addShortcutToKV(keys, values, shortcutKey, shortcutVal)
 	}
 	return keys, values
 }
 
-// addShortcutToDataArray adds a shortcut key to the keys array to be updated.
+// addShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *Trie) addShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
-	newKeys := make(DataArray, 0, len(keys)+1)
-	newVals := make(DataArray, 0, len(keys)+1)
+func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+	newKeys := make([][]byte, 0, len(keys)+1)
+	newVals := make([][]byte, 0, len(keys)+1)
 
 	if bytes.Compare(shortcutKey, keys[0]) < 0 {
 		newKeys = append(newKeys, shortcutKey)
@@ -518,10 +577,11 @@ func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) [
 	children = append(children, left...)
 	children = append(children, right...)
 	children = append(children, byte(0))
-	// Cache the node if it's children are not default and if it's height is over CacheHeightLimit
-	if (!bytes.Equal(s.defaultHashes[height], left) ||
-		!bytes.Equal(s.defaultHashes[height], right)) &&
-		height > s.CacheHeightLimit {
+	// TODO test if it is possible to use a caching stratergy instead of a fixed CacheHeightLimit
+	// a caching stratergy also requires modifying loadCache()
+	// stratergy : cache if shortcut or both children are not default
+	// if !bytes.Equal(s.defaultHashes[height], left) && !bytes.Equal(s.defaultHashes[height], right)) {
+	if height > s.CacheHeightLimit {
 		s.db.liveMux.Lock()
 		s.db.liveCache[node] = children
 		s.db.liveMux.Unlock()
