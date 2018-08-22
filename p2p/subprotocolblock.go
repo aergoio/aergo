@@ -29,7 +29,7 @@ const (
 	getBlockHeadersResponse protocol.ID = "/blk/headerresp/0.1"
 	getMissingRequest       protocol.ID = "/blk/getmreq/0.1"
 	getMissingResponse      protocol.ID = "/blk/getmresp/0.1"
-	notifyNewBlockRequest   protocol.ID = "/blk/newblockreq/0.1"
+	notifyNewBlockRequest   protocol.ID = "/blk/notifynewblock/0.1"
 )
 
 // BlockProtocol handle block messages.
@@ -78,7 +78,7 @@ func (p *BlockProtocol) onGetBlockRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -139,7 +139,7 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -159,7 +159,7 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 	remotePeer.consumeRequest(data.MessageData.Id)
 
 	// got block
-	p.log.Debug().Msgf("Request chainservice to add %d blocks", len(data.Blocks))
+	p.log.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
 	for _, block := range data.Blocks {
 		p.iserv.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block})
 	}
@@ -170,10 +170,10 @@ func (p *BlockProtocol) onGetBlockResponse(s inet.Stream) {
 func (p *BlockProtocol) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
-		p.log.Warn().Str("peer_id", peerID.Pretty()).Msgf("Message %s to Unknown peer, check if a bug", getBlocksRequest)
+		p.log.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(getBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
-	p.log.Debug().Msgf("Sending Get block request to: %s...(%d blocks)", peerID.Pretty(), len(blockHashes))
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Int("block_cnt", len(blockHashes)).Msg("Sending Get block request")
 
 	hashes := make([][]byte, len(blockHashes))
 	for i, hash := range blockHashes {
@@ -191,12 +191,12 @@ func (p *BlockProtocol) GetBlocks(peerID peer.ID, blockHashes []message.BlockHas
 func (p *BlockProtocol) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 	remotePeer, exists := p.ps.GetPeer(msg.ToWhom)
 	if !exists {
-		p.log.Warn().Str("peer_id", msg.ToWhom.Pretty()).Msg("Request to invalid peer")
+		p.log.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
 		return false
 	}
 	peerID := remotePeer.meta.ID
 
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data
 	reqMsg := &types.GetBlockHeadersRequest{MessageData: &types.MessageData{}, Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
@@ -220,7 +220,7 @@ func (p *BlockProtocol) onGetBlockHeadersRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -304,7 +304,7 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -322,7 +322,6 @@ func (p *BlockProtocol) onGetBlockHeadersResponse(s inet.Stream) {
 	}
 
 	// send block headers to blockchain service
-	p.log.Debug().Msgf("Got blockHeaders response %v \n %v", data.Hashes, data.Headers)
 	remotePeer.consumeRequest(data.MessageData.Id)
 }
 
@@ -363,7 +362,7 @@ func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -395,7 +394,7 @@ func min(a, b uint32) uint32 {
 
 // TODO need to add comment
 func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
-	p.log.Debug().Str("peer_id", peer.meta.ID.Pretty()).Msg("Notifying branch block")
+	p.log.Debug().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Notifying branch block")
 
 	// create message data
 	req := &types.NewBlockNotice{MessageData: &types.MessageData{},
@@ -445,7 +444,7 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	}
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -482,7 +481,7 @@ func (p *BlockProtocol) onGetMissingRequest(s inet.Stream) {
 	missing := (*message.GetMissingRsp)(&v)
 
 	// generate response message
-	p.log.Debug().Msgf("Sending GetMssingRequest response to %s. Message id: %s...", peerID.Pretty(), data.MessageData.Id)
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, data.MessageData.Id).Msg("Sending GetMssingRequest response")
 
 	p.sendMissingResp(remotePeer, data.MessageData.Id, missing.Hashes)
 	/*
@@ -526,10 +525,10 @@ func (p *BlockProtocol) onGetMissingResponse(s inet.Stream) {
 func (p *BlockProtocol) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool {
 	remotePeer, exists := p.ps.GetPeer(peerID)
 	if !exists {
-		p.log.Warn().Str("peer_id", peerID.Pretty()).Msg("invalid peer id")
+		p.log.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
 		return false
 	}
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Send Get Missing Blocks")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
 
 	bhashes := make([][]byte, 0)
 	for _, a := range hashes {

@@ -22,8 +22,8 @@ import (
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 
 	cfg "github.com/aergoio/aergo/config"
@@ -241,13 +241,17 @@ func (ps *peerManager) run() {
 
 	go ps.runManagePeers()
 
-	ps.startListener()
-
-	// addtion should start after all modules are started
+	// need to start listen after chainservice is read to init
 	// FIXME: adhoc code
 	go func() {
 		time.Sleep(time.Second * 2)
-		ps.addDesignatedPeers()
+		ps.startListener()
+
+		// addtion should start after all modules are started
+		go func() {
+			time.Sleep(time.Second * 2)
+			ps.addDesignatedPeers()
+		}()
 	}()
 }
 
@@ -277,7 +281,7 @@ func (ps *peerManager) addDesignatedPeers() {
 		peerIDString := splitted[6]
 		peerID, err := peer.IDB58Decode(peerIDString)
 		if err != nil {
-			ps.log.Warn().Str("peer_id", peerIDString).Msg("invalid PeerID")
+			ps.log.Warn().Str(LogPeerID, peerIDString).Msg("invalid PeerID")
 			continue
 		}
 		peerMeta := PeerMeta{
@@ -287,7 +291,7 @@ func (ps *peerManager) addDesignatedPeers() {
 			Designated: true,
 			Outbound:   true,
 		}
-		ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Desginated peer")
+		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Desginated peer")
 		ps.addPeerChannel <- peerMeta
 	}
 }
@@ -332,18 +336,18 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	defer ps.mutex.Unlock()
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
-		ps.log.Info().Str("peer_id", newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
+		ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
 		// TODO check and modify meta information of peer if needed.
 		return
 	}
-	ps.log.Debug().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
+	ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
 	// if peer exists in peerstore already, reuse that peer again.
 	if !ps.checkInPeerstore(peerID) {
 		ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 	}
 	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
 	ps.insertPeer(peerID, newPeer)
-	ps.log.Info().Str("peer_id", peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
 	for _, listener := range ps.eventListeners {
 		listener.OnAddPeer(peerID)
 	}
@@ -506,7 +510,7 @@ func (ps *peerManager) checkAndCollectPeerList(ID peer.ID) {
 	peer, ok := ps.GetPeer(ID)
 	if !ok {
 		//ps.log.Warnf("invalid peer id %s", ID.Pretty())
-		ps.log.Warn().Str("peer_id", ID.Pretty()).Msg("invalid peer id")
+		ps.log.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
 	ps.iServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
@@ -529,8 +533,7 @@ func (ps *peerManager) tryFillPool(metas *[]PeerMeta) {
 			added = append(added, meta)
 		}
 	}
-	ps.log.Debug().Msgf("Fill %d peer addresses: %v ", len(added), added)
-
+	ps.log.Debug().Int("added_cnt", len(added)).Msg("Filled unknown peer addresses to peerpool")
 	ps.tryConnectPeers()
 }
 
@@ -543,7 +546,7 @@ func (ps *peerManager) tryConnectPeers() {
 			continue
 		}
 		if meta.IPAddress == "" || meta.Port == 0 {
-			ps.log.Warn().Str("peer_id", meta.ID.Pretty()).Str("addr", meta.IPAddress).
+			ps.log.Warn().Str(LogPeerID, meta.ID.Pretty()).Str("addr", meta.IPAddress).
 				Uint32("port", meta.Port).Msg("Invalid peer meta informations")
 			continue
 		}
@@ -683,7 +686,7 @@ func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
 	}
 	// adding inbound peer
 	if ps.checkInPeerstore(peerID) {
-		ps.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Adding inbound peer with dummy address")
+		ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Adding inbound peer with dummy address")
 		// address can be changed after handshaking...
 		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
 		ps.insertPeer(peerID, aPeer)
