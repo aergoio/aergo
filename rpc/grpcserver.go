@@ -14,10 +14,10 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -393,10 +393,10 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 // State handle rpc request state
 func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.Empty) (*types.NodeStatus, error) {
 	//result, err := rpc.hub.RequestFuture(message.P2PSvc,
-	status := rpc.hub.Status()
+	//status := rpc.hub.Status()
 
 	result := &types.NodeStatus{}
-	for k, v := range status {
+	/*for k, v := range status {
 		module := &types.ModuleStatus{
 			Name: k,
 		}
@@ -419,7 +419,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.Empty) (*ty
 			}
 		}
 		result.Status = append(result.Status, module)
-	}
+	}*/
 
 	return result, nil
 }

@@ -5,15 +5,15 @@
 
 package component
 
-type StatusReq struct{}
+import "time"
 
-type StatusRsp struct {
-	Status Status
-	MsgLat int64
-	MsgNum map[string]int
+type CompStatReq struct {
+	SentTime time.Time
 }
 
-type Status = int
+type CompStatRsp map[string]interface{}
+
+type Status = uint32
 
 const (
 	StartedStatus Status = 1 + iota

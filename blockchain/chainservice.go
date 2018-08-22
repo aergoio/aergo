@@ -39,7 +39,7 @@ var (
 
 func NewChainService(cfg *cfg.Config) *ChainService {
 	return &ChainService{
-		BaseComponent: component.NewBaseComponent(message.ChainSvc, logger, cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.ChainSvc, logger),
 		cfg:           cfg,
 		cc:            make(chan consensus.ChainConsensus),
 		cdb:           NewChainDB(),
@@ -231,6 +231,14 @@ func (cs *ChainService) Receive(context actor.Context) {
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
 		//logger.Debugf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": cs.BaseComponent.Statics(msg),
+				"blockchain": map[string]interface{}{
+					"orphan": cs.op.curCnt,
+				},
+			})
 	default:
 		//logger.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 	}

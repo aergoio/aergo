@@ -14,11 +14,11 @@ import (
 	//"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/blockchain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 type RestService struct {
@@ -38,7 +38,7 @@ var (
 
 func NewRestService(cfg *cfg.Config, bc *bc.ChainService) *RestService {
 	cs := &RestService{
-		BaseComponent: component.NewBaseComponent(message.RestSvc, logger, cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.RestSvc, logger),
 		cfg:           cfg,
 		bc:            bc,
 	}
@@ -77,4 +77,11 @@ func (cs *RestService) Stop() {
 func (cs *RestService) Receive(context actor.Context) {
 	cs.BaseComponent.Receive(context)
 
+	switch msg := context.Message().(type) {
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": cs.BaseComponent.Statics(msg),
+			})
+	}
 }

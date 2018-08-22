@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -58,7 +58,7 @@ var _ component.IComponent = (*MemPool)(nil)
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	return &MemPool{
-		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger("mempool"), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger("mempool")),
 		cfg:           cfg,
 		cache:         map[types.TransactionID]*types.Tx{},
 		pool:          map[types.AccountID]*TxList{},
@@ -137,6 +137,16 @@ func (mp *MemPool) Receive(context actor.Context) {
 		})
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": mp.BaseComponent.Statics(msg),
+				"mempool": map[string]interface{}{
+					"cache_len": len(mp.cache),
+					"orphan":    mp.orphan,
+				},
+			})
+
 	default:
 		mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
 	}

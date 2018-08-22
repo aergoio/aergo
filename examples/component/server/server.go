@@ -27,5 +27,11 @@ func (ts *TestServer) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.HelloRsp:
 		ts.Info().Msg(msg.Greeting)
+
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": ts.BaseComponent.Statics(msg),
+			})
 	}
 }
