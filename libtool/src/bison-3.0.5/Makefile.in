@@ -2413,8 +2413,7 @@ BUILT_SOURCES = $(mfcalc_sources) $(rpcalc_sources) $(ALLOCA_H) \
 	$(LIBUNISTRING_UNIWIDTH_H) lib/wchar.h lib/wctype.h \
 	src/parse-gram.c src/parse-gram.h src/scan-code.c \
 	src/scan-gram.c src/scan-skel.c $(top_srcdir)/.version
-CLEANFILES = doc/refcard.pdf $(FIGS_GV:.gv=.eps) $(FIGS_GV:.gv=.pdf) \
-	$(FIGS_GV:.gv=.png) doc/Doxyfile $(extracted) \
+CLEANFILES = doc/refcard.pdf doc/Doxyfile $(extracted) \
 	examples/extracted.stamp $(calcxx_sources_generated) \
 	examples/calc++/calc++-parser.output \
 	examples/calc++/calc++-parser.stamp \
