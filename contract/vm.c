@@ -8,7 +8,7 @@ const char *luaExecContext= "__exec_context__";
 
 static void preloadModules(lua_State *L)
 {
-    luaopen_system(L);
+	luaopen_system(L);
 }
 
 static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)
@@ -33,7 +33,7 @@ const char *vm_loadbuff(const char *code, size_t sz, const char *name, bc_ctx_t 
 	lua_State *L = luaL_newstate();
 	const char *errMsg = NULL;
 
-    luaL_openlibs(L);
+	luaL_openlibs(L);
 	preloadModules(L);
 	setLuaExecContext(L, bc_ctx);
 

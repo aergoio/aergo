@@ -27,7 +27,7 @@ func init() {
 		&cobra.Command{
 			Use:   "get [flags] tx_hash",
 			Short: "get a receipt",
-			Args: cobra.MinimumNArgs(1),
+			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
 				opts := []grpc.DialOption{grpc.WithInsecure()}
 				client, ok := util.GetClient(GetServerAddress(), opts).(*util.ConnClient)

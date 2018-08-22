@@ -3,9 +3,9 @@ package types
 import (
 	"bytes"
 	"encoding/json"
-	"strings"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/mr-tron/base58/base58"
+	"strings"
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) Receipt {
@@ -21,7 +21,7 @@ func NewReceiptFromBytes(b []byte) *Receipt {
 	r.ContractAddress = b[:20]
 	endIdx := bytes.IndexByte(b[20:], 0x00) + 20
 	r.Status = string(b[20:endIdx])
-	r.Ret = string(b[endIdx + 1:])
+	r.Ret = string(b[endIdx+1:])
 	return r
 }
 
