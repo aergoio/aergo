@@ -353,6 +353,45 @@ func TestTrieLoadCache(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
+func TestHeight0LeafShortcut(t *testing.T) {
+	keySize := uint64(20)
+	smt := NewTrie(keySize, hash, nil)
+	// Add 2 sibling keys that will be stored at height 0
+	key0 := make([]byte, keySize, keySize)
+	key1 := make([]byte, keySize, keySize)
+	bitSet(key1, keySize*8-1)
+	keys := [][]byte{key0, key1}
+	values := getFreshData(2, 32)
+	smt.Update(keys, values)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key1)
+	if length != smt.TrieHeight {
+		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+	if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key1, values[1]) {
+		t.Fatal("failed to verify inclusion proof")
+	}
+
+	// Delete one key and check that the remaining one moved up to the root of the tree
+	newRoot, _ := smt.Update(keys[0:1], [][]byte{DefaultLeaf})
+	k, v, isShortcut, _ := smt.loadChildren(newRoot)
+	if isShortcut != 1 || !bytes.Equal(k, key1) || !bytes.Equal(v, values[1]) {
+		t.Fatal("leaf shortcut didn't move up to root")
+	}
+
+	_, _, length, _, _, _, _ = smt.MerkleProofCompressed(key1)
+	if length != 0 {
+		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+}
+
 func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
 	//b.ReportAllocs()
 	newvalues := getFreshData(1000, 32)
