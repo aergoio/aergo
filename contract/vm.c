@@ -21,7 +21,7 @@ const bc_ctx_t *getLuaExecContext(lua_State *L)
 {
 	bc_ctx_t *exec;
 	lua_getglobal(L, luaExecContext);
-	exec = (bc_ctx_t *)lua_touserdata(L, 1);
+	exec = (bc_ctx_t *)lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
 	return exec;

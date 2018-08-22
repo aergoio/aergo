@@ -187,3 +187,25 @@ func GetReceipt(txHash []byte) *types.Receipt {
 	}
 	return types.NewReceiptFromBytes(val)
 }
+
+//export LuaSetDB
+func LuaSetDB(key *C.char, value *C.char) {
+	keyString := C.GoString(key)
+	valueString := C.GoString(value)
+
+	DB.Set([]byte(keyString), []byte(valueString))
+}
+
+//export LuaGetDB
+func LuaGetDB(key *C.char) unsafe.Pointer {
+	keyString := C.GoString(key)
+
+	return C.CBytes(DB.Get([]byte(keyString)))
+}
+
+//export LuaDelDB
+func LuaDelDB(key *C.char) {
+	keyString := C.GoString(key)
+
+	DB.Delete([]byte(keyString))
+}
