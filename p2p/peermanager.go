@@ -96,6 +96,8 @@ type peerManager struct {
 	selfMeta   PeerMeta
 	iServ      ActorService
 
+	designatedPeers map[peer.ID]PeerMeta
+
 	subProtocols []subProtocol
 	remotePeers  map[peer.ID]*RemotePeer
 	peerPool     map[peer.ID]PeerMeta
@@ -146,6 +148,8 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) Pee
 		conf:  p2pConf,
 		log:   logger,
 		mutex: &sync.Mutex{},
+
+		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
 		remotePeers: make(map[peer.ID]*RemotePeer, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
@@ -238,12 +242,14 @@ func (ps *peerManager) init() {
 	ps.selfMeta.Port = uint32(listenPort)
 	ps.selfMeta.ID = pid
 
+	// set designated peers
+	ps.addDesignatedPeers()
 }
 
 func (ps *peerManager) run() {
 
 	go ps.runManagePeers()
-
+	// need to start listen after chainservice is read to init
 	// need to start listen after chainservice is read to init
 	// FIXME: adhoc code
 	go func() {
@@ -253,7 +259,9 @@ func (ps *peerManager) run() {
 		// addition should start after all modules are started
 		go func() {
 			time.Sleep(time.Second * 2)
-			ps.addDesignatedPeers()
+			for _, meta := range ps.designatedPeers {
+				ps.addPeerChannel <- meta
+			}
 		}()
 	}()
 }
@@ -295,7 +303,7 @@ func (ps *peerManager) addDesignatedPeers() {
 			Outbound:   true,
 		}
 		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Designated peer")
-		ps.addPeerChannel <- peerMeta
+		ps.designatedPeers[peerID] = peerMeta
 	}
 }
 
@@ -340,8 +348,10 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
 		ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
-		// TODO check and modify meta information of peer if needed.
-		return
+		if meta.Designated {
+			// If remote peer was connected first. designated flag is not set yet.
+			newPeer.meta.Designated = true
+		}
 	}
 	ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
 	// if peer exists in peerstore already, reuse that peer again.
