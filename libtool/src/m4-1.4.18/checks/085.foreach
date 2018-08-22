@@ -1,0 +1,27 @@
+dnl @ ../doc/m4.texi:3398: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`a', `1')define(`b', `2')define(`c', `3')
+dnl @result{}
+include(`foreach.m4')
+dnl @result{}
+include(`foreachq.m4')
+dnl @result{}
+foreach(`x', `(``a'', ``(b'', ``c)'')', `x
+')
+dnl @result{}1
+dnl @result{}(2)1
+dnl @result{}
+dnl @result{}, x
+dnl @result{})
+foreachq(`x', ```a'', ``(b'', ``c)''', `x
+')dnl
+dnl @result{}a
+dnl @result{}(b
+dnl @result{}c)

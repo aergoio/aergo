@@ -1,0 +1,18 @@
+dnl @ ../doc/m4.texi:5249: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+ifdef(`__unix__', ,
+      `errprint(` skipping: syscmd does not have unix semantics
+')m4exit(`77')')dnl
+changequote(`[', `]')dnl
+syscmd([echo 'divert(1)hi
+format(%1000000d, 1)' | ']__program__[' | sed -n 1p])dnl
+dnl @result{}hi
+sysval
+dnl @result{}0

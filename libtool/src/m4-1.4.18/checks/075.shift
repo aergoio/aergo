@@ -1,0 +1,25 @@
+dnl @ ../doc/m4.texi:3056: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+undivert(`join.m4')dnl
+dnl @result{}divert(`-1')
+dnl @result{}# join(sep, args) - join each non-empty ARG into a single
+dnl @result{}# string, with each element separated by SEP
+dnl @result{}define(`join',
+dnl @result{}`ifelse(`$#', `2', ``$2'',
+dnl @result{}  `ifelse(`$2', `', `', ``$2'_')$0(`$1', shift(shift($@)))')')
+dnl @result{}define(`_join',
+dnl @result{}`ifelse(`$#$2', `2', `',
+dnl @result{}  `ifelse(`$2', `', `', ``$1$2'')$0(`$1', shift(shift($@)))')')
+dnl @result{}# joinall(sep, args) - join each ARG, including empty ones,
+dnl @result{}# into a single string, with each element separated by SEP
+dnl @result{}define(`joinall', ``$2'_$0(`$1', shift($@))')
+dnl @result{}define(`_joinall',
+dnl @result{}`ifelse(`$#', `2', `', ``$1$3'$0(`$1', shift(shift($@)))')')
+dnl @result{}divert`'dnl

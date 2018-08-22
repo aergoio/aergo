@@ -1,0 +1,26 @@
+dnl @ ../doc/m4.texi:1575: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`macro', `$1')
+dnl @result{}
+macro( unquoted leading space lost)
+dnl @result{}unquoted leading space lost
+macro(` quoted leading space kept')
+dnl @result{} quoted leading space kept
+macro(
+ divert `unquoted space kept after expansion')
+dnl @result{} unquoted space kept after expansion
+macro(macro(`
+')`whitespace from expansion kept')
+dnl @result{}
+dnl @result{}whitespace from expansion kept
+macro(`unquoted trailing whitespace kept'
+)
+dnl @result{}unquoted trailing whitespace kept
+dnl @result{}

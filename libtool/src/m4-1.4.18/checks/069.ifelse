@@ -1,0 +1,19 @@
+dnl @ ../doc/m4.texi:2819: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+ifelse(`foo', `bar', `third', `gnu', `gnats')
+dnl @error{}m4:stdin:1: Warning: excess arguments to builtin `ifelse' ignored
+dnl @result{}gnu
+ifelse(`foo', `bar', `third', `gnu', `gnats', `sixth')
+dnl @result{}
+ifelse(`foo', `bar', `third', `gnu', `gnats', `sixth', `seventh')
+dnl @result{}seventh
+ifelse(`foo', `bar', `3', `gnu', `gnats', `6', `7', `8')
+dnl @error{}m4:stdin:4: Warning: excess arguments to builtin `ifelse' ignored
+dnl @result{}7

@@ -1,0 +1,29 @@
+dnl @ ../doc/m4.texi:2157: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`foo', `no nested quote: $1')
+dnl @result{}
+foo(`arg')
+dnl @result{}no nested quote: arg
+define(`foo', `nested quote around $: `$'1')
+dnl @result{}
+foo(`arg')
+dnl @result{}nested quote around $: $1
+define(`foo', `nested empty quote after $: $`'1')
+dnl @result{}
+foo(`arg')
+dnl @result{}nested empty quote after $: $1
+define(`foo', `nested quote around next character: $`1'')
+dnl @result{}
+foo(`arg')
+dnl @result{}nested quote around next character: $1
+define(`foo', `nested quote around both: `$1'')
+dnl @result{}
+foo(`arg')
+dnl @result{}nested quote around both: arg

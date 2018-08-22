@@ -1,0 +1,19 @@
+dnl @ ../doc/m4.texi:3847: Origin of test
+dnl @ expected status: 1
+dnl @ extra options:  -dp -L3 -tifelse
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+ifelse(`one level')
+dnl @error{}m4trace: -1- ifelse
+dnl @result{}
+ifelse(ifelse(ifelse(`three levels')))
+dnl @error{}m4trace: -3- ifelse
+dnl @error{}m4trace: -2- ifelse
+dnl @error{}m4trace: -1- ifelse
+dnl @result{}
+ifelse(ifelse(ifelse(ifelse(`four levels'))))
+dnl @error{}m4:stdin:3: recursion limit of 3 exceeded, use -L<N> to change it

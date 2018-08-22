@@ -1,0 +1,29 @@
+dnl @ ../doc/m4.texi:6069: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`foo', `The brown fox jumped over the lazy dog')
+dnl @result{}
+format(`The string "%s" uses %d characters', foo, len(foo))
+dnl @result{}The string "The brown fox jumped over the lazy dog" uses 38 characters
+format(`%*.*d', `-1', `-1', `1')
+dnl @result{}1
+format(`%.0f', `56789.9876')
+dnl @result{}56790
+len(format(`%-*X', `5000', `1'))
+dnl @result{}5000
+ifelse(format(`%010F', `infinity'), `       INF', `success',
+       format(`%010F', `infinity'), `  INFINITY', `success',
+       format(`%010F', `infinity'))
+dnl @result{}success
+ifelse(format(`%.1A', `1.999'), `0X1.0P+1', `success',
+       format(`%.1A', `1.999'), `0X2.0P+0', `success',
+       format(`%.1A', `1.999'))
+dnl @result{}success
+format(`%g', `0xa.P+1')
+dnl @result{}20

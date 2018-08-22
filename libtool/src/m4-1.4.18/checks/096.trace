@@ -1,0 +1,21 @@
+dnl @ ../doc/m4.texi:3819: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`foo', `Hello World.')
+dnl @result{}
+define(`echo', `$@')
+dnl @result{}
+traceon(`foo', `echo')
+dnl @result{}
+foo
+dnl @error{}m4trace: -1- foo -> `Hello World.'
+dnl @result{}Hello World.
+echo(`gnus', `and gnats')
+dnl @error{}m4trace: -1- echo(`gnus', `and gnats') -> ``gnus',`and gnats''
+dnl @result{}gnus,and gnats

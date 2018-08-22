@@ -1,0 +1,111 @@
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	version 1.4.18
+	* NEWS: Record release date.
+
+	doc: abbreviate and update release history
+	* doc/m4.texi (History): Shorten, and call out today's release.
+
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	maint: automate creation of release tag
+	The gnulib makefile was already set up to automate things with
+	'make release ...', but we were still doing things by hand, and
+	thereby risking missing some steps.
+
+	* m4/gnulib-cache.m4 (gl_MODULES): Import do-release-commit-and-tag.
+	* gnulib: Update, for latest version of the script.
+	* HACKING: Mention its use.
+
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	maint: generate ChangeLog from git commits
+	Follow the practice set in numerous other GNU projects, where
+	the ChangeLog (since 2015) is generated from git commit messages.
+	This avoids duplication or subtle differences between the two,
+	as well as making it easier to merge patches across branches
+	(as good as Bruno Haible's 'git-merge-changelog' helper program
+	is, it still doesn't handle cross-branch cherry-picks very well).
+
+	* ChangeLog: Move...
+	* ChangeLog-2014: ...to this.
+	* Makefile.am (EXTRA_DIST): Ship renamed file.
+	(gen-ChangeLog): New rule, copied mostly from coreutils.
+	(dist-hook): Generate the ChangeLog.
+	* m4/gnulib-cache.m4 (gl_MODULES): Import gitlog-to-changelog.
+	* .gitignore: Ignore ChangeLog.
+	* .gitattributes: Likewise.
+	* HACKING: Reword to match new procedure, and simplify by
+	referring to an external description of ChangeLog style.
+
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	maint: summarize highlights of pending release
+	* NEWS: Add some blurbs.
+
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	maint: make silent builds the default
+	The user still has full control over verbosity levels, both setting
+	their per-project defaults at configure time (or even in a config.site
+	file), as well as a per-run override. But these days, most projects
+	are defaulting to silent rules without user intervention.
+
+	* configure.ac (AM_SILENT_RULES): Add, to match what most projects
+	are doing these days.
+
+2016-12-31  Eric Blake  <eblake@redhat.com>
+
+	maint: release no longer creates a diff file
+	Ever since commit f1cf390 (1.4.14 release), we no longer create
+	diff files as part of the release process.  These days, it is
+	assumed that it is easier to download a fresh tarball rather
+	than to try and use a diff file to patch an older tarball.
+
+2016-12-30  Eric Blake  <eblake@redhat.com>
+
+	doc: drop obsolete @setcontentsaftertitlepage
+	texinfo 6.1 complains (during 'make dvi'):
+
+	/home/eblake/m4-1.4/doc/./m4.texi:9: @setcontentsaftertitlepage has been remove
+	d as a Texinfo command; move your @contents command if you want the contents af
+	ter the title page..
+
+	It turns out that eliminating the command has no effect - modern
+	tools correctly emit the contents in-place, right after the title
+	page, so it was leftover cruft from an older time.
+
+	* doc/m4.texi: Satisfy newer texinfo.
+
+2016-12-29  Eric Blake  <eblake@redhat.com>
+
+	build: update to latest gnulib
+	I hit a weird failure during 'make check', and traced it to a recent
+	gnulib regression in parallel test safety.  Pick up the gnulib fix.
+
+	* gnulib: Update to latest, to fix failure in getopt tests.
+
+2016-12-29  Eric Blake  <eblake@redhat.com>
+
+	maint: regenerate bootstrap
+	Missed during the copyright update.
+
+	* bootstrap: Regenerate.
+
+2016-12-29  Eric Blake  <eblake@redhat.com>
+
+	maint: bump copyright year
+	Sadly, there's no commit in 2015, which means we don't get to benefit
+	from using a copyright range.
+
+	Done with 'make update-copyright'.
+
+	* all files: Version control now has a commit in 2016.
+
+2016-12-29  Eric Blake  <eblake@redhat.com>
+
+	gnulib: Update to latest
+	* gnulib: Update to latest.
+	* m4/gnulib-cache.m4: Regenerate.
+	* src/macro.c (expand_macro): Deal with obstack API change.
+	* src/builtin.c (mkstemp_helper): Likewise.

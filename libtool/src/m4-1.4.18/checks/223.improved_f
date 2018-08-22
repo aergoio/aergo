@@ -1,0 +1,77 @@
+dnl @ ../doc/m4.texi:8191: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`foreach2.m4')
+dnl @result{}
+include(`foreachq2.m4')
+dnl @result{}
+dnl 0-element list:
+foreach(`x', `', `<x>') / foreachq(`x', `', `<x>')
+dnl @result{} / 
+dnl 1-element list of empty element
+foreach(`x', `()', `<x>') / foreachq(`x', ``'', `<x>')
+dnl @result{}<> / <>
+dnl 2-element list of empty elements
+foreach(`x', `(`',`')', `<x>') / foreachq(`x', ``',`'', `<x>')
+dnl @result{}<><> / <><>
+dnl 1-element list of a comma
+foreach(`x', `(`,')', `<x>') / foreachq(`x', ``,'', `<x>')
+dnl @result{}<,> / <,>
+dnl 2-element list of unbalanced parentheses
+foreach(`x', `(`(', `)')', `<x>') / foreachq(`x', ``(', `)'', `<x>')
+dnl @result{}<(><)> / <(><)>
+define(`ab', `oops')dnl using defn(`iterator')
+foreach(`x', `(`a', `b')', `defn(`x')') /dnl
+ foreachq(`x', ``a', `b'', `defn(`x')')
+dnl @result{}ab / ab
+define(`active', `ACT, IVE')
+dnl @result{}
+traceon(`active')
+dnl @result{}
+dnl list of unquoted macros; expansion occurs before recursion
+foreach(`x', `(active, active)', `<x>
+')dnl
+dnl @error{}m4trace: -4- active -> `ACT, IVE'
+dnl @error{}m4trace: -4- active -> `ACT, IVE'
+dnl @result{}<ACT>
+dnl @result{}<IVE>
+dnl @result{}<ACT>
+dnl @result{}<IVE>
+foreachq(`x', `active, active', `<x>
+')dnl
+dnl @error{}m4trace: -3- active -> `ACT, IVE'
+dnl @error{}m4trace: -3- active -> `ACT, IVE'
+dnl @result{}<ACT>
+dnl @error{}m4trace: -3- active -> `ACT, IVE'
+dnl @error{}m4trace: -3- active -> `ACT, IVE'
+dnl @result{}<IVE>
+dnl @result{}<ACT>
+dnl @result{}<IVE>
+dnl list of quoted macros; expansion occurs during recursion
+foreach(`x', `(`active', `active')', `<x>
+')dnl
+dnl @error{}m4trace: -1- active -> `ACT, IVE'
+dnl @result{}<ACT, IVE>
+dnl @error{}m4trace: -1- active -> `ACT, IVE'
+dnl @result{}<ACT, IVE>
+foreachq(`x', ``active', `active'', `<x>
+')dnl
+dnl @error{}m4trace: -1- active -> `ACT, IVE'
+dnl @result{}<ACT, IVE>
+dnl @error{}m4trace: -1- active -> `ACT, IVE'
+dnl @result{}<ACT, IVE>
+dnl list of double-quoted macro names; no expansion
+foreach(`x', `(``active'', ``active'')', `<x>
+')dnl
+dnl @result{}<active>
+dnl @result{}<active>
+foreachq(`x', ```active'', ``active''', `<x>
+')dnl
+dnl @result{}<active>
+dnl @result{}<active>

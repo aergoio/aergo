@@ -1,0 +1,27 @@
+dnl @ ../doc/m4.texi:3341: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`foreach.m4')
+dnl @result{}
+define(`_case', `  $1)
+    $2=" $1";;
+')dnl
+define(`_cat', `$1$2')dnl
+case $`'1 in
+dnl @result{}case $1 in
+foreach(`x', `(`(`a', `vara')', `(`b', `varb')', `(`c', `varc')')',
+        `_cat(`_case', x)')dnl
+dnl @result{}  a)
+dnl @result{}    vara=" a";;
+dnl @result{}  b)
+dnl @result{}    varb=" b";;
+dnl @result{}  c)
+dnl @result{}    varc=" c";;
+esac
+dnl @result{}esac

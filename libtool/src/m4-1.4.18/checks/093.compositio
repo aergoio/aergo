@@ -1,0 +1,27 @@
+dnl @ ../doc/m4.texi:3701: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`curry.m4')include(`stack.m4')
+dnl @result{}
+define(`rename', `copy($@)undefine(`$1')')dnl
+define(`copy', `ifdef(`$2', `errprint(`$2 already defined
+')m4exit(`1')',
+   `stack_foreach(`$1', `curry(`pushdef', `$2')')')')dnl
+pushdef(`a', `1')pushdef(`a', defn(`divnum'))pushdef(`a', `2')
+dnl @result{}
+copy(`a', `b')
+dnl @result{}
+rename(`b', `c')
+dnl @result{}
+a b c
+dnl @result{}2 b 2
+popdef(`a', `c')c a
+dnl @result{} 0
+popdef(`a', `c')a c
+dnl @result{}1 1

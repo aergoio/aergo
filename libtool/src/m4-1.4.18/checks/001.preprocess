@@ -1,0 +1,39 @@
+dnl @ ../doc/m4.texi:713: Origin of test
+dnl @ expected status: 0
+dnl @ extra options:  -s
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`twoline', `1
+2')
+dnl @result{}#line 2 "stdin"
+dnl @result{}
+changecom(`/*', `*/')
+dnl @result{}
+define(`comment', `/*1
+2*/')
+dnl @result{}#line 5
+dnl @result{}
+dnl no line
+hello
+dnl @result{}#line 7
+dnl @result{}hello
+twoline
+dnl @result{}1
+dnl @result{}#line 8
+dnl @result{}2
+comment
+dnl @result{}/*1
+dnl @result{}2*/
+one comment `two
+three'
+dnl @result{}#line 10
+dnl @result{}one /*1
+dnl @result{}2*/ two
+dnl @result{}three
+goodbye
+dnl @result{}#line 12
+dnl @result{}goodbye

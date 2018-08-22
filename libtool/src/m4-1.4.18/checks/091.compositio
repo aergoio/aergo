@@ -1,0 +1,20 @@
+dnl @ ../doc/m4.texi:3637: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`curry.m4')include(`stack.m4')
+dnl @result{}
+define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
+                          `reverse(shift($@)), `$1'')')
+dnl @result{}
+pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
+dnl @result{}
+stack_foreach(`a', `:curry(`reverse', `4')')
+dnl @result{}:1, 4:2, 4:3, 4
+curry(`curry', `reverse', `1')(`2')(`3')
+dnl @result{}3, 2, 1

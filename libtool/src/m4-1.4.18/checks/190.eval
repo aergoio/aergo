@@ -1,0 +1,34 @@
+dnl @ ../doc/m4.texi:6438: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+eval(`666', `10')
+dnl @result{}666
+eval(`666', `11')
+dnl @result{}556
+eval(`666', `6')
+dnl @result{}3030
+eval(`666', `6', `10')
+dnl @result{}0000003030
+eval(`-666', `6', `10')
+dnl @result{}-0000003030
+eval(`10', `', `0')
+dnl @result{}10
+`0r1:'eval(`10', `1', `11')
+dnl @result{}0r1:01111111111
+eval(`10', `16')
+dnl @result{}a
+eval(`1', `37')
+dnl @error{}m4:stdin:9: radix 37 in builtin `eval' out of range
+dnl @result{}
+eval(`1', , `-1')
+dnl @error{}m4:stdin:10: negative width to builtin `eval'
+dnl @result{}
+eval()
+dnl @error{}m4:stdin:11: empty string treated as 0 in builtin `eval'
+dnl @result{}0

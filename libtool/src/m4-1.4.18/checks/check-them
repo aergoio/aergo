@@ -1,0 +1,191 @@
+#!/bin/sh
+# Check GNU m4 against examples from the manual source.
+# Copyright (C) 1992, 2006-2014, 2016 Free Software Foundation, Inc.
+#
+# This file is part of GNU M4.
+#
+# GNU M4 is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# GNU M4 is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Clean up temp files on exit
+pwd=`pwd`
+tmp=m4-tmp.$$
+trap 'stat=$?; cd "$pwd"; rm -rf $tmp && exit $stat' 0
+trap '(exit $?); exit $?' 1 2 13 15
+
+# Create scratch dir
+framework_failure=0
+mkdir $tmp || framework_failure=1
+
+if test $framework_failure = 1; then
+  echo "$0: failure in testing framework" 1>&2
+  (exit 1); exit 1
+fi
+
+out=$tmp/m4-out
+err=$tmp/m4-err
+xout=$tmp/m4-xout
+xerr=$tmp/m4-xerr
+failed=
+skipped=
+strip_needed=false
+diffopts=-c
+
+# Allow user to select sed
+: ${SED=sed}
+
+# Find out where the examples live.
+examples=.
+if test "x$1" = x-I ; then
+  examples="$2"
+  shift; shift
+fi
+
+# Find out how to run m4.
+m4=m4
+if test "x$1" = x-m ; then
+  m4="$2"
+  shift; shift
+fi
+
+# Find out how the executable prints argv[0]
+m4name=`"$m4" --help | ${SED} -e 's/Usage: \(.*\) \[OPTION.*/\1/' \
+  -e 's/\\\\/\\\\\\\\/g' -e 1q`
+
+# Find out if we should strip \r in the output
+"$m4" --version | tee $out
+"$m4" --version | tr -d '\015' > $xout
+if cmp -s $out $xout; then
+  :
+else
+  echo "Ignoring carriage returns"
+  strip_needed=:
+fi
+
+# Find out if diff supports useful options.
+if diff -u /dev/null /dev/null 2>/dev/null ; then
+  diffopts="-u"
+fi
+if diff -a /dev/null /dev/null 2>/dev/null ; then
+  diffopts="$diffopts -a"
+fi
+
+# Run the tests.
+for file
+do
+  test -f "$file" || {
+    echo "No such file: $file"
+    continue
+  }
+  echo "Checking $file"
+
+  case $file in
+    *stackovf.test)
+      "$file" "$m4"
+      case $? in
+        77) skipped="$skipped $file";;
+        0) ;;
+        *) failed="$failed $file"
+      esac
+      continue ;;
+  esac
+
+  options=`${SED} -ne '3s/^dnl @ extra options: //p;3q' "$file"`
+  ${SED} -e '/^dnl @/d' -e '/^\^D$/q' "$file" \
+    | LC_MESSAGES=C M4PATH=$examples "$m4" -d $options - >$out 2>$err
+  stat=$?
+
+  xstat=`${SED} -ne '2s/^dnl @ expected status: //p;2q' "$file"`
+  case $stat in
+    77)
+      skipped="$skipped $file"
+      cat $err
+      continue
+      ;;
+    $xstat) ;;
+    *)
+      failed="$failed $file:status"
+      echo `${SED} -e 's/^dnl //' -e 1q $file`
+      echo "$file: status was $stat, expected $xstat"
+      ;;
+  esac
+
+  xoutfile=`${SED} -n 's/^dnl @ expected output: //p' "$file"`
+  if test -z "$xoutfile" ; then
+    ${SED} -e '/^dnl @result{}/!d' -e 's///' -e "s|examples/|$examples/|" \
+      "$file" > $xout
+  else
+    cp "$examples/$xoutfile" $xout
+  fi
+
+  xerrfile=`${SED} -n 's/^dnl @ expected error: //p' "$file"`
+  case $xerrfile in
+    ignore)
+      cp $err $xerr ;;
+    '')
+      ${SED} '/^dnl @error{}/!d
+           s///; '"s|^m4:|$m4name:|; s|examples/|$examples/|" \
+        "$file" > $xerr ;;
+    *)
+      ${SED} "s|^m4:|$m4name:|; s|examples/|$examples/|" \
+        "$examples/$xerrfile" > $xerr ;;
+  esac
+
+  # For the benefit of mingw, normalize \r\n line endings
+  if $strip_needed ; then
+    tr -d '\015' < $out > $out.t
+    mv $out.t $out
+    tr -d '\015' < $xout > $xout.t
+    mv $xout.t $xout
+    tr -d '\015' < $err > $err.t
+    mv $err.t $err
+    tr -d '\015' < $xerr > $xerr.t
+    mv $xerr.t $xerr
+  fi
+
+  if cmp -s $out $xout; then
+    :
+  else
+    failed="$failed $file:out"
+    echo `${SED} -e 's/^dnl //' -e 1q $file`
+    echo "$file: stdout mismatch"
+    diff $diffopts $xout $out
+  fi
+
+  if cmp -s $err $xerr; then
+    :
+  else
+    failed="$failed $file:err"
+    echo `${SED} -e 's/^dnl //' -e 1q $file`
+    echo "$file: stderr mismatch"
+    diff $diffopts $xerr $err
+  fi
+
+done
+
+rm -f $out $err $xout $xerr
+
+echo
+if test -n "$skipped"; then
+  echo "Skipped checks were:"
+  echo " $skipped"
+fi
+if test -z "$failed"; then
+  echo "All checks successful"
+  stat=0
+else
+  echo "Failed checks were:"
+  echo " $failed"
+  stat=1
+fi
+(exit $stat); exit $stat

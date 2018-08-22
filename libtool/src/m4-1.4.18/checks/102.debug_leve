@@ -1,0 +1,18 @@
+dnl @ ../doc/m4.texi:4070: Origin of test
+dnl @ expected status: 0
+dnl @ extra options:  -l6
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`echo', `$@')debugmode(`+t')
+dnl @result{}
+echo(`1', `long string')
+dnl @error{}m4trace: -1- echo(`1', `long s...') -> ``1',`l...'
+dnl @result{}1,long string
+indir(`echo', defn(`changequote'))
+dnl @error{}m4trace: -2- defn(`change...')
+dnl @error{}m4trace: -1- indir(`echo', <changequote>) -> ``''
+dnl @result{}

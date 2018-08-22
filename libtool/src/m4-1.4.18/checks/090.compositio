@@ -1,0 +1,31 @@
+dnl @ ../doc/m4.texi:3590: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`define_blind', `ifelse(`$#', `0', ``$0'',
+`_$0(`$1', `$2', `$'`#', `$'`0')')')
+dnl @result{}
+define(`_define_blind', `define(`$1',
+`ifelse(`$3', `0', ``$4'', `$2')')')
+dnl @result{}
+define_blind
+dnl @result{}define_blind
+define_blind(`foo', `arguments were $*')
+dnl @result{}
+foo
+dnl @result{}foo
+foo(`bar')
+dnl @result{}arguments were bar
+define(`blah', defn(`foo'))
+dnl @result{}
+blah
+dnl @result{}blah
+blah(`a', `b')
+dnl @result{}arguments were a,b
+defn(`blah')
+dnl @result{}ifelse(`$#', `0', ``$0'', `arguments were $*')

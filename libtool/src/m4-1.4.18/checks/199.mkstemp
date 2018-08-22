@@ -1,0 +1,32 @@
+dnl @ ../doc/m4.texi:6846: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`foo', `errprint(`oops')')
+dnl @result{}
+syscmd(`rm -f foo-??????')sysval
+dnl @result{}0
+define(`file1', maketemp(`foo-XXXXXX'))dnl
+ifelse(esyscmd(`echo \` foo-?????? \''), ` foo-?????? ',
+       `no file', `created')
+dnl @result{}created
+define(`file2', maketemp(`foo-XX'))dnl
+define(`file3', mkstemp(`foo-XXXXXX'))dnl
+ifelse(len(defn(`file1')), len(defn(`file2')),
+       `same length', `different')
+dnl @result{}same length
+ifelse(defn(`file1'), defn(`file2'), `same', `different file')
+dnl @result{}different file
+ifelse(defn(`file2'), defn(`file3'), `same', `different file')
+dnl @result{}different file
+ifelse(defn(`file1'), defn(`file3'), `same', `different file')
+dnl @result{}different file
+syscmd(`rm 'defn(`file1') defn(`file2') defn(`file3'))
+dnl @result{}
+sysval
+dnl @result{}0

@@ -1,0 +1,1202 @@
+# Missatges en català per a GNU Bison.
+# Copyright (C) 2017 Free Software Foundation, Inc.
+# This file is distributed under the same license as the bison package.
+# Walter Garcia-Fontes <walter.garcia@upf.edu>, 2017
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: bison 3.0.4\n"
+"Report-Msgid-Bugs-To: bug-bison@gnu.org\n"
+"POT-Creation-Date: 2018-05-27 11:55+0200\n"
+"PO-Revision-Date: 2017-02-26 20:29+0100\n"
+"Last-Translator: Walter Garcia-Fontes <walter.garcia@upf.edu>\n"
+"Language-Team: Catalan <ca@dodds.net>\n"
+"Language: ca\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#: src/complain.c:322
+msgid "fatal error"
+msgstr "error fatal"
+
+#: src/complain.c:323
+msgid "error"
+msgstr "error"
+
+#: src/complain.c:324
+msgid "warning"
+msgstr "advertiment"
+
+#: src/complain.c:387
+#, c-format
+msgid "deprecated directive, use %s"
+msgstr "directiva obsoleta, useu %s"
+
+#: src/complain.c:391
+#, c-format
+msgid "deprecated directive: %s, use %s"
+msgstr "directiva obsoleta: %s, useu %s"
+
+#: src/complain.c:400
+#, c-format
+msgid "only one %s allowed per rule"
+msgstr "sols es permet una %s per regla"
+
+#: src/complain.c:402 src/reader.c:140 src/symtab.c:253 src/symtab.c:266
+#, c-format
+msgid "previous declaration"
+msgstr "declaració prèvia"
+
+#: src/conflicts.c:77
+#, c-format
+msgid "    Conflict between rule %d and token %s resolved as shift"
+msgstr ""
+"    Conflicte entre la regla %d i el testimoni %s resolt com a desplaçament"
+
+#: src/conflicts.c:86
+#, c-format
+msgid "    Conflict between rule %d and token %s resolved as reduce"
+msgstr ""
+"    Conflicte entre la regla %d i el testimoni %s resolt com a reducció"
+
+#: src/conflicts.c:94
+#, c-format
+msgid "    Conflict between rule %d and token %s resolved as an error"
+msgstr "    Conflicte entre la regla %d i el testimoni %s resolt com un error"
+
+#: src/conflicts.c:530
+#, c-format
+msgid "State %d "
+msgstr "Estat %d"
+
+#: src/conflicts.c:533
+#, c-format
+msgid "conflicts: %d shift/reduce, %d reduce/reduce\n"
+msgstr "conflictes: %d shift/reduce, %d reduce/reduce\n"
+
+#: src/conflicts.c:536
+#, c-format
+msgid "conflicts: %d shift/reduce\n"
+msgstr "conflictes: %d shift/reduce\n"
+
+#: src/conflicts.c:538
+#, c-format
+msgid "conflicts: %d reduce/reduce\n"
+msgstr "conflictes: %d reduce/reduce\n"
+
+#: src/conflicts.c:569
+#, c-format
+msgid "%%expect-rr applies only to GLR parsers"
+msgstr "%%expect-rr s'aplica sols a analitzadors GLR"
+
+#: src/conflicts.c:586
+#, c-format
+msgid "shift/reduce conflicts: %d found, %d expected"
+msgstr "conflictes shift/reduce: %d trobats, %d esperats"
+
+#: src/conflicts.c:591
+#, c-format
+msgid "%d shift/reduce conflict"
+msgid_plural "%d shift/reduce conflicts"
+msgstr[0] "%d conflicte shift/reduce"
+msgstr[1] "%d conflictes shift/reduce"
+
+#: src/conflicts.c:608
+#, c-format
+msgid "reduce/reduce conflicts: %d found, %d expected"
+msgstr "conflictes reduce/reduce: %d trobats, %d esperats"
+
+#: src/conflicts.c:613
+#, c-format
+msgid "%d reduce/reduce conflict"
+msgid_plural "%d reduce/reduce conflicts"
+msgstr[0] "%d conflicte reduce/reduce"
+msgstr[1] "%d conflictes reduce/reduce"
+
+#: src/files.c:123
+#, c-format
+msgid "%s: cannot open"
+msgstr "%s: no es pot obrir"
+
+#: src/files.c:139
+#, c-format
+msgid "input/output error"
+msgstr "error d'entrada/sortida"
+
+#: src/files.c:142
+#, c-format
+msgid "cannot close file"
+msgstr "no es pot tancar el fitxer"
+
+#: src/files.c:372
+#, c-format
+msgid "refusing to overwrite the input file %s"
+msgstr "no se sobreescriurà el fitxer d'entrada %s"
+
+#: src/files.c:382
+#, c-format
+msgid "conflicting outputs to file %s"
+msgstr "sortides conflictives cap al fitxer %s"
+
+#: src/getargs.c:252
+#, c-format
+msgid "Try '%s --help' for more information.\n"
+msgstr "Proveu «%s --help» per a més informació.\n"
+
+#: src/getargs.c:261
+#, c-format
+msgid "Usage: %s [OPTION]... FILE\n"
+msgstr "Ús: %s [OPCIÓ].. FITXER\n"
+
+#: src/getargs.c:262
+msgid ""
+"Generate a deterministic LR or generalized LR (GLR) parser employing\n"
+"LALR(1), IELR(1), or canonical LR(1) parser tables.  IELR(1) and\n"
+"canonical LR(1) support is experimental.\n"
+"\n"
+msgstr ""
+"Genera un analitzador LR determinístic o un LR (GLR) generalitzat usant "
+"taules d'analitzador LALR(1), IELR(1) o LR(1) canònic. El suport per a "
+"IELR(1) i LR(1) canònic és experimental.\n"
+
+#: src/getargs.c:269
+msgid ""
+"Mandatory arguments to long options are mandatory for short options too.\n"
+msgstr ""
+"El arguments obligatoris per a opcions llargues són obligatoris també per a "
+"opcions curtes.\n"
+
+#: src/getargs.c:272
+msgid "The same is true for optional arguments.\n"
+msgstr "El mateix és veritat per a arguments opcionals.\n"
+
+#: src/getargs.c:276
+msgid ""
+"\n"
+"Operation modes:\n"
+"  -h, --help                 display this help and exit\n"
+"  -V, --version              output version information and exit\n"
+"      --print-localedir      output directory containing locale-dependent "
+"data\n"
+"      --print-datadir        output directory containing skeletons and XSLT\n"
+"  -y, --yacc                 emulate POSIX Yacc\n"
+"  -W, --warnings[=CATEGORY]  report the warnings falling in CATEGORY\n"
+"  -f, --feature[=FEATURE]    activate miscellaneous features\n"
+"\n"
+msgstr ""
+"\n"
+"Modes d'operació:\n"
+"  -h, --help                 mostra aquesta ajuda i surt\n"
+"  -V, --version              mostra la informació de versió i surt\n"
+"      --print-localedir      mostra el directori contenint les dades "
+"depenents de la configuració regional\n"
+"      --print-datadir        mostra el directori contenint esquelets i XSLT\n"
+"  -y, --yacc                 emula POSIX Yacc\n"
+"  -W, --warnings[=CATEGORIA] informa dels advertiments classificats a "
+"CATEGORIA\n"
+"report the warnings falling in CATEGORY\n"
+"  -f, --feature[=CARACTERISTICA] activa característiques miscel·lànies\n"
+"\n"
+
+#: src/getargs.c:289
+#, c-format
+msgid ""
+"Parser:\n"
+"  -L, --language=LANGUAGE          specify the output programming language\n"
+"  -S, --skeleton=FILE              specify the skeleton to use\n"
+"  -t, --debug                      instrument the parser for tracing\n"
+"                                   same as '-Dparse.trace'\n"
+"      --locations                  enable location support\n"
+"  -D, --define=NAME[=VALUE]        similar to '%define NAME \"VALUE\"'\n"
+"  -F, --force-define=NAME[=VALUE]  override '%define NAME \"VALUE\"'\n"
+"  -p, --name-prefix=PREFIX         prepend PREFIX to the external symbols\n"
+"                                   deprecated by '-Dapi.prefix=PREFIX'\n"
+"  -l, --no-lines                   don't generate '#line' directives\n"
+"  -k, --token-table                include a table of token names\n"
+msgstr ""
+"Analitzador:\n"
+"  -L, --language=LLENGUATGE        especifica el llenguatge de programació "
+"de la sortida   \n"
+"  -S, --skeleton=FITXER            especifica l'esquelet a usar\n"
+"  -t, --debug                      instrumenta l'analitzador per al "
+"seguiment\n"
+"                                   el mateix que '-Dparse.trace'\n"
+"      --locations                  habilita el suport per a ubicacions\n"
+"  -D, --define=NOM[=VALOR]         semblant a '%define NOM «VALOR»'\n"
+"  -F, --force-define=NOM[=VALOR]   anul·la '%define NOM «VALOR»'\n"
+"  -p, --name-prefix=PREFIX         anteposa PREFIX als símbols externs\n"
+"                                   obsolet per '-Dapi.prefix=PREFIX'\n"
+"  -l, --no-lines                   no generis directives «#line»\n"
+"  -k, --token-table                inclou una taula amb els noms dels "
+"testimonis\n"
+"\n"
+
+#: src/getargs.c:307
+msgid ""
+"Output:\n"
+"      --defines[=FILE]       also produce a header file\n"
+"  -d                         likewise but cannot specify FILE (for POSIX "
+"Yacc)\n"
+"  -r, --report=THINGS        also produce details on the automaton\n"
+"      --report-file=FILE     write report to FILE\n"
+"  -v, --verbose              same as '--report=state'\n"
+"  -b, --file-prefix=PREFIX   specify a PREFIX for output files\n"
+"  -o, --output=FILE          leave output to FILE\n"
+"  -g, --graph[=FILE]         also output a graph of the automaton\n"
+"  -x, --xml[=FILE]           also output an XML report of the automaton\n"
+"                             (the XML schema is experimental)\n"
+msgstr ""
+"Sortida:\n"
+"      --defines[=FITXER]     produeix també un fitxer de capçalera\n"
+"  -d                         semblant però no es pot especificar FITXER (per "
+"a POSIX Yacc)\n"
+"  -r, --report=COSES         produeix també detalls sobre l'automaton\n"
+"      --report-file=FITXER   escriu l'informe a FITXER\n"
+"  -v, --verbose              igual que «--report=state»\n"
+"  -b, --file-prefix=PREFIX   especifica un PREFIX per a fitxers de sortida\n"
+"  -o, --output=FITXER        deixa la sortida a FITXER\n"
+"  -g, --graph[=FITXER]       també treu una gràfica a l'automaton\n"
+"  -x, --xml[=FITXER]         treu també un informe XML de l'automaton\n"
+"                             (l'esquema XML és experimental)\n"
+
+#: src/getargs.c:322
+#, c-format
+msgid ""
+"Warning categories include:\n"
+"  'midrule-values'    unset or unused midrule values\n"
+"  'yacc'              incompatibilities with POSIX Yacc\n"
+"  'conflicts-sr'      S/R conflicts (enabled by default)\n"
+"  'conflicts-rr'      R/R conflicts (enabled by default)\n"
+"  'deprecated'        obsolete constructs\n"
+"  'empty-rule'        empty rules without %empty\n"
+"  'precedence'        useless precedence and associativity\n"
+"  'other'             all other warnings (enabled by default)\n"
+"  'all'               all the warnings except 'yacc'\n"
+"  'no-CATEGORY'       turn off warnings in CATEGORY\n"
+"  'none'              turn off all the warnings\n"
+"  'error[=CATEGORY]'  treat warnings as errors\n"
+msgstr ""
+"Les categories d'advertiment inclouen:\n"
+"  'midrule-values'    valors no establerts o no usats de midrule\n"
+"  'yacc'              incompatibilitats amb el POSIX Yacc\n"
+"  'conflicts-sr'      conflictes S/R (habilitats per defecte)\n"
+"  'conflicts-rr'      conflictes R/R (habilitats per defecte)\n"
+"  'deprecated'        construccions obsoletes\n"
+"  'empty-rule'        regles buides sense %empty\n"
+"  'precedence'        precedència i associativitat inútils\n"
+"  'other'             tots els altres advertiments (habilitat per defecte)\n"
+"  'all'               tots els advertiments excepte «yacc»\n"
+"  'no-CATEGORIA'      desactiva els advertiments a CATEGORIA\n"
+"  'none'              desactiva tots els advertiments\n"
+"  'error[=CATEGORIA]' tracta els advertiments com a errors\n"
+
+#: src/getargs.c:339
+msgid ""
+"THINGS is a list of comma separated words that can include:\n"
+"  'state'        describe the states\n"
+"  'itemset'      complete the core item sets with their closure\n"
+"  'lookahead'    explicitly associate lookahead tokens to items\n"
+"  'solved'       describe shift/reduce conflicts solving\n"
+"  'all'          include all the above information\n"
+"  'none'         disable the report\n"
+msgstr ""
+"COSES és una llista de paraules separades amb comes que pot incloure:\n"
+"  'state'        descriu els estats\n"
+"  'itemset'      completa els elements del nucli amb el seu tancament\n"
+"  'lookahead'    associa explícitament els testimonis de recerca cap "
+"endavant als elements\n"
+"  'solved'       descriu la solució a conflictes shift/reduce\n"
+"  'all'          inclou tota la informació de dalt\n"
+"  'none'         inhabilita l'informe\n"
+
+#: src/getargs.c:350
+msgid ""
+"FEATURE is a list of comma separated words that can include:\n"
+"  'caret'        show errors with carets\n"
+"  'all'          all of the above\n"
+"  'none'         disable all of the above\n"
+"  "
+msgstr ""
+"FUNCIONALITAT és una llista de paraules separades amb comes que pot "
+"incloure:\n"
+"  'caret'        mostra els errors amb accents circumflexos\n"
+"  'all'          tot el de dalt\n"
+"  'none'         inhabilita tot el de dalt\n"
+"  "
+
+#: src/getargs.c:358
+#, c-format
+msgid "Report bugs to <%s>.\n"
+msgstr "Informa dels errors a <%s>.\n"
+
+#: src/getargs.c:359
+#, c-format
+msgid "%s home page: <%s>.\n"
+msgstr "%s pàgina web: <%s>.\n"
+
+#: src/getargs.c:360
+msgid "General help using GNU software: <http://www.gnu.org/gethelp/>.\n"
+msgstr ""
+"Ajuda general per usar el programari GNU:  <http://www.gnu.org/gethelp/>.\n"
+
+#. TRANSLATORS: Replace LANG_CODE in this URL with your language
+#. code <http://translationproject.org/team/LANG_CODE.html> to
+#. form one of the URLs at http://translationproject.org/team/.
+#. Otherwise, replace the entire URL with your translation team's
+#. email address.
+#: src/getargs.c:373
+msgid "Report translation bugs to <http://translationproject.org/team/>.\n"
+msgstr ""
+"Informa dels errors de traducció a <http://translationproject.org/team/ca."
+"html>.\n"
+
+#: src/getargs.c:375
+msgid "For complete documentation, run: info bison.\n"
+msgstr "Per a la documentació completa, executeu: info bison.\n"
+
+#: src/getargs.c:391
+#, c-format
+msgid "bison (GNU Bison) %s"
+msgstr "bison (GNU Bison) %s"
+
+#: src/getargs.c:393
+msgid "Written by Robert Corbett and Richard Stallman.\n"
+msgstr "Escrit per Robert Corbett i Richard Stallman.\n"
+
+#: src/getargs.c:397
+#, c-format
+msgid "Copyright (C) %d Free Software Foundation, Inc.\n"
+msgstr "Copyright (C) %d Free Software Foundation, Inc.\n"
+
+#: src/getargs.c:400
+msgid ""
+"This is free software; see the source for copying conditions.  There is NO\n"
+"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
+msgstr ""
+"Això és programari lliure; vegeu la font per a les condicions de còpia. NO\n"
+"hi ha cap garantia; ni tan sols de COMERCIABILITAT o ADEQUACIÓ A UN PROPÒSIT "
+"PARTICULAR.\n"
+
+#: src/getargs.c:422
+#, c-format
+msgid "multiple skeleton declarations are invalid"
+msgstr "les declaracions múltiples d'esquelet no són vàlides"
+
+#: src/getargs.c:440
+#, c-format
+msgid "%s: invalid language"
+msgstr "%s: llenguatge no vàlid"
+
+#: src/getargs.c:443
+msgid "multiple language declarations are invalid"
+msgstr "les declaracions múltiples de llenguatge no són válides"
+
+#: src/getargs.c:724
+#, c-format
+msgid "%s: missing operand"
+msgstr "%s: manca un operand"
+
+#: src/getargs.c:726
+#, c-format
+msgid "extra operand %s"
+msgstr "operand extra %s"
+
+#: src/gram.c:185
+msgid "Grammar"
+msgstr "Gramàtica"
+
+#: src/graphviz.c:46
+#, c-format
+msgid ""
+"// Generated by %s.\n"
+"// Report bugs to <%s>.\n"
+"// Home page: <%s>.\n"
+"\n"
+msgstr ""
+"// Generat per %s.\n"
+"// Informeu els errors a <%s>.\n"
+"// Pàgina web: <%s>.\n"
+"\n"
+
+#: src/location.c:93 src/scan-gram.l:932
+#, c-format
+msgid "line number overflow"
+msgstr "desbordament del número de línia"
+
+#: src/location.c:95
+#, c-format
+msgid "column number overflow"
+msgstr "desbordament del número de columna"
+
+#: src/main.c:146
+msgid "rule useless in parser due to conflicts"
+msgstr "la regla és inútil a l'analitzador a causa de conflictes"
+
+#: src/muscle-tab.c:514
+#, c-format
+msgid "%%define variable %s redefined"
+msgstr "variable %%define %s redefinida"
+
+#: src/muscle-tab.c:518
+#, c-format
+msgid "previous definition"
+msgstr "definició prèvia"
+
+#: src/muscle-tab.c:568 src/muscle-tab.c:669 src/muscle-tab.c:732
+#, c-format
+msgid "%s: undefined %%define variable %s"
+msgstr "%s: variable %%define no definida %s"
+
+#: src/muscle-tab.c:663
+#, c-format
+msgid "invalid value for %%define Boolean variable %s"
+msgstr "valor no vàlid per a la variable booleana %s"
+
+#: src/muscle-tab.c:717
+#, c-format
+msgid "invalid value for %%define variable %s: %s"
+msgstr "valor no vàlid per a la variable %%define %s: %s"
+
+#: src/muscle-tab.c:722
+#, c-format
+msgid "accepted value: %s"
+msgstr "valor acceptat: %s"
+
+#: src/parse-gram.y:811
+#, c-format
+msgid "missing identifier in parameter declaration"
+msgstr "manca l'identificador a la declaració del paràmetre"
+
+#: src/print.c:47
+#, c-format
+msgid " type %d is %s\n"
+msgstr " tipus %d és %s\n"
+
+#: src/print.c:167
+#, c-format
+msgid "shift, and go to state %d\n"
+msgstr "fes un shift, i ves a l'estat %d\n"
+
+#: src/print.c:169
+#, c-format
+msgid "go to state %d\n"
+msgstr "ves a l'estat %d\n"
+
+#: src/print.c:206
+msgid "error (nonassociative)\n"
+msgstr "error (no-associatiu)\n"
+
+#: src/print.c:229
+#, c-format
+msgid "reduce using rule %d (%s)"
+msgstr "redueix usant la regla %d (%s)"
+
+#: src/print.c:231
+#, c-format
+msgid "accept"
+msgstr "accepta"
+
+#: src/print.c:267 src/print.c:341
+msgid "$default"
+msgstr "$default"
+
+#: src/print.c:377 src/print_graph.c:62
+#, c-format
+msgid "State %d"
+msgstr "Estat %d"
+
+#: src/print.c:413
+msgid "Terminals, with rules where they appear"
+msgstr "Terminals, amb regles on apareixen"
+
+#: src/print.c:440
+msgid "Nonterminals, with rules where they appear"
+msgstr "No-terminals, amb regles on apareixen"
+
+#: src/print.c:469
+#, c-format
+msgid " on left:"
+msgstr " a l'esquerra:"
+
+#: src/print.c:486
+#, c-format
+msgid " on right:"
+msgstr " a la dreta:"
+
+#: src/print.c:514
+msgid "Rules useless in parser due to conflicts"
+msgstr "Les regles són inútils a l'analitzador a causa de conflictes"
+
+#: src/reader.c:62
+#, c-format
+msgid "multiple %s declarations"
+msgstr "declaracions %s múltiples"
+
+#: src/reader.c:133
+#, c-format
+msgid "result type clash on merge function %s: <%s> != <%s>"
+msgstr "col·lisió de tipus de resultat a la funció merge %s: <%s> != <%s>"
+
+#: src/reader.c:206
+#, c-format
+msgid "duplicated symbol name for %s ignored"
+msgstr "nom de símbol duplicat per a %s ignorat"
+
+#: src/reader.c:250
+#, c-format
+msgid "rule given for %s, which is a token"
+msgstr "regla donada per a %s, que és un testimoni"
+
+#: src/reader.c:306
+#, c-format
+msgid "type clash on default action: <%s> != <%s>"
+msgstr "col·lisió de tipus a l'acció predeterminada: <%s> != <%s>"
+
+#: src/reader.c:312
+#, c-format
+msgid "empty rule for typed nonterminal, and no action"
+msgstr "regla buida per a la no-terminal entrada, i cap acció"
+
+#: src/reader.c:329
+#, c-format
+msgid "unused value: $%d"
+msgstr "valor sense usar: $%d"
+
+#: src/reader.c:331
+#, c-format
+msgid "unset value: $$"
+msgstr "valor no establert: $$"
+
+#: src/reader.c:340
+#, c-format
+msgid "%%empty on non-empty rule"
+msgstr "%%empty a regla no buida"
+
+#: src/reader.c:346
+#, c-format
+msgid "empty rule without %%empty"
+msgstr "regla buida sense %%empty"
+
+#: src/reader.c:355
+#, c-format
+msgid "token for %%prec is not defined: %s"
+msgstr "no està definit el testimoni per a %%prec: %s"
+
+#: src/reader.c:473 src/reader.c:495
+#, c-format
+msgid "%s affects only GLR parsers"
+msgstr "%s afecta sols ela analitzadors GLR"
+
+#: src/reader.c:476
+#, c-format
+msgid "%s must be followed by positive number"
+msgstr "%s ha d'estar seguit per un nombre positiu"
+
+#: src/reader.c:602
+#, c-format
+msgid "rule is too long"
+msgstr "la regla és massa llarga"
+
+#: src/reader.c:718
+#, c-format
+msgid "no rules in the input grammar"
+msgstr "no hi ea regles a la gramàtica d'entrada"
+
+#: src/reduce.c:241
+msgid "rule useless in grammar"
+msgstr "la regla no és útil a la gramàtica"
+
+#: src/reduce.c:303
+#, c-format
+msgid "nonterminal useless in grammar: %s"
+msgstr "la no-terminal no és útil a la gramàtica: %s"
+
+#: src/reduce.c:351
+msgid "Nonterminals useless in grammar"
+msgstr "Les no-terminals no són útils a la gramàtica"
+
+#: src/reduce.c:364
+msgid "Terminals unused in grammar"
+msgstr "Hi ha terminal sense usar a la gramàtica"
+
+#: src/reduce.c:373
+msgid "Rules useless in grammar"
+msgstr "Les regles són inútils a la gramàtica"
+
+#: src/reduce.c:386
+#, c-format
+msgid "%d nonterminal useless in grammar"
+msgid_plural "%d nonterminals useless in grammar"
+msgstr[0] "%d no-terminal no útil a la gramàtica"
+msgstr[1] "%d no-terminals no útils a la gramàtica"
+
+#: src/reduce.c:391
+#, c-format
+msgid "%d rule useless in grammar"
+msgid_plural "%d rules useless in grammar"
+msgstr[0] "%d regla no útil a la gramàtica"
+msgstr[1] "%d no regles no útils a la gramàtica"
+
+#: src/reduce.c:420
+#, c-format
+msgid "start symbol %s does not derive any sentence"
+msgstr "el símbol d'entrada %s no deriva cap oració"
+
+#: src/scan-code.l:157
+#, c-format
+msgid "stray '%s'"
+msgstr "«%s» extraviat"
+
+#: src/scan-code.l:339
+#, c-format
+msgid "refers to: %c%s at %s"
+msgstr "refereix a: %c%s a %s"
+
+#: src/scan-code.l:362
+#, c-format
+msgid "possibly meant: %c"
+msgstr "possiblement significava: %c"
+
+#: src/scan-code.l:371
+#, c-format
+msgid ", hiding %c"
+msgstr ", amagant %c"
+
+#: src/scan-code.l:379
+#, c-format
+msgid " at %s"
+msgstr " a %s"
+
+#: src/scan-code.l:383
+#, c-format
+msgid ", cannot be accessed from mid-rule action at $%d"
+msgstr ", no es pot accedir des de l'acció de regla intermèdia a $%d"
+
+#: src/scan-code.l:440 src/scan-gram.l:855
+#, c-format
+msgid "integer out of range: %s"
+msgstr "l'enter està fora de rang: %s"
+
+#: src/scan-code.l:530
+#, c-format
+msgid "invalid reference: %s"
+msgstr "referència no vàlida: %s"
+
+#: src/scan-code.l:538
+#, c-format
+msgid "syntax error after '%c', expecting integer, letter, '_', '[', or '$'"
+msgstr ""
+"error de sintaxi després de «%c», s'esperava un enter, lletra, «_», «[» o «$»"
+
+#: src/scan-code.l:544
+#, c-format
+msgid "symbol not found in production before $%d: %.*s"
+msgstr "no s'ha trobat el símbol en producció abans de $%d: %.*s"
+
+#: src/scan-code.l:549
+#, c-format
+msgid "symbol not found in production: %.*s"
+msgstr "no s'ha trobat el símbol en producció: %.*s"
+
+#: src/scan-code.l:564
+#, c-format
+msgid "misleading reference: %s"
+msgstr "referència enganyosa: %s"
+
+#: src/scan-code.l:580
+#, c-format
+msgid "ambiguous reference: %s"
+msgstr "referència ambigua: %s"
+
+#: src/scan-code.l:616
+#, c-format
+msgid "explicit type given in untyped grammar"
+msgstr "s'ha donat un tipus explicit a una gramàtica sense tipus"
+
+#: src/scan-code.l:675
+#, c-format
+msgid "$$ for the midrule at $%d of %s has no declared type"
+msgstr "$$ per a la regla intermèdia a $%d de %s no té cap tipus declarat"
+
+#: src/scan-code.l:681
+#, c-format
+msgid "$$ of %s has no declared type"
+msgstr "$$ de %s no té cap tipus declarat"
+
+#: src/scan-code.l:703
+#, c-format
+msgid "$%s of %s has no declared type"
+msgstr "$%s de %s no té cap tipus declarat"
+
+#: src/scan-gram.l:186
+#, c-format
+msgid "stray ',' treated as white space"
+msgstr "«,» extraviat serà tractat com a espai en blanc"
+
+#: src/scan-gram.l:276
+#, c-format
+msgid "invalid directive: %s"
+msgstr "directiva no vàlida: %s"
+
+#: src/scan-gram.l:302
+#, c-format
+msgid "invalid identifier: %s"
+msgstr "identificador no vàlida: %s"
+
+#: src/scan-gram.l:354
+msgid "invalid character"
+msgid_plural "invalid characters"
+msgstr[0] "caràcter no vàlid"
+msgstr[1] "caràcters no vàlids"
+
+#: src/scan-gram.l:372
+#, c-format
+msgid "invalid null character"
+msgstr "caràcter nul no vàlid"
+
+#: src/scan-gram.l:425
+#, c-format
+msgid "unexpected identifier in bracketed name: %s"
+msgstr "identificador no esperat al nom entre parèntesis: %s"
+
+#: src/scan-gram.l:447
+#, c-format
+msgid "an identifier expected"
+msgstr "s'esperava un identificador"
+
+#: src/scan-gram.l:452
+msgid "invalid character in bracketed name"
+msgid_plural "invalid characters in bracketed name"
+msgstr[0] "caràcter no vàlid al nom entre parèntesis"
+msgstr[1] "caràcters no vàlids al nom entre parèntesis"
+
+#: src/scan-gram.l:544
+#, c-format
+msgid "empty character literal"
+msgstr "literal de caràcters buit"
+
+#: src/scan-gram.l:550
+#, c-format
+msgid "extra characters in character literal"
+msgstr "caràcters extra al literal de caràcters"
+
+#: src/scan-gram.l:596 src/scan-gram.l:606 src/scan-gram.l:626
+#, c-format
+msgid "invalid number after \\-escape: %s"
+msgstr "nombre no vàlid després de \\-escap: %s"
+
+#: src/scan-gram.l:638
+#, c-format
+msgid "invalid character after \\-escape: %s"
+msgstr "caràcter no vàlid després de \\-escap: %s"
+
+#: src/scan-gram.l:984
+#, c-format
+msgid "missing %s at end of file"
+msgstr "falta %s al final del fitxer"
+
+#: src/scan-gram.l:995
+#, c-format
+msgid "missing %s at end of line"
+msgstr "falta %s al final de la línia"
+
+#: src/scan-skel.l:139
+#, c-format
+msgid "unclosed %s directive in skeleton"
+msgstr "directiva %s sense tancar a l'esquelet"
+
+#: src/scan-skel.l:256
+#, c-format
+msgid "too few arguments for %s directive in skeleton"
+msgstr "massa pocs argumentse per a la directiva %s a l'esquelet"
+
+#: src/scan-skel.l:263
+#, c-format
+msgid "too many arguments for %s directive in skeleton"
+msgstr "massa arguments per a la directiva %s a l'esquelet"
+
+#: src/symtab.c:75
+#, c-format
+msgid "POSIX Yacc forbids dashes in symbol names: %s"
+msgstr "POSIX Yacc no permet guionets als noms de símbols: %s"
+
+#: src/symtab.c:97
+#, c-format
+msgid "too many symbols in input grammar (limit is %d)"
+msgstr "massa símbols a la gramàtica d'entrada (el límit és %d)"
+
+#: src/symtab.c:250
+#, c-format
+msgid "%s redeclaration for %s"
+msgstr "redeclaració %s per a %s"
+
+#: src/symtab.c:263
+#, c-format
+msgid "%s redeclaration for <%s>"
+msgstr "redeclaració %s per a <%s>"
+
+#: src/symtab.c:392
+#, c-format
+msgid "symbol %s redefined"
+msgstr "se redefinit el símbol %s"
+
+#: src/symtab.c:407
+#, c-format
+msgid "symbol %s redeclared"
+msgstr "símbol %s redeclarat"
+
+#: src/symtab.c:429
+#, c-format
+msgid "redefining user token number of %s"
+msgstr "s'està redefinint el número de testimoni d'usuari per a %s"
+
+#: src/symtab.c:459
+#, c-format
+msgid "symbol %s is used, but is not defined as a token and has no rules"
+msgstr ""
+"s'usa el símbol %s, però no està definit com un testimoni i no té cap regla"
+
+#: src/symtab.c:497
+#, c-format
+msgid "useless %s for type <%s>"
+msgstr "%s inútil per al tipus <%s>"
+
+#: src/symtab.c:502
+#, c-format
+msgid "type <%s> is used, but is not associated to any symbol"
+msgstr "s'usa el tipus <%s>, però no està associat a cap símbol"
+
+#: src/symtab.c:527
+#, c-format
+msgid "symbol %s used more than once as a literal string"
+msgstr "el símbol %s s'usa més d'un cop com a una cadena de literals"
+
+#: src/symtab.c:530
+#, c-format
+msgid "symbol %s given more than one literal string"
+msgstr "se li ha donat al símbol %s mes d'una cadena de literals"
+
+#: src/symtab.c:629
+#, c-format
+msgid "user token number %d redeclaration for %s"
+msgstr "redeclaració número %d de testimoni d'usuari per a %s"
+
+#: src/symtab.c:633
+#, c-format
+msgid "previous declaration for %s"
+msgstr "declaració prèvia per a %s"
+
+#: src/symtab.c:1014
+#, c-format
+msgid "the start symbol %s is undefined"
+msgstr "el símbol d'inici %s no està definit"
+
+#: src/symtab.c:1018
+#, c-format
+msgid "the start symbol %s is a token"
+msgstr "el símbol d'inici %s és un testimoni"
+
+#: src/symtab.c:1193
+#, c-format
+msgid "useless precedence and associativity for %s"
+msgstr "precedència i associativitat inútils per a %s"
+
+#: src/symtab.c:1196
+#, c-format
+msgid "useless precedence for %s"
+msgstr "precedència inútil per a %s"
+
+#: src/symtab.c:1200
+#, c-format
+msgid "useless associativity for %s, use %%precedence"
+msgstr "associativitat inútil per a %s, useu  %%precedence"
+
+#: djgpp/subpipe.c:63 djgpp/subpipe.c:286 djgpp/subpipe.c:288
+#, c-format
+msgid "removing of '%s' failed"
+msgstr "ha fallat la supressió de «%s»"
+
+#: djgpp/subpipe.c:85 djgpp/subpipe.c:92
+#, c-format
+msgid "creation of a temporary file failed"
+msgstr "ha fallat la creació d'un fitxer temporari"
+
+#: djgpp/subpipe.c:127
+#, c-format
+msgid "saving stdin failed"
+msgstr "ha fallat el desament de l'entrada estàndard"
+
+#: djgpp/subpipe.c:131
+#, c-format
+msgid "saving stdout failed"
+msgstr "ha fallat el desament de la sortida estàndard"
+
+#: djgpp/subpipe.c:153 djgpp/subpipe.c:197 djgpp/subpipe.c:258
+#, c-format
+msgid "opening of tmpfile failed"
+msgstr "ha fallat l'obertura del fitxer temporari"
+
+#: djgpp/subpipe.c:157
+#, c-format
+msgid "redirecting bison's stdout to the temporary file failed"
+msgstr ""
+"ha fallat el redireccionament de la sortida estàndard del bison cap a un "
+"fitxer temporal"
+
+#: djgpp/subpipe.c:201
+#, c-format
+msgid "redirecting m4's stdin from the temporary file failed"
+msgstr ""
+"ha fallat el redireccionament de la sortida estàndard de m4 cap a un fitxer "
+"temporari"
+
+#: djgpp/subpipe.c:212
+#, c-format
+msgid "opening of a temporary file failed"
+msgstr "ha fallat l'obertura d'un fitxer temporari"
+
+#: djgpp/subpipe.c:218
+#, c-format
+msgid "redirecting m4's stdout to a temporary file failed"
+msgstr ""
+"ha fallat el redireccionament de la sortida estàndard de stdout cap a un "
+"fitxer temporal"
+
+#: djgpp/subpipe.c:234
+#, c-format
+msgid "subsidiary program '%s' interrupted"
+msgstr "s'ha interromput el programa subsidiari «%s»"
+
+#: djgpp/subpipe.c:241
+#, c-format
+msgid "subsidiary program '%s' not found"
+msgstr "no s'ha trobat el programa subsidiari «%s»"
+
+#: djgpp/subpipe.c:265
+#, c-format
+msgid "redirecting bison's stdin from the temporary file failed"
+msgstr ""
+"ha fallat la redirecció de l'entrada estàndard del bison a un fitxer "
+"temporari"
+
+#: lib/argmatch.c:134
+#, c-format
+msgid "invalid argument %s for %s"
+msgstr "argument no vàlid %s per a %s"
+
+#: lib/argmatch.c:135
+#, c-format
+msgid "ambiguous argument %s for %s"
+msgstr "argument ambigu %s per a %s"
+
+#: lib/argmatch.c:154
+msgid "Valid arguments are:"
+msgstr "Els arguments vàlids són:"
+
+#: lib/bitset_stats.c:178
+#, c-format
+msgid "%u bitset_allocs, %u freed (%.2f%%).\n"
+msgstr "%u bitset_allocs, %u alliberats (%.2f%%).\n"
+
+#: lib/bitset_stats.c:181
+#, c-format
+msgid "%u bitset_sets, %u cached (%.2f%%)\n"
+msgstr "%u bitset_sets, %u en cau (%.2f%%)\n"
+
+#: lib/bitset_stats.c:184
+#, c-format
+msgid "%u bitset_resets, %u cached (%.2f%%)\n"
+msgstr "%u bitset_resets, %u en cau (%.2f%%)\n"
+
+#: lib/bitset_stats.c:187
+#, c-format
+msgid "%u bitset_tests, %u cached (%.2f%%)\n"
+msgstr "%u bitset_tests, %u en cau (%.2f%%)\n"
+
+#: lib/bitset_stats.c:191
+#, c-format
+msgid "%u bitset_lists\n"
+msgstr "%u bitset_lists\n"
+
+#: lib/bitset_stats.c:193
+msgid "count log histogram\n"
+msgstr "histograma del registre de recompte\n"
+
+#: lib/bitset_stats.c:196
+msgid "size log histogram\n"
+msgstr "Histograma de registre de mida\n"
+
+#: lib/bitset_stats.c:199
+msgid "density histogram\n"
+msgstr "histograma de densitat\n"
+
+#: lib/bitset_stats.c:213
+#, c-format
+msgid ""
+"Bitset statistics:\n"
+"\n"
+msgstr ""
+"Estadístiques de bitset: \n"
+"\n"
+
+#: lib/bitset_stats.c:216
+#, c-format
+msgid "Accumulated runs = %u\n"
+msgstr "Execucions acumulades = %u\n"
+
+#: lib/bitset_stats.c:260 lib/bitset_stats.c:265
+msgid "cannot read stats file"
+msgstr "no es pot llegir el fitxer d'estadístiques"
+
+#: lib/bitset_stats.c:262
+#, c-format
+msgid "bad stats file size\n"
+msgstr "mida incorrecta de de fitxer d'estadístiques\n"
+
+#: lib/bitset_stats.c:288 lib/bitset_stats.c:290
+msgid "cannot write stats file"
+msgstr "no es pot escriure el fitxer d'estadístiques"
+
+#: lib/bitset_stats.c:293
+msgid "cannot open stats file for writing"
+msgstr "no es pot obrir el fitxer d'estadístiques per a escriptura"
+
+#: lib/closeout.c:122
+msgid "write error"
+msgstr "error d'escriptura"
+
+#: lib/error.c:195
+msgid "Unknown system error"
+msgstr "Error desconegut de sistema"
+
+#: lib/getopt.c:278
+#, fuzzy, c-format
+msgid "%s: option '%s%s' is ambiguous\n"
+msgstr "%s: l'opció «-W %s» és ambigua\n"
+
+#: lib/getopt.c:284
+#, fuzzy, c-format
+msgid "%s: option '%s%s' is ambiguous; possibilities:"
+msgstr "%s: l'opció «%s» és ambigua; possibilitats:"
+
+#: lib/getopt.c:319
+#, fuzzy, c-format
+msgid "%s: unrecognized option '%s%s'\n"
+msgstr "%s: opció no reconeguda «%c%s»\n"
+
+#: lib/getopt.c:345
+#, fuzzy, c-format
+msgid "%s: option '%s%s' doesn't allow an argument\n"
+msgstr "%s: l'opció «%c%s» no permet un argument\n"
+
+#: lib/getopt.c:360
+#, fuzzy, c-format
+msgid "%s: option '%s%s' requires an argument\n"
+msgstr "%s: l'opció «--%s» requereix un argument\n"
+
+#: lib/getopt.c:621
+#, c-format
+msgid "%s: invalid option -- '%c'\n"
+msgstr "%s: opció no vàlida -- «%c»\n"
+
+#: lib/getopt.c:636 lib/getopt.c:682
+#, c-format
+msgid "%s: option requires an argument -- '%c'\n"
+msgstr "%s: l'opció requereix un argument -- «%c»\n"
+
+#: lib/obstack.c:338 lib/obstack.c:340 lib/xalloc-die.c:34
+msgid "memory exhausted"
+msgstr "memòria exhaurida"
+
+#: lib/spawn-pipe.c:140 lib/spawn-pipe.c:143 lib/spawn-pipe.c:264
+#: lib/spawn-pipe.c:267
+#, c-format
+msgid "cannot create pipe"
+msgstr "no es pot crear la canonada"
+
+#: lib/spawn-pipe.c:234 lib/spawn-pipe.c:348 lib/wait-process.c:282
+#: lib/wait-process.c:356
+#, c-format
+msgid "%s subprocess failed"
+msgstr "ha fallat el subprocés %s"
+
+#. TRANSLATORS:
+#. Get translations for open and closing quotation marks.
+#. The message catalog should translate "`" to a left
+#. quotation mark suitable for the locale, and similarly for
+#. "'".  For example, a French Unicode local should translate
+#. these to U+00AB (LEFT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), and U+00BB (RIGHT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), respectively.
+#.
+#. If the catalog has no translation, we will try to
+#. use Unicode U+2018 (LEFT SINGLE QUOTATION MARK) and
+#. Unicode U+2019 (RIGHT SINGLE QUOTATION MARK).  If the
+#. current locale is not Unicode, locale_quoting_style
+#. will quote 'like this', and clocale_quoting_style will
+#. quote "like this".  You should always include translations
+#. for "`" and "'" even if U+2018 and U+2019 are appropriate
+#. for your locale.
+#.
+#. If you don't know what to put here, please see
+#. <https://en.wikipedia.org/wiki/Quotation_marks_in_other_languages>
+#. and use glyphs suitable for your language.
+#: lib/quotearg.c:362
+msgid "`"
+msgstr "«"
+
+#: lib/quotearg.c:363
+msgid "'"
+msgstr "»"
+
+#: lib/timevar.c:475
+msgid ""
+"\n"
+"Execution times (seconds)\n"
+msgstr ""
+"\n"
+"Temps d'execució (segons)\n"
+
+#: lib/timevar.c:525
+msgid " TOTAL                 :"
+msgstr " TOTAL                 :"
+
+#: lib/timevar.c:561
+#, c-format
+msgid "time in %s: %ld.%06ld (%ld%%)\n"
+msgstr "temps en %s: %ld.%06ld (%ld%%)\n"
+
+#: lib/w32spawn.h:49
+#, c-format
+msgid "_open_osfhandle failed"
+msgstr "ha fallat _open_osfhandle"
+
+#: lib/w32spawn.h:90
+#, c-format
+msgid "cannot restore fd %d: dup2 failed"
+msgstr "no es pot restaurar fd %d: ha fallat dup2"
+
+#: lib/wait-process.c:223 lib/wait-process.c:255 lib/wait-process.c:317
+#, c-format
+msgid "%s subprocess"
+msgstr "subprocés %s"
+
+#: lib/wait-process.c:274 lib/wait-process.c:346
+#, c-format
+msgid "%s subprocess got fatal signal %d"
+msgstr "el subprocés %s ha produït el senyal fatal %d"
+
+#~ msgid "%s: option '--%s' doesn't allow an argument\n"
+#~ msgstr "%s: l'opsció «--%s» no permet un argument\n"
+
+#~ msgid "%s: unrecognized option '--%s'\n"
+#~ msgstr "%s: opció no reconeguda «--%s»\n"
+
+#~ msgid "%s: option '-W %s' doesn't allow an argument\n"
+#~ msgstr "%s: l'opció «-W %s» no permet un argument\n"
+
+#~ msgid "%s: option '-W %s' requires an argument\n"
+#~ msgstr "%s: l'opció «-W %s» requereix un argument\n"

@@ -1,0 +1,28 @@
+dnl @ ../doc/m4.texi:2632: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+builtin
+dnl @result{}builtin
+builtin()
+dnl @error{}m4:stdin:2: undefined builtin `'
+dnl @result{}
+builtin(`builtin')
+dnl @error{}m4:stdin:3: Warning: too few arguments to builtin `builtin'
+dnl @result{}
+builtin(`builtin',)
+dnl @error{}m4:stdin:4: undefined builtin `'
+dnl @result{}
+builtin(`builtin', ``'
+')
+dnl @error{}m4:stdin:5: undefined builtin ``'
+dnl @error{}'
+dnl @result{}
+indir(`index')
+dnl @error{}m4:stdin:7: Warning: too few arguments to builtin `index'
+dnl @result{}

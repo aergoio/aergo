@@ -1,0 +1,26 @@
+dnl @ ../doc/m4.texi:3134: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`quote.m4')
+dnl @result{}
+-quote-dquote-dquote_elt-
+dnl @result{}----
+-quote()-dquote()-dquote_elt()-
+dnl @result{}--`'-`'-
+-quote(`1')-dquote(`1')-dquote_elt(`1')-
+dnl @result{}-1-`1'-`1'-
+-quote(`1', `2')-dquote(`1', `2')-dquote_elt(`1', `2')-
+dnl @result{}-1,2-`1',`2'-`1',`2'-
+define(`n', `$#')dnl
+-n(quote(`1', `2'))-n(dquote(`1', `2'))-n(dquote_elt(`1', `2'))-
+dnl @result{}-1-1-2-
+dquote(dquote_elt(`1', `2'))
+dnl @result{}``1'',``2''
+dquote_elt(dquote(`1', `2'))
+dnl @result{}``1',`2''

@@ -1,0 +1,22 @@
+dnl @ ../doc/m4.texi:5949: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+patsubst(`GNUs not Unix', `^', `OBS: ')
+dnl @result{}OBS: GNUs not Unix
+patsubst(`GNUs not Unix', `\<', `OBS: ')
+dnl @result{}OBS: GNUs OBS: not OBS: Unix
+patsubst(`GNUs not Unix', `\w*', `(\&)')
+dnl @result{}(GNUs)() (not)() (Unix)()
+patsubst(`GNUs not Unix', `\w+', `(\&)')
+dnl @result{}(GNUs) (not) (Unix)
+patsubst(`GNUs not Unix', `[A-Z][a-z]+')
+dnl @result{}GN not 
+patsubst(`GNUs not Unix', `not', `NOT\')
+dnl @error{}m4:stdin:6: Warning: trailing \ ignored in replacement
+dnl @result{}GNUs NOT Unix

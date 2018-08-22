@@ -1,0 +1,18 @@
+dnl @ ../doc/m4.texi:3371: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+undivert(`foreach.m4')dnl
+dnl @result{}divert(`-1')
+dnl @result{}# foreach(x, (item_1, item_2, ..., item_n), stmt)
+dnl @result{}#   parenthesized list, simple version
+dnl @result{}define(`foreach', `pushdef(`$1')_foreach($@)popdef(`$1')')
+dnl @result{}define(`_arg1', `$1')
+dnl @result{}define(`_foreach', `ifelse(`$2', `()', `',
+dnl @result{}  `define(`$1', _arg1$2)$3`'$0(`$1', (shift$2), `$3')')')
+dnl @result{}divert`'dnl

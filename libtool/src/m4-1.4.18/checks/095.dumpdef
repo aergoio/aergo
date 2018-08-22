@@ -1,0 +1,17 @@
+dnl @ ../doc/m4.texi:3776: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+pushdef(`f', ``$0'1')pushdef(`f', ``$0'2')
+dnl @result{}
+f(popdef(`f')dumpdef(`f'))
+dnl @error{}f:	``$0'1'
+dnl @result{}f2
+f(popdef(`f')dumpdef(`f'))
+dnl @error{}m4:stdin:3: undefined macro `f'
+dnl @result{}f1

@@ -1,0 +1,35 @@
+dnl @ ../doc/m4.texi:4576: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`echo', `$#:$*:$@:')
+dnl @result{}
+define(`hi', `HI')
+dnl @result{}
+changecom(`(',`)')
+dnl @result{}
+echo(hi)
+dnl @result{}0:::(hi)
+changecom
+dnl @result{}
+changecom(`((', `))')
+dnl @result{}
+echo(hi)
+dnl @result{}1:HI:HI:
+echo((hi))
+dnl @result{}0:::((hi))
+changecom(`,', `)')
+dnl @result{}
+echo(hi,hi)bye)
+dnl @result{}1:HI,hi)bye:HI,hi)bye:
+changecom
+dnl @result{}
+echo(hi,`,`'hi',hi)
+dnl @result{}3:HI,,HI,HI:HI,,`'hi,HI:
+echo(hi,`,`'hi',hi`'changecom(`,,', `hi'))
+dnl @result{}3:HI,,`'hi,HI:HI,,`'hi,HI:

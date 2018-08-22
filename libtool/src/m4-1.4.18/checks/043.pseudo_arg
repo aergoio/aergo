@@ -1,0 +1,29 @@
+dnl @ ../doc/m4.texi:2113: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`echo', `$@')dnl
+echo(echo(`01234567890123456789', `01234567890123456789')
+echo(`98765432109876543210', `98765432109876543210'))
+dnl @result{}01234567890123456789,01234567890123456789
+dnl @result{}98765432109876543210,98765432109876543210
+len((echo(`01234567890123456789',
+          `01234567890123456789')echo(`98765432109876543210',
+                                      `98765432109876543210')))
+dnl @result{}84
+indir(`echo', indir(`echo', `01234567890123456789',
+                            `01234567890123456789')
+indir(`echo', `98765432109876543210', `98765432109876543210'))
+dnl @result{}01234567890123456789,01234567890123456789
+dnl @result{}98765432109876543210,98765432109876543210
+define(`argn', `$#')dnl
+define(`echo1', `-$@-')define(`echo2', `,$@,')dnl
+echo1(`1', `2', `3') argn(echo1(`1', `2', `3'))
+dnl @result{}-1,2,3- 3
+echo2(`1', `2', `3') argn(echo2(`1', `2', `3'))
+dnl @result{},1,2,3, 5

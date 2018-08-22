@@ -1,0 +1,100 @@
+#!/bin/sh
+# This file is part of the GNU m4 testsuite
+# Copyright (C) 2000, 2003, 2007-2014, 2016 Free Software Foundation,
+# Inc.
+#
+# This file is part of GNU M4.
+#
+# GNU M4 is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# GNU M4 is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Script to verify that stack overflow is diagnosed properly when
+# there is infinite macro call nesting, provided the OS supports it.
+
+m4="$1"
+
+# Skip this test if -L defaults to 1024 instead of 0, as that is our
+# indicator that the OS does not support stack overflow detection.
+("$m4" --help | grep 'nesting.*\[0\]') >/dev/null 2>&1 \
+  || {
+       echo "$0: skipping test, no stack overflow support detected in $m4"
+       exit 77
+     }
+
+# On some systems the ulimit command is available in ksh or bash but not sh
+(exec 2>/dev/null; ulimit -Ss 300) || {
+  for altshell in bash bsh ksh zsh ; do
+    if (exec >/dev/null 2>&1; $altshell -c 'ulimit -Ss 300') && test -z "$2"
+    then
+      echo "Using $altshell because it supports ulimit"
+      exec $altshell "$0" "$@" running-with-$altshell
+      exit 1
+    fi
+  done
+}
+
+tmpdir=
+trap 'st=$?; rm -rf "$tmpdir" && exit $st' 0
+trap '(exit $?); exit $?' 1 2 3 15
+
+# Create a temporary subdirectory $tmpdir in $TMPDIR (default /tmp).
+# Use mktemp if possible; otherwise fall back on mkdir,
+# with $RANDOM to make collisions less likely.
+: ${TMPDIR=/tmp}
+{
+  tmpdir=`
+    (umask 077 && mktemp -d "$TMPDIR/m4stk-XXXXXX") 2>/dev/null
+  ` &&
+  test -n "$tmpdir" && test -d "$tmpdir"
+} || {
+  tmpdir=$TMPDIR/m4stk-$$-$RANDOM
+  (umask 077 && mkdir "$tmpdir")
+} || exit $?
+tmpfile="$tmpdir"/m4.out
+
+# Limit the stack size if the shell we are running permits it
+if (exec 2>/dev/null; ulimit -Ss 300)
+then
+  ulimit -Ss 300
+  echo "Stack soft limit set to `ulimit -s`K";
+else
+  echo "Can't reset stack limit - this may take a while..."
+fi
+
+# Induce stack overflow.
+echo 'define(a,a(a))a' | "$m4" > "$tmpfile" 2>&1
+result=$?
+
+exitcode=1
+if test $result -eq 0 ; then
+  echo "Failure - $m4 did not abort"
+else
+  # See if stack overflow was diagnosed.
+  case `cat "$tmpfile"` in
+    *stack\ overflow*)
+      case `echo "$tmpdir"/*` in
+        $tmpfile)
+           echo "Pass"
+           exitcode=0 ;;
+        *) echo "Failure - $m4 created unexpected core dump"
+           ls -l "$tmpdir" ;;
+      esac ;;
+    *) echo "Failure - $m4 aborted unexpectedly";
+        ;;
+    esac
+fi
+
+test $exitcode = 0 ||
+    { echo "Output from $m4:"; cat $tmpfile; }
+
+exit $exitcode

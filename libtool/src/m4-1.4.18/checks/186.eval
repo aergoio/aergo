@@ -1,0 +1,33 @@
+dnl @ ../doc/m4.texi:6297: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+eval(`1 == 2 > 0')
+dnl @result{}1
+eval(`(1 == 2) > 0')
+dnl @result{}0
+eval(`! 0 * 2')
+dnl @result{}2
+eval(`! (0 * 2)')
+dnl @result{}1
+eval(`1 | 1 ^ 1')
+dnl @result{}1
+eval(`(1 | 1) ^ 1')
+dnl @result{}0
+eval(`+ + - ~ ! ~ 0')
+dnl @result{}1
+eval(`2 || 1 / 0')
+dnl @result{}1
+eval(`0 || 1 / 0')
+dnl @error{}m4:stdin:9: divide by zero in eval: 0 || 1 / 0
+dnl @result{}
+eval(`0 && 1 % 0')
+dnl @result{}0
+eval(`2 && 1 % 0')
+dnl @error{}m4:stdin:11: modulo by zero in eval: 2 && 1 % 0
+dnl @result{}

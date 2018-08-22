@@ -1,0 +1,19 @@
+dnl @ ../doc/m4.texi:6553: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+define(`provided', `0')
+dnl @result{}
+ifdef(`__unix__', `define(`provided', incr(provided))')
+dnl @result{}
+ifdef(`__windows__', `define(`provided', incr(provided))')
+dnl @result{}
+ifdef(`__os2__', `define(`provided', incr(provided))')
+dnl @result{}
+provided
+dnl @result{}1

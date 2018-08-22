@@ -1,0 +1,35 @@
+dnl @ ../doc/m4.texi:7919: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+include(`foreachq.m4')
+dnl @result{}
+traceon(`shift')debugmode(`aq')
+dnl @result{}
+foreachq(`x', ``1', `2', `3', `4'', `x
+')dnl
+dnl @result{}1
+dnl @error{}m4trace: -3- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -2- shift(`1', `2', `3', `4')
+dnl @result{}2
+dnl @error{}m4trace: -4- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -3- shift(`2', `3', `4')
+dnl @error{}m4trace: -3- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -2- shift(`2', `3', `4')
+dnl @result{}3
+dnl @error{}m4trace: -5- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -4- shift(`2', `3', `4')
+dnl @error{}m4trace: -3- shift(`3', `4')
+dnl @error{}m4trace: -4- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -3- shift(`2', `3', `4')
+dnl @error{}m4trace: -2- shift(`3', `4')
+dnl @result{}4
+dnl @error{}m4trace: -6- shift(`1', `2', `3', `4')
+dnl @error{}m4trace: -5- shift(`2', `3', `4')
+dnl @error{}m4trace: -4- shift(`3', `4')
+dnl @error{}m4trace: -3- shift(`4')

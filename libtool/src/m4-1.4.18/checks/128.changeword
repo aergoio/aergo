@@ -1,0 +1,39 @@
+dnl @ ../doc/m4.texi:4736: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`bar
+', defn(`dnl'))dnl
+define(`baz', `dnl
+include(`foo') ignored
+dnl')dnl
+changeword(`\([_a-zA-Z][_a-zA-Z0-9]*\|bar
+\)')
+dnl @result{}
+__file__:__line__
+dnl @result{}stdin:10
+include(`foo') ignored
+__file__:__line__
+dnl @result{}stdin:12
+baz ignored
+__file__:__line__
+dnl @result{}stdin:14
+define(`bar
+', defn(`__file__'))
+dnl @result{}
+include(`foo')
+dnl @result{}examples/foo
+define(`bar
+', defn(`__line__'))
+dnl @result{}
+include(`foo')
+dnl @result{}1
+__file__:__line__
+dnl @result{}stdin:21

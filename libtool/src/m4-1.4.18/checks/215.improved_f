@@ -1,0 +1,33 @@
+dnl @ ../doc/m4.texi:7784: Origin of test
+dnl @ expected status: 0
+dnl @ extra options: 
+dnl @ Copyright (C) 2006, 2007, 2008, 2009 Free Software
+dnl @ Foundation, Inc.
+dnl @ This file is free software; the Free Software Foundation
+dnl @ gives unlimited permission to copy and/or distribute it
+dnl @ with or without modifications, as long as this notice
+dnl @ is preserved.
+undivert(`forloop2.m4')dnl
+dnl @result{}divert(`-1')
+dnl @result{}# forloop(var, from, to, stmt) - improved version:
+dnl @result{}#   works even if VAR is not a strict macro name
+dnl @result{}#   performs sanity check that FROM is larger than TO
+dnl @result{}#   allows complex numerical expressions in TO and FROM
+dnl @result{}define(`forloop', `ifelse(eval(`($2) <= ($3)'), `1',
+dnl @result{}  `pushdef(`$1')_$0(`$1', eval(`$2'),
+dnl @result{}    eval(`$3'), `$4')popdef(`$1')')')
+dnl @result{}define(`_forloop',
+dnl @result{}  `define(`$1', `$2')$4`'ifelse(`$2', `$3', `',
+dnl @result{}    `$0(`$1', incr(`$2'), `$3', `$4')')')
+dnl @result{}divert`'dnl
+include(`forloop2.m4')
+dnl @result{}
+forloop(`i', `2', `1', `no iteration occurs')
+dnl @result{}
+forloop(`', `1', `2', ` odd iterator name')
+dnl @result{} odd iterator name odd iterator name
+forloop(`i', `5 + 5', `0xc', ` 0x`'eval(i, `16')')
+dnl @result{} 0xa 0xb 0xc
+forloop(`i', `a', `b', `non-numeric bounds')
+dnl @error{}m4:stdin:6: bad expression in eval (bad input): (a) <= (b)
+dnl @result{}
