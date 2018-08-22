@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package factory
+package impl
 
 import (
 	"github.com/aergoio/aergo/config"
@@ -12,8 +12,6 @@ import (
 	"github.com/aergoio/aergo/consensus/impl/sbp"
 	"github.com/aergoio/aergo/pkg/component"
 )
-
-var quitC = make(chan interface{})
 
 // New returns consensus.Consensus based on the configuration parameters.
 func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {

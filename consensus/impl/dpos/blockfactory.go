@@ -6,12 +6,11 @@
 package dpos
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus/util"
+	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
@@ -23,7 +22,17 @@ const (
 	slotQueueMax = 100
 )
 
-var errBpTimeout = errors.New("block production timeout")
+type errTimeout struct {
+	kind    string
+	timeout int64
+}
+
+func (e errTimeout) Error() string {
+	if e.timeout != 0 {
+		return fmt.Sprintf("%s timeout (%v)", e.kind, e.timeout)
+	}
+	return e.kind + " timeout"
+}
 
 // BlockFactory is the main data structure for DPoS block factory.
 type BlockFactory struct {
@@ -35,7 +44,7 @@ type BlockFactory struct {
 	maxBlockBodySize int
 	sID              string
 	privKey          crypto.PrivKey
-	txOp             util.TxOp
+	txOp             chain.TxOp
 }
 
 // NewBlockFactory returns a new BlockFactory
@@ -45,15 +54,15 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
-		maxBlockBodySize: util.MaxBlockBodySize(),
+		maxBlockBodySize: chain.MaxBlockBodySize(),
 		sID:              id.Pretty(),
 		privKey:          privKey,
 		quit:             quitC,
 	}
 
-	bf.txOp = util.NewCompTxOp(
+	bf.txOp = chain.NewCompTxOp(
 		// block size limit check
-		util.NewBlockLimitOp(bf.maxBlockBodySize),
+		chain.NewBlockLimitOp(bf.maxBlockBodySize),
 		// timeout check
 		func(txIn *types.Tx) error {
 			return bf.checkBpTimeout()
@@ -81,14 +90,13 @@ func (bf *BlockFactory) controller() {
 		// This is only for draining an unconsumed message, which means
 		// the previous block is generated within timeout. This code
 		// is needed since an empty block will be generated without it.
-		if err := bf.checkBpTimeout(); err == util.ErrQuit {
+		if err := bf.checkBpTimeout(); err == chain.ErrQuit {
 			return err
 		}
 
 		timeLeft := bpi.slot.RemainingTimeMS()
 		if timeLeft <= 0 {
-			logger.Debug().Int64("remaining time", timeLeft).Msg("skip block production - no time left")
-			return fmt.Errorf("no time left to produce block")
+			return errTimeout{kind: "slot", timeout: timeLeft}
 		}
 
 		select {
@@ -122,9 +130,10 @@ func (bf *BlockFactory) controller() {
 				}))
 
 			err := beginBlock(bpi)
-			if err == util.ErrQuit {
+			if err == chain.ErrQuit {
 				return
 			} else if err != nil {
+				logger.Debug().Err(err).Msg("skip block production")
 				continue
 			}
 
@@ -141,14 +150,14 @@ func (bf *BlockFactory) worker() {
 		select {
 		case bpi := <-bf.workerQueue:
 			block, err := bf.generateBlock(bpi)
-			if err == util.ErrQuit {
+			if err == chain.ErrQuit {
 				return
 			} else if err != nil {
 				logger.Info().Err(err).Msg("failed to produce block")
 				continue
 			}
 
-			util.ConnectBlock(bf, block)
+			chain.ConnectBlock(bf, block)
 
 		case <-bf.quit:
 			return
@@ -157,7 +166,7 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
-	block, err := util.GenerateBlock(bf, bpi.bestBlock, bf.txOp, bpi.slot.UnixNano())
+	block, err := chain.GenerateBlock(bf, bpi.bestBlock, bf.txOp, bpi.slot.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +182,9 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 func (bf *BlockFactory) checkBpTimeout() error {
 	select {
 	case <-bf.bpTimeoutC:
-		return errBpTimeout
+		return errTimeout{kind: "block"}
 	case <-bf.quit:
-		return util.ErrQuit
+		return chain.ErrQuit
 	default:
 		return nil
 	}

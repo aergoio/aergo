@@ -12,9 +12,9 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/consensus/util"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -166,7 +166,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 		return nil
 	}
 
-	block := util.GetBestBlock(dpos)
+	block := chain.GetBestBlock(dpos)
 	if block == nil {
 		return nil
 	}
