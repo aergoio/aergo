@@ -136,7 +136,11 @@ func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
 	ch <- nil
 }
 
-// Update adds a sorted list of keys and their values to the trie
+// Update adds and deletes a sorted list of keys and their values to the trie
+// Adding and deleting can be simultaneous as long as keys are sorted.
+// To delete, set the value to DefaultLeaf.
+// Make sure you don't delete keys that don't exist,
+// the root hash would become invalid.
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -158,8 +162,12 @@ type mresult struct {
 	err     error
 }
 
-// update adds a sorted list of keys and their values to the trie.
+// update adds and deletes a sorted list of keys and their values to the trie.
+// Adding and deleting can be simultaneous as long as keys are sorted.
+// To delete, set the value to DefaultLeaf.
 // It returns the root of the updated tree.
+// A DefaultLeaf cannot be updated to a DefaultLeaf as shortcut nodes
+// could be moved down the tree resulting in an invalid root
 func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
 	if height == 0 {
 		// Delete the key-value from the trie if it is being set to DefaultLeaf
@@ -191,25 +199,21 @@ func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
-		s.maybeAddShortcutToKV(keys, values, lnode, rnode)
-		// The shortcut node was added to keys and values so consider this subtree default.
-		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
-	}
-
-	// Store shortcut node
-	if bytes.Equal(s.defaultHashes[height-1], lnode) &&
-		bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
-		// Delete the key-value from the trie if it is being set to DefaultLeaf
-		if bytes.Equal(DefaultLeaf, values[0]) {
-			if !bytes.Equal(s.defaultHashes[height], root) {
-				// Delete old liveCache node if it is not default
-				s.deleteCacheNode(root)
-			}
+		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
+		if len(keys) == 0 {
+			// The shortcut is being deleted
+			s.deleteCacheNode(root)
 			if ch != nil {
 				ch <- mresult{s.defaultHashes[height], true, nil}
 			}
 			return s.defaultHashes[height], true, nil
 		}
+		// The shortcut node was added to keys and values so consider this subtree default.
+		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
+	}
+	// Store shortcut node
+	if bytes.Equal(s.defaultHashes[height-1], lnode) &&
+		bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
 		// We are adding 1 key to an empty subtree so store it as a shortcut
 		node := s.leafHash(keys[0], values[0], height-1, root)
 		if ch != nil {
@@ -393,14 +397,22 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 // the shortcut key is not already in the keys array
 func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	up := false
-	for _, k := range keys {
+	toRemove := -1
+	for i, k := range keys {
 		if bytes.Equal(k, shortcutKey) {
 			up = true
+			if bytes.Equal(DefaultLeaf, values[i]) {
+				toRemove = i
+			}
 			break
 		}
 	}
 	if !up {
 		keys, values = s.addShortcutToKV(keys, values, shortcutKey, shortcutVal)
+	} else if toRemove > -1 {
+		// Delete shortcut if it was updated to DefaultLeaf
+		keys = append(keys[:toRemove], keys[toRemove+1:]...)
+		values = append(values[:toRemove], values[toRemove+1:]...)
 	}
 	return keys, values
 }
