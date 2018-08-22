@@ -156,8 +156,6 @@ func TestTrieDelete(t *testing.T) {
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(32, hash, nil)
 	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
-	//FIXME : if one of 2 sibling nodes is deleted then the sibling
-	//			should move up other wise the roots mismatch
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
@@ -170,6 +168,28 @@ func TestTrieDelete(t *testing.T) {
 	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
+	}
+}
+
+// test updating and deleting at the same time
+func TestTrieUpdateAndDelete(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
+	key0 := make([]byte, 32, 32)
+	values := getFreshData(1, 32)
+	root, _ := smt.Update([][]byte{key0}, values)
+	k, v, isShortcut, _ := smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key0) || !bytes.Equal(v, values[0]) {
+		t.Fatal("leaf shortcut didn't move up to root")
+	}
+
+	key1 := make([]byte, 32, 32)
+	bitSet(key1, 255)
+	keys := [][]byte{key0, key1}
+	values = [][]byte{DefaultLeaf, getFreshData(1, 32)[0]}
+	root, _ = smt.Update(keys, values)
+	k, v, isShortcut, _ = smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key1) || !bytes.Equal(v, values[1]) {
+		t.Fatal("leaf shortcut didn't move up to root")
 	}
 }
 
