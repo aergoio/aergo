@@ -180,7 +180,7 @@ func (cs *ChainService) rollbackBlock(dbtx *db.Transaction, block *types.Block) 
 func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
 	txBody := tx.GetBody()
 	if txBody.GetType() == types.TxType_GOVERNANCE {
-		err := cs.processVoteTx(dbtx, bs, txBody)
+		err := cs.processGovernanceTx(dbtx, bs, txBody)
 		if err != nil {
 			return err
 		}

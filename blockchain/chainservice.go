@@ -10,11 +10,11 @@ import (
 	//"reflect"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -32,8 +32,8 @@ type ChainService struct {
 	cac chan consensus.ChainInfo
 
 	//TODO : will be changed to use state DB
-	votes  map[string]uint64            //candidate, sum of votes
-	voters map[string]map[string]uint64 // voter, candidate, amount of votes
+	votes  map[string]uint64                //candidate, sum of votes
+	voters map[string]map[string]*[2]uint64 // voter, candidate, amount of votes, update blockno
 }
 
 var _ component.IComponent = (*ChainService)(nil)
@@ -51,7 +51,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		op:            NewOrphanPool(),
 
 		votes:  map[string]uint64{},
-		voters: map[string]map[string]uint64{},
+		voters: map[string]map[string]*[2]uint64{},
 	}
 }
 

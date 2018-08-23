@@ -15,12 +15,22 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-const minimum = 100
+const minimum = 1000
+
+func (cs *ChainService) processGovernanceTx(dbtx *db.Transaction, bs *state.BlockState, txBody *types.TxBody) error {
+	if txBody.Amount < minimum {
+		return errors.New("too small amount to influence")
+	}
+	governanceCmd := string(txBody.GetRecipient())
+	var err error
+	switch governanceCmd {
+	case "aergo.bp":
+		err = cs.processVoteTx(dbtx, bs, txBody)
+	}
+	return err
+}
 
 func (cs *ChainService) processVoteTx(dbtx *db.Transaction, bs *state.BlockState, txBody *types.TxBody) error {
-	if txBody.Amount < minimum {
-		return errors.New("too small amount to vote")
-	}
 	senderKey := types.ToAccountID(txBody.Account)
 	senderState, err := cs.sdb.GetAccountClone(bs, senderKey)
 	if err != nil {
@@ -61,15 +71,16 @@ func (cs *ChainService) putVote(voter string, to string, amount int64) {
 	//TODO: update candidate, voter, amount to state db
 	entry, ok := cs.voters[voter]
 	if !ok {
-		entry = make(map[string]uint64)
+		entry = make(map[string]*[2]uint64)
+		entry[to] = &[2]uint64{}
 		cs.voters[voter] = entry
 	}
-	entry[to] = uint64(int64(entry[to]) + amount)
+	entry[to][0] = uint64(int64(entry[to][0]) + amount)
 	cs.votes[to] = uint64(int64(cs.votes[to]) + amount)
 }
 
 func (cs *ChainService) getVote(voter string, to string) uint64 {
-	return cs.voters[voter][to]
+	return cs.voters[voter][to][0]
 }
 
 func (cs *ChainService) getVotes(n int) types.VoteList {
