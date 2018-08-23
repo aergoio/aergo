@@ -103,7 +103,7 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	hashes := make([][]byte, 0, len(data.Hashes))
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
 	// FIXME: chain에 들어간 트랜잭션을 볼 방법이 없다. 멤풀도 검색이 안 되서 전체를 다 본 다음에 그중에 매칭이 되는 것을 추출하는 방식으로 처리한다.
-	txs, ok := extractTXsFromRequest(p.iserv.CallRequest(message.MemPoolSvc,
+	txs, _ := extractTXsFromRequest(p.iserv.CallRequest(message.MemPoolSvc,
 		&message.MemPoolGet{}))
 	for _, tx := range txs {
 		hash, found := hashesMap[base64.StdEncoding.EncodeToString(tx.Hash)]

@@ -294,7 +294,7 @@ func (ps *peerManager) addDesignatedPeers() {
 			Designated: true,
 			Outbound:   true,
 		}
-		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Desginated peer")
+		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Designated peer")
 		ps.addPeerChannel <- peerMeta
 	}
 }

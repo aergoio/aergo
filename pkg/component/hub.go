@@ -110,8 +110,8 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 		// wait and get a result
 		result, err := job.Result()
 		if err != nil {
-			// when error is occured, record it.
-			// most frequently occured error will be a timeout error
+			// when error is occurred, record it.
+			// the most frequently occurred error will be a timeout error
 			retCompStatics[name] = &CompStatRsp{
 				"component": Statics{
 					Status: StatusToString(compStatus[name]),

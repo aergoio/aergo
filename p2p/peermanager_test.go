@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"

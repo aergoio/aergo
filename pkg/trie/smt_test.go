@@ -256,7 +256,7 @@ func TestSmtCommit(t *testing.T) {
 	smt.db.liveCache = make(map[Hash][]byte)
 	value, _ := smt.Get(keys[0])
 	if !bytes.Equal(values[0], value) {
-		t.Fatal("failed to get value in commited db")
+		t.Fatal("failed to get value in committed db")
 	}
 	st.Close()
 	os.RemoveAll(".aergo")

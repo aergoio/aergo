@@ -175,6 +175,9 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
 	result, err := rpc.actorHelper.CallRequest(message.MemPoolSvc,
 		&message.MemPoolExist{Hash: in.Value})
+	if err != nil {
+		return nil, err
+	}
 	tx, err := rpc.msgHelper.ExtractTxFromResponse(result)
 	if err != nil {
 		return nil, err

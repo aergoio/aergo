@@ -43,7 +43,7 @@ type pbMessageOrder struct {
 var _ msgOrder = (*pbMessageOrder)(nil)
 
 // newPbMsgOrder is base form of making sendrequest struct
-// TODO: It seems to have redundent parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
+// TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
 func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, protocolID protocol.ID, message pbMessage) *pbMessageOrder {
 	request := false
 	if len(reqID) == 0 {

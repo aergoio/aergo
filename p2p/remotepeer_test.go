@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
