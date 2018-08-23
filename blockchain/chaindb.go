@@ -157,7 +157,7 @@ func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 	genesisBlock.Header.Timestamp = seed
 	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)
-	if err := cdb.addBlock(&tx, genesisBlock); err != nil {
+	if err := cdb.addBlock(&tx, genesisBlock, true); err != nil {
 		return nil, err
 	}
 	tx.Commit()
@@ -169,10 +169,10 @@ func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {
 	cdb.latest = newLatest
 }
 
-func (cdb *ChainDB) isNewBestBlock(block *types.Block) (bool, error) {
+func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("no new best block.block no is not latest+1")
+		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("block is branch")
 
 		return false, nil
 	}
@@ -183,13 +183,13 @@ func (cdb *ChainDB) isNewBestBlock(block *types.Block) (bool, error) {
 		return false, fmt.Errorf("failed to getting block hash by no(%v)", cdb.getBestBlockNo())
 	}
 
-	isNewBest := bytes.Equal(prevHash, latestHash)
+	isMainChain := bytes.Equal(prevHash, latestHash)
 
-	logger.Debug().Bool("isNewBest", isNewBest).Uint64("blkno", blockNo).Str("hash", block.ID()).
+	logger.Debug().Bool("isMainChain", isMainChain).Uint64("blkno", blockNo).Str("hash", block.ID()).
 		Str("latest", EncodeB64(latestHash)).Str("prev", EncodeB64(prevHash)).
-		Msg("check if new best block")
+		Msg("check if block is in main chain")
 
-	return isNewBest, nil
+	return isMainChain, nil
 }
 
 type txInfo struct {
@@ -216,38 +216,54 @@ func (cdb *ChainDB) deleteTx(dbtx *db.Transaction, tx *types.Tx) {
 }
 
 // store block info to DB
-func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
+func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainChain bool) error {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
-	longest := true
 
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
-	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Str("hash", block.ID()).Msg("block is branch")
-		longest = false
-	}
-
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
+	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Bool("isMainChain", isMainChain).
+		Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err
 	}
 	tx := *dbtx
-	if longest {
-		tx.Set(latestKey, blockIdx)
-		tx.Set(blockIdx, block.GetHash())
-	}
+
 	tx.Set(block.GetHash(), blockBytes)
 
 	// to avoid exception, set here
-	if longest {
+	if isMainChain {
+		tx.Set(latestKey, blockIdx)
+		tx.Set(blockIdx, block.GetHash())
+
 		cdb.setLatest(blockNo)
 	}
 
 	return nil
 }
+
+func (cdb *ChainDB) updateLatestBlock(dbtx *db.Transaction, block *types.Block) error {
+
+	tx := *dbtx
+	blockNo := block.GetHeader().GetBlockNo()
+	blockIdx := types.BlockNoToBytes(blockNo)
+
+	logger.Debug().Uint64("latest", blockNo).Str("hash", block.ID()).Msg("updateLatestBlock")
+
+	if cdb.latest+1 != blockNo {
+		return fmt.Errorf("rollbackBlock failed block(%d,%v). invalid latestNo", blockNo,
+			block.GetHash(), cdb.latest)
+	}
+
+	tx.Set(blockIdx, block.GetHash())
+	tx.Set(latestKey, blockIdx)
+	cdb.setLatest(blockNo)
+
+	return nil
+}
+
 func (cdb *ChainDB) getBestBlockNo() types.BlockNo {
 	return cdb.latest
 }

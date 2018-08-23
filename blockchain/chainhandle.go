@@ -64,64 +64,71 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	}
 
 	// connect orphans
-	block := nblock
+	tblock := nblock
+	processedTxn := 0
+	var lastBlock *types.Block
 
-	for block != nil {
-		/* reorgnize
-		   if new bestblock then process Txs
-		   add block
-		   if new bestblock then update context
-		   connect next orphan
-		*/
-		need, err := cs.needReorg(block)
-		if err != nil {
-			return err
-		}
-		if need {
-			cs.reorg(block)
-		}
-
+	for tblock != nil {
 		dbtx := cs.cdb.store.NewTx(true)
 
-		var isNew bool
-		if isNew, err = cs.cdb.isNewBestBlock(block); err != nil {
+		var isMainChain bool
+		var err error
+		if isMainChain, err = cs.cdb.isMainChain(tblock); err != nil {
 			return err
 		}
 
-		if isNew {
-			if err := cs.processTxsAndState(&dbtx, block); err != nil {
+		if isMainChain {
+			if err := cs.processTxsAndState(&dbtx, tblock); err != nil {
 				return err
 			}
+			processedTxn = len(tblock.GetBody().GetTxs())
 		}
 
-		if err = cs.cdb.addBlock(&dbtx, block); err != nil {
-			logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to add block")
+		if err = cs.cdb.addBlock(&dbtx, tblock, isMainChain); err != nil {
+			logger.Error().Err(err).Str("hash", tblock.ID()).Msg("failed to add block")
 			return err
 		}
 
 		dbtx.Commit()
 
-		logger.Info().Int("processed_txn", len(block.GetBody().GetTxs())).
+		logger.Info().Bool("isMainChain", isMainChain).
+			Int("processed_txn", processedTxn).
 			Uint64("latest", cs.cdb.latest).
-			Uint64("blockNo", block.GetHeader().GetBlockNo()).
-			Str("hash", block.ID()).
-			Str("prev_hash", EncodeB64(block.GetHeader().GetPrevBlockHash())).
+			Uint64("blockNo", tblock.GetHeader().GetBlockNo()).
+			Str("hash", tblock.ID()).
+			Str("prev_hash", EncodeB64(tblock.GetHeader().GetPrevBlockHash())).
 			Msg("block added")
-		//return cs.mpool.Removes(block.GetBody().GetTxs()...)
-		if isNew {
+		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
+
+		if isMainChain {
 			cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
 				// FIXME: remove legacy
-				BlockNo: block.GetHeader().GetBlockNo(),
-				Txs:     block.GetBody().GetTxs(),
+				BlockNo: tblock.GetHeader().GetBlockNo(),
+				Txs:     tblock.GetBody().GetTxs(),
 			}, cs)
 		}
 
-		if block, err = cs.connectOrphan(block); err != nil {
+		cs.notifyBlock(tblock)
+
+		lastBlock = tblock
+
+		if tblock, err = cs.connectOrphan(tblock); err != nil {
 			return err
 		}
 	}
 
-	cs.notifyBlock(nblock)
+	/* reorganize
+	   if new bestblock then process Txs
+	   add block
+	   if new bestblock then update context
+	   connect next orphan
+	*/
+	if cs.needReorg(lastBlock) {
+		err := cs.reorg(lastBlock)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	return nil
 }
@@ -148,34 +155,6 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to apply state")
 		return err
 	}
-
-	return nil
-}
-
-func (cs *ChainService) rollbackBlock(dbtx *db.Transaction, block *types.Block) error {
-	txs := block.GetBody().GetTxs()
-
-	blockNo := block.GetHeader().GetBlockNo()
-
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).
-		Msg("rollback txs of block")
-
-	if blockNo == 0 {
-		return fmt.Errorf("rollback target no can not be 0")
-	}
-
-	if blockNo != cs.cdb.latest {
-		return fmt.Errorf("rollback target is not latest.(target:%v,latest:%v)",
-			blockNo, cs.cdb.latest)
-	}
-
-	// rollbacked tx는 mempool에 다시 push
-	for _, tx := range txs {
-		cs.cdb.deleteTx(dbtx, tx)
-	}
-
-	//update best block
-	cs.cdb.setLatest(blockNo - 1)
 
 	return nil
 }
@@ -218,26 +197,27 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 // find an orphan block which is the child of the added block
 func (cs *ChainService) connectOrphan(block *types.Block) (*types.Block, error) {
 	hash := block.GetHash()
-	for key, orphan := range cs.op.cache {
-		phash := orphan.block.GetHeader().GetPrevBlockHash()
-		orphanBlock := orphan.block
 
-		if bytes.Equal(phash, hash) {
-			if (block.GetHeader().GetBlockNo() + 1) != orphanBlock.GetHeader().GetBlockNo() {
-				return nil, fmt.Errorf("invalid orphan block no (p=%d, c=%d)", block.GetHeader().GetBlockNo(),
-					orphanBlock.GetHeader().GetBlockNo())
-			}
-
-			logger.Debug().Str("parentHash=", block.ID()).
-				Uint64("blockNo", block.GetHeader().GetBlockNo()).
-				Str("childHash=", orphanBlock.ID()).
-				Uint64("blockNo", orphanBlock.GetHeader().GetBlockNo()).
-				Msg("Connect orphan")
-			cs.op.removeOrphan(key)
-			return orphanBlock, nil
-		}
+	orphanID := types.ToBlockID(hash)
+	orphan, exists := cs.op.cache[orphanID]
+	if !exists {
+		return nil, nil
 	}
-	return nil, nil
+
+	orphanBlock := orphan.block
+
+	if (block.GetHeader().GetBlockNo() + 1) != orphanBlock.GetHeader().GetBlockNo() {
+		return nil, fmt.Errorf("invalid orphan block no (p=%d, c=%d)", block.GetHeader().GetBlockNo(),
+			orphanBlock.GetHeader().GetBlockNo())
+	}
+
+	logger.Debug().Str("parentHash=", block.ID()).
+		Str("orphanHash=", orphanBlock.ID()).
+		Msg("connect orphan")
+
+	cs.op.removeOrphan(orphanID)
+
+	return orphanBlock, nil
 }
 
 func (cs *ChainService) isOrphan(block *types.Block) bool {
@@ -260,7 +240,6 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
-		logger.Debug().Str("hash", EncodeB64(a)).Msg("request block for orphan handle")
 	}
 	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
 
