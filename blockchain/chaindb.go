@@ -253,7 +253,7 @@ func (cdb *ChainDB) updateLatestBlock(dbtx *db.Transaction, block *types.Block) 
 	logger.Debug().Uint64("latest", blockNo).Str("hash", block.ID()).Msg("updateLatestBlock")
 
 	if cdb.latest+1 != blockNo {
-		return fmt.Errorf("rollbackBlock failed block(%d,%v). invalid latestNo", blockNo,
+		return fmt.Errorf("rollbackBlock failed block(%d,%v). invalid latestNo(%d)", blockNo,
 			block.GetHash(), cdb.latest)
 	}
 
