@@ -121,6 +121,9 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 				Txs:     tblock.GetBody().GetTxs(),
 			})
 
+			// XXX Something similar should be also done during
+			// reorganization.
+			cs.StatusUpdate(nblock)
 			cs.notifyBlock(tblock)
 		}
 

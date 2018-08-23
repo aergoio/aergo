@@ -162,6 +162,16 @@ func (block *Block) BPID() (id peer.ID, err error) {
 	return
 }
 
+// BpID2Str returns its Block Producer's ID in base64 format.
+func (block *Block) BpID2Str() string {
+	id, err := block.BpID()
+	if err != nil {
+		return ""
+	}
+
+	return enc.ToString([]byte(id))
+}
+
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.BlockHash()

@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	// blockProducers is the number of block producers
-	blockProducers = 23
+	// BlockProducers is the number of block producers
+	BlockProducers = 23
 )
 
 var (
@@ -35,6 +35,7 @@ var (
 
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
+	*Status
 	ID peer.ID
 	*component.ComponentHub
 	bpc  *bp.Cluster
@@ -62,6 +63,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
+		Status:       NewStatus(),
 		ID:           id,
 		ComponentHub: hub,
 		bpc:          bpc,
@@ -140,10 +142,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	}
 
 	return nil
-}
-
-// StatusUpdate updates the last irreversible block (LIB).
-func (dpos *DPoS) StatusUpdate() {
 }
 
 func (dpos *DPoS) bpIdx() uint16 {
