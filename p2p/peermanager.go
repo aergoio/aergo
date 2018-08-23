@@ -71,7 +71,7 @@ type PeerManager interface {
 
 	HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice)
 
-	// LookupPeer search for peer, which is registered(handshaked) or connectected but not registerd yet.
+	// LookupPeer search for peer, which is registered(handshaked) or connectected but not registered yet.
 	LookupPeer(ID peer.ID) (*RemotePeer, bool)
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
@@ -250,7 +250,7 @@ func (ps *peerManager) run() {
 		time.Sleep(time.Second * 2)
 		ps.startListener()
 
-		// addtion should start after all modules are started
+		// addition should start after all modules are started
 		go func() {
 			time.Sleep(time.Second * 2)
 			ps.addDesignatedPeers()

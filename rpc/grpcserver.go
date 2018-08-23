@@ -37,7 +37,7 @@ type AergoRPCService struct {
 	msgHelper   message.Helper
 }
 
-// FIXME remove redundent constants
+// FIXME remove redundant constants
 const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 

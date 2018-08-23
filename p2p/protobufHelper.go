@@ -21,7 +21,7 @@ import (
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
-// FIXME version sould be defined in more general ways
+// FIXME version should be defined in more general ways
 const ClientVersion = "0.1.0"
 
 type pbMessage interface {

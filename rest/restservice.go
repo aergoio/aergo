@@ -57,7 +57,7 @@ func (cs *RestService) Start() {
 				http.Error(w, "can't read body", http.StatusBadRequest)
 				return
 			}
-			logger.Debug().Str("body", string(body)).Msg("Recieved")
+			logger.Debug().Str("body", string(body)).Msg("Received")
 			// Sorry, Just for ChainTree lookup now
 			i, _ := cs.bc.GetChainTree()
 			w.Write(i)

@@ -430,7 +430,7 @@ func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string
 		Status: status,
 		Blocks: blockInfos}
 
-	// ???: have to check arguemnts
+	// ???: have to check arguments
 	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, true, getBlocksResponse, resp))
 }
 
