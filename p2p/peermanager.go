@@ -238,10 +238,6 @@ func (ps *peerManager) init() {
 	ps.selfMeta.Port = uint32(listenPort)
 	ps.selfMeta.ID = pid
 
-	// init subprotocols also
-	for _, sub := range ps.subProtocols {
-		sub.startHandling()
-	}
 }
 
 func (ps *peerManager) run() {
