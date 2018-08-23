@@ -106,9 +106,9 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 				BlockNo: tblock.GetHeader().GetBlockNo(),
 				Txs:     tblock.GetBody().GetTxs(),
 			}, cs)
-		}
 
-		cs.notifyBlock(tblock)
+			cs.notifyBlock(tblock)
+		}
 
 		lastBlock = tblock
 

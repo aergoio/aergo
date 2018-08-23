@@ -46,6 +46,9 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 	return isNeed
 }
 
+//TODO: on booting, retry reorganizing
+//TODO: on booting, delete played tx of block. because deleting txs from mempool is done after commit
+//TODO: gather delete request of played tx (1 msg)
 func (cs *ChainService) reorg(topBlock *types.Block) error {
 	reorgtx := cs.cdb.store.NewTx(true)
 
