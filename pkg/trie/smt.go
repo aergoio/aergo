@@ -110,17 +110,7 @@ func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut
 		return nil, err
 	}
 	if isShortcut == 1 {
-		// check if the keys are updating the shortcut node
-		up := false
-		for _, k := range keys {
-			if bytes.Equal(k, lnode) {
-				up = true
-				break
-			}
-		}
-		if !up {
-			keys, values = s.addShortcutToKV(keys, values, lnode, rnode)
-		}
+		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
 	}
@@ -209,9 +199,9 @@ func (s *SMT) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	return keys, nil
 }
 
-// addShortcutToKV adds a shortcut key to the keys array to be updated.
+// maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *SMT) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+func (s *SMT) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	newKeys := make([][]byte, 0, len(keys)+1)
 	newVals := make([][]byte, 0, len(keys)+1)
 
@@ -242,7 +232,6 @@ func (s *SMT) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []
 				newVals = append(newVals, values[:i]...)
 				newVals = append(newVals, shortcutVal)
 				newVals = append(newVals, values[i:]...)
-				return newKeys, newVals
 			}
 		}
 	}

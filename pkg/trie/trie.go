@@ -393,33 +393,9 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	return keys, nil
 }
 
-// maybeAddShortcutToKV adds a shortcut to the keys array to be updated if
-// the shortcut key is not already in the keys array
-func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
-	up := false
-	toRemove := -1
-	for i, k := range keys {
-		if bytes.Equal(k, shortcutKey) {
-			up = true
-			if bytes.Equal(DefaultLeaf, values[i]) {
-				toRemove = i
-			}
-			break
-		}
-	}
-	if !up {
-		keys, values = s.addShortcutToKV(keys, values, shortcutKey, shortcutVal)
-	} else if toRemove > -1 {
-		// Delete shortcut if it was updated to DefaultLeaf
-		keys = append(keys[:toRemove], keys[toRemove+1:]...)
-		values = append(values[:toRemove], values[toRemove+1:]...)
-	}
-	return keys, values
-}
-
-// addShortcutToKV adds a shortcut key to the keys array to be updated.
+// maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	newKeys := make([][]byte, 0, len(keys)+1)
 	newVals := make([][]byte, 0, len(keys)+1)
 
@@ -437,6 +413,11 @@ func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal [
 		higher := false
 		for i, key := range keys {
 			if bytes.Equal(shortcutKey, key) {
+				if bytes.Equal(DefaultLeaf, values[i]) {
+					// Delete shortcut if it is updated to DefaultLeaf
+					keys = append(keys[:i], keys[i+1:]...)
+					values = append(values[:i], values[i+1:]...)
+				}
 				return keys, values
 			}
 			if bytes.Compare(shortcutKey, key) > 0 {
@@ -450,7 +431,6 @@ func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal [
 				newVals = append(newVals, values[:i]...)
 				newVals = append(newVals, shortcutVal)
 				newVals = append(newVals, values[i:]...)
-				return newKeys, newVals
 			}
 		}
 	}
