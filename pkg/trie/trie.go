@@ -221,121 +221,93 @@ func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan
 
 	switch {
 	case len(lkeys) == 0 && len(rkeys) > 0:
-		// all the keys go in the right subtree
-		newch := make(chan mresult, 1)
-		s.update(rnode, keys, values, height-1, newch)
-		result := <-newch
-		if result.err != nil {
-			ch <- mresult{nil, false, result.err}
-			return
-		}
-		// Move up a shortcut node if necessary.
-		if result.deleted {
-			// If update deleted a subtree, check it's sibling return it if it is a shortcut
-			if bytes.Equal(s.defaultHashes[height-1], result.update) {
-				_, _, isShortcut, err := s.loadChildren(lnode)
-				if err != nil {
-					ch <- mresult{nil, false, err}
-					return
-				}
-				if isShortcut == 1 {
-					// root is never default when moving up a shortcut
-					s.deleteCacheNode(root)
-					// Return the left sibling node to move it up
-					ch <- mresult{lnode, true, nil}
-					return
-				}
-			}
-			// If deleted then update is a shortcut node (because not default),
-			// return it if the sibling is default.
-			if bytes.Equal(s.defaultHashes[height-1], lnode) {
-				// root is never default when moving up a shortcut
-				s.deleteCacheNode(root)
-				// Return the shortcut node to move it up
-				ch <- mresult{result.update, true, nil}
-				return
-			}
-		}
-		node := s.interiorHash(lnode, result.update, height-1, root)
-		ch <- mresult{node, false, nil}
+		s.updateRight(lnode, rnode, root, keys, values, height, ch)
 	case len(lkeys) > 0 && len(rkeys) == 0:
-		// all the keys go in the left subtree
-		newch := make(chan mresult, 1)
-		s.update(lnode, keys, values, height-1, newch)
-		result := <-newch
-		if result.err != nil {
-			ch <- mresult{nil, false, result.err}
-			return
-		}
-		// Move up a shortcut node if necessary.
-		if result.deleted {
-			// If update deleted a subtree, check it's sibling return it if it is a shortcut
-			if bytes.Equal(s.defaultHashes[height-1], result.update) {
-				_, _, isShortcut, err := s.loadChildren(rnode)
-				if err != nil {
-					ch <- mresult{nil, false, err}
-					return
-				}
-				if isShortcut == 1 {
-					// root is never default when moving up a shortcut
-					s.deleteCacheNode(root)
-					// Return the right sibling node to move it up
-					ch <- mresult{rnode, true, nil}
-					return
-				}
-			}
-			// If deleted then update is a shortcut node (because not default),
-			// return it if the sibling is default.
-			if bytes.Equal(s.defaultHashes[height-1], rnode) {
-				// root is never default when moving up a shortcut
-				s.deleteCacheNode(root)
-				// Return the shortcut node to move it up
-				ch <- mresult{result.update, true, nil}
-				return
-			}
-		}
-		node := s.interiorHash(result.update, rnode, height-1, root)
-		ch <- mresult{node, false, nil}
+		s.updateLeft(lnode, rnode, root, keys, values, height, ch)
 	default:
-		// keys are separated between the left and right branches
-		// update the branches in parallel
-		lch := make(chan mresult, 1)
-		rch := make(chan mresult, 1)
-		go s.update(lnode, lkeys, lvalues, height-1, lch)
-		go s.update(rnode, rkeys, rvalues, height-1, rch)
-		lresult := <-lch
-		rresult := <-rch
-		if lresult.err != nil {
-			ch <- mresult{nil, false, lresult.err}
-			return
-		}
-		if rresult.err != nil {
-			ch <- mresult{nil, false, rresult.err}
-			return
-		}
-
-		// Move up a shortcut node if it's sibling is default
-		if lresult.deleted && rresult.deleted {
-			// root is never default when moving up a shortcut
-			s.deleteCacheNode(root)
-			if bytes.Equal(s.defaultHashes[height-1], lresult.update) && bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-				ch <- mresult{s.defaultHashes[height], false, nil}
-				return
-			}
-			if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
-				ch <- mresult{rresult.update, true, nil}
-				return
-			}
-			if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-				ch <- mresult{lresult.update, true, nil}
-				return
-			}
-		}
-		node := s.interiorHash(lresult.update, rresult.update, height-1, root)
-		ch <- mresult{node, false, nil}
+		s.updateParallel(lnode, rnode, root, lkeys, rkeys, lvalues, rvalues, height, ch)
 	}
 }
 
+// updateRight updates the right side of the tree
+func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
+	// all the keys go in the right subtree
+	newch := make(chan mresult, 1)
+	s.update(rnode, keys, values, height-1, newch)
+	result := <-newch
+	if result.err != nil {
+		ch <- mresult{nil, false, result.err}
+		return
+	}
+	// Move up a shortcut node if necessary.
+	if result.deleted {
+		if s.maybeMoveUpShortcut(result.update, lnode, root, height, ch) {
+			return
+		}
+	}
+	node := s.interiorHash(lnode, result.update, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// updateLeft updates the left side of the tree
+func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
+	// all the keys go in the left subtree
+	newch := make(chan mresult, 1)
+	s.update(lnode, keys, values, height-1, newch)
+	result := <-newch
+	if result.err != nil {
+		ch <- mresult{nil, false, result.err}
+		return
+	}
+	// Move up a shortcut node if necessary.
+	if result.deleted {
+		if s.maybeMoveUpShortcut(result.update, rnode, root, height, ch) {
+			return
+		}
+	}
+	node := s.interiorHash(result.update, rnode, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// updateParallel updates both sides of the trie simultaneously
+func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues [][]byte, height uint64, ch chan<- (mresult)) {
+	lch := make(chan mresult, 1)
+	rch := make(chan mresult, 1)
+	go s.update(lnode, lkeys, lvalues, height-1, lch)
+	go s.update(rnode, rkeys, rvalues, height-1, rch)
+	lresult := <-lch
+	rresult := <-rch
+	if lresult.err != nil {
+		ch <- mresult{nil, false, lresult.err}
+		return
+	}
+	if rresult.err != nil {
+		ch <- mresult{nil, false, rresult.err}
+		return
+	}
+
+	// Move up a shortcut node if it's sibling is default
+	if lresult.deleted && rresult.deleted {
+		// root is never default when moving up a shortcut
+		s.deleteCacheNode(root)
+		if bytes.Equal(s.defaultHashes[height-1], lresult.update) && bytes.Equal(s.defaultHashes[height-1], rresult.update) {
+			ch <- mresult{s.defaultHashes[height], false, nil}
+			return
+		}
+		if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
+			ch <- mresult{rresult.update, true, nil}
+			return
+		}
+		if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
+			ch <- mresult{lresult.update, true, nil}
+			return
+		}
+	}
+	node := s.interiorHash(lresult.update, rresult.update, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// deleteCacheNode deletes the node from liveCache
 func (s *Trie) deleteCacheNode(root []byte) {
 	var node Hash
 	copy(node[:], root)
@@ -352,6 +324,36 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 		}
 	}
 	return keys, nil
+}
+
+// maybeMoveUpShortcut moves up a shortcut after a deletion if it is no more at
+// the highest root of an empty subtree.
+func (s *Trie) maybeMoveUpShortcut(update, sibling, root []byte, height uint64, ch chan<- (mresult)) bool {
+	if bytes.Equal(s.defaultHashes[height-1], update) {
+		// If update deleted a subtree, check it's sibling and
+		// return it if it is a shortcut
+		_, _, isShortcut, err := s.loadChildren(sibling)
+		if err != nil {
+			ch <- mresult{nil, false, err}
+			return true
+		}
+		if isShortcut == 1 {
+			// root is never default when moving up a shortcut
+			s.deleteCacheNode(root)
+			// Return the left sibling node to move it up
+			ch <- mresult{sibling, true, nil}
+			return true
+		}
+	} else if bytes.Equal(s.defaultHashes[height-1], sibling) {
+		// If update deleted something and returned a shortcut, return that
+		// shortcut if the sibling is default
+		// root is never default when moving up a shortcut
+		s.deleteCacheNode(root)
+		// Return the shortcut node to move it up
+		ch <- mresult{update, true, nil}
+		return true
+	}
+	return false
 }
 
 // maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.

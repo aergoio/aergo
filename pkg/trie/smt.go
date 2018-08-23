@@ -131,47 +131,60 @@ func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut
 	}
 	switch {
 	case len(lkeys) == 0 && len(rkeys) > 0:
-		// all the keys go in the right subtree
-		newch := make(chan result, 1)
-		s.update(rnode, keys, values, height-1, shortcut, store, newch)
-		res := <-newch
-		if res.err != nil {
-			ch <- result{nil, res.err}
-			return
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		ch <- result{s.interiorHash(lnode, res.update, height-1, root, shortcut, store, keys, values), nil}
+		s.updateRight(lnode, rnode, root, keys, values, height, shortcut, store, ch)
 	case len(lkeys) > 0 && len(rkeys) == 0:
-		// all the keys go in the left subtree
-		newch := make(chan result, 1)
-		s.update(lnode, keys, values, height-1, shortcut, store, newch)
-		res := <-newch
-		if res.err != nil {
-			ch <- result{nil, res.err}
-			return
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		ch <- result{s.interiorHash(res.update, rnode, height-1, root, shortcut, store, keys, values), nil}
+		s.updateLeft(lnode, rnode, root, keys, values, height, shortcut, store, ch)
 	default:
-		// keys are separated between the left and right branches
-		// update the branches in parallel
-		lch := make(chan result, 1)
-		rch := make(chan result, 1)
-		go s.update(lnode, lkeys, lvalues, height-1, shortcut, store, lch)
-		go s.update(rnode, rkeys, rvalues, height-1, shortcut, store, rch)
-		lresult := <-lch
-		rresult := <-rch
-		if lresult.err != nil {
-			ch <- result{nil, lresult.err}
-			return
-		}
-		if rresult.err != nil {
-			ch <- result{nil, rresult.err}
-			return
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
+		s.updateParallel(lnode, rnode, root, keys, values, lkeys, rkeys, lvalues, rvalues, height, shortcut, store, ch)
 	}
+}
+
+// updateParallel updates both sides of the trie simultaneously
+func (s *SMT) updateParallel(lnode, rnode, root []byte, keys, values, lkeys, rkeys, lvalues, rvalues [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// keys are separated between the left and right branches
+	// update the branches in parallel
+	lch := make(chan result, 1)
+	rch := make(chan result, 1)
+	go s.update(lnode, lkeys, lvalues, height-1, shortcut, store, lch)
+	go s.update(rnode, rkeys, rvalues, height-1, shortcut, store, rch)
+	lresult := <-lch
+	rresult := <-rch
+	if lresult.err != nil {
+		ch <- result{nil, lresult.err}
+		return
+	}
+	if rresult.err != nil {
+		ch <- result{nil, rresult.err}
+		return
+	}
+	ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
+
+}
+
+// updateRight updates the right side of the tree
+func (s *SMT) updateRight(lnode, rnode, root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// all the keys go in the right subtree
+	newch := make(chan result, 1)
+	s.update(rnode, keys, values, height-1, shortcut, store, newch)
+	res := <-newch
+	if res.err != nil {
+		ch <- result{nil, res.err}
+		return
+	}
+	ch <- result{s.interiorHash(lnode, res.update, height-1, root, shortcut, store, keys, values), nil}
+}
+
+// updateLeft updates the left side of the tree
+func (s *SMT) updateLeft(lnode, rnode, root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// all the keys go in the left subtree
+	newch := make(chan result, 1)
+	s.update(lnode, keys, values, height-1, shortcut, store, newch)
+	res := <-newch
+	if res.err != nil {
+		ch <- result{nil, res.err}
+		return
+	}
+	ch <- result{s.interiorHash(res.update, rnode, height-1, root, shortcut, store, keys, values), nil}
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
