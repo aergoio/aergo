@@ -1,8 +1,8 @@
 hash: 47bee377428b65db7c467bc9352d2119a1c06248080648d5ddc770dc2c92c1fe
-updated: 2018-08-23T17:08:32.0668387+09:00
+updated: 2018-08-21T13:22:53.1701885+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
-  version: b3c1915a562f36a9304bd19f9d7569df2caff8a0
+  version: acc741aa36603bef00d050c5a888fb0a81b48923
   subpackages:
   - actor
   - eventstream
@@ -23,7 +23,7 @@ imports:
 - name: github.com/AndreasBriese/bbloom
   version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
 - name: github.com/btcsuite/btcd
-  version: d81d8877b8f327112e94e814937143a71d1692a7
+  version: f899737d7f2764dc13e4d01ff00108ec58f766a9
   subpackages:
   - btcec
 - name: github.com/coreos/go-semver
@@ -78,7 +78,7 @@ imports:
 - name: github.com/google/uuid
   version: dec09d789f3dba190787f8b4454c7d3c936fed9e
 - name: github.com/gorilla/websocket
-  version: b378caee5b2a673abe3897c40fde529bff7b986e
+  version: 3ff3320c2a1756a3691521efc290b4701575147c
 - name: github.com/gxed/eventfd
   version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
 - name: github.com/gxed/GoEndian
@@ -139,22 +139,22 @@ imports:
 - name: github.com/libp2p/go-addr-util
   version: 26ae616f0dac754fff557513e984f930fbd88a92
 - name: github.com/libp2p/go-conn-security
-  version: b8d5d285e395c6cd76ad6238a649cc953a155e91
+  version: 8253ac4922e0d48c857cb0bcccd52f9f4e8c2879
   subpackages:
   - insecure
 - name: github.com/libp2p/go-conn-security-multistream
-  version: 63c85c1e3fd8f217dbe8e91409e13aa104a86b47
+  version: 4e10ef6125f10736e3752274d80a2d9e78f96c0e
 - name: github.com/libp2p/go-flow-metrics
   version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
 - name: github.com/libp2p/go-libp2p
-  version: ab978fcf9dcf614300807c9f9003ce2fa7d504a3
+  version: cc70c4be36f765ba9fb92d6e0528722773af607d
   subpackages:
   - config
   - p2p/host/basic
   - p2p/protocol/identify
   - p2p/protocol/identify/pb
 - name: github.com/libp2p/go-libp2p-circuit
-  version: 0cce32e524544a5e93015f3700dd6f4bca46a761
+  version: 2dd713bc37f7bff06b1d30e1dc5e2e0eb99474d3
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-crypto
@@ -162,15 +162,15 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 484a70ab5196830eb00ee4a7b7888651e5c775f9
+  version: 3a144e88cb78109859a56673fba16b4ecf100911
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: 7532f49dfe57b37106a8ad0760009f7a4941d20b
+  version: 98fc99ba761842156907db43045f546e8e6bba3d
 - name: github.com/libp2p/go-libp2p-interface-pnet
   version: 86e6fc84b906599eac696308369896ece0ced63b
 - name: github.com/libp2p/go-libp2p-loggables
-  version: d6d01a5f5e0bcc27c612fd1e6aa8fc97e1cac488
+  version: 58a5d94871458043fc0797727b24fc77a94f203b
 - name: github.com/libp2p/go-libp2p-metrics
-  version: 2e91117d783799237709d7f5165eb55c86b623a1
+  version: 248d3d2b55aa5d50a6b2d50e4a8c02d5c05cdb2e
 - name: github.com/libp2p/go-libp2p-nat
   version: 491e7233bd3877ec8dafbab465cf5ac70e32fced
 - name: github.com/libp2p/go-libp2p-net
@@ -184,15 +184,15 @@ imports:
 - name: github.com/libp2p/go-libp2p-protocol
   version: e34f0d7468b3519bf9bf4e43c1d028ce651eab51
 - name: github.com/libp2p/go-libp2p-secio
-  version: efc71b9ffac0a8d2c3a7e1632215aba21486337b
+  version: f559d0ac7708052c78755434f1f40beec315753c
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: 69702873755e586c573d5bd02d9412c98ed92a07
+  version: a00fa8aa37a812f404bfa9b9d3dccc82a66029cf
 - name: github.com/libp2p/go-libp2p-transport
-  version: 01c426323779e3492c8b0364107273eeb0397c31
+  version: 867da4c7b138a8f9cc392feaed6d81fa68ba846a
 - name: github.com/libp2p/go-libp2p-transport-upgrader
-  version: 0922304c692200833d3265f596e2a85ab8a462a3
+  version: e0a14ed8f3b645f13116a3ded747c1ab78a7db9d
 - name: github.com/libp2p/go-maddr-filter
   version: 57fd7e2ed649ba28b4f2c7bcab3a606e7cc4b12c
 - name: github.com/libp2p/go-msgio
@@ -213,9 +213,9 @@ imports:
 - name: github.com/libp2p/go-stream-muxer
   version: 9c6bd93eecbbab56630bb2688bb435d9fd1dfeb1
 - name: github.com/libp2p/go-tcp-transport
-  version: aace02121862d25b9e360628c1c604f4e52204a4
+  version: fe589acfccf03c8ab406e7e26017e13b18566500
 - name: github.com/libp2p/go-ws-transport
-  version: 999ef95b554ec02facc4346978bd23f461340ae4
+  version: c8089c5609a4af37e15af076d2daba66d126d850
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mattn/go-colorable
@@ -329,7 +329,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 3b58ed4ad3395d483fc92d5d14123ce2c3581fec
+  version: 1a700e749ce29638d0bbcb531cce1094ea096bd3
   subpackages:
   - cpu
   - unix
