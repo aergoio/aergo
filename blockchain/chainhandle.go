@@ -53,7 +53,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	}
 
 	// Check consensus header validity
-	if err := cs.IsBlockValid(nblock, bestBlock, peerID); err != nil {
+	if err := cs.IsBlockValid(nblock, bestBlock); err != nil {
 		return err
 	}
 

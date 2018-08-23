@@ -108,13 +108,13 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 }
 
 // IsBlockValid checks the DPoS consensus level validity of a block
-func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
+func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	id, err := block.BpID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	if id == peerID && block.PrevID() != bestBlock.ID() {
+	if id == dpos.ID && block.PrevID() != bestBlock.ID() {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf(
 				"reorganization occurred after block production: parent: %v (curr: %v), best block: %v",

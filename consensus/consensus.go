@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -64,7 +63,7 @@ type Consensus interface {
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
-	IsBlockValid(block *types.Block, bestBlock *types.Block, peerID peer.ID) error
+	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	StatusUpdate()
 }
 
