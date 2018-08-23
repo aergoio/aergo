@@ -22,6 +22,10 @@ message MessageData {
     bytes nodePubKey = 6;
     // signature of message data + method specific data by message authoring node. format: string([]bytes)
     bytes sign = 7;
+    // 
+    uint32 subprotocol = 8;
+    // 
+    uint32 length = 9;
 }
 
 // Not all response contains ResultStatus value.
@@ -85,6 +89,11 @@ enum ResultStatus {
 	// UNAUTHENTICATED indicates the request does not have valid
 	// authentication credentials for the operation.
 	UNAUTHENTICATED = 16;
+}
+
+message P2PMessage {
+    MessageData header = 1;
+    bytes data = 2;
 }
 
 // Ping request message

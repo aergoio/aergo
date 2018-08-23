@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -25,9 +24,9 @@ import (
 
 // pattern: /protocol-name/request-or-response-message/version
 const (
-	getTXsRequest      protocol.ID = "/tx/getreq/0.1"
-	getTxsResponse     protocol.ID = "/tx/getresp/0.1"
-	notifyNewTxRequest protocol.ID = "/blk/notifynewtx/0.1"
+	getTXsRequest SubProtocol = 0x020 + iota
+	getTxsResponse
+	notifyNewTxRequest
 )
 
 // TxProtocol handle tx messages.
@@ -54,9 +53,9 @@ func (p *TxProtocol) setPeerManager(pm PeerManager) {
 }
 
 func (p *TxProtocol) startHandling() {
-	p.ps.SetStreamHandler(getTXsRequest, p.onGetTXsRequest)
-	p.ps.SetStreamHandler(getTxsResponse, p.onGetTXsResponse)
-	p.ps.SetStreamHandler(notifyNewTxRequest, p.onNotifynewTXs)
+	// p.ps.SetStreamHandler(getTXsRequest, p.onGetTXsRequest)
+	// p.ps.SetStreamHandler(getTxsResponse, p.onGetTXsResponse)
+	// p.ps.SetStreamHandler(notifyNewTxRequest, p.onNotifynewTXs)
 }
 
 // remote peer requests handler

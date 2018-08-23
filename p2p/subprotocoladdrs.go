@@ -15,17 +15,10 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
 	"github.com/multiformats/go-multicodec/protobuf"
-)
-
-// pattern: /protocol-name/request-or-response-message/version
-const (
-	addressesRequest  protocol.ID = "/peer/addressesreq/0.1"
-	addressesResponse protocol.ID = "/peer/addressesresp/0.1"
 )
 
 // AddressesProtocol type
@@ -49,8 +42,8 @@ func (p *AddressesProtocol) setPeerManager(pm PeerManager) {
 }
 
 func (p *AddressesProtocol) startHandling() {
-	p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
-	p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
+	// p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
+	// p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
 }
 
 // GetAddresses send getAddress request to other peer

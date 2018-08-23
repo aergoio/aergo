@@ -344,7 +344,6 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 	}
 	var peerID = meta.ID
 	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
 		ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
@@ -352,20 +351,78 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 			// If remote peer was connected first. designated flag is not set yet.
 			newPeer.meta.Designated = true
 		}
+		ps.mutex.Unlock()
+		return
 	}
-	ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
+	ps.mutex.Unlock()
+
 	// if peer exists in peerstore already, reuse that peer again.
 	if !ps.checkInPeerstore(peerID) {
 		ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 	}
-	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
-	ps.insertPeer(peerID, newPeer)
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
-	for _, listener := range ps.eventListeners {
-		listener.OnAddPeer(peerID)
+
+	ctx := context.Background()
+	s, err := ps.NewStream(ctx, meta.ID, aergoP2PSub)
+	if err != nil {
+		ps.log.Warn().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
+		return
 	}
+	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+
+	success := doHandshake(ps, rw)
+	if !success {
+		ps.sendGoAway(rw, "Failed to handshake")
+		s.Close()
+		return
+	}
+
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	newPeer, ok = ps.remotePeers[peerID]
+	if ok {
+		if ComparePeerID(ps.selfMeta.ID, meta.ID) <= 0 {
+			ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
+			s.Close()
+			return
+		}
+	}
+
+	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
 	go newPeer.runPeer()
-	newPeer.op <- OpOrder{op: OpInitHS}
+	newPeer.setState(types.RUNNING)
+
+	ps.insertPeer(peerID, newPeer)
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Outbound peer is  added to peerService")
+	// ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
+	// for _, listener := range ps.eventListeners {
+	// 	listener.OnAddPeer(peerID)
+	// }
+	// go newPeer.runPeer()
+	// newPeer.op <- OpOrder{op: OpInitHS}
+
+}
+
+func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	peerID := meta.ID
+	peer, found := ps.remotePeers[peerID]
+
+	if found {
+		// already found. drop this connection
+		if ComparePeerID(ps.selfMeta.ID, peerID) <= 0 {
+			return false
+		}
+	}
+	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	peer.rw = rw
+	go peer.runPeer()
+	peer.setState(types.RUNNING)
+	ps.insertPeer(peerID, peer)
+	peerAddr := meta.ToPeerAddress()
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", (&peerAddr).String()).Msg("Inbound peer is  added to peerService")
+	return true
 }
 
 func (ps *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -444,10 +501,11 @@ func (ps *peerManager) startListener() {
 		Msg("Set self node's pid, and listening for connections")
 	ps.Host = newHost
 
-	// listen subprotocols also
-	for _, sub := range ps.subProtocols {
-		sub.startHandling()
-	}
+	ps.SetStreamHandler(aergoP2PSub, ps.onHandshake)
+	// // listen subprotocols also
+	// for _, sub := range ps.subProtocols {
+	// 	sub.startHandling()
+	// }
 }
 
 func (pi *peerInfo) set(id *peer.ID, privKey *crypto.PrivKey) {

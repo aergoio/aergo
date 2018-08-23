@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -19,7 +20,9 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
+	"github.com/multiformats/go-multicodec/protobuf"
 )
 
 const defaultPingInterval = time.Second * 60
@@ -37,7 +40,6 @@ type RemotePeer struct {
 
 	write      chan msgOrder
 	closeWrite chan struct{}
-	read       chan readMsg
 	op         chan OpOrder
 
 	hsLock   *sync.Mutex
@@ -51,6 +53,8 @@ type RemotePeer struct {
 	failCounter           uint32
 
 	blkHashCache *lru.Cache
+
+	rw *bufio.ReadWriter
 }
 
 type dummyMutex struct{}
@@ -69,7 +73,7 @@ type msgOrder interface {
 	ResponseExpected() bool
 	GetProtocolID() protocol.ID
 	SignWith(ps PeerManager) error
-	SendOver(s inet.Stream) error
+	SendOver(rw *bufio.ReadWriter) error
 }
 
 type readMsg struct {
@@ -110,7 +114,6 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 		closeWrite: make(chan struct{}),
 		hsLock:     &sync.Mutex{},
 		op:         make(chan OpOrder, 20),
-		read:       make(chan readMsg),
 
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
@@ -122,6 +125,11 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 		panic("Failed to create remotepeer " + err.Error())
 	}
 	return peer
+}
+
+// ID return id of peer, same as peer.meta.ID
+func (p *RemotePeer) ID() peer.ID {
+	return p.meta.ID
 }
 
 // State returns current state of peer
@@ -149,6 +157,7 @@ func (p *RemotePeer) runPeer() {
 	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
+	go p.runRead()
 READNOPLOOP:
 	for {
 		select {
@@ -165,6 +174,8 @@ READNOPLOOP:
 	}
 	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
 	pingTicker.Stop()
+
+	// send channel twice. one for read and another for write
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
 }
@@ -196,6 +207,43 @@ WRITELOOP:
 	// closing channel is to golang runtime
 	// close(p.write)
 	// close(p.consumeChan)
+}
+
+func (p *RemotePeer) runRead() {
+	for {
+		msg, err := p.readMsg()
+		if err != nil {
+			p.log.Error().Err(err).Msg("Failed to read message")
+			p.ps.RemovePeer(p.ID())
+			return
+		}
+
+		if err = p.handleMsg(msg); err != nil {
+			p.log.Error().Err(err).Msg("Failed to handle message")
+			p.ps.RemovePeer(p.ID())
+			return
+		}
+	}
+
+	// closing channel is to golang runtime
+	// close(p.write)
+	// close(p.consumeChan)
+}
+
+func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
+	data := &types.P2PMessage{}
+	decoder := mc_pb.Multicodec(nil).Decoder(p.rw)
+	err := decoder.Decode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
+	p.log.Debug().Uint32("protocol", msg.Header.GetSubprotocol()).Msg("Handling messge")
+	return nil
 }
 
 func (p *RemotePeer) processOp(op OpOrder) {
@@ -289,7 +337,7 @@ func (p *RemotePeer) handleHandshake(statusMsg *types.Status) {
 func (p *RemotePeer) writeToPeer(m msgOrder) {
 	// check peer's status
 	// TODO code smell. hardcoded check and need memory barrier for peer state
-	if m.GetProtocolID() != statusRequest && p.State() != types.RUNNING {
+	if p.State() != types.RUNNING {
 		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).
 			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return
@@ -305,16 +353,16 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		}
 	}
 
-	s := p.tryGetStream(m.GetRequestID(), m.GetProtocolID(), getStreamTimeout)
-	if s == nil {
-		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
-		// problem in connection starting disconnect
-		p.ps.RemovePeer(p.meta.ID)
-		return
-	}
+	// s := p.tryGetStream(m.GetRequestID(), m.GetProtocolID(), getStreamTimeout)
+	// if s == nil {
+	// 	p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
+	// 	// problem in connection starting disconnect
+	// 	p.ps.RemovePeer(p.meta.ID)
+	// 	return
+	// }
 	//defer s.Close()
 
-	err := m.SendOver(s)
+	err := m.SendOver(p.rw)
 	if err != nil {
 		p.log.Warn().Err(err).Msg("fail to SendOver")
 		return
@@ -372,21 +420,13 @@ func (p *RemotePeer) sendPing() {
 
 // sendStatus is called once when a peer is added.()
 func (p *RemotePeer) sendStatus() {
-	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
+	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
 
-	// find my best block
-	bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
-	if err != nil {
-		p.log.Error().Err(err).Msg("Failed to get best block")
-		return
-	}
-	selfAddr := p.ps.SelfMeta().ToPeerAddress()
 	// create message data
-	statusMsg := &types.Status{
-		MessageData:   &types.MessageData{},
-		Sender:        &selfAddr,
-		BestBlockHash: bestBlock.GetHash(),
-		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
+	statusMsg, err := createStatusMsg(p.ps, p.actorServ)
+	if err != nil {
+		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Err(err).Msg("Cancel sending status")
+		return
 	}
 
 	p.sendMessage(newPbMsgRequestOrder(false, true, statusRequest, statusMsg))

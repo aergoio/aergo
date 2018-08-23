@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	inet "github.com/libp2p/go-libp2p-net"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
@@ -19,10 +18,12 @@ import (
 
 // pattern: /protocol-name/request-or-response-message/version
 const (
-	pingRequest   protocol.ID = "/ping/pingreq/0.1"
-	pingResponse  protocol.ID = "/ping/pingresp/0.1"
-	statusRequest protocol.ID = "/ping/status/0.1"
-	goAway        protocol.ID = "/ping/goaway/0.1"
+	statusRequest SubProtocol = 0x00 + iota
+	pingRequest
+	pingResponse
+	goAway
+	addressesRequest
+	addressesResponse
 )
 
 // PingProtocol type
@@ -46,10 +47,10 @@ func (p *PingProtocol) setPeerManager(pm PeerManager) {
 }
 
 func (p *PingProtocol) startHandling() {
-	p.ps.SetStreamHandler(pingRequest, p.onPingRequest)
-	p.ps.SetStreamHandler(pingResponse, p.onPingResponse)
-	p.ps.SetStreamHandler(statusRequest, p.onStatusRequest)
-	p.ps.SetStreamHandler(goAway, p.onGoaway)
+	// p.ps.SetStreamHandler(pingRequest, p.onPingRequest)
+	// p.ps.SetStreamHandler(pingResponse, p.onPingResponse)
+	// p.ps.SetStreamHandler(statusRequest, p.onStatusRequest)
+	// p.ps.SetStreamHandler(goAway, p.onGoaway)
 }
 
 // remote peer requests handler
