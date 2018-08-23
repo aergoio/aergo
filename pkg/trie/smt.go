@@ -82,12 +82,14 @@ func (s *SMT) Update(keys, values [][]byte) ([]byte, error) {
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
-	update, err := s.update(s.Root, keys, values, s.TrieHeight, false, true, nil)
-	if err != nil {
-		return nil, err
+	ch := make(chan result, 1)
+	s.update(s.Root, keys, values, s.TrieHeight, false, true, ch)
+	result := <-ch
+	if result.err != nil {
+		return nil, result.err
 	}
-	s.Root = update
-	return s.Root, err
+	s.Root = result.update
+	return s.Root, nil
 }
 
 // result is used to contain the result of goroutines and is sent through a channel.
@@ -98,29 +100,18 @@ type result struct {
 
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) ([]byte, error) {
+func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
 	if height == 0 {
-		return values[0], nil
+		ch <- result{values[0], nil}
+		return
 	}
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
 	if err != nil {
-		if ch != nil {
-			ch <- result{nil, err}
-		}
-		return nil, err
+		ch <- result{nil, err}
+		return
 	}
 	if isShortcut == 1 {
-		// check if the keys are updating the shortcut node
-		up := false
-		for _, k := range keys {
-			if bytes.Equal(k, lnode) {
-				up = true
-				break
-			}
-		}
-		if !up {
-			keys, values = s.addShortcutToKV(keys, values, lnode, rnode)
-		}
+		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
 	}
@@ -140,63 +131,60 @@ func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut
 	}
 	switch {
 	case len(lkeys) == 0 && len(rkeys) > 0:
-		// all the keys go in the right subtree
-		update, err := s.update(rnode, keys, values, height-1, shortcut, store, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- result{nil, err}
-			}
-			return nil, err
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(lnode, update, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(lnode, update, height-1, root, shortcut, store, keys, values), nil
+		s.updateRight(lnode, rnode, root, keys, values, height, shortcut, store, ch)
 	case len(lkeys) > 0 && len(rkeys) == 0:
-		// all the keys go in the left subtree
-		update, err := s.update(lnode, keys, values, height-1, shortcut, store, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- result{nil, err}
-			}
-			return nil, err
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(update, rnode, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(update, rnode, height-1, root, shortcut, store, keys, values), nil
+		s.updateLeft(lnode, rnode, root, keys, values, height, shortcut, store, ch)
 	default:
-		// keys are separated between the left and right branches
-		// update the branches in parallel
-		lch := make(chan result, 1)
-		rch := make(chan result, 1)
-		go s.update(lnode, lkeys, lvalues, height-1, shortcut, store, lch)
-		go s.update(rnode, rkeys, rvalues, height-1, shortcut, store, rch)
-		lresult := <-lch
-		rresult := <-rch
-		if lresult.err != nil {
-			if ch != nil {
-				ch <- result{nil, lresult.err}
-			}
-			return nil, lresult.err
-		}
-		if rresult.err != nil {
-			if ch != nil {
-				ch <- result{nil, rresult.err}
-			}
-			return nil, rresult.err
-		}
-		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil
+		s.updateParallel(lnode, rnode, root, keys, values, lkeys, rkeys, lvalues, rvalues, height, shortcut, store, ch)
 	}
+}
+
+// updateParallel updates both sides of the trie simultaneously
+func (s *SMT) updateParallel(lnode, rnode, root []byte, keys, values, lkeys, rkeys, lvalues, rvalues [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// keys are separated between the left and right branches
+	// update the branches in parallel
+	lch := make(chan result, 1)
+	rch := make(chan result, 1)
+	go s.update(lnode, lkeys, lvalues, height-1, shortcut, store, lch)
+	go s.update(rnode, rkeys, rvalues, height-1, shortcut, store, rch)
+	lresult := <-lch
+	rresult := <-rch
+	if lresult.err != nil {
+		ch <- result{nil, lresult.err}
+		return
+	}
+	if rresult.err != nil {
+		ch <- result{nil, rresult.err}
+		return
+	}
+	ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
+
+}
+
+// updateRight updates the right side of the tree
+func (s *SMT) updateRight(lnode, rnode, root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// all the keys go in the right subtree
+	newch := make(chan result, 1)
+	s.update(rnode, keys, values, height-1, shortcut, store, newch)
+	res := <-newch
+	if res.err != nil {
+		ch <- result{nil, res.err}
+		return
+	}
+	ch <- result{s.interiorHash(lnode, res.update, height-1, root, shortcut, store, keys, values), nil}
+}
+
+// updateLeft updates the left side of the tree
+func (s *SMT) updateLeft(lnode, rnode, root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
+	// all the keys go in the left subtree
+	newch := make(chan result, 1)
+	s.update(lnode, keys, values, height-1, shortcut, store, newch)
+	res := <-newch
+	if res.err != nil {
+		ch <- result{nil, res.err}
+		return
+	}
+	ch <- result{s.interiorHash(res.update, rnode, height-1, root, shortcut, store, keys, values), nil}
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
@@ -209,9 +197,9 @@ func (s *SMT) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	return keys, nil
 }
 
-// addShortcutToKV adds a shortcut key to the keys array to be updated.
+// maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *SMT) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+func (s *SMT) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	newKeys := make([][]byte, 0, len(keys)+1)
 	newVals := make([][]byte, 0, len(keys)+1)
 
@@ -242,7 +230,6 @@ func (s *SMT) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []
 				newVals = append(newVals, values[:i]...)
 				newVals = append(newVals, shortcutVal)
 				newVals = append(newVals, values[i:]...)
-				return newKeys, newVals
 			}
 		}
 	}
