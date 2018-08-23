@@ -98,9 +98,7 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 		} else {
 			// in the case of non-started components, just record its status
 			retCompStatics[name] = &CompStatRsp{
-				"component": Statics{
-					Status: StatusToString(compStatus[name]),
-				},
+				Status: StatusToString(compStatus[name]),
 			}
 		}
 	}
@@ -113,10 +111,8 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 			// when error is occurred, record it.
 			// the most frequently occurred error will be a timeout error
 			retCompStatics[name] = &CompStatRsp{
-				"component": Statics{
-					Status: StatusToString(compStatus[name]),
-					Error:  err.Error(),
-				},
+				Status: StatusToString(compStatus[name]),
+				Error:  err.Error(),
 			}
 		} else {
 			// in normal case, success, record response
@@ -126,14 +122,13 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 
 	return retCompStatics
 }
-
-func (hub *ComponentHub) Request(targetName string, message interface{}, sender IComponent) {
+func (hub *ComponentHub) Tell(targetName string, message interface{}) {
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
 		panic("Unregistered Component")
 	}
 
-	targetComponent.Request(message, sender)
+	targetComponent.Tell(message)
 }
 
 func (hub *ComponentHub) RequestFuture(
@@ -145,4 +140,13 @@ func (hub *ComponentHub) RequestFuture(
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip)
+}
+
+func (hub *ComponentHub) Get(targetName string) IComponent {
+	targetComponent := hub.components[targetName]
+	if targetComponent == nil {
+		panic("Unregistered Component")
+	}
+
+	return targetComponent
 }

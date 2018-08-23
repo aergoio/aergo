@@ -20,9 +20,9 @@ func main() {
 
 	compHub := component.NewComponentHub()
 
-	testServer := &server.TestServer{
-		BaseComponent: component.NewBaseComponent("TestServer", log.Default()),
-	}
+	testServer := &server.TestServer{}
+	testServer.BaseComponent = component.NewBaseComponent("TestServer", testServer, log.Default())
+
 	helloService := service.NexExampleServie("Den")
 
 	compHub.Register(testServer)
@@ -30,7 +30,7 @@ func main() {
 	compHub.Start()
 
 	// request and go through
-	compHub.Request(message.HelloService, &message.HelloReq{Who: "Roger"}, testServer)
+	testServer.RequestTo(message.HelloService, &message.HelloReq{Who: "Roger"})
 
 	// request and wait
 	rawResponse, err := compHub.RequestFuture(message.HelloService,

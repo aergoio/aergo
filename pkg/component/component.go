@@ -14,8 +14,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 )
 
+var _ IComponent = (*BaseComponent)(nil)
+
 type BaseComponent struct {
 	*log.Logger
+	IActor
 	name            string
 	pid             *actor.PID
 	status          Status
@@ -24,9 +27,10 @@ type BaseComponent struct {
 	accProcessedMsg uint64
 }
 
-func NewBaseComponent(name string, logger *log.Logger) *BaseComponent {
+func NewBaseComponent(name string, actor IActor, logger *log.Logger) *BaseComponent {
 	return &BaseComponent{
 		Logger:          logger,
+		IActor:          actor,
 		name:            name,
 		pid:             nil,
 		status:          StoppedStatus,
@@ -44,9 +48,12 @@ func resumeDecider(_ interface{}) actor.Directive {
 	return actor.ResumeDirective
 }
 
-func (base *BaseComponent) Start(inheritant IComponent) {
+func (base *BaseComponent) Start() {
+	// call a init func, defined at an actor's implementation
+	base.IActor.BeforeStart()
+
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
-	workerProps := actor.FromInstance(inheritant).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
+	workerProps := actor.FromInstance(base).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
 
 	var err error
 	// create and spawn an actor using the name as an unique id
@@ -63,30 +70,56 @@ func (base *BaseComponent) Start(inheritant IComponent) {
 }
 
 func (base *BaseComponent) Stop() {
+	// call a cleanup func, defined at an actor's implementation
+	base.IActor.BeforeStop()
+
 	base.pid.Stop()
 	base.pid = nil
 }
 
-func (base *BaseComponent) Request(message interface{}, sender IComponent) {
-
-	if base.pid != nil {
-		base.pid.Request(message, sender.Pid())
-	} else {
-		log.Default().Fatal().Msg("PID is empty")
+func (base *BaseComponent) Tell(message interface{}) {
+	if base.pid == nil {
+		panic("PID is empty")
 	}
+	base.pid.Tell(message)
+}
+
+func (base *BaseComponent) TellTo(targetCompName string, message interface{}) {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+	base.hub.Tell(targetCompName, message)
+}
+
+func (base *BaseComponent) Request(message interface{}, sender *actor.PID) {
+	if base.pid == nil {
+		panic("PID is empty")
+	}
+	base.pid.Request(message, sender)
+}
+
+func (base *BaseComponent) RequestTo(targetCompName string, message interface{}) {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+	targetComp := base.hub.Get(targetCompName)
+	targetComp.Request(message, base.pid)
 }
 
 func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
-
 	if base.pid == nil {
-		log.Default().Fatal().Msg("PID is empty")
+		panic("PID is empty")
 	}
 
 	return base.pid.RequestFuturePrefix(message, tip, timeout)
 }
 
-func (base *BaseComponent) Pid() *actor.PID {
-	return base.pid
+func (base *BaseComponent) RequestToFuture(targetCompName string, message interface{}, timeout time.Duration) *actor.Future {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+
+	return base.hub.RequestFuture(targetCompName, message, timeout, base.name)
 }
 
 func (base *BaseComponent) SetHub(hub *ComponentHub) {
@@ -100,38 +133,40 @@ func (base *BaseComponent) Hub() *ComponentHub {
 func (base *BaseComponent) Receive(context actor.Context) {
 	base.accProcessedMsg++
 
-	switch context.Message().(type) {
+	switch msg := context.Message().(type) {
 
 	case *actor.Started:
-		//base.Info("Started, initialize actor here")
 		atomic.SwapUint32(&base.status, StartedStatus)
 
 	case *actor.Stopping:
-		//base.Info("Stopping, actor is about shut down")
 		atomic.SwapUint32(&base.status, StoppingStatus)
 
 	case *actor.Stopped:
-		//base.Info("Stopped, actor and it's children are stopped")
 		atomic.SwapUint32(&base.status, StoppedStatus)
 
 	case *actor.Restarting:
-		//base.Info("Restarting, actor is about restart")
 		atomic.SwapUint32(&base.status, RestartingStatus)
+
+	case *CompStatReq:
+		context.Respond(base.statics(msg))
 	}
+
+	base.IActor.Receive(context)
 }
 
 func (base *BaseComponent) Status() Status {
 	return atomic.LoadUint32(&base.status)
 }
 
-func (base *BaseComponent) Statics(req *CompStatReq) *Statics {
+func (base *BaseComponent) statics(req *CompStatReq) *CompStatRsp {
 	thisMsgLatency := time.Now().Sub(req.SentTime)
 
-	return &Statics{
+	return &CompStatRsp{
 		Status:            StatusToString(base.status),
 		ProcessedMsg:      base.accProcessedMsg,
 		QueuedMsg:         base.accQueuedMsg,
 		MsgProcessLatency: thisMsgLatency.String(),
+		Actor:             base.IActor.Statics(),
 	}
 }
 

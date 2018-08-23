@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
 	//"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -28,8 +29,6 @@ type RestService struct {
 	bc  *bc.ChainService
 }
 
-var _ component.IComponent = (*RestService)(nil)
-
 //var wait sync.WaitGroup
 
 var (
@@ -38,17 +37,15 @@ var (
 
 func NewRestService(cfg *cfg.Config, bc *bc.ChainService) *RestService {
 	cs := &RestService{
-		BaseComponent: component.NewBaseComponent(message.RestSvc, logger),
-		cfg:           cfg,
-		bc:            bc,
+		cfg: cfg,
+		bc:  bc,
 	}
+	cs.BaseComponent = component.NewBaseComponent(message.RestSvc, cs, logger)
 
 	return cs
 }
 
-func (cs *RestService) Start() {
-	cs.BaseComponent.Start(cs)
-	//wait.Add(1)
+func (cs *RestService) BeforeStart() {
 	go func() {
 		http.HandleFunc("/chaintree", func(w http.ResponseWriter, r *http.Request) {
 			body, err := ioutil.ReadAll(r.Body)
@@ -69,19 +66,13 @@ func (cs *RestService) Start() {
 	}()
 }
 
-func (cs *RestService) Stop() {
-	//wait.Wait()
-	cs.BaseComponent.Stop()
+func (cs *RestService) BeforeStop() {
+
+}
+
+func (cs *RestService) Statics() interface{} {
+	return nil
 }
 
 func (cs *RestService) Receive(context actor.Context) {
-	cs.BaseComponent.Receive(context)
-
-	switch msg := context.Message().(type) {
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": cs.BaseComponent.Statics(msg),
-			})
-	}
 }

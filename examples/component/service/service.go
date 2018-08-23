@@ -19,41 +19,36 @@ type ExampleService struct {
 	myname string
 }
 
-var _ component.IComponent = (*ExampleService)(nil)
-
 func NexExampleServie(myname string) *ExampleService {
-	return &ExampleService{
-		BaseComponent: component.NewBaseComponent(message.HelloService, log.Default()),
-		myname:        myname,
+	actor := &ExampleService{
+
+		myname: myname,
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.HelloService, actor, log.Default())
+
+	return actor
 }
 
-func (es *ExampleService) Start() {
-	es.BaseComponent.Start(es)
-	//TODO add init logics for this service
+func (es *ExampleService) BeforeStart() {
+	// add init logics for this service
 }
 
-func (es *ExampleService) Stop() {
-	es.BaseComponent.Stop()
-	//TODO add stop logics for this service
+func (es *ExampleService) BeforeStop() {
+
+	// add stop logics for this service
+}
+
+func (es *ExampleService) Statics() interface{} {
+	return nil
 }
 
 func (es *ExampleService) Receive(context actor.Context) {
-	es.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
 	case *message.HelloReq:
 		context.Respond(
 			&message.HelloRsp{
 				Greeting: fmt.Sprintf("Hello %s, I'm %s", msg.Who, es.myname),
-			})
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": es.BaseComponent.Statics(msg),
-				"hello": map[string]interface{}{
-					"name": es.myname,
-				},
 			})
 	}
 

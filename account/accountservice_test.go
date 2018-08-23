@@ -26,11 +26,11 @@ func initTest() {
 	conf.DataDir, _ = ioutil.TempDir("", "test")
 	as = NewAccountService(conf)
 	as.testConfig = true
-	as.Start()
+	as.BeforeStart()
 }
 
 func deinitTest() {
-	as.Stop()
+	as.BeforeStop()
 }
 
 func TestNewAccountAndGet(t *testing.T) {

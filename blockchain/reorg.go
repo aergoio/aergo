@@ -269,9 +269,9 @@ func (reorg *reorganizer) rollforwardChain() error {
 			txs = append(txs, tx)
 		}
 
-		cs.Hub().Request(message.MemPoolSvc, &message.MemPoolPut{
+		cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
 			Txs: txs,
-		}, cs)
+		})
 	}
 
 	return nil
@@ -295,11 +295,11 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 		return err
 	}
 
-	cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
+	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy
 		BlockNo: block.GetHeader().GetBlockNo(),
 		Txs:     block.GetBody().GetTxs(),
-	}, cs)
+	})
 
 	//remove played tx from rbTxs
 	reorg.removePlayedTxs(block)

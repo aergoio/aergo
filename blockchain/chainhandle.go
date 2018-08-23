@@ -102,11 +102,11 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
 
 		if isMainChain {
-			cs.Hub().Request(message.MemPoolSvc, &message.MemPoolDel{
+			cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 				// FIXME: remove legacy
 				BlockNo: tblock.GetHeader().GetBlockNo(),
 				Txs:     tblock.GetBody().GetTxs(),
-			}, cs)
+			})
 
 			cs.notifyBlock(tblock)
 		}
@@ -242,7 +242,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
 	}
-	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
+	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 
 	return nil
 }

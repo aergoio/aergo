@@ -15,21 +15,22 @@ type IComponent interface {
 	GetName() string
 	Start()
 	Stop()
-	Request(message interface{}, sender IComponent)
-	RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future
-	Pid() *actor.PID
 	Status() Status
+	SetHub(hub *ComponentHub)
+	Hub() *ComponentHub
+
+	Tell(message interface{})
+	Request(message interface{}, sender *actor.PID)
+	RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future
+
+	Receive(actor.Context)
+}
+
+type IActor interface {
+	BeforeStart()
+	BeforeStop()
 
 	Receive(actor.Context)
 
-	SetHub(hub *ComponentHub)
-	Hub() *ComponentHub
-}
-
-type Statics struct {
-	Status            string `json:"status"`
-	ProcessedMsg      uint64 `json:"acc_processed_msg"`
-	QueuedMsg         uint64 `json:"acc_queued_msg"`
-	MsgProcessLatency string `json:"msg_latency"`
-	Error             string `json:"error"`
+	Statics() interface{}
 }

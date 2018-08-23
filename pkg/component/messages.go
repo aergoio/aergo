@@ -11,8 +11,14 @@ type CompStatReq struct {
 	SentTime time.Time
 }
 
-type CompStatRsp map[string]interface{}
-
+type CompStatRsp struct {
+	Status            string      `json:"status"`
+	ProcessedMsg      uint64      `json:"acc_processed_msg"`
+	QueuedMsg         uint64      `json:"acc_queued_msg"`
+	MsgProcessLatency string      `json:"msg_latency"`
+	Error             string      `json:"error"`
+	Actor             interface{} `json:"actor"`
+}
 type Status = uint32
 
 const (
