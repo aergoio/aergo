@@ -129,8 +129,9 @@ type PeerEventListener interface {
 
 // subProtocol is sub protocol of p2p protocol
 type subProtocol interface {
+	setPeerManager(PeerManager)
 	// initWith init subprotocol implementation with PeerManager.
-	initWith(PeerManager)
+	startHandling()
 }
 
 func init() {
@@ -186,6 +187,7 @@ func (ps *peerManager) SelfNodeID() peer.ID {
 
 func (ps *peerManager) AddSubProtocol(p subProtocol) {
 	ps.subProtocols = append(ps.subProtocols, p)
+	p.setPeerManager(ps)
 }
 func (ps *peerManager) RegisterEventListener(listener PeerEventListener) {
 	ps.mutex.Lock()
@@ -235,6 +237,11 @@ func (ps *peerManager) init() {
 	ps.selfMeta.IPAddress = listenAddr.String()
 	ps.selfMeta.Port = uint32(listenPort)
 	ps.selfMeta.ID = pid
+
+	// init subprotocols also
+	for _, sub := range ps.subProtocols {
+		sub.startHandling()
+	}
 }
 
 func (ps *peerManager) run() {
@@ -433,7 +440,7 @@ func (ps *peerManager) startListener() {
 
 	// listen subprotocols also
 	for _, sub := range ps.subProtocols {
-		sub.initWith(ps)
+		sub.startHandling()
 	}
 }
 

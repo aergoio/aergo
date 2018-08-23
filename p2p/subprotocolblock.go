@@ -53,8 +53,11 @@ func NewBlockProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *Bl
 	return p
 }
 
-func (p *BlockProtocol) initWith(p2pservice PeerManager) {
-	p.ps = p2pservice
+func (p *BlockProtocol) setPeerManager(pm PeerManager) {
+	p.ps = pm
+}
+
+func (p *BlockProtocol) startHandling() {
 	p.ps.SetStreamHandler(getBlocksRequest, p.onGetBlockRequest)
 	p.ps.SetStreamHandler(getBlocksResponse, p.onGetBlockResponse)
 	p.ps.SetStreamHandler(getBlockHeadersRequest, p.onGetBlockHeadersRequest)

@@ -41,8 +41,11 @@ func NewPingProtocol(logger *log.Logger) *PingProtocol {
 	return p
 }
 
-func (p *PingProtocol) initWith(p2pservice PeerManager) {
-	p.ps = p2pservice
+func (p *PingProtocol) setPeerManager(pm PeerManager) {
+	p.ps = pm
+}
+
+func (p *PingProtocol) startHandling() {
 	p.ps.SetStreamHandler(pingRequest, p.onPingRequest)
 	p.ps.SetStreamHandler(pingResponse, p.onPingResponse)
 	p.ps.SetStreamHandler(statusRequest, p.onStatusRequest)

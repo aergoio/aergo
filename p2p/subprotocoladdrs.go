@@ -44,8 +44,11 @@ func NewAddressesProtocol(logger *log.Logger) *AddressesProtocol {
 	return p
 }
 
-func (p *AddressesProtocol) initWith(p2pservice PeerManager) {
-	p.ps = p2pservice
+func (p *AddressesProtocol) setPeerManager(pm PeerManager) {
+	p.ps = pm
+}
+
+func (p *AddressesProtocol) startHandling() {
 	p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
 	p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
 }

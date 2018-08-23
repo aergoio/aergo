@@ -49,8 +49,11 @@ func NewTxProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *TxPro
 	return p
 }
 
-func (p *TxProtocol) initWith(p2pservice PeerManager) {
-	p.ps = p2pservice
+func (p *TxProtocol) setPeerManager(pm PeerManager) {
+	p.ps = pm
+}
+
+func (p *TxProtocol) startHandling() {
 	p.ps.SetStreamHandler(getTXsRequest, p.onGetTXsRequest)
 	p.ps.SetStreamHandler(getTxsResponse, p.onGetTXsResponse)
 	p.ps.SetStreamHandler(notifyNewTxRequest, p.onNotifynewTXs)

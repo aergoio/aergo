@@ -100,7 +100,7 @@ const (
 
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
-	peer := RemotePeer{
+	peer := &RemotePeer{
 		meta: meta, ps: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
@@ -121,7 +121,7 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
-	return &peer
+	return peer
 }
 
 // State returns current state of peer
