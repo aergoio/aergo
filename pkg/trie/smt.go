@@ -82,12 +82,14 @@ func (s *SMT) Update(keys, values [][]byte) ([]byte, error) {
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
-	update, err := s.update(s.Root, keys, values, s.TrieHeight, false, true, nil)
-	if err != nil {
-		return nil, err
+	ch := make(chan result, 1)
+	s.update(s.Root, keys, values, s.TrieHeight, false, true, ch)
+	result := <-ch
+	if result.err != nil {
+		return nil, result.err
 	}
-	s.Root = update
-	return s.Root, err
+	s.Root = result.update
+	return s.Root, nil
 }
 
 // result is used to contain the result of goroutines and is sent through a channel.
@@ -98,16 +100,15 @@ type result struct {
 
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) ([]byte, error) {
+func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) {
 	if height == 0 {
-		return values[0], nil
+		ch <- result{values[0], nil}
+		return
 	}
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
 	if err != nil {
-		if ch != nil {
-			ch <- result{nil, err}
-		}
-		return nil, err
+		ch <- result{nil, err}
+		return
 	}
 	if isShortcut == 1 {
 		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
@@ -131,34 +132,26 @@ func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut
 	switch {
 	case len(lkeys) == 0 && len(rkeys) > 0:
 		// all the keys go in the right subtree
-		update, err := s.update(rnode, keys, values, height-1, shortcut, store, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- result{nil, err}
-			}
-			return nil, err
+		newch := make(chan result, 1)
+		s.update(rnode, keys, values, height-1, shortcut, store, newch)
+		res := <-newch
+		if res.err != nil {
+			ch <- result{nil, res.err}
+			return
 		}
 		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(lnode, update, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(lnode, update, height-1, root, shortcut, store, keys, values), nil
+		ch <- result{s.interiorHash(lnode, res.update, height-1, root, shortcut, store, keys, values), nil}
 	case len(lkeys) > 0 && len(rkeys) == 0:
 		// all the keys go in the left subtree
-		update, err := s.update(lnode, keys, values, height-1, shortcut, store, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- result{nil, err}
-			}
-			return nil, err
+		newch := make(chan result, 1)
+		s.update(lnode, keys, values, height-1, shortcut, store, newch)
+		res := <-newch
+		if res.err != nil {
+			ch <- result{nil, res.err}
+			return
 		}
 		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(update, rnode, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(update, rnode, height-1, root, shortcut, store, keys, values), nil
+		ch <- result{s.interiorHash(res.update, rnode, height-1, root, shortcut, store, keys, values), nil}
 	default:
 		// keys are separated between the left and right branches
 		// update the branches in parallel
@@ -169,23 +162,15 @@ func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut
 		lresult := <-lch
 		rresult := <-rch
 		if lresult.err != nil {
-			if ch != nil {
-				ch <- result{nil, lresult.err}
-			}
-			return nil, lresult.err
+			ch <- result{nil, lresult.err}
+			return
 		}
 		if rresult.err != nil {
-			if ch != nil {
-				ch <- result{nil, rresult.err}
-			}
-			return nil, rresult.err
+			ch <- result{nil, rresult.err}
+			return
 		}
 		// if this update() call is a goroutine, return the result through the channel
-		if ch != nil {
-			ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
-			return nil, nil
-		}
-		return s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil
+		ch <- result{s.interiorHash(lresult.update, rresult.update, height-1, root, shortcut, store, keys, values), nil}
 	}
 }
 

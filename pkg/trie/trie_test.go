@@ -35,7 +35,10 @@ func TestTrieUpdateAndGet(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	ch := make(chan mresult, 1)
+	smt.update(smt.Root, keys, values, smt.TrieHeight, ch)
+	res := <-ch
+	root := res.update
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -48,7 +51,10 @@ func TestTrieUpdateAndGet(t *testing.T) {
 	// Append to the trie
 	newKeys := getFreshData(5, 32)
 	newValues := getFreshData(5, 32)
-	newRoot, _, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, newKeys, newValues, smt.TrieHeight, ch)
+	res = <-ch
+	newRoot := res.update
 	if bytes.Equal(root, newRoot) {
 		t.Fatal("trie not updated")
 	}
@@ -140,7 +146,10 @@ func TestTrieDelete(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	ch := make(chan mresult, 1)
+	smt.update(smt.Root, keys, values, smt.TrieHeight, ch)
+	result := <-ch
+	root := result.update
 	value, _ := smt.get(root, keys[0], smt.TrieHeight)
 	if !bytes.Equal(values[0], value) {
 		t.Fatal("trie not updated")
@@ -148,14 +157,20 @@ func TestTrieDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _, _ := smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, ch)
+	result = <-ch
+	newRoot := result.update
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(32, hash, nil)
-	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, ch)
+	result = <-ch
+	cleanRoot := result.update
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
@@ -165,7 +180,10 @@ func TestTrieDelete(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
-	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, keys, newValues, smt.TrieHeight, ch)
+	result = <-ch
+	root = result.update
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
 	}
