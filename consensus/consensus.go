@@ -53,20 +53,18 @@ func (e ErrorConsensus) Error() string {
 
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
-	ChainInfo
+	ChainConsensus
 	Ticker() *time.Ticker
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
 }
 
-// ChainInfo includes chainstatus and validation API.
-type ChainInfo interface {
+// ChainConsensus includes chainstatus and validation API.
+type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
-	IsBlockValid(block *types.Block) error
-	IsBlockReorganizing() bool
-	SetReorganizing()
-	UnsetReorganizing()
+	IsBlockValid(block *types.Block, bestBlock *types.Block) error
+	StatusUpdate()
 }
 
 // BlockFactory is an interface for a block factory implementation.
@@ -87,10 +85,6 @@ func Start(c Consensus) {
 	go func() {
 		ticker := c.Ticker()
 		for now := range ticker.C {
-			if c.IsBlockReorganizing() {
-				continue
-			}
-
 			c.QueueJob(now, bf.JobQueue())
 			select {
 			case <-c.QuitChan():

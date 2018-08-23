@@ -45,13 +45,16 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 
 func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	logger.Debug().Str("hash", nblock.ID()).Msg("add block")
-	if cs.ChainInfo != nil {
-		// Check block validity by calling the corresponding interface
-		// implemented in a Consensus module.
-		if err := cs.IsBlockValid(nblock); err != nil {
-			logger.Error().Err(err).Msg("failed to add block. block is invalid.")
-			return err
-		}
+
+	var bestBlock *types.Block
+	var err error
+	if bestBlock, err = cs.getBestBlock(); err != nil {
+		return err
+	}
+
+	// Check consensus header validity
+	if err := cs.IsBlockValid(nblock, bestBlock); err != nil {
+		return err
 	}
 
 	// handle orphan

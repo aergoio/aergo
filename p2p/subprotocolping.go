@@ -64,7 +64,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -79,7 +79,7 @@ func (p *PingProtocol) onPingRequest(s inet.Stream) {
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
 
 	// generate response message
-	p.log.Debug().Msgf("Sending pong to %s. MSG ID %s.", s.Conn().RemotePeer().Pretty(), data.MessageData.Id)
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, data.MessageData.Id).Msg("Sending ping response")
 	resp := &types.Pong{MessageData: &types.MessageData{}} // BestBlockHash: bestBlock.GetHash(),
 	// BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 
@@ -101,7 +101,7 @@ func (p *PingProtocol) onPingResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -120,7 +120,7 @@ func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 	defer s.Close()
 
 	peerID := s.Conn().RemotePeer()
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got status message")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Got status message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
@@ -144,7 +144,7 @@ func (p *PingProtocol) onStatusRequest(s inet.Stream) {
 		p.log.Warn().Msg("Failed to authenticate message")
 		return
 	}
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("starting handshake")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("starting handshake")
 	remotePeer.op <- OpOrder{op: OpHandleHS, param1: data}
 }
 
@@ -152,7 +152,7 @@ func (p *PingProtocol) onGoaway(s inet.Stream) {
 	defer s.Close()
 
 	peerID := s.Conn().RemotePeer()
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Got goaway message")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Got goaway message")
 	remotePeer, ok := p.ps.LookupPeer(peerID)
 	if !ok {
 		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
@@ -177,6 +177,6 @@ func (p *PingProtocol) onGoaway(s inet.Stream) {
 		return
 	}
 
-	p.log.Debug().Msgf("Remote Peer %s kick out me: %s ", peerID.Pretty(), data.Message)
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("reason", data.Message).Msg("Remote Peer kick me out")
 	p.ps.RemovePeer(peerID)
 }

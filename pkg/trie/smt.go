@@ -15,11 +15,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 )
 
-const (
-	HashLength   = 32
-	maxPastTries = 300
-)
-
 // TODO make a secure trie that hashes keys with a random seed to be sure the trie is sparse.
 
 // SMT is a sparse Merkle tree.
@@ -82,7 +77,7 @@ func (s *SMT) loadDefaultHashes() []byte {
 }
 
 // Update adds a sorted list of keys and their values to the trie
-func (s *SMT) Update(keys, values DataArray) ([]byte, error) {
+func (s *SMT) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
@@ -103,7 +98,7 @@ type result struct {
 
 // update adds a sorted list of keys and their values to the trie.
 // It returns the root of the updated tree.
-func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcut, store bool, ch chan<- (result)) ([]byte, error) {
+func (s *SMT) update(root []byte, keys, values [][]byte, height uint64, shortcut, store bool, ch chan<- (result)) ([]byte, error) {
 	if height == 0 {
 		return values[0], nil
 	}
@@ -124,7 +119,7 @@ func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcu
 			}
 		}
 		if !up {
-			keys, values = s.addShortcutToDataArray(keys, values, lnode, rnode)
+			keys, values = s.addShortcutToKV(keys, values, lnode, rnode)
 		}
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
@@ -144,7 +139,7 @@ func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcu
 		shortcut = true
 	}
 	switch {
-	case lkeys.Len() == 0 && rkeys.Len() > 0:
+	case len(lkeys) == 0 && len(rkeys) > 0:
 		// all the keys go in the right subtree
 		update, err := s.update(rnode, keys, values, height-1, shortcut, store, nil)
 		if err != nil {
@@ -159,7 +154,7 @@ func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcu
 			return nil, nil
 		}
 		return s.interiorHash(lnode, update, height-1, root, shortcut, store, keys, values), nil
-	case lkeys.Len() > 0 && rkeys.Len() == 0:
+	case len(lkeys) > 0 && len(rkeys) == 0:
 		// all the keys go in the left subtree
 		update, err := s.update(lnode, keys, values, height-1, shortcut, store, nil)
 		if err != nil {
@@ -205,7 +200,7 @@ func (s *SMT) update(root []byte, keys, values DataArray, height uint64, shortcu
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
-func (s *SMT) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
+func (s *SMT) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	for i, key := range keys {
 		if bitIsSet(key, height) {
 			return keys[:i], keys[i:]
@@ -214,11 +209,11 @@ func (s *SMT) splitKeys(keys DataArray, height uint64) (DataArray, DataArray) {
 	return keys, nil
 }
 
-// addShortcutToDataArray adds a shortcut key to the keys array to be updated.
+// addShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *SMT) addShortcutToDataArray(keys, values DataArray, shortcutKey, shortcutVal []byte) (DataArray, DataArray) {
-	newKeys := make(DataArray, 0, len(keys)+1)
-	newVals := make(DataArray, 0, len(keys)+1)
+func (s *SMT) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+	newKeys := make([][]byte, 0, len(keys)+1)
+	newVals := make([][]byte, 0, len(keys)+1)
 
 	if bytes.Compare(shortcutKey, keys[0]) < 0 {
 		newKeys = append(newKeys, shortcutKey)
@@ -343,7 +338,7 @@ func (s *SMT) DefaultHash(height uint64) []byte {
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
 // the key is the hash and the value is the appended child nodes or the appended key/value in case of a shortcut.
 // keys of go mappings cannot be byte slices so the hash is copied to a byte array
-func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, shortcut, store bool, keys, values DataArray) []byte {
+func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, shortcut, store bool, keys, values [][]byte) []byte {
 	h := s.hash(left, right)
 	var node Hash
 	copy(node[:], h)
@@ -354,9 +349,7 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 			children = append(children, right...)
 			children = append(children, byte(0))
 			// Cache the node if it's children are not default and if it's height is over CacheHeightLimit
-			if (!bytes.Equal(s.defaultHashes[height], left) ||
-				!bytes.Equal(s.defaultHashes[height], right)) &&
-				height > s.CacheHeightLimit {
+			if height > s.CacheHeightLimit {
 				s.db.liveMux.Lock()
 				s.db.liveCache[node] = children
 				s.db.liveMux.Unlock()
@@ -372,18 +365,20 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 			kv = append(kv, keys[0]...)
 			kv = append(kv, values[0]...)
 			kv = append(kv, byte(1))
-			// Cache the shortcut node if it's children are not default and if it's height is over CacheHeightLimit
-			if (!bytes.Equal(s.defaultHashes[height], left) ||
-				!bytes.Equal(s.defaultHashes[height], right)) &&
+			if !bytes.Equal(s.defaultHashes[height+1], h) &&
 				height > s.CacheHeightLimit {
+				// When deleting, the shortcut node for the newly default key should not be created.
 				s.db.liveMux.Lock()
 				s.db.liveCache[node] = kv
 				s.db.liveMux.Unlock()
 			}
 			// store new node in db
-			s.db.updatedMux.Lock()
-			s.db.updatedNodes[node] = kv
-			s.db.updatedMux.Unlock()
+			if !bytes.Equal(s.defaultHashes[height+1], h) {
+				// When deleting, don't rewrite a default hash in db
+				s.db.updatedMux.Lock()
+				s.db.updatedNodes[node] = kv
+				s.db.updatedMux.Unlock()
+			}
 		}
 		if !bytes.Equal(s.defaultHashes[height+1], oldRoot) && !bytes.Equal(h, oldRoot) {
 			// Delete old liveCache node if it has been updated and is not default

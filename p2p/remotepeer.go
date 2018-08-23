@@ -303,7 +303,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.ps.RemovePeer(p.meta.ID)
 		return
 	}
-	defer s.Close()
+	//defer s.Close()
 
 	err = m.SendOver(s)
 	if err != nil {

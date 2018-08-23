@@ -16,7 +16,7 @@ import "node.proto";
  * Some methods optionally contains context path if it is also provided by REST API.
  */
 service AergoRPCService {
-  rpc NodeState (Empty) returns (NodeStatus) {}
+  rpc NodeState (SingleBytes) returns (SingleBytes) {}
   rpc Blockchain (Empty) returns (BlockchainStatus) {
     // option (google.api.http) = {
     //   get: "/blockchain"
@@ -72,20 +72,6 @@ service AergoRPCService {
   
   rpc GetVotes(SingleBytes) returns (VoteList) {
   }
-}
-
-message InternalStat {
-  string Name = 1;
-  double Stat = 2;
-}
-
-message ModuleStatus {
-  string Name = 1;
-  repeated InternalStat Stat = 4;
-}
-
-message NodeStatus {
-  repeated ModuleStatus Status = 1;
 }
 
 // BlockchainStatus is current status of blockchain

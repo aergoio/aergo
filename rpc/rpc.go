@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
@@ -19,11 +19,8 @@ import (
 	aergorpc "github.com/aergoio/aergo/types"
 	"google.golang.org/grpc"
 
-	"github.com/aergoio/aergo-lib/log"
-
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/soheilhy/cmux"
-
 )
 
 // RPC is actor for providing rpc service
@@ -34,12 +31,10 @@ type RPC struct {
 
 	hub *component.ComponentHub
 
-	grpcServer   *grpc.Server
-	grpcWebServer   *grpcweb.WrappedGrpcServer
-	actualServer aergorpc.AergoRPCServiceServer
-	httpServer *http.Server
-
-	log          *log.Logger
+	grpcServer    *grpc.Server
+	grpcWebServer *grpcweb.WrappedGrpcServer
+	actualServer  aergorpc.AergoRPCServiceServer
+	httpServer    *http.Server
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -60,12 +55,11 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 
 	netsvc := &RPC{
 		conf:          cfg,
-		BaseComponent: component.NewBaseComponent("rpc", logger, cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent("rpc", logger),
 		hub:           hub,
 		grpcServer:    grpcServer,
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
-		log: 	       log.NewLogger("rpc"),
 	}
 	actualServer.actorHelper = netsvc
 
@@ -91,6 +85,18 @@ func (ns *RPC) Stop() {
 	ns.httpServer.Close()
 	ns.grpcServer.Stop()
 	ns.BaseComponent.Stop()
+}
+
+func (ns *RPC) Receive(context actor.Context) {
+	ns.BaseComponent.Receive(context)
+
+	switch msg := context.Message().(type) {
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": ns.BaseComponent.Statics(msg),
+			})
+	}
 }
 
 // Create HTTP handler that redirects matching requests to the grpc-web wrapper.
@@ -134,10 +140,10 @@ func (ns *RPC) serve() {
 
 	// Setup TCP multiplexer
 	tcpm := cmux.New(l)
-	grpcL := tcpm.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	httpL := tcpm.Match(cmux.HTTP1Fast())
 
-	ns.log.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
+	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
 
 	// Server both servers
 	go ns.serveGRPC(grpcL, ns.grpcServer)
@@ -145,7 +151,7 @@ func (ns *RPC) serve() {
 
 	// Serve TCP multiplexer
 	if err := tcpm.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
-		ns.log.Fatal().Msg(fmt.Sprintf("%v", err))
+		ns.Fatal().Msg(fmt.Sprintf("%v", err))
 	}
 
 	return

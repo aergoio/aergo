@@ -27,7 +27,7 @@ import (
 const (
 	getTXsRequest      protocol.ID = "/tx/getreq/0.1"
 	getTxsResponse     protocol.ID = "/tx/getresp/0.1"
-	notifyNewTxRequest protocol.ID = "/blk/newtxreq/0.1"
+	notifyNewTxRequest protocol.ID = "/blk/notifynewtx/0.1"
 )
 
 // TxProtocol handle tx messages.
@@ -71,7 +71,7 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -137,7 +137,7 @@ func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -156,7 +156,7 @@ func (p *TxProtocol) onGetTXsResponse(s inet.Stream) {
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
-		p.log.Debug().Msgf("Request mempool to add %d txs", len(data.Txs))
+		p.log.Debug().Int("tx_cnt", len(data.Txs)).Msg("Request mempool to add txs")
 		p.iserv.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 	}
 }
@@ -167,10 +167,10 @@ var emptyArr = make([]byte, 0)
 func (p *TxProtocol) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	remotePeer, ok := p.ps.GetPeer(peerID)
 	if !ok {
-		p.log.Warn().Str("peer_id", peerID.Pretty()).Msg("Invalid peer. check for bug")
+		p.log.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Invalid peer. check for bug")
 		return false
 	}
-	p.log.Debug().Msgf("%s: Sending GetTransactions request to: %s...(%d txs)", p.ps.ID(), peerID, len(txHashes))
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Int("tx_cnt", len(txHashes)).Msg("Sending GetTransactions request")
 	if len(txHashes) == 0 {
 		p.log.Warn().Msg("empty hash list")
 		return false
@@ -194,14 +194,11 @@ func (p *TxProtocol) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 
 // NotifyNewTX notice tx(s) id created
 func (p *TxProtocol) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	p.log.Debug().Msgf("%s: Notifying new transactions ", p.ps.ID())
-
 	hashes := make([][]byte, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
 		hashes[i] = tx.Hash
 	}
-	p.log.Debug().Msgf("Notifying newTXs to %d peers, txHashes: %s",
-		len(p.ps.GetPeers()), bytesArrToString(hashes))
+	p.log.Debug().Int("peer_cnt", len(p.ps.GetPeers())).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
 	// send to peers
 	for _, peer := range p.ps.GetPeers() {
 		// create message data
@@ -229,7 +226,7 @@ func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
 	defer remotePeer.readLock.Unlock()
 	perr := remotePeer.checkState()
 	if perr != nil {
-		p.log.Info().Msgf("%s: Invalid peer state to handle request %s : %s", peerID.Pretty(), s.Protocol(), perr.Error())
+		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
 		return
 	}
 
@@ -249,7 +246,7 @@ func (p *TxProtocol) onNotifynewTXs(s inet.Stream) {
 	}
 	// create message data
 	p.iserv.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	p.log.Debug().Str("peer_id", peerID.Pretty()).Msg("Request GetTransactions")
+	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
 }
 
 func bytesArrToString(bbarray [][]byte) string {

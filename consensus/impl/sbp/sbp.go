@@ -3,11 +3,11 @@ package sbp
 import (
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/util"
+	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -29,8 +29,7 @@ type SimpleBlockFactory struct {
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
 	maxBlockBodySize int
-	onReorganizing   util.BcReorgStatus
-	txOp             util.TxOp
+	txOp             chain.TxOp
 	quit             chan interface{}
 }
 
@@ -42,17 +41,16 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    consensus.BlockInterval,
-		maxBlockBodySize: util.MaxBlockBodySize(),
-		onReorganizing:   util.BcNoReorganizing,
+		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
 	}
 
-	s.txOp = util.NewCompTxOp(
-		util.NewBlockLimitOp(s.maxBlockBodySize),
+	s.txOp = chain.NewCompTxOp(
+		chain.NewBlockLimitOp(s.maxBlockBodySize),
 		func(txIn *types.Tx) error {
 			select {
 			case <-s.quit:
-				return util.ErrQuit
+				return chain.ErrQuit
 			default:
 				return nil
 			}
@@ -69,7 +67,7 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
-	if b := util.GetBestBlock(s); b != nil {
+	if b := chain.GetBestBlock(s); b != nil {
 		jq <- b
 	}
 }
@@ -81,7 +79,7 @@ func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 }
 
 // IsBlockValid checks the consensus level validity of a block.
-func (s *SimpleBlockFactory) IsBlockValid(block *types.Block) error {
+func (s *SimpleBlockFactory) IsBlockValid(*types.Block, *types.Block) error {
 	// SimpleBlockFactory has no block valid check.
 	return nil
 }
@@ -92,20 +90,8 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// IsBlockReorganizing reports whether the blockchain is currently under
-// reorganization.
-func (s *SimpleBlockFactory) IsBlockReorganizing() bool {
-	return util.OnReorganizing(&s.onReorganizing)
-}
-
-// SetReorganizing sets dpos.onReorganizing to 'OnReorganization.'
-func (s *SimpleBlockFactory) SetReorganizing() {
-	util.SetReorganizing(&s.onReorganizing)
-}
-
-// UnsetReorganizing sets dpos.onReorganizing to 'NoReorganization.'
-func (s *SimpleBlockFactory) UnsetReorganizing() {
-	util.UnsetReorganizing(&s.onReorganizing)
+// StatusUpdate currently does nothing.
+func (s *SimpleBlockFactory) StatusUpdate() {
 }
 
 // BlockFactory returns s itself.
@@ -119,8 +105,8 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, err := util.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
-				if err == util.ErrQuit {
+				block, err := chain.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
+				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
 					logger.Info().Err(err).Msg("failed to produce block")
@@ -129,7 +115,7 @@ func (s *SimpleBlockFactory) Start() {
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 					Err(err).Msg("block produced")
 
-				util.ConnectBlock(s, block)
+				chain.ConnectBlock(s, block)
 			}
 		case <-s.quit:
 			return

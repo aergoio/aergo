@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 // P2P is actor component for p2p
@@ -39,7 +39,7 @@ const defaultTTL = time.Second * 4
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
 
 	netsvc := &P2P{
-		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger("p2p"), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger("p2p")),
 		hub:           hub,
 	}
 
@@ -90,6 +90,8 @@ const failed bool = false
 // Receive got actor message and then handle it.
 func (ns *P2P) Receive(context actor.Context) {
 
+	ns.BaseComponent.Receive(context)
+
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
 	// case *message.PingMsg:
@@ -112,8 +114,11 @@ func (ns *P2P) Receive(context actor.Context) {
 		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	case *message.GetMissingBlocks:
 		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
-	default:
-		ns.BaseComponent.Receive(context)
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": ns.BaseComponent.Statics(msg),
+			})
 	}
 }
 

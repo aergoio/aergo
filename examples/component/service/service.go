@@ -9,9 +9,9 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/examples/component/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 type ExampleService struct {
@@ -23,7 +23,7 @@ var _ component.IComponent = (*ExampleService)(nil)
 
 func NexExampleServie(myname string) *ExampleService {
 	return &ExampleService{
-		BaseComponent: component.NewBaseComponent(message.HelloService, log.Default(), true),
+		BaseComponent: component.NewBaseComponent(message.HelloService, log.Default()),
 		myname:        myname,
 	}
 }
@@ -47,5 +47,14 @@ func (es *ExampleService) Receive(context actor.Context) {
 			&message.HelloRsp{
 				Greeting: fmt.Sprintf("Hello %s, I'm %s", msg.Who, es.myname),
 			})
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": es.BaseComponent.Statics(msg),
+				"hello": map[string]interface{}{
+					"name": es.myname,
+				},
+			})
 	}
+
 }

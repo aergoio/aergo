@@ -6,10 +6,11 @@
 package component
 
 import (
-	"container/list"
+	"sync/atomic"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-actor/mailbox"
 	"github.com/aergoio/aergo-lib/log"
 )
 
@@ -19,21 +20,19 @@ type BaseComponent struct {
 	pid             *actor.PID
 	status          Status
 	hub             *ComponentHub
-	enableDebugMsg  bool
-	msgCount        map[string]*list.List
-	lastHandleMsgTs int64
+	accQueuedMsg    uint64
+	accProcessedMsg uint64
 }
 
-func NewBaseComponent(name string, logger *log.Logger, enableDebugMsg bool) *BaseComponent {
+func NewBaseComponent(name string, logger *log.Logger) *BaseComponent {
 	return &BaseComponent{
 		Logger:          logger,
 		name:            name,
 		pid:             nil,
 		status:          StoppedStatus,
 		hub:             nil,
-		enableDebugMsg:  enableDebugMsg,
-		msgCount:        make(map[string]*list.List),
-		lastHandleMsgTs: time.Now().UnixNano(),
+		accQueuedMsg:    0,
+		accProcessedMsg: 0,
 	}
 }
 
@@ -47,10 +46,8 @@ func resumeDecider(_ interface{}) actor.Directive {
 
 func (base *BaseComponent) Start(inheritant IComponent) {
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
-	workerProps := actor.FromInstance(inheritant).WithGuardian(skipResumeStrategy)
-	if base.enableDebugMsg {
-		workerProps = workerProps.WithMailbox(newMailBoxLogger(base.hub.Metrics(base.name)))
-	}
+	workerProps := actor.FromInstance(inheritant).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
+
 	var err error
 	// create and spawn an actor using the name as an unique id
 	base.pid, err = actor.SpawnNamed(workerProps, base.GetName())
@@ -101,23 +98,55 @@ func (base *BaseComponent) Hub() *ComponentHub {
 }
 
 func (base *BaseComponent) Receive(context actor.Context) {
+	base.accProcessedMsg++
 
 	switch context.Message().(type) {
 
 	case *actor.Started:
 		//base.Info("Started, initialize actor here")
-		base.status = StartedStatus
+		atomic.SwapUint32(&base.status, StartedStatus)
 
 	case *actor.Stopping:
 		//base.Info("Stopping, actor is about shut down")
-		base.status = StoppingStatus
+		atomic.SwapUint32(&base.status, StoppingStatus)
 
 	case *actor.Stopped:
 		//base.Info("Stopped, actor and it's children are stopped")
-		base.status = StoppedStatus
+		atomic.SwapUint32(&base.status, StoppedStatus)
 
 	case *actor.Restarting:
 		//base.Info("Restarting, actor is about restart")
-		base.status = RestartingStatus
+		atomic.SwapUint32(&base.status, RestartingStatus)
 	}
 }
+
+func (base *BaseComponent) Status() Status {
+	return atomic.LoadUint32(&base.status)
+}
+
+func (base *BaseComponent) Statics(req *CompStatReq) *Statics {
+	thisMsgLatency := time.Now().Sub(req.SentTime)
+
+	return &Statics{
+		Status:            StatusToString(base.status),
+		ProcessedMsg:      base.accProcessedMsg,
+		QueuedMsg:         base.accQueuedMsg,
+		MsgProcessLatency: thisMsgLatency.String(),
+	}
+}
+
+// MessagePosted is called when a msg is inserted at a mailbox (or queue) of this component
+// At this time, BaseComponent accumulates its counter to get a number of queued msgs
+func (base *BaseComponent) MessagePosted(message interface{}) {
+	base.accQueuedMsg++
+}
+
+// MessageReceived is called when msg is handled by the Receive func
+// This does nothing, but needs to implement Mailbox Statics interface
+func (base *BaseComponent) MessageReceived(message interface{}) {}
+
+// MailboxStarted does nothing, but needs to implement Mailbox Statics interface
+func (base *BaseComponent) MailboxStarted() {}
+
+// MailboxEmpty does nothing, but needs to implement Mailbox Statics interface
+func (base *BaseComponent) MailboxEmpty() {}

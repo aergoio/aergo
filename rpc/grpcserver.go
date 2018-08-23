@@ -9,15 +9,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"reflect"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -390,38 +391,15 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 	return &types.PeerList{Peers: rsp.Peers, States: states}, nil
 }
 
-// State handle rpc request state
-func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.Empty) (*types.NodeStatus, error) {
-	//result, err := rpc.hub.RequestFuture(message.P2PSvc,
-	status := rpc.hub.Status()
-
-	result := &types.NodeStatus{}
-	for k, v := range status {
-		module := &types.ModuleStatus{
-			Name: k,
-		}
-		for ik, iv := range v.GetAll() {
-			for iik, iiv := range iv {
-				var stat float64
-				switch value := iiv.(type) {
-				case int64:
-					stat = float64(value)
-				case float64:
-					stat = value
-				default:
-					logger.Warn().Interface("type", value).Msg("unresolve value in node state")
-				}
-				internal := &types.InternalStat{
-					Name: ik + "/" + iik,
-					Stat: stat,
-				}
-				module.Stat = append(module.Stat, internal)
-			}
-		}
-		result.Status = append(result.Status, module)
+// NodeState handle rpc request nodestate
+func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes) (*types.SingleBytes, error) {
+	timeout := int64(binary.LittleEndian.Uint64(in.Value))
+	statics := rpc.hub.Statistics(time.Duration(timeout) * time.Second)
+	data, err := json.MarshalIndent(statics, "", "\t")
+	if err != nil {
+		return nil, err
 	}
-
-	return result, nil
+	return &types.SingleBytes{Value: data}, nil
 }
 
 //GetVotes handle rpc request getvotes

@@ -121,7 +121,7 @@ func TestTrieDifferentKeySize(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	smt.Update(keys[0:1], DataArray{DefaultLeaf})
+	smt.Update(keys[0:1], [][]byte{DefaultLeaf})
 	newValue, _ := smt.Get(keys[0])
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -149,7 +149,7 @@ func TestTrieDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _, _ := smt.update(root, keys[0:1], DataArray{DefaultLeaf}, smt.TrieHeight, nil)
+	newRoot, _, _ := smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, nil)
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
@@ -157,20 +157,40 @@ func TestTrieDelete(t *testing.T) {
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(32, hash, nil)
 	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
-	//FIXME : if one of 2 sibling nodes is deleted then the sibling
-	//			should move up other wise the roots mismatch
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
 
 	//Empty the trie
-	var newValues DataArray
+	var newValues [][]byte
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
 	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
+	}
+}
+
+// test updating and deleting at the same time
+func TestTrieUpdateAndDelete(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
+	key0 := make([]byte, 32, 32)
+	values := getFreshData(1, 32)
+	root, _ := smt.Update([][]byte{key0}, values)
+	k, v, isShortcut, _ := smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key0) || !bytes.Equal(v, values[0]) {
+		t.Fatal("leaf shortcut didn't move up to root")
+	}
+
+	key1 := make([]byte, 32, 32)
+	bitSet(key1, 255)
+	keys := [][]byte{key0, key1}
+	values = [][]byte{DefaultLeaf, getFreshData(1, 32)[0]}
+	root, _ = smt.Update(keys, values)
+	k, v, isShortcut, _ = smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key1) || !bytes.Equal(v, values[1]) {
+		t.Fatal("leaf shortcut didn't move up to root")
 	}
 }
 
@@ -324,75 +344,131 @@ func TestTrieRaisesError(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
-/*
-func TestTrieLiveCache(t *testing.T) {
+func TestTrieLoadCache(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	//st, _ := db.NewBadgerDB(dbPath)
 	smt := NewTrie(32, hash, st)
-	keys := getFreshData(1000, 32)
-	values := getFreshData(1000, 32)
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-
-	start := time.Now()
+	// Add data to empty trie
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
 	smt.Update(keys, values)
-	end := time.Now()
-	fmt.Println("\nLoad all accounts")
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-	elapsed := end.Sub(start)
-	fmt.Println("elapsed : ", elapsed)
-
 	smt.Commit()
 
-	newvalues := getFreshData(1000, 32)
-	start = time.Now()
-	smt.Update(keys, newvalues)
-	end = time.Now()
-	fmt.Println("\n2nd update")
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-	fmt.Println("db size : ", len(smt.db.updatedNodes))
-	elapsed = end.Sub(start)
-	fmt.Println("elapsed : ", elapsed)
+	// Simulate node restart by deleting and loading cache
+	cacheSize := len(smt.db.liveCache)
+	smt.db.liveCache = make(map[Hash][]byte)
 
-	smt.Commit()
+	err := smt.LoadCache(smt.Root)
 
-	fmt.Println("\nLoading 10M accounts")
-	for i := 0; i < 10000; i++ {
-		newkeys := getFreshData(1000, 32)
-		start = time.Now()
-		smt.Update(newkeys, newvalues)
-		end = time.Now()
-		elapsed = end.Sub(start)
-		fmt.Println(i, " : elapsed : ", elapsed)
-		fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-		fmt.Println("cache size : ", len(smt.db.liveCache))
-		smt.Commit()
-		/*
-			for i, key := range newkeys {
-				val, _ := smt.Get(key)
-				if !bytes.Equal(newvalues[i], val) {
-					t.Fatal("new keys were not updated")
-				}
-			}
+	if err != nil {
+		t.Fatal(err)
 	}
-	start = time.Now()
-	smt.Update(keys, newvalues)
-	end = time.Now()
-	fmt.Println("\n Updating 1k accounts in a 1M account tree")
-	fmt.Println("elapsed : ", elapsed)
-	fmt.Println("db read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter)
-	fmt.Println("cache size : ", len(smt.db.liveCache))
-
+	if cacheSize != len(smt.db.liveCache) {
+		t.Fatal("Cache loading from db incorrect")
+	}
 	st.Close()
 	os.RemoveAll(".aergo")
 }
-*/
+
+func TestHeight0LeafShortcut(t *testing.T) {
+	keySize := uint64(20)
+	smt := NewTrie(keySize, hash, nil)
+	// Add 2 sibling keys that will be stored at height 0
+	key0 := make([]byte, keySize, keySize)
+	key1 := make([]byte, keySize, keySize)
+	bitSet(key1, keySize*8-1)
+	keys := [][]byte{key0, key1}
+	values := getFreshData(2, 32)
+	smt.Update(keys, values)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key1)
+	if length != smt.TrieHeight {
+		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+	if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key1, values[1]) {
+		t.Fatal("failed to verify inclusion proof")
+	}
+
+	// Delete one key and check that the remaining one moved up to the root of the tree
+	newRoot, _ := smt.Update(keys[0:1], [][]byte{DefaultLeaf})
+	k, v, isShortcut, _ := smt.loadChildren(newRoot)
+	if isShortcut != 1 || !bytes.Equal(k, key1) || !bytes.Equal(v, values[1]) {
+		t.Fatal("leaf shortcut didn't move up to root")
+	}
+
+	_, _, length, _, _, _, _ = smt.MerkleProofCompressed(key1)
+	if length != 0 {
+		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+}
+
+func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
+	//b.ReportAllocs()
+	newvalues := getFreshData(1000, 32)
+	//fmt.Println("\nLoading b.N x 1000 accounts")
+	for i := 0; i < b.N; i++ {
+		//start := time.Now()
+		newkeys := getFreshData(1000, 32)
+		smt.Update(newkeys, newvalues)
+		smt.Commit()
+		/*
+			end := time.Now()
+			elapsed := end.Sub(start)
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			fmt.Println(i, " : elapsed : ", elapsed,
+				"\ndb read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter,
+				"\ncache size : ", len(smt.db.liveCache),
+				"\nRAM : ", m.Sys/1024/1024, " MiB")
+		*/
+	}
+}
+
+//go test -run=xxx -bench=. -benchmem -test.benchtime=20s
+func BenchmarkCacheHeightLimit233(b *testing.B) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(32, hash, st)
+	smt.CacheHeightLimit = 233
+	benchmark10MAccounts10Ktps(smt, b)
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+func BenchmarkCacheHeightLimit238(b *testing.B) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(32, hash, st)
+	smt.CacheHeightLimit = 238
+	benchmark10MAccounts10Ktps(smt, b)
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+func BenchmarkCacheHeightLimit245(b *testing.B) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(32, hash, st)
+	smt.CacheHeightLimit = 245
+	benchmark10MAccounts10Ktps(smt, b)
+	st.Close()
+	os.RemoveAll(".aergo")
+}

@@ -1,7 +1,3 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
- */
 package p2p
 
 import (
@@ -12,15 +8,14 @@ import (
 	"testing"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo-lib/log"
 	addrutil "github.com/libp2p/go-addr-util"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	mnet "github.com/multiformats/go-multiaddr-net"
+	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 const SampleAddrString = "/ip4/172.21.11.12/tcp/3456"
@@ -179,4 +174,44 @@ func TestSyncMap(t *testing.T) {
 }
 
 type MockLogger struct {
+}
+
+func TestComparePeerID(t *testing.T) {
+	samplePeerID, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+	samplePeerID2, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	shorterPeerID := peer.ID(string(([]byte(samplePeerID))[:len(string(samplePeerID))-1]))
+	fmt.Println("Sample1", []byte(string(samplePeerID)))
+	fmt.Println("Sample2", []byte(string(samplePeerID2)))
+	fmt.Println("Shorter", []byte(string(shorterPeerID)))
+	tests := []struct {
+		name string
+		p1   peer.ID
+		p2   peer.ID
+		want int
+	}{
+		{"TP1", samplePeerID, samplePeerID2, 1},
+		{"TP2", samplePeerID, shorterPeerID, 1},
+		{"TZ", samplePeerID, samplePeerID, 0},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ComparePeerID(tt.p1, tt.p2); sign(got) != tt.want {
+				t.Errorf("ComparePeerID() = %v, want %v", got, tt.want)
+			}
+			if got := ComparePeerID(tt.p2, tt.p1); sign(got) != tt.want*(-1) {
+				t.Errorf("ComparePeerID() = %v, want %v", got, tt.want*(-1))
+			}
+		})
+	}
+}
+
+func sign(value int) int {
+	if value > 0 {
+		return 1
+	} else if value == 0 {
+		return 0
+	} else {
+		return -1
+	}
 }

@@ -41,7 +41,7 @@ var _ component.IComponent = (*AccountService)(nil)
 //NewAccountService create account service
 func NewAccountService(cfg *cfg.Config) *AccountService {
 	return &AccountService{
-		BaseComponent: component.NewBaseComponent(message.AccountsSvc, log.NewLogger("account"), cfg.EnableDebugMsg),
+		BaseComponent: component.NewBaseComponent(message.AccountsSvc, log.NewLogger("account")),
 		cfg:           cfg,
 		accounts:      []*types.Account{},
 		unlocked:      map[string]*aergokey{},
@@ -85,6 +85,7 @@ func (as *AccountService) Stop() {
 
 func (as *AccountService) Receive(context actor.Context) {
 	as.BaseComponent.Receive(context)
+
 	switch msg := context.Message().(type) {
 	case *message.GetAccounts:
 		accountList := as.getAccounts()
@@ -112,6 +113,11 @@ func (as *AccountService) Receive(context actor.Context) {
 		} else {
 			context.Respond(&message.VerifyTxRsp{Tx: msg.Tx, Err: nil})
 		}
+	case *component.CompStatReq:
+		context.Respond(
+			&component.CompStatRsp{
+				"component": as.BaseComponent.Statics(msg),
+			})
 	}
 }
 
