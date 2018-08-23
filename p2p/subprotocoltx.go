@@ -8,7 +8,6 @@ package p2p
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"sync"
 
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/multiformats/go-multicodec/protobuf"
@@ -98,7 +98,7 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	idx := 0
 	hashesMap := make(map[string][]byte, len(data.Hashes))
 	for _, hash := range data.Hashes {
-		hashesMap[base64.StdEncoding.EncodeToString(hash)] = hash
+		hashesMap[enc.ToString(hash)] = hash
 	}
 	hashes := make([][]byte, 0, len(data.Hashes))
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
@@ -106,7 +106,7 @@ func (p *TxProtocol) onGetTXsRequest(s inet.Stream) {
 	txs, _ := extractTXsFromRequest(p.iserv.CallRequest(message.MemPoolSvc,
 		&message.MemPoolGet{}))
 	for _, tx := range txs {
-		hash, found := hashesMap[base64.StdEncoding.EncodeToString(tx.Hash)]
+		hash, found := hashesMap[enc.ToString(tx.Hash)]
 		if !found {
 			continue
 		}
@@ -257,7 +257,7 @@ func bytesArrToString(bbarray [][]byte) string {
 	buf.WriteByte('[')
 	for _, hash := range bbarray {
 		buf.WriteByte('"')
-		buf.WriteString(blockchain.EncodeB64(hash))
+		buf.WriteString(enc.ToString(hash))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
 	}

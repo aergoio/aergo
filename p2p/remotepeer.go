@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -396,7 +396,7 @@ func (p *RemotePeer) pruneRequests() {
 
 func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 	// lru cache can accept hashable key
-	b64hash := blockchain.EncodeB64(data.BlockHash)
+	b64hash := enc.ToString(data.BlockHash)
 
 	p.blkHashCache.Add(b64hash, data.BlockHash)
 	p.ps.HandleNewBlockNotice(p.meta.ID, b64hash, data)

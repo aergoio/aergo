@@ -16,6 +16,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/multiformats/go-multicodec/protobuf"
@@ -376,7 +377,7 @@ func (p *BlockProtocol) onNotifyNewBlock(s inet.Stream) {
 		return
 	}
 	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID,
-		log.DoLazyEval(func() string { return blockchain.EncodeB64(data.BlockHash) }))
+		log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
 	remotePeer.handleNewBlockNotice(data)
 

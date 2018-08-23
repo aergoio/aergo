@@ -8,10 +8,10 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"io"
 
+	"github.com/aergoio/aergo/internal/enc"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -140,7 +140,7 @@ func (block *Block) BpID() (id peer.ID, err error) {
 func (block *Block) ID() string {
 	hash := block.GetHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""
@@ -151,7 +151,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""

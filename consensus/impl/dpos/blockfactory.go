@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
@@ -42,7 +43,7 @@ type BlockFactory struct {
 	bpTimeoutC       chan interface{}
 	quit             <-chan interface{}
 	maxBlockBodySize int
-	sID              string
+	ID               string
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp
 }
@@ -55,7 +56,7 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 		workerQueue:      make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
-		sID:              id.Pretty(),
+		ID:               enc.ToString([]byte(id)),
 		privKey:          privKey,
 		quit:             quitC,
 	}
@@ -174,7 +175,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
 		return nil, err
 	}
 
-	logger.Info().Msgf("block %v(no=%v) produced by BP %v", block.ID(), block.GetHeader().GetBlockNo(), bf.sID)
+	logger.Info().Msgf("block %v(no=%v) produced by BP %v", block.ID(), block.GetHeader().GetBlockNo(), bf.ID)
 
 	return block, nil
 }

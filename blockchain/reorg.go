@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
@@ -90,7 +91,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 
 func (reorg *reorganizer) dumpRbBlocks() {
 	for _, rbBlock := range reorg.rbBlocks {
-		logger.Debug().Str("hash", EncodeB64(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
+		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
 			Msg("dump rollback block")
 	}
 }
@@ -136,7 +137,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 			//gather rollback target
 
-			logger.Debug().Str("hash", EncodeB64(mainBlockHash)).Uint64("blockNo", brBlockNo).
+			logger.Debug().Str("hash", enc.ToString(mainBlockHash)).Uint64("blockNo", brBlockNo).
 				Msg("gather rollback target")
 			reorg.rbBlocks = append(reorg.rbBlocks, &reorgBlock{brBlockNo, mainBlockHash})
 		}
@@ -146,7 +147,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 		}
 
 		//gather rollforward target
-		logger.Debug().Str("hash", EncodeB64(brBlockHash)).Uint64("blockNo", brBlockNo).
+		logger.Debug().Str("hash", enc.ToString(brBlockHash)).Uint64("blockNo", brBlockNo).
 			Msg("gather rollforward target")
 		reorg.rfBlocks = append(reorg.rfBlocks, &reorgBlock{brBlockNo, brBlockHash})
 
@@ -175,7 +176,7 @@ func (reorg *reorganizer) rollbackChain() error {
 	cdb := reorg.cs.cdb
 
 	for _, rbBlock := range reorg.rbBlocks {
-		logger.Debug().Str("hash", EncodeB64(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
+		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
 			Msg("rollback block")
 
 		//get target block
@@ -240,7 +241,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 	for i := len(reorg.rfBlocks) - 1; i >= 0; i-- {
 		rfBlock := reorg.rfBlocks[i]
 
-		logger.Debug().Str("hash", EncodeB64(rfBlock.Hash)).Uint64("blockNo", rfBlock.BlockNo).
+		logger.Debug().Str("hash", enc.ToString(rfBlock.Hash)).Uint64("blockNo", rfBlock.BlockNo).
 			Msg("rollforward block")
 
 		targetBlock, err := cdb.getBlock(rfBlock.Hash)

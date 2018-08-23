@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -419,7 +420,7 @@ func (mp *MemPool) dumpTxsToFile() {
 				continue
 			}
 
-			strData := base64.StdEncoding.EncodeToString(data)
+			strData := enc.ToString(data)
 			err = writer.Write([]string{strData})
 			if err != nil {
 				mp.Info().Err(err).Msg("writing encoded tx fail")

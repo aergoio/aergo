@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -92,7 +93,7 @@ func (cs *ChainService) initGenesis(seed int64) error {
 		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", EncodeB64(gb.Hash)).Msg("chain initialized")
+	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
 
 	return nil
 }
@@ -105,7 +106,7 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
-		logger.Debug().Str("hash", EncodeB64(a)).Msg("request blocks for sync")
+		logger.Debug().Str("hash", enc.ToString(a)).Msg("request blocks for sync")
 	}
 	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
 }
@@ -158,7 +159,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bid := types.ToBlockID(msg.BlockHash)
 		block, err := cs.getBlock(bid[:])
 		if err != nil {
-			logger.Error().Err(err).Str("hash", EncodeB64(msg.BlockHash)).Msg("failed to get block")
+			logger.Error().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("failed to get block")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
@@ -203,7 +204,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		id := types.ToAccountID(msg.Account)
 		state, err := cs.sdb.GetAccountState(id)
 		if err != nil {
-			logger.Error().Str("hash", EncodeB64(msg.Account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
 		res := state.Clone()
 		context.Respond(message.GetStateRsp{

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -35,7 +36,7 @@ func NewOrphanPool() *OrphanPool {
 
 // add Orphan into the orphan cache pool
 func (op *OrphanPool) addOrphan(block *types.Block) error {
-	logger.Debug().Str("hash", block.ID()).Str("prev", EncodeB64(block.GetHeader().GetPrevBlockHash())).
+	logger.Debug().Str("hash", block.ID()).Str("prev", enc.ToString(block.GetHeader().GetPrevBlockHash())).
 		Msg("add orphan Block")
 
 	id := types.ToBlockID(block.Header.PrevBlockHash)

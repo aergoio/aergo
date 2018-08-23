@@ -12,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/gogo/protobuf/proto"
@@ -38,7 +39,7 @@ func (e ErrNoBlock) Error() string {
 
 	switch id := e.id.(type) {
 	case []byte:
-		idStr = fmt.Sprintf("blockHash=%v", EncodeB64(id))
+		idStr = fmt.Sprintf("blockHash=%v", enc.ToString(id))
 	default:
 		idStr = fmt.Sprintf("blockNo=%v", id)
 	}
@@ -186,7 +187,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	isMainChain := bytes.Equal(prevHash, latestHash)
 
 	logger.Debug().Bool("isMainChain", isMainChain).Uint64("blkno", blockNo).Str("hash", block.ID()).
-		Str("latest", EncodeB64(latestHash)).Str("prev", EncodeB64(prevHash)).
+		Str("latest", enc.ToString(latestHash)).Str("prev", enc.ToString(prevHash)).
 		Msg("check if block is in main chain")
 
 	return isMainChain, nil
@@ -304,7 +305,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 
 	err := cdb.loadData(txHash, txIdx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("tx not found: txHash=%v", EncodeB64(txHash))
+		return nil, nil, fmt.Errorf("tx not found: txHash=%v", enc.ToString(txHash))
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
@@ -315,7 +316,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
-	logger.Debug().Str("hash", EncodeB64(txHash)).Msg("getTx")
+	logger.Debug().Str("hash", enc.ToString(txHash)).Msg("getTx")
 
 	return tx, txIdx, nil
 }
@@ -335,9 +336,9 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		hash, _ := cdb.getHashByNo(i)
 		tree = append(tree, ChainInfo{
 			Height: i,
-			Hash:   EncodeB64(hash),
+			Hash:   enc.ToString(hash),
 		})
-		logger.Info().Str("hash", EncodeB64(hash)).Msg("GetChainTree")
+		logger.Info().Str("hash", enc.ToString(hash)).Msg("GetChainTree")
 	}
 	jsonBytes, err := json.Marshal(tree)
 	if err != nil {

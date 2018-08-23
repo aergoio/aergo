@@ -6,15 +6,15 @@
 package blockchain
 
 import (
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
 
-type hash []byte
-type ChainAnchor []hash
+type ChainAnchor []([]byte)
 
 // returns anchor blocks of chain
 // use config
-func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
+func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 	/* TODO: use config */
 	anchors := make(ChainAnchor, 0, 1000)
 	anchors = append(anchors, blockHash)
@@ -29,7 +29,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", EncodeB64(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo == 0 {
@@ -47,7 +47,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", EncodeB64(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo <= dec {

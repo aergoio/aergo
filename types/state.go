@@ -2,10 +2,10 @@ package types
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"reflect"
 
+	"github.com/aergoio/aergo/internal/enc"
 	proto "github.com/golang/protobuf/proto"
 )
 
@@ -30,7 +30,7 @@ func ToHashID(hash []byte) HashID {
 	return HashID(buf)
 }
 func (id HashID) String() string {
-	return base64.StdEncoding.EncodeToString(id[:])
+	return enc.ToString(id[:])
 }
 
 func ToBlockID(blockHash []byte) BlockID {

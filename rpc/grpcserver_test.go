@@ -6,12 +6,12 @@ package rpc
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -26,24 +26,24 @@ import (
 func TestAergoRPCService_dummys(t *testing.T) {
 	fmt.Println("dummyBlockHash")
 	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyBlockHash))
-	fmt.Printf("B64 : %s \n", base64.StdEncoding.EncodeToString(dummyBlockHash))
+	fmt.Printf("B64 : %s \n", enc.ToString(dummyBlockHash))
 	fmt.Printf("B58 : %s \n", base58.Encode(dummyBlockHash))
 	fmt.Println()
 	fmt.Println("dummyTx")
 	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyTxHash))
-	fmt.Printf("B64 : %s \n", base64.StdEncoding.EncodeToString(dummyTxHash))
+	fmt.Printf("B64 : %s \n", enc.ToString(dummyTxHash))
 	fmt.Printf("B58 : %s \n", base58.Encode(dummyTxHash))
 	fmt.Println()
 
 	fmt.Println("Address1")
 	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyWalletAddress))
-	fmt.Printf("B64 : %s \n", base64.StdEncoding.EncodeToString(dummyWalletAddress))
+	fmt.Printf("B64 : %s \n", enc.ToString(dummyWalletAddress))
 	fmt.Printf("B58 : %s \n", base58.Encode(dummyWalletAddress))
 	fmt.Println()
 
 	fmt.Println("Address2")
 	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyWalletAddress2))
-	fmt.Printf("B64 : %s \n", base64.StdEncoding.EncodeToString(dummyWalletAddress2))
+	fmt.Printf("B64 : %s \n", enc.ToString(dummyWalletAddress2))
 	fmt.Printf("B58 : %s \n", base58.Encode(dummyWalletAddress2))
 	fmt.Println()
 

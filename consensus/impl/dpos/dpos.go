@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -148,7 +149,7 @@ func (dpos *DPoS) StatusUpdate() {
 func (dpos *DPoS) bpIdx() uint16 {
 	idx, exist := dpos.bpc.BpID2Index(dpos.ID)
 	if !exist {
-		logger.Fatal().Str("id", dpos.ID.Pretty()).Msg("BP has no correct BP membership")
+		logger.Fatal().Str("id", enc.ToString([]byte(dpos.ID))).Msg("BP has no correct BP membership")
 	}
 
 	return idx
