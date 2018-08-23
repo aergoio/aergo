@@ -69,7 +69,7 @@ func (hub *ComponentHub) Register(component IComponent) {
 	component.SetHub(hub)
 }
 
-func (hub *ComponentHub) Profile(timeOutSec time.Duration) map[string]*CompStatRsp {
+func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompStatRsp {
 	var compStatus map[string]Status
 	compStatus = make(map[string]Status)
 

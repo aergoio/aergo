@@ -44,7 +44,7 @@ func main() {
 	}
 
 	// collect all component's statuses
-	statics := compHub.Profile(time.Second)
+	statics := compHub.Statistics(time.Second)
 	if data, err := json.MarshalIndent(statics, "", "\t"); err != nil {
 		fmt.Println(err)
 	} else {
