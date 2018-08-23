@@ -68,12 +68,14 @@ func execVote(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var price uint64
+	payload := make([]byte, len(candidate)+1)
 	if revert {
-		price = 0
+		payload[0] = 'r'
 	} else {
-		price = 1
+		payload[0] = 'v'
 	}
+	copy(payload[1:], candidate)
+
 	txs := make([]*types.Tx, 1)
 
 	state, err := client.GetState(context.Background(),
@@ -86,9 +88,10 @@ func execVote(cmd *cobra.Command, args []string) {
 	txs[0] = &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
-			Recipient: candidate,
+			Recipient: []byte("aergo.bp"),
 			Amount:    uint64(amount),
-			Price:     price,
+			Price:     0,
+			Payload:   payload,
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,
 			Nonce:     state.GetNonce() + 1,

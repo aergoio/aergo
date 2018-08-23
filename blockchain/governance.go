@@ -22,10 +22,13 @@ func (cs *ChainService) processGovernanceTx(dbtx *db.Transaction, bs *state.Bloc
 		return errors.New("too small amount to influence")
 	}
 	governanceCmd := string(txBody.GetRecipient())
+
 	var err error
 	switch governanceCmd {
 	case "aergo.bp":
 		err = cs.processVoteTx(dbtx, bs, txBody)
+	default:
+		logger.Warn().Str("governanceCmd", governanceCmd).Msg("receive unknown cmd")
 	}
 	return err
 }
@@ -39,22 +42,21 @@ func (cs *ChainService) processVoteTx(dbtx *db.Transaction, bs *state.BlockState
 	senderChange := types.Clone(*senderState).(types.State)
 
 	voter := types.EncodeB64(txBody.Account)
-	c, err := peer.IDFromBytes(txBody.Recipient)
+	c, err := peer.IDFromBytes(txBody.Payload[1:])
 	if err != nil {
 		return err
 	}
-	to := c.Pretty()
-	if txBody.GetPrice() == 1 { //stake and vote
+	to := peer.IDB58Encode(c)
+	if txBody.Payload[0] == 'v' { //staking, vote
 		if senderChange.Balance < txBody.Amount {
 			return errors.New("not enough balance")
-		} else {
-			senderChange.Balance = senderState.Balance - txBody.Amount
 		}
+		senderChange.Balance = senderState.Balance - txBody.Amount
 		cs.putVote(voter, to, int64(txBody.Amount))
 		senderChange.Nonce = txBody.Nonce
 		bs.PutAccount(senderKey, senderState, &senderChange)
 
-	} else { //unstake and refund
+	} else if txBody.Payload[0] == 'r' { //unstaking, revert
 		//TODO: check valid candidate, voter, amount from state db
 		if cs.getVote(voter, to) < txBody.Amount {
 			return errors.New("not enough staking balance")
@@ -71,10 +73,15 @@ func (cs *ChainService) putVote(voter string, to string, amount int64) {
 	//TODO: update candidate, voter, amount to state db
 	entry, ok := cs.voters[voter]
 	if !ok {
-		entry = make(map[string]*[2]uint64)
-		entry[to] = &[2]uint64{}
+		entry = make(map[string][]uint64)
 		cs.voters[voter] = entry
 	}
+	amountBlockNo, ok := cs.voters[voter][to]
+	if !ok {
+		amountBlockNo = make([]uint64, 2)
+		cs.voters[voter][to] = amountBlockNo
+	}
+
 	entry[to][0] = uint64(int64(entry[to][0]) + amount)
 	cs.votes[to] = uint64(int64(cs.votes[to]) + amount)
 }
@@ -90,7 +97,7 @@ func (cs *ChainService) getVotes(n int) types.VoteList {
 
 	i := 0
 	for k, v := range cs.votes {
-		c := types.DecodeB64(k)
+		c := types.DecodeB58(k)
 		ret.Votes[i] = &types.Vote{Candidate: c, Amount: v}
 		i++
 	}

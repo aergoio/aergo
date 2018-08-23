@@ -32,8 +32,8 @@ type ChainService struct {
 	cc chan consensus.ChainConsensus
 
 	//TODO : will be changed to use state DB
-	votes  map[string]uint64                //candidate, sum of votes
-	voters map[string]map[string]*[2]uint64 // voter, candidate, amount of votes, update blockno
+	votes  map[string]uint64              //candidate, sum of votes
+	voters map[string]map[string][]uint64 // voter, candidate, amount of votes, update blockno
 }
 
 var _ component.IComponent = (*ChainService)(nil)
@@ -51,7 +51,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		op:            NewOrphanPool(),
 
 		votes:  map[string]uint64{},
-		voters: map[string]map[string]*[2]uint64{},
+		voters: map[string]map[string][]uint64{},
 	}
 }
 

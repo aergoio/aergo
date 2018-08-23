@@ -185,6 +185,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	if txBody.GetType() == types.TxType_GOVERNANCE {
 		err := cs.processGovernanceTx(dbtx, bs, txBody)
 		if err != nil {
+			logger.Error().Err(err).Msg("governance transaction processing failed")
 			return err
 		}
 	} else {
