@@ -80,7 +80,7 @@ func (bs *BlockState) PutAccount(aid types.AccountID, state, change *types.State
 type ChainStateDB struct {
 	sync.RWMutex
 	accounts map[types.AccountID]*types.State
-	trie     *trie.SMT
+	trie     *trie.Trie
 	latest   *BlockInfo
 	statedb  db.DB
 }
@@ -93,7 +93,7 @@ func NewStateDB() *ChainStateDB {
 		}
 		return hasher.Sum(nil)
 	}
-	smt := trie.NewSMT(32, hasher, nil)
+	smt := trie.NewTrie(32, hasher, nil)
 
 	return &ChainStateDB{
 		accounts: make(map[types.AccountID]*types.State),

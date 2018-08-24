@@ -14,8 +14,8 @@ import (
 	//"time"
 	//"encoding/hex"
 	//"fmt"
-	//"math/rand"
-	//"sort"
+	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -504,4 +504,18 @@ func BenchmarkCacheHeightLimit245(b *testing.B) {
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
 	os.RemoveAll(".aergo")
+}
+
+func getFreshData(size, length int) [][]byte {
+	var data [][]byte
+	for i := 0; i < size; i++ {
+		key := make([]byte, 32)
+		_, err := rand.Read(key)
+		if err != nil {
+			panic(err)
+		}
+		data = append(data, hash(key)[:length])
+	}
+	sort.Sort(DataArray(data))
+	return data
 }
