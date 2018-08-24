@@ -2,14 +2,16 @@ package p2p
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	"github.com/libp2p/go-libp2p-protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -85,7 +87,7 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockP2PService)
-			mockStream := new(Stream)
+			mockStream := new(MockStream)
 			mockOrder := new(MockMsgOrder)
 			mockPeerManager.On("NewStream", mock.Anything, mock.AnythingOfType("peer.ID"),
 				mock.AnythingOfType("protocol.ID")).Return(mockStream, tt.args.StreamResult)
@@ -224,14 +226,95 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		// logger.SetLevel(tt.loglevel)
 		mockActorServ := new(MockActorService)
 		mockPeerManager := new(MockP2PService)
+		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 		t.Run(tt.name, func(t *testing.T) {
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.requests["r1"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
 			p.requests["r2"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
 			p.requests["rn"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
+		})
+	}
+}
+
+func TestRemotePeer_tryGetStream(t *testing.T) {
+	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	mockStream := new(MockStream)
+	type args struct {
+		msgID    string
+		protocol protocol.ID
+		timeout  time.Duration
+	}
+	tests := []struct {
+		name    string
+		args    args
+		timeout bool
+		want    inet.Stream
+	}{
+		{"TN", args{"m1", "p1", time.Millisecond * 100}, false, mockStream},
+		{"TTimeout", args{"m1", "p1", time.Millisecond * 100}, true, nil},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		mockActorServ := new(MockActorService)
+		mockPeerManager := new(MockP2PService)
+		if tt.timeout {
+			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).After(time.Second).Return(mockStream, nil)
+		} else {
+			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).Return(mockStream, nil)
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			got := p.tryGetStream(tt.args.msgID, tt.args.protocol, tt.args.timeout)
+
+			assert.Equal(t, got, tt.want)
+		})
+	}
+}
+
+func TestRemotePeer_sendMessage(t *testing.T) {
+	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	mockMsg := new(MockMsgOrder)
+	mockMsg.On("GetRequestID").Return("m1")
+	mockMsg.On("GetProtocolID").Return(notifyNewBlockRequest)
+
+	type args struct {
+		msgID    string
+		protocol protocol.ID
+		timeout  time.Duration
+	}
+	tests := []struct {
+		name    string
+		args    args
+		timeout bool
+	}{
+		{"TN", args{"m1", "p1", time.Millisecond * 100}, false},
+		{"TTimeout", args{"m1", "p1", time.Millisecond * 100}, true},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		mockActorServ := new(MockActorService)
+		mockPeerManager := new(MockP2PService)
+		t.Run(tt.name, func(t *testing.T) {
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+
+			go func() {
+				wg.Wait()
+				for {
+					select {
+					case <-p.write:
+						continue
+					default:
+						return
+					}
+				}
+			}()
+
+			p.sendMessage(mockMsg)
+			wg.Done()
 		})
 	}
 }

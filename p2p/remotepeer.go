@@ -192,8 +192,10 @@ WRITELOOP:
 		}
 	}
 	cleanupTicker.Stop()
-	close(p.write)
-	close(p.consumeChan)
+
+	// closing channel is to golang runtime
+	// close(p.write)
+	// close(p.consumeChan)
 }
 
 func (p *RemotePeer) processOp(op OpOrder) {
@@ -212,8 +214,15 @@ func (p *RemotePeer) stop() {
 	p.stopChan <- struct{}{}
 }
 
+const writeChannelTimeout = time.Second * 2
+
 func (p *RemotePeer) sendMessage(msg msgOrder) {
-	p.write <- msg
+	select {
+	case p.write <- msg:
+		return
+	case <-time.After(writeChannelTimeout):
+		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, string(msg.GetProtocolID())).Msg("Peer too busy or deadlock, stalled message is dropped")
+	}
 }
 
 // consumeRequest remove request from request history.
@@ -296,16 +305,16 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		}
 	}
 
-	s, err := p.ps.NewStream(context.Background(), p.meta.ID, m.GetProtocolID())
-	if err != nil {
-		p.log.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
+	s := p.tryGetStream(m.GetRequestID(), m.GetProtocolID(), getStreamTimeout)
+	if s == nil {
+		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
 		// problem in connection starting disconnect
 		p.ps.RemovePeer(p.meta.ID)
 		return
 	}
 	//defer s.Close()
 
-	err = m.SendOver(s)
+	err := m.SendOver(s)
 	if err != nil {
 		p.log.Warn().Err(err).Msg("fail to SendOver")
 		return
@@ -316,6 +325,31 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	if m.ResponseExpected() {
 		p.requests[m.GetRequestID()] = m
 	}
+}
+
+const getStreamTimeout = time.Second * 30
+
+func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
+	streamChannel := make(chan inet.Stream)
+	var s inet.Stream = nil
+	go p.getStreamForWriting(msgID, protocol, streamChannel)
+	select {
+	case s = <-streamChannel:
+		return s
+	case <-time.After(timeout):
+		p.log.Warn().Str(LogMsgID, msgID).Msg("stream get timeout")
+	}
+	return s
+}
+
+func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, schannel chan inet.Stream) {
+	ctx := context.Background()
+	s, err := p.ps.NewStream(ctx, p.meta.ID, protocol)
+	if err != nil {
+		p.log.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(protocol)).Msg("Error while get stream")
+		schannel <- nil
+	}
+	schannel <- s
 }
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()

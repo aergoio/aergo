@@ -15,7 +15,7 @@ import (
 
 func TestPingProtocol_onStatusRequest(t *testing.T) {
 	mockP2PS := &MockP2PService{}
-	mockIStream := &Stream{}
+	mockIStream := &MockStream{}
 	mockConn := &MockConn{}
 
 	samplePeerID, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
