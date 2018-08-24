@@ -154,6 +154,7 @@ identifier      {alpha}({alpha}|{digit})*
     yy_error(ERROR_SCAN_UNTERMINATED_COMMENT);
 }             
 
+    /* http://www.lysator.liu.se/c/ANSI-C-grammar-l.html */
 {dquote} {
     BEGIN(D_QUOTE);
     yy_update_column();
