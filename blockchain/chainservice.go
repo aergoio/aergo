@@ -159,7 +159,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bid := types.ToBlockID(msg.BlockHash)
 		block, err := cs.getBlock(bid[:])
 		if err != nil {
-			logger.Error().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("failed to get block")
+			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
