@@ -260,6 +260,9 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		return s.parseValue(val)
 	}
 	//Fetch node in disk database
+	if s.db.store == nil {
+		return nil, nil, byte(0), fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDbMux.Lock()
 	s.LoadDbCounter++
 	s.loadDbMux.Unlock()
@@ -377,7 +380,10 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 }
 
 // Commit stores the updated nodes to disk
-func (s *SMT) Commit() {
+func (s *SMT) Commit() error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])
@@ -387,4 +393,5 @@ func (s *SMT) Commit() {
 	}
 	s.db.commit()
 	s.db.updatedNodes = make(map[Hash][]byte, len(s.db.updatedNodes)*2)
+	return nil
 }

@@ -360,6 +360,18 @@ func TestSmtRaisesError(t *testing.T) {
 	}
 	st.Close()
 	os.RemoveAll(".aergo")
+
+	smt = NewSMT(20, hash, nil)
+	err = smt.Commit()
+	if err == nil {
+		t.Fatal("Error not created if database not connected")
+	}
+	smt.db.liveCache = make(map[Hash][]byte)
+	_, _, _, err = smt.loadChildren(make([]byte, 32, 32))
+	if err == nil {
+		t.Fatal("Error not created if database not connected")
+	}
+
 }
 
 func getFreshData(size, length int) [][]byte {

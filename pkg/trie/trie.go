@@ -82,6 +82,9 @@ func (s *Trie) loadDefaultHashes() []byte {
 // LoadCache loads the first layers of the merkle tree given a root
 // This is called after a node restarts so that it doesnt become slow with db reads
 func (s *Trie) LoadCache(root []byte) error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDefaultHashes()
 	ch := make(chan error, 1)
 	s.loadCache(root, s.TrieHeight, ch)
@@ -419,6 +422,9 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		return s.parseValue(val, len(val))
 	}
 	//Fetch node in disk database
+	if s.db.store == nil {
+		return nil, nil, byte(0), fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDbMux.Lock()
 	s.LoadDbCounter++
 	s.loadDbMux.Unlock()
@@ -534,7 +540,10 @@ func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) [
 }
 
 // Commit stores the updated nodes to disk
-func (s *Trie) Commit() {
+func (s *Trie) Commit() error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])
@@ -544,4 +553,5 @@ func (s *Trie) Commit() {
 	}
 	s.db.commit()
 	s.db.updatedNodes = make(map[Hash][]byte, len(s.db.updatedNodes)*2)
+	return nil
 }
