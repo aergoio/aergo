@@ -6,12 +6,14 @@
 #define ERROR_INTERNAL                      "internal error: %s"
 #define ERROR_INVALID_OPTION                "invalid command option: %s"
 
-#define ERROR_FILE_NOT_FOUND                "file not found: %s"
-#define ERROR_FILE_READ_FAILED              "%s failed: %s"
+#define ERROR_FILE_OPEN_FAILED              "%s: %s"
+#define ERROR_FILE_SEEK_FAILED              "fseek failed: %s"
+#define ERROR_FILE_READ_FAILED              "fread failed: %s"
 
 #define ERROR_SCAN_UNTERMINATED_COMMENT     "unterminated comment"
 #define ERROR_SCAN_UNTERMINATED_STRING      "unterminated string"
 #define ERROR_SCAN_UNKNOWN_CHAR             "unknown character"
+#define ERROR_SCAN_STR_TOO_LONG             "string literal too long"
 #define ERROR_PARSE_FAILED                  "syntax error occurred"
 
 /* vim:set filetype=c: */

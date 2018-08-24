@@ -1,12 +1,14 @@
 /**
- * @file    sc_error.h
+ * @file    sc_throw.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _SC_ERROR_H
-#define _SC_ERROR_H
+#ifndef _SC_THROW_H
+#define _SC_THROW_H
 
 #include "sc_common.h"
+
+#include "sc_error.list"
 
 #define ERROR_MAX_DESC_LEN      1024
 
@@ -15,12 +17,6 @@
 #define ANSI_YELLOW             "\x1b[33m"
 #define ANSI_WHITE              "\x1b[37m"
 #define ANSI_DEFAULT            "\x1b[0m"
-
-#define ERROR_INTERNAL          "internal error: %s"
-#define ERROR_INVALID_OPTION    "invalid command option: %s"
-#define ERROR_FILE_NOT_FOUND    "file not found: %s"
-#define ERROR_FILE_READ_FAILED  "%s failed: %s"
-#define ERROR_PARSE_FAILED      "syntax error occurred"
 
 #define sc_assert(cond)                                                        \
     do {                                                                       \
@@ -72,4 +68,4 @@ sc_fatal(char *fmt, ...)
     sc_exit(EXIT_FAILURE);
 }
 
-#endif /* no _SC_ERROR_H */
+#endif /* no _SC_THROW_H */

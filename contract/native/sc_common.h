@@ -18,8 +18,10 @@
 #define SC_VERSION_MINOR    1
 #define SC_VERSION_PATCH    0
 
-#define SC_PATH_MAX         256
+#define SC_PATH_MAX_LEN     256
 #define SC_PATH_DELIM       '/'
+
+#define SC_STR_MAX_LEN      256
 
 #define RC_OK               0
 #define RC_ERROR            (-1)

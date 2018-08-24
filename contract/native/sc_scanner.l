@@ -6,7 +6,7 @@
 
 #include "sc_common.h"
 
-#include "sc_error.h"
+#include "sc_throw.h"
 #include "sc_util.h"
 #include "sc_parser.h"
 
@@ -20,12 +20,23 @@
 
 #define yy_update_line()                                                       \
     do {                                                                       \
-        yyextra->line++;                                                       \
-        yyextra->offset += yyextra->column;                                    \
-        yyextra->column = 1;                                                   \
+        yyextra->lloc.line++;                                                  \
+        yyextra->lloc.offset += yyextra->lloc.column;                          \
+        yyextra->lloc.column = 1;                                              \
     } while (0)
 
-#define yy_update_column()          (yyextra->column += yyleng)
+#define yy_update_column()          (yyextra->lloc.column += yyleng)
+
+#define yy_strcat()                                                            \
+    do {                                                                       \
+        if (yyextra->offset + yyleng >= SC_STR_MAX_LEN) {                      \
+            yy_error(ERROR_SCAN_STR_TOO_LONG);                                 \
+            yy_update_column();                                                \
+            yy_recover();                                                      \
+        }                                                                      \
+        strcat(yyextra->buf, yytext);                                          \
+        yyextra->offset += yyleng;                                             \
+    } while (0)
 
 #define yy_error(errmsg)                                                       \
     do {                                                                       \
@@ -37,12 +48,12 @@
         if (yyextra->errcnt > 10)                                              \
             yyterminate();                                                     \
         fp = sc_fopen(yyextra->path, "r");                                     \
-        sc_fseek(fp, yyextra->offset);                                         \
+        sc_fseek(fp, yyextra->lloc.offset);                                    \
         sc_fgets(fp, sizeof(line), line);                                      \
         snprintf(errloc, sizeof(errloc), "%s:%d:%d", yyextra->file,            \
-                 yyextra->line, yyextra->column);                              \
+                 yyextra->lloc.line, yyextra->lloc.column);                    \
         snprintf(errdesc, sizeof(errdesc), "%s\n%s", errmsg, line);            \
-        for (i = 0; i < yyextra->column - 1; i++) {                            \
+        for (i = 0; i < yyextra->lloc.column - 1; i++) {                       \
             strcat(errdesc, " ");                                              \
         }                                                                      \
         strcat(errdesc, ANSI_GREEN"^"ANSI_DEFAULT);                            \
@@ -76,6 +87,7 @@
 %option prefix="sc_yy"
 
 %x  C_COMMENT
+%x  D_QUOTE
 
 whitespace          ([ ]|\t|(\xE3\x80\x80))
 newline             (\r|\n|\r\n)
@@ -83,6 +95,42 @@ newline             (\r|\n|\r\n)
 cpp_comment         "//"
 c_comment_start     "/*"
 c_comment_end       "*/"
+
+lparen          "("
+rparen          ")"
+lbrace          "{"
+rbrace          "}"
+lbracket        "["
+rbracket        "]"
+dot             "."
+comma           ","
+colon           ":"
+semicolon       ";"
+question        "?"
+plus            "+"
+minus           "-"
+asterisk        "*"
+slash           "/"
+percent         "%"
+equal           "="
+dquote          "\""
+sign            ({plus}|{minus})
+
+cmp_eq          "=="
+cmp_ne          "!="
+cmp_lt          "<"
+cmp_gt          ">"
+cmp_le          "<="
+cmp_ge          ">="
+
+digit           [:digit:]
+alpha           [a-zA-Z\x80-\xFF_]
+
+integer         {digit}+
+float           ({digit}*{dot}{digit}+|{digit}+{dot}{digit}*)
+exponent        ({integer}|{float})[eE]{sign}?{digit}+
+
+identifier      {alpha}({alpha}|{digit})*
 
 %%
 
@@ -100,15 +148,60 @@ c_comment_end       "*/"
     yy_update_column();
 }
 <C_COMMENT>[^*\r\n]+            yy_update_column();
-<C_COMMENT>"*"                  yy_update_column();
+<C_COMMENT>{asterisk}           yy_update_column();
 <C_COMMENT>{newline}            yy_update_line();
 <C_COMMENT><<EOF>> {
-    yy_error("unterminated comment");
-    yyterminate();
+    yy_error(ERROR_SCAN_UNTERMINATED_COMMENT);
 }             
 
+{dquote} {
+    BEGIN(D_QUOTE);
+    yy_update_column();
+    yyextra->buf[0] = '\0';
+    yyextra->offset = 0;
+}
+<D_QUOTE>[^"\\\r\n]+ {
+    yy_update_column();
+    yy_strcat();
+}
+<D_QUOTE>{dquote} {
+    BEGIN(INITIAL);
+    yy_update_column();
+    fprintf(stderr, "result: %s\n", yyextra->buf);
+    //return L_STR;
+}
+<D_QUOTE>"\\"{whitespace}*{newline} {
+    yy_update_column();
+    yy_update_line();
+}
+<D_QUOTE>"\\" {
+    yy_update_column();
+    yy_strcat();
+}
+<D_QUOTE>{newline} {
+    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
+    yy_update_line();
+}
+<D_QUOTE><<EOF>> {
+    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
+    yyterminate();
+}
+
+{integer} {
+    yy_update_column();
+    // return L_INT;
+}
+{float} {
+    yy_update_column();
+    // return L_FLOAT;
+}
+{exponent} {
+    yy_update_column();
+    // return L_EXPN;
+}
+
 . {
-    yy_error("unknown character");
+    yy_error(ERROR_SCAN_UNKNOWN_CHAR);
     yy_update_column();
     yy_recover();
 }

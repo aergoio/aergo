@@ -36,7 +36,7 @@ all-local: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-sc_scanner.yy.c: sc_scanner.l sc_error.h sc_util.h sc_parser.h
+sc_scanner.yy.c: sc_scanner.l sc_throw.h sc_util.h sc_parser.h
 	$(LEX) -o $@ --header-file=sc_scanner.yy.h $^
 
 $(OBJDIR)/%.o: %.c

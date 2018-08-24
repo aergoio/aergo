@@ -5,7 +5,7 @@
 
 #include "sc_common.h"
 
-#include "sc_error.h"
+#include "sc_throw.h"
 #include "sc_util.h"
 #include "sc_scanner.yy.h"
 
@@ -21,14 +21,22 @@ extern void sc_yyset_extra(void *, void *);
 static void
 sc_yyextra_init(sc_yyextra_t *data, char *path)
 {
-    char *delim = strrchr(path, SC_PATH_DELIM);
+    char *delim;
 
     data->path = path;
+
+    delim = strrchr(path, SC_PATH_DELIM);
     strcpy(data->file, delim == NULL ? path : delim + 1);
+
     data->errcnt = 0;
-    data->line = 1;
-    data->column = 1;
+
+    data->lloc.line = 1;
+    data->lloc.column = 1;
+    data->lloc.offset = 0;
+
     data->offset = 0;
+    data->buf = malloc(SC_STR_MAX_LEN + 1);
+    data->buf[0] = '\0';
 }
 
 int

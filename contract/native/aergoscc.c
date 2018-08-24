@@ -5,7 +5,7 @@
 
 #include "sc_common.h"
 
-#include "sc_error.h"
+#include "sc_throw.h"
 #include "sc_parser.h"
 
 static void
