@@ -10,8 +10,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
 
-#define SC_EXECUTABLE       "ascc"
+#define SC_EXECUTABLE       "aergoscc"
 
 #define SC_VERSION_MAJOR    0
 #define SC_VERSION_MINOR    1
@@ -19,6 +20,9 @@
 
 #define SC_PATH_MAX         256
 #define SC_PATH_DELIM       '/'
+
+#define RC_OK               0
+#define RC_ERROR            (-1)
 
 #define sc_exit(ec)                                                            \
     do {                                                                       \

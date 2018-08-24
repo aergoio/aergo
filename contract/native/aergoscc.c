@@ -1,5 +1,5 @@
 /**
- *  @file   ascc.c
+ *  @file   aergoscc.c
  *  @copyright defined in aergo/LICENSE.txt
  */
 
@@ -17,7 +17,7 @@ sc_print_help(void)
            "  --help        Display this information\n"
            "  --version     Display compiler version information\n\n"
            "Examples:\n"
-           "  %s contract.asc\n",
+           "  %s contract.sc\n",
            SC_EXECUTABLE, SC_EXECUTABLE, SC_EXECUTABLE);
 
     sc_exit(EXIT_SUCCESS);
@@ -26,7 +26,7 @@ sc_print_help(void)
 static void
 sc_print_version(void)
 {
-    printf("%s, Aergo smart contract compiler %d.%d.%d\n"
+    printf("%s, Aergo smart contract compiler %d.%d.%d\n\n"
            "Copyright blah blah blah...\n",
            SC_EXECUTABLE, SC_VERSION_MAJOR, SC_VERSION_MINOR, SC_VERSION_PATCH);
 

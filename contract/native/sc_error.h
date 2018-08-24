@@ -19,7 +19,7 @@
 #define ERROR_INTERNAL          "internal error: %s"
 #define ERROR_INVALID_OPTION    "invalid command option: %s"
 #define ERROR_FILE_NOT_FOUND    "file not found: %s"
-#define ERROR_FILE_READ_FAILED  "reading file was failed: %s"
+#define ERROR_FILE_READ_FAILED  "%s failed: %s"
 #define ERROR_PARSE_FAILED      "syntax error occurred"
 
 #define sc_assert(cond)                                                        \

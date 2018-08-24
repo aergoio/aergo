@@ -17,6 +17,6 @@ typedef struct sc_yyextra_s {
     int offset;
 } sc_yyextra_t;
 
-void sc_parse(char *path);
+int sc_parse(char *path);
 
 #endif /* no _SC_PARSER_H */

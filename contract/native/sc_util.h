@@ -27,15 +27,34 @@ sc_fopen(char *path, char *mode)
 static inline void
 sc_fseek(FILE *fp, long offset)
 {
-    if (fseek(fp, offset, SEEK_SET) != 0)
-        sc_fatal(ERROR_FILE_READ_FAILED, ferror(fp));
+    if (fseek(fp, offset, SEEK_SET) != 0 && !feof(fp))
+        sc_fatal(ERROR_FILE_READ_FAILED, "fseek", 
+                 errno == 0 ? "EOF": strerror(errno));
 }
 
 static inline void
 sc_fgets(FILE *fp, int buf_size, char *buf)
 {
-    if (fgets(buf, buf_size, fp) == NULL)
-        sc_fatal(ERROR_FILE_READ_FAILED, ferror(fp));
+    buf[0] = '\0';
+
+    if (fgets(buf, buf_size, fp) == NULL && !feof(fp)) {
+        sc_fatal(ERROR_FILE_READ_FAILED, "fgets",
+                 errno == 0 ? "EOF": strerror(errno));
+    }
+}
+
+static inline int
+sc_fread(FILE *fp, int buf_size, char *buf) 
+{
+    int n;
+
+    buf[0] = '\0';
+
+    if ((n = fread(buf, 1, buf_size, fp)) == 0 && !feof(fp))
+        sc_fatal(ERROR_FILE_READ_FAILED, "fread", 
+                 errno == 0 ? "EOF": strerror(errno));
+
+    return n;
 }
 
 #endif /* no _SC_UTIL_H */

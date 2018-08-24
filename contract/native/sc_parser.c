@@ -31,7 +31,7 @@ sc_yyextra_init(sc_yyextra_t *data, char *path)
     data->offset = 0;
 }
 
-void
+int
 sc_parse(char *path)
 {
     FILE *fp;
@@ -51,10 +51,14 @@ sc_parse(char *path)
     sc_yylex(scanner);
     sc_yylex_destroy(scanner);
 
-    if (data.errcnt > 0)
-        sc_warn(ERROR_PARSE_FAILED);
-
     sc_fclose(fp);
+
+    if (data.errcnt > 0) {
+        sc_warn(ERROR_PARSE_FAILED);
+        return RC_ERROR;
+    }
+
+    return RC_OK;
 }
 
 /* end of sc_parser.c */

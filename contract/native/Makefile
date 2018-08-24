@@ -3,35 +3,61 @@
 # @copyright defined in aergo/LICENSE.txt
 #
 
-TARGET = ../../bin/ascc
+TARGET = ../../bin/aergoscc
 
 CC = gcc
-CFLAGS = -I.
+CFLAGS += -g
+INCLUDES = -I.
 LEX = flex
 
-OBJ_DIR = build
+OBJDIR = build
+SUBDIRS = . tests
 
-SRCS = ascc.c sc_parser.c sc_scanner.yy.c
-OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
+SOURCES = aergoscc.c sc_parser.c sc_scanner.yy.c
+OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 
-all: $(TARGET)
+RECURSIVE_TARGETS = all-recursive clean-recursive
+
+all: all-recursive
+
+all-recursive clean-recursive: 
+	@target=`echo "$@" | sed s/-recursive//`; \
+	for subdir in $(SUBDIRS); do \
+		if [ "$$subdir" = "." ]; then \
+			local_target="$$target-local"; \
+		else \
+			local_target="$$target"; \
+		fi; \
+		(cd $$subdir && $(MAKE) $$local_target); \
+	done
+
+all-local: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) -g -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
-sc_scanner.yy.c: sc_scanner.l
+sc_scanner.yy.c: sc_scanner.l sc_error.h sc_util.h sc_parser.h
 	$(LEX) -o $@ --header-file=sc_scanner.yy.h $^
 
-$(OBJ_DIR)/%.o: %.c
-	@if [ ! -d $(OBJ_DIR) ]; then mkdir -p $(OBJ_DIR); fi
-	$(CC) -c -g -o $@ $(CFLAGS) $(DEFS) $<
+$(OBJDIR)/%.o: %.c
+	@if [ ! -d $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi
+	$(CC) $(CFLAGS) -c -o $@ $(INCLUDES) $(DEFS) $<
 
-clean:
-	rm -rf build $(TARGET)
+clean: clean-recursive
 
-depend: .depend
+clean-local:
+	$(RM) -r build sc_scanner.yy.* $(TARGET)
 
-.depend: $(SRCS)
-	$(CC) $(CFLAGS) -MM $^ > .depend;
+test:
+	@$(MAKE) -C tests $(MAKECMDGOALS)
 
-include .depend
+deps .deps: $(SOURCES)
+	@$(RM) .deps; \
+	for src in $(SOURCES); do \
+		obj=`echo $$src | sed 's/\(.*\)\.c/${OBJDIR}\/\1.o/g'`; \
+		$(CC) $(INCLUDES) -MM $$src -MT $$obj >> .deps; \
+	done;
+
+include .deps
+
+.PHONY: all-recursive clean-recursive

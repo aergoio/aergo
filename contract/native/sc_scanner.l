@@ -15,15 +15,7 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        errno = 0;                                                             \
-        while ((result = fread(buf, 1, max, yyin)) == 0 && ferror(yyin)) {     \
-            if (errno != EINTR) {                                              \
-                sc_fatal(ERROR_FILE_READ_FAILED, ferror(yyin));                \
-                break;                                                         \
-            }                                                                  \
-            errno = 0;                                                         \
-            clearerr(yyin);                                                    \
-        }                                                                      \
+        result = sc_fread(yyin, max, buf);                                     \
     } while (0)
 
 #define yy_update_line()                                                       \
