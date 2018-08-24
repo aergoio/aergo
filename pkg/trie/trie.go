@@ -90,11 +90,7 @@ func (s *Trie) LoadCache(root []byte) error {
 
 // loadCache loads the first layers of the merkle tree given a root
 func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
-	if height <= s.CacheHeightLimit+1 {
-		ch <- nil
-		return
-	}
-	if bytes.Equal(root, s.defaultHashes[height]) {
+	if height <= s.CacheHeightLimit+1 || bytes.Equal(root, s.defaultHashes[height]) {
 		ch <- nil
 		return
 	}
@@ -116,24 +112,24 @@ func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
 	isShortcut := val[nodeSize-1]
 	if isShortcut == 1 {
 		ch <- nil
-		return
-	}
+	} else {
+		// Load subtree
+		lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
 
-	lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
-
-	lch := make(chan error, 1)
-	rch := make(chan error, 1)
-	go s.loadCache(lnode, height-1, lch)
-	go s.loadCache(rnode, height-1, rch)
-	if err := <-lch; err != nil {
-		ch <- err
-		return
+		lch := make(chan error, 1)
+		rch := make(chan error, 1)
+		go s.loadCache(lnode, height-1, lch)
+		go s.loadCache(rnode, height-1, rch)
+		if err := <-lch; err != nil {
+			ch <- err
+			return
+		}
+		if err := <-rch; err != nil {
+			ch <- err
+			return
+		}
+		ch <- nil
 	}
-	if err := <-rch; err != nil {
-		ch <- err
-		return
-	}
-	ch <- nil
 }
 
 // Update adds and deletes a sorted list of keys and their values to the trie
@@ -172,17 +168,18 @@ type mresult struct {
 // could be moved down the tree resulting in an invalid root
 func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
-		// Delete the key-value from the trie if it is being set to DefaultLeaf
 		if bytes.Equal(DefaultLeaf, values[0]) {
+			// Delete the key-value from the trie if it is being set to DefaultLeaf
 			if !bytes.Equal(DefaultLeaf, root) {
 				// Delete old liveCache node if it is not default
 				s.deleteCacheNode(root)
 			}
 			ch <- mresult{DefaultLeaf, true, nil}
-			return
+		} else {
+			// Set the value
+			node := s.leafHash(keys[0], values[0], height-1, root)
+			ch <- mresult{node, false, nil}
 		}
-		node := s.leafHash(keys[0], values[0], height-1, root)
-		ch <- mresult{node, false, nil}
 		return
 	}
 
@@ -294,13 +291,11 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 			ch <- mresult{s.defaultHashes[height], false, nil}
 			return
 		}
+		// Move up one of the shortcut nodes
 		if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
 			ch <- mresult{rresult.update, true, nil}
-			return
-		}
-		if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
+		} else if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
 			ch <- mresult{lresult.update, true, nil}
-			return
 		}
 	}
 	node := s.interiorHash(lresult.update, rresult.update, height-1, root)
@@ -413,12 +408,7 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		s.liveCountMux.Lock()
 		s.LoadCacheCounter++
 		s.liveCountMux.Unlock()
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, len(val))
 	}
 
 	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
@@ -426,12 +416,7 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	val, exists = s.db.updatedNodes[node]
 	s.db.updatedMux.RUnlock()
 	if exists {
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, len(val))
 	}
 	//Fetch node in disk database
 	s.loadDbMux.Lock()
@@ -442,13 +427,18 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	s.db.lock.Unlock()
 	nodeSize := len(val)
 	if nodeSize != 0 {
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, nodeSize)
 	}
 	return nil, nil, byte(0), fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+}
+
+// parseValue returns a subtree roots or a shortcut node
+func (s *Trie) parseValue(val []byte, nodeSize int) ([]byte, []byte, byte, error) {
+	shortcut := val[nodeSize-1]
+	if shortcut == 1 {
+		return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
+	}
+	return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
 }
 
 // Get fetches the value of a key by going down the current trie root.
@@ -461,16 +451,6 @@ func (s *Trie) get(root []byte, key []byte, height uint64) ([]byte, error) {
 	if bytes.Equal(root, s.defaultHashes[height]) {
 		// the trie does not contain the key
 		return nil, nil
-	}
-	if height == 0 {
-		k, v, isShortcut, err := s.loadChildren(root)
-		if err != nil {
-			return nil, err
-		}
-		if isShortcut == 1 && bytes.Equal(k, key) {
-			return v, nil
-		}
-		return nil, fmt.Errorf("the trie leaf node %x did not contain a key-value pair", root)
 	}
 	// Fetch the children of the node
 	lnode, rnode, isShortcut, err := s.loadChildren(root)

@@ -55,51 +55,44 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 
 // maybeDeleteSubTree compares the subtree nodes of 2 tries and keeps only the older one
 func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte) error {
-	if height == 0 {
-		if !bytes.Equal(original, maybeDelete) {
-			*toBeDeleted = append(*toBeDeleted, maybeDelete)
-		}
+	if bytes.Equal(original, maybeDelete) {
 		return nil
 	}
-	if !bytes.Equal(original, maybeDelete) {
-		lnode, rnode, isShortcut, lerr := s.loadChildren(original)
-		if lerr != nil {
-			return lerr
-		}
-		lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete)
-		if rerr != nil {
-			return rerr
-		}
+	if height == 0 {
+		*toBeDeleted = append(*toBeDeleted, maybeDelete)
+		return nil
+	}
+	lnode, rnode, isShortcut, lerr := s.loadChildren(original)
+	if lerr != nil {
+		return lerr
+	}
+	lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete)
+	if rerr != nil {
+		return rerr
+	}
+
+	if isShortcut != isShortcut2 {
 		if isShortcut == 1 {
-			if isShortcut2 == 1 {
-				// if both are shortcuts and not equal, delete the other
-				if !bytes.Equal(lnode, lnode2) || !bytes.Equal(rnode, rnode2) {
-					*toBeDeleted = append(*toBeDeleted, maybeDelete)
-					return nil
-				}
-			} else {
-				// if the original is a shortcut and not the other, then the other is a subtree so delete it
-				return s.deleteSubTree(maybeDelete, height, toBeDeleted)
+			return s.deleteSubTree(maybeDelete, height, toBeDeleted)
+		}
+	} else {
+		if isShortcut == 1 {
+			// Delete shortcut if not equal
+			if !bytes.Equal(lnode, lnode2) || !bytes.Equal(rnode, rnode2) {
+				*toBeDeleted = append(*toBeDeleted, maybeDelete)
 			}
-		}
-		if isShortcut2 == 1 && isShortcut == 0 {
-			// if the original is a subtree, delete the shortcut
+		} else {
+			// Delete subtree if not equal
 			*toBeDeleted = append(*toBeDeleted, maybeDelete)
-			return nil
-		}
-		if !bytes.Equal(lnode, lnode2) {
 			err := s.maybeDeleteSubTree(lnode, lnode2, height-1, toBeDeleted)
 			if err != nil {
 				return err
 			}
-		}
-		if !bytes.Equal(rnode, rnode2) {
-			err := s.maybeDeleteSubTree(rnode, rnode2, height-1, toBeDeleted)
+			err = s.maybeDeleteSubTree(rnode, rnode2, height-1, toBeDeleted)
 			if err != nil {
 				return err
 			}
 		}
-		*toBeDeleted = append(*toBeDeleted, maybeDelete)
 	}
 	return nil
 }

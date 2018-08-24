@@ -249,12 +249,7 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		s.liveCountMux.Lock()
 		s.LoadCacheCounter++
 		s.liveCountMux.Unlock()
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 
 	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
@@ -262,12 +257,7 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	val, exists = s.db.updatedNodes[node]
 	s.db.updatedMux.RUnlock()
 	if exists {
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 	//Fetch node in disk database
 	s.loadDbMux.Lock()
@@ -278,13 +268,19 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	s.db.lock.Unlock()
 	nodeSize := len(val)
 	if nodeSize != 0 {
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 	return nil, nil, byte(0), fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+}
+
+// parseValue returns a subtree roots or a shortcut node
+func (s *SMT) parseValue(val []byte) ([]byte, []byte, byte, error) {
+	nodeSize := len(val)
+	shortcut := val[nodeSize-1]
+	if shortcut == 1 {
+		return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
+	}
+	return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
 }
 
 // Get fetches the value of a key by going down the current trie root.
