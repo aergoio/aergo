@@ -93,11 +93,9 @@ func (as *AccountService) Receive(context actor.Context) {
 		account, err := as.unlockAccount(msg.Account.Address, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
 	case *message.SignTx:
-		err := as.signTx(msg.Tx)
+		err := as.signTx(context, msg.Tx)
 		if err != nil {
 			context.Respond(&message.SignTxRsp{Tx: nil, Err: err})
-		} else {
-			context.Respond(&message.SignTxRsp{Tx: msg.Tx, Err: nil})
 		}
 	case *message.VerifyTx:
 		err := as.verifyTx(msg.Tx)
@@ -216,24 +214,18 @@ func hashWithoutSign(txBody *types.TxBody) []byte {
 	return h.Sum(nil)
 }
 
-func (as *AccountService) signTx(tx *types.Tx) error {
+func (as *AccountService) signTx(c actor.Context, tx *types.Tx) error {
 	//hash tx
 	txbody := tx.Body
-	hash := hashWithoutSign(txbody)
 	//get key
 	key, exist := as.unlocked[EncodeB64(txbody.Account)]
 	if !exist {
 		return message.ErrShouldUnlockAccount
 	}
 	//sign tx
-	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
-	if err != nil {
-		as.Error().Err(err).Msg("could not sign")
-		return err
-	}
-	txbody.Sign = sign
-	//txbody.Sign = sign
-	tx.Hash = tx.CalculateTxHash()
+	prop := actor.FromInstance(NewSigner(as.Logger, key))
+	signer := c.Spawn(prop)
+	signer.Request(tx, c.Sender())
 	return nil
 }
 
