@@ -249,12 +249,7 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		s.liveCountMux.Lock()
 		s.LoadCacheCounter++
 		s.liveCountMux.Unlock()
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 
 	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
@@ -262,14 +257,12 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	val, exists = s.db.updatedNodes[node]
 	s.db.updatedMux.RUnlock()
 	if exists {
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 	//Fetch node in disk database
+	if s.db.store == nil {
+		return nil, nil, byte(0), fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDbMux.Lock()
 	s.LoadDbCounter++
 	s.loadDbMux.Unlock()
@@ -278,13 +271,19 @@ func (s *SMT) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	s.db.lock.Unlock()
 	nodeSize := len(val)
 	if nodeSize != 0 {
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val)
 	}
 	return nil, nil, byte(0), fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+}
+
+// parseValue returns a subtree roots or a shortcut node
+func (s *SMT) parseValue(val []byte) ([]byte, []byte, byte, error) {
+	nodeSize := len(val)
+	shortcut := val[nodeSize-1]
+	if shortcut == 1 {
+		return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
+	}
+	return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
 }
 
 // Get fetches the value of a key by going down the current trie root.
@@ -381,7 +380,10 @@ func (s *SMT) interiorHash(left, right []byte, height uint64, oldRoot []byte, sh
 }
 
 // Commit stores the updated nodes to disk
-func (s *SMT) Commit() {
+func (s *SMT) Commit() error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])
@@ -391,4 +393,5 @@ func (s *SMT) Commit() {
 	}
 	s.db.commit()
 	s.db.updatedNodes = make(map[Hash][]byte, len(s.db.updatedNodes)*2)
+	return nil
 }
