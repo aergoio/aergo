@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	// BlockProducers is the number of block producers
-	BlockProducers = 23
+	// blockProducers is the number of block producers
+	blockProducers   = 23
+	bpConsensusCount = blockProducers*2/3 + 1
 )
 
 var (
@@ -63,7 +64,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(),
+		Status:       NewStatus(bpConsensusCount),
 		ID:           id,
 		ComponentHub: hub,
 		bpc:          bpc,

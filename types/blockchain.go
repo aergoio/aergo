@@ -64,6 +64,7 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Header: &header,
 		Body:   &body,
 	}
+
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
 
 	return &block
@@ -163,8 +164,8 @@ func (block *Block) BPID() (id peer.ID, err error) {
 }
 
 // BpID2Str returns its Block Producer's ID in base64 format.
-func (block *Block) BpID2Str() string {
-	id, err := block.BpID()
+func (block *Block) BPID2Str() string {
+	id, err := block.BPID()
 	if err != nil {
 		return ""
 	}
@@ -237,6 +238,7 @@ func (header *BlockHeader) Clone() *BlockHeader {
 		Sign:          Clone(header.Sign).([]byte),
 	}
 }
+
 func (body *BlockBody) Clone() *BlockBody {
 	if body == nil {
 		return nil
