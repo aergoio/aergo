@@ -88,6 +88,7 @@ func Start(c Consensus) {
 			c.QueueJob(now, bf.JobQueue())
 			select {
 			case <-c.QuitChan():
+				logger.Info().Msg("shutdown initiated. stop the consensus service")
 				return
 			default:
 			}

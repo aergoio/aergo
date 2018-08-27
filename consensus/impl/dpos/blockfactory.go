@@ -87,6 +87,8 @@ func (bf *BlockFactory) JobQueue() chan<- interface{} {
 }
 
 func (bf *BlockFactory) controller() {
+	defer shutdownMsg("block factory controller")
+
 	beginBlock := func(bpi *bpInfo) error {
 		// This is only for draining an unconsumed message, which means
 		// the previous block is generated within timeout. This code
@@ -147,6 +149,8 @@ func (bf *BlockFactory) controller() {
 }
 
 func (bf *BlockFactory) worker() {
+	defer shutdownMsg("block factory worker")
+
 	for {
 		select {
 		case bpi := <-bf.workerQueue:
@@ -189,4 +193,8 @@ func (bf *BlockFactory) checkBpTimeout() error {
 	default:
 		return nil
 	}
+}
+
+func shutdownMsg(m string) {
+	logger.Info().Msgf("shutdown initiated. stop the %s", m)
 }

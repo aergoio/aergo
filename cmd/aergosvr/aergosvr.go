@@ -98,19 +98,22 @@ func rootRun(cmd *cobra.Command, args []string) {
 	}
 
 	compMng.Start()
-	common.HandleKillSig(compMng.Stop, svrlog)
 
-	if cfg.Consensus.EnableBp {
-		c, err := impl.New(cfg, compMng)
-		if err != nil {
-			svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
-			os.Exit(1)
-		}
-		consensus.Start(c)
-		chainsvc.SendChainInfo(c)
-	} else {
-		chainsvc.SendChainInfo(nil)
+	c, err := impl.New(cfg, compMng)
+	if err != nil {
+		svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
+		os.Exit(1)
 	}
+	if cfg.Consensus.EnableBp {
+		consensus.Start(c)
+	}
+	chainsvc.SendChainInfo(c)
+
+	common.HandleKillSig(func() {
+		consensus.Stop(c)
+		compMng.Stop()
+	}, svrlog)
+
 	// wait... TODO need to break out when system finished.
 	for {
 		time.Sleep(time.Minute)
