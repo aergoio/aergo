@@ -220,6 +220,7 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 		bh.BlockNo,
 		bh.Timestamp,
 		bh.TxsRootHash,
+		bh.Confirms,
 		bh.PubKey,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
