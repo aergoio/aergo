@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bufio"
-	"io"
 	"time"
 
 	"github.com/aergoio/aergo/message"
@@ -17,8 +16,6 @@ import (
 	"github.com/multiformats/go-multicodec/protobuf"
 	uuid "github.com/satori/go.uuid"
 )
-
-type SubProtocol uint32
 
 const aergoP2PSub protocol.ID = "/aergop2p/0.2"
 
@@ -42,12 +39,12 @@ func doHandshake(p *peerManager, rw *bufio.ReadWriter) bool {
 	}
 	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
+	container.GetMessageData().Subprotocol = statusRequest.Uint32()
 	err = SendProtoMessage(container, rw)
 	if err != nil {
 		p.log.Warn().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("failed to send status ")
 		return false
 	}
-	rw.Flush()
 
 	// and wait to response status
 	data := &types.P2PMessage{}
@@ -60,7 +57,7 @@ func doHandshake(p *peerManager, rw *bufio.ReadWriter) bool {
 
 	if data.Header.GetSubprotocol() != statusRequest.Uint32() {
 		// TODO: parse message and return
-		p.log.Info().Str(LogPeerID, p.ID().Pretty()).Msg("remote peer return different")
+		p.log.Info().Str(LogPeerID, p.ID().Pretty()).Str("expected", statusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
 		return false
 	}
 	statusResp := &types.Status{}
@@ -90,7 +87,7 @@ func (p *peerManager) onHandshake(s inet.Stream) {
 
 	if data.Header.GetSubprotocol() != statusRequest.Uint32() {
 		// TODO: parse message and return
-		p.log.Info().Str(LogPeerID, p.ID().Pretty()).Msg("remote peer return different")
+		p.log.Info().Str(LogPeerID, p.ID().Pretty()).Str("expected", statusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake protocol")
 		p.sendGoAway(rw, "unexpected message type")
 		s.Close()
 		return
@@ -99,6 +96,7 @@ func (p *peerManager) onHandshake(s inet.Stream) {
 	err = unmarshalMessage(data.Data, statusMsg)
 	if err != nil {
 		p.log.Warn().Err(err).Msg("Failed to decode status message")
+		p.sendGoAway(rw, "invalid status message")
 		s.Close()
 		return
 	}
@@ -110,21 +108,26 @@ func (p *peerManager) onHandshake(s inet.Stream) {
 	statusResp, err := createStatusMsg(p, p.iServ)
 	if err != nil {
 		p.log.Warn().Err(err).Msg("failed to create status message")
+		p.sendGoAway(rw, "internal error")
+		s.Close()
 		return
 	}
 	serialized, err := marshalMessage(statusResp)
 	if err != nil {
 		p.log.Warn().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("failed to marshal")
+		p.sendGoAway(rw, "internal error")
+		s.Close()
 		return
 	}
 	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
-	err = SendProtoMessage(container, s)
+	container.GetMessageData().Subprotocol = statusRequest.Uint32()
+
+	err = SendProtoMessage(container, rw)
 	if err != nil {
 		p.log.Warn().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("failed to send response status ")
 		return
 	}
-	rw.Flush()
 
 	// try Add peer
 	if !p.tryAddInboundPeer(meta, rw) {
@@ -134,7 +137,7 @@ func (p *peerManager) onHandshake(s inet.Stream) {
 	}
 }
 
-func (p *peerManager) sendGoAway(w io.Writer, msg string) {
+func (p *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
 	serialized, err := marshalMessage(&types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg})
 	if err != nil {
 		p.log.Warn().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("failed to marshal")
@@ -142,7 +145,8 @@ func (p *peerManager) sendGoAway(w io.Writer, msg string) {
 	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
 	container.Header.Subprotocol = goAway.Uint32()
-	SendProtoMessage(container, w)
+	SendProtoMessage(container, rw)
+	rw.Flush()
 }
 
 func createStatusMsg(ps PeerManager, actorServ ActorService) (*types.Status, error) {

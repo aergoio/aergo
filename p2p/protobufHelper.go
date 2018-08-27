@@ -8,14 +8,12 @@ package p2p
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
 	uuid "github.com/satori/go.uuid"
 )
@@ -35,7 +33,7 @@ type pbMessageOrder struct {
 	expecteResponse bool
 	gossip          bool
 	needSign        bool
-	protocolID      protocol.ID // protocolName and msg struct type MUST be matched.
+	protocolID      SubProtocol // protocolName and msg struct type MUST be matched.
 
 	message pbMessage
 }
@@ -45,8 +43,13 @@ var _ msgOrder = (*pbMessageOrder)(nil)
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
 func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	bytes, err := marshalMessage(message)
+	if err != nil {
+		return nil
+	}
 
+	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	p2pmsg.Data = bytes
 	request := false
 	if len(reqID) == 0 {
 		reqID = uuid.Must(uuid.NewV4()).String()
@@ -55,12 +58,11 @@ func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, p
 	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	// pubKey and peerID will be set soon before signing process
-
 	// expecteResponse is only applied when message is request and not a gossip.
 	if request == false || gossip {
 		expecteResponse = false
 	}
-	return &pbMessageOrder{request: request, protocolID: "", expecteResponse: expecteResponse, gossip: gossip, needSign: sign, message: p2pmsg}
+	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: sign, message: p2pmsg}
 }
 
 func setupMessageData(md *types.MessageData, reqID string, gossip bool, version string, ts int64) {
@@ -109,7 +111,7 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 	return pr.needSign
 }
 
-func (pr *pbMessageOrder) GetProtocolID() protocol.ID {
+func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
 func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
@@ -150,12 +152,13 @@ func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip
 }
 
 // SendProtoMessage send proto.Message data over stream
-func SendProtoMessage(data proto.Message, writer io.Writer) error {
-	enc := protobufCodec.Multicodec(nil).Encoder(writer)
+func SendProtoMessage(data proto.Message, rw *bufio.ReadWriter) error {
+	enc := protobufCodec.Multicodec(nil).Encoder(rw)
 	err := enc.Encode(data)
 	if err != nil {
 		return err
 	}
+	rw.Flush()
 	return nil
 }
 

@@ -49,6 +49,8 @@ type RemotePeer struct {
 	requests    map[string]msgOrder
 	consumeChan chan string
 
+	handlers map[SubProtocol]MessageHandler
+
 	sentStatus, gotStatus bool
 	failCounter           uint32
 
@@ -71,7 +73,7 @@ type msgOrder interface {
 	IsNeedSign() bool
 	// ResponseExpected means that remote peer is expected to send response to this request.
 	ResponseExpected() bool
-	GetProtocolID() protocol.ID
+	GetProtocolID() SubProtocol
 	SignWith(ps PeerManager) error
 	SendOver(rw *bufio.ReadWriter) error
 }
@@ -117,6 +119,8 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
+
+		handlers: make(map[SubProtocol]MessageHandler),
 	}
 
 	var err error
@@ -242,8 +246,22 @@ func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
 }
 
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
-	p.log.Debug().Uint32("protocol", msg.Header.GetSubprotocol()).Msg("Handling messge")
-	return nil
+	var err error = nil
+	proto := SubProtocol(msg.Header.Subprotocol)
+	defer func() {
+		if r := recover(); r != nil {
+			p.log.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
+			err = fmt.Errorf("internal error")
+		}
+	}()
+	p.log.Debug().Str("protocol", proto.String()).Msg("Handling messge")
+
+	handler, found := p.handlers[proto]
+	if !found {
+		return fmt.Errorf("invalid protocol %s", proto)
+	}
+	handler(msg)
+	return err
 }
 
 func (p *RemotePeer) processOp(op OpOrder) {
@@ -367,7 +385,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 		p.log.Warn().Err(err).Msg("fail to SendOver")
 		return
 	}
-	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).
+	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
 		Str(LogMsgID, m.GetRequestID()).Msg("Send message")
 	//p.log.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
 	if m.ResponseExpected() {
@@ -474,4 +492,8 @@ func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 
 	p.blkHashCache.Add(b64hash, data.BlockHash)
 	p.ps.HandleNewBlockNotice(p.meta.ID, b64hash, data)
+}
+
+func (p *RemotePeer) sendGoAway(msg string) {
+	// TODO: send goaway message and close connection
 }

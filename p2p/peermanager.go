@@ -62,8 +62,6 @@ type PeerManager interface {
 	SelfMeta() PeerMeta
 	SelfNodeID() peer.ID
 
-	AddSubProtocol(p subProtocol)
-
 	AddNewPeer(peer PeerMeta)
 	RemovePeer(peerID peer.ID)
 	NotifyPeerHandshake(peerID peer.ID)
@@ -389,20 +387,39 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
 
 	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
 	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	// insert Handlers
+	ps.insertHandlers(newPeer)
 	go newPeer.runPeer()
 	newPeer.setState(types.RUNNING)
 
 	ps.insertPeer(peerID, newPeer)
 	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Outbound peer is  added to peerService")
-	// ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
-	// for _, listener := range ps.eventListeners {
-	// 	listener.OnAddPeer(peerID)
-	// }
-	// go newPeer.runPeer()
-	// newPeer.op <- OpOrder{op: OpInitHS}
-
 }
 
+func (ps *peerManager) insertHandlers(peer *RemotePeer) {
+	// PingHandler
+	ph := NewPingHandler(ps, peer, ps.log)
+	peer.handlers[pingRequest] = ph.handlePing
+	peer.handlers[pingResponse] = ph.handlePingResponse
+	peer.handlers[goAway] = ph.handleAddressesRequest
+	peer.handlers[addressesRequest] = ph.handleAddressesResponse
+	peer.handlers[addressesResponse] = ph.handleGoAway
+
+	// BlockHandler
+	bh := NewBlockHandler(ps, peer, ps.log)
+	peer.handlers[getBlocksRequest] = bh.handleBlockRequest
+	peer.handlers[getBlocksResponse] = bh.handleGetBlockResponse
+	peer.handlers[getBlockHeadersRequest] = bh.handleGetBlockHeadersRequest
+	peer.handlers[getBlockHeadersResponse] = bh.handleGetBlockHeadersResponse
+	peer.handlers[getMissingRequest] = bh.handleGetMissingRequest
+	// peer.handlers[getMissingResponse] = // no function yet
+	peer.handlers[newBlockNotice] = bh.handleNewBlockNotice
+
+	th := NewTxHandler(ps, peer, ps.log)
+	peer.handlers[getTXsRequest] = th.handleGetTXsRequest
+	peer.handlers[getTxsResponse] = th.handleGetTXsResponse
+	peer.handlers[newTxNotice] = th.handleNewTXsNotice
+}
 func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
@@ -417,11 +434,12 @@ func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bo
 	}
 	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
 	peer.rw = rw
+	ps.insertHandlers(peer)
 	go peer.runPeer()
 	peer.setState(types.RUNNING)
 	ps.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", (&peerAddr).String()).Msg("Inbound peer is  added to peerService")
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Inbound peer is  added to peerService")
 	return true
 }
 
@@ -634,6 +652,9 @@ func (ps *peerManager) tryConnectPeers() {
 // message: a protobufs go data object
 // data: common p2p message data
 func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
+	// for Test only
+	return true
+
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
 	sign := data.Sign
@@ -652,7 +673,7 @@ func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// restore peer peer.ID binary format from base58 encoded node peer.ID data
 	peerID, err := peer.IDB58Decode(data.PeerID)
 	if err != nil {
-		ps.log.Warn().Msg("Failed to decode node peer.ID from base58")
+		ps.log.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
 		return false
 	}
 

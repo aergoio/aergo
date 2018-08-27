@@ -6,28 +6,15 @@
 package p2p
 
 import (
-	"bufio"
 	"sync"
-
-	inet "github.com/libp2p/go-libp2p-net"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/multiformats/go-multicodec/protobuf"
-)
-
-// pattern: /protocol-name/request-or-response-message/version
-const (
-	statusRequest SubProtocol = 0x00 + iota
-	pingRequest
-	pingResponse
-	goAway
-	addressesRequest
-	addressesResponse
 )
 
 // PingProtocol type
 type PingProtocol struct {
+	BaseMsgHandler
 	actorServ ActorService
 	ps        PeerManager
 
@@ -35,152 +22,68 @@ type PingProtocol struct {
 	reqMutex sync.Mutex
 }
 
-// NewPingProtocol create ping subprotocol
-func NewPingProtocol(logger *log.Logger) *PingProtocol {
-	p := &PingProtocol{log: logger,
-		reqMutex: sync.Mutex{}}
-	return p
+// PingHandler handle pingRequest message
+type PingHandler struct {
+	BaseMsgHandler
+}
+
+// NewPingHandler create handler about ping protocol for a peer
+func NewPingHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *PingHandler {
+	h := &PingHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return h
 }
 
 func (p *PingProtocol) setPeerManager(pm PeerManager) {
 	p.ps = pm
 }
 
-func (p *PingProtocol) startHandling() {
-	// p.ps.SetStreamHandler(pingRequest, p.onPingRequest)
-	// p.ps.SetStreamHandler(pingResponse, p.onPingResponse)
-	// p.ps.SetStreamHandler(statusRequest, p.onStatusRequest)
-	// p.ps.SetStreamHandler(goAway, p.onGoaway)
-}
-
 // remote peer requests handler
-func (p *PingProtocol) onPingRequest(s inet.Stream) {
-	defer s.Close()
+func (p *PingHandler) handlePing(msg *types.P2PMessage) {
+	peerID := p.peer.ID()
+	remotePeer := p.peer
 
-	peerID := s.Conn().RemotePeer()
-	remotePeer, ok := p.ps.GetPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-	perr := remotePeer.checkState()
-	if perr != nil {
-		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
-		return
-	}
-
-	// get request data
-	data := &types.Ping{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
+	pingMsg := &types.Ping{}
+	err := unmarshalMessage(msg.Data, pingMsg)
 	if err != nil {
-		p.log.Warn().Err(err).Msg("Failed to decode ping request")
+		p.logger.Warn().Err(err).Msg("Failed to decode ping message")
+		p.peer.sendGoAway("invalid protocol message")
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
+	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, nil)
 
 	// generate response message
-	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, data.MessageData.Id).Msg("Sending ping response")
+	p.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.Header.Id).Msg("Sending ping response")
 	resp := &types.Pong{MessageData: &types.MessageData{}} // BestBlockHash: bestBlock.GetHash(),
 	// BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, false, pingResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msg.Header.Id, false, pingResponse, resp))
 }
 
 // remote ping response handler
-func (p *PingProtocol) onPingResponse(s inet.Stream) {
-	defer s.Close()
-
-	peerID := s.Conn().RemotePeer()
-	remotePeer, ok := p.ps.GetPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-	perr := remotePeer.checkState()
-	if perr != nil {
-		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
-		return
-	}
-
-	data := &types.Pong{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
+func (p *PingHandler) handlePingResponse(msg *types.P2PMessage) {
+	peerID := p.peer.ID()
+	remotePeer := p.peer
+	pingRspMsg := &types.Pong{}
+	err := unmarshalMessage(msg.Data, pingRspMsg)
 	if err != nil {
-		p.log.Warn().Err(err).Msg("Failed to decode pong request")
+		p.logger.Warn().Err(err).Msg("Failed to decode ping response message")
+		p.peer.sendGoAway("invalid protocol message")
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
-	remotePeer.consumeRequest(data.MessageData.Id)
+	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, nil)
+	remotePeer.consumeRequest(msg.Header.Id)
 }
 
-func (p *PingProtocol) onStatusRequest(s inet.Stream) {
-	defer s.Close()
-
-	peerID := s.Conn().RemotePeer()
-	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Got status message")
-	remotePeer, ok := p.ps.LookupPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-
-	// get request data
-	data := &types.Status{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
+// remote ping response handler
+func (p *PingHandler) handleGoAway(msg *types.P2PMessage) {
+	peerID := p.peer.ID()
+	goawayMsg := &types.GoAwayNotice{}
+	err := unmarshalMessage(msg.Data, goawayMsg)
 	if err != nil {
-		p.log.Warn().Err(err).Msg("Failed to decode ping request")
+		p.logger.Warn().Err(err).Msg("Failed to decode ping response message")
+		p.peer.sendGoAway("invalid protocol message")
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
-	valid := p.ps.AuthenticateMessage(data, data.MessageData)
-	if !valid {
-		p.log.Warn().Msg("Failed to authenticate message")
-		return
-	}
-	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("starting handshake")
-	remotePeer.op <- OpOrder{op: OpHandleHS, param1: data}
-}
-
-func (p *PingProtocol) onGoaway(s inet.Stream) {
-	defer s.Close()
-
-	peerID := s.Conn().RemotePeer()
-	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Got goaway message")
-	remotePeer, ok := p.ps.LookupPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-
-	// get request data
-	data := &types.GoAwayNotice{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
-	if err != nil {
-		p.log.Warn().Err(err).Msg("Failed to decode goaway request")
-		return
-	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
-	valid := p.ps.AuthenticateMessage(data, data.MessageData)
-	if !valid {
-		p.log.Warn().Msg("Failed to authenticate message")
-		return
-	}
-
-	p.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("reason", data.Message).Msg("Remote Peer kick me out")
-	p.ps.RemovePeer(peerID)
+	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, goawayMsg.Message)
+	// TODO: check to remove peer here or not. (the sending peer will disconnect.)
 }

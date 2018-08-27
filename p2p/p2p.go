@@ -22,9 +22,9 @@ type P2P struct {
 
 	hub *component.ComponentHub
 
-	p2ps PeerManager
+	pm PeerManager
 
-	ping  *PingProtocol
+	ping  *PingHandler
 	addrs *AddressesProtocol
 	blk   *BlockProtocol
 	txs   *TxProtocol
@@ -48,12 +48,12 @@ func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchai
 
 // Start starts p2p service
 func (ns *P2P) BeforeStart() {
-	ns.p2ps.Start()
+	ns.pm.Start()
 }
 
 // Stop stops
 func (ns *P2P) BeforeStop() {
-	ns.p2ps.Stop()
+	ns.pm.Stop()
 }
 
 func (ns *P2P) Statics() interface{} {
@@ -62,24 +62,8 @@ func (ns *P2P) Statics() interface{} {
 
 func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) PeerManager {
 	p2psvc := NewPeerManager(ns, cfg, ns.Logger)
-	// FIXME 초기화
-	ns.ping = NewPingProtocol(ns.Logger)
-	ns.ping.actorServ = ns
-	p2psvc.AddSubProtocol(ns.ping)
 
-	ns.blk = NewBlockProtocol(ns.Logger, chainsvc)
-	ns.blk.iserv = ns
-	ns.blk.log = ns.Logger
-	p2psvc.AddSubProtocol(ns.blk)
-
-	ns.addrs = NewAddressesProtocol(ns.Logger)
-	p2psvc.AddSubProtocol(ns.addrs)
-
-	ns.txs = NewTxProtocol(ns.Logger, chainsvc)
-	ns.txs.iserv = ns
-	p2psvc.AddSubProtocol(ns.txs)
-
-	ns.p2ps = p2psvc
+	ns.pm = p2psvc
 	return p2psvc
 }
 
@@ -95,22 +79,23 @@ func (ns *P2P) Receive(context actor.Context) {
 	// 	result := ns.ping.Ping(msg.ToWhom)
 	// 	context.Respond(result)
 	case *message.GetAddressesMsg:
-		ns.addrs.GetAddresses(msg.ToWhom, msg.Size)
+		ns.GetAddresses(msg.ToWhom, msg.Size)
 	case *message.GetBlockHeaders:
-		ns.blk.GetBlockHeaders(msg)
+		ns.GetBlockHeaders(msg)
 	case *message.GetBlockInfos:
-		ns.blk.GetBlocks(msg.ToWhom, msg.Hashes)
+		ns.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewBlock:
-		ns.blk.NotifyNewBlock(*msg)
-	case *message.GetTransactions:
-		ns.txs.GetTXs(msg.ToWhom, msg.Hashes)
-	case *message.NotifyNewTransactions:
-		ns.txs.NotifyNewTX(*msg)
-	case *message.GetPeers:
-		peers, states := ns.p2ps.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
+		// TODO remove conversion
+		ns.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
-		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
+		ns.GetMissingBlocks(msg.ToWhom, msg.Hashes)
+	case *message.GetTransactions:
+		ns.GetTXs(msg.ToWhom, msg.Hashes)
+	case *message.NotifyNewTransactions:
+		ns.NotifyNewTX(*msg)
+	case *message.GetPeers:
+		peers, states := ns.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	}
 }
 
