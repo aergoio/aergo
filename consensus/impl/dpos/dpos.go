@@ -110,7 +110,7 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 
 // IsBlockValid checks the DPoS consensus level validity of a block
 func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
-	id, err := block.BpID()
+	id, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}

@@ -122,8 +122,8 @@ func (block *Block) VerifySign() (valid bool, err error) {
 	return valid, nil
 }
 
-// BpID returns its Block Producer's ID from block.
-func (block *Block) BpID() (id peer.ID, err error) {
+// BPID returns its Block Producer's ID from block.
+func (block *Block) BPID() (id peer.ID, err error) {
 	var pubKey crypto.PubKey
 	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
 		return peer.ID(""), err
