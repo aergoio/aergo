@@ -281,8 +281,6 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	//TODO : rsp.Account will be filled in ChainSvc?
-	rsp.State.Account = in.Value
 	return rsp.State, rsp.Err
 }
 

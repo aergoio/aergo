@@ -71,9 +71,8 @@ func (id StateID) String() string {
 	return HashID(id).String()
 }
 
-func NewState(id AccountID) *State {
+func NewState() *State {
 	return &State{
-		Account: id[:],
 		Nonce:   0,
 		Balance: 0,
 	}
@@ -85,7 +84,6 @@ func (st *State) IsEmpty() bool {
 
 func (st *State) GetHash() []byte {
 	digest := sha256.New()
-	digest.Write(st.Account)
 	binary.Write(digest, binary.LittleEndian, st.Nonce)
 	binary.Write(digest, binary.LittleEndian, st.Balance)
 	return digest.Sum(nil)
@@ -96,7 +94,6 @@ func (st *State) Clone() *State {
 		return nil
 	}
 	return &State{
-		Account: Clone(st.Account).([]byte),
 		Nonce:   st.Nonce,
 		Balance: st.Balance,
 	}

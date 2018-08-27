@@ -64,9 +64,10 @@ message TxInBlock {
 }
 
 message State {
- 	bytes account = 1;
- 	uint64 nonce = 2;
- 	uint64 balance = 3;
+ 	uint64 nonce = 1;
+ 	uint64 balance = 2;
+	bytes codeHash = 3;
+	bytes storageRoot = 4;
 }
 
 message Receipt {

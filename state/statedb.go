@@ -166,7 +166,7 @@ func (sdb *ChainStateDB) GetAccountState(aid types.AccountID) (*types.State, err
 	if state, ok := sdb.accounts[aid]; ok {
 		return state, nil
 	}
-	state := types.NewState(aid)
+	state := types.NewState()
 	sdb.accounts[aid] = state
 	return state, nil
 }
