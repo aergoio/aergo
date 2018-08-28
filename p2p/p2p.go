@@ -23,6 +23,7 @@ type P2P struct {
 	hub *component.ComponentHub
 
 	pm PeerManager
+	rm ReconnectManager
 
 	ping  *PingHandler
 	addrs *AddressesProtocol
@@ -60,11 +61,15 @@ func (ns *P2P) Statics() *map[string]interface{} {
 	return nil
 }
 
-func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) PeerManager {
-	p2psvc := NewPeerManager(ns, cfg, ns.Logger)
+func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+	reconMan := NewReconnectManager(ns.Logger)
+	peerMan := NewPeerManager(ns, cfg, reconMan, ns.Logger)
 
-	ns.pm = p2psvc
-	return p2psvc
+	// connect managers each other
+	reconMan.pm = peerMan
+
+	ns.pm = peerMan
+	ns.rm = reconMan
 }
 
 const success bool = true

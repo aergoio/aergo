@@ -8,42 +8,59 @@ package p2p
 import (
 	"math"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
 )
 
 var durations []time.Duration
 
-const maxTrial = 15
+var maxTrial = 15
 
 func init() {
 	// It will get [20s 36s 1m6s 2m1s 3m40s 6m42s 12m12s 22m14s 40m30s 1h13m48s 2h14m29s 4h5m2s 7h26m29s 13h33m32s 24h42m21s]
 	durations = generateExpDuration(20, 0.6, maxTrial)
 }
 
-type reconnectRunner struct {
-	meta     PeerMeta
-	maxTrial int
-	pm       PeerManager
+type reconnectJob struct {
+	meta   PeerMeta
+	trial  int
+	rm     ReconnectManager
+	pm     PeerManager
+	logger *log.Logger
 
 	cancel chan struct{}
 }
 
-func newReconnectRunner(meta PeerMeta, pm PeerManager) *reconnectRunner {
-	return &reconnectRunner{meta: meta, maxTrial: maxTrial, pm: pm, cancel: make(chan struct{}, 1)}
+func newReconnectRunner(meta PeerMeta, rm ReconnectManager, pm PeerManager, logger *log.Logger) *reconnectJob {
+	return &reconnectJob{meta: meta, trial: 0, rm: rm, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
 }
-func (rr *reconnectRunner) runReconnect() {
-	for _, duration := range durations {
+func (rr *reconnectJob) runJob() {
+	timer := time.NewTimer(getNextInterval(rr.trial))
+RETRYLOOP:
+	for {
 		// wait for duration
 		select {
-		case <-time.NewTimer(duration).C:
+		case <-timer.C:
 			_, found := rr.pm.GetPeer(rr.meta.ID)
 			if found {
-				// found means that peer is registered in other goroutine. so close and cancel it.
+				break RETRYLOOP
 			}
+			rr.logger.Debug().Str(LogPeerID, rr.meta.ID.Pretty()).Int("trial", rr.trial).Msg("Trying to connect")
 			rr.pm.AddNewPeer(rr.meta)
+			rr.trial++
+			timer.Reset(getNextInterval(rr.trial))
 		case <-rr.cancel:
-			return
+			break RETRYLOOP
 		}
 	}
+	rr.rm.jobFinished(rr.meta.ID)
+}
+
+func getNextInterval(trial int) time.Duration {
+	if trial < maxTrial {
+		return durations[trial]
+	}
+	return durations[maxTrial-1]
 }
 
 func generateExpDuration(initSecs int, inc float64, count int) []time.Duration {
