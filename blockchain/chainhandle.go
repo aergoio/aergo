@@ -211,6 +211,24 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		if err != nil {
 			return err
 		}
+
+		/*
+			// open state for contract
+			senderContract, err := cs.sdb.OpenContractState(&senderChange)
+			if err != nil {
+				return err
+			}
+
+			// set contract code
+			senderContract.SetCode(txBody.Payload)
+
+			// execute contract and set data as key-value pair
+			// - ex: err := senderContract.SetData([]byte("key"), []byte("value"))
+			// - ex: val, err := senderContract.GetData([]byte("key"))
+
+			// commit state for contract
+			err = cs.sdb.CommitContractState(senderContract)
+		*/
 	}
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)
