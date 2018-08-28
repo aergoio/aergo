@@ -17,6 +17,7 @@ type ICompSyncRequester interface {
 	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 
+// ComponentHub keeps a list of registerd components
 type ComponentHub struct {
 	components map[string]IComponent
 }
@@ -28,6 +29,7 @@ type hubInitSync struct {
 
 var hubInit hubInitSync
 
+// NewComponentHub creates and returns ComponentHub instance
 func NewComponentHub() *ComponentHub {
 	hub := ComponentHub{
 		components: make(map[string]IComponent),
@@ -50,6 +52,7 @@ func (h *hubInitSync) wait() {
 	<-h.finished
 }
 
+// Start invokes start funcs of registered components at this hub
 func (hub *ComponentHub) Start() {
 	hubInit.begin(len(hub.components))
 	for _, comp := range hub.components {
@@ -58,17 +61,23 @@ func (hub *ComponentHub) Start() {
 	hubInit.end()
 }
 
+// Stop invokes stop funcs of registered components at this hub
 func (hub *ComponentHub) Stop() {
 	for _, comp := range hub.components {
 		comp.Stop()
 	}
 }
 
+// Register assigns a component to this hub for management
 func (hub *ComponentHub) Register(component IComponent) {
 	hub.components[component.GetName()] = component
 	component.SetHub(hub)
 }
 
+// Statistics invoke requests to all registered components,
+// collect and return it's response
+// An input argument, timeout, is used to set actor request's timeout.
+// If it is over, than future: timeout string set at error field
 func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompStatRsp {
 	var compStatus map[string]Status
 	compStatus = make(map[string]Status)
@@ -122,6 +131,8 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 
 	return retCompStatics
 }
+
+// Tell pass and forget a message to a component, which has a targetName
 func (hub *ComponentHub) Tell(targetName string, message interface{}) {
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
@@ -131,6 +142,8 @@ func (hub *ComponentHub) Tell(targetName string, message interface{}) {
 	targetComponent.Tell(message)
 }
 
+// RequestFuture pass a message to a component, which has a targetName
+// And this returns a future instance to be used in waiting a response
 func (hub *ComponentHub) RequestFuture(
 	targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future {
 
@@ -142,6 +155,7 @@ func (hub *ComponentHub) RequestFuture(
 	return targetComponent.RequestFuture(message, timeout, tip)
 }
 
+// Get returns a component which has a targetName
 func (hub *ComponentHub) Get(targetName string) IComponent {
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
