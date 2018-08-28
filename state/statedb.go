@@ -152,7 +152,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	return err
 }
 
-func (sdb *ChainStateDB) GetAccountState(aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
@@ -163,7 +163,15 @@ func (sdb *ChainStateDB) GetAccountState(aid types.AccountID) (*types.State, err
 	sdb.accounts[aid] = state
 	return state, nil
 }
-func (sdb *ChainStateDB) GetAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
+	state, err := sdb.getAccountState(aid)
+	if err != nil {
+		return nil, err
+	}
+	res := types.Clone(*state).(types.State)
+	return &res, nil
+}
+func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
@@ -171,10 +179,10 @@ func (sdb *ChainStateDB) GetAccount(bs *BlockState, aid types.AccountID) (*types
 	if prev, ok := bs.accounts[aid]; ok {
 		return prev.State, nil
 	}
-	return sdb.GetAccountState(aid)
+	return sdb.getAccountState(aid)
 }
-func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
-	state, err := sdb.GetAccount(bs, aid)
+func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
+	state, err := sdb.getBlockAccount(bs, aid)
 	if err != nil {
 		return nil, err
 	}
