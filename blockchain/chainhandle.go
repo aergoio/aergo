@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -164,17 +165,13 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 
 func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, block *types.Block, idx int) error {
 	txBody := tx.GetBody()
-	blockHash := block.GetHash()
-	senderKey := types.ToAccountKey(txBody.Account)
-	senderState, err := cs.sdb.GetBlockAccount(bs, senderKey)
-	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
 	recipient := txBody.Recipient
-	receiverID := types.EmptyAccountKey
+	var receiverID types.AccountID
 	var createContract bool
 	if len(recipient) > 0 {
 		receiverID = types.ToAccountID(recipient)
@@ -206,7 +203,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		if createContract {
 			err = contract.Create(txBody.Payload, recipient, tx.Hash)
 		} else {
-			bcCtx := contract.NewContext(txBody.GetAccount(), blockHash, tx.GetHash(),
+			bcCtx := contract.NewContext(txBody.GetAccount(), block.GetHash(), tx.GetHash(),
 				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
 
 			err = contract.Call(txBody.Payload, recipient, tx.Hash, bcCtx)
@@ -222,7 +219,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	// 	txBody.Amount, senderID, senderState.ToString(),
 	// 	receiverID, receiverState.ToString())
 
-	err = cs.cdb.addTx(dbtx, tx, blockHash, idx)
+	err = cs.cdb.addTx(dbtx, tx, block.GetHash(), idx)
 	return err
 }
 

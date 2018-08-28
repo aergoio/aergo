@@ -407,7 +407,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout).Result()
+		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetPeers").Result()
 	if err != nil {
 		return nil, err
 	}

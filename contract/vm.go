@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/aergoio/aergo/pkg/log"
+	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 )
@@ -50,7 +51,7 @@ type Executor struct {
 }
 
 func init() {
-	ctrLog = log.NewLogger(log.Contract)
+	ctrLog = log.NewLogger("contract")
 }
 
 func NewContext(Sender, blockHash, txHash []byte, blockHeight uint64,
@@ -97,7 +98,7 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Error(errMsg)
+		ctrLog.Error().Str("error", errMsg)
 		ce.err = errors.New(errMsg)
 	}
 	return ce
@@ -131,7 +132,7 @@ func (ce *Executor) call(abi *types.ABI) {
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args)+1), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.WithCtx("error", errMsg).Warnf("contract %s", base58.Encode(ce.contract.address))
+		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", base58.Encode(ce.contract.address))
 		ce.err = errors.New(errMsg)
 		return
 	}
@@ -157,17 +158,17 @@ func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 	contract := getContract(contractAddress)
 	if contract == nil {
 		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
-		ctrLog.Warn(err.Error())
+		ctrLog.Warn().AnErr("err", err)
 	}
 	var abi types.ABI
 	err = json.Unmarshal(code, &abi)
 	if err != nil {
-		ctrLog.WithCtx("error", err).Warn("contract %s", base58.Encode(contractAddress))
+		ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
 	}
 	var ce *Executor
 	defer ce.close()
 	if err == nil {
-		ctrLog.WithCtx("abi", abi).Debugf("contract %s", base58.Encode(contractAddress))
+		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", base58.Encode(contractAddress))
 		ce = newExecutor(contract, bcCtx)
 		ce.call(&abi)
 		err = ce.err
@@ -181,7 +182,7 @@ func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 }
 
 func Create(code, contractAddress, txHash []byte) error {
-	ctrLog.WithCtx("contractAddress", base58.Encode(contractAddress)).Debug("new contract is deployed")
+	ctrLog.Debug().Str("contractAddress", base58.Encode(contractAddress)).Msg("new contract is deployed")
 	DB.Set(contractAddress, code)
 	receipt := types.NewReceipt(contractAddress, "CREATED", "{}")
 	DB.Set(txHash, receipt.Bytes())
