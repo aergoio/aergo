@@ -73,18 +73,27 @@ func NewContext(Sender, blockHash, txHash []byte, blockHeight uint64,
 	}
 }
 
-func init() {
-	ctrLog = log.NewLogger(log.Contract)
+func newLState() *LState {
+	return C.vm_newstate()
+}
+
+func (L *LState) Close() {
+	if L != nil {
+		C.lua_close(L)
+	}
 }
 
 func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	ce := &Executor{
 		contract: contract,
+		L:        newLState(),
 	}
-	if cErrMsg := C.vm_loadbuff((*C.char)(unsafe.Pointer(&contract.code[0])),
+	if cErrMsg := C.vm_loadbuff(
+		ce.L,
+		(*C.char)(unsafe.Pointer(&contract.code[0])),
 		C.size_t(len(contract.code)),
-		C.CString(base58.Encode(contract.address)), bcCtx,
-		&ce.L,
+		C.CString(base58.Encode(contract.address)),
+		bcCtx,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
@@ -98,7 +107,9 @@ func (ce *Executor) call(abi *types.ABI) {
 	if ce.err != nil {
 		return
 	}
-	C.vm_getfield(ce.L, C.CString(abi.Name))
+	C.vm_getfield(ce.L, C.CString("abi"))
+	C.lua_getfield(ce.L, -1, C.CString("call"))
+	C.lua_pushstring(ce.L, C.CString(abi.Name))
 	for _, v := range abi.Args {
 		switch arg := v.(type) {
 		case string:
@@ -117,7 +128,7 @@ func (ce *Executor) call(abi *types.ABI) {
 		}
 	}
 	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args)), &nret); cErrMsg != nil {
+	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args)+1), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.WithCtx("error", errMsg).Warnf("contract %s", base58.Encode(ce.contract.address))
@@ -128,8 +139,16 @@ func (ce *Executor) call(abi *types.ABI) {
 }
 
 func (ce *Executor) close() {
-	if ce != nil && ce.L != nil {
-		C.lua_close(ce.L)
+	if ce != nil {
+		ce.L.Close()
+		if ce.blockchainCtx != nil {
+			context := ce.blockchainCtx
+			C.free(unsafe.Pointer(context.sender))
+			C.free(unsafe.Pointer(context.blockHash))
+			C.free(unsafe.Pointer(context.txHash))
+			C.free(unsafe.Pointer(context.node))
+			C.free(unsafe.Pointer(context))
+		}
 	}
 }
 
@@ -208,4 +227,20 @@ func LuaDelDB(key *C.char) {
 	keyString := C.GoString(key)
 
 	DB.Delete([]byte(keyString))
+}
+
+func Compile(srcFileName, outFileName, abiFileName string) error {
+	cSrcFileName := C.CString(srcFileName)
+	cOutFileName := C.CString(outFileName)
+	cAbiFileName := C.CString(abiFileName)
+	L := newLState()
+	defer C.free(unsafe.Pointer(cSrcFileName))
+	defer C.free(unsafe.Pointer(cOutFileName))
+	defer C.free(unsafe.Pointer(cAbiFileName))
+	defer L.Close()
+
+	if errMsg := C.vm_compile(L, cSrcFileName, cOutFileName, cAbiFileName); errMsg != nil {
+		return errors.New(C.GoString(errMsg))
+	}
+	return nil
 }

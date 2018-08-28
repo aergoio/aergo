@@ -27,14 +27,19 @@ const bc_ctx_t *getLuaExecContext(lua_State *L)
 	return exec;
 }
 
-const char *vm_loadbuff(const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx, lua_State **p)
+lua_State *vm_newstate()
 {
-	int err;
 	lua_State *L = luaL_newstate();
-	const char *errMsg = NULL;
-
 	luaL_openlibs(L);
 	preloadModules(L);
+	return L;
+}
+
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx)
+{
+	int err;
+	const char *errMsg = NULL;
+
 	setLuaExecContext(L, bc_ctx);
 
 	err = luaL_loadbuffer(L, code, sz, name);
@@ -47,7 +52,6 @@ const char *vm_loadbuff(const char *code, size_t sz, const char *name, bc_ctx_t 
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
 	}
-	*p = L;
 	return NULL;
 }
 
@@ -80,4 +84,55 @@ const char *vm_get_json_ret(lua_State *L, int nresult)
 	free(sbuf.buf);
 	
 	return lua_tostring(L, -1);
+}
+
+static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u)
+{
+	return (fwrite(p, sz, 1, (FILE *)u) != 1) && (sz != 0);
+}
+
+const char *vm_compile(lua_State *L, const char *code, const char *byte, const char *abi)
+{
+	const char *errMsg = NULL;
+	FILE *f = NULL;
+
+	if (luaL_loadfile(L, code) != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+		lua_close(L);
+		return errMsg;
+	}
+	f = fopen(byte, "wb");
+	if (f == NULL) {
+		return "cannot open a bytecode file";
+	}
+	if (lua_dump(L, kpt_lua_Writer, f) != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+	}
+	fclose(f);
+
+	if (abi != NULL && strlen(abi) > 0) {
+		const char *r;
+		if (lua_pcall(L, 0, 0, 0) != 0) {
+		   errMsg = strdup(lua_tostring(L, -1));
+		   return errMsg;
+		}
+		lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+		lua_getfield(L, -1, "generate");
+		if (lua_pcall(L, 0, 1, 0) != 0) {
+		    errMsg = strdup(lua_tostring(L, -1));
+		    return errMsg;
+		}
+		if (!lua_isstring(L, -1)) {
+		    return "cannot create a abi file";
+		}
+		r = lua_tostring(L, -1);
+		f = fopen(abi, "wb");
+		if (f == NULL) {
+		    return "cannot open a abi file";
+		}
+		fwrite(r, 1, strlen(r), f);
+		fclose(f);
+	}
+
+	return errMsg;
 }
