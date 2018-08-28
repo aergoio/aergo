@@ -230,18 +230,3 @@ func LuaDelDB(key *C.char) {
 	DB.Delete([]byte(keyString))
 }
 
-func Compile(srcFileName, outFileName, abiFileName string) error {
-	cSrcFileName := C.CString(srcFileName)
-	cOutFileName := C.CString(outFileName)
-	cAbiFileName := C.CString(abiFileName)
-	L := newLState()
-	defer C.free(unsafe.Pointer(cSrcFileName))
-	defer C.free(unsafe.Pointer(cOutFileName))
-	defer C.free(unsafe.Pointer(cAbiFileName))
-	defer L.Close()
-
-	if errMsg := C.vm_compile(L, cSrcFileName, cOutFileName, cAbiFileName); errMsg != nil {
-		return errors.New(C.GoString(errMsg))
-	}
-	return nil
-}

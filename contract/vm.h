@@ -21,6 +21,5 @@ void vm_getfield(lua_State *L, const char *name);
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx);
 const char *vm_pcall(lua_State *L, int argc, int* nresult);
 const char *vm_get_json_ret(lua_State *L, int nresult);
-const char *vm_compile(lua_State *L, const char *lua_filename, const char *bc_filename, const char *abi_filename);
 
 #endif /* _VM_H */
