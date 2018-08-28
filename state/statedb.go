@@ -7,7 +7,6 @@ package state
 
 import (
 	"bytes"
-	"crypto/sha512"
 	"fmt"
 	"os"
 	"path"
@@ -112,13 +111,7 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	}
 
 	// init trie
-	hasher := func(data ...[]byte) []byte {
-		hasher := sha512.New512_256()
-		for i := 0; i < len(data); i++ {
-			hasher.Write(data[i])
-		}
-		return hasher.Sum(nil)
-	}
+	hasher := types.GetTrieHasher()
 	sdb.trie = trie.NewTrie(32, hasher, *sdb.statedb)
 
 	// load data from db
