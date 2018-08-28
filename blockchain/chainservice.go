@@ -237,7 +237,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	}
 }
 
-func (cs *ChainService) Statics() interface{} {
+func (cs *ChainService) Statics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"orphan": cs.op.curCnt,
 	}

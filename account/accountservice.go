@@ -73,7 +73,7 @@ func (as *AccountService) BeforeStop() {
 	as.addrs = nil
 }
 
-func (as *AccountService) Statics() interface{} {
+func (as *AccountService) Statics() *map[string]interface{} {
 	return nil
 }
 

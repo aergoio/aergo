@@ -56,7 +56,7 @@ func (ns *P2P) BeforeStop() {
 	ns.pm.Stop()
 }
 
-func (ns *P2P) Statics() interface{} {
+func (ns *P2P) Statics() *map[string]interface{} {
 	return nil
 }
 

@@ -85,7 +85,7 @@ func (ns *RPC) BeforeStop() {
 	ns.grpcServer.Stop()
 }
 
-func (ns *RPC) Statics() interface{} {
+func (ns *RPC) Statics() *map[string]interface{} {
 	return nil
 }
 

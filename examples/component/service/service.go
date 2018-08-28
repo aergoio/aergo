@@ -38,7 +38,7 @@ func (es *ExampleService) BeforeStop() {
 	// add stop logics for this service
 }
 
-func (es *ExampleService) Statics() interface{} {
+func (es *ExampleService) Statics() *map[string]interface{} {
 	return nil
 }
 

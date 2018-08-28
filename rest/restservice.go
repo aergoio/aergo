@@ -70,7 +70,7 @@ func (cs *RestService) BeforeStop() {
 
 }
 
-func (cs *RestService) Statics() interface{} {
+func (cs *RestService) Statics() *map[string]interface{} {
 	return nil
 }
 

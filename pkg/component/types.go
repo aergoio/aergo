@@ -32,5 +32,5 @@ type IActor interface {
 
 	Receive(actor.Context)
 
-	Statics() interface{}
+	Statics() *map[string]interface{}
 }

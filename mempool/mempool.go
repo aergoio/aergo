@@ -142,7 +142,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 	}
 }
 
-func (mp *MemPool) Statics() interface{} {
+func (mp *MemPool) Statics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"cache_len": len(mp.cache),
 		"orphan":    mp.orphan,
