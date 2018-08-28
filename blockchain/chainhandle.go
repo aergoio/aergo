@@ -7,9 +7,12 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
+	"strconv"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -144,7 +147,7 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).Msg("process txs and update state")
 
 	for i, tx := range txs {
-		err := cs.processTx(dbtx, bstate, tx, block.Hash, i)
+		err := cs.processTx(dbtx, bstate, tx, block, i)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", block.ID()).Int("txidx", i).Msg("failed to process tx")
 			return err
@@ -160,14 +163,26 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 	return nil
 }
 
-func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, blockHash []byte, idx int) error {
+func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, block *types.Block, idx int) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
-	receiverID := types.ToAccountID(txBody.Recipient)
+	recipient := txBody.Recipient
+	var receiverID types.AccountID
+	var createContract bool
+	if len(recipient) > 0 {
+		receiverID = types.ToAccountID(recipient)
+	} else {
+		createContract = true
+		h := sha256.New()
+		h.Write(txBody.Account)
+		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
+		recipient = h.Sum(nil)[:20]
+		receiverID = types.ToAccountID(recipient)
+	}
 	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
 	if err != nil {
 		return err
@@ -184,6 +199,19 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		bs.PutAccount(receiverID, receiverState, &receiverChange)
 	}
+	if txBody.Payload != nil {
+		if createContract {
+			err = contract.Create(txBody.Payload, recipient, tx.Hash)
+		} else {
+			bcCtx := contract.NewContext(txBody.GetAccount(), block.GetHash(), tx.GetHash(),
+				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
+
+			err = contract.Call(txBody.Payload, recipient, tx.Hash, bcCtx)
+		}
+		if err != nil {
+			return err
+		}
+	}
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)
 
@@ -191,7 +219,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	// 	txBody.Amount, senderID, senderState.ToString(),
 	// 	receiverID, receiverState.ToString())
 
-	err = cs.cdb.addTx(dbtx, tx, blockHash, idx)
+	err = cs.cdb.addTx(dbtx, tx, block.GetHash(), idx)
 	return err
 }
 

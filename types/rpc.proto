@@ -39,6 +39,9 @@ service AergoRPCService {
   rpc GetBlockTX(SingleBytes) returns (TxInBlock) {
   }
 
+  rpc GetReceipt(SingleBytes) returns (Receipt) {
+  }
+
   rpc CommitTX(TxList) returns (CommitResultList) {
     // option (google.api.http) = {
     //   post: "/transactions"

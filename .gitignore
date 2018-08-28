@@ -6,6 +6,8 @@
 debug
 debug.test
 Gopkg.lock
+*.o
+*.a
 
 # vim swp file
 *.swp
@@ -18,3 +20,4 @@ Gopkg.lock
 
 # developer workspace specific
 /conf
+

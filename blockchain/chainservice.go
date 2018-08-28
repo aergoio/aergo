@@ -6,13 +6,15 @@
 package blockchain
 
 import (
-
-	//"reflect"
+	"os"
+	"path"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -92,6 +94,12 @@ func (cs *ChainService) initGenesis(seed int64) error {
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
 	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+
+	dbPath := path.Join(cs.cfg.DataDir, contract.DbName)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	contract.DB = db.NewDB(db.BadgerImpl, dbPath)
 
 	return nil
 }
@@ -224,6 +232,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Tx:    tx,
 			TxIds: txIdx,
 			Err:   err,
+		})
+	case *message.GetReceipt:
+		receipt := contract.GetReceipt(msg.TxHash)
+		context.Respond(message.GetReceiptRsp{
+			Receipt: receipt,
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)

@@ -1,0 +1,3 @@
+[submodule "libtool/src/luajit"]
+	path = libtool/src/luajit
+	url = git@github.com:aergoio/luajit.git

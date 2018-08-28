@@ -405,6 +405,19 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 	return &types.SingleBytes{Value: data}, nil
 }
 
+func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetPeers").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetReceiptRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Receipt, nil
+}
+
 func toTimestamp(time time.Time) *timestamp.Timestamp {
 	return &timestamp.Timestamp{
 		Seconds: time.Unix(),
