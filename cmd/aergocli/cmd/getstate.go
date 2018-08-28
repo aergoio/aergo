@@ -51,7 +51,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 		&types.SingleBytes{Value: param})
 	if nil == err {
 		fmt.Printf("{account:%s, nonce:%d, balance:%d}\n",
-			base58.Encode(msg.GetAccount()), msg.GetNonce(), msg.GetBalance())
+			address, msg.GetNonce(), msg.GetBalance())
 	} else {
 		fmt.Printf("Failed: %s\n", err.Error())
 	}

@@ -166,7 +166,7 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, block *types.Block, idx int) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := cs.sdb.GetAccountClone(bs, senderID)
+	senderState, err := cs.sdb.GetBlockAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		recipient = h.Sum(nil)[:20]
 		receiverID = types.ToAccountID(recipient)
 	}
-	receiverState, err := cs.sdb.GetAccountClone(bs, receiverID)
+	receiverState, err := cs.sdb.GetBlockAccountClone(bs, receiverID)
 	if err != nil {
 		return err
 	}
@@ -211,6 +211,24 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		if err != nil {
 			return err
 		}
+
+		/*
+			// open state for contract
+			senderContract, err := cs.sdb.OpenContractState(&senderChange)
+			if err != nil {
+				return err
+			}
+
+			// set contract code
+			senderContract.SetCode(txBody.Payload)
+
+			// execute contract and set data as key-value pair
+			// - ex: err := senderContract.SetData([]byte("key"), []byte("value"))
+			// - ex: val, err := senderContract.GetData([]byte("key"))
+
+			// commit state for contract
+			err = cs.sdb.CommitContractState(senderContract)
+		*/
 	}
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)

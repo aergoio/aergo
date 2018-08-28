@@ -6,10 +6,11 @@
 package state
 
 import (
-	"crypto/sha512"
+	"bytes"
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -25,7 +26,7 @@ const (
 )
 
 var (
-	logger = log.NewLogger("state_db")
+	logger = log.NewLogger("state")
 )
 
 var (
@@ -82,32 +83,22 @@ type ChainStateDB struct {
 	accounts map[types.AccountID]*types.State
 	trie     *trie.Trie
 	latest   *BlockInfo
-	statedb  db.DB
+	statedb  *db.DB
 }
 
 func NewStateDB() *ChainStateDB {
-	hasher := func(data ...[]byte) []byte {
-		hasher := sha512.New512_256()
-		for i := 0; i < len(data); i++ {
-			hasher.Write(data[i])
-		}
-		return hasher.Sum(nil)
-	}
-	smt := trie.NewTrie(32, hasher, nil)
-
 	return &ChainStateDB{
 		accounts: make(map[types.AccountID]*types.State),
-		trie:     smt,
 	}
 }
 
-func InitDB(basePath, dbName string) db.DB {
+func InitDB(basePath, dbName string) *db.DB {
 	dbPath := path.Join(basePath, dbName)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	dbInst := db.NewDB(db.BadgerImpl, dbPath)
-	return dbInst
+	return &dbInst
 }
 
 func (sdb *ChainStateDB) Init(dataDir string) error {
@@ -118,6 +109,10 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	if sdb.statedb == nil {
 		sdb.statedb = InitDB(dataDir, stateName)
 	}
+
+	// init trie
+	hasher := types.GetTrieHasher()
+	sdb.trie = trie.NewTrie(32, hasher, *sdb.statedb)
 
 	// load data from db
 	err := sdb.loadStateDB()
@@ -136,7 +131,7 @@ func (sdb *ChainStateDB) Close() error {
 
 	// close db
 	if sdb.statedb != nil {
-		sdb.statedb.Close()
+		(*sdb.statedb).Close()
 	}
 	return nil
 }
@@ -157,18 +152,26 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	return err
 }
 
-func (sdb *ChainStateDB) GetAccountState(aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
 	if state, ok := sdb.accounts[aid]; ok {
 		return state, nil
 	}
-	state := types.NewState(aid)
+	state := types.NewState()
 	sdb.accounts[aid] = state
 	return state, nil
 }
-func (sdb *ChainStateDB) GetAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
+	state, err := sdb.getAccountState(aid)
+	if err != nil {
+		return nil, err
+	}
+	res := types.Clone(*state).(types.State)
+	return &res, nil
+}
+func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
@@ -176,15 +179,51 @@ func (sdb *ChainStateDB) GetAccount(bs *BlockState, aid types.AccountID) (*types
 	if prev, ok := bs.accounts[aid]; ok {
 		return prev.State, nil
 	}
-	return sdb.GetAccountState(aid)
+	return sdb.getAccountState(aid)
 }
-func (sdb *ChainStateDB) GetAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
-	state, err := sdb.GetAccount(bs, aid)
+func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
+	state, err := sdb.getBlockAccount(bs, aid)
 	if err != nil {
 		return nil, err
 	}
 	res := types.Clone(*state).(types.State)
 	return &res, nil
+}
+
+func (sdb *ChainStateDB) updateTrie(bstate *BlockState, undo bool) error {
+	size := len(bstate.accounts)
+	if size <= 0 {
+		// do nothing
+		return nil
+	}
+	accs := make([]types.AccountID, 0, size)
+	for k := range bstate.accounts {
+		accs = append(accs, k)
+	}
+	sort.Slice(accs, func(i, j int) bool {
+		return bytes.Compare(accs[i][:], accs[j][:]) == -1
+	})
+	keys := make(trie.DataArray, size)
+	vals := make(trie.DataArray, size)
+	for i, v := range accs {
+		keys[i] = v[:]
+		if undo {
+			vals[i] = bstate.accounts[v].Undo.GetHash()
+		} else {
+			vals[i] = bstate.accounts[v].State.GetHash()
+		}
+	}
+	if size > 0 {
+		_, err := sdb.trie.Update(keys, vals)
+		return err
+	}
+	sdb.trie.Commit()
+	return nil
+}
+
+func (sdb *ChainStateDB) revertTrie(bstate *BlockState) error {
+	// TODO: Use root hash of previous block state to revert instead of manual update
+	return sdb.updateTrie(bstate, true)
 }
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
@@ -199,19 +238,16 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	defer sdb.Unlock()
 
 	sdb.saveBlockState(bstate)
-	keys := trie.DataArray{bstate.BlockInfo.BlockHash[:]}
-	vals := trie.DataArray{bstate.BlockInfo.PrevHash[:]}
 	for k, v := range bstate.accounts {
 		sdb.accounts[k] = v.State
-		keys = append(keys, k[:])
-		vals = append(vals, v.State.GetHash())
 	}
-	if len(keys) > 0 && len(vals) > 0 {
-		sdb.trie.Update(keys, vals)
+	err := sdb.updateTrie(bstate, false)
+	if err != nil {
+		return err
 	}
 	// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 	sdb.latest = &bstate.BlockInfo
-	err := sdb.saveStateDB()
+	err = sdb.saveStateDB()
 	return err
 }
 
@@ -233,15 +269,13 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 		if target.BlockNo == blockNo {
 			break
 		}
-		keys := trie.DataArray{bs.BlockInfo.BlockHash[:]}
-		vals := trie.DataArray{bs.BlockInfo.PrevHash[:]}
+
 		for k, v := range bs.accounts {
 			sdb.accounts[k] = v.Undo
-			keys = append(keys, k[:])
-			vals = append(vals, v.State.GetHash())
 		}
-		if len(keys) > 0 && len(vals) > 0 {
-			sdb.trie.Update(keys, vals)
+		err = sdb.revertTrie(bs)
+		if err != nil {
+			return err
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 

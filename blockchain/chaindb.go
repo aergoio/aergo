@@ -67,7 +67,7 @@ func NewChainDB() *ChainDB {
 
 func (cdb *ChainDB) Init(dataDir string) error {
 	if cdb.store == nil {
-		cdb.store = state.InitDB(dataDir, chainDBName)
+		cdb.store = *state.InitDB(dataDir, chainDBName)
 	}
 
 	// load data
