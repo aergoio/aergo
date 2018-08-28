@@ -195,7 +195,13 @@ func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
+		before := len(keys)
 		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
+		if len(keys) > before {
+			// if the shortcut was added to the keys, don't delete the root as that
+			// will delete the shortcut
+			root = []byte{}
+		}
 		if len(keys) == 0 {
 			// The shortcut is being deleted
 			s.deleteCacheNode(root)
