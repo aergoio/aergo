@@ -7,61 +7,71 @@
 
 #include "sc_throw.h"
 #include "sc_util.h"
-#include "sc_scanner.yy.h"
 
 #include "sc_parser.h"
 
 extern int sc_yylex_init(void **);
 extern int sc_yylex_destroy(void *);
-extern int sc_yylex(void *);
 
 extern void sc_yyset_in(FILE *, void *);
 extern void sc_yyset_extra(void *, void *);
+extern void sc_yyset_debug(int, void *);
+
+extern int sc_yyparse(void *);
+extern int sc_yydebug;
 
 static void
-sc_yyextra_init(sc_yyextra_t *data, char *path)
+sc_lex_init(sc_lex_t *lex, char *path)
 {
     char *delim;
 
-    data->path = path;
+    lex->path = path;
 
     delim = strrchr(path, SC_PATH_DELIM);
-    strcpy(data->file, delim == NULL ? path : delim + 1);
+    strcpy(lex->file, delim == NULL ? path : delim + 1);
 
-    data->errcnt = 0;
+    lex->errcnt = 0;
 
-    data->lloc.line = 1;
-    data->lloc.column = 1;
-    data->lloc.offset = 0;
+    lex->lloc.line = 1;
+    lex->lloc.column = 1;
+    lex->lloc.offset = 0;
 
-    data->offset = 0;
-    data->buf = malloc(SC_STR_MAX_LEN + 1);
-    data->buf[0] = '\0';
+    lex->offset = 0;
+    lex->buf = malloc(SC_STR_MAX_LEN + 1);
+    lex->buf[0] = '\0';
+}
+
+static void
+sc_yacc_init(sc_yacc_t *yacc)
+{
+    sc_yylex_init(&yacc->scanner);
 }
 
 int
 sc_parse(char *path)
 {
     FILE *fp;
-    yyscan_t scanner;
-    sc_yyextra_t data;
+    sc_lex_t lex;
+    sc_yacc_t yacc;
 
     fp = sc_fopen(path, "r");
+    sc_assert(fp != NULL);
 
-    // TODO: check extension
+    sc_lex_init(&lex, path);
+    sc_yacc_init(&yacc);
 
-    sc_yylex_init(&scanner);
-    sc_yyextra_init(&data, path);
+    sc_yyset_in(fp, yacc.scanner);
+    sc_yyset_extra(&lex, yacc.scanner);
 
-    sc_yyset_in(fp, scanner);
-    sc_yyset_extra(&data, scanner);
+    // sc_yyset_debug(1, yacc.scanner);
+    // sc_yydebug = 1;
 
-    sc_yylex(scanner);
-    sc_yylex_destroy(scanner);
+    sc_yyparse(yacc.scanner);
+    sc_yylex_destroy(yacc.scanner);
 
     sc_fclose(fp);
 
-    if (data.errcnt > 0) {
+    if (lex.errcnt > 0) {
         sc_warn(ERROR_PARSE_FAILED);
         return RC_ERROR;
     }

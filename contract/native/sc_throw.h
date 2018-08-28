@@ -18,6 +18,12 @@
 #define ANSI_WHITE              "\x1b[37m"
 #define ANSI_DEFAULT            "\x1b[0m"
 
+#define sc_exit(ec)                                                            \
+    do {                                                                       \
+        fflush(stdout);                                                        \
+        exit(ec);                                                              \
+    } while (0)
+
 #define sc_assert(cond)                                                        \
     do {                                                                       \
         if (!(cond))                                                           \

@@ -11,7 +11,7 @@ INCLUDES = -I. -I..
 
 GEN_SRC = AllTests.c
 SOURCES = $(GEN_SRC) test_parser.c CuTest.c \
-	../sc_parser.c ../sc_scanner.yy.c
+	../sc_parser.c ../sc_scanner.yy.c ../sc_grammar.tab.c
 
 all: $(TARGET)
 

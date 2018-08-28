@@ -26,10 +26,4 @@
 #define RC_OK               0
 #define RC_ERROR            (-1)
 
-#define sc_exit(ec)                                                            \
-    do {                                                                       \
-        fflush(stdout);                                                        \
-        exit(ec);                                                              \
-    } while (0)
-
 #endif /* no _SC_COMMON_H */

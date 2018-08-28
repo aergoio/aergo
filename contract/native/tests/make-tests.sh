@@ -42,6 +42,7 @@ echo \
     CuStringDelete(output);
     CuSuiteDelete(suite);
 }
+
 int main(void)
 {
     RunAllTests();

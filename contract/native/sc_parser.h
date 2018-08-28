@@ -14,7 +14,7 @@ typedef struct sc_lloc_s {
     int offset;
 } sc_lloc_t;
 
-typedef struct sc_yyextra_s {
+typedef struct sc_lex_s {
     char *path;
     char file[SC_PATH_MAX_LEN];
 
@@ -24,7 +24,15 @@ typedef struct sc_yyextra_s {
     /* temporary buffer for literal */
     int offset;
     char *buf;
-} sc_yyextra_t;
+} sc_lex_t;
+
+typedef struct sc_yacc_s {
+    void *scanner;
+} sc_yacc_t;
+
+#define YYLTYPE             sc_lloc_t
+
+#include "sc_grammar.tab.h"
 
 int sc_parse(char *path);
 

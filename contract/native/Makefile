@@ -9,11 +9,12 @@ CC = gcc
 CFLAGS += -g
 INCLUDES = -I.
 LEX = flex
+YACC = bison
 
 OBJDIR = build
 SUBDIRS = . tests
 
-SOURCES = aergoscc.c sc_parser.c sc_scanner.yy.c
+SOURCES = aergoscc.c sc_parser.c sc_grammar.tab.c sc_scanner.yy.c 
 OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 
 RECURSIVE_TARGETS = all-recursive clean-recursive
@@ -36,8 +37,11 @@ all-local: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-sc_scanner.yy.c: sc_scanner.l sc_throw.h sc_util.h sc_parser.h
+sc_scanner.yy.c: sc_scanner.l # sc_throw.h sc_util.h sc_parser.h
 	$(LEX) -o $@ --header-file=sc_scanner.yy.h $^
+
+sc_grammar.tab.c sc_grammar.tab.h: sc_grammar.y 
+	$(YACC) -o $@ -d $^
 
 $(OBJDIR)/%.o: %.c
 	@if [ ! -d $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi
@@ -46,7 +50,7 @@ $(OBJDIR)/%.o: %.c
 clean: clean-recursive
 
 clean-local:
-	$(RM) -r build sc_scanner.yy.* $(TARGET)
+	$(RM) -r build *.yy.* *.tab.* *.output $(TARGET)
 
 test:
 	@$(MAKE) -C tests $(MAKECMDGOALS)
