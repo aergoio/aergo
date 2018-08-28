@@ -16,6 +16,14 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+// Genesis represents genesis block
+type Genesis struct {
+	Header    *BlockHeader      `json:"header"`
+	Balance   map[string]*State `json:"alloc"`
+	Timestamp int64             `json:"timestamp,omitempty"`
+	// TODO: bp Peer info
+}
+
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 

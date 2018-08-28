@@ -6,9 +6,6 @@
 package blockchain
 
 import (
-	"os"
-	"path"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
@@ -21,6 +18,8 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"os"
+	"path"
 )
 
 type ChainService struct {
@@ -60,16 +59,24 @@ func (cs *ChainService) receiveChainInfo() {
 	cs.cc = nil
 }
 
-func (cs *ChainService) BeforeStart() {
-
+func (cs *ChainService) initDB(dataDir string) error {
 	// init chaindb
-	if err := cs.cdb.Init(cs.cfg.DataDir); err != nil {
+	if err := cs.cdb.Init(dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
+		return err
 	}
 
 	// init statedb
-	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {
+	if err := cs.sdb.Init(dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
+		return err
+	}
+	return nil
+}
+func (cs *ChainService) BeforeStart() {
+
+	if err := cs.initDB(cs.cfg.DataDir); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
 	// init genesis block
@@ -78,6 +85,14 @@ func (cs *ChainService) BeforeStart() {
 	}
 }
 
+func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
+
+	if err := cs.initDB(dataDir); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
+		return err
+	}
+	return cs.initGenesis(gb.Timestamp)
+}
 func (cs *ChainService) initGenesis(seed int64) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
