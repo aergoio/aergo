@@ -84,7 +84,7 @@ type ChainStateDB struct {
 	accounts map[types.AccountID]*types.State
 	trie     *trie.Trie
 	latest   *BlockInfo
-	statedb  db.DB
+	statedb  *db.DB
 }
 
 func NewStateDB() *ChainStateDB {
@@ -93,13 +93,13 @@ func NewStateDB() *ChainStateDB {
 	}
 }
 
-func InitDB(basePath, dbName string) db.DB {
+func InitDB(basePath, dbName string) *db.DB {
 	dbPath := path.Join(basePath, dbName)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	dbInst := db.NewDB(db.BadgerImpl, dbPath)
-	return dbInst
+	return &dbInst
 }
 
 func (sdb *ChainStateDB) Init(dataDir string) error {
@@ -119,7 +119,7 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 		}
 		return hasher.Sum(nil)
 	}
-	sdb.trie = trie.NewTrie(32, hasher, sdb.statedb)
+	sdb.trie = trie.NewTrie(32, hasher, *sdb.statedb)
 
 	// load data from db
 	err := sdb.loadStateDB()
@@ -138,7 +138,7 @@ func (sdb *ChainStateDB) Close() error {
 
 	// close db
 	if sdb.statedb != nil {
-		sdb.statedb.Close()
+		(*sdb.statedb).Close()
 	}
 	return nil
 }
