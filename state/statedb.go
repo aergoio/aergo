@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	logger = log.NewLogger("state_db")
+	logger = log.NewLogger("state")
 )
 
 var (
@@ -238,6 +238,9 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	defer sdb.Unlock()
 
 	sdb.saveBlockState(bstate)
+	for k, v := range bstate.accounts {
+		sdb.accounts[k] = v.State
+	}
 	err := sdb.updateTrie(bstate, false)
 	if err != nil {
 		return err
@@ -265,6 +268,10 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 
 		if target.BlockNo == blockNo {
 			break
+		}
+
+		for k, v := range bs.accounts {
+			sdb.accounts[k] = v.Undo
 		}
 		err = sdb.revertTrie(bs)
 		if err != nil {

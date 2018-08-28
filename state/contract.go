@@ -17,7 +17,8 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 }
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
-		State: st,
+		State:   st,
+		dbstore: sdb.statedb,
 	}
 	return res, nil
 }
@@ -68,7 +69,7 @@ func (st *ContractState) GetBalance() uint64 {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := sha256.Sum256(code)
-	err := saveData(st.dbstore, st.State.CodeHash, code)
+	err := saveData(st.dbstore, codeHash[:], code)
 	if err != nil {
 		return err
 	}

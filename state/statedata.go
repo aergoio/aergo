@@ -17,6 +17,8 @@ func saveData(store *db.DB, key []byte, data interface{}) error {
 	var err error
 	var raw []byte
 	switch data.(type) {
+	case []byte:
+		raw = data.([]byte)
 	case proto.Message:
 		raw, err = proto.Marshal(data.(proto.Message))
 		if err != nil {
@@ -34,8 +36,7 @@ func saveData(store *db.DB, key []byte, data interface{}) error {
 			return err
 		}
 	}
-	// logger.Debugf("- saveData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
-	// logger.Debugf("- saveData: data=%v", data)
+	// logger.Debug().Str("key", enc.ToString(key)).Int("size", len(raw)).Msg("saveData")
 	(*store).Set(key, raw)
 	return nil
 }
@@ -49,12 +50,14 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	}
 	raw := (*store).Get(key)
 
-	// logger.Debugf("- loadData: key=%v, size=%d", hex.EncodeToString(key), len(raw))
+	// logger.Debug().Str("key", enc.ToString(key)).Int("size", len(raw)).Msg("loadData")
 	if raw == nil || len(raw) == 0 {
 		return nil
 	}
 	var err error
 	switch data.(type) {
+	case []byte:
+		data = raw
 	case proto.Message:
 		err = proto.Unmarshal(raw, data.(proto.Message))
 	default:
@@ -62,14 +65,12 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 		dec := gob.NewDecoder(reader)
 		err = dec.Decode(data)
 	}
-	// logger.Debugf("- loadData: data=%v", data)
 	return err
 }
 
 func (sdb *ChainStateDB) saveStateDB() error {
-	// logger.Debugf("- ### saveStateDB")
-	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
-	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
+	// logger.Debug().Int("blockNo", int(sdb.latest.BlockNo)).Str("blockHash", sdb.latest.BlockHash.String()).Msg("saveStateDB.latest")
+	// logger.Debug().Int("size", len(sdb.accounts)).Msg("saveStateDB.accounts")
 	err := saveData(sdb.statedb, []byte(stateAccounts), sdb.accounts)
 	if err != nil {
 		return err
@@ -82,17 +83,16 @@ func (sdb *ChainStateDB) saveStateDB() error {
 }
 
 func (sdb *ChainStateDB) loadStateDB() error {
-	// logger.Debug("- ### loadStateDB")
 	err := loadData(sdb.statedb, []byte(stateLatest), &sdb.latest)
 	if err != nil {
 		return err
 	}
-	// logger.Debugf("- sdb.latest: BlockNo=%d, BlockHash=%s", sdb.latest.BlockNo, sdb.latest.BlockHash)
+	// logger.Debug().Int("blockNo", int(sdb.latest.BlockNo)).Str("blockHash", sdb.latest.BlockHash.String()).Msg("loadStateDB.latest")
 	err = loadData(sdb.statedb, []byte(stateAccounts), &sdb.accounts)
 	if err != nil {
 		return err
 	}
-	// logger.Debugf("- sdb.accounts: size=%d", len(sdb.accounts))
+	// logger.Debug().Int("size", len(sdb.accounts)).Msg("loadStateDB.accounts")
 	return nil
 }
 
