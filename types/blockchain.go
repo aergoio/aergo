@@ -77,6 +77,20 @@ func (block *Block) CalculateBlockHash() []byte {
 	return digest.Sum(nil)
 }
 
+// BlockHash returns block hash. It returns a calculated value if the hash is nil.
+func (block *Block) BlockHash() []byte {
+	hash := block.GetHash()
+	if hash == nil {
+		return nil
+	}
+
+	if len(hash) == 0 {
+		block.CalculateBlockHash()
+	}
+
+	return block.GetHash()
+}
+
 // Sign adds a pubkey and a block signature to block.
 func (block *Block) Sign(privKey crypto.PrivKey) error {
 	var err error
@@ -146,7 +160,7 @@ func (block *Block) BPID() (id peer.ID, err error) {
 
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
-	hash := block.GetHash()
+	hash := block.BlockHash()
 	if hash != nil {
 		return enc.ToString(hash)
 	}

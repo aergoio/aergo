@@ -199,7 +199,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
-		bid := types.ToBlockID(msg.Block.GetHash())
+		bid := types.ToBlockID(msg.Block.BlockHash())
 		logger.Debug().Str("hash", msg.Block.ID()).
 			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
@@ -213,7 +213,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
-				BlockHash: block.GetHash(),
+				BlockHash: block.BlockHash(),
 				Err:       err,
 			})
 		}
