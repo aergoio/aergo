@@ -8,13 +8,21 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"io"
 
+	"github.com/aergoio/aergo/internal/enc"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
+
+// Genesis represents genesis block
+type Genesis struct {
+	Header    *BlockHeader      `json:"header"`
+	Balance   map[string]*State `json:"alloc"`
+	Timestamp int64             `json:"timestamp,omitempty"`
+	// TODO: bp Peer info
+}
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
@@ -122,8 +130,8 @@ func (block *Block) VerifySign() (valid bool, err error) {
 	return valid, nil
 }
 
-// BpID returns its Block Producer's ID from block.
-func (block *Block) BpID() (id peer.ID, err error) {
+// BPID returns its Block Producer's ID from block.
+func (block *Block) BPID() (id peer.ID, err error) {
 	var pubKey crypto.PubKey
 	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
 		return peer.ID(""), err
@@ -140,7 +148,7 @@ func (block *Block) BpID() (id peer.ID, err error) {
 func (block *Block) ID() string {
 	hash := block.GetHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""
@@ -151,7 +159,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""
@@ -220,6 +228,7 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 		bh.BlockNo,
 		bh.Timestamp,
 		bh.TxsRootHash,
+		bh.Confirms,
 		bh.PubKey,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {

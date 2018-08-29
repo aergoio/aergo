@@ -5,57 +5,80 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
 
-type reorgElem struct {
+type reorgBlock struct {
 	BlockNo types.BlockNo
 	Hash    []byte
 }
 
-func (cs *ChainService) needReorg(block *types.Block) (bool, error) {
+const (
+	initBlkCount = 20
+)
+
+type reorganizer struct {
+	//input info
+	cs         *ChainService
+	dbtx       *db.Transaction
+	brTopBlock *types.Block //branch top block
+
+	//collected info from chain
+	brRootBlock *types.Block
+	rfBlocks    []*reorgBlock //roll forward target blocks
+	rbBlocks    []*reorgBlock //roll back target blocks
+
+	rbTxs map[types.TransactionID]*types.Tx //rollbacked txs from rollback target blocks
+}
+
+func (cs *ChainService) needReorg(block *types.Block) bool {
 	cdb := cs.cdb
 	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
 
-	// assumption: not an orphan
-	if blockNo > 0 && blockNo != cdb.latest+1 {
-		if blockNo > cdb.latest+1 {
-			return false, fmt.Errorf("orphan occured in needreorg check blockno=%d, latest=%d hash=%v",
-				blockNo, cdb.latest, block.ID())
-		}
-		return false, nil
-	}
-	prevHash := block.GetHeader().GetPrevBlockHash()
-	latestHash, err := cdb.getHashByNo(cdb.getBestBlockNo())
+	isNeed := cdb.latest < blockNo
 
-	if err != nil {
-		// assertion case
-		return false, nil
-	}
-
-	isNeed := !bytes.Equal(prevHash, latestHash)
 	if isNeed {
-		logger.Debug().Uint64("blockNo", blockNo).Uint64("latestNo", cdb.latest).Str("prev", EncodeB64(prevHash)).Str("latest", EncodeB64(latestHash)).
-			Msg("need reorg true")
+		logger.Debug().Uint64("blockNo", blockNo).Uint64("latestNo", cdb.latest).
+			Str("prev", block.ID()).Msg("need reorganizing")
 	}
 
-	return isNeed, nil
+	return isNeed
 }
 
-func (cs *ChainService) reorg(block *types.Block) error {
+//TODO: on booting, retry reorganizing
+//TODO: on booting, delete played tx of block. because deleting txs from mempool is done after commit
+//TODO: gather delete request of played tx (1 msg)
+func (cs *ChainService) reorg(topBlock *types.Block) error {
 	reorgtx := cs.cdb.store.NewTx(true)
 
-	//FIXME: need tx rollback when error?
-	logger.Info().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
+	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Msg("reorg started")
 
-	elems, err := cs.rollbackChain(&reorgtx, block)
-	if err != nil {
-		panic(err)
+	reorg := &reorganizer{
+		cs:         cs,
+		dbtx:       &reorgtx,
+		brTopBlock: topBlock,
+		rfBlocks:   make([]*reorgBlock, 0, initBlkCount),
+		rbBlocks:   make([]*reorgBlock, 0, initBlkCount),
+		rbTxs:      make(map[types.TransactionID]*types.Tx),
 	}
 
-	if err := cs.rollforwardChain(&reorgtx, elems); err != nil {
-		logger.Error().Msg("failed reorg replay")
+	err := reorg.gatherChainInfo()
+	if err != nil {
+		return err
+	}
+
+	/* XXX */
+	//reorg.dumpRbBlocks()
+
+	err = reorg.rollbackChain()
+	if err != nil {
+		return err
+	}
+
+	if err := reorg.rollforwardChain(); err != nil {
 		return err
 	}
 
@@ -66,111 +89,236 @@ func (cs *ChainService) reorg(block *types.Block) error {
 	return nil
 }
 
-// rollback old main chain and collect blocks to process txs in branch(new main chain).
-// New best block doesn't included. it will be processed after reorg.
-func (cs *ChainService) rollbackChain(dbtx *db.Transaction, newBlock *types.Block) ([]reorgElem, error) {
-	cdb := cs.cdb
+func (reorg *reorganizer) dumpRbBlocks() {
+	for _, rbBlock := range reorg.rbBlocks {
+		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
+			Msg("dump rollback block")
+	}
+}
 
-	/* skip best block */
-	brBlock := newBlock
-	blockNo := brBlock.GetHeader().GetBlockNo()
-	elems := make([]reorgElem, 0)
+// find branch root
+// gather rollforard/rollback target blocks
+func (reorg *reorganizer) gatherChainInfo() error {
+	//find branch root block , gather rollforward Target block
+	cdb := reorg.cs.cdb
 
-	var branchRootBlock *types.Block
+	brBlock := reorg.brTopBlock
+	brBlockNo := brBlock.GetHeader().GetBlockNo()
+	brBlockHash := brBlock.GetHash()
 
-	//find branch root block & gather target blocks for roll forward
+	latestNo := cdb.latest
+
 	for {
-		// get prev block info
-		prevHash := brBlock.GetHeader().GetPrevBlockHash()
-		brBlock, _ = cdb.getBlock(prevHash)
-		mHash, _ := cdb.getHashByNo(brBlock.GetHeader().GetBlockNo())
-		mBlock, _ := cdb.getBlock(mHash)
-		blockNo--
+		mainBlockHash, err := cdb.getHashByNo(brBlockNo)
 
-		if blockNo != brBlock.GetHeader().GetBlockNo() {
-			logger.Fatal().Uint64("blockNo", blockNo).Uint64("TBlockNo", brBlock.GetHeader().GetBlockNo()).
-				Msg("failed rollback. invalid blockNo")
-			return nil, fmt.Errorf("failed rollback. invalid blockNo(exp=%d, res=%d)", blockNo,
-				brBlock.GetHeader().GetBlockNo())
+		if latestNo < brBlockNo {
+			//must not exist (no, hash) record
+			if err == nil {
+				return fmt.Errorf("block of main chain can't be higher than latest. no=%d, latest=%d",
+					brBlockNo, latestNo)
+			}
+		} else {
+			//must exist
+			if err != nil {
+				return err
+			}
+
+			if bytes.Equal(brBlock.Hash, mainBlockHash) {
+				if latestNo == brBlockNo {
+					return fmt.Errorf("best block can't be branch root block")
+				}
+				reorg.brRootBlock = brBlock
+
+				logger.Debug().Str("hash", brBlock.ID()).Uint64("blockNo", brBlockNo).
+					Msg("found branch root block")
+
+				return nil
+			}
+
+			//gather rollback target
+
+			logger.Debug().Str("hash", enc.ToString(mainBlockHash)).Uint64("blockNo", brBlockNo).
+				Msg("gather rollback target")
+			reorg.rbBlocks = append(reorg.rbBlocks, &reorgBlock{brBlockNo, mainBlockHash})
 		}
 
-		if bytes.Equal(brBlock.Hash, mHash) {
-			// branch root found
-			logger.Debug().Uint64("blockNo", blockNo).Str("from", brBlock.ID()).
-				Str("to", EncodeB64(mHash)).Msg("found branch root block")
-
-			branchRootBlock = mBlock
+		if brBlockNo <= 0 {
 			break
 		}
 
-		// error: cannot find branch root
-		if blockNo == 0 {
-			logger.Fatal().Uint64("blockNo", blockNo).Str("hash", brBlock.ID()).
-				Msg("Error! blockNo(0) is diffrent in branch")
-			break
+		//gather rollforward target
+		logger.Debug().Str("hash", enc.ToString(brBlockHash)).Uint64("blockNo", brBlockNo).
+			Msg("gather rollforward target")
+		reorg.rfBlocks = append(reorg.rfBlocks, &reorgBlock{brBlockNo, brBlockHash})
+
+		//get prev block from branch
+		if brBlock, err = cdb.getBlock(brBlock.GetHeader().GetPrevBlockHash()); err != nil {
+			return err
 		}
 
-		cs.rollbackBlock(dbtx, mBlock)
-
-		elems = cs.collectReorgTarget(brBlock, elems)
+		prevBrBlockNo := brBlock.GetHeader().GetBlockNo()
+		if brBlockNo-1 != prevBrBlockNo {
+			return fmt.Errorf("rollback target is not valid. block(%v), blockno(exp=%d,res=%d)",
+				brBlock.ID(), brBlockNo-1, prevBrBlockNo)
+		}
+		brBlockNo = prevBrBlockNo
+		brBlockHash = brBlock.GetHash()
 	}
 
-	if branchRootBlock == nil {
-		logger.Fatal().Str("hash", newBlock.ID()).Msg("failed to find branch root block")
-		return nil, fmt.Errorf("failed to find branch root block of block(%s,%d)", newBlock.ID(),
-			newBlock.GetHeader().GetBlockNo())
-	}
-
-	if err := cs.sdb.Rollback(branchRootBlock.GetHeader().GetBlockNo()); err != nil {
-		logger.Fatal().Str("hash", newBlock.ID()).Str("root", branchRootBlock.ID()).
-			Msg("failed to rollback sdb")
-		return nil, err
-	}
-
-	return elems, nil
+	return fmt.Errorf("branch root block(%v) doesn't exist", reorg.brTopBlock.ID())
 }
 
-func (cs *ChainService) collectReorgTarget(block *types.Block, elems []reorgElem) []reorgElem {
-	newElem := reorgElem{
-		BlockNo: block.GetHeader().GetBlockNo(),
-		Hash:    block.Hash,
-	}
-	elems = append(elems, newElem)
+/*
+	rollbackBlock
+	rollback overall stateDB
+*/
+func (reorg *reorganizer) rollbackChain() error {
+	cdb := reorg.cs.cdb
 
-	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
-		Msg("collect reorg target block")
-	return elems
-}
+	for _, rbBlock := range reorg.rbBlocks {
+		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
+			Msg("rollback block")
 
-func (cs *ChainService) rollforwardChain(dbtx *db.Transaction, elems []reorgElem) error {
-	cdb := cs.cdb
-
-	for i := len(elems) - 1; i >= 0; i-- {
-		elem := elems[i]
-		logger.Debug().Uint64("blockNo", uint64(elem.BlockNo)).
-			Str("hash", EncodeB64(elem.Hash)).Msg("roll forward")
-
-		blockIdx := types.BlockNoToBytes(elem.BlockNo)
-
-		// change main chain info
-		(*dbtx).Set(blockIdx, elem.Hash)
-
-		//FIXME: processed tx del -> mempool
-		block, err := cdb.getBlock(elem.Hash)
+		//get target block
+		targetBlock, err := cdb.getBlock(rbBlock.Hash)
 		if err != nil {
 			return err
 		}
-		if err := cs.processTxsAndState(dbtx, block); err != nil {
-			return err
+
+		if targetBlock.GetHeader().GetBlockNo() != rbBlock.BlockNo {
+			return fmt.Errorf("invalid rollback target block(%d, %v.err=%s)", rbBlock.BlockNo, rbBlock.Hash,
+				err.Error())
 		}
 
-		if cdb.latest+1 != elem.BlockNo {
-			return fmt.Errorf("roll forward failed. invalid latest no(%d), block(%d, %v)",
-				cdb.latest, elem.BlockNo, block.ID())
-		}
+		reorg.rollbackBlock(targetBlock)
+	}
 
-		cdb.setLatest(elem.BlockNo)
+	//rollback stateDB
+	reorg.rollbackChainState()
+
+	return nil
+}
+
+func (reorg *reorganizer) rollbackChainState() error {
+	brRootBlock := reorg.brRootBlock
+	brRootBlockNo := brRootBlock.GetHeader().GetBlockNo()
+
+	if err := reorg.cs.sdb.Rollback(brRootBlockNo); err != nil {
+
+		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brRootBlockNo,
+			brRootBlock.ID())
 	}
 
 	return nil
+}
+
+/*
+	rollbackBlock
+	- cdb.latest -= - 1
+	- gather rollbacked Txs
+*/
+func (reorg *reorganizer) rollbackBlock(block *types.Block) {
+	cdb := reorg.cs.cdb
+
+	blockNo := block.GetHeader().GetBlockNo()
+
+	for _, tx := range block.GetBody().GetTxs() {
+		reorg.rbTxs[types.ToTransactionID(tx.GetHash())] = tx
+	}
+
+	cdb.setLatest(blockNo - 1)
+}
+
+/*
+	rollforward
+		rollforwardBlock
+		add rbTxs to mempool
+*/
+func (reorg *reorganizer) rollforwardChain() error {
+	cs := reorg.cs
+	cdb := cs.cdb
+
+	for i := len(reorg.rfBlocks) - 1; i >= 0; i-- {
+		rfBlock := reorg.rfBlocks[i]
+
+		logger.Debug().Str("hash", enc.ToString(rfBlock.Hash)).Uint64("blockNo", rfBlock.BlockNo).
+			Msg("rollforward block")
+
+		targetBlock, err := cdb.getBlock(rfBlock.Hash)
+		if err != nil {
+			return fmt.Errorf("can not find target block(%d, %v)", rfBlock.BlockNo, rfBlock.Hash)
+		}
+
+		if targetBlock.GetHeader().GetBlockNo() != rfBlock.BlockNo {
+			return fmt.Errorf("invalid target block(%d, %v)", rfBlock.BlockNo, rfBlock.Hash)
+		}
+
+		if err := reorg.rollforwardBlock(targetBlock); err != nil {
+			return err
+		}
+	}
+
+	//add rollbacked Tx to mempool (except played tx in roll forward)
+	cntRbTxs := len(reorg.rbTxs)
+	if cntRbTxs > 0 {
+		txs := make([]*types.Tx, cntRbTxs)
+		logger.Debug().Int("tx count", cntRbTxs).Msg("tx add to mempool")
+
+		for txID, tx := range reorg.rbTxs {
+			logger.Debug().Str("txID", txID.String()).Msg("tx added")
+			txs = append(txs, tx)
+		}
+
+		cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
+			Txs: txs,
+		})
+	}
+
+	return nil
+}
+
+/*
+	play Tx & update stateDB
+	update db (blkNo, hash)
+	cdb.latest
+	tx delete from rbTxs
+*/
+func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
+	cs := reorg.cs
+	cdb := reorg.cs.cdb
+
+	if err := cs.processTxsAndState(reorg.dbtx, block); err != nil {
+		return err
+	}
+
+	if err := cdb.updateLatestBlock(reorg.dbtx, block); err != nil {
+		return err
+	}
+
+	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
+		// FIXME: remove legacy
+		BlockNo: block.GetHeader().GetBlockNo(),
+		Txs:     block.GetBody().GetTxs(),
+	})
+
+	//remove played tx from rbTxs
+	reorg.removePlayedTxs(block)
+
+	return nil
+}
+
+func (reorg *reorganizer) removePlayedTxs(block *types.Block) {
+	blockNo := block.GetHeader().GetBlockNo()
+	txs := block.GetBody().GetTxs()
+
+	for _, tx := range txs {
+		txID := types.ToTransactionID(tx.GetHash())
+
+		if _, exists := reorg.rbTxs[txID]; exists {
+			logger.Debug().Str("tx", txID.String()).Uint64("blockNo", blockNo).
+				Msg("played tx deleted from rollback Tx set")
+
+			delete(reorg.rbTxs, txID)
+		}
+	}
 }

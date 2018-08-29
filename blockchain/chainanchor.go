@@ -6,15 +6,15 @@
 package blockchain
 
 import (
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
 
-type hash []byte
-type ChainAnchor []hash
+type ChainAnchor []([]byte)
 
 // returns anchor blocks of chain
 // use config
-func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
+func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 	/* TODO: use config */
 	anchors := make(ChainAnchor, 0, 1000)
 	anchors = append(anchors, blockHash)
@@ -22,13 +22,15 @@ func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
 	// collect 10 latest hashes
 	latestNo := cs.getBestBlockNo()
 	for i := 0; i < 10; i++ {
-		logger.Info().Uint64("Num", latestNo).Msg("Latest")
 		blockHash, err := cs.getHashByNo(latestNo)
 		if err != nil {
 			logger.Info().Msg("assertion - hash get failed")
 			// assertion!
 			return nil
 		}
+
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+
 		anchors = append(anchors, blockHash)
 		if latestNo == 0 {
 			return anchors
@@ -44,6 +46,9 @@ func (cs *ChainService) getAnchorsFromHash(blockHash hash) ChainAnchor {
 			// assertion!
 			return nil
 		}
+
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+
 		anchors = append(anchors, blockHash)
 		if latestNo <= dec {
 			if latestNo == 0 {

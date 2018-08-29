@@ -20,7 +20,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
-	inet "github.com/libp2p/go-libp2p-net"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -33,7 +32,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
-	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
 )
 
 var myPeerInfo peerInfo
@@ -62,8 +60,6 @@ type PeerManager interface {
 	SelfMeta() PeerMeta
 	SelfNodeID() peer.ID
 
-	AddSubProtocol(p subProtocol)
-
 	AddNewPeer(peer PeerMeta)
 	RemovePeer(peerID peer.ID)
 	NotifyPeerHandshake(peerID peer.ID)
@@ -71,16 +67,12 @@ type PeerManager interface {
 
 	HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice)
 
-	// LookupPeer search for peer, which is registered(handshaked) or connectected but not registerd yet.
-	LookupPeer(ID peer.ID) (*RemotePeer, bool)
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
 	GetPeers() []*RemotePeer
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 
 	// deprecated methods... use sendmessage helper functions instead
-	NewMessageData(messageID string, gossip bool) *types.MessageData
-	SendProtoMessage(data proto.Message, s inet.Stream) bool
 	SignProtoMessage(message proto.Message) ([]byte, error)
 	AuthenticateMessage(message proto.Message, data *types.MessageData) bool
 }
@@ -95,6 +87,9 @@ type peerManager struct {
 	publicKey  crypto.PubKey
 	selfMeta   PeerMeta
 	iServ      ActorService
+	rm         ReconnectManager
+
+	designatedPeers map[peer.ID]PeerMeta
 
 	subProtocols []subProtocol
 	remotePeers  map[peer.ID]*RemotePeer
@@ -129,22 +124,26 @@ type PeerEventListener interface {
 
 // subProtocol is sub protocol of p2p protocol
 type subProtocol interface {
+	setPeerManager(PeerManager)
 	// initWith init subprotocol implementation with PeerManager.
-	initWith(PeerManager)
+	startHandling()
 }
 
 func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, logger *log.Logger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, rm ReconnectManager, logger *log.Logger) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	hl := &peerManager{
 		iServ: iServ,
 		conf:  p2pConf,
+		rm:    rm,
 		log:   logger,
 		mutex: &sync.Mutex{},
+
+		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
 		remotePeers: make(map[peer.ID]*RemotePeer, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
@@ -186,6 +185,7 @@ func (ps *peerManager) SelfNodeID() peer.ID {
 
 func (ps *peerManager) AddSubProtocol(p subProtocol) {
 	ps.subProtocols = append(ps.subProtocols, p)
+	p.setPeerManager(ps)
 }
 func (ps *peerManager) RegisterEventListener(listener PeerEventListener) {
 	ps.mutex.Lock()
@@ -235,22 +235,26 @@ func (ps *peerManager) init() {
 	ps.selfMeta.IPAddress = listenAddr.String()
 	ps.selfMeta.Port = uint32(listenPort)
 	ps.selfMeta.ID = pid
+
+	// set designated peers
+	ps.addDesignatedPeers()
 }
 
 func (ps *peerManager) run() {
 
 	go ps.runManagePeers()
-
 	// need to start listen after chainservice is read to init
 	// FIXME: adhoc code
 	go func() {
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 3)
 		ps.startListener()
 
-		// addtion should start after all modules are started
+		// addition should start after all modules are started
 		go func() {
 			time.Sleep(time.Second * 2)
-			ps.addDesignatedPeers()
+			for _, meta := range ps.designatedPeers {
+				ps.addPeerChannel <- meta
+			}
 		}()
 	}()
 }
@@ -291,21 +295,30 @@ func (ps *peerManager) addDesignatedPeers() {
 			Designated: true,
 			Outbound:   true,
 		}
-		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Desginated peer")
-		ps.addPeerChannel <- peerMeta
+		ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Designated peer")
+		ps.designatedPeers[peerID] = peerMeta
 	}
 }
 
 func (ps *peerManager) runManagePeers() {
 	addrDuration := time.Minute * 3
 	addrTicker := time.NewTicker(addrDuration)
+	// reconnectRunners := make(map[peer.ID]*reconnectRunner)
 MANLOOP:
 	for {
 		select {
 		case meta := <-ps.addPeerChannel:
-			ps.addOutboundPeer(meta)
+			if ps.addOutboundPeer(meta) {
+				if _, found := ps.designatedPeers[meta.ID]; found {
+					ps.rm.CancelJob(meta.ID)
+				}
+			}
 		case id := <-ps.removePeerChannel:
-			ps.removePeer(id)
+			if ps.removePeer(id) {
+				if meta, found := ps.designatedPeers[id]; found {
+					ps.rm.AddJob(meta)
+				}
+			}
 		case <-addrTicker.C:
 			ps.checkAndCollectPeerListFromAll()
 		case peerID := <-ps.hsPeerChannel:
@@ -317,42 +330,125 @@ MANLOOP:
 		}
 	}
 	addrTicker.Stop()
+
 	// cleanup peers
 	for peerID := range ps.remotePeers {
 		ps.removePeer(peerID)
 	}
 }
 
-// addOutboundPeer should be called in runManagePeer() only
-func (ps *peerManager) addOutboundPeer(meta PeerMeta) {
+// addOutboundPeer try to connect and handshake to remote peer. it can be called after peermanager is inited.
+// It return true if peer is added or already exist, or return false if failed to add peer.
+func (ps *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
 	if err != nil {
 		ps.log.Warn().Err(err).Str("addr", addrString).Msg("invalid NPAddPeer address")
-		return
+		return false
 	}
 	var peerID = meta.ID
 	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
 	newPeer, ok := ps.remotePeers[peerID]
 	if ok {
+		// peer is already exist
 		ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
-		// TODO check and modify meta information of peer if needed.
-		return
+		if meta.Designated {
+			// If remote peer was connected first. designated flag is not set yet.
+			newPeer.meta.Designated = true
+		}
+		ps.mutex.Unlock()
+		return true
 	}
-	ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is already managed by peerService")
+	ps.mutex.Unlock()
+
 	// if peer exists in peerstore already, reuse that peer again.
 	if !ps.checkInPeerstore(peerID) {
 		ps.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 	}
-	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
-	ps.insertPeer(peerID, newPeer)
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Peer is added to peerstore")
-	for _, listener := range ps.eventListeners {
-		listener.OnAddPeer(peerID)
+
+	ctx := context.Background()
+	s, err := ps.NewStream(ctx, meta.ID, aergoP2PSub)
+	if err != nil {
+		ps.log.Warn().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
+		return false
 	}
+	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+
+	success := doHandshake(ps, rw)
+	if !success {
+		ps.sendGoAway(rw, "Failed to handshake")
+		s.Close()
+		return false
+	}
+
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	newPeer, ok = ps.remotePeers[peerID]
+	if ok {
+		if ComparePeerID(ps.selfMeta.ID, meta.ID) <= 0 {
+			ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
+			s.Close()
+			return true
+		}
+	}
+
+	newPeer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	// insert Handlers
+	ps.insertHandlers(newPeer)
 	go newPeer.runPeer()
-	newPeer.op <- OpOrder{op: OpInitHS}
+	newPeer.setState(types.RUNNING)
+
+	ps.insertPeer(peerID, newPeer)
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Outbound peer is  added to peerService")
+	return true
+}
+
+func (ps *peerManager) insertHandlers(peer *RemotePeer) {
+	// PingHandler
+	ph := NewPingHandler(ps, peer, ps.log)
+	peer.handlers[pingRequest] = ph.handlePing
+	peer.handlers[pingResponse] = ph.handlePingResponse
+	peer.handlers[goAway] = ph.handleGoAway
+	peer.handlers[addressesRequest] = ph.handleAddressesRequest
+	peer.handlers[addressesResponse] = ph.handleAddressesResponse
+
+	// BlockHandler
+	bh := NewBlockHandler(ps, peer, ps.log)
+	peer.handlers[getBlocksRequest] = bh.handleBlockRequest
+	peer.handlers[getBlocksResponse] = bh.handleGetBlockResponse
+	peer.handlers[getBlockHeadersRequest] = bh.handleGetBlockHeadersRequest
+	peer.handlers[getBlockHeadersResponse] = bh.handleGetBlockHeadersResponse
+	peer.handlers[getMissingRequest] = bh.handleGetMissingRequest
+	// peer.handlers[getMissingResponse] = // no function yet
+	peer.handlers[newBlockNotice] = bh.handleNewBlockNotice
+
+	th := NewTxHandler(ps, peer, ps.log)
+	peer.handlers[getTXsRequest] = th.handleGetTXsRequest
+	peer.handlers[getTxsResponse] = th.handleGetTXsResponse
+	peer.handlers[newTxNotice] = th.handleNewTXsNotice
+}
+func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	peerID := meta.ID
+	peer, found := ps.remotePeers[peerID]
+
+	if found {
+		// already found. drop this connection
+		if ComparePeerID(ps.selfMeta.ID, peerID) <= 0 {
+			return false
+		}
+	}
+	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	peer.rw = rw
+	ps.insertHandlers(peer)
+	go peer.runPeer()
+	peer.setState(types.RUNNING)
+	ps.insertPeer(peerID, peer)
+	peerAddr := meta.ToPeerAddress()
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Inbound peer is  added to peerService")
+	return true
 }
 
 func (ps *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -382,14 +478,21 @@ func (ps *peerManager) NotifyPeerAddressReceived(metas []PeerMeta) {
 	ps.fillPoolChannel <- metas
 }
 
+// removePeer remove and disconnect managed remote peer connection
+// It return true if peer is exist and managed by peermanager
 func (ps *peerManager) removePeer(peerID peer.ID) bool {
 	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
 	target, ok := ps.remotePeers[peerID]
-	if ok {
-		target.stop()
-		ps.deletePeer(peerID)
+	if !ok {
+		ps.mutex.Unlock()
+		return false
 	}
+	ps.deletePeer(peerID)
+	// No internal module access this peer anymore, but remote message can be received.
+	target.stop()
+	ps.mutex.Unlock()
+
+	// also disconnect connection
 	for _, existingPeerID := range ps.Peerstore().Peers() {
 		if existingPeerID == peerID {
 			for _, listener := range ps.eventListeners {
@@ -399,7 +502,7 @@ func (ps *peerManager) removePeer(peerID peer.ID) bool {
 			return true
 		}
 	}
-	return false
+	return true
 }
 
 func (ps *peerManager) Peerstore() pstore.Peerstore {
@@ -431,10 +534,11 @@ func (ps *peerManager) startListener() {
 		Msg("Set self node's pid, and listening for connections")
 	ps.Host = newHost
 
-	// listen subprotocols also
-	for _, sub := range ps.subProtocols {
-		sub.initWith(ps)
-	}
+	ps.SetStreamHandler(aergoP2PSub, ps.onHandshake)
+	// // listen subprotocols also
+	// for _, sub := range ps.subProtocols {
+	// 	sub.startHandling()
+	// }
 }
 
 func (pi *peerInfo) set(id *peer.ID, privKey *crypto.PrivKey) {
@@ -563,6 +667,9 @@ func (ps *peerManager) tryConnectPeers() {
 // message: a protobufs go data object
 // data: common p2p message data
 func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
+	// for Test only
+	return true
+
 	// store a temp ref to signature and remove it from message data
 	// sign is a string to allow easy reset to zero-value (empty string)
 	sign := data.Sign
@@ -581,7 +688,7 @@ func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// restore peer peer.ID binary format from base58 encoded node peer.ID data
 	peerID, err := peer.IDB58Decode(data.PeerID)
 	if err != nil {
-		ps.log.Warn().Msg("Failed to decode node peer.ID from base58")
+		ps.log.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
 		return false
 	}
 
@@ -639,64 +746,6 @@ func (ps *peerManager) VerifyData(data []byte, signature []byte, peerID peer.ID,
 	}
 
 	return res
-}
-
-// NewMessageData is helper method - generate message data shared between all node's p2p protocols
-// messageId: unique for requests, copied from request for responses
-// DEPRECATED:
-func (ps *peerManager) NewMessageData(messageID string, gossip bool) *types.MessageData {
-	// Add protobufs bin data for message author public key
-	// this is useful for authenticating  messages forwarded by a node authored by another node
-	nodePubKey, err := ps.publicKey.Bytes()
-	if err != nil {
-		panic("Failed to get public key for sender from local peer store.")
-	}
-
-	return &types.MessageData{ClientVersion: "0.1.0",
-		Id:         messageID,
-		NodePubKey: nodePubKey,
-		Timestamp:  time.Now().Unix(),
-		PeerID:     peer.IDB58Encode(ps.SelfNodeID()),
-		Gossip:     gossip}
-}
-
-// SendProtoMessage is helper method - writes a protobuf go data object to a network stream
-// data: reference of protobuf go data object to send (not the object itself)
-// s: network stream to write the data to
-func (ps *peerManager) SendProtoMessage(data proto.Message, s inet.Stream) bool {
-	writer := bufio.NewWriter(s)
-	enc := protobufCodec.Multicodec(nil).Encoder(writer)
-	err := enc.Encode(data)
-	if err != nil {
-		ps.log.Warn().Err(err).Msg("fail to encode in SendProtoMessage")
-		return false
-	}
-	writer.Flush()
-	return true
-}
-
-func (ps *peerManager) LookupPeer(peerID peer.ID) (*RemotePeer, bool) {
-	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
-
-	peer, found := ps.remotePeers[peerID]
-
-	if found {
-		return peer, true
-	}
-	// adding inbound peer
-	if ps.checkInPeerstore(peerID) {
-		ps.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Adding inbound peer with dummy address")
-		// address can be changed after handshaking...
-		aPeer := newRemotePeer(PeerMeta{ID: peerID}, ps, ps.iServ, ps.log)
-		ps.insertPeer(peerID, aPeer)
-		for _, listener := range ps.eventListeners {
-			listener.OnAddPeer(peerID)
-		}
-		go aPeer.runPeer()
-		return aPeer, true
-	}
-	return nil, false
 }
 
 func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {

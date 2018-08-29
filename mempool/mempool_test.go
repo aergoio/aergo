@@ -56,7 +56,7 @@ func initTest() {
 	cfg := serverCtx.GetDefaultConfig().(*config.Config)
 	pool = NewMemPoolService(cfg)
 	pool.testConfig = true
-	pool.Start()
+	pool.BeforeStart()
 
 	for i := 0; i < maxAccount; i++ {
 		account[i] = _itobU32(uint32(i))

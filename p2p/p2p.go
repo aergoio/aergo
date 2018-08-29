@@ -22,9 +22,10 @@ type P2P struct {
 
 	hub *component.ComponentHub
 
-	p2ps PeerManager
+	pm PeerManager
+	rm ReconnectManager
 
-	ping  *PingProtocol
+	ping  *PingHandler
 	addrs *AddressesProtocol
 	blk   *BlockProtocol
 	txs   *TxProtocol
@@ -39,49 +40,36 @@ const defaultTTL = time.Second * 4
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
 
 	netsvc := &P2P{
-		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger("p2p")),
-		hub:           hub,
+		hub: hub,
 	}
-
+	netsvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, netsvc, log.NewLogger("p2p"))
 	netsvc.init(cfg, chainsvc)
 	return netsvc
 }
 
 // Start starts p2p service
-func (ns *P2P) Start() {
-	ns.BaseComponent.Start(ns)
-	//TODO add init logics for this service
-	ns.p2ps.Start()
+func (ns *P2P) BeforeStart() {
+	ns.pm.Start()
 }
 
 // Stop stops
-func (ns *P2P) Stop() {
-	ns.p2ps.Stop()
-
-	ns.BaseComponent.Stop()
+func (ns *P2P) BeforeStop() {
+	ns.pm.Stop()
 }
 
-func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) PeerManager {
-	p2psvc := NewPeerManager(ns, cfg, ns.Logger)
-	// FIXME 초기화
-	ns.ping = NewPingProtocol(ns.Logger)
-	ns.ping.actorServ = ns
-	p2psvc.AddSubProtocol(ns.ping)
+func (ns *P2P) Statics() *map[string]interface{} {
+	return nil
+}
 
-	ns.blk = NewBlockProtocol(ns.Logger, chainsvc)
-	ns.blk.iserv = ns
-	ns.blk.log = ns.Logger
-	p2psvc.AddSubProtocol(ns.blk)
+func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+	reconMan := NewReconnectManager(ns.Logger)
+	peerMan := NewPeerManager(ns, cfg, reconMan, ns.Logger)
 
-	ns.addrs = NewAddressesProtocol(ns.Logger)
-	p2psvc.AddSubProtocol(ns.addrs)
+	// connect managers each other
+	reconMan.pm = peerMan
 
-	ns.txs = NewTxProtocol(ns.Logger, chainsvc)
-	ns.txs.iserv = ns
-	p2psvc.AddSubProtocol(ns.txs)
-
-	ns.p2ps = p2psvc
-	return p2psvc
+	ns.pm = peerMan
+	ns.rm = reconMan
 }
 
 const success bool = true
@@ -90,51 +78,45 @@ const failed bool = false
 // Receive got actor message and then handle it.
 func (ns *P2P) Receive(context actor.Context) {
 
-	ns.BaseComponent.Receive(context)
-
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
 	// case *message.PingMsg:
 	// 	result := ns.ping.Ping(msg.ToWhom)
 	// 	context.Respond(result)
 	case *message.GetAddressesMsg:
-		ns.addrs.GetAddresses(msg.ToWhom, msg.Size)
+		ns.GetAddresses(msg.ToWhom, msg.Size)
 	case *message.GetBlockHeaders:
-		ns.blk.GetBlockHeaders(msg)
+		ns.GetBlockHeaders(msg)
 	case *message.GetBlockInfos:
-		ns.blk.GetBlocks(msg.ToWhom, msg.Hashes)
+		ns.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewBlock:
-		ns.blk.NotifyNewBlock(*msg)
-	case *message.GetTransactions:
-		ns.txs.GetTXs(msg.ToWhom, msg.Hashes)
-	case *message.NotifyNewTransactions:
-		ns.txs.NotifyNewTX(*msg)
-	case *message.GetPeers:
-		peers, states := ns.p2ps.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
+		// TODO remove conversion
+		ns.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
-		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": ns.BaseComponent.Statics(msg),
-			})
+		ns.GetMissingBlocks(msg.ToWhom, msg.Hashes)
+	case *message.GetTransactions:
+		ns.GetTXs(msg.ToWhom, msg.Hashes)
+	case *message.NotifyNewTransactions:
+		ns.NotifyNewTX(*msg)
+	case *message.GetPeers:
+		peers, states := ns.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	}
 }
 
 // SendRequest implement interface method of ActorService
 func (ns *P2P) SendRequest(actor string, msg interface{}) {
-	ns.hub.Request(actor, msg, ns)
+	ns.RequestTo(actor, msg)
 }
 
 // FutureRequest implement interface method of ActorService
 func (ns *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).FutureRequest")
+	return ns.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
 func (ns *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).CallRequest")
+	future := ns.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
 }

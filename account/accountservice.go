@@ -36,26 +36,21 @@ type AccountService struct {
 	testConfig  bool
 }
 
-var _ component.IComponent = (*AccountService)(nil)
-
 //NewAccountService create account service
 func NewAccountService(cfg *cfg.Config) *AccountService {
-	return &AccountService{
-		BaseComponent: component.NewBaseComponent(message.AccountsSvc, log.NewLogger("account")),
-		cfg:           cfg,
-		accounts:      []*types.Account{},
-		unlocked:      map[string]*aergokey{},
+	actor := &AccountService{
+		cfg:      cfg,
+		accounts: []*types.Account{},
+		unlocked: map[string]*aergokey{},
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.AccountsSvc, actor, log.NewLogger("account"))
+
+	return actor
 }
 
-func (as *AccountService) Start() {
+func (as *AccountService) BeforeStart() {
 	const dbName = "account"
 	const addressFile = "addresses"
-	if as.testConfig {
-
-	} else {
-		as.BaseComponent.Start(as)
-	}
 
 	//TODO: fix it store secure storage
 	dbPath := path.Join(as.cfg.DataDir, dbName)
@@ -69,22 +64,20 @@ func (as *AccountService) Start() {
 	as.accounts, _ = as.addrs.getAccounts()
 }
 
-func (as *AccountService) Stop() {
+func (as *AccountService) BeforeStop() {
 	as.accounts = nil
 	as.unlocked = nil
 	if as.storage != nil {
 		as.storage.Close()
 	}
 	as.addrs = nil
-	if as.testConfig {
+}
 
-	} else {
-		as.BaseComponent.Stop()
-	}
+func (as *AccountService) Statics() *map[string]interface{} {
+	return nil
 }
 
 func (as *AccountService) Receive(context actor.Context) {
-	as.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
 	case *message.GetAccounts:
@@ -100,11 +93,9 @@ func (as *AccountService) Receive(context actor.Context) {
 		account, err := as.unlockAccount(msg.Account.Address, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
 	case *message.SignTx:
-		err := as.signTx(msg.Tx)
+		err := as.signTx(context, msg.Tx)
 		if err != nil {
 			context.Respond(&message.SignTxRsp{Tx: nil, Err: err})
-		} else {
-			context.Respond(&message.SignTxRsp{Tx: msg.Tx, Err: nil})
 		}
 	case *message.VerifyTx:
 		err := as.verifyTx(msg.Tx)
@@ -113,11 +104,6 @@ func (as *AccountService) Receive(context actor.Context) {
 		} else {
 			context.Respond(&message.VerifyTxRsp{Tx: msg.Tx, Err: nil})
 		}
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": as.BaseComponent.Statics(msg),
-			})
 	}
 }
 
@@ -228,24 +214,18 @@ func hashWithoutSign(txBody *types.TxBody) []byte {
 	return h.Sum(nil)
 }
 
-func (as *AccountService) signTx(tx *types.Tx) error {
+func (as *AccountService) signTx(c actor.Context, tx *types.Tx) error {
 	//hash tx
 	txbody := tx.Body
-	hash := hashWithoutSign(txbody)
 	//get key
 	key, exist := as.unlocked[EncodeB64(txbody.Account)]
 	if !exist {
 		return message.ErrShouldUnlockAccount
 	}
 	//sign tx
-	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
-	if err != nil {
-		as.Error().Err(err).Msg("could not sign")
-		return err
-	}
-	txbody.Sign = sign
-	//txbody.Sign = sign
-	tx.Hash = tx.CalculateTxHash()
+	prop := actor.FromInstance(NewSigner(as.Logger, key))
+	signer := c.Spawn(prop)
+	signer.Request(tx, c.Sender())
 	return nil
 }
 

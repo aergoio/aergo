@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"net"
 	"strconv"
 	"sync"
@@ -15,17 +14,6 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
-
-	inet "github.com/libp2p/go-libp2p-net"
-
-	"github.com/multiformats/go-multicodec/protobuf"
-)
-
-// pattern: /protocol-name/request-or-response-message/version
-const (
-	addressesRequest  protocol.ID = "/peer/addressesreq/0.1"
-	addressesResponse protocol.ID = "/peer/addressesresp/0.1"
 )
 
 // AddressesProtocol type
@@ -44,61 +32,33 @@ func NewAddressesProtocol(logger *log.Logger) *AddressesProtocol {
 	return p
 }
 
-func (p *AddressesProtocol) initWith(p2pservice PeerManager) {
-	p.ps = p2pservice
-	p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
-	p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
+func (p *AddressesProtocol) setPeerManager(pm PeerManager) {
+	p.ps = pm
 }
 
-// GetAddresses send getAddress request to other peer
-func (p *AddressesProtocol) GetAddresses(peerID peer.ID, size uint32) bool {
-	remotePeer, ok := p.ps.GetPeer(peerID)
-	if !ok {
-		p.log.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Message addressRequest to Unknown peer, check if a bug")
-
-		return false
-	}
-	senderAddr := p.ps.SelfMeta().ToPeerAddress()
-	// create message data
-	req := &types.AddressesRequest{MessageData: &types.MessageData{},
-		Sender: &senderAddr, MaxSize: 50}
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, false, addressesRequest, req))
-	return true
+func (p *AddressesProtocol) startHandling() {
+	// p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
+	// p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
 }
 
 // remote peer requests handler
-func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
-	defer s.Close()
+func (p *PingHandler) handleAddressesRequest(msg *types.P2PMessage) {
+	peerID := p.peer.ID()
+	remotePeer := p.peer
 
-	peerID := s.Conn().RemotePeer()
-	remotePeer, ok := p.ps.GetPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-	perr := remotePeer.checkState()
-	if perr != nil {
-		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-
-	// get request data
+	// get request dataㅕ
 	data := &types.AddressesRequest{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
+	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
-		p.log.Info().Err(err).Msg("fail to decode")
+		p.logger.Info().Err(err).Msg("fail to decode")
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, nil)
+	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, p.peer.ID(), nil)
 
 	// generate response message
 	resp := &types.AddressesResponse{MessageData: &types.MessageData{}}
-	var addrList = make([]*types.PeerAddress, 0, len(p.ps.GetPeers()))
-	for _, aPeer := range p.ps.GetPeers() {
+	var addrList = make([]*types.PeerAddress, 0, len(p.pm.GetPeers()))
+	for _, aPeer := range p.pm.GetPeers() {
 		// exclude not running peer and requesting peer itself
 		// TODO: apply peer status after fix status management bug
 		if aPeer.meta.ID == peerID {
@@ -112,8 +72,8 @@ func (p *AddressesProtocol) onAddressesRequest(s inet.Stream) {
 	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, addressesResponse, resp))
 }
 
-func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	selfPeerID := p.ps.ID()
+func (p *PingHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
+	selfPeerID := p.pm.ID()
 	peerMetas := make([]PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
@@ -124,39 +84,24 @@ func (p *AddressesProtocol) checkAndAddPeerAddresses(peers []*types.PeerAddress)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {
-		p.ps.NotifyPeerAddressReceived(peerMetas)
+		p.pm.NotifyPeerAddressReceived(peerMetas)
 	}
 }
 
 // remote ping response handler
-func (p *AddressesProtocol) onAddressesResponse(s inet.Stream) {
-	defer s.Close()
-
-	peerID := s.Conn().RemotePeer()
-	remotePeer, ok := p.ps.GetPeer(peerID)
-	if !ok {
-		warnLogUnknownPeer(p.log, s.Protocol(), peerID)
-		return
-	}
-
-	remotePeer.readLock.Lock()
-	defer remotePeer.readLock.Unlock()
-	perr := remotePeer.checkState()
-	if perr != nil {
-		p.log.Info().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(s.Protocol())).Err(perr).Msg("Invalid peer state to handle request")
-		return
-	}
+func (p *PingHandler) handleAddressesResponse(msg *types.P2PMessage) {
+	peerID := p.peer.ID()
+	remotePeer := p.peer
 
 	data := &types.AddressesResponse{}
-	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
-	err := decoder.Decode(data)
+	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.log, s.Protocol(), data.MessageData.Id, peerID, len(data.GetPeers()))
-	valid := p.ps.AuthenticateMessage(data, data.MessageData)
+	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.GetPeers()))
+	valid := p.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.log.Info().Msg("Failed to authenticate message")
+		p.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 

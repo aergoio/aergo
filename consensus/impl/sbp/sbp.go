@@ -101,6 +101,8 @@ func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start() {
+	defer logger.Info().Msg("shutdown initiated. stop the service")
+
 	for {
 		select {
 		case e := <-s.jobQueue:

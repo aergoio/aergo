@@ -37,7 +37,7 @@ type AergoRPCService struct {
 	msgHelper   message.Helper
 }
 
-// FIXME remove redundent constants
+// FIXME remove redundant constants
 const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 
@@ -175,6 +175,9 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
 	result, err := rpc.actorHelper.CallRequest(message.MemPoolSvc,
 		&message.MemPoolExist{Hash: in.Value})
+	if err != nil {
+		return nil, err
+	}
 	tx, err := rpc.msgHelper.ExtractTxFromResponse(result)
 	if err != nil {
 		return nil, err
@@ -278,8 +281,6 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	//TODO : rsp.Account will be filled in ChainSvc?
-	rsp.State.Account = in.Value
 	return rsp.State, rsp.Err
 }
 
@@ -419,6 +420,19 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &rsp.Top, nil
+}
+
+func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetPeers").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetReceiptRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Receipt, nil
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {

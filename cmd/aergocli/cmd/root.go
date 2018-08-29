@@ -7,19 +7,19 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 )
 
 var (
 	// Used for flags.
-	home     string
-	cfgFile  string
-	keyFile  string
-	host     string
-	port     int32
+	home    string
+	cfgFile string
+	keyFile string
+	host    string
+	port    int32
 
 	rootConfig CliConfig
 

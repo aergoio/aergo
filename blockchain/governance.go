@@ -34,8 +34,8 @@ func (cs *ChainService) processGovernanceTx(dbtx *db.Transaction, bs *state.Bloc
 }
 
 func (cs *ChainService) processVoteTx(dbtx *db.Transaction, bs *state.BlockState, txBody *types.TxBody) error {
-	senderKey := types.ToAccountID(txBody.Account)
-	senderState, err := cs.sdb.GetAccountClone(bs, senderKey)
+	senderID := types.ToAccountID(txBody.Account)
+	senderState, err := cs.sdb.GetBlockAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (cs *ChainService) processVoteTx(dbtx *db.Transaction, bs *state.BlockState
 		senderChange.Balance = senderState.Balance - txBody.Amount
 		cs.putVote(voter, to, int64(txBody.Amount))
 		senderChange.Nonce = txBody.Nonce
-		bs.PutAccount(senderKey, senderState, &senderChange)
+		bs.PutAccount(senderID, senderState, &senderChange)
 
 	} else if txBody.Payload[0] == 'r' { //unstaking, revert
 		//TODO: check valid candidate, voter, amount from state db
@@ -62,7 +62,7 @@ func (cs *ChainService) processVoteTx(dbtx *db.Transaction, bs *state.BlockState
 			return errors.New("not enough staking balance")
 		}
 		senderChange.Balance = senderState.Balance + txBody.Amount
-		bs.PutAccount(senderKey, senderState, &senderChange)
+		bs.PutAccount(senderID, senderState, &senderChange)
 		//TODO: update candidate, voter, amount to state db
 		cs.putVote(voter, to, -int64(txBody.Amount))
 	}

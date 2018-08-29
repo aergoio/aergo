@@ -15,23 +15,22 @@ type TestServer struct {
 	*component.BaseComponent
 }
 
-var _ component.IComponent = (*TestServer)(nil)
+func (ts *TestServer) BeforeStart() {
+	// do nothing
+}
 
-func (ts *TestServer) Start() {
-	ts.BaseComponent.Start(ts)
+func (ts *TestServer) BeforeStop() {
+
+	// add stop logics for this service
+}
+
+func (ts *TestServer) Statics() *map[string]interface{} {
+	return nil
 }
 
 func (ts *TestServer) Receive(context actor.Context) {
-	ts.BaseComponent.Receive(context)
-
 	switch msg := context.Message().(type) {
 	case *message.HelloRsp:
 		ts.Info().Msg(msg.Greeting)
-
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": ts.BaseComponent.Statics(msg),
-			})
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -109,7 +110,7 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 
 // IsBlockValid checks the DPoS consensus level validity of a block
 func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
-	id, err := block.BpID()
+	id, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
@@ -148,7 +149,7 @@ func (dpos *DPoS) StatusUpdate() {
 func (dpos *DPoS) bpIdx() uint16 {
 	idx, exist := dpos.bpc.BpID2Index(dpos.ID)
 	if !exist {
-		logger.Fatal().Str("id", dpos.ID.Pretty()).Msg("BP has no correct BP membership")
+		logger.Fatal().Str("id", enc.ToString([]byte(dpos.ID))).Msg("BP has no correct BP membership")
 	}
 
 	return idx

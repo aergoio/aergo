@@ -14,8 +14,12 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 )
 
+var _ IComponent = (*BaseComponent)(nil)
+
+// BaseComponent provides a basic implementations for IComponent interface
 type BaseComponent struct {
 	*log.Logger
+	IActor
 	name            string
 	pid             *actor.PID
 	status          Status
@@ -24,9 +28,14 @@ type BaseComponent struct {
 	accProcessedMsg uint64
 }
 
-func NewBaseComponent(name string, logger *log.Logger) *BaseComponent {
+// NewBaseComponent is a helper to create BaseComponent
+// This func requires this component's name, implemenation of IActor, and
+// logger to record internal log msg
+// Setting a logger with a same name with the component is recommended
+func NewBaseComponent(name string, actor IActor, logger *log.Logger) *BaseComponent {
 	return &BaseComponent{
 		Logger:          logger,
+		IActor:          actor,
 		name:            name,
 		pid:             nil,
 		status:          StoppedStatus,
@@ -36,17 +45,27 @@ func NewBaseComponent(name string, logger *log.Logger) *BaseComponent {
 	}
 }
 
+// GetName returns a name of this component
 func (base *BaseComponent) GetName() string {
 	return base.name
 }
 
+// resumeDecider advices a behavior when panic is occured during receving a msg
+// A component, which its strategy is this, will throw away a current failing msg
+// and just keep going to process a next msg
 func resumeDecider(_ interface{}) actor.Directive {
 	return actor.ResumeDirective
 }
 
-func (base *BaseComponent) Start(inheritant IComponent) {
+// Start inits internal modules and spawns actor process
+// let this component
+func (base *BaseComponent) Start() {
+	// call a init func, defined at an actor's implementation
+	base.IActor.BeforeStart()
+
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
-	workerProps := actor.FromInstance(inheritant).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
+	// attach a resume strategy and a mailbox with an extension for counting msgs
+	workerProps := actor.FromInstance(base).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
 
 	var err error
 	// create and spawn an actor using the name as an unique id
@@ -54,7 +73,7 @@ func (base *BaseComponent) Start(inheritant IComponent) {
 	// if a same name of pid already exists, retry by attaching a sequential id
 	// from actor.ProcessRegistry
 	for ; err != nil; base.pid, err = actor.SpawnPrefix(workerProps, base.GetName()) {
-		//TODO add log msg
+		base.Warn().Err(err).Msg("actor name is duplicate")
 	}
 
 	// Wait for the messaging hub to be fully initilized. - Incomplete
@@ -62,76 +81,125 @@ func (base *BaseComponent) Start(inheritant IComponent) {
 	hubInit.wait()
 }
 
+// Stop lets this component stop and terminate
 func (base *BaseComponent) Stop() {
+	// call a cleanup func, defined at an actor's implementation
+	base.IActor.BeforeStop()
+
 	base.pid.Stop()
 	base.pid = nil
 }
 
-func (base *BaseComponent) Request(message interface{}, sender IComponent) {
-
-	if base.pid != nil {
-		base.pid.Request(message, sender.Pid())
-	} else {
-		log.Default().Fatal().Msg("PID is empty")
+// Tell passes a given message to this component and forgets
+func (base *BaseComponent) Tell(message interface{}) {
+	if base.pid == nil {
+		panic("PID is empty")
 	}
+	base.pid.Tell(message)
 }
 
-func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
+// TellTo tells (sends and forgets) a message to a target component
+// Internally this component will try to find the target component
+// using a hub set
+func (base *BaseComponent) TellTo(targetCompName string, message interface{}) {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+	base.hub.Tell(targetCompName, message)
+}
 
+// Request passes a given message to this component.
+// And a message sender will expect to get a response in form of
+// an actor request
+func (base *BaseComponent) Request(message interface{}, sender *actor.PID) {
 	if base.pid == nil {
-		log.Default().Fatal().Msg("PID is empty")
+		panic("PID is empty")
+	}
+	base.pid.Request(message, sender)
+}
+
+// RequestTo passes a given message to a target component
+// And a message sender, this component, will expect to get a response
+// from the target component in form of an actor request
+func (base *BaseComponent) RequestTo(targetCompName string, message interface{}) {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+	targetComp := base.hub.Get(targetCompName)
+	targetComp.Request(message, base.pid)
+}
+
+// RequestFuture is similar with Request; passes a given message to this component.
+// And this returns a future, that represent an asynchronous result
+func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
+	if base.pid == nil {
+		panic("PID is empty")
 	}
 
 	return base.pid.RequestFuturePrefix(message, tip, timeout)
 }
 
-func (base *BaseComponent) Pid() *actor.PID {
-	return base.pid
+// RequestToFuture is similar with RequestTo; passes a given message to this component.
+// And this returns a future, that represent an asynchronous result
+func (base *BaseComponent) RequestToFuture(targetCompName string, message interface{}, timeout time.Duration) *actor.Future {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+
+	return base.hub.RequestFuture(targetCompName, message, timeout, base.name)
 }
 
+// SetHub assigns a component hub to be used internally
 func (base *BaseComponent) SetHub(hub *ComponentHub) {
 	base.hub = hub
 }
 
+// Hub returns a component hub set
 func (base *BaseComponent) Hub() *ComponentHub {
 	return base.hub
 }
 
+// Receive in the BaseComponent handles system messages and invokes actor's
+// receive function; implementation to handle incomming messages
 func (base *BaseComponent) Receive(context actor.Context) {
 	base.accProcessedMsg++
 
-	switch context.Message().(type) {
+	switch msg := context.Message().(type) {
 
 	case *actor.Started:
-		//base.Info("Started, initialize actor here")
 		atomic.SwapUint32(&base.status, StartedStatus)
 
 	case *actor.Stopping:
-		//base.Info("Stopping, actor is about shut down")
 		atomic.SwapUint32(&base.status, StoppingStatus)
 
 	case *actor.Stopped:
-		//base.Info("Stopped, actor and it's children are stopped")
 		atomic.SwapUint32(&base.status, StoppedStatus)
 
 	case *actor.Restarting:
-		//base.Info("Restarting, actor is about restart")
 		atomic.SwapUint32(&base.status, RestartingStatus)
+
+	case *CompStatReq:
+		context.Respond(base.statics(msg))
 	}
+
+	base.IActor.Receive(context)
 }
 
+// Status returns status of this component; started, stopped, stopping, restarting
+// This func is thread-safe
 func (base *BaseComponent) Status() Status {
 	return atomic.LoadUint32(&base.status)
 }
 
-func (base *BaseComponent) Statics(req *CompStatReq) *Statics {
+func (base *BaseComponent) statics(req *CompStatReq) *CompStatRsp {
 	thisMsgLatency := time.Now().Sub(req.SentTime)
 
-	return &Statics{
+	return &CompStatRsp{
 		Status:            StatusToString(base.status),
 		ProcessedMsg:      base.accProcessedMsg,
 		QueuedMsg:         base.accQueuedMsg,
 		MsgProcessLatency: thisMsgLatency.String(),
+		Actor:             base.IActor.Statics(),
 	}
 }
 

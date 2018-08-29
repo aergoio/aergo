@@ -12,7 +12,6 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"os"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -53,29 +53,29 @@ type MemPool struct {
 	testConfig bool
 }
 
-var _ component.IComponent = (*MemPool)(nil)
-
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
-	return &MemPool{
-		BaseComponent: component.NewBaseComponent(message.MemPoolSvc, log.NewLogger("mempool")),
-		cfg:           cfg,
-		cache:         map[types.TransactionID]*types.Tx{},
-		pool:          map[types.AccountID]*TxList{},
-		stateCache:    map[types.AccountID]*types.State{},
-		dumpPath:      cfg.Mempool.DumpFilePath,
-		status:        initial,
+	actor := &MemPool{
+		cfg:        cfg,
+		cache:      map[types.TransactionID]*types.Tx{},
+		pool:       map[types.AccountID]*TxList{},
+		stateCache: map[types.AccountID]*types.State{},
+		dumpPath:   cfg.Mempool.DumpFilePath,
+		status:     initial,
 		//testConfig:    true, // FIXME test config should be removed
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
+
+	return actor
 }
 
 // Start runs mempool servivce
-func (mp *MemPool) Start() {
+func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
 		mp.curBestBlockNo = getCurrentBestBlockNoMock()
 	} else {
-		mp.BaseComponent.Start(mp)
+		//p.BaseComponent.Start(mp)
 
 		/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
 		if err != nil {
@@ -97,7 +97,7 @@ func (mp *MemPool) Start() {
 }
 
 // Stop handles clean-up for mempool service
-func (mp *MemPool) Stop() {
+func (mp *MemPool) BeforeStop() {
 	mp.dumpTxsToFile()
 }
 
@@ -111,7 +111,6 @@ func (mp *MemPool) Size() (int, int) {
 
 // Receive handles requested messages from other services
 func (mp *MemPool) Receive(context actor.Context) {
-	mp.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
@@ -137,18 +136,16 @@ func (mp *MemPool) Receive(context actor.Context) {
 		})
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
-	case *component.CompStatReq:
-		context.Respond(
-			&component.CompStatRsp{
-				"component": mp.BaseComponent.Statics(msg),
-				"mempool": map[string]interface{}{
-					"cache_len": len(mp.cache),
-					"orphan":    mp.orphan,
-				},
-			})
 
 	default:
-		mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
+		//mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
+	}
+}
+
+func (mp *MemPool) Statics() *map[string]interface{} {
+	return &map[string]interface{}{
+		"cache_len": len(mp.cache),
+		"orphan":    mp.orphan,
 	}
 }
 
@@ -309,8 +306,8 @@ func (mp *MemPool) delMemPoolList(acc []byte) {
 }
 
 func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
-	result, err := mp.Hub().RequestFuture(message.ChainSvc,
-		&message.GetState{Account: acc}, time.Second, "mempool.(*MemPool).setAccountState").Result()
+	result, err := mp.RequestToFuture(message.ChainSvc,
+		&message.GetState{Account: acc}, time.Second).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -341,9 +338,9 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 }
 
 func (mp *MemPool) notifyNewTx(tx types.Tx) {
-	mp.Hub().Request(message.P2PSvc, &message.NotifyNewTransactions{
+	mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
 		Txs: []*types.Tx{&tx},
-	}, mp)
+	})
 }
 
 func (mp *MemPool) loadTxs() {
@@ -419,7 +416,7 @@ func (mp *MemPool) dumpTxsToFile() {
 				continue
 			}
 
-			strData := base64.StdEncoding.EncodeToString(data)
+			strData := enc.ToString(data)
 			err = writer.Write([]string{strData})
 			if err != nil {
 				mp.Info().Err(err).Msg("writing encoded tx fail")

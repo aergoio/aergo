@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	addrutil "github.com/libp2p/go-addr-util"
 	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	mnet "github.com/multiformats/go-multiaddr-net"
 	uuid "github.com/satori/go.uuid"
@@ -64,7 +63,7 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 	msgID := uuid.Must(uuid.NewV4()).String()
 	dummyArray := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 	type args struct {
-		protocol   protocol.ID
+		protocol   SubProtocol
 		additional interface{}
 	}
 	tests := []struct {

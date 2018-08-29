@@ -26,11 +26,11 @@ func initTest() {
 	conf.DataDir, _ = ioutil.TempDir("", "test")
 	as = NewAccountService(conf)
 	as.testConfig = true
-	as.Start()
+	as.BeforeStart()
 }
 
 func deinitTest() {
-	as.Stop()
+	as.BeforeStop()
 }
 
 func TestNewAccountAndGet(t *testing.T) {
@@ -151,7 +151,8 @@ func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 		t.FailNow()
 	}
 	tx := types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.signTx(&tx)
+	signer := NewSigner(as.Logger, as.unlocked[EncodeB64(account.Address)])
+	err = signer.SignTx(&tx)
 	if err != nil {
 		t.Fatalf("failed to sign: %s", err)
 	}
@@ -178,7 +179,8 @@ func TestVerfiyFail(t *testing.T) {
 		t.FailNow()
 	}
 	tx := types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.signTx(&tx)
+	signer := NewSigner(as.Logger, as.unlocked[EncodeB64(account.Address)])
+	err = signer.SignTx(&tx)
 	if err != nil {
 		t.Fatalf("failed to sign: %s", err)
 	}

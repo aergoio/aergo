@@ -6,7 +6,7 @@ go:
 before_install:
   - go get -t github.com/Masterminds/glide
   - go get -t github.com/codeclimate/test-reporter
-  - glide install
+  - make deps
   
 before_script:
   - test-reporter before-build
