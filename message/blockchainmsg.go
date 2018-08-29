@@ -71,6 +71,15 @@ type GetReceipt struct {
 }
 type GetReceiptRsp struct {
 	Receipt *types.Receipt
+	Err     error
+}
+
+type GetABI struct {
+	Contract []byte
+}
+type GetABIRsp struct {
+	ABI *types.ABI
+	Err error
 }
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.

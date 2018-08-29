@@ -86,3 +86,7 @@ const char *vm_get_json_ret(lua_State *L, int nresult)
 	return lua_tostring(L, -1);
 }
 
+const char *vm_tostring(lua_State *L, int idx)
+{
+    return lua_tolstring(L, idx, NULL);
+}

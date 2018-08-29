@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -27,9 +28,9 @@ func init() {
 
 	contractCmd.AddCommand(
 		&cobra.Command{
-			Use:   "deploy [flags] address bcfile",
+			Use:   "deploy [flags] address bcfile abifile",
 			Short: "deploy a contract",
-			Args:  cobra.MinimumNArgs(2),
+			Args:  cobra.MinimumNArgs(3),
 			Run: func(cmd *cobra.Command, args []string) {
 				creator, err := base58.Decode(args[0])
 				if err != nil {
@@ -43,11 +44,20 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
+				abi, err := ioutil.ReadFile(args[2])
+				if err != nil {
+					log.Fatal(err)
+				}
+				payload := make([]byte, 4+len(code)+len(abi))
+
+				binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)))
+				copy(payload[4:], code)
+				copy(payload[4+len(code):], abi)
 				tx := &types.Tx{
 					Body: &types.TxBody{
 						Nonce:   state.GetNonce() + 1,
 						Account: []byte(creator),
-						Payload: []byte(code),
+						Payload: payload,
 					},
 				}
 
@@ -82,15 +92,15 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				var abi types.ABI
-				abi.Name = args[2]
+				var ci types.CallInfo
+				ci.Name = args[2]
 				if len(args) > 3 {
-					err = json.Unmarshal([]byte(args[3]), &abi.Args)
+					err = json.Unmarshal([]byte(args[3]), &ci.Args)
 					if err != nil {
 						log.Fatal(err)
 					}
 				}
-				payload, err := json.Marshal(abi)
+				payload, err := json.Marshal(ci)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -113,6 +123,24 @@ func init() {
 				for i, r := range commit.Results {
 					fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
 				}
+			},
+		},
+	)
+	contractCmd.AddCommand(
+		&cobra.Command{
+			Use:   "abi [flags] contract",
+			Short: "get ABI of the contract",
+			Args:  cobra.MinimumNArgs(1),
+			Run: func(cmd *cobra.Command, args []string) {
+				contract, err := base58.Decode(args[0])
+				if err != nil {
+					log.Fatal(err)
+				}
+				abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(util.JSON(abi))
 			},
 		},
 	)

@@ -248,9 +248,16 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetReceipt:
-		receipt := contract.GetReceipt(msg.TxHash)
+		receipt, err := contract.GetReceipt(msg.TxHash)
 		context.Respond(message.GetReceiptRsp{
 			Receipt: receipt,
+			Err:     err,
+		})
+	case *message.GetABI:
+		abi, err := contract.GetABI(msg.Contract)
+		context.Respond(message.GetABIRsp{
+			ABI: abi,
+			Err: err,
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
