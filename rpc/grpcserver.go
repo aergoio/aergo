@@ -60,7 +60,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 	}
 	last := rsp.Block
 	return &types.BlockchainStatus{
-		BestBlockHash: last.GetHash(),
+		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
 	}, nil
 }

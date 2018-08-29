@@ -138,7 +138,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 }
 
 func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Block) error {
-	blockHash := types.ToBlockID(block.GetHash())
+	blockHash := types.ToBlockID(block.BlockHash())
 	prevHash := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
 
 	bstate := state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
@@ -203,7 +203,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		if createContract {
 			err = contract.Create(txBody.Payload, recipient, tx.Hash)
 		} else {
-			bcCtx := contract.NewContext(txBody.GetAccount(), block.GetHash(), tx.GetHash(),
+			bcCtx := contract.NewContext(txBody.GetAccount(), block.BlockHash(), tx.GetHash(),
 				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
 
 			err = contract.Call(txBody.Payload, recipient, tx.Hash, bcCtx)
@@ -237,13 +237,13 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	// 	txBody.Amount, senderID, senderState.ToString(),
 	// 	receiverID, receiverState.ToString())
 
-	err = cs.cdb.addTx(dbtx, tx, block.GetHash(), idx)
+	err = cs.cdb.addTx(dbtx, tx, block.BlockHash(), idx)
 	return err
 }
 
 // find an orphan block which is the child of the added block
 func (cs *ChainService) connectOrphan(block *types.Block) (*types.Block, error) {
-	hash := block.GetHash()
+	hash := block.BlockHash()
 
 	orphanID := types.ToBlockID(hash)
 	orphan, exists := cs.op.cache[orphanID]

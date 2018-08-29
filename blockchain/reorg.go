@@ -104,7 +104,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 	brBlock := reorg.brTopBlock
 	brBlockNo := brBlock.GetHeader().GetBlockNo()
-	brBlockHash := brBlock.GetHash()
+	brBlockHash := brBlock.BlockHash()
 
 	latestNo := cdb.latest
 
@@ -162,7 +162,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 				brBlock.ID(), brBlockNo-1, prevBrBlockNo)
 		}
 		brBlockNo = prevBrBlockNo
-		brBlockHash = brBlock.GetHash()
+		brBlockHash = brBlock.BlockHash()
 	}
 
 	return fmt.Errorf("branch root block(%v) doesn't exist", reorg.brTopBlock.ID())

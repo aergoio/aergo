@@ -232,12 +232,12 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainCha
 	}
 	tx := *dbtx
 
-	tx.Set(block.GetHash(), blockBytes)
+	tx.Set(block.BlockHash(), blockBytes)
 
 	// to avoid exception, set here
 	if isMainChain {
 		tx.Set(latestKey, blockIdx)
-		tx.Set(blockIdx, block.GetHash())
+		tx.Set(blockIdx, block.BlockHash())
 
 		cdb.setLatest(blockNo)
 	}
@@ -255,10 +255,10 @@ func (cdb *ChainDB) updateLatestBlock(dbtx *db.Transaction, block *types.Block) 
 
 	if cdb.latest+1 != blockNo {
 		return fmt.Errorf("rollbackBlock failed block(%d,%v). invalid latestNo(%d)", blockNo,
-			block.GetHash(), cdb.latest)
+			block.BlockHash(), cdb.latest)
 	}
 
-	tx.Set(blockIdx, block.GetHash())
+	tx.Set(blockIdx, block.BlockHash())
 	tx.Set(latestKey, blockIdx)
 	cdb.setLatest(blockNo)
 

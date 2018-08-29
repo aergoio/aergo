@@ -420,7 +420,7 @@ func (p *RemotePeer) sendPing() {
 	// create message data
 	pingMsg := &types.Ping{
 		MessageData:   &types.MessageData{},
-		BestBlockHash: bestBlock.GetHash(),
+		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
