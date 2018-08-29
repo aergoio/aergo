@@ -65,12 +65,12 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Body:   &body,
 	}
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
-	block.Hash = block.CalculateBlockHash()
+
 	return &block
 }
 
-// CalculateBlockHash computes sha256 hash of block header.
-func (block *Block) CalculateBlockHash() []byte {
+// calculateBlockHash computes sha256 hash of block header.
+func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
 	writeBlockHeader(digest, block.Header)
 
@@ -80,12 +80,8 @@ func (block *Block) CalculateBlockHash() []byte {
 // BlockHash returns block hash. It returns a calculated value if the hash is nil.
 func (block *Block) BlockHash() []byte {
 	hash := block.GetHash()
-	if hash == nil {
-		return nil
-	}
-
 	if len(hash) == 0 {
-		block.CalculateBlockHash()
+		block.Hash = block.calculateBlockHash()
 	}
 
 	return block.GetHash()
@@ -110,8 +106,6 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 	block.Header.Sign = sig
 
-	//block hash must be recomputed
-	block.Hash = block.CalculateBlockHash()
 	return nil
 }
 
@@ -204,7 +198,7 @@ func (block *Block) Clone() *Block {
 		if res.Body != nil {
 			res.Header.TxsRootHash = CalculateTxsRootHash(res.Body.Txs)
 		}
-		res.Hash = res.CalculateBlockHash()
+		res.Hash = res.calculateBlockHash()
 	}
 	return &res
 }

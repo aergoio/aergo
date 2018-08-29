@@ -156,7 +156,6 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
-	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)
 	if err := cdb.addBlock(&tx, genesisBlock, true); err != nil {
 		return nil, err

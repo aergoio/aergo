@@ -24,7 +24,7 @@ func TestBlockHashOldNew(t *testing.T) {
 	block := NewBlock(nil, txIn, 0)
 
 	h1 := blockHash(block)
-	h2 := block.CalculateBlockHash()
+	h2 := block.calculateBlockHash()
 
 	assert.Equal(t, h1, h2)
 }
