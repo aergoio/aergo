@@ -14,7 +14,7 @@ extern int sc_yylex_init(void **);
 extern int sc_yylex_destroy(void *);
 
 extern void sc_yyset_in(FILE *, void *);
-extern void sc_yyset_extra(void *, void *);
+extern void sc_yyset_extra(sc_lex_t *, void *);
 extern void sc_yyset_debug(int, void *);
 
 extern int sc_yyparse(void *);

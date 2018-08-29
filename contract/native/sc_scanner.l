@@ -87,10 +87,10 @@
 
 %}
 
-%option case-insensitive
+%option case-sensitive
 %option never-interactive
 %option debug
-%option reentrant 
+%option reentrant
 %option noyylineno
 %option noyywrap
 %option prefix="sc_yy"
@@ -98,48 +98,17 @@
 %x  C_COMMENT
 %x  D_QUOTE
 
-whitespace          ([ ]|\t|(\xE3\x80\x80))
-newline             (\r|\n|\r\n)
+whitespace      ([ ]|\t|(\xE3\x80\x80))
+newline         (\r|\n|\r\n)
 
-cpp_comment         "//"
-c_comment_start     "/*"
-c_comment_end       "*/"
+D               [0-9]
+L               [a-zA-Z\x80-\xFF_]
+IS              (u|U)
 
-lparen              "("
-rparen              ")"
-lbrace              "{"
-rbrace              "}"
-lbracket            "["
-rbracket            "]"
-dot                 "."
-comma               ","
-colon               ":"
-semicolon           ";"
-question            "?"
-plus                "+"
-minus               "-"
-asterisk            "*"
-slash               "/"
-percent             "%"
-equal               "="
-dquote              "\""
-sign                ({plus}|{minus})
+integer         [+-]?{D}+{IS}?
+float           [+-]?({D}*"."{D}+|{D}+"."{D}*)
 
-cmp_eq              "=="
-cmp_ne              "!="
-cmp_lt              "<"
-cmp_gt              ">"
-cmp_le              "<="
-cmp_ge              ">="
-
-D                   [0-9]
-L                   [a-zA-Z\x80-\xFF_]
-IS                  (u|U)
-
-integer             {D}+{IS}?
-float               ({D}*"."{D}+|{D}+"."{D}*)
-
-identifier          {L}({L}|{D})*
+id              {L}({L}|{D})*
 
 %%
 
@@ -232,34 +201,47 @@ identifier          {L}({L}|{D})*
 "|"                 yy_return('|');
 "="                 yy_return('=');
 
+"account"           yy_return(K_ACCOUNT);
+"bool"              yy_return(K_BOOL);
 "break"             yy_return(K_BREAK);
 "byte"              yy_return(K_BYTE);
 "case"              yy_return(K_CASE);
 "const"             yy_return(K_CONST);
+"constructor"       yy_return(K_CONSTRUCTOR);
 "continue"          yy_return(K_CONTINUE);
 "contract"          yy_return(K_CONTRACT);
+"default"           yy_return(K_DEFAULT);
 "double"            yy_return(K_DOUBLE);
 "else"              yy_return(K_ELSE);
+"false"             yy_return(K_FALSE);
+"file"              yy_return(K_FILE);
 "float"             yy_return(K_FLOAT);
 "for"               yy_return(K_FOR);
+"func"              yy_return(K_FUNC);
 "if"                yy_return(K_IF);
 "int"               yy_return(K_INT);
 "int16"             yy_return(K_INT16);
 "int32"             yy_return(K_INT32);
 "int64"             yy_return(K_INT64);
 "int8"              yy_return(K_INT8);
+"map"               yy_return(K_MAP);
 "new"               yy_return(K_NEW);
+"null"              yy_return(K_NULL);
+"payable"           yy_return(K_PAYABLE);
+"pragma"            yy_return(K_PRAGMA);
 "private"           yy_return(K_PRIVATE);
 "public"            yy_return(K_PUBLIC);
 "return"            yy_return(K_RETURN);
 "string"            yy_return(K_STRING);
 "struct"            yy_return(K_STRUCT);
 "switch"            yy_return(K_SWITCH);
+"true"              yy_return(K_TRUE);
 "uint"              yy_return(K_UINT);
 "uint16"            yy_return(K_UINT16);
 "uint32"            yy_return(K_UINT32);
 "uint64"            yy_return(K_UINT64);
 "uint8"             yy_return(K_UINT8);
+"version"           yy_return(K_VERSION);
 "while"             yy_return(K_WHILE);
 
     /*
@@ -270,7 +252,7 @@ identifier          {L}({L}|{D})*
 "select"            yy_return(K_SELECT);
     */
 
-{identifier} {
+{id} {
     lval->str = malloc(yyleng + 1);
     sc_strcpy(lval->str, yytext);
     yy_return(ID);

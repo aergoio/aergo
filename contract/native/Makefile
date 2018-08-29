@@ -4,18 +4,26 @@
 #
 
 TARGET = ../../bin/aergoscc
+LIBRARY = $(OBJ_DIR)/libaergoscc.a
 
-CC = gcc
-CFLAGS += -g
+CC = cc
+CPP = cpp
+AR = ar
+RANLIB = ranlib
+CFLAGS += -g -Wall
+LDFLAGS = -Lbuild
 INCLUDES = -I.
+LIBS = -laergoscc -lm
 LEX = flex
 YACC = bison
+MKDIR_P = mkdir -p
 
-OBJDIR = build
+OBJ_DIR = build
 SUBDIRS = . tests
 
-SOURCES = aergoscc.c sc_parser.c sc_grammar.tab.c sc_scanner.yy.c 
-OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
+SRCS = sc_parser.c sc_grammar.tab.c sc_scanner.yy.c 
+OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
+DEPS = $(OBJS:%.o=%.d)
 
 RECURSIVE_TARGETS = all-recursive clean-recursive
 
@@ -32,20 +40,25 @@ all-recursive clean-recursive:
 		(cd $$subdir && $(MAKE) $$local_target); \
 	done
 
-all-local: $(TARGET)
+all-local: $(LIBRARY) $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+.SUFFIXES: .c .o
 
-sc_scanner.yy.c: sc_scanner.l # sc_throw.h sc_util.h sc_parser.h
-	$(LEX) -o $@ --header-file=sc_scanner.yy.h $^
+$(TARGET): $(OBJ_DIR)/aergoscc.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-sc_grammar.tab.c sc_grammar.tab.h: sc_grammar.y 
+$(LIBRARY): $(OBJS)
+	$(AR) rcs $@ $^
+	$(RANLIB) $@
+
+sc_scanner.yy.c: sc_scanner.l sc_grammar.tab.h
+	$(LEX) -o $@ $^
+
+sc_grammar.tab.c: sc_grammar.y 
 	$(YACC) -o $@ -d $^
 
-$(OBJDIR)/%.o: %.c
-	@if [ ! -d $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi
-	$(CC) $(CFLAGS) -c -o $@ $(INCLUDES) $(DEFS) $<
+$(OBJ_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $(INCLUDES) $<
 
 clean: clean-recursive
 
@@ -55,13 +68,10 @@ clean-local:
 test:
 	@$(MAKE) -C tests $(MAKECMDGOALS)
 
-deps .deps: $(SOURCES)
-	@$(RM) .deps; \
-	for src in $(SOURCES); do \
-		obj=`echo $$src | sed 's/\(.*\)\.c/${OBJDIR}\/\1.o/g'`; \
-		$(CC) $(INCLUDES) -MM $$src -MT $$obj >> .deps; \
-	done;
+-include $(DEPS)
 
-include .deps
+$(OBJ_DIR)/%.d: %.c
+	@if [ ! -d $(OBJ_DIR) ]; then $(MKDIR_P) $(OBJ_DIR); fi
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
 
-.PHONY: all-recursive clean-recursive
+.PHONY: all-recursive clean-recursive clean-local clean
