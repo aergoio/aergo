@@ -246,7 +246,7 @@ func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
 }
 
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
-	var err error = nil
+	var err error
 	proto := SubProtocol(msg.Header.Subprotocol)
 	defer func() {
 		if r := recover(); r != nil {
@@ -254,7 +254,7 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 			err = fmt.Errorf("internal error")
 		}
 	}()
-	p.log.Debug().Str("protocol", proto.String()).Msg("Handling messge")
+	p.log.Debug().Str(LogPeerID, p.ID().Pretty()).Str("protocol", proto.String()).Msg("Handling messge")
 
 	handler, found := p.handlers[proto]
 	if !found {
@@ -287,7 +287,7 @@ func (p *RemotePeer) sendMessage(msg msgOrder) {
 	case p.write <- msg:
 		return
 	case <-time.After(writeChannelTimeout):
-		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, string(msg.GetProtocolID())).Msg("Peer too busy or deadlock, stalled message is dropped")
+		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, msg.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
 }
 
@@ -356,7 +356,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	// check peer's status
 	// TODO code smell. hardcoded check and need memory barrier for peer state
 	if p.State() != types.RUNNING {
-		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).
+		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
 			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
@@ -370,15 +370,6 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 			return
 		}
 	}
-
-	// s := p.tryGetStream(m.GetRequestID(), m.GetProtocolID(), getStreamTimeout)
-	// if s == nil {
-	// 	p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(m.GetProtocolID())).Str(LogMsgID, m.GetRequestID()).Msg("Error while sending")
-	// 	// problem in connection starting disconnect
-	// 	p.ps.RemovePeer(p.meta.ID)
-	// 	return
-	// }
-	//defer s.Close()
 
 	err := m.SendOver(p.rw)
 	if err != nil {
@@ -471,7 +462,7 @@ func (p *RemotePeer) pruneRequests() {
 		if m.Timestamp() < expireTime {
 			delete(p.requests, key)
 			if debugLog {
-				deletedReqs = append(deletedReqs, string(m.GetProtocolID())+"/"+key+time.Unix(m.Timestamp(), 0).String())
+				deletedReqs = append(deletedReqs, m.GetProtocolID().String()+"/"+key+time.Unix(m.Timestamp(), 0).String())
 			}
 			deletedCnt++
 		}

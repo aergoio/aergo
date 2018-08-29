@@ -374,7 +374,7 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
 
-	success := doHandshake(ps, rw)
+	success := doHandshake(ps, peerID, rw)
 	if !success {
 		ps.sendGoAway(rw, "Failed to handshake")
 		s.Close()
