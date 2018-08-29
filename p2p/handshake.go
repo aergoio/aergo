@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"bufio"
+	"strconv"
 	"time"
 
 	"github.com/aergoio/aergo/message"
@@ -20,24 +21,25 @@ import (
 
 const aergoP2PSub protocol.ID = "/aergop2p/0.2"
 
-func doHandshake(pm *peerManager, peerID peer.ID, rw *bufio.ReadWriter) bool {
+// initiateHandshake start handshake with outbound peer
+func initiateHandshake(pm *peerManager, peerID peer.ID, rw *bufio.ReadWriter) (*types.Status, bool) {
 	pm.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Starting Handshake")
 	// TODO move to caller's function
 	if _, found := pm.GetPeer(peerID); found {
 		pm.log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Peer was already added")
-		return false
+		return nil, false
 	}
 
 	// send status
 	statusMsg, err := createStatusMsg(pm, pm.iServ)
 	if err != nil {
 		pm.log.Warn().Err(err).Msg("failed to create status message")
-		return false
+		return nil, false
 	}
 	serialized, err := marshalMessage(statusMsg)
 	if err != nil {
 		pm.log.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to marshal")
-		return false
+		return nil, false
 	}
 	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
@@ -45,7 +47,7 @@ func doHandshake(pm *peerManager, peerID peer.ID, rw *bufio.ReadWriter) bool {
 	err = SendProtoMessage(container, rw)
 	if err != nil {
 		pm.log.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to send status ")
-		return false
+		return nil, false
 	}
 
 	// and wait to response status
@@ -54,25 +56,26 @@ func doHandshake(pm *peerManager, peerID peer.ID, rw *bufio.ReadWriter) bool {
 	err = decoder.Decode(data)
 	if err != nil {
 		pm.log.Info().Err(err).Msg("fail to decode")
-		return false
+		return nil, false
 	}
 
 	if data.Header.GetSubprotocol() != statusRequest.Uint32() {
 		// TODO: parse message and return
 		pm.log.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", statusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
-		return false
+		return nil, false
 	}
 	statusResp := &types.Status{}
 	err = unmarshalMessage(data.Data, statusResp)
 	if err != nil {
 		pm.log.Warn().Err(err).Msg("Failed to decode status message")
-		return false
+		return nil, false
 	}
 
 	// check status message
-	return true
+	return statusResp, true
 }
 
+// onHandshake is handle handshake from inbound peer
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
@@ -80,10 +83,16 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	// first message must be status
 	data := &types.P2PMessage{}
 	decoder := mc_pb.Multicodec(nil).Decoder(s)
-	err := decoder.Decode(data)
-	if err != nil {
+	if err := decoder.Decode(data); err != nil {
 		pm.log.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to decode")
 		pm.sendGoAway(rw, "invalid message")
+		s.Close()
+		return
+	}
+
+	if err := pm.checkProtocolVersion(); err != nil {
+		pm.log.Info().Err(err).Str(LogPeerID, peerID.Pretty()).Msg("invalid protocol version of peer")
+		pm.sendGoAway(rw, "Handshake failed")
 		s.Close()
 		return
 	}
@@ -95,9 +104,9 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 		s.Close()
 		return
 	}
+
 	statusMsg := &types.Status{}
-	err = unmarshalMessage(data.Data, statusMsg)
-	if err != nil {
+	if err := unmarshalMessage(data.Data, statusMsg); err != nil {
 		pm.log.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message")
 		pm.sendGoAway(rw, "invalid status message")
 		s.Close()
@@ -126,8 +135,7 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
 	container.GetMessageData().Subprotocol = statusRequest.Uint32()
 
-	err = SendProtoMessage(container, rw)
-	if err != nil {
+	if err = SendProtoMessage(container, rw); err != nil {
 		pm.log.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to send response status ")
 		return
 	}
@@ -138,6 +146,34 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 		pm.sendGoAway(rw, "Concurrent handshake")
 		s.Close()
 	}
+
+	pm.iServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
+
+	// notice to p2pmanager that handshaking is finished
+	pm.NotifyPeerHandshake(peerID)
+}
+
+func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+	peerID := meta.ID
+	peer, found := ps.remotePeers[peerID]
+
+	if found {
+		// already found. drop this connection
+		if ComparePeerID(ps.selfMeta.ID, peerID) <= 0 {
+			return false
+		}
+	}
+	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	peer.rw = rw
+	ps.insertHandlers(peer)
+	go peer.runPeer()
+	peer.setState(types.RUNNING)
+	ps.insertPeer(peerID, peer)
+	peerAddr := meta.ToPeerAddress()
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
+	return true
 }
 
 func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
@@ -168,4 +204,9 @@ func createStatusMsg(ps PeerManager, actorServ ActorService) (*types.Status, err
 	}
 
 	return statusMsg, nil
+}
+
+func (pm *peerManager) checkProtocolVersion() error {
+	// TODO modify interface and put check code here
+	return nil
 }

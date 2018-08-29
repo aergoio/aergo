@@ -6,8 +6,6 @@
 package p2p
 
 import (
-	"net"
-	"strconv"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -109,18 +107,4 @@ func (p *PingHandler) handleAddressesResponse(msg *types.P2PMessage) {
 	if len(data.GetPeers()) > 0 {
 		p.checkAndAddPeerAddresses(data.GetPeers())
 	}
-}
-
-// AddressesToStringMap PeerAddress 객체를 맵으로 변환한 것을 반환한다.
-// FIXME 개별 타입마다 일일이 이런거 만드는 것은 삽질이다. golang은 jackson같은게 없나보다.
-func AddressesToStringMap(addrs []*types.PeerAddress) []map[string]string {
-	arr := make([]map[string]string, len(addrs))
-	for i, addr := range addrs {
-		vMap := make(map[string]string)
-		vMap["address"] = net.IP(addr.Address).String()
-		vMap["port"] = strconv.Itoa(int(addr.Port))
-		vMap["peerId"] = peer.ID(addr.PeerID).Pretty()
-		arr[i] = vMap
-	}
-	return arr
 }

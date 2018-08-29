@@ -55,6 +55,6 @@ func (m PeerMeta) TTL() time.Duration {
 	if m.Designated {
 		return DesignatedNodeTTL
 	} else {
-		return defaultTTL
+		return DefaultNodeTTL
 	}
 }

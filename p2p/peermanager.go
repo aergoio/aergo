@@ -62,6 +62,7 @@ type PeerManager interface {
 
 	AddNewPeer(peer PeerMeta)
 	RemovePeer(peerID peer.ID)
+	// NotifyPeerHandshake is called after remote peer is completed handshake and ready to receive or send
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
@@ -369,12 +370,12 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	ctx := context.Background()
 	s, err := ps.NewStream(ctx, meta.ID, aergoP2PSub)
 	if err != nil {
-		ps.log.Warn().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
+		ps.log.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
 	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
 
-	success := doHandshake(ps, peerID, rw)
+	remoteStatus, success := initiateHandshake(ps, peerID, rw)
 	if !success {
 		ps.sendGoAway(rw, "Failed to handshake")
 		s.Close()
@@ -382,12 +383,12 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 
 	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
 	newPeer, ok = ps.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(ps.selfMeta.ID, meta.ID) <= 0 {
 			ps.log.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
 			s.Close()
+			ps.mutex.Unlock()
 			return true
 		}
 	}
@@ -400,7 +401,15 @@ func (ps *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer.setState(types.RUNNING)
 
 	ps.insertPeer(peerID, newPeer)
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Outbound peer is  added to peerService")
+	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
+	ps.mutex.Unlock()
+
+	// peer is ready
+	ps.iServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
+
+	// notice to p2pmanager that handshaking is finished
+	ps.NotifyPeerHandshake(peerID)
+
 	return true
 }
 
@@ -428,28 +437,6 @@ func (ps *peerManager) insertHandlers(peer *RemotePeer) {
 	peer.handlers[getTxsResponse] = th.handleGetTXsResponse
 	peer.handlers[newTxNotice] = th.handleNewTXsNotice
 }
-func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
-	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
-	peerID := meta.ID
-	peer, found := ps.remotePeers[peerID]
-
-	if found {
-		// already found. drop this connection
-		if ComparePeerID(ps.selfMeta.ID, peerID) <= 0 {
-			return false
-		}
-	}
-	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
-	peer.rw = rw
-	ps.insertHandlers(peer)
-	go peer.runPeer()
-	peer.setState(types.RUNNING)
-	ps.insertPeer(peerID, peer)
-	peerAddr := meta.ToPeerAddress()
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddr.String()).Msg("Inbound peer is  added to peerService")
-	return true
-}
 
 func (ps *peerManager) checkInPeerstore(peerID peer.ID) bool {
 	found := false
@@ -471,7 +458,7 @@ func (ps *peerManager) RemovePeer(peerID peer.ID) {
 }
 
 func (ps *peerManager) NotifyPeerHandshake(peerID peer.ID) {
-	ps.hsPeerChannel <- peerID
+	ps.checkAndCollectPeerList(peerID)
 }
 
 func (ps *peerManager) NotifyPeerAddressReceived(metas []PeerMeta) {
@@ -627,7 +614,12 @@ func (ps *peerManager) hasEnoughPeers() bool {
 // tryConnectPeers should be called in runManagePeers() only
 func (ps *peerManager) tryFillPool(metas *[]PeerMeta) {
 	added := make([]PeerMeta, 0, len(*metas))
+	invalid := make([]string, 0)
 	for _, meta := range *metas {
+		if string(meta.ID) == "" {
+			invalid = append(invalid, meta.String())
+			continue
+		}
 		_, found := ps.peerPool[meta.ID]
 		if !found {
 			// change some properties
@@ -636,6 +628,9 @@ func (ps *peerManager) tryFillPool(metas *[]PeerMeta) {
 			ps.peerPool[meta.ID] = meta
 			added = append(added, meta)
 		}
+	}
+	if len(invalid) > 0 {
+		ps.log.Warn().Strs("metas", invalid).Msg("invalid meta list was come")
 	}
 	ps.log.Debug().Int("added_cnt", len(added)).Msg("Filled unknown peer addresses to peerpool")
 	ps.tryConnectPeers()
@@ -661,91 +656,6 @@ func (ps *peerManager) tryConnectPeers() {
 			break
 		}
 	}
-}
-
-// Authenticate incoming p2p message
-// message: a protobufs go data object
-// data: common p2p message data
-func (ps *peerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
-	// for Test only
-	return true
-
-	// store a temp ref to signature and remove it from message data
-	// sign is a string to allow easy reset to zero-value (empty string)
-	sign := data.Sign
-	data.Sign = []byte{}
-
-	// marshall data without the signature to protobufs3 binary format
-	bin, err := proto.Marshal(message)
-	if err != nil {
-		ps.log.Warn().Msg("failed to marshal pb message")
-		return false
-	}
-
-	// restore sig in message data (for possible future use)
-	data.Sign = sign
-
-	// restore peer peer.ID binary format from base58 encoded node peer.ID data
-	peerID, err := peer.IDB58Decode(data.PeerID)
-	if err != nil {
-		ps.log.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
-		return false
-	}
-
-	// verify the data was authored by the signing peer identified by the public key
-	// and signature included in the message
-	return ps.VerifyData(bin, []byte(sign), peerID, data.NodePubKey)
-}
-
-// sign an outgoing p2p message payload
-func (ps *peerManager) SignProtoMessage(message proto.Message) ([]byte, error) {
-	data, err := proto.Marshal(message)
-	if err != nil {
-		return nil, err
-	}
-	return ps.SignData(data)
-}
-
-// sign binary data using the local node's private key
-func (ps *peerManager) SignData(data []byte) ([]byte, error) {
-	key := ps.privateKey
-	res, err := key.Sign(data)
-	return res, err
-}
-
-// VerifyData Verifies incoming p2p message data integrity
-// data: data to verify
-// signature: author signature provided in the message payload
-// peerID: author peer peer.ID from the message payload
-// pubKeyData: author public key from the message payload
-func (ps *peerManager) VerifyData(data []byte, signature []byte, peerID peer.ID, pubKeyData []byte) bool {
-	key, err := crypto.UnmarshalPublicKey(pubKeyData)
-	if err != nil {
-		ps.log.Warn().Msg("Failed to extract key from message key data")
-		return false
-	}
-
-	// extract node peer.ID from the provided public key
-	idFromKey, err := peer.IDFromPublicKey(key)
-
-	if err != nil {
-		ps.log.Warn().Msg("Failed to extract peer peer.ID from public key")
-		return false
-	}
-
-	// verify that message author node peer.ID matches the provided node public key
-	if idFromKey != peerID {
-		ps.log.Warn().Msg("Node peer.ID and provided public key mismatch")
-		return false
-	}
-
-	res, err := key.Verify(data, signature)
-	if err != nil {
-		ps.log.Warn().Msg("Error authenticating data")
-		return false
-	}
-
-	return res
 }
 
 func (ps *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
