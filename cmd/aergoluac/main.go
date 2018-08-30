@@ -21,8 +21,8 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/spf13/cobra"
 	"github.com/mr-tron/base58/base58"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -50,7 +50,7 @@ func init() {
 		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
-	rootCmd.PersistentFlags().BoolVar(&payload, "payload", false, "print a base58 encoded payload")
+	rootCmd.PersistentFlags().BoolVar(&payload, "payload", false, "print the compilation result consisting of bytecode and abi")
 }
 
 func main() {

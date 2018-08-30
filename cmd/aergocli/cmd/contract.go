@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -15,7 +16,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-var client *util.ConnClient
+var (
+	client *util.ConnClient
+	data   string
+)
 
 func init() {
 	contractCmd := &cobra.Command{
@@ -26,19 +30,25 @@ func init() {
 	}
 	rootCmd.AddCommand(contractCmd)
 
-	contractCmd.AddCommand(
-		&cobra.Command{
-			Use:   "deploy [flags] address bcfile abifile",
-			Short: "deploy a contract",
-			Args:  cobra.MinimumNArgs(3),
-			Run: func(cmd *cobra.Command, args []string) {
-				creator, err := base58.Decode(args[0])
-				if err != nil {
-					log.Fatal(err)
-				}
-				state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
-				if err != nil {
-					log.Fatal(err)
+	deployCmd := &cobra.Command{
+		Use:   "deploy [flags] creator [bcfile] [abifile]",
+		Short: "deploy a contract",
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var err error
+			creator, err := base58.Decode(args[0])
+			if err != nil {
+				log.Fatal(err)
+			}
+			state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
+			if err != nil {
+				log.Fatal(err)
+			}
+			var payload []byte
+			if len(data) == 0 {
+				if len(args) != 3 {
+					fmt.Fprint(os.Stderr, "Usage: aergoluac contract deploy <creator> <bcfile> <abifile>")
+					os.Exit(1)
 				}
 				code, err := ioutil.ReadFile(args[1])
 				if err != nil {
@@ -48,36 +58,44 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				payload := make([]byte, 4+len(code)+len(abi))
+				payload = make([]byte, 4+len(code)+len(abi))
 
 				binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)))
 				copy(payload[4:], code)
 				copy(payload[4+len(code):], abi)
-				tx := &types.Tx{
-					Body: &types.TxBody{
-						Nonce:   state.GetNonce() + 1,
-						Account: []byte(creator),
-						Payload: payload,
-					},
+			} else {
+				payload, err = base58.Decode(data)
+				if err != nil {
+					fmt.Fprint(os.Stderr, err)
+					os.Exit(1)
 				}
+			}
+			tx := &types.Tx{
+				Body: &types.TxBody{
+					Nonce:   state.GetNonce() + 1,
+					Account: []byte(creator),
+					Payload: payload,
+				},
+			}
 
-				sign, err := client.SignTX(context.Background(), tx)
-				if err != nil || sign == nil {
-					log.Fatal(err)
-				}
-				txs := []*types.Tx{sign}
-				commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+			sign, err := client.SignTX(context.Background(), tx)
+			if err != nil || sign == nil {
+				log.Fatal(err)
+			}
+			txs := []*types.Tx{sign}
+			commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 
-				for i, r := range commit.Results {
-					fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
-				}
-			},
+			for i, r := range commit.Results {
+				fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+			}
 		},
-	)
+	}
+	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
+	contractCmd.AddCommand(deployCmd)
 	contractCmd.AddCommand(
 		&cobra.Command{
-			Use:   "call [flags] sender contract name args",
-			Short: "deploy contract",
+			Use:   "call [flags] sender contract name [args]",
+			Short: "call a contract function",
 			Args:  cobra.MinimumNArgs(3),
 			Run: func(cmd *cobra.Command, args []string) {
 				caller, err := base58.Decode(args[0])
