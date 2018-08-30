@@ -6,21 +6,9 @@
 package p2p
 
 import (
-	"sync"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
-
-// PingProtocol type
-type PingProtocol struct {
-	BaseMsgHandler
-	actorServ ActorService
-	ps        PeerManager
-
-	log      *log.Logger
-	reqMutex sync.Mutex
-}
 
 // PingHandler handle pingRequest message
 type PingHandler struct {
@@ -31,10 +19,6 @@ type PingHandler struct {
 func NewPingHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *PingHandler {
 	h := &PingHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return h
-}
-
-func (p *PingProtocol) setPeerManager(pm PeerManager) {
-	p.ps = pm
 }
 
 // remote peer requests handler

@@ -114,11 +114,11 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
-func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
+func (pr *pbMessageOrder) SignWith(pm PeerManager) error {
 	messageData := pr.message.GetMessageData()
-	messageData.PeerID = peer.IDB58Encode(ps.SelfNodeID())
-	messageData.NodePubKey, _ = ps.PublicKey().Bytes()
-	signature, err := ps.SignProtoMessage(pr.message)
+	messageData.PeerID = peer.IDB58Encode(pm.SelfNodeID())
+	messageData.NodePubKey, _ = pm.PublicKey().Bytes()
+	signature, err := pm.SignProtoMessage(pr.message)
 	if err != nil {
 		return err
 	}

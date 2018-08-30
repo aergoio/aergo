@@ -35,7 +35,7 @@ type RemotePeer struct {
 	meta      PeerMeta
 	state     types.PeerState
 	actorServ ActorService
-	ps        PeerManager
+	pm        PeerManager
 	stopChan  chan struct{}
 
 	write      chan msgOrder
@@ -66,7 +66,7 @@ type msgOrder interface {
 	// ResponseExpected means that remote peer is expected to send response to this request.
 	ResponseExpected() bool
 	GetProtocolID() SubProtocol
-	SignWith(ps PeerManager) error
+	SignWith(pm PeerManager) error
 	SendOver(rw *bufio.ReadWriter) error
 }
 
@@ -81,7 +81,7 @@ const (
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
 	peer := &RemotePeer{
-		meta: meta, ps: p2ps, actorServ: iServ, log: log,
+		meta: meta, pm: p2ps, actorServ: iServ, log: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -187,13 +187,13 @@ func (p *RemotePeer) runRead() {
 		msg, err := p.readMsg()
 		if err != nil {
 			p.log.Error().Err(err).Msg("Failed to read message")
-			p.ps.RemovePeer(p.ID())
+			p.pm.RemovePeer(p.ID())
 			return
 		}
 
 		if err = p.handleMsg(msg); err != nil {
 			p.log.Error().Err(err).Msg("Failed to handle message")
-			p.ps.RemovePeer(p.ID())
+			p.pm.RemovePeer(p.ID())
 			return
 		}
 	}
@@ -273,7 +273,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	// sign the data
 	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
 	if m.IsNeedSign() {
-		err := m.SignWith(p.ps)
+		err := m.SignWith(p.pm)
 		if err != nil {
 			p.log.Warn().Err(err).Msg("fail to sign")
 			return
@@ -310,7 +310,7 @@ func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout ti
 
 func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, schannel chan inet.Stream) {
 	ctx := context.Background()
-	s, err := p.ps.NewStream(ctx, p.meta.ID, protocol)
+	s, err := p.pm.NewStream(ctx, p.meta.ID, protocol)
 	if err != nil {
 		p.log.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(protocol)).Msg("Error while get stream")
 		schannel <- nil
@@ -341,7 +341,7 @@ func (p *RemotePeer) sendStatus() {
 	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
 
 	// create message data
-	statusMsg, err := createStatusMsg(p.ps, p.actorServ)
+	statusMsg, err := createStatusMsg(p.pm, p.actorServ)
 	if err != nil {
 		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Err(err).Msg("Cancel sending status")
 		return
@@ -354,7 +354,7 @@ func (p *RemotePeer) sendStatus() {
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
 	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
-	p.ps.RemovePeer(p.meta.ID)
+	p.pm.RemovePeer(p.meta.ID)
 }
 
 func (p *RemotePeer) pruneRequests() {
@@ -386,7 +386,7 @@ func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 	b64hash := enc.ToString(data.BlockHash)
 
 	p.blkHashCache.Add(b64hash, data.BlockHash)
-	p.ps.HandleNewBlockNotice(p.meta.ID, b64hash, data)
+	p.pm.HandleNewBlockNotice(p.meta.ID, b64hash, data)
 }
 
 func (p *RemotePeer) sendGoAway(msg string) {

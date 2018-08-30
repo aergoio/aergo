@@ -153,26 +153,26 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	pm.NotifyPeerHandshake(peerID)
 }
 
-func (ps *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
-	ps.mutex.Lock()
-	defer ps.mutex.Unlock()
+func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	peerID := meta.ID
-	peer, found := ps.remotePeers[peerID]
+	peer, found := pm.remotePeers[peerID]
 
 	if found {
 		// already found. drop this connection
-		if ComparePeerID(ps.selfMeta.ID, peerID) <= 0 {
+		if ComparePeerID(pm.selfMeta.ID, peerID) <= 0 {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, ps, ps.iServ, ps.log)
+	peer = newRemotePeer(meta, pm, pm.iServ, pm.log)
 	peer.rw = rw
-	ps.insertHandlers(peer)
+	pm.insertHandlers(peer)
 	go peer.runPeer()
 	peer.setState(types.RUNNING)
-	ps.insertPeer(peerID, peer)
+	pm.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
-	ps.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
+	pm.log.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
 	return true
 }
 
@@ -188,13 +188,13 @@ func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
 	rw.Flush()
 }
 
-func createStatusMsg(ps PeerManager, actorServ ActorService) (*types.Status, error) {
+func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, error) {
 	// find my best block
 	bestBlock, err := extractBlockFromRequest(actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	if err != nil {
 		return nil, err
 	}
-	selfAddr := ps.SelfMeta().ToPeerAddress()
+	selfAddr := pm.SelfMeta().ToPeerAddress()
 	// create message data
 	statusMsg := &types.Status{
 		MessageData:   &types.MessageData{},

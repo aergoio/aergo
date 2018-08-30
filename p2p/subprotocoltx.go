@@ -15,34 +15,34 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-// TxProtocol handle tx messages.
+// TxHandler handle tx messages.
 // Relaying is not implemented yet.
-type TxProtocol struct {
+type TxHandler struct {
 	BaseMsgHandler
 }
 
 // NewTxProtocol creates transaction subprotocol
-func NewTxProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *TxProtocol {
-	p := &TxProtocol{}
+func NewTxProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *TxHandler {
+	p := &TxHandler{}
 	return p
 }
 
-func NewTxHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *TxProtocol {
-	h := &TxProtocol{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func NewTxHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *TxHandler {
+	h := &TxHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return h
 }
-func (p *TxProtocol) setPeerManager(pm PeerManager) {
+func (p *TxHandler) setPeerManager(pm PeerManager) {
 	p.pm = pm
 }
 
-func (p *TxProtocol) startHandling() {
+func (p *TxHandler) startHandling() {
 	// p.pm.SetStreamHandler(getTXsRequest, p.onGetTXsRequest)
 	// p.pm.SetStreamHandler(getTxsResponse, p.onGetTXsResponse)
 	// p.pm.SetStreamHandler(notifyNewTxRequest, p.onNotifynewTXs)
 }
 
 // remote peer requests handler
-func (p *TxProtocol) handleGetTXsRequest(msg *types.P2PMessage) {
+func (p *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -93,7 +93,7 @@ func (p *TxProtocol) handleGetTXsRequest(msg *types.P2PMessage) {
 }
 
 // remote GetTransactions response handler
-func (p *TxProtocol) handleGetTXsResponse(msg *types.P2PMessage) {
+func (p *TxHandler) handleGetTXsResponse(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 
 	data := &types.GetTransactionsResponse{}
@@ -118,7 +118,7 @@ func (p *TxProtocol) handleGetTXsResponse(msg *types.P2PMessage) {
 var emptyArr = make([]byte, 0)
 
 // remote NotifynewTXs response handler
-func (p *TxProtocol) handleNewTXsNotice(msg *types.P2PMessage) {
+func (p *TxHandler) handleNewTXsNotice(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 
 	data := &types.NewTransactionsNotice{}

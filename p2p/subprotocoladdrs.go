@@ -6,38 +6,10 @@
 package p2p
 
 import (
-	"sync"
-
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-peer"
 )
-
-// AddressesProtocol type
-type AddressesProtocol struct {
-	log *log.Logger
-
-	ps       PeerManager
-	reqMutex sync.Mutex
-}
-
-// NewAddressesProtocol create address sub protocol handler
-func NewAddressesProtocol(logger *log.Logger) *AddressesProtocol {
-	p := &AddressesProtocol{log: logger,
-		reqMutex: sync.Mutex{},
-	}
-	return p
-}
-
-func (p *AddressesProtocol) setPeerManager(pm PeerManager) {
-	p.ps = pm
-}
-
-func (p *AddressesProtocol) startHandling() {
-	// p.ps.SetStreamHandler(addressesRequest, p.onAddressesRequest)
-	// p.ps.SetStreamHandler(addressesResponse, p.onAddressesResponse)
-}
 
 // remote peer requests handler
 func (p *PingHandler) handleAddressesRequest(msg *types.P2PMessage) {

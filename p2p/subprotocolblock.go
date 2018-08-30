@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -17,27 +16,21 @@ func (sp SubProtocol) Uint32() uint32 {
 	return uint32(sp)
 }
 
-// BlockProtocol handle block messages.
+// BlockHandler handle block messages.
 // Relaying is not implemented yet.
-type BlockProtocol struct {
+type BlockHandler struct {
 	BaseMsgHandler
 }
 
-// NewBlockProtocol create block subprotocol
-func NewBlockProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *BlockProtocol {
-	p := &BlockProtocol{}
+func NewBlockHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *BlockHandler {
+	p := &BlockHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return p
 }
-
-func NewBlockHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *BlockProtocol {
-	p := &BlockProtocol{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
-	return p
-}
-func (p *BlockProtocol) setPeerManager(pm PeerManager) {
+func (p *BlockHandler) setPeerManager(pm PeerManager) {
 	p.pm = pm
 }
 
-func (p *BlockProtocol) startHandling() {
+func (p *BlockHandler) startHandling() {
 	// p.pm.SetStreamHandler(getBlocksRequest, p.onGetBlockRequest)
 	// p.pm.SetStreamHandler(getBlocksResponse, p.onGetBlockResponse)
 	// p.pm.SetStreamHandler(getBlockHeadersRequest, p.onGetBlockHeadersRequest)
@@ -47,7 +40,7 @@ func (p *BlockProtocol) startHandling() {
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleBlockRequest(msg *types.P2PMessage) {
+func (p *BlockHandler) handleBlockRequest(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -93,7 +86,7 @@ func (p *BlockProtocol) handleBlockRequest(msg *types.P2PMessage) {
 }
 
 // remote GetBlock response handler
-func (p *BlockProtocol) handleGetBlockResponse(msg *types.P2PMessage) {
+func (p *BlockHandler) handleGetBlockResponse(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -120,7 +113,7 @@ func (p *BlockProtocol) handleGetBlockResponse(msg *types.P2PMessage) {
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
+func (p *BlockHandler) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -189,7 +182,7 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 }
 
 // remote GetBlock response handler
-func (p *BlockProtocol) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
+func (p *BlockHandler) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -210,7 +203,7 @@ func (p *BlockProtocol) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
 }
 
 // remote NotifyNewBlock response handler
-func (p *BlockProtocol) handleNewBlockNotice(msg *types.P2PMessage) {
+func (p *BlockHandler) handleNewBlockNotice(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -240,7 +233,7 @@ func min(a, b uint32) uint32 {
 }
 
 // TODO need to add comment
-func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
+func (p *BlockHandler) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
 	p.logger.Debug().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Notifying branch block")
 
 	// create message data
@@ -253,7 +246,7 @@ func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHa
 }
 
 // replying chain tree
-func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
+func (p *BlockHandler) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
 	// find block info from chainservice
 	blockInfos := make([]*types.Block, 0, len(missing))
 	for _, hash := range missing {
@@ -279,7 +272,7 @@ func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleGetMissingRequest(msg *types.P2PMessage) {
+func (p *BlockHandler) handleGetMissingRequest(msg *types.P2PMessage) {
 	peerID := p.peer.ID()
 	remotePeer := p.peer
 
@@ -324,7 +317,7 @@ func (p *BlockProtocol) handleGetMissingRequest(msg *types.P2PMessage) {
 
 // remote GetBlock response handler
 /*
-func (p *BlockProtocol) onGetMissingResponse(s inet.Stream) {
+func (p *BlockHandler) onGetMissingResponse(s inet.Stream) {
 	defer s.Close()
 
 	remotePeer, exists := p.pm.GetPeer(s.Conn().RemotePeer())
