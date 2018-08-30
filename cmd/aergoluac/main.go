@@ -21,8 +21,8 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/spf13/cobra"
+	"github.com/mr-tron/base58/base58"
 )
 
 var (
