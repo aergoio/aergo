@@ -2,6 +2,6 @@ bin/
 include/
 lib/
 share/
-m4-1.4.18/
-flex-2.6.4/
-bison-3.0.5/
+src/m4-1.4.18/
+src/flex-2.6.4/
+src/bison-3.0.5/
