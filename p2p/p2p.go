@@ -42,18 +42,23 @@ func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchai
 	return netsvc
 }
 
-// Start starts p2p service
-func (ns *P2P) BeforeStart() {}
+// BeforeStart starts p2p service.
+func (p2ps *P2P) BeforeStart() {}
 
-func (ns *P2P) AfterStart() {
-	p2ps.pm.Start()
+func (p2ps *P2P) AfterStart() {
+	if err := p2ps.pm.Start(); err != nil {
+		panic("Failed to start p2p component")
+	}
 }
 
-// Stop stops
+// BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
-	p2ps.pm.Stop()
+	if err := p2ps.pm.Stop(); err != nil {
+		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
+	}
 }
 
+// Statics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statics() *map[string]interface{} {
 	return nil
 }
@@ -68,9 +73,6 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
 	p2ps.pm = peerMan
 	p2ps.rm = reconMan
 }
-
-const success bool = true
-const failed bool = false
 
 // Receive got actor message and then handle it.
 func (p2ps *P2P) Receive(context actor.Context) {

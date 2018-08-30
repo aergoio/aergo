@@ -32,6 +32,7 @@ func NewReconnectManager(logger *log.Logger) *reconnectManager {
 	return &reconnectManager{mutex: &sync.Mutex{}, jobs: make(map[peer.ID]*reconnectJob), logger: logger}
 }
 
+// AddJob add jobber to reconnect peer.
 func (rm *reconnectManager) AddJob(meta PeerMeta) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
@@ -44,6 +45,7 @@ func (rm *reconnectManager) AddJob(meta PeerMeta) {
 	rm.jobs[meta.ID] = jobRunner
 }
 
+// CancelJob cancel currently running AddJob
 func (rm *reconnectManager) CancelJob(pid peer.ID) {
 	rm.mutex.Lock()
 	job, exist := rm.jobs[pid]

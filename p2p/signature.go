@@ -26,7 +26,7 @@ func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// marshall data without the signature to protobufs3 binary format
 	bin, err := proto.Marshal(message)
 	if err != nil {
-		pm.log.Warn().Msg("failed to marshal pb message")
+		pm.logger.Warn().Msg("failed to marshal pb message")
 		return false
 	}
 
@@ -36,7 +36,7 @@ func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// restore peer peer.ID binary format from base58 encoded node peer.ID data
 	peerID, err := peer.IDB58Decode(data.PeerID)
 	if err != nil {
-		pm.log.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
+		pm.logger.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
 		return false
 	}
 
@@ -44,7 +44,7 @@ func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.Me
 	// and signature included in the message
 	err = VerifyData(bin, []byte(sign), peerID, data.NodePubKey)
 	if err != nil {
-		pm.log.Debug().Err(err).Msg("message verification failed")
+		pm.logger.Debug().Err(err).Msg("message verification failed")
 		return false
 	}
 	return true

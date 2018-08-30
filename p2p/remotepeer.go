@@ -29,7 +29,7 @@ const defaultPingInterval = time.Second * 60
 
 // RemotePeer represent remote peer to which is connected
 type RemotePeer struct {
-	log          *log.Logger
+	logger       *log.Logger
 	pingDuration time.Duration
 
 	meta      PeerMeta
@@ -49,7 +49,7 @@ type RemotePeer struct {
 
 	handlers map[SubProtocol]MessageHandler
 
-	failCounter uint32
+	// TODO make automatic disconnect if remote peer cause too many wrong message
 
 	blkHashCache *lru.Cache
 
@@ -70,10 +70,6 @@ type msgOrder interface {
 	SendOver(rw *bufio.ReadWriter) error
 }
 
-type readMsg struct {
-	in inet.Stream
-}
-
 const (
 	cleanRequestDuration = time.Hour
 )
@@ -81,7 +77,7 @@ const (
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
 	peer := &RemotePeer{
-		meta: meta, pm: p2ps, actorServ: iServ, log: log,
+		meta: meta, pm: p2ps, actorServ: iServ, logger: log,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -131,7 +127,7 @@ func (p *RemotePeer) checkState() error {
 
 // runPeer should be called by go routine
 func (p *RemotePeer) runPeer() {
-	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
 	go p.runRead()
@@ -145,7 +141,7 @@ READNOPLOOP:
 			break READNOPLOOP
 		}
 	}
-	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
+	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
 	pingTicker.Stop()
 
 	// send channel twice. one for read and another for write
@@ -157,7 +153,7 @@ func (p *RemotePeer) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestDuration)
 	defer func() {
 		if r := recover(); r != nil {
-			p.log.Panic().Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
+			p.logger.Panic().Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
 		}
 	}()
 
@@ -171,7 +167,7 @@ WRITELOOP:
 		case <-cleanupTicker.C:
 			p.pruneRequests()
 		case <-p.closeWrite:
-			p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Quitting runWrite")
+			p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Quitting runWrite")
 			break WRITELOOP
 		}
 	}
@@ -186,13 +182,13 @@ func (p *RemotePeer) runRead() {
 	for {
 		msg, err := p.readMsg()
 		if err != nil {
-			p.log.Error().Err(err).Msg("Failed to read message")
+			p.logger.Error().Err(err).Msg("Failed to read message")
 			p.pm.RemovePeer(p.ID())
 			return
 		}
 
 		if err = p.handleMsg(msg); err != nil {
-			p.log.Error().Err(err).Msg("Failed to handle message")
+			p.logger.Error().Err(err).Msg("Failed to handle message")
 			p.pm.RemovePeer(p.ID())
 			return
 		}
@@ -219,11 +215,11 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 	proto := SubProtocol(msg.Header.Subprotocol)
 	defer func() {
 		if r := recover(); r != nil {
-			p.log.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
+			p.logger.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
 			err = fmt.Errorf("internal error")
 		}
 	}()
-	p.log.Debug().Str(LogPeerID, p.ID().Pretty()).Str("protocol", proto.String()).Msg("Handling messge")
+	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("protocol", proto.String()).Msg("Handling messge")
 
 	handler, found := p.handlers[proto]
 	if !found {
@@ -245,7 +241,7 @@ func (p *RemotePeer) sendMessage(msg msgOrder) {
 	case p.write <- msg:
 		return
 	case <-time.After(writeChannelTimeout):
-		p.log.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, msg.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, msg.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
 }
 
@@ -265,7 +261,7 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	// check peer's status
 	// TODO code smell. hardcoded check and need memory barrier for peer state
 	if p.State() != types.RUNNING {
-		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
 			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
@@ -275,25 +271,23 @@ func (p *RemotePeer) writeToPeer(m msgOrder) {
 	if m.IsNeedSign() {
 		err := m.SignWith(p.pm)
 		if err != nil {
-			p.log.Warn().Err(err).Msg("fail to sign")
+			p.logger.Warn().Err(err).Msg("fail to sign")
 			return
 		}
 	}
 
 	err := m.SendOver(p.rw)
 	if err != nil {
-		p.log.Warn().Err(err).Msg("fail to SendOver")
+		p.logger.Warn().Err(err).Msg("fail to SendOver")
 		return
 	}
-	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
 		Str(LogMsgID, m.GetRequestID()).Msg("Send message")
-	//p.log.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
+	//p.logger.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
 	if m.ResponseExpected() {
 		p.requests[m.GetRequestID()] = m
 	}
 }
-
-const getStreamTimeout = time.Second * 30
 
 func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
 	streamChannel := make(chan inet.Stream)
@@ -303,7 +297,7 @@ func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout ti
 	case s = <-streamChannel:
 		return s
 	case <-time.After(timeout):
-		p.log.Warn().Str(LogMsgID, msgID).Msg("stream get timeout")
+		p.logger.Warn().Str(LogMsgID, msgID).Msg("stream get timeout")
 	}
 	return s
 }
@@ -312,7 +306,7 @@ func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, sch
 	ctx := context.Background()
 	s, err := p.pm.NewStream(ctx, p.meta.ID, protocol)
 	if err != nil {
-		p.log.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(protocol)).Msg("Error while get stream")
+		p.logger.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(protocol)).Msg("Error while get stream")
 		schannel <- nil
 	}
 	schannel <- s
@@ -323,7 +317,7 @@ func (p *RemotePeer) sendPing() {
 	// find my best block
 	bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	if err != nil {
-		p.log.Error().Err(err).Msg("Failed to get best block")
+		p.logger.Error().Err(err).Msg("Failed to get best block")
 		return
 	}
 	// create message data
@@ -338,12 +332,12 @@ func (p *RemotePeer) sendPing() {
 
 // sendStatus is called once when a peer is added.()
 func (p *RemotePeer) sendStatus() {
-	p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
 
 	// create message data
 	statusMsg, err := createStatusMsg(p.pm, p.actorServ)
 	if err != nil {
-		p.log.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Err(err).Msg("Cancel sending status")
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Err(err).Msg("Cancel sending status")
 		return
 	}
 
@@ -352,13 +346,13 @@ func (p *RemotePeer) sendStatus() {
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
-	p.log.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
+	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
 	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
 	p.pm.RemovePeer(p.meta.ID)
 }
 
 func (p *RemotePeer) pruneRequests() {
-	debugLog := p.log.IsDebugEnabled()
+	debugLog := p.logger.IsDebugEnabled()
 	deletedCnt := 0
 	var deletedReqs []string
 	expireTime := time.Now().Add(-1 * time.Hour).Unix()
@@ -371,12 +365,12 @@ func (p *RemotePeer) pruneRequests() {
 			deletedCnt++
 		}
 	}
-	//p.log.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
-	p.log.Info().Int("count", deletedCnt).Str(LogPeerID, p.meta.ID.Pretty()).
+	//p.logger.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
+	p.logger.Info().Int("count", deletedCnt).Str(LogPeerID, p.meta.ID.Pretty()).
 		Time("until", time.Unix(expireTime, 0)).Msg("Pruned requests, but no response to peer")
 	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {
-		p.log.Debug().Msg(strings.Join(deletedReqs[:], ","))
+		p.logger.Debug().Msg(strings.Join(deletedReqs[:], ","))
 	}
 
 }

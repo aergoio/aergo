@@ -13,8 +13,9 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
-// TODO this test should be moved to handshake later.
-func IgnoreTestPingProtocol_onStatusRequest(t *testing.T) {
+func TestPingProtocol_onStatusRequest(t *testing.T) {
+	// TODO this test should be moved to handshake later.
+	t.SkipNow()
 	mockP2PS := &MockP2PService{}
 	mockIStream := &MockStream{}
 	mockConn := &MockConn{}

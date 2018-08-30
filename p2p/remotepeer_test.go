@@ -32,7 +32,8 @@ func init() {
 }
 
 // TODO refactor rw and modify this test
-func IgnoreTestAergoPeer_RunPeer(t *testing.T) {
+func TestAergoPeer_RunPeer(t *testing.T) {
+	t.SkipNow()
 	mockActorServ := new(MockActorService)
 	dummyP2PServ := new(MockP2PService)
 
