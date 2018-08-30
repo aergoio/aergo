@@ -64,6 +64,8 @@ func (as *AccountService) BeforeStart() {
 	as.accounts, _ = as.addrs.getAccounts()
 }
 
+func (as *AccountService) AfterStart() {}
+
 func (as *AccountService) BeforeStop() {
 	as.accounts = nil
 	as.unlocked = nil

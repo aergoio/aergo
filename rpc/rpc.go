@@ -76,6 +76,9 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 // Start start rpc service.
 func (ns *RPC) BeforeStart() {
 	aergorpc.RegisterAergoRPCServiceServer(ns.grpcServer, ns.actualServer)
+}
+
+func (ns *RPC) AfterStart() {
 	go ns.serve()
 }
 

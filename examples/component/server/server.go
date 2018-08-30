@@ -19,6 +19,10 @@ func (ts *TestServer) BeforeStart() {
 	// do nothing
 }
 
+func (cs *TestServer) AfterStart() {
+	// do nothing
+}
+
 func (ts *TestServer) BeforeStop() {
 
 	// add stop logics for this service

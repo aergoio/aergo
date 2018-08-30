@@ -39,6 +39,7 @@ type IComponent interface {
 // than developers can get those by defining it in Statics func
 type IActor interface {
 	BeforeStart()
+	AfterStart()
 	BeforeStop()
 
 	Receive(actor.Context)

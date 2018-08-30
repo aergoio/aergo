@@ -33,6 +33,10 @@ func (es *ExampleService) BeforeStart() {
 	// add init logics for this service
 }
 
+func (es *ExampleService) AfterStart() {
+	// add init logics for this service
+}
+
 func (es *ExampleService) BeforeStop() {
 
 	// add stop logics for this service

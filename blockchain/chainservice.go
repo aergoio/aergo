@@ -6,6 +6,9 @@
 package blockchain
 
 import (
+	"os"
+	"path"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
@@ -18,8 +21,6 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"os"
-	"path"
 )
 
 type ChainService struct {
@@ -83,6 +84,10 @@ func (cs *ChainService) BeforeStart() {
 	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
+}
+
+func (cs *ChainService) AfterStart() {
+	cs.receiveChainInfo()
 }
 
 func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
@@ -160,8 +165,6 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 func (cs *ChainService) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
-	case *actor.Started:
-		cs.receiveChainInfo()
 
 	case *message.GetBestBlockNo:
 		context.Respond(message.GetBestBlockNoRsp{

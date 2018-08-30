@@ -48,7 +48,9 @@ func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchai
 }
 
 // Start starts p2p service
-func (ns *P2P) BeforeStart() {
+func (ns *P2P) BeforeStart() {}
+
+func (ns *P2P) AfterStart() {
 	ns.pm.Start()
 }
 
