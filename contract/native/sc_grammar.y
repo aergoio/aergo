@@ -151,15 +151,13 @@ decl_list:
 ;
 
 prim_decl:
-    prim_spec ';'
-|   prim_spec init_decl_list ';'
+    prim_spec var_decl ';'
+|   prim_spec var_decl '=' initializer ';'
 ;
 
 prim_spec:
     type_spec
-|   type_spec prim_spec
-|   type_qual
-|   type_qual prim_spec
+|   K_CONST type_spec 
 ;
 
 type_spec: 
@@ -178,35 +176,27 @@ type_spec:
 |   K_UINT16
 |   K_UINT32
 |   K_UINT64
-;
-
-init_decl_list:
-    init_decl
-|   init_decl_list ',' init_decl
-;
-
-init_decl:
-    var_decl
-|   var_decl '=' initializer
+|   id
 ;
 
 var_decl:
     id
-|   '(' var_decl ')'
 |   var_decl '[' expr_add ']'
 ;
 
 initializer:
     expr_cond
 |   '{' init_list '}'
+|   '{' init_list ',' '}'
 ;
 
 init_list:
+    initializer
+|   init_list ',' initializer
 ;
 
 struct_decl: 
     K_STRUCT id '{' struct_decl_list '}'
-|   K_STRUCT id
 ;
 
 struct_decl_list:
@@ -214,60 +204,13 @@ struct_decl_list:
 |   struct_decl_list prim_decl
 ;
 
-/*
-decl_list: 
-    prim_decl 
-|   decl_list prim_decl 
-|   struct_decl
-|   decl_list struct_decl
-;
-
-prim_decl: 
-    type_decl id ';'
-|   K_CONST type_decl id ';'
-;
-
-type_decl: 
-    type_spec 
-|   type_spec '[' ']'
-|   type_spec '[' L_INT ']'
-;
-
-type_spec: 
-    K_ACCOUNT
-|   K_BOOL
-|   K_BYTE
-|   K_FLOAT
-|   K_DOUBLE
-|   K_INT8
-|   K_INT16
-|   K_INT32
-|   K_INT64
-|   K_MAP
-|   K_STRING
-|   K_UINT8
-|   K_UINT16
-|   K_UINT32
-|   K_UINT64
-;
-
-struct_decl: 
-    K_STRUCT id '{' struct_decl_list '}'
-;
-
-struct_decl_list: 
-    prim_decl
-|   struct_decl_list prim_decl
-;
-*/
-
 constructor_opt: 
     /* empty */
 |   constructor
 ;
 
 constructor: 
-    K_CONSTRUCTOR '(' param_list_opt ')' stmt_block
+    K_CONSTRUCTOR '(' param_list_opt ')' stmt_blk
 ;
 
 param_list_opt: 
@@ -286,12 +229,12 @@ func_decl_list_opt:
 ;
 
 func_decl_list: 
-    func_decl
-|   func_decl_list func_decl
+    function
+|   func_decl_list function
 ;
 
-func_decl: 
-    modifier_opt K_FUNC id '(' param_list_opt ')' return_type_opt stmt_block
+function: 
+    modifier_opt K_FUNC id '(' param_list_opt ')' return_type_opt stmt_blk
 ;
 
 modifier_opt: 
@@ -303,13 +246,13 @@ modifier_opt:
 
 return_type_opt: 
     /* empty */
-|   type_decl
+|   prim_spec
 |   '(' return_type_list ')'
 ;
 
 return_type_list: 
-    type_decl
-|   return_type_list ',' type_decl
+    prim_spec
+|   return_type_list ',' prim_spec
 ;
 
 statement: 
@@ -319,7 +262,7 @@ statement:
 |   stmt_switch
 |   stmt_label
 |   stmt_jump
-|   stmt_block
+|   stmt_blk
 ;
 
 stmt_expr: 
@@ -328,19 +271,19 @@ stmt_expr:
 ;
 
 stmt_if: 
-    K_IF '(' expression ')' statement
-|   K_IF '(' expression ')' statement K_ELSE statement
+    K_IF '(' expression ')' stmt_blk
+|   K_IF '(' expression ')' stmt_blk K_ELSE stmt_blk
 ;
 
 stmt_for: 
-    K_FOR '(' stmt_expr stmt_expr ')' statement
-|   K_FOR '(' stmt_expr stmt_expr expression ')' statement
-|   K_FOR '(' prim_decl stmt_expr ')' statement
-|   K_FOR '(' prim_decl stmt_expr expression ')' statement
+    K_FOR '(' stmt_expr stmt_expr ')' stmt_blk
+|   K_FOR '(' stmt_expr stmt_expr expression ')' stmt_blk
+|   K_FOR '(' prim_decl stmt_expr ')' stmt_blk
+|   K_FOR '(' prim_decl stmt_expr expression ')' stmt_blk
 ;
 
 stmt_switch: 
-    K_SWITCH '(' expression ')' statement
+    K_SWITCH '(' expression ')' stmt_blk
 ;
 
 stmt_label: 
@@ -355,7 +298,7 @@ stmt_jump:
 |   K_RETURN expression ';'
 ;
 
-stmt_block: 
+stmt_blk: 
     '{' '}'
 |   '{' block_item_list '}'
 ;
