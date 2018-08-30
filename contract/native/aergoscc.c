@@ -7,7 +7,7 @@
 
 #include "version.h"
 #include "errors.h"
-#include "preprocess.h"
+#include "prep.h"
 #include "parser.h"
 
 static void
@@ -28,9 +28,9 @@ print_help(void)
 static void
 print_version(void)
 {
-    printf("%s, Aergo smart contract compiler %d.%d.%d\n\n"
+    printf("%s, Aergo smart contract compiler %d.%d\n\n"
            "Copyright blah blah blah...\n",
-           EXECUTABLE, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+           EXECUTABLE, MAJOR_VER, MINOR_VER);
 
     exit(EXIT_SUCCESS);
 }

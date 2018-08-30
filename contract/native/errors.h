@@ -29,36 +29,46 @@
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(EXECUTABLE, ERROR_INTERNAL,                                  \
-                  "assertion failed with condition: "#cond);                   \
+            FATAL(ERROR_INTERNAL, "assertion failed with condition: "#cond);   \
     } while (0)
 
-#define INFO(fmt, ...)                                                         \
-    xperror(EXECUTABLE, ANSI_WHITE"info", (fmt), ## __VA_ARGS__)
+#define INFO(ec, ...)                                                          \
+    xperror(ANSI_WHITE"info", (ec), ## __VA_ARGS__)
 
-#define WARN(fmt, ...)                                                         \
-    xperror(EXECUTABLE, ANSI_YELLOW"warning", (fmt), ## __VA_ARGS__)
+#define WARN(ec, ...)                                                          \
+    xperror(ANSI_YELLOW"warning", (ec), ## __VA_ARGS__)
 
-#define ERROR(loc, fmt, ...)                                                   \
-    xperror((loc), ANSI_RED"error", (fmt), ## __VA_ARGS__)
+#define ERROR(ec, ...)                                                         \
+    xperror(ANSI_RED"error", (ec), ## __VA_ARGS__)
 
-#define FATAL(fmt, ...)                                                        \
+#define FATAL(ec, ...)                                                         \
     do {                                                                       \
-        xperror(EXECUTABLE, ANSI_RED"fatal", (fmt), ## __VA_ARGS__);           \
+        xperror(ANSI_RED"fatal", (ec), ## __VA_ARGS__);                        \
         exit(EXIT_FAILURE);                                                    \
     } while (0)
 
+typedef enum ec_e {
+    ERROR_NONE = 0,
+#undef error
+#define error(code, msg)    code,
+#include "errors.list"
+
+    ERROR_MAX
+} ec_t;
+
+extern char *errmsgs_[ERROR_MAX];
+
 static inline void
-xperror(char *loc, char *lvl, char *fmt, ...) 
+xperror(char *lvl, ec_t ec, ...)
 {
     va_list vargs;
     char errdesc[ERROR_MAX_DESC_LEN];
 
-    va_start(vargs, fmt);
-    vsnprintf(errdesc, sizeof(errdesc), fmt, vargs);
+    va_start(vargs, ec);
+    vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
     va_end(vargs);
 
-    fprintf(stderr, ANSI_WHITE"%s: %s: "ANSI_DEFAULT"%s\n", loc, lvl, errdesc);
+    fprintf(stderr, "%s: "ANSI_DEFAULT"%s\n", lvl, errdesc);
 }
 
 #endif /* no _ERRORS_H */

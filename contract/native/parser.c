@@ -23,21 +23,13 @@ extern int yydebug;
 static void
 scan_init(scan_t *scan)
 {
-    /*
-    char *delim;
-
-    scan->path = path;
-
-    delim = strrchr(path, PATH_DELIM);
-    strcpy(scan->file, delim == NULL ? path : delim + 1);
-    */
     scan->path = NULL;
-    scan->file[0] = '\0';
+    scan->file = NULL;
 
     scan->errcnt = 0;
 
     scan->lloc.line = 1;
-    scan->lloc.column = 1;
+    scan->lloc.col = 1;
     scan->lloc.offset = 0;
 
     scan->offset = 0;

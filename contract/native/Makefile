@@ -21,7 +21,7 @@ MKDIR_P = mkdir -p
 OBJ_DIR = build
 SUBDIRS = . tests
 
-SRCS = preprocess.c parser.c grammar.tab.c scanner.yy.c 
+SRCS = prep.c parser.c grammar.tab.c scanner.yy.c errors.c
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
 DEPS = $(OBJS:%.o=%.d)
 
@@ -29,7 +29,7 @@ RECURSIVE_TARGETS = all-recursive clean-recursive
 
 all: all-recursive
 
-all-recursive clean-recursive: 
+all-recursive clean-recursive:
 	@target=`echo "$@" | sed s/-recursive//`; \
 	for subdir in $(SUBDIRS); do \
 		if [ "$$subdir" = "." ]; then \
@@ -54,7 +54,7 @@ $(LIBRARY): $(OBJS)
 scanner.yy.c: scanner.l grammar.tab.h
 	$(LEX) -o $@ $^
 
-grammar.tab.c: grammar.y 
+grammar.tab.c: grammar.y
 	$(YACC) -o $@ -d $^
 
 $(OBJ_DIR)/%.o: %.c

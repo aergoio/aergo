@@ -10,13 +10,13 @@
 
 typedef struct lloc_s {
     int line;
-    int column;
+    int col;
     int offset;
 } lloc_t;
 
 typedef struct scan_s {
     char *path;
-    char file[PATH_MAX_LEN];
+    char *file;
 
     int errcnt;
     lloc_t lloc;     // source position

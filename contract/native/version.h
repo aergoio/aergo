@@ -8,8 +8,13 @@
 
 #include "common.h"
 
-#define VERSION_MAJOR    0
-#define VERSION_MINOR    1
-#define VERSION_PATCH    0
+#define MAJOR_VER       0
+#define MINOR_VER       1
+
+static inline boolean
+version_check(int major, int minor)
+{
+    return major == MAJOR_VER && minor == MINOR_VER;
+}
 
 #endif /* no _VERSION_H */

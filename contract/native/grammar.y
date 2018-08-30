@@ -7,6 +7,8 @@
 
 #include "common.h"
 
+#include "version.h"
+#include "errors.h"
 #include "parser.h"
 
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
@@ -27,7 +29,7 @@ static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
 %verbose
 %initial-action {
     yylloc.line = 1;
-    yylloc.column = 1;
+    yylloc.col = 1;
     yylloc.offset = 0;
 }
 
@@ -53,40 +55,40 @@ static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
 %token  /* A */
         K_ACCOUNT
         /* B */
-        K_BOOL          K_BREAK         K_BYTE          
+        K_BOOL          K_BREAK         K_BYTE
         /* C */
-        K_CASE          K_CONST         K_CONSTRUCTOR   K_CONTINUE      
-        K_CONTRACT      
+        K_CASE          K_CONST         K_CONSTRUCTOR   K_CONTINUE
+        K_CONTRACT
         /* D */
-        K_DEFAULT       K_DOUBLE        
+        K_DEFAULT       K_DOUBLE
         /* E */
         K_ELSE
         /* F */
-        K_FALSE         K_FILE          K_FLOAT         K_FOR           
+        K_FALSE         K_FILE          K_FLOAT         K_FOR
         K_FUNC
         /* G */
         /* H */
         /* I */
-        K_IF            K_INT           K_INT16         K_INT32         
-        K_INT64         K_INT8          
+        K_IF            K_INT           K_INT16         K_INT32
+        K_INT64         K_INT8
         /* L */
         /* M */
-        K_MAP           
+        K_MAP
         /* N */
         K_NEW           K_NULL
         /* O */
         /* P */
-        K_PAYABLE       K_PRAGMA        K_PRIVATE       K_PUBLIC
+        K_PAYABLE       K_PRIVATE       K_PUBLIC
         /* Q */
         /* R */
-        K_RETURN        
+        K_RETURN
         /* S */
-        K_STRING        K_STRUCT        K_SWITCH        
+        K_STRING        K_STRUCT        K_SWITCH
         /* T */
         K_TRUE
         /* U */
-        K_UINT          K_UINT16        K_UINT32        K_UINT64        
-        K_UINT8         
+        K_UINT          K_UINT16        K_UINT32        K_UINT64
+        K_UINT8
         /* V */
         K_VERSION
         /* W */
@@ -115,37 +117,38 @@ static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
 
 %%
 
-smart_contract: 
-    /* empty */
-|   smart_contract pragma_decl
+smart_contract:
+    contract_decl
 |   smart_contract contract_decl
 ;
 
-pragma_decl: 
-    K_PRAGMA directive
+/*
+version:
+    K_PRAGMA K_VERSION L_INT '.' L_INT
+    {
+        if (!version_check(atoi($3), atoi($5)))
+            FATAL(ERROR_INCOMPATIBLE_VERSION, MAJOR_VER, MINOR_VER);
+    }
 ;
+*/
 
-directive: 
-    K_VERSION L_STR
-;
-
-contract_decl: 
+contract_decl:
     K_CONTRACT id '{' contract_body '}'
 ;
 
-contract_body: 
+contract_body:
     decl_list_opt constructor_opt func_decl_list_opt
 ;
 
-decl_list_opt: 
+decl_list_opt:
     /* empty */
 |   decl_list
 ;
 
-decl_list: 
-    prim_decl 
+decl_list:
+    prim_decl
 |   decl_list prim_decl
-|   struct_decl 
+|   struct_decl
 |   decl_list struct_decl
 ;
 
@@ -156,10 +159,10 @@ prim_decl:
 
 prim_spec:
     type_spec
-|   K_CONST type_spec 
+|   K_CONST type_spec
 ;
 
-type_spec: 
+type_spec:
     K_ACCOUNT
 |   K_BOOL
 |   K_BYTE
@@ -194,7 +197,7 @@ init_list:
 |   init_list ',' initializer
 ;
 
-struct_decl: 
+struct_decl:
     K_STRUCT id '{' struct_decl_list '}'
 ;
 
@@ -203,58 +206,58 @@ struct_decl_list:
 |   struct_decl_list prim_decl
 ;
 
-constructor_opt: 
+constructor_opt:
     /* empty */
 |   constructor
 ;
 
-constructor: 
+constructor:
     K_CONSTRUCTOR '(' param_list_opt ')' stmt_blk
 ;
 
-param_list_opt: 
+param_list_opt:
     /* empty */
 |   param_list
 ;
 
-param_list: 
+param_list:
     prim_decl
 |   param_list ',' prim_decl
 ;
 
-func_decl_list_opt: 
+func_decl_list_opt:
     /* empty */
 |   func_decl_list
 ;
 
-func_decl_list: 
+func_decl_list:
     function
 |   func_decl_list function
 ;
 
-function: 
+function:
     modifier_opt K_FUNC id '(' param_list_opt ')' return_type_opt stmt_blk
 ;
 
-modifier_opt: 
+modifier_opt:
     /* empty */
 |   modifier_opt K_PAYABLE
 |   modifier_opt K_PRIVATE
 |   modifier_opt K_PUBLIC
 ;
 
-return_type_opt: 
+return_type_opt:
     /* empty */
 |   prim_spec
 |   '(' return_type_list ')'
 ;
 
-return_type_list: 
+return_type_list:
     prim_spec
 |   return_type_list ',' prim_spec
 ;
 
-statement: 
+statement:
     stmt_expr
 |   stmt_if
 |   stmt_for
@@ -264,66 +267,66 @@ statement:
 |   stmt_blk
 ;
 
-stmt_expr: 
+stmt_expr:
     ';'
 |   expression ';'
 ;
 
-stmt_if: 
+stmt_if:
     K_IF '(' expression ')' stmt_blk
 |   K_IF '(' expression ')' stmt_blk K_ELSE stmt_blk
 ;
 
-stmt_for: 
+stmt_for:
     K_FOR '(' stmt_expr stmt_expr ')' stmt_blk
 |   K_FOR '(' stmt_expr stmt_expr expression ')' stmt_blk
 |   K_FOR '(' prim_decl stmt_expr ')' stmt_blk
 |   K_FOR '(' prim_decl stmt_expr expression ')' stmt_blk
 ;
 
-stmt_switch: 
+stmt_switch:
     K_SWITCH '(' expression ')' stmt_blk
 ;
 
-stmt_label: 
+stmt_label:
     K_CASE expr_const ':' statement
 |   K_DEFAULT ':' statement
 ;
 
-stmt_jump: 
+stmt_jump:
     K_CONTINUE ';'
 |   K_BREAK ';'
 |   K_RETURN ';'
 |   K_RETURN expression ';'
 ;
 
-stmt_blk: 
+stmt_blk:
     '{' '}'
 |   '{' block_item_list '}'
 ;
 
-block_item_list: 
+block_item_list:
     block_item
 |   block_item_list block_item
 ;
 
-block_item: 
+block_item:
     prim_decl
 |   struct_decl
 |   statement
 ;
 
-expression: 
+expression:
     expr_assign
 |   expression ',' expr_assign
 ;
 
-expr_assign: 
-    expr_cond 
+expr_assign:
+    expr_cond
 |   expr_unary op_assign expr_assign
 ;
 
-op_assign: 
+op_assign:
     '='
 |   OP_ADD_ASSIGN
 |   OP_SUB_ASSIGN
@@ -429,7 +432,7 @@ expr_prim:
 |   '(' expression ')'
 ;
 
-expr_list: 
+expr_list:
     expr_assign
 |   expr_list ',' expr_assign
 ;
@@ -438,7 +441,7 @@ expr_const:
     expr_cond
 ;
 
-id: 
+id:
     ID              { $$ = $1; }
 |   K_VERSION       { $$ = strdup("VERSION"); }
 ;

@@ -1,4 +1,5 @@
 %{
+
 /**
  *  @file   scanner.l
  *  @copyright defined in aergo/LICENSE.txt
@@ -24,11 +25,11 @@
 #define YY_UPDATE_LINE()                                                       \
     do {                                                                       \
         yyextra->lloc.line++;                                                  \
-        yyextra->lloc.offset += yyextra->lloc.column;                          \
-        yyextra->lloc.column = 1;                                              \
+        yyextra->lloc.offset += yyextra->lloc.col;                             \
+        yyextra->lloc.col = 1;                                                 \
     } while (0)
 
-#define YY_UPDATE_COL()          (yyextra->lloc.column += yyleng)
+#define YY_UPDATE_COL()          (yyextra->lloc.col += yyleng)
 
 #define YY_STRCAT()                                                            \
     do {                                                                       \
@@ -41,26 +42,21 @@
         yyextra->offset += yyleng;                                             \
     } while (0)
 
-#define YY_ERROR(errmsg)                                                       \
+#define YY_ERROR(ec)                                                           \
     do {                                                                       \
         int i;                                                                 \
-        char line[80 + 1];                                                     \
-        char errloc[512];                                                      \
-        char errdesc[ERROR_MAX_DESC_LEN];                                      \
+        char buf[ERROR_MAX_DESC_LEN] = { '\0' };                               \
         FILE *fp;                                                              \
         if (yyextra->errcnt > 10)                                              \
             yyterminate();                                                     \
         fp = xfopen(yyextra->path, "r");                                       \
         xfseek(fp, yyextra->lloc.offset);                                      \
-        xfgets(fp, sizeof(line), line);                                        \
-        snprintf(errloc, sizeof(errloc), "%s:%d:%d", yyextra->file,            \
-                 yyextra->lloc.line, yyextra->lloc.column);                    \
-        snprintf(errdesc, sizeof(errdesc), "%s\n%s", errmsg, line);            \
-        for (i = 0; i < yyextra->lloc.column - 1; i++) {                       \
-            strcat(errdesc, " ");                                              \
+        xfgets(fp, 81, buf);                                                   \
+        for (i = 0; i < yyextra->lloc.col - 1; i++) {                          \
+            strcat(buf, " ");                                                  \
         }                                                                      \
-        strcat(errdesc, ANSI_GREEN"^"ANSI_DEFAULT);                            \
-        ERROR(errloc, errdesc);                                                \
+        strcat(buf, ANSI_GREEN"^"ANSI_DEFAULT);                                \
+        ERROR(ec, yyextra->file, yyextra->lloc.line, yyextra->lloc.col, buf);  \
         xfclose(fp);                                                           \
         yyextra->errcnt++;                                                     \
     } while (0)
@@ -126,7 +122,7 @@ id              {L}({L}|{D})*
     yyterminate();
 }
 
-\"(\\.|[^\\"\n\r])*\"       YY_RETURN(L_STR); 
+\"(\\.|[^\\"\n\r])*\"       YY_RETURN(L_STR);
     /*
 "\"" {
     BEGIN(D_QUOTE);
@@ -199,6 +195,7 @@ id              {L}({L}|{D})*
 "&"                 YY_RETURN('&');
 "|"                 YY_RETURN('|');
 "="                 YY_RETURN('=');
+"#"                 YY_RETURN('#');
 
 "account"           YY_RETURN(K_ACCOUNT);
 "bool"              YY_RETURN(K_BOOL);
@@ -227,7 +224,6 @@ id              {L}({L}|{D})*
 "new"               YY_RETURN(K_NEW);
 "null"              YY_RETURN(K_NULL);
 "payable"           YY_RETURN(K_PAYABLE);
-"pragma"            YY_RETURN(K_PRAGMA);
 "private"           YY_RETURN(K_PRIVATE);
 "public"            YY_RETURN(K_PUBLIC);
 "return"            YY_RETURN(K_RETURN);
