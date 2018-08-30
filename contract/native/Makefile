@@ -21,7 +21,7 @@ MKDIR_P = mkdir -p
 OBJ_DIR = build
 SUBDIRS = . tests
 
-SRCS = sc_parser.c sc_grammar.tab.c sc_scanner.yy.c 
+SRCS = parser.c grammar.tab.c scanner.yy.c 
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
 DEPS = $(OBJS:%.o=%.d)
 
@@ -51,10 +51,10 @@ $(LIBRARY): $(OBJS)
 	$(AR) rcs $@ $^
 	$(RANLIB) $@
 
-sc_scanner.yy.c: sc_scanner.l sc_grammar.tab.h
+scanner.yy.c: scanner.l grammar.tab.h
 	$(LEX) -o $@ $^
 
-sc_grammar.tab.c: sc_grammar.y 
+grammar.tab.c: grammar.y 
 	$(YACC) -o $@ -d $^
 
 $(OBJ_DIR)/%.o: %.c

@@ -1,5 +1,5 @@
 /**
- * @file    sc_error.list
+ * @file    errors.list
  * @copyright defined in aergo/LICENSE.txt
  */
 
@@ -10,8 +10,8 @@
 #define ERROR_FILE_SEEK_FAILED              "fseek failed: %s"
 #define ERROR_FILE_READ_FAILED              "fread failed: %s"
 
-#define ERROR_SCAN_UNTERMINATED_COMMENT     "unterminated comment"
-#define ERROR_SCAN_UNTERMINATED_STRING      "unterminated string"
+#define ERROR_SCAN_UNTERMINATED_COMMENT     "unEXITd comment"
+#define ERROR_SCAN_UNTERMINATED_STRING      "unEXITd string"
 #define ERROR_SCAN_UNKNOWN_CHAR             "unknown character"
 #define ERROR_SCAN_STR_TOO_LONG             "string literal too long"
 #define ERROR_PARSE_BUF_OVERFLOW            "parse buffer overflow (must be <= 1048576 bytes)"

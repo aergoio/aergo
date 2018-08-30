@@ -1,20 +1,20 @@
 %{
 
 /**
- * @file    sc.grammar.y
+ * @file    grammar.y
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#include "sc_common.h"
+#include "common.h"
 
-#include "sc_parser.h"
+#include "parser.h"
 
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
-extern int sc_yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
+extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 
-static void sc_yyerror(YYLTYPE *lloc, sc_yacc_t *yacc, const char *msg);
+static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
 
 %}
 
@@ -23,7 +23,6 @@ static void sc_yyerror(YYLTYPE *lloc, sc_yacc_t *yacc, const char *msg);
 %locations
 %parse-param { void *yyscanner }
 %lex-param { yyscan_t yyscanner }
-%name-prefix "sc_yy"
 %debug
 %verbose
 %initial-action {
@@ -447,8 +446,8 @@ id:
 %%
 
 static void
-sc_yyerror(YYLTYPE *lloc, sc_yacc_t *yacc, const char *msg)
+yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg)
 {
 }
 
-/* end of sc_grammar.y */
+/* end of grammar.y */

@@ -3,11 +3,11 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#include "sc_common.h"
+#include "common.h"
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "sc_parser.h"
+#include "parser.h"
 
 #include "CuTest.h"
 
@@ -16,7 +16,7 @@ test_parse(char *file)
 {
     dup2(open("/dev/null", O_WRONLY), STDERR_FILENO);
 
-    return sc_parse(file);
+    return parse(file);
 }
 
 void TestScanNormalComment(CuTest *tc)
