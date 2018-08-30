@@ -149,7 +149,7 @@ func (p *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 		req := &types.NewTransactionsNotice{MessageData: &types.MessageData{},
 			TxHashes: hashes,
 		}
-		peer.sendMessage(newPbMsgBroadcastOrder(false, newBlockNotice, req))
+		peer.sendMessage(newPbMsgBroadcastOrder(false, newTxNotice, req))
 	}
 
 	return true
