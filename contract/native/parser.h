@@ -34,6 +34,6 @@ typedef struct yacc_s {
 
 #include "grammar.tab.h"
 
-int parse(char *path);
+int parse(FILE *fp);
 
 #endif /* no _PARSER_H */

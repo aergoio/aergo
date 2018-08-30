@@ -17,10 +17,10 @@ typedef struct list_s {
   	list_node_t *head;
 } list_t;
 
-#define list_foreach(p, l)                                                     \
+#define FOREACH(p, l)                                                          \
 	for ((p) = (l)->head; (p); (p) = (p)->next)
 
-#define list_foreach_safe(p, n, l)                                             \
+#define FOREACH_SAFE(p, n, l)                                                  \
 	for ((p) = (l)->head, (n) = (p)->next; (p); (p) = (n), (n) = (n)->next)
 
 static inline list_t *
@@ -39,7 +39,7 @@ list_destroy(list_t *l)
 {
 	list_node_t *p, *n;
 
-	list_foreach_safe(p, n, l) {
+	FOREACH_SAFE(p, n, l) {
 		free(p);
 	}
 	l->head = NULL;

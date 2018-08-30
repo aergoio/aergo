@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "throw.h"
+#include "errors.h"
 
 #define xfclose                 fclose
 

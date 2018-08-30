@@ -1,10 +1,10 @@
 /**
- * @file    throw.h
+ * @file    errors.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _THROW_H
-#define _THROW_H
+#ifndef _ERRORS_H
+#define _ERRORS_H
 
 #include "common.h"
 
@@ -61,4 +61,4 @@ xperror(char *loc, char *lvl, char *fmt, ...)
     fprintf(stderr, ANSI_WHITE"%s: %s: "ANSI_DEFAULT"%s\n", loc, lvl, errdesc);
 }
 
-#endif /* no _THROW_H */
+#endif /* no _ERRORS_H */

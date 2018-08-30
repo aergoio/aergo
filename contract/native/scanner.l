@@ -6,7 +6,7 @@
 
 #include "common.h"
 
-#include "throw.h"
+#include "errors.h"
 #include "xutil.h"
 #include "parser.h"
 

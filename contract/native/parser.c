@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "throw.h"
+#include "errors.h"
 #include "xutil.h"
 
 #include "parser.h"
@@ -21,14 +21,18 @@ extern int yyparse(void *);
 extern int yydebug;
 
 static void
-scan_init(scan_t *scan, char *path)
+scan_init(scan_t *scan)
 {
+    /*
     char *delim;
 
     scan->path = path;
 
     delim = strrchr(path, PATH_DELIM);
     strcpy(scan->file, delim == NULL ? path : delim + 1);
+    */
+    scan->path = NULL;
+    scan->file[0] = '\0';
 
     scan->errcnt = 0;
 
@@ -47,16 +51,12 @@ yacc_init(yacc_t *yacc)
 }
 
 int
-parse(char *path)
+parse(FILE *fp)
 {
-    FILE *fp;
     scan_t scan;
     yacc_t yacc;
 
-    fp = xfopen(path, "r");
-    ASSERT(fp != NULL);
-
-    scan_init(&scan, path);
+    scan_init(&scan);
     yacc_init(&yacc);
 
     yyset_in(fp, yacc.scanner);
