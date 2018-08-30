@@ -112,11 +112,6 @@ func (_m *MockP2PService) NotifyPeerAddressReceived(_a0 []PeerMeta) {
 	_m.Called(_a0)
 }
 
-// AddSubProtocol provides a mock function with given fields: p
-func (_m *MockP2PService) AddSubProtocol(p subProtocol) {
-	_m.Called(p)
-}
-
 // Addrs provides a mock function with given fields:
 func (_m *MockP2PService) Addrs() []ma.Multiaddr {
 	ret := _m.Called()

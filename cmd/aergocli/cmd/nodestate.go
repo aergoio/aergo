@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -24,6 +25,7 @@ var nodeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(nodeCmd)
+	nodeCmd.Flags().Uint64VarP(&number, "timeout", "t", 3, "Per module time out")
 }
 
 func execNodeState(cmd *cobra.Command, args []string) {
@@ -35,17 +37,12 @@ func execNodeState(cmd *cobra.Command, args []string) {
 	}
 	defer client.Close()
 
-	msg, err := client.NodeState(context.Background(), &types.Empty{})
-
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(number))
+	msg, err := client.NodeState(context.Background(), &types.SingleBytes{Value: b})
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return
 	}
-
-	for _, s := range msg.Status {
-		fmt.Printf("module: %s\n", s.Name)
-		for _, is := range s.Stat {
-			fmt.Printf("\t%s : %f\n", is.Name, is.Stat)
-		}
-	}
+	fmt.Printf("%s\n", string(msg.Value))
 }

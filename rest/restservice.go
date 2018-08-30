@@ -11,14 +11,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
 	//"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/blockchain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 type RestService struct {
@@ -28,8 +29,6 @@ type RestService struct {
 	bc  *bc.ChainService
 }
 
-var _ component.IComponent = (*RestService)(nil)
-
 //var wait sync.WaitGroup
 
 var (
@@ -38,17 +37,17 @@ var (
 
 func NewRestService(cfg *cfg.Config, bc *bc.ChainService) *RestService {
 	cs := &RestService{
-		BaseComponent: component.NewBaseComponent(message.RestSvc, logger, cfg.EnableDebugMsg),
-		cfg:           cfg,
-		bc:            bc,
+		cfg: cfg,
+		bc:  bc,
 	}
+	cs.BaseComponent = component.NewBaseComponent(message.RestSvc, cs, logger)
 
 	return cs
 }
 
-func (cs *RestService) Start() {
-	cs.BaseComponent.Start(cs)
-	//wait.Add(1)
+func (cs *RestService) BeforeStart() {}
+
+func (cs *RestService) AfterStart() {
 	go func() {
 		http.HandleFunc("/chaintree", func(w http.ResponseWriter, r *http.Request) {
 			body, err := ioutil.ReadAll(r.Body)
@@ -57,7 +56,7 @@ func (cs *RestService) Start() {
 				http.Error(w, "can't read body", http.StatusBadRequest)
 				return
 			}
-			logger.Debug().Str("body", string(body)).Msg("Recieved")
+			logger.Debug().Str("body", string(body)).Msg("Received")
 			// Sorry, Just for ChainTree lookup now
 			i, _ := cs.bc.GetChainTree()
 			w.Write(i)
@@ -69,12 +68,13 @@ func (cs *RestService) Start() {
 	}()
 }
 
-func (cs *RestService) Stop() {
-	//wait.Wait()
-	cs.BaseComponent.Stop()
+func (cs *RestService) BeforeStop() {
+
+}
+
+func (cs *RestService) Statics() *map[string]interface{} {
+	return nil
 }
 
 func (cs *RestService) Receive(context actor.Context) {
-	cs.BaseComponent.Receive(context)
-
 }

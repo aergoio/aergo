@@ -8,13 +8,21 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"io"
 
+	"github.com/aergoio/aergo/internal/enc"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
+
+// Genesis represents genesis block
+type Genesis struct {
+	Header    *BlockHeader      `json:"header"`
+	Balance   map[string]*State `json:"alloc"`
+	Timestamp int64             `json:"timestamp,omitempty"`
+	// TODO: bp Peer info
+}
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
@@ -57,16 +65,26 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Body:   &body,
 	}
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
-	block.Hash = block.CalculateBlockHash()
+
 	return &block
 }
 
-// CalculateBlockHash computes sha256 hash of block header.
-func (block *Block) CalculateBlockHash() []byte {
+// calculateBlockHash computes sha256 hash of block header.
+func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
 	writeBlockHeader(digest, block.Header)
 
 	return digest.Sum(nil)
+}
+
+// BlockHash returns block hash. It returns a calculated value if the hash is nil.
+func (block *Block) BlockHash() []byte {
+	hash := block.GetHash()
+	if len(hash) == 0 {
+		block.Hash = block.calculateBlockHash()
+	}
+
+	return block.GetHash()
 }
 
 // Sign adds a pubkey and a block signature to block.
@@ -88,8 +106,6 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 	block.Header.Sign = sig
 
-	//block hash must be recomputed
-	block.Hash = block.CalculateBlockHash()
 	return nil
 }
 
@@ -122,8 +138,8 @@ func (block *Block) VerifySign() (valid bool, err error) {
 	return valid, nil
 }
 
-// BpID returns its Block Producer's ID from block.
-func (block *Block) BpID() (id peer.ID, err error) {
+// BPID returns its Block Producer's ID from block.
+func (block *Block) BPID() (id peer.ID, err error) {
 	var pubKey crypto.PubKey
 	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
 		return peer.ID(""), err
@@ -138,9 +154,9 @@ func (block *Block) BpID() (id peer.ID, err error) {
 
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
-	hash := block.GetHash()
+	hash := block.BlockHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""
@@ -151,7 +167,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return base64.StdEncoding.EncodeToString(hash)
+		return enc.ToString(hash)
 	}
 
 	return ""
@@ -182,7 +198,7 @@ func (block *Block) Clone() *Block {
 		if res.Body != nil {
 			res.Header.TxsRootHash = CalculateTxsRootHash(res.Body.Txs)
 		}
-		res.Hash = res.CalculateBlockHash()
+		res.Hash = res.calculateBlockHash()
 	}
 	return &res
 }
@@ -220,6 +236,7 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 		bh.BlockNo,
 		bh.Timestamp,
 		bh.TxsRootHash,
+		bh.Confirms,
 		bh.PubKey,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {

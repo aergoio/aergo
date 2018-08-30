@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 // P2P is actor component for p2p
@@ -22,12 +22,8 @@ type P2P struct {
 
 	hub *component.ComponentHub
 
-	p2ps PeerManager
-
-	ping  *PingProtocol
-	addrs *AddressesProtocol
-	blk   *BlockProtocol
-	txs   *TxProtocol
+	pm PeerManager
+	rm ReconnectManager
 }
 
 //var _ component.IComponent = (*P2PComponent)(nil)
@@ -39,97 +35,83 @@ const defaultTTL = time.Second * 4
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
 
 	netsvc := &P2P{
-		BaseComponent: component.NewBaseComponent(message.P2PSvc, log.NewLogger("p2p"), cfg.EnableDebugMsg),
-		hub:           hub,
+		hub: hub,
 	}
-
+	netsvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, netsvc, log.NewLogger("p2p"))
 	netsvc.init(cfg, chainsvc)
 	return netsvc
 }
 
-// Start starts p2p service
-func (ns *P2P) Start() {
-	ns.BaseComponent.Start(ns)
-	//TODO add init logics for this service
-	ns.p2ps.Start()
+// BeforeStart starts p2p service.
+func (p2ps *P2P) BeforeStart() {}
+
+func (p2ps *P2P) AfterStart() {
+	if err := p2ps.pm.Start(); err != nil {
+		panic("Failed to start p2p component")
+	}
 }
 
-// Stop stops
-func (ns *P2P) Stop() {
-	ns.p2ps.Stop()
-
-	ns.BaseComponent.Stop()
+// BeforeStop is called before actor hub stops. it finishes underlying peer manager
+func (p2ps *P2P) BeforeStop() {
+	if err := p2ps.pm.Stop(); err != nil {
+		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
+	}
 }
 
-func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) PeerManager {
-	p2psvc := NewPeerManager(ns, cfg, ns.Logger)
-	// FIXME 초기화
-	ns.ping = NewPingProtocol(ns.Logger)
-	ns.ping.actorServ = ns
-	p2psvc.AddSubProtocol(ns.ping)
-
-	ns.blk = NewBlockProtocol(ns.Logger, chainsvc)
-	ns.blk.iserv = ns
-	ns.blk.log = ns.Logger
-	p2psvc.AddSubProtocol(ns.blk)
-
-	ns.addrs = NewAddressesProtocol(ns.Logger)
-	p2psvc.AddSubProtocol(ns.addrs)
-
-	ns.txs = NewTxProtocol(ns.Logger, chainsvc)
-	ns.txs.iserv = ns
-	p2psvc.AddSubProtocol(ns.txs)
-
-	ns.p2ps = p2psvc
-	return p2psvc
+// Statics show statistic information of p2p module. NOTE: It it not implemented yet
+func (p2ps *P2P) Statics() *map[string]interface{} {
+	return nil
 }
 
-const success bool = true
-const failed bool = false
+func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+	reconMan := NewReconnectManager(p2ps.Logger)
+	peerMan := NewPeerManager(p2ps, cfg, reconMan, p2ps.Logger)
+
+	// connect managers each other
+	reconMan.pm = peerMan
+
+	p2ps.pm = peerMan
+	p2ps.rm = reconMan
+}
 
 // Receive got actor message and then handle it.
-func (ns *P2P) Receive(context actor.Context) {
+func (p2ps *P2P) Receive(context actor.Context) {
 
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-	// case *message.PingMsg:
-	// 	result := ns.ping.Ping(msg.ToWhom)
-	// 	context.Respond(result)
 	case *message.GetAddressesMsg:
-		ns.addrs.GetAddresses(msg.ToWhom, msg.Size)
+		p2ps.GetAddresses(msg.ToWhom, msg.Size)
 	case *message.GetBlockHeaders:
-		ns.blk.GetBlockHeaders(msg)
+		p2ps.GetBlockHeaders(msg)
 	case *message.GetBlockInfos:
-		ns.blk.GetBlocks(msg.ToWhom, msg.Hashes)
+		p2ps.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewBlock:
-		ns.blk.NotifyNewBlock(*msg)
-	case *message.GetTransactions:
-		ns.txs.GetTXs(msg.ToWhom, msg.Hashes)
-	case *message.NotifyNewTransactions:
-		ns.txs.NotifyNewTX(*msg)
-	case *message.GetPeers:
-		peers, states := ns.p2ps.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
+		p2ps.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
-		ns.blk.GetMissingBlocks(msg.ToWhom, msg.Hashes)
-	default:
-		ns.BaseComponent.Receive(context)
+		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
+	case *message.GetTransactions:
+		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
+	case *message.NotifyNewTransactions:
+		p2ps.NotifyNewTX(*msg)
+	case *message.GetPeers:
+		peers, states := p2ps.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	}
 }
 
 // SendRequest implement interface method of ActorService
-func (ns *P2P) SendRequest(actor string, msg interface{}) {
-	ns.hub.Request(actor, msg, ns)
+func (p2ps *P2P) SendRequest(actor string, msg interface{}) {
+	p2ps.RequestTo(actor, msg)
 }
 
 // FutureRequest implement interface method of ActorService
-func (ns *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).FutureRequest")
+func (p2ps *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
+	return p2ps.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (ns *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.hub.RequestFuture(actor, msg, defaultTTL, "p2p.(*P2P).CallRequest")
+func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
 }

@@ -9,9 +9,9 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/examples/component/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 )
 
 type ExampleService struct {
@@ -19,27 +19,34 @@ type ExampleService struct {
 	myname string
 }
 
-var _ component.IComponent = (*ExampleService)(nil)
-
 func NexExampleServie(myname string) *ExampleService {
-	return &ExampleService{
-		BaseComponent: component.NewBaseComponent(message.HelloService, log.Default(), true),
-		myname:        myname,
+	actor := &ExampleService{
+
+		myname: myname,
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.HelloService, actor, log.Default())
+
+	return actor
 }
 
-func (es *ExampleService) Start() {
-	es.BaseComponent.Start(es)
-	//TODO add init logics for this service
+func (es *ExampleService) BeforeStart() {
+	// add init logics for this service
 }
 
-func (es *ExampleService) Stop() {
-	es.BaseComponent.Stop()
-	//TODO add stop logics for this service
+func (es *ExampleService) AfterStart() {
+	// add init logics for this service
+}
+
+func (es *ExampleService) BeforeStop() {
+
+	// add stop logics for this service
+}
+
+func (es *ExampleService) Statics() *map[string]interface{} {
+	return nil
 }
 
 func (es *ExampleService) Receive(context actor.Context) {
-	es.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
 	case *message.HelloReq:
@@ -48,4 +55,5 @@ func (es *ExampleService) Receive(context actor.Context) {
 				Greeting: fmt.Sprintf("Hello %s, I'm %s", msg.Who, es.myname),
 			})
 	}
+
 }

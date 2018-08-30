@@ -2,9 +2,8 @@
 package p2p
 
 import (
-	net "github.com/libp2p/go-libp2p-net"
+	"bufio"
 
-	protocol "github.com/libp2p/go-libp2p-protocol"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -14,14 +13,14 @@ type MockMsgOrder struct {
 }
 
 // GetProtocolID provides a mock function with given fields:
-func (_m *MockMsgOrder) GetProtocolID() protocol.ID {
+func (_m *MockMsgOrder) GetProtocolID() SubProtocol {
 	ret := _m.Called()
 
-	var r0 protocol.ID
-	if rf, ok := ret.Get(0).(func() protocol.ID); ok {
+	var r0 SubProtocol
+	if rf, ok := ret.Get(0).(func() SubProtocol); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(protocol.ID)
+		r0 = ret.Get(0).(SubProtocol)
 	}
 
 	return r0
@@ -112,11 +111,11 @@ func (_m *MockMsgOrder) ResponseExpected() bool {
 }
 
 // SendOver provides a mock function with given fields: s
-func (_m *MockMsgOrder) SendOver(s net.Stream) error {
+func (_m *MockMsgOrder) SendOver(s *bufio.ReadWriter) error {
 	ret := _m.Called(s)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(net.Stream) error); ok {
+	if rf, ok := ret.Get(0).(func(*bufio.ReadWriter) error); ok {
 		r0 = rf(s)
 	} else {
 		r0 = ret.Error(0)

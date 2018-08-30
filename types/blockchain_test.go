@@ -16,6 +16,7 @@ func TestBlockHashOldNew(t *testing.T) {
 		binary.Write(digest, binary.LittleEndian, header.BlockNo)
 		binary.Write(digest, binary.LittleEndian, header.Timestamp)
 		digest.Write(header.TxsRootHash)
+		binary.Write(digest, binary.LittleEndian, header.Confirms)
 		return digest.Sum(nil)
 	}
 
@@ -23,7 +24,7 @@ func TestBlockHashOldNew(t *testing.T) {
 	block := NewBlock(nil, txIn, 0)
 
 	h1 := blockHash(block)
-	h2 := block.CalculateBlockHash()
+	h2 := block.calculateBlockHash()
 
 	assert.Equal(t, h1, h2)
 }

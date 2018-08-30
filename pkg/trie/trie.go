@@ -82,6 +82,9 @@ func (s *Trie) loadDefaultHashes() []byte {
 // LoadCache loads the first layers of the merkle tree given a root
 // This is called after a node restarts so that it doesnt become slow with db reads
 func (s *Trie) LoadCache(root []byte) error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDefaultHashes()
 	ch := make(chan error, 1)
 	s.loadCache(root, s.TrieHeight, ch)
@@ -90,11 +93,7 @@ func (s *Trie) LoadCache(root []byte) error {
 
 // loadCache loads the first layers of the merkle tree given a root
 func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
-	if height <= s.CacheHeightLimit+1 {
-		ch <- nil
-		return
-	}
-	if bytes.Equal(root, s.defaultHashes[height]) {
+	if height <= s.CacheHeightLimit+1 || bytes.Equal(root, s.defaultHashes[height]) {
 		ch <- nil
 		return
 	}
@@ -116,38 +115,44 @@ func (s *Trie) loadCache(root []byte, height uint64, ch chan<- (error)) {
 	isShortcut := val[nodeSize-1]
 	if isShortcut == 1 {
 		ch <- nil
-		return
-	}
+	} else {
+		// Load subtree
+		lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
 
-	lnode, rnode := val[:HashLength], val[HashLength:nodeSize-1]
-
-	lch := make(chan error, 1)
-	rch := make(chan error, 1)
-	go s.loadCache(lnode, height-1, lch)
-	go s.loadCache(rnode, height-1, rch)
-	if err := <-lch; err != nil {
-		ch <- err
-		return
+		lch := make(chan error, 1)
+		rch := make(chan error, 1)
+		go s.loadCache(lnode, height-1, lch)
+		go s.loadCache(rnode, height-1, rch)
+		if err := <-lch; err != nil {
+			ch <- err
+			return
+		}
+		if err := <-rch; err != nil {
+			ch <- err
+			return
+		}
+		ch <- nil
 	}
-	if err := <-rch; err != nil {
-		ch <- err
-		return
-	}
-	ch <- nil
 }
 
-// Update adds a sorted list of keys and their values to the trie
+// Update adds and deletes a sorted list of keys and their values to the trie
+// Adding and deleting can be simultaneous as long as keys are sorted.
+// To delete, set the value to DefaultLeaf.
+// Make sure you don't delete keys that don't exist,
+// the root hash would become invalid.
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
-	update, _, err := s.update(s.Root, keys, values, s.TrieHeight, nil)
-	if err != nil {
-		return nil, err
+	ch := make(chan mresult, 1)
+	s.update(s.Root, keys, values, s.TrieHeight, ch)
+	result := <-ch
+	if result.err != nil {
+		return nil, result.err
 	}
-	s.Root = update
-	return s.Root, err
+	s.Root = result.update
+	return s.Root, nil
 }
 
 // mresult is used to contain the result of goroutines and is sent through a channel.
@@ -158,64 +163,61 @@ type mresult struct {
 	err     error
 }
 
-// update adds a sorted list of keys and their values to the trie.
+// update adds and deletes a sorted list of keys and their values to the trie.
+// Adding and deleting can be simultaneous as long as keys are sorted.
+// To delete, set the value to DefaultLeaf.
 // It returns the root of the updated tree.
-func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) ([]byte, bool, error) {
+// A DefaultLeaf cannot be updated to a DefaultLeaf as shortcut nodes
+// could be moved down the tree resulting in an invalid root
+func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
-		// Delete the key-value from the trie if it is being set to DefaultLeaf
 		if bytes.Equal(DefaultLeaf, values[0]) {
+			// Delete the key-value from the trie if it is being set to DefaultLeaf
 			if !bytes.Equal(DefaultLeaf, root) {
 				// Delete old liveCache node if it is not default
 				s.deleteCacheNode(root)
 			}
-			if ch != nil {
-				ch <- mresult{DefaultLeaf, true, nil}
-			}
-			return DefaultLeaf, true, nil
-		}
-		node := s.leafHash(keys[0], values[0], height-1, root)
-		if ch != nil {
+			ch <- mresult{DefaultLeaf, true, nil}
+		} else {
+			// Set the value
+			node := s.leafHash(keys[0], values[0], height-1, root)
 			ch <- mresult{node, false, nil}
 		}
-		return node, false, nil
+		return
 	}
 
 	// Load the node to update
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
 	if err != nil {
-		if ch != nil {
-			ch <- mresult{nil, false, err}
-		}
-		return nil, false, err
+		ch <- mresult{nil, false, err}
+		return
 	}
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
-		s.maybeAddShortcutToKV(keys, values, lnode, rnode)
+		before := len(keys)
+		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
+		if len(keys) > before {
+			// if the shortcut was added to the keys, don't delete the root as that
+			// will delete the shortcut
+			root = []byte{}
+		}
+		if len(keys) == 0 {
+			// The shortcut is being deleted
+			s.deleteCacheNode(root)
+			ch <- mresult{s.defaultHashes[height], true, nil}
+			return
+		}
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = s.defaultHashes[height-1], s.defaultHashes[height-1]
 	}
-
 	// Store shortcut node
 	if bytes.Equal(s.defaultHashes[height-1], lnode) &&
 		bytes.Equal(s.defaultHashes[height-1], rnode) && (len(keys) == 1) {
-		// Delete the key-value from the trie if it is being set to DefaultLeaf
-		if bytes.Equal(DefaultLeaf, values[0]) {
-			if !bytes.Equal(s.defaultHashes[height], root) {
-				// Delete old liveCache node if it is not default
-				s.deleteCacheNode(root)
-			}
-			if ch != nil {
-				ch <- mresult{s.defaultHashes[height], true, nil}
-			}
-			return s.defaultHashes[height], true, nil
-		}
 		// We are adding 1 key to an empty subtree so store it as a shortcut
 		node := s.leafHash(keys[0], values[0], height-1, root)
-		if ch != nil {
-			ch <- mresult{node, false, nil}
-		}
-		return node, false, nil
+		ch <- mresult{node, false, nil}
+		return
 	}
 
 	// Split the keys array so each branch can be updated in parallel
@@ -225,152 +227,87 @@ func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan
 
 	switch {
 	case len(lkeys) == 0 && len(rkeys) > 0:
-		// all the keys go in the right subtree
-		update, deleted, err := s.update(rnode, keys, values, height-1, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- mresult{nil, false, err}
-			}
-			return nil, false, err
-		}
-		// Move up a shortcut node if necessary.
-		if deleted {
-			// If update deleted a subtree, check it's sibling return it if it is a shortcut
-			if bytes.Equal(s.defaultHashes[height-1], update) {
-				_, _, isShortcut, err := s.loadChildren(lnode)
-				if err != nil {
-					if ch != nil {
-						ch <- mresult{nil, false, err}
-					}
-					return nil, false, err
-				}
-				if isShortcut == 1 {
-					// root is never default when moving up a shortcut
-					s.deleteCacheNode(root)
-					// Return the left sibling node to move it up
-					if ch != nil {
-						ch <- mresult{lnode, true, nil}
-					}
-					return lnode, true, nil
-				}
-			}
-			// If deleted then update is a shortcut node (because not default),
-			// return it if the sibling is default.
-			if bytes.Equal(s.defaultHashes[height-1], lnode) {
-				// root is never default when moving up a shortcut
-				s.deleteCacheNode(root)
-				// Return the shortcut node to move it up
-				if ch != nil {
-					ch <- mresult{update, true, nil}
-				}
-				return update, true, nil
-			}
-		}
-		node := s.interiorHash(lnode, update, height-1, root)
-		if ch != nil {
-			ch <- mresult{node, false, nil}
-		}
-		return node, false, nil
+		s.updateRight(lnode, rnode, root, keys, values, height, ch)
 	case len(lkeys) > 0 && len(rkeys) == 0:
-		// all the keys go in the left subtree
-		update, deleted, err := s.update(lnode, keys, values, height-1, nil)
-		if err != nil {
-			if ch != nil {
-				ch <- mresult{nil, false, err}
-			}
-			return nil, false, err
-		}
-		// Move up a shortcut node if necessary.
-		if deleted {
-			// If update deleted a subtree, check it's sibling return it if it is a shortcut
-			if bytes.Equal(s.defaultHashes[height-1], update) {
-				_, _, isShortcut, err := s.loadChildren(rnode)
-				if err != nil {
-					if ch != nil {
-						ch <- mresult{nil, false, err}
-					}
-					return nil, false, err
-				}
-				if isShortcut == 1 {
-					// root is never default when moving up a shortcut
-					s.deleteCacheNode(root)
-					// Return the right sibling node to move it up
-					if ch != nil {
-						ch <- mresult{rnode, true, nil}
-					}
-					return rnode, true, nil
-				}
-			}
-			// If deleted then update is a shortcut node (because not default),
-			// return it if the sibling is default.
-			if bytes.Equal(s.defaultHashes[height-1], rnode) {
-				// root is never default when moving up a shortcut
-				s.deleteCacheNode(root)
-				// Return the shortcut node to move it up
-				if ch != nil {
-					ch <- mresult{update, true, nil}
-				}
-				return update, true, nil
-			}
-		}
-		node := s.interiorHash(update, rnode, height-1, root)
-		if ch != nil {
-			ch <- mresult{node, false, nil}
-		}
-		return node, false, nil
+		s.updateLeft(lnode, rnode, root, keys, values, height, ch)
 	default:
-		// keys are separated between the left and right branches
-		// update the branches in parallel
-		lch := make(chan mresult, 1)
-		rch := make(chan mresult, 1)
-		go s.update(lnode, lkeys, lvalues, height-1, lch)
-		go s.update(rnode, rkeys, rvalues, height-1, rch)
-		lresult := <-lch
-		rresult := <-rch
-		if lresult.err != nil {
-			if ch != nil {
-				ch <- mresult{nil, false, lresult.err}
-			}
-			return nil, false, lresult.err
-		}
-		if rresult.err != nil {
-			if ch != nil {
-				ch <- mresult{nil, false, rresult.err}
-			}
-			return nil, false, rresult.err
-		}
-
-		// Move up a shortcut node if it's sibling is default
-		if lresult.deleted && rresult.deleted {
-			// root is never default when moving up a shortcut
-			s.deleteCacheNode(root)
-			if bytes.Equal(s.defaultHashes[height-1], lresult.update) && bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-				if ch != nil {
-					ch <- mresult{s.defaultHashes[height], false, nil}
-				}
-				return s.defaultHashes[height], false, nil
-			}
-			if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
-				if ch != nil {
-					ch <- mresult{rresult.update, true, nil}
-				}
-				return rresult.update, true, nil
-			}
-			if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-				if ch != nil {
-					ch <- mresult{lresult.update, true, nil}
-				}
-				return lresult.update, true, nil
-			}
-		}
-		node := s.interiorHash(lresult.update, rresult.update, height-1, root)
-		if ch != nil {
-			ch <- mresult{node, false, nil}
-		}
-		return node, false, nil
+		s.updateParallel(lnode, rnode, root, lkeys, rkeys, lvalues, rvalues, height, ch)
 	}
 }
 
+// updateRight updates the right side of the tree
+func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
+	// all the keys go in the right subtree
+	newch := make(chan mresult, 1)
+	s.update(rnode, keys, values, height-1, newch)
+	result := <-newch
+	if result.err != nil {
+		ch <- mresult{nil, false, result.err}
+		return
+	}
+	// Move up a shortcut node if necessary.
+	if result.deleted {
+		if s.maybeMoveUpShortcut(result.update, lnode, root, height, ch) {
+			return
+		}
+	}
+	node := s.interiorHash(lnode, result.update, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// updateLeft updates the left side of the tree
+func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values [][]byte, height uint64, ch chan<- (mresult)) {
+	// all the keys go in the left subtree
+	newch := make(chan mresult, 1)
+	s.update(lnode, keys, values, height-1, newch)
+	result := <-newch
+	if result.err != nil {
+		ch <- mresult{nil, false, result.err}
+		return
+	}
+	// Move up a shortcut node if necessary.
+	if result.deleted {
+		if s.maybeMoveUpShortcut(result.update, rnode, root, height, ch) {
+			return
+		}
+	}
+	node := s.interiorHash(result.update, rnode, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// updateParallel updates both sides of the trie simultaneously
+func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues [][]byte, height uint64, ch chan<- (mresult)) {
+	lch := make(chan mresult, 1)
+	rch := make(chan mresult, 1)
+	go s.update(lnode, lkeys, lvalues, height-1, lch)
+	go s.update(rnode, rkeys, rvalues, height-1, rch)
+	lresult := <-lch
+	rresult := <-rch
+	if lresult.err != nil {
+		ch <- mresult{nil, false, lresult.err}
+		return
+	}
+	if rresult.err != nil {
+		ch <- mresult{nil, false, rresult.err}
+		return
+	}
+
+	// Move up a shortcut node if it's sibling is default
+	if lresult.deleted {
+		if s.maybeMoveUpShortcut(lresult.update, rresult.update, root, height, ch) {
+			return
+		}
+	}
+	if rresult.deleted {
+		if s.maybeMoveUpShortcut(rresult.update, lresult.update, root, height, ch) {
+			return
+		}
+	}
+	node := s.interiorHash(lresult.update, rresult.update, height-1, root)
+	ch <- mresult{node, false, nil}
+}
+
+// deleteCacheNode deletes the node from liveCache
 func (s *Trie) deleteCacheNode(root []byte) {
 	var node Hash
 	copy(node[:], root)
@@ -389,25 +326,44 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 	return keys, nil
 }
 
-// maybeAddShortcutToKV adds a shortcut to the keys array to be updated if
-// the shortcut key is not already in the keys array
-func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
-	up := false
-	for _, k := range keys {
-		if bytes.Equal(k, shortcutKey) {
-			up = true
-			break
+// maybeMoveUpShortcut moves up a shortcut after a deletion if it is no more at
+// the highest root of an empty subtree.
+func (s *Trie) maybeMoveUpShortcut(update, sibling, root []byte, height uint64, ch chan<- (mresult)) bool {
+	if bytes.Equal(s.defaultHashes[height-1], update) {
+		// If update deleted a subtree, check it's sibling and
+		// return it if it is a shortcut
+		_, _, isShortcut, err := s.loadChildren(sibling)
+		if err != nil {
+			ch <- mresult{nil, false, err}
+			return true
 		}
+		if isShortcut == 1 {
+			// root is never default when moving up a shortcut
+			s.deleteCacheNode(root)
+			// Return the left sibling node to move it up
+			ch <- mresult{sibling, true, nil}
+			return true
+		}
+		if bytes.Equal(s.defaultHashes[height-1], sibling) {
+			s.deleteCacheNode(root)
+			ch <- mresult{s.defaultHashes[height], false, nil}
+			return true
+		}
+	} else if bytes.Equal(s.defaultHashes[height-1], sibling) {
+		// If update deleted something and returned a shortcut, return that
+		// shortcut if the sibling is default
+		// root is never default when moving up a shortcut
+		s.deleteCacheNode(root)
+		// Return the shortcut node to move it up
+		ch <- mresult{update, true, nil}
+		return true
 	}
-	if !up {
-		keys, values = s.addShortcutToKV(keys, values, shortcutKey, shortcutVal)
-	}
-	return keys, values
+	return false
 }
 
-// addShortcutToKV adds a shortcut key to the keys array to be updated.
+// maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.
 // this is used when a subtree containing a shortcut node is being updated
-func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
+func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal []byte) ([][]byte, [][]byte) {
 	newKeys := make([][]byte, 0, len(keys)+1)
 	newVals := make([][]byte, 0, len(keys)+1)
 
@@ -425,6 +381,11 @@ func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal [
 		higher := false
 		for i, key := range keys {
 			if bytes.Equal(shortcutKey, key) {
+				if bytes.Equal(DefaultLeaf, values[i]) {
+					// Delete shortcut if it is updated to DefaultLeaf
+					keys = append(keys[:i], keys[i+1:]...)
+					values = append(values[:i], values[i+1:]...)
+				}
 				return keys, values
 			}
 			if bytes.Compare(shortcutKey, key) > 0 {
@@ -438,7 +399,6 @@ func (s *Trie) addShortcutToKV(keys, values [][]byte, shortcutKey, shortcutVal [
 				newVals = append(newVals, values[:i]...)
 				newVals = append(newVals, shortcutVal)
 				newVals = append(newVals, values[i:]...)
-				return newKeys, newVals
 			}
 		}
 	}
@@ -458,12 +418,7 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 		s.liveCountMux.Lock()
 		s.LoadCacheCounter++
 		s.liveCountMux.Unlock()
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, len(val))
 	}
 
 	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
@@ -471,14 +426,12 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	val, exists = s.db.updatedNodes[node]
 	s.db.updatedMux.RUnlock()
 	if exists {
-		nodeSize := len(val)
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, len(val))
 	}
 	//Fetch node in disk database
+	if s.db.store == nil {
+		return nil, nil, byte(0), fmt.Errorf("DB not connected to trie")
+	}
 	s.loadDbMux.Lock()
 	s.LoadDbCounter++
 	s.loadDbMux.Unlock()
@@ -487,13 +440,18 @@ func (s *Trie) loadChildren(root []byte) ([]byte, []byte, byte, error) {
 	s.db.lock.Unlock()
 	nodeSize := len(val)
 	if nodeSize != 0 {
-		shortcut := val[nodeSize-1]
-		if shortcut == 1 {
-			return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
-		}
-		return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
+		return s.parseValue(val, nodeSize)
 	}
 	return nil, nil, byte(0), fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
+}
+
+// parseValue returns a subtree roots or a shortcut node
+func (s *Trie) parseValue(val []byte, nodeSize int) ([]byte, []byte, byte, error) {
+	shortcut := val[nodeSize-1]
+	if shortcut == 1 {
+		return val[:s.KeySize], val[s.KeySize : nodeSize-1], shortcut, nil
+	}
+	return val[:HashLength], val[HashLength : nodeSize-1], shortcut, nil
 }
 
 // Get fetches the value of a key by going down the current trie root.
@@ -506,16 +464,6 @@ func (s *Trie) get(root []byte, key []byte, height uint64) ([]byte, error) {
 	if bytes.Equal(root, s.defaultHashes[height]) {
 		// the trie does not contain the key
 		return nil, nil
-	}
-	if height == 0 {
-		k, v, isShortcut, err := s.loadChildren(root)
-		if err != nil {
-			return nil, err
-		}
-		if isShortcut == 1 && bytes.Equal(k, key) {
-			return v, nil
-		}
-		return nil, fmt.Errorf("the trie leaf node %x did not contain a key-value pair", root)
 	}
 	// Fetch the children of the node
 	lnode, rnode, isShortcut, err := s.loadChildren(root)
@@ -599,7 +547,10 @@ func (s *Trie) interiorHash(left, right []byte, height uint64, oldRoot []byte) [
 }
 
 // Commit stores the updated nodes to disk
-func (s *Trie) Commit() {
+func (s *Trie) Commit() error {
+	if s.db.store == nil {
+		return fmt.Errorf("DB not connected to trie")
+	}
 	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])
@@ -609,4 +560,5 @@ func (s *Trie) Commit() {
 	}
 	s.db.commit()
 	s.db.updatedNodes = make(map[Hash][]byte, len(s.db.updatedNodes)*2)
+	return nil
 }

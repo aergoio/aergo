@@ -18,8 +18,9 @@ message BlockHeader {
 	int64 timestamp = 3;
 	bytes blocksRootHash = 4;
 	bytes txsRootHash = 5;
-        bytes pubKey = 6;
-        bytes sign = 7;
+        uint64 confirms = 6;
+        bytes pubKey = 7;
+        bytes sign = 8;
 }
 
 message BlockBody {
@@ -63,7 +64,29 @@ message TxInBlock {
 }
 
 message State {
- 	bytes account = 1;
- 	uint64 nonce = 2;
- 	uint64 balance = 3;
+ 	uint64 nonce = 1;
+ 	uint64 balance = 2;
+	bytes codeHash = 3;
+	bytes storageRoot = 4;
+}
+
+message Receipt {
+	bytes contractAddress = 1;
+	string status = 2;
+	string ret = 3;
+}
+
+message FnArgument {
+	string name = 1;
+}
+
+message Function {
+	string name = 1;
+	repeated FnArgument arguments = 2;
+}
+
+message ABI {
+	string version = 1;
+	string language = 2;
+	repeated Function functions = 3;
 }

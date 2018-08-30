@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -33,6 +33,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(&mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
+		new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
 	target.Host = &mockHost{pstore.NewPeerstore()}
@@ -60,6 +61,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
+		new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
 	iterSize := 500
@@ -94,6 +96,7 @@ func TestGetPeers(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
+		new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
 	iterSize := 500

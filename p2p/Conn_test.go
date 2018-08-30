@@ -2,6 +2,7 @@
  *  @file
  *  @copyright defined in aergo/LICENSE.txt
  */
+
 package p2p
 
 import crypto "github.com/libp2p/go-libp2p-crypto"

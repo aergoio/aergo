@@ -12,9 +12,10 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/consensus/util"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -108,13 +109,13 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 }
 
 // IsBlockValid checks the DPoS consensus level validity of a block
-func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
-	id, err := block.BpID()
+func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
+	id, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	if id == peerID && block.PrevID() != bestBlock.ID() {
+	if id == dpos.ID && block.PrevID() != bestBlock.ID() {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf(
 				"reorganization occurred after block production: parent: %v (curr: %v), best block: %v",
@@ -148,7 +149,7 @@ func (dpos *DPoS) StatusUpdate() {
 func (dpos *DPoS) bpIdx() uint16 {
 	idx, exist := dpos.bpc.BpID2Index(dpos.ID)
 	if !exist {
-		logger.Fatal().Str("id", dpos.ID.Pretty()).Msg("BP has no correct BP membership")
+		logger.Fatal().Str("id", enc.ToString([]byte(dpos.ID))).Msg("BP has no correct BP membership")
 	}
 
 	return idx
@@ -166,7 +167,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 		return nil
 	}
 
-	block := util.GetBestBlock(dpos)
+	block := chain.GetBestBlock(dpos)
 	if block == nil {
 		return nil
 	}

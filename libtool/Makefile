@@ -1,7 +1,7 @@
 .PHONY: install uninstall 
 
 LIBPATH = $(shell pwd)
-LIBTOOLS = # m4-1.4.18 bison-3.0.5 flex-2.6.4
+LIBTOOLS = luajit # m4-1.4.18 bison-3.0.5 flex-2.6.4
 
 all: install
 

@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -139,19 +138,37 @@ func externalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-// warnLogUnknownPeer log warning that tell unknown peer sent message
-func warnLogUnknownPeer(logger *log.Logger, protocol protocol.ID, peerID peer.ID) {
-	logger.Warn().Str("protocol", string(protocol)).Str("peer_id", peerID.Pretty()).
-		Msg("Message from Unknown peer, ignoring it.")
-}
-
-func debugLogReceiveMsg(logger *log.Logger, protocol protocol.ID, msgID string, peerID peer.ID,
+func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peerID peer.ID,
 	additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str("protocol", string(protocol)).Str("msg_id", msgID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a message")
 	} else {
-		logger.Debug().Str("protocol", string(protocol)).Str("msg_id", msgID).Str("from_id", peerID.Pretty()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).
 			Msg("Received a message")
 	}
+}
+
+// ComparePeerID do byte-wise compare of two peerIDs,
+func ComparePeerID(pid1, pid2 peer.ID) int {
+	p1 := []byte(string(pid1))
+	p2 := []byte(string(pid2))
+	l1 := len(p1)
+	l2 := len(p2)
+	compLen := l1
+	if l1 > l2 {
+		compLen = l2
+	}
+
+	// check bytes
+	for i := 0; i < compLen; i++ {
+		if comp := p1[i] - p2[i]; comp != 0 {
+			if (comp & 0x80) == 0 {
+				return int(comp)
+			}
+			return -1
+		}
+	}
+	// check which is longer
+	return l1 - l2
 }

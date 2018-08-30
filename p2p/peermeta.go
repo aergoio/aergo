@@ -2,6 +2,7 @@
  *  @file
  *  @copyright defined in aergo/LICENSE.txt
  */
+
 package p2p
 
 import (
@@ -14,20 +15,19 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// PeerMeta contains non changeable information of peer node during connected state
-// TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
-
 // TTLs are node ttl
 const (
 	DesignatedNodeTTL time.Duration = time.Minute * 60
 	DefaultNodeTTL    time.Duration = time.Minute * 10
 )
 
+// PeerMeta contains non changeable information of peer node during connected state
+// TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
 type PeerMeta struct {
+	ID peer.ID
 	// IPAddress is human readable form of ip address such as "192.168.0.1" or "2001:0db8:0a0b:12f0:33:1"
 	IPAddress  string
 	Port       uint32
-	ID         peer.ID
 	Designated bool // Designated means this peer is designated in config file and connect to in startup phase
 	Outbound   bool
 }
@@ -54,7 +54,6 @@ func (m PeerMeta) ToPeerAddress() types.PeerAddress {
 func (m PeerMeta) TTL() time.Duration {
 	if m.Designated {
 		return DesignatedNodeTTL
-	} else {
-		return defaultTTL
 	}
+	return DefaultNodeTTL
 }

@@ -6,13 +6,16 @@
 package blockchain
 
 import (
-
-	//"reflect"
+	"os"
+	"path"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -32,20 +35,21 @@ type ChainService struct {
 	cc chan consensus.ChainConsensus
 }
 
-var _ component.IComponent = (*ChainService)(nil)
 var (
 	logger = log.NewLogger("chain")
 )
 
 func NewChainService(cfg *cfg.Config) *ChainService {
-	return &ChainService{
-		BaseComponent: component.NewBaseComponent(message.ChainSvc, logger, cfg.EnableDebugMsg),
-		cfg:           cfg,
-		cc:            make(chan consensus.ChainConsensus),
-		cdb:           NewChainDB(),
-		sdb:           state.NewStateDB(),
-		op:            NewOrphanPool(),
+	actor := &ChainService{
+		cfg: cfg,
+		cc:  make(chan consensus.ChainConsensus),
+		cdb: NewChainDB(),
+		sdb: state.NewStateDB(),
+		op:  NewOrphanPool(),
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
+
+	return actor
 }
 
 func (cs *ChainService) receiveChainInfo() {
@@ -56,19 +60,24 @@ func (cs *ChainService) receiveChainInfo() {
 	cs.cc = nil
 }
 
-func (cs *ChainService) Start() {
-	cs.BaseComponent.Start(cs)
-
-	cs.receiveChainInfo()
-
+func (cs *ChainService) initDB(dataDir string) error {
 	// init chaindb
-	if err := cs.cdb.Init(cs.cfg.DataDir); err != nil {
+	if err := cs.cdb.Init(dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
+		return err
 	}
 
 	// init statedb
-	if err := cs.sdb.Init(cs.cfg.DataDir); err != nil {
+	if err := cs.sdb.Init(dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
+		return err
+	}
+	return nil
+}
+func (cs *ChainService) BeforeStart() {
+
+	if err := cs.initDB(cs.cfg.DataDir); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
 	// init genesis block
@@ -77,6 +86,18 @@ func (cs *ChainService) Start() {
 	}
 }
 
+func (cs *ChainService) AfterStart() {
+	cs.receiveChainInfo()
+}
+
+func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
+
+	if err := cs.initDB(dataDir); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
+		return err
+	}
+	return cs.initGenesis(gb.Timestamp)
+}
 func (cs *ChainService) initGenesis(seed int64) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
@@ -92,7 +113,13 @@ func (cs *ChainService) initGenesis(seed int64) error {
 		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", EncodeB64(gb.Hash)).Msg("chain initialized")
+	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+
+	dbPath := path.Join(cs.cfg.DataDir, contract.DbName)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	contract.DB = db.NewDB(db.BadgerImpl, dbPath)
 
 	return nil
 }
@@ -105,9 +132,9 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
-		logger.Debug().Str("hash", EncodeB64(a)).Msg("request blocks for sync")
+		logger.Debug().Str("hash", enc.ToString(a)).Msg("request blocks for sync")
 	}
-	cs.Hub().Request(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes}, cs)
+	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 }
 
 // SetValidationAPI send the Validation v of the chosen Consensus to ChainService cs.
@@ -115,31 +142,30 @@ func (cs *ChainService) SendChainInfo(ca consensus.ChainConsensus) {
 	cs.cc <- ca
 }
 
-func (cs *ChainService) Stop() {
+func (cs *ChainService) BeforeStop() {
 	if cs.sdb != nil {
 		cs.sdb.Close()
 	}
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-	cs.BaseComponent.Stop()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {
-	cs.BaseComponent.Hub().Request(message.P2PSvc,
+	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			BlockNo: block.Header.BlockNo,
 			Block:   block.Clone(),
-		}, cs)
+		})
 	// if err != nil {
 	// 	logger.Info("failed to notify block:", block.Header.BlockNo, ToJSON(block))
 	// }
 }
 
 func (cs *ChainService) Receive(context actor.Context) {
-	cs.BaseComponent.Receive(context)
 
 	switch msg := context.Message().(type) {
+
 	case *message.GetBestBlockNo:
 		context.Respond(message.GetBestBlockNoRsp{
 			BlockNo: cs.getBestBlockNo(),
@@ -158,7 +184,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bid := types.ToBlockID(msg.BlockHash)
 		block, err := cs.getBlock(bid[:])
 		if err != nil {
-			logger.Error().Err(err).Str("hash", EncodeB64(msg.BlockHash)).Msg("failed to get block")
+			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
 		}
 		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
@@ -176,7 +202,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
-		bid := types.ToBlockID(msg.Block.GetHash())
+		bid := types.ToBlockID(msg.Block.BlockHash())
 		logger.Debug().Str("hash", msg.Block.ID()).
 			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
@@ -190,7 +216,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
-				BlockHash: block.GetHash(),
+				BlockHash: block.BlockHash(),
 				Err:       err,
 			})
 		}
@@ -201,13 +227,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 		}
 	case *message.GetState:
 		id := types.ToAccountID(msg.Account)
-		state, err := cs.sdb.GetAccountState(id)
+		state, err := cs.sdb.GetAccountStateClone(id)
 		if err != nil {
-			logger.Error().Str("hash", EncodeB64(msg.Account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
-		res := state.Clone()
 		context.Respond(message.GetStateRsp{
-			State: res,
+			State: state,
 			Err:   err,
 		})
 	case *message.GetMissing:
@@ -225,14 +250,33 @@ func (cs *ChainService) Receive(context actor.Context) {
 			TxIds: txIdx,
 			Err:   err,
 		})
+	case *message.GetReceipt:
+		receipt, err := contract.GetReceipt(msg.TxHash)
+		context.Respond(message.GetReceiptRsp{
+			Receipt: receipt,
+			Err:     err,
+		})
+	case *message.GetABI:
+		abi, err := contract.GetABI(msg.Contract)
+		context.Respond(message.GetABIRsp{
+			ABI: abi,
+			Err: err,
+		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
 		//logger.Debugf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
+
 	default:
 		//logger.Debugf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
+	}
+}
+
+func (cs *ChainService) Statics() *map[string]interface{} {
+	return &map[string]interface{}{
+		"orphan": cs.op.curCnt,
 	}
 }
 

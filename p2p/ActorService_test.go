@@ -2,6 +2,7 @@
  *  @file
  *  @copyright defined in aergo/LICENSE.txt
  */
+
 package p2p
 
 import actor "github.com/aergoio/aergo-actor/actor"

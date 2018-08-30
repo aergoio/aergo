@@ -14,8 +14,8 @@ import (
 	//"time"
 	//"encoding/hex"
 	//"fmt"
-	//"math/rand"
-	//"sort"
+	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -36,7 +36,10 @@ func TestTrieUpdateAndGet(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	ch := make(chan mresult, 1)
+	smt.update(smt.Root, keys, values, smt.TrieHeight, ch)
+	res := <-ch
+	root := res.update
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -49,7 +52,10 @@ func TestTrieUpdateAndGet(t *testing.T) {
 	// Append to the trie
 	newKeys := getFreshData(5, 32)
 	newValues := getFreshData(5, 32)
-	newRoot, _, _ := smt.update(root, newKeys, newValues, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, newKeys, newValues, smt.TrieHeight, ch)
+	res = <-ch
+	newRoot := res.update
 	if bytes.Equal(root, newRoot) {
 		t.Fatal("trie not updated")
 	}
@@ -141,7 +147,10 @@ func TestTrieDelete(t *testing.T) {
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
-	root, _, _ := smt.update(smt.Root, keys, values, smt.TrieHeight, nil)
+	ch := make(chan mresult, 1)
+	smt.update(smt.Root, keys, values, smt.TrieHeight, ch)
+	result := <-ch
+	root := result.update
 	value, _ := smt.get(root, keys[0], smt.TrieHeight)
 	if !bytes.Equal(values[0], value) {
 		t.Fatal("trie not updated")
@@ -149,16 +158,20 @@ func TestTrieDelete(t *testing.T) {
 
 	// Delete from trie
 	// To delete a key, just set it's value to Default leaf hash.
-	newRoot, _, _ := smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, smt.TrieHeight, ch)
+	result = <-ch
+	newRoot := result.update
 	newValue, _ := smt.get(newRoot, keys[0], smt.TrieHeight)
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(32, hash, nil)
-	cleanRoot, _, _ := smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, nil)
-	//FIXME : if one of 2 sibling nodes is deleted then the sibling
-	//			should move up other wise the roots mismatch
+	ch = make(chan mresult, 1)
+	smt2.update(smt.Root, keys[1:], values[1:], smt.TrieHeight, ch)
+	result = <-ch
+	cleanRoot := result.update
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
 	}
@@ -168,9 +181,34 @@ func TestTrieDelete(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		newValues = append(newValues, DefaultLeaf)
 	}
-	root, _, _ = smt.update(root, keys, newValues, smt.TrieHeight, nil)
+	ch = make(chan mresult, 1)
+	smt.update(root, keys, newValues, smt.TrieHeight, ch)
+	result = <-ch
+	root = result.update
 	if !bytes.Equal(smt.DefaultHash(256), root) {
 		t.Fatal("empty trie root hash not correct")
+	}
+}
+
+// test updating and deleting at the same time
+func TestTrieUpdateAndDelete(t *testing.T) {
+	smt := NewTrie(32, hash, nil)
+	key0 := make([]byte, 32, 32)
+	values := getFreshData(1, 32)
+	root, _ := smt.Update([][]byte{key0}, values)
+	k, v, isShortcut, _ := smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key0) || !bytes.Equal(v, values[0]) {
+		t.Fatal("leaf shortcut didn't move up to root")
+	}
+
+	key1 := make([]byte, 32, 32)
+	bitSet(key1, 255)
+	keys := [][]byte{key0, key1}
+	values = [][]byte{DefaultLeaf, getFreshData(1, 32)[0]}
+	root, _ = smt.Update(keys, values)
+	k, v, isShortcut, _ = smt.loadChildren(root)
+	if isShortcut != 1 || !bytes.Equal(k, key1) || !bytes.Equal(v, values[1]) {
+		t.Fatal("leaf shortcut didn't move up to root")
 	}
 }
 
@@ -236,7 +274,7 @@ func TestTrieCommit(t *testing.T) {
 	smt.db.liveCache = make(map[Hash][]byte)
 	value, _ := smt.Get(keys[0])
 	if !bytes.Equal(values[0], value) {
-		t.Fatal("failed to get value in commited db")
+		t.Fatal("failed to get value in committed db")
 	}
 	st.Close()
 	os.RemoveAll(".aergo")
@@ -322,6 +360,21 @@ func TestTrieRaisesError(t *testing.T) {
 	}
 	st.Close()
 	os.RemoveAll(".aergo")
+
+	smt = NewTrie(20, hash, nil)
+	err = smt.Commit()
+	if err == nil {
+		t.Fatal("Error not created if database not connected")
+	}
+	smt.db.liveCache = make(map[Hash][]byte)
+	_, _, _, err = smt.loadChildren(make([]byte, 32, 32))
+	if err == nil {
+		t.Fatal("Error not created if database not connected")
+	}
+	err = smt.LoadCache(make([]byte, 32))
+	if err == nil {
+		t.Fatal("Error not created if database not connected")
+	}
 }
 
 func TestTrieLoadCache(t *testing.T) {
@@ -451,4 +504,18 @@ func BenchmarkCacheHeightLimit245(b *testing.B) {
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
 	os.RemoveAll(".aergo")
+}
+
+func getFreshData(size, length int) [][]byte {
+	var data [][]byte
+	for i := 0; i < size; i++ {
+		key := make([]byte, 32)
+		_, err := rand.Read(key)
+		if err != nil {
+			panic(err)
+		}
+		data = append(data, hash(key)[:length])
+	}
+	sort.Sort(DataArray(data))
+	return data
 }

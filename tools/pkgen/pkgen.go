@@ -26,6 +26,10 @@ func main() {
 	idFile := prefix + ".id"
 
 	pkf, err := os.Create(pkFile)
+	if err != nil {
+		panic("fail to create key file: " + pkFile)
+	}
+
 	pkBytes, err := priv.Bytes()
 	if err != nil {
 		panic("wrong key <fileprefix>")
@@ -34,6 +38,10 @@ func main() {
 	pkf.Sync()
 
 	pubf, err := os.Create(pubFile)
+	if err != nil {
+		panic("fail to create pub file: " + pubFile)
+	}
+
 	pubBytes, err := pub.Bytes()
 	if err != nil {
 		panic("wrong key <fileprefix>")

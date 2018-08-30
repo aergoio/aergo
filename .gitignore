@@ -6,6 +6,8 @@
 debug
 debug.test
 Gopkg.lock
+*.o
+*.a
 
 # vim swp file
 *.swp
@@ -19,11 +21,3 @@ Gopkg.lock
 # developer workspace specific
 /conf
 
-# external libraries
-/libtool/src/m4-1.4.18
-/libtool/src/bison-3.0.5
-/libtool/src/flex-2.6.4
-/libtool/bin
-/libtool/include
-/libtool/lib
-/libtool/share

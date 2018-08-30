@@ -11,16 +11,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/factory"
+	"github.com/aergoio/aergo/consensus/impl"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo-lib/log"
 	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/spf13/cobra"
@@ -98,19 +98,22 @@ func rootRun(cmd *cobra.Command, args []string) {
 	}
 
 	compMng.Start()
-	common.HandleKillSig(compMng.Stop, svrlog)
 
-	if cfg.Consensus.EnableBp {
-		c, err := factory.New(cfg, compMng)
-		if err != nil {
-			svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
-			os.Exit(1)
-		}
-		consensus.Start(c)
-		chainsvc.SendChainInfo(c)
-	} else {
-		chainsvc.SendChainInfo(nil)
+	c, err := impl.New(cfg, compMng)
+	if err != nil {
+		svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
+		os.Exit(1)
 	}
+	if cfg.Consensus.EnableBp {
+		consensus.Start(c)
+	}
+	chainsvc.SendChainInfo(c)
+
+	common.HandleKillSig(func() {
+		consensus.Stop(c)
+		compMng.Stop()
+	}, svrlog)
+
 	// wait... TODO need to break out when system finished.
 	for {
 		time.Sleep(time.Minute)
