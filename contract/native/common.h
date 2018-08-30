@@ -20,6 +20,9 @@
 #define RC_OK               0
 #define RC_ERROR            (-1)
 
+#define MAX(x, y)           ((x) > (y) ? (x) : (y))
+#define MIN(x, y)           ((x) > (y) ? (y) : (x))
+
 #define boolean             unsigned char
 #ifndef true
 #define true                1

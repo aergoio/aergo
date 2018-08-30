@@ -8,7 +8,7 @@
 #include "common.h"
 
 #include "errors.h"
-#include "xutil.h"
+#include "util.h"
 #include "parser.h"
 
 #define YY_DECL                                                                \
@@ -17,7 +17,11 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        result = xfread(yyin, max, buf);                                       \
+        (result) = MIN((max), yyextra->len - yyextra->pos);                    \
+        if ((result) > 0) {                                                    \
+            memcpy(buf, yyextra->src + yyextra->pos, (result));                \
+            yyextra->pos += (result);                                          \
+        }                                                                      \
     } while (0)
 
 #define YY_EXTRA_TYPE       scan_t *
@@ -44,20 +48,11 @@
 
 #define YY_ERROR(ec)                                                           \
     do {                                                                       \
-        int i;                                                                 \
         char buf[ERROR_MAX_DESC_LEN] = { '\0' };                               \
-        FILE *fp;                                                              \
         if (yyextra->errcnt > 10)                                              \
             yyterminate();                                                     \
-        fp = xfopen(yyextra->path, "r");                                       \
-        xfseek(fp, yyextra->lloc.offset);                                      \
-        xfgets(fp, 81, buf);                                                   \
-        for (i = 0; i < yyextra->lloc.col - 1; i++) {                          \
-            strcat(buf, " ");                                                  \
-        }                                                                      \
-        strcat(buf, ANSI_GREEN"^"ANSI_DEFAULT);                                \
+        yyget_trace(yyextra, buf);                                             \
         ERROR(ec, yyextra->file, yyextra->lloc.line, yyextra->lloc.col, buf);  \
-        xfclose(fp);                                                           \
         yyextra->errcnt++;                                                     \
     } while (0)
 
@@ -80,6 +75,8 @@
         YY_UPDATE_COL();                                                       \
         return (tok);                                                          \
     } while (0)
+
+static void yyget_trace(scan_t *scan, char *buf);
 
 %}
 
@@ -152,104 +149,104 @@ id              {L}({L}|{D})*
 }
     */
 
-{integer}           YY_RETURN(L_INT);
-{float}             YY_RETURN(L_FLOAT);
+{integer}                   YY_RETURN(L_INT);
+{float}                     YY_RETURN(L_FLOAT);
 
-"+="                YY_RETURN(OP_ADD_ASSIGN);
-"-="                YY_RETURN(OP_SUB_ASSIGN);
-"*="                YY_RETURN(OP_MUL_ASSIGN);
-"/="                YY_RETURN(OP_DIV_ASSIGN);
-"%="                YY_RETURN(OP_MOD_ASSIGN);
-"&="                YY_RETURN(OP_AND_ASSIGN);
-"^="                YY_RETURN(OP_XOR_ASSIGN);
-"|="                YY_RETURN(OP_OR_ASSIGN);
-">>"                YY_RETURN(OP_RSHIFT);
-"<<"                YY_RETURN(OP_LSHIFT);
-"++"                YY_RETURN(OP_INC);
-"--"                YY_RETURN(OP_DEC);
-"&&"                YY_RETURN(OP_AND);
-"||"                YY_RETURN(OP_OR);
-"<="                YY_RETURN(OP_LE);
-">="                YY_RETURN(OP_GE);
-"=="                YY_RETURN(OP_EQ);
-"!="                YY_RETURN(OP_NE);
+"+="                        YY_RETURN(OP_ADD_ASSIGN);
+"-="                        YY_RETURN(OP_SUB_ASSIGN);
+"*="                        YY_RETURN(OP_MUL_ASSIGN);
+"/="                        YY_RETURN(OP_DIV_ASSIGN);
+"%="                        YY_RETURN(OP_MOD_ASSIGN);
+"&="                        YY_RETURN(OP_AND_ASSIGN);
+"^="                        YY_RETURN(OP_XOR_ASSIGN);
+"|="                        YY_RETURN(OP_OR_ASSIGN);
+">>"                        YY_RETURN(OP_RSHIFT);
+"<<"                        YY_RETURN(OP_LSHIFT);
+"++"                        YY_RETURN(OP_INC);
+"--"                        YY_RETURN(OP_DEC);
+"&&"                        YY_RETURN(OP_AND);
+"||"                        YY_RETURN(OP_OR);
+"<="                        YY_RETURN(OP_LE);
+">="                        YY_RETURN(OP_GE);
+"=="                        YY_RETURN(OP_EQ);
+"!="                        YY_RETURN(OP_NE);
 
-"{"                 YY_RETURN('{');
-"}"                 YY_RETURN('}');
-"("                 YY_RETURN('(');
-")"                 YY_RETURN(')');
-"["                 YY_RETURN('[');
-"]"                 YY_RETURN(']');
-";"                 YY_RETURN(';');
-":"                 YY_RETURN(':');
-","                 YY_RETURN(',');
-"?"                 YY_RETURN('?');
-"."                 YY_RETURN('.');
-"+"                 YY_RETURN('+');
-"-"                 YY_RETURN('-');
-"*"                 YY_RETURN('*');
-"/"                 YY_RETURN('/');
-"%"                 YY_RETURN('%');
-"<"                 YY_RETURN('<');
-">"                 YY_RETURN('>');
-"&"                 YY_RETURN('&');
-"|"                 YY_RETURN('|');
-"="                 YY_RETURN('=');
-"#"                 YY_RETURN('#');
+"{"                         YY_RETURN('{');
+"}"                         YY_RETURN('}');
+"("                         YY_RETURN('(');
+")"                         YY_RETURN(')');
+"["                         YY_RETURN('[');
+"]"                         YY_RETURN(']');
+";"                         YY_RETURN(';');
+":"                         YY_RETURN(':');
+","                         YY_RETURN(',');
+"?"                         YY_RETURN('?');
+"."                         YY_RETURN('.');
+"+"                         YY_RETURN('+');
+"-"                         YY_RETURN('-');
+"*"                         YY_RETURN('*');
+"/"                         YY_RETURN('/');
+"%"                         YY_RETURN('%');
+"<"                         YY_RETURN('<');
+">"                         YY_RETURN('>');
+"&"                         YY_RETURN('&');
+"|"                         YY_RETURN('|');
+"="                         YY_RETURN('=');
+"#"                         YY_RETURN('#');
 
-"account"           YY_RETURN(K_ACCOUNT);
-"bool"              YY_RETURN(K_BOOL);
-"break"             YY_RETURN(K_BREAK);
-"byte"              YY_RETURN(K_BYTE);
-"case"              YY_RETURN(K_CASE);
-"const"             YY_RETURN(K_CONST);
-"constructor"       YY_RETURN(K_CONSTRUCTOR);
-"continue"          YY_RETURN(K_CONTINUE);
-"contract"          YY_RETURN(K_CONTRACT);
-"default"           YY_RETURN(K_DEFAULT);
-"double"            YY_RETURN(K_DOUBLE);
-"else"              YY_RETURN(K_ELSE);
-"false"             YY_RETURN(K_FALSE);
-"file"              YY_RETURN(K_FILE);
-"float"             YY_RETURN(K_FLOAT);
-"for"               YY_RETURN(K_FOR);
-"func"              YY_RETURN(K_FUNC);
-"if"                YY_RETURN(K_IF);
-"int"               YY_RETURN(K_INT);
-"int16"             YY_RETURN(K_INT16);
-"int32"             YY_RETURN(K_INT32);
-"int64"             YY_RETURN(K_INT64);
-"int8"              YY_RETURN(K_INT8);
-"map"               YY_RETURN(K_MAP);
-"new"               YY_RETURN(K_NEW);
-"null"              YY_RETURN(K_NULL);
-"payable"           YY_RETURN(K_PAYABLE);
-"private"           YY_RETURN(K_PRIVATE);
-"public"            YY_RETURN(K_PUBLIC);
-"return"            YY_RETURN(K_RETURN);
-"string"            YY_RETURN(K_STRING);
-"struct"            YY_RETURN(K_STRUCT);
-"switch"            YY_RETURN(K_SWITCH);
-"true"              YY_RETURN(K_TRUE);
-"uint"              YY_RETURN(K_UINT);
-"uint16"            YY_RETURN(K_UINT16);
-"uint32"            YY_RETURN(K_UINT32);
-"uint64"            YY_RETURN(K_UINT64);
-"uint8"             YY_RETURN(K_UINT8);
-"version"           YY_RETURN(K_VERSION);
-"while"             YY_RETURN(K_WHILE);
+"account"                   YY_RETURN(K_ACCOUNT);
+"bool"                      YY_RETURN(K_BOOL);
+"break"                     YY_RETURN(K_BREAK);
+"byte"                      YY_RETURN(K_BYTE);
+"case"                      YY_RETURN(K_CASE);
+"const"                     YY_RETURN(K_CONST);
+"constructor"               YY_RETURN(K_CONSTRUCTOR);
+"continue"                  YY_RETURN(K_CONTINUE);
+"contract"                  YY_RETURN(K_CONTRACT);
+"default"                   YY_RETURN(K_DEFAULT);
+"double"                    YY_RETURN(K_DOUBLE);
+"else"                      YY_RETURN(K_ELSE);
+"false"                     YY_RETURN(K_FALSE);
+"file"                      YY_RETURN(K_FILE);
+"float"                     YY_RETURN(K_FLOAT);
+"for"                       YY_RETURN(K_FOR);
+"func"                      YY_RETURN(K_FUNC);
+"if"                        YY_RETURN(K_IF);
+"int"                       YY_RETURN(K_INT);
+"int16"                     YY_RETURN(K_INT16);
+"int32"                     YY_RETURN(K_INT32);
+"int64"                     YY_RETURN(K_INT64);
+"int8"                      YY_RETURN(K_INT8);
+"map"                       YY_RETURN(K_MAP);
+"new"                       YY_RETURN(K_NEW);
+"null"                      YY_RETURN(K_NULL);
+"payable"                   YY_RETURN(K_PAYABLE);
+"private"                   YY_RETURN(K_PRIVATE);
+"public"                    YY_RETURN(K_PUBLIC);
+"return"                    YY_RETURN(K_RETURN);
+"string"                    YY_RETURN(K_STRING);
+"struct"                    YY_RETURN(K_STRUCT);
+"switch"                    YY_RETURN(K_SWITCH);
+"true"                      YY_RETURN(K_TRUE);
+"uint"                      YY_RETURN(K_UINT);
+"uint16"                    YY_RETURN(K_UINT16);
+"uint32"                    YY_RETURN(K_UINT32);
+"uint64"                    YY_RETURN(K_UINT64);
+"uint8"                     YY_RETURN(K_UINT8);
+"version"                   YY_RETURN(K_VERSION);
+"while"                     YY_RETURN(K_WHILE);
 
     /*
-"commit"            YY_RETURN(K_COMMIT);
-"delete"            YY_RETURN(K_DELETE);
-"insert"            YY_RETURN(K_INSERT);
-"rollback"          YY_RETURN(K_ROLLBACK);
-"select"            YY_RETURN(K_SELECT);
+"commit"                    YY_RETURN(K_COMMIT);
+"delete"                    YY_RETURN(K_DELETE);
+"insert"                    YY_RETURN(K_INSERT);
+"rollback"                  YY_RETURN(K_ROLLBACK);
+"select"                    YY_RETURN(K_SELECT);
     */
 
 {id} {
     lval->str = malloc(yyleng + 1);
-    xstrcpy(lval->str, yytext);
+    strcpy(lval->str, yytext);
     YY_RETURN(ID);
 }
 
@@ -259,8 +256,28 @@ id              {L}({L}|{D})*
     YY_RECOVER();
 }
 
-<<EOF>>                         yyterminate();
+<<EOF>>                     yyterminate();
 
 %%
+
+static void 
+yyget_trace(scan_t *scan, char *buf)
+{
+    int i, j;
+    char *src = scan->src;
+
+    for (i = scan->lloc.offset, j = 0; i < scan->len; i++) {
+        buf[j++] = src[i];
+
+        if (src[i] == '\n' || src[i] == '\r')
+            break;
+    }
+
+    for (i = 0; i < scan->lloc.col - 1; i++) {
+        buf[j++] = ' ';
+    }
+
+    strcpy(buf + j, ANSI_GREEN"^"ANSI_DEFAULT);
+}
 
 /* end of scanner.l */

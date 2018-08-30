@@ -7,7 +7,6 @@
 
 #include "version.h"
 #include "errors.h"
-#include "prep.h"
 #include "parser.h"
 
 static void
@@ -63,15 +62,11 @@ main(int argc, char **argv)
 {
     int rc;
     char *infile;
-    FILE *fp;
 
     infile = check_argv(argc, argv);
     ASSERT(infile != NULL);
 
-    fp = preprocess(infile);
-    ASSERT(fp != NULL);
-
-    rc = parse(fp);
+    rc = parse(infile);
     if (rc != RC_OK)
         return EXIT_FAILURE;
 

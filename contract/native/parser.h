@@ -18,6 +18,10 @@ typedef struct scan_s {
     char *path;
     char *file;
 
+    int pos;
+    int len;
+    char *src;
+
     int errcnt;
     lloc_t lloc;     // source position
 
@@ -27,6 +31,7 @@ typedef struct scan_s {
 } scan_t;
 
 typedef struct yacc_s {
+    char *src;
     void *scanner;
 } yacc_t;
 
@@ -34,6 +39,6 @@ typedef struct yacc_s {
 
 #include "grammar.tab.h"
 
-int parse(FILE *fp);
+int parse(char *path);
 
 #endif /* no _PARSER_H */

@@ -6,14 +6,14 @@
 #include "common.h"
 
 #include "errors.h"
-#include "xutil.h"
+#include "strbuf.h"
+#include "prep.h"
 
 #include "parser.h"
 
 extern int yylex_init(void **);
 extern int yylex_destroy(void *);
 
-extern void yyset_in(FILE *, void *);
 extern void yyset_extra(scan_t *, void *);
 extern void yyset_debug(int, void *);
 
@@ -21,10 +21,14 @@ extern int yyparse(void *);
 extern int yydebug;
 
 static void
-scan_init(scan_t *scan)
+scan_init(scan_t *scan, strbuf_t *sb)
 {
     scan->path = NULL;
     scan->file = NULL;
+
+    scan->pos = 0;
+    scan->len = strbuf_get_len(sb);
+    scan->src = strbuf_get_str(sb);
 
     scan->errcnt = 0;
 
@@ -36,31 +40,25 @@ scan_init(scan_t *scan)
     scan->buf = NULL;
 }
 
-static void
-yacc_init(yacc_t *yacc)
-{
-    yylex_init(&yacc->scanner);
-}
-
 int
-parse(FILE *fp)
+parse(char *path)
 {
     scan_t scan;
-    yacc_t yacc;
+    strbuf_t sb;
+    void *scanner;
 
-    scan_init(&scan);
-    yacc_init(&yacc);
+    strbuf_init(&sb);
+    preprocess(path, &sb);
 
-    yyset_in(fp, yacc.scanner);
-    yyset_extra(&scan, yacc.scanner);
+    scan_init(&scan, &sb);
+    yylex_init(&scanner);
+    yyset_extra(&scan, scanner);
 
-    // yyset_debug(1, yacc.scanner);
+    // yyset_debug(1, scanner);
     // yydebug = 1;
 
-    yyparse(yacc.scanner);
-    yylex_destroy(yacc.scanner);
-
-    xfclose(fp);
+    yyparse(scanner);
+    yylex_destroy(scanner);
 
     if (scan.errcnt > 0) {
         WARN(ERROR_PARSE_FAILED);

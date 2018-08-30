@@ -5,27 +5,62 @@
 
 #include "common.h"
 
-#include "xutil.h"
+#include "util.h"
+#include "strbuf.h"
 
 #include "prep.h"
 
-FILE *
-preprocess(char *ipath)
+extern int yylex_init(void **);
+extern int yylex_destroy(void *);
+
+extern int yylex(void *);
+
+extern void yyset_extra(subst_t *, void *);
+extern void yyset_debug(int, void *);
+
+static void
+subst_init(subst_t *subst, char *path, strbuf_t *res)
 {
-    FILE *infp, *outfp;
-    char opath[PATH_MAX_LEN + 3];
+    strbuf_t sb;
 
-    infp = xfopen(ipath, "r");
-    ASSERT(infp != NULL);
+    subst->path = path;
+    subst->line = 1;
 
-    snprintf(opath, sizeof(opath), "%s.p", ipath);
+    strbuf_init(&sb);
+    read_file(path, &sb);
 
-    outfp = xfopen(opath, "w+");
-    ASSERT(outfp != NULL);
+    subst->len = strbuf_get_len(&sb);
+    subst->src = strbuf_get_str(&sb);
 
-    // TODO: preprocess import
+    append_directive(res, path, subst->line);
+    subst->res = res;
+}
 
-    return outfp;
+void
+preprocess(char *path, strbuf_t *res)
+{
+    subst_t subst;
+    void *scanner;
+
+    subst_init(&subst, path, res);
+
+    yylex_init(&scanner);
+    yyset_extra(&subst, scanner);
+
+    // yyset_debug(1, scanner);
+
+    yylex(scanner);
+    yylex_destroy(scanner);
+}
+
+void
+append_directive(strbuf_t *res, char *path, int line)
+{
+    char buf[PATH_MAX_LEN + 32];
+
+    snprintf(buf, sizeof(buf), "#file \"%s\" %d\n", path, line);
+
+    strbuf_append(res, buf, strlen(buf));
 }
 
 /* end of preprocess.c */

@@ -33,17 +33,17 @@
     } while (0)
 
 #define INFO(ec, ...)                                                          \
-    xperror(ANSI_WHITE"info", (ec), ## __VA_ARGS__)
+    errdump(ANSI_WHITE"info", (ec), ## __VA_ARGS__)
 
 #define WARN(ec, ...)                                                          \
-    xperror(ANSI_YELLOW"warning", (ec), ## __VA_ARGS__)
+    errdump(ANSI_YELLOW"warning", (ec), ## __VA_ARGS__)
 
 #define ERROR(ec, ...)                                                         \
-    xperror(ANSI_RED"error", (ec), ## __VA_ARGS__)
+    errdump(ANSI_RED"error", (ec), ## __VA_ARGS__)
 
 #define FATAL(ec, ...)                                                         \
     do {                                                                       \
-        xperror(ANSI_RED"fatal", (ec), ## __VA_ARGS__);                        \
+        errdump(ANSI_RED"fatal", (ec), ## __VA_ARGS__);                        \
         exit(EXIT_FAILURE);                                                    \
     } while (0)
 
@@ -59,7 +59,7 @@ typedef enum ec_e {
 extern char *errmsgs_[ERROR_MAX];
 
 static inline void
-xperror(char *lvl, ec_t ec, ...)
+errdump(char *lvl, ec_t ec, ...)
 {
     va_list vargs;
     char errdesc[ERROR_MAX_DESC_LEN];
