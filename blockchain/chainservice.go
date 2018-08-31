@@ -210,7 +210,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
 			block := msg.Block.Clone()
-			err := cs.addBlock(block, msg.PeerID)
+			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}

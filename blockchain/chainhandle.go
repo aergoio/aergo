@@ -47,11 +47,13 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return cs.cdb.getTx(txHash)
 }
 
-func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
+func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
 	logger.Debug().Str("hash", nblock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
 	var err error
+	var isMainChain bool
+
 	if bestBlock, err = cs.getBestBlock(); err != nil {
 		return err
 	}
@@ -63,9 +65,24 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 
 	// handle orphan
 	if cs.isOrphan(nblock) {
+		if usedBstate != nil {
+			return fmt.Errorf("block received from BP can not be orphan")
+		}
 		err := cs.handleOrphan(nblock, peerID)
 		return err
 	}
+
+	if isMainChain, err = cs.cdb.isMainChain(nblock); err != nil {
+		return err
+	}
+
+	var dbtx *db.Transaction
+
+	defer func() {
+		if dbtx != nil {
+			(*dbtx).Discard()
+		}
+	}()
 
 	// connect orphans
 	tblock := nblock
@@ -75,24 +92,17 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	for tblock != nil {
 		dbtx := cs.cdb.store.NewTx(true)
 
-		var isMainChain bool
-		var err error
-		if isMainChain, err = cs.cdb.isMainChain(tblock); err != nil {
-			return err
-		}
-
 		if isMainChain {
-			if err := cs.processTxsAndState(&dbtx, tblock); err != nil {
+			if err = cs.executeBlock(usedBstate, tblock); err != nil {
 				return err
 			}
 			processedTxn = len(tblock.GetBody().GetTxs())
 		}
 
-		if err = cs.cdb.addBlock(&dbtx, tblock, isMainChain); err != nil {
-			logger.Error().Err(err).Str("hash", tblock.ID()).Msg("failed to add block")
+		if err = cs.cdb.addBlock(&dbtx, tblock, isMainChain, true); err != nil {
 			return err
 		}
-
+		//FIXME: 에러가 발생한 경우 sdb도 rollback 되어야 한다.
 		dbtx.Commit()
 
 		logger.Info().Bool("isMainChain", isMainChain).
@@ -119,6 +129,8 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 		if tblock, err = cs.connectOrphan(tblock); err != nil {
 			return err
 		}
+
+		usedBstate = nil
 	}
 
 	/* reorganize
@@ -137,22 +149,32 @@ func (cs *ChainService) addBlock(nblock *types.Block, peerID peer.ID) error {
 	return nil
 }
 
-func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
 	blockHash := types.ToBlockID(block.BlockHash())
 	prevHash := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
 
-	bstate := state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
+	//In case of Received block from BP, txs executed already.
+	//Result is saved in the BlockState
+	needExec := true
+	if bstate == nil {
+		bstate = state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
+		needExec = false
+	}
+
 	txs := block.GetBody().GetTxs()
 
 	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).Msg("process txs and update state")
 
-	for i, tx := range txs {
-		err := cs.processTx(dbtx, bstate, tx, block, i)
-		if err != nil {
-			logger.Error().Err(err).Str("hash", block.ID()).Int("txidx", i).Msg("failed to process tx")
-			return err
+	for _, tx := range txs {
+		if needExec {
+			if err := executeTx(cs.sdb, bstate, tx, block); err != nil {
+				return err
+			}
 		}
 	}
+
+	//TODO: sync status of bstate and cdb
+	//what to do if cdb.commit fails after sdb.Apply() succeeds
 	err := cs.sdb.Apply(bstate)
 	if err != nil {
 		// FIXME: is that enough?
@@ -163,10 +185,10 @@ func (cs *ChainService) processTxsAndState(dbtx *db.Transaction, block *types.Bl
 	return nil
 }
 
-func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx *types.Tx, block *types.Block, idx int) error {
+func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, block *types.Block) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := cs.sdb.GetBlockAccountClone(bs, senderID)
+	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
 	if err != nil {
 		return err
 	}
@@ -183,7 +205,7 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 		recipient = h.Sum(nil)[:20]
 		receiverID = types.ToAccountID(recipient)
 	}
-	receiverState, err := cs.sdb.GetBlockAccountClone(bs, receiverID)
+	receiverState, err := sdb.GetBlockAccountClone(bs, receiverID)
 	if err != nil {
 		return err
 	}
@@ -236,8 +258,6 @@ func (cs *ChainService) processTx(dbtx *db.Transaction, bs *state.BlockState, tx
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderID, senderState.ToString(),
 	// 	receiverID, receiverState.ToString())
-
-	err = cs.cdb.addTx(dbtx, tx, block.BlockHash(), idx)
 	return err
 }
 

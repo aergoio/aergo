@@ -107,7 +107,7 @@ func (bh *BlockHandler) handleGetBlockResponse(msg *types.P2PMessage) {
 	// got block
 	bh.logger.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
 	for _, block := range data.Blocks {
-		bh.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block})
+		bh.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 	}
 
 }

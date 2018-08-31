@@ -31,7 +31,7 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 
 // ConnectBlock send an AddBlock request to the chain service.
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block) {
-	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block},
+	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil},
 		time.Second, "consensus/util/info.ConnectBlock").Result()
 	if err != nil {
 
