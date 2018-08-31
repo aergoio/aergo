@@ -78,6 +78,15 @@ func (bs *BlockState) PutAccount(aid types.AccountID, state, change *types.State
 	}
 }
 
+// SetBlockHash sets bs.BlockInfo.BlockHash to blockHash
+func (bs *BlockState) SetBlockHash(blockHash types.BlockID) {
+	if bs == nil {
+		return
+	}
+
+	bs.BlockInfo.BlockHash = blockHash
+}
+
 type ChainStateDB struct {
 	sync.RWMutex
 	accounts map[types.AccountID]*types.State
