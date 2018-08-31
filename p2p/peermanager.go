@@ -20,6 +20,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
+	inet "github.com/libp2p/go-libp2p-net"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -310,11 +311,12 @@ MANLOOP:
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
+			addrTicker.Stop()
 			pm.rm.Stop()
+			// TODO need to keep loop till all remote peer objects are removed, otherwise panic or channel deadlock can come.
 			break MANLOOP
 		}
 	}
-	addrTicker.Stop()
 
 	// cleanup peers
 	for peerID := range pm.remotePeers {
@@ -358,10 +360,11 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		return false
 	}
 	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
-
-	remoteStatus, success := initiateHandshake(pm, peerID, rw)
-	if !success {
-		pm.sendGoAway(rw, "Failed to handshake")
+	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
+	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
+	if err != nil {
+		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
+		h.sendGoAway(rw, "Failed to handshake")
 		s.Close()
 		return false
 	}
@@ -371,9 +374,14 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
 			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
+			h.sendGoAway(rw, "Already Handshaked")
 			s.Close()
 			pm.mutex.Unlock()
 			return true
+		} else {
+			// TODO: disconnect lower valued connection
+			pm.deletePeer(meta.ID)
+			newPeer.stop()
 		}
 	}
 
@@ -506,6 +514,58 @@ func (pm *peerManager) startListener() {
 	pm.Host = newHost
 
 	pm.SetStreamHandler(aergoP2PSub, pm.onHandshake)
+}
+
+func (pm *peerManager) onHandshake(s inet.Stream) {
+	peerID := s.Conn().RemotePeer()
+	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
+
+	statusMsg, err := h.handshakeInboundPeer(rw)
+	if err != nil {
+		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
+		h.sendGoAway(rw, "failed to handshake")
+		s.Close()
+		return
+	}
+	// TODO: check status
+	meta := FromPeerAddress(statusMsg.Sender)
+	// try Add peer
+	if !pm.tryAddInboundPeer(meta, rw) {
+		// failed to add
+		h.sendGoAway(rw, "Concurrent handshake")
+		s.Close()
+		return
+	}
+
+	//
+	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
+
+	// notice to p2pmanager that handshaking is finished
+	pm.NotifyPeerHandshake(peerID)
+}
+
+func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	peerID := meta.ID
+	peer, found := pm.remotePeers[peerID]
+
+	if found {
+		// already found. drop this connection
+		if ComparePeerID(pm.selfMeta.ID, peerID) <= 0 {
+			return false
+		}
+	}
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
+	peer.rw = rw
+	pm.insertHandlers(peer)
+	go peer.runPeer()
+	peer.setState(types.RUNNING)
+	pm.insertPeer(peerID, peer)
+	peerAddr := meta.ToPeerAddress()
+	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
+	return true
 }
 
 func (pi *peerInfo) set(id *peer.ID, privKey *crypto.PrivKey) {

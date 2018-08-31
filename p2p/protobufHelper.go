@@ -88,37 +88,37 @@ func newPbMsgBroadcastOrder(sign bool, protocolID SubProtocol, message pbMessage
 	return newPbMsgOrder("", false, true, sign, protocolID, message)
 }
 
-func (mo *pbMessageOrder) GetRequestID() string {
-	return mo.message.GetMessageData().Id
+func (pr *pbMessageOrder) GetRequestID() string {
+	return pr.message.GetMessageData().Id
 }
 
-func (mo *pbMessageOrder) Timestamp() int64 {
-	return mo.message.GetMessageData().Timestamp
+func (pr *pbMessageOrder) Timestamp() int64 {
+	return pr.message.GetMessageData().Timestamp
 }
 
-func (mo *pbMessageOrder) IsRequest() bool {
-	return mo.request
+func (pr *pbMessageOrder) IsRequest() bool {
+	return pr.request
 }
-func (mo *pbMessageOrder) ResponseExpected() bool {
-	return mo.expecteResponse
-}
-
-func (mo *pbMessageOrder) IsGossip() bool {
-	return mo.gossip
+func (pr *pbMessageOrder) ResponseExpected() bool {
+	return pr.expecteResponse
 }
 
-func (mo *pbMessageOrder) IsNeedSign() bool {
-	return mo.needSign
+func (pr *pbMessageOrder) IsGossip() bool {
+	return pr.gossip
 }
 
-func (mo *pbMessageOrder) GetProtocolID() SubProtocol {
-	return mo.protocolID
+func (pr *pbMessageOrder) IsNeedSign() bool {
+	return pr.needSign
 }
-func (mo *pbMessageOrder) SignWith(pm PeerManager) error {
-	messageData := mo.message.GetMessageData()
-	messageData.PeerID = peer.IDB58Encode(pm.SelfNodeID())
-	messageData.NodePubKey, _ = pm.PublicKey().Bytes()
-	signature, err := pm.SignProtoMessage(mo.message)
+
+func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
+	return pr.protocolID
+}
+func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
+	messageData := pr.message.GetMessageData()
+	messageData.PeerID = peer.IDB58Encode(ps.SelfNodeID())
+	messageData.NodePubKey, _ = ps.PublicKey().Bytes()
+	signature, err := ps.SignProtoMessage(pr.message)
 	if err != nil {
 		return err
 	}
@@ -129,8 +129,8 @@ func (mo *pbMessageOrder) SignWith(pm PeerManager) error {
 }
 
 // SendOver is send itself over the writer rw.
-func (mo *pbMessageOrder) SendOver(rw *bufio.ReadWriter) error {
-	err := SendProtoMessage(mo.message, rw)
+func (pr *pbMessageOrder) SendOver(rw *bufio.ReadWriter) error {
+	err := SendProtoMessage(pr.message, rw)
 	if err == nil {
 		rw.Flush()
 	}
@@ -216,4 +216,20 @@ func marshalMessage(message proto.Message) ([]byte, error) {
 
 func unmarshalMessage(data []byte, msgData proto.Message) error {
 	return proto.Unmarshal(data, msgData)
+}
+
+func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) *types.P2PMessage {
+	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+
+	bytes, err := marshalMessage(message)
+	if err != nil {
+		return nil
+	}
+	p2pmsg.Data = bytes
+	if len(msgID) == 0 {
+		msgID = uuid.Must(uuid.NewV4()).String()
+	}
+	setupMessageData(p2pmsg.Header, msgID, gossip, ClientVersion, time.Now().Unix())
+	p2pmsg.Header.Subprotocol = protocolID.Uint32()
+	return p2pmsg
 }
