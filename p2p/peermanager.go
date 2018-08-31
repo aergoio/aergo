@@ -87,7 +87,7 @@ type peerManager struct {
 	privateKey crypto.PrivKey
 	publicKey  crypto.PubKey
 	selfMeta   PeerMeta
-	iServ      ActorService
+	actorServ  ActorService
 	rm         ReconnectManager
 
 	designatedPeers map[peer.ID]PeerMeta
@@ -129,11 +129,11 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, rm ReconnectManager, lo
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
-		iServ:  iServ,
-		conf:   p2pConf,
-		rm:     rm,
-		logger: logger,
-		mutex:  &sync.Mutex{},
+		actorServ: iServ,
+		conf:      p2pConf,
+		rm:        rm,
+		logger:    logger,
+		mutex:     &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
@@ -310,6 +310,7 @@ MANLOOP:
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
+			pm.rm.Stop()
 			break MANLOOP
 		}
 	}
@@ -376,7 +377,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		}
 	}
 
-	newPeer = newRemotePeer(meta, pm, pm.iServ, pm.logger)
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
 	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
 	// insert Handlers
 	pm.insertHandlers(newPeer)
@@ -388,7 +389,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	pm.mutex.Unlock()
 
 	// peer is ready
-	pm.iServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
+	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
 
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
@@ -540,9 +541,8 @@ func (pm *peerManager) Start() error {
 }
 func (pm *peerManager) Stop() error {
 	// TODO stop service
-	pm.status = component.StoppingStatus
-	close(pm.addPeerChannel)
-	close(pm.removePeerChannel)
+	// close(pm.addPeerChannel)
+	// close(pm.removePeerChannel)
 	pm.status = component.StoppedStatus
 	pm.finishChannel <- struct{}{}
 	return nil
@@ -569,7 +569,7 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 		return
 	}
 	for _, remotePeer := range pm.remotePeers {
-		pm.iServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
+		pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
 	}
 }
 
@@ -583,7 +583,7 @@ func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
 		pm.logger.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
-	pm.iServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
+	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
 }
 
 func (pm *peerManager) hasEnoughPeers() bool {
@@ -676,7 +676,7 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data
 	}
 
 	// request block info if selfnode does not have block already
-	rawResp, err := pm.iServ.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
+	rawResp, err := pm.actorServ.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
 	if err != nil {
 		pm.logger.Warn().Err(err).Msg("actor return error on getblock")
 		return
@@ -688,7 +688,7 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data
 	}
 	if resp.Err != nil {
 		pm.logger.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
-		pm.iServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
+		pm.actorServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
 

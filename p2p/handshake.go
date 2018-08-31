@@ -31,7 +31,7 @@ func initiateHandshake(pm *peerManager, peerID peer.ID, rw *bufio.ReadWriter) (*
 	}
 
 	// send status
-	statusMsg, err := createStatusMsg(pm, pm.iServ)
+	statusMsg, err := createStatusMsg(pm, pm.actorServ)
 	if err != nil {
 		pm.logger.Warn().Err(err).Msg("failed to create status message")
 		return nil, false
@@ -117,7 +117,7 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	meta := FromPeerAddress(statusMsg.Sender)
 
 	// send my status message as response
-	statusResp, err := createStatusMsg(pm, pm.iServ)
+	statusResp, err := createStatusMsg(pm, pm.actorServ)
 	if err != nil {
 		pm.logger.Warn().Err(err).Msg("failed to create status message")
 		pm.sendGoAway(rw, "internal error")
@@ -147,7 +147,7 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 		s.Close()
 	}
 
-	pm.iServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
+	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
 
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
@@ -165,7 +165,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bo
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.iServ, pm.logger)
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
 	peer.rw = rw
 	pm.insertHandlers(peer)
 	go peer.runPeer()

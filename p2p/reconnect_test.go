@@ -47,7 +47,7 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true).Once()
 	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
 
-	dummyRM := NewReconnectManager(log.NewLogger("test.p2p"))
+	dummyRM := newReconnectManager(log.NewLogger("test.p2p"))
 
 	tests := []struct {
 		name        string
