@@ -261,7 +261,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	cntRbTxs := len(reorg.rbTxs)
 	if cntRbTxs > 0 {
-		txs := make([]*types.Tx, cntRbTxs)
+		txs := make([]*types.Tx, 0, cntRbTxs)
 		logger.Debug().Int("tx count", cntRbTxs).Msg("tx add to mempool")
 
 		for txID, tx := range reorg.rbTxs {
