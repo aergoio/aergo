@@ -76,17 +76,33 @@ static int writer_buf(lua_State *L, const void *p, size_t size, void *b)
   	return 0;
 }
 
-const char *vm_stringdump(lua_State *L, const char *code)
+const char *vm_loadfile(lua_State *L, const char *code)
 {
 	const char *errMsg = NULL;
-	luaL_Buffer b;
-	int l;
-
 	if (luaL_loadfile(L, code) != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		lua_close(L);
 		return errMsg;
 	}
+	return NULL;
+}
+
+const char *vm_loadstring(lua_State *L, const char *code)
+{
+	const char *errMsg = NULL;
+	if (luaL_loadstring(L, code) != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+		lua_close(L);
+		return errMsg;
+	}
+	return NULL;
+}
+
+const char *vm_stringdump(lua_State *L)
+{
+	const char *errMsg = NULL;
+	luaL_Buffer b;
+
 	luaL_buffinit(L, &b);
 	if (lua_dump(L, writer_buf, &b) != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
