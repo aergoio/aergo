@@ -287,11 +287,11 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
 	cdb := reorg.cs.cdb
 
-	if err := cs.processTxsAndState(reorg.dbtx, block); err != nil {
+	if err := cs.executeBlock(nil, block); err != nil {
 		return err
 	}
 
-	if err := cdb.updateLatestBlock(reorg.dbtx, block); err != nil {
+	if err := cdb.addBlock(reorg.dbtx, block, true, false); err != nil {
 		return err
 	}
 

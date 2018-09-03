@@ -87,6 +87,16 @@ func (block *Block) BlockHash() []byte {
 	return block.GetHash()
 }
 
+// BlockID converts block.Hash ([]byte) to BlockID.
+func (block *Block) BlockID() BlockID {
+	return ToBlockID(block.BlockHash())
+}
+
+// BlockNo returns the block number of block.
+func (block *Block) BlockNo() BlockNo {
+	return block.GetHeader().GetBlockNo()
+}
+
 // Sign adds a pubkey and a block signature to block.
 func (block *Block) Sign(privKey crypto.PrivKey) error {
 	var err error

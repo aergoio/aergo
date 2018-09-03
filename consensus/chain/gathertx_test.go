@@ -5,34 +5,35 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGatherTXs(t *testing.T) {
 	txOp := NewCompTxOp(
-		func(tx *types.Tx) error {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("x")
-			return nil
-		},
-		func(tx *types.Tx) error {
+			return nil, nil
+		}),
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("y")
-			return nil
-		})
-	err := txOp.Apply(nil)
+			return nil, nil
+		}))
+	_, err := txOp.Apply(nil)
 	assert.New(t).Nil(err)
 }
 
 func TestGatherTXsWithError(t *testing.T) {
 	txDo := NewCompTxOp(
-		func(tx *types.Tx) error {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("haha")
-			return nil
-		},
-		func(tx *types.Tx) error {
+			return nil, nil
+		}),
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("blah")
-			return errors.New("blah blah error")
-		})
-	err := txDo.Apply(nil)
+			return nil, errors.New("blah blah error")
+		}))
+	_, err := txDo.Apply(nil)
 	assert.New(t).NotNil(err)
 }

@@ -118,7 +118,7 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	if id == dpos.ID && block.PrevID() != bestBlock.ID() {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf(
-				"reorganization occurred after block production: parent: %v (curr: %v), best block: %v",
+				"best block changed after block production: parent: %v (curr: %v), best block: %v",
 				block.PrevID(), block.ID(), bestBlock.ID()),
 		}
 	}
