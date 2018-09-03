@@ -21,9 +21,8 @@ MKDIR_P = mkdir -p
 OBJ_DIR = build
 SUBDIRS = . tests
 
-SRCS = parser.c grammar.tab.c scanner.yy.c \
-	prep.c subst.yy.c \
-	errors.c strbuf.c util.c
+SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c subst.yy.c \
+	error.c strbuf.c util.c
 
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
 DEPS = $(OBJS:%.o=%.d)

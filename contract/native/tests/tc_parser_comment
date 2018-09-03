@@ -1,6 +1,8 @@
-/* This 
- * is 
-a 
+@Test   normal_comments
+
+/* This
+ * is
+a
  ********
  * comment
  */
@@ -12,3 +14,8 @@ a
  *****************************************************************************/
 
 // This is a cpp-style comment
+
+@Test   unterminated_comment
+@Error  ERROR_SCAN_UNTERMINATED_COMMENT
+
+/* This is an unterminated comment

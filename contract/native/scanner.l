@@ -7,7 +7,6 @@
 
 #include "common.h"
 
-#include "errors.h"
 #include "util.h"
 #include "parser.h"
 
@@ -17,7 +16,7 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        (result) = MIN((max), yyextra->len - yyextra->pos);                    \
+        (result) = min((max), yyextra->len - yyextra->pos);                    \
         if ((result) > 0) {                                                    \
             memcpy(buf, yyextra->src + yyextra->pos, (result));                \
             yyextra->pos += (result);                                          \
@@ -26,37 +25,36 @@
 
 #define YY_EXTRA_TYPE       scan_t *
 
-#define YY_UPDATE_LINE()                                                       \
+#define yy_update_line()                                                       \
     do {                                                                       \
         yyextra->lloc.line++;                                                  \
         yyextra->lloc.offset += yyextra->lloc.col;                             \
         yyextra->lloc.col = 1;                                                 \
     } while (0)
 
-#define YY_UPDATE_COL()          (yyextra->lloc.col += yyleng)
+#define yy_update_col()          (yyextra->lloc.col += yyleng)
 
-#define YY_STRCAT()                                                            \
+#define yy_strcat()                                                            \
     do {                                                                       \
         if (yyextra->offset + yyleng >= STR_MAX_LEN) {                         \
-            YY_ERROR(ERROR_SCAN_STR_TOO_LONG);                                 \
-            YY_UPDATE_COL();                                                   \
-            YY_RECOVER();                                                      \
+            yy_error(ERROR_SCAN_STR_TOO_LONG);                                 \
+            yy_update_col();                                                   \
+            yy_recover();                                                      \
         }                                                                      \
         strcat(yyextra->buf, yytext);                                          \
         yyextra->offset += yyleng;                                             \
     } while (0)
 
-#define YY_ERROR(ec)                                                           \
+#define yy_error(ec)                                                           \
     do {                                                                       \
         char buf[ERROR_MAX_DESC_LEN] = { '\0' };                               \
-        if (yyextra->errcnt > 10)                                              \
+        if (error_count() > 10)                                                \
             yyterminate();                                                     \
         yyget_trace(yyextra, buf);                                             \
         ERROR(ec, yyextra->file, yyextra->lloc.line, yyextra->lloc.col, buf);  \
-        yyextra->errcnt++;                                                     \
     } while (0)
 
-#define YY_RECOVER()                                                           \
+#define yy_recover()                                                           \
     do {                                                                       \
         register int c;                                                        \
         yyleng = 1;                                                            \
@@ -66,13 +64,13 @@
                 unput(c);                                                      \
                 break;                                                         \
             }                                                                  \
-            YY_UPDATE_COL();                                                   \
+            yy_update_col();                                                   \
         }                                                                      \
     } while (0)
 
-#define YY_RETURN(tok)                                                         \
+#define yy_return(tok)                                                         \
     do {                                                                       \
-        YY_UPDATE_COL();                                                       \
+        yy_update_col();                                                       \
         return (tok);                                                          \
     } while (0)
 
@@ -90,170 +88,170 @@ static void yyget_trace(scan_t *scan, char *buf);
 %x  C_COMMENT
 %x  D_QUOTE
 
-whitespace      ([ ]|\t|(\xE3\x80\x80))
-newline         (\r|\n|\r\n)
+whitespace                  ([ ]|\t|(\xE3\x80\x80))
+newline                     (\r|\n|\r\n)
 
-D               [0-9]
-L               [a-zA-Z\x80-\xFF_]
-IS              (u|U)
+D                           [0-9]
+L                           [a-zA-Z\x80-\xFF_]
+IS                          (u|U)
 
-integer         [+-]?{D}+{IS}?
-float           [+-]?({D}*"."{D}+|{D}+"."{D}*)
+integer                     [+-]?{D}+{IS}?
+float                       [+-]?({D}*"."{D}+|{D}+"."{D}*)
 
-id              {L}({L}|{D})*
+id                          {L}({L}|{D})*
 
 %%
 
-{whitespace}+               YY_UPDATE_COL();
-{newline}                   YY_UPDATE_LINE();
+{whitespace}+               yy_update_col();
+{newline}                   yy_update_line();
 
-"//"[^\r\n]*                YY_UPDATE_COL();
+"//"[^\r\n]*                yy_update_col();
 
-"/*"                        { BEGIN(C_COMMENT); YY_UPDATE_COL(); }
-<C_COMMENT>"*/"             { BEGIN(INITIAL); YY_UPDATE_COL(); }
-<C_COMMENT>[^*\r\n]+        YY_UPDATE_COL();
-<C_COMMENT>"*"              YY_UPDATE_COL();
-<C_COMMENT>{newline}        YY_UPDATE_LINE();
+"/*"                        { BEGIN(C_COMMENT); yy_update_col(); }
+<C_COMMENT>"*/"             { BEGIN(INITIAL); yy_update_col(); }
+<C_COMMENT>[^*\r\n]+        yy_update_col();
+<C_COMMENT>"*"              yy_update_col();
+<C_COMMENT>{newline}        yy_update_line();
 <C_COMMENT><<EOF>> {
-    YY_ERROR(ERROR_SCAN_UNTERMINATED_COMMENT);
+    yy_error(ERROR_SCAN_UNTERMINATED_COMMENT);
     yyterminate();
 }
 
-\"(\\.|[^\\"\n\r])*\"       YY_RETURN(L_STR);
+\"(\\.|[^\\"\n\r])*\"       yy_return(L_STR);
     /*
 "\"" {
     BEGIN(D_QUOTE);
-    YY_UPDATE_COL();
+    yy_update_col();
     yyextra->buf[0] = '\0';
     yyextra->offset = 0;
 }
-<D_QUOTE>[^"\\\r\n]+        { YY_UPDATE_COL(); YY_STRCAT(); }
+<D_QUOTE>[^"\\\r\n]+        { yy_update_col(); yy_strcat(); }
 <D_QUOTE>"\"" {
     BEGIN(INITIAL);
-    YY_UPDATE_COL();
+    yy_update_col();
     fprintf(stderr, "result: %s\n", yyextra->buf);
     //return L_STR;
 }
 <D_QUOTE>"\\"{whitespace}*{newline} {
-    YY_UPDATE_COL();
-    YY_UPDATE_LINE();
+    yy_update_col();
+    yy_update_line();
 }
-<D_QUOTE>"\\"               { YY_UPDATE_COL(); YY_STRCAT(); }
+<D_QUOTE>"\\"               { yy_update_col(); yy_strcat(); }
 <D_QUOTE>{newline} {
-    YY_ERROR(ERROR_SCAN_UNTERMINATED_STRING);
-    YY_UPDATE_LINE();
+    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
+    yy_update_line();
 }
 <D_QUOTE><<EOF>> {
-    YY_ERROR(ERROR_SCAN_UNTERMINATED_STRING);
+    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
     yyterminate();
 }
     */
 
-{integer}                   YY_RETURN(L_INT);
-{float}                     YY_RETURN(L_FLOAT);
+{integer}                   yy_return(L_INT);
+{float}                     yy_return(L_FLOAT);
 
-"+="                        YY_RETURN(OP_ADD_ASSIGN);
-"-="                        YY_RETURN(OP_SUB_ASSIGN);
-"*="                        YY_RETURN(OP_MUL_ASSIGN);
-"/="                        YY_RETURN(OP_DIV_ASSIGN);
-"%="                        YY_RETURN(OP_MOD_ASSIGN);
-"&="                        YY_RETURN(OP_AND_ASSIGN);
-"^="                        YY_RETURN(OP_XOR_ASSIGN);
-"|="                        YY_RETURN(OP_OR_ASSIGN);
-">>"                        YY_RETURN(OP_RSHIFT);
-"<<"                        YY_RETURN(OP_LSHIFT);
-"++"                        YY_RETURN(OP_INC);
-"--"                        YY_RETURN(OP_DEC);
-"&&"                        YY_RETURN(OP_AND);
-"||"                        YY_RETURN(OP_OR);
-"<="                        YY_RETURN(OP_LE);
-">="                        YY_RETURN(OP_GE);
-"=="                        YY_RETURN(OP_EQ);
-"!="                        YY_RETURN(OP_NE);
+"+="                        yy_return(OP_ADD_ASSIGN);
+"-="                        yy_return(OP_SUB_ASSIGN);
+"*="                        yy_return(OP_MUL_ASSIGN);
+"/="                        yy_return(OP_DIV_ASSIGN);
+"%="                        yy_return(OP_MOD_ASSIGN);
+"&="                        yy_return(OP_AND_ASSIGN);
+"^="                        yy_return(OP_XOR_ASSIGN);
+"|="                        yy_return(OP_OR_ASSIGN);
+">>"                        yy_return(OP_RSHIFT);
+"<<"                        yy_return(OP_LSHIFT);
+"++"                        yy_return(OP_INC);
+"--"                        yy_return(OP_DEC);
+"&&"                        yy_return(OP_AND);
+"||"                        yy_return(OP_OR);
+"<="                        yy_return(OP_LE);
+">="                        yy_return(OP_GE);
+"=="                        yy_return(OP_EQ);
+"!="                        yy_return(OP_NE);
 
-"{"                         YY_RETURN('{');
-"}"                         YY_RETURN('}');
-"("                         YY_RETURN('(');
-")"                         YY_RETURN(')');
-"["                         YY_RETURN('[');
-"]"                         YY_RETURN(']');
-";"                         YY_RETURN(';');
-":"                         YY_RETURN(':');
-","                         YY_RETURN(',');
-"?"                         YY_RETURN('?');
-"."                         YY_RETURN('.');
-"+"                         YY_RETURN('+');
-"-"                         YY_RETURN('-');
-"*"                         YY_RETURN('*');
-"/"                         YY_RETURN('/');
-"%"                         YY_RETURN('%');
-"<"                         YY_RETURN('<');
-">"                         YY_RETURN('>');
-"&"                         YY_RETURN('&');
-"|"                         YY_RETURN('|');
-"="                         YY_RETURN('=');
-"#"                         YY_RETURN('#');
+"{"                         yy_return('{');
+"}"                         yy_return('}');
+"("                         yy_return('(');
+")"                         yy_return(')');
+"["                         yy_return('[');
+"]"                         yy_return(']');
+";"                         yy_return(';');
+":"                         yy_return(':');
+","                         yy_return(',');
+"?"                         yy_return('?');
+"."                         yy_return('.');
+"+"                         yy_return('+');
+"-"                         yy_return('-');
+"*"                         yy_return('*');
+"/"                         yy_return('/');
+"%"                         yy_return('%');
+"<"                         yy_return('<');
+">"                         yy_return('>');
+"&"                         yy_return('&');
+"|"                         yy_return('|');
+"="                         yy_return('=');
+"#"                         yy_return('#');
 
-"account"                   YY_RETURN(K_ACCOUNT);
-"bool"                      YY_RETURN(K_BOOL);
-"break"                     YY_RETURN(K_BREAK);
-"byte"                      YY_RETURN(K_BYTE);
-"case"                      YY_RETURN(K_CASE);
-"const"                     YY_RETURN(K_CONST);
-"constructor"               YY_RETURN(K_CONSTRUCTOR);
-"continue"                  YY_RETURN(K_CONTINUE);
-"contract"                  YY_RETURN(K_CONTRACT);
-"default"                   YY_RETURN(K_DEFAULT);
-"double"                    YY_RETURN(K_DOUBLE);
-"else"                      YY_RETURN(K_ELSE);
-"false"                     YY_RETURN(K_FALSE);
-"file"                      YY_RETURN(K_FILE);
-"float"                     YY_RETURN(K_FLOAT);
-"for"                       YY_RETURN(K_FOR);
-"func"                      YY_RETURN(K_FUNC);
-"if"                        YY_RETURN(K_IF);
-"int"                       YY_RETURN(K_INT);
-"int16"                     YY_RETURN(K_INT16);
-"int32"                     YY_RETURN(K_INT32);
-"int64"                     YY_RETURN(K_INT64);
-"int8"                      YY_RETURN(K_INT8);
-"map"                       YY_RETURN(K_MAP);
-"new"                       YY_RETURN(K_NEW);
-"null"                      YY_RETURN(K_NULL);
-"payable"                   YY_RETURN(K_PAYABLE);
-"private"                   YY_RETURN(K_PRIVATE);
-"public"                    YY_RETURN(K_PUBLIC);
-"return"                    YY_RETURN(K_RETURN);
-"string"                    YY_RETURN(K_STRING);
-"struct"                    YY_RETURN(K_STRUCT);
-"switch"                    YY_RETURN(K_SWITCH);
-"true"                      YY_RETURN(K_TRUE);
-"uint"                      YY_RETURN(K_UINT);
-"uint16"                    YY_RETURN(K_UINT16);
-"uint32"                    YY_RETURN(K_UINT32);
-"uint64"                    YY_RETURN(K_UINT64);
-"uint8"                     YY_RETURN(K_UINT8);
-"version"                   YY_RETURN(K_VERSION);
-"while"                     YY_RETURN(K_WHILE);
+"account"                   yy_return(K_ACCOUNT);
+"bool"                      yy_return(K_BOOL);
+"break"                     yy_return(K_BREAK);
+"byte"                      yy_return(K_BYTE);
+"case"                      yy_return(K_CASE);
+"const"                     yy_return(K_CONST);
+"constructor"               yy_return(K_CONSTRUCTOR);
+"continue"                  yy_return(K_CONTINUE);
+"contract"                  yy_return(K_CONTRACT);
+"default"                   yy_return(K_DEFAULT);
+"double"                    yy_return(K_DOUBLE);
+"else"                      yy_return(K_ELSE);
+"false"                     yy_return(K_FALSE);
+"file"                      yy_return(K_FILE);
+"float"                     yy_return(K_FLOAT);
+"for"                       yy_return(K_FOR);
+"func"                      yy_return(K_FUNC);
+"if"                        yy_return(K_IF);
+"int"                       yy_return(K_INT);
+"int16"                     yy_return(K_INT16);
+"int32"                     yy_return(K_INT32);
+"int64"                     yy_return(K_INT64);
+"int8"                      yy_return(K_INT8);
+"map"                       yy_return(K_MAP);
+"new"                       yy_return(K_NEW);
+"null"                      yy_return(K_NULL);
+"payable"                   yy_return(K_PAYABLE);
+"private"                   yy_return(K_PRIVATE);
+"public"                    yy_return(K_PUBLIC);
+"return"                    yy_return(K_RETURN);
+"string"                    yy_return(K_STRING);
+"struct"                    yy_return(K_STRUCT);
+"switch"                    yy_return(K_SWITCH);
+"true"                      yy_return(K_TRUE);
+"uint"                      yy_return(K_UINT);
+"uint16"                    yy_return(K_UINT16);
+"uint32"                    yy_return(K_UINT32);
+"uint64"                    yy_return(K_UINT64);
+"uint8"                     yy_return(K_UINT8);
+"version"                   yy_return(K_VERSION);
+"while"                     yy_return(K_WHILE);
 
     /*
-"commit"                    YY_RETURN(K_COMMIT);
-"delete"                    YY_RETURN(K_DELETE);
-"insert"                    YY_RETURN(K_INSERT);
-"rollback"                  YY_RETURN(K_ROLLBACK);
-"select"                    YY_RETURN(K_SELECT);
+"commit"                    yy_return(K_COMMIT);
+"delete"                    yy_return(K_DELETE);
+"insert"                    yy_return(K_INSERT);
+"rollback"                  yy_return(K_ROLLBACK);
+"select"                    yy_return(K_SELECT);
     */
 
 {id} {
     lval->str = malloc(yyleng + 1);
     strcpy(lval->str, yytext);
-    YY_RETURN(ID);
+    yy_return(ID);
 }
 
 . {
-    YY_ERROR(ERROR_SCAN_UNKNOWN_CHAR);
-    YY_UPDATE_COL();
-    YY_RECOVER();
+    yy_error(ERROR_SCAN_UNKNOWN_CHAR);
+    yy_update_col();
+    yy_recover();
 }
 
 <<EOF>>                     yyterminate();
@@ -277,7 +275,7 @@ yyget_trace(scan_t *scan, char *buf)
         buf[j++] = ' ';
     }
 
-    strcpy(buf + j, ANSI_GREEN"^"ANSI_DEFAULT);
+    strcpy(buf + j, ANSI_GREEN"^"ANSI_NONE);
 }
 
 /* end of scanner.l */

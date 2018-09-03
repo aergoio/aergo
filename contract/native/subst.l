@@ -18,7 +18,7 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        (result) = MIN((max), yyextra->len);                                   \
+        (result) = min((max), yyextra->len);                                   \
         if ((result) > 0) {                                                    \
             memcpy(buf, yyextra->src, (result));                               \
             yyextra->src += (result);                                          \
@@ -28,9 +28,9 @@
 
 #define YY_EXTRA_TYPE           subst_t *
 
-#define YY_UPDATE_LINE()        yyextra->line++
+#define yy_update_line()        yyextra->line++
 
-#define YY_APPEND()             strbuf_append(yyextra->res, yytext, yyleng)
+#define yy_append()             strbuf_append(yyextra->res, yytext, yyleng)
 
 %}
 
@@ -49,30 +49,30 @@ newline         (\r|\n|\r\n)
 
 %%
 
-{whitespace}+               YY_APPEND();
-{newline}                   { YY_UPDATE_LINE(); YY_APPEND(); }
+{whitespace}+               yy_append();
+{newline}                   { yy_update_line(); yy_append(); }
 
-"//"[^\r\n]*                YY_APPEND();
+"//"[^\r\n]*                yy_append();
 
-"/*"                        { BEGIN(C_COMMENT); YY_APPEND(); }
-<C_COMMENT>"*/"             { BEGIN(INITIAL); YY_APPEND(); }
-<C_COMMENT>[^*\r\n]+        YY_APPEND();
-<C_COMMENT>"*"              YY_APPEND();
-<C_COMMENT>{newline}        { YY_UPDATE_LINE(); YY_APPEND(); }
+"/*"                        { BEGIN(C_COMMENT); yy_append(); }
+<C_COMMENT>"*/"             { BEGIN(INITIAL); yy_append(); }
+<C_COMMENT>[^*\r\n]+        yy_append();
+<C_COMMENT>"*"              yy_append();
+<C_COMMENT>{newline}        { yy_update_line(); yy_append(); }
 <C_COMMENT><<EOF>>          yyterminate();
 
-"\"(\\.|[^\\\"\n\r])*\""    YY_APPEND();
+"\"(\\.|[^\\\"\n\r])*\""    yy_append();
 
 "import"                    BEGIN(IMPORT);
 <IMPORT>{whitespace}+
-<IMPORT>{newline}           { BEGIN(INITIAL); YY_UPDATE_LINE(); }
+<IMPORT>{newline}           { BEGIN(INITIAL); yy_update_line(); }
 <IMPORT>"\"[^\"\n\r]+\"" {
-    append_directive(yyextra->res, yytext, 1);
+    append_directive(yytext, 1, yyextra->res);
     read_file(yytext, yyextra->res);
-    append_directive(yyextra->res, yyextra->path, yyextra->line + 1);
+    append_directive(yyextra->path, yyextra->line + 1, yyextra->res);
 }
 
-.                           YY_APPEND(); 
+.                           yy_append(); 
 
 <<EOF>>                     yyterminate();
 

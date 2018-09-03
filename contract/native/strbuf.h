@@ -10,6 +10,10 @@
 
 #define STRBUF_INIT_SIZE            1024
 
+#define strbuf_empty(sb)            ((sb)->offset == 0)
+#define strbuf_length(sb)           ((sb)->offset)
+#define strbuf_text(sb)             ((sb)->buf)
+
 #ifndef _STRBUF_T
 #define _STRBUF_T
 typedef struct strbuf_s strbuf_t;
@@ -28,16 +32,4 @@ void strbuf_append(strbuf_t *sb, char *str, int str_len);
 
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
 
-static inline int
-strbuf_get_len(strbuf_t *sb)
-{
-    return sb->offset;
-}
-
-static inline char *
-strbuf_get_str(strbuf_t *sb)
-{
-    return sb->buf;
-}
-
-#endif /* no _STRBUF_H */
+#endif /*_STRBUF_H */

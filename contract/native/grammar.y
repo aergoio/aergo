@@ -8,7 +8,6 @@
 #include "common.h"
 
 #include "version.h"
-#include "errors.h"
 #include "parser.h"
 
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \

@@ -12,21 +12,21 @@
 #include <string.h>
 #include <errno.h>
 
+#include "option.h"
+#include "error.h"
+
 #define EXECUTABLE          "aergoscc"
 
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
 
-#define RC_OK               0
-#define RC_ERROR            (-1)
+#ifndef bool
+#define bool                unsigned char
+#endif
 
-#define MAX(x, y)           ((x) > (y) ? (x) : (y))
-#define MIN(x, y)           ((x) > (y) ? (y) : (x))
-
-#define boolean             unsigned char
 #ifndef true
 #define true                1
 #define false               0
 #endif
 
-#endif /* no _COMMON_H */
+#endif /*_COMMON_H */

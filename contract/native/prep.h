@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "compile.h"
+
 #ifndef _STRBUF_T
 #define _STRBUF_T
 typedef struct strbuf_s strbuf_t;
@@ -23,8 +25,8 @@ typedef struct subst_s {
     strbuf_t *res;
 } subst_t;
 
-void preprocess(char *path, strbuf_t *res);
+int preprocess(char *path, opt_t opt, strbuf_t *res);
 
-void append_directive(strbuf_t *res, char *path, int line);
+void append_directive(char *path, int line, strbuf_t *res);
 
-#endif /* no _PREPROCESS_H */
+#endif /*_PREPROCESS_H */

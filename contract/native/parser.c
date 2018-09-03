@@ -5,9 +5,9 @@
 
 #include "common.h"
 
-#include "errors.h"
 #include "strbuf.h"
 #include "prep.h"
+#include "util.h"
 
 #include "parser.h"
 
@@ -21,16 +21,14 @@ extern int yyparse(void *);
 extern int yydebug;
 
 static void
-scan_init(scan_t *scan, strbuf_t *sb)
+scan_init(scan_t *scan, char *src, int len)
 {
     scan->path = NULL;
     scan->file = NULL;
 
+    scan->src = src;
+    scan->len = len;
     scan->pos = 0;
-    scan->len = strbuf_get_len(sb);
-    scan->src = strbuf_get_str(sb);
-
-    scan->errcnt = 0;
 
     scan->lloc.line = 1;
     scan->lloc.col = 1;
@@ -41,31 +39,27 @@ scan_init(scan_t *scan, strbuf_t *sb)
 }
 
 int
-parse(char *path)
+parse(char *src, int len, opt_t opt)
 {
     scan_t scan;
-    strbuf_t sb;
     void *scanner;
 
-    strbuf_init(&sb);
-    preprocess(path, &sb);
-
-    scan_init(&scan, &sb);
+    scan_init(&scan, src, len);
     yylex_init(&scanner);
     yyset_extra(&scan, scanner);
 
-    // yyset_debug(1, scanner);
-    // yydebug = 1;
+    if (opt_enabled(opt, OPT_DEBUG)) {
+        yyset_debug(1, scanner);
+        yydebug = 1;
+    }
 
     yyparse(scanner);
     yylex_destroy(scanner);
 
-    if (scan.errcnt > 0) {
-        WARN(ERROR_PARSE_FAILED);
-        return RC_ERROR;
-    }
+    if (!opt_enabled(opt, OPT_TEST))
+        error_dump();
 
-    return RC_OK;
+    return error_last();
 }
 
 /* end of parser.c */

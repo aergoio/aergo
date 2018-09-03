@@ -1,0 +1,23 @@
+@Test primitive_types
+contract Test {
+    int x;
+    int8 x;
+    int16 x;
+    int32 x;
+    int64 x;
+    uint8 x;
+    uint16 x;
+    uint32 x;
+    uint64 x;
+    float x;
+    double x;
+    bool x;
+    byte x;
+    string x;
+}
+
+@Test primitive_arrays
+contract Test {
+    int x[10];
+    int[10] x;
+}

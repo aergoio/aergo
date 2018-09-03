@@ -11,10 +11,7 @@
 #define MAJOR_VER       0
 #define MINOR_VER       1
 
-static inline boolean
-version_check(int major, int minor)
-{
-    return major == MAJOR_VER && minor == MINOR_VER;
-}
+#define version_check(major, minor)                                            \
+    ((major) == MAJOR_VER && (minor) == MINOR_VER)
 
-#endif /* no _VERSION_H */
+#endif /*_VERSION_H */

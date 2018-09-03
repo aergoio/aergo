@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "util.h"
+
 #include "strbuf.h"
 
 void
@@ -27,7 +29,7 @@ void
 strbuf_append(strbuf_t *sb, char *str, int str_len)
 {
     if (sb->offset + str_len > sb->size) {
-        sb->size += MAX(sb->size, str_len);
+        sb->size += max(sb->size, str_len);
         sb->buf = realloc(sb->buf, sb->size + 1);
     }
 

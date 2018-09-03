@@ -29,15 +29,15 @@ subst_init(subst_t *subst, char *path, strbuf_t *res)
     strbuf_init(&sb);
     read_file(path, &sb);
 
-    subst->len = strbuf_get_len(&sb);
-    subst->src = strbuf_get_str(&sb);
+    subst->len = strbuf_length(&sb);
+    subst->src = strbuf_text(&sb);
 
-    append_directive(res, path, subst->line);
+    append_directive(path, subst->line, res);
     subst->res = res;
 }
 
-void
-preprocess(char *path, strbuf_t *res)
+int
+preprocess(char *path, opt_t opt, strbuf_t *res)
 {
     subst_t subst;
     void *scanner;
@@ -47,14 +47,20 @@ preprocess(char *path, strbuf_t *res)
     yylex_init(&scanner);
     yyset_extra(&subst, scanner);
 
-    // yyset_debug(1, scanner);
+    if (opt_enabled(opt, OPT_DEBUG))
+        yyset_debug(1, scanner);
 
     yylex(scanner);
     yylex_destroy(scanner);
+
+    if (!opt_enabled(opt, OPT_TEST))
+        error_dump();
+
+    return error_last();
 }
 
 void
-append_directive(strbuf_t *res, char *path, int line)
+append_directive(char *path, int line, strbuf_t *res)
 {
     char buf[PATH_MAX_LEN + 32];
 

@@ -6,8 +6,8 @@
 #include "common.h"
 
 #include "version.h"
-#include "errors.h"
-#include "parser.h"
+#include "compile.h"
+#include "util.h"
 
 static void
 print_help(void)
@@ -35,7 +35,7 @@ print_version(void)
 }
 
 static char *
-check_argv(int argc, char **argv)
+check_argv(int argc, char **argv, opt_t *opt)
 {
     int i;
 
@@ -50,6 +50,8 @@ check_argv(int argc, char **argv)
             print_help();
         else if (strcmp(argv[i], "--version") == 0)
             print_version();
+        else if (strcmp(argv[i], "--debug") == 0)
+            opt_set(*opt, OPT_DEBUG);
         else
             FATAL(ERROR_INVALID_OPTION, argv[i]);
     }
@@ -60,14 +62,15 @@ check_argv(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
-    int rc;
+    ec_t ec;
     char *infile;
+    opt_t opt = OPT_NORMAL;
 
-    infile = check_argv(argc, argv);
+    infile = check_argv(argc, argv, &opt);
     ASSERT(infile != NULL);
 
-    rc = parse(infile);
-    if (rc != RC_OK)
+    ec = compile(infile, opt);
+    if (ec != NO_ERROR)
         return EXIT_FAILURE;
 
     return EXIT_SUCCESS;

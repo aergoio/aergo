@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "compile.h"
+
 typedef struct lloc_s {
     int line;
     int col;
@@ -18,11 +20,10 @@ typedef struct scan_s {
     char *path;
     char *file;
 
-    int pos;
-    int len;
     char *src;
+    int len;
+    int pos;
 
-    int errcnt;
     lloc_t lloc;     // source position
 
     /* temporary buffer for literal */
@@ -39,6 +40,6 @@ typedef struct yacc_s {
 
 #include "grammar.tab.h"
 
-int parse(char *path);
+int parse(char *src, int len, opt_t opt);
 
-#endif /* no _PARSER_H */
+#endif /*_PARSER_H */
