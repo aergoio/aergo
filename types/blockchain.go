@@ -64,6 +64,7 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Header: &header,
 		Body:   &body,
 	}
+
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
 
 	return &block
@@ -90,6 +91,17 @@ func (block *Block) BlockHash() []byte {
 // BlockID converts block.Hash ([]byte) to BlockID.
 func (block *Block) BlockID() BlockID {
 	return ToBlockID(block.BlockHash())
+}
+
+// Confirms returns block.Header.Confirms which indicates how many block is confirmed
+// by block.
+func (block *Block) Confirms() BlockNo {
+	return block.GetHeader().GetConfirms()
+}
+
+// SetConfirms sets block.Header.Confirms to confirms.
+func (block *Block) SetConfirms(confirms BlockNo) {
+	block.Header.Confirms = confirms
 }
 
 // BlockNo returns the block number of block.
@@ -162,6 +174,16 @@ func (block *Block) BPID() (id peer.ID, err error) {
 	return
 }
 
+// BpID2Str returns its Block Producer's ID in base64 format.
+func (block *Block) BPID2Str() string {
+	id, err := block.BPID()
+	if err != nil {
+		return ""
+	}
+
+	return enc.ToString([]byte(id))
+}
+
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.BlockHash()
@@ -223,10 +245,13 @@ func (header *BlockHeader) Clone() *BlockHeader {
 		PrevBlockHash: Clone(header.PrevBlockHash).([]byte),
 		BlockNo:       header.BlockNo,
 		Timestamp:     header.Timestamp,
+		TxsRootHash:   Clone(header.TxsRootHash).([]byte),
+		Confirms:      header.Confirms,
 		PubKey:        Clone(header.PubKey).([]byte),
 		Sign:          Clone(header.Sign).([]byte),
 	}
 }
+
 func (body *BlockBody) Clone() *BlockBody {
 	if body == nil {
 		return nil

@@ -92,7 +92,7 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 }
 
 // StatusUpdate currently does nothing.
-func (s *SimpleBlockFactory) StatusUpdate() {
+func (s *SimpleBlockFactory) StatusUpdate(block *types.Block) {
 }
 
 // BlockFactory returns s itself.

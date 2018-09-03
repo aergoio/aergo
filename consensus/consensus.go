@@ -64,7 +64,7 @@ type Consensus interface {
 type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	StatusUpdate()
+	StatusUpdate(block *types.Block)
 }
 
 // BlockFactory is an interface for a block factory implementation.
