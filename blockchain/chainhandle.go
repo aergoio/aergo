@@ -155,10 +155,10 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	//In case of Received block from BP, txs executed already.
 	//Result is saved in the BlockState
-	needExec := true
+	needExec := false
 	if bstate == nil {
 		bstate = state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
-		needExec = false
+		needExec = true
 	}
 
 	txs := block.GetBody().GetTxs()
