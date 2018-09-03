@@ -103,8 +103,10 @@ func (st *State) Clone() *State {
 		return nil
 	}
 	return &State{
-		Nonce:   st.Nonce,
-		Balance: st.Balance,
+		Nonce:       st.Nonce,
+		Balance:     st.Balance,
+		CodeHash:    st.CodeHash,
+		StorageRoot: st.StorageRoot,
 	}
 }
 
