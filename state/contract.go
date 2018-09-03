@@ -40,8 +40,7 @@ type ContractState struct {
 }
 
 func (st *ContractState) loadStorage() error {
-	hasher := types.GetTrieHasher()
-	storage := trie.NewTrie(32, hasher, *st.dbstore)
+	storage := trie.NewTrie(32, types.TrieHasher, *st.dbstore)
 	root := st.State.StorageRoot
 	if root != nil {
 		err := storage.LoadCache(root)
@@ -100,7 +99,7 @@ func (st *ContractState) SetData(key, value []byte) error {
 			return err
 		}
 	}
-	hkey := sha256.Sum256(key)
+	hkey := types.TrieHasher(key)
 	_, err := st.storage.Update(trie.DataArray{hkey[:]}, trie.DataArray{value})
 	if err != nil {
 		return err
@@ -115,7 +114,7 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 			return nil, err
 		}
 	}
-	hkey := sha256.Sum256(key)
+	hkey := types.TrieHasher(key)
 	value, err := st.storage.Get(hkey[:])
 	if err != nil {
 		return nil, err

@@ -72,14 +72,12 @@ func (id StateID) String() string {
 	return HashID(id).String()
 }
 
-func GetTrieHasher() func(data ...[]byte) []byte {
-	return func(data ...[]byte) []byte {
-		hasher := sha512.New512_256()
-		for i := 0; i < len(data); i++ {
-			hasher.Write(data[i])
-		}
-		return hasher.Sum(nil)
+var TrieHasher = func(data ...[]byte) []byte {
+	hasher := sha512.New512_256()
+	for i := 0; i < len(data); i++ {
+		hasher.Write(data[i])
 	}
+	return hasher.Sum(nil)
 }
 
 func NewState() *State {

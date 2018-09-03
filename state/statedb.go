@@ -120,8 +120,7 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	}
 
 	// init trie
-	hasher := types.GetTrieHasher()
-	sdb.trie = trie.NewTrie(32, hasher, *sdb.statedb)
+	sdb.trie = trie.NewTrie(32, types.TrieHasher, *sdb.statedb)
 
 	// load data from db
 	err := sdb.loadStateDB()
