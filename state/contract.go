@@ -68,7 +68,7 @@ func (st *ContractState) GetBalance() uint64 {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := sha256.Sum256(code)
-	err := saveData(st.dbstore, codeHash[:], code)
+	err := saveData(st.dbstore, codeHash[:], &code)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (st *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(st.dbstore, st.State.CodeHash, st.code)
+	err := loadData(st.dbstore, st.State.CodeHash, &st.code)
 	if err != nil {
 		return nil, err
 	}
