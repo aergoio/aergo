@@ -93,6 +93,17 @@ func (block *Block) BlockID() BlockID {
 	return ToBlockID(block.BlockHash())
 }
 
+// Confirms returns block.Header.Confirms which indicates how many block is confirmed
+// by block.
+func (block *Block) Confirms() BlockNo {
+	return block.GetHeader().GetConfirms()
+}
+
+// SetConfirms sets block.Header.Confirms to confirms.
+func (block *Block) SetConfirms(confirms BlockNo) {
+	block.Header.Confirms = confirms
+}
+
 // BlockNo returns the block number of block.
 func (block *Block) BlockNo() BlockNo {
 	return block.GetHeader().GetBlockNo()
@@ -234,6 +245,8 @@ func (header *BlockHeader) Clone() *BlockHeader {
 		PrevBlockHash: Clone(header.PrevBlockHash).([]byte),
 		BlockNo:       header.BlockNo,
 		Timestamp:     header.Timestamp,
+		TxsRootHash:   Clone(header.TxsRootHash).([]byte),
+		Confirms:      header.Confirms,
 		PubKey:        Clone(header.PubKey).([]byte),
 		Sign:          Clone(header.Sign).([]byte),
 	}

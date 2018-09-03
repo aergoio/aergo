@@ -33,6 +33,18 @@ func (e ErrTimeout) Error() string {
 	return e.Kind + " timeout"
 }
 
+// ErrBlockConnect indicates a error indicating a failed block connected
+// request.
+type ErrBlockConnect struct {
+	id     string
+	prevID string
+	ec     error
+}
+
+func (e ErrBlockConnect) Error() string {
+	return fmt.Sprintf("failed to connect block (%s): id=%s, prev id=%s", e.ec.Error(), e.id, e.prevID)
+}
+
 // GetBestBlock returns the current best block from chainservice
 func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 	result, err := hs.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second,
@@ -64,20 +76,21 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp
 }
 
 // ConnectBlock send an AddBlock request to the chain service.
-func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) {
+func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
 	blockState.SetBlockHash(block.BlockID())
 
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
-		time.Second, "consensus/util/info.ConnectBlock").Result()
+		time.Second, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {
-
 		logger.Error().Uint64("no", block.Header.BlockNo).
 			Str("hash", block.ID()).
 			Str("prev", block.PrevID()).
 			Msg("failed to connect block")
 
-		return
+		return &ErrBlockConnect{id: block.ID(), prevID: block.PrevID(), ec: err}
 	}
+
+	return nil
 }

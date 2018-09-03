@@ -149,10 +149,12 @@ func (bf *BlockFactory) controller() {
 func (bf *BlockFactory) worker() {
 	defer shutdownMsg("block factory worker")
 
+	lpbNo := types.BlockNo(0)
+
 	for {
 		select {
 		case bpi := <-bf.workerQueue:
-			block, blockState, err := bf.generateBlock(bpi)
+			block, blockState, err := bf.generateBlock(bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
 			} else if err != nil {
@@ -160,7 +162,12 @@ func (bf *BlockFactory) worker() {
 				continue
 			}
 
-			chain.ConnectBlock(bf, block, blockState)
+			err = chain.ConnectBlock(bf, block, blockState)
+			if err == nil {
+				lpbNo = block.BlockNo()
+			} else {
+				logger.Error().Msg(err.Error())
+			}
 
 		case <-bf.quit:
 			return
@@ -168,7 +175,7 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, *state.BlockState, error) {
+func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
 		newTxExec(bpi.bestBlock.BlockNo()+1, bpi.bestBlock.BlockID()),
@@ -178,11 +185,18 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, *state.BlockSt
 	if err != nil {
 		return nil, nil, err
 	}
+
+	block.SetConfirms(block.BlockNo() - lpbNo)
+
 	if err := block.Sign(bf.privKey); err != nil {
 		return nil, nil, err
 	}
 
-	logger.Info().Msgf("block %v(no=%v) produced by BP %v", block.ID(), block.GetHeader().GetBlockNo(), bf.ID)
+	logger.Info().
+		Str("BP", bf.ID).Str("id", block.ID()).
+		Uint64("no", block.BlockNo()).Uint64("confirms", block.Confirms()).
+		Uint64("lpb", lpbNo).
+		Msg("block produced")
 
 	return block, blockState, nil
 }
