@@ -49,8 +49,8 @@ message TxBody {
 	bytes payload = 5;
 	uint64 limit = 6;
 	uint64 price = 7;
-	bytes sign = 8;
-	TxType type = 9;
+	TxType type = 8;
+	bytes sign = 9;
 }
 
 message TxIdx {

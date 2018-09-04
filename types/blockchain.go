@@ -310,8 +310,8 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Payload)
 	binary.Write(digest, binary.LittleEndian, txBody.Limit)
 	binary.Write(digest, binary.LittleEndian, txBody.Price)
-	digest.Write(txBody.Sign)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
+	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
 
