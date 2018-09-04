@@ -96,10 +96,6 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, *state.
 			blockState = curState
 		}
 
-		if err == ErrQuit {
-			return nil, nil, err
-		}
-
 		if e, ok := err.(ErrTimeout); ok {
 			err = e
 			break
