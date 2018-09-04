@@ -11,7 +11,7 @@ fi
 NR_ACC=$1
 NR_TX=$2
 TARGET_DIR=$3
-TO_ACC=3y6QsWZjaSzZhmjBQXvwTXGxDGQa
+TO_ACC=BRgjZpU5jo7ZonGsWgVFL1LWkGs
 rm -fr $TARGET_DIR
 mkdir -p $TARGET_DIR
 

@@ -34,9 +34,7 @@ type ChainService struct {
 
 	cc chan consensus.ChainConsensus
 
-	//TODO : will be changed to use state DB
-	votes  map[string]uint64              //candidate, sum of votes
-	voters map[string]map[string][]uint64 // voter, candidate, amount of votes, update blockno
+	votes map[string]uint64 //candidate, sum of votes
 }
 
 var (
@@ -51,8 +49,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		sdb: state.NewStateDB(),
 		op:  NewOrphanPool(),
 
-		votes:  map[string]uint64{},
-		voters: map[string]map[string][]uint64{},
+		votes: map[string]uint64{},
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
@@ -90,6 +87,10 @@ func (cs *ChainService) BeforeStart() {
 	// init genesis block
 	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
+	}
+
+	if err := cs.loadGovernace(); err != nil {
+		logger.Fatal().Err(err).Msg("failed to load governance")
 	}
 }
 
