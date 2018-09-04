@@ -41,7 +41,9 @@ type ContractState struct {
 
 func (st *ContractState) loadStorage() {
 	st.storage = trie.NewTrie(32, types.TrieHasher, *st.dbstore)
-	st.storage.Root = st.State.StorageRoot
+	if st.State.StorageRoot != nil {
+		st.storage.Root = st.State.StorageRoot
+	}
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
