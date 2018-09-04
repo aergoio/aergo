@@ -44,7 +44,7 @@ static int getItem(lua_State *L)
 	char *dbKey;
 	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
 	char *jsonValue;
-	struct LuaGetDB_return ret;
+	int ret;
 
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -54,12 +54,13 @@ static int getItem(lua_State *L)
 
 	ret = LuaGetDB(L, exec->stateKey, dbKey);
 
-    if (ret.r1 != 0) {
+    if (ret < 0) {
 		lua_error(L);
     }
-    jsonValue = ret.r0;
-    if (strlen(jsonValue) == 0)
+    if (ret == 0)
         return 0;
+    jsonValue = (char *)luaL_checkstring(L, -1);
+    lua_pop(L, 1);
 
 	if (lua_util_json_to_lua(L, jsonValue) != 0) {
 		luaL_error(L, "getItem error : can't convert %s", jsonValue);

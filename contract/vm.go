@@ -321,7 +321,7 @@ func LuaSetDB(L *LState, stateKey *C.char, key *C.char, value *C.char) C.int {
 }
 
 //export LuaGetDB
-func LuaGetDB(L *LState, stateKey *C.char, key *C.char) (unsafe.Pointer, C.int) {
+func LuaGetDB(L *LState, stateKey *C.char, key *C.char) C.int {
 	stateKeyString := C.GoString(stateKey)
 	keyString := C.GoString(key)
 
@@ -330,7 +330,7 @@ func LuaGetDB(L *LState, stateKey *C.char, key *C.char) (unsafe.Pointer, C.int) 
 		errMsg := C.CString("[System.LuaGetDB]not found contract state")
 		C.lua_pushstring(L, errMsg)
 		C.free(unsafe.Pointer(errMsg))
-		return nil, -1
+		return -1
 	}
 
 	data, err := stateDb.GetData([]byte(keyString))
@@ -338,7 +338,14 @@ func LuaGetDB(L *LState, stateKey *C.char, key *C.char) (unsafe.Pointer, C.int) 
 		errMsg := C.CString(err.Error())
 		C.lua_pushstring(L, errMsg)
 		C.free(unsafe.Pointer(errMsg))
-		return nil, -1
+		return -1
 	}
-	return C.CBytes(data), 0
+
+	if data == nil {
+		return 0
+	}
+	dataString := C.CString(string(data))
+	C.lua_pushstring(L, dataString)
+	C.free(unsafe.Pointer(dataString))
+	return 1
 }
