@@ -11,7 +11,7 @@ import (
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
-	confirmsRequired uint8
+	confirmsRequired uint16
 	plibConfirms     *list.List            // confirm counts to become proposed LIB
 	plib             map[string]*blockInfo // BP-wise proposed LIB map
 	lib              *blockInfo
@@ -25,11 +25,11 @@ type blockInfo struct {
 
 type plibConfirm struct {
 	*blockInfo
-	confirmsLeft uint8
+	confirmsLeft uint16
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(confirmsRequired uint8) *Status {
+func NewStatus(confirmsRequired uint16) *Status {
 	return &Status{
 		confirmsRequired: confirmsRequired,
 		plibConfirms:     list.New(),
@@ -37,7 +37,7 @@ func NewStatus(confirmsRequired uint8) *Status {
 	}
 }
 
-func newPLibConfirm(block *types.Block, confirmsRequired uint8) *plibConfirm {
+func newPLibConfirm(block *types.Block, confirmsRequired uint16) *plibConfirm {
 	return &plibConfirm{
 		blockInfo: &blockInfo{
 			hash:  block.ID(),
@@ -82,7 +82,7 @@ func (s *Status) StatusUpdate(block *types.Block) {
 	}
 }
 
-func calcProposedLIB(confirms *list.List, block *types.Block, confirmsRequired uint8) (bi *blockInfo) {
+func calcProposedLIB(confirms *list.List, block *types.Block, confirmsRequired uint16) (bi *blockInfo) {
 	pc := newPLibConfirm(block, confirmsRequired)
 	confirms.PushBack(pc)
 	logger.Debug().Int("len", confirms.Len()).Str("hash", spew.Sdump(pc)).Msg("new plibConfirm added")

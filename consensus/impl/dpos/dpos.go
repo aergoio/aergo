@@ -22,14 +22,12 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-const (
-	// blockProducers is the number of block producers
-	blockProducers   = 23
-	bpConsensusCount = blockProducers*2/3 + 1
-)
-
 var (
 	logger = log.NewLogger("dpos")
+
+	// blockProducers is the number of block producers
+	blockProducers   uint16
+	bpConsensusCount uint16
 
 	lastJob *slot.Slot
 )
@@ -76,6 +74,9 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 // Init initilizes the DPoS parameters.
 func Init(cfg *config.ConsensusConfig) {
 	consensus.InitBlockInterval(cfg.BlockInterval)
+
+	blockProducers = cfg.DposBpNumber
+	bpConsensusCount = blockProducers*2/3 + 1
 	slot.Init(cfg.BlockInterval, blockProducers)
 }
 

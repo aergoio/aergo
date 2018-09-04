@@ -17,6 +17,8 @@ const (
 	// DefaultBlockIntervalSec  is the default block generation interval in seconds.
 	DefaultBlockIntervalSec = int64(1) // block production interval in sec
 
+	// DefaultDposBpNumber is the default number of block producers.
+	DefaultDposBpNumber = 23
 )
 
 var (

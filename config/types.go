@@ -78,7 +78,8 @@ type ConsensusConfig struct {
 	EnableBp      bool     `mapstructure:"enablebp" description:"enable block production"`
 	EnableDpos    bool     `mapstructure:"enabledpos" description:"enable DPoS consensus"`
 	BlockInterval int64    `mapstructure:"blockinterval" description:"block production interval (sec)"`
-	BpIds         []string `mapstructure:"bpids" description:"The IDs of the 23 block producers"`
+	DposBpNumber  uint16   `mapstructure:"dposbps" description:"the number of DPoS block producers"`
+	BpIds         []string `mapstructure:"bpids" description:"the IDs of the block producers"`
 }
 
 /*
@@ -139,6 +140,7 @@ dumpfilepath = "{{.Mempool.DumpFilePath}}"
 enablebp = {{.Consensus.EnableBp}}
 enabledpos = {{.Consensus.EnableDpos}}
 blockinterval = {{.Consensus.BlockInterval}}
+dposbps = {{.Consensus.DposBpNumber}}
 bpids = [{{range .Consensus.BpIds}}
 "{{.}}", {{end}}
 ]
