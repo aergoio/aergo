@@ -16,14 +16,15 @@
 
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 
-static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg);
+static void yyerror(YYLTYPE *lloc, parse_param_t *param, void *scanner, 
+                    const char *msg);
 
 %}
 
 %define api.pure full
 %define parse.error verbose
 %locations
-%parse-param { yyparam_t *param }
+%parse-param { parse_param_t *param }
 %param { void *yyscanner }
 %debug
 %verbose
@@ -452,10 +453,10 @@ id:
 %%
 
 static void
-yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
+yyerror(YYLTYPE *lloc, parse_param_t *param, void *scanner, const char *msg)
 {
-    ERROR(ERROR_PARSE_FAILED, param->path, lloc->first.line, lloc->first.col, 
-          msg, yyparam_trace(param));
+    ERROR(ERROR_PARSE_FAILED, param->file, lloc->first.line, lloc->first.col, 
+          msg, make_trace(param->file, lloc));
 }
 
 /* end of grammar.y */

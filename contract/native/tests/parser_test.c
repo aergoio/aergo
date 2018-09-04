@@ -58,17 +58,13 @@ get_errcode(char *str)
 }
 
 static void
-run_test(opt_t opt, char *file, char *title, ec_t ex, strbuf_t *sb)
+run_test(char *title, ec_t ex, char *file, opt_t opt, strbuf_t *sb)
 {
     ec_t ac;
-    char path[PATH_MAX_LEN];
 
     printf("    * %s... ", title);
 
-    sprintf(path, "%s.tc", file);
-    write_file(path, sb);
-
-    ac = parse(path, opt);
+    ac = parse(file, opt, sb);
     if (ex == ac) {
         printf(ANSI_GREEN"ok"ANSI_NONE"\n");
     }
@@ -81,16 +77,14 @@ run_test(opt_t opt, char *file, char *title, ec_t ex, strbuf_t *sb)
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
 
-        remove(path);
         exit(EXIT_FAILURE);
     }
 
     error_clear();
-    remove(path);
 }
 
 static void
-read_test(opt_t opt, char *file)
+read_test(char *file, opt_t opt)
 {
     int line = 1;
     FILE *fp;
@@ -108,9 +102,9 @@ read_test(opt_t opt, char *file)
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
             if (!strbuf_empty(&sb)) {
-                run_test(opt, file, title, ec, &sb);
+                run_test(title, ec, file, opt, &sb);
                 strbuf_reset(&sb);
-                mark_fpos(file, line, &sb);
+                //mark_file(file, line, &sb);
                 title[0] = '\0';
                 ec = NO_ERROR;
             }
@@ -128,7 +122,7 @@ read_test(opt_t opt, char *file)
     }
 
     if (!strbuf_empty(&sb))
-        run_test(opt, file, title, ec, &sb);
+        run_test(title, ec, file, opt, &sb);
 }
 
 int
@@ -161,7 +155,7 @@ main(int argc, char **argv)
             strncmp(entry->d_name, PREFIX, strlen(PREFIX)) != 0)
             continue;
 
-        read_test(opt, entry->d_name);
+        read_test(entry->d_name, opt);
     }
 
     closedir(dir);

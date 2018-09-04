@@ -23,11 +23,13 @@
             FATAL(ERROR_FILE_READ_FAILED, strerror(errno));                    \
     } while (0)
 
-#define YY_EXTRA_TYPE           yyparam_t *
+#define YY_EXTRA_TYPE           prep_param_t *
 
-#define yy_update_line()        yyextra->lloc.last.line++
+#define yy_update_line()        yyextra->line++
 
-#define yy_append()             strbuf_append(&yyextra->buf, yytext, yyleng)
+#define yy_append()             strbuf_append(yyextra->res, yytext, yyleng)
+
+static void mark_file(char *file, int line, strbuf_t *res);
 
 %}
 
@@ -65,9 +67,9 @@ newline         (\r|\n|\r\n)
 <IMPORT>{whitespace}+
 <IMPORT>{newline}           { BEGIN(INITIAL); yy_update_line(); }
 <IMPORT>"\"[^\"\n\r]+\"" {
-    mark_fpos(yytext, 1, &yyextra->buf);
-    read_file(yytext, &yyextra->buf);
-    mark_fpos(yyextra->path, yyextra->lloc.last.line + 1, &yyextra->buf);
+    mark_file(yytext, 1, yyextra->res);
+    read_file(yytext, yyextra->res);
+    mark_file(yyextra->file, yyextra->line + 1, yyextra->res);
 }
 
 .                           yy_append(); 
@@ -75,5 +77,15 @@ newline         (\r|\n|\r\n)
 <<EOF>>                     yyterminate();
 
 %%
+
+static void
+mark_file(char *file, int line, strbuf_t *res)
+{
+    char buf[PATH_MAX_LEN + 32];
+
+    snprintf(buf, sizeof(buf), "#file \"%s\" %d\n", file, line);
+
+    strbuf_append(res, buf, strlen(buf));
+}
 
 /* end of expand.l */

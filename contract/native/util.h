@@ -13,6 +13,11 @@
 typedef struct strbuf_s strbuf_t;
 #endif  /* _STRBUF_T */
 
+#ifndef _YYLLOC_T
+#define _YYLLOC_T
+typedef struct yylloc_s yylloc_t;
+#endif /* _YYLLOC_T */
+
 #define max(x, y)           ((x) > (y) ? (x) : (y))
 #define min(x, y)           ((x) > (y) ? (y) : (x))
 
@@ -21,5 +26,7 @@ void close_file(FILE *fp);
 
 void read_file(char *path, strbuf_t *sb);
 void write_file(char *path, strbuf_t *sb);
+
+char *make_trace(char *file, yylloc_t *lloc);
 
 #endif /*_UTIL_H */

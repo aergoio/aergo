@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "strbuf.h"
+#include "parser.h"
 
 #include "util.h"
 
@@ -60,6 +61,41 @@ write_file(char *path, strbuf_t *sb)
         FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
 
     fclose(fp);
+}
+
+char *
+make_trace(char *file, yylloc_t *lloc)
+{
+    int i, j;
+    int nread;
+    int buf_size;
+    char *buf;
+    FILE *fp = open_file(file, "r");
+
+    if (fseek(fp, lloc->first.offset, SEEK_SET) < 0)
+        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+
+    buf_size = max(lloc->first.col * 2, STRBUF_INIT_SIZE);
+    buf = malloc(buf_size);
+
+    nread = fread(buf, buf_size, 1, fp);
+    if (nread <= 0 && !feof(fp))
+        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+
+    for (i = 0; i < nread; i++) {
+        if (buf[i] == '\n' || buf[i] == '\r')
+            break;
+    }
+
+    for (j = 0; j < lloc->first.col - 1; j++) {
+        buf[i + j] = ' ';
+    }
+
+    strcpy(buf + i + j, ANSI_GREEN"^"ANSI_NONE);
+
+    fclose(fp);
+
+    return buf;
 }
 
 /* end of util.c */

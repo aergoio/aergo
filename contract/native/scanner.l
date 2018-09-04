@@ -16,12 +16,14 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        (result) = fread(buf, 1, max, yyin);                                   \
-        if ((result) == 0 && !feof(yyin))                                      \
-            FATAL(ERROR_FILE_READ_FAILED, strerror(errno));                    \
+        (result) = min((max), yyextra->len - yyextra->pos);                    \
+        if ((result) > 0) {                                                    \
+            memcpy(buf, yyextra->src + yyextra->pos, (result));                \
+            yyextra->pos += (result);                                          \
+        }                                                                      \
     } while (0)
 
-#define YY_EXTRA_TYPE           yyparam_t *
+#define YY_EXTRA_TYPE           parse_param_t *
 
 #define yy_update_last_line()                                                  \
     do {                                                                       \
@@ -51,8 +53,8 @@
 #define yy_error(ec)                                                           \
     do {                                                                       \
         yy_update_first();                                                     \
-        ERROR(ec, yyextra->path, lloc->first.line, lloc->first.col,            \
-              yyparam_trace(yyextra));                                         \
+        ERROR(ec, yyextra->file, lloc->first.line, lloc->first.col,            \
+              make_trace(yyextra->file, &yyextra->lloc));                      \
     } while (0)
 
 #define yy_recover()                                                           \
@@ -244,7 +246,7 @@ id                          {L}({L}|{D})*
 
 ^"#file"                    BEGIN(F_DIR);
 <F_DIR>{whitespace}+
-<F_DIR>\"[^\"\n\r]+\"       yyextra->path = yytext;
+<F_DIR>\"[^\"\n\r]+\"       yyextra->file = yytext;
 <F_DIR>D+                   yyextra->lloc.last.line = atoi(yytext);
 <F_DIR>{newline}            BEGIN(INITIAL);
 
