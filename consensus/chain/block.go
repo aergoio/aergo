@@ -65,7 +65,7 @@ func MaxBlockBodySize() int {
 
 // GenerateBlock generate & return a new block
 func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, *state.BlockState, error) {
-	txs, blockState, err := GatherTXs(hs, txOp)
+	txs, blockState, err := GatherTXs(hs, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, nil, err
 	}

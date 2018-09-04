@@ -66,9 +66,9 @@ func NewCompTxOp(fn ...TxOp) TxOp {
 	})
 }
 
-// NewBlockLimitOp returns a TxOpFn which returns errBlockSizeLimit when the
-// size of the collected transactions exceeds the maximum block size.
-func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
+func newBlockLimitOp(maxBlockBodySize int) TxOpFn {
+	// Caution: the closure below captures the local variable 'size.' Generate
+	// it whenever needed. Don't reuse it!
 	size := 0
 	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 		if size += proto.Size(tx); size > maxBlockBodySize {
@@ -80,18 +80,29 @@ func NewBlockLimitOp(maxBlockBodySize int) TxOpFn {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, *state.BlockState, error) {
+func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize int) ([]*types.Tx, *state.BlockState, error) {
+	var (
+		nCollected int
+		last       int
+		nCand      int
+	)
+
 	txIn := FetchTXs(hs)
-	if len(txIn) == 0 {
+	nCand = len(txIn)
+	if nCand == 0 {
 		return txIn, nil, nil
 	}
 
-	last := 0
+	defer func() {
+		logger.Debug().Int("candidates", nCand).Int("collected", nCollected).Msg("transactions collected")
+	}()
+
+	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 	var blockState *state.BlockState
 	for i, tx := range txIn {
 		last = i
 
-		curState, err := txOp.Apply(tx)
+		curState, err := op.Apply(tx)
 		if curState != nil {
 			blockState = curState
 		}
@@ -105,6 +116,8 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, *state.
 			return nil, nil, err
 		}
 	}
+
+	nCollected = last + 1
 
 	return txIn[0 : last+1], blockState, nil
 }

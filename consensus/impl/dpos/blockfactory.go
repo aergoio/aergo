@@ -64,8 +64,6 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 	}
 
 	bf.txOp = chain.NewCompTxOp(
-		// block size limit check
-		chain.NewBlockLimitOp(bf.maxBlockBodySize),
 		// timeout check
 		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
 			return nil, bf.checkBpTimeout()

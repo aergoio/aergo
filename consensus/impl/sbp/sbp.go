@@ -47,7 +47,6 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.NewBlockLimitOp(s.maxBlockBodySize),
 		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
 			select {
 			case <-s.quit:
