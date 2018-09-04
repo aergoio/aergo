@@ -7,11 +7,11 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
-	proto "github.com/golang/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 )
 
 // HashID is a fixed size bytes
-type HashID [sha256.Size]byte
+type HashID [32]byte
 
 // BlockID is a HashID to identify a block
 type BlockID HashID
@@ -19,12 +19,10 @@ type BlockID HashID
 // AccountID is a HashID to identify an account
 type AccountID HashID
 
-// StateID is a HashID to identify a state
-type StateID HashID
+// TxID is a HashID to identify a transaction
+type TxID HashID
 
-// TransactionID is a HashID to identify a transactions
-type TransactionID HashID
-
+// ToHashID make a HashID from bytes
 func ToHashID(hash []byte) HashID {
 	buf := HashID{}
 	copy(buf[:], hash)
@@ -34,6 +32,7 @@ func (id HashID) String() string {
 	return enc.ToString(id[:])
 }
 
+// ToBlockID make a BlockID from bytes
 func ToBlockID(blockHash []byte) BlockID {
 	return BlockID(ToHashID(blockHash))
 }
@@ -41,13 +40,15 @@ func (id BlockID) String() string {
 	return HashID(id).String()
 }
 
-func ToTransactionID(txHash []byte) TransactionID {
-	return TransactionID(ToHashID(txHash))
+// ToTxID make a TxID from bytes
+func ToTxID(txHash []byte) TxID {
+	return TxID(ToHashID(txHash))
 }
-func (id TransactionID) String() string {
+func (id TxID) String() string {
 	return HashID(id).String()
 }
 
+// ToAccountID make a AccountHash from bytes
 func ToAccountID(account []byte) AccountID {
 	return AccountID(sha256.Sum256(account))
 }
@@ -55,23 +56,7 @@ func (id AccountID) String() string {
 	return HashID(id).String()
 }
 
-func ToStateIDPb(state *State) StateID {
-	if state == nil {
-		return StateID{}
-	}
-	bytes, err := proto.Marshal(state)
-	if err != nil {
-		return StateID{}
-	}
-	return ToStateID(bytes)
-}
-func ToStateID(state []byte) StateID {
-	return StateID(sha256.Sum256(state))
-}
-func (id StateID) String() string {
-	return HashID(id).String()
-}
-
+// TrieHasher exports default hash function for trie
 var TrieHasher = func(data ...[]byte) []byte {
 	hasher := sha512.New512_256()
 	for i := 0; i < len(data); i++ {
@@ -96,6 +81,16 @@ func (st *State) GetHash() []byte {
 	binary.Write(digest, binary.LittleEndian, st.Nonce)
 	binary.Write(digest, binary.LittleEndian, st.Balance)
 	return digest.Sum(nil)
+}
+func (st *State) ToBytes() []byte {
+	buf, _ := proto.Marshal(st)
+	return buf
+}
+func (st *State) FromBytes(buf []byte) {
+	if st == nil {
+		st = &State{}
+	}
+	_ = proto.Unmarshal(buf, st)
 }
 
 func (st *State) Clone() *State {

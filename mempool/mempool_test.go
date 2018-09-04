@@ -70,7 +70,7 @@ func deinitTest() {
 }
 
 func sameTx(a *types.Tx, b *types.Tx) bool {
-	return types.ToTransactionID(a.Hash) != types.ToTransactionID(b.Hash)
+	return types.ToTxID(a.Hash) != types.ToTxID(b.Hash)
 }
 func sameTxs(a []*types.Tx, b []*types.Tx) bool {
 	if len(a) != len(b) {

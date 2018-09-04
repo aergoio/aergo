@@ -43,7 +43,7 @@ type MemPool struct {
 	curBestBlockNo types.BlockNo
 
 	orphan     int
-	cache      map[types.TransactionID]*types.Tx
+	cache      map[types.TxID]*types.Tx
 	pool       map[types.AccountID]*TxList
 	stateCache map[types.AccountID]*types.State
 
@@ -57,7 +57,7 @@ type MemPool struct {
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	actor := &MemPool{
 		cfg:        cfg,
-		cache:      map[types.TransactionID]*types.Tx{},
+		cache:      map[types.TxID]*types.Tx{},
 		pool:       map[types.AccountID]*TxList{},
 		stateCache: map[types.AccountID]*types.State{},
 		dumpPath:   cfg.Mempool.DumpFilePath,
@@ -169,7 +169,7 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // validate
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
-	id := types.ToTransactionID(tx.Hash)
+	id := types.ToTxID(tx.Hash)
 	acc := tx.GetBody().GetAccount()
 
 	mp.Lock()
@@ -232,7 +232,7 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 					mp.delMemPoolList(acc)
 				}
 				for _, tx := range delTxs {
-					h := types.ToTransactionID(tx.Hash)
+					h := types.ToTxID(tx.Hash)
 					delete(mp.cache, h) // need lock
 				}
 			}
@@ -274,7 +274,7 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
-	if v, ok := mp.cache[types.ToTransactionID(hash)]; ok {
+	if v, ok := mp.cache[types.ToTxID(hash)]; ok {
 		return v
 	}
 	return nil
