@@ -149,6 +149,8 @@ func (cs *ChainService) BeforeStop() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
+
+	contract.DB.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {
