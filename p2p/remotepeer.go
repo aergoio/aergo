@@ -205,26 +205,25 @@ func (p *RemotePeer) runRead() {
 }
 
 func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
-	data := &types.P2PMessage{}
+	msg := &types.P2PMessage{}
 	decoder := mc_pb.Multicodec(nil).Decoder(p.rw)
-	err := decoder.Decode(data)
+	err := decoder.Decode(msg)
 	if err != nil {
 		return nil, err
 	}
-
-	return data, nil
+	return msg, nil
 }
 
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 	var err error
 	proto := SubProtocol(msg.Header.Subprotocol)
+	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Received message")
 	defer func() {
 		if r := recover(); r != nil {
 			p.logger.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
 			err = fmt.Errorf("internal error")
 		}
 	}()
-	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("protocol", proto.String()).Msg("Handling messge")
 
 	handler, found := p.handlers[proto]
 	if !found {

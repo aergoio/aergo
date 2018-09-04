@@ -17,7 +17,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	"github.com/multiformats/go-multicodec/protobuf"
-	uuid "github.com/satori/go.uuid"
 )
 
 const aergoP2PSub protocol.ID = "/aergop2p/0.2"
@@ -28,6 +27,9 @@ type PeerHandshaker struct {
 	actorServ ActorService
 	logger    *log.Logger
 	peerID    peer.ID
+
+	localStatus  *types.Status
+	remoteStatus *types.Status
 }
 
 type hsResult struct {
@@ -85,6 +87,7 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw *bufio.ReadWriter) (*types.Sta
 	if err != nil {
 		return nil, err
 	}
+	h.localStatus = statusMsg
 	container := newP2PMessage("", false, statusRequest, statusMsg)
 	if container == nil {
 		// h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
@@ -118,6 +121,7 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw *bufio.ReadWriter) (*types.Sta
 		return nil, err
 	}
 
+	h.remoteStatus = statusResp
 	// check status message
 	return statusResp, nil
 }
@@ -149,6 +153,7 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw *bufio.ReadWriter) (*types.Stat
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message")
 		return nil, err
 	}
+	h.remoteStatus = statusMsg
 
 	// send my status message as response
 	statusResp, err := createStatusMsg(h.pm, h.actorServ)
@@ -165,20 +170,19 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw *bufio.ReadWriter) (*types.Stat
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to send response status ")
 		return nil, err
 	}
+	h.localStatus = statusResp
 	return statusMsg, nil
 
 }
 
-func (h *PeerHandshaker) sendGoAway(rw *bufio.ReadWriter, msg string) {
-	serialized, err := marshalMessage(&types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg})
-	if err != nil {
-		h.logger.Warn().Err(err).Msg("failed to marshal")
-	}
-	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
-	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
-	container.Header.Subprotocol = goAway.Uint32()
-	SendProtoMessage(container, rw)
-	rw.Flush()
+// doPostHandshake is additional work after peer is added.
+func (h *PeerHandshaker) doInitialSync() {
+
+	// sync block infos
+	h.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: h.peerID, BlockNo: h.remoteStatus.BestHeight, BlockHash: h.remoteStatus.BestBlockHash})
+
+	// sync mempool tx infos
+	// TODO add tx handling
 }
 
 func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, error) {

@@ -22,6 +22,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -349,7 +350,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		h.sendGoAway(rw, "Failed to handshake")
+		pm.sendGoAway(rw, "Failed to handshake")
 		s.Close()
 		return false
 	}
@@ -358,17 +359,21 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok = pm.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
-			h.sendGoAway(rw, "Already Handshaked")
-			s.Close()
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is lower priority that remote.")
 			pm.mutex.Unlock()
+			pm.sendGoAway(rw, "Already Handshaked")
+			s.Close()
 			return true
 		} else {
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is higher priority that remote.")
 			// TODO: disconnect lower valued connection
 			pm.deletePeer(meta.ID)
 			newPeer.stop()
 		}
 	}
+
+	// update peer info to remote sent infor
+	meta = FromPeerAddress(remoteStatus.Sender)
 
 	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
 	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
@@ -382,12 +387,25 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	pm.mutex.Unlock()
 
 	// peer is ready
-	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
+	h.doInitialSync()
 
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
 
 	return true
+}
+
+func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
+	serialized, err := marshalMessage(&types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg})
+	if err != nil {
+		pm.logger.Warn().Err(err).Msg("failed to marshal")
+		return
+	}
+	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
+	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
+	container.Header.Subprotocol = goAway.Uint32()
+	SendProtoMessage(container, rw)
+	rw.Flush()
 }
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
@@ -509,7 +527,7 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	statusMsg, err := h.handshakeInboundPeer(rw)
 	if err != nil {
 		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
-		h.sendGoAway(rw, "failed to handshake")
+		pm.sendGoAway(rw, "failed to handshake")
 		s.Close()
 		return
 	}
@@ -518,14 +536,12 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	// try Add peer
 	if !pm.tryAddInboundPeer(meta, rw) {
 		// failed to add
-		h.sendGoAway(rw, "Concurrent handshake")
+		pm.sendGoAway(rw, "Concurrent handshake")
 		s.Close()
 		return
 	}
 
-	//
-	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
-
+	h.doInitialSync()
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
 }
