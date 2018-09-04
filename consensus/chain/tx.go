@@ -86,9 +86,11 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, *state.
 		return txIn, nil, nil
 	}
 
-	end := 0
+	last := 0
 	var blockState *state.BlockState
 	for i, tx := range txIn {
+		last = i
+
 		curState, err := txOp.Apply(tx)
 		if curState != nil {
 			blockState = curState
@@ -101,11 +103,12 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp) ([]*types.Tx, *state.
 		if e, ok := err.(ErrTimeout); ok {
 			err = e
 			break
+		} else if err == errBlockSizeLimit {
+			break
 		} else if err != nil {
 			return nil, nil, err
 		}
-		end = i
 	}
 
-	return txIn[0 : end+1], blockState, nil
+	return txIn[0 : last+1], blockState, nil
 }
