@@ -1,7 +1,7 @@
 %{
 
 /**
- *  @file   subst.l
+ *  @file   expand.l
  *  @copyright defined in aergo/LICENSE.txt
  */
 
@@ -18,19 +18,16 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        (result) = min((max), yyextra->len);                                   \
-        if ((result) > 0) {                                                    \
-            memcpy(buf, yyextra->src, (result));                               \
-            yyextra->src += (result);                                          \
-            yyextra->len -= (result);                                          \
-        }                                                                      \
+        (result) = fread(buf, 1, max, yyin);                                   \
+        if ((result) == 0 && !feof(yyin))                                      \
+            FATAL(ERROR_FILE_READ_FAILED, strerror(errno));                    \
     } while (0)
 
-#define YY_EXTRA_TYPE           subst_t *
+#define YY_EXTRA_TYPE           yyparam_t *
 
-#define yy_update_line()        yyextra->line++
+#define yy_update_line()        yyextra->lloc.last.line++
 
-#define yy_append()             strbuf_append(yyextra->res, yytext, yyleng)
+#define yy_append()             strbuf_append(&yyextra->buf, yytext, yyleng)
 
 %}
 
@@ -40,6 +37,7 @@
 %option reentrant
 %option noyylineno
 %option noyywrap
+%option prefix="prep_yy"
 
 %x  C_COMMENT
 %x  IMPORT
@@ -67,9 +65,9 @@ newline         (\r|\n|\r\n)
 <IMPORT>{whitespace}+
 <IMPORT>{newline}           { BEGIN(INITIAL); yy_update_line(); }
 <IMPORT>"\"[^\"\n\r]+\"" {
-    append_directive(yytext, 1, yyextra->res);
-    read_file(yytext, yyextra->res);
-    append_directive(yyextra->path, yyextra->line + 1, yyextra->res);
+    mark_fpos(yytext, 1, &yyextra->buf);
+    read_file(yytext, &yyextra->buf);
+    mark_fpos(yyextra->path, yyextra->lloc.last.line + 1, &yyextra->buf);
 }
 
 .                           yy_append(); 
@@ -78,4 +76,4 @@ newline         (\r|\n|\r\n)
 
 %%
 
-/* end of subst.l */
+/* end of expand.l */

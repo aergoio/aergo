@@ -5,21 +5,42 @@
 
 TARGET = parser_test
 
-CC = gcc
-CFLAGS += -g
-LDFLAGS = -L../build
-LIBS = -laergoscc -lm
-INCLUDES = -I. -I..
+OBJ_DIR = ../build
+DEP_DIR = ../.deps
 
-SOURCES = parser_test.c
+CC = gcc
+CPP = cpp
+CFLAGS += -g -Wall
+LDFLAGS += -L$(OBJ_DIR)
+LIBS = $(OBJ_DIR)/libaergoscc.a
+LINKFLAGS = $(patsubst $(OBJ_DIR)/lib%.a,-l%,$(LIBS)) -lm
+INCLUDES = -I..
+
+SRCS = parser_test.c
+DEPS = $(DEP_DIR)/$(SRCS:%.c=%.d)
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(LIBS)
+$(TARGET): $(SRCS) $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $(SRCS) $(LDFLAGS) $(LINKFLAGS)
+
+$(LIBS):
+	@$(MAKE) -C ..
 
 test: $(TARGET)
 	@./$(TARGET)
 
+debug: $(TARGET)
+	@./$(TARGET) --debug
+
 clean:
 	$(RM) *.o $(TARGET)
+
+.PHONY: clean test debug
+
+-include $(DEPS)
+
+$(DEP_DIR)/%.d: %.c
+	@$(CPP) $(CFLAGS) $(INCLUDES) $< -MM -MT $(TARGET) >$@
+
+.PRECIOUS: $(DEPS)

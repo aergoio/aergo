@@ -14,10 +14,13 @@ error(ERROR_INCOMPATIBLE_VERSION,       "incompatible version with %d.%d")
 error(ERROR_DIR_OPEN_FAILED,            "%s: %s")
 error(ERROR_FILE_OPEN_FAILED,           "%s: %s")
 error(ERROR_FILE_READ_FAILED,           "fread failed: %s")
+error(ERROR_FILE_WRITE_FAILED,          "fwrite failed: %s")
+error(ERROR_FILE_IO_FAILED,             "file I/O error: %s")
 
-error(ERROR_SCAN_UNTERMINATED_COMMENT,  "%s:%d:%d, unterminated comment\n%s")
-error(ERROR_SCAN_UNTERMINATED_STRING,   "%s:%d:%d, unterminated string\n%s")
-error(ERROR_SCAN_UNKNOWN_CHAR,          "%s:%d:%d, unknown character\n%s")
-error(ERROR_SCAN_STR_TOO_LONG,          "%s:%d:%d, string literal too long\n%s")
+error(ERROR_SCAN_UNTERMINATED_COMMENT,  "%s:%d:%d: unterminated comment\n%s")
+error(ERROR_SCAN_UNTERMINATED_STRING,   "%s:%d:%d: unterminated string\n%s")
+error(ERROR_SCAN_UNKNOWN_CHAR,          "%s:%d:%d: unknown character\n%s")
+error(ERROR_SCAN_STR_TOO_LONG,          "%s:%d:%d: string literal too long\n%s")
+error(ERROR_PARSE_FAILED,               "%s:%d:%d: %s\n%s")
 
 /* vim:set filetype=c: */

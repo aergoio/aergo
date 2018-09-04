@@ -19,17 +19,20 @@ YACC = bison
 MKDIR_P = mkdir -p
 
 OBJ_DIR = build
-SUBDIRS = . tests
+DEP_DIR = .deps
 
-SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c subst.yy.c \
+SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c expand.yy.c \
 	error.c strbuf.c util.c
 
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
-DEPS = $(OBJS:%.o=%.d)
+DEPS = $(SRCS:%.c=$(DEP_DIR)/%.d)
 
-RECURSIVE_TARGETS = all-recursive clean-recursive
+SUBDIRS = . tests
 
-all: all-recursive
+all: $(OBJ_DIR) $(DEP_DIR) all-recursive
+
+$(OBJ_DIR) $(DEP_DIR):
+	@$(MKDIR_P) $@
 
 all-recursive clean-recursive:
 	@target=`echo "$@" | sed s/-recursive//`; \
@@ -46,14 +49,14 @@ all-local: $(LIBRARY) $(TARGET)
 
 .SUFFIXES: .c .o
 
-$(TARGET): $(OBJ_DIR)/aergoscc.o
+$(TARGET): $(OBJ_DIR)/aergoscc.o $(LIBRARY)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 $(LIBRARY): $(OBJS)
 	$(AR) rcs $@ $^
 	$(RANLIB) $@
 
-subst.yy.c: subst.l
+expand.yy.c: expand.l
 	$(LEX) -o $@ $^
 
 scanner.yy.c: scanner.l grammar.tab.h
@@ -70,13 +73,12 @@ clean: clean-recursive
 clean-local:
 	$(RM) -r build *.yy.* *.tab.* *.output $(TARGET)
 
-test:
+test: $(LIBRARY)
 	@$(MAKE) -C tests $(MAKECMDGOALS)
 
 -include $(DEPS)
 
-$(OBJ_DIR)/%.d: %.c
-	@if [ ! -d $(OBJ_DIR) ]; then $(MKDIR_P) $(OBJ_DIR); fi
+$(DEP_DIR)/%.d: %.c
 	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
 
 .PHONY: all-recursive clean-recursive clean-local clean

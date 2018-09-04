@@ -16,29 +16,32 @@
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, max)                                             \
     do {                                                                       \
-        (result) = min((max), yyextra->len - yyextra->pos);                    \
-        if ((result) > 0) {                                                    \
-            memcpy(buf, yyextra->src + yyextra->pos, (result));                \
-            yyextra->pos += (result);                                          \
-        }                                                                      \
+        (result) = fread(buf, 1, max, yyin);                                   \
+        if ((result) == 0 && !feof(yyin))                                      \
+            FATAL(ERROR_FILE_READ_FAILED, strerror(errno));                    \
     } while (0)
 
-#define YY_EXTRA_TYPE       scan_t *
+#define YY_EXTRA_TYPE           yyparam_t *
 
-#define yy_update_line()                                                       \
+#define yy_update_last_line()                                                  \
     do {                                                                       \
-        yyextra->lloc.line++;                                                  \
-        yyextra->lloc.offset += yyextra->lloc.col;                             \
-        yyextra->lloc.col = 1;                                                 \
+        lloc->last.line++;                                                     \
+        lloc->last.offset += lloc->last.col;                                   \
+        lloc->last.col = 1;                                                    \
     } while (0)
 
-#define yy_update_col()          (yyextra->lloc.col += yyleng)
+#define yy_update_last_col()                                                   \
+    do {                                                                       \
+        lloc->last.col += yyleng;                                              \
+    } while (0)
+
+#define yy_update_first()       lloc->first = lloc->last
 
 #define yy_strcat()                                                            \
     do {                                                                       \
         if (yyextra->offset + yyleng >= STR_MAX_LEN) {                         \
             yy_error(ERROR_SCAN_STR_TOO_LONG);                                 \
-            yy_update_col();                                                   \
+            yy_update_last_col();                                              \
             yy_recover();                                                      \
         }                                                                      \
         strcat(yyextra->buf, yytext);                                          \
@@ -47,11 +50,9 @@
 
 #define yy_error(ec)                                                           \
     do {                                                                       \
-        char buf[ERROR_MAX_DESC_LEN] = { '\0' };                               \
-        if (error_count() > 10)                                                \
-            yyterminate();                                                     \
-        yyget_trace(yyextra, buf);                                             \
-        ERROR(ec, yyextra->file, yyextra->lloc.line, yyextra->lloc.col, buf);  \
+        yy_update_first();                                                     \
+        ERROR(ec, yyextra->path, lloc->first.line, lloc->first.col,            \
+              yyparam_trace(yyextra));                                         \
     } while (0)
 
 #define yy_recover()                                                           \
@@ -64,17 +65,16 @@
                 unput(c);                                                      \
                 break;                                                         \
             }                                                                  \
-            yy_update_col();                                                   \
+            yy_update_last_col();                                              \
         }                                                                      \
     } while (0)
 
 #define yy_return(tok)                                                         \
     do {                                                                       \
-        yy_update_col();                                                       \
+        yy_update_first();                                                     \
+        yy_update_last_col();                                                  \
         return (tok);                                                          \
     } while (0)
-
-static void yyget_trace(scan_t *scan, char *buf);
 
 %}
 
@@ -87,6 +87,7 @@ static void yyget_trace(scan_t *scan, char *buf);
 
 %x  C_COMMENT
 %x  D_QUOTE
+%x  F_DIR
 
 whitespace                  ([ ]|\t|(\xE3\x80\x80))
 newline                     (\r|\n|\r\n)
@@ -102,16 +103,16 @@ id                          {L}({L}|{D})*
 
 %%
 
-{whitespace}+               yy_update_col();
-{newline}                   yy_update_line();
+{whitespace}+               yy_update_last_col();
+{newline}                   yy_update_last_line();
 
-"//"[^\r\n]*                yy_update_col();
+"//"[^\r\n]*                yy_update_last_col();
 
-"/*"                        { BEGIN(C_COMMENT); yy_update_col(); }
-<C_COMMENT>"*/"             { BEGIN(INITIAL); yy_update_col(); }
-<C_COMMENT>[^*\r\n]+        yy_update_col();
-<C_COMMENT>"*"              yy_update_col();
-<C_COMMENT>{newline}        yy_update_line();
+"/*"                        { BEGIN(C_COMMENT); yy_update_last_col(); }
+<C_COMMENT>"*/"             { BEGIN(INITIAL); yy_update_last_col(); }
+<C_COMMENT>[^*\r\n]+        yy_update_last_col();
+<C_COMMENT>"*"              yy_update_last_col();
+<C_COMMENT>{newline}        yy_update_last_line();
 <C_COMMENT><<EOF>> {
     yy_error(ERROR_SCAN_UNTERMINATED_COMMENT);
     yyterminate();
@@ -121,25 +122,25 @@ id                          {L}({L}|{D})*
     /*
 "\"" {
     BEGIN(D_QUOTE);
-    yy_update_col();
+    yy_update_last_col();
     yyextra->buf[0] = '\0';
     yyextra->offset = 0;
 }
-<D_QUOTE>[^"\\\r\n]+        { yy_update_col(); yy_strcat(); }
+<D_QUOTE>[^"\\\r\n]+        { yy_update_last_col(); yy_strcat(); }
 <D_QUOTE>"\"" {
     BEGIN(INITIAL);
-    yy_update_col();
+    yy_update_last_col();
     fprintf(stderr, "result: %s\n", yyextra->buf);
     //return L_STR;
 }
 <D_QUOTE>"\\"{whitespace}*{newline} {
-    yy_update_col();
-    yy_update_line();
+    yy_update_last_col();
+    yy_update_last_line();
 }
-<D_QUOTE>"\\"               { yy_update_col(); yy_strcat(); }
+<D_QUOTE>"\\"               { yy_update_last_col(); yy_strcat(); }
 <D_QUOTE>{newline} {
     yy_error(ERROR_SCAN_UNTERMINATED_STRING);
-    yy_update_line();
+    yy_update_last_line();
 }
 <D_QUOTE><<EOF>> {
     yy_error(ERROR_SCAN_UNTERMINATED_STRING);
@@ -231,7 +232,6 @@ id                          {L}({L}|{D})*
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
 "uint8"                     yy_return(K_UINT8);
-"version"                   yy_return(K_VERSION);
 "while"                     yy_return(K_WHILE);
 
     /*
@@ -242,6 +242,12 @@ id                          {L}({L}|{D})*
 "select"                    yy_return(K_SELECT);
     */
 
+^"#file"                    BEGIN(F_DIR);
+<F_DIR>{whitespace}+
+<F_DIR>\"[^\"\n\r]+\"       yyextra->path = yytext;
+<F_DIR>D+                   yyextra->lloc.last.line = atoi(yytext);
+<F_DIR>{newline}            BEGIN(INITIAL);
+
 {id} {
     lval->str = malloc(yyleng + 1);
     strcpy(lval->str, yytext);
@@ -250,32 +256,11 @@ id                          {L}({L}|{D})*
 
 . {
     yy_error(ERROR_SCAN_UNKNOWN_CHAR);
-    yy_update_col();
     yy_recover();
 }
 
 <<EOF>>                     yyterminate();
 
 %%
-
-static void 
-yyget_trace(scan_t *scan, char *buf)
-{
-    int i, j;
-    char *src = scan->src;
-
-    for (i = scan->lloc.offset, j = 0; i < scan->len; i++) {
-        buf[j++] = src[i];
-
-        if (src[i] == '\n' || src[i] == '\r')
-            break;
-    }
-
-    for (i = 0; i < scan->lloc.col - 1; i++) {
-        buf[j++] = ' ';
-    }
-
-    strcpy(buf + j, ANSI_GREEN"^"ANSI_NONE);
-}
 
 /* end of scanner.l */

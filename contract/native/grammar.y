@@ -7,7 +7,8 @@
 
 #include "common.h"
 
-#include "version.h"
+#include "util.h"
+#include "error.h"
 #include "parser.h"
 
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
@@ -15,21 +16,24 @@
 
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 
-static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
+static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg);
 
 %}
 
 %define api.pure full
 %define parse.error verbose
 %locations
-%parse-param { void *yyscanner }
-%lex-param { yyscan_t yyscanner }
+%parse-param { yyparam_t *param }
+%param { void *yyscanner }
 %debug
 %verbose
 %initial-action {
-    yylloc.line = 1;
-    yylloc.col = 1;
-    yylloc.offset = 0;
+    yylloc.first.line = 1;
+    yylloc.first.col = 1;
+    yylloc.first.offset = 0;
+    yylloc.last.line = 1;
+    yylloc.last.col = 1;
+    yylloc.last.offset = 0;
 }
 
 %union {
@@ -89,7 +93,6 @@ static void yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg);
         K_UINT          K_UINT16        K_UINT32        K_UINT64
         K_UINT8
         /* V */
-        K_VERSION
         /* W */
         K_WHILE
         /* X */
@@ -121,16 +124,6 @@ smart_contract:
 |   smart_contract contract_decl
 ;
 
-/*
-version:
-    K_PRAGMA K_VERSION L_INT '.' L_INT
-    {
-        if (!version_check(atoi($3), atoi($5)))
-            FATAL(ERROR_INCOMPATIBLE_VERSION, MAJOR_VER, MINOR_VER);
-    }
-;
-*/
-
 contract_decl:
     K_CONTRACT id '{' contract_body '}'
 ;
@@ -152,8 +145,7 @@ decl_list:
 ;
 
 prim_decl:
-    prim_spec var_decl ';'
-|   prim_spec var_decl '=' initializer ';'
+    prim_spec var_decl_list ';'
 ;
 
 prim_spec:
@@ -167,12 +159,14 @@ type_spec:
 |   K_BYTE
 |   K_FLOAT
 |   K_DOUBLE
+|   K_INT
 |   K_INT8
 |   K_INT16
 |   K_INT32
 |   K_INT64
 |   K_MAP
 |   K_STRING
+|   K_UINT
 |   K_UINT8
 |   K_UINT16
 |   K_UINT32
@@ -180,9 +174,20 @@ type_spec:
 |   id
 ;
 
+var_decl_list:
+    var_decl
+|   var_decl_list ',' var_decl
+;
+
 var_decl:
+    declarator
+|   declarator '=' initializer
+;
+
+declarator:
     id
-|   var_decl '[' expr_add ']'
+|   declarator '[' expr_add ']'
+|   declarator '[' ']'
 ;
 
 initializer:
@@ -442,14 +447,15 @@ expr_const:
 
 id:
     ID              { $$ = $1; }
-|   K_VERSION       { $$ = strdup("VERSION"); }
 ;
 
 %%
 
 static void
-yyerror(YYLTYPE *lloc, yacc_t *yacc, const char *msg)
+yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
 {
+    ERROR(ERROR_PARSE_FAILED, param->path, lloc->first.line, lloc->first.col, 
+          msg, yyparam_trace(param));
 }
 
 /* end of grammar.y */

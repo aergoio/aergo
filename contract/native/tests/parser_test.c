@@ -7,8 +7,11 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "strbuf.h"
+#include "util.h"
+#include "prep.h"
 #include "parser.h"
 
 #define PREFIX              "tc_parser_"
@@ -55,54 +58,59 @@ get_errcode(char *str)
 }
 
 static void
-run_test(char *title, ec_t ex, char *src, int len)
+run_test(opt_t opt, char *file, char *title, ec_t ex, strbuf_t *sb)
 {
     ec_t ac;
+    char path[PATH_MAX_LEN];
 
-    printf("    * "ANSI_WHITE"%s"ANSI_NONE"... ", title);
+    printf("    * %s... ", title);
 
-    ac = parse(src, len, OPT_TEST);
+    sprintf(path, "%s.tc", file);
+    write_file(path, sb);
+
+    ac = parse(path, opt);
     if (ex == ac) {
-        printf(ANSI_GREEN"ok\n"ANSI_NONE);
+        printf(ANSI_GREEN"ok"ANSI_NONE"\n");
     }
     else {
-        printf(ANSI_RED"fail\n"ANSI_NONE);
+        printf(ANSI_RED"fail"ANSI_NONE"\n");
 
         if (ex == NO_ERROR)
             error_dump();
 
-        printf(ANSI_RED"fatal:"ANSI_NONE" expected <%s> but, actually <%s>\n",
+        printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
 
+        remove(path);
         exit(EXIT_FAILURE);
     }
 
     error_clear();
+    remove(path);
 }
 
 static void
-read_test(char *file)
+read_test(opt_t opt, char *file)
 {
     int line = 1;
     FILE *fp;
     char title[128];
     ec_t ec = NO_ERROR;
     strbuf_t sb;
-    char buf[8192];
+    char buf[1024];
 
     strbuf_init(&sb);
 
-    fp = fopen(file, "r");
-    if (fp == NULL)
-        FATAL(ERROR_FILE_OPEN_FAILED, file, strerror(errno));
+    fp = open_file(file, "r");
 
     printf("  Checking %s...\n", file);
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
             if (!strbuf_empty(&sb)) {
-                run_test(title, ec, strbuf_text(&sb), strbuf_length(&sb));
+                run_test(opt, file, title, ec, &sb);
                 strbuf_reset(&sb);
+                mark_fpos(file, line, &sb);
                 title[0] = '\0';
                 ec = NO_ERROR;
             }
@@ -115,20 +123,25 @@ read_test(char *file)
         else {
             strbuf_append(&sb, buf, strlen(buf));
         }
+
         line++;
     }
 
     if (!strbuf_empty(&sb))
-        run_test(title, ec, strbuf_text(&sb), strbuf_length(&sb));
+        run_test(opt, file, title, ec, &sb);
 }
 
 int
 main(int argc, char **argv)
 {
     char delim[81];
+    opt_t opt = OPT_TEST;
     DIR *dir;
     struct dirent *entry;
     struct stat st;
+
+    if (argc >= 2 && strcmp(argv[1], "--debug") == 0)
+        opt_set(opt, OPT_DEBUG);
 
     dir = opendir(".");
     if (dir == NULL)
@@ -148,7 +161,7 @@ main(int argc, char **argv)
             strncmp(entry->d_name, PREFIX, strlen(PREFIX)) != 0)
             continue;
 
-        read_test(entry->d_name);
+        read_test(opt, entry->d_name);
     }
 
     closedir(dir);

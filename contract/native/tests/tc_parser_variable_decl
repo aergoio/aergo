@@ -5,6 +5,7 @@ contract Test {
     int16 x;
     int32 x;
     int64 x;
+    uint x;
     uint8 x;
     uint16 x;
     uint32 x;
@@ -14,10 +15,26 @@ contract Test {
     bool x;
     byte x;
     string x;
+    int x, y;
 }
 
 @Test primitive_arrays
 contract Test {
     int x[10];
     int[10] x;
+    int x[10], y[10];
+}
+
+@Test missing_semicolon
+@Error ERROR_PARSE_FAILED
+contract Test {
+    int x
+}
+
+@Test struct_types
+contract Test {
+    struct x {
+        int a;
+        int b;
+    }
 }

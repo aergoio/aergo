@@ -10,36 +10,28 @@
 
 #include "compile.h"
 
-typedef struct lloc_s {
-    int line;
-    int col;
-    int offset;
-} lloc_t;
-
-typedef struct scan_s {
-    char *path;
-    char *file;
-
-    char *src;
-    int len;
-    int pos;
-
-    lloc_t lloc;     // source position
-
-    /* temporary buffer for literal */
-    int offset;
-    char *buf;
-} scan_t;
-
-typedef struct yacc_s {
-    char *src;
-    void *scanner;
-} yacc_t;
-
-#define YYLTYPE             lloc_t
+#define YYLTYPE             yylloc_t
 
 #include "grammar.tab.h"
 
-int parse(char *src, int len, opt_t opt);
+int parse(char *path, opt_t opt);
+
+static inline void
+yyget_trace(char *src, int len, yylloc_t *lloc, char *buf)
+{
+    int i, j;
+
+    for (i = lloc->first.offset, j = 0; i < len; i++) {
+        buf[j++] = src[i];
+        if (src[i] == '\n' || src[i] == '\r')
+            break;
+    }
+
+    for (i = 0; i < lloc->first.col - 1; i++) {
+        buf[j++] = ' ';
+    }
+
+    strcpy(buf + j, ANSI_GREEN"^"ANSI_NONE);
+}
 
 #endif /*_PARSER_H */
