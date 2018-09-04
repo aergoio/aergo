@@ -176,10 +176,13 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(bpi.bestBlock.BlockNo()+1, bpi.bestBlock.BlockID()),
-	)
+	/*
+		txOp := chain.NewCompTxOp(
+			bf.txOp,
+			newTxExec(bpi.bestBlock.BlockNo()+1, bpi.bestBlock.BlockID()),
+		)
+	*/
+	txOp := bf.txOp
 
 	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, bpi.slot.UnixNano())
 	if err != nil {
