@@ -37,12 +37,12 @@ func init() {
 
 func getContractState(t *testing.T) *state.ContractState {
 	aid, _ := base58.Decode(accountId)
-	state, err := sdb.GetAccountStateClone(types.ToAccountID(aid))
+	accountState, err := sdb.GetAccountStateClone(types.ToAccountID(aid))
 	if err != nil {
 		t.Errorf("getAccount error : %s\n", err.Error())
 	}
 
-	stateChange := types.Clone(*state).(types.State)
+	stateChange := types.Clone(*accountState).(types.State)
 	contractState, err := sdb.OpenContractState(&stateChange)
 	if err != nil {
 		t.Errorf("contract open error : %s\n", err.Error())
@@ -50,7 +50,7 @@ func getContractState(t *testing.T) *state.ContractState {
 	return contractState
 }
 
-func contractCall(t *testing.T, contractState *state.ContractState, code string, abi *types.ABI,
+func contractCall(t *testing.T, contractState *state.ContractState, code string, ci *types.CallInfo,
 	bcCtx *LBlockchainCtx, txId string) {
 	rcode, _ := base58.Decode(code)
 
@@ -59,7 +59,7 @@ func contractCall(t *testing.T, contractState *state.ContractState, code string,
 		t.Errorf("contract SetCode error : %s\n", err.Error())
 	}
 
-	payload, _ := json.Marshal(*abi)
+	payload, _ := json.Marshal(*ci)
 
 	err = Call(contractState, payload, []byte(accountId), []byte(txId), bcCtx)
 	if err != nil {
@@ -68,14 +68,14 @@ func contractCall(t *testing.T, contractState *state.ContractState, code string,
 }
 
 func TestContractHello(t *testing.T) {
-	var abi types.ABI
+	var ci types.CallInfo
 
 	txId := "c2b36745"
-	abi.Name = "hello"
-	json.Unmarshal([]byte("[\"World\"]"), &abi.Args)
+	ci.Name = "hello"
+	json.Unmarshal([]byte("[\"World\"]"), &ci.Args)
 
 	contractStatus := getContractState(t)
-	contractCall(t, contractStatus, helloCode, &abi, nil, txId)
+	contractCall(t, contractStatus, helloCode, &ci, nil, txId)
 	receipt := types.NewReceiptFromBytes(DB.Get([]byte(txId)))
 
 	if receipt.GetRet() != "[\"Hello World\"]" {
@@ -84,10 +84,10 @@ func TestContractHello(t *testing.T) {
 }
 
 func TestContractSystem(t *testing.T) {
-	var abi types.ABI
+	var ci types.CallInfo
 	txId := "c2b36750"
 
-	abi.Name = "testState"
+	ci.Name = "testState"
 	contractId, _ := base58.Decode(accountId)
 	txhash, _ := hex.DecodeString("c2b367")
 	sender, _ := base58.Decode("sender2")
@@ -95,7 +95,7 @@ func TestContractSystem(t *testing.T) {
 	bcCtx := NewContext(contractStatus, sender, txhash, 100, 1234,
 		"node", true, contractId)
 
-	contractCall(t, contractStatus, systemCode, &abi, bcCtx, txId)
+	contractCall(t, contractStatus, systemCode, &ci, bcCtx, txId)
 	receipt := types.NewReceiptFromBytes(DB.Get([]byte(txId)))
 
 	if receipt.GetRet() != "[\"sender2\",\"c2b367\",\"31KcyXb99xYD5tQ9Jpx4BMnhVh9a\",1234,100,999]" {
