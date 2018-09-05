@@ -30,6 +30,9 @@ type P2P struct {
 var _ ActorService = (*P2P)(nil)
 
 const defaultTTL = time.Second * 4
+const defaultHandshakeTTL = time.Second * 20
+
+const txhashLen = 32
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
@@ -64,7 +67,7 @@ func (p2ps *P2P) Statics() *map[string]interface{} {
 }
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
-	reconMan := NewReconnectManager(p2ps.Logger)
+	reconMan := newReconnectManager(p2ps.Logger)
 	peerMan := NewPeerManager(p2ps, cfg, reconMan, p2ps.Logger)
 
 	// connect managers each other

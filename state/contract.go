@@ -39,18 +39,11 @@ type ContractState struct {
 	dbstore *db.DB
 }
 
-func (st *ContractState) loadStorage() error {
-	hasher := types.GetTrieHasher()
-	storage := trie.NewTrie(32, hasher, *st.dbstore)
-	root := st.State.StorageRoot
-	if root != nil {
-		err := storage.LoadCache(root)
-		if err != nil {
-			return err
-		}
+func (st *ContractState) loadStorage() {
+	st.storage = trie.NewTrie(32, types.TrieHasher, *st.dbstore)
+	if st.State.StorageRoot != nil {
+		st.storage.Root = st.State.StorageRoot
 	}
-	st.storage = storage
-	return nil
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
@@ -69,7 +62,7 @@ func (st *ContractState) GetBalance() uint64 {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := sha256.Sum256(code)
-	err := saveData(st.dbstore, codeHash[:], code)
+	err := saveData(st.dbstore, codeHash[:], &code)
 	if err != nil {
 		return err
 	}
@@ -86,7 +79,7 @@ func (st *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(st.dbstore, st.State.CodeHash, st.code)
+	err := loadData(st.dbstore, st.State.CodeHash, &st.code)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +88,9 @@ func (st *ContractState) GetCode() ([]byte, error) {
 
 func (st *ContractState) SetData(key, value []byte) error {
 	if st.storage == nil {
-		err := st.loadStorage()
-		if err != nil {
-			return err
-		}
+		st.loadStorage()
 	}
-	hkey := sha256.Sum256(key)
+	hkey := types.TrieHasher(key)
 	_, err := st.storage.Update(trie.DataArray{hkey[:]}, trie.DataArray{value})
 	if err != nil {
 		return err
@@ -110,12 +100,9 @@ func (st *ContractState) SetData(key, value []byte) error {
 }
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	if st.storage == nil {
-		err := st.loadStorage()
-		if err != nil {
-			return nil, err
-		}
+		st.loadStorage()
 	}
-	hkey := sha256.Sum256(key)
+	hkey := types.TrieHasher(key)
 	value, err := st.storage.Get(hkey[:])
 	if err != nil {
 		return nil, err

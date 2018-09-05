@@ -261,7 +261,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	cntRbTxs := len(reorg.rbTxs)
 	if cntRbTxs > 0 {
-		txs := make([]*types.Tx, cntRbTxs)
+		txs := make([]*types.Tx, 0, cntRbTxs)
 		logger.Debug().Int("tx count", cntRbTxs).Msg("tx add to mempool")
 
 		for txID, tx := range reorg.rbTxs {
@@ -287,11 +287,11 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
 	cdb := reorg.cs.cdb
 
-	if err := cs.processTxsAndState(reorg.dbtx, block); err != nil {
+	if err := cs.executeBlock(nil, block); err != nil {
 		return err
 	}
 
-	if err := cdb.updateLatestBlock(reorg.dbtx, block); err != nil {
+	if err := cdb.addBlock(reorg.dbtx, block, true, false); err != nil {
 		return err
 	}
 

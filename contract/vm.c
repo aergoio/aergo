@@ -64,14 +64,14 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
 	const char *errMsg = NULL;
-	int nr = lua_gettop(L);
+	int nr = lua_gettop(L) - argc - 1;
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
 	}
-	*nresult = lua_gettop(L) - nr + 1;
+	*nresult = lua_gettop(L) - nr;
 	return NULL;
 }
 

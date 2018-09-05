@@ -17,6 +17,8 @@ const (
 	// DefaultBlockIntervalSec  is the default block generation interval in seconds.
 	DefaultBlockIntervalSec = int64(1) // block production interval in sec
 
+	// DefaultDposBpNumber is the default number of block producers.
+	DefaultDposBpNumber = 23
 )
 
 var (
@@ -64,7 +66,7 @@ type Consensus interface {
 type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	StatusUpdate()
+	StatusUpdate(block *types.Block)
 }
 
 // BlockFactory is an interface for a block factory implementation.

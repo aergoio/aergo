@@ -152,7 +152,7 @@ char *lua_util_get_json_from_ret (lua_State *L, int nresult, sbuff_t *sbuf)
 	lua_pop(L, nresult);
 	if (sbuf->idx != 1)
 		--sbuf->idx;
-	copy_to_buffer ("]", 1, sbuf);
+	copy_to_buffer ("]", 2, sbuf);
 
 	return sbuf->buf;
 }

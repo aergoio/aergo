@@ -22,19 +22,19 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-const (
-	// blockProducers is the number of block producers
-	blockProducers = 23
-)
-
 var (
 	logger = log.NewLogger("dpos")
+
+	// blockProducers is the number of block producers
+	blockProducers   uint16
+	bpConsensusCount uint16
 
 	lastJob *slot.Slot
 )
 
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
+	*Status
 	ID peer.ID
 	*component.ComponentHub
 	bpc  *bp.Cluster
@@ -62,6 +62,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
+		Status:       NewStatus(bpConsensusCount),
 		ID:           id,
 		ComponentHub: hub,
 		bpc:          bpc,
@@ -73,6 +74,9 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 // Init initilizes the DPoS parameters.
 func Init(cfg *config.ConsensusConfig) {
 	consensus.InitBlockInterval(cfg.BlockInterval)
+
+	blockProducers = cfg.DposBpNumber
+	bpConsensusCount = blockProducers*2/3 + 1
 	slot.Init(cfg.BlockInterval, blockProducers)
 }
 
@@ -118,7 +122,7 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	if id == dpos.ID && block.PrevID() != bestBlock.ID() {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf(
-				"reorganization occurred after block production: parent: %v (curr: %v), best block: %v",
+				"best block changed after block production: parent: %v (curr: %v), best block: %v",
 				block.PrevID(), block.ID(), bestBlock.ID()),
 		}
 	}
@@ -140,10 +144,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	}
 
 	return nil
-}
-
-// StatusUpdate updates the last irreversible block (LIB).
-func (dpos *DPoS) StatusUpdate() {
 }
 
 func (dpos *DPoS) bpIdx() uint16 {

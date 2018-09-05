@@ -48,9 +48,15 @@ func (th *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
 
 	// find transactions from chainservice
 	idx := 0
-	hashesMap := make(map[string][]byte, len(data.Hashes))
+	var keyArray [txhashLen]byte
+	hashesMap := make(map[[txhashLen]byte][]byte, len(data.Hashes))
 	for _, hash := range data.Hashes {
-		hashesMap[enc.ToString(hash)] = hash
+		if len(hash) != txhashLen {
+			// TODO ignore just single hash or return invalid request
+			continue
+		}
+		copy(keyArray[:], hash)
+		hashesMap[keyArray] = hash
 	}
 	hashes := make([][]byte, 0, len(data.Hashes))
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
@@ -58,7 +64,8 @@ func (th *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
 	txs, _ := extractTXsFromRequest(th.actor.CallRequest(message.MemPoolSvc,
 		&message.MemPoolGet{}))
 	for _, tx := range txs {
-		hash, found := hashesMap[enc.ToString(tx.Hash)]
+		copy(keyArray[:], tx.Hash)
+		hash, found := hashesMap[keyArray]
 		if !found {
 			continue
 		}

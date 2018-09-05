@@ -98,6 +98,7 @@ func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
 		EnableBp:      true,
 		BlockInterval: consensus.DefaultBlockIntervalSec,
+		DposBpNumber:  consensus.DefaultDposBpNumber,
 		BpIds:         []string{},
 	}
 }

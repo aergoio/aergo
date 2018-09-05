@@ -6,13 +6,13 @@
 package dpos
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/libp2p/go-libp2p-crypto"
@@ -23,16 +23,18 @@ const (
 	slotQueueMax = 100
 )
 
-type errTimeout struct {
-	kind    string
-	timeout int64
+type txExec struct {
+	blockState *state.BlockState
+	block      *types.Block
 }
 
-func (e errTimeout) Error() string {
-	if e.timeout != 0 {
-		return fmt.Sprintf("%s timeout (%v)", e.kind, e.timeout)
-	}
-	return e.kind + " timeout"
+func newTxExec(blockNo types.BlockNo, prevHash types.BlockID) chain.TxOp {
+	// Block hash not determined yet
+	return &txExec{blockState: state.NewBlockState(blockNo, types.BlockID{}, prevHash)}
+}
+
+func (te *txExec) Apply(tx *types.Tx) (*state.BlockState, error) {
+	return te.blockState, nil
 }
 
 // BlockFactory is the main data structure for DPoS block factory.
@@ -62,12 +64,10 @@ func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.Pri
 	}
 
 	bf.txOp = chain.NewCompTxOp(
-		// block size limit check
-		chain.NewBlockLimitOp(bf.maxBlockBodySize),
 		// timeout check
-		func(txIn *types.Tx) error {
-			return bf.checkBpTimeout()
-		},
+		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
+			return nil, bf.checkBpTimeout()
+		}),
 	)
 
 	return bf
@@ -99,7 +99,7 @@ func (bf *BlockFactory) controller() {
 
 		timeLeft := bpi.slot.RemainingTimeMS()
 		if timeLeft <= 0 {
-			return errTimeout{kind: "slot", timeout: timeLeft}
+			return chain.ErrTimeout{Kind: "slot", Timeout: timeLeft}
 		}
 
 		select {
@@ -125,12 +125,8 @@ func (bf *BlockFactory) controller() {
 		case info := <-bf.jobQueue:
 			bpi := info.(*bpInfo)
 			logger.Debug().Msgf("received bpInfo: %v %v",
-				log.DoLazyEval(func() string {
-					return bpi.bestBlock.ID()
-				}),
-				log.DoLazyEval(func() string {
-					return spew.Sdump(bpi.slot)
-				}))
+				log.DoLazyEval(func() string { return bpi.bestBlock.ID() }),
+				log.DoLazyEval(func() string { return spew.Sdump(bpi.slot) }))
 
 			err := beginBlock(bpi)
 			if err == chain.ErrQuit {
@@ -151,10 +147,12 @@ func (bf *BlockFactory) controller() {
 func (bf *BlockFactory) worker() {
 	defer shutdownMsg("block factory worker")
 
+	lpbNo := types.BlockNo(0)
+
 	for {
 		select {
 		case bpi := <-bf.workerQueue:
-			block, err := bf.generateBlock(bpi)
+			block, blockState, err := bf.generateBlock(bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
 			} else if err != nil {
@@ -162,7 +160,12 @@ func (bf *BlockFactory) worker() {
 				continue
 			}
 
-			chain.ConnectBlock(bf, block)
+			err = chain.ConnectBlock(bf, block, blockState)
+			if err == nil {
+				lpbNo = block.BlockNo()
+			} else {
+				logger.Error().Msg(err.Error())
+			}
 
 		case <-bf.quit:
 			return
@@ -170,24 +173,39 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo) (*types.Block, error) {
-	block, err := chain.GenerateBlock(bf, bpi.bestBlock, bf.txOp, bpi.slot.UnixNano())
+func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
+	/*
+		txOp := chain.NewCompTxOp(
+			bf.txOp,
+			newTxExec(bpi.bestBlock.BlockNo()+1, bpi.bestBlock.BlockID()),
+		)
+	*/
+	txOp := bf.txOp
+
+	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, bpi.slot.UnixNano())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	block.SetConfirms(block.BlockNo() - lpbNo)
+
 	if err := block.Sign(bf.privKey); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	logger.Info().Msgf("block %v(no=%v) produced by BP %v", block.ID(), block.GetHeader().GetBlockNo(), bf.ID)
+	logger.Info().
+		Str("BP", bf.ID).Str("id", block.ID()).
+		Uint64("no", block.BlockNo()).Uint64("confirms", block.Confirms()).
+		Uint64("lpb", lpbNo).
+		Msg("block produced")
 
-	return block, nil
+	return block, blockState, nil
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {
 	select {
 	case <-bf.bpTimeoutC:
-		return errTimeout{kind: "block"}
+		return chain.ErrTimeout{Kind: "block"}
 	case <-bf.quit:
 		return chain.ErrQuit
 	default:
