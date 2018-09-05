@@ -72,7 +72,7 @@ error_new(ec_t ec, lvl_t lvl, char *desc)
 {
     error_t *error;
 
-    error = malloc(sizeof(error_t));
+    error = xmalloc(sizeof(error_t));
 
     error->next = NULL;
     error->code = ec;
@@ -119,7 +119,7 @@ error_clear(void)
     error_t *e;
 
     while ((e = error_pop()) != NULL) {
-        free(e);
+        xfree(e);
     }
 
     head_.next = NULL;

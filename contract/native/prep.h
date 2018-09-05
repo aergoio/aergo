@@ -8,20 +8,28 @@
 
 #include "common.h"
 
+#include "compile.h"
+
+#define SCAN_BUF_SIZE       8192
+
 #ifndef _STRBUF_T
 #define _STRBUF_T
 typedef struct strbuf_s strbuf_t;
 #endif  /* _STRBUF_T */
 
-typedef struct prep_param_s {
-    char *file;
+typedef struct scan_s {
+    char *path;
     FILE *fp;
 
-    int line;
+    yypos_t loc;
 
-    strbuf_t *res;
-} prep_param_t;
+    int buf_len;
+    int buf_pos;
+    char buf[SCAN_BUF_SIZE];
 
-void preprocess(char *file, strbuf_t *res);
+    strbuf_t *out;
+} scan_t;
+
+void preprocess(char *path, strbuf_t *out);
 
 #endif /*_PREPROCESS_H */

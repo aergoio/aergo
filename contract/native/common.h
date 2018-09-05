@@ -11,7 +11,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 
+#include "xalloc.h"
 #include "option.h"
 #include "error.h"
 

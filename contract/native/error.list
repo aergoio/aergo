@@ -7,15 +7,16 @@
 #define error(code, msg)
 #endif
 
+error(WARN_INTERNAL,                    "%s:%d: %s")
+
 error(ERROR_INTERNAL,                   "%s:%d, internal error: %s")
 error(ERROR_INVALID_OPTION,             "invalid command option: %s")
 error(ERROR_INCOMPATIBLE_VERSION,       "incompatible version with %d.%d")
 
-error(ERROR_DIR_OPEN_FAILED,            "%s: %s")
-error(ERROR_FILE_OPEN_FAILED,           "%s: %s")
-error(ERROR_FILE_READ_FAILED,           "fread failed: %s")
-error(ERROR_FILE_WRITE_FAILED,          "fwrite failed: %s")
-error(ERROR_FILE_IO_FAILED,             "file I/O error: %s")
+error(ERROR_DIRECTORY_IO_FAILED,        "%s: %s")
+error(ERROR_FILE_IO_FAILED,             "%s: %s")
+
+error(ERROR_PREP_CROSS_IMPORT,          "%s:%d: cross reference with import '%s'")
 
 error(ERROR_SCAN_UNTERMINATED_COMMENT,  "%s:%d:%d: unterminated comment\n%s")
 error(ERROR_SCAN_UNTERMINATED_STRING,   "%s:%d:%d: unterminated string\n%s")

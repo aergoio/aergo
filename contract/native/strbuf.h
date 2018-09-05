@@ -28,7 +28,8 @@ struct strbuf_s {
 void strbuf_init(strbuf_t *sb);
 void strbuf_reset(strbuf_t *sb);
 
-void strbuf_append(strbuf_t *sb, char *str, int str_len);
+void strbuf_append_char(strbuf_t *sb, char c);
+void strbuf_append_str(strbuf_t *sb, char *str, int str_len);
 
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
 

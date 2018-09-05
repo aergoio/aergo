@@ -21,8 +21,8 @@ MKDIR_P = mkdir -p
 OBJ_DIR = build
 DEP_DIR = .deps
 
-SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c expand.yy.c \
-	error.c strbuf.c util.c
+SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c \
+	error.c strbuf.c stack.c util.c xalloc.c
 
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
 DEPS = $(SRCS:%.c=$(DEP_DIR)/%.d)
@@ -43,6 +43,7 @@ all-recursive clean-recursive:
 			local_target="$$target"; \
 		fi; \
 		(cd $$subdir && $(MAKE) $$local_target); \
+		if [ $$? != 0 ]; then exit 1; fi; \
 	done
 
 all-local: $(LIBRARY) $(TARGET)
@@ -55,9 +56,6 @@ $(TARGET): $(OBJ_DIR)/aergoscc.o $(LIBRARY)
 $(LIBRARY): $(OBJS)
 	$(AR) rcs $@ $^
 	$(RANLIB) $@
-
-expand.yy.c: expand.l
-	$(LEX) -o $@ $^
 
 scanner.yy.c: scanner.l grammar.tab.h
 	$(LEX) -o $@ $^

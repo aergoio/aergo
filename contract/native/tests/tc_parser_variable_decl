@@ -1,5 +1,5 @@
-@Test primitive_types
-contract Test {
+@desc primitive_types
+contract test {
     int x;
     int8 x;
     int16 x;
@@ -18,23 +18,29 @@ contract Test {
     int x, y;
 }
 
-@Test primitive_arrays
-contract Test {
+@desc primitive_arrays
+contract test {
     int x[10];
-    int[10] x;
     int x[10], y[10];
 }
 
-@Test missing_semicolon
-@Error ERROR_PARSE_FAILED
-contract Test {
+@desc invalid_array_decl
+@return ERROR_PARSE_FAILED
+contract test {
+    int[10] x;
+}
+
+@desc missing_semicolon
+@return ERROR_PARSE_FAILED
+contract test {
     int x
 }
 
-@Test struct_types
-contract Test {
+@desc struct_types
+contract test {
     struct x {
         int a;
         int b;
     }
+    x y;
 }

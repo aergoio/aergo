@@ -12,15 +12,15 @@
 #include "compile.h"
 
 int
-compile(char *file, opt_t opt)
+compile(char *path, opt_t opt)
 {
     strbuf_t res;
 
     strbuf_init(&res);
 
-    preprocess(file, &res);
+    preprocess(path, &res);
 
-    return parse(file, opt, &res);
+    return parse(path, opt, &res);
 }
 
 /* end of compile.c */

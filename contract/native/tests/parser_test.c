@@ -16,8 +16,10 @@
 
 #define PREFIX              "tc_parser_"
 
-#define TAG_TITLE           "@Test"
-#define TAG_ERROR           "@Error"
+#define TAG_TITLE           "@desc"
+#define TAG_ERROR           "@return"
+
+extern void mark_file(char *path, int line, int offset, strbuf_t *out);
 
 static char *
 trim_str(char *str)
@@ -58,13 +60,13 @@ get_errcode(char *str)
 }
 
 static void
-run_test(char *title, ec_t ex, char *file, opt_t opt, strbuf_t *sb)
+run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
 {
     ec_t ac;
 
     printf("    * %s... ", title);
 
-    ac = parse(file, opt, sb);
+    ac = parse(path, opt, sb);
     if (ex == ac) {
         printf(ANSI_GREEN"ok"ANSI_NONE"\n");
     }
@@ -84,45 +86,49 @@ run_test(char *title, ec_t ex, char *file, opt_t opt, strbuf_t *sb)
 }
 
 static void
-read_test(char *file, opt_t opt)
+read_test(char *path, opt_t opt)
 {
     int line = 1;
-    FILE *fp;
+    int offset = 0;
     char title[128];
     ec_t ec = NO_ERROR;
     strbuf_t sb;
     char buf[1024];
+    FILE *fp;
+
+    fp = open_file(path, "r");
 
     strbuf_init(&sb);
 
-    fp = open_file(file, "r");
-
-    printf("  Checking %s...\n", file);
+    printf("  Checking %s...\n", path);
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
             if (!strbuf_empty(&sb)) {
-                run_test(title, ec, file, opt, &sb);
+                run_test(title, ec, path, opt, &sb);
                 strbuf_reset(&sb);
-                //mark_file(file, line, &sb);
                 title[0] = '\0';
                 ec = NO_ERROR;
             }
 
+            offset += strlen(buf);
             strcpy(title, trim_str(buf + strlen(TAG_TITLE)));
         }
         else if (strncasecmp(buf, TAG_ERROR, strlen(TAG_ERROR)) == 0) {
+            offset += strlen(buf);
             ec = get_errcode(trim_str(buf + strlen(TAG_ERROR)));
         }
         else {
-            strbuf_append(&sb, buf, strlen(buf));
+            mark_file(path, line, offset, &sb);
+            strbuf_append_str(&sb, buf, strlen(buf));
+            offset += strlen(buf);
         }
 
         line++;
     }
 
     if (!strbuf_empty(&sb))
-        run_test(title, ec, file, opt, &sb);
+        run_test(title, ec, path, opt, &sb);
 }
 
 int
@@ -139,7 +145,7 @@ main(int argc, char **argv)
 
     dir = opendir(".");
     if (dir == NULL)
-        FATAL(ERROR_DIR_OPEN_FAILED, ".", strerror(errno));
+        FATAL(ERROR_DIRECTORY_IO_FAILED, ".", strerror(errno));
 
     memset(delim, '*', 80);
     delim[80] = '\0';

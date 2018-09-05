@@ -1,21 +1,23 @@
-@Test   normal_comments
-
-/* This
- * is
+@desc normal_comments
+contract test {
+    /* This
+     * is
 a
- ********
- * comment
- */
+     ********
+     * comment
+     */
 
-/******************************************************************************
-
- comments for title
-
- *****************************************************************************/
+    /******************************************************************************
+    
+     comments for title
+    
+     *****************************************************************************/
 
 // This is a cpp-style comment
+}
 
-@Test   unterminated_comment
-@Error  ERROR_SCAN_UNTERMINATED_COMMENT
-
-/* This is an unterminated comment
+@desc unterminated_comment
+@return ERROR_PARSE_FAILED
+contract test {
+    /* This is an unterminated comment
+}

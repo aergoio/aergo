@@ -24,11 +24,25 @@
         exit(ec);                                                              \
     } while (0)
 
+#define CHECK(cond)                                                            \
+    do {                                                                       \
+        if (!(cond))                                                           \
+            WARN(WARN_INTERNAL, __FILE__, __LINE__,                            \
+                 "check failed with condition: " #cond);                       \
+    } while (0)
+
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
             FATAL(ERROR_INTERNAL, __FILE__, __LINE__,                          \
                   "assertion failed with condition: " #cond);                  \
+    } while (0)
+
+#define ASSERT2(cond, err)                                                     \
+    do {                                                                       \
+        if (!(cond))                                                           \
+            FATAL(ERROR_INTERNAL, __FILE__, __LINE__,                          \
+                  "assertion failed with error: " #err);                       \
     } while (0)
 
 #define FATAL(ec, ...)                                                         \

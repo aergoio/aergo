@@ -39,11 +39,11 @@ read_file(char *path, strbuf_t *sb)
     fp = open_file(path, "r");
 
     while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-        strbuf_append(sb, buf, n);
+        strbuf_append_str(sb, buf, n);
     }
 
     if (!feof(fp))
-        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
 
     fclose(fp);
 }
@@ -58,39 +58,39 @@ write_file(char *path, strbuf_t *sb)
 
     n = fwrite(strbuf_text(sb), strbuf_length(sb), 1, fp);
     if (n == 0)
-        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
 
     fclose(fp);
 }
 
 char *
-make_trace(char *file, yylloc_t *lloc)
+make_trace(char *path, yylloc_t *lloc)
 {
     int i, j;
     int nread;
     int buf_size;
     char *buf;
-    FILE *fp = open_file(file, "r");
+    FILE *fp = open_file(path, "r");
 
     if (fseek(fp, lloc->first.offset, SEEK_SET) < 0)
-        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
 
     buf_size = max(lloc->first.col * 2, STRBUF_INIT_SIZE);
-    buf = malloc(buf_size);
+    buf = xmalloc(buf_size);
 
-    nread = fread(buf, buf_size, 1, fp);
+    nread = fread(buf, 1, buf_size, fp);
     if (nread <= 0 && !feof(fp))
-        FATAL(ERROR_FILE_IO_FAILED, strerror(errno));
+        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
 
     for (i = 0; i < nread; i++) {
-        if (buf[i] == '\n' || buf[i] == '\r')
+        if (buf[i] == '\n' || buf[i] == '\r') {
+            i++;
             break;
+        }
     }
-
     for (j = 0; j < lloc->first.col - 1; j++) {
         buf[i + j] = ' ';
     }
-
     strcpy(buf + i + j, ANSI_GREEN"^"ANSI_NONE);
 
     fclose(fp);

@@ -28,7 +28,7 @@ list_new(void)
 {
 	list_t *l;
 
-	l = malloc(sizeof(list_t));
+	l = xmalloc(sizeof(list_t));
 	l->head = NULL;
 
 	return l;
@@ -40,7 +40,7 @@ list_destroy(list_t *l)
 	list_node_t *p, *n;
 
 	foreach_safe(p, n, l) {
-		free(p);
+		xfree(p);
 	}
 	l->head = NULL;
 }

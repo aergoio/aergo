@@ -15,25 +15,17 @@ extern int yylex_init(void **);
 extern int yylex_destroy(void *);
 
 extern void yyset_in(FILE *, void *);
-extern void yyset_extra(parse_param_t *, void *);
+extern void yyset_extra(yyparam_t *, void *);
 extern void yyset_debug(int, void *);
 
-extern int yyparse(parse_param_t *, void *);
+extern int yyparse(yyparam_t *, void *);
 extern int yydebug;
 
 static void
-yypos_init(yypos_t *pos)
+yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
 {
-    pos->line = 1;
-    pos->col = 1;
-    pos->offset = 0;
-}
-
-static void
-parse_param_init(parse_param_t *param, char *file, strbuf_t *src)
-{
-    param->file = file;
-    ASSERT(param->file != NULL);
+    param->path = path;
+    ASSERT(param->path != NULL);
 
     param->src = strbuf_text(src);
     param->len = strbuf_length(src);
@@ -44,12 +36,12 @@ parse_param_init(parse_param_t *param, char *file, strbuf_t *src)
 }
 
 int
-parse(char *file, opt_t opt, strbuf_t *src)
+parse(char *path, opt_t opt, strbuf_t *src)
 {
-    parse_param_t param;
+    yyparam_t param;
     void *scanner;
 
-    parse_param_init(&param, file, src);
+    yyparam_init(&param, path, src);
     yylex_init(&scanner);
 
     yyset_extra(&param, scanner);

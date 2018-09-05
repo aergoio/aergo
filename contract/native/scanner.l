@@ -23,7 +23,7 @@
         }                                                                      \
     } while (0)
 
-#define YY_EXTRA_TYPE           parse_param_t *
+#define YY_EXTRA_TYPE           yyparam_t *
 
 #define yy_update_last_line()                                                  \
     do {                                                                       \
@@ -39,6 +39,9 @@
 
 #define yy_update_first()       lloc->first = lloc->last
 
+#define yy_text()               xstrndup(yytext, yyleng)
+#define yy_literal()            xstrndup(yytext + 1, yyleng - 2)
+
 #define yy_strcat()                                                            \
     do {                                                                       \
         if (yyextra->offset + yyleng >= STR_MAX_LEN) {                         \
@@ -53,8 +56,8 @@
 #define yy_error(ec)                                                           \
     do {                                                                       \
         yy_update_first();                                                     \
-        ERROR(ec, yyextra->file, lloc->first.line, lloc->first.col,            \
-              make_trace(yyextra->file, &yyextra->lloc));                      \
+        ERROR(ec, yyextra->path, lloc->first.line, lloc->first.col,            \
+              make_trace(yyextra->path, lloc));                                \
     } while (0)
 
 #define yy_recover()                                                           \
@@ -120,7 +123,10 @@ id                          {L}({L}|{D})*
     yyterminate();
 }
 
-\"(\\.|[^\\"\n\r])*\"       yy_return(L_STR);
+\"(\\.|[^\\"\n\r])*\" {
+    lval->str = yy_literal();
+    yy_return(L_STR);
+}
     /*
 "\"" {
     BEGIN(D_QUOTE);
@@ -244,15 +250,17 @@ id                          {L}({L}|{D})*
 "select"                    yy_return(K_SELECT);
     */
 
-^"#file"                    BEGIN(F_DIR);
+"#file"                     BEGIN(F_DIR);
 <F_DIR>{whitespace}+
-<F_DIR>\"[^\"\n\r]+\"       yyextra->file = yytext;
-<F_DIR>D+                   yyextra->lloc.last.line = atoi(yytext);
+<F_DIR>\"[^\"\n\r]+\"       yyextra->path = yy_literal();
+<F_DIR>{D}+" "{D}+ {
+    lloc->last.line = atoi(strtok(yy_text(), " "));
+    lloc->last.offset = atoi(strtok(NULL, " "));
+}
 <F_DIR>{newline}            BEGIN(INITIAL);
 
 {id} {
-    lval->str = malloc(yyleng + 1);
-    strcpy(lval->str, yytext);
+    lval->str = yy_text();
     yy_return(ID);
 }
 

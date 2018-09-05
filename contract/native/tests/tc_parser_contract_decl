@@ -1,13 +1,13 @@
-@Test empty_declaration
+@desc empty_declaration
 contract test {
 }
 
-@Test empty_constructor
+@desc empty_constructor
 contract test {
     constructor() { }
 }
 
-@Test constructor_with_args
+@desc constructor_with_args
 contract test {
     constructor(int x) { }
 }
