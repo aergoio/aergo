@@ -91,8 +91,8 @@ func TestContractStateReOpenData(t *testing.T) {
 	if err != nil {
 		t.Errorf("counld commit contract state : %s", err.Error())
 	}
-	contractState2, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	//contractState2, err := chainStateDB.OpenContractState(contractState.State)
+	//contractState2, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState2, err := chainStateDB.OpenContractState(contractState.State)
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}

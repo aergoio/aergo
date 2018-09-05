@@ -8,7 +8,6 @@ package blockchain
 import (
 	"errors"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -16,7 +15,7 @@ import (
 const minimum = 1000
 const aergobp = "aergo.bp"
 
-func (cs *ChainService) processGovernanceTx(dbtx *db.Transaction, bs *state.BlockState, txBody *types.TxBody, block *types.Block) error {
+func (cs *ChainService) processGovernanceTx(bs *state.BlockState, txBody *types.TxBody, block *types.Block) error {
 	if txBody.Amount < minimum {
 		return errors.New("too small amount to influence")
 	}
@@ -28,10 +27,9 @@ func (cs *ChainService) processGovernanceTx(dbtx *db.Transaction, bs *state.Bloc
 	}
 	switch governance {
 	case aergobp:
-		err = cs.processVoteTx(dbtx, bs, scs, txBody, block)
+		err = cs.processVoteTx(bs, scs, txBody, block)
 		if err == nil {
 			err = cs.sdb.CommitContractState(scs)
-			logger.Warn().Str("governance", governance).Msg("commit JWJW")
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")

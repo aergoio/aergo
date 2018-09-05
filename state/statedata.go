@@ -5,8 +5,6 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -47,7 +45,6 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return fmt.Errorf("Failed to get data: key is nil")
 	}
-	fmt.Printf("JWJW %s\n", base58.Encode(key))
 	if !(*store).Exist(key) {
 		return nil
 	}
