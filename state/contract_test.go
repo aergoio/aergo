@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -20,6 +21,7 @@ func initTest(t *testing.T) {
 }
 func deinitTest() {
 	chainStateDB.Close()
+	os.RemoveAll("test")
 }
 func TestContractStateCode(t *testing.T) {
 	initTest(t)
