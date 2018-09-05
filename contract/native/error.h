@@ -86,7 +86,6 @@ typedef enum lvl_e {
 } lvl_t;
 
 typedef struct error_s {
-    struct error_s *next;
     ec_t code;
     lvl_t level;
     char desc[ERROR_MAX_DESC_LEN];

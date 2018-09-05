@@ -28,8 +28,10 @@ stack_pop(stack_t *stack)
     if (node == NULL)
         return NULL;
 
-    stack->top = node->next;
     item = node->item;
+
+    stack->top = node->next;
+    stack->size--;
 
     xfree(node);
 

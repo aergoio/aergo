@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "option.h"
+#include "stack.h"
 
 #include "error.h"
 
@@ -31,35 +31,7 @@ char *errstrs_[ERROR_MAX] = {
 #include "error.list"
 };
 
-error_t head_ = { NULL, NO_ERROR, LVL_FATAL, { '\0' } };
-
-int
-error_count(void)
-{
-    int count = 0;
-    error_t *e = head_.next;
-
-    while (e != NULL) {
-        count++;
-    }
-
-    return count;
-}
-
-ec_t 
-error_last(void)
-{
-    error_t *e = head_.next;
-
-    if (e == NULL)
-        return NO_ERROR;
-
-    while (e->next != NULL) {
-        e = e->next;
-    }
-
-    return e->code;
-}
+stack_t errstack_ = { 0, NULL };
 
 char *
 error_text(ec_t ec)
@@ -67,14 +39,28 @@ error_text(ec_t ec)
     return errstrs_[ec];
 }
 
+int
+error_count(void)
+{
+    return errstack_.size;
+}
+
+ec_t 
+error_last(void)
+{
+    stack_node_t *top = stack_top(&errstack_);
+
+    if (top == NULL)
+        return NO_ERROR;
+
+    return ((error_t *)top->item)->code;
+}
+
 static error_t *
 error_new(ec_t ec, lvl_t lvl, char *desc)
 {
-    error_t *error;
+    error_t *error = xmalloc(sizeof(error_t));
 
-    error = xmalloc(sizeof(error_t));
-
-    error->next = NULL;
     error->code = ec;
     error->level = lvl;
     strcpy(error->desc, desc);
@@ -87,52 +73,39 @@ error_push(ec_t ec, lvl_t lvl, ...)
 {
     va_list vargs;
     char errdesc[ERROR_MAX_DESC_LEN];
-    error_t *e = &head_;
 
     va_start(vargs, lvl);
     vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
     va_end(vargs);
 
-    while (e->next != NULL) {
-        e = e->next;
-    }
-
-    e->next = error_new(ec, lvl, errdesc);
+    stack_push(&errstack_, error_new(ec, lvl, errdesc));
 }
 
 error_t *
 error_pop(void)
 {
-    error_t *e = head_.next;
-
-    if (e == NULL)
-        return NULL;
-
-    head_.next = e->next;
-
-    return e;
+    return (error_t *)stack_pop(&errstack_);
 }
 
 void
 error_clear(void)
 {
-    error_t *e;
+    void *item;
 
-    while ((e = error_pop()) != NULL) {
-        xfree(e);
+    while ((item = stack_pop(&errstack_)) != NULL) {
+        xfree(item);
     }
-
-    head_.next = NULL;
 }
 
 void
 error_dump(void)
 {
-    error_t *e = head_.next;
+    stack_node_t *n = stack_top(&errstack_);
 
-    while (e != NULL) {
+    while (n != NULL) {
+        error_t *e = (error_t *)n->item;
         fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[e->level], e->desc);
-        e = e->next;
+        n = n->next;
     }
 }
 
