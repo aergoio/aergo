@@ -215,6 +215,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 
 	senderChange := types.Clone(*senderState).(types.State)
 	receiverChange := types.Clone(*receiverState).(types.State)
+
 	if senderID != receiverID {
 		if senderChange.Balance < txBody.Amount {
 			senderChange.Balance = 0 // FIXME: reject insufficient tx.
@@ -222,41 +223,35 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			senderChange.Balance = senderState.Balance - txBody.Amount
 		}
 		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-		bs.PutAccount(receiverID, receiverState, &receiverChange)
 	}
-	if txBody.Payload != nil {
-		if createContract {
-			err = contract.Create(txBody.Payload, recipient, tx.Hash)
-		} else {
-			bcCtx := contract.NewContext(txBody.GetAccount(), block.BlockHash(), tx.GetHash(),
-				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
 
-			err = contract.Call(txBody.Payload, recipient, tx.Hash, bcCtx)
-		}
+	if txBody.Type == types.TxType_NORMAL && txBody.Payload != nil {
+		contractState, err := sdb.OpenContractState(&receiverChange)
 		if err != nil {
 			return err
 		}
 
-		/*
-			// open state for contract
-			senderContract, err := cs.sdb.OpenContractState(&senderChange)
+		if createContract {
+			err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
+		} else {
+			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
+				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
+
+			err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
 			if err != nil {
 				return err
 			}
+			err = sdb.CommitContractState(contractState)
+		}
 
-			// set contract code
-			senderContract.SetCode(txBody.Payload)
-
-			// execute contract and set data as key-value pair
-			// - ex: err := senderContract.SetData([]byte("key"), []byte("value"))
-			// - ex: val, err := senderContract.GetData([]byte("key"))
-
-			// commit state for contract
-			err = cs.sdb.CommitContractState(senderContract)
-		*/
+		if err != nil {
+			return err
+		}
 	}
+
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)
+	bs.PutAccount(receiverID, receiverState, &receiverChange)
 
 	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
 	// 	txBody.Amount, senderID, senderState.ToString(),
