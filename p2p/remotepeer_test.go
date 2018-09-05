@@ -35,7 +35,7 @@ func init() {
 func TestAergoPeer_RunPeer(t *testing.T) {
 	t.SkipNow()
 	mockActorServ := new(MockActorService)
-	dummyP2PServ := new(MockP2PService)
+	dummyP2PServ := new(MockPeerManager)
 
 	dummyRW := &bufio.ReadWriter{Reader: &bufio.Reader{}}
 	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, dummyP2PServ, mockActorServ,
@@ -89,7 +89,7 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockP2PService)
+			mockPeerManager := new(MockPeerManager)
 			mockOrder := new(MockMsgOrder)
 			dummyRW := &bufio.ReadWriter{Reader: &bufio.Reader{}}
 			mockOrder.On("IsNeedSign").Return(tt.args.needSign)
@@ -139,7 +139,7 @@ func TestRemotePeer_sendPing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockP2PService)
+			mockPeerManager := new(MockPeerManager)
 
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
@@ -185,7 +185,7 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockP2PService)
+			mockPeerManager := new(MockPeerManager)
 
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
@@ -223,7 +223,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 	for _, tt := range tests {
 		// logger.SetLevel(tt.loglevel)
 		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockP2PService)
+		mockPeerManager := new(MockPeerManager)
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 		t.Run(tt.name, func(t *testing.T) {
 			p.requests["r1"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
@@ -256,7 +256,7 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 	}
 	for _, tt := range tests {
 		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockP2PService)
+		mockPeerManager := new(MockPeerManager)
 		if tt.timeout {
 			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).After(time.Second).Return(mockStream, nil)
 		} else {
@@ -293,7 +293,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockP2PService)
+		mockPeerManager := new(MockPeerManager)
 		t.Run(tt.name, func(t *testing.T) {
 			wg := &sync.WaitGroup{}
 			wg.Add(1)

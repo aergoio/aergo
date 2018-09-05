@@ -35,14 +35,14 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	}
 	trials := len(durations)
 	maxTrial = trials
-	mockPm := &MockP2PService{}
+	mockPm := &MockPeerManager{}
 	dummyPeer := &RemotePeer{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
 	mockPm.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm2 := &MockP2PService{}
+	mockPm2 := &MockPeerManager{}
 	mockPm2.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true)
 	mockPm2.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm3 := &MockP2PService{}
+	mockPm3 := &MockPeerManager{}
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(nil, false).Times(2)
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true).Once()
 	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
@@ -51,7 +51,7 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		pm          *MockP2PService
+		pm          *MockPeerManager
 		meta        PeerMeta
 		lookupCount int
 		addCount    int

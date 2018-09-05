@@ -33,6 +33,7 @@ const defaultTTL = time.Second * 4
 const defaultHandshakeTTL = time.Second * 20
 
 const txhashLen = 32
+const blkhashLen = 32
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {

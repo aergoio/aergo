@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/internal/enc"
+
 	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
@@ -67,7 +69,7 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice)
+	HandleNewBlockNotice(peerID peer.ID, b64hash [blkhashLen]byte, data *types.NewBlockNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
@@ -726,11 +728,11 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 	return peers, states
 }
 
-func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice) {
+func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]byte, data *types.NewBlockNotice) {
 	// TODO check if evicted return value is needed.
-	ok, _ := pm.invCache.ContainsOrAdd(b64hash, data.BlockHash)
-	if ok {
-		pm.logger.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+	ok, _ := pm.invCache.ContainsOrAdd(hashArr, data.BlockHash)
+	if ok && pm.logger.IsDebugEnabled() {
+		pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
 		// this notice is already sent to chainservice
 		return
 	}
@@ -747,7 +749,7 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data
 		return
 	}
 	if resp.Err != nil {
-		pm.logger.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
+		pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
 		pm.actorServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}

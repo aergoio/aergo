@@ -60,7 +60,7 @@ func Test_runFuncTimeout(t *testing.T) {
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
-	mockPM := new(MockP2PService)
+	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
@@ -103,7 +103,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
-	mockPM := new(MockP2PService)
+	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)

@@ -26,16 +26,16 @@ func Test_reconnectManager_AddJob(t *testing.T) {
 	dummyMeta2 := PeerMeta{ID: dummyPeerID2}
 	dummyMeta3 := PeerMeta{ID: dummyPeerID3}
 
-	mockPm := &MockP2PService{}
+	mockPm := &MockPeerManager{}
 	dummyPeer := &RemotePeer{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID2 })).Return(dummyPeer, true)
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID3 })).Return(nil, false)
 	mockPm.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm2 := &MockP2PService{}
+	mockPm2 := &MockPeerManager{}
 	mockPm2.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true)
 	mockPm2.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm3 := &MockP2PService{}
+	mockPm3 := &MockPeerManager{}
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(nil, false).Times(2)
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true).Once()
 	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
