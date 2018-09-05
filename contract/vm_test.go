@@ -99,7 +99,7 @@ func TestContractSystem(t *testing.T) {
 	sender, _ := base58.Decode("sender2")
 	contractStatus := getContractState(t)
 	bcCtx := NewContext(contractStatus, sender, txhash, 100, 1234,
-		"node", true, contractId)
+		"node", true, contractId, false)
 
 	contractCall(t, contractStatus, systemCode, &ci, bcCtx, txId)
 	receipt := types.NewReceiptFromBytes(DB.Get([]byte(txId)))

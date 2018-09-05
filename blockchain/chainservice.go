@@ -241,6 +241,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
+<<<<<<< b1c476d0a5fac39dcfbf43a2ac925a000d390f33
 		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err == nil {
 			abi, err := contract.GetABI(contractState, msg.Contract)
@@ -254,6 +255,16 @@ func (cs *ChainService) Receive(context actor.Context) {
 				Err: err,
 			})
 		}
+=======
+		abi, err := contract.GetABI(cs.sdb, msg.Contract)
+		context.Respond(message.GetABIRsp{
+			ABI: abi,
+			Err: err,
+		})
+	case *message.GetQuery:
+		ret, err := contract.Query(cs.sdb, msg.Contract, msg.Queryinfo)
+		context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+>>>>>>> [ctr/lua] add contract query feature
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:

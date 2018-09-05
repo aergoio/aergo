@@ -73,6 +73,9 @@ service AergoRPCService {
   rpc VerifyTX(Tx) returns (VerifyResult) {
   }
 
+  rpc QueryContract(Query) returns (SingleBytes) {
+  }
+
   rpc GetPeers(Empty) returns (PeerList) {
   }
   

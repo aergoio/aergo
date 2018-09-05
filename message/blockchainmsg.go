@@ -84,6 +84,15 @@ type GetABIRsp struct {
 	Err error
 }
 
+type GetQuery struct {
+	Contract  []byte
+	Queryinfo []byte
+}
+type GetQueryRsp struct {
+	Result []byte
+	Err    error
+}
+
 // SyncBlockState is request to sync from remote peer. It returns sync result.
 type SyncBlockState struct {
 	PeerID    peer.ID
@@ -101,3 +110,5 @@ type GetElectedRsp struct {
 	Top *types.VoteList
 	Err error
 }
+
+
