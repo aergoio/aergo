@@ -60,7 +60,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 	}
 	last := rsp.Block
 	return &types.BlockchainStatus{
-		BestBlockHash: last.GetHash(),
+		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
 	}, nil
 }
@@ -424,7 +424,7 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetPeers").Result()
+		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipt").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +432,20 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	return rsp.Receipt, nil
+	return rsp.Receipt, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (*types.ABI, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetABI{Contract: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetABI").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetABIRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.ABI, rsp.Err
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {

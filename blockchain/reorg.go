@@ -104,7 +104,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 	brBlock := reorg.brTopBlock
 	brBlockNo := brBlock.GetHeader().GetBlockNo()
-	brBlockHash := brBlock.GetHash()
+	brBlockHash := brBlock.BlockHash()
 
 	latestNo := cdb.latest
 
@@ -162,7 +162,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 				brBlock.ID(), brBlockNo-1, prevBrBlockNo)
 		}
 		brBlockNo = prevBrBlockNo
-		brBlockHash = brBlock.GetHash()
+		brBlockHash = brBlock.BlockHash()
 	}
 
 	return fmt.Errorf("branch root block(%v) doesn't exist", reorg.brTopBlock.ID())
@@ -261,7 +261,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	cntRbTxs := len(reorg.rbTxs)
 	if cntRbTxs > 0 {
-		txs := make([]*types.Tx, cntRbTxs)
+		txs := make([]*types.Tx, 0, cntRbTxs)
 		logger.Debug().Int("tx count", cntRbTxs).Msg("tx add to mempool")
 
 		for txID, tx := range reorg.rbTxs {
@@ -287,11 +287,11 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
 	cdb := reorg.cs.cdb
 
-	if err := cs.processTxsAndState(reorg.dbtx, block); err != nil {
+	if err := cs.executeBlock(nil, block); err != nil {
 		return err
 	}
 
-	if err := cdb.updateLatestBlock(reorg.dbtx, block); err != nil {
+	if err := cdb.addBlock(reorg.dbtx, block, true, false); err != nil {
 		return err
 	}
 

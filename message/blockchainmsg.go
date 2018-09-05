@@ -6,6 +6,7 @@
 package message
 
 import (
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -44,6 +45,7 @@ type GetBlockByNoRsp GetBlockRsp
 type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
+	Bstate *state.BlockState
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo
@@ -71,6 +73,15 @@ type GetReceipt struct {
 }
 type GetReceiptRsp struct {
 	Receipt *types.Receipt
+	Err     error
+}
+
+type GetABI struct {
+	Contract []byte
+}
+type GetABIRsp struct {
+	ABI *types.ABI
+	Err error
 }
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.

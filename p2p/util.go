@@ -138,12 +138,6 @@ func externalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-// warnLogUnknownPeer log warning that tell unknown peer sent message
-func warnLogUnknownPeer(logger *log.Logger, protocol SubProtocol, peerID peer.ID) {
-	logger.Warn().Str(LogProtoID, protocol.String()).Str(LogPeerID, peerID.Pretty()).
-		Msg("Message from Unknown peer, ignoring it.")
-}
-
 func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peerID peer.ID,
 	additional interface{}) {
 	if additional != nil {
@@ -171,9 +165,8 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 		if comp := p1[i] - p2[i]; comp != 0 {
 			if (comp & 0x80) == 0 {
 				return int(comp)
-			} else {
-				return -1
 			}
+			return -1
 		}
 	}
 	// check which is longer

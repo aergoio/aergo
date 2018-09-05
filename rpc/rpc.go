@@ -76,6 +76,9 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 // Start start rpc service.
 func (ns *RPC) BeforeStart() {
 	aergorpc.RegisterAergoRPCServiceServer(ns.grpcServer, ns.actualServer)
+}
+
+func (ns *RPC) AfterStart() {
 	go ns.serve()
 }
 
@@ -106,7 +109,13 @@ func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, othe
 // Serve GRPC server over TCP
 func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 	if err := server.Serve(l); err != nil {
-		panic(err)
+		switch err {
+		case cmux.ErrListenerClosed:
+			// sometimes this is occured when this is killed by signals
+			// but this is normal case, not bug. so skip
+		default:
+			panic(err)
+		}
 	}
 }
 

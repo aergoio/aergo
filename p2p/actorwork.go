@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
@@ -8,14 +13,14 @@ import (
 )
 
 // GetAddresses send getAddress request to other peer
-func (p *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
-	remotePeer, ok := p.pm.GetPeer(peerID)
+func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
+	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
-		p.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Message addressRequest to Unknown peer, check if a bug")
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Message addressRequest to Unknown peer, check if a bug")
 
 		return false
 	}
-	senderAddr := p.pm.SelfMeta().ToPeerAddress()
+	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
 	// create message data
 	req := &types.AddressesRequest{MessageData: &types.MessageData{},
 		Sender: &senderAddr, MaxSize: 50}
@@ -24,15 +29,15 @@ func (p *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 }
 
 // GetBlockHeaders send request message to peer and
-func (p *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
-	remotePeer, exists := p.pm.GetPeer(msg.ToWhom)
+func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
+	remotePeer, exists := p2ps.pm.GetPeer(msg.ToWhom)
 	if !exists {
-		p.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
+		p2ps.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
 		return false
 	}
 	peerID := remotePeer.meta.ID
 
-	p.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data
 	reqMsg := &types.GetBlockHeadersRequest{MessageData: &types.MessageData{}, Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
@@ -42,13 +47,13 @@ func (p *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 }
 
 // GetBlocks send request message to peer and
-func (p *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
-	remotePeer, exists := p.pm.GetPeer(peerID)
+func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(getBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(getBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
-	p.Debug().Str(LogPeerID, peerID.Pretty()).Int("block_cnt", len(blockHashes)).Msg("Sending Get block request")
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int("block_cnt", len(blockHashes)).Msg("Sending Get block request")
 
 	hashes := make([][]byte, len(blockHashes))
 	for i, hash := range blockHashes {
@@ -63,9 +68,9 @@ func (p *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
 }
 
 // NotifyNewBlock send notice message of new block to a peer
-func (p *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
+func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	// create message data
-	for _, neighbor := range p.pm.GetPeers() {
+	for _, neighbor := range p2ps.pm.GetPeers() {
 		if neighbor == nil {
 			continue
 		}
@@ -74,7 +79,7 @@ func (p *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 			BlockNo:   newBlock.BlockNo}
 		msg := newPbMsgBroadcastOrder(false, newBlockNotice, req)
 		if neighbor.State() == types.RUNNING {
-			p.Debug().Str(LogPeerID, neighbor.meta.ID.Pretty()).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
+			p2ps.Debug().Str(LogPeerID, neighbor.meta.ID.Pretty()).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
 			// FIXME need to check if remote peer knows this hash already.
 			// but can't do that in peer's write goroutine, since the context is gone in
 			// protobuf serialization.
@@ -85,13 +90,13 @@ func (p *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 }
 
 // GetMissingBlocks send request message to peer about blocks which my local peer doesn't have
-func (p *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool {
-	remotePeer, exists := p.pm.GetPeer(peerID)
+func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool {
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
 		return false
 	}
-	p.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
 
 	bhashes := make([][]byte, 0)
 	for _, a := range hashes {
@@ -108,22 +113,22 @@ func (p *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool 
 }
 
 // GetTXs send request message to peer and
-func (p *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
-	remotePeer, ok := p.pm.GetPeer(peerID)
+func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
+	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
-		p.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Invalid peer. check for bug")
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Invalid peer. check for bug")
 		return false
 	}
-	p.Debug().Str(LogPeerID, peerID.Pretty()).Int("tx_cnt", len(txHashes)).Msg("Sending GetTransactions request")
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int("tx_cnt", len(txHashes)).Msg("Sending GetTransactions request")
 	if len(txHashes) == 0 {
-		p.Warn().Msg("empty hash list")
+		p2ps.Warn().Msg("empty hash list")
 		return false
 	}
 
 	hashes := make([][]byte, len(txHashes))
 	for i, hash := range txHashes {
 		if len(hash) == 0 {
-			p.Warn().Msg("empty hash value requested.")
+			p2ps.Warn().Msg("empty hash value requested.")
 			return false
 		}
 		hashes[i] = ([]byte)(hash)
@@ -137,19 +142,19 @@ func (p *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 }
 
 // NotifyNewTX notice tx(s) id created
-func (p *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
+func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	hashes := make([][]byte, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
 		hashes[i] = tx.Hash
 	}
-	p.Debug().Int("peer_cnt", len(p.pm.GetPeers())).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
+	p2ps.Debug().Int("peer_cnt", len(p2ps.pm.GetPeers())).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
 	// send to peers
-	for _, peer := range p.pm.GetPeers() {
+	for _, peer := range p2ps.pm.GetPeers() {
 		// create message data
 		req := &types.NewTransactionsNotice{MessageData: &types.MessageData{},
 			TxHashes: hashes,
 		}
-		peer.sendMessage(newPbMsgBroadcastOrder(false, newBlockNotice, req))
+		peer.sendMessage(newPbMsgBroadcastOrder(false, newTxNotice, req))
 	}
 
 	return true

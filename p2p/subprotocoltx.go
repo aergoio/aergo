@@ -9,71 +9,63 @@ import (
 	"bytes"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
 
-// TxProtocol handle tx messages.
+// TxHandler handle tx messages.
 // Relaying is not implemented yet.
-type TxProtocol struct {
+type TxHandler struct {
 	BaseMsgHandler
 }
 
-// NewTxProtocol creates transaction subprotocol
-func NewTxProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *TxProtocol {
-	p := &TxProtocol{}
-	return p
-}
-
-func NewTxHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *TxProtocol {
-	h := &TxProtocol{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
-	return h
-}
-func (p *TxProtocol) setPeerManager(pm PeerManager) {
-	p.pm = pm
-}
-
-func (p *TxProtocol) startHandling() {
-	// p.pm.SetStreamHandler(getTXsRequest, p.onGetTXsRequest)
-	// p.pm.SetStreamHandler(getTxsResponse, p.onGetTXsResponse)
-	// p.pm.SetStreamHandler(notifyNewTxRequest, p.onNotifynewTXs)
+// NewTxHandler create a tx handler
+func NewTxHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *TxHandler {
+	th := &TxHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return th
 }
 
 // remote peer requests handler
-func (p *TxProtocol) handleGetTXsRequest(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (th *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
+	peerID := th.peer.ID()
+	remotePeer := th.peer
 
 	// get request data
 	data := &types.GetTransactionsRequest{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
-		p.logger.Info().Err(err).Msg("fail to decode")
+		th.logger.Info().Err(err).Msg("fail to decode")
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Hashes))
+	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Hashes))
 
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	valid := th.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		th.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
 	// find transactions from chainservice
 	idx := 0
-	hashesMap := make(map[string][]byte, len(data.Hashes))
+	var keyArray [txhashLen]byte
+	hashesMap := make(map[[txhashLen]byte][]byte, len(data.Hashes))
 	for _, hash := range data.Hashes {
-		hashesMap[enc.ToString(hash)] = hash
+		if len(hash) != txhashLen {
+			// TODO ignore just single hash or return invalid request
+			continue
+		}
+		copy(keyArray[:], hash)
+		hashesMap[keyArray] = hash
 	}
 	hashes := make([][]byte, 0, len(data.Hashes))
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
 	// FIXME: chain에 들어간 트랜잭션을 볼 방법이 없다. 멤풀도 검색이 안 되서 전체를 다 본 다음에 그중에 매칭이 되는 것을 추출하는 방식으로 처리한다.
-	txs, _ := extractTXsFromRequest(p.actor.CallRequest(message.MemPoolSvc,
+	txs, _ := extractTXsFromRequest(th.actor.CallRequest(message.MemPoolSvc,
 		&message.MemPoolGet{}))
 	for _, tx := range txs {
-		hash, found := hashesMap[enc.ToString(tx.Hash)]
+		copy(keyArray[:], tx.Hash)
+		hash, found := hashesMap[keyArray]
 		if !found {
 			continue
 		}
@@ -93,40 +85,40 @@ func (p *TxProtocol) handleGetTXsRequest(msg *types.P2PMessage) {
 }
 
 // remote GetTransactions response handler
-func (p *TxProtocol) handleGetTXsResponse(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
+func (th *TxHandler) handleGetTXsResponse(msg *types.P2PMessage) {
+	peerID := th.peer.ID()
 
 	data := &types.GetTransactionsResponse{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Txs))
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Txs))
+	valid := th.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		th.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
-		p.logger.Debug().Int("tx_cnt", len(data.Txs)).Msg("Request mempool to add txs")
-		p.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
+		th.logger.Debug().Int("tx_cnt", len(data.Txs)).Msg("Request mempool to add txs")
+		th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 	}
 }
 
-var emptyArr = make([]byte, 0)
+// var emptyArr = make([]byte, 0)
 
 // remote NotifynewTXs response handler
-func (p *TxProtocol) handleNewTXsNotice(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
+func (th *TxHandler) handleNewTXsNotice(msg *types.P2PMessage) {
+	peerID := th.peer.ID()
 
 	data := &types.NewTransactionsNotice{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID,
+	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID,
 		log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
 	// TODO: check myself and request txs which this node don't have.
 	toGet := make([]message.TXHash, len(data.TxHashes))
@@ -135,8 +127,8 @@ func (p *TxProtocol) handleNewTXsNotice(msg *types.P2PMessage) {
 		toGet[i] = message.TXHash(hashByte)
 	}
 	// create message data
-	p.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	p.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
+	th.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
+	th.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
 }
 
 func bytesArrToString(bbarray [][]byte) string {

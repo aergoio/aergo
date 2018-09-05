@@ -4,6 +4,7 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/8ae0a363155bd9e8bccb/maintainability)](https://codeclimate.com/github/aergoio/aergo/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/8ae0a363155bd9e8bccb/test_coverage)](https://codeclimate.com/github/aergoio/aergo/test_coverage)
 [![LoC](https://tokei.rs/b1/github/aergoio/aergo)](https://github.com/aergoio/aergo)
+[![API Reference](https://godoc.org/github.com/aergoio/aergo?status.svg)](https://godoc.org/github.com/aergoio/aergo)
 
 # Aergo - The Most Practical Blockchain Platform for Blockchain Businesses
 
@@ -76,7 +77,7 @@ We are developing the most practical and powerful platform for blockchain busine
 ### Build
 
 ```
-$ go get -d github.com/aergoio/aergo
+$ go get -d github.com/aergoio/aergo/account
 $ cd ${GOPATH}/src/github.com/aergoio/aergo
 $ make deps
 $ make

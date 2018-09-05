@@ -156,9 +156,8 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 	genesisBlock := types.NewBlock(nil, nil, 0)
 	genesisBlock.Header.Timestamp = seed
-	genesisBlock.Hash = genesisBlock.CalculateBlockHash()
 	tx := cdb.store.NewTx(true)
-	if err := cdb.addBlock(&tx, genesisBlock, true); err != nil {
+	if err := cdb.addBlock(&tx, genesisBlock, true, true); err != nil {
 		return nil, err
 	}
 	tx.Commit()
@@ -217,10 +216,14 @@ func (cdb *ChainDB) deleteTx(dbtx *db.Transaction, tx *types.Tx) {
 }
 
 // store block info to DB
-func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainChain bool) error {
+func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainChain bool, isNew bool) error {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
+	if blockNo != 0 && isMainChain && cdb.latest+1 != blockNo {
+		return fmt.Errorf("failed to add block(%d,%v). blkno != latestNo(%d) + 1", blockNo,
+			block.BlockHash(), cdb.latest)
+	}
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
@@ -230,37 +233,31 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainCha
 	if err != nil {
 		return err
 	}
+
+	//add txs
+	txs := block.GetBody().GetTxs()
+	for i, txEntry := range txs {
+		if err := cdb.addTx(dbtx, txEntry, block.BlockHash(), i); err != nil {
+			logger.Error().Err(err).Str("hash", block.ID()).Int("txidx", i).Msg("failed to add tx")
+			return err
+		}
+	}
+
 	tx := *dbtx
 
-	tx.Set(block.GetHash(), blockBytes)
+	//add block
+	if isNew {
+		tx.Set(block.BlockHash(), blockBytes)
+	}
 
+	//add chain info
 	// to avoid exception, set here
 	if isMainChain {
 		tx.Set(latestKey, blockIdx)
-		tx.Set(blockIdx, block.GetHash())
+		tx.Set(blockIdx, block.BlockHash())
 
 		cdb.setLatest(blockNo)
 	}
-
-	return nil
-}
-
-func (cdb *ChainDB) updateLatestBlock(dbtx *db.Transaction, block *types.Block) error {
-
-	tx := *dbtx
-	blockNo := block.GetHeader().GetBlockNo()
-	blockIdx := types.BlockNoToBytes(blockNo)
-
-	logger.Debug().Uint64("latest", blockNo).Str("hash", block.ID()).Msg("updateLatestBlock")
-
-	if cdb.latest+1 != blockNo {
-		return fmt.Errorf("rollbackBlock failed block(%d,%v). invalid latestNo(%d)", blockNo,
-			block.GetHash(), cdb.latest)
-	}
-
-	tx.Set(blockIdx, block.GetHash())
-	tx.Set(latestKey, blockIdx)
-	cdb.setLatest(blockNo)
 
 	return nil
 }

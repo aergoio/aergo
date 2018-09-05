@@ -79,6 +79,8 @@ func (base *BaseComponent) Start() {
 	// Wait for the messaging hub to be fully initilized. - Incomplete
 	// initilization leads to a crash.
 	hubInit.wait()
+
+	base.IActor.AfterStart()
 }
 
 // Stop lets this component stop and terminate

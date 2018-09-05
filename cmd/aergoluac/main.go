@@ -10,87 +10,28 @@ package main
 #cgo LDFLAGS: ${SRCDIR}/../../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
-#include <string.h>
-#include <lualib.h>
-#include <lauxlib.h>
-#include <luajit.h>
-
-lua_State *vm_newstate()
-{
-	lua_State *L = luaL_newstate();
-	luaL_openlibs(L);
-	return L;
-}
-
-void vm_close(lua_State *L)
-{
-	if (L != NULL)
-		lua_close(L);
-}
-
-static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u)
-{
-	return (fwrite(p, sz, 1, (FILE *)u) != 1) && (sz != 0);
-}
-
-const char *vm_compile(lua_State *L, const char *code, const char *byte, const char *abi)
-{
-	const char *errMsg = NULL;
-	FILE *f = NULL;
-
-	if (luaL_loadfile(L, code) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
-		return errMsg;
-	}
-	f = fopen(byte, "wb");
-	if (f == NULL) {
-		return "cannot open a bytecode file";
-	}
-	if (lua_dump(L, kpt_lua_Writer, f) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-	}
-	fclose(f);
-
-	if (abi != NULL && strlen(abi) > 0) {
-		const char *r;
-		if (lua_pcall(L, 0, 0, 0) != 0) {
-		   errMsg = strdup(lua_tostring(L, -1));
-		   return errMsg;
-		}
-		lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-		lua_getfield(L, -1, "generate");
-		if (lua_pcall(L, 0, 1, 0) != 0) {
-		    errMsg = strdup(lua_tostring(L, -1));
-		    return errMsg;
-		}
-		if (!lua_isstring(L, -1)) {
-		    return "cannot create a abi file";
-		}
-		r = lua_tostring(L, -1);
-		f = fopen(abi, "wb");
-		if (f == NULL) {
-		    return "cannot open a abi file";
-		}
-		fwrite(r, 1, strlen(r), f);
-		fclose(f);
-	}
-
-	return errMsg;
-}
+#include "compile.h"
 */
 import "C"
 import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"unsafe"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
 var (
 	rootCmd *cobra.Command
 	abiFile string
+	payload bool
+	b       bytes.Buffer
 )
 
 func init() {
@@ -98,12 +39,23 @@ func init() {
 	rootCmd = &cobra.Command{
 		Use:   "aergoluac [flags] srcfile bcfile",
 		Short: "compile a contract",
-		Args:  cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			compile(args[0], args[1], abiFile)
+			if payload {
+				if len(args) == 0 {
+					dumpFromStdin()
+				} else {
+					dumpFromFile(args[0])
+				}
+			} else {
+				if len(args) < 2 {
+					log.Fatal(cmd.UsageString())
+				}
+				compile(args[0], args[1], abiFile)
+			}
 		},
 	}
-	rootCmd.PersistentFlags().StringVar(&abiFile, "abi", "", "abi filename")
+	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
+	rootCmd.PersistentFlags().BoolVar(&payload, "payload", false, "print the compilation result consisting of bytecode and abi")
 }
 
 func main() {
@@ -125,4 +77,68 @@ func compile(srcFileName, outFileName, abiFileName string) {
 	if errMsg := C.vm_compile(L, cSrcFileName, cOutFileName, cAbiFileName); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
+}
+
+func dumpFromFile(srcFileName string) {
+	cSrcFileName := C.CString(srcFileName)
+	L := C.vm_newstate()
+	defer C.free(unsafe.Pointer(cSrcFileName))
+	defer C.vm_close(L)
+
+	if errMsg := C.vm_loadfile(L, cSrcFileName); errMsg != nil {
+		log.Fatal(C.GoString(errMsg))
+	}
+	if errMsg := C.vm_stringdump(L); errMsg != nil {
+		log.Fatal(C.GoString(errMsg))
+	}
+	fmt.Print(base58.Encode(b.Bytes()))
+}
+
+func dumpFromStdin() {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var buf []byte
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		buf, err = ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		var bBuf bytes.Buffer
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			bBuf.WriteString(scanner.Text()+"\n")
+		}
+		if err = scanner.Err(); err != nil {
+			log.Fatal(err)
+		}
+		buf = bBuf.Bytes()
+	}
+	srcCode := C.CString(string(buf))
+	L := C.vm_newstate()
+	defer C.free(unsafe.Pointer(srcCode))
+	defer C.vm_close(L)
+
+	if errMsg := C.vm_loadstring(L, srcCode); errMsg != nil {
+		log.Fatal(C.GoString(errMsg))
+	}
+	if errMsg := C.vm_stringdump(L); errMsg != nil {
+		log.Fatal(C.GoString(errMsg))
+	}
+	fmt.Print(base58.Encode(b.Bytes()))
+}
+
+//export addLen
+func addLen(length C.int) {
+	var l [4]byte
+	binary.LittleEndian.PutUint32(l[:], uint32(length))
+	b.Write(l[:])
+}
+
+//export addByteN
+func addByteN(p *C.char, length C.int) {
+	s := C.GoStringN(p, length)
+	b.WriteString(s)
 }

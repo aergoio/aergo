@@ -1,6 +1,6 @@
 package types
 
-type ABI struct {
+type CallInfo struct {
 	Name string
 	Args []interface{}
 }

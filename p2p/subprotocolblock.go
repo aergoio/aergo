@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -17,53 +16,47 @@ func (sp SubProtocol) Uint32() uint32 {
 	return uint32(sp)
 }
 
-// BlockProtocol handle block messages.
+// BlockHandler handle block messages.
 // Relaying is not implemented yet.
-type BlockProtocol struct {
+type BlockHandler struct {
 	BaseMsgHandler
 }
 
-// NewBlockProtocol create block subprotocol
-func NewBlockProtocol(logger *log.Logger, chainsvc *blockchain.ChainService) *BlockProtocol {
-	p := &BlockProtocol{}
-	return p
+func NewBlockHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *BlockHandler {
+	bh := &BlockHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return bh
+}
+func (bh *BlockHandler) setPeerManager(pm PeerManager) {
+	bh.pm = pm
 }
 
-func NewBlockHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *BlockProtocol {
-	p := &BlockProtocol{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
-	return p
-}
-func (p *BlockProtocol) setPeerManager(pm PeerManager) {
-	p.pm = pm
-}
-
-func (p *BlockProtocol) startHandling() {
-	// p.pm.SetStreamHandler(getBlocksRequest, p.onGetBlockRequest)
-	// p.pm.SetStreamHandler(getBlocksResponse, p.onGetBlockResponse)
-	// p.pm.SetStreamHandler(getBlockHeadersRequest, p.onGetBlockHeadersRequest)
-	// p.pm.SetStreamHandler(getBlockHeadersResponse, p.onGetBlockHeadersResponse)
-	// p.pm.SetStreamHandler(notifyNewBlockRequest, p.onNotifyNewBlock)
-	// p.pm.SetStreamHandler(getMissingRequest, p.onGetMissingRequest)
+func (bh *BlockHandler) startHandling() {
+	// bh.pm.SetStreamHandler(getBlocksRequest, bh.onGetBlockRequest)
+	// bh.pm.SetStreamHandler(getBlocksResponse, bh.onGetBlockResponse)
+	// bh.pm.SetStreamHandler(getBlockHeadersRequest, bh.onGetBlockHeadersRequest)
+	// bh.pm.SetStreamHandler(getBlockHeadersResponse, bh.onGetBlockHeadersResponse)
+	// bh.pm.SetStreamHandler(notifyNewBlockRequest, bh.onNotifyNewBlock)
+	// bh.pm.SetStreamHandler(getMissingRequest, bh.onGetMissingRequest)
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleBlockRequest(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleBlockRequest(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	// get request data
 	data := &types.GetBlockRequest{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
-		p.logger.Info().Err(err).Msg("fail to decode")
+		bh.logger.Info().Err(err).Msg("fail to decode")
 		return
 	}
 
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Hashes))
 
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		bh.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
@@ -71,7 +64,7 @@ func (p *BlockProtocol) handleBlockRequest(msg *types.P2PMessage) {
 	idx := 0
 	blockInfos := make([]*types.Block, 0, len(data.Hashes))
 	for _, hash := range data.Hashes {
-		foundBlock, err := extractBlockFromRequest(p.actor.CallRequest(message.ChainSvc,
+		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 			&message.GetBlock{BlockHash: hash}))
 		if err != nil || foundBlock == nil {
 			continue
@@ -93,49 +86,49 @@ func (p *BlockProtocol) handleBlockRequest(msg *types.P2PMessage) {
 }
 
 // remote GetBlock response handler
-func (p *BlockProtocol) handleGetBlockResponse(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleGetBlockResponse(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	data := &types.GetBlockResponse{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Blocks))
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Blocks))
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		bh.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 	// locate request data and remove it if found
 	remotePeer.consumeRequest(data.MessageData.Id)
 
 	// got block
-	p.logger.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
+	bh.logger.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
 	for _, block := range data.Blocks {
-		p.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block})
+		bh.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 	}
 
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	// get request data
 	data := &types.GetBlockHeadersRequest{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
-		p.logger.Info().Err(err).Msg("fail to decode")
+		bh.logger.Info().Err(err).Msg("fail to decode")
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, data)
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, data)
 
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		bh.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
@@ -147,7 +140,7 @@ func (p *BlockProtocol) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
 	if len(data.Hash) > 0 {
 		hash := data.Hash
 		for idx < maxFetchSize {
-			foundBlock, err := extractBlockFromRequest(p.actor.CallRequest(message.ChainSvc,
+			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 				&message.GetBlock{BlockHash: hash}))
 			if err != nil || foundBlock == nil {
 				break
@@ -166,7 +159,7 @@ func (p *BlockProtocol) handleGetBlockHeadersRequest(msg *types.P2PMessage) {
 			end = types.BlockNo(data.Height - uint64(maxFetchSize-1))
 		}
 		for i := types.BlockNo(data.Height); i >= end; i-- {
-			foundBlock, err := extractBlockFromRequest(p.actor.CallRequest(message.ChainSvc,
+			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 				&message.GetBlockByNo{BlockNo: i}))
 			if err != nil || foundBlock == nil {
 				break
@@ -189,19 +182,19 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 }
 
 // remote GetBlock response handler
-func (p *BlockProtocol) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	data := &types.GetBlockHeadersResponse{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, nil)
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, nil)
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		bh.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
@@ -210,16 +203,16 @@ func (p *BlockProtocol) handleGetBlockHeadersResponse(msg *types.P2PMessage) {
 }
 
 // remote NotifyNewBlock response handler
-func (p *BlockProtocol) handleNewBlockNotice(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleNewBlockNotice(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	data := &types.NewBlockNotice{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID,
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID,
 		log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
 	remotePeer.handleNewBlockNotice(data)
@@ -240,8 +233,8 @@ func min(a, b uint32) uint32 {
 }
 
 // TODO need to add comment
-func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
-	p.logger.Debug().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Notifying branch block")
+func (bh *BlockHandler) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
+	bh.logger.Debug().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Notifying branch block")
 
 	// create message data
 	req := &types.NewBlockNotice{MessageData: &types.MessageData{},
@@ -253,11 +246,11 @@ func (p *BlockProtocol) NotifyBranchBlock(peer *RemotePeer, hash message.BlockHa
 }
 
 // replying chain tree
-func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
+func (bh *BlockHandler) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
 	// find block info from chainservice
 	blockInfos := make([]*types.Block, 0, len(missing))
 	for _, hash := range missing {
-		foundBlock, err := extractBlockFromRequest(p.actor.CallRequest(message.ChainSvc,
+		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 			&message.GetBlock{BlockHash: hash}))
 		if err != nil || foundBlock == nil {
 			continue
@@ -279,32 +272,32 @@ func (p *BlockProtocol) sendMissingResp(remotePeer *RemotePeer, requestID string
 }
 
 // remote peer requests handler
-func (p *BlockProtocol) handleGetMissingRequest(msg *types.P2PMessage) {
-	peerID := p.peer.ID()
-	remotePeer := p.peer
+func (bh *BlockHandler) handleGetMissingRequest(msg *types.P2PMessage) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
 
 	// get request data
 	data := &types.GetMissingRequest{}
 	err := unmarshalMessage(msg.Data, data)
 	if err != nil {
-		p.logger.Info().Err(err).Msg("fail to decode")
+		bh.logger.Info().Err(err).Msg("fail to decode")
 		return
 	}
-	debugLogReceiveMsg(p.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, log.DoLazyEval(func() string {
+	debugLogReceiveMsg(bh.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, log.DoLazyEval(func() string {
 		return bytesArrToString(data.Hashes)
 	}))
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info().Msg("Failed to authenticate message")
+		bh.logger.Info().Msg("Failed to authenticate message")
 		return
 	}
 
 	// send to ChainSvc
 	// find block info from chainservice
-	rawResponse, err := p.actor.CallRequest(
+	rawResponse, err := bh.actor.CallRequest(
 		message.ChainSvc, &message.GetMissing{Hashes: data.Hashes, StopHash: data.Stophash})
 	if err != nil {
-		p.logger.Warn().Err(err).Msg("failed to get missing")
+		bh.logger.Warn().Err(err).Msg("failed to get missing")
 
 		return
 	}
@@ -312,42 +305,42 @@ func (p *BlockProtocol) handleGetMissingRequest(msg *types.P2PMessage) {
 	missing := (*message.GetMissingRsp)(&v)
 
 	// generate response message
-	p.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, data.MessageData.Id).Msg("Sending GetMssingRequest response")
+	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, data.MessageData.Id).Msg("Sending GetMssingRequest response")
 
-	p.sendMissingResp(remotePeer, data.MessageData.Id, missing.Hashes)
+	bh.sendMissingResp(remotePeer, data.MessageData.Id, missing.Hashes)
 	/*
 		for i := 0; i < len(missing.Hashes); i++ {
-			p.NotifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
+			bh.NotifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
 		}
 	*/
 }
 
 // remote GetBlock response handler
 /*
-func (p *BlockProtocol) onGetMissingResponse(s inet.Stream) {
+func (bh *BlockHandler) onGetMissingResponse(s inet.Stream) {
 	defer s.Close()
 
-	remotePeer, exists := p.pm.GetPeer(s.Conn().RemotePeer())
+	remotePeer, exists := bh.pm.GetPeer(s.Conn().RemotePeer())
 	if !exists {
-		p.logger.Warnf("Request to invalid peer %s ", s.Conn().RemotePeer().Pretty())
+		bh.logger.Warnf("Request to invalid peer %s ", s.Conn().RemotePeer().Pretty())
 		return
 	}
-	p.logger.Debugf("Received GetMissingRequest response from %s.", remotePeer.meta.ID.Pretty())
+	bh.logger.Debugf("Received GetMissingRequest response from %s.", remotePeer.meta.ID.Pretty())
 	data := &types.GetMissingResponse{}
 	decoder := mc_pb.Multicodec(nil).Decoder(bufio.NewReader(s))
 	err := decoder.Decode(data)
 	if err != nil {
 		return
 	}
-	valid := p.pm.AuthenticateMessage(data, data.MessageData)
+	valid := bh.pm.AuthenticateMessage(data, data.MessageData)
 	if !valid {
-		p.logger.Info("Failed to authenticate message")
+		bh.logger.Info("Failed to authenticate message")
 		return
 	}
 
 	// send back to caller
-	p.logger.Infof("Got Missing response ")
-	p.iserv.SendRequest(message.ChainSvc, &message.GetMissingRsp{Hashes: data.Hashes, Headers: data.Headers})
+	bh.logger.Infof("Got Missing response ")
+	bh.iserv.SendRequest(message.ChainSvc, &message.GetMissingRsp{Hashes: data.Hashes, Headers: data.Headers})
 	remotePeer.ConsumeRequest(data.MessageData.Id)
 }
 */

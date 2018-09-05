@@ -19,8 +19,8 @@ func saveData(store *db.DB, key []byte, data interface{}) error {
 	var err error
 	var raw []byte
 	switch data.(type) {
-	case []byte:
-		raw = data.([]byte)
+	case (*[]byte):
+		raw = *(data.(*[]byte))
 	case proto.Message:
 		raw, err = proto.Marshal(data.(proto.Message))
 		if err != nil {
@@ -59,8 +59,8 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	}
 	var err error
 	switch data.(type) {
-	case []byte:
-		data = raw
+	case (*[]byte):
+		*(data).(*[]byte) = raw
 	case proto.Message:
 		err = proto.Unmarshal(raw, data.(proto.Message))
 	default:

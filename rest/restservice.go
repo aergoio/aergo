@@ -45,7 +45,9 @@ func NewRestService(cfg *cfg.Config, bc *bc.ChainService) *RestService {
 	return cs
 }
 
-func (cs *RestService) BeforeStart() {
+func (cs *RestService) BeforeStart() {}
+
+func (cs *RestService) AfterStart() {
 	go func() {
 		http.HandleFunc("/chaintree", func(w http.ResponseWriter, r *http.Request) {
 			body, err := ioutil.ReadAll(r.Body)

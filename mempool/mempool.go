@@ -95,6 +95,7 @@ func (mp *MemPool) BeforeStart() {
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
+func (mp *MemPool) AfterStart() {}
 
 // Stop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {

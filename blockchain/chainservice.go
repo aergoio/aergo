@@ -94,6 +94,10 @@ func (cs *ChainService) BeforeStart() {
 	}
 }
 
+func (cs *ChainService) AfterStart() {
+	cs.receiveChainInfo()
+}
+
 func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
 
 	if err := cs.initDB(dataDir); err != nil {
@@ -153,6 +157,8 @@ func (cs *ChainService) BeforeStop() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
+
+	contract.DB.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {
@@ -169,8 +175,6 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 func (cs *ChainService) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
-	case *actor.Started:
-		cs.receiveChainInfo()
 
 	case *message.GetBestBlockNo:
 		context.Respond(message.GetBestBlockNoRsp{
@@ -208,7 +212,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
-		bid := types.ToBlockID(msg.Block.GetHash())
+		bid := msg.Block.BlockID()
 		logger.Debug().Str("hash", msg.Block.ID()).
 			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
@@ -216,13 +220,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
 			block := msg.Block.Clone()
-			err := cs.addBlock(block, msg.PeerID)
+			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
 			context.Respond(message.AddBlockRsp{
 				BlockNo:   block.GetHeader().GetBlockNo(),
-				BlockHash: block.GetHash(),
+				BlockHash: block.BlockHash(),
 				Err:       err,
 			})
 		}
@@ -257,9 +261,16 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetReceipt:
-		receipt := contract.GetReceipt(msg.TxHash)
+		receipt, err := contract.GetReceipt(msg.TxHash)
 		context.Respond(message.GetReceiptRsp{
 			Receipt: receipt,
+			Err:     err,
+		})
+	case *message.GetABI:
+		abi, err := contract.GetABI(msg.Contract)
+		context.Respond(message.GetABIRsp{
+			ABI: abi,
+			Err: err,
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)

@@ -64,17 +64,49 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Header: &header,
 		Body:   &body,
 	}
+
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
-	block.Hash = block.CalculateBlockHash()
+
 	return &block
 }
 
-// CalculateBlockHash computes sha256 hash of block header.
-func (block *Block) CalculateBlockHash() []byte {
+// calculateBlockHash computes sha256 hash of block header.
+func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
 	writeBlockHeader(digest, block.Header)
 
 	return digest.Sum(nil)
+}
+
+// BlockHash returns block hash. It returns a calculated value if the hash is nil.
+func (block *Block) BlockHash() []byte {
+	hash := block.GetHash()
+	if len(hash) == 0 {
+		block.Hash = block.calculateBlockHash()
+	}
+
+	return block.GetHash()
+}
+
+// BlockID converts block.Hash ([]byte) to BlockID.
+func (block *Block) BlockID() BlockID {
+	return ToBlockID(block.BlockHash())
+}
+
+// Confirms returns block.Header.Confirms which indicates how many block is confirmed
+// by block.
+func (block *Block) Confirms() BlockNo {
+	return block.GetHeader().GetConfirms()
+}
+
+// SetConfirms sets block.Header.Confirms to confirms.
+func (block *Block) SetConfirms(confirms BlockNo) {
+	block.Header.Confirms = confirms
+}
+
+// BlockNo returns the block number of block.
+func (block *Block) BlockNo() BlockNo {
+	return block.GetHeader().GetBlockNo()
 }
 
 // Sign adds a pubkey and a block signature to block.
@@ -96,8 +128,6 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 	block.Header.Sign = sig
 
-	//block hash must be recomputed
-	block.Hash = block.CalculateBlockHash()
 	return nil
 }
 
@@ -144,9 +174,19 @@ func (block *Block) BPID() (id peer.ID, err error) {
 	return
 }
 
+// BpID2Str returns its Block Producer's ID in base64 format.
+func (block *Block) BPID2Str() string {
+	id, err := block.BPID()
+	if err != nil {
+		return ""
+	}
+
+	return enc.ToString([]byte(id))
+}
+
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
-	hash := block.GetHash()
+	hash := block.BlockHash()
 	if hash != nil {
 		return enc.ToString(hash)
 	}
@@ -190,7 +230,7 @@ func (block *Block) Clone() *Block {
 		if res.Body != nil {
 			res.Header.TxsRootHash = CalculateTxsRootHash(res.Body.Txs)
 		}
-		res.Hash = res.CalculateBlockHash()
+		res.Hash = res.calculateBlockHash()
 	}
 	return &res
 }
@@ -205,10 +245,13 @@ func (header *BlockHeader) Clone() *BlockHeader {
 		PrevBlockHash: Clone(header.PrevBlockHash).([]byte),
 		BlockNo:       header.BlockNo,
 		Timestamp:     header.Timestamp,
+		TxsRootHash:   Clone(header.TxsRootHash).([]byte),
+		Confirms:      header.Confirms,
 		PubKey:        Clone(header.PubKey).([]byte),
 		Sign:          Clone(header.Sign).([]byte),
 	}
 }
+
 func (body *BlockBody) Clone() *BlockBody {
 	if body == nil {
 		return nil
@@ -267,8 +310,8 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Payload)
 	binary.Write(digest, binary.LittleEndian, txBody.Limit)
 	binary.Write(digest, binary.LittleEndian, txBody.Price)
-	digest.Write(txBody.Sign)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
+	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
 

@@ -195,7 +195,13 @@ func (s *Trie) update(root []byte, keys, values [][]byte, height uint64, ch chan
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut == 1 {
+		before := len(keys)
 		keys, values = s.maybeAddShortcutToKV(keys, values, lnode, rnode)
+		if len(keys) > before {
+			// if the shortcut was added to the keys, don't delete the root as that
+			// will delete the shortcut
+			root = []byte{}
+		}
 		if len(keys) == 0 {
 			// The shortcut is being deleted
 			s.deleteCacheNode(root)
@@ -287,18 +293,14 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 	}
 
 	// Move up a shortcut node if it's sibling is default
-	if lresult.deleted && rresult.deleted {
-		// root is never default when moving up a shortcut
-		s.deleteCacheNode(root)
-		if bytes.Equal(s.defaultHashes[height-1], lresult.update) && bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-			ch <- mresult{s.defaultHashes[height], false, nil}
+	if lresult.deleted {
+		if s.maybeMoveUpShortcut(lresult.update, rresult.update, root, height, ch) {
 			return
 		}
-		// Move up one of the shortcut nodes
-		if bytes.Equal(s.defaultHashes[height-1], lresult.update) {
-			ch <- mresult{rresult.update, true, nil}
-		} else if bytes.Equal(s.defaultHashes[height-1], rresult.update) {
-			ch <- mresult{lresult.update, true, nil}
+	}
+	if rresult.deleted {
+		if s.maybeMoveUpShortcut(rresult.update, lresult.update, root, height, ch) {
+			return
 		}
 	}
 	node := s.interiorHash(lresult.update, rresult.update, height-1, root)
@@ -340,6 +342,11 @@ func (s *Trie) maybeMoveUpShortcut(update, sibling, root []byte, height uint64, 
 			s.deleteCacheNode(root)
 			// Return the left sibling node to move it up
 			ch <- mresult{sibling, true, nil}
+			return true
+		}
+		if bytes.Equal(s.defaultHashes[height-1], sibling) {
+			s.deleteCacheNode(root)
+			ch <- mresult{s.defaultHashes[height], false, nil}
 			return true
 		}
 	} else if bytes.Equal(s.defaultHashes[height-1], sibling) {

@@ -1,8 +1,8 @@
-hash: 47bee377428b65db7c467bc9352d2119a1c06248080648d5ddc770dc2c92c1fe
-updated: 2018-08-21T13:22:53.1701885+09:00
+hash: fe62f1911bda4db83f4189595e2e83f8cac0b3c85bcfa47907fef826e8737729
+updated: 2018-08-31T18:06:40.139772+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
-  version: acc741aa36603bef00d050c5a888fb0a81b48923
+  version: b3c1915a562f36a9304bd19f9d7569df2caff8a0
   subpackages:
   - actor
   - eventstream
@@ -10,7 +10,7 @@ imports:
   - internal/queue/mpsc
   - mailbox
 - name: github.com/aergoio/aergo-lib
-  version: dad163a46b6aedafb6ca5a00620168e27235022a
+  version: 18a207be67de50dc006e7c650e7a8a6da27941f6
   subpackages:
   - config
   - db
@@ -23,7 +23,7 @@ imports:
 - name: github.com/AndreasBriese/bbloom
   version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
 - name: github.com/btcsuite/btcd
-  version: f899737d7f2764dc13e4d01ff00108ec58f766a9
+  version: 79e00513b1011888b1e675157ab89f527f901cae
   subpackages:
   - btcec
 - name: github.com/coreos/go-semver
@@ -56,7 +56,7 @@ imports:
 - name: github.com/fd/go-nat
   version: bad65a492f32121a87197f4a085905c35e2a367e
 - name: github.com/fsnotify/fsnotify
-  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
+  version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/gogo/protobuf
   version: 636bf0302bc95575d69441b25a2603156ffdddf1
   subpackages:
@@ -76,9 +76,9 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/google/uuid
-  version: dec09d789f3dba190787f8b4454c7d3c936fed9e
+  version: e704694aed0ea004bb7eb1fc2e911d048a54606a
 - name: github.com/gorilla/websocket
-  version: 3ff3320c2a1756a3691521efc290b4701575147c
+  version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
 - name: github.com/gxed/eventfd
   version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
 - name: github.com/gxed/GoEndian
@@ -92,7 +92,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
-  version: ef8a98b0bbce4a65b5aa4c368430a80ddc533168
+  version: 8cb6e5b959231cc1119e43259c4a608f9c51a241
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -119,7 +119,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/ipfs/go-log
-  version: c7aaf1b331fc94709d5e44a6a094dfb4f49a8b96
+  version: f2bdd6b39490312e392e2004831afeb9e58fd8de
   subpackages:
   - tracer
   - tracer/wire
@@ -139,60 +139,60 @@ imports:
 - name: github.com/libp2p/go-addr-util
   version: 26ae616f0dac754fff557513e984f930fbd88a92
 - name: github.com/libp2p/go-conn-security
-  version: 8253ac4922e0d48c857cb0bcccd52f9f4e8c2879
+  version: 99d74deb2467141f291494833ceca76049c54d0e
   subpackages:
   - insecure
 - name: github.com/libp2p/go-conn-security-multistream
-  version: 4e10ef6125f10736e3752274d80a2d9e78f96c0e
+  version: 3de64db695ce32ebd56b15f95833d0c461d736ba
 - name: github.com/libp2p/go-flow-metrics
   version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
 - name: github.com/libp2p/go-libp2p
-  version: cc70c4be36f765ba9fb92d6e0528722773af607d
+  version: 1f1aca1c28616769519c4f16d4d7362a109ecffe
   subpackages:
   - config
   - p2p/host/basic
   - p2p/protocol/identify
   - p2p/protocol/identify/pb
 - name: github.com/libp2p/go-libp2p-circuit
-  version: 2dd713bc37f7bff06b1d30e1dc5e2e0eb99474d3
+  version: 937f88457436addabd06ae70fcd51233a50bc74f
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-crypto
-  version: 50487e0f0b4842e9e657317e689fbb8209fab2dc
+  version: 274de1bb6c27780863df6b230c91324ab481dab2
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 3a144e88cb78109859a56673fba16b4ecf100911
+  version: 37b75b4e86d22a6b66af72d93071a6cc13469527
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: 98fc99ba761842156907db43045f546e8e6bba3d
+  version: 5c98952f405f0663ee124d26e8fb213396afe7b2
 - name: github.com/libp2p/go-libp2p-interface-pnet
   version: 86e6fc84b906599eac696308369896ece0ced63b
 - name: github.com/libp2p/go-libp2p-loggables
-  version: 58a5d94871458043fc0797727b24fc77a94f203b
+  version: d6d01a5f5e0bcc27c612fd1e6aa8fc97e1cac488
 - name: github.com/libp2p/go-libp2p-metrics
-  version: 248d3d2b55aa5d50a6b2d50e4a8c02d5c05cdb2e
+  version: 2e91117d783799237709d7f5165eb55c86b623a1
 - name: github.com/libp2p/go-libp2p-nat
   version: 491e7233bd3877ec8dafbab465cf5ac70e32fced
 - name: github.com/libp2p/go-libp2p-net
-  version: 768042eff9184fcd5fb7fea7ecbd845f9e940e20
+  version: 1eeec6d7e4e6d46717a764778c7b6b07285900e0
 - name: github.com/libp2p/go-libp2p-peer
-  version: 554a9b76b860b599d3ef0806a142fdd2c2e9a3d6
+  version: 010c46e7b432a0b454d9ca397f08f364fa2139af
 - name: github.com/libp2p/go-libp2p-peerstore
-  version: 3a59fa1e0084b0ffefa9f386092efe408095f0d2
+  version: 4d62f4830a4eaf81eac61fa842b3e6199628dad1
   subpackages:
   - addr
 - name: github.com/libp2p/go-libp2p-protocol
   version: e34f0d7468b3519bf9bf4e43c1d028ce651eab51
 - name: github.com/libp2p/go-libp2p-secio
-  version: f559d0ac7708052c78755434f1f40beec315753c
+  version: 0613eff75c6b8203930579b9159f8d3dbb21e392
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: a00fa8aa37a812f404bfa9b9d3dccc82a66029cf
+  version: a13e3ec8a5953802db0208ed5c4219476eaa5a6c
 - name: github.com/libp2p/go-libp2p-transport
-  version: 867da4c7b138a8f9cc392feaed6d81fa68ba846a
+  version: c87b841d9637c0a42485bc4cff2a7656d429fbee
 - name: github.com/libp2p/go-libp2p-transport-upgrader
-  version: e0a14ed8f3b645f13116a3ded747c1ab78a7db9d
+  version: 915345fa39935b4b4e308d6437fdda9b7df1a988
 - name: github.com/libp2p/go-maddr-filter
   version: 57fd7e2ed649ba28b4f2c7bcab3a606e7cc4b12c
 - name: github.com/libp2p/go-msgio
@@ -213,21 +213,21 @@ imports:
 - name: github.com/libp2p/go-stream-muxer
   version: 9c6bd93eecbbab56630bb2688bb435d9fd1dfeb1
 - name: github.com/libp2p/go-tcp-transport
-  version: fe589acfccf03c8ab406e7e26017e13b18566500
+  version: 6542203d415dadff641ae94f9a6b51fead8bded7
 - name: github.com/libp2p/go-ws-transport
-  version: c8089c5609a4af37e15af076d2daba66d126d850
+  version: 32d17885f64a5e902a758dfa793988c3cbbd28e9
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mattn/go-colorable
   version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
 - name: github.com/mattn/go-isatty
-  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
+  version: 3fb116b820352b7f0c281308a4d6250c22d94e27
 - name: github.com/minio/blake2b-simd
   version: 3f5f724cb5b182a5c278d6d3d55b40e7f8c2efb4
 - name: github.com/minio/sha256-simd
   version: ad98a36ba0da87206e3378c556abbfeaeaa98668
 - name: github.com/mitchellh/mapstructure
-  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
+  version: fa473d140ef3c6adf42d6b391fe76707f1f243c8
 - name: github.com/mr-tron/base58
   version: f84df45a6b88974a98d1473e9f0de0eac859a3d9
   subpackages:
@@ -235,7 +235,7 @@ imports:
 - name: github.com/multiformats/go-multiaddr
   version: f36800afeb9c141e1adb7da099e6f010dfd4c419
 - name: github.com/multiformats/go-multiaddr-dns
-  version: b431cd0a670beb991d0d0dc3defd2b89125aa34e
+  version: 4c36f46414bba59a19ffe5154841f76d4a55b780
 - name: github.com/multiformats/go-multiaddr-net
   version: 4d4b901d1729f55ee20cc0c8d8021aa58eb5ebe3
 - name: github.com/multiformats/go-multicodec
@@ -243,7 +243,7 @@ imports:
   subpackages:
   - protobuf
 - name: github.com/multiformats/go-multihash
-  version: 8be2a682ab9f254311de1375145a2f78a809b07d
+  version: bffb9dfeaca3b66c0accb675d2910407f3615eec
 - name: github.com/multiformats/go-multistream
   version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
 - name: github.com/opentracing/opentracing-go
@@ -260,7 +260,7 @@ imports:
 - name: github.com/rcrowley/go-metrics
   version: e2704e165165ec55d062f5919b4b29494e9fa790
 - name: github.com/rs/cors
-  version: 15587285ef6b6e7a3f657e2e00f9f271883bcf22
+  version: dc7332ab32be5dfec05dae2a6ab79cbfa53b6407
 - name: github.com/rs/zerolog
   version: 77db4b4f350e31be66a57c332acb7721cf9ff9bb
   subpackages:
@@ -305,18 +305,18 @@ imports:
 - name: github.com/whyrusleeping/yamux
   version: cb29a700b01dc3c2fdd743c00cf54685056bb62a
 - name: github.com/Workiva/go-datastructures
-  version: f338bf48899950e415caffa02222a7273fbdeaf6
+  version: f07cbe3f82ca2fd6e5ab94afce65fe43319f675f
   subpackages:
   - queue
 - name: golang.org/x/crypto
-  version: 614d502a4dac94afa3a6ce146bd1736da82514c6
+  version: 182538f80094b6a8efaade63a8fd8e0d9d5843dd
   subpackages:
   - blake2s
   - blowfish
   - sha3
   - ssh/terminal
 - name: golang.org/x/net
-  version: 922f4815f713f213882e8ef45e0d315b164d705c
+  version: 8a410e7b638dca158bf9e766925842f6651ff828
   subpackages:
   - context
   - html
@@ -329,7 +329,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 1a700e749ce29638d0bbcb531cce1094ea096bd3
+  version: 49385e6e15226593f68b26af201feec29d5bba22
   subpackages:
   - cpu
   - unix
@@ -396,7 +396,7 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/objx
-  version: b8b73a35e9830ae509858c10dec5866b4d5c8bff
+  version: ef50b0de28773081167c97fc27cf29a0bf8b8c71
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:

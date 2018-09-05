@@ -8,6 +8,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -46,15 +47,14 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.NewBlockLimitOp(s.maxBlockBodySize),
-		func(txIn *types.Tx) error {
+		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
 			select {
 			case <-s.quit:
-				return chain.ErrQuit
+				return nil, chain.ErrQuit
 			default:
-				return nil
+				return nil, nil
 			}
-		},
+		}),
 	)
 
 	return s, nil
@@ -91,7 +91,7 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 }
 
 // StatusUpdate currently does nothing.
-func (s *SimpleBlockFactory) StatusUpdate() {
+func (s *SimpleBlockFactory) StatusUpdate(block *types.Block) {
 }
 
 // BlockFactory returns s itself.
@@ -107,7 +107,7 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, err := chain.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
+				block, _, err := chain.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
@@ -117,7 +117,7 @@ func (s *SimpleBlockFactory) Start() {
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block)
+				chain.ConnectBlock(s, block, nil)
 			}
 		case <-s.quit:
 			return

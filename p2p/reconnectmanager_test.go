@@ -49,7 +49,7 @@ func Test_reconnectManager_AddJob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rm := NewReconnectManager(logger)
+			rm := newReconnectManager(logger)
 			rm.pm = mockPm
 			rm.AddJob(dummyMeta)
 			rm.AddJob(dummyMeta)
@@ -69,4 +69,18 @@ func Test_reconnectManager_AddJob(t *testing.T) {
 
 		})
 	}
+
+	// test stop
+	t.Run("tstop", func(t *testing.T) {
+		rm := newReconnectManager(logger)
+		rm.pm = mockPm
+		rm.AddJob(dummyMeta)
+		assert.Equal(t, 1, len(rm.jobs))
+		rm.AddJob(dummyMeta2)
+		assert.Equal(t, 2, len(rm.jobs))
+		rm.Stop()
+		rm.AddJob(dummyMeta3)
+		assert.Equal(t, 0, len(rm.jobs))
+	})
+
 }

@@ -15,6 +15,7 @@ package contract
 */
 import "C"
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -104,14 +105,14 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	return ce
 }
 
-func (ce *Executor) call(abi *types.ABI) {
+func (ce *Executor) call(ci *types.CallInfo) {
 	if ce.err != nil {
 		return
 	}
 	C.vm_getfield(ce.L, C.CString("abi"))
 	C.lua_getfield(ce.L, -1, C.CString("call"))
-	C.lua_pushstring(ce.L, C.CString(abi.Name))
-	for _, v := range abi.Args {
+	C.lua_pushstring(ce.L, C.CString(ci.Name))
+	for _, v := range ci.Args {
 		switch arg := v.(type) {
 		case string:
 			C.lua_pushstring(ce.L, C.CString(arg))
@@ -129,7 +130,7 @@ func (ce *Executor) call(abi *types.ABI) {
 		}
 	}
 	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, C.int(len(abi.Args)+1), &nret); cErrMsg != nil {
+	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", base58.Encode(ce.contract.address))
@@ -155,22 +156,23 @@ func (ce *Executor) close() {
 
 func Call(code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
 	var err error
+	var ci types.CallInfo
 	contract := getContract(contractAddress)
-	if contract == nil {
+	if contract != nil {
+		err = json.Unmarshal(code, &ci)
+		if err != nil {
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
+		}
+	} else {
 		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
-	}
-	var abi types.ABI
-	err = json.Unmarshal(code, &abi)
-	if err != nil {
-		ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
 	}
 	var ce *Executor
 	defer ce.close()
 	if err == nil {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", base58.Encode(contractAddress))
 		ce = newExecutor(contract, bcCtx)
-		ce.call(&abi)
+		ce.call(&ci)
 		err = ce.err
 	}
 	receipt := types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
@@ -192,20 +194,34 @@ func Create(code, contractAddress, txHash []byte) error {
 func getContract(contractAddress []byte) *Contract {
 	val := DB.Get(contractAddress)
 	if len(val) > 0 {
+		l := binary.LittleEndian.Uint32(val[0:])
 		return &Contract{
-			code:    val,
+			code:    val[4:4+l],
 			address: contractAddress[:],
 		}
 	}
 	return nil
 }
 
-func GetReceipt(txHash []byte) *types.Receipt {
+func GetReceipt(txHash []byte) (*types.Receipt, error) {
 	val := DB.Get(txHash)
 	if len(val) == 0 {
-		return nil
+		return nil, errors.New("cannot find a receipt")
 	}
-	return types.NewReceiptFromBytes(val)
+	return types.NewReceiptFromBytes(val), nil
+}
+
+func GetABI(contractAddress []byte) (*types.ABI, error) {
+	val := DB.Get(contractAddress)
+	if len(val) == 0 {
+		return nil, errors.New("cannot find contract")
+	}
+	l := binary.LittleEndian.Uint32(val[0:])
+	abi := new(types.ABI)
+	if err := json.Unmarshal(val[4+l:], abi); err != nil {
+		return nil, err
+	}
+	return abi, nil
 }
 
 //export LuaSetDB
@@ -229,4 +245,3 @@ func LuaDelDB(key *C.char) {
 
 	DB.Delete([]byte(keyString))
 }
-

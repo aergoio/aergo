@@ -19,6 +19,7 @@ type ReconnectManager interface {
 }
 
 type reconnectManager struct {
+	stop   bool
 	pm     PeerManager
 	logger *log.Logger
 	mutex  *sync.Mutex
@@ -26,16 +27,17 @@ type reconnectManager struct {
 	jobs map[peer.ID]*reconnectJob
 }
 
-// NewReconnectManager create partial-inited manager for reconnect peer.
+// newReconnectManager create partial-inited manager for reconnect peer.
 // Note: it returns incomplete object, caller should set peerManager before using this.
-func NewReconnectManager(logger *log.Logger) *reconnectManager {
+func newReconnectManager(logger *log.Logger) *reconnectManager {
 	return &reconnectManager{mutex: &sync.Mutex{}, jobs: make(map[peer.ID]*reconnectJob), logger: logger}
 }
 
+// AddJob add jobber to reconnect peer.
 func (rm *reconnectManager) AddJob(meta PeerMeta) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
-	if _, exist := rm.jobs[meta.ID]; exist {
+	if _, exist := rm.jobs[meta.ID]; exist || rm.stop {
 		return
 	}
 	rm.logger.Debug().Str(LogPeerID, meta.ID.Pretty()).Msg("Starting reconnect job")
@@ -44,6 +46,7 @@ func (rm *reconnectManager) AddJob(meta PeerMeta) {
 	rm.jobs[meta.ID] = jobRunner
 }
 
+// CancelJob cancel currently running AddJob
 func (rm *reconnectManager) CancelJob(pid peer.ID) {
 	rm.mutex.Lock()
 	job, exist := rm.jobs[pid]
@@ -65,8 +68,9 @@ func (rm *reconnectManager) Stop() {
 		keys[i] = k
 		i++
 	}
+	rm.stop = true
 	rm.mutex.Unlock()
-
+	rm.logger.Debug().Msg("Stopping reconnect manager")
 	for _, key := range keys {
 		rm.CancelJob(key)
 	}

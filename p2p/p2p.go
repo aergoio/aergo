@@ -24,17 +24,15 @@ type P2P struct {
 
 	pm PeerManager
 	rm ReconnectManager
-
-	ping  *PingHandler
-	addrs *AddressesProtocol
-	blk   *BlockProtocol
-	txs   *TxProtocol
 }
 
 //var _ component.IComponent = (*P2PComponent)(nil)
 var _ ActorService = (*P2P)(nil)
 
 const defaultTTL = time.Second * 4
+const defaultHandshakeTTL = time.Second * 20
+
+const txhashLen = 32
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
@@ -47,76 +45,76 @@ func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchai
 	return netsvc
 }
 
-// Start starts p2p service
-func (ns *P2P) BeforeStart() {
-	ns.pm.Start()
+// BeforeStart starts p2p service.
+func (p2ps *P2P) BeforeStart() {}
+
+func (p2ps *P2P) AfterStart() {
+	if err := p2ps.pm.Start(); err != nil {
+		panic("Failed to start p2p component")
+	}
 }
 
-// Stop stops
-func (ns *P2P) BeforeStop() {
-	ns.pm.Stop()
+// BeforeStop is called before actor hub stops. it finishes underlying peer manager
+func (p2ps *P2P) BeforeStop() {
+	if err := p2ps.pm.Stop(); err != nil {
+		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
+	}
 }
 
-func (ns *P2P) Statics() *map[string]interface{} {
+// Statics show statistic information of p2p module. NOTE: It it not implemented yet
+func (p2ps *P2P) Statics() *map[string]interface{} {
 	return nil
 }
 
-func (ns *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
-	reconMan := NewReconnectManager(ns.Logger)
-	peerMan := NewPeerManager(ns, cfg, reconMan, ns.Logger)
+func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+	reconMan := newReconnectManager(p2ps.Logger)
+	peerMan := NewPeerManager(p2ps, cfg, reconMan, p2ps.Logger)
 
 	// connect managers each other
 	reconMan.pm = peerMan
 
-	ns.pm = peerMan
-	ns.rm = reconMan
+	p2ps.pm = peerMan
+	p2ps.rm = reconMan
 }
 
-const success bool = true
-const failed bool = false
-
 // Receive got actor message and then handle it.
-func (ns *P2P) Receive(context actor.Context) {
+func (p2ps *P2P) Receive(context actor.Context) {
 
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-	// case *message.PingMsg:
-	// 	result := ns.ping.Ping(msg.ToWhom)
-	// 	context.Respond(result)
 	case *message.GetAddressesMsg:
-		ns.GetAddresses(msg.ToWhom, msg.Size)
+		p2ps.GetAddresses(msg.ToWhom, msg.Size)
 	case *message.GetBlockHeaders:
-		ns.GetBlockHeaders(msg)
+		p2ps.GetBlockHeaders(msg)
 	case *message.GetBlockInfos:
-		ns.GetBlocks(msg.ToWhom, msg.Hashes)
+		p2ps.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewBlock:
-		// TODO remove conversion
-		ns.NotifyNewBlock(*msg)
+		p2ps.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
-		ns.GetMissingBlocks(msg.ToWhom, msg.Hashes)
+		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetTransactions:
-		ns.GetTXs(msg.ToWhom, msg.Hashes)
+		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
-		ns.NotifyNewTX(*msg)
+		p2ps.NotifyNewTX(*msg)
 	case *message.GetPeers:
-		peers, states := ns.pm.GetPeerAddresses()
+		peers, states := p2ps.pm.GetPeerAddresses()
 		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	}
 }
 
 // SendRequest implement interface method of ActorService
-func (ns *P2P) SendRequest(actor string, msg interface{}) {
-	ns.RequestTo(actor, msg)
+func (p2ps *P2P) SendRequest(actor string, msg interface{}) {
+	p2ps.RequestTo(actor, msg)
 }
 
 // FutureRequest implement interface method of ActorService
-func (ns *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return ns.RequestToFuture(actor, msg, defaultTTL)
+func (p2ps *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
+	return p2ps.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (ns *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.RequestToFuture(actor, msg, defaultTTL)
+func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
 }

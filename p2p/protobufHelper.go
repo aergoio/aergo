@@ -217,3 +217,19 @@ func marshalMessage(message proto.Message) ([]byte, error) {
 func unmarshalMessage(data []byte, msgData proto.Message) error {
 	return proto.Unmarshal(data, msgData)
 }
+
+func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) *types.P2PMessage {
+	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+
+	bytes, err := marshalMessage(message)
+	if err != nil {
+		return nil
+	}
+	p2pmsg.Data = bytes
+	if len(msgID) == 0 {
+		msgID = uuid.Must(uuid.NewV4()).String()
+	}
+	setupMessageData(p2pmsg.Header, msgID, gossip, ClientVersion, time.Now().Unix())
+	p2pmsg.Header.Subprotocol = protocolID.Uint32()
+	return p2pmsg
+}
