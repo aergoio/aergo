@@ -226,7 +226,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 	}
 
 	if txBody.Type == types.TxType_NORMAL && txBody.Payload != nil {
-		contractState, err := cs.sdb.OpenContractState(&receiverChange)
+		contractState, err := sdb.OpenContractState(&receiverChange)
 		if err != nil {
 			return err
 		}
@@ -241,7 +241,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			if err != nil {
 				return err
 			}
-			err = cs.sdb.CommitContractState(contractState)
+			err = sdb.CommitContractState(contractState)
 		}
 
 		if err != nil {
