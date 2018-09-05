@@ -51,6 +51,7 @@ type RemotePeer struct {
 	// TODO make automatic disconnect if remote peer cause too many wrong message
 
 	blkHashCache *lru.Cache
+	txHashCache  *lru.Cache
 
 	rw *bufio.ReadWriter
 }
@@ -96,6 +97,11 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
+	peer.txHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	if err != nil {
+		panic("Failed to create remotepeer " + err.Error())
+	}
+
 	return peer
 }
 
@@ -379,8 +385,21 @@ func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 	var hashArr [blkhashLen]byte
 	copy(hashArr[:], data.BlockHash)
 
-	p.blkHashCache.Add(hashArr, data.BlockHash)
+	p.blkHashCache.Add(hashArr, true)
 	p.pm.HandleNewBlockNotice(p.meta.ID, hashArr, data)
+}
+
+func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
+	if len(data.TxHashes) == 0 {
+		return
+	}
+	// lru cache can accept hashable key
+	hashArrs := make([][txhashLen]byte, 0, len(data.TxHashes))
+	for i, hash := range data.TxHashes {
+		copy(hashArrs[i][:], hash)
+		p.blkHashCache.Add(hashArrs[i], true)
+	}
+	p.pm.HandleNewTxNotice(p.meta.ID, hashArrs, data)
 }
 
 func (p *RemotePeer) sendGoAway(msg string) {

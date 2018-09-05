@@ -49,6 +49,14 @@ type peerInfo struct {
 const (
 	DefaultGlobalInvCacheSize = 100
 	DefaultPeerInvCacheSize   = 30
+
+	defaultTTL          = time.Second * 4
+	defaultHandshakeTTL = time.Second * 20
+
+	txhashLen  = 32
+	blkhashLen = 32
+
+	cachePlaceHolder = true
 )
 
 // PeerManager is internal service that provide peer management
@@ -69,7 +77,8 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, b64hash [blkhashLen]byte, data *types.NewBlockNotice)
+	HandleNewBlockNotice(peerID peer.ID, hash [blkhashLen]byte, data *types.NewBlockNotice)
+	HandleNewTxNotice(peerID peer.ID, hashes [][txhashLen]byte, data *types.NewTransactionsNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
@@ -730,9 +739,11 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 
 func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]byte, data *types.NewBlockNotice) {
 	// TODO check if evicted return value is needed.
-	ok, _ := pm.invCache.ContainsOrAdd(hashArr, data.BlockHash)
-	if ok && pm.logger.IsDebugEnabled() {
-		pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+	if ok {
+		if pm.logger.IsDebugEnabled() {
+			pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		}
 		// this notice is already sent to chainservice
 		return
 	}
@@ -753,6 +764,30 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]
 		pm.actorServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
+
+}
+
+func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]byte, data *types.NewTransactionsNotice) {
+	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
+	toGet := make([]message.TXHash, 0, len(data.TxHashes))
+	for _, hashArr := range hashArrs {
+		ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+		if ok {
+			if pm.logger.IsDebugEnabled() {
+				pm.logger.Debug().Str(LogTxHash, enc.ToString(hashArr[:])).Str(LogPeerID, peerID.Pretty()).Msg("Got NewTx notice, but sent already from other peer")
+			}
+			// this notice is already sent to chainservice
+			continue
+		}
+		toGet = append(toGet, message.TXHash(hashArr[:]))
+	}
+	if len(toGet) == 0 {
+		pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
+		return
+	}
+	// create message data
+	pm.actorServ.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
+	pm.logger.Debug().Int("tx_cnt", len(toGet)).Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
 
 }
 

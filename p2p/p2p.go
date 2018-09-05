@@ -6,8 +6,6 @@
 package p2p
 
 import (
-	"time"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
@@ -28,12 +26,6 @@ type P2P struct {
 
 //var _ component.IComponent = (*P2PComponent)(nil)
 var _ ActorService = (*P2P)(nil)
-
-const defaultTTL = time.Second * 4
-const defaultHandshakeTTL = time.Second * 20
-
-const txhashLen = 32
-const blkhashLen = 32
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
