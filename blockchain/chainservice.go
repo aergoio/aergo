@@ -31,33 +31,23 @@ type ChainService struct {
 	cdb *ChainDB
 	sdb *state.ChainStateDB
 	op  *OrphanPool
-
-	cc chan consensus.ChainConsensus
 }
 
 var (
 	logger = log.NewLogger("chain")
 )
 
-func NewChainService(cfg *cfg.Config) *ChainService {
+func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService {
 	actor := &ChainService{
-		cfg: cfg,
-		cc:  make(chan consensus.ChainConsensus),
-		cdb: NewChainDB(),
-		sdb: state.NewStateDB(),
-		op:  NewOrphanPool(),
+		ChainConsensus: cc,
+		cfg:            cfg,
+		cdb:            NewChainDB(),
+		sdb:            state.NewStateDB(),
+		op:             NewOrphanPool(),
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
-}
-
-func (cs *ChainService) receiveChainInfo() {
-	// Get a Validation interface from the consensus service
-	cs.ChainConsensus = <-cs.cc
-	cs.cdb.ChainConsensus = cs.ChainConsensus
-	// Disable the channel. warning: don't read from this channel!!!
-	cs.cc = nil
 }
 
 func (cs *ChainService) initDB(dataDir string) error {
@@ -87,7 +77,6 @@ func (cs *ChainService) BeforeStart() {
 }
 
 func (cs *ChainService) AfterStart() {
-	cs.receiveChainInfo()
 }
 
 func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
@@ -135,11 +124,6 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 		logger.Debug().Str("hash", enc.ToString(a)).Msg("request blocks for sync")
 	}
 	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
-}
-
-// SetValidationAPI send the Validation v of the chosen Consensus to ChainService cs.
-func (cs *ChainService) SendChainInfo(ca consensus.ChainConsensus) {
-	cs.cc <- ca
 }
 
 func (cs *ChainService) BeforeStop() {
