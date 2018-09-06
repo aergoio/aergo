@@ -252,9 +252,10 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
-		top, _ := cs.getVotes(msg.N)
+		top, err := cs.getVotes(msg.N)
 		context.Respond(&message.GetElectedRsp{
 			Top: top,
+			Err: err,
 		})
 
 	case actor.SystemMessage,

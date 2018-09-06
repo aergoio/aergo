@@ -99,4 +99,5 @@ type GetElected struct {
 // GetElectedRsp is return to get voting result
 type GetElectedRsp struct {
 	Top types.VoteList
+	Err error
 }
