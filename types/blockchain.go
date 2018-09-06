@@ -88,9 +88,14 @@ func (block *Block) BlockHash() []byte {
 	return block.GetHash()
 }
 
-// BlockID converts block.Hash ([]byte) to BlockID.
+// BlockID converts block hash ([]byte) to BlockID.
 func (block *Block) BlockID() BlockID {
 	return ToBlockID(block.BlockHash())
+}
+
+// PrevBlockID converts parent block hash ([]byte) to BlockID.
+func (block *Block) PrevBlockID() BlockID {
+	return ToBlockID(block.GetHeader().GetPrevBlockHash())
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed

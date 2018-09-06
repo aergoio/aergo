@@ -24,16 +24,19 @@ const (
 
 type txExec struct {
 	blockState *state.BlockState
-	block      *types.Block
+	sdb        *state.ChainStateDB
 }
 
-func newTxExec(blockNo types.BlockNo, prevHash types.BlockID) chain.TxOp {
+func newTxExec(blockNo types.BlockNo, prevHash types.BlockID, sdb *state.ChainStateDB) chain.TxOp {
 	// Block hash not determined yet
-	return &txExec{blockState: state.NewBlockState(blockNo, types.BlockID{}, prevHash)}
+	return &txExec{
+		blockState: state.NewBlockState(blockNo, types.BlockID{}, prevHash),
+		sdb:        sdb,
+	}
 }
 
 func (te *txExec) Apply(tx *types.Tx) (*state.BlockState, error) {
-	return te.blockState, nil
+	return nil, nil
 }
 
 // BlockFactory is the main data structure for DPoS block factory.

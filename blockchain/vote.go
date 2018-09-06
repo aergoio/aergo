@@ -19,7 +19,7 @@ const limitDuration = 23
 const sortedlist = "sortedlist"
 
 func executeVoteTx(txBody *types.TxBody, senderState *types.State,
-	receiverState *types.State, scs *state.ContractState, block *types.Block) error {
+	receiverState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
 	voteCmd := txBody.GetPayload()[0]
 	if voteCmd == 'v' { //staking, vote
 		if senderState.Balance < txBody.Amount {
@@ -29,26 +29,26 @@ func executeVoteTx(txBody *types.TxBody, senderState *types.State,
 		if err != nil {
 			return err
 		}
-		err = setVote(scs, txBody.Account, txBody.Payload[1:], voting+txBody.Amount, block.GetHeader().GetBlockNo())
+		err = setVote(scs, txBody.Account, txBody.Payload[1:], voting+txBody.Amount, blockNo)
 		if err != nil {
 			return err
 		}
 		senderState.Balance = senderState.Balance - txBody.Amount
 		//update candidate total
-		err = updateVoteResult(scs, txBody.Payload[1:], (int64)(txBody.Amount), block.GetHeader().GetBlockNo())
+		err = updateVoteResult(scs, txBody.Payload[1:], (int64)(txBody.Amount), blockNo)
 		if err != nil {
 			return err
 		}
 	} else if voteCmd == 'r' { //unstaking, revert
 		voting, blockNo, err := getVote(scs, txBody.Account, txBody.Payload[1:])
-		if block.GetHeader().GetBlockNo() < limitDuration+blockNo { //TODO : fix it proper
+		if blockNo < limitDuration+blockNo { //TODO : fix it proper
 			return errors.New("less time has passed")
 		}
-		err = setVote(scs, txBody.Account, txBody.Payload[1:], 0, block.GetHeader().GetBlockNo())
+		err = setVote(scs, txBody.Account, txBody.Payload[1:], 0, blockNo)
 		if err != nil {
 			return err
 		}
-		err = updateVoteResult(scs, txBody.Payload[1:], -(int64)(voting), block.GetHeader().GetBlockNo())
+		err = updateVoteResult(scs, txBody.Payload[1:], -(int64)(voting), blockNo)
 		if err != nil {
 			return err
 		}
