@@ -16,15 +16,15 @@ type CompStatReq struct {
 
 // CompStatRsp contains component's internal info, used to help debugging
 // - Status is a string representation of a component's status
-// - ProcessedMsg is an accumulated number of message that this component processes
-// - QueuedMsg is an accumulated number of message at this component's mailbox
+// - AccProcessedMsg is an accumulated number of message that this component processes
+// - MsgQueueLen is an current number of message at this component's mailbox
 // - MsgProcessLatency is an estimated latency to process a msg
 // - Error is an error msg when a requester fails to get statics
 // - Actor is a reserved field to get component's internal debug info
 type CompStatRsp struct {
 	Status            string      `json:"status"`
-	ProcessedMsg      uint64      `json:"acc_processed_msg"`
-	QueuedMsg         uint64      `json:"acc_queued_msg"`
+	AccProcessedMsg   uint64      `json:"acc_processed_msg"`
+	MsgQueueLen       uint64      `json:"msg_queue_len"`
 	MsgProcessLatency string      `json:"msg_latency"`
 	Error             string      `json:"error"`
 	Actor             interface{} `json:"actor"`

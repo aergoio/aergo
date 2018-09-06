@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo-actor/mailbox"
 	"github.com/aergoio/aergo-lib/log"
 )
 
@@ -24,7 +23,6 @@ type BaseComponent struct {
 	pid             *actor.PID
 	status          Status
 	hub             *ComponentHub
-	accQueuedMsg    uint64
 	accProcessedMsg uint64
 }
 
@@ -40,7 +38,6 @@ func NewBaseComponent(name string, actor IActor, logger *log.Logger) *BaseCompon
 		pid:             nil,
 		status:          StoppedStatus,
 		hub:             nil,
-		accQueuedMsg:    0,
 		accProcessedMsg: 0,
 	}
 }
@@ -64,8 +61,8 @@ func (base *BaseComponent) Start() {
 	base.IActor.BeforeStart()
 
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
-	// attach a resume strategy and a mailbox with an extension for counting msgs
-	workerProps := actor.FromInstance(base).WithGuardian(skipResumeStrategy).WithMailbox(mailbox.Unbounded(base))
+
+	workerProps := actor.FromInstance(base).WithGuardian(skipResumeStrategy)
 
 	var err error
 	// create and spawn an actor using the name as an unique id
@@ -161,10 +158,14 @@ func (base *BaseComponent) Hub() *ComponentHub {
 	return base.hub
 }
 
+// MsgQueueLen gives a number of queued msgs in this component's mailbox
+func (base *BaseComponent) MsgQueueLen() int32 {
+	return base.pid.MsgNum()
+}
+
 // Receive in the BaseComponent handles system messages and invokes actor's
 // receive function; implementation to handle incomming messages
 func (base *BaseComponent) Receive(context actor.Context) {
-	base.accProcessedMsg++
 
 	switch msg := context.Message().(type) {
 
@@ -181,7 +182,11 @@ func (base *BaseComponent) Receive(context actor.Context) {
 		atomic.SwapUint32(&base.status, RestartingStatus)
 
 	case *CompStatReq:
+		base.accProcessedMsg++
 		context.Respond(base.statics(msg))
+
+	default:
+		base.accProcessedMsg++
 	}
 
 	base.IActor.Receive(context)
@@ -198,25 +203,9 @@ func (base *BaseComponent) statics(req *CompStatReq) *CompStatRsp {
 
 	return &CompStatRsp{
 		Status:            StatusToString(base.status),
-		ProcessedMsg:      base.accProcessedMsg,
-		QueuedMsg:         base.accQueuedMsg,
+		AccProcessedMsg:   base.accProcessedMsg,
+		MsgQueueLen:       uint64(base.pid.MsgNum()),
 		MsgProcessLatency: thisMsgLatency.String(),
 		Actor:             base.IActor.Statics(),
 	}
 }
-
-// MessagePosted is called when a msg is inserted at a mailbox (or queue) of this component
-// At this time, BaseComponent accumulates its counter to get a number of queued msgs
-func (base *BaseComponent) MessagePosted(message interface{}) {
-	base.accQueuedMsg++
-}
-
-// MessageReceived is called when msg is handled by the Receive func
-// This does nothing, but needs to implement Mailbox Statics interface
-func (base *BaseComponent) MessageReceived(message interface{}) {}
-
-// MailboxStarted does nothing, but needs to implement Mailbox Statics interface
-func (base *BaseComponent) MailboxStarted() {}
-
-// MailboxEmpty does nothing, but needs to implement Mailbox Statics interface
-func (base *BaseComponent) MailboxEmpty() {}
