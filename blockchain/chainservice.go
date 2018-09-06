@@ -45,6 +45,9 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		sdb:            state.NewStateDB(),
 		op:             NewOrphanPool(),
 	}
+
+	cc.SetStateDB(actor.sdb)
+
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor

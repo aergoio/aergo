@@ -72,6 +72,11 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	}
 }
 
+// SetStateDB do nothing in the simple block factory, which do not execute
+// transactions at all.
+func (s *SimpleBlockFactory) SetStateDB(sdb *state.ChainStateDB) {
+}
+
 // IsTransactionValid checks the onsensus level validity of a transaction
 func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 	// SimpleBlockFactory has no tx valid check.

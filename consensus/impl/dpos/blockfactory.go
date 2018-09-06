@@ -47,6 +47,7 @@ type BlockFactory struct {
 	ID               string
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp
+	sdb              *state.ChainStateDB
 }
 
 // NewBlockFactory returns a new BlockFactory
@@ -70,6 +71,10 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 	)
 
 	return bf
+}
+
+func (bf *BlockFactory) setStateDB(sdb *state.ChainStateDB) {
+	bf.sdb = sdb
 }
 
 // Start run a DPoS block factory service.

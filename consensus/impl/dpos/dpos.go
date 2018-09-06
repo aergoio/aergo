@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -94,6 +95,10 @@ func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 // BlockFactory returns the BlockFactory interface in dpos.
 func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
+}
+
+func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
+	dpos.bf.setStateDB(sdb)
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction
