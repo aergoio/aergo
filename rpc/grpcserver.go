@@ -419,7 +419,7 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	return &rsp.Top, rsp.Err
+	return rsp.Top, rsp.Err
 }
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {

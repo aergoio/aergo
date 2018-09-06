@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package blockchain
 
 import (
@@ -87,6 +92,7 @@ func updateVoteResult(scs *state.ContractState, key []byte, amount int64, blockN
 		return err
 	}
 	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE updateVote")
+	//TODO: fix hardcorded length, '39' length of peer id now
 	for offset := 0; offset < len(data); offset += (39 + 8) {
 		vote := &types.Vote{
 			Candidate: data[offset : offset+39],
@@ -97,7 +103,9 @@ func updateVoteResult(scs *state.ContractState, key []byte, amount int64, blockN
 				panic("voting data crashed")
 			}
 			vote.Amount = (uint64)((int64)(vote.Amount) + amount)
-			voteList.Votes = append(voteList.Votes, vote)
+			if vote.Amount != 0 {
+				voteList.Votes = append(voteList.Votes, vote)
+			}
 			isInList = true
 		} else {
 			voteList.Votes = append(voteList.Votes, vote)
@@ -156,15 +164,11 @@ func getVoteData(scs *state.ContractState, key []byte) (uint64, uint64, error) {
 	return balance, blockNo, nil
 }
 
-func (cs *ChainService) getVotes(n int) (types.VoteList, error) {
+func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	var voteList types.VoteList
-	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(aergobp)))
-	if err != nil {
-		return voteList, err
-	}
 	data, err := scs.GetData([]byte(sortedlist))
 	if err != nil {
-		return voteList, err
+		return nil, err
 	}
 	var tmp []*types.Vote
 	voteList.Votes = tmp
@@ -178,5 +182,13 @@ func (cs *ChainService) getVotes(n int) (types.VoteList, error) {
 		i++
 	}
 	//logger.Info().Msgf("VOTE get %v", voteList.Votes)
-	return voteList, nil
+	return &voteList, nil
+}
+
+func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
+	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(aergobp)))
+	if err != nil {
+		return nil, err
+	}
+	return getVoteResult(scs, n)
 }
