@@ -45,6 +45,9 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		sdb:            state.NewStateDB(),
 		op:             NewOrphanPool(),
 	}
+
+	cc.SetStateDB(actor.sdb)
+
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -144,9 +147,6 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 			BlockNo: block.Header.BlockNo,
 			Block:   block.Clone(),
 		})
-	// if err != nil {
-	// 	logger.Info("failed to notify block:", block.Header.BlockNo, ToJSON(block))
-	// }
 }
 
 func (cs *ChainService) Receive(context actor.Context) {

@@ -86,20 +86,20 @@ func rootRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	chainsvc := blockchain.NewChainService(cfg, consensusSvc)
-	compMng.Register(chainsvc)
-	mpoolsvc := mempool.NewMemPoolService(cfg)
-	compMng.Register(mpoolsvc)
+	chainSvc := blockchain.NewChainService(cfg, consensusSvc)
+	compMng.Register(chainSvc)
+	mpoolSvc := mempool.NewMemPoolService(cfg)
+	compMng.Register(mpoolSvc)
 	accountsvc := account.NewAccountService(cfg)
 	compMng.Register(accountsvc)
-	rpcsvc := rpc.NewRPC(compMng, cfg)
-	compMng.Register(rpcsvc)
-	p2psvc := p2p.NewP2P(compMng, cfg, chainsvc)
-	compMng.Register(p2psvc)
+	rpcSvc := rpc.NewRPC(compMng, cfg)
+	compMng.Register(rpcSvc)
+	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
+	compMng.Register(p2pSvc)
 
 	if cfg.EnableRest {
 		svrlog.Info().Msg("Start Rest server")
-		restsvc := rest.NewRestService(cfg, chainsvc)
+		restsvc := rest.NewRestService(cfg, chainSvc)
 		compMng.Register(restsvc)
 		//restsvc.Start()
 	} else {

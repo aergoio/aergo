@@ -152,43 +152,72 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 	return nil
 }
 
-func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
-	blockHash := types.ToBlockID(block.BlockHash())
-	prevHash := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
+type txExecFn func(tx *types.Tx) error
 
-	//In case of Received block from BP, txs executed already.
-	//Result is saved in the BlockState
-	needExec := false
-	if bstate == nil {
-		bstate = state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
-		needExec = true
+type executor struct {
+	sdb        *state.ChainStateDB
+	blockState *state.BlockState
+	execTx     txExecFn
+	txs        []*types.Tx
+}
+
+func newExecutor(sdb *state.ChainStateDB, bState *state.BlockState, block *types.Block) *executor {
+	var exec txExecFn
+
+	// The DPoS block factory excutes transactions during block generation. In
+	// such a case it send block with block state so that bState != nil. On the
+	// contrary, the block propagated from the network is not half-executed.
+	// Hence we need a new block state and tx executor (execTx).
+	if bState == nil {
+		bState = state.NewBlockState(block.Header.BlockNo, block.BlockID(), block.PrevBlockID())
+		exec = func(tx *types.Tx) error {
+			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
+		}
 	}
 
 	txs := block.GetBody().GetTxs()
 
-	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).Msg("process txs and update state")
+	return &executor{
+		sdb:        sdb,
+		blockState: bState,
+		execTx:     exec,
+		txs:        txs,
+	}
+}
 
-	for _, tx := range txs {
-		if needExec {
-			if err := executeTx(cs.sdb, bstate, tx, block); err != nil {
+func (e *executor) execute() error {
+	if e.execTx != nil {
+		for _, tx := range e.txs {
+			if err := e.execTx(tx); err != nil {
 				return err
 			}
 		}
 	}
 
-	//TODO: sync status of bstate and cdb
-	//what to do if cdb.commit fails after sdb.Apply() succeeds
-	err := cs.sdb.Apply(bstate)
+	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
+	// sdb.Apply() succeeds
+	err := e.sdb.Apply(e.blockState)
 	if err != nil {
-		// FIXME: is that enough?
-		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to apply state")
 		return err
 	}
 
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
+	ex := newExecutor(cs.sdb, bstate, block)
+
+	if err := ex.execute(); err != nil {
+		// FIXME: is that enough?
+		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to execute block")
+
+		return err
+	}
+
+	return nil
+}
+
+func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -236,7 +265,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
 			} else {
 				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-					block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
+					blockNo, ts, "", false, recipient)
 
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
 				if err != nil {
@@ -250,7 +279,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			}
 		}
 	case types.TxType_GOVERNANCE:
-		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, block)
+		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)
 	default:
 		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
 	}

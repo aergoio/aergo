@@ -16,7 +16,8 @@ import (
 const minimum = 1000
 const aergobp = "aergo.bp"
 
-func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State, block *types.Block) error {
+func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
+	blockNo types.BlockNo) error {
 	if txBody.Amount < minimum {
 		return errors.New("too small amount to influence")
 	}
@@ -35,7 +36,7 @@ func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderSt
 				return err
 			}
 		*/
-		err = executeVoteTx(txBody, senderState, receiverState, scs, block)
+		err = executeVoteTx(txBody, senderState, receiverState, scs, blockNo)
 		if err == nil {
 			err = sdb.CommitContractState(scs)
 		}
