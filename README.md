@@ -79,6 +79,7 @@ We are developing the most practical and powerful platform for blockchain busine
 ```
 $ go get -d github.com/aergoio/aergo/account
 $ cd ${GOPATH}/src/github.com/aergoio/aergo
+$ git submodule init && git submodule update
 $ make deps
 $ make
 ```
