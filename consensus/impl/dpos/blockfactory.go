@@ -10,13 +10,12 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -51,16 +50,16 @@ type BlockFactory struct {
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, id peer.ID, privKey crypto.PrivKey, quitC <-chan interface{}) *BlockFactory {
+func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *bpInfo),
 		bpTimeoutC:       make(chan interface{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
-		ID:               enc.ToString([]byte(id)),
-		privKey:          privKey,
 		quit:             quitC,
+		ID:               p2p.NodeSID(),
+		privKey:          p2p.NodePrivKey(),
 	}
 
 	bf.txOp = chain.NewCompTxOp(

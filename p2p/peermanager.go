@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"reflect"
 	"strconv"
@@ -36,14 +35,6 @@ import (
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
-
-var myPeerInfo peerInfo
-
-type peerInfo struct {
-	sync.RWMutex
-	id      *peer.ID
-	privKey *crypto.PrivKey
-}
 
 // TODO this value better related to max peer and block produce interval, not constant
 const (
@@ -193,26 +184,9 @@ func (pm *peerManager) RegisterEventListener(listener PeerEventListener) {
 
 func (pm *peerManager) init() {
 	// check Key and address
-	var priv crypto.PrivKey
-	var pub crypto.PubKey
-	if pm.conf.NPKey != "" {
-		dat, err := ioutil.ReadFile(pm.conf.NPKey)
-		if err == nil {
-			priv, err = crypto.UnmarshalPrivateKey(dat)
-			if err != nil {
-				pm.logger.Warn().Str("npkey", pm.conf.NPKey).Msg("invalid keyfile. It's not private key file")
-			}
-			pub = priv.GetPublic()
-		} else {
-			pm.logger.Warn().Str("npkey", pm.conf.NPKey).Msg("invalid keyfile path")
-		}
-	}
-	if nil == priv {
-		pm.logger.Info().Msg("No valid private key file is found. use temporary pk instead")
-		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	}
-	pid, _ := peer.IDFromPublicKey(pub)
-	myPeerInfo.set(&pid, &priv)
+	priv := NodePrivKey()
+	pub := NodePubKey()
+	pid := NodeID()
 
 	listenAddr := net.ParseIP(pm.conf.NetProtocolAddr)
 	listenPort := pm.conf.NetProtocolPort
@@ -577,31 +551,6 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bo
 	peerAddr := meta.ToPeerAddress()
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
 	return true
-}
-
-func (pi *peerInfo) set(id *peer.ID, privKey *crypto.PrivKey) {
-	pi.Lock()
-	pi.id = id
-	pi.privKey = privKey
-	pi.Unlock()
-}
-
-// GetMyID returns the peer id of the current node
-func GetMyID() (peer.ID, crypto.PrivKey) {
-	var id *peer.ID
-	var pk *crypto.PrivKey
-
-	for pk == nil || id == nil {
-		myPeerInfo.RLock()
-		id = myPeerInfo.id
-		pk = myPeerInfo.privKey
-		myPeerInfo.RUnlock()
-
-		// To prevent high cpu usage
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	return *id, *pk
 }
 
 func (pm *peerManager) Start() error {

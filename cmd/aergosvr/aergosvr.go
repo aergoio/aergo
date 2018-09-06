@@ -76,8 +76,17 @@ func rootRun(cmd *cobra.Command, args []string) {
 		}()
 	}
 
+	p2p.InitNodeInfo(cfg.P2P, svrlog)
+
 	compMng := component.NewComponentHub()
-	chainsvc := blockchain.NewChainService(cfg)
+
+	consensusSvc, err := impl.New(cfg, compMng)
+	if err != nil {
+		svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
+		os.Exit(1)
+	}
+
+	chainsvc := blockchain.NewChainService(cfg, consensusSvc)
 	compMng.Register(chainsvc)
 	mpoolsvc := mempool.NewMemPoolService(cfg)
 	compMng.Register(mpoolsvc)
@@ -99,18 +108,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng.Start()
 
-	c, err := impl.New(cfg, compMng)
-	if err != nil {
-		svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
-		os.Exit(1)
-	}
 	if cfg.Consensus.EnableBp {
-		consensus.Start(c)
+		consensus.Start(consensusSvc)
 	}
-	chainsvc.SendChainInfo(c)
 
 	common.HandleKillSig(func() {
-		consensus.Stop(c)
+		consensus.Stop(consensusSvc)
 		compMng.Stop()
 	}, svrlog)
 

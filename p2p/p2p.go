@@ -6,13 +6,25 @@
 package p2p
 
 import (
+	"io/ioutil"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
+
+type nodeInfo struct {
+	id      peer.ID
+	sid     string
+	pubKey  crypto.PubKey
+	privKey crypto.PrivKey
+}
 
 // P2P is actor component for p2p
 type P2P struct {
@@ -24,8 +36,67 @@ type P2P struct {
 	rm ReconnectManager
 }
 
-//var _ component.IComponent = (*P2PComponent)(nil)
-var _ ActorService = (*P2P)(nil)
+var (
+	_  ActorService = (*P2P)(nil)
+	ni *nodeInfo
+)
+
+// InitNodeInfo initializes node-specific informations like node id.
+// Caution: this must be called before all the goroutines are started.
+func InitNodeInfo(cfg *config.P2PConfig, logger *log.Logger) {
+	// check Key and address
+	var (
+		priv crypto.PrivKey
+		pub  crypto.PubKey
+	)
+
+	if cfg.NPKey != "" {
+		dat, err := ioutil.ReadFile(cfg.NPKey)
+		if err == nil {
+			priv, err = crypto.UnmarshalPrivateKey(dat)
+			if err != nil {
+				logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile. It's not private key file")
+			}
+			pub = priv.GetPublic()
+		} else {
+			logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile path")
+		}
+	}
+
+	if priv == nil {
+		logger.Info().Msg("No valid private key file is found. use temporary pk instead")
+		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+	}
+
+	id, _ := peer.IDFromPublicKey(pub)
+
+	ni = &nodeInfo{
+		id:      id,
+		sid:     enc.ToString([]byte(id)),
+		pubKey:  pub,
+		privKey: priv,
+	}
+}
+
+// NodeID returns the node id.
+func NodeID() peer.ID {
+	return ni.id
+}
+
+// NodeSID returns the string representation of the node id.
+func NodeSID() string {
+	return ni.sid
+}
+
+// NodePrivKey returns the private key of the node.
+func NodePrivKey() crypto.PrivKey {
+	return ni.privKey
+}
+
+// NodePubKey returns the public key of the node.
+func NodePubKey() crypto.PubKey {
+	return ni.pubKey
+}
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
