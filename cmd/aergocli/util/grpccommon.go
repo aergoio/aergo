@@ -44,6 +44,7 @@ func (c *ConnClient) Close() {
 func JSON(pb protobuf.Message) string {
 	var w bytes.Buffer
 	var marshaler jsonpb.Marshaler
+	marshaler.Indent = "\t"
 	err := marshaler.Marshal(&w, pb)
 	if err != nil {
 		return "[marshal fail]"
