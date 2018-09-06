@@ -7,7 +7,6 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/gogo/protobuf/proto"
 )
 
 // HashID is a fixed size bytes
@@ -50,7 +49,8 @@ func (id TxID) String() string {
 
 // ToAccountID make a AccountHash from bytes
 func ToAccountID(account []byte) AccountID {
-	return AccountID(sha256.Sum256(account))
+	accountHash := TrieHasher(account)
+	return AccountID(ToHashID(accountHash))
 }
 func (id AccountID) String() string {
 	return HashID(id).String()
@@ -82,16 +82,17 @@ func (st *State) GetHash() []byte {
 	binary.Write(digest, binary.LittleEndian, st.Balance)
 	return digest.Sum(nil)
 }
-func (st *State) ToBytes() []byte {
-	buf, _ := proto.Marshal(st)
-	return buf
-}
-func (st *State) FromBytes(buf []byte) {
-	if st == nil {
-		st = &State{}
-	}
-	_ = proto.Unmarshal(buf, st)
-}
+
+// func (st *State) ToBytes() []byte {
+// 	buf, _ := proto.Marshal(st)
+// 	return buf
+// }
+// func (st *State) FromBytes(buf []byte) {
+// 	if st == nil {
+// 		st = &State{}
+// 	}
+// 	_ = proto.Unmarshal(buf, st)
+// }
 
 func (st *State) Clone() *State {
 	if st == nil {

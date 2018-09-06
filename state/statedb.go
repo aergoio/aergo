@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -40,42 +41,43 @@ type BlockInfo struct {
 	PrevHash  types.BlockID
 }
 
-type StateEntry struct {
-	State *types.State
-	Undo  *types.State
-}
 type BlockState struct {
 	BlockInfo
-	accounts map[types.AccountID]*StateEntry
+	accounts accountStates
+	undo     undoStates
 }
 
-func NewStateEntry(state, undo *types.State) *StateEntry {
-	if undo != nil && undo.IsEmpty() {
-		undo = nil
-	}
-	return &StateEntry{
-		State: state,
-		Undo:  undo,
-	}
+type undoStates struct {
+	stateRoot types.HashID
+	accounts  accountStates
 }
 
+type accountStates map[types.AccountID]*types.State
+
+// NewBlockState create new blockState contains blockNo, blockHash and blockHash of previous block
 func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockID) *BlockState {
+	return newBlockState(&BlockInfo{
+		BlockNo:   blockNo,
+		BlockHash: blockHash,
+		PrevHash:  prevHash,
+	})
+}
+func newBlockState(blockInfo *BlockInfo) *BlockState {
 	return &BlockState{
-		BlockInfo: BlockInfo{
-			BlockNo:   blockNo,
-			BlockHash: blockHash,
-			PrevHash:  prevHash,
+		BlockInfo: *blockInfo,
+		accounts:  make(accountStates),
+		undo: undoStates{
+			accounts: make(accountStates),
 		},
-		accounts: make(map[types.AccountID]*StateEntry),
 	}
 }
 
-func (bs *BlockState) PutAccount(aid types.AccountID, state, change *types.State) {
-	if prev, ok := bs.accounts[aid]; ok {
-		prev.State = change
-	} else {
-		bs.accounts[aid] = NewStateEntry(change, state)
+// PutAccount sets before and changed state to blockState
+func (bs *BlockState) PutAccount(aid types.AccountID, stateBefore, stateChanged *types.State) {
+	if _, ok := bs.undo.accounts[aid]; !ok {
+		bs.undo.accounts[aid] = stateBefore
 	}
+	bs.accounts[aid] = stateChanged
 }
 
 // SetBlockHash sets bs.BlockInfo.BlockHash to blockHash
@@ -151,12 +153,16 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
 	}
 	sdb.latest = gbInfo
 
-	// save state of genesis block
-	bstate := NewBlockState(gbInfo.BlockNo, gbInfo.BlockHash, types.BlockID{})
-	sdb.saveBlockState(bstate)
+	// create state of genesis block
+	gbState := newBlockState(gbInfo)
 
-	// TODO: process initial coin tx
-	err := sdb.saveStateDB()
+	// // publish initial coin
+	// sampleAccount := []byte("sample")
+	// logger.Debug().Str("account", string(sampleAccount)).Str("base58", base58.Encode(sampleAccount)).Msg("init genesis block")
+	// gbState.PutAccount(types.ToAccountID(sampleAccount), nil, &types.State{Balance: 10000})
+
+	// save state of genesis block
+	err := sdb.apply(gbState)
 	return err
 }
 
@@ -185,7 +191,7 @@ func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*
 	}
 
 	if prev, ok := bs.accounts[aid]; ok {
-		return prev.State, nil
+		return prev, nil
 	}
 	return sdb.getAccountState(aid)
 }
@@ -198,7 +204,7 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountI
 	return &res, nil
 }
 
-func (sdb *ChainStateDB) updateTrie(bstate *BlockState, undo bool) error {
+func (sdb *ChainStateDB) updateTrie(bstate *BlockState) error {
 	size := len(bstate.accounts)
 	if size <= 0 {
 		// do nothing
@@ -213,25 +219,24 @@ func (sdb *ChainStateDB) updateTrie(bstate *BlockState, undo bool) error {
 	})
 	keys := make(trie.DataArray, size)
 	vals := make(trie.DataArray, size)
+	var err error
 	for i, v := range accs {
-		keys[i] = v[:]
-		if undo {
-			vals[i] = bstate.accounts[v].Undo.GetHash()
-		} else {
-			vals[i] = bstate.accounts[v].State.GetHash()
+		keys[i] = accs[i][:]
+		vals[i], err = proto.Marshal(bstate.accounts[v])
+		if err != nil {
+			return err
 		}
 	}
-	if size > 0 {
-		_, err := sdb.trie.Update(keys, vals)
+	_, err = sdb.trie.Update(keys, vals)
+	if err != nil {
 		return err
 	}
 	sdb.trie.Commit()
 	return nil
 }
 
-func (sdb *ChainStateDB) revertTrie(bstate *BlockState) error {
-	// TODO: Use root hash of previous block state to revert instead of manual update
-	return sdb.updateTrie(bstate, true)
+func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot []byte) error {
+	return sdb.trie.Revert(prevBlockStateRoot)
 }
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
@@ -242,14 +247,22 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 		return fmt.Errorf("Failed to apply: invalid previous block latest=%v, bstate=%v",
 			sdb.latest.BlockHash, bstate.PrevHash)
 	}
+	return sdb.apply(bstate)
+}
+
+func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
+	// save blockState
 	sdb.saveBlockState(bstate)
+
+	// apply blockState to statedb
 	for k, v := range bstate.accounts {
-		sdb.accounts[k] = v.State
+		sdb.accounts[k] = v
 	}
-	err := sdb.updateTrie(bstate, false)
+	// apply blockState to trie
+	err := sdb.updateTrie(bstate)
 	if err != nil {
 		return err
 	}
@@ -278,10 +291,10 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			break
 		}
 
-		for k, v := range bs.accounts {
-			sdb.accounts[k] = v.Undo
+		for k, v := range bs.undo.accounts {
+			sdb.accounts[k] = v
 		}
-		err = sdb.revertTrie(bs)
+		err = sdb.revertTrie(bs.undo.stateRoot[:])
 		if err != nil {
 			return err
 		}
