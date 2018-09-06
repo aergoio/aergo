@@ -17,7 +17,8 @@ static int setItem(lua_State *L)
 	const char *key;
 	char *jsonValue;
 	char *dbKey;
-	const bc_ctx_t *exec = getLuaExecContext(L);
+	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -28,7 +29,9 @@ static int setItem(lua_State *L)
 
 	dbKey = lua_util_get_db_key(exec, key);
 
-	LuaSetDB(dbKey, jsonValue);
+	if (LuaSetDB(L, exec->stateKey, dbKey, jsonValue) != 0) {
+		lua_error(L);
+	}
 	free(jsonValue);
 	free(dbKey);
 
@@ -39,8 +42,9 @@ static int getItem(lua_State *L)
 {
 	const char *key;
 	char *dbKey;
-	const bc_ctx_t *exec = getLuaExecContext(L);
+	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
 	char *jsonValue;
+	int ret;
 
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -48,31 +52,21 @@ static int getItem(lua_State *L)
 	key = luaL_checkstring(L, 1);
 	dbKey = lua_util_get_db_key(exec, key);
 
-	jsonValue = LuaGetDB(dbKey);
+	ret = LuaGetDB(L, exec->stateKey, dbKey);
+
+    if (ret < 0) {
+		lua_error(L);
+    }
+    if (ret == 0)
+        return 0;
+    jsonValue = (char *)luaL_checkstring(L, -1);
+    lua_pop(L, 1);
 
 	if (lua_util_json_to_lua(L, jsonValue) != 0) {
 		luaL_error(L, "getItem error : can't convert %s", jsonValue);
 	}
 	free(dbKey);
 	return 1;
-}
-
-static int delItem(lua_State *L)
-{
-	const char *key;
-	char *dbKey;
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	char *jsonValue;
-	if (exec == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
-	key = luaL_checkstring(L, 1);
-	dbKey = lua_util_get_db_key(exec, key);
-
-	LuaDelDB(dbKey);
-
-	free(dbKey);
-	return 0;
 }
 
 static int getSender(lua_State *L)
@@ -82,16 +76,6 @@ static int getSender(lua_State *L)
 		luaL_error(L, "cannot find execution context");
 	}
 	lua_pushstring(L, exec->sender);
-	return 1;
-}
-
-static int getBlockhash(lua_State *L)
-{
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
-	lua_pushstring(L, exec->blockHash);
 	return 1;
 }
 
@@ -139,10 +123,8 @@ static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
 	{"getItem", getItem},
-	{"delItem", delItem},
 	{"getSender", getSender},
 	{"getCreator", getContractID},
-	{"getBlockhash", getBlockhash},
 	{"getTxhash", getTxhash},
 	{"getBlockheight", getBlockHeight},
 	{"getTimestamp", getTimestamp},

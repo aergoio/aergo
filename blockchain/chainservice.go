@@ -33,8 +33,6 @@ type ChainService struct {
 	op  *OrphanPool
 
 	cc chan consensus.ChainConsensus
-
-	votes map[string]uint64 //candidate, sum of votes
 }
 
 var (
@@ -48,8 +46,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cdb: NewChainDB(),
 		sdb: state.NewStateDB(),
 		op:  NewOrphanPool(),
-
-		votes: map[string]uint64{},
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
@@ -89,9 +85,6 @@ func (cs *ChainService) BeforeStart() {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
-	if err := cs.loadGovernace(); err != nil {
-		logger.Fatal().Err(err).Msg("failed to load governance")
-	}
 }
 
 func (cs *ChainService) AfterStart() {
@@ -275,7 +268,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
-		top := cs.getVotes(msg.N)
+		top, _ := cs.getVotes(msg.N)
 		context.Respond(&message.GetElectedRsp{
 			Top: top,
 		})

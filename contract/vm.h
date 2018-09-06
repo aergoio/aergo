@@ -6,14 +6,14 @@
 #include <luajit.h>
 
 typedef struct blockchain_ctx {
+    char *stateKey;
     char *sender;
     char *contractId;
-    char *blockHash;
     char *txHash;
     unsigned long long blockHeight;
     long long timestamp;
     char *node;
-    int32_t confirmed;
+    int confirmed;
 } bc_ctx_t;
 
 lua_State *vm_newstate();
