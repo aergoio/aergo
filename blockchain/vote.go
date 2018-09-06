@@ -35,11 +35,15 @@ func executeVoteTx(txBody *types.TxBody, senderState *types.State,
 			return err
 		}
 	} else if voteCmd == 'r' { //unstaking, revert
-		voting, blockNo, err := getVote(scs, txBody.Account, txBody.Recipient)
-		if blockNo < limitDuration { //TODO : fix it proper
+		voting, blockNo, err := getVote(scs, txBody.Account, txBody.Payload[1:])
+		if block.GetHeader().GetBlockNo() < limitDuration+blockNo { //TODO : fix it proper
 			return errors.New("less time has passed")
 		}
 		err = setVote(scs, txBody.Account, txBody.Payload[1:], 0, block.GetHeader().GetBlockNo())
+		if err != nil {
+			return err
+		}
+		err = updateVoteResult(scs, txBody.Payload[1:], -(int64)(voting), block.GetHeader().GetBlockNo())
 		if err != nil {
 			return err
 		}
