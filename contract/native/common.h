@@ -22,13 +22,14 @@
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
 
-#ifndef bool
-#define bool                unsigned char
-#endif
-
-#ifndef true
+#if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
+typedef unsigned char bool;
 #define true                1
 #define false               0
+#define __bool_true_false_are_defined
 #endif
+
+#define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
+#define __SOURCE__          FILENAME(__FILE__), __LINE__
 
 #endif /*_COMMON_H */

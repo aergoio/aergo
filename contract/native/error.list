@@ -7,21 +7,17 @@
 #define error(code, msg)
 #endif
 
-error(WARN_INTERNAL,                    "%s:%d: %s")
+error(INTERNAL_ERROR,               "%s:%d: %s")
+error(INVALID_OPTION_ERROR,         "invalid command line option: %s")
 
-error(ERROR_INTERNAL,                   "%s:%d, internal error: %s")
-error(ERROR_INVALID_OPTION,             "invalid command option: %s")
-error(ERROR_INCOMPATIBLE_VERSION,       "incompatible version with %d.%d")
+error(DIRECTORY_IO_ERROR,           "%s: %s")
+error(FILE_IO_ERROR,                "%s: %s")
 
-error(ERROR_DIRECTORY_IO_FAILED,        "%s: %s")
-error(ERROR_FILE_IO_FAILED,             "%s: %s")
+error(CROSS_IMPORT_ERROR,           "%s:%d: cross reference with import '%s'")
 
-error(ERROR_PREP_CROSS_IMPORT,          "%s:%d: cross reference with import '%s'")
-
-error(ERROR_SCAN_UNTERMINATED_COMMENT,  "%s:%d:%d: unterminated comment\n%s")
-error(ERROR_SCAN_UNTERMINATED_STRING,   "%s:%d:%d: unterminated string\n%s")
-error(ERROR_SCAN_UNKNOWN_CHAR,          "%s:%d:%d: unknown character\n%s")
-error(ERROR_SCAN_STR_TOO_LONG,          "%s:%d:%d: string literal too long\n%s")
-error(ERROR_PARSE_FAILED,               "%s:%d:%d: %s\n%s")
+error(UNTERMINATED_COMMENT_ERROR,   "%s:%d: unterminated comment\n%s")
+error(UNTERMINATED_STRING_ERROR,    "%s:%d: unterminated string\n%s")
+error(UNKNOWN_CHAR_ERROR,           "%s:%d: unknown character\n%s")
+error(SYNTAX_ERROR,                 "%s:%d: %s\n%s")
 
 /* vim:set filetype=c: */

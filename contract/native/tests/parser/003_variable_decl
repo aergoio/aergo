@@ -1,0 +1,95 @@
+@desc primitive_types
+contract test {
+    int v1;
+    int16 v2;
+    int32 v3;
+    int64 v4;
+    uint v5;
+    uint16 v6;
+    uint32 v7;
+    uint64 v8;
+    float v9;
+    double v10;
+    bool v11;
+    byte v12;
+    string v13;
+    int v14, v15;
+}
+
+@desc constant_qualifier
+contract test {
+    const int v;
+}
+
+@desc invalid_constant_decl
+@return SYNTAX_ERROR
+contract test {
+    int const v;
+}
+
+@desc primitive_arrays
+contract test {
+    int v1[10];
+    int v2, v3[10];
+    int v4[10], v5;
+    int v6[10], v7[10];
+
+    byte v8[];
+    byte v9[], v10[];
+}
+
+@desc invalid_array_decl
+@return SYNTAX_ERROR
+contract test {
+    int[10] v;
+}
+
+@desc missing_declarator
+@return SYNTAX_ERROR
+contract test {
+    int;
+}
+
+@desc missing_semicolon
+@return SYNTAX_ERROR
+contract test {
+    int v
+}
+
+@desc struct_types
+contract test {
+    struct s1 {
+        int a;
+        byte b;
+        bool c[10];
+    }
+    s1 v1;
+
+    struct s2 {
+        s1 a;
+    }
+}
+
+@desc struct_arrays
+contract test {
+    struct s {
+        int a, b;
+        string c;
+    }
+    s y[10];
+}
+
+@desc empty_struct
+@return SYNTAX_ERROR
+contract test {
+    struct s {
+    }
+    s y[10];
+}
+
+@desc map_types
+contract test {
+    map(int => string) v1;
+    map(v => string) v2;
+    map(byte => v) v3;
+}

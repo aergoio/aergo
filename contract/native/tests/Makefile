@@ -27,11 +27,16 @@ $(TARGET): $(SRCS) $(LIBS)
 $(LIBS):
 	@$(MAKE) -C ..
 
+CASES = $(shell find ./parser -name '0*' | sort)
+
 test: $(TARGET)
-	@./$(TARGET)
+	@./$(TARGET) --silent $(CASES)
+
+dump: $(TARGET)
+	@./$(TARGET) --lex-dump --yacc-dump $(CASES)
 
 debug: $(TARGET)
-	@./$(TARGET) --debug
+	@./$(TARGET) $(CASES)
 
 clean:
 	$(RM) *.o $(TARGET)

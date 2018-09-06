@@ -26,10 +26,10 @@ strbuf_reset(strbuf_t *sb)
 }
 
 void
-strbuf_append_str(strbuf_t *sb, char *str, int str_len)
+strbuf_append(strbuf_t *sb, char *str, int str_len)
 {
     if (sb->offset + str_len > sb->size) {
-        sb->size += max(sb->size, str_len);
+        sb->size += MAX(sb->size, str_len);
         sb->buf = realloc(sb->buf, sb->size + 1);
     }
 
@@ -40,23 +40,17 @@ strbuf_append_str(strbuf_t *sb, char *str, int str_len)
 }
 
 void
-strbuf_append_char(strbuf_t *sb, char c)
+strbuf_trunc(strbuf_t *sb, int len)
 {
-    if (sb->offset + 1 > sb->size) {
-        sb->size *= 2;
-        sb->buf = realloc(sb->buf, sb->size + 1);
-    }
-
-    sb->buf[sb->offset++] = c;
+    sb->offset -= len;
     sb->buf[sb->offset] = '\0';
 }
-
 
 void
 strbuf_copy(strbuf_t *src, strbuf_t *dest)
 {
     strbuf_reset(dest);
-    strbuf_append_str(dest, src->buf, src->offset);
+    strbuf_append(dest, src->buf, src->offset);
 }
 
 /* end of strbuf.c */

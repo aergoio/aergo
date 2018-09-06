@@ -14,9 +14,9 @@
     int yylex(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner)
 
 #undef  YY_INPUT
-#define YY_INPUT(buf, result, max)                                             \
+#define YY_INPUT(buf, result, MAX)                                             \
     do {                                                                       \
-        (result) = min((max), yyextra->len - yyextra->pos);                    \
+        (result) = MIN((MAX), yyextra->len - yyextra->pos);                    \
         if ((result) > 0) {                                                    \
             memcpy(buf, yyextra->src + yyextra->pos, (result));                \
             yyextra->pos += (result);                                          \
@@ -24,6 +24,9 @@
     } while (0)
 
 #define YY_EXTRA_TYPE           yyparam_t *
+#define YY_BUF                  &yyextra->buf
+
+#define yy_update_last_col()    lloc->last.col += yyleng
 
 #define yy_update_last_line()                                                  \
     do {                                                                       \
@@ -32,33 +35,16 @@
         lloc->last.col = 1;                                                    \
     } while (0)
 
-#define yy_update_last_col()                                                   \
-    do {                                                                       \
-        lloc->last.col += yyleng;                                              \
-    } while (0)
-
 #define yy_update_first()       lloc->first = lloc->last
 
 #define yy_text()               xstrndup(yytext, yyleng)
 #define yy_literal()            xstrndup(yytext + 1, yyleng - 2)
 
-#define yy_strcat()                                                            \
-    do {                                                                       \
-        if (yyextra->offset + yyleng >= STR_MAX_LEN) {                         \
-            yy_error(ERROR_SCAN_STR_TOO_LONG);                                 \
-            yy_update_last_col();                                              \
-            yy_recover();                                                      \
-        }                                                                      \
-        strcat(yyextra->buf, yytext);                                          \
-        yyextra->offset += yyleng;                                             \
-    } while (0)
+#define yy_append()             strbuf_append(YY_BUF, yytext, yyleng)
 
 #define yy_error(ec)                                                           \
-    do {                                                                       \
-        yy_update_first();                                                     \
-        ERROR(ec, yyextra->path, lloc->first.line, lloc->first.col,            \
-              make_trace(yyextra->path, lloc));                                \
-    } while (0)
+    ERROR(ec, FILENAME(yyextra->path), lloc->first.line,                       \
+          make_trace(yyextra->path, lloc))
 
 #define yy_recover()                                                           \
     do {                                                                       \
@@ -94,70 +80,78 @@
 %x  D_QUOTE
 %x  F_DIR
 
-whitespace                  ([ ]|\t|(\xE3\x80\x80))
-newline                     (\r|\n|\r\n)
+ws                          [ \t\f\v]
+nl                          ([\r\n]|\r\n)
 
 D                           [0-9]
 L                           [a-zA-Z\x80-\xFF_]
-IS                          (u|U)
+H                           [a-fA-F0-9]
 
-integer                     [+-]?{D}+{IS}?
+integer                     [+-]?{D}+
 float                       [+-]?({D}*"."{D}+|{D}+"."{D}*)
+hexa                        0[xX]{H}+
 
 id                          {L}({L}|{D})*
 
 %%
 
-{whitespace}+               yy_update_last_col();
-{newline}                   yy_update_last_line();
+{ws}+                       yy_update_last_col();
+{nl}                        yy_update_last_line();
 
 "//"[^\r\n]*                yy_update_last_col();
 
-"/*"                        { BEGIN(C_COMMENT); yy_update_last_col(); }
+"/*" {
+    BEGIN(C_COMMENT);
+    yy_update_first();
+    yy_update_last_col();
+}
 <C_COMMENT>"*/"             { BEGIN(INITIAL); yy_update_last_col(); }
 <C_COMMENT>[^*\r\n]+        yy_update_last_col();
 <C_COMMENT>"*"              yy_update_last_col();
-<C_COMMENT>{newline}        yy_update_last_line();
+<C_COMMENT>{nl}             yy_update_last_line();
 <C_COMMENT><<EOF>> {
-    yy_error(ERROR_SCAN_UNTERMINATED_COMMENT);
+    yy_error(UNTERMINATED_COMMENT_ERROR);
     yyterminate();
 }
 
-\"(\\.|[^\\"\n\r])*\" {
-    lval->str = yy_literal();
-    yy_return(L_STR);
-}
-    /*
 "\"" {
     BEGIN(D_QUOTE);
+    yy_update_first();
     yy_update_last_col();
-    yyextra->buf[0] = '\0';
-    yyextra->offset = 0;
+    strbuf_reset(YY_BUF);
 }
-<D_QUOTE>[^"\\\r\n]+        { yy_update_last_col(); yy_strcat(); }
+<D_QUOTE>(\\.|[^\\"\r\n])+  { yy_update_last_col(); yy_append(); }
 <D_QUOTE>"\"" {
     BEGIN(INITIAL);
+    lval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));
     yy_update_last_col();
-    fprintf(stderr, "result: %s\n", yyextra->buf);
-    //return L_STR;
+    return L_STR;
 }
-<D_QUOTE>"\\"{whitespace}*{newline} {
-    yy_update_last_col();
-    yy_update_last_line();
-}
-<D_QUOTE>"\\"               { yy_update_last_col(); yy_strcat(); }
-<D_QUOTE>{newline} {
-    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
+<D_QUOTE>{nl} {
+    int i;
+    int len = strbuf_length(YY_BUF);
+    char *str = strbuf_text(YY_BUF);
+    for (i = len - 1; i >= 0; i--) {
+        if (!isblank(str[i]))
+            break;
+    }
+    if (str[i] == '\\') {
+        strbuf_trunc(YY_BUF, len - i);
+    }
+    else {
+        BEGIN(INITIAL);
+        yy_error(UNTERMINATED_STRING_ERROR);
+    }
     yy_update_last_line();
 }
 <D_QUOTE><<EOF>> {
-    yy_error(ERROR_SCAN_UNTERMINATED_STRING);
+    yy_error(UNTERMINATED_STRING_ERROR);
     yyterminate();
 }
-    */
 
 {integer}                   yy_return(L_INT);
 {float}                     yy_return(L_FLOAT);
+{hexa}                      yy_return(L_HEXA);
 
 "+="                        yy_return(OP_ADD_ASSIGN);
 "-="                        yy_return(OP_SUB_ASSIGN);
@@ -177,6 +171,7 @@ id                          {L}({L}|{D})*
 ">="                        yy_return(OP_GE);
 "=="                        yy_return(OP_EQ);
 "!="                        yy_return(OP_NE);
+"=>"                        yy_return(OP_MAP);
 
 "{"                         yy_return('{');
 "}"                         yy_return('}');
@@ -199,7 +194,7 @@ id                          {L}({L}|{D})*
 "&"                         yy_return('&');
 "|"                         yy_return('|');
 "="                         yy_return('=');
-"#"                         yy_return('#');
+"^"                         yy_return('^');
 
 "account"                   yy_return(K_ACCOUNT);
 "bool"                      yy_return(K_BOOL);
@@ -223,7 +218,6 @@ id                          {L}({L}|{D})*
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
-"int8"                      yy_return(K_INT8);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
@@ -239,8 +233,6 @@ id                          {L}({L}|{D})*
 "uint16"                    yy_return(K_UINT16);
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
-"uint8"                     yy_return(K_UINT8);
-"while"                     yy_return(K_WHILE);
 
     /*
 "commit"                    yy_return(K_COMMIT);
@@ -251,13 +243,13 @@ id                          {L}({L}|{D})*
     */
 
 "#file"                     BEGIN(F_DIR);
-<F_DIR>{whitespace}+
+<F_DIR>{ws}+
 <F_DIR>\"[^\"\n\r]+\"       yyextra->path = yy_literal();
 <F_DIR>{D}+" "{D}+ {
     lloc->last.line = atoi(strtok(yy_text(), " "));
     lloc->last.offset = atoi(strtok(NULL, " "));
 }
-<F_DIR>{newline}            BEGIN(INITIAL);
+<F_DIR>{nl}                 BEGIN(INITIAL);
 
 {id} {
     lval->str = yy_text();
@@ -265,7 +257,9 @@ id                          {L}({L}|{D})*
 }
 
 . {
-    yy_error(ERROR_SCAN_UNKNOWN_CHAR);
+    yy_update_first();
+    yy_update_last_col();
+    yy_error(UNKNOWN_CHAR_ERROR);
     yy_recover();
 }
 

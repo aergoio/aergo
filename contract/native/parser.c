@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "strbuf.h"
 #include "prep.h"
 #include "util.h"
 
@@ -33,6 +32,8 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
 
     yypos_init(&param->lloc.first);
     yypos_init(&param->lloc.last);
+
+    strbuf_init(&param->buf);
 }
 
 int
@@ -46,18 +47,19 @@ parse(char *path, opt_t opt, strbuf_t *src)
 
     yyset_extra(&param, scanner);
 
-    if (opt_enabled(opt, OPT_DEBUG)) {
+    if (opt_enabled(opt, OPT_LEX_DUMP))
         yyset_debug(1, scanner);
+
+    if (opt_enabled(opt, OPT_YACC_DUMP))
         yydebug = 1;
-    }
 
     yyparse(&param, scanner);
     yylex_destroy(scanner);
 
-    if (!opt_enabled(opt, OPT_TEST))
+    if (!opt_enabled(opt, OPT_SILENT))
         error_dump();
 
-    return error_last();
+    return error_first();
 }
 
 /* end of parser.c */

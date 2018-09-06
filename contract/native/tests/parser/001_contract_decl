@@ -11,3 +11,7 @@ contract test {
 contract test {
     constructor(int x) { }
 }
+
+@desc multiple_contracts
+contract test1 { }
+contract text2 { }

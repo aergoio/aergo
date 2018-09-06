@@ -18,8 +18,8 @@ typedef struct strbuf_s strbuf_t;
 typedef struct yylloc_s yylloc_t;
 #endif /* _YYLLOC_T */
 
-#define max(x, y)           ((x) > (y) ? (x) : (y))
-#define min(x, y)           ((x) > (y) ? (y) : (x))
+#define MAX(x, y)           ((x) > (y) ? (x) : (y))
+#define MIN(x, y)           ((x) > (y) ? (y) : (x))
 
 FILE *open_file(char *path, char *mode);
 void close_file(FILE *fp);

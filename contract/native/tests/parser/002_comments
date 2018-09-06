@@ -17,7 +17,7 @@ a
 }
 
 @desc unterminated_comment
-@return ERROR_PARSE_FAILED
+@return UNTERMINATED_COMMENT_ERROR
 contract test {
     /* This is an unterminated comment
 }

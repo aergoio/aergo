@@ -64,22 +64,21 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
 {
     ec_t ac;
 
-    printf("    * %s... ", title);
+    printf("  + %-67s ", title);
+    fflush(stdout);
 
     ac = parse(path, opt, sb);
     if (ex == ac) {
-        printf(ANSI_GREEN"ok"ANSI_NONE"\n");
+        printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
     }
     else {
-        printf(ANSI_RED"fail"ANSI_NONE"\n");
+        printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
 
         if (ex == NO_ERROR)
             error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
-
-        exit(EXIT_FAILURE);
     }
 
     error_clear();
@@ -100,7 +99,7 @@ read_test(char *path, opt_t opt)
 
     strbuf_init(&sb);
 
-    printf("  Checking %s...\n", path);
+    printf("Checking %s...\n", FILENAME(path));
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
@@ -119,8 +118,10 @@ read_test(char *path, opt_t opt)
             ec = get_errcode(trim_str(buf + strlen(TAG_ERROR)));
         }
         else {
-            mark_file(path, line, offset, &sb);
-            strbuf_append_str(&sb, buf, strlen(buf));
+            if (strbuf_empty(&sb))
+                mark_file(path, line, offset, &sb);
+
+            strbuf_append(&sb, buf, strlen(buf));
             offset += strlen(buf);
         }
 
@@ -131,43 +132,49 @@ read_test(char *path, opt_t opt)
         run_test(title, ec, path, opt, &sb);
 }
 
+static void
+get_opt(int argc, char **argv, opt_t *opt)
+{
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        if (*argv[i] != '-')
+            continue;
+
+        if (strcmp(argv[i], "--silent") == 0)
+            opt_set(*opt, OPT_SILENT);
+        else if (strcmp(argv[i], "--lex-dump") == 0)
+            opt_set(*opt, OPT_LEX_DUMP);
+        else if (strcmp(argv[i], "--yacc-dump") == 0)
+            opt_set(*opt, OPT_YACC_DUMP);
+    }
+}
+
 int
 main(int argc, char **argv)
 {
+    int i;
     char delim[81];
-    opt_t opt = OPT_TEST;
-    DIR *dir;
-    struct dirent *entry;
-    struct stat st;
+    opt_t opt = OPT_NONE;
 
-    if (argc >= 2 && strcmp(argv[1], "--debug") == 0)
-        opt_set(opt, OPT_DEBUG);
-
-    dir = opendir(".");
-    if (dir == NULL)
-        FATAL(ERROR_DIRECTORY_IO_FAILED, ".", strerror(errno));
+    get_opt(argc, argv, &opt);
 
     memset(delim, '*', 80);
     delim[80] = '\0';
 
     printf("%s\n", delim);
-    printf("Starting %s...\n", argv[0]);
+    printf("* Starting %s...\n", FILENAME(argv[0]));
     printf("%s\n", delim);
 
-    while ((entry = readdir(dir)) != NULL) {
-        stat(entry->d_name, &st);
-
-        if (!S_ISREG(st.st_mode) ||
-            strncmp(entry->d_name, PREFIX, strlen(PREFIX)) != 0)
+    for (i = 1; i < argc; i++) {
+        if (*argv[i] == '-')
             continue;
 
-        read_test(entry->d_name, opt);
+        read_test(argv[i], opt);
     }
 
-    closedir(dir);
-
     printf("%s\n", delim);
-    printf("%s finished successfully\n", argv[0]);
+    printf("* Finished %s successfully\n", FILENAME(argv[0]));
     printf("%s\n", delim);
 
     return EXIT_SUCCESS;

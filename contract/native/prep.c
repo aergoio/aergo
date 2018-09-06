@@ -81,7 +81,7 @@ add_file(char *path, stack_t *imp)
 
     while (true) {
         if (strcmp(node->item, path) == 0)
-            FATAL(ERROR_PREP_CROSS_IMPORT, path);
+            FATAL(CROSS_IMPORT_ERROR, path);
     }
 
     stack_push(imp, xstrdup(path));
@@ -90,7 +90,7 @@ add_file(char *path, stack_t *imp)
 static void
 put_char(scan_t *scan, char c)
 {
-    strbuf_append_char(scan->out, c);
+    strbuf_append(scan->out, &c, 1);
 }
 
 static void
@@ -145,7 +145,7 @@ mark_file(char *path, int line, int offset, strbuf_t *out)
 
     snprintf(buf, sizeof(buf), "#file \"%s\" %d %d\n", path, line, offset);
 
-    strbuf_append_str(out, buf, strlen(buf));
+    strbuf_append(out, buf, strlen(buf));
 }
 
 static void

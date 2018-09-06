@@ -27,29 +27,26 @@
 #define CHECK(cond)                                                            \
     do {                                                                       \
         if (!(cond))                                                           \
-            WARN(WARN_INTERNAL, __FILE__, __LINE__,                            \
-                 "check failed with condition: " #cond);                       \
+            WARN(INTERNAL_ERROR, __SOURCE__, "check failed, " #cond);          \
     } while (0)
 
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __FILE__, __LINE__,                          \
-                  "assertion failed with condition: " #cond);                  \
+            FATAL(INTERNAL_ERROR, __SOURCE__, "assertion failed, " #cond);     \
     } while (0)
 
-#define ASSERT2(cond, err)                                                     \
+#define ASSERT2(cond, msg)                                                     \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __FILE__, __LINE__,                          \
-                  "assertion failed with error: " #err);                       \
+            FATAL(INTERNAL_ERROR, __SOURCE__, "assertion failed, " #msg);      \
     } while (0)
 
 #define FATAL(ec, ...)                                                         \
     do {                                                                       \
         error_push((ec), LVL_FATAL, ## __VA_ARGS__);                           \
         error_dump();                                                          \
-        EXIT(EXIT_FAILURE);                                                    \
+        exit(EXIT_FAILURE);                                                    \
     } while (0)
 
 #define ERROR(ec, ...)                                                         \
@@ -91,15 +88,17 @@ typedef struct error_s {
     char desc[ERROR_MAX_DESC_LEN];
 } error_t;
 
-int error_count(void);
-ec_t error_last(void);
 char *error_text(ec_t ec);
+
+int error_count(void);
+
+ec_t error_first(void);
+ec_t error_last(void);
 
 void error_push(ec_t ec, lvl_t lvl, ...);
 error_t *error_pop(void);
 
 void error_clear(void);
-
 void error_dump(void);
 
 #endif /*_ERROR_H */

@@ -17,7 +17,7 @@ open_file(char *path, char *mode)
    
     fp = fopen(path, mode);
     if (fp == NULL)
-        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
+        FATAL(FILE_IO_ERROR, path, strerror(errno));
 
     return fp;
 }
@@ -39,11 +39,11 @@ read_file(char *path, strbuf_t *sb)
     fp = open_file(path, "r");
 
     while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-        strbuf_append_str(sb, buf, n);
+        strbuf_append(sb, buf, n);
     }
 
     if (!feof(fp))
-        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
+        FATAL(FILE_IO_ERROR, path, strerror(errno));
 
     fclose(fp);
 }
@@ -58,7 +58,7 @@ write_file(char *path, strbuf_t *sb)
 
     n = fwrite(strbuf_text(sb), strbuf_length(sb), 1, fp);
     if (n == 0)
-        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
+        FATAL(FILE_IO_ERROR, path, strerror(errno));
 
     fclose(fp);
 }
@@ -66,34 +66,48 @@ write_file(char *path, strbuf_t *sb)
 char *
 make_trace(char *path, yylloc_t *lloc)
 {
+#define TRACE_LINE_MAX      80
     int i, j;
     int nread;
-    int buf_size;
-    char *buf;
+    int tok_len;
+    int adj_offset = lloc->first.offset;
+    int adj_col = lloc->first.col;
     FILE *fp = open_file(path, "r");
+    char *buf;
 
-    if (fseek(fp, lloc->first.offset, SEEK_SET) < 0)
-        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
+    ASSERT(adj_offset >= 0);
+    ASSERT(adj_col > 0);
 
-    buf_size = max(lloc->first.col * 2, STRBUF_INIT_SIZE);
-    buf = xmalloc(buf_size);
+    tok_len = MIN(lloc->last.offset - lloc->first.offset, TRACE_LINE_MAX - 1);
+    ASSERT(tok_len >= 0);
 
-    nread = fread(buf, 1, buf_size, fp);
+    if (adj_col + tok_len > TRACE_LINE_MAX) {
+        adj_col = TRACE_LINE_MAX - tok_len;
+        adj_offset += lloc->first.col - adj_col;
+    }
+    
+    if (fseek(fp, adj_offset, SEEK_SET) < 0)
+        FATAL(FILE_IO_ERROR, path, strerror(errno));
+
+    buf = xmalloc(TRACE_LINE_MAX * 3);
+
+    nread = fread(buf, 1, TRACE_LINE_MAX, fp);
     if (nread <= 0 && !feof(fp))
-        FATAL(ERROR_FILE_IO_FAILED, path, strerror(errno));
+        FATAL(FILE_IO_ERROR, path, strerror(errno));
 
     for (i = 0; i < nread; i++) {
-        if (buf[i] == '\n' || buf[i] == '\r') {
-            i++;
+        if (buf[i] == '\n' || buf[i] == '\r')
             break;
-        }
     }
-    for (j = 0; j < lloc->first.col - 1; j++) {
-        buf[i + j] = ' ';
-    }
-    strcpy(buf + i + j, ANSI_GREEN"^"ANSI_NONE);
+    buf[i++] = '\n';
 
-    fclose(fp);
+    for (j = 0; j < adj_col - 1; j++) {
+        buf[i++] = ' ';
+    }
+
+    strcpy(buf + i, ANSI_GREEN"^"ANSI_NONE);
+
+    close_file(fp);
 
     return buf;
 }

@@ -1,0 +1,60 @@
+@desc numeric_values
+contract test {
+    int v1 = 1;
+    int v2 = +12;
+    int v3 = -123;
+
+    float v5 = 1.0;
+    float v6 = +1.1;
+    float v7 = -1.2;
+
+    double v8 = 1.;
+    double v9 = .234;
+
+    int64 v10 = 0x08;
+    int64 v11 = 0xff;
+}
+
+@desc string_values
+contract test {
+    string v1 = "";
+    string v2 = "literal";
+    string v3 = "literal \"include quotation\"";
+    string v4 = "literal /* with */ // comments";
+    string v5 = "literal \n \   
+        with concatenation";
+    string v6 = "splitted " "literal";
+}
+
+@desc unterminated_string
+@return UNTERMINATED_STRING_ERROR
+contract test {
+    string v = "unterminated string\";
+}
+
+@desc predefined_constants
+contract test {
+    bool v1 = true;
+    bool v2 = false;
+    struct s1 {
+        int a;
+    }
+    s1 y = null;
+}
+
+@desc array_initializer
+contract test {
+    int v1[] = { 1, 2, 3 };
+    int v2[] = { 1, 2, 3, };
+    string v3[] = { "a", "b", "c" };
+}
+
+@desc struct_initializer
+contract test {
+    struct s {
+        int a;
+        int b;
+        string c;
+    }
+    s v1 = { 1, 0x01, "b" };
+}

@@ -9,11 +9,7 @@
 #include "common.h"
 
 #include "compile.h"
-
-#ifndef _STRBUF_T
-#define _STRBUF_T
-typedef struct strbuf_s strbuf_t;
-#endif  /* _STRBUF_T */
+#include "strbuf.h"
 
 typedef struct yyparam_s {
     char *path;
@@ -23,6 +19,8 @@ typedef struct yyparam_s {
     int pos;
 
     yylloc_t lloc;
+
+    strbuf_t buf;
 } yyparam_t;
 
 #define YYLTYPE             yylloc_t

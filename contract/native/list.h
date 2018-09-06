@@ -8,7 +8,15 @@
 
 #include "common.h"
 
-struct list_node_s {
+#define list_empty(l)           ((l)->head == NULL)
+
+#define foreach(p, l)                                                          \
+	for ((p) = (l)->head; (p); (p) = (p)->next)
+
+#define foreach_safe(p, n, l)                                                  \
+	for ((p) = (l)->head, (n) = (p)->next; (p); (p) = (n), (n) = (n)->next)
+
+typedef struct list_node_s {
   	struct list_node_s *next;
   	void *data;
 } list_node_t;
@@ -16,12 +24,6 @@ struct list_node_s {
 typedef struct list_s {
   	list_node_t *head;
 } list_t;
-
-#define foreach(p, l)                                                          \
-	for ((p) = (l)->head; (p); (p) = (p)->next)
-
-#define foreach_safe(p, n, l)                                                  \
-	for ((p) = (l)->head, (n) = (p)->next; (p); (p) = (n), (n) = (n)->next)
 
 static inline list_t *
 list_new(void)

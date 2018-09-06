@@ -45,15 +45,29 @@ error_count(void)
     return errstack_.size;
 }
 
-ec_t 
-error_last(void)
+ec_t
+error_first(void)
 {
-    stack_node_t *top = stack_top(&errstack_);
+    stack_node_t *n;
 
-    if (top == NULL)
+    if (stack_empty(&errstack_))
         return NO_ERROR;
 
-    return ((error_t *)top->item)->code;
+    n = stack_top(&errstack_);
+    while (n->next != NULL) {
+        n = n->next;
+    }
+
+    return ((error_t *)n->item)->code;
+}
+
+ec_t
+error_last(void)
+{
+    if (stack_empty(&errstack_))
+        return NO_ERROR;
+
+    return ((error_t *)stack_top(&errstack_)->item)->code;
 }
 
 static error_t *

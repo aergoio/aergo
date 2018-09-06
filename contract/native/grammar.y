@@ -16,7 +16,7 @@
 
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 
-static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, 
+static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
                     const char *msg);
 
 %}
@@ -46,7 +46,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %token  <str>           ID
 
 /* expr_lit */
-%token  <str>           L_FLOAT         L_INT           L_STR
+%token  <str>
+        L_FLOAT         L_HEXA          L_INT           L_STR
 
 /* operator */
 %token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
@@ -54,6 +55,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         OP_RSHIFT       OP_LSHIFT       OP_INC          OP_DEC
         OP_AND          OP_OR           OP_LE           OP_GE
         OP_EQ           OP_NE
+        OP_MAP
 
 /* keyword */
 %token  /* A */
@@ -73,8 +75,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* G */
         /* H */
         /* I */
-        K_IF            K_INT           K_INT16         K_INT32
-        K_INT64         K_INT8
+        K_IF            K_INIT          K_INT           K_INT16
+        K_INT32         K_INT64
         /* L */
         /* M */
         K_MAP
@@ -92,10 +94,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         K_TRUE
         /* U */
         K_UINT          K_UINT16        K_UINT32        K_UINT64
-        K_UINT8
         /* V */
         /* W */
-        K_WHILE
         /* X */
         /* Y */
         /* Z */
@@ -161,17 +161,15 @@ type_spec:
 |   K_FLOAT
 |   K_DOUBLE
 |   K_INT
-|   K_INT8
 |   K_INT16
 |   K_INT32
 |   K_INT64
-|   K_MAP
 |   K_STRING
 |   K_UINT
-|   K_UINT8
 |   K_UINT16
 |   K_UINT32
 |   K_UINT64
+|   K_MAP '(' type_spec OP_MAP type_spec ')'
 |   id
 ;
 
@@ -418,6 +416,14 @@ expr_unary:
     expr_post
 |   OP_INC expr_unary
 |   OP_DEC expr_unary
+|   op_unary expr_unary
+;
+
+op_unary:
+    '+'
+|   '-'
+|   '~'
+|   '!'
 ;
 
 expr_post:
@@ -436,7 +442,8 @@ expr_prim:
 |   K_FALSE
 |   L_INT
 |   L_FLOAT
-|   L_STR
+|   L_HEXA
+|   string
 |   id
 |   '(' expression ')'
 ;
@@ -450,6 +457,11 @@ expr_const:
     expr_cond
 ;
 
+string:
+    L_STR
+|   string L_STR
+;
+
 id:
     ID              { $$ = $1; }
 ;
@@ -459,8 +471,8 @@ id:
 static void
 yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
 {
-    ERROR(ERROR_PARSE_FAILED, param->path, lloc->first.line, lloc->first.col, 
-          msg, make_trace(param->path, lloc));
+    ERROR(SYNTAX_ERROR, FILENAME(param->path), lloc->first.line, msg,
+          make_trace(param->path, lloc));
 }
 
 /* end of grammar.y */

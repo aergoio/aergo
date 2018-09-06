@@ -1,0 +1,30 @@
+@desc assignment
+contract test {
+    int v1;
+    int v2;
+
+    constructor() {
+        v1 += 1;
+        v1 -= 1;
+        v1 *= 1 + 1;
+        v1 /= 2;
+        v1 %= 10;
+
+        v2 |= 0xff;
+        v2 &= 0x01;
+        v2 ^= 0x01;
+    }
+}
+
+@desc unary_arithmetic
+contract test {
+    int v1 = 1;
+
+    constructor() {
+        v1++;
+        ++v1;
+        v1--;
+        --v1;
+    }
+}
+

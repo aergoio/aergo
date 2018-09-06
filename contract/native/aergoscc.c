@@ -8,6 +8,7 @@
 #include "version.h"
 #include "compile.h"
 #include "util.h"
+#include "list.h"
 
 static void
 print_help(void)
@@ -15,8 +16,9 @@ print_help(void)
     printf("%s, Aergo smart contract compiler\n\n"
            "Usage: %s [options] file...\n"
            "Options:\n"
-           "  --help        Display this information\n"
-           "  --version     Display compiler version information\n\n"
+           "  -h, --help                Display this information\n"
+           "  -v, --version             Display compiler version information\n\n"
+           "  -o, --output <file>       Write the output into <file>\n\n"
            "Examples:\n"
            "  %s contract.sc\n",
            EXECUTABLE, EXECUTABLE, EXECUTABLE);
@@ -44,16 +46,14 @@ check_argv(int argc, char **argv, opt_t *opt)
 
     for (i = 1; i < argc; i++) {
         if (*argv[i] != '-')
-            break;
+            continue;
 
-        if (strcmp(argv[i], "--help") == 0)
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
             print_help();
-        else if (strcmp(argv[i], "--version") == 0)
+        else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0)
             print_version();
-        else if (strcmp(argv[i], "--debug") == 0)
-            opt_set(*opt, OPT_DEBUG);
         else
-            FATAL(ERROR_INVALID_OPTION, argv[i]);
+            FATAL(INVALID_OPTION_ERROR, argv[i]);
     }
 
     return argv[i];
@@ -64,7 +64,7 @@ main(int argc, char **argv)
 {
     ec_t ec;
     char *infile;
-    opt_t opt = OPT_NORMAL;
+    opt_t opt = OPT_NONE;
 
     infile = check_argv(argc, argv, &opt);
     ASSERT(infile != NULL);
