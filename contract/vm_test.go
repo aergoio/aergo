@@ -3,11 +3,14 @@ package contract
 import (
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
+	"path"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
-	"testing"
 )
 
 var (
@@ -31,8 +34,11 @@ const (
 
 func init() {
 	sdb = state.NewStateDB()
-	sdb.Init("testDB")
-	DB = db.NewDB(db.BadgerImpl, "receiptDB")
+
+	tmpDir, _ := ioutil.TempDir("", "vmtest")
+
+	sdb.Init(path.Join(tmpDir, "testDB"))
+	DB = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
 }
 
 func getContractState(t *testing.T) *state.ContractState {
