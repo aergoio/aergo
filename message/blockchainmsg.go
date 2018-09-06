@@ -90,3 +90,13 @@ type SyncBlockState struct {
 	BlockNo   types.BlockNo
 	BlockHash []byte
 }
+
+// GetElected is request to get voting result about top N elect
+type GetElected struct {
+	N int
+}
+
+// GetElectedRsp is return to get voting result
+type GetElectedRsp struct {
+	Top types.VoteList
+}

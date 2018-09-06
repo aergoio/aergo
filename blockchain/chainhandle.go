@@ -216,37 +216,43 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 	senderChange := types.Clone(*senderState).(types.State)
 	receiverChange := types.Clone(*receiverState).(types.State)
 
-	if senderID != receiverID {
-		if senderChange.Balance < txBody.Amount {
-			senderChange.Balance = 0 // FIXME: reject insufficient tx.
-		} else {
-			senderChange.Balance = senderState.Balance - txBody.Amount
+	switch txBody.Type {
+	case types.TxType_NORMAL:
+		if senderID != receiverID {
+			if senderChange.Balance < txBody.Amount {
+				senderChange.Balance = 0 // FIXME: reject insufficient tx.
+			} else {
+				senderChange.Balance = senderState.Balance - txBody.Amount
+			}
+			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
-		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-	}
-
-	if txBody.Type == types.TxType_NORMAL && txBody.Payload != nil {
-		contractState, err := sdb.OpenContractState(&receiverChange)
-		if err != nil {
-			return err
-		}
-
-		if createContract {
-			err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
-		} else {
-			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
-
-			err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
+		if txBody.Payload != nil {
+			contractState, err := sdb.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
 			}
-			err = sdb.CommitContractState(contractState)
-		}
 
-		if err != nil {
-			return err
+			if createContract {
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
+			} else {
+				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
+					block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
+
+				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
+				if err != nil {
+					return err
+				}
+				err = sdb.CommitContractState(contractState)
+			}
+
+			if err != nil {
+				return err
+			}
 		}
+	case types.TxType_GOVERNANCE:
+		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, block)
+	default:
+		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
 	}
 
 	senderChange.Nonce = txBody.Nonce

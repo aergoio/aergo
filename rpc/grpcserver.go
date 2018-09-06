@@ -403,6 +403,25 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 	return &types.SingleBytes{Value: data}, nil
 }
 
+//GetVotes handle rpc request getvotes
+func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
+	const addresslength = 32
+	var number int
+	if len(in.Value) < addresslength {
+		number = int(binary.LittleEndian.Uint64(in.Value))
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetElectedRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &rsp.Top, nil
+}
+
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipt").Result()

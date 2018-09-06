@@ -209,9 +209,9 @@ func hashWithoutSign(txBody *types.TxBody) []byte {
 	h.Write(txBody.Account)
 	h.Write(txBody.Recipient)
 	binary.Write(h, binary.LittleEndian, txBody.Amount)
+	h.Write(txBody.Payload)
 	binary.Write(h, binary.LittleEndian, txBody.Limit)
 	binary.Write(h, binary.LittleEndian, txBody.Price)
-	h.Write(txBody.Payload)
 	binary.Write(h, binary.LittleEndian, txBody.Type)
 	return h.Sum(nil)
 }

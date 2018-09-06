@@ -75,6 +75,9 @@ service AergoRPCService {
 
   rpc GetPeers(Empty) returns (PeerList) {
   }
+  
+  rpc GetVotes(SingleBytes) returns (VoteList) {
+  }
 }
 
 // BlockchainStatus is current status of blockchain

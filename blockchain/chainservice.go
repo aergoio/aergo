@@ -74,6 +74,7 @@ func (cs *ChainService) BeforeStart() {
 	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
+
 }
 
 func (cs *ChainService) AfterStart() {
@@ -250,6 +251,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
+	case *message.GetElected:
+		top, _ := cs.getVotes(msg.N)
+		context.Respond(&message.GetElectedRsp{
+			Top: top,
+		})
+
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:

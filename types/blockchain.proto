@@ -49,8 +49,8 @@ message TxBody {
 	bytes payload = 5;
 	uint64 limit = 6;
 	uint64 price = 7;
-	bytes sign = 8;
-	TxType type = 9;
+	TxType type = 8;
+	bytes sign = 9;
 }
 
 message TxIdx {
@@ -74,6 +74,15 @@ message Receipt {
 	bytes contractAddress = 1;
 	string status = 2;
 	string ret = 3;
+}
+
+message Vote {
+	bytes candidate = 1;
+	uint64 amount = 2;
+}
+
+message VoteList {
+	repeated Vote votes = 1;
 }
 
 message FnArgument {
