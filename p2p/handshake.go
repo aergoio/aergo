@@ -194,7 +194,6 @@ func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, err
 	selfAddr := pm.SelfMeta().ToPeerAddress()
 	// create message data
 	statusMsg := &types.Status{
-		MessageData:   &types.MessageData{},
 		Sender:        &selfAddr,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),

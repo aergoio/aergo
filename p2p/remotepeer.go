@@ -199,9 +199,6 @@ func (p *RemotePeer) runRead() {
 		}
 	}
 
-	// closing channel is to golang runtime
-	// close(p.write)
-	// close(p.consumeChan)
 }
 
 func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
@@ -217,7 +214,6 @@ func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 	var err error
 	proto := SubProtocol(msg.Header.Subprotocol)
-	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Received message")
 	defer func() {
 		if r := recover(); r != nil {
 			p.logger.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
@@ -227,10 +223,22 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 
 	handler, found := p.handlers[proto]
 	if !found {
+		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid protocol")
 		return fmt.Errorf("invalid protocol %s", proto)
 	}
-	handler(msg)
-	return err
+	payload, err := handler.parsePayload(msg.Data)
+	if err != nil {
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
+		return fmt.Errorf("Invalid message data")
+	}
+	err = handler.checkAuth(msg.Header, payload)
+	if err != nil {
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
+		return fmt.Errorf("Failed to authenticate message")
+	}
+
+	handler.handle(msg.Header, payload)
+	return nil
 }
 
 // Stop stops aPeer works
@@ -326,7 +334,6 @@ func (p *RemotePeer) sendPing() {
 	}
 	// create message data
 	pingMsg := &types.Ping{
-		MessageData:   &types.MessageData{},
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
@@ -351,7 +358,7 @@ func (p *RemotePeer) sendStatus() {
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
+	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{Message: msg}))
 	p.pm.RemovePeer(p.meta.ID)
 }
 

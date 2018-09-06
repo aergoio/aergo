@@ -226,9 +226,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		mockPeerManager := new(MockPeerManager)
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 		t.Run(tt.name, func(t *testing.T) {
-			p.requests["r1"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
-			p.requests["r2"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
-			p.requests["rn"] = &pbMessageOrder{message: &types.AddressesRequest{MessageData: &types.MessageData{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
+			p.requests["r1"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
+			p.requests["r2"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
+			p.requests["rn"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -313,6 +313,69 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 
 			p.sendMessage(mockMsg)
 			wg.Done()
+		})
+	}
+}
+
+func TestRemotePeer_handleMsg(t *testing.T) {
+	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	mockMsg := new(MockMsgOrder)
+	mockMsg.On("GetRequestID").Return("m1")
+	mockMsg.On("GetProtocolID").Return(newBlockNotice)
+
+	type args struct {
+		nohandler bool
+		parerr    error
+		autherr   error
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"TSucc", args{false, nil, nil}, false},
+		{"Tnopro", args{true, nil, nil}, true},
+		{"Tparcefail", args{false, fmt.Errorf("not proto"), nil}, true},
+		{"Tauthfail", args{false, nil, fmt.Errorf("no permission")}, true},
+
+		// TODO: make later use
+		//{"TTimeout", args{false, nil, fmt.Errorf("no permission")}, true},
+	}
+	for _, tt := range tests {
+		mockActorServ := new(MockActorService)
+		mockPeerManager := new(MockPeerManager)
+		mockMsgHandler := new(MockMessageHandler)
+		t.Run(tt.name, func(t *testing.T) {
+			msg := &types.P2PMessage{Header: &types.MessageData{Subprotocol: pingRequest.Uint32()}}
+			if tt.args.nohandler {
+				msg.Header.Subprotocol = 3999999999
+			}
+			bodyStub := &types.Ping{}
+			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)
+			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.MessageData"), mock.Anything).Return(tt.args.autherr)
+			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MessageData"), mock.Anything)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			target.handlers[pingRequest] = mockMsgHandler
+
+			if err := target.handleMsg(msg); (err != nil) != tt.wantErr {
+				t.Errorf("RemotePeer.handleMsg() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.args.nohandler {
+				mockMsgHandler.AssertNotCalled(t, "parsePayload", mock.AnythingOfType("[]uint8"))
+			} else {
+				mockMsgHandler.AssertCalled(t, "parsePayload", mock.AnythingOfType("[]uint8"))
+			}
+			if tt.args.nohandler || tt.args.parerr != nil {
+				mockMsgHandler.AssertNotCalled(t, "checkAuth", mock.Anything, mock.Anything)
+			} else {
+				mockMsgHandler.AssertCalled(t, "checkAuth", msg.Header, bodyStub)
+			}
+			if tt.args.nohandler || tt.args.parerr != nil || tt.args.autherr != nil {
+				mockMsgHandler.AssertNotCalled(t, "handle", mock.Anything, mock.Anything)
+			} else {
+				mockMsgHandler.AssertCalled(t, "handle", msg.Header, bodyStub)
+			}
 		})
 	}
 }

@@ -24,7 +24,7 @@ const ClientVersion = "0.1.0"
 
 type pbMessage interface {
 	proto.Message
-	GetMessageData() *types.MessageData
+	//GetMessageData() *types.MessageData
 }
 
 type pbMessageOrder struct {
@@ -35,7 +35,7 @@ type pbMessageOrder struct {
 	needSign        bool
 	protocolID      SubProtocol // protocolName and msg struct type MUST be matched.
 
-	message pbMessage
+	message *types.P2PMessage
 }
 
 var _ msgOrder = (*pbMessageOrder)(nil)
@@ -89,11 +89,11 @@ func newPbMsgBroadcastOrder(sign bool, protocolID SubProtocol, message pbMessage
 }
 
 func (pr *pbMessageOrder) GetRequestID() string {
-	return pr.message.GetMessageData().Id
+	return pr.message.Header.Id
 }
 
 func (pr *pbMessageOrder) Timestamp() int64 {
-	return pr.message.GetMessageData().Timestamp
+	return pr.message.Header.Timestamp
 }
 
 func (pr *pbMessageOrder) IsRequest() bool {
@@ -115,7 +115,7 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
 func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
-	messageData := pr.message.GetMessageData()
+	messageData := pr.message.Header
 	messageData.PeerID = peer.IDB58Encode(ps.SelfNodeID())
 	messageData.NodePubKey, _ = ps.PublicKey().Bytes()
 	signature, err := ps.SignProtoMessage(pr.message)
@@ -216,6 +216,10 @@ func marshalMessage(message proto.Message) ([]byte, error) {
 
 func unmarshalMessage(data []byte, msgData proto.Message) error {
 	return proto.Unmarshal(data, msgData)
+}
+
+func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, error) {
+	return msgData, proto.Unmarshal(data, msgData)
 }
 
 func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) *types.P2PMessage {

@@ -8,66 +8,82 @@ package p2p
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 )
 
-// PingHandler handle pingRequest message
-type PingHandler struct {
+type pingRequestHandler struct {
 	BaseMsgHandler
 }
 
-// NewPingHandler create handler about ping protocol for a peer
-func NewPingHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *PingHandler {
-	ph := &PingHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+var _ MessageHandler = (*pingRequestHandler)(nil)
+
+type pingResponseHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*pingResponseHandler)(nil)
+
+type goAwayHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*goAwayHandler)(nil)
+
+// newPingReqHandler creates handler for PingRequest
+func newPingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *pingRequestHandler {
+	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return ph
 }
 
-// remote peer requests handler
-func (ph *PingHandler) handlePing(msg *types.P2PMessage) {
+func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.Ping{})
+}
+
+func (ph *pingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
-
-	pingMsg := &types.Ping{}
-	err := unmarshalMessage(msg.Data, pingMsg)
-	if err != nil {
-		ph.logger.Warn().Err(err).Msg("Failed to decode ping message")
-		ph.peer.sendGoAway("invalid protocol message")
-		return
-	}
-	debugLogReceiveMsg(ph.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, nil)
+	//data := msgBody.(*types.Ping)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, nil)
 
 	// generate response message
-	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.Header.Id).Msg("Sending ping response")
-	resp := &types.Pong{MessageData: &types.MessageData{}} // BestBlockHash: bestBlock.GetHash(),
-	// BestHeight:    bestBlock.GetHeader().GetBlockNo(),
+	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending ping response")
+	resp := &types.Pong{}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msg.Header.Id, false, pingResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), false, pingResponse, resp))
 }
 
-// remote ping response handler
-func (ph *PingHandler) handlePingResponse(msg *types.P2PMessage) {
+// newPingRespHandler creates handler for PingResponse
+func newPingRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *pingResponseHandler {
+	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return ph
+}
+
+func (ph *pingResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.Pong{})
+}
+
+func (ph *pingResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
-	pingRspMsg := &types.Pong{}
-	err := unmarshalMessage(msg.Data, pingRspMsg)
-	if err != nil {
-		ph.logger.Warn().Err(err).Msg("Failed to decode ping response message")
-		ph.peer.sendGoAway("invalid protocol message")
-		return
-	}
-	debugLogReceiveMsg(ph.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, nil)
-	remotePeer.consumeRequest(msg.Header.Id)
+	//data := msgBody.(*types.Pong)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, nil)
+	remotePeer.consumeRequest(msgHeader.GetId())
 }
 
-// remote ping response handler
-func (ph *PingHandler) handleGoAway(msg *types.P2PMessage) {
+// newGoAwayHandler creates handler for PingResponse
+func newGoAwayHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *goAwayHandler {
+	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return ph
+}
+
+func (ph *goAwayHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.GoAwayNotice{})
+}
+
+func (ph *goAwayHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := ph.peer.ID()
-	goawayMsg := &types.GoAwayNotice{}
-	err := unmarshalMessage(msg.Data, goawayMsg)
-	if err != nil {
-		ph.logger.Warn().Err(err).Msg("Failed to decode ping response message")
-		ph.peer.sendGoAway("invalid protocol message")
-		return
-	}
-	debugLogReceiveMsg(ph.logger, SubProtocol(msg.Header.Subprotocol), msg.Header.Id, peerID, goawayMsg.Message)
+	data := msgBody.(*types.GoAwayNotice)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, data.Message)
+
 	// TODO: check to remove peer here or not. (the sending peer will disconnect.)
 }

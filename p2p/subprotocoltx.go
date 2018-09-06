@@ -12,39 +12,42 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 )
 
-// TxHandler handle tx messages.
-// Relaying is not implemented yet.
-type TxHandler struct {
+type txRequestHandler struct {
 	BaseMsgHandler
 }
 
-// NewTxHandler create a tx handler
-func NewTxHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *TxHandler {
-	th := &TxHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+var _ MessageHandler = (*txRequestHandler)(nil)
+
+type txResponseHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*txResponseHandler)(nil)
+
+type newTxNoticeHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*newTxNoticeHandler)(nil)
+
+// newTxReqHandler creates handler for GetTransactionsRequest
+func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txRequestHandler {
+	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return th
 }
 
-// remote peer requests handler
-func (th *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
+func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
+}
+
+func (th *txRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	remotePeer := th.peer
-
-	// get request data
-	data := &types.GetTransactionsRequest{}
-	err := unmarshalMessage(msg.Data, data)
-	if err != nil {
-		th.logger.Info().Err(err).Msg("fail to decode")
-		return
-	}
-	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Hashes))
-
-	valid := th.pm.AuthenticateMessage(data, data.MessageData)
-	if !valid {
-		th.logger.Info().Msg("Failed to authenticate message")
-		return
-	}
+	data := msgBody.(*types.GetTransactionsRequest)
+	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
 
 	// find transactions from chainservice
 	idx := 0
@@ -76,29 +79,28 @@ func (th *TxHandler) handleGetTXsRequest(msg *types.P2PMessage) {
 	status := types.ResultStatus_OK
 
 	// generate response message
-	resp := &types.GetTransactionsResponse{MessageData: &types.MessageData{},
+	resp := &types.GetTransactionsResponse{
 		Status: status,
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, getTxsResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), true, getTxsResponse, resp))
 }
 
-// remote GetTransactions response handler
-func (th *TxHandler) handleGetTXsResponse(msg *types.P2PMessage) {
-	peerID := th.peer.ID()
+// newTxRespHandler creates handler for GetTransactionsResponse
+func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txResponseHandler {
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return th
+}
 
-	data := &types.GetTransactionsResponse{}
-	err := unmarshalMessage(msg.Data, data)
-	if err != nil {
-		return
-	}
-	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.Txs))
-	valid := th.pm.AuthenticateMessage(data, data.MessageData)
-	if !valid {
-		th.logger.Info().Msg("Failed to authenticate message")
-		return
-	}
+func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
+}
+
+func (th *txResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+	peerID := th.peer.ID()
+	data := msgBody.(*types.GetTransactionsResponse)
+	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Txs))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
@@ -107,19 +109,21 @@ func (th *TxHandler) handleGetTXsResponse(msg *types.P2PMessage) {
 	}
 }
 
-// var emptyArr = make([]byte, 0)
+// newNewTxNoticeHandler creates handler for GetTransactionsResponse
+func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newTxNoticeHandler {
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return th
+}
 
-// remote NotifynewTXs response handler
-func (th *TxHandler) handleNewTXsNotice(msg *types.P2PMessage) {
+func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
+}
+
+func (th *newTxNoticeHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := th.peer.ID()
+	data := msgBody.(*types.NewTransactionsNotice)
+	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
 
-	data := &types.NewTransactionsNotice{}
-	err := unmarshalMessage(msg.Data, data)
-	if err != nil {
-		return
-	}
-	debugLogReceiveMsg(th.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID,
-		log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
 	// TODO: check myself and request txs which this node don't have.
 	toGet := make([]message.TXHash, len(data.TxHashes))
 	// 임시조치로 일단 다 가져온다.

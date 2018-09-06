@@ -396,7 +396,8 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 }
 
 func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
-	serialized, err := marshalMessage(&types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg})
+	// TODO duplicated code
+	serialized, err := marshalMessage(&types.GoAwayNotice{Message: msg})
 	if err != nil {
 		pm.logger.Warn().Err(err).Msg("failed to marshal")
 		return
@@ -409,28 +410,25 @@ func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
 }
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
-	// PingHandler
-	ph := NewPingHandler(pm, peer, pm.logger)
-	peer.handlers[pingRequest] = ph.handlePing
-	peer.handlers[pingResponse] = ph.handlePingResponse
-	peer.handlers[goAway] = ph.handleGoAway
-	peer.handlers[addressesRequest] = ph.handleAddressesRequest
-	peer.handlers[addressesResponse] = ph.handleAddressesResponse
+	// PingHandlers
+	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger)
+	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger)
+	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger)
+	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger)
+	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger)
 
-	// BlockHandler
-	bh := NewBlockHandler(pm, peer, pm.logger)
-	peer.handlers[getBlocksRequest] = bh.handleBlockRequest
-	peer.handlers[getBlocksResponse] = bh.handleGetBlockResponse
-	peer.handlers[getBlockHeadersRequest] = bh.handleGetBlockHeadersRequest
-	peer.handlers[getBlockHeadersResponse] = bh.handleGetBlockHeadersResponse
-	peer.handlers[getMissingRequest] = bh.handleGetMissingRequest
-	// peer.handlers[getMissingResponse] = // no function yet
-	peer.handlers[newBlockNotice] = bh.handleNewBlockNotice
+	// BlockHandlers
+	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger)
+	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger)
+	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger)
+	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger)
+	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger)
+	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger)
 
-	th := NewTxHandler(pm, peer, pm.logger)
-	peer.handlers[getTXsRequest] = th.handleGetTXsRequest
-	peer.handlers[getTxsResponse] = th.handleGetTXsResponse
-	peer.handlers[newTxNotice] = th.handleNewTXsNotice
+	// TxHandlers
+	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger)
+	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger)
+	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
