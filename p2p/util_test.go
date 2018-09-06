@@ -90,7 +90,8 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 	}
 }
 
-func TestTimerBehavior(t *testing.T) {
+// experiment, and manually checked it
+func ExperimentTimerBehavior(t *testing.T) {
 	counter := int32(0)
 	ticked := make(chan int32)
 	duration := time.Millisecond * 50

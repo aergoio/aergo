@@ -35,10 +35,6 @@ func Test_runFuncTimeout(t *testing.T) {
 		{"Tnorm2", args{func(done chan<- interface{}) {
 			done <- -3
 		}, time.Millisecond * 10}, -3, false},
-		{"TNorm3", args{func(done chan<- interface{}) {
-			time.Sleep(time.Millisecond * 7)
-			done <- "delayed"
-		}, time.Millisecond * 10}, "delayed", false},
 		{"Ttimeout1", args{func(done chan<- interface{}) {
 			time.Sleep(time.Millisecond * 11)
 		}, time.Millisecond * 10}, nil, true},

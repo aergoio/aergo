@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -273,9 +274,6 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 
 func TestRemotePeer_sendMessage(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	mockMsg := new(MockMsgOrder)
-	mockMsg.On("GetRequestID").Return("m1")
-	mockMsg.On("GetProtocolID").Return(newBlockNotice)
 
 	type args struct {
 		msgID    string
@@ -287,32 +285,49 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 		args    args
 		timeout bool
 	}{
-		{"TN", args{"m1", "p1", time.Millisecond * 100}, false},
-		{"TTimeout", args{"m1", "p1", time.Millisecond * 100}, true},
+		{"TSucc", args{"m1", "p1", time.Millisecond * 100}, false},
+		{"TTimeout", args{"mtimeout", "p1", time.Millisecond * 100}, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		mockActorServ := new(MockActorService)
 		mockPeerManager := new(MockPeerManager)
+		mockMsg := new(MockMsgOrder)
+		mockMsg.On("GetRequestID").Return(tt.args.msgID)
+		mockMsg.On("GetProtocolID").Return(newBlockNotice)
+
+		writeCnt := int32(0)
 		t.Run(tt.name, func(t *testing.T) {
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
+			wg2 := &sync.WaitGroup{}
+			wg2.Add(1)
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 
-			go func() {
-				wg.Wait()
-				for {
-					select {
-					case <-p.write:
-						continue
-					default:
-						return
+			if !tt.timeout {
+				go func() {
+					wg.Wait()
+					for {
+						select {
+						case ord := <-p.write:
+							p.logger.Info().Str("msg_id", ord.GetRequestID()).Msg("Got order")
+							atomic.AddInt32(&writeCnt, 1)
+							wg2.Done()
+							continue
+						default:
+							return
+						}
 					}
-				}
-			}()
-
-			p.sendMessage(mockMsg)
+				}()
+			} else {
+				wg2.Done()
+			}
 			wg.Done()
+			p.sendMessage(mockMsg)
+			wg2.Wait()
+			if !tt.timeout {
+				assert.Equal(t, int32(1), atomic.LoadInt32(&writeCnt))
+			}
 		})
 	}
 }
