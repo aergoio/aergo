@@ -44,7 +44,7 @@ func (s *Signer) Receive(context actor.Context) {
 func (s *Signer) SignTx(tx *types.Tx) error {
 	//hash tx
 	txbody := tx.Body
-	hash := hashWithoutSign(txbody)
+	hash := HashWithoutSign(txbody)
 	//sign tx
 	sign, err := btcec.SignCompact(btcec.S256(), s.key, hash, true)
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *Signer) SignTx(tx *types.Tx) error {
 	return nil
 }
 
-func hashWithoutSign(txBody *types.TxBody) []byte {
+func HashWithoutSign(txBody *types.TxBody) []byte {
 	h := sha256.New()
 	binary.Write(h, binary.LittleEndian, txBody.Nonce)
 	h.Write(txBody.Account)

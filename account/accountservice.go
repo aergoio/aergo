@@ -210,7 +210,7 @@ func (as *AccountService) signTx(c actor.Context, tx *types.Tx) error {
 
 func (as *AccountService) verifyTx(tx *types.Tx) error {
 	txbody := tx.Body
-	hash := hashWithoutSign(txbody)
+	hash := HashWithoutSign(txbody)
 
 	pubkey, _, err := btcec.RecoverCompact(btcec.S256(), txbody.Sign, hash)
 	if err != nil {

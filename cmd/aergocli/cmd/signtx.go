@@ -7,6 +7,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 
+	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/account/keystore"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -18,7 +19,7 @@ func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
 	signCmd.Flags().BoolVar(&remote, "remote", false, "choose account in the remote node or not")
-	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
 	signCmd.Flags().StringVar(&pass, "password", "", "account password")
 	rootCmd.AddCommand(verifyCmd)
@@ -62,7 +63,7 @@ var signCmd = &cobra.Command{
 			if tx.Body.Sign != nil {
 				tx.Body.Sign = nil
 			}
-			tx.Hash = tx.CalculateTxHash()
+			hash := account.HashWithoutSign(param)
 
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := keystore.NewKeyStore(dataEnvPath)
@@ -71,10 +72,12 @@ var signCmd = &cobra.Command{
 				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			tx.Body.Sign, err = ks.Sign(addr, pass, tx.Hash)
+			tx.Body.Sign, err = ks.Sign(addr, pass, hash)
 			if err != nil {
-				tx.Hash = tx.CalculateTxHash()
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
 			}
+			tx.Hash = tx.CalculateTxHash()
 			msg = tx
 		}
 
