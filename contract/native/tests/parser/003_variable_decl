@@ -16,6 +16,12 @@ contract test {
     int v14, v15;
 }
 
+@desc incompatible_declaration
+@error SYNTAX_ERROR
+contract test {
+    int v16, string v17;
+}
+
 @desc constant_qualifier
 contract test {
     const int v;

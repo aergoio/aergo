@@ -46,7 +46,7 @@ check_argv(int argc, char **argv, opt_t *opt)
 
     for (i = 1; i < argc; i++) {
         if (*argv[i] != '-')
-            continue;
+            break;
 
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
             print_help();

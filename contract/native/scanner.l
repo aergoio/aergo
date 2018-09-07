@@ -82,14 +82,12 @@
         while ((c = input(yyscanner)) != '\0') {                               \
             if (c == '/' && prev == '*') {                                     \
                 lloc->last.col++;                                              \
-                strbuf_append(YY_BUF, &c, 1);                                  \
                 break;                                                         \
             }                                                                  \
             if (c == '\n')                                                     \
                 yy_update_last_line();                                         \
             else                                                               \
                 lloc->last.col++;                                              \
-            strbuf_append(YY_BUF, &c, 1);                                      \
             prev = c;                                                          \
         }                                                                      \
         if (c == '\0') {                                                       \
@@ -143,7 +141,7 @@
                 unput(c);                                                      \
                 break;                                                         \
             }                                                                  \
-            else if (c == '*' && prev == '/') {                                \
+            else if (prev == '/' && c == '*') {                                \
                 lloc->last.col++;                                              \
                 yy_scan_comment();                                             \
             }                                                                  \
@@ -202,7 +200,6 @@ id                          {L}({L}|{D})*
     yy_update_first();
     yy_update_last_col();
     yy_scan_comment();
-    strbuf_reset(YY_BUF);
 }
 
 "\"" {
@@ -224,6 +221,8 @@ id                          {L}({L}|{D})*
 "&="                        yy_return(OP_AND_ASSIGN);
 "^="                        yy_return(OP_XOR_ASSIGN);
 "|="                        yy_return(OP_OR_ASSIGN);
+">>="                       yy_return(OP_RS_ASSIGN);
+"<<="                       yy_return(OP_LS_ASSIGN);
 ">>"                        yy_return(OP_RSHIFT);
 "<<"                        yy_return(OP_LSHIFT);
 "++"                        yy_return(OP_INC);
@@ -274,9 +273,11 @@ id                          {L}({L}|{D})*
 "false"                     yy_return(K_FALSE);
 "float"                     yy_return(K_FLOAT);
 "for"                       yy_return(K_FOR);
+"foreach"                   yy_return(K_FOREACH);
 "func"                      yy_return(K_FUNC);
 "global"                    yy_return(K_GLOBAL);
 "if"                        yy_return(K_IF);
+"in"                        yy_return(K_IN);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
@@ -291,6 +292,7 @@ id                          {L}({L}|{D})*
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
+"table"                     yy_return(K_TABLE);
 "transfer"                  yy_return(K_TRANSFER);
 "true"                      yy_return(K_TRUE);
 "uint"                      yy_return(K_UINT);
@@ -298,7 +300,13 @@ id                          {L}({L}|{D})*
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
 
-"delete"|"insert" {
+    /*
+"delete"                    yy_return(K_DELETE);
+"insert"                    yy_return(K_INSERT);
+"select"                    yy_return(K_SELECT);
+"update"                    yy_return(K_UPDATE);
+    */
+"delete"|"insert"|"update" {
     yy_update_first();
     yy_update_last_col();
     yy_scan_sql();

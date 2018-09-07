@@ -43,7 +43,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 }
 
 /* identifier */
-%token  <str>           
+%token  <str>
         ID
 
 /* expr_lit */
@@ -51,15 +51,15 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         L_FLOAT         L_HEXA          L_INT           L_STR
 
 /* expr_sql */
-%token  <str>           
+%token  <str>
         L_DML           L_QUERY
 
 /* operator */
 %token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
         OP_MOD_ASSIGN   OP_AND_ASSIGN   OP_XOR_ASSIGN   OP_OR_ASSIGN
-        OP_RSHIFT       OP_LSHIFT       OP_INC          OP_DEC
-        OP_AND          OP_OR           OP_LE           OP_GE
-        OP_EQ           OP_NE
+        OP_RS_ASSIGN    OP_LS_ASSIGN    OP_RSHIFT       OP_LSHIFT
+        OP_INC          OP_DEC          OP_AND          OP_OR
+        OP_LE           OP_GE           OP_EQ           OP_NE
 
 /* keyword */
 %token  /* A */
@@ -70,18 +70,18 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         K_CASE          K_COMMIT        K_CONST         K_CONTINUE
         K_CONTRACT
         /* D */
-        K_DEFAULT       K_DOUBLE
+        K_DEFAULT       K_DELETE        K_DOUBLE
         /* E */
         K_ELSE
         /* F */
-        K_FALSE         K_FLOAT         K_FOR
+        K_FALSE         K_FLOAT         K_FOR           K_FOREACH
         K_FUNC
         /* G */
         K_GLOBAL
         /* H */
         /* I */
-        K_IF            K_INIT          K_INT           K_INT16
-        K_INT32         K_INT64
+        K_IF            K_IN            K_INSERT        K_INT
+        K_INT16         K_INT32         K_INT64
         /* L */
         K_LOCAL
         /* M */
@@ -94,11 +94,13 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* R */
         K_RETURN        K_ROLLBACK
         /* S */
-        K_SHARED        K_STRING        K_STRUCT        K_SWITCH
+        K_SELECT        K_SHARED        K_STRING        K_STRUCT
+        K_SWITCH
         /* T */
-        K_TRANSFER      K_TRUE
+        K_TABLE         K_TRANSFER      K_TRUE
         /* U */
         K_UINT          K_UINT16        K_UINT32        K_UINT64
+        K_UPDATE
         /* V */
         /* W */
         /* X */
@@ -177,6 +179,7 @@ type_spec:
 |   K_INT32
 |   K_INT64
 |   K_STRING
+|   K_TABLE
 |   K_UINT
 |   K_UINT16
 |   K_UINT32
@@ -272,7 +275,7 @@ return_list:
 statement:
     stmt_expr
 |   stmt_if
-|   stmt_for
+|   stmt_loop
 |   stmt_switch
 |   stmt_jump
 |   stmt_sql
@@ -290,12 +293,17 @@ stmt_if:
 |   K_ELSE stmt_blk
 ;
 
-stmt_for:
+stmt_loop:
     K_FOR '(' stmt_expr stmt_expr ')' stmt_blk
 |   K_FOR '(' stmt_expr stmt_expr expression ')' stmt_blk
 |   K_FOR '(' variable stmt_expr ')' stmt_blk
 |   K_FOR '(' variable stmt_expr expression ')' stmt_blk
 |   K_FOR stmt_blk
+|   K_FOREACH '(' iter_decl ',' iter_decl K_IN expr_post ')' stmt_blk
+;
+
+iter_decl:
+    var_type declarator
 ;
 
 stmt_switch:
@@ -329,7 +337,23 @@ stmt_sql:
     K_COMMIT ';'
 |   K_ROLLBACK ';'
 |   L_DML ';'
+/*
+|   sql_dml error ';'
+    {
+        yyerrok;
+        error_pop();
+        yyclearin;
+    }
+*/
 ;
+
+/*
+sql_dml:
+    K_DELETE
+|   K_INSERT
+|   K_UPDATE
+;
+*/
 
 stmt_blk:
     '{' '}'
@@ -367,6 +391,8 @@ op_assign:
 |   OP_AND_ASSIGN
 |   OP_XOR_ASSIGN
 |   OP_OR_ASSIGN
+|   OP_RS_ASSIGN
+|   OP_LS_ASSIGN
 ;
 
 expr_cond:
@@ -490,6 +516,8 @@ string:
 
 identifier:
     ID              { $$ = $1; }
+|   K_CONTRACT      { $$ = xstrdup("contract"); }
+|   K_IN            { $$ = xstrdup("in"); }
 ;
 
 %%

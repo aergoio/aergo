@@ -72,7 +72,7 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
     else {
         printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
 
-        if (ex == NO_ERROR)
+        if (ac != NO_ERROR)
             error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",

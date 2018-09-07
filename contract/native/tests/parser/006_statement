@@ -118,35 +118,15 @@ contract test {
     int v1;
 
     test() {
-        for (int i = 0; i < 10; i++) {
-            v1++;
+        for (int i = 0; i < 10; i++) { 
+            v1 += i;
         }
-
-        for (int i = f1(); i < f2(); i++) {
-            v1++;
-        }
-
-        for (i = 0; i < 10; i++) {
-            v1++;
-        }
-
-        for ( ; i < 10; ) {
-            v1++;
-            i += 2;
-        }
-
-        for ( ; i < 10; i++) {
-            v1++;
-        }
-
-        for ( ; ; i++) {
-            v1++;
-        }
-
-        for ( ; ; ) {
-            v1++;
-        }
-
+        for (int i = f1(); i < f2(); i++) { }
+        for (i = 0; i < 10; i++) { }
+        for ( ; i < 10; ) { }
+        for ( ; i < 10; i++) { }
+        for ( ; ; i++) { }
+        for ( ; ; ) { }
         for {
             v1++;
             if (v1 % 2 == 0) {
@@ -156,6 +136,18 @@ contract test {
                 continue;
             }
         }
+    }
+}
+
+@desc foreach_loop
+contract test {
+    string v1[10];
+
+    test() {
+        foreach (int i, string j in v1) { }
+        foreach (int i, string j in f1()) { }
+
+        //foreach (int i, string j = range v1) { }
     }
 }
 
@@ -170,9 +162,9 @@ contract test {
                    name 
               from emp;
 
-        insert into emp values (10, 'Sam');
+        insert into emp values (10, "Sam");
         insert into 
-            emp values (20, 'Bill');
+            emp values (20, "Bill");
 
         delete from emp where id = 10;
         delete from emp
@@ -180,6 +172,8 @@ contract test {
 
         commit;
         rollback;
+
+        //foreach (int i, string j in (select id, name from emp)) { }
     }
 }
 
