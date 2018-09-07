@@ -56,10 +56,12 @@ parse(char *path, opt_t opt, strbuf_t *src)
     yyparse(&param, scanner);
     yylex_destroy(scanner);
 
+    /*
     if (!opt_enabled(opt, OPT_SILENT))
         error_dump();
+        */
 
-    return error_first();
+    return error_top();
 }
 
 /* end of parser.c */

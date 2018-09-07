@@ -17,6 +17,7 @@
 #define TAG_TITLE           "@desc"
 #define TAG_ERROR           "@error"
 
+extern opt_t opt_;
 extern void mark_file(char *path, int line, int offset, strbuf_t *out);
 
 static char *
@@ -71,9 +72,6 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
     }
     else {
         printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
-
-        if (ac != NO_ERROR)
-            error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
@@ -146,6 +144,8 @@ get_opt(int argc, char **argv, opt_t *opt)
         else if (strcmp(argv[i], "--yacc-dump") == 0)
             opt_set(*opt, OPT_YACC_DUMP);
     }
+
+    opt_ = *opt;
 }
 
 int

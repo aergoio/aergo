@@ -48,11 +48,11 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* expr_lit */
 %token  <str>
-        L_FLOAT         L_HEXA          L_INT           L_STR
+        FLOAT           HEXA            INT             STR
 
 /* expr_sql */
 %token  <str>
-        L_DML           L_QUERY
+        DML             QUERY
 
 /* operator */
 %token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
@@ -94,7 +94,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* R */
         K_RETURN        K_ROLLBACK
         /* S */
-        K_SELECT        K_SHARED        K_STRING        K_STRUCT
+        K_SELECT        K_SHARED        K_STR        K_STRUCT
         K_SWITCH
         /* T */
         K_TABLE         K_TRANSFER      K_TRUE
@@ -178,7 +178,7 @@ type_spec:
 |   K_INT16
 |   K_INT32
 |   K_INT64
-|   K_STRING
+|   K_STR
 |   K_TABLE
 |   K_UINT
 |   K_UINT16
@@ -336,7 +336,7 @@ stmt_jump:
 stmt_sql:
     K_COMMIT ';'
 |   K_ROLLBACK ';'
-|   L_DML ';'
+|   DML ';'
 /*
 |   sql_dml error ';'
     {
@@ -490,10 +490,10 @@ expr_prim:
     K_NULL
 |   K_TRUE
 |   K_FALSE
-|   L_INT
-|   L_FLOAT
-|   L_HEXA
-|   L_QUERY
+|   INT
+|   FLOAT
+|   HEXA
+|   QUERY
 |   string
 |   identifier
 |   '(' expression ')'
@@ -510,8 +510,8 @@ expr_list:
 ;
 
 string:
-    L_STR
-|   string L_STR
+    STR
+|   string STR
 ;
 
 identifier:

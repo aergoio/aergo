@@ -31,7 +31,10 @@ char *errstrs_[ERROR_MAX] = {
 #include "error.list"
 };
 
-stack_t errstack_ = { 0, NULL };
+//stack_t errstack_ = { 0, NULL };
+ec_t top_ = NO_ERROR;
+
+extern opt_t opt_;
 
 char *
 error_text(ec_t ec)
@@ -39,6 +42,19 @@ error_text(ec_t ec)
     return errstrs_[ec];
 }
 
+ec_t
+error_top(void)
+{
+    return top_;
+}
+
+void
+error_clear(void)
+{
+    top_ = NO_ERROR;
+}
+
+/*
 int
 error_count(void)
 {
@@ -121,6 +137,26 @@ error_dump(void)
         fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[e->level], e->desc);
         n = n->next;
     }
+}
+*/
+
+void
+error_dump(ec_t ec, lvl_t lvl, ...)
+{
+    va_list vargs;
+    char errdesc[ERROR_MAX_DESC_LEN];
+
+    if (top_ == NO_ERROR)
+        top_ = ec;
+
+    if (opt_enabled(opt_, OPT_SILENT))
+        return;
+
+    va_start(vargs, lvl);
+    vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
+    va_end(vargs);
+
+    fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[lvl], errdesc);
 }
 
 /* end of errors.c */

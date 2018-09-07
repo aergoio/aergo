@@ -206,12 +206,12 @@ id                          {L}({L}|{D})*
     yy_update_first();
     yy_update_last_col();
     yy_scan_literal();
-    yy_return_buf(L_STR);
+    yy_return_buf(STR);
 }
 
-{integer}                   yy_return(L_INT);
-{float}                     yy_return(L_FLOAT);
-{hexa}                      yy_return(L_HEXA);
+{integer}                   yy_return(INT);
+{float}                     yy_return(FLOAT);
+{hexa}                      yy_return(HEXA);
 
 "+="                        yy_return(OP_ADD_ASSIGN);
 "-="                        yy_return(OP_SUB_ASSIGN);
@@ -289,7 +289,7 @@ id                          {L}({L}|{D})*
 "return"                    yy_return(K_RETURN);
 "rollback"                  yy_return(K_ROLLBACK);
 "shared"                    yy_return(K_SHARED);
-"string"                    yy_return(K_STRING);
+"string"                    yy_return(K_STR);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
 "table"                     yy_return(K_TABLE);
@@ -310,13 +310,13 @@ id                          {L}({L}|{D})*
     yy_update_first();
     yy_update_last_col();
     yy_scan_sql();
-    yy_return_buf(L_DML);
+    yy_return_buf(DML);
 }
 "select" { 
     yy_update_first();
     yy_update_last_col();
     yy_scan_sql();
-    yy_return_buf(L_QUERY);
+    yy_return_buf(QUERY);
 }
 
 "#file"                     BEGIN(DIRECTIVE);

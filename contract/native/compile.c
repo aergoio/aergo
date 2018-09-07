@@ -11,10 +11,14 @@
 
 #include "compile.h"
 
+opt_t opt_ = OPT_NONE;
+
 int
 compile(char *path, opt_t opt)
 {
     strbuf_t res;
+
+    opt_ = opt;
 
     strbuf_init(&res);
 

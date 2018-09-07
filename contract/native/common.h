@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
@@ -22,14 +23,14 @@
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
 
+#define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
+#define __SOURCE__          FILENAME(__FILE__), __LINE__
+
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 typedef unsigned char bool;
 #define true                1
 #define false               0
 #define __bool_true_false_are_defined
 #endif
-
-#define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
-#define __SOURCE__          FILENAME(__FILE__), __LINE__
 
 #endif /*_COMMON_H */
