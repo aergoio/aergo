@@ -66,6 +66,20 @@ func TestContractStateData(t *testing.T) {
 	}
 }
 
+func TestContractStateEmpty(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	testAddress := []byte("test_address")
+	contractState, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	if err != nil {
+		t.Errorf("counld not open contract state : %s", err.Error())
+	}
+	err = chainStateDB.CommitContractState(contractState)
+	if err != nil {
+		t.Errorf("counld commit contract state : %s", err.Error())
+	}
+}
+
 func TestContractStateReOpenData(t *testing.T) {
 	initTest(t)
 	defer deinitTest()

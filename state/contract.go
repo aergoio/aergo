@@ -18,7 +18,11 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
+		storage: trie.NewTrie(32, types.TrieHasher, *sdb.statedb),
 		dbstore: sdb.statedb,
+	}
+	if st.StorageRoot != nil {
+		res.storage.Root = st.StorageRoot
 	}
 	return res, nil
 }
@@ -37,13 +41,6 @@ type ContractState struct {
 	code    []byte
 	storage *trie.Trie
 	dbstore *db.DB
-}
-
-func (st *ContractState) loadStorage() {
-	st.storage = trie.NewTrie(32, types.TrieHasher, *st.dbstore)
-	if st.State.StorageRoot != nil {
-		st.storage.Root = st.State.StorageRoot
-	}
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
@@ -87,9 +84,6 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	if st.storage == nil {
-		st.loadStorage()
-	}
 	hkey := types.TrieHasher(key)
 	_, err := st.storage.Update(trie.DataArray{hkey[:]}, trie.DataArray{value})
 	if err != nil {
@@ -98,10 +92,8 @@ func (st *ContractState) SetData(key, value []byte) error {
 	st.State.StorageRoot = st.storage.Root
 	return nil
 }
+
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
-	if st.storage == nil {
-		st.loadStorage()
-	}
 	hkey := types.TrieHasher(key)
 	value, err := st.storage.Get(hkey[:])
 	if err != nil {
