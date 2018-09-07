@@ -18,7 +18,7 @@ contract test {
 }
 
 @desc invalid_transfer_modifier
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     transfer global func f1() { }
 }

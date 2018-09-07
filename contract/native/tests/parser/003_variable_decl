@@ -22,7 +22,7 @@ contract test {
 }
 
 @desc invalid_qualifier_position
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     int const v;
 }
@@ -46,19 +46,19 @@ contract test {
 }
 
 @desc invalid_brace_position
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     int[10] v;
 }
 
 @desc missing_declarator
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     int;
 }
 
 @desc missing_semicolon
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     int v
 }
@@ -87,7 +87,7 @@ contract test {
 }
 
 @desc empty_struct
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     struct s {
     }

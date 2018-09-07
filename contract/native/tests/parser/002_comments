@@ -22,7 +22,7 @@ contract test {
 }
 
 @desc unterminated_comment
-@return UNTERMINATED_COMMENT_ERROR
+@error UNTERMINATED_COMMENT_ERROR
 contract test {
     /* This is an unterminated comment
 }

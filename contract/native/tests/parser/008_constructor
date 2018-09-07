@@ -28,7 +28,7 @@ contract test {
 }
 
 @desc missing_parenthesis
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract callee { }
 
 contract test {

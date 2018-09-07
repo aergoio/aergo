@@ -67,7 +67,7 @@ contract test {
 }
 
 @desc missing_brace
-@return SYNTAX_ERROR
+@error SYNTAX_ERROR
 contract test {
     test() {
         if (1 == 1) 

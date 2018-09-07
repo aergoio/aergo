@@ -14,10 +14,8 @@
 #include "prep.h"
 #include "parser.h"
 
-#define PREFIX              "tc_parser_"
-
 #define TAG_TITLE           "@desc"
-#define TAG_ERROR           "@return"
+#define TAG_ERROR           "@error"
 
 extern void mark_file(char *path, int line, int offset, strbuf_t *out);
 
