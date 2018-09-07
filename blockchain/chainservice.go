@@ -145,7 +145,7 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			BlockNo: block.Header.BlockNo,
-			Block:   block.Clone(),
+			Block:   block,
 		})
 }
 
@@ -162,9 +162,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get best block")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBestBlockRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.GetBlock:
@@ -173,9 +172,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.GetBlockByNo:
@@ -183,9 +181,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Uint64("blockNo", msg.BlockNo).Msg("failed to get block by no")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBlockByNoRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.AddBlock:
@@ -196,7 +193,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
-			block := msg.Block.Clone()
+			block := msg.Block
 			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")

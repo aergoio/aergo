@@ -194,7 +194,10 @@ func (reorg *reorganizer) rollbackChain() error {
 	}
 
 	//rollback stateDB
-	reorg.rollbackChainState()
+	if err := reorg.rollbackChainState(); err != nil {
+		logger.Debug().Err(err).Msg("reorganization failed")
+		return err
+	}
 
 	return nil
 }

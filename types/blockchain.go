@@ -289,53 +289,6 @@ func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	return nil
 }
 
-func (block *Block) Clone() *Block {
-	if block == nil {
-		return nil
-	}
-	res := Block{
-		Header: block.Header.Clone(),
-		Body:   block.Body.Clone(),
-	}
-	if res.Header != nil {
-		if res.Body != nil {
-			res.Header.TxsRootHash = CalculateTxsRootHash(res.Body.Txs)
-		}
-		res.Hash = res.calculateBlockHash()
-	}
-	return &res
-}
-
-func (header *BlockHeader) Clone() *BlockHeader {
-	if header == nil {
-		return nil
-	}
-	// XXX Very risky code. This part below must be rewritten whenever a new
-	// XXX struct member is addded. Need to rewritten in a more robust way.
-	return &BlockHeader{
-		PrevBlockHash: Clone(header.PrevBlockHash).([]byte),
-		BlockNo:       header.BlockNo,
-		Timestamp:     header.Timestamp,
-		TxsRootHash:   Clone(header.TxsRootHash).([]byte),
-		Confirms:      header.Confirms,
-		PubKey:        Clone(header.PubKey).([]byte),
-		Sign:          Clone(header.Sign).([]byte),
-	}
-}
-
-func (body *BlockBody) Clone() *BlockBody {
-	if body == nil {
-		return nil
-	}
-	txs := make([]*Tx, len(body.Txs))
-	for i, v := range body.Txs {
-		txs[i] = v.Clone()
-	}
-	return &BlockBody{
-		Txs: txs,
-	}
-}
-
 // CalculateBlocksRootHash generates merkle tree of block headers and returns root hash.
 func CalculateBlocksRootHash(blocks []*Block) []byte {
 	return nil
