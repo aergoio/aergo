@@ -244,7 +244,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		abi, err := contract.GetABI(msg.Contract)
+		abi, err := contract.GetABI(cs.sdb, msg.Contract)
 		context.Respond(message.GetABIRsp{
 			ABI: abi,
 			Err: err,

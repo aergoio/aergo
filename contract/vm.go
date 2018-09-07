@@ -249,8 +249,15 @@ func GetReceipt(txHash []byte) (*types.Receipt, error) {
 	return types.NewReceiptFromBytes(val), nil
 }
 
-func GetABI(contractAddress []byte) (*types.ABI, error) {
-	val := DB.Get(contractAddress)
+func GetABI(sdb *state.ChainStateDB, contractAddress []byte) (*types.ABI, error) {
+	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(contractAddress))
+	if err != nil {
+		return nil, err
+	}
+	val, err := contractState.GetCode()
+	if err != nil {
+		return nil, err
+	}
 	if len(val) == 0 {
 		return nil, errors.New("cannot find contract")
 	}
