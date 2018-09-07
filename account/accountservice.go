@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -60,7 +59,7 @@ func (as *AccountService) BeforeStart() {
 	as.storage = db.NewDB(db.BadgerImpl, dbPath)
 
 	addrPath := path.Join(as.cfg.DataDir, addressFile)
-	as.addrs = NewAddresses(as.Logger, addrPath)
+	as.addrs = NewAddresses(addrPath)
 	as.accounts, _ = as.addrs.getAccounts()
 }
 
@@ -154,13 +153,6 @@ func (as *AccountService) createAccount(passphrase string) (*types.Account, erro
 	return account, nil
 }
 
-func generateAddress(pubkey *ecdsa.PublicKey) []byte {
-	addr := new(bytes.Buffer)
-	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
-	binary.Write(addr, binary.LittleEndian, pubkey.Y.Bytes())
-	return addr.Bytes()[:20] //TODO: ADDRESSLENGTH ?
-}
-
 func (as *AccountService) getKey(address []byte, passphrase string) ([]byte, error) {
 	encryptkey := hashBytes(address, []byte(passphrase))
 	key := as.storage.Get(hashBytes(address, encryptkey))
@@ -171,7 +163,6 @@ func (as *AccountService) getKey(address []byte, passphrase string) ([]byte, err
 }
 
 func (as *AccountService) unlockAccount(address []byte, passphrase string) (*types.Account, error) {
-
 	key, err := as.getKey(address, passphrase)
 	if key == nil {
 		as.Error().Err(err).Msg("could not find the key")

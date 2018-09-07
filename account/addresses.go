@@ -1,25 +1,32 @@
 package account
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"encoding/binary"
 	"io/ioutil"
 	"os"
 
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 
 const addressLength = 20
 
 type Addresses struct {
-	*log.Logger
 	addrPath string
 }
 
-func NewAddresses(logger *log.Logger, addressPath string) *Addresses {
+func NewAddresses(addressPath string) *Addresses {
 	return &Addresses{
-		Logger:   logger,
 		addrPath: addressPath,
 	}
+}
+
+func generateAddress(pubkey *ecdsa.PublicKey) []byte {
+	addr := new(bytes.Buffer)
+	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
+	binary.Write(addr, binary.LittleEndian, pubkey.Y.Bytes())
+	return addr.Bytes()[:20] //TODO: ADDRESSLENGTH ?
 }
 
 func (a *Addresses) addAddress(address []byte) {
