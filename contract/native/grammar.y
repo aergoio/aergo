@@ -69,7 +69,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* E */
         K_ELSE
         /* F */
-        K_FALSE         K_FILE          K_FLOAT         K_FOR
+        K_FALSE         K_FLOAT         K_FOR
         K_FUNC
         /* G */
         K_GLOBAL
@@ -434,12 +434,12 @@ expr_unary:
 op_unary:
     '+'
 |   '-'
-|   '~'
 |   '!'
 ;
 
 expr_post:
     expr_prim
+|   expr_new
 |   expr_post '[' expression ']'
 |   expr_post '(' ')'
 |   expr_post '(' expr_list ')'
@@ -458,6 +458,11 @@ expr_prim:
 |   string
 |   identifier
 |   '(' expression ')'
+;
+
+expr_new:
+    K_NEW identifier '(' ')'
+|   K_NEW identifier '(' expr_list ')'
 ;
 
 expr_list:

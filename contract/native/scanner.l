@@ -194,6 +194,7 @@ id                          {L}({L}|{D})*
 "|"                         yy_return('|');
 "="                         yy_return('=');
 "^"                         yy_return('^');
+"!"                         yy_return('!');
 
 "account"                   yy_return(K_ACCOUNT);
 "bool"                      yy_return(K_BOOL);
@@ -207,7 +208,6 @@ id                          {L}({L}|{D})*
 "double"                    yy_return(K_DOUBLE);
 "else"                      yy_return(K_ELSE);
 "false"                     yy_return(K_FALSE);
-"file"                      yy_return(K_FILE);
 "float"                     yy_return(K_FLOAT);
 "for"                       yy_return(K_FOR);
 "func"                      yy_return(K_FUNC);

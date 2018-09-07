@@ -1,0 +1,38 @@
+@desc instantiate
+contract callee { }
+
+contract test {
+    func f() {
+        callee c = new callee();
+    }
+}
+
+@desc neighbor_reference
+contract neighbor { 
+    int v;
+    neighbor(int p) {
+        v = p;
+    }
+    func f() int { 
+        return v;
+    }
+}
+
+contract test {
+    int v;
+    func f() int {
+        neighbor n = new neighbor(1);
+        v = n.v;
+        return n.f();
+    }
+}
+
+@desc missing_parenthesis
+@return SYNTAX_ERROR
+contract callee { }
+
+contract test {
+    func f() {
+        callee c = new callee;
+    }
+}

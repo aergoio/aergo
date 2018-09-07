@@ -49,7 +49,7 @@ contract test {
             v2 = "sole if";
         }
 
-        if (true) {
+        if (!true) {
             v2 = "this is if";
         }
         else {
@@ -139,6 +139,12 @@ contract test {
 
         for {
             v1++;
+            if (v1 % 2 == 0) {
+                break;
+            }
+            else {
+                continue;
+            }
         }
     }
 }
