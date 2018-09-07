@@ -1,6 +1,9 @@
 package account
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -52,4 +55,17 @@ func (s *Signer) SignTx(tx *types.Tx) error {
 	//txbody.Sign = sign
 	tx.Hash = tx.CalculateTxHash()
 	return nil
+}
+
+func hashWithoutSign(txBody *types.TxBody) []byte {
+	h := sha256.New()
+	binary.Write(h, binary.LittleEndian, txBody.Nonce)
+	h.Write(txBody.Account)
+	h.Write(txBody.Recipient)
+	binary.Write(h, binary.LittleEndian, txBody.Amount)
+	h.Write(txBody.Payload)
+	binary.Write(h, binary.LittleEndian, txBody.Limit)
+	binary.Write(h, binary.LittleEndian, txBody.Price)
+	binary.Write(h, binary.LittleEndian, txBody.Type)
+	return h.Sum(nil)
 }

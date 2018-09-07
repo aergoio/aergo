@@ -6,7 +6,6 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"os"
 	"path"
 	"sync"
@@ -191,19 +190,6 @@ func hashBytes(b1 []byte, b2 []byte) []byte {
 	h := sha256.New()
 	h.Write(b1)
 	h.Write(b2)
-	return h.Sum(nil)
-}
-
-func hashWithoutSign(txBody *types.TxBody) []byte {
-	h := sha256.New()
-	binary.Write(h, binary.LittleEndian, txBody.Nonce)
-	h.Write(txBody.Account)
-	h.Write(txBody.Recipient)
-	binary.Write(h, binary.LittleEndian, txBody.Amount)
-	h.Write(txBody.Payload)
-	binary.Write(h, binary.LittleEndian, txBody.Limit)
-	binary.Write(h, binary.LittleEndian, txBody.Price)
-	binary.Write(h, binary.LittleEndian, txBody.Type)
 	return h.Sum(nil)
 }
 
