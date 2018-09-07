@@ -16,7 +16,7 @@ func genKeyPair(assert *assert.Assertions) (crypto.PrivKey, crypto.PubKey) {
 }
 
 func genSign(assert *assert.Assertions, block *types.Block, privKey crypto.PrivKey) []byte {
-	msg, err := block.Header.Bytes()
+	msg, err := block.Header.BytesForDigest()
 	assert.Nil(err)
 
 	sig, err := privKey.Sign(msg)
@@ -29,7 +29,7 @@ func TestBlockSignBasic(t *testing.T) {
 	signAssert := assert.New(t)
 
 	message := func(block *types.Block) []byte {
-		msg, err := block.Header.Bytes()
+		msg, err := block.Header.BytesForDigest()
 		signAssert.Nil(err)
 
 		return msg

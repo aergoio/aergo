@@ -2,21 +2,16 @@ package types
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBlockHashOldNew(t *testing.T) {
+func TestBlockHash(t *testing.T) {
 	blockHash := func(block *Block) []byte {
 		header := block.Header
 		digest := sha256.New()
-		digest.Write(header.PrevBlockHash)
-		binary.Write(digest, binary.LittleEndian, header.BlockNo)
-		binary.Write(digest, binary.LittleEndian, header.Timestamp)
-		digest.Write(header.TxsRootHash)
-		binary.Write(digest, binary.LittleEndian, header.Confirms)
+		writeBlockHeaderOld(digest, header)
 		return digest.Sum(nil)
 	}
 
