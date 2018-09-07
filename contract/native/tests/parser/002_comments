@@ -1,4 +1,4 @@
-@desc normal_comments
+@desc block_comment
 contract test {
     /* This
      * is
@@ -12,8 +12,13 @@ a
      comments for title
     
      *****************************************************************************/
+}
 
+@desc line_comment
+contract test {
 // This is a cpp-style comment
+
+    // This is /* a comment with c comment
 }
 
 @desc unterminated_comment

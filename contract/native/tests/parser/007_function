@@ -1,0 +1,40 @@
+@desc empty_function
+contract test {
+    func f1() { }
+    func f2() { 
+        ;
+    }
+}
+
+@desc function_modifier
+contract test {
+    global func f1() { }
+    local func f2() { }
+    shared func f3() { }
+    global transfer func f4() { }
+    local transfer func f5() { }
+    shared transfer func f6() { }
+    transfer func f7() { }
+}
+
+@desc invalid_transfer_modifier
+@return SYNTAX_ERROR
+contract test {
+    transfer global func f1() { }
+}
+
+@desc parameter_declaration
+contract test {
+    func f1(int p1) { }
+    func f2(int p1, string p2) { }
+    func f3(int p1, map(int, string) p2) { }
+    func f4(int p1[]) { }
+}
+
+@desc return_declaration
+contract test {
+    func f1() { return; }
+    func f2() int { return 1; }
+    func f3() int, string { return 1 + 1, "value"; }
+    func f4() map(int, string) { return null; }
+}

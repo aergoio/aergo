@@ -55,7 +55,6 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         OP_RSHIFT       OP_LSHIFT       OP_INC          OP_DEC
         OP_AND          OP_OR           OP_LE           OP_GE
         OP_EQ           OP_NE
-        OP_MAP
 
 /* keyword */
 %token  /* A */
@@ -63,7 +62,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* B */
         K_BOOL          K_BREAK         K_BYTE
         /* C */
-        K_CASE          K_CONST         K_CONSTRUCTOR   K_CONTINUE
+        K_CASE          K_CONST         K_CONTINUE
         K_CONTRACT
         /* D */
         K_DEFAULT       K_DOUBLE
@@ -73,25 +72,26 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         K_FALSE         K_FILE          K_FLOAT         K_FOR
         K_FUNC
         /* G */
+        K_GLOBAL
         /* H */
         /* I */
         K_IF            K_INIT          K_INT           K_INT16
         K_INT32         K_INT64
         /* L */
+        K_LOCAL
         /* M */
         K_MAP
         /* N */
         K_NEW           K_NULL
         /* O */
         /* P */
-        K_PAYABLE       K_PRIVATE       K_PUBLIC
         /* Q */
         /* R */
         K_RETURN
         /* S */
-        K_STRING        K_STRUCT        K_SWITCH
+        K_SHARED        K_STRING        K_STRUCT        K_SWITCH
         /* T */
-        K_TRUE
+        K_TRANSFER      K_TRUE
         /* U */
         K_UINT          K_UINT16        K_UINT32        K_UINT64
         /* V */
@@ -114,7 +114,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %left   '.'
 
 /* types */
-%type   <str>           id
+%type   <str>           identifier
 
 %start  smart_contract
 
@@ -126,32 +126,39 @@ smart_contract:
 ;
 
 contract_decl:
-    K_CONTRACT id '{' contract_body '}'
+    K_CONTRACT identifier '{' '}'
+|   K_CONTRACT identifier '{' contract_body '}'
 ;
 
 contract_body:
-    decl_list_opt constructor_opt func_decl_list_opt
+    variable
+|   contract_body variable
+|   struct
+|   contract_body struct
+|   constructor
+|   contract_body constructor
+|   function
+|   contract_body function
 ;
 
-decl_list_opt:
-    /* empty */
-|   decl_list
+variable:
+    var_type var_decl_list ';'
 ;
 
-decl_list:
-    prim_decl
-|   decl_list prim_decl
-|   struct_decl
-|   decl_list struct_decl
-;
-
-prim_decl:
-    prim_spec var_decl_list ';'
-;
-
-prim_spec:
+var_type:
     type_spec
-|   K_CONST type_spec
+|   type_qual type_spec
+|   var_scope var_type
+;
+
+type_qual:
+    K_CONST
+;
+
+var_scope:
+    K_LOCAL
+|   K_GLOBAL
+|   K_SHARED
 ;
 
 type_spec:
@@ -169,8 +176,12 @@ type_spec:
 |   K_UINT16
 |   K_UINT32
 |   K_UINT64
-|   K_MAP '(' type_spec OP_MAP type_spec ')'
-|   id
+|   map_spec
+|   identifier
+;
+
+map_spec:
+    K_MAP '(' type_spec ',' type_spec ')'
 ;
 
 var_decl_list:
@@ -184,7 +195,7 @@ var_decl:
 ;
 
 declarator:
-    id
+    identifier
 |   declarator '[' expr_add ']'
 |   declarator '[' ']'
 ;
@@ -200,22 +211,17 @@ init_list:
 |   init_list ',' initializer
 ;
 
-struct_decl:
-    K_STRUCT id '{' struct_decl_list '}'
+struct:
+    K_STRUCT identifier '{' field_list '}'
 ;
 
-struct_decl_list:
-    prim_decl
-|   struct_decl_list prim_decl
-;
-
-constructor_opt:
-    /* empty */
-|   constructor
+field_list:
+    variable
+|   field_list variable
 ;
 
 constructor:
-    K_CONSTRUCTOR '(' param_list_opt ')' stmt_blk
+    identifier '(' param_list_opt ')' stmt_blk
 ;
 
 param_list_opt:
@@ -229,39 +235,33 @@ param_list:
 ;
 
 param_decl:
-    prim_spec declarator
-;
-
-func_decl_list_opt:
-    /* empty */
-|   func_decl_list
-;
-
-func_decl_list:
-    function
-|   func_decl_list function
+    var_type declarator
 ;
 
 function:
-    modifier_opt K_FUNC id '(' param_list_opt ')' return_type_opt stmt_blk
+    modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt stmt_blk
 ;
 
 modifier_opt:
     /* empty */
-|   modifier_opt K_PAYABLE
-|   modifier_opt K_PRIVATE
-|   modifier_opt K_PUBLIC
+|   K_GLOBAL
+|   K_GLOBAL K_TRANSFER
+|   K_LOCAL
+|   K_LOCAL K_TRANSFER
+|   K_SHARED
+|   K_SHARED K_TRANSFER
+|   K_TRANSFER
 ;
 
-return_type_opt:
+return_opt:
     /* empty */
-|   prim_spec
-|   '(' return_type_list ')'
+|   return_list
+|   '(' return_list ')'
 ;
 
-return_type_list:
-    prim_spec
-|   return_type_list ',' prim_spec
+return_list:
+    var_type
+|   return_list ',' var_type
 ;
 
 statement:
@@ -269,7 +269,6 @@ statement:
 |   stmt_if
 |   stmt_for
 |   stmt_switch
-|   stmt_label
 |   stmt_jump
 |   stmt_blk
 ;
@@ -281,23 +280,36 @@ stmt_expr:
 
 stmt_if:
     K_IF '(' expression ')' stmt_blk
-|   K_IF '(' expression ')' stmt_blk K_ELSE stmt_blk
+|   K_ELSE stmt_if
+|   K_ELSE stmt_blk
 ;
 
 stmt_for:
     K_FOR '(' stmt_expr stmt_expr ')' stmt_blk
 |   K_FOR '(' stmt_expr stmt_expr expression ')' stmt_blk
-|   K_FOR '(' prim_decl stmt_expr ')' stmt_blk
-|   K_FOR '(' prim_decl stmt_expr expression ')' stmt_blk
+|   K_FOR '(' variable stmt_expr ')' stmt_blk
+|   K_FOR '(' variable stmt_expr expression ')' stmt_blk
+|   K_FOR stmt_blk
 ;
 
 stmt_switch:
-    K_SWITCH '(' expression ')' stmt_blk
+    K_SWITCH '{' switch_blk '}'
+|   K_SWITCH '(' expression ')' '{' switch_blk '}'
+;
+
+switch_blk:
+    stmt_label
+|   switch_blk stmt_label
 ;
 
 stmt_label:
-    K_CASE expr_const ':' statement
-|   K_DEFAULT ':' statement
+    K_CASE expr_eq ':' stmt_list
+|   K_DEFAULT ':' stmt_list
+;
+
+stmt_list:
+    statement
+|   stmt_list statement
 ;
 
 stmt_jump:
@@ -309,17 +321,17 @@ stmt_jump:
 
 stmt_blk:
     '{' '}'
-|   '{' block_item_list '}'
+|   '{' blk_decl_list '}'
 ;
 
-block_item_list:
-    block_item
-|   block_item_list block_item
+blk_decl_list:
+    blk_decl
+|   blk_decl_list blk_decl
 ;
 
-block_item:
-    prim_decl
-|   struct_decl
+blk_decl:
+    variable
+|   struct
 |   statement
 ;
 
@@ -431,7 +443,7 @@ expr_post:
 |   expr_post '[' expression ']'
 |   expr_post '(' ')'
 |   expr_post '(' expr_list ')'
-|   expr_post '.' id
+|   expr_post '.' identifier
 |   expr_post OP_INC
 |   expr_post OP_DEC
 ;
@@ -444,7 +456,7 @@ expr_prim:
 |   L_FLOAT
 |   L_HEXA
 |   string
-|   id
+|   identifier
 |   '(' expression ')'
 ;
 
@@ -453,16 +465,12 @@ expr_list:
 |   expr_list ',' expr_assign
 ;
 
-expr_const:
-    expr_cond
-;
-
 string:
     L_STR
 |   string L_STR
 ;
 
-id:
+identifier:
     ID              { $$ = $1; }
 ;
 

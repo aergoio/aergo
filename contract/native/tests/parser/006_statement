@@ -2,8 +2,10 @@
 contract test {
     int v1;
     int v2;
+    string v3, v4;
+    bool v5, v6;
 
-    constructor() {
+    test() {
         v1 += 1;
         v1 -= 1;
         v1 *= 1 + 1;
@@ -13,18 +15,130 @@ contract test {
         v2 |= 0xff;
         v2 &= 0x01;
         v2 ^= 0x01;
+
+        v1, v2 = 1, 2;
+        (v1, v2) = 1 * 1, 2;
+        v3, v4 = ("a", "b");
+        v3, v4 = ("a", "b");
+
+        v5 = f1(true);
+        v5, v6 = f2(1, "student");
     }
 }
 
-@desc unary_arithmetic
+@desc unary_expression
 contract test {
     int v1 = 1;
 
-    constructor() {
+    test() {
         v1++;
         ++v1;
         v1--;
         --v1;
+        ;
     }
 }
 
+@desc if_else
+contract test {
+    int v1 = 1;
+    string v2;
+
+    test() {
+        if (0 == 0) {
+            v2 = "sole if";
+        }
+
+        if (true) {
+            v2 = "this is if";
+        }
+        else {
+            v2 = "this is else";
+        }
+
+        if (v1 == 1) {
+            v2 = "first";
+        } else if (f1(v2)) {
+            v2 = "second";
+        } else {
+            v2 = "don't care";
+        }
+    }
+}
+
+@desc missing_brace
+@return SYNTAX_ERROR
+contract test {
+    test() {
+        if (1 == 1) 
+            ;
+    }
+}
+
+@desc switch_case
+contract test {
+    int v1;
+    string v2;
+
+    test() {
+        switch (v1) {
+        case 1:
+            v2 = "case 1";
+            break;
+        case 2:
+            { v2 = "case 2"; }
+            break;
+        default:
+            break;
+        }
+
+        switch {
+        case v1 == 1: { }
+            break;
+        case v1 == 1 + 1:
+            break;
+        case v1 == f1():
+            break;
+        }
+    }
+}
+
+@desc for_loop
+contract test {
+    int v1;
+
+    test() {
+        for (int i = 0; i < 10; i++) {
+            v1++;
+        }
+
+        for (int i = f1(); i < f2(); i++) {
+            v1++;
+        }
+
+        for (i = 0; i < 10; i++) {
+            v1++;
+        }
+
+        for ( ; i < 10; ) {
+            v1++;
+            i += 2;
+        }
+
+        for ( ; i < 10; i++) {
+            v1++;
+        }
+
+        for ( ; ; i++) {
+            v1++;
+        }
+
+        for ( ; ; ) {
+            v1++;
+        }
+
+        for {
+            v1++;
+        }
+    }
+}

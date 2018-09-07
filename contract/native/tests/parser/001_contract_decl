@@ -4,14 +4,15 @@ contract test {
 
 @desc empty_constructor
 contract test {
-    constructor() { }
+    test() { }
 }
 
-@desc constructor_with_args
+@desc constructor_with_arguments
 contract test {
-    constructor(int x) { }
+    test(int x) { }
 }
 
 @desc multiple_contracts
 contract test1 { }
+
 contract text2 { }

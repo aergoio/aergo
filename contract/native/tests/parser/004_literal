@@ -1,4 +1,4 @@
-@desc numeric_values
+@desc numeric_value
 contract test {
     int v1 = 1;
     int v2 = +12;
@@ -15,7 +15,7 @@ contract test {
     int64 v11 = 0xff;
 }
 
-@desc string_values
+@desc string_value
 contract test {
     string v1 = "";
     string v2 = "literal";
@@ -32,7 +32,7 @@ contract test {
     string v = "unterminated string\";
 }
 
-@desc predefined_constants
+@desc predefined_constant
 contract test {
     bool v1 = true;
     bool v2 = false;
@@ -47,6 +47,9 @@ contract test {
     int v1[] = { 1, 2, 3 };
     int v2[] = { 1, 2, 3, };
     string v3[] = { "a", "b", "c" };
+
+    int v4[] = {1}, 
+        v5[] = {2};
 }
 
 @desc struct_initializer

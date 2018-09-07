@@ -171,7 +171,6 @@ id                          {L}({L}|{D})*
 ">="                        yy_return(OP_GE);
 "=="                        yy_return(OP_EQ);
 "!="                        yy_return(OP_NE);
-"=>"                        yy_return(OP_MAP);
 
 "{"                         yy_return('{');
 "}"                         yy_return('}');
@@ -202,7 +201,6 @@ id                          {L}({L}|{D})*
 "byte"                      yy_return(K_BYTE);
 "case"                      yy_return(K_CASE);
 "const"                     yy_return(K_CONST);
-"constructor"               yy_return(K_CONSTRUCTOR);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
 "default"                   yy_return(K_DEFAULT);
@@ -213,21 +211,22 @@ id                          {L}({L}|{D})*
 "float"                     yy_return(K_FLOAT);
 "for"                       yy_return(K_FOR);
 "func"                      yy_return(K_FUNC);
+"global"                    yy_return(K_GLOBAL);
 "if"                        yy_return(K_IF);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
+"local"                     yy_return(K_LOCAL);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
-"payable"                   yy_return(K_PAYABLE);
-"private"                   yy_return(K_PRIVATE);
-"public"                    yy_return(K_PUBLIC);
 "return"                    yy_return(K_RETURN);
+"shared"                    yy_return(K_SHARED);
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
+"transfer"                  yy_return(K_TRANSFER);
 "true"                      yy_return(K_TRUE);
 "uint"                      yy_return(K_UINT);
 "uint16"                    yy_return(K_UINT16);
