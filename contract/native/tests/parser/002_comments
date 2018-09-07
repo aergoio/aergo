@@ -25,4 +25,3 @@ contract test {
 @error UNTERMINATED_COMMENT_ERROR
 contract test {
     /* This is an unterminated comment
-}

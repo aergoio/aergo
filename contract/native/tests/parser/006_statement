@@ -66,7 +66,17 @@ contract test {
     }
 }
 
-@desc missing_brace
+@desc missing_if_parenthesis
+@error SYNTAX_ERROR
+contract test {
+    test() {
+        if 1 == 1 {
+            ;
+        }
+    }
+}
+
+@desc missing_if_brace
 @error SYNTAX_ERROR
 contract test {
     test() {
@@ -146,5 +156,47 @@ contract test {
                 continue;
             }
         }
+    }
+}
+
+@desc inline_sql
+contract test {
+    int v1;
+    string v2;
+    test() {
+        v1 = select id from emp;
+        v1, v2 = 
+            select id, 
+                   name 
+              from emp;
+
+        insert into emp values (10, 'Sam');
+        insert into 
+            emp values (20, 'Bill');
+
+        delete from emp where id = 10;
+        delete from emp
+        where name = "Bill";
+
+        commit;
+        rollback;
+    }
+}
+
+@desc missing_sql_terminator
+@error UNTERMINATED_SQL_ERROR
+contract test {
+    int v1;
+    test() {
+        v1 = select id from emp
+    }
+}
+
+@desc assign_with_dml
+@error SYNTAX_ERROR
+contract test {
+    int v1;
+    test() {
+        v1 = insert into t values (1);
     }
 }

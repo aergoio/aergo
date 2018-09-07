@@ -43,11 +43,16 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 }
 
 /* identifier */
-%token  <str>           ID
+%token  <str>           
+        ID
 
 /* expr_lit */
 %token  <str>
         L_FLOAT         L_HEXA          L_INT           L_STR
+
+/* expr_sql */
+%token  <str>           
+        L_DML           L_QUERY
 
 /* operator */
 %token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
@@ -62,7 +67,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* B */
         K_BOOL          K_BREAK         K_BYTE
         /* C */
-        K_CASE          K_CONST         K_CONTINUE
+        K_CASE          K_COMMIT        K_CONST         K_CONTINUE
         K_CONTRACT
         /* D */
         K_DEFAULT       K_DOUBLE
@@ -87,7 +92,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* P */
         /* Q */
         /* R */
-        K_RETURN
+        K_RETURN        K_ROLLBACK
         /* S */
         K_SHARED        K_STRING        K_STRUCT        K_SWITCH
         /* T */
@@ -270,6 +275,7 @@ statement:
 |   stmt_for
 |   stmt_switch
 |   stmt_jump
+|   stmt_sql
 |   stmt_blk
 ;
 
@@ -317,6 +323,12 @@ stmt_jump:
 |   K_BREAK ';'
 |   K_RETURN ';'
 |   K_RETURN expression ';'
+;
+
+stmt_sql:
+    K_COMMIT ';'
+|   K_ROLLBACK ';'
+|   L_DML ';'
 ;
 
 stmt_blk:
@@ -455,6 +467,7 @@ expr_prim:
 |   L_INT
 |   L_FLOAT
 |   L_HEXA
+|   L_QUERY
 |   string
 |   identifier
 |   '(' expression ')'

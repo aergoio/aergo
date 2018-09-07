@@ -10,8 +10,8 @@
 #include "util.h"
 #include "parser.h"
 
-#define YY_DECL                                                                \
-    int yylex(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner)
+#define YY_PARAM_DECL           YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner
+#define YY_DECL                 int yylex(YY_PARAM_DECL)
 
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, MAX)                                             \
@@ -49,14 +49,16 @@
 #define yy_recover()                                                           \
     do {                                                                       \
         register int c;                                                        \
-        yyleng = 1;                                                            \
         for ( ; ; ) {                                                          \
             c = input(yyscanner);                                              \
             if (c == '\r' || c == '\n') {                                      \
                 unput(c);                                                      \
                 break;                                                         \
             }                                                                  \
-            yy_update_last_col();                                              \
+            else if (c == '\0') {                                              \
+                yyterminate();                                                 \
+            }                                                                  \
+            lloc->last.col++;                                                  \
         }                                                                      \
     } while (0)
 
@@ -65,6 +67,104 @@
         yy_update_first();                                                     \
         yy_update_last_col();                                                  \
         return (tok);                                                          \
+    } while (0)
+
+#define yy_return_buf(tok)                                                     \
+    do {                                                                       \
+        lval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));      \
+        strbuf_reset(YY_BUF);                                                  \
+        return (tok);                                                          \
+    } while (0)
+
+#define yy_scan_comment()                                                      \
+    do {                                                                       \
+        char c, prev = '\0';                                                   \
+        while ((c = input(yyscanner)) != '\0') {                               \
+            if (c == '/' && prev == '*') {                                     \
+                lloc->last.col++;                                              \
+                strbuf_append(YY_BUF, &c, 1);                                  \
+                break;                                                         \
+            }                                                                  \
+            if (c == '\n')                                                     \
+                yy_update_last_line();                                         \
+            else                                                               \
+                lloc->last.col++;                                              \
+            strbuf_append(YY_BUF, &c, 1);                                      \
+            prev = c;                                                          \
+        }                                                                      \
+        if (c == '\0') {                                                       \
+            yy_error(UNTERMINATED_COMMENT_ERROR);                              \
+            yyterminate();                                                     \
+        }                                                                      \
+    } while (0)
+
+#define yy_scan_literal()                                                      \
+    do {                                                                       \
+        char c, prev = '\0';                                                   \
+        while ((c = input(yyscanner)) != '\0') {                               \
+            if (c == '"' && prev != '\\') {                                    \
+                lloc->last.col++;                                              \
+                break;                                                         \
+            }                                                                  \
+            if (c == '\n') {                                                   \
+                int i;                                                         \
+                int len = strbuf_length(YY_BUF);                               \
+                char *str = strbuf_text(YY_BUF);                               \
+                for (i = len - 1; i >= 0; i--) {                               \
+                    if (!isblank(str[i]))                                      \
+                        break;                                                 \
+                }                                                              \
+                if (str[i] != '\\') {                                          \
+                    yy_error(UNTERMINATED_STRING_ERROR);                       \
+                    yy_update_last_line();                                     \
+                    strbuf_reset(YY_BUF);                                      \
+                    break;                                                     \
+                }                                                              \
+                strbuf_trunc(YY_BUF, len - i);                                 \
+                yy_update_last_line();                                         \
+            }                                                                  \
+            else {                                                             \
+                lloc->last.col++;                                              \
+                strbuf_append(YY_BUF, &c, 1);                                  \
+            }                                                                  \
+            prev = c;                                                          \
+        }                                                                      \
+        if (c == '\0') {                                                       \
+            yy_error(UNTERMINATED_STRING_ERROR);                               \
+            yyterminate();                                                     \
+        }                                                                      \
+    } while (0)
+
+#define yy_scan_sql()                                                          \
+    do {                                                                       \
+        char c, prev = '\0';                                                   \
+        while ((c = input(yyscanner)) != '\0') {                               \
+            if (c == ';' && prev != '\\') {                                    \
+                unput(c);                                                      \
+                break;                                                         \
+            }                                                                  \
+            else if (c == '*' && prev == '/') {                                \
+                lloc->last.col++;                                              \
+                yy_scan_comment();                                             \
+            }                                                                  \
+            else if (c == '"' && prev != '\\') {                               \
+                lloc->last.col++;                                              \
+                yy_scan_literal();                                             \
+            }                                                                  \
+            else if (c == '\n') {                                              \
+                yy_update_last_line();                                         \
+                strbuf_append(YY_BUF, &c, 1);                                  \
+            }                                                                  \
+            else {                                                             \
+                lloc->last.col++;                                              \
+                strbuf_append(YY_BUF, &c, 1);                                  \
+            }                                                                  \
+            prev = c;                                                          \
+        }                                                                      \
+        if (c == '\0') {                                                       \
+            yy_error(UNTERMINATED_SQL_ERROR);                                  \
+            yyterminate();                                                     \
+        }                                                                      \
     } while (0)
 
 %}
@@ -76,9 +176,7 @@
 %option noyylineno
 %option noyywrap
 
-%x  C_COMMENT
-%x  D_QUOTE
-%x  F_DIR
+%x DIRECTIVE
 
 ws                          [ \t\f\v]
 nl                          ([\r\n]|\r\n)
@@ -101,52 +199,17 @@ id                          {L}({L}|{D})*
 "//"[^\r\n]*                yy_update_last_col();
 
 "/*" {
-    BEGIN(C_COMMENT);
     yy_update_first();
     yy_update_last_col();
-}
-<C_COMMENT>"*/"             { BEGIN(INITIAL); yy_update_last_col(); }
-<C_COMMENT>[^*\r\n]+        yy_update_last_col();
-<C_COMMENT>"*"              yy_update_last_col();
-<C_COMMENT>{nl}             yy_update_last_line();
-<C_COMMENT><<EOF>> {
-    yy_error(UNTERMINATED_COMMENT_ERROR);
-    yyterminate();
+    yy_scan_comment();
+    strbuf_reset(YY_BUF);
 }
 
 "\"" {
-    BEGIN(D_QUOTE);
     yy_update_first();
     yy_update_last_col();
-    strbuf_reset(YY_BUF);
-}
-<D_QUOTE>(\\.|[^\\"\r\n])+  { yy_update_last_col(); yy_append(); }
-<D_QUOTE>"\"" {
-    BEGIN(INITIAL);
-    lval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));
-    yy_update_last_col();
-    return L_STR;
-}
-<D_QUOTE>{nl} {
-    int i;
-    int len = strbuf_length(YY_BUF);
-    char *str = strbuf_text(YY_BUF);
-    for (i = len - 1; i >= 0; i--) {
-        if (!isblank(str[i]))
-            break;
-    }
-    if (str[i] == '\\') {
-        strbuf_trunc(YY_BUF, len - i);
-    }
-    else {
-        BEGIN(INITIAL);
-        yy_error(UNTERMINATED_STRING_ERROR);
-    }
-    yy_update_last_line();
-}
-<D_QUOTE><<EOF>> {
-    yy_error(UNTERMINATED_STRING_ERROR);
-    yyterminate();
+    yy_scan_literal();
+    yy_return_buf(L_STR);
 }
 
 {integer}                   yy_return(L_INT);
@@ -201,6 +264,7 @@ id                          {L}({L}|{D})*
 "break"                     yy_return(K_BREAK);
 "byte"                      yy_return(K_BYTE);
 "case"                      yy_return(K_CASE);
+"commit"                    yy_return(K_COMMIT);
 "const"                     yy_return(K_CONST);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
@@ -222,6 +286,7 @@ id                          {L}({L}|{D})*
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
 "return"                    yy_return(K_RETURN);
+"rollback"                  yy_return(K_ROLLBACK);
 "shared"                    yy_return(K_SHARED);
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
@@ -233,22 +298,27 @@ id                          {L}({L}|{D})*
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
 
-    /*
-"commit"                    yy_return(K_COMMIT);
-"delete"                    yy_return(K_DELETE);
-"insert"                    yy_return(K_INSERT);
-"rollback"                  yy_return(K_ROLLBACK);
-"select"                    yy_return(K_SELECT);
-    */
+"delete"|"insert" {
+    yy_update_first();
+    yy_update_last_col();
+    yy_scan_sql();
+    yy_return_buf(L_DML);
+}
+"select" { 
+    yy_update_first();
+    yy_update_last_col();
+    yy_scan_sql();
+    yy_return_buf(L_QUERY);
+}
 
-"#file"                     BEGIN(F_DIR);
-<F_DIR>{ws}+
-<F_DIR>\"[^\"\n\r]+\"       yyextra->path = yy_literal();
-<F_DIR>{D}+" "{D}+ {
+"#file"                     BEGIN(DIRECTIVE);
+<DIRECTIVE>{ws}+
+<DIRECTIVE>\"[^\"\n\r]+\"   yyextra->path = yy_literal();
+<DIRECTIVE>{D}+" "{D}+ {
     lloc->last.line = atoi(strtok(yy_text(), " "));
     lloc->last.offset = atoi(strtok(NULL, " "));
 }
-<F_DIR>{nl}                 BEGIN(INITIAL);
+<DIRECTIVE>{nl}             BEGIN(INITIAL);
 
 {id} {
     lval->str = yy_text();

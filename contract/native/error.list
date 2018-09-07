@@ -17,6 +17,7 @@ error(CROSS_IMPORT_ERROR,           "%s:%d: cross reference with import '%s'")
 
 error(UNTERMINATED_COMMENT_ERROR,   "%s:%d: unterminated comment\n%s")
 error(UNTERMINATED_STRING_ERROR,    "%s:%d: unterminated string\n%s")
+error(UNTERMINATED_SQL_ERROR,       "%s:%d: unterminated SQL\n%s")
 error(UNKNOWN_CHAR_ERROR,           "%s:%d: unknown character\n%s")
 error(SYNTAX_ERROR,                 "%s:%d: %s\n%s")
 
