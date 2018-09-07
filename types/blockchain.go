@@ -189,7 +189,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 
 	var msg []byte
-	if msg, err = block.Header.BytesForDigest(); err != nil {
+	if msg, err = block.Header.bytesForDigest(); err != nil {
 		return err
 	}
 
@@ -202,9 +202,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	return nil
 }
 
-// BytesForDigest returns the binary representation of bh withtout Sign
-// field. It is used to generate message digest.
-func (bh *BlockHeader) BytesForDigest() ([]byte, error) {
+func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
 
 	if err := serializeBhForDigest(&buf, bh); err != nil {
@@ -222,7 +220,7 @@ func (block *Block) VerifySign() (valid bool, err error) {
 	}
 
 	var msg []byte
-	if msg, err = block.Header.BytesForDigest(); err != nil {
+	if msg, err = block.Header.bytesForDigest(); err != nil {
 		return false, err
 	}
 
