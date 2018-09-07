@@ -244,11 +244,19 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		abi, err := contract.GetABI(cs.sdb, msg.Contract)
-		context.Respond(message.GetABIRsp{
-			ABI: abi,
-			Err: err,
-		})
+		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err == nil {
+			abi, err := contract.GetABI(contractState, msg.Contract)
+			context.Respond(message.GetABIRsp{
+				ABI: abi,
+				Err: err,
+			})
+		} else {
+			context.Respond(message.GetABIRsp{
+				ABI: nil,
+				Err: err,
+			})
+		}
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:

@@ -109,3 +109,24 @@ func TestContractSystem(t *testing.T) {
 	}
 
 }
+
+func TestGetABI(t *testing.T) {
+	contractState := getContractState(t)
+	contractId, err := base58.Decode(accountId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := base58.Decode(helloCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = contractState.SetCode(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abi, err := GetABI(contractState, contractId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(abi)
+}

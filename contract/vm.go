@@ -205,9 +205,11 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 		ce.call(&ci)
 		err = ce.err
 	}
-	receipt := types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
-	if err != nil {
-		receipt.Status = err.Error()
+	var receipt types.Receipt
+	if err == nil {
+		receipt = types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
+	} else {
+		receipt = types.NewReceipt(contractAddress, err.Error(), "")
 	}
 	DB.Set(txHash, receipt.Bytes())
 	return err
@@ -249,11 +251,7 @@ func GetReceipt(txHash []byte) (*types.Receipt, error) {
 	return types.NewReceiptFromBytes(val), nil
 }
 
-func GetABI(sdb *state.ChainStateDB, contractAddress []byte) (*types.ABI, error) {
-	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(contractAddress))
-	if err != nil {
-		return nil, err
-	}
+func GetABI(contractState *state.ContractState, contractAddress []byte) (*types.ABI, error) {
 	val, err := contractState.GetCode()
 	if err != nil {
 		return nil, err
