@@ -31,6 +31,7 @@ var (
 )
 
 var (
+	emptyHashID    = types.HashID{}
 	emptyBlockID   = types.BlockID{}
 	emptyAccountID = types.AccountID{}
 )
@@ -235,8 +236,8 @@ func (sdb *ChainStateDB) updateTrie(bstate *BlockState) error {
 	return nil
 }
 
-func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot []byte) error {
-	return sdb.trie.Revert(prevBlockStateRoot)
+func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot types.HashID) error {
+	return sdb.trie.Revert(prevBlockStateRoot[:])
 }
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
@@ -253,6 +254,11 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
+
+	// rollback and revert trie requires state root before apply
+	if bstate.undo.stateRoot == emptyHashID {
+		bstate.undo.stateRoot = types.ToHashID(sdb.trie.Root)
+	}
 
 	// save blockState
 	sdb.saveBlockState(bstate)
@@ -294,7 +300,7 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 		for k, v := range bs.undo.accounts {
 			sdb.accounts[k] = v
 		}
-		err = sdb.revertTrie(bs.undo.stateRoot[:])
+		err = sdb.revertTrie(bs.undo.stateRoot)
 		if err != nil {
 			return err
 		}
