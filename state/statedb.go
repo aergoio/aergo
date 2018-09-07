@@ -45,12 +45,12 @@ type BlockInfo struct {
 type BlockState struct {
 	BlockInfo
 	accounts accountStates
-	undo     undoStates
+	Undo     undoStates
 }
 
 type undoStates struct {
-	stateRoot types.HashID
-	accounts  accountStates
+	StateRoot types.HashID
+	Accounts  accountStates
 }
 
 type accountStates map[types.AccountID]*types.State
@@ -67,16 +67,16 @@ func newBlockState(blockInfo *BlockInfo) *BlockState {
 	return &BlockState{
 		BlockInfo: *blockInfo,
 		accounts:  make(accountStates),
-		undo: undoStates{
-			accounts: make(accountStates),
+		Undo: undoStates{
+			Accounts: make(accountStates),
 		},
 	}
 }
 
 // PutAccount sets before and changed state to blockState
 func (bs *BlockState) PutAccount(aid types.AccountID, stateBefore, stateChanged *types.State) {
-	if _, ok := bs.undo.accounts[aid]; !ok {
-		bs.undo.accounts[aid] = stateBefore
+	if _, ok := bs.Undo.Accounts[aid]; !ok {
+		bs.Undo.Accounts[aid] = stateBefore
 	}
 	bs.accounts[aid] = stateChanged
 }
@@ -237,7 +237,19 @@ func (sdb *ChainStateDB) updateTrie(bstate *BlockState) error {
 }
 
 func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot types.HashID) error {
-	return sdb.trie.Revert(prevBlockStateRoot[:])
+	if bytes.Equal(sdb.trie.Root, prevBlockStateRoot[:]) {
+		// same root, do nothing
+		return nil
+	}
+	err := sdb.trie.Revert(prevBlockStateRoot[:])
+	if err != nil {
+		// FIXME: is that enough?
+		// if prevRoot is not contained in the cached tries.
+		sdb.trie.Root = prevBlockStateRoot[:]
+		err = sdb.trie.LoadCache(sdb.trie.Root)
+		return err
+	}
+	return nil
 }
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
@@ -256,8 +268,8 @@ func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	defer sdb.Unlock()
 
 	// rollback and revert trie requires state root before apply
-	if bstate.undo.stateRoot == emptyHashID {
-		bstate.undo.stateRoot = types.ToHashID(sdb.trie.Root)
+	if bstate.Undo.StateRoot == emptyHashID {
+		bstate.Undo.StateRoot = types.ToHashID(sdb.trie.Root)
 	}
 
 	// save blockState
@@ -297,10 +309,10 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			break
 		}
 
-		for k, v := range bs.undo.accounts {
+		for k, v := range bs.Undo.Accounts {
 			sdb.accounts[k] = v
 		}
-		err = sdb.revertTrie(bs.undo.stateRoot)
+		err = sdb.revertTrie(bs.Undo.StateRoot)
 		if err != nil {
 			return err
 		}
