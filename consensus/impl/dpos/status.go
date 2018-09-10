@@ -128,7 +128,7 @@ func (s *Status) updateLIB(bp string, libInfo *blockInfo) {
 		return libInfos[i].blkNo < libInfos[j].blkNo
 	})
 
-	s.lib = libInfos[blockProducers/3-1]
+	s.lib = libInfos[(len(libInfos)-1)/3]
 	logger.Info().Str("block hash", s.lib.hash).Uint64("block no", s.lib.blkNo).Msg("last irreversible block (BFT) updated")
 }
 
