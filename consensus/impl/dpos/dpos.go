@@ -97,6 +97,8 @@ func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
 }
 
+// SetStateDB sets sdb to the corresponding field of DPoS. This method is
+// called only once during the boot sequence.
 func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
 	dpos.bf.setStateDB(sdb)
 }
