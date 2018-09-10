@@ -17,6 +17,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -37,7 +38,7 @@ type RemotePeer struct {
 	pm        PeerManager
 	stopChan  chan struct{}
 
-	write      chan msgOrder
+	write      p2putil.ChannelPipe
 	closeWrite chan struct{}
 
 	hsLock *sync.Mutex
@@ -59,6 +60,7 @@ type RemotePeer struct {
 // msgOrder is abstraction information about the message that will be sent to peer
 type msgOrder interface {
 	GetRequestID() string
+	// Timestamp is unit time value
 	Timestamp() int64
 	IsRequest() bool
 	IsGossip() bool
@@ -82,7 +84,6 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 		state:        types.STARTING,
 
 		stopChan:   make(chan struct{}),
-		write:      make(chan msgOrder),
 		closeWrite: make(chan struct{}),
 		hsLock:     &sync.Mutex{},
 
@@ -91,6 +92,7 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 
 		handlers: make(map[SubProtocol]MessageHandler),
 	}
+	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
 
 	var err error
 	peer.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
@@ -135,6 +137,7 @@ func (p *RemotePeer) runPeer() {
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
+	p.write.Open()
 	go p.runRead()
 READNOPLOOP:
 	for {
@@ -150,6 +153,7 @@ READNOPLOOP:
 	pingTicker.Stop()
 
 	// send channel twice. one for read and another for write
+	p.write.Close()
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
 }
@@ -165,8 +169,9 @@ func (p *RemotePeer) runWrite() {
 WRITELOOP:
 	for {
 		select {
-		case m := <-p.write:
-			p.writeToPeer(m)
+		case m := <-p.write.Out():
+			p.writeToPeer(m.(msgOrder))
+			p.write.Done() <- m
 		case rID := <-p.consumeChan:
 			delete(p.requests, rID)
 		case <-cleanupTicker.C:
@@ -249,12 +254,7 @@ func (p *RemotePeer) stop() {
 const writeChannelTimeout = time.Second * 2
 
 func (p *RemotePeer) sendMessage(msg msgOrder) {
-	select {
-	case p.write <- msg:
-		return
-	case <-time.After(writeChannelTimeout):
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, msg.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
-	}
+	p.write.In() <- msg
 }
 
 // consumeRequest remove request from request history.
@@ -410,4 +410,34 @@ func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
 
 func (p *RemotePeer) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
+}
+
+func newHangresolver(peer *RemotePeer, logger *log.Logger) *hangResolver {
+	return &hangResolver{p: peer, logger: logger}
+}
+
+type hangResolver struct {
+	p      *RemotePeer
+	logger *log.Logger
+
+	consecutiveDrops uint64
+}
+
+func (l *hangResolver) OnIn(element interface{}) {
+}
+
+func (l *hangResolver) OnDrop(element interface{}) {
+	mo := element.(msgOrder)
+	now := time.Now().Unix()
+	// if last send hang too long. drop this peer
+	if l.consecutiveDrops > 20 || (now-mo.Timestamp()) > 60 {
+		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
+		l.p.pm.RemovePeer(l.p.ID())
+	} else {
+		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetRequestID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+	}
+}
+
+func (l *hangResolver) OnOut(element interface{}) {
+	l.consecutiveDrops = 0
 }

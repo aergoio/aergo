@@ -106,6 +106,8 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.rw = dummyRW
 			p.setState(types.RUNNING)
+			p.write.Open()
+			defer p.write.Close()
 			go p.runWrite()
 
 			p.writeToPeer(mockOrder)
@@ -146,15 +148,19 @@ func TestRemotePeer_sendPing(t *testing.T) {
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			p.write.Open()
+			defer p.write.Close()
+
 			go p.sendPing()
 
 			time.Sleep(200 * time.Millisecond)
 
 			actualWrite := false
 			select {
-			case msg := <-p.write:
-				assert.Equal(t, pingRequest, msg.GetProtocolID())
+			case msg := <-p.write.Out():
+				assert.Equal(t, pingRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
+				p.write.Done() <- msg
 			default:
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
@@ -192,15 +198,19 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			p.write.Open()
+			defer p.write.Close()
+
 			go p.sendStatus()
 
 			time.Sleep(200 * time.Millisecond)
 
 			actualWrite := false
 			select {
-			case msg := <-p.write:
-				assert.Equal(t, statusRequest, msg.GetProtocolID())
+			case msg := <-p.write.Out():
+				assert.Equal(t, statusRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
+				p.write.Done() <- msg
 			default:
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
@@ -298,23 +308,29 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 
 		writeCnt := int32(0)
 		t.Run(tt.name, func(t *testing.T) {
+			finishTest := make(chan interface{}, 1)
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			wg2 := &sync.WaitGroup{}
 			wg2.Add(1)
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
+			p.write.Open()
+			defer p.write.Close()
 
 			if !tt.timeout {
 				go func() {
 					wg.Wait()
 					for {
 						select {
-						case ord := <-p.write:
-							p.logger.Info().Str("msg_id", ord.GetRequestID()).Msg("Got order")
+						case mo := <-p.write.Out():
+							p.logger.Info().Msgf("Got order from chan %v", mo)
+							msg := mo.(msgOrder)
+							p.logger.Info().Str(LogMsgID, msg.GetRequestID()).Msg("Got order")
 							atomic.AddInt32(&writeCnt, 1)
+							p.write.Done() <- msg
 							wg2.Done()
 							continue
-						default:
+						case <-finishTest:
 							return
 						}
 					}
@@ -328,6 +344,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 			if !tt.timeout {
 				assert.Equal(t, int32(1), atomic.LoadInt32(&writeCnt))
 			}
+			finishTest <- struct{}{}
 		})
 	}
 }
