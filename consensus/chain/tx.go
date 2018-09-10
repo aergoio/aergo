@@ -66,12 +66,12 @@ func NewCompTxOp(fn ...TxOp) TxOp {
 	})
 }
 
-func newBlockLimitOp(maxBlockBodySize int) TxOpFn {
+func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	// Caution: the closure below captures the local variable 'size.' Generate
 	// it whenever needed. Don't reuse it!
 	size := 0
 	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
-		if size += proto.Size(tx); size > maxBlockBodySize {
+		if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
 			return nil, errBlockSizeLimit
 		}
 		return nil, nil
@@ -80,7 +80,7 @@ func newBlockLimitOp(maxBlockBodySize int) TxOpFn {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize int) ([]*types.Tx, *state.BlockState, error) {
+func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, *state.BlockState, error) {
 	var (
 		nCollected int
 		last       int

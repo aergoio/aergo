@@ -18,6 +18,9 @@ import (
 )
 
 const (
+	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
+	DefaultMaxBlockSize = 1 << 20
+
 	lastFieldOfBH = "Sign"
 )
 

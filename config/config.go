@@ -8,6 +8,7 @@ package config
 import (
 	"github.com/aergoio/aergo-lib/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/types"
 )
 
 type ServerContext struct {
@@ -84,7 +85,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 }
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
-	return &BlockchainConfig{}
+	return &BlockchainConfig{MaxBlockSize: types.DefaultMaxBlockSize}
 }
 
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {

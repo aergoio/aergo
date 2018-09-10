@@ -46,7 +46,7 @@ type BlockFactory struct {
 	workerQueue      chan *bpInfo
 	bpTimeoutC       chan interface{}
 	quit             <-chan interface{}
-	maxBlockBodySize int
+	maxBlockBodySize uint32
 	ID               string
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp

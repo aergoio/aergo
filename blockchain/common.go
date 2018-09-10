@@ -5,7 +5,12 @@
 
 package blockchain
 
-const (
-	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
-	DefaultMaxBlockSize = 1 << 20
+var (
+	// MaxBlockSize is the maximum size of a block.
+	MaxBlockSize uint32
 )
+
+// Init initializes the blockchain-related parameters.
+func Init(maxBlockSize uint32) {
+	MaxBlockSize = maxBlockSize
+}

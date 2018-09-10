@@ -59,8 +59,8 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 // MaxBlockBodySize returns the maximum block body size.
 //
 // TODO: This is not an exact size. Let's make it exact!
-func MaxBlockBodySize() int {
-	return blockchain.DefaultMaxBlockSize - proto.Size(&types.BlockHeader{})
+func MaxBlockBodySize() uint32 {
+	return blockchain.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
 }
 
 // GenerateBlock generate & return a new block

@@ -29,7 +29,7 @@ type SimpleBlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
-	maxBlockBodySize int
+	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
 }
