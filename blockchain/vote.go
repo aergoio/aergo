@@ -40,8 +40,8 @@ func executeVoteTx(txBody *types.TxBody, senderState *types.State,
 			return err
 		}
 	} else if voteCmd == 'r' { //unstaking, revert
-		voting, blockNo, err := getVote(scs, txBody.Account, txBody.Payload[1:])
-		if blockNo < limitDuration+blockNo { //TODO : fix it proper
+		voting, when, err := getVote(scs, txBody.Account, txBody.Payload[1:])
+		if blockNo < limitDuration+when { //TODO : fix it proper
 			return errors.New("less time has passed")
 		}
 		err = setVote(scs, txBody.Account, txBody.Payload[1:], 0, blockNo)
