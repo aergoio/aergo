@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrSignNotMatch           = errors.New("signature not matched")
+	ErrCouldNotRecoverPubKey  = errors.New("could not recover pubkey from sign")
 	ErrShouldUnlockAccount    = errors.New("should unlock account first")
 	ErrWrongAddressOrPassWord = errors.New("address or password is incorrect")
 )

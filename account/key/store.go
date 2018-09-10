@@ -1,26 +1,29 @@
-package keystore
+package key
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
-	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/message"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/mr-tron/base58/base58"
 )
 
-// KeyStore stucture of keystore
-type KeyStore struct {
+type aergokey = btcec.PrivateKey
+
+// Store stucture of keystore
+type Store struct {
+	unlocked  map[string]*aergokey
 	addresses string
 	storage   db.DB
 }
 
-// NewKeyStore make new instance of keystore
-func NewKeyStore(storePath string) *KeyStore {
+// NewStore make new instance of keystore
+func NewStore(storePath string) *Store {
 	const dbName = "account"
 	dbPath := path.Join(storePath, dbName)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -29,14 +32,19 @@ func NewKeyStore(storePath string) *KeyStore {
 	const addressFile = "addresses"
 	addrPath := path.Join(storePath, addressFile)
 
-	return &KeyStore{
+	return &Store{
+		unlocked:  map[string]*aergokey{},
 		addresses: addrPath,
 		storage:   db.NewDB(db.BadgerImpl, dbPath),
 	}
 }
+func (ks *Store) DestroyStore() {
+	ks.addresses = ""
+	ks.storage.Close()
+}
 
 // CreateKey make new key in keystore and return it's address
-func (ks *KeyStore) CreateKey(pass string) (Address, error) {
+func (ks *Store) CreateKey(pass string) (Address, error) {
 	//gen new key
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
@@ -56,35 +64,27 @@ func (ks *KeyStore) CreateKey(pass string) (Address, error) {
 	return address, nil
 }
 
-func (ks *KeyStore) SaveAddress(address Address) error {
-	f, err := os.OpenFile(ks.addresses, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err = f.Write(address); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ks *KeyStore) GetAddresses() ([]Address, error) {
-	const addressLength = 20
-	b, err := ioutil.ReadFile(ks.addresses)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
+func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
+	key, err := ks.getKey(addr, pass)
+	if key == nil {
 		return nil, err
 	}
-	var ret []Address
-	for i := 0; i < len(b); i += addressLength {
-		ret = append(ret, b[i:i+addressLength])
-	}
-	return ret, nil
+	ks.unlocked[base58.Encode(addr)], _ = btcec.PrivKeyFromBytes(btcec.S256(), key)
+	return addr, nil
 }
 
-func (ks *KeyStore) getKey(address []byte, passphrase string) ([]byte, error) {
+func (ks *Store) Lock(addr Address, pass string) (Address, error) {
+	key, err := ks.getKey(addr, pass)
+	if key == nil {
+		return nil, err
+	}
+	b58addr := base58.Encode(addr)
+	ks.unlocked[b58addr] = nil
+	delete(ks.unlocked, b58addr)
+	return addr, nil
+}
+
+func (ks *Store) getKey(address []byte, passphrase string) ([]byte, error) {
 	encryptkey := hashBytes(address, []byte(passphrase))
 	key := ks.storage.Get(hashBytes(address, encryptkey))
 	if cap(key) == 0 {

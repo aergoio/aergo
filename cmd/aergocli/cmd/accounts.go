@@ -9,7 +9,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/aergoio/aergo/account/keystore"
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -61,7 +61,7 @@ var newAccountCmd = &cobra.Command{
 			msg, err = client.CreateAccount(context.Background(), &param)
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := keystore.NewKeyStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath)
 			addr, err = ks.CreateKey(param.Passphrase)
 			if nil != err {
 				fmt.Printf("Failed: %s\n", err.Error())
@@ -102,7 +102,7 @@ var getAccountsCmd = &cobra.Command{
 
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := keystore.NewKeyStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath)
 			addrs, err = ks.GetAddresses()
 		}
 		if nil == err {

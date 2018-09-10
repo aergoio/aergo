@@ -7,8 +7,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 
-	"github.com/aergoio/aergo/account"
-	"github.com/aergoio/aergo/account/keystore"
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -63,10 +62,10 @@ var signCmd = &cobra.Command{
 			if tx.Body.Sign != nil {
 				tx.Body.Sign = nil
 			}
-			hash := account.HashWithoutSign(param)
+			hash := key.CalculateHashWithoutSign(param)
 
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := keystore.NewKeyStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath)
 			addr, err := base58.Decode(address)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
