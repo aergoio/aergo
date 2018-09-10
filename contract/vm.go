@@ -231,17 +231,9 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	return nil
 }
 
-func Query(sdb *state.ChainStateDB, contractAddress, queryInfo []byte) ([]byte, error) {
-	accountState, err := sdb.GetAccountStateClone(types.ToAccountID(contractAddress))
-	if err != nil {
-		return nil, err
-	}
-	contractState, err := sdb.OpenContractState(accountState)
-
-	if err != nil {
-		return nil, err
-	}
+func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
 	var ci types.CallInfo
+	var err error
 	contract := getContract(contractState, contractAddress)
 	if contract != nil {
 		err = json.Unmarshal(queryInfo, &ci)
