@@ -12,6 +12,8 @@ type MockMsgOrder struct {
 	mock.Mock
 }
 
+var _ msgOrder = (*MockMsgOrder)(nil)
+
 // GetProtocolID provides a mock function with given fields:
 func (_m *MockMsgOrder) GetProtocolID() SubProtocol {
 	ret := _m.Called()
