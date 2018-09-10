@@ -14,6 +14,7 @@ typedef struct blockchain_ctx {
     long long timestamp;
     char *node;
     int confirmed;
+    int isQuery;
 } bc_ctx_t;
 
 lua_State *vm_newstate();

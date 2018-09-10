@@ -66,11 +66,14 @@ func init() {
 }
 
 func NewContext(contractState *state.ContractState, Sender, txHash []byte, blockHeight uint64,
-	timestamp int64, node string, confirmed bool, contractID []byte) *LBlockchainCtx {
+	timestamp int64, node string, confirmed bool, contractID []byte, query bool) *LBlockchainCtx {
 
-	var iConfirmed int
+	var iConfirmed, isQuery int
 	if confirmed {
 		iConfirmed = 1
+	}
+	if query {
+		isQuery = 1
 	}
 	enContractId := base58.Encode(contractID)
 	enTxHash := hex.EncodeToString(txHash)
@@ -87,6 +90,7 @@ func NewContext(contractState *state.ContractState, Sender, txHash []byte, block
 		node:        C.CString(node),
 		confirmed:   C.int(iConfirmed),
 		contractId:  C.CString(enContractId),
+		isQuery:     C.int(isQuery),
 	}
 }
 
@@ -227,6 +231,35 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	return nil
 }
 
+func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
+	var ci types.CallInfo
+	var err error
+	contract := getContract(contractState, contractAddress)
+	if contract != nil {
+		err = json.Unmarshal(queryInfo, &ci)
+		if err != nil {
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
+		}
+	} else {
+		err = fmt.Errorf("cannot find contract %s", base58.Encode(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var ce *Executor
+	defer ce.close()
+
+	bcCtx := NewContext(contractState, contractAddress, nil,
+		0, 0, "", false, contractAddress, true)
+	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", base58.Encode(contractAddress))
+	ce = newExecutor(contract, bcCtx)
+	ce.call(&ci)
+	err = ce.err
+
+	return []byte(ce.jsonRet), err
+}
+
 func getContract(contractState *state.ContractState, contractAddress []byte) *Contract {
 	val, err := contractState.GetCode()
 
@@ -236,7 +269,7 @@ func getContract(contractState *state.ContractState, contractAddress []byte) *Co
 	if len(val) > 0 {
 		l := binary.LittleEndian.Uint32(val[0:])
 		return &Contract{
-			code:    val[4:4+l],
+			code:    val[4 : 4+l],
 			address: contractAddress[:],
 		}
 	}

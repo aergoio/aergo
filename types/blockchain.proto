@@ -99,3 +99,8 @@ message ABI {
 	string language = 2;
 	repeated Function functions = 3;
 }
+
+message Query {
+	bytes contractAddress = 1;
+	bytes queryinfo= 2;
+}

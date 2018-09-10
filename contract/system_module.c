@@ -22,6 +22,11 @@ static int setItem(lua_State *L)
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
+
+	if (exec->isQuery) {
+	    luaL_error(L, "not permitted set in query");
+	}
+
 	luaL_checkany(L, 2);
 	key = luaL_checkstring(L, 1);
 

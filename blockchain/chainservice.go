@@ -254,6 +254,16 @@ func (cs *ChainService) Receive(context actor.Context) {
 				Err: err,
 			})
 		}
+	case *message.GetQuery:
+
+		state, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			ret, err := contract.Query(msg.Contract, state, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:

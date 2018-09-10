@@ -265,7 +265,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
 			} else {
 				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-					blockNo, ts, "", false, recipient)
+					blockNo, ts, "", false, recipient, false)
 
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
 				if err != nil {
@@ -273,7 +273,6 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				}
 				err = sdb.CommitContractState(contractState)
 			}
-
 			if err != nil {
 				return err
 			}

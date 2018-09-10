@@ -448,6 +448,19 @@ func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (
 	return rsp.ABI, rsp.Err
 }
 
+func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) (*types.SingleBytes, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryContract").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
+}
+
 func toTimestamp(time time.Time) *timestamp.Timestamp {
 	return &timestamp.Timestamp{
 		Seconds: time.Unix(),

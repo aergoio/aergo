@@ -51,8 +51,13 @@ func init() {
 			Args:  cobra.MinimumNArgs(1),
 			Run:   runGetABICmd,
 		},
+		&cobra.Command{
+			Use:   "query [flags] contract fname [args]",
+			Short: "query contract by executing read-only function",
+			Args:  cobra.MinimumNArgs(2),
+			Run:   runQueryCmd,
+		},
 	)
-
 	rootCmd.AddCommand(contractCmd)
 }
 
@@ -176,6 +181,37 @@ func runGetABICmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	fmt.Println(util.JSON(abi))
+}
+
+func runQueryCmd(cmd *cobra.Command, args []string) {
+	contract, err := base58.Decode(args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	var ci types.CallInfo
+
+	ci.Name = args[1]
+	if len(args) > 2 {
+		err = json.Unmarshal([]byte(args[2]), &ci.Args)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	callinfo, err := json.Marshal(ci)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	query := &types.Query{
+		ContractAddress: []byte(contract),
+		Queryinfo:       callinfo,
+	}
+
+	ret, err := client.QueryContract(context.Background(), query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(ret)
 }
 
 func connectAergo(cmd *cobra.Command, args []string) {
