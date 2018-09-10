@@ -2,8 +2,9 @@ package contract
 
 import (
 	"encoding/hex"
-	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -16,10 +17,13 @@ import (
 
 var (
 	sdb *state.ChainStateDB
+	aid []byte
+	tid []byte
 )
 
 const (
 	accountId = "31KcyXb99xYD5tQ9Jpx4BMnhVh9a"
+	txId      = "c2b36750"
 	/*function hello(say) return "Hello " .. say end abi.register(hello)*/
 	helloCode = "C34wJetPFqYBV8bpSao36R2NxFcW5X4ZGZoPcnfJvHkvvBR4PcbsZ5xki8nSHubPMnNusFPpn19x7myhR8baq12RvoufQ8z2DR1PyvGfYf6VmAzhF5rg8F7mvVEBRdqnAMnFmb5E6E2iey4wEjXNrjJ8RfsPEfottZ2umDN5WFc8egeydXesa1a59QLBp926MoETbDwRJMeFHeGHuvQ4bikCXhXaQS6Vi73y4Xpcu3Bv1rMnfBxEX5ZehtcuYDFUoZzn8"
 	/*function testState()
@@ -54,50 +58,52 @@ func init() {
 
 	sdb.Init(path.Join(tmpDir, "testDB"))
 	DB = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
+
+	var err error
+	aid, err = base58.Decode(accountId)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	tid, err = hex.DecodeString(txId)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 }
 
-func getContractState(t *testing.T) *state.ContractState {
-	aid, _ := base58.Decode(accountId)
-	accountState, err := sdb.GetAccountStateClone(types.ToAccountID(aid))
+func getContractState(t *testing.T, code string) *state.ContractState {
+	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(aid))
 	if err != nil {
-		t.Errorf("getAccount error : %s\n", err.Error())
+		t.Fatalf("contract state open error : %s\n", err.Error())
+	}
+	rcode, err := base58.Decode(code)
+	if err != nil {
+		t.Fatalf("contract SetCode error : %s\n", err.Error())
 	}
 
-	stateChange := types.Clone(*accountState).(types.State)
-	contractState, err := sdb.OpenContractState(&stateChange)
+	err = contractState.SetCode(rcode)
 	if err != nil {
-		t.Errorf("contract open error : %s\n", err.Error())
+		t.Fatalf("contract SetCode error : %s\n", err.Error())
 	}
 	return contractState
 }
 
-func contractCall(t *testing.T, contractState *state.ContractState, code string, ci *types.CallInfo,
-	bcCtx *LBlockchainCtx, txId string) {
-	rcode, _ := base58.Decode(code)
+func contractCall(t *testing.T, contractState *state.ContractState, ci string,
+	bcCtx *LBlockchainCtx) {
 
-	err := contractState.SetCode(rcode)
+	err := Call(contractState, []byte(ci), aid, tid, bcCtx)
 	if err != nil {
-		t.Errorf("contract SetCode error : %s\n", err.Error())
-	}
-
-	payload, _ := json.Marshal(*ci)
-
-	err = Call(contractState, payload, []byte(accountId), []byte(txId), bcCtx)
-	if err != nil {
-		t.Errorf("contract Call error : %s\n", err.Error())
+		t.Fatalf("contract Call error : %s\n", err.Error())
 	}
 }
 
 func TestContractHello(t *testing.T) {
-	var ci types.CallInfo
+	callInfo := "{\"Name\":\"hello\", \"Args\":[\"World\"]}"
 
-	txId := "c2b36745"
-	ci.Name = "hello"
-	json.Unmarshal([]byte("[\"World\"]"), &ci.Args)
-
-	contractState := getContractState(t)
-	contractCall(t, contractState, helloCode, &ci, nil, txId)
-	receipt := types.NewReceiptFromBytes(DB.Get([]byte(txId)))
+	contractState := getContractState(t, helloCode)
+	contractCall(t, contractState, callInfo, nil)
+	receipt := types.NewReceiptFromBytes(DB.Get(tid))
 
 	if receipt.GetRet() != "[\"Hello World\"]" {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
@@ -105,41 +111,24 @@ func TestContractHello(t *testing.T) {
 }
 
 func TestContractSystem(t *testing.T) {
-	var ci types.CallInfo
-	txId := "c2b36750"
-
-	ci.Name = "testState"
-	contractId, _ := base58.Decode(accountId)
-	txhash, _ := hex.DecodeString("c2b367")
+	callInfo := "{\"Name\":\"testState\", \"Args\":[]}"
 	sender, _ := base58.Decode("sender2")
-	contractState := getContractState(t)
-	bcCtx := NewContext(contractState, sender, txhash, 100, 1234,
-		"node", true, contractId, false)
+	contractState := getContractState(t, systemCode)
+	bcCtx := NewContext(contractState, sender, tid, 100, 1234,
+		"node", true, aid, false)
 
-	contractCall(t, contractState, systemCode, &ci, bcCtx, txId)
-	receipt := types.NewReceiptFromBytes(DB.Get([]byte(txId)))
+	contractCall(t, contractState, callInfo, bcCtx)
+	receipt := types.NewReceiptFromBytes(DB.Get(tid))
 
-	if receipt.GetRet() != "[\"sender2\",\"c2b367\",\"31KcyXb99xYD5tQ9Jpx4BMnhVh9a\",1234,100,999]" {
+	if receipt.GetRet() != "[\"sender2\",\"c2b36750\",\"31KcyXb99xYD5tQ9Jpx4BMnhVh9a\",1234,100,999]" {
 		t.Errorf("contract Call ret error :%s\n", receipt.GetRet())
 	}
 
 }
 
 func TestGetABI(t *testing.T) {
-	contractState := getContractState(t)
-	contractId, err := base58.Decode(accountId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	code, err := base58.Decode(helloCode)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = contractState.SetCode(code)
-	if err != nil {
-		t.Fatal(err)
-	}
-	abi, err := GetABI(contractState, contractId)
+	contractState := getContractState(t, helloCode)
+	abi, err := GetABI(contractState, aid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,35 +136,22 @@ func TestGetABI(t *testing.T) {
 }
 
 func TestContractQuery(t *testing.T) {
-	var ci types.CallInfo
-	txId := "c2b36750"
-
-	ci.Name = "inc"
 	queryInfo := "{\"Name\":\"query\", \"Args\":[\"key1\"]}"
 	setInfo := "{\"Name\":\"inc\", \"Args\":[]}"
 
-	contractId, _ := base58.Decode(accountId)
-	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(contractId))
-	if err != nil {
-		t.Errorf("contract open error :%s\n", err.Error())
-	}
-	code, _ := base58.Decode(queryCode)
-	contractState.SetCode(code)
+	contractState := getContractState(t, queryCode)
 
-	ret, err := Query(contractId, contractState, []byte(setInfo))
+	ret, err := Query(aid, contractState, []byte(setInfo))
 	if err == nil || !strings.Contains(err.Error(), "not permitted set in query") {
 		t.Errorf("failed check error: %s", err.Error())
 	}
 
 	bcCtx := NewContext(contractState, nil, nil, 100, 1234,
-		"node", true, contractId, false)
+		"node", true, aid, false)
 
-	err = Call(contractState, []byte(setInfo), contractId, []byte(txId), bcCtx)
-	if err != nil {
-		t.Fatalf("contract inc error :%s", err.Error())
-	}
+	contractCall(t, contractState, setInfo, bcCtx)
 
-	ret, err = Query(contractId, contractState, []byte(queryInfo))
+	ret, err = Query(aid, contractState, []byte(queryInfo))
 	if err != nil {
 		t.Errorf("contract query error :%s\n", err.Error())
 	}
