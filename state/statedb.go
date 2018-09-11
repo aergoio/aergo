@@ -36,65 +36,11 @@ var (
 	emptyAccountID = types.AccountID{}
 )
 
-type BlockInfo struct {
-	BlockNo   types.BlockNo
-	BlockHash types.BlockID
-	PrevHash  types.BlockID
-}
-
-type BlockState struct {
-	BlockInfo
-	accounts accountStates
-	Undo     undoStates
-}
-
-type undoStates struct {
-	StateRoot types.HashID
-	Accounts  accountStates
-}
-
-type accountStates map[types.AccountID]*types.State
-
-// NewBlockState create new blockState contains blockNo, blockHash and blockHash of previous block
-func NewBlockState(blockNo types.BlockNo, blockHash, prevHash types.BlockID) *BlockState {
-	return newBlockState(&BlockInfo{
-		BlockNo:   blockNo,
-		BlockHash: blockHash,
-		PrevHash:  prevHash,
-	})
-}
-func newBlockState(blockInfo *BlockInfo) *BlockState {
-	return &BlockState{
-		BlockInfo: *blockInfo,
-		accounts:  make(accountStates),
-		Undo: undoStates{
-			Accounts: make(accountStates),
-		},
-	}
-}
-
-// PutAccount sets before and changed state to blockState
-func (bs *BlockState) PutAccount(aid types.AccountID, stateBefore, stateChanged *types.State) {
-	if _, ok := bs.Undo.Accounts[aid]; !ok {
-		bs.Undo.Accounts[aid] = stateBefore
-	}
-	bs.accounts[aid] = stateChanged
-}
-
-// SetBlockHash sets bs.BlockInfo.BlockHash to blockHash
-func (bs *BlockState) SetBlockHash(blockHash types.BlockID) {
-	if bs == nil {
-		return
-	}
-
-	bs.BlockInfo.BlockHash = blockHash
-}
-
 type ChainStateDB struct {
 	sync.RWMutex
 	accounts map[types.AccountID]*types.State
 	trie     *trie.Trie
-	latest   *BlockInfo
+	latest   *types.BlockInfo
 	statedb  *db.DB
 }
 
@@ -148,14 +94,14 @@ func (sdb *ChainStateDB) Close() error {
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
-	gbInfo := &BlockInfo{
+	gbInfo := &types.BlockInfo{
 		BlockNo:   0,
 		BlockHash: types.ToBlockID(genesisBlock.Hash),
 	}
 	sdb.latest = gbInfo
 
 	// create state of genesis block
-	gbState := newBlockState(gbInfo)
+	gbState := types.NewBlockState(gbInfo)
 
 	// // publish initial coin
 	// sampleAccount := []byte("sample")
@@ -186,17 +132,17 @@ func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State
 	res := types.Clone(*state).(types.State)
 	return &res, nil
 }
-func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
 
-	if prev, ok := bs.accounts[aid]; ok {
+	if prev, ok := bs.GetAccount(aid); ok {
 		return prev, nil
 	}
 	return sdb.getAccountState(aid)
 }
-func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
 	state, err := sdb.getBlockAccount(bs, aid)
 	if err != nil {
 		return nil, err
@@ -205,14 +151,15 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountI
 	return &res, nil
 }
 
-func (sdb *ChainStateDB) updateTrie(bstate *BlockState) error {
-	size := len(bstate.accounts)
+func (sdb *ChainStateDB) updateTrie(bstate *types.BlockState) error {
+	accounts := bstate.GetAccountStates()
+	size := len(accounts)
 	if size <= 0 {
 		// do nothing
 		return nil
 	}
 	accs := make([]types.AccountID, 0, size)
-	for k := range bstate.accounts {
+	for k := range accounts {
 		accs = append(accs, k)
 	}
 	sort.Slice(accs, func(i, j int) bool {
@@ -223,7 +170,7 @@ func (sdb *ChainStateDB) updateTrie(bstate *BlockState) error {
 	var err error
 	for i, v := range accs {
 		keys[i] = accs[i][:]
-		vals[i], err = proto.Marshal(bstate.accounts[v])
+		vals[i], err = proto.Marshal(accounts[v])
 		if err != nil {
 			return err
 		}
@@ -252,7 +199,7 @@ func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot types.HashID) error {
 	return nil
 }
 
-func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
+func (sdb *ChainStateDB) Apply(bstate *types.BlockState) error {
 	if sdb.latest.BlockNo+1 != bstate.BlockNo {
 		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
 	}
@@ -263,7 +210,7 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	return sdb.apply(bstate)
 }
 
-func (sdb *ChainStateDB) apply(bstate *BlockState) error {
+func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -276,7 +223,8 @@ func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	sdb.saveBlockState(bstate)
 
 	// apply blockState to statedb
-	for k, v := range bstate.accounts {
+	accounts := bstate.GetAccountStates()
+	for k, v := range accounts {
 		sdb.accounts[k] = v
 	}
 	// apply blockState to trie
@@ -318,7 +266,7 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 		}
 		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
 
-		target = &BlockInfo{
+		target = &types.BlockInfo{
 			BlockNo:   sdb.latest.BlockNo - 1,
 			BlockHash: sdb.latest.PrevHash,
 		}

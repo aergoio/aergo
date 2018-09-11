@@ -49,7 +49,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return cs.cdb.getTx(txHash)
 }
 
-func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
 	logger.Debug().Str("hash", nblock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -165,12 +165,12 @@ type txExecFn func(tx *types.Tx) error
 
 type executor struct {
 	sdb        *state.ChainStateDB
-	blockState *state.BlockState
+	blockState *types.BlockState
 	execTx     txExecFn
 	txs        []*types.Tx
 }
 
-func newExecutor(sdb *state.ChainStateDB, bState *state.BlockState, block *types.Block) *executor {
+func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types.Block) *executor {
 	var exec txExecFn
 
 	// The DPoS block factory excutes transactions during block generation. In
@@ -178,7 +178,7 @@ func newExecutor(sdb *state.ChainStateDB, bState *state.BlockState, block *types
 	// contrary, the block propagated from the network is not half-executed.
 	// Hence we need a new block state and tx executor (execTx).
 	if bState == nil {
-		bState = state.NewBlockState(block.Header.BlockNo, block.BlockID(), block.PrevBlockID())
+		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
 		exec = func(tx *types.Tx) error {
 			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
 		}
@@ -213,7 +213,7 @@ func (e *executor) execute() error {
 	return nil
 }
 
-func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
 	ex := newExecutor(cs.sdb, bstate, block)
 
 	if err := ex.execute(); err != nil {
@@ -226,7 +226,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)

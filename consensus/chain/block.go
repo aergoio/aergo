@@ -8,7 +8,6 @@ import (
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -64,7 +63,7 @@ func MaxBlockBodySize() uint32 {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, *state.BlockState, error) {
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, *types.BlockState, error) {
 	txs, blockState, err := GatherTXs(hs, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, nil, err
@@ -76,7 +75,7 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp
 }
 
 // ConnectBlock send an AddBlock request to the chain service.
-func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
+func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *types.BlockState) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
 	blockState.SetBlockHash(block.BlockID())

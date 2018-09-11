@@ -23,19 +23,19 @@ const (
 )
 
 type txExec struct {
-	blockState *state.BlockState
+	blockState *types.BlockState
 	sdb        *state.ChainStateDB
 }
 
 func newTxExec(blockNo types.BlockNo, prevHash types.BlockID, sdb *state.ChainStateDB) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		blockState: state.NewBlockState(blockNo, types.BlockID{}, prevHash),
+		blockState: types.NewBlockState(types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)),
 		sdb:        sdb,
 	}
 }
 
-func (te *txExec) Apply(tx *types.Tx) (*state.BlockState, error) {
+func (te *txExec) Apply(tx *types.Tx) (*types.BlockState, error) {
 	return nil, nil
 }
 
@@ -68,7 +68,7 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
-		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
+		chain.TxOpFn(func(txIn *types.Tx) (*types.BlockState, error) {
 			return nil, bf.checkBpTimeout()
 		}),
 	)
@@ -180,7 +180,7 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
+func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *types.BlockState, error) {
 	/*
 		txOp := chain.NewCompTxOp(
 			bf.txOp,

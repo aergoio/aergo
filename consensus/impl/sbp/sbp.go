@@ -47,7 +47,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
+		chain.TxOpFn(func(txIn *types.Tx) (*types.BlockState, error) {
 			select {
 			case <-s.quit:
 				return nil, chain.ErrQuit

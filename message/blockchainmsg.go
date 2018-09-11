@@ -6,7 +6,6 @@
 package message
 
 import (
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -45,7 +44,7 @@ type GetBlockByNoRsp GetBlockRsp
 type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
-	Bstate *state.BlockState
+	Bstate *types.BlockState
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo
@@ -110,5 +109,3 @@ type GetElectedRsp struct {
 	Top *types.VoteList
 	Err error
 }
-
-

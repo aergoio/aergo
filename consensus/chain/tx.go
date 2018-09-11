@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -33,23 +32,23 @@ func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 
 // TxOp is an interface used by GatherTXs for apply some transaction related operation.
 type TxOp interface {
-	Apply(tx *types.Tx) (*state.BlockState, error)
+	Apply(tx *types.Tx) (*types.BlockState, error)
 }
 
 // TxOpFn is the type of arguments for CompositeTxDo.
-type TxOpFn func(tx *types.Tx) (*state.BlockState, error)
+type TxOpFn func(tx *types.Tx) (*types.BlockState, error)
 
 // Apply applies f to tx.
-func (f TxOpFn) Apply(tx *types.Tx) (*state.BlockState, error) {
+func (f TxOpFn) Apply(tx *types.Tx) (*types.BlockState, error) {
 	return f(tx)
 }
 
 // NewCompTxOp returns a function which applies each function in fn.
 func NewCompTxOp(fn ...TxOp) TxOp {
-	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
-		var blockState *state.BlockState
+	return TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
+		var blockState *types.BlockState
 		for _, f := range fn {
-			var curState *state.BlockState
+			var curState *types.BlockState
 			var err error
 			if curState, err = f.Apply(tx); err != nil {
 				return blockState, err
@@ -70,7 +69,7 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	// Caution: the closure below captures the local variable 'size.' Generate
 	// it whenever needed. Don't reuse it!
 	size := 0
-	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+	return TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
 		if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
 			return nil, errBlockSizeLimit
 		}
@@ -80,7 +79,7 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, *state.BlockState, error) {
+func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, *types.BlockState, error) {
 	var (
 		nCollected int
 		last       int
@@ -98,7 +97,7 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	}()
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
-	var blockState *state.BlockState
+	var blockState *types.BlockState
 	for i, tx := range txIn {
 		last = i
 
