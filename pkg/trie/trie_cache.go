@@ -13,11 +13,11 @@ import (
 
 type CacheDB struct {
 	// liveCache contains the first levels of the trie (nodes that have 2 non default children)
-	liveCache map[Hash][]byte
+	liveCache map[Hash][][]byte
 	// liveMux is a lock for liveCache
 	liveMux sync.RWMutex
 	// updatedNodes that have will be flushed to disk
-	updatedNodes map[Hash][]byte
+	updatedNodes map[Hash][][]byte
 	// updatedMux is a lock for updatedNodes
 	updatedMux sync.RWMutex
 	// lock for CacheDB
@@ -32,11 +32,27 @@ func (db *CacheDB) commit() {
 	defer db.updatedMux.Unlock()
 	txn := db.store.NewTx(true)
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
-	for key, value := range db.updatedNodes {
-		// txn.Set(key[:], value) doesn't work with a transaction but does with db.store.Set(key[:], value)
-		var node [32]byte
-		copy(node[:], key[:])
-		txn.Set(node[:], value)
+	for key, batch := range db.updatedNodes {
+		//node := key
+		var node []byte
+		txn.Set(append(node, key[:]...), db.serializeBatch(batch))
+		//txn.Set(node[:], db.serializeBatch(batch))
 	}
 	txn.Commit()
+}
+
+// serializeBatch serialises the 2D [][]byte into a []byte for db
+func (db *CacheDB) serializeBatch(batch [][]byte) []byte {
+	serialized := make([]byte, 4) //, 30*33)
+	if batch[0][0] == 1 {
+		// the batch node is a shortcut
+		bitSet(serialized, 31)
+	}
+	for i := 1; i < 31; i++ {
+		if len(batch[i]) != 0 {
+			bitSet(serialized, uint64(i-1))
+			serialized = append(serialized, batch[i]...)
+		}
+	}
+	return serialized
 }

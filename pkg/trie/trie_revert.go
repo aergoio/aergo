@@ -33,7 +33,7 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	// For every node of toOldRoot, compare it to the equivalent node in other pasttries between toOldRoot and current s.Root. If a node is different, delete the one from pasttries
 	toBeDeleted := make([][]byte, 0)
 	for i := toIndex + 1; i < len(s.pastTries); i++ {
-		err := s.maybeDeleteSubTree(toOldRoot, s.pastTries[i], s.TrieHeight, &toBeDeleted)
+		err := s.maybeDeleteSubTree(toOldRoot, s.pastTries[i], s.TrieHeight, &toBeDeleted, nil, 0)
 		if err != nil {
 			return err
 		}
@@ -48,47 +48,57 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	s.pastTries = s.pastTries[:toIndex+1]
 	s.Root = toOldRoot
 	// load default hashes in live cache
-	s.db.liveCache = make(map[Hash][]byte)
+	s.db.liveCache = make(map[Hash][][]byte)
 	s.loadDefaultHashes()
 	return nil
 }
 
 // maybeDeleteSubTree compares the subtree nodes of 2 tries and keeps only the older one
-func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte) error {
-	if bytes.Equal(original, maybeDelete) {
-		return nil
-	}
+func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte, batch [][]byte, iBatch uint8) error {
 	if height == 0 {
-		*toBeDeleted = append(*toBeDeleted, maybeDelete)
+		if !bytes.Equal(original, maybeDelete) && len(maybeDelete) != 0 {
+			*toBeDeleted = append(*toBeDeleted, maybeDelete)
+		}
 		return nil
 	}
-	lnode, rnode, isShortcut, lerr := s.loadChildren(original)
+	if bytes.Equal(original, maybeDelete) || len(maybeDelete) == 0 {
+		return nil
+	}
+	// if this point os reached, then the root of the batch is same
+	// so the batch is also same.
+	_, _, lnode, rnode, isShortcut, lerr := s.loadChildren(original, height, batch, iBatch)
 	if lerr != nil {
 		return lerr
 	}
-	lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete)
+	batch, iBatch, lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete, height, batch, iBatch)
 	if rerr != nil {
 		return rerr
 	}
 
 	if isShortcut != isShortcut2 {
-		if isShortcut == 1 {
-			return s.deleteSubTree(maybeDelete, height, toBeDeleted)
+		if isShortcut {
+			return s.deleteSubTree(maybeDelete, height, toBeDeleted, batch, iBatch)
+		} else if iBatch == 0 {
+			*toBeDeleted = append(*toBeDeleted, maybeDelete)
 		}
 	} else {
-		if isShortcut == 1 {
+		if isShortcut {
 			// Delete shortcut if not equal
 			if !bytes.Equal(lnode, lnode2) || !bytes.Equal(rnode, rnode2) {
-				*toBeDeleted = append(*toBeDeleted, maybeDelete)
+				if iBatch == 0 {
+					*toBeDeleted = append(*toBeDeleted, maybeDelete)
+				}
 			}
 		} else {
 			// Delete subtree if not equal
-			*toBeDeleted = append(*toBeDeleted, maybeDelete)
-			err := s.maybeDeleteSubTree(lnode, lnode2, height-1, toBeDeleted)
+			if iBatch == 0 {
+				*toBeDeleted = append(*toBeDeleted, maybeDelete)
+			}
+			err := s.maybeDeleteSubTree(lnode, lnode2, height-1, toBeDeleted, batch, 2*iBatch+1)
 			if err != nil {
 				return err
 			}
-			err = s.maybeDeleteSubTree(rnode, rnode2, height-1, toBeDeleted)
+			err = s.maybeDeleteSubTree(rnode, rnode2, height-1, toBeDeleted, batch, 2*iBatch+2)
 			if err != nil {
 				return err
 			}
@@ -98,24 +108,26 @@ func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height ui
 }
 
 // deleteSubTree deletes all the nodes contained in a tree
-func (s *Trie) deleteSubTree(root []byte, height uint64, toBeDeleted *[][]byte) error {
-	if height == 0 {
+func (s *Trie) deleteSubTree(root []byte, height uint64, toBeDeleted *[][]byte, batch [][]byte, iBatch uint8) error {
+	if height == 0 || len(root) == 0 {
 		return nil
 	}
-	lnode, rnode, isShortcut, err := s.loadChildren(root)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
 	if err != nil {
 		return err
 	}
-	if isShortcut == 0 {
-		lerr := s.deleteSubTree(lnode, height-1, toBeDeleted)
+	if !isShortcut {
+		lerr := s.deleteSubTree(lnode, height-1, toBeDeleted, batch, 2*iBatch+1)
 		if lerr != nil {
 			return lerr
 		}
-		rerr := s.deleteSubTree(rnode, height-1, toBeDeleted)
+		rerr := s.deleteSubTree(rnode, height-1, toBeDeleted, batch, 2*iBatch+2)
 		if rerr != nil {
 			return rerr
 		}
 	}
-	*toBeDeleted = append(*toBeDeleted, root)
+	if iBatch == 0 {
+		*toBeDeleted = append(*toBeDeleted, root)
+	}
 	return nil
 }
