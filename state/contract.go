@@ -33,6 +33,7 @@ func (sdb *ChainStateDB) CommitContractState(st *ContractState) error {
 		return err
 	}
 	st.State.StorageRoot = st.storage.Root
+	st.storage = nil
 	return nil
 }
 
