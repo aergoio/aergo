@@ -18,6 +18,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -74,16 +75,17 @@ func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
 		mp.curBestBlockNo = getCurrentBestBlockNoMock()
-	} else {
-		//p.BaseComponent.Start(mp)
-
-		/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
-		if err != nil {
-			mp.Error("get best block failed", err)
-		}
-		rsp := result.(message.GetBestBlockNoRsp)
-		mp.curBestBlockNo = rsp.BlockNo*/
 	}
+	//else {
+	//p.BaseComponent.Start(mp)
+
+	/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
+	if err != nil {
+		mp.Error("get best block failed", err)
+	}
+	rsp := result.(message.GetBestBlockNoRsp)
+	mp.curBestBlockNo = rsp.BlockNo*/
+	//}
 	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
@@ -256,6 +258,10 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 		return message.ErrTxHasInvalidHash
 	}
 
+	err := key.VerifyTx(tx)
+	if err != nil {
+		return err
+	}
 	ns, err := mp.getAccountState(account, false)
 	if err != nil {
 		return err

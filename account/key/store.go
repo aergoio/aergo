@@ -51,7 +51,7 @@ func (ks *Store) CreateKey(pass string) (Address, error) {
 		return nil, err
 	}
 	//gen new address
-	address := generateAddress(&privkey.PublicKey)
+	address := GenerateAddress(&privkey.PublicKey)
 
 	//save pass/address/key
 	encryptkey := hashBytes(address, []byte(pass))

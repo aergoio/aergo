@@ -21,15 +21,8 @@ func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
 	return btcec.SignCompact(btcec.S256(), key, hash, true)
 }
 
-//SignTx return transaction which signed with unlocked key
-func (ks *Store) SignTx(tx *types.Tx) error {
-	addr := tx.Body.Account
-	key, exist := ks.unlocked[base58.Encode(addr)]
-	if !exist {
-		return message.ErrShouldUnlockAccount
-	}
+func SignTx(tx *types.Tx, key *aergokey) error {
 	hash := CalculateHashWithoutSign(tx.Body)
-
 	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
 	if err != nil {
 		return err
@@ -39,19 +32,32 @@ func (ks *Store) SignTx(tx *types.Tx) error {
 	return nil
 }
 
+//SignTx return transaction which signed with unlocked key
+func (ks *Store) SignTx(tx *types.Tx) error {
+	addr := tx.Body.Account
+	key, exist := ks.unlocked[base58.Encode(addr)]
+	if !exist {
+		return message.ErrShouldUnlockAccount
+	}
+	return SignTx(tx, key)
+}
+
 //VerifyTx return result to varify sign
-func (ks *Store) VerifyTx(tx *types.Tx) error {
+func VerifyTx(tx *types.Tx) error {
 	txBody := tx.Body
 	hash := CalculateHashWithoutSign(txBody)
 	pubkey, _, err := btcec.RecoverCompact(btcec.S256(), txBody.Sign, hash)
 	if err != nil {
 		return message.ErrCouldNotRecoverPubKey
 	}
-	address := generateAddress(pubkey.ToECDSA())
+	address := GenerateAddress(pubkey.ToECDSA())
 	if !bytes.Equal(address, txBody.Account) {
 		return message.ErrSignNotMatch
 	}
 	return nil
+}
+func (ks *Store) VerifyTx(tx *types.Tx) error {
+	return VerifyTx(tx)
 }
 
 //CalculateHashWithoutSign return hash of tx without sign field

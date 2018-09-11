@@ -10,8 +10,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 const (
@@ -21,7 +23,8 @@ const (
 
 var (
 	pool      *MemPool
-	account   [maxAccount][]byte
+	accs      [maxAccount][]byte
+	sign      [maxAccount]*btcec.PrivateKey
 	recipient [maxRecipient][]byte
 )
 
@@ -51,7 +54,7 @@ func simulateBlockGen(txs ...*types.Tx) error {
 	bestBlockNo++
 	return nil
 }
-func initTest() {
+func initTest(t *testing.T) {
 	serverCtx := config.NewServerContext("", "")
 	cfg := serverCtx.GetDefaultConfig().(*config.Config)
 	pool = NewMemPoolService(cfg)
@@ -59,9 +62,13 @@ func initTest() {
 	pool.BeforeStart()
 
 	for i := 0; i < maxAccount; i++ {
-		account[i] = _itobU32(uint32(i))
-	}
-	for i := 0; i < maxRecipient; i++ {
+		privkey, err := btcec.NewPrivateKey(btcec.S256())
+		if err != nil {
+			t.Fatalf("failed to init test (%s)", err)
+		}
+		//gen new address
+		accs[i] = key.GenerateAddress(&privkey.PublicKey)
+		sign[i] = privkey
 		recipient[i] = _itobU32(uint32(i))
 	}
 }
@@ -70,7 +77,7 @@ func deinitTest() {
 }
 
 func sameTx(a *types.Tx, b *types.Tx) bool {
-	return types.ToTxID(a.Hash) != types.ToTxID(b.Hash)
+	return types.ToTxID(a.Hash) == types.ToTxID(b.Hash)
 }
 func sameTxs(a []*types.Tx, b []*types.Tx) bool {
 	if len(a) != len(b) {
@@ -95,18 +102,19 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 	tx := types.Tx{
 		Body: &types.TxBody{
 			Nonce:     nonce,
-			Account:   account[acc],
+			Account:   accs[acc],
 			Recipient: recipient[rec],
 			Amount:    amount,
 		},
 	}
-	tx.Hash = tx.CalculateTxHash()
+	//tx.Hash = tx.CalculateTxHash()
+	key.SignTx(&tx, sign[acc])
 	return &tx
 }
 
 // func TestInvalidTransaction(t *testing.T) {
 
-// 	initTest()
+//	initTest(t)
 // 	defer deinitTest()
 // 	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
 // 	if err != ErrInsufficientBalance {
@@ -131,10 +139,29 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 // 	}
 // }
 
+func TestInvalidTransactions(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	tx := genTx(0, 1, 1, 1)
+
+	key.SignTx(tx, sign[1])
+	err := pool.put(tx)
+	if err == nil {
+		t.Errorf("put invalid tx should be failed")
+	}
+
+	tx.Body.Sign = nil
+	tx.Hash = tx.CalculateTxHash()
+
+	err = pool.put(tx)
+	if err == nil {
+		t.Errorf("put invalid tx should be failed")
+	}
+}
 func TestOrphanTransaction(t *testing.T) {
 	//	t.Errorf("Sum was incorrect, ")
 
-	initTest()
+	initTest(t)
 	defer deinitTest()
 
 	err := pool.put(genTx(0, 1, 1, 2))
@@ -194,12 +221,12 @@ func TestOrphanTransaction(t *testing.T) {
 
 }
 func TestBasics2(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
-	accCount := 1
-	txCount := 100
+	accCount := 2
+	txCount := 10
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)
@@ -236,12 +263,12 @@ func TestBasics2(t *testing.T) {
 // gen sequential transactions
 // check mempool internal states
 func TestBasics(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
-	accCount := 500
-	txCount := 1000
+	accCount := 10
+	txCount := 10
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)
@@ -277,7 +304,7 @@ func TestBasics(t *testing.T) {
 }
 
 func TestDeleteOTxs(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 	for i := 0; i < 5; i++ {
@@ -300,7 +327,7 @@ func TestDeleteOTxs(t *testing.T) {
 // add 100 sequential txs and simulate to generate block 10time.
 // each block contains 10 txs
 func TestBasicDeleteOnBlockConnect(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
@@ -347,7 +374,7 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 //
 func TestDeleteInvokeRearrange(t *testing.T) {
 
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
@@ -414,7 +441,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 
 /*
 func TestDeleteInvokePriceFilterOut(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 
 	checkRemainder := func(total int, orphan int) {
@@ -433,32 +460,3 @@ func TestDeleteInvokePriceFilterOut(t *testing.T) {
 	checkRemainder(0, 0)
 }
 */
-
-func simplePut(n uint64, b *testing.B) {
-	tx := genTx(0, 0, uint64(n), 10)
-	err := pool.put(tx)
-	if err != nil {
-		b.Fatalf("tx should be inserted %s", err)
-	}
-
-}
-func BenchmarkSequential(b *testing.B) {
-	initTest()
-	defer deinitTest()
-
-	//txCount := 1000
-	for t := 1; t <= b.N; t++ {
-		simplePut(uint64(t+1), b)
-	}
-
-}
-func BenchmarkReverse(b *testing.B) {
-	initTest()
-	defer deinitTest()
-
-	//txCount := 1000
-	for t := b.N + 1; t >= 1; t-- {
-		simplePut(uint64(t), b)
-	}
-
-}

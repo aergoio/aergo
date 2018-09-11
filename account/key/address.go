@@ -10,7 +10,7 @@ import (
 
 type Address = []byte
 
-func generateAddress(pubkey *ecdsa.PublicKey) []byte {
+func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	addr := new(bytes.Buffer)
 	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
 	binary.Write(addr, binary.LittleEndian, pubkey.Y.Bytes())
