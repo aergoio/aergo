@@ -117,10 +117,6 @@ func (p *RemotePeer) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *RemotePeer) setState(newState types.PeerState) {
-	p.state.SetAndGet(newState)
-}
-
 func (p *RemotePeer) checkState() error {
 	switch p.State() {
 	case types.HANDSHAKING:
@@ -139,20 +135,21 @@ func (p *RemotePeer) runPeer() {
 	go p.runWrite()
 	p.write.Open()
 	go p.runRead()
+	// peer state is changed to RUNNIG after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
+	p.state.SetAndGet(types.RUNNING)
 READNOPLOOP:
 	for {
 		select {
 		case <-pingTicker.C:
-			p.sendPing()
 		case <-p.stopChan:
-			p.setState(types.STOPPED)
 			break READNOPLOOP
 		}
 	}
-	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
-	pingTicker.Stop()
 
-	// send channel twice. one for read and another for write
+	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
+	p.state.SetAndGet(types.STOPPED)
+	pingTicker.Stop()
+	// finish goroutine write. read goroutine will be closed automatically when disconnect
 	p.write.Close()
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
@@ -254,6 +251,11 @@ func (p *RemotePeer) stop() {
 const writeChannelTimeout = time.Second * 2
 
 func (p *RemotePeer) sendMessage(msg msgOrder) {
+	if p.state.Get() != types.RUNNING {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Interface(LogProtoID, msg.GetProtocolID()).
+			Str(LogMsgID, msg.GetRequestID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+		return
+	}
 	p.write.In() <- msg
 }
 
@@ -270,14 +272,6 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	// check peer's status
-	// TODO code smell. hardcoded check and need memory barrier for peer state
-	if p.State() != types.RUNNING {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
-			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
-		return
-	}
-
 	// sign the data
 	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
 	if m.IsNeedSign() {

@@ -105,10 +105,11 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.rw = dummyRW
-			p.setState(types.RUNNING)
+			p.state.SetAndGet(types.RUNNING)
 			p.write.Open()
 			defer p.write.Close()
 			go p.runWrite()
+			p.state.SetAndGet(types.RUNNING)
 
 			p.writeToPeer(mockOrder)
 
@@ -149,6 +150,7 @@ func TestRemotePeer_sendPing(t *testing.T) {
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.write.Open()
+			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
 
 			go p.sendPing()
@@ -199,6 +201,7 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.write.Open()
+			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
 
 			go p.sendStatus()
@@ -315,6 +318,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 			wg2.Add(1)
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			p.write.Open()
+			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
 
 			if !tt.timeout {

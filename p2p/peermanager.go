@@ -380,8 +380,6 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
-	newPeer.setState(types.RUNNING)
-
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
 	pm.mutex.Unlock()
@@ -560,7 +558,6 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bo
 	peer.rw = rw
 	pm.insertHandlers(peer)
 	go peer.runPeer()
-	peer.setState(types.RUNNING)
 	pm.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
