@@ -91,7 +91,7 @@ func (mp *MemPool) BeforeStart() {
 		go func() {
 			for range time.Tick(1e9) {
 				l, o := mp.Size()
-				mp.Info().Int("len", l).Int("orphan", o).Int("len", len(mp.pool)).Msg("mempool metrics")
+				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
 			}
 		}()
 	}
@@ -179,11 +179,13 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if _, found := mp.cache[id]; found {
 		return message.ErrTxAlreadyInMempool
 	}
-	list, err := mp.acquireMemPoolList(acc)
+
+	err := mp.validate(tx)
 	if err != nil {
 		return err
 	}
-	err = mp.validate(tx)
+
+	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
