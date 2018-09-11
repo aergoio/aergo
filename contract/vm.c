@@ -30,6 +30,8 @@ const bc_ctx_t *getLuaExecContext(lua_State *L)
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	if (L == NULL)
+	    return NULL;
 	luaL_openlibs(L);
 	preloadModules(L);
 	return L;

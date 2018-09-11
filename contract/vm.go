@@ -112,6 +112,11 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 		contract: contract,
 		L:        newLState(),
 	}
+	if ce.L == nil {
+		ctrLog.Error().Str("error", "Failed: create lua state")
+		ce.err = errors.New("Failed: create lua state")
+		return ce
+	}
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract.code[0])),
@@ -202,10 +207,10 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 		ctrLog.Warn().AnErr("err", err)
 	}
 	var ce *Executor
-	defer ce.close()
 	if err == nil {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", base58.Encode(contractAddress))
 		ce = newExecutor(contract, bcCtx)
+		defer ce.close()
 		ce.call(&ci)
 		err = ce.err
 	}
@@ -248,12 +253,12 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 		return nil, err
 	}
 	var ce *Executor
-	defer ce.close()
 
 	bcCtx := NewContext(contractState, contractAddress, nil,
 		0, 0, "", false, contractAddress, true)
 	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", base58.Encode(contractAddress))
 	ce = newExecutor(contract, bcCtx)
+	defer ce.close()
 	ce.call(&ci)
 	err = ce.err
 
