@@ -46,8 +46,9 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		op:             NewOrphanPool(),
 	}
 	Init(cfg.Blockchain.MaxBlockSize)
-	cc.SetStateDB(actor.sdb)
-
+	if cc != nil {
+		cc.SetStateDB(actor.sdb)
+	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -74,7 +75,7 @@ func (cs *ChainService) BeforeStart() {
 	}
 
 	// init genesis block
-	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
+	if err := cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
@@ -89,24 +90,36 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		return err
 	}
-	return cs.initGenesis(gb.Timestamp)
+	err := cs.initGenesis(gb)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
+		return err
+	}
+	return nil
 }
-func (cs *ChainService) initGenesis(seed int64) error {
+func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
+		logger.Info().Msg(string(cs.cdb.latest))
 		if cs.cdb.latest == 0 {
-			genesisBlock, err := cs.cdb.generateGenesisBlock(seed)
+			if genesis == nil {
+				genesis = GetDefaultGenesis()
+			}
+			err := cs.cdb.addGenesisBlock(GenesisToBlock(genesis))
 			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
 			}
-			err = cs.sdb.SetGenesis(genesisBlock)
+			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
 				return err
 			}
+			logger.Info().Msg("genesis block is generated")
 		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
 
 	dbPath := path.Join(cs.cfg.DataDir, contract.DbName)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {

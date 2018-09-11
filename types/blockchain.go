@@ -48,10 +48,11 @@ func getLastIndexOfBH() (lastIndex int) {
 
 // Genesis represents genesis block
 type Genesis struct {
-	Header    *BlockHeader      `json:"header"`
+	//Header    *BlockHeader      `json:"header"`
 	Balance   map[string]*State `json:"alloc"`
 	Timestamp int64             `json:"timestamp,omitempty"`
 	// TODO: bp Peer info
+	Block *Block `json:"-"`
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).

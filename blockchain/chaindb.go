@@ -153,19 +153,16 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
-	genesisBlock := types.NewBlock(nil, nil, 0)
-	genesisBlock.Header.Timestamp = seed
+func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	tx := cdb.store.NewTx(true)
-	if err := cdb.addBlock(&tx, genesisBlock, true, true); err != nil {
-		return nil, err
+	if err := cdb.addBlock(&tx, block, true, true); err != nil {
+		return err
 	}
 	tx.Commit()
-	//SyncWithConsensus
 	cdb.setLatest(0)
 
-	logger.Info().Msg("generate Genesis Block")
-	return genesisBlock, nil
+	logger.Info().Msg("Genesis Block Added")
+	return nil
 }
 
 func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {

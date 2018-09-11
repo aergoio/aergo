@@ -93,21 +93,21 @@ func (sdb *ChainStateDB) Close() error {
 	return nil
 }
 
-func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Block) error {
+func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
+	block := genesisBlock.Block
 	gbInfo := &types.BlockInfo{
 		BlockNo:   0,
-		BlockHash: types.ToBlockID(genesisBlock.Hash),
+		BlockHash: types.ToBlockID(block.Hash),
 	}
 	sdb.latest = gbInfo
 
 	// create state of genesis block
 	gbState := types.NewBlockState(gbInfo)
-
-	// // publish initial coin
-	// sampleAccount := []byte("sample")
-	// logger.Debug().Str("account", string(sampleAccount)).Str("base58", base58.Encode(sampleAccount)).Msg("init genesis block")
-	// gbState.PutAccount(types.ToAccountID(sampleAccount), nil, &types.State{Balance: 10000})
-
+	for address, balance := range genesisBlock.Balance {
+		bytes := types.ToAddress(address)
+		id := types.ToAccountID(bytes)
+		gbState.PutAccount(id, nil, balance)
+	}
 	// save state of genesis block
 	err := sdb.apply(gbState)
 	return err
