@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"bufio"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -38,7 +37,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	mockActorServ := new(MockActorService)
 	dummyP2PServ := new(MockPeerManager)
 
-	dummyRW := &bufio.ReadWriter{Reader: &bufio.Reader{}}
+	dummyRW := new(MockMsgReadWriter)
 	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, dummyP2PServ, mockActorServ,
 		logger)
 	target.rw = dummyRW
@@ -92,13 +91,13 @@ func TestAergoPeer_writeToPeer(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
 			mockOrder := new(MockMsgOrder)
-			dummyRW := &bufio.ReadWriter{Reader: &bufio.Reader{}}
+			dummyRW := new(MockMsgReadWriter)
 			mockOrder.On("IsNeedSign").Return(tt.args.needSign)
 			if tt.args.needSign {
 				mockOrder.On("SignWith", mockPeerManager).Return(tt.args.signErr)
 			}
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
-			mockOrder.On("SendOver", mock.AnythingOfType("*bufio.ReadWriter")).Return(tt.args.sendErr)
+			mockOrder.On("SendOver", mock.AnythingOfType("*p2p.MockMsgReadWriter")).Return(tt.args.sendErr)
 			mockOrder.On("GetProtocolID").Return(pingRequest)
 			mockOrder.On("GetRequestID").Return("test_req")
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)

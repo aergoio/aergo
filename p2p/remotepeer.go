@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -22,7 +21,6 @@ import (
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
-	"github.com/multiformats/go-multicodec/protobuf"
 )
 
 const defaultPingInterval = time.Second * 60
@@ -54,7 +52,7 @@ type RemotePeer struct {
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
 
-	rw *bufio.ReadWriter
+	rw MsgReadWriter
 }
 
 // msgOrder is abstraction information about the message that will be sent to peer
@@ -69,7 +67,7 @@ type msgOrder interface {
 	ResponseExpected() bool
 	GetProtocolID() SubProtocol
 	SignWith(pm PeerManager) error
-	SendOver(rw *bufio.ReadWriter) error
+	SendOver(w MsgWriter) error
 }
 
 const (
@@ -187,7 +185,7 @@ WRITELOOP:
 
 func (p *RemotePeer) runRead() {
 	for {
-		msg, err := p.readMsg()
+		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			p.logger.Error().Err(err).Msg("Failed to read message")
 			p.pm.RemovePeer(p.ID())
@@ -201,16 +199,6 @@ func (p *RemotePeer) runRead() {
 		}
 	}
 
-}
-
-func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
-	msg := &types.P2PMessage{}
-	decoder := mc_pb.Multicodec(nil).Decoder(p.rw)
-	err := decoder.Decode(msg)
-	if err != nil {
-		return nil, err
-	}
-	return msg, nil
 }
 
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {

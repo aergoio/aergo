@@ -2,8 +2,6 @@
 package p2p
 
 import (
-	"bufio"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -113,11 +111,11 @@ func (_m *MockMsgOrder) ResponseExpected() bool {
 }
 
 // SendOver provides a mock function with given fields: s
-func (_m *MockMsgOrder) SendOver(s *bufio.ReadWriter) error {
+func (_m *MockMsgOrder) SendOver(s MsgWriter) error {
 	ret := _m.Called(s)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*bufio.ReadWriter) error); ok {
+	if rf, ok := ret.Get(0).(func(MsgWriter) error); ok {
 		r0 = rf(s)
 	} else {
 		r0 = ret.Error(0)

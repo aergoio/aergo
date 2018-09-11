@@ -345,7 +345,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		pm.logger.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
-	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
 	if err != nil {
@@ -376,7 +376,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	meta = FromPeerAddress(remoteStatus.Sender)
 
 	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
-	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	newPeer.rw = rw
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -393,7 +393,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	return true
 }
 
-func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
+func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	// TODO duplicated code
 	serialized, err := marshalMessage(&types.GoAwayNotice{Message: msg})
 	if err != nil {
@@ -403,8 +403,7 @@ func (pm *peerManager) sendGoAway(rw *bufio.ReadWriter, msg string) {
 	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
 	container.Header.Subprotocol = goAway.Uint32()
-	SendProtoMessage(container, rw)
-	rw.Flush()
+	rw.WriteMsg(container)
 }
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
@@ -517,7 +516,7 @@ func (pm *peerManager) startListener() {
 
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 
 	statusMsg, err := h.handshakeInboundPeer(rw)
@@ -542,7 +541,7 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	pm.NotifyPeerHandshake(peerID)
 }
 
-func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	peerID := meta.ID

@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"time"
@@ -41,7 +40,7 @@ func newHandshaker(pm PeerManager, actorServ ActorService, log *log.Logger, peer
 	return &PeerHandshaker{pm: pm, actorServ: actorServ, logger: log, peerID: peerID}
 }
 
-func (h *PeerHandshaker) handshakeOutboundPeerTimeout(rw *bufio.ReadWriter, ttl time.Duration) (*types.Status, error) {
+func (h *PeerHandshaker) handshakeOutboundPeerTimeout(rw MsgReadWriter, ttl time.Duration) (*types.Status, error) {
 	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
 		statusMsg, err := h.handshakeOutboundPeer(rw)
 		doneChan <- &hsResult{statusMsg: statusMsg, err: err}
@@ -52,7 +51,7 @@ func (h *PeerHandshaker) handshakeOutboundPeerTimeout(rw *bufio.ReadWriter, ttl 
 	return ret.(*hsResult).statusMsg, ret.(*hsResult).err
 }
 
-func (h *PeerHandshaker) handshakeInboundPeerTimeout(rw *bufio.ReadWriter, ttl time.Duration) (*types.Status, error) {
+func (h *PeerHandshaker) handshakeInboundPeerTimeout(rw MsgReadWriter, ttl time.Duration) (*types.Status, error) {
 	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
 		statusMsg, err := h.handshakeInboundPeer(rw)
 		doneChan <- &hsResult{statusMsg: statusMsg, err: err}
@@ -78,7 +77,7 @@ func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
 }
 
 // handshakeOutboundPeer start handshake with outbound peer
-func (h *PeerHandshaker) handshakeOutboundPeer(rw *bufio.ReadWriter) (*types.Status, error) {
+func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status, error) {
 	peerID := h.peerID
 
 	h.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Starting Handshake")
@@ -93,12 +92,12 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw *bufio.ReadWriter) (*types.Sta
 		// h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
 	}
-	if err = SendProtoMessage(container, rw); err != nil {
+	if err = rw.WriteMsg(container); err != nil {
 		return nil, err
 	}
 
 	// and wait to response status
-	data, err := readP2PMessage(rw)
+	data, err := rw.ReadMsg()
 	if err != nil {
 		// h.logger.Info().Err(err).Msg("fail to decode")
 		return nil, err
@@ -127,11 +126,11 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw *bufio.ReadWriter) (*types.Sta
 }
 
 // onHandshake is handle handshake from inbound peer
-func (h *PeerHandshaker) handshakeInboundPeer(rw *bufio.ReadWriter) (*types.Status, error) {
+func (h *PeerHandshaker) handshakeInboundPeer(rw MsgReadWriter) (*types.Status, error) {
 	peerID := h.peerID
 
 	// first message must be status
-	data, err := readP2PMessage(rw)
+	data, err := rw.ReadMsg()
 	if err != nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
 		return nil, err
@@ -166,7 +165,7 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw *bufio.ReadWriter) (*types.Stat
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")
 	}
-	if err = SendProtoMessage(container, rw); err != nil {
+	if err = rw.WriteMsg(container); err != nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to send response status ")
 		return nil, err
 	}

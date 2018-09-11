@@ -129,12 +129,8 @@ func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
 }
 
 // SendOver is send itself over the writer rw.
-func (pr *pbMessageOrder) SendOver(rw *bufio.ReadWriter) error {
-	err := SendProtoMessage(pr.message, rw)
-	if err == nil {
-		rw.Flush()
-	}
-	return err
+func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
+	return w.WriteMsg(pr.message)
 }
 
 // NewMessageData is helper method - generate message data shared between all node's p2p protocols
@@ -152,7 +148,7 @@ func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip
 }
 
 // SendProtoMessage send proto.Message data over stream
-func SendProtoMessage(data proto.Message, rw *bufio.ReadWriter) error {
+func SendProtoMessage(data proto.Message, rw *bufio.Writer) error {
 	enc := protobufCodec.Multicodec(nil).Encoder(rw)
 	err := enc.Encode(data)
 	if err != nil {
