@@ -28,6 +28,8 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	blockNo := cs.cdb.getBestBlockNo()
+	logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+
 	return cs.cdb.getBlockByNo(blockNo)
 }
 
@@ -90,6 +92,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 	var lastBlock *types.Block
 
 	for tblock != nil {
+		blockNo := tblock.GetHeader().GetBlockNo()
 		dbtx := cs.cdb.store.NewTx(true)
 
 		if isMainChain {
@@ -105,27 +108,33 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 		//FIXME: 에러가 발생한 경우 sdb도 rollback 되어야 한다.
 		dbtx.Commit()
 
-		logger.Info().Bool("isMainChain", isMainChain).
-			Int("processed_txn", processedTxn).
-			Uint64("latest", cs.cdb.latest).
-			Uint64("blockNo", tblock.GetHeader().GetBlockNo()).
-			Str("hash", tblock.ID()).
-			Str("prev_hash", enc.ToString(tblock.GetHeader().GetPrevBlockHash())).
-			Msg("block added")
-		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
-
 		if isMainChain {
 			cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 				// FIXME: remove legacy
-				BlockNo: tblock.GetHeader().GetBlockNo(),
+				BlockNo: blockNo,
 				Txs:     tblock.GetBody().GetTxs(),
 			})
+
+			//SyncWithConsensus :
+			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+			// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+			//	In this case, messages of mempool is synchronized in actor message queue.
+			cs.cdb.setLatest(blockNo)
 
 			// XXX Something similar should be also done during
 			// reorganization.
 			cs.StatusUpdate(nblock)
 			cs.notifyBlock(tblock)
 		}
+
+		logger.Info().Bool("isMainChain", isMainChain).
+			Int("processed_txn", processedTxn).
+			Uint64("latest", cs.cdb.latest).
+			Uint64("blockNo", blockNo).
+			Str("hash", tblock.ID()).
+			Str("prev_hash", enc.ToString(tblock.GetHeader().GetPrevBlockHash())).
+			Msg("block added")
+		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
 
 		lastBlock = tblock
 

@@ -161,6 +161,9 @@ func (cdb *ChainDB) generateGenesisBlock(seed int64) (*types.Block, error) {
 		return nil, err
 	}
 	tx.Commit()
+	//SyncWithConsensus
+	cdb.setLatest(0)
+
 	logger.Info().Msg("generate Genesis Block")
 	return genesisBlock, nil
 }
@@ -255,8 +258,6 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainCha
 	if isMainChain {
 		tx.Set(latestKey, blockIdx)
 		tx.Set(blockIdx, block.BlockHash())
-
-		cdb.setLatest(blockNo)
 	}
 
 	return nil

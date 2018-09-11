@@ -298,11 +298,15 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 		return err
 	}
 
+	blockNo := block.GetHeader().GetBlockNo()
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy
-		BlockNo: block.GetHeader().GetBlockNo(),
+		BlockNo: blockNo,
 		Txs:     block.GetBody().GetTxs(),
 	})
+
+	//SyncWithConsensus
+	cdb.setLatest(blockNo)
 
 	//remove played tx from rbTxs
 	reorg.removePlayedTxs(block)
