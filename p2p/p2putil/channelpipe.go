@@ -4,6 +4,8 @@ package p2putil
 // It preserve input ordering, and not block caller unless it is Closed()
 // it has own goroutine, it must be called Open before using it, and Close for dispose resource.
 type ChannelPipe interface {
+	// In returns channel for input. it should be used after Open() method is called.
+	// It cause block if item is pushed after Close() is called.
 	In() chan<- interface{}
 	Out() <-chan interface{}
 	// Done should be called after get item from out channel

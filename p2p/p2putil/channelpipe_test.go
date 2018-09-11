@@ -262,6 +262,75 @@ func TestLongterm(t *testing.T) {
 	}
 }
 
+func TestMultiLoads(t *testing.T) {
+	// skip unit test in normal time..
+	// t.SkipNow()
+	const threadsize = 100
+	const arrSize = 30
+	var mos [threadsize][arrSize]TestItem
+	for j := 0; j < threadsize; j++ {
+		for i := 0; i < arrSize; i++ {
+			mos[j][i] = &testItem2{testItem{i}, j}
+		}
+	}
+
+	// logger := log.NewLogger("test")
+	tests := []struct {
+		name     string
+		cap      int
+		testTime time.Duration
+	}{
+		{"tlong", 20, time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doneC := make(chan int, 1)
+			finish := make(chan interface{})
+			statListener := NewStatLister()
+			listener := NewMultiListener(statListener)
+			c := newDefaultChannelPipe(tt.cap, listener)
+			c.Open()
+
+			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
+			wg := sync.WaitGroup{}
+			expire := time.Now().Add(tt.testTime)
+			for j := 0; j < threadsize; j++ {
+				go func(tid int) {
+					wg.Add(1)
+					i := 0
+					for time.Now().Before(expire) {
+						c.In() <- mos[i%arrSize]
+						i++
+					}
+					wg.Done()
+				}(j)
+			}
+			wg.Wait()
+			finish <- struct{}{}
+			consumeCount := <-doneC
+			lock := &sync.Mutex{}
+			lock.Lock()
+			actStat := statListener
+			rqueue := c.queue
+			lock.Unlock()
+
+			fmt.Printf("In %d , out %d , drop %d, consecutive drop %d\n", actStat.incnt, actStat.outcnt, actStat.dropcnt, actStat.consecdrop)
+			// last one is in channel and not consumed
+			assert.Equal(t, uint64(consumeCount+1), actStat.outcnt)
+			// in should equal to sum of out, drop, and remained in queue
+			assert.Equal(t, actStat.incnt, actStat.outcnt+actStat.dropcnt+uint64(rqueue.Size()))
+
+			c.Close()
+		})
+	}
+}
+
+type testItem2 struct {
+	testItem
+	routineId int
+}
+
 func consumeForLongterm(wc *channelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
 	finishTime := time.NewTimer(ttl)
 	cnt := 0
@@ -276,7 +345,7 @@ LOOP:
 			break LOOP
 		case mo := <-wc.Out():
 			cnt++
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond >> 2)
 			wc.Done() <- mo
 		}
 	}
