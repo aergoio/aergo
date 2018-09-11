@@ -17,15 +17,14 @@ import (
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
-	signCmd.Flags().BoolVar(&remote, "remote", false, "choose account in the remote node or not")
 	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
-	signCmd.Flags().StringVar(&pass, "password", "", "account password")
+	signCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
 }
 
-var pass string
 var signCmd = &cobra.Command{
 	Use:   "signtx",
 	Short: "Sign transaction",
@@ -71,7 +70,7 @@ var signCmd = &cobra.Command{
 				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			tx.Body.Sign, err = ks.Sign(addr, pass, hash)
+			tx.Body.Sign, err = ks.Sign(addr, pw, hash)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
 				return

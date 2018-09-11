@@ -18,26 +18,29 @@ import (
 
 func init() {
 	rootCmd.AddCommand(newAccountCmd)
-	newAccountCmd.Flags().BoolVar(&remote, "remote", false, "choose account in the remote node or not")
+	newAccountCmd.Flags().StringVar(&pw, "password", "", "password")
+	newAccountCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	newAccountCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 	rootCmd.AddCommand(getAccountsCmd)
-	getAccountsCmd.Flags().BoolVar(&remote, "remote", false, "choose account in the remote node or not")
+	getAccountsCmd.Flags().StringVar(&pw, "password", "", "password")
+	getAccountsCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	getAccountsCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
-	rootCmd.AddCommand(lockAccountsCmd)
-	rootCmd.AddCommand(unlockAccountsCmd)
+	rootCmd.AddCommand(unlockAccountCmd)
+	rootCmd.AddCommand(lockAccountCmd)
 }
 
+var pw string
 var remote bool
 var dataDir string
 var newAccountCmd = &cobra.Command{
 	Use:   "newaccount",
-	Short: "Create new account in the node",
+	Short: "Create new account in the node or cli",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var param types.Personal
 		var err error
-		if len(args) > 0 {
-			param.Passphrase = args[0]
+		if pw != "" {
+			param.Passphrase = pw
 		} else {
 			param.Passphrase, err = getPasswd()
 			if err != nil {
@@ -82,7 +85,7 @@ var newAccountCmd = &cobra.Command{
 
 var getAccountsCmd = &cobra.Command{
 	Use:   "getaccounts",
-	Short: "Get account list in the node",
+	Short: "Get account list in the node or cli",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
@@ -129,7 +132,7 @@ var getAccountsCmd = &cobra.Command{
 	},
 }
 
-var lockAccountsCmd = &cobra.Command{
+var lockAccountCmd = &cobra.Command{
 	Use:   "lockaccount",
 	Short: "Lock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -154,7 +157,7 @@ var lockAccountsCmd = &cobra.Command{
 	},
 }
 
-var unlockAccountsCmd = &cobra.Command{
+var unlockAccountCmd = &cobra.Command{
 	Use:   "unlockaccount",
 	Short: "Unlock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {

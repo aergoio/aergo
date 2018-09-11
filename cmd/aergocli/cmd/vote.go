@@ -30,7 +30,6 @@ func init() {
 	voteCmd.Flags().StringVar(&to, "to", "", "base58 address of candidate")
 	voteCmd.MarkFlagRequired("to")
 	voteCmd.Flags().Int64Var(&amount, "amount", 0, "amount address")
-	voteCmd.MarkFlagRequired("amount")
 	voteCmd.Flags().BoolVar(&revert, "revert", false, "revert to vote")
 
 	rootCmd.AddCommand(voteStatCmd)
