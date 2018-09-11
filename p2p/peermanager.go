@@ -704,9 +704,10 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]
 	// TODO check if evicted return value is needed.
 	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
-		if pm.logger.IsDebugEnabled() {
-			pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
-		}
+		// Kickout duplicated notice log.
+		// if pm.logger.IsDebugEnabled() {
+		// 	pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// }
 		// this notice is already sent to chainservice
 		return
 	}
@@ -736,9 +737,10 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 	for _, hashArr := range hashArrs {
 		ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 		if ok {
-			if pm.logger.IsDebugEnabled() {
-				pm.logger.Debug().Str(LogTxHash, enc.ToString(hashArr[:])).Str(LogPeerID, peerID.Pretty()).Msg("Got NewTx notice, but sent already from other peer")
-			}
+			// Kickout duplicated notice log.
+			// if pm.logger.IsDebugEnabled() {
+			// 	pm.logger.Debug().Str(LogTxHash, enc.ToString(hashArr[:])).Str(LogPeerID, peerID.Pretty()).Msg("Got NewTx notice, but sent already from other peer")
+			// }
 			// this notice is already sent to chainservice
 			continue
 		}

@@ -35,7 +35,7 @@ var _ MessageHandler = (*newTxNoticeHandler)(nil)
 
 // newTxReqHandler creates handler for GetTransactionsRequest
 func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txRequestHandler {
-	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return th
 }
 
@@ -89,7 +89,7 @@ func (th *txRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.M
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return th
 }
 
@@ -111,7 +111,7 @@ func (th *txResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
 func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return th
 }
 

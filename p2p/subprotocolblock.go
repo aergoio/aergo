@@ -51,7 +51,7 @@ var _ MessageHandler = (*getMissingRequestHandler)(nil)
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func newBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 
@@ -92,7 +92,7 @@ func (bh *blockRequestHandler) handle(msgHeader *types.MessageData, msgBody prot
 
 // newBlockRespHandler creates handler for GetBlockResponse
 func newBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 
@@ -119,7 +119,7 @@ func (bh *blockResponseHandler) handle(msgHeader *types.MessageData, msgBody pro
 
 // newListBlockReqHandler creates handler for GetBlockHeadersRequest
 func newListBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *listBlockHeadersRequestHandler {
-	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 
@@ -184,7 +184,7 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 
 // newListBlockRespHandler creates handler for GetBlockHeadersResponse
 func newListBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *listBlockHeadersResponseHandler {
-	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 
@@ -206,7 +206,7 @@ func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MessageData, 
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func newNewBlockNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newBlockNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 
@@ -251,7 +251,7 @@ func (bh *getMissingRequestHandler) notifyBranchBlock(peer *RemotePeer, hash mes
 
 // newGetMissingReqHandler creates handler for GetMissingRequest
 func newGetMissingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *getMissingRequestHandler {
-	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getMissingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return bh
 }
 

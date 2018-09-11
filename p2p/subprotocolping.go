@@ -54,7 +54,7 @@ func (ph *pingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto
 
 // newPingRespHandler creates handler for PingResponse
 func newPingRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *pingResponseHandler {
-	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return ph
 }
 
@@ -72,7 +72,7 @@ func (ph *pingResponseHandler) handle(msgHeader *types.MessageData, msgBody prot
 
 // newGoAwayHandler creates handler for PingResponse
 func newGoAwayHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *goAwayHandler {
-	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: goAway, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
 	return ph
 }
 
