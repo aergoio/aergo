@@ -193,7 +193,7 @@ func (ce *Executor) close() {
 	}
 }
 
-func Call(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx) error {
+func Call(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	var err error
 	var ci types.CallInfo
 	contract := getContract(contractState, contractAddress)
@@ -220,18 +220,18 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	} else {
 		receipt = types.NewReceipt(contractAddress, err.Error(), "")
 	}
-	DB.Set(txHash, receipt.Bytes())
+	dbTx.Set(txHash, receipt.Bytes())
 	return err
 }
 
-func Create(contractState *state.ContractState, code, contractAddress, txHash []byte) error {
+func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, dbTx db.Transaction) error {
 	ctrLog.Debug().Str("contractAddress", base58.Encode(contractAddress)).Msg("new contract is deployed")
 	err := contractState.SetCode(code)
 	if err != nil {
 		return err
 	}
 	receipt := types.NewReceipt(contractAddress, "CREATED", "{}")
-	DB.Set(txHash, receipt.Bytes())
+	dbTx.Set(txHash, receipt.Bytes())
 
 	return nil
 }

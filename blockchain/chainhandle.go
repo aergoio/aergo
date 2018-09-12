@@ -161,7 +161,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockSta
 	return nil
 }
 
-type txExecFn func(tx *types.Tx) error
+type txExecFn func(tx *types.Tx, dbTx db.Transaction) error
 
 type executor struct {
 	sdb        *state.ChainStateDB
@@ -179,8 +179,8 @@ func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types
 	// Hence we need a new block state and tx executor (execTx).
 	if bState == nil {
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
-		exec = func(tx *types.Tx) error {
-			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
+		exec = func(tx *types.Tx, dbTx db.Transaction) error {
+			return executeTx(sdb, bState, tx, dbTx, block.BlockNo(), block.GetHeader().GetTimestamp())
 		}
 	}
 
@@ -195,13 +195,16 @@ func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types
 }
 
 func (e *executor) execute() error {
+	dbTx := contract.DB.NewTx(true)
 	if e.execTx != nil {
 		for _, tx := range e.txs {
-			if err := e.execTx(tx); err != nil {
+			if err := e.execTx(tx, dbTx); err != nil {
+				dbTx.Commit()
 				return err
 			}
 		}
 	}
+	dbTx.Commit()
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
@@ -209,7 +212,6 @@ func (e *executor) execute() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -226,7 +228,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, dbTx db.Transaction, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -271,12 +273,12 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			}
 
 			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, dbTx)
 			} else {
 				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
 					blockNo, ts, "", false, recipient, false)
 
-				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
+				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, dbTx)
 				if err != nil {
 					return err
 				}
