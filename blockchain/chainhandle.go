@@ -296,11 +296,10 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, dbTx
 
 	senderChange.Nonce = txBody.Nonce
 	bs.PutAccount(senderID, senderState, &senderChange)
-	bs.PutAccount(receiverID, receiverState, &receiverChange)
+	if senderID != receiverID {
+		bs.PutAccount(receiverID, receiverState, &receiverChange)
+	}
 
-	// logger.Infof("  - amount(%d), sender(%s, %s), recipient(%s, %s)",
-	// 	txBody.Amount, senderID, senderState.ToString(),
-	// 	receiverID, receiverState.ToString())
 	return err
 }
 
