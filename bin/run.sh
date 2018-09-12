@@ -12,12 +12,12 @@ fi
 elapsed=0
 for file in $INPUT_DIR/*.trx; do
 	echo $file
-       start_time="$(date -u +%s.%N)"
+       #$start_time="$(date -u +%s.%N)"
        #./aergocli committx --jsontxpath $file  &> /dev/null &
        ./aergocli committx --jsontxpath $file  &> /dev/null 
        pids="$pids $!"
-       end_time="$(date -u +%s.%N)"
-       elapsed="$(bc <<<"$elapsed+($end_time-$start_time)")"
+       #end_time="$(date -u +%s.%N)"
+       #$elapsed="$(bc <<<"$elapsed+($end_time-$start_time)")"
 done
 
 

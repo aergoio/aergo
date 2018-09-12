@@ -26,15 +26,25 @@ func init() {
 	getAccountsCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	getAccountsCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 	rootCmd.AddCommand(unlockAccountCmd)
+	unlockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
+	unlockAccountCmd.MarkFlagRequired("address")
+	unlockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
+	unlockAccountCmd.MarkFlagRequired("password")
 	rootCmd.AddCommand(lockAccountCmd)
+	lockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
+	lockAccountCmd.MarkFlagRequired("address")
+	lockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
+	lockAccountCmd.MarkFlagRequired("password")
 }
 
 var pw string
 var remote bool
 var dataDir string
 var newAccountCmd = &cobra.Command{
-	Use:   "newaccount",
-	Short: "Create new account in the node or cli",
+	Use:     "newaccount",
+	Short:   "Create new account in the node or cli",
+	PreRun:  preConnectAergo,
+	PostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var param types.Personal
@@ -48,19 +58,9 @@ var newAccountCmd = &cobra.Command{
 				return
 			}
 		}
-
 		var msg *types.Account
 		var addr []byte
 		if remote {
-			serverAddr := GetServerAddress()
-			opts := []grpc.DialOption{grpc.WithInsecure()}
-			var client *util.ConnClient
-			var ok bool
-			if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-				panic("Internal error. wrong RPC client type")
-			}
-			defer client.Close()
-
 			msg, err = client.CreateAccount(context.Background(), &param)
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
@@ -84,8 +84,10 @@ var newAccountCmd = &cobra.Command{
 }
 
 var getAccountsCmd = &cobra.Command{
-	Use:   "getaccounts",
-	Short: "Get account list in the node or cli",
+	Use:     "getaccounts",
+	Short:   "Get account list in the node or cli",
+	PreRun:  preConnectAergo,
+	PostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var err error
@@ -102,7 +104,6 @@ var getAccountsCmd = &cobra.Command{
 			defer client.Close()
 
 			msg, err = client.GetAccounts(context.Background(), &types.Empty{})
-
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
@@ -133,18 +134,13 @@ var getAccountsCmd = &cobra.Command{
 }
 
 var lockAccountCmd = &cobra.Command{
-	Use:   "lockaccount",
-	Short: "Lock account in the node",
+	Use:               "lockaccount",
+	Short:             "Lock account in the node",
+	PersistentPreRun:  connectAergo,
+	PersistentPostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-		serverAddr := GetServerAddress()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		var client *util.ConnClient
-		var ok bool
-		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-			panic("Internal error. wrong RPC client type")
-		}
-		defer client.Close()
-		param, err := parsePersonalParam(args)
+
+		param, err := parsePersonalParam()
 		if err != nil {
 			return
 		}
@@ -158,19 +154,12 @@ var lockAccountCmd = &cobra.Command{
 }
 
 var unlockAccountCmd = &cobra.Command{
-	Use:   "unlockaccount",
-	Short: "Unlock account in the node",
+	Use:               "unlockaccount",
+	Short:             "Unlock account in the node",
+	PersistentPreRun:  connectAergo,
+	PersistentPostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-		serverAddr := GetServerAddress()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		var client *util.ConnClient
-		var ok bool
-		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-			panic("Internal error. wrong RPC client type")
-		}
-		defer client.Close()
-
-		param, err := parsePersonalParam(args)
+		param, err := parsePersonalParam()
 		if err != nil {
 			return
 		}
@@ -183,19 +172,24 @@ var unlockAccountCmd = &cobra.Command{
 	},
 }
 
-func parsePersonalParam(args []string) (*types.Personal, error) {
+func parsePersonalParam() (*types.Personal, error) {
 	var err error
 	param := &types.Personal{Account: &types.Account{}}
-	if len(args) > 1 {
-		param.Account.Address, err = base58.Decode(args[0])
-		param.Passphrase = args[1]
-	} else {
-		param.Account.Address, err = base58.Decode(args[0])
-		param.Passphrase, err = getPasswd()
-	}
-	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
-		return nil, err
+	if address != "" {
+		param.Account.Address, err = base58.Decode(address)
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return nil, err
+		}
+		if pw != "" {
+			param.Passphrase = pw
+		} else {
+			param.Passphrase, err = getPasswd()
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return nil, err
+			}
+		}
 	}
 	return param, nil
 }
@@ -205,4 +199,10 @@ func getPasswd() (string, error) {
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println("")
 	return string(bytePassword), err
+}
+
+func preConnectAergo(cmd *cobra.Command, args []string) {
+	if remote {
+		connectAergo(cmd, args)
+	}
 }
