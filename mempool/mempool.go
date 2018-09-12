@@ -18,6 +18,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -43,7 +44,7 @@ type MemPool struct {
 	curBestBlockNo types.BlockNo
 
 	orphan     int
-	cache      map[types.TransactionID]*types.Tx
+	cache      map[types.TxID]*types.Tx
 	pool       map[types.AccountID]*TxList
 	stateCache map[types.AccountID]*types.State
 
@@ -57,7 +58,7 @@ type MemPool struct {
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	actor := &MemPool{
 		cfg:        cfg,
-		cache:      map[types.TransactionID]*types.Tx{},
+		cache:      map[types.TxID]*types.Tx{},
 		pool:       map[types.AccountID]*TxList{},
 		stateCache: map[types.AccountID]*types.State{},
 		dumpPath:   cfg.Mempool.DumpFilePath,
@@ -74,22 +75,23 @@ func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
 		mp.curBestBlockNo = getCurrentBestBlockNoMock()
-	} else {
-		//p.BaseComponent.Start(mp)
-
-		/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
-		if err != nil {
-			mp.Error("get best block failed", err)
-		}
-		rsp := result.(message.GetBestBlockNoRsp)
-		mp.curBestBlockNo = rsp.BlockNo*/
 	}
+	//else {
+	//p.BaseComponent.Start(mp)
+
+	/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
+	if err != nil {
+		mp.Error("get best block failed", err)
+	}
+	rsp := result.(message.GetBestBlockNoRsp)
+	mp.curBestBlockNo = rsp.BlockNo*/
+	//}
 	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
 			for range time.Tick(1e9) {
 				l, o := mp.Size()
-				mp.Info().Int("len", l).Int("orphan", o).Int("len", len(mp.pool)).Msg("mempool metrics")
+				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
 			}
 		}()
 	}
@@ -169,7 +171,7 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // validate
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
-	id := types.ToTransactionID(tx.Hash)
+	id := types.ToTxID(tx.Hash)
 	acc := tx.GetBody().GetAccount()
 
 	mp.Lock()
@@ -177,11 +179,13 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if _, found := mp.cache[id]; found {
 		return message.ErrTxAlreadyInMempool
 	}
-	list, err := mp.acquireMemPoolList(acc)
+
+	err := mp.validate(tx)
 	if err != nil {
 		return err
 	}
-	err = mp.validate(tx)
+
+	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx)
 					mp.delMemPoolList(acc)
 				}
 				for _, tx := range delTxs {
-					h := types.ToTransactionID(tx.Hash)
+					h := types.ToTxID(tx.Hash)
 					delete(mp.cache, h) // need lock
 				}
 			}
@@ -256,6 +260,10 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 		return message.ErrTxHasInvalidHash
 	}
 
+	err := key.VerifyTx(tx)
+	if err != nil {
+		return err
+	}
 	ns, err := mp.getAccountState(account, false)
 	if err != nil {
 		return err
@@ -274,7 +282,7 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
-	if v, ok := mp.cache[types.ToTransactionID(hash)]; ok {
+	if v, ok := mp.cache[types.ToTxID(hash)]; ok {
 		return v
 	}
 	return nil

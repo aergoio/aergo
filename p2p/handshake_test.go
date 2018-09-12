@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"fmt"
 	"reflect"
 	"testing"
@@ -35,10 +34,6 @@ func Test_runFuncTimeout(t *testing.T) {
 		{"Tnorm2", args{func(done chan<- interface{}) {
 			done <- -3
 		}, time.Millisecond * 10}, -3, false},
-		{"TNorm3", args{func(done chan<- interface{}) {
-			time.Sleep(time.Millisecond * 7)
-			done <- "delayed"
-		}, time.Millisecond * 10}, "delayed", false},
 		{"Ttimeout1", args{func(done chan<- interface{}) {
 			time.Sleep(time.Millisecond * 11)
 		}, time.Millisecond * 10}, nil, true},
@@ -60,7 +55,7 @@ func Test_runFuncTimeout(t *testing.T) {
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
-	mockPM := new(MockP2PService)
+	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
@@ -82,13 +77,11 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
-			mockReader := new(MockReader)
-			mockWriter := new(MockWriter)
-			rw := bufio.NewReadWriter(bufio.NewReader(mockReader), bufio.NewWriter(mockWriter))
-			mockReader.On("Read", mock.Anything).After(tt.delay).Return(0, fmt.Errorf("must not reach"))
-			mockWriter.On("Write", mock.Anything).After(tt.delay).Return(0, fmt.Errorf("must not reach"))
+			mockRW := new(MockMsgReadWriter)
+			mockRW.On("ReadMsg").After(tt.delay).Return(0, fmt.Errorf("must not reach"))
+			mockRW.On("WriteMsg", mock.Anything).After(tt.delay).Return(fmt.Errorf("must not reach"))
 
-			got, err := h.handshakeOutboundPeerTimeout(rw, time.Millisecond*50)
+			got, err := h.handshakeOutboundPeerTimeout(mockRW, time.Millisecond*50)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -103,7 +96,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
-	mockPM := new(MockP2PService)
+	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
@@ -121,24 +114,79 @@ func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 		want       *types.Status
 		wantErr    bool
 	}{
-		// {"TNormal", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
+		{"TUnexpMsg", nil, nil, nil, nil, true},
+		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
 		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
-			mockReader := new(MockReader)
-			mockWriter := new(MockWriter)
-			mockRW := bufio.NewReadWriter(bufio.NewReader(mockReader), bufio.NewWriter(mockWriter))
+			mockRW := new(MockMsgReadWriter)
 			containerMsg := &types.P2PMessage{Header: &types.MessageData{}, Data: statusBytes}
-			containerBytes, _ := marshalMessage(containerMsg)
-			mockReader.On("Read", mock.AnythingOfType("[]uint8")).Run(func(args mock.Arguments) {
-				buf := args.Get(0).([]byte)
-				copy(buf, containerBytes)
-			}).Return(len(containerBytes), tt.readError)
-			mockWriter.On("Write", mock.AnythingOfType("[]uint8")).Return(0, tt.writeError)
+			if tt.readReturn != nil {
+				containerMsg.Header.Subprotocol = statusRequest.Uint32()
+			} else {
+				containerMsg.Header.Subprotocol = addressesRequest.Uint32()
+			}
+
+			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
+			mockRW.On("WriteMsg", mock.AnythingOfType("*types.P2PMessage")).Return(tt.writeError)
 
 			got, err := h.handshakeOutboundPeer(mockRW)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPeerHandshaker_handshakeInboundPeer(t *testing.T) {
+	// t.SkipNow()
+	logger = log.NewLogger("test")
+	mockActor := new(MockActorService)
+	mockPM := new(MockPeerManager)
+
+	dummyMeta := PeerMeta{ID: dummyPeerID}
+	mockPM.On("SelfMeta").Return(dummyMeta)
+	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
+	dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
+	mockActor.On("CallRequest", mock.Anything, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBlkRsp, nil)
+
+	dummyStatusMsg := &types.Status{}
+	statusBytes, _ := marshalMessage(dummyStatusMsg)
+	tests := []struct {
+		name       string
+		readReturn *types.Status
+		readError  error
+		writeError error
+		want       *types.Status
+		wantErr    bool
+	}{
+		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
+		{"TUnexpMsg", nil, nil, nil, nil, true},
+		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
+		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
+			mockRW := new(MockMsgReadWriter)
+			containerMsg := &types.P2PMessage{Header: &types.MessageData{}, Data: statusBytes}
+			if tt.readReturn != nil {
+				containerMsg.Header.Subprotocol = statusRequest.Uint32()
+			} else {
+				containerMsg.Header.Subprotocol = addressesRequest.Uint32()
+			}
+
+			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
+			mockRW.On("WriteMsg", mock.AnythingOfType("*types.P2PMessage")).Return(tt.writeError)
+
+			got, err := h.handshakeInboundPeer(mockRW)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return

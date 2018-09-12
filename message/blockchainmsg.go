@@ -6,7 +6,6 @@
 package message
 
 import (
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -45,7 +44,7 @@ type GetBlockByNoRsp GetBlockRsp
 type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
-	Bstate *state.BlockState
+	Bstate *types.BlockState
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo
@@ -84,9 +83,29 @@ type GetABIRsp struct {
 	Err error
 }
 
+type GetQuery struct {
+	Contract  []byte
+	Queryinfo []byte
+}
+type GetQueryRsp struct {
+	Result []byte
+	Err    error
+}
+
 // SyncBlockState is request to sync from remote peer. It returns sync result.
 type SyncBlockState struct {
 	PeerID    peer.ID
 	BlockNo   types.BlockNo
 	BlockHash []byte
+}
+
+// GetElected is request to get voting result about top N elect
+type GetElected struct {
+	N int
+}
+
+// GetElectedRsp is return to get voting result
+type GetElectedRsp struct {
+	Top *types.VoteList
+	Err error
 }

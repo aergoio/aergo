@@ -2,6 +2,7 @@ package dpos
 
 import (
 	"container/list"
+	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo/types"
@@ -11,11 +12,11 @@ import (
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
+	bestBlock        *types.Block
 	confirmsRequired uint16
 	plibConfirms     *list.List            // confirm counts to become proposed LIB
 	plib             map[string]*blockInfo // BP-wise proposed LIB map
 	lib              *blockInfo
-	bestBlock        *types.Block
 }
 
 type blockInfo struct {
@@ -74,11 +75,11 @@ func (s *Status) StatusUpdate(block *types.Block) {
 	libInfo := calcProposedLIB(s.plibConfirms, block, s.confirmsRequired)
 	if libInfo != nil {
 		bp := blockBP(block)
-		s.plib[bp] = libInfo
 		logger.Debug().Str("BP", bp).
 			Str("lib hash", libInfo.hash).Uint64("lib no", libInfo.blkNo).
 			Str("best block hash", block.ID()).Uint64("best block no", block.BlockNo()).
 			Msg("proposed LIB map updated")
+		s.updateLIB(bp, libInfo)
 	}
 }
 
@@ -113,6 +114,25 @@ func calcProposedLIB(confirms *list.List, block *types.Block, confirmsRequired u
 	}
 
 	return
+}
+
+func (s *Status) updateLIB(bp string, libInfo *blockInfo) {
+	s.plib[bp] = libInfo
+
+	libInfos := make([]*blockInfo, 0, len(s.plib))
+	for _, l := range s.plib {
+		libInfos = append(libInfos, l)
+	}
+	// TODO: find better method.
+	sort.Slice(libInfos, func(i, j int) bool {
+		return libInfos[i].blkNo < libInfos[j].blkNo
+	})
+
+	s.lib = libInfos[(len(libInfos)-1)/3]
+	logger.Debug().
+		Str("block hash", s.lib.hash).
+		Uint64("block no", s.lib.blkNo).
+		Msg("last irreversible block (BFT) updated")
 }
 
 func blockBP(block *types.Block) string {

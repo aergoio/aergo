@@ -39,7 +39,7 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 
 	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data
-	reqMsg := &types.GetBlockHeadersRequest{MessageData: &types.MessageData{}, Hash: msg.Hash,
+	reqMsg := &types.GetBlockHeadersRequest{Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
 	}
 	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getBlockHeadersRequest, reqMsg))
@@ -60,8 +60,7 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 		hashes[i] = ([]byte)(hash)
 	}
 	// create message data
-	req := &types.GetBlockRequest{MessageData: &types.MessageData{},
-		Hashes: hashes}
+	req := &types.GetBlockRequest{Hashes: hashes}
 
 	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getBlocksRequest, req))
 	return true
@@ -74,7 +73,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 		if neighbor == nil {
 			continue
 		}
-		req := &types.NewBlockNotice{MessageData: &types.MessageData{},
+		req := &types.NewBlockNotice{
 			BlockHash: newBlock.Block.Hash,
 			BlockNo:   newBlock.BlockNo}
 		msg := newPbMsgBroadcastOrder(false, newBlockNotice, req)
@@ -104,9 +103,8 @@ func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bo
 	}
 	// create message data
 	req := &types.GetMissingRequest{
-		MessageData: &types.MessageData{},
-		Hashes:      bhashes[1:],
-		Stophash:    bhashes[0]}
+		Hashes:   bhashes[1:],
+		Stophash: bhashes[0]}
 
 	remotePeer.sendMessage(newPbMsgRequestOrder(false, true, getMissingRequest, req))
 	return true
@@ -134,8 +132,7 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 		hashes[i] = ([]byte)(hash)
 	}
 	// create message data
-	req := &types.GetTransactionsRequest{MessageData: &types.MessageData{},
-		Hashes: hashes}
+	req := &types.GetTransactionsRequest{Hashes: hashes}
 
 	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getTXsRequest, req))
 	return true
@@ -151,9 +148,7 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	// send to peers
 	for _, peer := range p2ps.pm.GetPeers() {
 		// create message data
-		req := &types.NewTransactionsNotice{MessageData: &types.MessageData{},
-			TxHashes: hashes,
-		}
+		req := &types.NewTransactionsNotice{TxHashes: hashes}
 		peer.sendMessage(newPbMsgBroadcastOrder(false, newTxNotice, req))
 	}
 

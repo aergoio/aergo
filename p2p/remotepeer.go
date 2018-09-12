@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -16,13 +15,12 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
-	"github.com/multiformats/go-multicodec/protobuf"
 )
 
 const defaultPingInterval = time.Second * 60
@@ -38,7 +36,7 @@ type RemotePeer struct {
 	pm        PeerManager
 	stopChan  chan struct{}
 
-	write      chan msgOrder
+	write      p2putil.ChannelPipe
 	closeWrite chan struct{}
 
 	hsLock *sync.Mutex
@@ -52,13 +50,15 @@ type RemotePeer struct {
 	// TODO make automatic disconnect if remote peer cause too many wrong message
 
 	blkHashCache *lru.Cache
+	txHashCache  *lru.Cache
 
-	rw *bufio.ReadWriter
+	rw MsgReadWriter
 }
 
 // msgOrder is abstraction information about the message that will be sent to peer
 type msgOrder interface {
 	GetRequestID() string
+	// Timestamp is unit time value
 	Timestamp() int64
 	IsRequest() bool
 	IsGossip() bool
@@ -67,7 +67,7 @@ type msgOrder interface {
 	ResponseExpected() bool
 	GetProtocolID() SubProtocol
 	SignWith(pm PeerManager) error
-	SendOver(rw *bufio.ReadWriter) error
+	SendOver(w MsgWriter) error
 }
 
 const (
@@ -82,7 +82,6 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 		state:        types.STARTING,
 
 		stopChan:   make(chan struct{}),
-		write:      make(chan msgOrder),
 		closeWrite: make(chan struct{}),
 		hsLock:     &sync.Mutex{},
 
@@ -91,12 +90,18 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 
 		handlers: make(map[SubProtocol]MessageHandler),
 	}
+	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
 
 	var err error
 	peer.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
+	peer.txHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	if err != nil {
+		panic("Failed to create remotepeer " + err.Error())
+	}
+
 	return peer
 }
 
@@ -108,10 +113,6 @@ func (p *RemotePeer) ID() peer.ID {
 // State returns current state of peer
 func (p *RemotePeer) State() types.PeerState {
 	return p.state.Get()
-}
-
-func (p *RemotePeer) setState(newState types.PeerState) {
-	p.state.SetAndGet(newState)
 }
 
 func (p *RemotePeer) checkState() error {
@@ -130,21 +131,24 @@ func (p *RemotePeer) runPeer() {
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
+	p.write.Open()
 	go p.runRead()
+	// peer state is changed to RUNNIG after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
+	p.state.SetAndGet(types.RUNNING)
 READNOPLOOP:
 	for {
 		select {
 		case <-pingTicker.C:
-			p.sendPing()
 		case <-p.stopChan:
-			p.setState(types.STOPPED)
 			break READNOPLOOP
 		}
 	}
-	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
-	pingTicker.Stop()
 
-	// send channel twice. one for read and another for write
+	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
+	p.state.SetAndGet(types.STOPPED)
+	pingTicker.Stop()
+	// finish goroutine write. read goroutine will be closed automatically when disconnect
+	p.write.Close()
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
 }
@@ -160,8 +164,9 @@ func (p *RemotePeer) runWrite() {
 WRITELOOP:
 	for {
 		select {
-		case m := <-p.write:
-			p.writeToPeer(m)
+		case m := <-p.write.Out():
+			p.writeToPeer(m.(msgOrder))
+			p.write.Done() <- m
 		case rID := <-p.consumeChan:
 			delete(p.requests, rID)
 		case <-cleanupTicker.C:
@@ -180,7 +185,7 @@ WRITELOOP:
 
 func (p *RemotePeer) runRead() {
 	for {
-		msg, err := p.readMsg()
+		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			p.logger.Error().Err(err).Msg("Failed to read message")
 			p.pm.RemovePeer(p.ID())
@@ -194,20 +199,6 @@ func (p *RemotePeer) runRead() {
 		}
 	}
 
-	// closing channel is to golang runtime
-	// close(p.write)
-	// close(p.consumeChan)
-}
-
-func (p *RemotePeer) readMsg() (*types.P2PMessage, error) {
-	data := &types.P2PMessage{}
-	decoder := mc_pb.Multicodec(nil).Decoder(p.rw)
-	err := decoder.Decode(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
 }
 
 func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
@@ -219,14 +210,25 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 			err = fmt.Errorf("internal error")
 		}
 	}()
-	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("protocol", proto.String()).Msg("Handling messge")
 
 	handler, found := p.handlers[proto]
 	if !found {
+		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid protocol")
 		return fmt.Errorf("invalid protocol %s", proto)
 	}
-	handler(msg)
-	return err
+	payload, err := handler.parsePayload(msg.Data)
+	if err != nil {
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
+		return fmt.Errorf("Invalid message data")
+	}
+	err = handler.checkAuth(msg.Header, payload)
+	if err != nil {
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
+		return fmt.Errorf("Failed to authenticate message")
+	}
+
+	handler.handle(msg.Header, payload)
+	return nil
 }
 
 // Stop stops aPeer works
@@ -237,12 +239,12 @@ func (p *RemotePeer) stop() {
 const writeChannelTimeout = time.Second * 2
 
 func (p *RemotePeer) sendMessage(msg msgOrder) {
-	select {
-	case p.write <- msg:
+	if p.state.Get() != types.RUNNING {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Interface(LogProtoID, msg.GetProtocolID()).
+			Str(LogMsgID, msg.GetRequestID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
 		return
-	case <-time.After(writeChannelTimeout):
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogMsgID, msg.GetRequestID()).Str(LogProtoID, msg.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
+	p.write.In() <- msg
 }
 
 // consumeRequest remove request from request history.
@@ -258,14 +260,6 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	// check peer's status
-	// TODO code smell. hardcoded check and need memory barrier for peer state
-	if p.State() != types.RUNNING {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
-			Str(LogMsgID, m.GetRequestID()).Str("peer_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
-		return
-	}
-
 	// sign the data
 	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
 	if m.IsNeedSign() {
@@ -322,7 +316,6 @@ func (p *RemotePeer) sendPing() {
 	}
 	// create message data
 	pingMsg := &types.Ping{
-		MessageData:   &types.MessageData{},
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
@@ -347,7 +340,7 @@ func (p *RemotePeer) sendStatus() {
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{MessageData: &types.MessageData{}, Message: msg}))
+	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{Message: msg}))
 	p.pm.RemovePeer(p.meta.ID)
 }
 
@@ -377,12 +370,56 @@ func (p *RemotePeer) pruneRequests() {
 
 func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 	// lru cache can accept hashable key
-	b64hash := enc.ToString(data.BlockHash)
+	var hashArr [blkhashLen]byte
+	copy(hashArr[:], data.BlockHash)
 
-	p.blkHashCache.Add(b64hash, data.BlockHash)
-	p.pm.HandleNewBlockNotice(p.meta.ID, b64hash, data)
+	p.blkHashCache.Add(hashArr, true)
+	p.pm.HandleNewBlockNotice(p.meta.ID, hashArr, data)
+}
+
+func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
+	if len(data.TxHashes) == 0 {
+		return
+	}
+	// lru cache can accept hashable key
+	hashArrs := make([][txhashLen]byte, 0, len(data.TxHashes))
+	for i, hash := range data.TxHashes {
+		copy(hashArrs[i][:], hash)
+		p.blkHashCache.Add(hashArrs[i], true)
+	}
+	p.pm.HandleNewTxNotice(p.meta.ID, hashArrs, data)
 }
 
 func (p *RemotePeer) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
+}
+
+func newHangresolver(peer *RemotePeer, logger *log.Logger) *hangResolver {
+	return &hangResolver{p: peer, logger: logger}
+}
+
+type hangResolver struct {
+	p      *RemotePeer
+	logger *log.Logger
+
+	consecutiveDrops uint64
+}
+
+func (l *hangResolver) OnIn(element interface{}) {
+}
+
+func (l *hangResolver) OnDrop(element interface{}) {
+	mo := element.(msgOrder)
+	now := time.Now().Unix()
+	// if last send hang too long. drop this peer
+	if l.consecutiveDrops > 20 || (now-mo.Timestamp()) > 60 {
+		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
+		l.p.pm.RemovePeer(l.p.ID())
+	} else {
+		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetRequestID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+	}
+}
+
+func (l *hangResolver) OnOut(element interface{}) {
+	l.consecutiveDrops = 0
 }

@@ -10,18 +10,49 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"io"
+	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+const (
+	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
+	DefaultMaxBlockSize = 1 << 20
+
+	lastFieldOfBH = "Sign"
+)
+
+var lastIndexOfBH int
+
+func init() {
+	lastIndexOfBH = getLastIndexOfBH()
+}
+
+func getLastIndexOfBH() (lastIndex int) {
+	v := reflect.ValueOf(BlockHeader{})
+
+	nField := v.NumField()
+	var i int
+	for i = 0; i < nField; i++ {
+		name := v.Type().Field(i).Name
+		if name == lastFieldOfBH {
+			lastIndex = i
+			break
+		}
+	}
+
+	return i
+}
+
 // Genesis represents genesis block
 type Genesis struct {
-	Header    *BlockHeader      `json:"header"`
+	//Header    *BlockHeader      `json:"header"`
 	Balance   map[string]*State `json:"alloc"`
 	Timestamp int64             `json:"timestamp,omitempty"`
 	// TODO: bp Peer info
+	Block *Block `json:"-"`
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).
@@ -73,9 +104,48 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
-	writeBlockHeader(digest, block.Header)
+	serializeBH(digest, block.Header)
 
 	return digest.Sum(nil)
+}
+
+func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
+	v := reflect.Indirect(reflect.ValueOf(s))
+
+	var i int
+	for i = 0; i <= stopIndex; i++ {
+		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func serializeBH(w io.Writer, bh *BlockHeader) error {
+	return serializeStruct(w, bh, lastIndexOfBH)
+}
+
+func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
+	return serializeStruct(w, bh, lastIndexOfBH-1)
+}
+
+func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
+	for _, f := range []interface{}{
+		bh.PrevBlockHash,
+		bh.BlockNo,
+		bh.Timestamp,
+		bh.TxsRootHash,
+		bh.Confirms,
+		bh.PubKey,
+		bh.Sign,
+	} {
+		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // BlockHash returns block hash. It returns a calculated value if the hash is nil.
@@ -88,9 +158,14 @@ func (block *Block) BlockHash() []byte {
 	return block.GetHash()
 }
 
-// BlockID converts block.Hash ([]byte) to BlockID.
+// BlockID converts block hash ([]byte) to BlockID.
 func (block *Block) BlockID() BlockID {
 	return ToBlockID(block.BlockHash())
+}
+
+// PrevBlockID converts parent block hash ([]byte) to BlockID.
+func (block *Block) PrevBlockID() BlockID {
+	return ToBlockID(block.GetHeader().GetPrevBlockHash())
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed
@@ -118,7 +193,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	}
 
 	var msg []byte
-	if msg, err = block.Header.Bytes(); err != nil {
+	if msg, err = block.Header.bytesForDigest(); err != nil {
 		return err
 	}
 
@@ -131,10 +206,10 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 	return nil
 }
 
-// Bytes returns a binary representation of bh.
-func (bh *BlockHeader) Bytes() ([]byte, error) {
+func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
-	if err := writeBlockHeader(&buf, bh); err != nil {
+
+	if err := serializeBhForDigest(&buf, bh); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +224,7 @@ func (block *Block) VerifySign() (valid bool, err error) {
 	}
 
 	var msg []byte
-	if msg, err = block.Header.Bytes(); err != nil {
+	if msg, err = block.Header.bytesForDigest(); err != nil {
 		return false, err
 	}
 
@@ -218,69 +293,6 @@ func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	return nil
 }
 
-func (block *Block) Clone() *Block {
-	if block == nil {
-		return nil
-	}
-	res := Block{
-		Header: block.Header.Clone(),
-		Body:   block.Body.Clone(),
-	}
-	if res.Header != nil {
-		if res.Body != nil {
-			res.Header.TxsRootHash = CalculateTxsRootHash(res.Body.Txs)
-		}
-		res.Hash = res.calculateBlockHash()
-	}
-	return &res
-}
-
-func (header *BlockHeader) Clone() *BlockHeader {
-	if header == nil {
-		return nil
-	}
-	// XXX Very risky code. This part below must be rewritten whenever a new
-	// XXX struct member is addded. Need to rewritten in a more robust way.
-	return &BlockHeader{
-		PrevBlockHash: Clone(header.PrevBlockHash).([]byte),
-		BlockNo:       header.BlockNo,
-		Timestamp:     header.Timestamp,
-		TxsRootHash:   Clone(header.TxsRootHash).([]byte),
-		Confirms:      header.Confirms,
-		PubKey:        Clone(header.PubKey).([]byte),
-		Sign:          Clone(header.Sign).([]byte),
-	}
-}
-
-func (body *BlockBody) Clone() *BlockBody {
-	if body == nil {
-		return nil
-	}
-	txs := make([]*Tx, len(body.Txs))
-	for i, v := range body.Txs {
-		txs[i] = v.Clone()
-	}
-	return &BlockBody{
-		Txs: txs,
-	}
-}
-
-func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
-	for _, f := range []interface{}{
-		bh.PrevBlockHash,
-		bh.BlockNo,
-		bh.Timestamp,
-		bh.TxsRootHash,
-		bh.Confirms,
-		bh.PubKey,
-	} {
-		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // CalculateBlocksRootHash generates merkle tree of block headers and returns root hash.
 func CalculateBlocksRootHash(blocks []*Block) []byte {
 	return nil
@@ -310,8 +322,8 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Payload)
 	binary.Write(digest, binary.LittleEndian, txBody.Limit)
 	binary.Write(digest, binary.LittleEndian, txBody.Price)
-	digest.Write(txBody.Sign)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
+	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
 

@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var initpath string
@@ -33,41 +34,41 @@ var initGenesis = &cobra.Command{
 		}
 		defer file.Close()
 
-		// if initpath is feeded, gaurantee initpath is accessible directory
-		if initpath != "" {
-			fi, err := os.Stat(initpath)
-			if err == nil && !fi.IsDir() {
-				fmt.Printf("%s is not a directory\n", initpath)
-				return
-			}
-			if err != nil {
-				if !os.IsNotExist(err) {
-					fmt.Printf("cannot access %s(err:%s)", initpath, err)
-					return
-				} else {
-					err := os.MkdirAll(initpath, 0755)
-					if err != nil {
-						fmt.Printf("fail to create %s (err:%s)n", initpath, err)
-						return
-					}
-				}
-			}
-		}
-		// use default config's DataDir if empty
 		if initpath == "" {
 			initpath = cfg.DataDir
 		}
 
+		// if initpath is feeded, gaurantee initpath is accessible directory
+		fi, err := os.Stat(initpath)
+		if err == nil && !fi.IsDir() {
+			fmt.Printf("%s is not a directory\n", initpath)
+			return
+		}
+		if err != nil {
+			if !os.IsNotExist(err) {
+				fmt.Printf("cannot access %s(err:%s)\n", initpath, err)
+				return
+			} else {
+				err := os.MkdirAll(initpath, 0755)
+				if err != nil {
+					fmt.Printf("fail to create %s (err:%s)\n", initpath, err)
+					return
+				}
+			}
+		}
+		// use default config's DataDir if empty
 		genesis := new(types.Genesis)
 		if err := json.NewDecoder(file).Decode(genesis); err != nil {
-			fmt.Printf("fail to deserialize %s(error:%s)", jsonpath, err)
+			fmt.Printf("fail to deserialize %s(error:%s)\n", jsonpath, err)
 			return
 		}
 
-		chainsvc := blockchain.NewChainService(cfg)
+		chainsvc := blockchain.NewChainService(cfg, nil)
 		err = chainsvc.InitGenesisBlock(genesis, initpath)
 		if err != nil {
 			fmt.Printf("fail to init genesis block data (error:%s)\n", err)
 		}
+		fmt.Printf("genesis block is created in (%s)\n", initpath)
+
 	},
 }

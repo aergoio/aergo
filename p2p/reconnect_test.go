@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -28,21 +27,21 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	// TODO: is it ok that this global var can be changed.
 	durations = []time.Duration{
-		time.Millisecond * 100,
-		time.Millisecond * 120,
-		time.Millisecond * 130,
-		time.Millisecond * 150,
+		time.Millisecond * 30,
+		time.Millisecond * 30,
+		time.Millisecond * 30,
+		time.Millisecond * 30,
 	}
 	trials := len(durations)
 	maxTrial = trials
-	mockPm := &MockP2PService{}
+	mockPm := &MockPeerManager{}
 	dummyPeer := &RemotePeer{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
 	mockPm.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm2 := &MockP2PService{}
+	mockPm2 := &MockPeerManager{}
 	mockPm2.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true)
 	mockPm2.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
-	mockPm3 := &MockP2PService{}
+	mockPm3 := &MockPeerManager{}
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(nil, false).Times(2)
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true).Once()
 	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
@@ -51,7 +50,7 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		pm          *MockP2PService
+		pm          *MockPeerManager
 		meta        PeerMeta
 		lookupCount int
 		addCount    int
@@ -98,9 +97,7 @@ func Test_generateExpDuration(t *testing.T) {
 	prev := time.Nanosecond
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println("Testing ", tt.name)
 			got := generateExpDuration(tt.initSecs, tt.inc, tt.count)
-			fmt.Printf("Finally : %v \n", got)
 			if len(got) != tt.want {
 				t.Errorf("generateExpDuration() = %v, want %v", len(got), tt.want)
 			}

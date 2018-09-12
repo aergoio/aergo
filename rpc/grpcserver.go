@@ -403,6 +403,25 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 	return &types.SingleBytes{Value: data}, nil
 }
 
+//GetVotes handle rpc request getvotes
+func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
+	const addresslength = 32
+	var number int
+	if len(in.Value) < addresslength {
+		number = int(binary.LittleEndian.Uint64(in.Value))
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetElectedRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Top, rsp.Err
+}
+
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipt").Result()
@@ -427,6 +446,19 @@ func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.ABI, rsp.Err
+}
+
+func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) (*types.SingleBytes, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryContract").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {

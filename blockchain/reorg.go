@@ -30,7 +30,7 @@ type reorganizer struct {
 	rfBlocks    []*reorgBlock //roll forward target blocks
 	rbBlocks    []*reorgBlock //roll back target blocks
 
-	rbTxs map[types.TransactionID]*types.Tx //rollbacked txs from rollback target blocks
+	rbTxs map[types.TxID]*types.Tx //rollbacked txs from rollback target blocks
 }
 
 func (cs *ChainService) needReorg(block *types.Block) bool {
@@ -62,7 +62,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		brTopBlock: topBlock,
 		rfBlocks:   make([]*reorgBlock, 0, initBlkCount),
 		rbBlocks:   make([]*reorgBlock, 0, initBlkCount),
-		rbTxs:      make(map[types.TransactionID]*types.Tx),
+		rbTxs:      make(map[types.TxID]*types.Tx),
 	}
 
 	err := reorg.gatherChainInfo()
@@ -194,7 +194,10 @@ func (reorg *reorganizer) rollbackChain() error {
 	}
 
 	//rollback stateDB
-	reorg.rollbackChainState()
+	if err := reorg.rollbackChainState(); err != nil {
+		logger.Debug().Err(err).Msg("reorganization failed")
+		return err
+	}
 
 	return nil
 }
@@ -223,7 +226,7 @@ func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 	blockNo := block.GetHeader().GetBlockNo()
 
 	for _, tx := range block.GetBody().GetTxs() {
-		reorg.rbTxs[types.ToTransactionID(tx.GetHash())] = tx
+		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
 	}
 
 	cdb.setLatest(blockNo - 1)
@@ -295,11 +298,15 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 		return err
 	}
 
+	blockNo := block.GetHeader().GetBlockNo()
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy
-		BlockNo: block.GetHeader().GetBlockNo(),
+		BlockNo: blockNo,
 		Txs:     block.GetBody().GetTxs(),
 	})
+
+	//SyncWithConsensus
+	cdb.setLatest(blockNo)
 
 	//remove played tx from rbTxs
 	reorg.removePlayedTxs(block)
@@ -312,7 +319,7 @@ func (reorg *reorganizer) removePlayedTxs(block *types.Block) {
 	txs := block.GetBody().GetTxs()
 
 	for _, tx := range txs {
-		txID := types.ToTransactionID(tx.GetHash())
+		txID := types.ToTxID(tx.GetHash())
 
 		if _, exists := reorg.rbTxs[txID]; exists {
 			logger.Debug().Str("tx", txID.String()).Uint64("blockNo", blockNo).

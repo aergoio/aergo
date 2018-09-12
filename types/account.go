@@ -9,6 +9,15 @@ func NewAccount(addr []byte) *Account {
 	}
 }
 
+//ToAddress return byte array of given address string
+func ToAddress(addr string) []byte {
+	ret, err := base58.Decode(addr)
+	if err != nil {
+		return nil
+	}
+	return ret
+}
+
 //ToString return base64 encoded string of address
 func (a *Account) ToString() string {
 	return base58.Encode(a.Address)

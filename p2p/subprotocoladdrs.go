@@ -6,27 +6,43 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/libp2p/go-libp2p-peer"
 )
 
-// remote peer requests handler
-func (ph *PingHandler) handleAddressesRequest(msg *types.P2PMessage) {
+type addressesRequestHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*addressesRequestHandler)(nil)
+
+type addressesResponseHandler struct {
+	BaseMsgHandler
+}
+
+var _ MessageHandler = (*addressesResponseHandler)(nil)
+
+// newAddressesReqHandler creates handler for PingRequest
+func newAddressesReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *addressesRequestHandler {
+	ph := &addressesRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: addressesRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return ph
+}
+
+func (ph *addressesRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.AddressesRequest{})
+}
+
+func (ph *addressesRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
-
-	// get request dataㅕ
-	data := &types.AddressesRequest{}
-	err := unmarshalMessage(msg.Data, data)
-	if err != nil {
-		ph.logger.Info().Err(err).Msg("fail to decode")
-		return
-	}
-	debugLogReceiveMsg(ph.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, ph.peer.ID(), nil)
+	data := msgBody.(*types.AddressesRequest)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, nil)
 
 	// generate response message
-	resp := &types.AddressesResponse{MessageData: &types.MessageData{}}
+	resp := &types.AddressesResponse{}
 	var addrList = make([]*types.PeerAddress, 0, len(ph.pm.GetPeers()))
 	for _, aPeer := range ph.pm.GetPeers() {
 		// exclude not running peer and requesting peer itself
@@ -42,7 +58,7 @@ func (ph *PingHandler) handleAddressesRequest(msg *types.P2PMessage) {
 	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, addressesResponse, resp))
 }
 
-func (ph *PingHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
+func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := ph.pm.ID()
 	peerMetas := make([]PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
@@ -58,24 +74,23 @@ func (ph *PingHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	}
 }
 
-// remote ping response handler
-func (ph *PingHandler) handleAddressesResponse(msg *types.P2PMessage) {
+// newAddressesRespHandler creates handler for PingRequest
+func newAddressesRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *addressesResponseHandler {
+	ph := &addressesResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: addressesResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+	return ph
+}
+
+func (ph *addressesResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.AddressesResponse{})
+}
+
+func (ph *addressesResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
+	data := msgBody.(*types.AddressesResponse)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, len(data.GetPeers()))
 
-	data := &types.AddressesResponse{}
-	err := unmarshalMessage(msg.Data, data)
-	if err != nil {
-		return
-	}
-	debugLogReceiveMsg(ph.logger, SubProtocol(msg.Header.Subprotocol), data.MessageData.Id, peerID, len(data.GetPeers()))
-	valid := ph.pm.AuthenticateMessage(data, data.MessageData)
-	if !valid {
-		ph.logger.Info().Msg("Failed to authenticate message")
-		return
-	}
-
-	remotePeer.consumeRequest(data.MessageData.Id)
+	remotePeer.consumeRequest(msgHeader.GetId())
 	if len(data.GetPeers()) > 0 {
 		ph.checkAndAddPeerAddresses(data.GetPeers())
 	}

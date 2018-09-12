@@ -10,7 +10,7 @@ import (
 )
 
 func TestListBasic(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	mpl := NewTxList(uint64(1))
 
@@ -32,7 +32,7 @@ func TestListBasic(t *testing.T) {
 	}
 }
 func TestListDel(t *testing.T) {
-	initTest()
+	initTest(t)
 	defer deinitTest()
 	mpl := NewTxList(uint64(1))
 	count := 100

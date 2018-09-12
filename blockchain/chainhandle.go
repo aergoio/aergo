@@ -28,6 +28,8 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	blockNo := cs.cdb.getBestBlockNo()
+	logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+
 	return cs.cdb.getBlockByNo(blockNo)
 }
 
@@ -47,7 +49,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return cs.cdb.getTx(txHash)
 }
 
-func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
 	logger.Debug().Str("hash", nblock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -90,6 +92,7 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 	var lastBlock *types.Block
 
 	for tblock != nil {
+		blockNo := tblock.GetHeader().GetBlockNo()
 		dbtx := cs.cdb.store.NewTx(true)
 
 		if isMainChain {
@@ -105,27 +108,33 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 		//FIXME: 에러가 발생한 경우 sdb도 rollback 되어야 한다.
 		dbtx.Commit()
 
-		logger.Info().Bool("isMainChain", isMainChain).
-			Int("processed_txn", processedTxn).
-			Uint64("latest", cs.cdb.latest).
-			Uint64("blockNo", tblock.GetHeader().GetBlockNo()).
-			Str("hash", tblock.ID()).
-			Str("prev_hash", enc.ToString(tblock.GetHeader().GetPrevBlockHash())).
-			Msg("block added")
-		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
-
 		if isMainChain {
 			cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 				// FIXME: remove legacy
-				BlockNo: tblock.GetHeader().GetBlockNo(),
+				BlockNo: blockNo,
 				Txs:     tblock.GetBody().GetTxs(),
 			})
+
+			//SyncWithConsensus :
+			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+			// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+			//	In this case, messages of mempool is synchronized in actor message queue.
+			cs.cdb.setLatest(blockNo)
 
 			// XXX Something similar should be also done during
 			// reorganization.
 			cs.StatusUpdate(nblock)
 			cs.notifyBlock(tblock)
 		}
+
+		logger.Info().Bool("isMainChain", isMainChain).
+			Int("processed_txn", processedTxn).
+			Uint64("latest", cs.cdb.latest).
+			Uint64("blockNo", blockNo).
+			Str("hash", tblock.ID()).
+			Str("prev_hash", enc.ToString(tblock.GetHeader().GetPrevBlockHash())).
+			Msg("block added")
+		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
 
 		lastBlock = tblock
 
@@ -152,43 +161,72 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *state.BlockSta
 	return nil
 }
 
-func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
-	blockHash := types.ToBlockID(block.BlockHash())
-	prevHash := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
+type txExecFn func(tx *types.Tx) error
 
-	//In case of Received block from BP, txs executed already.
-	//Result is saved in the BlockState
-	needExec := false
-	if bstate == nil {
-		bstate = state.NewBlockState(block.Header.BlockNo, blockHash, prevHash)
-		needExec = true
+type executor struct {
+	sdb        *state.ChainStateDB
+	blockState *types.BlockState
+	execTx     txExecFn
+	txs        []*types.Tx
+}
+
+func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types.Block) *executor {
+	var exec txExecFn
+
+	// The DPoS block factory excutes transactions during block generation. In
+	// such a case it send block with block state so that bState != nil. On the
+	// contrary, the block propagated from the network is not half-executed.
+	// Hence we need a new block state and tx executor (execTx).
+	if bState == nil {
+		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
+		exec = func(tx *types.Tx) error {
+			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
+		}
 	}
 
 	txs := block.GetBody().GetTxs()
 
-	logger.Debug().Uint64("blockNo", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).Msg("process txs and update state")
+	return &executor{
+		sdb:        sdb,
+		blockState: bState,
+		execTx:     exec,
+		txs:        txs,
+	}
+}
 
-	for _, tx := range txs {
-		if needExec {
-			if err := executeTx(cs.sdb, bstate, tx, block); err != nil {
+func (e *executor) execute() error {
+	if e.execTx != nil {
+		for _, tx := range e.txs {
+			if err := e.execTx(tx); err != nil {
 				return err
 			}
 		}
 	}
 
-	//TODO: sync status of bstate and cdb
-	//what to do if cdb.commit fails after sdb.Apply() succeeds
-	err := cs.sdb.Apply(bstate)
+	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
+	// sdb.Apply() succeeds
+	err := e.sdb.Apply(e.blockState)
 	if err != nil {
-		// FIXME: is that enough?
-		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to apply state")
 		return err
 	}
 
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
+	ex := newExecutor(cs.sdb, bstate, block)
+
+	if err := ex.execute(); err != nil {
+		// FIXME: is that enough?
+		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to execute block")
+
+		return err
+	}
+
+	return nil
+}
+
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -216,37 +254,42 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 	senderChange := types.Clone(*senderState).(types.State)
 	receiverChange := types.Clone(*receiverState).(types.State)
 
-	if senderID != receiverID {
-		if senderChange.Balance < txBody.Amount {
-			senderChange.Balance = 0 // FIXME: reject insufficient tx.
-		} else {
-			senderChange.Balance = senderState.Balance - txBody.Amount
+	switch txBody.Type {
+	case types.TxType_NORMAL:
+		if senderID != receiverID {
+			if senderChange.Balance < txBody.Amount {
+				senderChange.Balance = 0 // FIXME: reject insufficient tx.
+			} else {
+				senderChange.Balance = senderState.Balance - txBody.Amount
+			}
+			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
-		receiverChange.Balance = receiverChange.Balance + txBody.Amount
-	}
-
-	if txBody.Type == types.TxType_NORMAL && txBody.Payload != nil {
-		contractState, err := sdb.OpenContractState(&receiverChange)
-		if err != nil {
-			return err
-		}
-
-		if createContract {
-			err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
-		} else {
-			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-				block.GetHeader().GetBlockNo(), block.GetHeader().GetTimestamp(), "", false, recipient)
-
-			err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
+		if txBody.Payload != nil {
+			contractState, err := sdb.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
 			}
-			err = sdb.CommitContractState(contractState)
-		}
 
-		if err != nil {
-			return err
+			if createContract {
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash)
+			} else {
+				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
+					blockNo, ts, "", false, recipient, false)
+
+				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx)
+				if err != nil {
+					return err
+				}
+				err = sdb.CommitContractState(contractState)
+			}
+			if err != nil {
+				return err
+			}
 		}
+	case types.TxType_GOVERNANCE:
+		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)
+	default:
+		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
 	}
 
 	senderChange.Nonce = txBody.Nonce

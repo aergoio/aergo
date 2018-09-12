@@ -96,7 +96,7 @@ func (sdb *ChainStateDB) loadStateDB() error {
 	return nil
 }
 
-func (sdb *ChainStateDB) saveBlockState(data *BlockState) error {
+func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
 	bid := data.BlockHash
 	if bid == emptyBlockID {
 		return fmt.Errorf("Invalid ID to save BlockState: empty")
@@ -104,11 +104,11 @@ func (sdb *ChainStateDB) saveBlockState(data *BlockState) error {
 	err := saveData(sdb.statedb, bid[:], data)
 	return err
 }
-func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*BlockState, error) {
+func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, error) {
 	if bid == emptyBlockID {
 		return nil, fmt.Errorf("Invalid ID to load BlockState: empty")
 	}
-	data := &BlockState{}
+	data := &types.BlockState{}
 	err := loadData(sdb.statedb, bid[:], data)
 	if err != nil {
 		return nil, err

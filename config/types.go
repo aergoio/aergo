@@ -64,7 +64,7 @@ type P2PConfig struct {
 
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
-	PlaceHolder bool `mapstructure:"blockchainplaceholder"`
+	MaxBlockSize uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -130,7 +130,7 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 
 [blockchain]
 # blockchain configurations
-blockchainplaceholder = {{.Blockchain.PlaceHolder}}
+maxblocksize = {{.Blockchain.MaxBlockSize}}
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

@@ -7,11 +7,10 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
-	proto "github.com/golang/protobuf/proto"
 )
 
 // HashID is a fixed size bytes
-type HashID [sha256.Size]byte
+type HashID [32]byte
 
 // BlockID is a HashID to identify a block
 type BlockID HashID
@@ -19,12 +18,10 @@ type BlockID HashID
 // AccountID is a HashID to identify an account
 type AccountID HashID
 
-// StateID is a HashID to identify a state
-type StateID HashID
+// TxID is a HashID to identify a transaction
+type TxID HashID
 
-// TransactionID is a HashID to identify a transactions
-type TransactionID HashID
-
+// ToHashID make a HashID from bytes
 func ToHashID(hash []byte) HashID {
 	buf := HashID{}
 	copy(buf[:], hash)
@@ -34,6 +31,7 @@ func (id HashID) String() string {
 	return enc.ToString(id[:])
 }
 
+// ToBlockID make a BlockID from bytes
 func ToBlockID(blockHash []byte) BlockID {
 	return BlockID(ToHashID(blockHash))
 }
@@ -41,37 +39,24 @@ func (id BlockID) String() string {
 	return HashID(id).String()
 }
 
-func ToTransactionID(txHash []byte) TransactionID {
-	return TransactionID(ToHashID(txHash))
+// ToTxID make a TxID from bytes
+func ToTxID(txHash []byte) TxID {
+	return TxID(ToHashID(txHash))
 }
-func (id TransactionID) String() string {
+func (id TxID) String() string {
 	return HashID(id).String()
 }
 
+// ToAccountID make a AccountHash from bytes
 func ToAccountID(account []byte) AccountID {
-	return AccountID(sha256.Sum256(account))
+	accountHash := TrieHasher(account)
+	return AccountID(ToHashID(accountHash))
 }
 func (id AccountID) String() string {
 	return HashID(id).String()
 }
 
-func ToStateIDPb(state *State) StateID {
-	if state == nil {
-		return StateID{}
-	}
-	bytes, err := proto.Marshal(state)
-	if err != nil {
-		return StateID{}
-	}
-	return ToStateID(bytes)
-}
-func ToStateID(state []byte) StateID {
-	return StateID(sha256.Sum256(state))
-}
-func (id StateID) String() string {
-	return HashID(id).String()
-}
-
+// TrieHasher exports default hash function for trie
 var TrieHasher = func(data ...[]byte) []byte {
 	hasher := sha512.New512_256()
 	for i := 0; i < len(data); i++ {
@@ -98,6 +83,17 @@ func (st *State) GetHash() []byte {
 	return digest.Sum(nil)
 }
 
+// func (st *State) ToBytes() []byte {
+// 	buf, _ := proto.Marshal(st)
+// 	return buf
+// }
+// func (st *State) FromBytes(buf []byte) {
+// 	if st == nil {
+// 		st = &State{}
+// 	}
+// 	_ = proto.Unmarshal(buf, st)
+// }
+
 func (st *State) Clone() *State {
 	if st == nil {
 		return nil
@@ -115,4 +111,66 @@ func Clone(i interface{}) interface{} {
 		return nil
 	}
 	return reflect.Indirect(reflect.ValueOf(i)).Interface()
+}
+
+type BlockInfo struct {
+	BlockNo   BlockNo
+	BlockHash BlockID
+	PrevHash  BlockID
+}
+type BlockState struct {
+	BlockInfo
+	accounts map[AccountID]*State
+	Undo     undoStates
+}
+type undoStates struct {
+	StateRoot HashID
+	Accounts  map[AccountID]*State
+}
+
+// NewBlockInfo create new blockInfo contains blockNo, blockHash and blockHash of previous block
+func NewBlockInfo(blockNo BlockNo, blockHash, prevHash BlockID) *BlockInfo {
+	return &BlockInfo{
+		BlockNo:   blockNo,
+		BlockHash: blockHash,
+		PrevHash:  prevHash,
+	}
+}
+
+// NewBlockState create new blockState contains blockInfo, account states and undo states
+func NewBlockState(blockInfo *BlockInfo) *BlockState {
+	return &BlockState{
+		BlockInfo: *blockInfo,
+		accounts:  make(map[AccountID]*State),
+		Undo: undoStates{
+			Accounts: make(map[AccountID]*State),
+		},
+	}
+}
+
+// GetAccount gets account state from blockState
+func (bs *BlockState) GetAccount(aid AccountID) (*State, bool) {
+	state, ok := bs.accounts[aid]
+	return state, ok
+}
+
+// GetAccountStates gets account states from blockState
+func (bs *BlockState) GetAccountStates() map[AccountID]*State {
+	return bs.accounts
+}
+
+// PutAccount sets before and changed state to blockState
+func (bs *BlockState) PutAccount(aid AccountID, stateBefore, stateChanged *State) {
+	if _, ok := bs.Undo.Accounts[aid]; !ok {
+		bs.Undo.Accounts[aid] = stateBefore
+	}
+	bs.accounts[aid] = stateChanged
+}
+
+// SetBlockHash sets bs.BlockInfo.BlockHash to blockHash
+func (bs *BlockState) SetBlockHash(blockHash BlockID) {
+	if bs == nil {
+		return
+	}
+	bs.BlockInfo.BlockHash = blockHash
 }

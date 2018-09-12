@@ -68,9 +68,6 @@ func TestNewAccountAndUnlockLock(t *testing.T) {
 	defer deinitTest()
 	var testaccounts []*types.Account
 	testsize := 10
-	if len(as.unlocked) != 0 {
-		t.Errorf("account service already has unlocked account:%d", len(as.unlocked))
-	}
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
@@ -89,18 +86,12 @@ func TestNewAccountAndUnlockLock(t *testing.T) {
 			t.Errorf("failed to unlock account[%d]:%s", i, err)
 		}
 	}
-	if len(testaccounts) != len(as.unlocked) {
-		t.Error("failed to unlock account")
-	}
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.lockAccount(testaccounts[i].Address, passphrase)
 		if err != nil || account == nil {
 			t.Errorf("failed to lock account[%d]:%s", i, err)
 		}
-	}
-	if len(as.unlocked) != 0 {
-		t.Errorf("account service remain unlocked account:%d", len(as.unlocked))
 	}
 }
 
@@ -109,9 +100,6 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 	defer deinitTest()
 	var testaccounts []*types.Account
 	testsize := 10
-	if len(as.unlocked) != 0 {
-		t.Errorf("account service already has unlocked account:%d", len(as.unlocked))
-	}
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
@@ -133,9 +121,6 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 			t.Errorf("should return proper error code expect = %s, return = %s", message.ErrWrongAddressOrPassWord, err)
 		}
 	}
-	if len(as.unlocked) != 0 {
-		t.Error("unlock account with wrong pass")
-	}
 }
 func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 	initTest()
@@ -150,16 +135,15 @@ func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 		t.Errorf("failed to unlock account:%s", err)
 		t.FailNow()
 	}
-	tx := types.Tx{Body: &types.TxBody{Account: account.Address}}
-	signer := NewSigner(as.Logger, as.unlocked[EncodeB64(account.Address)])
-	err = signer.SignTx(&tx)
+	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
+	err = as.ks.SignTx(tx)
 	if err != nil {
 		t.Fatalf("failed to sign: %s", err)
 	}
 	if tx.Body.Sign == nil {
 		t.Fatalf("failed to sign: %s", err)
 	}
-	err = as.verifyTx(&tx)
+	err = as.ks.VerifyTx(tx)
 	if err != nil {
 		t.Fatalf("failed to verify: %s", err)
 	}
@@ -178,9 +162,8 @@ func TestVerfiyFail(t *testing.T) {
 		t.Errorf("failed to unlock account:%s", err)
 		t.FailNow()
 	}
-	tx := types.Tx{Body: &types.TxBody{Account: account.Address}}
-	signer := NewSigner(as.Logger, as.unlocked[EncodeB64(account.Address)])
-	err = signer.SignTx(&tx)
+	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
+	err = as.ks.SignTx(tx)
 	if err != nil {
 		t.Fatalf("failed to sign: %s", err)
 	}
@@ -189,7 +172,7 @@ func TestVerfiyFail(t *testing.T) {
 	}
 	//edit tx after sign
 	tx.Body.Amount = 0xff
-	err = as.verifyTx(&tx)
+	err = as.ks.VerifyTx(tx)
 	if err != message.ErrSignNotMatch {
 		t.Errorf("should return :%s", message.ErrSignNotMatch)
 	}

@@ -94,10 +94,14 @@ func TestGetPeers(t *testing.T) {
 	mockActorServ := &MockActorService{}
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
+
+	tLogger := log.NewLogger("test.p2p")
+	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
+	InitNodeInfo(tConfig.P2P, tLogger)
 	target := NewPeerManager(mockActorServ,
-		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
+		tConfig,
 		new(MockReconnectManager),
-		log.NewLogger("test.p2p")).(*peerManager)
+		tLogger).(*peerManager)
 
 	iterSize := 500
 	wg := &sync.WaitGroup{}

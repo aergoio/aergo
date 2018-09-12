@@ -31,33 +31,27 @@ type ChainService struct {
 	cdb *ChainDB
 	sdb *state.ChainStateDB
 	op  *OrphanPool
-
-	cc chan consensus.ChainConsensus
 }
 
 var (
 	logger = log.NewLogger("chain")
 )
 
-func NewChainService(cfg *cfg.Config) *ChainService {
+func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService {
 	actor := &ChainService{
-		cfg: cfg,
-		cc:  make(chan consensus.ChainConsensus),
-		cdb: NewChainDB(),
-		sdb: state.NewStateDB(),
-		op:  NewOrphanPool(),
+		ChainConsensus: cc,
+		cfg:            cfg,
+		cdb:            NewChainDB(),
+		sdb:            state.NewStateDB(),
+		op:             NewOrphanPool(),
+	}
+	Init(cfg.Blockchain.MaxBlockSize)
+	if cc != nil {
+		cc.SetStateDB(actor.sdb)
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
-}
-
-func (cs *ChainService) receiveChainInfo() {
-	// Get a Validation interface from the consensus service
-	cs.ChainConsensus = <-cs.cc
-	cs.cdb.ChainConsensus = cs.ChainConsensus
-	// Disable the channel. warning: don't read from this channel!!!
-	cs.cc = nil
 }
 
 func (cs *ChainService) initDB(dataDir string) error {
@@ -81,13 +75,13 @@ func (cs *ChainService) BeforeStart() {
 	}
 
 	// init genesis block
-	if err := cs.initGenesis(cs.cfg.GenesisSeed); err != nil {
+	if err := cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
+
 }
 
 func (cs *ChainService) AfterStart() {
-	cs.receiveChainInfo()
 }
 
 func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
@@ -96,24 +90,36 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		return err
 	}
-	return cs.initGenesis(gb.Timestamp)
+	err := cs.initGenesis(gb)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
+		return err
+	}
+	return nil
 }
-func (cs *ChainService) initGenesis(seed int64) error {
+func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
+		logger.Info().Msg(string(cs.cdb.latest))
 		if cs.cdb.latest == 0 {
-			genesisBlock, err := cs.cdb.generateGenesisBlock(seed)
+			if genesis == nil {
+				genesis = GetDefaultGenesis()
+			}
+			err := cs.cdb.addGenesisBlock(GenesisToBlock(genesis))
 			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
 			}
-			err = cs.sdb.SetGenesis(genesisBlock)
+			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
 				return err
 			}
+			logger.Info().Msg("genesis block is generated")
 		}
 	}
 	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Int64("seed", gb.Header.Timestamp).Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
 
 	dbPath := path.Join(cs.cfg.DataDir, contract.DbName)
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -137,11 +143,6 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 }
 
-// SetValidationAPI send the Validation v of the chosen Consensus to ChainService cs.
-func (cs *ChainService) SendChainInfo(ca consensus.ChainConsensus) {
-	cs.cc <- ca
-}
-
 func (cs *ChainService) BeforeStop() {
 	if cs.sdb != nil {
 		cs.sdb.Close()
@@ -157,11 +158,8 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			BlockNo: block.Header.BlockNo,
-			Block:   block.Clone(),
+			Block:   block,
 		})
-	// if err != nil {
-	// 	logger.Info("failed to notify block:", block.Header.BlockNo, ToJSON(block))
-	// }
 }
 
 func (cs *ChainService) Receive(context actor.Context) {
@@ -177,9 +175,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get best block")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBestBlockRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.GetBlock:
@@ -188,9 +185,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBlockRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.GetBlockByNo:
@@ -198,9 +194,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Uint64("blockNo", msg.BlockNo).Msg("failed to get block by no")
 		}
-		res := block.Clone()
 		context.Respond(message.GetBlockByNoRsp{
-			Block: res,
+			Block: block,
 			Err:   err,
 		})
 	case *message.AddBlock:
@@ -211,7 +206,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
-			block := msg.Block.Clone()
+			block := msg.Block
 			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
@@ -259,13 +254,38 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		abi, err := contract.GetABI(msg.Contract)
-		context.Respond(message.GetABIRsp{
-			ABI: abi,
-			Err: err,
-		})
+		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err == nil {
+			abi, err := contract.GetABI(contractState, msg.Contract)
+			context.Respond(message.GetABIRsp{
+				ABI: abi,
+				Err: err,
+			})
+		} else {
+			context.Respond(message.GetABIRsp{
+				ABI: nil,
+				Err: err,
+			})
+		}
+	case *message.GetQuery:
+
+		state, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			ret, err := contract.Query(msg.Contract, state, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
+	case *message.GetElected:
+		top, err := cs.getVotes(msg.N)
+		context.Respond(&message.GetElectedRsp{
+			Top: top,
+			Err: err,
+		})
+
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:

@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"reflect"
 	"strconv"
@@ -17,10 +16,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/internal/enc"
+
 	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -35,18 +37,18 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var myPeerInfo peerInfo
-
-type peerInfo struct {
-	sync.RWMutex
-	id      *peer.ID
-	privKey *crypto.PrivKey
-}
-
 // TODO this value better related to max peer and block produce interval, not constant
 const (
 	DefaultGlobalInvCacheSize = 100
 	DefaultPeerInvCacheSize   = 30
+
+	defaultTTL          = time.Second * 4
+	defaultHandshakeTTL = time.Second * 20
+
+	txhashLen  = 32
+	blkhashLen = 32
+
+	cachePlaceHolder = true
 )
 
 // PeerManager is internal service that provide peer management
@@ -67,7 +69,8 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice)
+	HandleNewBlockNotice(peerID peer.ID, hash [blkhashLen]byte, data *types.NewBlockNotice)
+	HandleNewTxNotice(peerID peer.ID, hashes [][txhashLen]byte, data *types.NewTransactionsNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
@@ -182,26 +185,9 @@ func (pm *peerManager) RegisterEventListener(listener PeerEventListener) {
 
 func (pm *peerManager) init() {
 	// check Key and address
-	var priv crypto.PrivKey
-	var pub crypto.PubKey
-	if pm.conf.NPKey != "" {
-		dat, err := ioutil.ReadFile(pm.conf.NPKey)
-		if err == nil {
-			priv, err = crypto.UnmarshalPrivateKey(dat)
-			if err != nil {
-				pm.logger.Warn().Str("npkey", pm.conf.NPKey).Msg("invalid keyfile. It's not private key file")
-			}
-			pub = priv.GetPublic()
-		} else {
-			pm.logger.Warn().Str("npkey", pm.conf.NPKey).Msg("invalid keyfile path")
-		}
-	}
-	if nil == priv {
-		pm.logger.Info().Msg("No valid private key file is found. use temporary pk instead")
-		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	}
-	pid, _ := peer.IDFromPublicKey(pub)
-	myPeerInfo.set(&pid, &priv)
+	priv := NodePrivKey()
+	pub := NodePubKey()
+	pid := NodeID()
 
 	listenAddr := net.ParseIP(pm.conf.NetProtocolAddr)
 	listenPort := pm.conf.NetProtocolPort
@@ -359,12 +345,12 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		pm.logger.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
-	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		h.sendGoAway(rw, "Failed to handshake")
+		pm.sendGoAway(rw, "Failed to handshake")
 		s.Close()
 		return false
 	}
@@ -373,31 +359,33 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok = pm.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking")
-			h.sendGoAway(rw, "Already Handshaked")
-			s.Close()
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is lower priority that remote.")
 			pm.mutex.Unlock()
+			pm.sendGoAway(rw, "Already Handshaked")
+			s.Close()
 			return true
 		} else {
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is higher priority that remote.")
 			// TODO: disconnect lower valued connection
 			pm.deletePeer(meta.ID)
 			newPeer.stop()
 		}
 	}
 
+	// update peer info to remote sent infor
+	meta = FromPeerAddress(remoteStatus.Sender)
+
 	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
-	newPeer.rw = &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	newPeer.rw = rw
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
-	newPeer.setState(types.RUNNING)
-
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
 	pm.mutex.Unlock()
 
 	// peer is ready
-	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
+	h.doInitialSync()
 
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
@@ -405,29 +393,39 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	return true
 }
 
+func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
+	// TODO duplicated code
+	serialized, err := marshalMessage(&types.GoAwayNotice{Message: msg})
+	if err != nil {
+		pm.logger.Warn().Err(err).Msg("failed to marshal")
+		return
+	}
+	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
+	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
+	container.Header.Subprotocol = goAway.Uint32()
+	rw.WriteMsg(container)
+}
+
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
-	// PingHandler
-	ph := NewPingHandler(pm, peer, pm.logger)
-	peer.handlers[pingRequest] = ph.handlePing
-	peer.handlers[pingResponse] = ph.handlePingResponse
-	peer.handlers[goAway] = ph.handleGoAway
-	peer.handlers[addressesRequest] = ph.handleAddressesRequest
-	peer.handlers[addressesResponse] = ph.handleAddressesResponse
+	// PingHandlers
+	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger)
+	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger)
+	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger)
+	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger)
+	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger)
 
-	// BlockHandler
-	bh := NewBlockHandler(pm, peer, pm.logger)
-	peer.handlers[getBlocksRequest] = bh.handleBlockRequest
-	peer.handlers[getBlocksResponse] = bh.handleGetBlockResponse
-	peer.handlers[getBlockHeadersRequest] = bh.handleGetBlockHeadersRequest
-	peer.handlers[getBlockHeadersResponse] = bh.handleGetBlockHeadersResponse
-	peer.handlers[getMissingRequest] = bh.handleGetMissingRequest
-	// peer.handlers[getMissingResponse] = // no function yet
-	peer.handlers[newBlockNotice] = bh.handleNewBlockNotice
+	// BlockHandlers
+	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger)
+	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger)
+	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger)
+	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger)
+	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger)
+	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger)
 
-	th := NewTxHandler(pm, peer, pm.logger)
-	peer.handlers[getTXsRequest] = th.handleGetTXsRequest
-	peer.handlers[getTxsResponse] = th.handleGetTXsResponse
-	peer.handlers[newTxNotice] = th.handleNewTXsNotice
+	// TxHandlers
+	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger)
+	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger)
+	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -518,13 +516,13 @@ func (pm *peerManager) startListener() {
 
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	rw := &bufio.ReadWriter{Reader: bufio.NewReader(s), Writer: bufio.NewWriter(s)}
+	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 
 	statusMsg, err := h.handshakeInboundPeer(rw)
 	if err != nil {
 		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
-		h.sendGoAway(rw, "failed to handshake")
+		pm.sendGoAway(rw, "failed to handshake")
 		s.Close()
 		return
 	}
@@ -533,19 +531,17 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	// try Add peer
 	if !pm.tryAddInboundPeer(meta, rw) {
 		// failed to add
-		h.sendGoAway(rw, "Concurrent handshake")
+		pm.sendGoAway(rw, "Concurrent handshake")
 		s.Close()
 		return
 	}
 
-	//
-	pm.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: statusMsg.BestHeight, BlockHash: statusMsg.BestBlockHash})
-
+	h.doInitialSync()
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
 }
 
-func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bool {
+func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	peerID := meta.ID
@@ -561,36 +557,10 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw *bufio.ReadWriter) bo
 	peer.rw = rw
 	pm.insertHandlers(peer)
 	go peer.runPeer()
-	peer.setState(types.RUNNING)
 	pm.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
 	return true
-}
-
-func (pi *peerInfo) set(id *peer.ID, privKey *crypto.PrivKey) {
-	pi.Lock()
-	pi.id = id
-	pi.privKey = privKey
-	pi.Unlock()
-}
-
-// GetMyID returns the peer id of the current node
-func GetMyID() (peer.ID, crypto.PrivKey) {
-	var id *peer.ID
-	var pk *crypto.PrivKey
-
-	for pk == nil || id == nil {
-		myPeerInfo.RLock()
-		id = myPeerInfo.id
-		pk = myPeerInfo.privKey
-		myPeerInfo.RUnlock()
-
-		// To prevent high cpu usage
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	return *id, *pk
 }
 
 func (pm *peerManager) Start() error {
@@ -726,11 +696,14 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 	return peers, states
 }
 
-func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data *types.NewBlockNotice) {
+func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]byte, data *types.NewBlockNotice) {
 	// TODO check if evicted return value is needed.
-	ok, _ := pm.invCache.ContainsOrAdd(b64hash, data.BlockHash)
+	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
-		pm.logger.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// Kickout duplicated notice log.
+		// if pm.logger.IsDebugEnabled() {
+		// 	pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// }
 		// this notice is already sent to chainservice
 		return
 	}
@@ -747,10 +720,35 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, b64hash string, data
 		return
 	}
 	if resp.Err != nil {
-		pm.logger.Debug().Str(LogBlkHash, b64hash).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
+		pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
 		pm.actorServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
+
+}
+
+func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]byte, data *types.NewTransactionsNotice) {
+	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
+	toGet := make([]message.TXHash, 0, len(data.TxHashes))
+	for _, hashArr := range hashArrs {
+		ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+		if ok {
+			// Kickout duplicated notice log.
+			// if pm.logger.IsDebugEnabled() {
+			// 	pm.logger.Debug().Str(LogTxHash, enc.ToString(hashArr[:])).Str(LogPeerID, peerID.Pretty()).Msg("Got NewTx notice, but sent already from other peer")
+			// }
+			// this notice is already sent to chainservice
+			continue
+		}
+		toGet = append(toGet, message.TXHash(hashArr[:]))
+	}
+	if len(toGet) == 0 {
+		pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
+		return
+	}
+	// create message data
+	pm.actorServ.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
+	pm.logger.Debug().Int("tx_cnt", len(toGet)).Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
 
 }
 

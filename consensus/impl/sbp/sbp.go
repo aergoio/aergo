@@ -29,7 +29,7 @@ type SimpleBlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
-	maxBlockBodySize int
+	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
 }
@@ -47,7 +47,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
+		chain.TxOpFn(func(txIn *types.Tx) (*types.BlockState, error) {
 			select {
 			case <-s.quit:
 				return nil, chain.ErrQuit
@@ -70,6 +70,11 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b := chain.GetBestBlock(s); b != nil {
 		jq <- b
 	}
+}
+
+// SetStateDB do nothing in the simple block factory, which do not execute
+// transactions at all.
+func (s *SimpleBlockFactory) SetStateDB(sdb *state.ChainStateDB) {
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction

@@ -34,3 +34,7 @@ const (
 )
 
 //go:generate stringer -type=SubProtocol
+
+func (sp SubProtocol) Uint32() uint32 {
+	return uint32(sp)
+}

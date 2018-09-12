@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/golang-lru"
+
 	"github.com/aergoio/aergo-lib/log"
 	addrutil "github.com/libp2p/go-addr-util"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -88,7 +90,8 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 	}
 }
 
-func TestTimerBehavior(t *testing.T) {
+// experiment, and manually checked it
+func ExperimentTimerBehavior(t *testing.T) {
 	counter := int32(0)
 	ticked := make(chan int32)
 	duration := time.Millisecond * 50
@@ -212,4 +215,21 @@ func sign(value int) int {
 	} else {
 		return -1
 	}
+}
+
+func TestLRUCache(t *testing.T) {
+	size := 100
+	target, _ := lru.New(10)
+
+	var testSlice [16]byte
+
+	t.Run("TArray", func(t *testing.T) {
+		// var samples = make([]([hashSize]byte), size)
+		for i := 0; i < size; i++ {
+			copy(testSlice[:], uuid.Must(uuid.NewV4()).Bytes())
+			target.Add(testSlice, i)
+
+			assert.True(t, target.Len() <= 10)
+		}
+	})
 }

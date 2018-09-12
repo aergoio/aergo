@@ -3,7 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"github.com/mr-tron/base58/base58"
+
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -13,7 +17,10 @@ import (
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
-
+	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
+	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
+	signCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
 }
@@ -23,17 +30,8 @@ var signCmd = &cobra.Command{
 	Short: "Sign transaction",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		serverAddr := GetServerAddress()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		var client *util.ConnClient
-		var ok bool
-		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-			panic("Internal error. wrong RPC client type")
-		}
-		defer client.Close()
-		var err error
-		//param := &types.Tx{Body: &types.TxBody{}}
 
+		var err error
 		if jsonTx == "" {
 			fmt.Printf("need to transaction json input")
 			return
@@ -43,7 +41,44 @@ var signCmd = &cobra.Command{
 			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		msg, err := client.SignTX(context.Background(), &types.Tx{Body: param})
+		var msg *types.Tx
+		if remote {
+
+			serverAddr := GetServerAddress()
+			opts := []grpc.DialOption{grpc.WithInsecure()}
+			var client *util.ConnClient
+			var ok bool
+			if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
+				panic("Internal error. wrong RPC client type")
+			}
+			defer client.Close()
+			//param := &types.Tx{Body: &types.TxBody{}}
+
+			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})
+
+		} else {
+			tx := &types.Tx{Body: param}
+			if tx.Body.Sign != nil {
+				tx.Body.Sign = nil
+			}
+			hash := key.CalculateHashWithoutSign(param)
+
+			dataEnvPath := os.ExpandEnv(dataDir)
+			ks := key.NewStore(dataEnvPath)
+			addr, err := base58.Decode(address)
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			tx.Body.Sign, err = ks.Sign(addr, pw, hash)
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			tx.Hash = tx.CalculateTxHash()
+			msg = tx
+		}
+
 		if nil == err && msg != nil {
 			fmt.Println(util.ConvBase58Addr(msg))
 		} else {

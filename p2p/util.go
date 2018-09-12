@@ -25,6 +25,8 @@ const (
 	LogProtoID = "protocol_id"
 	LogMsgID   = "msg_id"
 	LogBlkHash = "blk_hash"
+	LogTxHash = "blk_hash"
+
 )
 
 // ActorService is collection of helper methods to use actor

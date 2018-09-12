@@ -16,7 +16,7 @@ import (
 func TestPingProtocol_onStatusRequest(t *testing.T) {
 	// TODO this test should be moved to handshake later.
 	t.SkipNow()
-	mockP2PS := &MockP2PService{}
+	mockP2PS := &MockPeerManager{}
 	mockIStream := &MockStream{}
 	mockConn := &MockConn{}
 

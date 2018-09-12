@@ -21,6 +21,7 @@ type IComponent interface {
 	Status() Status
 	SetHub(hub *ComponentHub)
 	Hub() *ComponentHub
+	MsgQueueLen() int32
 
 	Tell(message interface{})
 	Request(message interface{}, sender *actor.PID)

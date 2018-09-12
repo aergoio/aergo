@@ -57,6 +57,7 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 		resultView = append(resultView, peerData)
 	}
 	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "\t")
 	if nil == err {
 		encoder.Encode(resultView)
 	} else {

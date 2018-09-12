@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -35,7 +36,6 @@ var (
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
 	*Status
-	ID peer.ID
 	*component.ComponentHub
 	bpc  *bp.Cluster
 	bf   *BlockFactory
@@ -57,16 +57,13 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 		return nil, err
 	}
 
-	id, privKey := p2p.GetMyID()
-
 	quitC := make(chan interface{})
 
 	return &DPoS{
 		Status:       NewStatus(bpConsensusCount),
-		ID:           id,
 		ComponentHub: hub,
 		bpc:          bpc,
-		bf:           NewBlockFactory(hub, id, privKey, quitC),
+		bf:           NewBlockFactory(hub, quitC),
 		quit:         quitC,
 	}, nil
 }
@@ -100,6 +97,12 @@ func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
 }
 
+// SetStateDB sets sdb to the corresponding field of DPoS. This method is
+// called only once during the boot sequence.
+func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
+	dpos.bf.setStateDB(sdb)
+}
+
 // IsTransactionValid checks the DPoS consensus level validity of a transaction
 func (dpos *DPoS) IsTransactionValid(tx *types.Tx) bool {
 	// TODO: put a transaction validity check code here.
@@ -112,6 +115,10 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 	return dpos.quit
 }
 
+func (dpos *DPoS) bpid() peer.ID {
+	return p2p.NodeID()
+}
+
 // IsBlockValid checks the DPoS consensus level validity of a block
 func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	id, err := block.BPID()
@@ -119,7 +126,7 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	if id == dpos.ID && block.PrevID() != bestBlock.ID() {
+	if id == dpos.bpid() && block.PrevID() != bestBlock.ID() {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf(
 				"best block changed after block production: parent: %v (curr: %v), best block: %v",
@@ -147,9 +154,9 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 }
 
 func (dpos *DPoS) bpIdx() uint16 {
-	idx, exist := dpos.bpc.BpID2Index(dpos.ID)
+	idx, exist := dpos.bpc.BpID2Index(dpos.bpid())
 	if !exist {
-		logger.Fatal().Str("id", enc.ToString([]byte(dpos.ID))).Msg("BP has no correct BP membership")
+		logger.Fatal().Str("id", enc.ToString([]byte(dpos.bpid()))).Msg("BP has no correct BP membership")
 	}
 
 	return idx

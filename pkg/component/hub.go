@@ -120,8 +120,9 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 			// when error is occurred, record it.
 			// the most frequently occurred error will be a timeout error
 			retCompStatics[name] = &CompStatRsp{
-				Status: StatusToString(compStatus[name]),
-				Error:  err.Error(),
+				Status:      StatusToString(compStatus[name]),
+				MsgQueueLen: uint64(hub.Get(name).MsgQueueLen()),
+				Error:       err.Error(),
 			}
 		} else {
 			// in normal case, success, record response

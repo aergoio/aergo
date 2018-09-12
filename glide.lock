@@ -1,8 +1,8 @@
 hash: fe62f1911bda4db83f4189595e2e83f8cac0b3c85bcfa47907fef826e8737729
-updated: 2018-08-31T18:06:40.139772+09:00
+updated: 2018-09-06T12:33:44.3113701+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
-  version: b3c1915a562f36a9304bd19f9d7569df2caff8a0
+  version: c64cbdbabc820bb9bdd772303bf96f56e7c9005a
   subpackages:
   - actor
   - eventstream
@@ -10,7 +10,7 @@ imports:
   - internal/queue/mpsc
   - mailbox
 - name: github.com/aergoio/aergo-lib
-  version: 18a207be67de50dc006e7c650e7a8a6da27941f6
+  version: 671edde07880ba49b09c698a07b9106e73110559
   subpackages:
   - config
   - db
@@ -23,7 +23,7 @@ imports:
 - name: github.com/AndreasBriese/bbloom
   version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
 - name: github.com/btcsuite/btcd
-  version: 79e00513b1011888b1e675157ab89f527f901cae
+  version: cff30e1d23fc9e800b2b5b4b41ef1817dda07e9f
   subpackages:
   - btcec
 - name: github.com/coreos/go-semver
@@ -143,18 +143,18 @@ imports:
   subpackages:
   - insecure
 - name: github.com/libp2p/go-conn-security-multistream
-  version: 3de64db695ce32ebd56b15f95833d0c461d736ba
+  version: 397cc1367f25da0ebdde6ea3ad09c36ec72d8d2e
 - name: github.com/libp2p/go-flow-metrics
   version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
 - name: github.com/libp2p/go-libp2p
-  version: 1f1aca1c28616769519c4f16d4d7362a109ecffe
+  version: 7dffae8a14e99b5042872ba790fd89c57593ef50
   subpackages:
   - config
   - p2p/host/basic
   - p2p/protocol/identify
   - p2p/protocol/identify/pb
 - name: github.com/libp2p/go-libp2p-circuit
-  version: 937f88457436addabd06ae70fcd51233a50bc74f
+  version: 9bb6dd6edd5ec39fb0693d8932979fe8e337deb6
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-crypto
@@ -162,7 +162,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 37b75b4e86d22a6b66af72d93071a6cc13469527
+  version: 6cba7bff531ff674558a2a351c941f123795a8a0
 - name: github.com/libp2p/go-libp2p-interface-connmgr
   version: 5c98952f405f0663ee124d26e8fb213396afe7b2
 - name: github.com/libp2p/go-libp2p-interface-pnet
@@ -172,7 +172,7 @@ imports:
 - name: github.com/libp2p/go-libp2p-metrics
   version: 2e91117d783799237709d7f5165eb55c86b623a1
 - name: github.com/libp2p/go-libp2p-nat
-  version: 491e7233bd3877ec8dafbab465cf5ac70e32fced
+  version: a5aa365517b7400c54636f1dac89294ea19b43aa
 - name: github.com/libp2p/go-libp2p-net
   version: 1eeec6d7e4e6d46717a764778c7b6b07285900e0
 - name: github.com/libp2p/go-libp2p-peer
@@ -188,7 +188,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: a13e3ec8a5953802db0208ed5c4219476eaa5a6c
+  version: 67b383f9f19d160e39463f13c78267d541cdd45d
 - name: github.com/libp2p/go-libp2p-transport
   version: c87b841d9637c0a42485bc4cff2a7656d429fbee
 - name: github.com/libp2p/go-libp2p-transport-upgrader
@@ -200,14 +200,14 @@ imports:
   subpackages:
   - mpool
 - name: github.com/libp2p/go-reuseport
-  version: 562c3ba3003e80c9829992a6c1a760d51eb0792b
+  version: e46628cb7483cfb92096837ad8f85e9b66f17fc1
   subpackages:
   - poll
   - singlepoll
 - name: github.com/libp2p/go-reuseport-transport
   version: 90b3b0a82752ab21f0c7fc2921335eabb64077c5
 - name: github.com/libp2p/go-sockaddr
-  version: 3c898fbfff40e5933d76362819727708dae6da97
+  version: a7494d4eefeb607c8bc491cf8850a6e8dbd41cab
   subpackages:
   - net
 - name: github.com/libp2p/go-stream-muxer
@@ -295,7 +295,7 @@ imports:
 - name: github.com/whyrusleeping/go-smux-multiplex
   version: cc30230b7c9a992ab1614cf9fb9bfc5f8244f907
 - name: github.com/whyrusleeping/go-smux-multistream
-  version: c707bf3c25fa380b20b54907790efde288775938
+  version: e799b10bc6eea2cc5ce18f7b7b4d8e1a0439476d
 - name: github.com/whyrusleeping/go-smux-yamux
   version: eac25f3e2d47aae211e457e7664b52634c95eea8
 - name: github.com/whyrusleeping/mafmt
@@ -309,7 +309,7 @@ imports:
   subpackages:
   - queue
 - name: golang.org/x/crypto
-  version: 182538f80094b6a8efaade63a8fd8e0d9d5843dd
+  version: 0709b304e793a5edb4a2c0145f281ecdc20838a4
   subpackages:
   - blake2s
   - blowfish
@@ -329,7 +329,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 49385e6e15226593f68b26af201feec29d5bba22
+  version: ebe1bf3edb3325c393447059974de898d5133eb8
   subpackages:
   - cpu
   - unix
@@ -358,7 +358,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: c66870c02cf823ceb633bcd05be3c7cda29976f4
+  version: 11092d34479b07829b72e10713b159248caf5dad
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
