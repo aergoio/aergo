@@ -46,12 +46,9 @@ all-recursive clean-recursive:
 		if [ $$? != 0 ]; then exit 1; fi; \
 	done
 
-all-local: $(LIBRARY) $(TARGET)
+all-local: $(LIBRARY) 
 
 .SUFFIXES: .c .o
-
-$(TARGET): $(OBJ_DIR)/aergoscc.o $(LIBRARY)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 $(LIBRARY): $(OBJS)
 	$(AR) rcs $@ $^

@@ -11,7 +11,7 @@ default: compile
 
 prepare: deps
 
-compile: aergocli aergosvr aergoluac
+compile: aergocli aergosvr aergoluac aergoscc
 
 build: test compile
 
@@ -41,6 +41,10 @@ aergocli: cmd/aergocli/*.go
 aergoluac: ./cmd/aergoluac/*.go
 	go build -o $(BINPATH)/aergoluac ./cmd/aergoluac
 	@echo "Done buidling aergoluac."
+
+aergoscc: ./cmd/aergoscc/*.go
+	go build -o $(BINPATH)/aergoscc ./cmd/aergoscc
+	@echo "Done buidling aergoscc."
 
 test:
 	@go test -timeout 60s ./...
