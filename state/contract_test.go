@@ -13,7 +13,8 @@ var chainStateDB *ChainStateDB
 func initTest(t *testing.T) {
 	chainStateDB = NewStateDB()
 	chainStateDB.Init("test")
-	genesisBlock := &types.Block{}
+	genesisBlock := &types.Genesis{}
+	genesisBlock.Block = &types.Block{}
 	err := chainStateDB.SetGenesis(genesisBlock)
 	if err != nil {
 		t.Errorf("failed init : %s", err.Error())

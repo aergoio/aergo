@@ -21,7 +21,8 @@ var sdb *state.ChainStateDB
 func initTest(t *testing.T) {
 	sdb = state.NewStateDB()
 	sdb.Init("test")
-	genesisBlock := &types.Block{}
+	genesisBlock := &types.Genesis{}
+	genesisBlock.Block = &types.Block{}
 	err := sdb.SetGenesis(genesisBlock)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
