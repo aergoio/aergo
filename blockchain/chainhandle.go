@@ -8,6 +8,7 @@ package blockchain
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -46,7 +47,14 @@ func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 }
 
 func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
-	return cs.cdb.getTx(txHash)
+
+	tx, txidx, err := cs.cdb.getTx(txHash)
+	block, err := cs.cdb.getBlock(txidx.BlockHash)
+	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return tx, nil, errors.New("tx is not in the main chain")
+	}
+	return tx, txidx, err
 }
 
 func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
