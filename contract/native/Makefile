@@ -3,9 +3,6 @@
 # @copyright defined in aergo/LICENSE.txt
 #
 
-TARGET = ../../bin/aergoscc
-LIBRARY = $(OBJ_DIR)/libaergoscc.a
-
 CC = cc
 CPP = cpp
 AR = ar
@@ -19,7 +16,11 @@ YACC = bison
 MKDIR_P = mkdir -p
 
 OBJ_DIR = build
+LIB_DIR = lib
 DEP_DIR = .deps
+
+TARGET = ../../bin/aergoscc
+LIBRARY = $(LIB_DIR)/libaergoscc.a
 
 SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c \
 	error.c strbuf.c stack.c util.c xalloc.c
@@ -29,9 +30,9 @@ DEPS = $(SRCS:%.c=$(DEP_DIR)/%.d)
 
 SUBDIRS = . tests
 
-all: $(OBJ_DIR) $(DEP_DIR) all-recursive
+all: $(OBJ_DIR) $(LIB_DIR) $(DEP_DIR) all-recursive
 
-$(OBJ_DIR) $(DEP_DIR):
+$(OBJ_DIR) $(LIB_DIR) $(DEP_DIR):
 	@$(MKDIR_P) $@
 
 all-recursive clean-recursive:
@@ -66,7 +67,7 @@ $(OBJ_DIR)/%.o: %.c
 clean: clean-recursive
 
 clean-local:
-	$(RM) -r build *.yy.* *.tab.* *.output $(TARGET)
+	$(RM) -r *.yy.* *.tab.* *.output $(OBJ_DIR) $(LIB_DIR) $(TARGET)
 
 test: $(LIBRARY)
 	@$(MAKE) -C tests $(MAKECMDGOALS)

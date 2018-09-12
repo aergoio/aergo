@@ -5,15 +5,15 @@
 
 TARGET = parser_test
 
-OBJ_DIR = ../build
+LIB_DIR = ../lib
 DEP_DIR = ../.deps
 
 CC = gcc
 CPP = cpp
 CFLAGS += -g -Wall
-LDFLAGS += -L$(OBJ_DIR)
-LIBS = $(OBJ_DIR)/libaergoscc.a
-LINKFLAGS = $(patsubst $(OBJ_DIR)/lib%.a,-l%,$(LIBS)) -lm
+LDFLAGS += -L$(LIB_DIR)
+LIBS = $(LIB_DIR)/libaergoscc.a
+LINKFLAGS = $(patsubst $(LIB_DIR)/lib%.a,-l%,$(LIBS)) -lm
 INCLUDES = -I..
 
 SRCS = parser_test.c
