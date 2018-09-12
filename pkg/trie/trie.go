@@ -27,7 +27,7 @@ type Trie struct {
 	lock sync.RWMutex
 	hash func(data ...[]byte) []byte
 	// KeySize is the size in bytes corresponding to TrieHeight, is size of an address.
-	KeySize       uint64
+	//KeySize       uint64
 	TrieHeight    uint64
 	defaultHashes [][]byte
 	// LoadDbCounter counts the nb of db reads in on update
@@ -45,20 +45,18 @@ type Trie struct {
 }
 
 // NewSMT creates a new SMT given a keySize and a hash function.
-func NewTrie(keySize uint64, hash func(data ...[]byte) []byte, store db.DB) *Trie {
-	//TODO determine keySize from len(hash)
+func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	s := &Trie{
 		hash:             hash,
-		TrieHeight:       keySize * 8,
-		CacheHeightLimit: 233, // 246, //234, // based on the number of nodes we can keep in memory.
-		KeySize:          keySize,
+		TrieHeight:       uint64(len(hash([]byte("height"))) * 8), // hash any string to get output length
+		CacheHeightLimit: 233,                                     // 246, //234, // based on the number of nodes we can keep in memory.
 	}
 	s.db = &CacheDB{
-		liveCache:    make(map[Hash][][]byte, 5e6),
-		updatedNodes: make(map[Hash][][]byte, 5e3),
+		liveCache:    make(map[Hash][][]byte),
+		updatedNodes: make(map[Hash][][]byte),
 		store:        store,
 	}
-	s.Root = nil
+	s.Root = root
 	s.loadDefaultHashes()
 	return s
 }
