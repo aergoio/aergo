@@ -4,8 +4,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -88,29 +90,36 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 }
 
 func TestInvalidTransactions(t *testing.T) {
-	/*
-		beforeTest(t)
-		defer afterTest()
-		tx := genTx(0, 1, 1, 1)
+	t.Log("TestInvalidTransactions")
+	beforeTest()
+	defer afterTest()
 
-		err := key.SignTx(tx, sign[1])
-		if err == nil {
-			t.Errorf("put invalid tx should be failed")
+	txslice := make([]*types.Tx, 0)
+	tx := genTx(0, 1, 1, 1)
+	tx.Body.Amount = 999999
+
+	txslice = append(txslice, tx)
+
+	verifier := NewSignVerifier(DefaultVerifierCnt)
+
+	failed, errors := verifier.VerifyTxs(&types.TxList{Txs: txslice})
+
+	assert.Equal(t, failed, true)
+
+	if failed {
+		for i, error := range errors {
+			if error != nil {
+				assert.Equal(t, i, 0)
+				assert.Equal(t, error, message.ErrSignNotMatch)
+			}
 		}
-
-		tx.Body.Sign = nil
-		tx.Hash = tx.CalculateTxHash()
-
-		if err == nil {
-			t.Errorf("put invalid tx should be failed")
-		}
-	*/
+	}
 }
 
 // gen sequential transactions
 // bench
 func TestVerifyValidTxs(t *testing.T) {
-	t.Log("TestVerify")
+	t.Log("TestVerifyValidTxs")
 	beforeTest()
 	defer afterTest()
 
@@ -125,16 +134,14 @@ func TestVerifyValidTxs(t *testing.T) {
 	if failed {
 		for i, error := range errors {
 			if error != nil {
-				t.Errorf("failed tx %d:%s", i, error.Error())
+				t.Fatalf("failed tx %d:%s", i, error.Error())
 			}
 		}
 	}
-
-	t.Log("block verify succeed")
 }
 
 func BenchmarkVerify10000tx(b *testing.B) {
-	b.Log("TestVerify")
+	b.Log("BenchmarkVerify10000tx")
 	beforeTest()
 	defer afterTest()
 
@@ -157,12 +164,10 @@ func BenchmarkVerify10000tx(b *testing.B) {
 			}
 		}
 	}
-
-	b.Log("block verify succeed")
 }
 
 func BenchmarkVerify10000txSerial(b *testing.B) {
-	b.Log("TestVerify")
+	b.Log("BenchmarkVerify10000txSerial")
 	beforeTest()
 	defer afterTest()
 
@@ -185,6 +190,4 @@ func BenchmarkVerify10000txSerial(b *testing.B) {
 			}
 		}
 	}
-
-	b.Log("block verify succeed")
 }

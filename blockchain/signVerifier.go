@@ -56,8 +56,12 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 
 	for txWork := range sv.workCh {
 		//logger.Debug().Int("worker", workerNo).Int("idx", txWork.idx).Msg("get work to verify tx")
-
 		err := verifyTx(txWork.tx)
+
+		if err != nil {
+			logger.Error().Int("worker", workerNo).Str("hash", types.EncodeB64(txWork.tx.GetHash())).
+				Str("err", err.Error()).Msg("error verify tx")
+		}
 
 		sv.doneCh <- VerifyResult{work: &txWork, err: err}
 	}
@@ -87,7 +91,7 @@ func (sv *SignVerifier) VerifyTxs(txlist *types.TxList) (bool, []error) {
 
 	errors := make([]error, txLen, txLen)
 
-	logger.Debug().Int("txlen", txLen).Msg("verify tx start")
+	//logger.Debug().Int("txlen", txLen).Msg("verify tx start")
 
 	go func() {
 		for i, tx := range txs {
@@ -115,7 +119,7 @@ LOOP:
 
 			if result.err != nil {
 				logger.Error().Str("err", result.err.Error()).Int("txno", result.work.idx).
-					Msg("verify Tx failed")
+					Msg("verifing tx failed")
 				failed = true
 			}
 
