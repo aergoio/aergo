@@ -46,7 +46,7 @@ var newAccountCmd = &cobra.Command{
 	PreRun:  preConnectAergo,
 	PostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-
+		preConnectAergo(cmd, args)
 		var param types.Personal
 		var err error
 		if pw != "" {
