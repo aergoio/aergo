@@ -30,7 +30,7 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	blockNo := cs.cdb.getBestBlockNo()
-	logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
 
 	return cs.cdb.getBlockByNo(blockNo)
 }
@@ -106,6 +106,13 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockSta
 	for tblock != nil {
 		blockNo := tblock.GetHeader().GetBlockNo()
 		dbtx := cs.cdb.store.NewTx(true)
+
+		isBPMade := (usedBstate != nil)
+		if isBPMade == false {
+			if err = cs.verifier.VerifyBlock(tblock); err != nil {
+				return err
+			}
+		}
 
 		if isMainChain {
 			if err = cs.executeBlock(usedBstate, tblock); err != nil {

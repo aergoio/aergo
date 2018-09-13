@@ -31,6 +31,8 @@ type ChainService struct {
 	cdb *ChainDB
 	sdb *state.ChainStateDB
 	op  *OrphanPool
+
+	verifier *BlockVerifier
 }
 
 var (
@@ -49,6 +51,8 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 	if cc != nil {
 		cc.SetStateDB(actor.sdb)
 	}
+
+	actor.verifier = NewBlockVerifier()
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -100,7 +104,7 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
-		logger.Info().Msg(string(cs.cdb.latest))
+		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
 		if cs.cdb.latest == 0 {
 			if genesis == nil {
 				genesis = GetDefaultGenesis()
@@ -150,6 +154,8 @@ func (cs *ChainService) BeforeStop() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
+
+	cs.verifier.Stop()
 
 	contract.DB.Close()
 }
