@@ -25,7 +25,7 @@ contract test {
 }
 
 @desc unterminated_string
-@error UNTERMINATED_STRING_ERROR
+@error ERROR_UNTERMINATED_STRING
 contract test {
     string v = "unterminated string\";
 }

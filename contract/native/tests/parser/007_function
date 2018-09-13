@@ -22,7 +22,7 @@ contract test {
 }
 
 @desc invalid_transfer_modifier
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     transfer local func f1() { }
 }

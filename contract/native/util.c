@@ -17,7 +17,7 @@ open_file(char *path, char *mode)
    
     fp = fopen(path, mode);
     if (fp == NULL)
-        FATAL(FILE_IO_ERROR, path, strerror(errno));
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     return fp;
 }
@@ -43,7 +43,7 @@ read_file(char *path, strbuf_t *sb)
     }
 
     if (!feof(fp))
-        FATAL(FILE_IO_ERROR, path, strerror(errno));
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     fclose(fp);
 }
@@ -58,7 +58,7 @@ write_file(char *path, strbuf_t *sb)
 
     n = fwrite(strbuf_text(sb), strbuf_length(sb), 1, fp);
     if (n == 0)
-        FATAL(FILE_IO_ERROR, path, strerror(errno));
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     fclose(fp);
 }
@@ -87,13 +87,13 @@ make_trace(char *path, yylloc_t *lloc)
     }
     
     if (fseek(fp, adj_offset, SEEK_SET) < 0)
-        FATAL(FILE_IO_ERROR, path, strerror(errno));
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     buf = xmalloc(TRACE_LINE_MAX * 3);
 
     nread = fread(buf, 1, TRACE_LINE_MAX, fp);
     if (nread <= 0 && !feof(fp))
-        FATAL(FILE_IO_ERROR, path, strerror(errno));
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     for (i = 0; i < nread; i++) {
         if (buf[i] == '\n' || buf[i] == '\r')

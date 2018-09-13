@@ -22,6 +22,6 @@ contract test {
 }
 
 @desc unterminated_comment
-@error UNTERMINATED_COMMENT_ERROR
+@error ERROR_UNTERMINATED_COMMENT
 contract test {
     /* This is an unterminated comment

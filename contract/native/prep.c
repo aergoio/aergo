@@ -81,7 +81,7 @@ add_file(char *path, stack_t *imp)
 
     while (true) {
         if (strcmp(node->item, path) == 0)
-            FATAL(CROSS_IMPORT_ERROR, path);
+            FATAL(ERROR_CROSS_IMPORT, path);
     }
 
     stack_push(imp, xstrdup(path));

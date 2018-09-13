@@ -17,7 +17,7 @@ contract test {
 }
 
 @desc incompatible_declaration
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     int v16, string v17;
 }
@@ -28,7 +28,7 @@ contract test {
 }
 
 @desc invalid_qualifier_position
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     int const v;
 }
@@ -40,7 +40,7 @@ contract test {
 }
 
 @desc invalid_type_modifier
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     public int v1;
     private int v1;
@@ -58,19 +58,19 @@ contract test {
 }
 
 @desc invalid_brace_position
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     int[10] v;
 }
 
 @desc missing_declarator
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     int;
 }
 
 @desc missing_semicolon
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     int v
 }
@@ -99,7 +99,7 @@ contract test {
 }
 
 @desc empty_struct
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     struct s {
     }
@@ -107,7 +107,7 @@ contract test {
 }
 
 @desc struct_of_struct
-@error SYNTAX_ERROR
+@error ERROR_SYNTAX
 contract test {
     struct outer {
         struct inner {

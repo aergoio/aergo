@@ -150,7 +150,7 @@ get_opt(int argc, char **argv, opt_t *opt)
         else if (strcmp(argv[i], "--yacc-dump") == 0)
             opt_set(*opt, OPT_YACC_DUMP);
         else
-            FATAL(INVALID_OPTION_ERROR, argv[i]);
+            FATAL(ERROR_INVALID_OPTION, argv[i]);
     }
 }
 

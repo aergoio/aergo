@@ -91,7 +91,7 @@
             prev = c;                                                          \
         }                                                                      \
         if (c == '\0') {                                                       \
-            yy_error(UNTERMINATED_COMMENT_ERROR);                              \
+            yy_error(ERROR_UNTERMINATED_COMMENT);                              \
             yyterminate();                                                     \
         }                                                                      \
     } while (0)
@@ -107,7 +107,7 @@
             if (c == '\n') {                                                   \
                 strbuf_reset(YY_BUF);                                          \
                 unput(c);                                                      \
-                yy_error(UNTERMINATED_STRING_ERROR);                           \
+                yy_error(ERROR_UNTERMINATED_STRING);                           \
                 break;                                                         \
             }                                                                  \
             else {                                                             \
@@ -117,39 +117,7 @@
             prev = c;                                                          \
         }                                                                      \
         if (c == '\0') {                                                       \
-            yy_error(UNTERMINATED_STRING_ERROR);                               \
-            yyterminate();                                                     \
-        }                                                                      \
-    } while (0)
-
-#define yy_scan_sql()                                                          \
-    do {                                                                       \
-        char c, prev = '\0';                                                   \
-        while ((c = input(yyscanner)) != '\0') {                               \
-            if (c == ';' && prev != '\\') {                                    \
-                unput(c);                                                      \
-                break;                                                         \
-            }                                                                  \
-            else if (prev == '/' && c == '*') {                                \
-                lloc->last.col++;                                              \
-                yy_scan_comment();                                             \
-            }                                                                  \
-            else if (c == '"' && prev != '\\') {                               \
-                lloc->last.col++;                                              \
-                yy_scan_literal();                                             \
-            }                                                                  \
-            else if (c == '\n') {                                              \
-                yy_update_last_line();                                         \
-                strbuf_append(YY_BUF, &c, 1);                                  \
-            }                                                                  \
-            else {                                                             \
-                lloc->last.col++;                                              \
-                strbuf_append(YY_BUF, &c, 1);                                  \
-            }                                                                  \
-            prev = c;                                                          \
-        }                                                                      \
-        if (c == '\0') {                                                       \
-            yy_error(UNTERMINATED_SQL_ERROR);                                  \
+            yy_error(ERROR_UNTERMINATED_STRING);                               \
             yyterminate();                                                     \
         }                                                                      \
     } while (0)
@@ -312,7 +280,7 @@ id                          {L}({L}|{D})*
 . {
     yy_update_first();
     yy_update_last_col();
-    yy_error(UNKNOWN_CHAR_ERROR);
+    yy_error(ERROR_UNKNOWN_CHAR);
     yy_recover();
 }
 

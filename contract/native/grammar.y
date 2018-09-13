@@ -532,7 +532,7 @@ identifier:
 static void
 yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
 {
-    ERROR(SYNTAX_ERROR, FILENAME(param->path), lloc->first.line, msg,
+    ERROR(ERROR_SYNTAX, FILENAME(param->path), lloc->first.line, msg,
           make_trace(param->path, lloc));
 }
 
