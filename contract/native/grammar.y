@@ -364,7 +364,6 @@ expression:
 
 expr_assign:
     expr_sql
-|   expr_cond
 |   expr_unary op_assign expr_assign
 ;
 
@@ -383,7 +382,8 @@ op_assign:
 ;
 
 expr_sql:
-    sql_prefix error ';'
+    expr_cond
+|   sql_prefix error ';'
     {
         yyerrok;
         error_pop();
