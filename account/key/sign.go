@@ -2,7 +2,9 @@ package key
 
 import (
 	"bytes"
-	"crypto/sha256"
+
+	sha256 "github.com/minio/sha256-simd"
+
 	"encoding/binary"
 
 	"github.com/aergoio/aergo/message"

@@ -1,7 +1,8 @@
 package types
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/minio/sha256-simd"
+
 	"testing"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"

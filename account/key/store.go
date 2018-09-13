@@ -3,9 +3,10 @@ package key
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/sha256"
 	"os"
 	"path"
+
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/message"

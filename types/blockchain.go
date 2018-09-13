@@ -7,10 +7,11 @@ package types
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"io"
 	"reflect"
+
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo/internal/enc"
 	crypto "github.com/libp2p/go-libp2p-crypto"

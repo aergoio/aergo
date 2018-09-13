@@ -7,7 +7,9 @@ package cmd
 
 import (
 	"context"
-	"crypto/sha256"
+
+	sha256 "github.com/minio/sha256-simd"
+
 	"fmt"
 	"io/ioutil"
 

@@ -1,5 +1,5 @@
-hash: fe62f1911bda4db83f4189595e2e83f8cac0b3c85bcfa47907fef826e8737729
-updated: 2018-09-06T12:33:44.3113701+09:00
+hash: 6d07dfbfcc47a436b2d415423b576ccfedc7b3c6386ffff2c7acdc027cc7ecf5
+updated: 2018-09-13T19:45:45.5725836+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: c64cbdbabc820bb9bdd772303bf96f56e7c9005a
@@ -113,7 +113,7 @@ imports:
   - soap
   - ssdp
 - name: github.com/improbable-eng/grpc-web
-  version: 72eb701d6f320ca324b3347c7925a720b553eae5
+  version: 8bc2a4d43363d03ea6cfbd3db96e4a5458bfbfc7
   subpackages:
   - go/grpcweb
 - name: github.com/inconshreveable/mousetrap
@@ -162,9 +162,9 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 6cba7bff531ff674558a2a351c941f123795a8a0
+  version: 609d60a267a8a3ac0abd4e411ba3f0d611adad78
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: 5c98952f405f0663ee124d26e8fb213396afe7b2
+  version: f81018e8b2ec3e3747455a823f5f62127e5fd9cd
 - name: github.com/libp2p/go-libp2p-interface-pnet
   version: 86e6fc84b906599eac696308369896ece0ced63b
 - name: github.com/libp2p/go-libp2p-loggables
@@ -174,7 +174,7 @@ imports:
 - name: github.com/libp2p/go-libp2p-nat
   version: a5aa365517b7400c54636f1dac89294ea19b43aa
 - name: github.com/libp2p/go-libp2p-net
-  version: 1eeec6d7e4e6d46717a764778c7b6b07285900e0
+  version: 674eaa7c042aeae16b11efb56ab59b1732b9a675
 - name: github.com/libp2p/go-libp2p-peer
   version: 010c46e7b432a0b454d9ca397f08f364fa2139af
 - name: github.com/libp2p/go-libp2p-peerstore
@@ -188,7 +188,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: 67b383f9f19d160e39463f13c78267d541cdd45d
+  version: 47c2aca63800c221f3262fcce9bfb9f4d4de6647
 - name: github.com/libp2p/go-libp2p-transport
   version: c87b841d9637c0a42485bc4cff2a7656d429fbee
 - name: github.com/libp2p/go-libp2p-transport-upgrader
@@ -285,7 +285,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 9a97c102cda95a86cec2345a6f09f55a939babf5
 - name: github.com/spf13/viper
-  version: 907c19d40d9a6c9bb55f040ff4ae45271a4754b9
+  version: 8fb642006536c8d3760c99d4fa2389f5e2205631
 - name: github.com/whyrusleeping/go-logging
   version: 0457bb6b88fc1973573aaf6b5145d8d3ae972390
 - name: github.com/whyrusleeping/go-multiplex

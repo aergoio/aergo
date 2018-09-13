@@ -7,10 +7,11 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strconv"
+
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/contract"
