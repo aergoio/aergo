@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	maxAccount   = 100
-	maxRecipient = 100
+	maxAccount   = 1000
+	maxRecipient = 1000
 	maxTx        = 10000
 )
 
@@ -21,7 +21,9 @@ var (
 	accs      [maxAccount][]byte
 	sign      [maxAccount]*btcec.PrivateKey
 	recipient [maxRecipient][]byte
-	txs       [maxTx]*types.Tx
+	txs       []*types.Tx
+
+	verifier *SignVerifier
 )
 
 func TestTXs(t *testing.T) {
@@ -37,8 +39,12 @@ func getAccount(tx *types.Tx) string {
 	return hex.EncodeToString(tx.GetBody().GetAccount())
 }
 
-func beforeTest() error {
-	for i := 0; i < maxAccount; i++ {
+func beforeTest(accCount int, txCountPerAcc int) error {
+	if verifier == nil {
+		verifier = NewSignVerifier(DefaultVerifierCnt)
+	}
+
+	for i := 0; i < accCount; i++ {
 		privkey, err := btcec.NewPrivateKey(btcec.S256())
 		if err != nil {
 			return err
@@ -49,22 +55,17 @@ func beforeTest() error {
 		recipient[i] = _itobU32(uint32(i))
 	}
 
-	// init Tx
-	for i := 0; i < maxTx; i++ {
-		txs[i] = nil
-	}
+	txs = make([]*types.Tx, 0, accCount*txCountPerAcc)
 
 	// gen Tx
-	accCount := 100
-	txCount := 100
-	nonce := make([]uint64, txCount)
-	for i := 0; i < txCount; i++ {
+	nonce := make([]uint64, txCountPerAcc)
+	for i := 0; i < txCountPerAcc; i++ {
 		nonce[i] = uint64(i + 1)
 	}
 	for i := 0; i < accCount; i++ {
-		for j := 0; j < txCount; j++ {
+		for j := 0; j < txCountPerAcc; j++ {
 			tmp := genTx(i, j, nonce[j], uint64(i+1))
-			txs[i*txCount+j] = tmp
+			txs = append(txs, tmp)
 		}
 	}
 
@@ -91,16 +92,14 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 
 func TestInvalidTransactions(t *testing.T) {
 	t.Log("TestInvalidTransactions")
-	beforeTest()
-	defer afterTest()
+	beforeTest(10, 1)
+	//defer afterTest()
 
 	txslice := make([]*types.Tx, 0)
 	tx := genTx(0, 1, 1, 1)
 	tx.Body.Amount = 999999
 
 	txslice = append(txslice, tx)
-
-	verifier := NewSignVerifier(DefaultVerifierCnt)
 
 	failed, errors := verifier.VerifyTxs(&types.TxList{Txs: txslice})
 
@@ -120,15 +119,13 @@ func TestInvalidTransactions(t *testing.T) {
 // bench
 func TestVerifyValidTxs(t *testing.T) {
 	t.Log("TestVerifyValidTxs")
-	beforeTest()
+	beforeTest(3, 3)
 	defer afterTest()
 
 	txslice := make([]*types.Tx, 0)
 	for _, tx := range txs {
 		txslice = append(txslice, tx)
 	}
-
-	verifier := NewSignVerifier(DefaultVerifierCnt)
 
 	failed, errors := verifier.VerifyTxs(&types.TxList{Txs: txslice})
 	if failed {
@@ -142,15 +139,13 @@ func TestVerifyValidTxs(t *testing.T) {
 
 func BenchmarkVerify10000tx(b *testing.B) {
 	b.Log("BenchmarkVerify10000tx")
-	beforeTest()
+	beforeTest(100, 100)
 	defer afterTest()
 
 	txslice := make([]*types.Tx, 0)
 	for _, tx := range txs {
 		txslice = append(txslice, tx)
 	}
-
-	verifier := NewSignVerifier(DefaultVerifierCnt)
 
 	b.ResetTimer()
 
@@ -168,15 +163,13 @@ func BenchmarkVerify10000tx(b *testing.B) {
 
 func BenchmarkVerify10000txSerial(b *testing.B) {
 	b.Log("BenchmarkVerify10000txSerial")
-	beforeTest()
+	beforeTest(100, 100)
 	defer afterTest()
 
 	txslice := make([]*types.Tx, 0)
 	for _, tx := range txs {
 		txslice = append(txslice, tx)
 	}
-
-	verifier := NewSignVerifier(DefaultVerifierCnt)
 
 	b.ResetTimer()
 
