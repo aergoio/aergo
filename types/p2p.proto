@@ -7,7 +7,7 @@ import "blockchain.proto";
 import "node.proto";
 
 // MessageData has datas shared between all app protocols
-message MessageData {
+message MsgHeader {
     // client version
     string clientVersion = 1;
     // unix time
@@ -92,7 +92,7 @@ enum ResultStatus {
 }
 
 message P2PMessage {
-    MessageData header = 1;
+    MsgHeader header = 1;
     bytes data = 2;
 }
 
@@ -120,9 +120,8 @@ message GoAwayNotice {
     string message = 1;
 } 
 message AddressesRequest {
-    MessageData messageData = 1;
-    PeerAddress sender = 2;
-    uint32 maxSize = 3;
+    PeerAddress sender = 1;
+    uint32 maxSize = 2;
 }
 
 message AddressesResponse {

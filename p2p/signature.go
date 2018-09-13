@@ -14,7 +14,7 @@ import (
 // Authenticate incoming p2p message
 // message: a protobufs go data object
 // data: common p2p message data
-func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
+func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool {
 	// for Test only
 	return true
 

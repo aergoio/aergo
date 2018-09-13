@@ -22,8 +22,7 @@ func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 	}
 	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
 	// create message data
-	req := &types.AddressesRequest{MessageData: &types.MessageData{},
-		Sender: &senderAddr, MaxSize: 50}
+	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
 	remotePeer.sendMessage(newPbMsgRequestOrder(true, false, addressesRequest, req))
 	return true
 }

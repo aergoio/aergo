@@ -59,7 +59,7 @@ func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
-func (bh *blockRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
@@ -100,7 +100,7 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 	return unmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *blockResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
@@ -127,7 +127,7 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
@@ -192,7 +192,7 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
@@ -214,7 +214,7 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
@@ -259,7 +259,7 @@ func (bh *getMissingRequestHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.GetMissingRequest{})
 }
 
-func (bh *getMissingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetMissingRequest)

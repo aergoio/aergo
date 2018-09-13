@@ -35,15 +35,19 @@ func (ph *addressesRequestHandler) parsePayload(rawbytes []byte) (proto.Message,
 	return unmarshalAndReturn(rawbytes, &types.AddressesRequest{})
 }
 
-func (ph *addressesRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *addressesRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, nil)
 
+	// check sender
+	maxPeers := data.MaxSize
+
 	// generate response message
 	resp := &types.AddressesResponse{}
 	var addrList = make([]*types.PeerAddress, 0, len(ph.pm.GetPeers()))
+	addrCount := uint32(0)
 	for _, aPeer := range ph.pm.GetPeers() {
 		// exclude not running peer and requesting peer itself
 		// TODO: apply peer status after fix status management bug
@@ -52,10 +56,14 @@ func (ph *addressesRequestHandler) handle(msgHeader *types.MessageData, msgBody 
 		}
 		pAddr := aPeer.meta.ToPeerAddress()
 		addrList = append(addrList, &pAddr)
+		addrCount++
+		if addrCount >= maxPeers {
+			break
+		}
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.sendMessage(newPbMsgResponseOrder(data.MessageData.Id, true, addressesResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.Id, true, addressesResponse, resp))
 }
 
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
@@ -84,7 +92,7 @@ func (ph *addressesResponseHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.AddressesResponse{})
 }
 
-func (ph *addressesResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *addressesResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)

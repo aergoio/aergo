@@ -24,7 +24,7 @@ const ClientVersion = "0.1.0"
 
 type pbMessage interface {
 	proto.Message
-	//GetMessageData() *types.MessageData
+	//GetMessageData() *types.MsgHeader
 }
 
 type pbMessageOrder struct {
@@ -48,7 +48,7 @@ func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, p
 		return nil
 	}
 
-	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 	p2pmsg.Data = bytes
 	request := false
 	if len(reqID) == 0 {
@@ -65,7 +65,7 @@ func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, p
 	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: sign, message: p2pmsg}
 }
 
-func setupMessageData(md *types.MessageData, reqID string, gossip bool, version string, ts int64) {
+func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
 	md.Id = reqID
 	md.Gossip = gossip
 	md.ClientVersion = version
@@ -135,11 +135,11 @@ func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
 
 // NewMessageData is helper method - generate message data shared between all node's p2p protocols
 // messageId: unique for requests, copied from request for responses
-func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip bool) *types.MessageData {
+func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip bool) *types.MsgHeader {
 	// Add protobufs bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
 
-	return &types.MessageData{ClientVersion: "0.1.0",
+	return &types.MsgHeader{ClientVersion: "0.1.0",
 		Id:         messageID,
 		NodePubKey: pubKeyBytes,
 		Timestamp:  time.Now().Unix(),
@@ -219,7 +219,7 @@ func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, erro
 }
 
 func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) *types.P2PMessage {
-	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 
 	bytes, err := marshalMessage(message)
 	if err != nil {

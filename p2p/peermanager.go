@@ -79,7 +79,7 @@ type PeerManager interface {
 
 	// deprecated methods... use sendmessage helper functions instead
 	SignProtoMessage(message proto.Message) ([]byte, error)
-	AuthenticateMessage(message proto.Message, data *types.MessageData) bool
+	AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool
 }
 
 /**
@@ -400,7 +400,7 @@ func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 		pm.logger.Warn().Err(err).Msg("failed to marshal")
 		return
 	}
-	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
+	container := &types.P2PMessage{Header: &types.MsgHeader{}, Data: serialized}
 	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
 	container.Header.Subprotocol = goAway.Uint32()
 	rw.WriteMsg(container)

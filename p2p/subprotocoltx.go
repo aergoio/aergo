@@ -43,7 +43,7 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
 }
 
-func (th *txRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	remotePeer := th.peer
 	data := msgBody.(*types.GetTransactionsRequest)
@@ -97,7 +97,7 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
 }
 
-func (th *txResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
 	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Txs))
@@ -119,7 +119,7 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
 }
 
-func (th *newTxNoticeHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
 	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))

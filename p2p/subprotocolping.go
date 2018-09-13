@@ -39,7 +39,7 @@ func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.Ping{})
 }
 
-func (ph *pingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *pingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Ping)
@@ -62,7 +62,7 @@ func (ph *pingResponseHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.Pong{})
 }
 
-func (ph *pingResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *pingResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
@@ -80,7 +80,7 @@ func (ph *goAwayHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
 	return unmarshalAndReturn(rawbytes, &types.GoAwayNotice{})
 }
 
-func (ph *goAwayHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *goAwayHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	data := msgBody.(*types.GoAwayNotice)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, data.Message)

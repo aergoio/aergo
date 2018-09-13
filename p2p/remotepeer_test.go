@@ -239,9 +239,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		mockPeerManager := new(MockPeerManager)
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 		t.Run(tt.name, func(t *testing.T) {
-			p.requests["r1"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
-			p.requests["r2"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
-			p.requests["rn"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MessageData{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
+			p.requests["r1"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
+			p.requests["r2"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
+			p.requests["rn"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -381,14 +381,14 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		mockPeerManager := new(MockPeerManager)
 		mockMsgHandler := new(MockMessageHandler)
 		t.Run(tt.name, func(t *testing.T) {
-			msg := &types.P2PMessage{Header: &types.MessageData{Subprotocol: pingRequest.Uint32()}}
+			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingRequest.Uint32()}}
 			if tt.args.nohandler {
 				msg.Header.Subprotocol = 3999999999
 			}
 			bodyStub := &types.Ping{}
 			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)
-			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.MessageData"), mock.Anything).Return(tt.args.autherr)
-			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MessageData"), mock.Anything)
+			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.MsgHeader"), mock.Anything).Return(tt.args.autherr)
+			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MsgHeader"), mock.Anything)
 
 			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger)
 			target.handlers[pingRequest] = mockMsgHandler
