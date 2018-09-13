@@ -7,7 +7,7 @@ package main
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../contract/native
-#cgo LDFLAGS: ${SRCDIR}/../../contract/native/build/libaergoscc.a -lm
+#cgo LDFLAGS: ${SRCDIR}/../../contract/native/lib/libaergoscc.a -lm
 
 #include "compile.h"
 #include "version.h"
