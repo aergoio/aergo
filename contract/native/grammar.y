@@ -49,11 +49,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* expr_lit */
 %token  <str>
-        FLOAT           HEXA            INT             STRING
-
-/* expr_sql */
-%token  <str>
-        DML             QUERY
+        L_FLOAT         L_HEXA          L_INT           L_STR
 
 /* operator */
 %token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
@@ -368,6 +364,7 @@ expression:
 
 expr_assign:
     expr_sql
+|   expr_cond
 |   expr_unary op_assign expr_assign
 ;
 
@@ -386,8 +383,7 @@ op_assign:
 ;
 
 expr_sql:
-    expr_cond
-|   sql_prefix error ';'
+    sql_prefix error ';'
     {
         yyerrok;
         error_pop();
@@ -498,11 +494,10 @@ expr_prim:
     K_NULL
 |   K_TRUE
 |   K_FALSE
-|   INT
-|   FLOAT
-|   HEXA
-|   QUERY
-|   STRING
+|   L_INT
+|   L_FLOAT
+|   L_HEXA
+|   L_STR
 |   identifier
 |   '(' expression ')'
 ;
@@ -515,8 +510,8 @@ expr_new:
 ;
 
 expr_list:
-    expr_assign
-|   expr_list ',' expr_assign
+    expr_cond
+|   expr_list ',' expr_cond
 ;
 
 identifier:

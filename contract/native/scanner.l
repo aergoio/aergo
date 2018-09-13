@@ -163,12 +163,12 @@ id                          {L}({L}|{D})*
     yy_update_first();
     yy_update_last_col();
     yy_scan_literal();
-    yy_return_buf(STRING);
+    yy_return_buf(L_STR);
 }
 
-{integer}                   yy_return(INT);
-{float}                     yy_return(FLOAT);
-{hexa}                      yy_return(HEXA);
+{integer}                   yy_return(L_INT);
+{float}                     yy_return(L_FLOAT);
+{hexa}                      yy_return(L_HEXA);
 
 "+="                        yy_return(OP_ADD_ASSIGN);
 "-="                        yy_return(OP_SUB_ASSIGN);
