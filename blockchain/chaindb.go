@@ -165,8 +165,11 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	return nil
 }
 
-func (cdb *ChainDB) setLatest(newLatest types.BlockNo) {
+func (cdb *ChainDB) setLatest(newLatest types.BlockNo) (oldLatest types.BlockNo) {
+	oldLatest = cdb.latest
 	cdb.latest = newLatest
+
+	return
 }
 
 func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
