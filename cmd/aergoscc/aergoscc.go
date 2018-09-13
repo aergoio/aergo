@@ -27,7 +27,7 @@ var (
 		Short: "Aergo smart contract compiler",
 		Run: func(cmd *cobra.Command, args []string) {
 			if version {
-				fmt.Println(fmt.Sprintf("Aergo smart contract compiler %d.%d", C.MAJOR_VER, C.MINOR_VER))
+				fmt.Println(fmt.Sprintf("Aergo smart contract compiler %d.%d.%d", C.MAJOR_VER, C.MINOR_VER, C.PATCH_VER))
 			} else if len(args) < 1 {
 				cmd.Usage()
 			} else {

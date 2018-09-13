@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "compile.h"
+#include "location.h"
 
 #define SCAN_BUF_SIZE       8192
 

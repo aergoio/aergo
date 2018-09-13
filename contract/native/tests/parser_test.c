@@ -17,7 +17,6 @@
 #define TAG_ERROR           "@error"
 
 extern void mark_file(char *path, int line, int offset, strbuf_t *out);
-extern opt_t opt_;
 
 char *tc = NULL;
 
@@ -153,8 +152,6 @@ get_opt(int argc, char **argv, opt_t *opt)
         else
             FATAL(INVALID_OPTION_ERROR, argv[i]);
     }
-
-    opt_ = *opt;
 }
 
 int

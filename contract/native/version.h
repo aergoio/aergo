@@ -9,6 +9,7 @@
 #include "common.h"
 
 #define MAJOR_VER       0
-#define MINOR_VER       1
+#define MINOR_VER       0
+#define PATCH_VER       1
 
 #endif /*_VERSION_H */

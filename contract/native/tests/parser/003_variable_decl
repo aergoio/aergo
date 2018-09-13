@@ -103,7 +103,18 @@ contract test {
 contract test {
     struct s {
     }
-    s y[10];
+    s x[10];
+}
+
+@desc struct_of_struct
+@error SYNTAX_ERROR
+contract test {
+    struct outer {
+        struct inner {
+            int a;
+        }
+    }
+    s x;
 }
 
 @desc map_type

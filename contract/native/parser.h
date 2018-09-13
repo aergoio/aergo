@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "compile.h"
+#include "location.h"
 #include "strbuf.h"
 
 typedef struct yyparam_s {

@@ -7,24 +7,21 @@
 
 #include "prep.h"
 #include "parser.h"
+#include "ast.h"
 #include "strbuf.h"
 
 #include "compile.h"
 
-opt_t opt_ = OPT_NONE;
-
 int
 compile(char *path, opt_t opt)
 {
-    strbuf_t res;
+    strbuf_t src;
 
-    opt_ = opt;
+    strbuf_init(&src);
 
-    strbuf_init(&res);
+    preprocess(path, &src);
 
-    preprocess(path, &res);
-
-    return parse(path, opt, &res);
+    return parse(path, opt, &src);
 }
 
 /* end of compile.c */
