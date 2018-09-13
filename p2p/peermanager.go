@@ -18,7 +18,6 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 
-	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -78,8 +77,8 @@ type PeerManager interface {
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 
 	// deprecated methods... use sendmessage helper functions instead
-	SignProtoMessage(message proto.Message) ([]byte, error)
-	AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool
+	//	SignProtoMessage(message proto.Message) ([]byte, error)
+	//	AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool
 }
 
 /**
@@ -92,6 +91,7 @@ type peerManager struct {
 	publicKey  crypto.PubKey
 	selfMeta   PeerMeta
 	actorServ  ActorService
+	signer     msgSigner
 	rm         ReconnectManager
 
 	designatedPeers map[peer.ID]PeerMeta
@@ -129,12 +129,13 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, rm ReconnectManager, logger *log.Logger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		actorServ: iServ,
 		conf:      p2pConf,
+		signer:    signer,
 		rm:        rm,
 		logger:    logger,
 		mutex:     &sync.Mutex{},
@@ -375,7 +376,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer)
 	newPeer.rw = rw
 	// insert Handlers
 	pm.insertHandlers(newPeer)
@@ -408,24 +409,24 @@ func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
 	// PingHandlers
-	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger)
-	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger)
-	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger)
-	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger)
-	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger)
+	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
 
 	// BlockHandlers
-	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger)
-	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger)
-	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger)
-	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger)
-	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger)
-	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger)
+	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
 
 	// TxHandlers
-	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger)
-	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger)
-	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger)
+	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -553,7 +554,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer)
 	peer.rw = rw
 	pm.insertHandlers(peer)
 	go peer.runPeer()

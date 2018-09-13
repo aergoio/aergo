@@ -7,13 +7,11 @@ package p2p
 
 import (
 	"bufio"
-	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
 	uuid "github.com/satori/go.uuid"
 )
@@ -24,7 +22,6 @@ const ClientVersion = "0.1.0"
 
 type pbMessage interface {
 	proto.Message
-	//GetMessageData() *types.MsgHeader
 }
 
 type pbMessageOrder struct {
@@ -42,7 +39,7 @@ var _ msgOrder = (*pbMessageOrder)(nil)
 
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
+func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
 	bytes, err := marshalMessage(message)
 	if err != nil {
 		return nil
@@ -62,7 +59,12 @@ func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, p
 	if request == false || gossip {
 		expecteResponse = false
 	}
-	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: sign, message: p2pmsg}
+	err = signer.signMsg(p2pmsg)
+	if err != nil {
+		panic("Failed to sign data " + err.Error())
+		return nil
+	}
+	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: true, message: p2pmsg}
 }
 
 func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
@@ -73,19 +75,19 @@ func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version st
 }
 
 // newPbMsgRequestOrder make send order for p2p request
-func newPbMsgRequestOrder(expecteResponse bool, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder("", expecteResponse, false, sign, protocolID, message)
+func newPbMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
+	return newPbMsgOrder("", expecteResponse, false, protocolID, message, signer)
 }
 
 // newPbMsgResponseOrder make send order for p2p response
-func newPbMsgResponseOrder(reqID string, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder(reqID, false, true, sign, protocolID, message)
+func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
+	return newPbMsgOrder(reqID, false, true, protocolID, message, signer)
 }
 
 // newPbMsgBroadcastOrder make send order for p2p broadcast,
 // which will be fanouted and doesn't expect response of receiving peer
-func newPbMsgBroadcastOrder(sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder("", false, true, sign, protocolID, message)
+func newPbMsgBroadcastOrder(protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
+	return newPbMsgOrder("", false, true, protocolID, message, signer)
 }
 
 func (pr *pbMessageOrder) GetRequestID() string {
@@ -114,37 +116,10 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
-func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
-	messageData := pr.message.Header
-	messageData.PeerID = peer.IDB58Encode(ps.SelfNodeID())
-	messageData.NodePubKey, _ = ps.PublicKey().Bytes()
-	signature, err := ps.SignProtoMessage(pr.message)
-	if err != nil {
-		return err
-	}
-	// TOCO check if this string conversion is safe. This conversion will corrupt data if []byte is binary data.
-	messageData.Sign = signature
-	return nil
-
-}
 
 // SendOver is send itself over the writer rw.
 func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
 	return w.WriteMsg(pr.message)
-}
-
-// NewMessageData is helper method - generate message data shared between all node's p2p protocols
-// messageId: unique for requests, copied from request for responses
-func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip bool) *types.MsgHeader {
-	// Add protobufs bin data for message author public key
-	// this is useful for authenticating  messages forwarded by a node authored by another node
-
-	return &types.MsgHeader{ClientVersion: "0.1.0",
-		Id:         messageID,
-		NodePubKey: pubKeyBytes,
-		Timestamp:  time.Now().Unix(),
-		PeerID:     peer.IDB58Encode(peerID),
-		Gossip:     gossip}
 }
 
 // SendProtoMessage send proto.Message data over stream
@@ -171,39 +146,6 @@ func SignProtoMessage(message proto.Message, privKey crypto.PrivKey) ([]byte, er
 func SignData(data []byte, privKey crypto.PrivKey) ([]byte, error) {
 	res, err := privKey.Sign(data)
 	return res, err
-}
-
-// VerifyData Verifies incoming p2p message data integrity
-// data: data to verify
-// signature: author signature provided in the message payload
-// peerID: author peer peer.ID from the message payload
-// pubKeyData: author public key from the message payload
-func VerifyData(data []byte, signature []byte, peerID peer.ID, pubKeyData []byte) error {
-	key, err := crypto.UnmarshalPublicKey(pubKeyData)
-	if err != nil {
-		return err
-	}
-
-	// extract node peer.ID from the provided public key
-	idFromKey, err := peer.IDFromPublicKey(key)
-	if err != nil {
-		return err
-	}
-
-	// verify that message author node peer.ID matches the provided node public key
-	if idFromKey != peerID {
-		return fmt.Errorf("PeerID mismatch")
-	}
-
-	res, err := key.Verify(data, signature)
-	if err != nil {
-		return err
-	}
-	if !res {
-		return fmt.Errorf("signature mismatch")
-	}
-
-	return nil
 }
 
 func marshalMessage(message proto.Message) ([]byte, error) {

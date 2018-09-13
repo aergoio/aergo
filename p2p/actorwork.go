@@ -23,7 +23,7 @@ func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
 	// create message data
 	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, false, addressesRequest, req))
+	remotePeer.sendMessage(newPbMsgRequestOrder(true, addressesRequest, req, p2ps.signer))
 	return true
 }
 
@@ -41,7 +41,7 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 	reqMsg := &types.GetBlockHeadersRequest{Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
 	}
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getBlockHeadersRequest, reqMsg))
+	remotePeer.sendMessage(newPbMsgRequestOrder(true, getBlockHeadersRequest, reqMsg, p2ps.signer))
 	return true
 }
 
@@ -61,7 +61,7 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 	// create message data
 	req := &types.GetBlockRequest{Hashes: hashes}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getBlocksRequest, req))
+	remotePeer.sendMessage(newPbMsgRequestOrder(true, getBlocksRequest, req, p2ps.signer))
 	return true
 }
 
@@ -75,7 +75,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 		req := &types.NewBlockNotice{
 			BlockHash: newBlock.Block.Hash,
 			BlockNo:   newBlock.BlockNo}
-		msg := newPbMsgBroadcastOrder(false, newBlockNotice, req)
+		msg := newPbMsgBroadcastOrder(newBlockNotice, req, p2ps.signer)
 		if neighbor.State() == types.RUNNING {
 			p2ps.Debug().Str(LogPeerID, neighbor.meta.ID.Pretty()).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
 			// FIXME need to check if remote peer knows this hash already.
@@ -105,7 +105,7 @@ func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bo
 		Hashes:   bhashes[1:],
 		Stophash: bhashes[0]}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(false, true, getMissingRequest, req))
+	remotePeer.sendMessage(newPbMsgRequestOrder(false, getMissingRequest, req, p2ps.signer))
 	return true
 }
 
@@ -133,7 +133,7 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	// create message data
 	req := &types.GetTransactionsRequest{Hashes: hashes}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, true, getTXsRequest, req))
+	remotePeer.sendMessage(newPbMsgRequestOrder(true, getTXsRequest, req, p2ps.signer))
 	return true
 }
 
@@ -148,7 +148,7 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	for _, peer := range p2ps.pm.GetPeers() {
 		// create message data
 		req := &types.NewTransactionsNotice{TxHashes: hashes}
-		peer.sendMessage(newPbMsgBroadcastOrder(false, newTxNotice, req))
+		peer.sendMessage(newPbMsgBroadcastOrder(newTxNotice, req, p2ps.signer))
 	}
 
 	return true

@@ -14,15 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var dummyPeerID peer.ID
-var dummyPeerID2 peer.ID
-var dummyPeerID3 peer.ID
-
-func init() {
-	dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
-	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	dummyPeerID3, _ = peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
-}
 func Test_reconnectRunner_runReconnect(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	// TODO: is it ok that this global var can be changed.

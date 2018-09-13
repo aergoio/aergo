@@ -34,7 +34,9 @@ type RemotePeer struct {
 	state     types.PeerState
 	actorServ ActorService
 	pm        PeerManager
-	stopChan  chan struct{}
+	signer    msgSigner
+
+	stopChan chan struct{}
 
 	write      p2putil.ChannelPipe
 	closeWrite chan struct{}
@@ -66,7 +68,6 @@ type msgOrder interface {
 	// ResponseExpected means that remote peer is expected to send response to this request.
 	ResponseExpected() bool
 	GetProtocolID() SubProtocol
-	SignWith(pm PeerManager) error
 	SendOver(w MsgWriter) error
 }
 
@@ -75,9 +76,9 @@ const (
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
+func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger, signer msgSigner) *RemotePeer {
 	peer := &RemotePeer{
-		meta: meta, pm: p2ps, actorServ: iServ, logger: log,
+		meta: meta, pm: p2ps, actorServ: iServ, logger: log, signer: signer,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -221,7 +222,7 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
 		return fmt.Errorf("Invalid message data")
 	}
-	err = handler.checkAuth(msg.Header, payload)
+	err = handler.checkAuth(msg, payload)
 	if err != nil {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
 		return fmt.Errorf("Failed to authenticate message")
@@ -260,16 +261,6 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	// sign the data
-	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
-	if m.IsNeedSign() {
-		err := m.SignWith(p.pm)
-		if err != nil {
-			p.logger.Warn().Err(err).Msg("fail to sign")
-			return
-		}
-	}
-
 	err := m.SendOver(p.rw)
 	if err != nil {
 		p.logger.Warn().Err(err).Msg("fail to SendOver")
@@ -320,7 +311,7 @@ func (p *RemotePeer) sendPing() {
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(true, false, pingRequest, pingMsg))
+	p.sendMessage(newPbMsgRequestOrder(true, pingRequest, pingMsg, p.signer))
 }
 
 // sendStatus is called once when a peer is added.()
@@ -334,13 +325,13 @@ func (p *RemotePeer) sendStatus() {
 		return
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(false, true, statusRequest, statusMsg))
+	p.sendMessage(newPbMsgRequestOrder(false, statusRequest, statusMsg, p.signer))
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{Message: msg}))
+	p.sendMessage(newPbMsgRequestOrder(false, goAway, &types.GoAwayNotice{Message: msg}, p.signer))
 	p.pm.RemovePeer(p.meta.ID)
 }
 

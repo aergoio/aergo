@@ -12,11 +12,11 @@ type MockMessageHandler struct {
 }
 
 // checkAuth provides a mock function with given fields: msgHeader, msgBody
-func (_m *MockMessageHandler) checkAuth(msgHeader *types.MsgHeader, msgBody proto.Message) error {
+func (_m *MockMessageHandler) checkAuth(msgHeader *types.P2PMessage, msgBody proto.Message) error {
 	ret := _m.Called(msgHeader, msgBody)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*types.MsgHeader, proto.Message) error); ok {
+	if rf, ok := ret.Get(0).(func(*types.P2PMessage, proto.Message) error); ok {
 		r0 = rf(msgHeader, msgBody)
 	} else {
 		r0 = ret.Error(0)

@@ -17,7 +17,7 @@ message MsgHeader {
     // Gossip is flag to have receiver peer gossip the message to neighbors
     bool gossip = 4;
     // PeerID is id of node that created the message (not the peer that may have sent it). =base58(mh(sha256(nodePubKey)))
-    string peerID = 5;
+    bytes peerID = 5;
     // nodePubKey Authoring node Secp256k1 public key (32bytes) - protobufs serielized
     bytes nodePubKey = 6;
     // signature of message data + method specific data by message authoring node. format: string([]bytes)

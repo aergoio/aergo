@@ -34,8 +34,8 @@ type newTxNoticeHandler struct {
 var _ MessageHandler = (*newTxNoticeHandler)(nil)
 
 // newTxReqHandler creates handler for GetTransactionsRequest
-func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txRequestHandler {
-	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txRequestHandler {
+	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -84,12 +84,12 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), true, getTxsResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), getTxsResponse, resp, th.signer))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
-func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txResponseHandler {
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -110,8 +110,8 @@ func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Me
 }
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
-func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *newTxNoticeHandler {
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 

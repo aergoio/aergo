@@ -5,7 +5,6 @@
 package p2p
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strconv"
 	"sync"
@@ -23,9 +22,6 @@ import (
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 )
 
-var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
-var dummyBlockHeight uint64 = 100215
-
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
 func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	mockActorServ := MockActorService{}
@@ -33,7 +29,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(&mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		new(MockReconnectManager),
+		nil, new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
 	target.Host = &mockHost{pstore.NewPeerstore()}
@@ -61,7 +57,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	target := NewPeerManager(mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		new(MockReconnectManager),
+		nil, new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
 	iterSize := 500
@@ -72,7 +68,7 @@ func FailTestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger)
+			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -100,7 +96,7 @@ func TestGetPeers(t *testing.T) {
 	InitNodeInfo(tConfig.P2P, tLogger)
 	target := NewPeerManager(mockActorServ,
 		tConfig,
-		new(MockReconnectManager),
+		nil, new(MockReconnectManager),
 		tLogger).(*peerManager)
 
 	iterSize := 500
@@ -113,7 +109,7 @@ func TestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger))
+			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger, nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
