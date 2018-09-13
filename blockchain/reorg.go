@@ -219,6 +219,7 @@ func (reorg *reorganizer) rollbackChainState() error {
 	rollbackBlock
 	- cdb.latest -= - 1
 	- gather rollbacked Txs
+    - delete tx/block mapping
 */
 func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 	cdb := reorg.cs.cdb
@@ -227,6 +228,7 @@ func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 
 	for _, tx := range block.GetBody().GetTxs() {
 		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
+		cdb.deleteTx(reorg.dbtx, tx)
 	}
 
 	cdb.setLatest(blockNo - 1)
