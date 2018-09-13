@@ -32,6 +32,7 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
 
     yypos_init(&param->lloc.first);
     yypos_init(&param->lloc.last);
+    param->token = 0;
 
     strbuf_init(&param->buf);
 }
@@ -56,12 +57,10 @@ parse(char *path, opt_t opt, strbuf_t *src)
     yyparse(&param, scanner);
     yylex_destroy(scanner);
 
-    /*
     if (!opt_enabled(opt, OPT_SILENT))
         error_dump();
-        */
 
-    return error_top();
+    return error_first();
 }
 
 /* end of parser.c */

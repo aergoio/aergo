@@ -5,7 +5,6 @@
 
 #include "common.h"
 #include <dirent.h>
-#include <ctype.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -17,8 +16,10 @@
 #define TAG_TITLE           "@desc"
 #define TAG_ERROR           "@error"
 
-extern opt_t opt_;
 extern void mark_file(char *path, int line, int offset, strbuf_t *out);
+extern opt_t opt_;
+
+char *tc = NULL;
 
 static char *
 trim_str(char *str)
@@ -63,6 +64,9 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
 {
     ec_t ac;
 
+    if (tc != NULL && strcmp(tc, title) != 0)
+        return;
+
     printf("  + %-67s ", title);
     fflush(stdout);
 
@@ -72,6 +76,9 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
     }
     else {
         printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+
+        if (ac != NO_ERROR)
+            error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
@@ -143,6 +150,8 @@ get_opt(int argc, char **argv, opt_t *opt)
             opt_set(*opt, OPT_LEX_DUMP);
         else if (strcmp(argv[i], "--yacc-dump") == 0)
             opt_set(*opt, OPT_YACC_DUMP);
+        else
+            FATAL(INVALID_OPTION_ERROR, argv[i]);
     }
 
     opt_ = *opt;

@@ -19,6 +19,7 @@ typedef struct yyparam_s {
     int pos;
 
     yylloc_t lloc;
+    int token;
 
     strbuf_t buf;
 } yyparam_t;

@@ -151,7 +151,46 @@ contract test {
     }
 }
 
-@desc inline_sql
+@desc inline_ddl
+contract test {
+    int v1;
+    string v2;
+    test() {
+        create table t (c1 number);
+        create table t (
+            c1 number,
+            c2 varchar(100)
+        );
+        create index idx on t (c1);
+        drop table t;
+    }
+}
+
+@desc invalid_ddl_object
+@error SYNTAX_ERROR
+contract test {
+    int v1;
+    test() {
+        create view v as select * from t;
+    }
+}
+
+@desc inline_dml
+contract test {
+    int v1;
+    string v2;
+    test() {
+        insert into emp values (10, "Sam");
+        int cnt = insert into 
+            emp values (20, "Bill");
+
+        delete from emp where id = 10;
+        int cnt = delete from emp
+            where name = "Bill";
+    }
+}
+
+@desc inline_query
 contract test {
     int v1;
     string v2;
@@ -161,36 +200,14 @@ contract test {
             select id, 
                    name 
               from emp;
-
-        insert into emp values (10, "Sam");
-        insert into 
-            emp values (20, "Bill");
-
-        delete from emp where id = 10;
-        delete from emp
-        where name = "Bill";
-
-        commit;
-        rollback;
-
-        //foreach (int i, string j in (select id, name from emp)) { }
     }
 }
 
 @desc missing_sql_terminator
-@error UNTERMINATED_SQL_ERROR
-contract test {
-    int v1;
-    test() {
-        v1 = select id from emp
-    }
-}
-
-@desc assign_with_dml
 @error SYNTAX_ERROR
 contract test {
     int v1;
     test() {
-        v1 = insert into t values (1);
+        v1 = select id from emp
     }
 }

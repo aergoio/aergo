@@ -15,6 +15,7 @@
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
+extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
 
 static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
                     const char *msg);
@@ -48,7 +49,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* expr_lit */
 %token  <str>
-        FLOAT           HEXA            INT             STR
+        FLOAT           HEXA            INT             STRING
 
 /* expr_sql */
 %token  <str>
@@ -67,21 +68,20 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* B */
         K_BOOL          K_BREAK         K_BYTE
         /* C */
-        K_CASE          K_COMMIT        K_CONST         K_CONTINUE
-        K_CONTRACT
+        K_CASE          K_CONST         K_CONTINUE      K_CONTRACT
+        K_CREATE
         /* D */
-        K_DEFAULT       K_DELETE        K_DOUBLE
+        K_DEFAULT       K_DELETE        K_DOUBLE        K_DROP
         /* E */
         K_ELSE
         /* F */
         K_FALSE         K_FLOAT         K_FOR           K_FOREACH
         K_FUNC
         /* G */
-        K_GLOBAL
         /* H */
         /* I */
-        K_IF            K_IN            K_INSERT        K_INT
-        K_INT16         K_INT32         K_INT64
+        K_IF            K_IN            K_INDEX         K_INSERT        
+        K_INT           K_INT16         K_INT32         K_INT64
         /* L */
         K_LOCAL
         /* M */
@@ -92,9 +92,9 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
         /* P */
         /* Q */
         /* R */
-        K_RETURN        K_ROLLBACK
+        K_READONLY      K_RETURN
         /* S */
-        K_SELECT        K_SHARED        K_STR        K_STRUCT
+        K_SELECT        K_SHARED        K_STRING        K_STRUCT
         K_SWITCH
         /* T */
         K_TABLE         K_TRANSFER      K_TRUE
@@ -164,7 +164,6 @@ type_qual:
 
 var_scope:
     K_LOCAL
-|   K_GLOBAL
 |   K_SHARED
 ;
 
@@ -178,8 +177,7 @@ type_spec:
 |   K_INT16
 |   K_INT32
 |   K_INT64
-|   K_STR
-|   K_TABLE
+|   K_STRING
 |   K_UINT
 |   K_UINT16
 |   K_UINT32
@@ -209,7 +207,7 @@ declarator:
 ;
 
 initializer:
-    expr_cond
+    expr_sql
 |   '{' init_list '}'
 |   '{' init_list ',' '}'
 ;
@@ -252,13 +250,10 @@ function:
 
 modifier_opt:
     /* empty */
-|   K_GLOBAL
-|   K_GLOBAL K_TRANSFER
 |   K_LOCAL
-|   K_LOCAL K_TRANSFER
 |   K_SHARED
-|   K_SHARED K_TRANSFER
-|   K_TRANSFER
+|   modifier_opt K_READONLY
+|   modifier_opt K_TRANSFER
 ;
 
 return_opt:
@@ -278,7 +273,7 @@ statement:
 |   stmt_loop
 |   stmt_switch
 |   stmt_jump
-|   stmt_sql
+|   stmt_ddl
 |   stmt_blk
 ;
 
@@ -333,27 +328,22 @@ stmt_jump:
 |   K_RETURN expression ';'
 ;
 
-stmt_sql:
-    K_COMMIT ';'
-|   K_ROLLBACK ';'
-|   DML ';'
-/*
-|   sql_dml error ';'
+stmt_ddl:
+    sql_ddl error ';'
     {
         yyerrok;
         error_pop();
+        yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
     }
-*/
 ;
 
-/*
-sql_dml:
-    K_DELETE
-|   K_INSERT
-|   K_UPDATE
+sql_ddl:
+    K_CREATE K_INDEX
+|   K_CREATE K_TABLE
+|   K_DROP K_INDEX
+|   K_DROP K_TABLE
 ;
-*/
 
 stmt_blk:
     '{' '}'
@@ -377,7 +367,7 @@ expression:
 ;
 
 expr_assign:
-    expr_cond
+    expr_sql
 |   expr_unary op_assign expr_assign
 ;
 
@@ -393,6 +383,24 @@ op_assign:
 |   OP_OR_ASSIGN
 |   OP_RS_ASSIGN
 |   OP_LS_ASSIGN
+;
+
+expr_sql:
+    expr_cond
+|   sql_prefix error ';'
+    {
+        yyerrok;
+        error_pop();
+        yylex_set_token(yyscanner, ';', &@3);
+        yyclearin;
+    }
+;
+
+sql_prefix:
+    K_DELETE
+|   K_INSERT
+|   K_SELECT
+|   K_UPDATE
 ;
 
 expr_cond:
@@ -494,7 +502,7 @@ expr_prim:
 |   FLOAT
 |   HEXA
 |   QUERY
-|   string
+|   STRING
 |   identifier
 |   '(' expression ')'
 ;
@@ -502,6 +510,8 @@ expr_prim:
 expr_new:
     K_NEW identifier '(' ')'
 |   K_NEW identifier '(' expr_list ')'
+|   K_NEW K_MAP '(' ')'
+|   K_NEW K_MAP '(' expr_list ')'
 ;
 
 expr_list:
@@ -509,15 +519,12 @@ expr_list:
 |   expr_list ',' expr_assign
 ;
 
-string:
-    STR
-|   string STR
-;
-
 identifier:
     ID              { $$ = $1; }
 |   K_CONTRACT      { $$ = xstrdup("contract"); }
 |   K_IN            { $$ = xstrdup("in"); }
+|   K_INDEX         { $$ = xstrdup("index"); }
+|   K_TABLE         { $$ = xstrdup("table"); }
 ;
 
 %%

@@ -36,8 +36,14 @@ contract test {
 @desc type_modifier
 contract test {
     local int v1;
-    global int v1;
     shared int v1;
+}
+
+@desc invalid_type_modifier
+@error SYNTAX_ERROR
+contract test {
+    public int v1;
+    private int v1;
 }
 
 @desc primitive_array

@@ -11,7 +11,7 @@
 #include "parser.h"
 
 #define YY_PARAM_DECL           YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner
-#define YY_DECL                 int yylex(YY_PARAM_DECL)
+#define YY_DECL                 int yyscan(YY_PARAM_DECL)
 
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, MAX)                                             \
@@ -105,21 +105,10 @@
                 break;                                                         \
             }                                                                  \
             if (c == '\n') {                                                   \
-                int i;                                                         \
-                int len = strbuf_length(YY_BUF);                               \
-                char *str = strbuf_text(YY_BUF);                               \
-                for (i = len - 1; i >= 0; i--) {                               \
-                    if (!isblank(str[i]))                                      \
-                        break;                                                 \
-                }                                                              \
-                if (str[i] != '\\') {                                          \
-                    yy_error(UNTERMINATED_STRING_ERROR);                       \
-                    yy_update_last_line();                                     \
-                    strbuf_reset(YY_BUF);                                      \
-                    break;                                                     \
-                }                                                              \
-                strbuf_trunc(YY_BUF, len - i);                                 \
-                yy_update_last_line();                                         \
+                strbuf_reset(YY_BUF);                                          \
+                unput(c);                                                      \
+                yy_error(UNTERMINATED_STRING_ERROR);                           \
+                break;                                                         \
             }                                                                  \
             else {                                                             \
                 lloc->last.col++;                                              \
@@ -206,7 +195,7 @@ id                          {L}({L}|{D})*
     yy_update_first();
     yy_update_last_col();
     yy_scan_literal();
-    yy_return_buf(STR);
+    yy_return_buf(STRING);
 }
 
 {integer}                   yy_return(INT);
@@ -263,7 +252,6 @@ id                          {L}({L}|{D})*
 "break"                     yy_return(K_BREAK);
 "byte"                      yy_return(K_BYTE);
 "case"                      yy_return(K_CASE);
-"commit"                    yy_return(K_COMMIT);
 "const"                     yy_return(K_CONST);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
@@ -275,9 +263,9 @@ id                          {L}({L}|{D})*
 "for"                       yy_return(K_FOR);
 "foreach"                   yy_return(K_FOREACH);
 "func"                      yy_return(K_FUNC);
-"global"                    yy_return(K_GLOBAL);
 "if"                        yy_return(K_IF);
 "in"                        yy_return(K_IN);
+"index"                     yy_return(K_INDEX);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
@@ -286,10 +274,10 @@ id                          {L}({L}|{D})*
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
+"readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
-"rollback"                  yy_return(K_ROLLBACK);
 "shared"                    yy_return(K_SHARED);
-"string"                    yy_return(K_STR);
+"string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
 "table"                     yy_return(K_TABLE);
@@ -300,24 +288,12 @@ id                          {L}({L}|{D})*
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
 
-    /*
+"create"                    yy_return(K_CREATE);
 "delete"                    yy_return(K_DELETE);
+"drop"                      yy_return(K_DROP);
 "insert"                    yy_return(K_INSERT);
 "select"                    yy_return(K_SELECT);
 "update"                    yy_return(K_UPDATE);
-    */
-"delete"|"insert"|"update" {
-    yy_update_first();
-    yy_update_last_col();
-    yy_scan_sql();
-    yy_return_buf(DML);
-}
-"select" { 
-    yy_update_first();
-    yy_update_last_col();
-    yy_scan_sql();
-    yy_return_buf(QUERY);
-}
 
 "#file"                     BEGIN(DIRECTIVE);
 <DIRECTIVE>{ws}+
@@ -343,5 +319,30 @@ id                          {L}({L}|{D})*
 <<EOF>>                     yyterminate();
 
 %%
+
+int
+yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
+{
+    int token;
+    yyparam_t *param = yyget_extra(yyscanner);
+
+    if (param->token != 0) {
+        token = param->token;
+        *lloc = param->lloc;
+        param->token = 0;
+        return token;
+    }
+
+    return yyscan(lval, lloc, yyscanner);
+}
+
+void
+yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc)
+{
+    yyparam_t *param = yyget_extra(yyscanner);
+
+    param->token = token;
+    param->lloc = *lloc;
+}
 
 /* end of scanner.l */

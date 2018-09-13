@@ -44,16 +44,17 @@
 
 #define FATAL(ec, ...)                                                         \
     do {                                                                       \
-        error_dump((ec), LVL_FATAL, ## __VA_ARGS__);                           \
+        error_push((ec), LVL_FATAL, ## __VA_ARGS__);                           \
+        error_dump();                                                          \
         exit(EXIT_FAILURE);                                                    \
     } while (0)
 
-#define ERROR(ec, ...)          error_dump((ec), LVL_ERROR, ## __VA_ARGS__)
-#define INFO(ec, ...)           error_dump((ec), LVL_INFO, ## __VA_ARGS__)
-#define WARN(ec, ...)           error_dump((ec), LVL_WARN, ## __VA_ARGS__)
-#define DEBUG(ec, ...)          error_dump((ec), LVL_DEBUG, ## __VA_ARGS__)
+#define ERROR(ec, ...)          error_push((ec), LVL_ERROR, ## __VA_ARGS__)
+#define INFO(ec, ...)           error_push((ec), LVL_INFO, ## __VA_ARGS__)
+#define WARN(ec, ...)           error_push((ec), LVL_WARN, ## __VA_ARGS__)
+#define DEBUG(ec, ...)          error_push((ec), LVL_DEBUG, ## __VA_ARGS__)
 
-//#define error_empty()           (error_count() == 0)
+#define error_empty()           (error_count() == 0)
 
 typedef enum ec_e {
     NO_ERROR = 0,
@@ -82,7 +83,6 @@ typedef struct error_s {
 
 char *error_text(ec_t ec);
 
-/*
 int error_count(void);
 
 ec_t error_first(void);
@@ -93,10 +93,5 @@ error_t *error_pop(void);
 
 void error_clear(void);
 void error_dump(void);
-*/
-
-ec_t error_top(void);
-void error_clear(void);
-void error_dump(ec_t ec, lvl_t lvl, ...);
 
 #endif /*_ERROR_H */

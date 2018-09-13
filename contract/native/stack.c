@@ -10,30 +10,59 @@
 void
 stack_push(stack_t *stack, void *item)
 {
-    stack_node_t *node = xmalloc(sizeof(stack_node_t));
+    stack_node_t *n;
 
-    node->item = item;
-    node->next = stack->top;
-    
+    ASSERT(stack != NULL);
+
+    n = xmalloc(sizeof(stack_node_t));
+
+    n->item = item;
+    n->next = NULL;
+
+    if (stack->head == NULL) {
+        ASSERT(stack->tail == NULL);
+        stack->head = n;
+    }
+    else {
+        ASSERT(stack->tail != NULL);
+        stack->tail->next = n;
+    }
+
     stack->size++;
-    stack->top = node;
+    stack->tail = n;
 }
 
 void *
 stack_pop(stack_t *stack)
 {
-    stack_node_t *node = stack->top;
+    stack_node_t *n;
     void *item;
 
-    if (node == NULL)
+    ASSERT(stack != NULL);
+
+    if (stack->tail == NULL)
         return NULL;
 
-    item = node->item;
+    if (stack->head == stack->tail) {
+        n = stack->head;
+        stack->head = NULL;
+        stack->tail = NULL;
+    }
+    else {
+        stack_node_t *prev = stack->head;
+        while (prev->next != stack->tail) {
+            prev = prev->next;
+        }
+        n = stack->tail;
+        stack->tail = prev;
+        prev->next = NULL;
+    }
 
-    stack->top = node->next;
+    item = n->item;
+    free(n);
+
     stack->size--;
-
-    xfree(node);
+    ASSERT(stack->size >= 0);
 
     return item;
 }

@@ -18,8 +18,6 @@
 #include "option.h"
 #include "error.h"
 
-#define EXECUTABLE          "aergoscc"
-
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
 
