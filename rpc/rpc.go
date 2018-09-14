@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aergoio/aergo/types"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
@@ -176,4 +178,23 @@ func (ns *RPC) CallRequest(actor string, msg interface{}) (interface{}, error) {
 	future := ns.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
+}
+
+func convertError(err error) types.CommitStatus {
+	switch err {
+	case nil:
+		return types.CommitStatus_TX_OK
+	case message.ErrTxNonceTooLow:
+		return types.CommitStatus_TX_NONCE_TOO_LOW
+	case message.ErrTxAlreadyInMempool:
+		return types.CommitStatus_TX_ALREADY_EXISTS
+	case message.ErrTxHasInvalidHash:
+		return types.CommitStatus_TX_INVALID_HASH
+	case message.ErrTxFormatInvalid:
+		return types.CommitStatus_TX_INVALID_FORMAT
+	case message.ErrInsufficientBalance:
+		return types.CommitStatus_TX_INSUFFICIENT_BALANCE
+	default:
+		return types.CommitStatus_TX_INTERNAL_ERROR
+	}
 }

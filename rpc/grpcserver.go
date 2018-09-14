@@ -206,6 +206,45 @@ func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleByte
 
 var emptyBytes = make([]byte, 0)
 
+// SendTX try to fill the nonce, sign, hash in the transaction automatically and commit it
+func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
+	getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetState{Account: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTx").Result()
+	if err != nil {
+		return nil, err
+	}
+	getStateRsp, ok := getStateResult.(message.GetStateRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
+	}
+	if getStateRsp.Err != nil {
+		return nil, status.Errorf(codes.Internal, "internal error : %s", err.Error())
+	}
+	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
+
+	signTxResult, err := rpc.hub.RequestFuture(message.AccountsSvc,
+		&message.SignTx{Tx: tx}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX").Result()
+	if err != nil {
+		return nil, err
+	}
+	signTxRsp, ok := signTxResult.(*message.SignTxRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(signTxResult))
+	}
+	if signTxRsp.Err != nil {
+		return nil, signTxRsp.Err
+	}
+	tx = signTxRsp.Tx
+	memPoolPutResult, err := rpc.hub.RequestFuture(message.MemPoolSvc,
+		&message.MemPoolPut{Txs: []*types.Tx{tx}},
+		defaultActorTimeout, "rpc.(*AergoRPCService).SendTX").Result()
+	memPoolPutRsp, ok := memPoolPutResult.(*message.MemPoolPutRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(memPoolPutResult))
+	}
+	return &types.CommitResult{Hash: tx.Hash, Error: convertError(memPoolPutRsp.Err[0])}, err
+}
+
 // CommitTX handle rpc request commit
 func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*types.CommitResultList, error) {
 	// TODO: check validity
@@ -230,7 +269,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		calculated := tx.CalculateTxHash()
 
 		if !bytes.Equal(hash, calculated) {
-			r.Error = types.CommitStatus_COMMIT_STATUS_INVALID_ARGUMENT
+			r.Error = types.CommitStatus_TX_INVALID_HASH
 		}
 		results.Results[i] = &r
 		cnt++
@@ -249,17 +288,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 			}
 
 			for j, err := range rsp.Err {
-				switch err {
-				case nil:
-					results.Results[start+j].Error = types.CommitStatus_COMMIT_STATUS_OK
-				case message.ErrTxNonceTooLow:
-					results.Results[start+j].Error = types.CommitStatus_COMMIT_STATUS_NONCE_TOO_LOW
-				case message.ErrTxAlreadyInMempool:
-					results.Results[start+j].Error = types.CommitStatus_COMMIT_STATUS_TX_ALREADY_EXISTS
-				default:
-					results.Results[start+j].Error = types.CommitStatus_COMMIT_STATUS_TX_INTERNAL_ERROR
-
-				}
+				results.Results[start+j].Error = convertError(err)
 			}
 			start += cnt
 			cnt = 0
