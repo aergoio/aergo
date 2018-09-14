@@ -23,10 +23,11 @@ type Trie struct {
 	Root []byte
 	// lock is for the whole struct
 	lock sync.RWMutex
+	// hash is the hash function used in the trie
 	hash func(data ...[]byte) []byte
-	// KeySize is the size in bytes corresponding to TrieHeight, is size of an address.
-	//KeySize       uint64
-	TrieHeight    uint64
+	// TrieHeight is the number if bits in a key
+	TrieHeight uint64
+	// defaultHashes are the default values of empty trees
 	defaultHashes [][]byte
 	// LoadDbCounter counts the nb of db reads in on update
 	LoadDbCounter uint64
@@ -181,7 +182,6 @@ type mresult struct {
 func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
 		if bytes.Equal(DefaultLeaf, values[0]) {
-			//TODO
 			// Delete the key-value from the trie if it is being set to DefaultLeaf
 			// The value will be set to [] in batch by maybeMoveupShortcut or interiorHash
 			s.deleteCacheNode(root, height)
@@ -565,7 +565,6 @@ func (s *Trie) get(root []byte, key []byte, batch [][]byte, iBatch uint8, height
 	}
 	// Fetch the children of the node
 	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
-	// TODO make a loadChildren without copy
 	if err != nil {
 		return nil, err
 	}

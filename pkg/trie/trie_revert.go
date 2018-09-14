@@ -123,11 +123,11 @@ func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height ui
 			go s.maybeDeleteSubTree(lnode, lnode2, height-1, batch, batch2, 2*iBatch+1, ch1)
 			go s.maybeDeleteSubTree(rnode, rnode2, height-1, batch, batch2, 2*iBatch+2, ch2)
 			err1 := <-ch1
+			err2 := <-ch2
 			if err1 != nil {
 				ch <- err1
 				return
 			}
-			err2 := <-ch2
 			if err2 != nil {
 				ch <- err2
 				return
@@ -150,11 +150,9 @@ func (s *Trie) deleteSubTree(root []byte, height uint64, batch [][]byte, iBatch 
 		return
 	}
 	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
-	// TODO make a loadChildren from db
 	if err != nil {
 		ch <- err
 		return
-		//return err
 	}
 	if !isShortcut {
 		ch1 := make(chan error, 1)
@@ -167,12 +165,10 @@ func (s *Trie) deleteSubTree(root []byte, height uint64, batch [][]byte, iBatch 
 		if lerr != nil {
 			ch <- lerr
 			return
-			//return lerr
 		}
 		if rerr != nil {
 			ch <- rerr
 			return
-			//return rerr
 		}
 	}
 	if iBatch == 0 {

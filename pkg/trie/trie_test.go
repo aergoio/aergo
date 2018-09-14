@@ -489,10 +489,12 @@ func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
 		smt.Update(newkeys, newvalues)
 		end := time.Now()
 		smt.Commit()
+		end2 := time.Now()
 		elapsed := end.Sub(start)
+		elapsed2 := end2.Sub(end)
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		fmt.Println(i, " : elapsed : ", elapsed,
+		fmt.Println(i, " : update time : ", elapsed, "commit time : ", elapsed2,
 			"\ndb read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter,
 			"\ncache size : ", len(smt.db.liveCache),
 			"\nRAM : ", m.Sys/1024/1024, " MiB")
