@@ -90,7 +90,7 @@ func (s *Trie) LoadCache(root []byte) error {
 
 // loadCache loads the first layers of the merkle tree given a root
 func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch uint8, height uint64, ch chan<- (error)) {
-	if height <= s.CacheHeightLimit+1 || len(root) == 0 {
+	if height < s.CacheHeightLimit || len(root) == 0 {
 		ch <- nil
 		return
 	}
@@ -349,7 +349,7 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 			batch[2*iBatch+2] = nil
 		}
 		//ch <- mresult{s.defaultHashes[height], false, nil}
-		ch <- mresult{nil, false, nil}
+		ch <- mresult{nil, true, nil}
 		return true
 	} else if len(left) == 0 {
 		// If right is a shortcut move it up

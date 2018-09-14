@@ -157,8 +157,9 @@ func TestTrieDelete(t *testing.T) {
 	keys = getFreshData(2, 32)
 	values = getFreshData(2, 32)
 	root, _ = smt.Update(keys, values)
-	keys = getFreshData(2, 32)
-	smt.Update(keys, [][]byte{DefaultLeaf, DefaultLeaf})
+	key0 := make([]byte, 32, 32)
+	key1 := make([]byte, 32, 32)
+	smt.Update([][]byte{key0, key1}, [][]byte{DefaultLeaf, DefaultLeaf})
 	if !bytes.Equal(root, smt.Root) {
 		t.Fatal("deleting a default key shouldnt' modify the tree")
 	}
@@ -399,9 +400,21 @@ func TestTrieLoadCache(t *testing.T) {
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
 	smt := NewTrie(nil, Hasher, st)
+	// Test size of cache
+	smt.CacheHeightLimit = 0
+	key0 := make([]byte, 32, 32)
+	key1 := make([]byte, 32, 32)
+	bitSet(key1, 255)
+	values := getFreshData(2, 32)
+	smt.Update([][]byte{key0, key1}, values)
+	if len(smt.db.liveCache) != 66 {
+		// the nodes are at the tip, so 64 + 2 = 66
+		t.Fatal("cache size incorrect")
+	}
+
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
-	values := getFreshData(10, 32)
+	values = getFreshData(10, 32)
 	smt.Update(keys, values)
 	smt.Commit()
 
