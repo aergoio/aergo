@@ -34,8 +34,8 @@ type newTxNoticeHandler struct {
 var _ MessageHandler = (*newTxNoticeHandler)(nil)
 
 // newTxReqHandler creates handler for GetTransactionsRequest
-func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txRequestHandler {
-	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txRequestHandler {
+	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -43,7 +43,7 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
 }
 
-func (th *txRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	remotePeer := th.peer
 	data := msgBody.(*types.GetTransactionsRequest)
@@ -84,12 +84,12 @@ func (th *txRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.M
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), true, getTxsResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), getTxsResponse, resp, th.signer))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
-func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txResponseHandler {
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -97,7 +97,7 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
 }
 
-func (th *txResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
 	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Txs))
@@ -110,8 +110,8 @@ func (th *txResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.
 }
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
-func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *newTxNoticeHandler {
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -119,7 +119,7 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
 }
 
-func (th *newTxNoticeHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
 	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))

@@ -6,62 +6,131 @@
 package p2p
 
 import (
+	"fmt"
+
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// Authenticate incoming p2p message
-// message: a protobufs go data object
-// data: common p2p message data
-func (pm *peerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
-	// for Test only
-	return true
+// signHandler sign or verify p2p message
+type msgSigner interface {
+	// signMsg calulate signature and fill related fields in msg(peerid, pubkey, signature or etc)
+	signMsg(msg *types.P2PMessage) error
+	// verifyMsg check signature is valid
+	vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error
+}
 
-	// store a temp ref to signature and remove it from message data
-	// sign is a string to allow easy reset to zero-value (empty string)
-	sign := data.Sign
-	data.Sign = []byte{}
+type defaultMsgSigner struct {
+	selfPeerID peer.ID
+	privateKey crypto.PrivKey
+	pubKey     crypto.PubKey
 
-	// marshall data without the signature to protobufs3 binary format
-	bin, err := proto.Marshal(message)
-	if err != nil {
-		pm.logger.Warn().Msg("failed to marshal pb message")
-		return false
-	}
+	pidBytes    []byte
+	pubKeyBytes []byte
+}
 
-	// restore sig in message data (for possible future use)
-	data.Sign = sign
-
-	// restore peer peer.ID binary format from base58 encoded node peer.ID data
-	peerID, err := peer.IDB58Decode(data.PeerID)
-	if err != nil {
-		pm.logger.Warn().Err(err).Msg("Failed to decode node peer.ID from base58")
-		return false
-	}
-
-	// verify the data was authored by the signing peer identified by the public key
-	// and signature included in the message
-	err = VerifyData(bin, []byte(sign), peerID, data.NodePubKey)
-	if err != nil {
-		pm.logger.Debug().Err(err).Msg("message verification failed")
-		return false
-	}
-	return true
+func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID peer.ID) msgSigner {
+	pidBytes := []byte(peerID)
+	pubKeyBytes, _ := pubKey.Bytes()
+	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 
 // sign an outgoing p2p message payload
-func (pm *peerManager) SignProtoMessage(message proto.Message) ([]byte, error) {
-	data, err := proto.Marshal(message)
+func (pm *defaultMsgSigner) signMsg(message *types.P2PMessage) error {
+	// TODO this code modify caller's parameter.
+	message.Header.PeerID = pm.pidBytes
+	message.Header.NodePubKey = pm.pubKeyBytes
+	data, err := proto.Marshal(&types.P2PMessage{Header: canonicalizeHeader(message.Header), Data: message.Data})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return pm.SignData(data)
+	signature, err := pm.signBytes(data)
+	if err != nil {
+		return err
+	}
+	message.Header.Sign = signature
+	return nil
+}
+
+func canonicalizeHeader(src *types.MsgHeader) *types.MsgHeader {
+	// copy fields excluding generated fields and signature itself
+	return &types.MsgHeader{
+		ClientVersion: src.ClientVersion,
+		Gossip:        src.Gossip,
+		Id:            src.Id,
+		Length:        src.Length,
+		NodePubKey:    src.NodePubKey,
+		PeerID:        src.PeerID,
+		Sign:          nil,
+		Subprotocol:   src.Subprotocol,
+		Timestamp:     src.Timestamp,
+	}
 }
 
 // sign binary data using the local node's private key
-func (pm *peerManager) SignData(data []byte) ([]byte, error) {
+func (pm *defaultMsgSigner) signBytes(data []byte) ([]byte, error) {
 	key := pm.privateKey
 	res, err := key.Sign(data)
 	return res, err
 }
+
+func (pm *defaultMsgSigner) vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error {
+	signature := msg.Header.Sign
+	checkOrigin := false
+	if checkOrigin {
+		// TODO it can be needed, and if that modify code to get peerid from caller and enable this code
+		if err := checkPidWithPubkey(peer.ID("dummy"), pubKey); err != nil {
+			return err
+		}
+	}
+
+	data, _ := proto.Marshal(&types.P2PMessage{Header: canonicalizeHeader(msg.Header), Data: msg.Data})
+	return verifyBytes(data, signature, pubKey)
+}
+
+func checkPidWithPubkey(peerID peer.ID, pubKey crypto.PubKey) error {
+	// extract node peer.ID from the provided public key
+	idFromKey, err := peer.IDFromPublicKey(pubKey)
+	if err != nil {
+		return err
+	}
+
+	// verify that message author node peer.ID matches the provided node public key
+	if idFromKey != peerID {
+		return fmt.Errorf("PeerID mismatch")
+	}
+	return nil
+}
+
+// VerifyData Verifies incoming p2p message data integrity
+// data: data to verify
+// signature: author signature provided in the message payload
+// pubkey: author public key from the message payload
+func verifyBytes(data []byte, signature []byte, pubkey crypto.PubKey) error {
+	res, err := pubkey.Verify(data, signature)
+	if err != nil {
+		return err
+	}
+	if !res {
+		return fmt.Errorf("signature mismatch")
+	}
+
+	return nil
+}
+
+var dummyBytes = []byte{}
+
+type dummySigner struct{}
+
+func (d *dummySigner) signMsg(msg *types.P2PMessage) error {
+	msg.Header.Sign = dummyBytes
+	return nil
+}
+
+func (d *dummySigner) vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error {
+	return nil
+}
+
+var _ msgSigner = (*dummySigner)(nil)

@@ -129,11 +129,11 @@ func (_m *MockPeerManager) Addrs() []ma.Multiaddr {
 }
 
 // AuthenticateMessage provides a mock function with given fields: message, data
-func (_m *MockPeerManager) AuthenticateMessage(message proto.Message, data *types.MessageData) bool {
+func (_m *MockPeerManager) AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool {
 	ret := _m.Called(message, data)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(proto.Message, *types.MessageData) bool); ok {
+	if rf, ok := ret.Get(0).(func(proto.Message, *types.MsgHeader) bool); ok {
 		r0 = rf(message, data)
 	} else {
 		r0 = ret.Get(0).(bool)
@@ -332,15 +332,15 @@ func (_m *MockPeerManager) Network() inet.Network {
 }
 
 // NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) NewMessageData(messageID string, gossip bool) *types.MessageData {
+func (_m *MockPeerManager) NewMessageData(messageID string, gossip bool) *types.MsgHeader {
 	ret := _m.Called(messageID, gossip)
 
-	var r0 *types.MessageData
-	if rf, ok := ret.Get(0).(func(string, bool) *types.MessageData); ok {
+	var r0 *types.MsgHeader
+	if rf, ok := ret.Get(0).(func(string, bool) *types.MsgHeader); ok {
 		r0 = rf(messageID, gossip)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.MessageData)
+			r0 = ret.Get(0).(*types.MsgHeader)
 		}
 	}
 

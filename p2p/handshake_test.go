@@ -123,7 +123,7 @@ func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
 			mockRW := new(MockMsgReadWriter)
-			containerMsg := &types.P2PMessage{Header: &types.MessageData{}, Data: statusBytes}
+			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
 			if tt.readReturn != nil {
 				containerMsg.Header.Subprotocol = statusRequest.Uint32()
 			} else {
@@ -176,7 +176,7 @@ func TestPeerHandshaker_handshakeInboundPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
 			mockRW := new(MockMsgReadWriter)
-			containerMsg := &types.P2PMessage{Header: &types.MessageData{}, Data: statusBytes}
+			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
 			if tt.readReturn != nil {
 				containerMsg.Header.Subprotocol = statusRequest.Uint32()
 			} else {

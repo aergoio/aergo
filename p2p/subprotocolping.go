@@ -30,8 +30,8 @@ type goAwayHandler struct {
 var _ MessageHandler = (*goAwayHandler)(nil)
 
 // newPingReqHandler creates handler for PingRequest
-func newPingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *pingRequestHandler {
-	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newPingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *pingRequestHandler {
+	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return ph
 }
 
@@ -39,7 +39,7 @@ func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.Ping{})
 }
 
-func (ph *pingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *pingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Ping)
@@ -49,12 +49,12 @@ func (ph *pingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto
 	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending ping response")
 	resp := &types.Pong{}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), false, pingResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), pingResponse, resp, ph.signer))
 }
 
 // newPingRespHandler creates handler for PingResponse
-func newPingRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *pingResponseHandler {
-	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newPingRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *pingResponseHandler {
+	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: pingResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return ph
 }
 
@@ -62,7 +62,7 @@ func (ph *pingResponseHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.Pong{})
 }
 
-func (ph *pingResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *pingResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
@@ -71,8 +71,8 @@ func (ph *pingResponseHandler) handle(msgHeader *types.MessageData, msgBody prot
 }
 
 // newGoAwayHandler creates handler for PingResponse
-func newGoAwayHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *goAwayHandler {
-	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: goAway, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newGoAwayHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *goAwayHandler {
+	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: goAway, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return ph
 }
 
@@ -80,7 +80,7 @@ func (ph *goAwayHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
 	return unmarshalAndReturn(rawbytes, &types.GoAwayNotice{})
 }
 
-func (ph *goAwayHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (ph *goAwayHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	data := msgBody.(*types.GoAwayNotice)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, data.Message)
