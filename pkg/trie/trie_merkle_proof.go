@@ -52,7 +52,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 		return nil, true, nil, nil, nil
 	}
 	// Fetch the children of the node
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
 	if err != nil {
 		return nil, false, nil, nil, err
 	}

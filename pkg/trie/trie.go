@@ -13,8 +13,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 )
 
-// TODO make a secure trie that hashes keys with a random seed to be sure the trie is sparse.
-
 // Trie is a modified sparse Merkle tree.
 // Instead of storing values at the leaves of the tree,
 // the values are stored at the highest subtree root that contains only that value.
@@ -176,8 +174,10 @@ type mresult struct {
 func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
 		if bytes.Equal(DefaultLeaf, values[0]) {
+			//TODO
 			// Delete the key-value from the trie if it is being set to DefaultLeaf
 			// The value will be set to [] in batch by maybeMoveupShortcut or interiorHash
+			s.deleteCacheNode(root, height)
 			ch <- mresult{nil, true, nil}
 		} else {
 			// create a new shortcut batch.
@@ -191,7 +191,7 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 	}
 
 	// Load the node to update
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, true)
 	if err != nil {
 		ch <- mresult{nil, false, err}
 		return
@@ -199,29 +199,19 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 
 	// Check if the keys are updating the shortcut node
 	if isShortcut {
-		before := len(keys)
 		keys, values = s.maybeAddShortcutToKV(keys, values, lnode[:HashLength], rnode[:HashLength])
-		if len(keys) > before {
-			// if the shortcut was added to the keys, set the subtree to default
-			// the root should be deleted only if the shortcut is being set in a batch
-			// done in leafHash
-			root = nil
+		if iBatch == 0 {
+			s.deleteCacheNode(root, height)
 		}
 		// The shortcut node was added to keys and values so consider this subtree default.
+		root = nil
 		lnode, rnode = nil, nil
 		// update in the batch (set key, value to default so the next loadChildren is correct)
 		batch[2*iBatch+1] = lnode
 		batch[2*iBatch+2] = rnode
 		if len(keys) == 0 {
-			// The shortcut is being deleted : delete if shortcut tree else delete from batch
-			if iBatch == 0 {
-				s.deleteCacheNode(root)
-			} else {
-				batch[2*iBatch+1] = nil
-				batch[2*iBatch+2] = nil
-			}
-			// Set true so that a sibling shortcut may move up.
-			ch <- mresult{nil, true, nil}
+			// Set true so that a potential sibling shortcut may move up.
+			ch <- mresult{root, true, nil}
 			return
 		}
 	}
@@ -316,12 +306,14 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 }
 
 // deleteCacheNode deletes the node from liveCache
-func (s *Trie) deleteCacheNode(root []byte) {
-	var node Hash
-	copy(node[:], root)
-	s.db.liveMux.Lock()
-	delete(s.db.liveCache, node)
-	s.db.liveMux.Unlock()
+func (s *Trie) deleteCacheNode(root []byte, height uint64) {
+	if height >= s.CacheHeightLimit {
+		var node Hash
+		copy(node[:], root)
+		s.db.liveMux.Lock()
+		delete(s.db.liveCache, node)
+		s.db.liveMux.Unlock()
+	}
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
@@ -340,7 +332,7 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 		// Both update and sibling are deleted subtrees
 		if iBatch == 0 {
 			// If the deleted subtrees are at the root, then delete it.
-			s.deleteCacheNode(root)
+			s.deleteCacheNode(root, height)
 		} else {
 			batch[2*iBatch+1] = nil
 			batch[2*iBatch+2] = nil
@@ -363,7 +355,11 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 }
 
 func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut uint8, height uint64, ch chan<- (mresult)) bool {
-	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, batch, iShortcut)
+	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, batch, iShortcut, false)
+
+	// when moving up the shortcut, it's hash will change because height is +1
+	newShortcut := s.hash(shortcutKey[:HashLength], shortcutVal[:HashLength], []byte{byte(height)})
+	newShortcut = append(newShortcut, byte(1))
 	if err != nil {
 		ch <- mresult{nil, false, err}
 		return false
@@ -375,12 +371,13 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 		batch[2*iBatch+2] = shortcutVal
 		batch[2*iShortcut+1] = nil
 		batch[2*iShortcut+2] = nil
-		s.storeNode(batch, shortcut, root, height)
+		s.storeNode(batch, newShortcut, root, height)
+		s.deleteCacheNode(root, height)
 	} else if (height-1)%4 == 0 {
 		// move up shortcut and delete old batch
 		batch[2*iBatch+1] = shortcutKey
 		batch[2*iBatch+2] = shortcutVal
-		s.deleteCacheNode(root)
+		s.deleteCacheNode(shortcut, height-1)
 	} else {
 		//move up shortcut
 		batch[2*iBatch+1] = shortcutKey
@@ -389,7 +386,7 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 		batch[2*iShortcut+2] = nil
 	}
 	// Return the left sibling node to move it up
-	ch <- mresult{shortcut, true, nil}
+	ch <- mresult{newShortcut, true, nil}
 	return true
 }
 
@@ -439,7 +436,7 @@ func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcut
 
 // loadChildren looks for the children of a node.
 // if the node is not stored in cache, it will be loaded from db.
-func (s *Trie) loadChildren(root []byte, height uint64, batch [][]byte, iBatch uint8) ([][]byte, uint8, []byte, []byte, bool, error) {
+func (s *Trie) loadChildren(root []byte, height uint64, batch [][]byte, iBatch uint8, updateSafe bool) ([][]byte, uint8, []byte, []byte, bool, error) {
 	isShortcut := false
 	if height%4 == 0 {
 		if len(root) == 0 {
@@ -448,7 +445,7 @@ func (s *Trie) loadChildren(root []byte, height uint64, batch [][]byte, iBatch u
 			batch[0] = []byte{0}
 		} else {
 			var err error
-			batch, err = s.loadBatch(root)
+			batch, err = s.loadBatch(root, updateSafe)
 			if err != nil {
 				return nil, 0, nil, nil, false, err
 			}
@@ -466,7 +463,7 @@ func (s *Trie) loadChildren(root []byte, height uint64, batch [][]byte, iBatch u
 }
 
 // loadBatch fetches a batch of nodes in cache or db
-func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
+func (s *Trie) loadBatch(root []byte, updateSafe bool) ([][]byte, error) {
 	var node Hash
 	copy(node[:], root)
 
@@ -477,12 +474,14 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		s.liveCountMux.Lock()
 		s.LoadCacheCounter++
 		s.liveCountMux.Unlock()
-		newVal := make([][]byte, 31, 31)
-		copy(newVal, val)
-		return newVal, nil
-		// NOTE Return a copy so that Commit() doesnt have to be called at
-		// each block and still commit every state transition.
-		//return val, nil
+		if updateSafe {
+			// Return a copy so that Commit() doesnt have to be called at
+			// each block and still commit every state transition.
+			newVal := make([][]byte, 31, 31)
+			copy(newVal, val)
+			return newVal, nil
+		}
+		return val, nil
 	}
 
 	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
@@ -490,10 +489,14 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 	val, exists = s.db.updatedNodes[node]
 	s.db.updatedMux.RUnlock()
 	if exists {
-		newVal := make([][]byte, 31, 31)
-		copy(newVal, val)
-		return newVal, nil
-		//return val, nil
+		if updateSafe {
+			// Return a copy so that Commit() doesnt have to be called at
+			// each block and still commit every state transition.
+			newVal := make([][]byte, 31, 31)
+			copy(newVal, val)
+			return newVal, nil
+		}
+		return val, nil
 	}
 	//Fetch node in disk database
 	if s.db.store == nil {
@@ -546,7 +549,8 @@ func (s *Trie) get(root []byte, key []byte, batch [][]byte, iBatch uint8, height
 		return nil, nil
 	}
 	// Fetch the children of the node
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
+	// TODO make a loadChildren without copy
 	if err != nil {
 		return nil, err
 	}
@@ -568,26 +572,23 @@ func (s *Trie) DefaultHash(height uint64) []byte {
 	return s.defaultHashes[height]
 }
 
-// leafHash returns the hash of key_value_byte(1) concatenated, stores it in the updatedNodes and maybe in liveCache.
+// leafHash returns the hash of key_value_byte(height) concatenated, stores it in the updatedNodes and maybe in liveCache.
 // keys of go mappings cannot be byte slices so the hash is copied to a byte array
 func (s *Trie) leafHash(key, value []byte, batch [][]byte, iBatch uint8, height uint64, oldRoot []byte) []byte {
-	// []byte{1} is here to prevent potential problems with merkle proofs
-	// where if an account has the same address as a node,
-	// it would be possible to prove a different value for the account.
-	h := s.hash(key, value, []byte{1})
-	h = append(h, byte(1))
+	// byte(height) is here for 2 reasons.
+	// 1- to prevent potential problems with merkle proofs where if an account
+	// has the same address as a node, it would be possible to prove a
+	// different value for the account.
+	// 2- when accounts are added to the trie, accounts on their path get pushed down the tree
+	// with them. if an old account changes position from a shortcut batch to another
+	// shortcut batch of different height, if would be deleted when reverting.
+	h := s.hash(key, value, []byte{byte(height)})
+	h = append(h, byte(1)) // byte(1) is a flag for the shortcut
 	batch[2*iBatch+2] = append(value, byte(2))
 	batch[2*iBatch+1] = append(key, byte(2))
 	if height%4 == 0 {
-		batch[0] = []byte{1}
+		batch[0] = []byte{1} // byte(1) is a flag for the shortcut batch
 		s.storeNode(batch, h, oldRoot, height)
-	} else {
-		// A shortcut batch should be deleted if shortcut is now stored inside batch
-		var node Hash
-		copy(node[:], h)
-		s.db.liveMux.Lock()
-		delete(s.db.liveCache, node)
-		s.db.liveMux.Unlock()
 	}
 	return h
 }

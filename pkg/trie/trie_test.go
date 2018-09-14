@@ -159,7 +159,7 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 	key0 := make([]byte, 32, 32)
 	values := getFreshData(1, 32)
 	root, _ := smt.Update([][]byte{key0}, values)
-	_, _, k, v, isShortcut, _ := smt.loadChildren(root, smt.TrieHeight, nil, 0)
+	_, _, k, v, isShortcut, _ := smt.loadChildren(root, smt.TrieHeight, nil, 0, false)
 	if !isShortcut || !bytes.Equal(k[:HashLength], key0) || !bytes.Equal(v[:HashLength], values[0]) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
@@ -170,7 +170,7 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 	keys := [][]byte{key0, key1}
 	values = [][]byte{DefaultLeaf, getFreshData(1, 32)[0]}
 	root, _ = smt.Update(keys, values)
-	_, _, k, v, isShortcut, _ = smt.loadChildren(root, smt.TrieHeight, nil, 0)
+	_, _, k, v, isShortcut, _ = smt.loadChildren(root, smt.TrieHeight, nil, 0, false)
 	if !isShortcut || !bytes.Equal(k[:HashLength], key1) || !bytes.Equal(v[:HashLength], values[1]) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
@@ -371,7 +371,7 @@ func TestTrieRaisesError(t *testing.T) {
 		t.Fatal("Error not created if database not connected")
 	}
 	smt.db.liveCache = make(map[Hash][][]byte)
-	_, _, _, _, _, err = smt.loadChildren(make([]byte, 32, 32), smt.TrieHeight, nil, 0)
+	_, _, _, _, _, err = smt.loadChildren(make([]byte, 32, 32), smt.TrieHeight, nil, 0, false)
 	if err == nil {
 		t.Fatal("Error not created if database not connected")
 	}
@@ -442,7 +442,7 @@ func TestHeight0LeafShortcut(t *testing.T) {
 
 	// Delete one key and check that the remaining one moved up to the root of the tree
 	newRoot, _ := smt.Update(keys[0:1], [][]byte{DefaultLeaf})
-	_, _, k, v, isShortcut, err := smt.loadChildren(newRoot, smt.TrieHeight, nil, 0)
+	_, _, k, v, isShortcut, err := smt.loadChildren(newRoot, smt.TrieHeight, nil, 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}
