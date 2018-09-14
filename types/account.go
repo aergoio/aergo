@@ -36,7 +36,7 @@ func NewAccountList(accounts []*Account) *AccountList {
 }
 
 type Address = []byte
-const AddressVersion = 0x17
+const AddressVersion = 0x42
 
 func EncodeAddress(addr Address) (string) {
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
