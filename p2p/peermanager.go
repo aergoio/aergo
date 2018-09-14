@@ -376,8 +376,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer)
-	newPeer.rw = rw
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -554,8 +553,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer)
-	peer.rw = rw
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
 	pm.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)

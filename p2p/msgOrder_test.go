@@ -27,7 +27,7 @@ func (_m *MockMsgOrder) GetProtocolID() SubProtocol {
 }
 
 // GetRequestID provides a mock function with given fields:
-func (_m *MockMsgOrder) GetRequestID() string {
+func (_m *MockMsgOrder) GetMsgID() string {
 	ret := _m.Called()
 
 	var r0 string
@@ -103,6 +103,34 @@ func (_m *MockMsgOrder) ResponseExpected() bool {
 	var r0 bool
 	if rf, ok := ret.Get(0).(func() bool); ok {
 		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// Skippable provides a mock function with given fields:
+func (_m *MockMsgOrder) Skippable() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// SendTo provides a mock function with given fields: p
+func (_m *MockMsgOrder) SendTo(p *RemotePeer) bool {
+	ret := _m.Called(p)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*RemotePeer) bool); ok {
+		r0 = rf(p)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}

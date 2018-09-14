@@ -70,7 +70,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	req := &types.NewBlockNotice{
 		BlockHash: newBlock.Block.Hash,
 		BlockNo:   newBlock.BlockNo}
-	msg := newPbMsgBroadcastOrder(newBlockNotice, req, p2ps.signer)
+	msg := newPbMsgBlkBroadcastOrder(req, p2ps.signer)
 
 	skipped, sent := 0, 0
 	// create message data
@@ -144,7 +144,7 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	}
 	// create message data
 	req := &types.NewTransactionsNotice{TxHashes: hashes}
-	msg := newPbMsgBroadcastOrder(newTxNotice, req, p2ps.signer)
+	msg := newPbMsgTxBroadcastOrder(req, p2ps.signer)
 	skipped, sent := 0, 0
 	// send to peers
 	for _, peer := range p2ps.pm.GetPeers() {

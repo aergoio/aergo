@@ -39,19 +39,15 @@ var _ msgOrder = (*pbMessageOrder)(nil)
 
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
+func newPbMsgOrder(mo *pbMessageOrder, reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
 	bytes, err := marshalMessage(message)
 	if err != nil {
-		return nil
+		return false
 	}
 
 	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 	p2pmsg.Data = bytes
 	request := false
-	if len(reqID) == 0 {
-		reqID = uuid.Must(uuid.NewV4()).String()
-		request = true
-	}
 	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	// pubKey and peerID will be set soon before signing process
@@ -62,9 +58,17 @@ func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, protocolID S
 	err = signer.signMsg(p2pmsg)
 	if err != nil {
 		panic("Failed to sign data " + err.Error())
-		return nil
+		return false
 	}
-	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: true, message: p2pmsg}
+
+	mo.request = request
+	mo.protocolID = protocolID
+	mo.expecteResponse = expecteResponse
+	mo.gossip = gossip
+	mo.needSign = true
+	mo.message = p2pmsg
+
+	return true
 }
 
 func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
@@ -75,22 +79,47 @@ func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version st
 }
 
 // newPbMsgRequestOrder make send order for p2p request
-func newPbMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
-	return newPbMsgOrder("", expecteResponse, false, protocolID, message, signer)
+func newPbMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
+	rmo := &pbRequestOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, expecteResponse, false, protocolID, message, signer) {
+		return rmo
+	}
+	return nil
 }
 
 // newPbMsgResponseOrder make send order for p2p response
-func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
-	return newPbMsgOrder(reqID, false, true, protocolID, message, signer)
+func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
+	rmo := &pbMessageOrder{}
+	if newPbMsgOrder(rmo, reqID, false, false, protocolID, message, signer) {
+		return rmo
+	}
+	return nil
 }
 
 // newPbMsgBroadcastOrder make send order for p2p broadcast,
 // which will be fanouted and doesn't expect response of receiving peer
-func newPbMsgBroadcastOrder(protocolID SubProtocol, message pbMessage, signer msgSigner) *pbMessageOrder {
-	return newPbMsgOrder("", false, true, protocolID, message, signer)
+func newPbMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice, signer msgSigner) msgOrder {
+	rmo := &pbBlkNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newBlockNotice, noticeMsg, signer) {
+		rmo.blkHash = noticeMsg.BlockHash
+		return rmo
+	}
+	return nil
 }
 
-func (pr *pbMessageOrder) GetRequestID() string {
+func newPbMsgTxBroadcastOrder(message *types.NewTransactionsNotice, signer msgSigner) msgOrder {
+	rmo := &pbTxNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newTxNotice, message, signer) {
+		rmo.txHashes = message.TxHashes
+		return rmo
+	}
+	return nil
+}
+
+func (pr *pbMessageOrder) GetMsgID() string {
 	return pr.message.Header.Id
 }
 
@@ -120,6 +149,93 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 // SendOver is send itself over the writer rw.
 func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
 	return w.WriteMsg(pr.message)
+}
+
+func (pr *pbMessageOrder) Skippable() bool {
+	return false
+}
+
+func (pr *pbMessageOrder) SendTo(p *RemotePeer) bool {
+	err := pr.SendOver(p.rw)
+	if err != nil {
+		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		return false
+	}
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Msg("Send message")
+
+	return true
+}
+
+type pbRequestOrder struct {
+	pbMessageOrder
+}
+
+func (pr *pbRequestOrder) SendTo(p *RemotePeer) bool {
+	if pr.pbMessageOrder.SendTo(p) {
+		p.requests[pr.GetMsgID()] = pr
+		return true
+	}
+	return false
+}
+
+type pbBlkNoticeOrder struct {
+	pbMessageOrder
+	blkHash []byte
+}
+
+func (pr *pbBlkNoticeOrder) SendTo(p *RemotePeer) bool {
+	var blkhash [blkhashLen]byte
+	copy(blkhash[:], pr.blkHash)
+	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
+		// the remote peer already know this block hash. skip it
+		return false
+	}
+	err := pr.SendOver(p.rw)
+	if err != nil {
+		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		return false
+	}
+	return true
+}
+
+func (pr *pbBlkNoticeOrder) Skippable() bool {
+	return true
+}
+
+type pbTxNoticeOrder struct {
+	pbMessageOrder
+	txHashes [][]byte
+}
+
+func (pr *pbTxNoticeOrder) SendTo(p *RemotePeer) bool {
+	var txHash [txhashLen]byte
+	send, skip := 0, 0
+	for _, h := range pr.txHashes {
+		copy(txHash[:], h)
+		if ok, _ := p.txHashCache.ContainsOrAdd(txHash, cachePlaceHolder); ok {
+			skip++
+		} else {
+			send++
+		}
+	}
+	if skip == len(pr.txHashes) {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending tx notice. peer knows all hashes")
+		return false
+	}
+	err := pr.SendOver(p.rw)
+	if err != nil {
+		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		return false
+	}
+	return true
+}
+
+func (pr *pbTxNoticeOrder) Skippable() bool {
+	return true
 }
 
 // SendProtoMessage send proto.Message data over stream

@@ -57,28 +57,14 @@ type RemotePeer struct {
 	rw MsgReadWriter
 }
 
-// msgOrder is abstraction information about the message that will be sent to peer
-type msgOrder interface {
-	GetRequestID() string
-	// Timestamp is unit time value
-	Timestamp() int64
-	IsRequest() bool
-	IsGossip() bool
-	IsNeedSign() bool
-	// ResponseExpected means that remote peer is expected to send response to this request.
-	ResponseExpected() bool
-	GetProtocolID() SubProtocol
-	SendOver(w MsgWriter) error
-}
-
 const (
 	cleanRequestDuration = time.Hour
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger, signer msgSigner) *RemotePeer {
+func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger, signer msgSigner, rw MsgReadWriter) *RemotePeer {
 	peer := &RemotePeer{
-		meta: meta, pm: p2ps, actorServ: iServ, logger: log, signer: signer,
+		meta: meta, pm: p2ps, actorServ: iServ, logger: log, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -241,8 +227,8 @@ const writeChannelTimeout = time.Second * 2
 
 func (p *RemotePeer) sendMessage(msg msgOrder) {
 	if p.state.Get() != types.RUNNING {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Interface(LogProtoID, msg.GetProtocolID()).
-			Str(LogMsgID, msg.GetRequestID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
+			Str(LogMsgID, msg.GetMsgID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
 	p.write.In() <- msg
@@ -261,17 +247,18 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	err := m.SendOver(p.rw)
-	if err != nil {
-		p.logger.Warn().Err(err).Msg("fail to SendOver")
-		return
-	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
-		Str(LogMsgID, m.GetRequestID()).Msg("Send message")
-	//p.logger.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
-	if m.ResponseExpected() {
-		p.requests[m.GetRequestID()] = m
-	}
+	m.SendTo(p)
+	// err := m.SendOver(p.rw)
+	// if err != nil {
+	// 	p.logger.Warn().Err(err).Msg("fail to SendOver")
+	// 	return
+	// }
+	// p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
+	// 	Str(LogMsgID, m.GetMsgID()).Msg("Send message")
+	// //p.logger.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetMsgID(), p.meta.ID.Pretty())
+	// if m.ResponseExpected() {
+	// 	p.requests[m.GetMsgID()] = m
+	// }
 }
 
 func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
@@ -407,7 +394,7 @@ func (l *hangResolver) OnDrop(element interface{}) {
 		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
 		l.p.pm.RemovePeer(l.p.ID())
 	} else {
-		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetRequestID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
 }
 
