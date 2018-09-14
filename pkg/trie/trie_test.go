@@ -127,7 +127,7 @@ func TestTrieDelete(t *testing.T) {
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
-	_, _ = smt.get(root, keys[0], nil, 0, smt.TrieHeight)
+	smt.get(root, keys[0], nil, 0, smt.TrieHeight)
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(nil, Hasher, nil)
 	ch = make(chan mresult, 1)
@@ -245,7 +245,6 @@ func TestTrieCommit(t *testing.T) {
 }
 
 func TestTrieRevert(t *testing.T) {
-	// TODO test fetching every updated nodes
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -253,18 +252,50 @@ func TestTrieRevert(t *testing.T) {
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
 	smt := NewTrie(nil, Hasher, st)
+
+	// Edge case : Test that revert doesnt delete shortcut nodes
+	// when moved to a different position in tree
+	key0 := make([]byte, 32, 32)
+	key1 := make([]byte, 32, 32)
+	// setting the bit at 251 creates 2 shortcut batches at height 252
+	bitSet(key1, 251)
+	values := getFreshData(2, 32)
+	keys := [][]byte{key0, key1}
+	root, _ := smt.Update([][]byte{key0}, [][]byte{values[0]})
+	fmt.Println("deleted root ? ", root)
 	smt.Commit()
+	smt.Update([][]byte{key1}, [][]byte{values[1]})
+	smt.Commit()
+	smt.Revert(root)
+	if len(smt.db.store.Get(root)) == 0 {
+		t.Fatal("shortcut node shouldnt be deleted by revert")
+	}
+	key1 = make([]byte, 32, 32)
+	// setting the bit at 255 stores the keys as the tip
+	bitSet(key1, 255)
+	smt.Update([][]byte{key1}, [][]byte{values[1]})
+	smt.Commit()
+	smt.Revert(root)
+	if len(smt.db.store.Get(root)) == 0 {
+		t.Fatal("shortcut node shouldnt be deleted by revert")
+	}
+
+	// Test all nodes are reverted in the usual case
 	// Add data to empty trie
-	keys := getFreshData(10, 32)
-	values := getFreshData(10, 32)
-	root, _ := smt.Update(keys, values)
+	keys = getFreshData(10, 32)
+	values = getFreshData(10, 32)
+	root, _ = smt.Update(keys, values)
 	smt.Commit()
 
+	// Update the values
 	newValues := getFreshData(10, 32)
 	smt.Update(keys, newValues)
+	updatedNodes1 := smt.db.updatedNodes
 	smt.Commit()
+	newKeys := getFreshData(10, 32)
 	newValues = getFreshData(10, 32)
-	newRoot, _ := smt.Update(keys, newValues)
+	smt.Update(newKeys, newValues)
+	updatedNodes2 := smt.db.updatedNodes
 	smt.Commit()
 
 	smt.Revert(root)
@@ -285,8 +316,16 @@ func TestTrieRevert(t *testing.T) {
 	if len(smt.db.liveCache) != 0 {
 		t.Fatal("live cache not reset after revert")
 	}
-	if len(smt.db.store.Get(newRoot)) != 0 {
-		t.Fatal("nodes not deleted from database")
+	// Check all reverted nodes have been deleted
+	for node, _ := range updatedNodes2 {
+		if len(smt.db.store.Get(node[:])) != 0 {
+			t.Fatal("nodes not deleted from database", node)
+		}
+	}
+	for node, _ := range updatedNodes1 {
+		if len(smt.db.store.Get(node[:])) != 0 {
+			t.Fatal("nodes not deleted from database", node)
+		}
 	}
 	st.Close()
 	os.RemoveAll(".aergo")

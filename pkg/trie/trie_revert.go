@@ -16,6 +16,12 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	if bytes.Equal(s.Root, toOldRoot) {
 		return fmt.Errorf("Trying to revers to the same root %x", s.Root)
 	}
+	// safety precaution if reverting to a shortcut batch that might have been deleted
+	batch, _, _, _, isShortcut, err := s.loadChildren(toOldRoot, s.TrieHeight, nil, 0)
+	if err != nil {
+		return err
+	}
+
 	//check if toOldRoot is in s.pastTries
 	canRevert := false
 	toIndex := 0
@@ -31,17 +37,19 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	}
 
 	// For every node of toOldRoot, compare it to the equivalent node in other pasttries between toOldRoot and current s.Root. If a node is different, delete the one from pasttries
-	toBeDeleted := make([][]byte, 0)
+	s.db.nodesToRevert = make([][]byte, 0)
 	for i := toIndex + 1; i < len(s.pastTries); i++ {
-		err := s.maybeDeleteSubTree(toOldRoot, s.pastTries[i], s.TrieHeight, &toBeDeleted, nil, 0)
+		ch := make(chan error, 1)
+		s.maybeDeleteSubTree(toOldRoot, s.pastTries[i], s.TrieHeight, nil, nil, 0, ch)
+		err := <-ch
 		if err != nil {
 			return err
 		}
 	}
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
 	txn := s.db.store.NewTx(true)
-	for _, key := range toBeDeleted {
-		txn.Delete(key)
+	for _, key := range s.db.nodesToRevert {
+		txn.Delete(key[:HashLength])
 	}
 	txn.Commit()
 
@@ -49,85 +57,134 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	s.Root = toOldRoot
 	// load default hashes in live cache
 	s.db.liveCache = make(map[Hash][][]byte)
-	s.loadDefaultHashes()
+	s.db.updatedNodes = make(map[Hash][][]byte)
+	if isShortcut {
+		// If toOldRoot is a shortcut batch, it is possible that
+		// revert has deleted it if the key was ever stored at height0
+		// because in leafHash byte(0) = byte(256)
+		s.db.store.Set(toOldRoot, s.db.serializeBatch(batch))
+	}
 	return nil
 }
 
 // maybeDeleteSubTree compares the subtree nodes of 2 tries and keeps only the older one
-func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, toBeDeleted *[][]byte, batch [][]byte, iBatch uint8) error {
+func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height uint64, batch, batch2 [][]byte, iBatch uint8, ch chan<- (error)) {
 	if height == 0 {
 		if !bytes.Equal(original, maybeDelete) && len(maybeDelete) != 0 {
-			*toBeDeleted = append(*toBeDeleted, maybeDelete)
+			s.deleteRevertedNode(maybeDelete)
 		}
-		return nil
+		ch <- nil
+		return
 	}
 	if bytes.Equal(original, maybeDelete) || len(maybeDelete) == 0 {
-		return nil
+		ch <- nil
+		return
 	}
 	// if this point os reached, then the root of the batch is same
 	// so the batch is also same.
-	_, _, lnode, rnode, isShortcut, lerr := s.loadChildren(original, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, lerr := s.loadChildren(original, height, batch, iBatch)
 	if lerr != nil {
-		return lerr
+		ch <- lerr
+		return
 	}
-	batch, iBatch, lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete, height, batch, iBatch)
+	batch2, _, lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete, height, batch2, iBatch)
 	if rerr != nil {
-		return rerr
+		ch <- rerr
+		return
 	}
 
 	if isShortcut != isShortcut2 {
 		if isShortcut {
-			return s.deleteSubTree(maybeDelete, height, toBeDeleted, batch, iBatch)
+			ch1 := make(chan error, 1)
+			s.deleteSubTree(maybeDelete, height, batch2, iBatch, ch1)
+			err := <-ch1
+			if err != nil {
+				ch <- err
+				return
+			}
 		} else if iBatch == 0 {
-			*toBeDeleted = append(*toBeDeleted, maybeDelete)
+			s.deleteRevertedNode(maybeDelete)
 		}
 	} else {
 		if isShortcut {
 			// Delete shortcut if not equal
 			if !bytes.Equal(lnode, lnode2) || !bytes.Equal(rnode, rnode2) {
 				if iBatch == 0 {
-					*toBeDeleted = append(*toBeDeleted, maybeDelete)
+					s.deleteRevertedNode(maybeDelete)
 				}
 			}
 		} else {
 			// Delete subtree if not equal
 			if iBatch == 0 {
-				*toBeDeleted = append(*toBeDeleted, maybeDelete)
+				s.deleteRevertedNode(maybeDelete)
 			}
-			err := s.maybeDeleteSubTree(lnode, lnode2, height-1, toBeDeleted, batch, 2*iBatch+1)
-			if err != nil {
-				return err
+			ch1 := make(chan error, 1)
+			ch2 := make(chan error, 1)
+			go s.maybeDeleteSubTree(lnode, lnode2, height-1, batch, batch2, 2*iBatch+1, ch1)
+			go s.maybeDeleteSubTree(rnode, rnode2, height-1, batch, batch2, 2*iBatch+2, ch2)
+			err1 := <-ch1
+			if err1 != nil {
+				ch <- err1
+				return
 			}
-			err = s.maybeDeleteSubTree(rnode, rnode2, height-1, toBeDeleted, batch, 2*iBatch+2)
-			if err != nil {
-				return err
+			err2 := <-ch2
+			if err2 != nil {
+				ch <- err2
+				return
 			}
 		}
 	}
-	return nil
+	ch <- nil
+	return
 }
 
 // deleteSubTree deletes all the nodes contained in a tree
-func (s *Trie) deleteSubTree(root []byte, height uint64, toBeDeleted *[][]byte, batch [][]byte, iBatch uint8) error {
-	if height == 0 || len(root) == 0 {
-		return nil
+func (s *Trie) deleteSubTree(root []byte, height uint64, batch [][]byte, iBatch uint8, ch chan<- (error)) {
+	if len(root) == 0 {
+		ch <- nil
+		return
+	}
+	if height == 0 {
+		s.deleteRevertedNode(root)
+		ch <- nil
+		return
 	}
 	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	// TODO make a loadChildren from db
 	if err != nil {
-		return err
+		ch <- err
+		return
+		//return err
 	}
 	if !isShortcut {
-		lerr := s.deleteSubTree(lnode, height-1, toBeDeleted, batch, 2*iBatch+1)
+		ch1 := make(chan error, 1)
+		ch2 := make(chan error, 1)
+		go s.deleteSubTree(lnode, height-1, batch, 2*iBatch+1, ch1)
+		go s.deleteSubTree(rnode, height-1, batch, 2*iBatch+2, ch2)
+		lerr := <-ch1
+		rerr := <-ch2
+
 		if lerr != nil {
-			return lerr
+			ch <- lerr
+			return
+			//return lerr
 		}
-		rerr := s.deleteSubTree(rnode, height-1, toBeDeleted, batch, 2*iBatch+2)
 		if rerr != nil {
-			return rerr
+			ch <- rerr
+			return
+			//return rerr
 		}
 	}
 	if iBatch == 0 {
-		*toBeDeleted = append(*toBeDeleted, root)
+		s.deleteRevertedNode(root)
 	}
-	return nil
+	ch <- nil
+	return
+}
+
+// deleteRevertedNode adds the node to updatedNodes to be reverted
+func (s *Trie) deleteRevertedNode(root []byte) {
+	s.db.revertMux.Lock()
+	s.db.nodesToRevert = append(s.db.nodesToRevert, root)
+	s.db.revertMux.Unlock()
 }

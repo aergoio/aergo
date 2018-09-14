@@ -20,6 +20,10 @@ type CacheDB struct {
 	updatedNodes map[Hash][][]byte
 	// updatedMux is a lock for updatedNodes
 	updatedMux sync.RWMutex
+	// nodesToRevert will be deleted from db
+	nodesToRevert [][]byte
+	// revertMux is a lock for updatedNodes
+	revertMux sync.RWMutex
 	// lock for CacheDB
 	lock sync.RWMutex
 	// store is the interface to disk db

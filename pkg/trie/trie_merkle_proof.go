@@ -24,7 +24,7 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 	if err != nil {
 		return nil, nil, 0, true, nil, nil, err
 	}
-	// the length will be needed for the proof verification
+	// the height of the whortcut in the tree will be needed for the proof verification
 	length := uint64(len(mpFull))
 	var mp [][]byte
 	bitmap := make([]byte, len(mpFull)/8+1)
@@ -91,7 +91,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 
 // VerifyMerkleProof verifies that key/value is included in the trie with latest root
 func (s *Trie) VerifyMerkleProof(ap [][]byte, key, value []byte) bool {
-	leafHash := s.hash(key, value, []byte{1})
+	leafHash := s.hash(key, value, []byte{byte(int(s.TrieHeight) - len(ap))})
 	return bytes.Equal(s.Root, s.verifyMerkleProof(ap, s.TrieHeight, key, leafHash))
 }
 
@@ -115,13 +115,13 @@ func (s *Trie) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue []b
 			return false
 		}
 	}
-	// this key is not included in the trie
+	// this key is not included in the trie : it is default
 	return true
 }
 
 // VerifyMerkleProofCompressed verifies that key/value is included in the trie with latest root
 func (s *Trie) VerifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, key, value []byte) bool {
-	leafHash := s.hash(key, value, []byte{1})
+	leafHash := s.hash(key, value, []byte{byte(s.TrieHeight - length)})
 	return bytes.Equal(s.Root, s.verifyMerkleProofCompressed(bitmap, ap, length, s.TrieHeight, uint64(len(ap)), key, leafHash))
 }
 
