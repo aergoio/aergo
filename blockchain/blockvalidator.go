@@ -10,7 +10,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-type BlockVerifier struct {
+type BlockValidator struct {
 	signVerifier *SignVerifier
 }
 
@@ -18,8 +18,8 @@ var (
 	ErrorBlockVerifySign = errors.New("Block verify failed, because Tx sign is invalid")
 )
 
-func NewBlockVerifier() *BlockVerifier {
-	bv := BlockVerifier{
+func NewBlockValidator() *BlockValidator {
+	bv := BlockValidator{
 		signVerifier: NewSignVerifier(DefaultVerifierCnt),
 	}
 
@@ -27,22 +27,22 @@ func NewBlockVerifier() *BlockVerifier {
 	return &bv
 }
 
-func (bv *BlockVerifier) Stop() {
+func (bv *BlockValidator) Stop() {
 	bv.signVerifier.Stop()
 }
 
-func (bv *BlockVerifier) VerifyBlock(block *types.Block) error {
-	if err := bv.verifyHeader(block.GetHeader()); err != nil {
+func (bv *BlockValidator) ValidateBlock(block *types.Block) error {
+	if err := bv.ValidateHeader(block.GetHeader()); err != nil {
 		return err
 	}
 
-	if err := bv.verifyBody(block); err != nil {
+	if err := bv.ValidateBody(block); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (bv *BlockVerifier) verifyHeader(header *types.BlockHeader) error {
+func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	// TODO : more field?
 	// Block, State not exsit
 	//	MaxBlockSize
@@ -52,7 +52,7 @@ func (bv *BlockVerifier) verifyHeader(header *types.BlockHeader) error {
 	return nil
 }
 
-func (bv *BlockVerifier) verifyBody(block *types.Block) error {
+func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	// TxRootHash
 	// check Tx sign
 	txs := block.GetBody().GetTxs()
