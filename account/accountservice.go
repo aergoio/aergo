@@ -1,7 +1,6 @@
 package account
 
 import (
-	"encoding/base64"
 	"sync"
 
 	"github.com/aergoio/aergo/account/key"
@@ -77,16 +76,6 @@ func (as *AccountService) Receive(context actor.Context) {
 			context.Respond(&message.VerifyTxRsp{Tx: msg.Tx, Err: nil})
 		}
 	}
-}
-
-//TODO: refactoring util function
-func EncodeB64(bs []byte) string {
-	return base64.StdEncoding.EncodeToString(bs)
-}
-
-func DecodeB64(sb string) []byte {
-	buf, _ := base64.StdEncoding.DecodeString(sb)
-	return buf
 }
 
 func (as *AccountService) getAccounts() []*types.Account {

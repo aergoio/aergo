@@ -121,7 +121,7 @@ func TestContractSystem(t *testing.T) {
 	contractCall(t, contractState, callInfo, bcCtx)
 	receipt := types.NewReceiptFromBytes(DB.Get(tid))
 
-	if receipt.GetRet() != "[\"sender2\",\"c2b36750\",\"31KcyXb99xYD5tQ9Jpx4BMnhVh9a\",1234,100,999]" {
+	if receipt.GetRet() != "[\"6hu2huFGTzbncMV\",\"c2b36750\",\"AUu39krB88UbRXM1hT37zZgk3MuS8aLGgF\",1234,100,999]" {
 		t.Errorf("contract Call ret error :%s\n", receipt.GetRet())
 	}
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -65,7 +63,7 @@ var signCmd = &cobra.Command{
 
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
-			addr, err := base58.Decode(address)
+			addr, err := types.DecodeAddress(address)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
 				return

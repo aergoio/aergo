@@ -25,7 +25,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"unsafe"
 
 	"github.com/aergoio/aergo/state"
@@ -75,7 +74,7 @@ func NewContext(contractState *state.ContractState, Sender, txHash []byte, block
 	if query {
 		isQuery = 1
 	}
-	enContractId := base58.Encode(contractID)
+	enContractId := types.EncodeAddress(contractID)
 	enTxHash := hex.EncodeToString(txHash)
 
 	stateKey := fmt.Sprintf("%s%s", enContractId, enTxHash)
@@ -83,7 +82,7 @@ func NewContext(contractState *state.ContractState, Sender, txHash []byte, block
 
 	return &LBlockchainCtx{
 		stateKey:    C.CString(stateKey),
-		sender:      C.CString(base58.Encode(Sender)),
+		sender:      C.CString(types.EncodeAddress(Sender)),
 		txHash:      C.CString(enTxHash),
 		blockHeight: C.ulonglong(blockHeight),
 		timestamp:   C.longlong(timestamp),
@@ -105,7 +104,7 @@ func (L *LState) Close() {
 }
 
 func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
-	address := C.CString(base58.Encode(contract.address))
+	address := C.CString(types.EncodeAddress(contract.address))
 	defer C.free(unsafe.Pointer(address))
 
 	ce := &Executor{
@@ -170,7 +169,7 @@ func (ce *Executor) call(ci *types.CallInfo) {
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", base58.Encode(ce.contract.address))
+		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
 		ce.err = errors.New(errMsg)
 		return
 	}
@@ -200,7 +199,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	if contract != nil {
 		err = json.Unmarshal(code, &ci)
 		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		}
 	} else {
 		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
@@ -208,7 +207,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	}
 	var ce *Executor
 	if err == nil {
-		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", base58.Encode(contractAddress))
+		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		ce = newExecutor(contract, bcCtx)
 		defer ce.close()
 		ce.call(&ci)
@@ -225,7 +224,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 }
 
 func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, dbTx db.Transaction) error {
-	ctrLog.Debug().Str("contractAddress", base58.Encode(contractAddress)).Msg("new contract is deployed")
+	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	err := contractState.SetCode(code)
 	if err != nil {
 		return err
@@ -243,10 +242,10 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	if contract != nil {
 		err = json.Unmarshal(queryInfo, &ci)
 		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", base58.Encode(contractAddress))
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		}
 	} else {
-		err = fmt.Errorf("cannot find contract %s", base58.Encode(contractAddress))
+		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
@@ -256,7 +255,7 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 
 	bcCtx := NewContext(contractState, contractAddress, nil,
 		0, 0, "", false, contractAddress, true)
-	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", base58.Encode(contractAddress))
+	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close()
 	ce.call(&ci)

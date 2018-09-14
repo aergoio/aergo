@@ -9,8 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -43,7 +41,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 		fmt.Println("no --address specified")
 		return
 	}
-	param, err := base58.Decode(address)
+	param, err := types.DecodeAddress(address)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 	}

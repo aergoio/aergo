@@ -1,5 +1,5 @@
-hash: 6d07dfbfcc47a436b2d415423b576ccfedc7b3c6386ffff2c7acdc027cc7ecf5
-updated: 2018-09-13T19:45:45.5725836+09:00
+hash: bef90f2a4379c9b04ca54081eb0bb7fc8b4d32edecdf9110686077523a050ae9
+updated: 2018-09-14T11:26:10.068355+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: c64cbdbabc820bb9bdd772303bf96f56e7c9005a
@@ -20,6 +20,8 @@ imports:
   subpackages:
   - edwards25519
   - extra25519
+- name: github.com/anaskhan96/base58check
+  version: fcff33ba49dde3181fa69fb346f45582e52a3815
 - name: github.com/AndreasBriese/bbloom
   version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
 - name: github.com/btcsuite/btcd

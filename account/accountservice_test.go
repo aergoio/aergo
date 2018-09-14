@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+	"bytes"
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
@@ -19,6 +20,8 @@ var (
 	as             *AccountService
 	conf           *config.Config
 )
+
+const AddressLength = 20
 
 func initTest() {
 	serverCtx := config.NewServerContext("", "")
@@ -50,7 +53,7 @@ func TestNewAccountAndGet(t *testing.T) {
 	var resultlist []*types.Account
 	for _, a := range getlist {
 		for _, t := range testaccounts {
-			if EncodeB64(a.Address) == EncodeB64(t.Address) {
+			if types.EncodeAddress(a.Address) == types.EncodeAddress(t.Address) {
 				resultlist = append(resultlist, t)
 				break
 			}
@@ -60,8 +63,6 @@ func TestNewAccountAndGet(t *testing.T) {
 		t.Error("failed to get account")
 	}
 }
-
-const AddressLength = 20
 
 func TestNewAccountAndUnlockLock(t *testing.T) {
 	initTest()
@@ -178,5 +179,27 @@ func TestVerfiyFail(t *testing.T) {
 	}
 	if err == nil {
 		t.Fatal("should not success to verify")
+	}
+}
+
+func TestBase58CheckEncoding(t *testing.T) {
+	initTest()
+	defer deinitTest()
+	addr := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+
+	encoded := types.EncodeAddress(addr)
+	expected := "AFsCjUGzicZmXQtWpwVt6fQTZyaVe7bfEk"
+	if encoded != expected {
+		t.Fatalf("incorrectly encoded address: %s should be %s", encoded, expected)
+	}
+
+	decoded, _ := types.DecodeAddress(encoded)
+	if !bytes.Equal(decoded, addr) {
+		t.Fatalf("incorrectly decoded address: %x should be %x", decoded, addr)
+	}
+
+	_, err := types.DecodeAddress("EFsCjUGzicZmXQtWpwVt6fQTZyaVe7bfEk")
+	if err == nil {
+		t.Fatalf("decoding address with wrong checksum should error")
 	}
 }
