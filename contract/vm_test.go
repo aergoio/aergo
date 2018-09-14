@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	accountId = "31KcyXb99xYD5tQ9Jpx4BMnhVh9a"
+	accountId = "AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6"
 	txId      = "c2b36750"
 	/*function hello(say) return "Hello " .. say end abi.register(hello)*/
 	helloCode = "C34wJetPFqYBV8bpSao36R2NxFcW5X4ZGZoPcnfJvHkvvBR4PcbsZ5xki8nSHubPMnNusFPpn19x7myhR8baq12RvoufQ8z2DR1PyvGfYf6VmAzhF5rg8F7mvVEBRdqnAMnFmb5E6E2iey4wEjXNrjJ8RfsPEfottZ2umDN5WFc8egeydXesa1a59QLBp926MoETbDwRJMeFHeGHuvQ4bikCXhXaQS6Vi73y4Xpcu3Bv1rMnfBxEX5ZehtcuYDFUoZzn8"
@@ -60,7 +60,7 @@ func init() {
 	DB = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
 
 	var err error
-	aid, err = base58.Decode(accountId)
+	aid, err = types.DecodeAddress(accountId)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
@@ -121,8 +121,9 @@ func TestContractSystem(t *testing.T) {
 	contractCall(t, contractState, callInfo, bcCtx)
 	receipt := types.NewReceiptFromBytes(DB.Get(tid))
 
-	if receipt.GetRet() != "[\"6hu2huFGTzbncMV\",\"c2b36750\",\"AUu39krB88UbRXM1hT37zZgk3MuS8aLGgF\",1234,100,999]" {
-		t.Errorf("contract Call ret error :%s\n", receipt.GetRet())
+	// sender, txhash, contractid, timestamp, blockheight, getItem("key1")
+	if receipt.GetRet() != "[\"HNM6akcic1ou1fX\",\"c2b36750\",\"AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6\",1234,100,999]" {
+		t.Errorf("contract Call ret error: %s\n", receipt.GetRet())
 	}
 
 }

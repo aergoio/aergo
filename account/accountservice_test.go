@@ -185,10 +185,10 @@ func TestVerfiyFail(t *testing.T) {
 func TestBase58CheckEncoding(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	addr := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+	addr := []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33}
 
 	encoded := types.EncodeAddress(addr)
-	expected := "AFsCjUGzicZmXQtWpwVt6fQTZyaVe7bfEk"
+	expected := "AmJaNDXoPbBRn9XHh9onKbDKuAzj88n5Bzt7KniYA78qUEc5EwBd"
 	if encoded != expected {
 		t.Fatalf("incorrectly encoded address: %s should be %s", encoded, expected)
 	}
@@ -198,7 +198,7 @@ func TestBase58CheckEncoding(t *testing.T) {
 		t.Fatalf("incorrectly decoded address: %x should be %x", decoded, addr)
 	}
 
-	_, err := types.DecodeAddress("EFsCjUGzicZmXQtWpwVt6fQTZyaVe7bfEk")
+	_, err := types.DecodeAddress("AmJaNDXoPbBRn9XHh9onKbDKuAzj88n5Bzt7KniYA78qUEc5EwBA")
 	if err == nil {
 		t.Fatalf("decoding address with wrong checksum should error")
 	}
