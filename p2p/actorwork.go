@@ -67,23 +67,22 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 
 // NotifyNewBlock send notice message of new block to a peer
 func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
+	req := &types.NewBlockNotice{
+		BlockHash: newBlock.Block.Hash,
+		BlockNo:   newBlock.BlockNo}
+	msg := newPbMsgBroadcastOrder(newBlockNotice, req, p2ps.signer)
+
+	skipped, sent := 0, 0
 	// create message data
 	for _, neighbor := range p2ps.pm.GetPeers() {
-		if neighbor == nil {
-			continue
-		}
-		req := &types.NewBlockNotice{
-			BlockHash: newBlock.Block.Hash,
-			BlockNo:   newBlock.BlockNo}
-		msg := newPbMsgBroadcastOrder(newBlockNotice, req, p2ps.signer)
-		if neighbor.State() == types.RUNNING {
-			p2ps.Debug().Str(LogPeerID, neighbor.meta.ID.Pretty()).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
-			// FIXME need to check if remote peer knows this hash already.
-			// but can't do that in peer's write goroutine, since the context is gone in
-			// protobuf serialization.
+		if neighbor != nil && neighbor.State() == types.RUNNING {
+			sent++
 			neighbor.sendMessage(msg)
+		} else {
+			skipped++
 		}
 	}
+	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
 	return true
 }
 
@@ -143,13 +142,20 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	for i, tx := range newTXs.Txs {
 		hashes[i] = tx.Hash
 	}
-	p2ps.Debug().Int("peer_cnt", len(p2ps.pm.GetPeers())).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
+	// create message data
+	req := &types.NewTransactionsNotice{TxHashes: hashes}
+	msg := newPbMsgBroadcastOrder(newTxNotice, req, p2ps.signer)
+	skipped, sent := 0, 0
 	// send to peers
 	for _, peer := range p2ps.pm.GetPeers() {
-		// create message data
-		req := &types.NewTransactionsNotice{TxHashes: hashes}
-		peer.sendMessage(newPbMsgBroadcastOrder(newTxNotice, req, p2ps.signer))
+		if peer != nil && peer.State() == types.RUNNING {
+			sent++
+			peer.sendMessage(msg)
+		} else {
+			skipped++
+		}
 	}
+	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
 
 	return true
 }

@@ -207,7 +207,7 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 	proto := SubProtocol(msg.Header.Subprotocol)
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
+			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler")
 			err = fmt.Errorf("internal error")
 		}
 	}()
