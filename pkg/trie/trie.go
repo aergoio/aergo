@@ -36,6 +36,8 @@ type Trie struct {
 	LoadCacheCounter uint64
 	// liveCountMux is a lock fo LoadCacheCounter
 	liveCountMux sync.RWMutex
+	// counterOn is used to enable/diseable for efficiency
+	counterOn bool
 	// CacheHeightLimit is the number of tree levels we want to store in cache
 	CacheHeightLimit uint64
 	// pastTries stores the past maxPastTries trie roots to revert
@@ -48,6 +50,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 		hash:             hash,
 		TrieHeight:       uint64(len(hash([]byte("height"))) * 8), // hash any string to get output length
 		CacheHeightLimit: 233,                                     // 246, //234, // based on the number of nodes we can keep in memory.
+		counterOn:        false,
 	}
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
@@ -471,9 +474,11 @@ func (s *Trie) loadBatch(root []byte, updateSafe bool) ([][]byte, error) {
 	val, exists := s.db.liveCache[node]
 	s.db.liveMux.RUnlock()
 	if exists {
-		s.liveCountMux.Lock()
-		s.LoadCacheCounter++
-		s.liveCountMux.Unlock()
+		if s.counterOn {
+			s.liveCountMux.Lock()
+			s.LoadCacheCounter++
+			s.liveCountMux.Unlock()
+		}
 		if updateSafe {
 			// Return a copy so that Commit() doesnt have to be called at
 			// each block and still commit every state transition.
@@ -502,9 +507,11 @@ func (s *Trie) loadBatch(root []byte, updateSafe bool) ([][]byte, error) {
 	if s.db.store == nil {
 		return nil, fmt.Errorf("DB not connected to trie")
 	}
-	s.loadDbMux.Lock()
-	s.LoadDbCounter++
-	s.loadDbMux.Unlock()
+	if s.counterOn {
+		s.loadDbMux.Lock()
+		s.LoadDbCounter++
+		s.loadDbMux.Unlock()
+	}
 	s.db.lock.Lock()
 	dbval := s.db.store.Get(root[:HashLength])
 	s.db.lock.Unlock()

@@ -262,7 +262,6 @@ func TestTrieRevert(t *testing.T) {
 	values := getFreshData(2, 32)
 	keys := [][]byte{key0, key1}
 	root, _ := smt.Update([][]byte{key0}, [][]byte{values[0]})
-	fmt.Println("deleted root ? ", root)
 	smt.Commit()
 	smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
