@@ -151,6 +151,17 @@ func TestTrieDelete(t *testing.T) {
 	if len(root) != 0 {
 		t.Fatal("empty trie root hash not correct")
 	}
+
+	// Test deleting an already empty key
+	smt = NewTrie(nil, Hasher, nil)
+	keys = getFreshData(2, 32)
+	values = getFreshData(2, 32)
+	root, _ = smt.Update(keys, values)
+	keys = getFreshData(2, 32)
+	smt.Update(keys, [][]byte{DefaultLeaf, DefaultLeaf})
+	if !bytes.Equal(root, smt.Root) {
+		t.Fatal("deleting a default key shouldnt' modify the tree")
+	}
 }
 
 // test updating and deleting at the same time

@@ -156,7 +156,11 @@ func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	if result.err != nil {
 		return nil, result.err
 	}
-	s.Root = result.update[:HashLength]
+	if len(result.update) != 0 {
+		s.Root = result.update[:HashLength]
+	} else {
+		s.Root = nil
+	}
 	return s.Root, nil
 }
 
@@ -221,8 +225,12 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 	// Store shortcut node
 	if (len(lnode) == 0) && (len(rnode) == 0) && (len(keys) == 1) {
 		// We are adding 1 key to an empty subtree so store it as a shortcut
-		node := s.leafHash(keys[0], values[0], batch, iBatch, height, root)
-		ch <- mresult{node, false, nil}
+		if bytes.Equal(DefaultLeaf, values[0]) {
+			ch <- mresult{nil, true, nil}
+		} else {
+			node := s.leafHash(keys[0], values[0], batch, iBatch, height, root)
+			ch <- mresult{node, false, nil}
+		}
 		return
 	}
 
