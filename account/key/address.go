@@ -4,18 +4,20 @@ import (
 	"crypto/ecdsa"
 	"io/ioutil"
 	"os"
-	"crypto/sha256"
+	"encoding/binary"
+	"bytes"
 )
 
 type Address = []byte
 
-const addressLength = 20
+const addressLength = 33
 
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
-	h := sha256.New()
-	h.Write(pubkey.X.Bytes())
-	h.Write(pubkey.Y.Bytes())
-	return h.Sum(nil)[:addressLength]
+	addr := new(bytes.Buffer)
+	// Compressed pubkey
+	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
+	binary.Write(addr, binary.LittleEndian, uint8(0x2 + pubkey.Y.Bit(0)))  // 0x2 for even, 0x3 for odd Y
+	return addr.Bytes() // 33 bytes
 }
 
 func (ks *Store) SaveAddress(addr Address) error {

@@ -21,7 +21,7 @@ var (
 	conf           *config.Config
 )
 
-const AddressLength = 20
+const AddressLength = 33
 
 func initTest() {
 	serverCtx := config.NewServerContext("", "")
