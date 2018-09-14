@@ -89,6 +89,10 @@ func (sv *SignVerifier) VerifyTxs(txlist *types.TxList) (bool, []error) {
 	txs := txlist.GetTxs()
 	txLen := len(txs)
 
+	if txLen == 0 {
+		return false, nil
+	}
+
 	errors := make([]error, txLen, txLen)
 
 	//logger.Debug().Int("txlen", txLen).Msg("verify tx start")

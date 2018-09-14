@@ -32,7 +32,7 @@ type ChainService struct {
 	sdb *state.ChainStateDB
 	op  *OrphanPool
 
-	verifier *BlockVerifier
+	validator *BlockValidator
 }
 
 var (
@@ -52,7 +52,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		cc.SetStateDB(actor.sdb)
 	}
 
-	actor.verifier = NewBlockVerifier()
+	actor.validator = NewBlockValidator()
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -155,7 +155,7 @@ func (cs *ChainService) BeforeStop() {
 		cs.cdb.Close()
 	}
 
-	cs.verifier.Stop()
+	cs.validator.Stop()
 
 	contract.DB.Close()
 }
