@@ -29,7 +29,6 @@ var committxCmd = &cobra.Command{
 
 var nonce uint64
 var recipient string
-var amount int64
 var price int64
 
 //var script string
