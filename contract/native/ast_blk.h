@@ -21,6 +21,8 @@ struct ast_blk_s {
     list_t struct_l;
     list_t stmt_l;
 
+    ast_blk_t *up;
+
     yypos_t pos;
 };
 

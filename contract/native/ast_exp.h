@@ -20,10 +20,10 @@
 typedef struct ast_exp_s ast_exp_t;
 #endif  /* _AST_EXP_T */
 
-#ifndef _AST_VAR_T
-#define _AST_VAR_T
-typedef struct ast_var_s ast_var_t;
-#endif  /* _AST_VAR_T */
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif  /* _AST_ID_T */
 
 typedef enum exp_type_e {
     EXP_OP          = 0,
@@ -74,7 +74,7 @@ typedef struct exp_op_s {
 
 typedef struct exp_id_s {
     EXP_DECL;
-    ast_var_t *var;
+    ast_id_t *var;
 } exp_id_t;
 
 typedef struct exp_sql_s {
@@ -86,7 +86,7 @@ typedef struct exp_sql_s {
 typedef struct exp_lit_s {
     EXP_DECL;
     char *val;
-    exp_meta_t meta;
+    ast_meta_t meta;
 } exp_lit_t;
 
 typedef struct exp_new_s {

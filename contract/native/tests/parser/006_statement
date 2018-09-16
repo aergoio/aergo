@@ -180,13 +180,15 @@ contract test {
     int v1;
     string v2;
     test() {
-        insert into emp values (10, "Sam");
+        insert into emp values (10, 'Sam');
         int cnt = insert into 
-            emp values (20, "Bill");
+            emp values (20, 'Bill');
 
         delete from emp where id = 10;
         int cnt = delete from emp
-            where name = "Bill";
+            where name = 'Bill';
+
+        update emp set name = 'Tom' where c1 = 10;
     }
 }
 

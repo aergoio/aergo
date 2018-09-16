@@ -22,13 +22,13 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 %}
 
-%define api.pure full
-%define parse.error verbose
-%locations
 %parse-param { yyparam_t *param }
 %param { void *yyscanner }
+%locations
 %debug
 %verbose
+%define api.pure full
+%define parse.error verbose
 %initial-action {
     yylloc.first.line = 1;
     yylloc.first.col = 1;
@@ -45,78 +45,100 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* identifier */
 %token  <str>
-        ID
+        ID              "identifier"
 
-/* expr_lit */
+/* literal */
 %token  <str>
-        L_FLOAT         L_HEXA          L_INT           L_STR
+        L_FLOAT         "floating-point number"
+        L_HEXA          "hexadecimal number"
+        L_INT           "integer"
+        L_STR           "characters"
 
 /* operator */
-%token  OP_ADD_ASSIGN   OP_SUB_ASSIGN   OP_MUL_ASSIGN   OP_DIV_ASSIGN
-        OP_MOD_ASSIGN   OP_AND_ASSIGN   OP_XOR_ASSIGN   OP_OR_ASSIGN
-        OP_RS_ASSIGN    OP_LS_ASSIGN    OP_RSHIFT       OP_LSHIFT
-        OP_INC          OP_DEC          OP_AND          OP_OR
-        OP_LE           OP_GE           OP_EQ           OP_NE
+%token  ASSIGN_ADD      "+="
+        ASSIGN_SUB      "-="
+        ASSIGN_MUL      "*="
+        ASSIGN_DIV      "/="
+        ASSIGN_MOD      "%="
+        ASSIGN_AND      "&="
+        ASSIGN_XOR      "^="
+        ASSIGN_OR       "|="
+        ASSIGN_RS       ">>="
+        ASSIGN_LS       "<<="
+        SHIFT_R         ">>"
+        SHIFT_L         "<<"
+        CMP_AND         "&&"
+        CMP_OR          "||"
+        CMP_LE          "<="
+        CMP_GE          ">="
+        CMP_EQ          "=="
+        CMP_NE          "!="
+        UNARY_INC       "++"
+        UNARY_DEC       "--"
 
 /* keyword */
-%token  /* A */
-        K_ACCOUNT
-        /* B */
-        K_BOOL          K_BREAK         K_BYTE
-        /* C */
-        K_CASE          K_CONST         K_CONTINUE      K_CONTRACT
-        K_CREATE
-        /* D */
-        K_DEFAULT       K_DELETE        K_DOUBLE        K_DROP
-        /* E */
-        K_ELSE
-        /* F */
-        K_FALSE         K_FLOAT         K_FOR           K_FOREACH
-        K_FUNC
-        /* G */
-        /* H */
-        /* I */
-        K_IF            K_IN            K_INDEX         K_INSERT        
-        K_INT           K_INT16         K_INT32         K_INT64
-        /* L */
-        K_LOCAL
-        /* M */
-        K_MAP
-        /* N */
-        K_NEW           K_NULL
-        /* O */
-        /* P */
-        /* Q */
-        /* R */
-        K_READONLY      K_RETURN
-        /* S */
-        K_SELECT        K_SHARED        K_STRING        K_STRUCT
-        K_SWITCH
-        /* T */
-        K_TABLE         K_TRANSFER      K_TRUE
-        /* U */
-        K_UINT          K_UINT16        K_UINT32        K_UINT64
-        K_UPDATE
-        /* V */
-        /* W */
-        /* X */
-        /* Y */
-        /* Z */
+%token  K_ACCOUNT       "account"
+        K_BOOL          "bool"
+        K_BREAK         "break"
+        K_BYTE          "byte"
+        K_CASE          "case"
+        K_CONST         "const"
+        K_CONTINUE      "continue"
+        K_CONTRACT      "contract"
+        K_CREATE        "create"
+        K_DEFAULT       "default"
+        K_DELETE        "delete"
+        K_DOUBLE        "double"
+        K_DROP          "drop"
+        K_ELSE          "else"
+        K_FALSE         "false"
+        K_FLOAT         "float"
+        K_FOR           "for"
+        K_FOREACH       "foreach"
+        K_FUNC          "func"
+        K_IF            "if"
+        K_IN            "in"
+        K_INDEX         "index"
+        K_INSERT        "insert"
+        K_INT           "int"
+        K_INT16         "int16"
+        K_INT32         "int32"
+        K_INT64         "int64"
+        K_LOCAL         "local"
+        K_MAP           "map"
+        K_NEW           "new"
+        K_NULL          "null"
+        K_READONLY      "readonly"
+        K_RETURN        "return"
+        K_SELECT        "select"
+        K_SHARED        "shared"
+        K_STRING        "string"
+        K_STRUCT        "struct"
+        K_SWITCH        "switch"
+        K_TABLE         "table"
+        K_TRANSFER      "transfer"
+        K_TRUE          "true"
+        K_UINT          "uint"
+        K_UINT16        "uint16"
+        K_UINT32        "uint32"
+        K_UINT64        "uint64"
+        K_UPDATE        "update"
 
 /* precedences */
-%left   OP_OR
-%left   OP_AND
+%left   CMP_OR
+%left   CMP_AND
 %right  '!'
 %left   '|'
 %left   '&'
-%left   OP_EQ OP_NE
-%left   OP_LE OP_GE '<' '>'
+%left   CMP_EQ CMP_NE
+%left   CMP_LE CMP_GE '<' '>'
 %left   '+' '-' '%'
 %left   '*' '/'
-%left   OP_INC OP_DEC
+%left   UNARY_INC UNARY_DEC
 %left   '.'
 
 /* types */
+%type   <str>           non_reserved_token
 %type   <str>           identifier
 
 %start  smart_contract
@@ -369,16 +391,16 @@ expr_assign:
 
 op_assign:
     '='
-|   OP_ADD_ASSIGN
-|   OP_SUB_ASSIGN
-|   OP_MUL_ASSIGN
-|   OP_DIV_ASSIGN
-|   OP_MOD_ASSIGN
-|   OP_AND_ASSIGN
-|   OP_XOR_ASSIGN
-|   OP_OR_ASSIGN
-|   OP_RS_ASSIGN
-|   OP_LS_ASSIGN
+|   ASSIGN_ADD
+|   ASSIGN_SUB
+|   ASSIGN_MUL
+|   ASSIGN_DIV
+|   ASSIGN_MOD
+|   ASSIGN_AND
+|   ASSIGN_XOR
+|   ASSIGN_OR
+|   ASSIGN_RS
+|   ASSIGN_LS
 ;
 
 expr_sql:
@@ -406,12 +428,12 @@ expr_cond:
 
 expr_or:
     expr_and
-|   expr_or OP_OR expr_and
+|   expr_or CMP_OR expr_and
 ;
 
 expr_and:
     expr_bit_or
-|   expr_and OP_AND expr_bit_or
+|   expr_and CMP_AND expr_bit_or
 ;
 
 expr_bit_or:
@@ -431,8 +453,8 @@ expr_bit_and:
 
 expr_eq:
     expr_cmp
-|   expr_eq OP_EQ expr_cmp
-|   expr_eq OP_NE expr_cmp
+|   expr_eq CMP_EQ expr_cmp
+|   expr_eq CMP_NE expr_cmp
 ;
 
 expr_cmp:
@@ -443,14 +465,14 @@ expr_cmp:
 op_cmp:
     '<'
 |   '>'
-|   OP_LE
-|   OP_GE
+|   CMP_LE
+|   CMP_GE
 ;
 
 expr_shift:
     expr_add
-|   expr_shift OP_RSHIFT expr_add
-|   expr_shift OP_LSHIFT expr_add
+|   expr_shift SHIFT_R expr_add
+|   expr_shift SHIFT_L expr_add
 ;
 
 expr_add:
@@ -468,8 +490,8 @@ expr_mul:
 
 expr_unary:
     expr_post
-|   OP_INC expr_unary
-|   OP_DEC expr_unary
+|   UNARY_INC expr_unary
+|   UNARY_DEC expr_unary
 |   op_unary expr_unary
 ;
 
@@ -486,8 +508,8 @@ expr_post:
 |   expr_post '(' ')'
 |   expr_post '(' expr_list ')'
 |   expr_post '.' identifier
-|   expr_post OP_INC
-|   expr_post OP_DEC
+|   expr_post UNARY_INC
+|   expr_post UNARY_DEC
 ;
 
 expr_prim:
@@ -506,7 +528,7 @@ expr_new:
     K_NEW identifier '(' ')'
 |   K_NEW identifier '(' expr_list ')'
 |   K_NEW K_MAP '(' ')'
-|   K_NEW K_MAP '(' expr_list ')'
+|   K_NEW K_MAP '(' L_INT ')'
 ;
 
 expr_list:
@@ -514,12 +536,16 @@ expr_list:
 |   expr_list ',' expr_cond
 ;
 
+non_reserved_token:
+    K_CONTRACT          { $$ = xstrdup("contract"); }
+|   K_IN                { $$ = xstrdup("in"); }
+|   K_INDEX             { $$ = xstrdup("index"); }
+|   K_TABLE             { $$ = xstrdup("table"); }
+;
+
 identifier:
-    ID              { $$ = $1; }
-|   K_CONTRACT      { $$ = xstrdup("contract"); }
-|   K_IN            { $$ = xstrdup("in"); }
-|   K_INDEX         { $$ = xstrdup("index"); }
-|   K_TABLE         { $$ = xstrdup("table"); }
+    ID                  { $$ = $1; }
+|   non_reserved_token  { $$ = $1; }
 ;
 
 %%

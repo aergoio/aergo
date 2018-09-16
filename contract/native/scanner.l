@@ -170,26 +170,26 @@ id                          {L}({L}|{D})*
 {float}                     yy_return(L_FLOAT);
 {hexa}                      yy_return(L_HEXA);
 
-"+="                        yy_return(OP_ADD_ASSIGN);
-"-="                        yy_return(OP_SUB_ASSIGN);
-"*="                        yy_return(OP_MUL_ASSIGN);
-"/="                        yy_return(OP_DIV_ASSIGN);
-"%="                        yy_return(OP_MOD_ASSIGN);
-"&="                        yy_return(OP_AND_ASSIGN);
-"^="                        yy_return(OP_XOR_ASSIGN);
-"|="                        yy_return(OP_OR_ASSIGN);
-">>="                       yy_return(OP_RS_ASSIGN);
-"<<="                       yy_return(OP_LS_ASSIGN);
-">>"                        yy_return(OP_RSHIFT);
-"<<"                        yy_return(OP_LSHIFT);
-"++"                        yy_return(OP_INC);
-"--"                        yy_return(OP_DEC);
-"&&"                        yy_return(OP_AND);
-"||"                        yy_return(OP_OR);
-"<="                        yy_return(OP_LE);
-">="                        yy_return(OP_GE);
-"=="                        yy_return(OP_EQ);
-"!="                        yy_return(OP_NE);
+"+="                        yy_return(ASSIGN_ADD);
+"-="                        yy_return(ASSIGN_SUB);
+"*="                        yy_return(ASSIGN_MUL);
+"/="                        yy_return(ASSIGN_DIV);
+"%="                        yy_return(ASSIGN_MOD);
+"&="                        yy_return(ASSIGN_AND);
+"^="                        yy_return(ASSIGN_XOR);
+"|="                        yy_return(ASSIGN_OR);
+">>="                       yy_return(ASSIGN_RS);
+"<<="                       yy_return(ASSIGN_LS);
+">>"                        yy_return(SHIFT_R);
+"<<"                        yy_return(SHIFT_L);
+"&&"                        yy_return(CMP_AND);
+"||"                        yy_return(CMP_OR);
+"<="                        yy_return(CMP_LE);
+">="                        yy_return(CMP_GE);
+"=="                        yy_return(CMP_EQ);
+"!="                        yy_return(CMP_NE);
+"++"                        yy_return(UNARY_INC);
+"--"                        yy_return(UNARY_DEC);
 
 "{"                         yy_return('{');
 "}"                         yy_return('}');
@@ -214,6 +214,7 @@ id                          {L}({L}|{D})*
 "="                         yy_return('=');
 "^"                         yy_return('^');
 "!"                         yy_return('!');
+"'"                         yy_return('\'');
 
 "account"                   yy_return(K_ACCOUNT);
 "bool"                      yy_return(K_BOOL);
