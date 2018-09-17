@@ -1,6 +1,6 @@
 # 3rd party libs
 
-.PHONY: install uninstall libs-clean libluajit-clean liblmdb-clean
+.PHONY: install uninstall libs-clean libluajit-clean
 
 LIBPATH := $(shell pwd)
 
@@ -8,9 +8,9 @@ libluajit := $(LIBPATH)/lib/libluajit-5.1.a
 libluajit_SRCDIR := $(LIBPATH)/src/luajit/src
 libluajit_MAKEDIR := $(LIBPATH)/src/luajit
 
-liblmdb := $(LIBPATH)/lib/liblmdb.a
-liblmdb_SRCDIR := $(LIBPATH)/src/lmdb
-liblmdb_MAKEDIR := $(LIBPATH)/src/lmdb/libraries/liblmdb
+liblmdb := $(LIBPATH)/lib/liblmdb.so
+liblmdb_SRCDIR := $(LIBPATH)/src/lmdb/libraries/liblmdb
+liblmdb_MAKEDIR := $(liblmdb_SRCDIR)
 
 install: $(libluajit) $(liblmdb)
 
@@ -25,10 +25,13 @@ $(liblmdb): | $(liblmdb_SRCDIR)
 	$(MAKE) prefix=$(LIBPATH) -C $(liblmdb_MAKEDIR) all install
 
 $(liblmdb_SRCDIR):
-	git clone https://github.com/lmdb/lmdb src/lmdb
+	git clone https://github.com/lmdb/lmdb.git src/lmdb
 
 uninstall: libs-clean
 	rm -rf $(LIBPATH)/lib/*
+	rm -rf $(LIBPATH)/include/*
+	rm -rf $(LIBPATH)/bin/*
+	rm -rf $(LIBPATH)/share/*
 
 libs-clean: libluajit-clean liblmdb-clean
 

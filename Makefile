@@ -1,13 +1,16 @@
 # This Makefile is meant to be used by all-in-one build of aergo project
 
-.PHONY: build all test clean liball liball-clean deps protoc protoclean 
+.PHONY: build all test clean libtool libtool-clean deps protoc protoclean
 
 BINPATH := $(shell pwd)/bin
 CMDS := aergocli aergosvr aergoluac
 REPOPATH := github.com/aergoio/aergo
 
-build: vendor liball
-	GOBIN=$(BINPATH) go install ./cmd/...
+build: vendor libtool
+	GOBIN=$(BINPATH) \
+CGO_CFLAGS="-I$(LIBPATH)/include" \
+CGO_LDFLAGS="-L$(LIBPATH)/lib" \
+go install ./cmd/...
 
 all: clean test build
 	@echo "Done All"
@@ -22,7 +25,7 @@ test:
 
 # clean
 
-clean: liball-clean
+clean: libtool-clean
 	go clean
 	rm -f $(addprefix $(BINPATH)/,$(CMDS))
 
@@ -30,15 +33,15 @@ clean: liball-clean
 
 LIBPATH := $(shell pwd)/libtool
 
-liball: 
+libtool: 
 	$(MAKE) -C $(LIBPATH) install
 
-liball-clean:
+libtool-clean:
 	$(MAKE) -C $(LIBPATH) uninstall
 
 # etc
 
-deps: vendor liball
+deps: vendor libtool
 	@glide install
 
 protoc:
