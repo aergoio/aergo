@@ -68,7 +68,6 @@ type chainProcessor struct {
 	lastBlock *types.Block
 	state     *types.BlockState
 	mainChain *list.List
-	dbTx      db.Transaction
 
 	add func(blk *types.Block) error
 }
@@ -85,7 +84,6 @@ func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainSer
 		ChainService: cs,
 		block:        block,
 		state:        state,
-		dbTx:         cs.cdb.store.NewTx(true),
 	}
 
 	if isMainChain {
@@ -107,9 +105,14 @@ func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainSer
 }
 
 func (cp *chainProcessor) addCommon(blk *types.Block) error {
-	if err := cp.cdb.addBlock(&cp.dbTx, blk, cp.isMain(), true); err != nil {
+	dbTx := cp.cdb.store.NewTx(true)
+	defer dbTx.Discard()
+
+	if err := cp.cdb.addBlock(&dbTx, blk); err != nil {
 		return err
 	}
+
+	dbTx.Commit()
 
 	logger.Debug().Bool("isMainChain", cp.isMain()).
 		Uint64("latest", cp.cdb.latest).
@@ -123,7 +126,7 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 	return nil
 }
 
-func (cp *chainProcessor) connect() error {
+func (cp *chainProcessor) prepare() error {
 	var err error
 
 	blk := cp.block
@@ -146,6 +149,13 @@ func (cp *chainProcessor) isMain() bool {
 	return cp.mainChain != nil
 }
 
+func (cp *chainProcessor) executeBlock(block *types.Block) error {
+	err := cp.ChainService.executeBlock(cp.state, block)
+	cp.state = nil
+
+	return err
+}
+
 func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
@@ -153,16 +163,10 @@ func (cp *chainProcessor) execute() error {
 
 	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
 
-	var err error
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
 		block := e.Value.(*types.Block)
 
-		// TODO: skip if block is self-made.
-		if err = cp.validator.ValidateBlock(block); err != nil {
-			return err
-		}
-
-		if err = cp.executeBlock(cp.state, block); err != nil {
+		if err := cp.executeBlock(block); err != nil {
 			return err
 		}
 
@@ -185,24 +189,15 @@ func (cp *chainProcessor) execute() error {
 		cp.notifyBlock(block)
 
 		logger.Debug().
-			Uint64("latest", oldLatest).
-			Uint64("blockNo", blockNo).
+			Uint64("old latest", oldLatest).
+			Uint64("new latest", blockNo).
 			Str("hash", block.ID()).
 			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
 			Msg("block executed")
 
 	}
+
 	return nil
-}
-
-func (cp *chainProcessor) commit() {
-	cp.dbTx.Commit()
-}
-
-func (cp *chainProcessor) discard() {
-	if cp.dbTx != nil {
-		cp.dbTx.Discard()
-	}
 }
 
 func (cp *chainProcessor) reorganize() {
@@ -245,19 +240,12 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 		return err
 	}
 
-	defer cp.discard()
-
-	if err := cp.connect(); err != nil {
+	if err := cp.prepare(); err != nil {
 		return err
 	}
 	if err := cp.execute(); err != nil {
 		return err
 	}
-
-	// XXX Adjust db transaction duration! Currently, it is opened upon
-	// creating cp and committed here. This is efficient but uncommited blocks
-	// may be notified to the other BPs.
-	cp.commit()
 
 	// TODO: reorganization should be done before chain execution to avoid an
 	// unnecessary chain execution & rollback.
@@ -275,14 +263,20 @@ type executor struct {
 	txs        []*types.Tx
 }
 
-func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types.Block) *executor {
+func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*executor, error) {
 	var exec txExecFn
+
+	sdb := cs.sdb
 
 	// The DPoS block factory excutes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
 	// Hence we need a new block state and tx executor (execTx).
 	if bState == nil {
+		if err := cs.validator.ValidateBlock(block); err != nil {
+			return nil, err
+		}
+
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
 		exec = func(tx *types.Tx) error {
 			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
@@ -296,7 +290,7 @@ func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types
 		blockState: bState,
 		execTx:     exec,
 		txs:        txs,
-	}
+	}, nil
 }
 
 func (e *executor) execute() error {
@@ -311,15 +305,27 @@ func (e *executor) execute() error {
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
 	err := e.sdb.Apply(e.blockState)
+
+	return err
+}
+
+func setMainChainStatus(tx db.Transaction, block *types.Block) {
+	blockNo := block.GetHeader().GetBlockNo()
+	blockIdx := types.BlockNoToBytes(blockNo)
+
+	// Update best block hash
+	tx.Set(latestKey, blockIdx)
+	tx.Set(blockIdx, block.BlockHash())
+}
+
+func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
+	ex, err := newExecutor(cs, bstate, block)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
-	ex := newExecutor(cs.sdb, bstate, block)
+	dbTx := cs.cdb.store.NewTx(true)
+	defer dbTx.Discard()
 
 	if err := ex.execute(); err != nil {
 		// FIXME: is that enough?
@@ -327,6 +333,10 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 
 		return err
 	}
+
+	setMainChainStatus(dbTx, block)
+
+	dbTx.Commit()
 
 	return nil
 }

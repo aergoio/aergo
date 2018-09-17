@@ -296,10 +296,6 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 		return err
 	}
 
-	if err := cdb.addBlock(reorg.dbtx, block, true, false); err != nil {
-		return err
-	}
-
 	blockNo := block.GetHeader().GetBlockNo()
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy

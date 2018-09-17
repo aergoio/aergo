@@ -155,9 +155,11 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 }
 func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	tx := cdb.store.NewTx(true)
-	if err := cdb.addBlock(&tx, block, true, true); err != nil {
+	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}
+	setMainChainStatus(tx, block)
+
 	tx.Commit()
 	cdb.setLatest(0)
 
@@ -219,19 +221,18 @@ func (cdb *ChainDB) deleteTx(dbtx *db.Transaction, tx *types.Tx) {
 }
 
 // store block info to DB
-func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainChain bool, isNew bool) error {
+func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
-	blockIdx := types.BlockNoToBytes(blockNo)
 
-	if blockNo != 0 && isMainChain && cdb.latest+1 != blockNo {
-		return fmt.Errorf("failed to add block(%d,%v). blkno != latestNo(%d) + 1", blockNo,
-			block.BlockHash(), cdb.latest)
-	}
+	// TODO: Is it possible?
+	// if blockNo != 0 && isMainChain && cdb.latest+1 != blockNo {
+	// 	return fmt.Errorf("failed to add block(%d,%v). blkno != latestNo(%d) + 1", blockNo,
+	// 		block.BlockHash(), cdb.latest)
+	// }
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Bool("isMainChain", isMainChain).
-		Msg("add block to db")
+	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err
@@ -246,19 +247,8 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainCha
 		}
 	}
 
-	tx := *dbtx
-
 	//add block
-	if isNew {
-		tx.Set(block.BlockHash(), blockBytes)
-	}
-
-	//add chain info
-	// to avoid exception, set here
-	if isMainChain {
-		tx.Set(latestKey, blockIdx)
-		tx.Set(blockIdx, block.BlockHash())
-	}
+	(*dbtx).Set(block.BlockHash(), blockBytes)
 
 	return nil
 }
@@ -266,6 +256,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block, isMainCha
 func (cdb *ChainDB) getBestBlockNo() types.BlockNo {
 	return cdb.latest
 }
+
 func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {
