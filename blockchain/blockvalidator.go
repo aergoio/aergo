@@ -6,6 +6,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"errors"
 	"github.com/aergoio/aergo/types"
 )
@@ -15,7 +16,8 @@ type BlockValidator struct {
 }
 
 var (
-	ErrorBlockVerifySign = errors.New("Block verify failed, because Tx sign is invalid")
+	ErrorBlockVerifySign   = errors.New("Block verify failed, because Tx sign is invalid")
+	ErrorBlockVerifyTxRoot = errors.New("Block verify failed, because Tx root hash is invaild")
 )
 
 func NewBlockValidator() *BlockValidator {
@@ -53,9 +55,22 @@ func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 }
 
 func (bv *BlockValidator) ValidateBody(block *types.Block) error {
-	// TxRootHash
-	// check Tx sign
 	txs := block.GetBody().GetTxs()
+
+	// TxRootHash
+	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+		Msg("tx root verify")
+
+	computeTxRootHash := types.CalculateTxsRootHash(txs)
+	if bytes.Equal(block.GetHeader().GetTxsRootHash(), computeTxRootHash) == false {
+		logger.Error().Str("block", block.ID()).
+			Str("txroot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+			Str("compute txroot", types.EncodeB64(computeTxRootHash)).
+			Msg("tx root validation failed")
+		return ErrorBlockVerifyTxRoot
+	}
+
+	// check Tx sign
 	if len(txs) == 0 {
 		return nil
 	}
@@ -63,7 +78,7 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	failed, _ := bv.signVerifier.VerifyTxs(&types.TxList{Txs: txs})
 
 	if failed {
-		logger.Error().Str("block", block.ID()).Msg("block verify failed")
+		logger.Error().Str("block", block.ID()).Msg("sign of txs validation failed")
 		return ErrorBlockVerifySign
 	}
 

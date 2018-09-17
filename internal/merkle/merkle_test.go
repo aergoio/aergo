@@ -2,65 +2,34 @@ package merkle
 
 import (
 	"bytes"
-	"encoding/binary"
-	"encoding/hex"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
+
+	"encoding/base64"
+	"encoding/binary"
+	"hash"
 	"testing"
 )
 
-const (
-	maxAccount   = 2
-	maxRecipient = 2
-)
-
 var (
-	accs      [maxAccount][]byte
-	sign      [maxAccount]*btcec.PrivateKey
-	recipient [maxRecipient][]byte
-	txs       []*types.Tx
+	tms []MerkleEntry
 )
 
-func TestTXs(t *testing.T) {
+func EncodeB64(bs []byte) string {
+	return base64.StdEncoding.EncodeToString(bs)
 }
 
-func _itobU32(argv uint32) []byte {
-	bs := make([]byte, 4)
-	binary.LittleEndian.PutUint32(bs, argv)
-	return bs
+func EncodeB58(bs []byte) string {
+	return base58.Encode(bs)
 }
 
-func getAccount(tx *types.Tx) string {
-	return hex.EncodeToString(tx.GetBody().GetAccount())
-}
+func beforeTest(count int) error {
+	tms = make([]MerkleEntry, count)
 
-func beforeTest(txCount int) error {
-	for i := 0; i < maxAccount; i++ {
-		privkey, err := btcec.NewPrivateKey(btcec.S256())
-		if err != nil {
-			return err
-		}
-		//gen new address
-		accs[i] = key.GenerateAddress(&privkey.PublicKey)
-		sign[i] = privkey
-		recipient[i] = _itobU32(uint32(i))
-	}
-
-	txCountPerAcc := txCount / maxAccount
-	txs = make([]*types.Tx, 0, txCount)
-
-	// gen Tx
-	nonce := make([]uint64, txCountPerAcc)
-	for i := 0; i < txCountPerAcc; i++ {
-		nonce[i] = uint64(i + 1)
-	}
-	for i := 0; i < maxAccount; i++ {
-		for j := 0; j < txCountPerAcc; j++ {
-			tmp := genTx(i, j%maxAccount, nonce[j], uint64(i+1))
-			txs = append(txs, tmp)
-		}
+	h := sha256.New()
+	for i := 0; i < count; i++ {
+		tms[i] = genMerkleEntry(h, i)
 	}
 
 	return nil
@@ -70,26 +39,30 @@ func afterTest() {
 
 }
 
-func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
-	tx := types.Tx{
-		Body: &types.TxBody{
-			Nonce:     nonce,
-			Account:   accs[acc],
-			Recipient: recipient[rec],
-			Amount:    amount,
-		},
-	}
-	//tx.Hash = tx.CalculateTxHash()
-	key.SignTx(&tx, sign[acc])
-	return &tx
+type testME struct {
+	hash []byte
+}
+
+func (me *testME) GetHash() []byte {
+	return me.hash
+}
+
+func genMerkleEntry(h hash.Hash, i int) MerkleEntry {
+	tm := testME{}
+
+	h.Reset()
+	binary.Write(h, binary.LittleEndian, i)
+	tm.hash = h.Sum(nil)
+
+	return &tm
 }
 
 func TestMerkle0Tx(t *testing.T) {
 	t.Log("TestMerkle1Tx")
 
-	testTxs := make([]*types.Tx, 0)
+	beforeTest(0)
 
-	merkles := GetMerkleTree(testTxs)
+	merkles := CalculateMerkleTree(tms)
 
 	nilHash := make([]byte, 32)
 
@@ -101,28 +74,25 @@ func TestMerkle0Tx(t *testing.T) {
 
 func TestMerkle1Tx(t *testing.T) {
 	t.Log("TestMerkle1Tx")
-	beforeTest(2)
+	beforeTest(1)
 
-	testTxs := txs[:1]
-	t.Logf("lentxs %d", len(testTxs))
-	merkles := GetMerkleTree(testTxs)
+	t.Logf("lentxs %d", len(tms))
+	merkles := CalculateMerkleTree(tms)
 
 	assert.Equal(t, len(merkles), 1)
-	assert.Equal(t, 0, bytes.Compare(merkles[0], testTxs[0].GetHash()))
+	assert.Equal(t, 0, bytes.Compare(merkles[0], tms[0].GetHash()))
 }
 
 func TestMerkle2Tx(t *testing.T) {
-	t.Log("TestMerkle1Tx")
+	t.Log("TestMerkle2Tx")
 	beforeTest(2)
 
-	testTxs := txs[:2]
-
-	merkles := GetMerkleTree(testTxs)
+	merkles := CalculateMerkleTree(tms)
 
 	totalCount := 3
 	assert.Equal(t, len(merkles), totalCount)
-	for i, tx := range testTxs {
-		assert.True(t, bytes.Equal(merkles[i], tx.GetHash()))
+	for i, tm := range tms {
+		assert.True(t, bytes.Equal(merkles[i], tm.GetHash()))
 	}
 
 	assert.NotNil(t, merkles[2])
@@ -130,23 +100,22 @@ func TestMerkle2Tx(t *testing.T) {
 
 	for i, merkle := range merkles {
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, types.EncodeB64(merkle))
+		t.Logf("%d:%v", i, EncodeB64(merkle))
 	}
 }
 
 func TestMerkle3Tx(t *testing.T) {
-	t.Log("TestMerkle1Tx")
-	beforeTest(4)
+	t.Log("TestMerkle3Tx")
+	beforeTest(3)
 
-	testTxs := txs[:3]
-	t.Logf("lentxs %d", len(testTxs))
-	merkles := GetMerkleTree(testTxs)
+	t.Logf("lentxs %d", len(tms))
+	merkles := CalculateMerkleTree(tms)
 
 	totalCount := 7
 	assert.Equal(t, len(merkles), totalCount)
 
-	for i, tx := range testTxs {
-		assert.True(t, bytes.Equal(merkles[i], tx.GetHash()))
+	for i, tm := range tms {
+		assert.True(t, bytes.Equal(merkles[i], tm.GetHash()))
 	}
 
 	assert.True(t, bytes.Equal(merkles[2], merkles[3]))
@@ -154,24 +123,23 @@ func TestMerkle3Tx(t *testing.T) {
 	for i, merkle := range merkles {
 		assert.NotNil(t, merkle, "nil=%d", i)
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, types.EncodeB64(merkle))
+		t.Logf("%d:%v", i, EncodeB64(merkle))
 	}
 }
 
 func TestMerkle32Tx(t *testing.T) {
-	t.Log("TestMerkle1Tx")
-	beforeTest(32)
+	t.Log("TestMerkle32Tx")
+	beforeTest(10)
 
-	testTxs := txs[:10]
-	t.Logf("lentxs %d", len(testTxs))
-	merkles := GetMerkleTree(testTxs)
+	t.Logf("lentxs %d", len(tms))
+	merkles := CalculateMerkleTree(tms)
 
 	//totalCount := 10240
 	totalCount := 31
 	assert.Equal(t, len(merkles), totalCount)
 
-	for i, tx := range testTxs {
-		assert.True(t, bytes.Equal(merkles[i], tx.GetHash()))
+	for i, tm := range tms {
+		assert.True(t, bytes.Equal(merkles[i], tm.GetHash()))
 	}
 
 	//copy lc to rc
@@ -191,22 +159,21 @@ func TestMerkle32Tx(t *testing.T) {
 			continue
 		}
 		assert.Equal(t, len(merkle), 32)
-		//t.Logf("%d:%v", i, types.EncodeB64(merkle))
+		//t.Logf("%d:%v", i, EncodeB64(merkle))
 	}
 
 	merkleRoot := merkles[len(merkles)-1]
 	assert.NotNil(t, merkleRoot)
 }
 
-func BenchmarkMerkle32Tx(b *testing.B) {
-	b.Log("BenchmarkMerkle32Tx")
+func BenchmarkMerkle10000Tx(b *testing.B) {
+	b.Log("BenchmarkMerkle10000Tx")
 	beforeTest(10000)
+	b.Logf("lentxs %d", len(tms))
 
 	b.ResetTimer()
 
-	testTxs := txs[:10000]
-
 	for i := 0; i < b.N; i++ {
-		GetMerkleTree(testTxs)
+		CalculateMerkleTree(tms)
 	}
 }

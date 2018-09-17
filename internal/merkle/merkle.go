@@ -1,10 +1,13 @@
 package merkle
 
 import (
-	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
 	"hash"
 )
+
+type MerkleEntry interface {
+	GetHash() []byte
+}
 
 var (
 	HashSize = 32
@@ -12,16 +15,22 @@ var (
 	//logger = log.NewLogger("merkle")
 )
 
-func GetMerkleTree(txs []*types.Tx) [][]byte {
-	var merkles [][]byte
-	txsLen := len(txs)
+func CalculateMerkleRoot(entries []MerkleEntry) []byte {
+	merkles := CalculateMerkleTree(entries)
 
-	if txsLen == 0 {
+	return merkles[len(merkles)-1]
+}
+
+func CalculateMerkleTree(entries []MerkleEntry) [][]byte {
+	var merkles [][]byte
+	entriesLen := len(entries)
+
+	if entriesLen == 0 {
 		merkles = append(merkles, nilHash)
 		return merkles
 	}
 
-	//leaf count for full binary tree = 2 ^ n > txLen
+	//leaf count for full binary tree = 2 ^ n > entryLen
 	getLeafCount := func(num int) int {
 		if (num&num - 1) == 0 {
 			return num
@@ -42,16 +51,16 @@ func GetMerkleTree(txs []*types.Tx) [][]byte {
 
 	hasher := sha256.New()
 
-	leafCount := getLeafCount(len(txs))
+	leafCount := getLeafCount(len(entries))
 	totalCount := leafCount*2 - 1
 
 	//logger.Debug().Int("leafcount", leafCount).Int("totCount", totalCount).Msg("start merkling")
 
 	merkles = make([][]byte, totalCount)
 
-	// init leaf hash (0 <= node# < tx len)
-	for i, tx := range txs {
-		merkles[i] = tx.GetHash()
+	// init leaf hash (0 <= node# < entry len)
+	for i, entry := range entries {
+		merkles[i] = entry.GetHash()
 	}
 
 	// start from branch height 1 (merkles[leafcount] ~ merkles[totalCount -1])
@@ -74,6 +83,7 @@ func GetMerkleTree(txs []*types.Tx) [][]byte {
 		}
 
 		merkles[i] = calcMerkle(hasher, merkles[lc], merkles[rc])
+		//logger.Debug().Int("i", i).Str("m", EncodeB64(merkles[i])).Msg("merkling")
 	}
 
 	return merkles

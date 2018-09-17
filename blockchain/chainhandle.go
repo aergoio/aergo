@@ -110,6 +110,11 @@ func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockSta
 		isBPMade := (usedBstate != nil)
 		if isBPMade == false {
 			if err = cs.validator.ValidateBlock(tblock); err != nil {
+				if err != nil {
+					logger.Error().Str("err", err.Error()).Str("hash", tblock.ID()).
+						Msg("validate block failed")
+				}
+
 				return err
 			}
 		}
