@@ -6,117 +6,120 @@
 package blockchain
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"sort"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 )
 
-const limitDuration = 23
-const sortedlist = "sortedlist"
+var votingkey = []byte("voting")
+var totalkey = []byte("totalvote")
+var sortedlistkey = []byte("sortedlist")
 
-func executeVoteTx(txBody *types.TxBody, senderState *types.State,
-	receiverState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
-	voteCmd := txBody.GetPayload()[0]
-	if voteCmd == 'v' { //staking, vote
-		if senderState.Balance < txBody.Amount {
-			return errors.New("not enough balance")
-		}
-		voting, _, err := getVote(scs, txBody.Account, txBody.Payload[1:])
-		if err != nil {
-			return err
-		}
-		err = setVote(scs, txBody.Account, txBody.Payload[1:], voting+txBody.Amount, blockNo)
-		if err != nil {
-			return err
-		}
-		senderState.Balance = senderState.Balance - txBody.Amount
-		//update candidate total
-		err = updateVoteResult(scs, txBody.Payload[1:], (int64)(txBody.Amount), blockNo)
-		if err != nil {
-			return err
-		}
-	} else if voteCmd == 'r' { //unstaking, revert
-		voting, when, err := getVote(scs, txBody.Account, txBody.Payload[1:])
-		if blockNo < limitDuration+when { //TODO : fix it proper
-			return errors.New("less time has passed")
-		}
-		err = setVote(scs, txBody.Account, txBody.Payload[1:], 0, blockNo)
-		if err != nil {
-			return err
-		}
-		err = updateVoteResult(scs, txBody.Payload[1:], -(int64)(voting), blockNo)
-		if err != nil {
-			return err
-		}
-		senderState.Balance = senderState.Balance + voting
+//ErrStakeBeforeVote
+var ErrMustStakeBeforeVote = errors.New("must stake before vote")
+
+//ErrLessTimeHasPassed
+var ErrLessTimeHasPassed = errors.New("less time has passed")
+
+//ErrTooSmallAmount
+var ErrTooSmallAmount = errors.New("too small amount to influence")
+
+const peerIDLength = 39
+const votingDelay = 10
+
+func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockNo) error {
+	old, when, candidates, err := getVote(scs, txBody.Account)
+	if err != nil {
+		return err
 	}
-	return nil
-}
+	if when > blockNo+votingDelay {
+		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
+		return ErrLessTimeHasPassed
+	}
+	voteResult, err := loadVoteResult(scs)
+	for offset := 0; offset < len(candidates); offset += peerIDLength {
+		key := candidates[offset : offset+peerIDLength]
+		(*voteResult)[base58.Encode(key)] -= old
+	}
 
-func getVote(scs *state.ContractState, voter []byte, to []byte) (uint64, uint64, error) {
-	key := append(voter, to...)
-	return getVoteData(scs, key)
-}
+	staked, when, err := getStaking(scs, txBody.Account)
+	if err != nil {
+		return err
+	}
+	if staked == 0 {
+		return ErrMustStakeBeforeVote
+	}
+	if when > blockNo+votingDelay {
+		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay from staking")
+		return ErrLessTimeHasPassed
+	}
+	err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
+	if err != nil {
+		return err
+	}
 
-func setVote(scs *state.ContractState, voter []byte, to []byte, amount uint64, blockNo uint64) error {
-	//update personal voting infomation
-	key := append(voter, to...)
-	err := setVoteData(scs, key, amount, blockNo)
+	for offset := 0; offset < len(txBody.Payload[1:]); offset += peerIDLength {
+		key := txBody.Payload[offset+1 : offset+peerIDLength+1]
+		(*voteResult)[base58.Encode(key)] += staked
+	}
+
+	err = syncVoteResult(scs, voteResult)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func updateVoteResult(scs *state.ContractState, key []byte, amount int64, blockNo uint64) error {
+func getVote(scs *state.ContractState, voter []byte) (uint64, uint64, []byte, error) {
+	key := append(votingkey, voter...)
+	data, err := scs.GetData(key)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	if len(data) == 0 {
+		return 0, 0, nil, nil
+	}
+	return binary.LittleEndian.Uint64(data[:8]),
+		binary.LittleEndian.Uint64(data[8:16]), data[16:], nil
+}
+
+func setVote(scs *state.ContractState, voter []byte, to []byte, amount uint64,
+	blockNo uint64) error {
+	key := append(votingkey, voter...)
+	//TODO : change to key iteration
+	var data []byte
+	whenAmount := make([]byte, 16)
+	binary.LittleEndian.PutUint64(whenAmount, amount)
+	binary.LittleEndian.PutUint64(whenAmount[8:], blockNo)
+	data = append(data, whenAmount...)
+	data = append(data, to...)
+	return scs.SetData(key, data)
+}
+
+func loadVoteResult(scs *state.ContractState) (*map[string]uint64, error) {
+	voteResult := map[string]uint64{}
+	data, err := scs.GetData(sortedlistkey)
+	if err != nil {
+		return nil, err
+	}
+	for offset := 0; offset < len(data); offset += (peerIDLength + 8) {
+		value := binary.LittleEndian.Uint64(data[offset+peerIDLength : offset+peerIDLength+8])
+		voteResult[base58.Encode(data[offset:offset+peerIDLength])] = value
+	}
+	return &voteResult, nil
+}
+
+func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
 	var voteList types.VoteList
-	var tmp []*types.Vote
-	voteList.Votes = tmp
-	isInList := false
-
-	votes, _, err := getVoteData(scs, key)
-	if err != nil {
-		return err
-	}
-	//logger.Info().Uint64("votes", votes).Msg("VOTE updateVote")
-	err = setVoteData(scs, key, (uint64)((int64)(votes)+amount), blockNo)
-	if err != nil {
-		return err
-	}
-	data, err := scs.GetData([]byte(sortedlist))
-	if err != nil {
-		return err
-	}
-	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE updateVote")
-	//TODO: fix hardcorded length, '39' length of peer id now
-	for offset := 0; offset < len(data); offset += (39 + 8) {
+	for k, v := range *voteResult {
+		c, _ := base58.Decode(k)
 		vote := &types.Vote{
-			Candidate: data[offset : offset+39],
-			Amount:    binary.LittleEndian.Uint64(data[offset+39 : offset+39+8]),
-		}
-		if bytes.Equal(key, vote.Candidate) {
-			if votes != vote.Amount {
-				panic("voting data crashed")
-			}
-			vote.Amount = (uint64)((int64)(vote.Amount) + amount)
-			if vote.Amount != 0 {
-				voteList.Votes = append(voteList.Votes, vote)
-			}
-			isInList = true
-		} else {
-			voteList.Votes = append(voteList.Votes, vote)
-		}
-		//logger.Info().Str("key in list", util.EncodeB64(vote.Candidate)).Msg("VOTE updateVote")
-		//logger.Info().Uint64("votelist.amount", vote.Amount).Msg("VOTE updateVote")
-	}
-	if !isInList {
-		vote := &types.Vote{
-			Candidate: key,
-			Amount:    (uint64)(amount),
+			Candidate: c,
+			Amount:    v,
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
@@ -130,43 +133,80 @@ func updateVoteResult(scs *state.ContractState, key []byte, amount int64, blockN
 		buf = append(buf, votes...)
 		buf = append(buf, vbuf...)
 	}
-	return scs.SetData([]byte(sortedlist), buf)
+	return scs.SetData(sortedlistkey, buf)
 }
 
-func setVoteData(scs *state.ContractState, key []byte, balance uint64, blockNo uint64) error {
-	v := make([]byte, 16)
-	binary.LittleEndian.PutUint64(v, balance)
-	binary.LittleEndian.PutUint64(v[8:], blockNo) //TODO:change to block no
-	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE setVote")
-	//logger.Info().Uint64("balance", balance).Uint64("blockNo", blockNo).Msg("VOTE setVote")
-	return scs.SetData(key, v)
-}
-
-func getVoteData(scs *state.ContractState, key []byte) (uint64, uint64, error) {
-	data, err := scs.GetData(key)
-	if err != nil {
-		return 0, 0, err
-	}
-	var balance uint64
-	var blockNo uint64
-	if cap(data) == 0 {
-		balance = 0
-		blockNo = 0
-	} else if cap(data) >= 8 {
-		balance = binary.LittleEndian.Uint64(data[:8])
-		blockNo = 0
-		if cap(data) >= 16 {
-			blockNo = binary.LittleEndian.Uint64(data[8:16])
+func updateVoteResult(scs *state.ContractState, candidates []byte, amount uint64, plus bool) error {
+	voteResult, err := loadVoteResult(scs)
+	total := make([]byte, 8)
+	for offset := 0; offset < len(candidates); offset += peerIDLength {
+		key := candidates[offset : offset+peerIDLength]
+		current := (*voteResult)[base58.Encode(key)]
+		if plus {
+			(*voteResult)[base58.Encode(key)] = current + amount
+			binary.LittleEndian.PutUint64(total, current+amount)
+			err = scs.SetData(key, total)
+		} else /* minus */ {
+			if current > amount {
+				(*voteResult)[base58.Encode(key)] = current - amount
+				binary.LittleEndian.PutUint64(total, current-amount)
+				err = scs.SetData(key, total)
+			} else {
+				(*voteResult)[base58.Encode(key)] = 0
+				binary.LittleEndian.PutUint64(total, 0)
+				err = scs.SetData(key, total)
+			}
 		}
 	}
-	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE getVote")
-	//logger.Info().Uint64("balance", balance).Uint64("blockNo", blockNo).Msg("VOTE getVote")
-	return balance, blockNo, nil
+	if err != nil {
+		return err
+	}
+	var voteList types.VoteList
+	for k, v := range *voteResult {
+		c, _ := base58.Decode(k)
+		vote := &types.Vote{
+			Candidate: c,
+			Amount:    v,
+		}
+		if vote.Amount > 0 {
+			voteList.Votes = append(voteList.Votes, vote)
+		}
+	}
+	sort.Sort(sort.Reverse(voteList))
+	//logger.Info().Msgf("VOTE set list %v", voteList.Votes)
+	var buf []byte
+	vbuf := make([]byte, 8)
+	for _, v := range voteList.Votes {
+		votes := v.Candidate
+		binary.LittleEndian.PutUint64(vbuf, v.Amount)
+		buf = append(buf, votes...)
+		buf = append(buf, vbuf...)
+	}
+	return scs.SetData(sortedlistkey, buf)
+}
+
+func cleanupVoting(scs *state.ContractState, who []byte, amount uint64,
+	blockNo types.BlockNo, remainStaking bool) error {
+	//clean up voting
+	_, when, candidates, err := getVote(scs, who)
+	if err != nil {
+		return err
+	}
+	if blockNo < when+votingDelay {
+		return ErrLessTimeHasPassed
+	}
+	if !remainStaking {
+		err = setVote(scs, who, nil, 0, blockNo)
+		if err != nil {
+			return err
+		}
+	}
+	return updateVoteResult(scs, candidates, amount, false)
 }
 
 func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	var voteList types.VoteList
-	data, err := scs.GetData([]byte(sortedlist))
+	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +226,7 @@ func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 }
 
 func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(aergobp)))
+	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(aergosystem)))
 	if err != nil {
 		return nil, err
 	}

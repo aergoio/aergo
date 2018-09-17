@@ -6,6 +6,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -44,7 +45,7 @@ func TestVoteResult(t *testing.T) {
 	}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		err := updateVoteResult(scs, []byte(to), (int64)(i*i), (uint64)(i))
+		err := updateVoteResult(scs, []byte(to), (uint64)(i*i), true)
 		if err != nil {
 			t.Errorf("failed to updateVoteResult: %s", err.Error())
 		}
@@ -77,30 +78,36 @@ func TestVoteData(t *testing.T) {
 	}
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
-		to := fmt.Sprintf("to%d", i)
-		voting, updateBlockNo, err := getVote(scs, []byte(from), []byte(to))
+		to := fmt.Sprintf("%39d", i)
+		amount, updateBlockNo, candidates, err := getVote(scs, []byte(from))
 		if err != nil {
 			t.Errorf("failed to getVote : %s", err.Error())
 		}
-		if voting != 0 {
-			t.Errorf("new voting value is already set : %d", voting)
+		if amount != 0 {
+			t.Errorf("new amount value is already set : %d", amount)
 		}
 		if updateBlockNo != 0 {
-			t.Errorf("new block number value is already set : %d", updateBlockNo)
+			t.Errorf("new updateBlockNo value is already set : %d", updateBlockNo)
+		}
+		if candidates != nil {
+			t.Errorf("new candidates value is already set : %s", candidates)
 		}
 		err = setVote(scs, []byte(from), []byte(to), (uint64)(math.MaxInt64+i), (uint64)(i))
 		if err != nil {
 			t.Errorf("failed to setVote : %s", err.Error())
 		}
-		voting, updateBlockNo, err = getVote(scs, []byte(from), []byte(to))
+		amount, updateBlockNo, candidates, err = getVote(scs, []byte(from))
 		if err != nil {
 			t.Errorf("failed to getVote after set : %s", err.Error())
 		}
-		if voting != (uint64)(math.MaxInt64+i) {
-			t.Errorf("invalid voting value : %d =/= %d", (uint64)(math.MaxInt64+i), voting)
+		if amount != (uint64)(math.MaxInt64+i) {
+			t.Errorf("invalid amount : %d =/= %d", (uint64)(math.MaxInt64+i), amount)
 		}
 		if updateBlockNo != (uint64)(i) {
-			t.Errorf("invalid block number: %d =/= %d", i, updateBlockNo)
+			t.Errorf("invalid block number: %d =/= %d", (uint64)(math.MaxInt64+i), updateBlockNo)
+		}
+		if !bytes.Equal(candidates, []byte(to)) {
+			t.Errorf("invalid candidates : %s =/= %s", string(candidates), to)
 		}
 	}
 

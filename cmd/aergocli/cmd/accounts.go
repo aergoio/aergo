@@ -29,12 +29,10 @@ func init() {
 	unlockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
 	unlockAccountCmd.MarkFlagRequired("address")
 	unlockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
-	unlockAccountCmd.MarkFlagRequired("password")
 	rootCmd.AddCommand(lockAccountCmd)
 	lockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
 	lockAccountCmd.MarkFlagRequired("address")
 	lockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
-	lockAccountCmd.MarkFlagRequired("password")
 }
 
 var pw string
