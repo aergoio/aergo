@@ -21,7 +21,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -394,15 +393,11 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 }
 
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
-	// TODO duplicated code
-	serialized, err := marshalMessage(&types.GoAwayNotice{Message: msg})
-	if err != nil {
-		pm.logger.Warn().Err(err).Msg("failed to marshal")
-		return
-	}
-	container := &types.P2PMessage{Header: &types.MsgHeader{}, Data: serialized}
-	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
-	container.Header.Subprotocol = goAway.Uint32()
+	goMsg := &types.GoAwayNotice{Message: msg}
+	// TODO code smell. non safe casting.
+	mo := newPbMsgRequestOrder(false, goAway, goMsg, pm.signer).(*pbRequestOrder)
+	container := mo.message
+
 	rw.WriteMsg(container)
 }
 
