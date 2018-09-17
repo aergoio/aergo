@@ -120,19 +120,12 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
-	peerID := th.peer.ID()
+	// peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
-	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
+	// remove to verbose log
+	// debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
 
-	// TODO: check myself and request txs which this node don't have.
-	toGet := make([]message.TXHash, len(data.TxHashes))
-	// 임시조치로 일단 다 가져온다.
-	for i, hashByte := range data.TxHashes {
-		toGet[i] = message.TXHash(hashByte)
-	}
-	// create message data
-	th.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	th.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
+	th.peer.handleNewTxNotice(data)
 }
 
 func bytesArrToString(bbarray [][]byte) string {

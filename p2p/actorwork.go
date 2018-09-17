@@ -115,7 +115,6 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Invalid peer. check for bug")
 		return false
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int("tx_cnt", len(txHashes)).Msg("Sending GetTransactions request")
 	if len(txHashes) == 0 {
 		p2ps.Warn().Msg("empty hash list")
 		return false
@@ -129,6 +128,7 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 		}
 		hashes[i] = ([]byte)(hash)
 	}
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogTxHash, bytesArrToString(hashes)).Msg("Sending GetTransactions request")
 	// create message data
 	req := &types.GetTransactionsRequest{Hashes: hashes}
 

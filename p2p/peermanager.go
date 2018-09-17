@@ -742,13 +742,11 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 		toGet = append(toGet, message.TXHash(hashArr[:]))
 	}
 	if len(toGet) == 0 {
-		pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
+		// pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
 	}
 	// create message data
 	pm.actorServ.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	pm.logger.Debug().Int("tx_cnt", len(toGet)).Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
-
 }
 
 // this method should be called inside pm.mutex

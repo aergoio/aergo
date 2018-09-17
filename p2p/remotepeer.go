@@ -360,7 +360,7 @@ func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
 		return
 	}
 	// lru cache can accept hashable key
-	hashArrs := make([][txhashLen]byte, 0, len(data.TxHashes))
+	hashArrs := make([][txhashLen]byte, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		copy(hashArrs[i][:], hash)
 		p.blkHashCache.Add(hashArrs[i], true)

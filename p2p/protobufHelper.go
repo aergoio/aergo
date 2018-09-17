@@ -188,9 +188,10 @@ func (pr *pbBlkNoticeOrder) SendTo(p *RemotePeer) bool {
 	var blkhash [blkhashLen]byte
 	copy(blkhash[:], pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
 		// the remote peer already know this block hash. skip it
+		// too many not-insteresting log,
+		// p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		// 	Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
 		return false
 	}
 	err := pr.SendOver(p.rw)
@@ -226,6 +227,8 @@ func (pr *pbTxNoticeOrder) SendTo(p *RemotePeer) bool {
 			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending tx notice. peer knows all hashes")
 		return false
 	}
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Msg("Sending tx notice. peer knows all hashes")
 	err := pr.SendOver(p.rw)
 	if err != nil {
 		p.logger.Warn().Err(err).Msg("fail to SendOver")

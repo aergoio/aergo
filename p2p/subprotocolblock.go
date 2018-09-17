@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -215,10 +214,10 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 }
 
 func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
+	// remove to verbose log
+	// debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
 	remotePeer.handleNewBlockNotice(data)
 }
