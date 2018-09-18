@@ -54,7 +54,7 @@ func execUnstaking(cmd *cobra.Command, args []string) {
 }
 
 func sendStaking(s bool) {
-	account, err := base58.Decode(address)
+	account, err := types.DecodeAddress(address)
 	if err != nil {
 		fmt.Printf("Failed: (%s) %s\n", address, err.Error())
 		return

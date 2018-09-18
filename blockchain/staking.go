@@ -37,7 +37,9 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 	if when > blockNo+stakingDelay {
 		return ErrLessTimeHasPassed
 	}
+	amount := txBody.Amount
 	if staked < txBody.Amount {
+		amount = staked
 		err = setStaking(scs, txBody.Account, 0, blockNo)
 		if err != nil {
 			return err
@@ -53,7 +55,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		}
 		err = voting(txBody, scs, blockNo)
 	}
-	senderState.Balance = senderState.Balance + txBody.Amount
+	senderState.Balance = senderState.Balance + amount
 	return nil
 }
 
