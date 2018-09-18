@@ -95,13 +95,18 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// StatusUpdate currently does nothing.
-func (s *SimpleBlockFactory) StatusUpdate(block *types.Block) {
+// UpdateStatus has nothging to do.
+func (s *SimpleBlockFactory) UpdateStatus(block *types.Block) {
 }
 
 // BlockFactory returns s itself.
 func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 	return s
+}
+
+// NeedReorganization has nothing to do.
+func (s *SimpleBlockFactory) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+	return true
 }
 
 // Start run a simple block factory service.

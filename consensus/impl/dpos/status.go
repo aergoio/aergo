@@ -20,8 +20,8 @@ type Status struct {
 }
 
 type blockInfo struct {
-	hash  string
-	blkNo uint64
+	blockHash string
+	blockNo   uint64
 }
 
 type plibConfirm struct {
@@ -41,15 +41,15 @@ func NewStatus(confirmsRequired uint16) *Status {
 func newPLibConfirm(block *types.Block, confirmsRequired uint16) *plibConfirm {
 	return &plibConfirm{
 		blockInfo: &blockInfo{
-			hash:  block.ID(),
-			blkNo: block.BlockNo(),
+			blockHash: block.ID(),
+			blockNo:   block.BlockNo(),
 		},
 		confirmsLeft: confirmsRequired,
 	}
 }
 
-// StatusUpdate updates the last irreversible block (LIB).
-func (s *Status) StatusUpdate(block *types.Block) {
+// UpdateStatus updates the last irreversible block (LIB).
+func (s *Status) UpdateStatus(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -76,7 +76,7 @@ func (s *Status) StatusUpdate(block *types.Block) {
 	if libInfo != nil {
 		bp := blockBP(block)
 		logger.Debug().Str("BP", bp).
-			Str("lib hash", libInfo.hash).Uint64("lib no", libInfo.blkNo).
+			Str("lib hash", libInfo.blockHash).Uint64("lib no", libInfo.blockNo).
 			Str("best block hash", block.ID()).Uint64("best block no", block.BlockNo()).
 			Msg("proposed LIB map updated")
 		s.updateLIB(bp, libInfo)
@@ -125,16 +125,32 @@ func (s *Status) updateLIB(bp string, libInfo *blockInfo) {
 	}
 	// TODO: find better method.
 	sort.Slice(libInfos, func(i, j int) bool {
-		return libInfos[i].blkNo < libInfos[j].blkNo
+		return libInfos[i].blockNo < libInfos[j].blockNo
 	})
 
 	s.lib = libInfos[(len(libInfos)-1)/3]
 	logger.Debug().
-		Str("block hash", s.lib.hash).
-		Uint64("block no", s.lib.blkNo).
+		Str("block hash", s.lib.blockHash).
+		Uint64("block no", s.lib.blockNo).
 		Msg("last irreversible block (BFT) updated")
 }
 
 func blockBP(block *types.Block) string {
 	return block.BPID2Str()
+}
+
+// NeedReorganization reports whether reorganization is needed or not.
+func (s *Status) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+	libNo := s.lib.blockNo
+
+	reorganizable := rootNo < libNo && bestNo > libNo
+	if reorganizable {
+		logger.Info().
+			Uint64("LIB", libNo).
+			Uint64("branch root no", rootNo).
+			Uint64("best no", bestNo).
+			Msg("not reorganizable - the current main branch has a LIB.")
+	}
+
+	return reorganizable
 }
