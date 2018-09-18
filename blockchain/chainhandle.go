@@ -300,7 +300,11 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 }
 
 func (e *executor) execute() error {
-	defer e.receiptTx.Commit()
+	defer func() {
+		if e.receiptTx != nil {
+			e.receiptTx.Commit()
+		}
+	}()
 
 	if e.execTx != nil {
 		for _, tx := range e.txs {
