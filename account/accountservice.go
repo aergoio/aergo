@@ -26,8 +26,7 @@ type AccountService struct {
 //NewAccountService create account service
 func NewAccountService(cfg *cfg.Config) *AccountService {
 	actor := &AccountService{
-		cfg:      cfg,
-		accounts: []*types.Account{},
+		cfg: cfg,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.AccountsSvc, actor, log.NewLogger("account"))
 
@@ -36,6 +35,15 @@ func NewAccountService(cfg *cfg.Config) *AccountService {
 
 func (as *AccountService) BeforeStart() {
 	as.ks = key.NewStore(as.cfg.DataDir)
+
+	as.accounts = []*types.Account{}
+	addresses, err := as.ks.GetAddresses()
+	if err != nil {
+		as.Logger.Error().Err(err).Msg("could not open addresses")
+	}
+	for _, v := range addresses {
+		as.accounts = append(as.accounts, &types.Account{Address: v})
+	}
 }
 
 func (as *AccountService) AfterStart() {}
