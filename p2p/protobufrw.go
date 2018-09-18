@@ -1,10 +1,15 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
 	"bufio"
 
 	"github.com/aergoio/aergo/types"
-	"github.com/multiformats/go-multicodec/protobuf"
+	mc_pb "github.com/multiformats/go-multicodec/protobuf"
 )
 
 type bufMsgReadWriter struct {

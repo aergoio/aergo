@@ -21,8 +21,6 @@ type msgOrder interface {
 	//
 	Skippable() bool
 
-	//
+	// send message to remote peer
 	SendTo(p *RemotePeer) bool
-	// Deprecated
-	SendOver(w MsgWriter) error
 }

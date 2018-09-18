@@ -458,20 +458,6 @@ func (_m *MockPeerManager) SelfNodeID() peer.ID {
 	return r0
 }
 
-// SendProtoMessage provides a mock function with given fields: data, s
-func (_m *MockPeerManager) SendProtoMessage(data proto.Message, s inet.Stream) bool {
-	ret := _m.Called(data, s)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(proto.Message, inet.Stream) bool); ok {
-		r0 = rf(data, s)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
 // SetStreamHandler provides a mock function with given fields: pid, handler
 func (_m *MockPeerManager) SetStreamHandler(pid protocol.ID, handler inet.StreamHandler) {
 	_m.Called(pid, handler)

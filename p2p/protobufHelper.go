@@ -49,6 +49,7 @@ func newPbMsgOrder(mo *pbMessageOrder, reqID string, expecteResponse bool, gossi
 	p2pmsg.Data = bytes
 	request := false
 	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
+	p2pmsg.Header.Length = uint32(len(bytes))
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	// pubKey and peerID will be set soon before signing process
 	// expecteResponse is only applied when message is request and not a gossip.
@@ -146,19 +147,14 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
 
-// SendOver is send itself over the writer rw.
-func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
-	return w.WriteMsg(pr.message)
-}
-
 func (pr *pbMessageOrder) Skippable() bool {
 	return false
 }
 
 func (pr *pbMessageOrder) SendTo(p *RemotePeer) bool {
-	err := pr.SendOver(p.rw)
+	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
 		return false
 	}
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
@@ -194,9 +190,9 @@ func (pr *pbBlkNoticeOrder) SendTo(p *RemotePeer) bool {
 		// 	Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
 		return false
 	}
-	err := pr.SendOver(p.rw)
+	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
 		return false
 	}
 	return true
@@ -229,9 +225,9 @@ func (pr *pbTxNoticeOrder) SendTo(p *RemotePeer) bool {
 	}
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID()).Msg("Sending tx notice. peer knows all hashes")
-	err := pr.SendOver(p.rw)
+	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Err(err).Msg("fail to SendOver")
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
 		return false
 	}
 	return true

@@ -248,17 +248,6 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
 	m.SendTo(p)
-	// err := m.SendOver(p.rw)
-	// if err != nil {
-	// 	p.logger.Warn().Err(err).Msg("fail to SendOver")
-	// 	return
-	// }
-	// p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
-	// 	Str(LogMsgID, m.GetMsgID()).Msg("Send message")
-	// //p.logger.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetMsgID(), p.meta.ID.Pretty())
-	// if m.ResponseExpected() {
-	// 	p.requests[m.GetMsgID()] = m
-	// }
 }
 
 func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
