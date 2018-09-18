@@ -38,7 +38,7 @@ func execSendTX(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 	}
-	recipient, err := base58.Decode(from)
+	recipient, err := base58.Decode(to)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 	}
