@@ -52,7 +52,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		cc.SetStateDB(actor.sdb)
 	}
 
-	actor.validator = NewBlockValidator()
+	actor.validator = NewBlockValidator(actor.sdb)
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor

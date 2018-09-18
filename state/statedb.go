@@ -278,3 +278,8 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 func (sdb *ChainStateDB) GetHash() []byte {
 	return sdb.trie.Root
 }
+
+func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
+	//TODO : StateRootValidation
+	return false
+}

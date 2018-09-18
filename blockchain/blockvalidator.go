@@ -8,21 +8,25 @@ package blockchain
 import (
 	"bytes"
 	"errors"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 type BlockValidator struct {
 	signVerifier *SignVerifier
+	sdb          *state.ChainStateDB
 }
 
 var (
-	ErrorBlockVerifySign   = errors.New("Block verify failed, because Tx sign is invalid")
-	ErrorBlockVerifyTxRoot = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifySign      = errors.New("Block verify failed, because Tx sign is invalid")
+	ErrorBlockVerifyTxRoot    = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifyStateRoot = errors.New("Block verify failed, because state root hash is not equal")
 )
 
-func NewBlockValidator() *BlockValidator {
+func NewBlockValidator(sdb *state.ChainStateDB) *BlockValidator {
 	bv := BlockValidator{
 		signVerifier: NewSignVerifier(DefaultVerifierCnt),
+		sdb:          sdb,
 	}
 
 	logger.Debug().Msg("started signverifier")
@@ -51,6 +55,10 @@ func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	//	MaxHeaderSize
 	//	ChainVersion
 	//	StateRootHash
+	if bv.sdb.IsExistState(header.GetBlocksRootHash()) {
+		return ErrorBlockVerifyStateRoot
+	}
+
 	return nil
 }
 
