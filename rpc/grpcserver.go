@@ -148,15 +148,17 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 	var result interface{}
 	var err error
 	if cap(in.Value) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "recevice no bytes")
+		return nil, status.Errorf(codes.InvalidArgument, "Received no bytes")
 	}
-	if len(in.Value) < 32 {
+	if len(in.Value) == 32 {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlock{BlockHash: in.Value},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetBlock#2").Result()
+	} else if len(in.Value) == 8 {
 		number := uint64(binary.LittleEndian.Uint64(in.Value))
 		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlockByNo{BlockNo: number},
 			defaultActorTimeout, "rpc.(*AergoRPCService).GetBlock#1").Result()
 	} else {
-		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetBlock{BlockHash: in.Value},
-			defaultActorTimeout, "rpc.(*AergoRPCService).GetBlock#2").Result()
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid input. Should be a 32 byte hash or up to 8 byte number.")
 	}
 	if err != nil {
 		return nil, err
@@ -166,7 +168,7 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	if found == nil {
-		return nil, status.Errorf(codes.NotFound, "not found")
+		return nil, status.Errorf(codes.NotFound, "Not found")
 	}
 	return found, nil
 }
