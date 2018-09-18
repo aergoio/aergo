@@ -292,7 +292,7 @@ func (cs *ChainService) CountTxsInChain() int {
 
 type txExecFn func(tx *types.Tx) error
 
-type executor struct {
+type blockExecutor struct {
 	sdb        *state.ChainStateDB
 	blockState *types.BlockState
 	execTx     txExecFn
@@ -300,7 +300,7 @@ type executor struct {
 	receiptTx  db.Transaction
 }
 
-func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*executor, error) {
+func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec txExecFn
 	var receiptTx db.Transaction
 
@@ -326,7 +326,7 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 
 	txs := block.GetBody().GetTxs()
 
-	return &executor{
+	return &blockExecutor{
 		sdb:        sdb,
 		blockState: bState,
 		execTx:     exec,
@@ -335,7 +335,7 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 	}, nil
 }
 
-func (e *executor) execute() error {
+func (e *blockExecutor) execute() error {
 	defer func() {
 		if e.receiptTx != nil {
 			e.receiptTx.Commit()
@@ -367,7 +367,7 @@ func setMainChainStatus(tx db.Transaction, block *types.Block) {
 }
 
 func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
-	ex, err := newExecutor(cs, bstate, block)
+	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
 	}
