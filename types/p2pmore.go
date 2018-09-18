@@ -12,11 +12,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// GetMessageData is delegation method for backward compatability
-func (m *P2PMessage) GetMessageData() *MessageData {
-	return m.Header
-}
-
 // AddressesToStringMap make map of string for logging or json encoding
 func AddressesToStringMap(addrs []*PeerAddress) []map[string]string {
 	arr := make([]map[string]string, len(addrs))

@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var printHex bool
@@ -23,17 +22,11 @@ func init() {
 }
 
 var blockchainCmd = &cobra.Command{
-	Use:   "blockchain",
-	Short: "Print current blockchain status",
+	Use:               "blockchain",
+	Short:             "Print current blockchain status",
+	PersistentPreRun:  connectAergo,
+	PersistentPostRun: disconnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-		serverAddr := GetServerAddress()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		var client *util.ConnClient
-		var ok bool
-		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-			panic("Internal error. wrong RPC client type")
-		}
-		defer client.Close()
 
 		msg, err := client.Blockchain(context.Background(), &aergorpc.Empty{})
 		if nil == err {

@@ -7,13 +7,11 @@ package p2p
 
 import (
 	"bufio"
-	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
 	uuid "github.com/satori/go.uuid"
 )
@@ -24,7 +22,6 @@ const ClientVersion = "0.1.0"
 
 type pbMessage interface {
 	proto.Message
-	//GetMessageData() *types.MessageData
 }
 
 type pbMessageOrder struct {
@@ -42,30 +39,40 @@ var _ msgOrder = (*pbMessageOrder)(nil)
 
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(reqID string, expecteResponse bool, gossip bool, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
+func newPbMsgOrder(mo *pbMessageOrder, reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
 	bytes, err := marshalMessage(message)
 	if err != nil {
-		return nil
+		return false
 	}
 
-	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 	p2pmsg.Data = bytes
 	request := false
-	if len(reqID) == 0 {
-		reqID = uuid.Must(uuid.NewV4()).String()
-		request = true
-	}
 	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
+	p2pmsg.Header.Length = uint32(len(bytes))
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	// pubKey and peerID will be set soon before signing process
 	// expecteResponse is only applied when message is request and not a gossip.
 	if request == false || gossip {
 		expecteResponse = false
 	}
-	return &pbMessageOrder{request: request, protocolID: protocolID, expecteResponse: expecteResponse, gossip: gossip, needSign: sign, message: p2pmsg}
+	err = signer.signMsg(p2pmsg)
+	if err != nil {
+		panic("Failed to sign data " + err.Error())
+		return false
+	}
+
+	mo.request = request
+	mo.protocolID = protocolID
+	mo.expecteResponse = expecteResponse
+	mo.gossip = gossip
+	mo.needSign = true
+	mo.message = p2pmsg
+
+	return true
 }
 
-func setupMessageData(md *types.MessageData, reqID string, gossip bool, version string, ts int64) {
+func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
 	md.Id = reqID
 	md.Gossip = gossip
 	md.ClientVersion = version
@@ -73,22 +80,47 @@ func setupMessageData(md *types.MessageData, reqID string, gossip bool, version 
 }
 
 // newPbMsgRequestOrder make send order for p2p request
-func newPbMsgRequestOrder(expecteResponse bool, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder("", expecteResponse, false, sign, protocolID, message)
+func newPbMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
+	rmo := &pbRequestOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, expecteResponse, false, protocolID, message, signer) {
+		return rmo
+	}
+	return nil
 }
 
 // newPbMsgResponseOrder make send order for p2p response
-func newPbMsgResponseOrder(reqID string, sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder(reqID, false, true, sign, protocolID, message)
+func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
+	rmo := &pbMessageOrder{}
+	if newPbMsgOrder(rmo, reqID, false, false, protocolID, message, signer) {
+		return rmo
+	}
+	return nil
 }
 
 // newPbMsgBroadcastOrder make send order for p2p broadcast,
 // which will be fanouted and doesn't expect response of receiving peer
-func newPbMsgBroadcastOrder(sign bool, protocolID SubProtocol, message pbMessage) *pbMessageOrder {
-	return newPbMsgOrder("", false, true, sign, protocolID, message)
+func newPbMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice, signer msgSigner) msgOrder {
+	rmo := &pbBlkNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newBlockNotice, noticeMsg, signer) {
+		rmo.blkHash = noticeMsg.BlockHash
+		return rmo
+	}
+	return nil
 }
 
-func (pr *pbMessageOrder) GetRequestID() string {
+func newPbMsgTxBroadcastOrder(message *types.NewTransactionsNotice, signer msgSigner) msgOrder {
+	rmo := &pbTxNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newTxNotice, message, signer) {
+		rmo.txHashes = message.TxHashes
+		return rmo
+	}
+	return nil
+}
+
+func (pr *pbMessageOrder) GetMsgID() string {
 	return pr.message.Header.Id
 }
 
@@ -114,37 +146,95 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
-func (pr *pbMessageOrder) SignWith(ps PeerManager) error {
-	messageData := pr.message.Header
-	messageData.PeerID = peer.IDB58Encode(ps.SelfNodeID())
-	messageData.NodePubKey, _ = ps.PublicKey().Bytes()
-	signature, err := ps.SignProtoMessage(pr.message)
+
+func (pr *pbMessageOrder) Skippable() bool {
+	return false
+}
+
+func (pr *pbMessageOrder) SendTo(p *RemotePeer) bool {
+	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		return err
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
+		return false
 	}
-	// TOCO check if this string conversion is safe. This conversion will corrupt data if []byte is binary data.
-	messageData.Sign = signature
-	return nil
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Msg("Send message")
 
+	return true
 }
 
-// SendOver is send itself over the writer rw.
-func (pr *pbMessageOrder) SendOver(w MsgWriter) error {
-	return w.WriteMsg(pr.message)
+type pbRequestOrder struct {
+	pbMessageOrder
 }
 
-// NewMessageData is helper method - generate message data shared between all node's p2p protocols
-// messageId: unique for requests, copied from request for responses
-func NewMessageData(pubKeyBytes []byte, peerID peer.ID, messageID string, gossip bool) *types.MessageData {
-	// Add protobufs bin data for message author public key
-	// this is useful for authenticating  messages forwarded by a node authored by another node
+func (pr *pbRequestOrder) SendTo(p *RemotePeer) bool {
+	if pr.pbMessageOrder.SendTo(p) {
+		p.requests[pr.GetMsgID()] = pr
+		return true
+	}
+	return false
+}
 
-	return &types.MessageData{ClientVersion: "0.1.0",
-		Id:         messageID,
-		NodePubKey: pubKeyBytes,
-		Timestamp:  time.Now().Unix(),
-		PeerID:     peer.IDB58Encode(peerID),
-		Gossip:     gossip}
+type pbBlkNoticeOrder struct {
+	pbMessageOrder
+	blkHash []byte
+}
+
+func (pr *pbBlkNoticeOrder) SendTo(p *RemotePeer) bool {
+	var blkhash [blkhashLen]byte
+	copy(blkhash[:], pr.blkHash)
+	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
+		// the remote peer already know this block hash. skip it
+		// too many not-insteresting log,
+		// p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		// 	Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
+		return false
+	}
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
+		return false
+	}
+	return true
+}
+
+func (pr *pbBlkNoticeOrder) Skippable() bool {
+	return true
+}
+
+type pbTxNoticeOrder struct {
+	pbMessageOrder
+	txHashes [][]byte
+}
+
+func (pr *pbTxNoticeOrder) SendTo(p *RemotePeer) bool {
+	var txHash [txhashLen]byte
+	send, skip := 0, 0
+	for _, h := range pr.txHashes {
+		copy(txHash[:], h)
+		if ok, _ := p.txHashCache.ContainsOrAdd(txHash, cachePlaceHolder); ok {
+			skip++
+		} else {
+			send++
+		}
+	}
+	if skip == len(pr.txHashes) {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending tx notice. peer knows all hashes")
+		return false
+	}
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Msg("Sending tx notice. peer knows all hashes")
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
+		return false
+	}
+	return true
+}
+
+func (pr *pbTxNoticeOrder) Skippable() bool {
+	return true
 }
 
 // SendProtoMessage send proto.Message data over stream
@@ -173,39 +263,6 @@ func SignData(data []byte, privKey crypto.PrivKey) ([]byte, error) {
 	return res, err
 }
 
-// VerifyData Verifies incoming p2p message data integrity
-// data: data to verify
-// signature: author signature provided in the message payload
-// peerID: author peer peer.ID from the message payload
-// pubKeyData: author public key from the message payload
-func VerifyData(data []byte, signature []byte, peerID peer.ID, pubKeyData []byte) error {
-	key, err := crypto.UnmarshalPublicKey(pubKeyData)
-	if err != nil {
-		return err
-	}
-
-	// extract node peer.ID from the provided public key
-	idFromKey, err := peer.IDFromPublicKey(key)
-	if err != nil {
-		return err
-	}
-
-	// verify that message author node peer.ID matches the provided node public key
-	if idFromKey != peerID {
-		return fmt.Errorf("PeerID mismatch")
-	}
-
-	res, err := key.Verify(data, signature)
-	if err != nil {
-		return err
-	}
-	if !res {
-		return fmt.Errorf("signature mismatch")
-	}
-
-	return nil
-}
-
 func marshalMessage(message proto.Message) ([]byte, error) {
 	return proto.Marshal(message)
 }
@@ -219,7 +276,7 @@ func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, erro
 }
 
 func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) *types.P2PMessage {
-	p2pmsg := &types.P2PMessage{Header: &types.MessageData{}}
+	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 
 	bytes, err := marshalMessage(message)
 	if err != nil {

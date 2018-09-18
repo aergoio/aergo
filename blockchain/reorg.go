@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -35,13 +36,16 @@ type reorganizer struct {
 
 func (cs *ChainService) needReorg(block *types.Block) bool {
 	cdb := cs.cdb
-	blockNo := types.BlockNo(block.GetHeader().GetBlockNo())
+	blockNo := block.BlockNo()
 
 	isNeed := cdb.latest < blockNo
 
 	if isNeed {
-		logger.Debug().Uint64("blockNo", blockNo).Uint64("latestNo", cdb.latest).
-			Str("prev", block.ID()).Msg("need reorganizing")
+		logger.Debug().
+			Uint64("blockNo", blockNo).
+			Uint64("latestNo", cdb.latest).
+			Str("prev", block.ID()).
+			Msg("need reorganization")
 	}
 
 	return isNeed
@@ -70,6 +74,10 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
+	if !cs.NeedReorganization(reorg.brRootBlock.BlockNo(), cs.getBestBlockNo()) {
+		return consensus.ErrorConsensus{Msg: "reorganization rejected by consensus"}
+	}
+
 	/* XXX */
 	//reorg.dumpRbBlocks()
 
@@ -96,35 +104,36 @@ func (reorg *reorganizer) dumpRbBlocks() {
 	}
 }
 
-// find branch root
-// gather rollforard/rollback target blocks
+// Find branch root and gather rollforard/rollback target blocks
 func (reorg *reorganizer) gatherChainInfo() error {
 	//find branch root block , gather rollforward Target block
 	cdb := reorg.cs.cdb
 
 	brBlock := reorg.brTopBlock
-	brBlockNo := brBlock.GetHeader().GetBlockNo()
+	brBlockNo := brBlock.BlockNo()
 	brBlockHash := brBlock.BlockHash()
 
-	latestNo := cdb.latest
+	curBestNo := cdb.latest
 
 	for {
 		mainBlockHash, err := cdb.getHashByNo(brBlockNo)
 
-		if latestNo < brBlockNo {
-			//must not exist (no, hash) record
+		if curBestNo < brBlockNo {
+			// Only the main chain blocks must be found from the chain DB.
 			if err == nil {
-				return fmt.Errorf("block of main chain can't be higher than latest. no=%d, latest=%d",
-					brBlockNo, latestNo)
+				return fmt.Errorf(
+					"invalid block found in the chain DB (too high block no) - block no=%d, current best=%d",
+					brBlockNo, curBestNo)
 			}
 		} else {
-			//must exist
+			// One must be able to look up any main chain block by its block
+			// no from the chain DB.
 			if err != nil {
-				return err
+				return fmt.Errorf("block not found in the chain DB: %s", err.Error())
 			}
 
 			if bytes.Equal(brBlock.Hash, mainBlockHash) {
-				if latestNo == brBlockNo {
+				if curBestNo == brBlockNo {
 					return fmt.Errorf("best block can't be branch root block")
 				}
 				reorg.brRootBlock = brBlock
@@ -219,6 +228,7 @@ func (reorg *reorganizer) rollbackChainState() error {
 	rollbackBlock
 	- cdb.latest -= - 1
 	- gather rollbacked Txs
+    - delete tx/block mapping
 */
 func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 	cdb := reorg.cs.cdb
@@ -227,6 +237,7 @@ func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 
 	for _, tx := range block.GetBody().GetTxs() {
 		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
+		cdb.deleteTx(reorg.dbtx, tx)
 	}
 
 	cdb.setLatest(blockNo - 1)
@@ -291,10 +302,6 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cdb := reorg.cs.cdb
 
 	if err := cs.executeBlock(nil, block); err != nil {
-		return err
-	}
-
-	if err := cdb.addBlock(reorg.dbtx, block, true, false); err != nil {
 		return err
 	}
 

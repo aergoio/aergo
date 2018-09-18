@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -50,8 +49,8 @@ type getMissingRequestHandler struct {
 var _ MessageHandler = (*getMissingRequestHandler)(nil)
 
 // newBlockReqHandler creates handler for GetBlockRequest
-func newBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *blockRequestHandler {
+	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -59,7 +58,7 @@ func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
-func (bh *blockRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
@@ -87,12 +86,12 @@ func (bh *blockRequestHandler) handle(msgHeader *types.MessageData, msgBody prot
 		Status: status,
 		Blocks: blockInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), true, getBlocksResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), getBlocksResponse, resp, bh.signer))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
-func newBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *blockResponseHandler {
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlocksResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -100,7 +99,7 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 	return unmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *blockResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
@@ -118,8 +117,8 @@ func (bh *blockResponseHandler) handle(msgHeader *types.MessageData, msgBody pro
 }
 
 // newListBlockReqHandler creates handler for GetBlockHeadersRequest
-func newListBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *listBlockHeadersRequestHandler {
-	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newListBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *listBlockHeadersRequestHandler {
+	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -127,7 +126,7 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
@@ -175,7 +174,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MessageData, m
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), true, getBlockHeadersResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), getBlockHeadersResponse, resp, bh.signer))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -183,8 +182,8 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 }
 
 // newListBlockRespHandler creates handler for GetBlockHeadersResponse
-func newListBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *listBlockHeadersResponseHandler {
-	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newListBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *listBlockHeadersResponseHandler {
+	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getBlockHeadersResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -192,7 +191,7 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
@@ -205,8 +204,8 @@ func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MessageData, 
 }
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
-func newNewBlockNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newBlockNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newNewBlockNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *newBlockNoticeHandler {
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newBlockNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -214,11 +213,11 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
-	peerID := bh.peer.ID()
+func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
+	// remove to verbose log
+	// debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
 	remotePeer.handleNewBlockNotice(data)
 }
@@ -245,13 +244,13 @@ func (bh *getMissingRequestHandler) notifyBranchBlock(peer *RemotePeer, hash mes
 		BlockHash: hash,
 		BlockNo:   uint64(blockno)}
 
-	peer.sendMessage(newPbMsgRequestOrder(false, false, newBlockNotice, req))
+	peer.sendMessage(newPbMsgRequestOrder(false, newBlockNotice, req, bh.signer))
 	return true
 }
 
 // newGetMissingReqHandler creates handler for GetMissingRequest
-func newGetMissingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger) *getMissingRequestHandler {
-	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getMissingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger}}
+func newGetMissingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *getMissingRequestHandler {
+	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getMissingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return bh
 }
 
@@ -259,7 +258,7 @@ func (bh *getMissingRequestHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.GetMissingRequest{})
 }
 
-func (bh *getMissingRequestHandler) handle(msgHeader *types.MessageData, msgBody proto.Message) {
+func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetMissingRequest)
@@ -313,5 +312,5 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer *RemotePeer, requ
 		Blocks: blockInfos}
 
 	// ???: have to check arguments
-	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, true, getBlocksResponse, resp))
+	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, getBlocksResponse, resp, bh.signer))
 }

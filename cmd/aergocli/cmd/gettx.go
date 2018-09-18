@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -38,18 +39,18 @@ func execGetTX(cmd *cobra.Command, args []string) {
 	}
 	defer client.Close()
 
-	txHash, err := util.DecodeB64(args[0])
+	txHash, err := base58.Decode(args[0])
 	if err != nil {
 		fmt.Printf("decode error: %s", err.Error())
 		return
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if nil == err {
-		fmt.Println("Pending: ", util.JSON(msg))
+		fmt.Println("Pending: ", util.ConvBase58Addr(msg))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if nil == err {
-			fmt.Println("Confirm: ", util.JSON(msgblock))
+			fmt.Println("Confirm: ", util.JSON(msgblock.GetTxIdx()), util.ConvBase58Addr(msgblock.GetTx()))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}

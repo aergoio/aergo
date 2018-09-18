@@ -178,8 +178,8 @@ type MockLogger struct {
 }
 
 func TestComparePeerID(t *testing.T) {
-	samplePeerID, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
-	samplePeerID2, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	samplePeerID := dummyPeerID
+	samplePeerID2 := dummyPeerID2
 	shorterPeerID := peer.ID(string(([]byte(samplePeerID))[:len(string(samplePeerID))-1]))
 	fmt.Println("Sample1", []byte(string(samplePeerID)))
 	fmt.Println("Sample2", []byte(string(samplePeerID2)))

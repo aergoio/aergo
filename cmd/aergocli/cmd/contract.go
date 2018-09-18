@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -63,7 +62,7 @@ func init() {
 
 func runDeployCmd(cmd *cobra.Command, args []string) {
 	var err error
-	creator, err := base58.Decode(args[0])
+	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,7 +92,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		copy(payload[4:], code)
 		copy(payload[4+len(code):], abi)
 	} else {
-		payload, err = base58.Decode(data)
+		payload, err = types.DecodeAddress(data)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
@@ -123,7 +122,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 }
 
 func runCallCmd(cmd *cobra.Command, args []string) {
-	caller, err := base58.Decode(args[0])
+	caller, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,7 +130,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	contract, err := base58.Decode(args[1])
+	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -172,7 +171,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 }
 
 func runGetABICmd(cmd *cobra.Command, args []string) {
-	contract, err := base58.Decode(args[0])
+	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,7 +183,7 @@ func runGetABICmd(cmd *cobra.Command, args []string) {
 }
 
 func runQueryCmd(cmd *cobra.Command, args []string) {
-	contract, err := base58.Decode(args[0])
+	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}

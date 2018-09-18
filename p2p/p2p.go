@@ -32,8 +32,9 @@ type P2P struct {
 
 	hub *component.ComponentHub
 
-	pm PeerManager
-	rm ReconnectManager
+	pm     PeerManager
+	rm     ReconnectManager
+	signer msgSigner
 }
 
 var (
@@ -100,13 +101,12 @@ func NodePubKey() crypto.PubKey {
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
-
-	netsvc := &P2P{
+	p2psvc := &P2P{
 		hub: hub,
 	}
-	netsvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, netsvc, log.NewLogger("p2p"))
-	netsvc.init(cfg, chainsvc)
-	return netsvc
+	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
+	p2psvc.init(cfg, chainsvc)
+	return p2psvc
 }
 
 // BeforeStart starts p2p service.
@@ -131,12 +131,13 @@ func (p2ps *P2P) Statics() *map[string]interface{} {
 }
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	reconMan := newReconnectManager(p2ps.Logger)
-	peerMan := NewPeerManager(p2ps, cfg, reconMan, p2ps.Logger)
-
+	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger)
 	// connect managers each other
 	reconMan.pm = peerMan
 
+	p2ps.signer = signer
 	p2ps.pm = peerMan
 	p2ps.rm = reconMan
 }

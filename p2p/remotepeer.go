@@ -34,7 +34,9 @@ type RemotePeer struct {
 	state     types.PeerState
 	actorServ ActorService
 	pm        PeerManager
-	stopChan  chan struct{}
+	signer    msgSigner
+
+	stopChan chan struct{}
 
 	write      p2putil.ChannelPipe
 	closeWrite chan struct{}
@@ -55,29 +57,14 @@ type RemotePeer struct {
 	rw MsgReadWriter
 }
 
-// msgOrder is abstraction information about the message that will be sent to peer
-type msgOrder interface {
-	GetRequestID() string
-	// Timestamp is unit time value
-	Timestamp() int64
-	IsRequest() bool
-	IsGossip() bool
-	IsNeedSign() bool
-	// ResponseExpected means that remote peer is expected to send response to this request.
-	ResponseExpected() bool
-	GetProtocolID() SubProtocol
-	SignWith(pm PeerManager) error
-	SendOver(w MsgWriter) error
-}
-
 const (
 	cleanRequestDuration = time.Hour
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger) *RemotePeer {
+func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger, signer msgSigner, rw MsgReadWriter) *RemotePeer {
 	peer := &RemotePeer{
-		meta: meta, pm: p2ps, actorServ: iServ, logger: log,
+		meta: meta, pm: p2ps, actorServ: iServ, logger: log, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -206,7 +193,7 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 	proto := SubProtocol(msg.Header.Subprotocol)
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Warn().Str("panic", fmt.Sprint(r)).Msg("There were panic in handler")
+			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler")
 			err = fmt.Errorf("internal error")
 		}
 	}()
@@ -221,7 +208,7 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
 		return fmt.Errorf("Invalid message data")
 	}
-	err = handler.checkAuth(msg.Header, payload)
+	err = handler.checkAuth(msg, payload)
 	if err != nil {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
 		return fmt.Errorf("Failed to authenticate message")
@@ -240,8 +227,8 @@ const writeChannelTimeout = time.Second * 2
 
 func (p *RemotePeer) sendMessage(msg msgOrder) {
 	if p.state.Get() != types.RUNNING {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Interface(LogProtoID, msg.GetProtocolID()).
-			Str(LogMsgID, msg.GetRequestID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
+			Str(LogMsgID, msg.GetMsgID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
 	p.write.In() <- msg
@@ -260,27 +247,7 @@ func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *RemotePeer) writeToPeer(m msgOrder) {
-	// sign the data
-	// TODO signing can be done earlier. Consider change signing point to reduce cpu load
-	if m.IsNeedSign() {
-		err := m.SignWith(p.pm)
-		if err != nil {
-			p.logger.Warn().Err(err).Msg("fail to sign")
-			return
-		}
-	}
-
-	err := m.SendOver(p.rw)
-	if err != nil {
-		p.logger.Warn().Err(err).Msg("fail to SendOver")
-		return
-	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, m.GetProtocolID().String()).
-		Str(LogMsgID, m.GetRequestID()).Msg("Send message")
-	//p.logger.Debugf("Sent message %v:%v to peer %s", m.GetProtocolID(), m.GetRequestID(), p.meta.ID.Pretty())
-	if m.ResponseExpected() {
-		p.requests[m.GetRequestID()] = m
-	}
+	m.SendTo(p)
 }
 
 func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
@@ -320,7 +287,7 @@ func (p *RemotePeer) sendPing() {
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(true, false, pingRequest, pingMsg))
+	p.sendMessage(newPbMsgRequestOrder(true, pingRequest, pingMsg, p.signer))
 }
 
 // sendStatus is called once when a peer is added.()
@@ -334,13 +301,13 @@ func (p *RemotePeer) sendStatus() {
 		return
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(false, true, statusRequest, statusMsg))
+	p.sendMessage(newPbMsgRequestOrder(false, statusRequest, statusMsg, p.signer))
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(newPbMsgRequestOrder(false, true, goAway, &types.GoAwayNotice{Message: msg}))
+	p.sendMessage(newPbMsgRequestOrder(false, goAway, &types.GoAwayNotice{Message: msg}, p.signer))
 	p.pm.RemovePeer(p.meta.ID)
 }
 
@@ -382,7 +349,7 @@ func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
 		return
 	}
 	// lru cache can accept hashable key
-	hashArrs := make([][txhashLen]byte, 0, len(data.TxHashes))
+	hashArrs := make([][txhashLen]byte, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		copy(hashArrs[i][:], hash)
 		p.blkHashCache.Add(hashArrs[i], true)
@@ -416,7 +383,7 @@ func (l *hangResolver) OnDrop(element interface{}) {
 		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
 		l.p.pm.RemovePeer(l.p.ID())
 	} else {
-		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetRequestID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
 }
 

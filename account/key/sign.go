@@ -2,13 +2,14 @@ package key
 
 import (
 	"bytes"
-	"crypto/sha256"
+
+	sha256 "github.com/minio/sha256-simd"
+
 	"encoding/binary"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/mr-tron/base58/base58"
 )
 
 //Sign return sign with key in the store
@@ -35,7 +36,7 @@ func SignTx(tx *types.Tx, key *aergokey) error {
 //SignTx return transaction which signed with unlocked key
 func (ks *Store) SignTx(tx *types.Tx) error {
 	addr := tx.Body.Account
-	key, exist := ks.unlocked[base58.Encode(addr)]
+	key, exist := ks.unlocked[types.EncodeAddress(addr)]
 	if !exist {
 		return message.ErrShouldUnlockAccount
 	}

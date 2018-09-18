@@ -26,10 +26,8 @@ import:
   version: ~3.0.8
 - package: github.com/libp2p/go-libp2p-peer
   version: ~2.3.7
-  #version: 010c46e7b432a0b454d9ca397f08f364fa2139af
 - package: github.com/libp2p/go-libp2p-peerstore
   version: ~1.4.24
-  #version: 4d62f4830a4eaf81eac61fa842b3e6199628dad1
 - package: github.com/libp2p/go-libp2p-protocol
   version: ~1.0.0
 - package: github.com/libp2p/go-libp2p-swarm
@@ -74,6 +72,8 @@ import:
 - package: github.com/soheilhy/cmux
   version: ~0.1.4
 - package: github.com/aergoio/aergo-lib
+- package: github.com/minio/sha256-simd
+- package: github.com/anaskhan96/base58check
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2

@@ -7,7 +7,7 @@ import "blockchain.proto";
 import "node.proto";
 
 // MessageData has datas shared between all app protocols
-message MessageData {
+message MsgHeader {
     // client version
     string clientVersion = 1;
     // unix time
@@ -17,7 +17,7 @@ message MessageData {
     // Gossip is flag to have receiver peer gossip the message to neighbors
     bool gossip = 4;
     // PeerID is id of node that created the message (not the peer that may have sent it). =base58(mh(sha256(nodePubKey)))
-    string peerID = 5;
+    bytes peerID = 5;
     // nodePubKey Authoring node Secp256k1 public key (32bytes) - protobufs serielized
     bytes nodePubKey = 6;
     // signature of message data + method specific data by message authoring node. format: string([]bytes)
@@ -92,7 +92,7 @@ enum ResultStatus {
 }
 
 message P2PMessage {
-    MessageData header = 1;
+    MsgHeader header = 1;
     bytes data = 2;
 }
 
@@ -120,9 +120,8 @@ message GoAwayNotice {
     string message = 1;
 } 
 message AddressesRequest {
-    MessageData messageData = 1;
-    PeerAddress sender = 2;
-    uint32 maxSize = 3;
+    PeerAddress sender = 1;
+    uint32 maxSize = 2;
 }
 
 message AddressesResponse {

@@ -1,7 +1,7 @@
 package state
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/pkg/trie"

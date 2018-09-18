@@ -18,11 +18,9 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 
-	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -78,8 +76,8 @@ type PeerManager interface {
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 
 	// deprecated methods... use sendmessage helper functions instead
-	SignProtoMessage(message proto.Message) ([]byte, error)
-	AuthenticateMessage(message proto.Message, data *types.MessageData) bool
+	//	SignProtoMessage(message proto.Message) ([]byte, error)
+	//	AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool
 }
 
 /**
@@ -92,6 +90,7 @@ type peerManager struct {
 	publicKey  crypto.PubKey
 	selfMeta   PeerMeta
 	actorServ  ActorService
+	signer     msgSigner
 	rm         ReconnectManager
 
 	designatedPeers map[peer.ID]PeerMeta
@@ -129,12 +128,13 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, rm ReconnectManager, logger *log.Logger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		actorServ: iServ,
 		conf:      p2pConf,
+		signer:    signer,
 		rm:        rm,
 		logger:    logger,
 		mutex:     &sync.Mutex{},
@@ -375,8 +375,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
-	newPeer.rw = rw
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -394,38 +393,34 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 }
 
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
-	// TODO duplicated code
-	serialized, err := marshalMessage(&types.GoAwayNotice{Message: msg})
-	if err != nil {
-		pm.logger.Warn().Err(err).Msg("failed to marshal")
-		return
-	}
-	container := &types.P2PMessage{Header: &types.MessageData{}, Data: serialized}
-	setupMessageData(container.Header, uuid.Must(uuid.NewV4()).String(), false, ClientVersion, time.Now().Unix())
-	container.Header.Subprotocol = goAway.Uint32()
+	goMsg := &types.GoAwayNotice{Message: msg}
+	// TODO code smell. non safe casting.
+	mo := newPbMsgRequestOrder(false, goAway, goMsg, pm.signer).(*pbRequestOrder)
+	container := mo.message
+
 	rw.WriteMsg(container)
 }
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
 	// PingHandlers
-	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger)
-	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger)
-	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger)
-	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger)
-	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger)
+	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
 
 	// BlockHandlers
-	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger)
-	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger)
-	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger)
-	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger)
-	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger)
-	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger)
+	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
 
 	// TxHandlers
-	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger)
-	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger)
-	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger)
+	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -553,8 +548,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger)
-	peer.rw = rw
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
 	pm.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)
@@ -743,13 +737,11 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 		toGet = append(toGet, message.TXHash(hashArr[:]))
 	}
 	if len(toGet) == 0 {
-		pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
+		// pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
 	}
 	// create message data
 	pm.actorServ.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
-	pm.logger.Debug().Int("tx_cnt", len(toGet)).Str(LogPeerID, peerID.Pretty()).Msg("Request GetTransactions")
-
 }
 
 // this method should be called inside pm.mutex

@@ -8,7 +8,10 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
@@ -16,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var from string
@@ -27,53 +29,59 @@ func init() {
 	rootCmd.AddCommand(voteCmd)
 	voteCmd.Flags().StringVar(&from, "from", "", "base58 address of voter")
 	voteCmd.MarkFlagRequired("from")
-	voteCmd.Flags().StringVar(&to, "to", "", "base58 address of candidate")
+	voteCmd.Flags().StringVar(&to, "to", "", "json array which has base58 address of candidates or input file path")
 	voteCmd.MarkFlagRequired("to")
-	voteCmd.Flags().Int64Var(&amount, "amount", 0, "amount address")
-	voteCmd.Flags().BoolVar(&revert, "revert", false, "revert to vote")
-
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().Uint64Var(&number, "count", 1, "the number of elected")
 }
 
 var voteCmd = &cobra.Command{
-	Use:   "vote",
-	Short: "vote to agenda",
-	Run:   execVote,
+	Use:               "vote",
+	Short:             "vote to BPs",
+	Run:               execVote,
+	PersistentPreRun:  connectAergo,
+	PersistentPostRun: disconnectAergo,
 }
 
+const peerIDLength = 39
+
 func execVote(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
-
-	account, err := base58.Decode(from)
+	account, err := types.DecodeAddress(from)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	candidate, err := base58.Decode(to)
-	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
-		return
+	_, err = os.Stat(to)
+	if err == nil {
+		b, readerr := ioutil.ReadFile(to)
+		if readerr != nil {
+			fmt.Printf("Failed: %s\n", readerr.Error())
+			return
+		}
+		to = string(b)
 	}
-	_, err = peer.IDFromBytes(candidate)
+	var candidates []string
+	err = json.Unmarshal([]byte(to), &candidates)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
-	payload := make([]byte, len(candidate)+1)
-	if revert {
-		payload[0] = 'r'
-	} else {
-		payload[0] = 'v'
+	payload := make([]byte, (len(candidates)*peerIDLength)+1)
+	payload[0] = 'v'
+	for i, v := range candidates {
+		candidate, err := base58.Decode(v)
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		_, err = peer.IDFromBytes(candidate)
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		copy(payload[1+(i*peerIDLength):], candidate)
 	}
-	copy(payload[1:], candidate)
 
 	txs := make([]*types.Tx, 1)
 
@@ -87,7 +95,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	txs[0] = &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
-			Recipient: []byte("aergo.bp"),
+			Recipient: []byte(aergosystem),
 			Amount:    uint64(amount),
 			Price:     0,
 			Payload:   payload,
@@ -96,7 +104,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			Nonce:     state.GetNonce() + 1,
 		},
 	}
-
+	//TODO : support local
 	tx, err := client.SignTX(context.Background(), txs[0])
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
@@ -117,19 +125,14 @@ func execVote(cmd *cobra.Command, args []string) {
 }
 
 var voteStatCmd = &cobra.Command{
-	Use:   "votestat",
-	Short: "show voting stat",
-	Run:   execVoteStat,
+	Use:               "votestat",
+	Short:             "show voting stat",
+	Run:               execVoteStat,
+	PersistentPreRun:  connectAergo,
+	PersistentPostRun: disconnectAergo,
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
 	var voteQuery []byte
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(number))
@@ -140,6 +143,6 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		fmt.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		fmt.Println(i+1, " : ", types.EncodeAddress(r.Candidate), " : ", r.Amount)
 	}
 }

@@ -6,7 +6,7 @@ import (
 
 // MsgReader read stream and return message object
 type MsgReader interface {
-	// ReadMsg return types.MessageData as header, proto.Message as data
+	// ReadMsg return types.MsgHeader as header, proto.Message as data
 	// The header and/or data can be nil if error is not nil
 	ReadMsg() (*types.P2PMessage, error)
 }

@@ -7,12 +7,14 @@ package types
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"io"
 	"reflect"
 
+	sha256 "github.com/minio/sha256-simd"
+
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/internal/merkle"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -300,7 +302,12 @@ func CalculateBlocksRootHash(blocks []*Block) []byte {
 
 // CalculateTxsRootHash generates merkle tree of transactions and returns root hash.
 func CalculateTxsRootHash(txs []*Tx) []byte {
-	return nil
+	var mes []merkle.MerkleEntry = make([]merkle.MerkleEntry, len(txs))
+	for i, tx := range txs {
+		mes[i] = tx
+	}
+
+	return merkle.CalculateMerkleRoot(mes)
 }
 
 func NewTx() *Tx {

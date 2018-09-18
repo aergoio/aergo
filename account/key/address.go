@@ -1,20 +1,23 @@
 package key
 
 import (
-	"bytes"
 	"crypto/ecdsa"
-	"encoding/binary"
 	"io/ioutil"
 	"os"
+	"encoding/binary"
+	"bytes"
 )
 
 type Address = []byte
 
+const addressLength = 33
+
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	addr := new(bytes.Buffer)
+	// Compressed pubkey
 	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
-	binary.Write(addr, binary.LittleEndian, pubkey.Y.Bytes())
-	return addr.Bytes()[:20] //TODO: ADDRESSLENGTH ?
+	binary.Write(addr, binary.LittleEndian, uint8(0x2 + pubkey.Y.Bit(0)))  // 0x2 for even, 0x3 for odd Y
+	return addr.Bytes() // 33 bytes
 }
 
 func (ks *Store) SaveAddress(addr Address) error {
@@ -30,7 +33,6 @@ func (ks *Store) SaveAddress(addr Address) error {
 }
 
 func (ks *Store) GetAddresses() ([]Address, error) {
-	const addressLength = 20
 	b, err := ioutil.ReadFile(ks.addresses)
 	if err != nil {
 		if os.IsNotExist(err) {

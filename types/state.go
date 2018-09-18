@@ -1,7 +1,8 @@
 package types
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/minio/sha256-simd"
+
 	"crypto/sha512"
 	"encoding/binary"
 	"reflect"
