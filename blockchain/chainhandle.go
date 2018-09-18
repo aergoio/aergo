@@ -7,6 +7,7 @@ package blockchain
 
 import (
 	"bytes"
+	"container/list"
 	"errors"
 	"fmt"
 	"strconv"
@@ -61,131 +62,199 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return tx, txidx, err
 }
 
-func (cs *ChainService) addBlock(nblock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
-	logger.Debug().Str("hash", nblock.ID()).Msg("add block")
+type chainProcessor struct {
+	*ChainService
+	block     *types.Block // starting block
+	lastBlock *types.Block
+	state     *types.BlockState
+	mainChain *list.List
 
-	var bestBlock *types.Block
-	var err error
+	add func(blk *types.Block) error
+}
+
+func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainService) (*chainProcessor, error) {
 	var isMainChain bool
+	var err error
 
-	if bestBlock, err = cs.getBestBlock(); err != nil {
-		return err
+	if isMainChain, err = cs.cdb.isMainChain(block); err != nil {
+		return nil, err
 	}
 
-	// Check consensus header validity
-	if err := cs.IsBlockValid(nblock, bestBlock); err != nil {
-		return err
+	cp := &chainProcessor{
+		ChainService: cs,
+		block:        block,
+		state:        state,
 	}
 
-	// handle orphan
-	if cs.isOrphan(nblock) {
-		if usedBstate != nil {
-			return fmt.Errorf("block received from BP can not be orphan")
-		}
-		err := cs.handleOrphan(nblock, peerID)
-		return err
-	}
-
-	if isMainChain, err = cs.cdb.isMainChain(nblock); err != nil {
-		return err
-	}
-
-	var dbtx *db.Transaction
-
-	defer func() {
-		if dbtx != nil {
-			(*dbtx).Discard()
-		}
-	}()
-
-	// connect orphans
-	tblock := nblock
-	processedTxn := 0
-	var lastBlock *types.Block
-
-	for tblock != nil {
-		blockNo := tblock.GetHeader().GetBlockNo()
-		dbtx := cs.cdb.store.NewTx(true)
-
-		isBPMade := (usedBstate != nil)
-		if isBPMade == false {
-			if err = cs.validator.ValidateBlock(tblock); err != nil {
-				if err != nil {
-					logger.Error().Str("err", err.Error()).Str("hash", tblock.ID()).
-						Msg("validate block failed")
-				}
-
+	if isMainChain {
+		cp.mainChain = list.New()
+		cp.add = func(blk *types.Block) error {
+			if err := cp.addCommon(blk); err != nil {
 				return err
 			}
+			// blk must be executed later if it belongs to the main chain.
+			cp.mainChain.PushBack(blk)
+
+			return nil
 		}
+	} else {
+		cp.add = cp.addCommon
+	}
 
-		if isMainChain {
-			if err = cs.executeBlock(usedBstate, tblock); err != nil {
-				return err
-			}
-			processedTxn = len(tblock.GetBody().GetTxs())
-		}
+	return cp, nil
+}
 
-		if err = cs.cdb.addBlock(&dbtx, tblock, isMainChain, true); err != nil {
-			return err
-		}
-		//FIXME: 에러가 발생한 경우 sdb도 rollback 되어야 한다.
-		dbtx.Commit()
+func (cp *chainProcessor) addCommon(blk *types.Block) error {
+	dbTx := cp.cdb.store.NewTx(true)
+	defer dbTx.Discard()
 
-		if isMainChain {
-			cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
-				// FIXME: remove legacy
-				BlockNo: blockNo,
-				Txs:     tblock.GetBody().GetTxs(),
-			})
+	if err := cp.cdb.addBlock(&dbTx, blk); err != nil {
+		return err
+	}
 
-			//SyncWithConsensus :
-			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
-			// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
-			//	In this case, messages of mempool is synchronized in actor message queue.
-			cs.cdb.setLatest(blockNo)
+	dbTx.Commit()
 
-			// XXX Something similar should be also done during
-			// reorganization.
-			cs.StatusUpdate(nblock)
-			cs.notifyBlock(tblock)
-		}
+	logger.Debug().Bool("isMainChain", cp.isMain()).
+		Uint64("latest", cp.cdb.latest).
+		Uint64("blockNo", blk.BlockNo()).
+		Str("hash", blk.ID()).
+		Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
+		Msg("block added to the block indices")
 
-		logger.Info().Bool("isMainChain", isMainChain).
-			Int("processed_txn", processedTxn).
-			Uint64("latest", cs.cdb.latest).
-			Uint64("blockNo", blockNo).
-			Str("hash", tblock.ID()).
-			Str("prev_hash", enc.ToString(tblock.GetHeader().GetPrevBlockHash())).
-			Msg("block added")
-		//return cs.mpool.Removes(tblock.GetBody().GetTxs()...)
+	cp.lastBlock = blk
 
-		lastBlock = tblock
+	return nil
+}
 
-		if tblock, err = cs.connectOrphan(tblock); err != nil {
+func (cp *chainProcessor) prepare() error {
+	var err error
+
+	blk := cp.block
+	for blk != nil {
+		// Add blk to the corresponding block chain.
+		if err := cp.add(blk); err != nil {
 			return err
 		}
 
-		usedBstate = nil
-	}
-
-	/* reorganize
-	   if new bestblock then process Txs
-	   add block
-	   if new bestblock then update context
-	   connect next orphan
-	*/
-	if cs.needReorg(lastBlock) {
-		err := cs.reorg(lastBlock)
-		if err != nil {
-			panic(err)
+		// Remove a block depnding on blk from the orphan cache.
+		if blk, err = cp.resolveOrphan(blk); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-type txExecFn func(tx *types.Tx, dbTx db.Transaction) error
+func (cp *chainProcessor) isMain() bool {
+	return cp.mainChain != nil
+}
+
+func (cp *chainProcessor) executeBlock(block *types.Block) error {
+	err := cp.ChainService.executeBlock(cp.state, block)
+	cp.state = nil
+
+	return err
+}
+
+func (cp *chainProcessor) execute() error {
+	if !cp.isMain() {
+		return nil
+	}
+
+	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
+
+	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
+		block := e.Value.(*types.Block)
+
+		if err := cp.executeBlock(block); err != nil {
+			return err
+		}
+
+		blockNo := block.BlockNo()
+		cp.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
+			// FIXME: remove legacy
+			BlockNo: blockNo,
+			Txs:     block.GetBody().GetTxs(),
+		})
+
+		//SyncWithConsensus :
+		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+		//	In this case, messages of mempool is synchronized in actor message queue.
+		oldLatest := cp.cdb.setLatest(blockNo)
+
+		// XXX Something similar should be also done during
+		// reorganization.
+		cp.StatusUpdate(block)
+		cp.notifyBlock(block)
+
+		logger.Debug().
+			Uint64("old latest", oldLatest).
+			Uint64("new latest", blockNo).
+			Str("hash", block.ID()).
+			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
+			Msg("block executed")
+
+	}
+
+	return nil
+}
+
+func (cp *chainProcessor) reorganize() {
+	// - Reorganize if new bestblock then process Txs
+	// - Add block if new bestblock then update context connect next orphan
+	if cp.needReorg(cp.lastBlock) {
+		err := cp.reorg(cp.lastBlock)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
+	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
+
+	var bestBlock *types.Block
+	var err error
+
+	if bestBlock, err = cs.getBestBlock(); err != nil {
+		return err
+	}
+
+	// Check consensus header validity
+	if err := cs.IsBlockValid(newBlock, bestBlock); err != nil {
+		return err
+	}
+
+	// handle orphan
+	if cs.isOrphan(newBlock) {
+		if usedBstate != nil {
+			return fmt.Errorf("block received from BP can not be orphan")
+		}
+		err := cs.handleOrphan(newBlock, peerID)
+		return err
+	}
+
+	cp, err := newChainProcessor(newBlock, usedBstate, cs)
+	if err != nil {
+		return err
+	}
+
+	if err := cp.prepare(); err != nil {
+		return err
+	}
+	if err := cp.execute(); err != nil {
+		return err
+	}
+
+	// TODO: reorganization should be done before chain execution to avoid an
+	// unnecessary chain execution & rollback.
+	cp.reorganize()
+
+	return nil
+}
+
+type txExecFn func(tx *types.Tx) error
 
 type executor struct {
 	sdb        *state.ChainStateDB
@@ -194,17 +263,23 @@ type executor struct {
 	txs        []*types.Tx
 }
 
-func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types.Block) *executor {
+func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*executor, error) {
 	var exec txExecFn
+
+	sdb := cs.sdb
 
 	// The DPoS block factory excutes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
 	// Hence we need a new block state and tx executor (execTx).
 	if bState == nil {
+		if err := cs.validator.ValidateBlock(block); err != nil {
+			return nil, err
+		}
+
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
-		exec = func(tx *types.Tx, dbTx db.Transaction) error {
-			return executeTx(sdb, bState, tx, dbTx, block.BlockNo(), block.GetHeader().GetTimestamp())
+		exec = func(tx *types.Tx) error {
+			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
 		}
 	}
 
@@ -215,32 +290,42 @@ func newExecutor(sdb *state.ChainStateDB, bState *types.BlockState, block *types
 		blockState: bState,
 		execTx:     exec,
 		txs:        txs,
-	}
+	}, nil
 }
 
 func (e *executor) execute() error {
-	dbTx := contract.DB.NewTx(true)
 	if e.execTx != nil {
 		for _, tx := range e.txs {
-			if err := e.execTx(tx, dbTx); err != nil {
-				dbTx.Commit()
+			if err := e.execTx(tx); err != nil {
 				return err
 			}
 		}
 	}
-	dbTx.Commit()
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
 	err := e.sdb.Apply(e.blockState)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
+}
+
+func setMainChainStatus(tx db.Transaction, block *types.Block) {
+	blockNo := block.GetHeader().GetBlockNo()
+	blockIdx := types.BlockNoToBytes(blockNo)
+
+	// Update best block hash
+	tx.Set(latestKey, blockIdx)
+	tx.Set(blockIdx, block.BlockHash())
 }
 
 func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
-	ex := newExecutor(cs.sdb, bstate, block)
+	ex, err := newExecutor(cs, bstate, block)
+	if err != nil {
+		return err
+	}
+
+	dbTx := cs.cdb.store.NewTx(true)
+	defer dbTx.Discard()
 
 	if err := ex.execute(); err != nil {
 		// FIXME: is that enough?
@@ -249,10 +334,14 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
+	setMainChainStatus(dbTx, block)
+
+	dbTx.Commit()
+
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, dbTx db.Transaction, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -291,18 +380,21 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, dbTx
 			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
 		if txBody.Payload != nil {
+			receiptTx := contract.DB.NewTx(true)
+			defer receiptTx.Commit()
+
 			contractState, err := sdb.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
 			}
 
 			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, dbTx)
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, receiptTx)
 			} else {
 				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
 					blockNo, ts, "", false, recipient, false)
 
-				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, dbTx)
+				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
 				if err != nil {
 					return err
 				}
@@ -328,7 +420,7 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, dbTx
 }
 
 // find an orphan block which is the child of the added block
-func (cs *ChainService) connectOrphan(block *types.Block) (*types.Block, error) {
+func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) {
 	hash := block.BlockHash()
 
 	orphanID := types.ToBlockID(hash)
