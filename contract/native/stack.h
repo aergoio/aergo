@@ -41,4 +41,4 @@ stack_init(stack_t *stack)
     stack->tail = NULL;
 }
 
-#endif /* _STACK_H */
+#endif /* ! _STACK_H */

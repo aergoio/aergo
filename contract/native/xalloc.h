@@ -17,4 +17,4 @@ void xfree(void *ptr);
 
 char *xstrndup(char *str, int len);
 
-#endif /* _XALLOC_H */
+#endif /* ! _XALLOC_H */

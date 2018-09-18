@@ -13,7 +13,7 @@
 #include "compile.h"
 
 int
-compile(char *path, opt_t opt)
+compile(char *path, flag_t flag)
 {
     strbuf_t src;
 
@@ -21,7 +21,7 @@ compile(char *path, opt_t opt)
 
     preprocess(path, &src);
 
-    return parse(path, opt, &src);
+    return parse(path, flag, &src);
 }
 
 /* end of compile.c */

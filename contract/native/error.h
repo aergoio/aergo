@@ -94,4 +94,4 @@ error_t *error_pop(void);
 void error_clear(void);
 void error_dump(void);
 
-#endif /*_ERROR_H */
+#endif /* ! _ERROR_H */

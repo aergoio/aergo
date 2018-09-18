@@ -8,7 +8,7 @@
 #endif
 
 error(ERROR_INTERNAL,               "%s:%d: %s")
-error(ERROR_INVALID_OPTION,         "invalid command line option: %s")
+error(ERROR_INVALID_FLAG,           "invalid command line flag: %s")
 
 error(ERROR_FILE_IO,                "%s: %s")
 

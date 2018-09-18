@@ -59,7 +59,7 @@ get_errcode(char *str)
 }
 
 static void
-run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
+run_test(char *title, ec_t ex, char *path, flag_t flag, strbuf_t *sb)
 {
     ec_t ac;
 
@@ -69,7 +69,7 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
     printf("  + %-67s ", title);
     fflush(stdout);
 
-    ac = parse(path, opt, sb);
+    ac = parse(path, flag, sb);
     if (ex == ac) {
         printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
     }
@@ -87,7 +87,7 @@ run_test(char *title, ec_t ex, char *path, opt_t opt, strbuf_t *sb)
 }
 
 static void
-read_test(char *path, opt_t opt)
+read_test(char *path, flag_t flag)
 {
     int line = 1;
     int offset = 0;
@@ -106,7 +106,7 @@ read_test(char *path, opt_t opt)
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
             if (!strbuf_empty(&sb)) {
-                run_test(title, ec, path, opt, &sb);
+                run_test(title, ec, path, flag, &sb);
                 strbuf_reset(&sb);
                 title[0] = '\0';
                 ec = NO_ERROR;
@@ -131,11 +131,11 @@ read_test(char *path, opt_t opt)
     }
 
     if (!strbuf_empty(&sb))
-        run_test(title, ec, path, opt, &sb);
+        run_test(title, ec, path, flag, &sb);
 }
 
 static void
-get_opt(int argc, char **argv, opt_t *opt)
+get_opt(int argc, char **argv, flag_t *flag)
 {
     int i;
 
@@ -144,13 +144,13 @@ get_opt(int argc, char **argv, opt_t *opt)
             continue;
 
         if (strcmp(argv[i], "--silent") == 0)
-            opt_set(*opt, OPT_SILENT);
+            flag_set(*flag, FLAG_SILENT);
         else if (strcmp(argv[i], "--lex-dump") == 0)
-            opt_set(*opt, OPT_LEX_DUMP);
+            flag_set(*flag, FLAG_LEX_DUMP);
         else if (strcmp(argv[i], "--yacc-dump") == 0)
-            opt_set(*opt, OPT_YACC_DUMP);
+            flag_set(*flag, FLAG_YACC_DUMP);
         else
-            FATAL(ERROR_INVALID_OPTION, argv[i]);
+            FATAL(ERROR_INVALID_FLAG, argv[i]);
     }
 }
 
@@ -159,9 +159,9 @@ main(int argc, char **argv)
 {
     int i;
     char delim[81];
-    opt_t opt = OPT_NONE;
+    flag_t flag = FLAG_NONE;
 
-    get_opt(argc, argv, &opt);
+    get_opt(argc, argv, &flag);
 
     memset(delim, '*', 80);
     delim[80] = '\0';
@@ -174,7 +174,7 @@ main(int argc, char **argv)
         if (*argv[i] == '-')
             continue;
 
-        read_test(argv[i], opt);
+        read_test(argv[i], flag);
     }
 
     printf("%s\n", delim);

@@ -8,14 +8,15 @@
 
 #include "common.h"
 
-#include "list.h"
-#include "location.h"
+#include "ast.h"
 
 typedef struct ast_struct_s {
-    char *name;
-    list_t field_l;
+    AST_NODE_DECL;
 
-    yypos_t pos;
+    char *name;
+    list_t *field_l;
 } ast_struct_t;
 
-#endif /* _AST_STRUCT_H */
+ast_struct_t *ast_struct_new(char *name, list_t *field_l, yylloc_t *lloc);
+
+#endif /* ! _AST_STRUCT_H */

@@ -8,6 +8,6 @@
 
 #include "common.h"
 
-int compile(char *path, opt_t opt);
+int compile(char *path, flag_t flag);
 
-#endif /* _COMPILE_H */
+#endif /* ! _COMPILE_H */

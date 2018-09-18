@@ -12,4 +12,4 @@
 #define MINOR_VER       0
 #define PATCH_VER       1
 
-#endif /*_VERSION_H */
+#endif /* ! _VERSION_H */

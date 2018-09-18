@@ -17,7 +17,7 @@
 #ifndef _STRBUF_T
 #define _STRBUF_T
 typedef struct strbuf_s strbuf_t;
-#endif  /* _STRBUF_T */
+#endif /* ! _STRBUF_T */
 
 struct strbuf_s {
     int size;
@@ -33,4 +33,4 @@ void strbuf_trunc(strbuf_t *sb, int len);
 
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
 
-#endif /*_STRBUF_H */
+#endif /* ! _STRBUF_H */

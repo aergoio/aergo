@@ -8,27 +8,29 @@
 
 #include "common.h"
 
-#include "location.h"
-#include "list.h"
-
-#define STMT_DECL                                                              \
-    yypos_t pos
+#include "ast.h"
 
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;
-#endif  /* _AST_BLK_T */
+#endif /* ! _AST_BLK_T */
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
-#endif  /* _AST_EXP_T */
+#endif /* ! _AST_EXP_T */
+
+#ifndef _AST_STMT_T
+#define _AST_STMT_T
+typedef struct ast_stmt_s ast_stmt_t;
+#endif /* ! _AST_STMT_T */
 
 typedef enum stmt_type_e {
-    STMT_EXPR       = 0,
+    STMT_EXP        = 0,
     STMT_IF,
     STMT_FOR,
     STMT_SWITCH,
+    STMT_CASE,
     STMT_CONTINUE,
     STMT_BREAK,
     STMT_RETURN,
@@ -38,50 +40,81 @@ typedef enum stmt_type_e {
 } stmt_type_t;
 
 typedef struct stmt_exp_s {
-    STMT_DECL;
     ast_exp_t *exp;
 } stmt_exp_t;
 
 typedef struct stmt_if_s {
-    STMT_DECL;
-    ast_exp_t *exp;
-    ast_blk_t *blk;
-    list_t else_l;
+    ast_exp_t *cmp_exp;
+    ast_stmt_t *if_blk;
+    ast_stmt_t *else_blk;
+    list_t elsif_l;
 } stmt_if_t;
 
 typedef struct stmt_for_s {
-    STMT_DECL;
+    list_t *init_l;
     ast_exp_t *init_exp;
     ast_exp_t *check_exp;
     ast_exp_t *inc_exp;
-    ast_blk_t *blk;
+    ast_stmt_t *blk;
 } stmt_for_t;
 
 typedef struct stmt_switch_s {
-    STMT_DECL;
-    ast_exp_t *exp;
-    list_t case_l;
-    ast_blk_t *dflt;
+    ast_exp_t *cmp_exp;
+    list_t *case_l;
 } stmt_switch_t;
 
+typedef struct stmt_case_s {
+    ast_exp_t *cmp_exp;
+    list_t *stmt_l;
+} stmt_case_t;
+
 typedef struct stmt_return_s {
-    STMT_DECL;
-    list_t exp_l;
+    ast_exp_t *exp;
 } stmt_return_t;
 
+typedef enum ddl_kind_e {
+    DDL_CREATE_TBL      = 0,
+    DDL_DROP_TBL,
+    DDL_CREATE_IDX,
+    DDL_DROP_IDX,
+    DDL_MAX
+} ddl_kind_t;
+
 typedef struct stmt_ddl_s {
-    STMT_DECL;
+    ddl_kind_t kind;
     char *ddl;
 } stmt_ddl_t;
 
 typedef struct stmt_blk_s {
-    STMT_DECL;
     ast_blk_t *blk;
 } stmt_blk_t;
 
-typedef struct ast_stmt_s {
-    STMT_DECL;
-    stmt_type_t type;
-} ast_stmt_t;
+struct ast_stmt_s {
+    AST_NODE_DECL;
 
-#endif /* _AST_STMT_H */
+    stmt_type_t type;
+
+    union {
+        stmt_exp_t u_exp;
+        stmt_if_t u_if;
+        stmt_for_t u_for;
+        stmt_switch_t u_sw;
+        stmt_case_t u_case;
+        stmt_return_t u_ret;
+        stmt_ddl_t u_ddl;
+        stmt_blk_t u_blk;
+    };
+};
+
+ast_stmt_t *ast_stmt_new(stmt_type_t type, yylloc_t *lloc);
+ast_stmt_t *stmt_exp_new(ast_exp_t *exp, yylloc_t *lloc);
+ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, yylloc_t *lloc);
+ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp,
+                         ast_exp_t *inc_exp, ast_stmt_t *blk, yylloc_t *lloc);
+ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, yylloc_t *lloc);
+ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, yylloc_t *lloc);
+ast_stmt_t *stmt_return_new(ast_exp_t *exp, yylloc_t *lloc);
+ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, yylloc_t *lloc);
+ast_stmt_t *stmt_blk_new(ast_blk_t *blk, yylloc_t *lloc);
+
+#endif /* ! _AST_STMT_H */

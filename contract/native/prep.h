@@ -15,7 +15,7 @@
 #ifndef _STRBUF_T
 #define _STRBUF_T
 typedef struct strbuf_s strbuf_t;
-#endif  /* _STRBUF_T */
+#endif /* ! _STRBUF_T */
 
 typedef struct scan_s {
     char *path;
@@ -32,4 +32,4 @@ typedef struct scan_s {
 
 void preprocess(char *path, strbuf_t *out);
 
-#endif /*_PREPROCESS_H */
+#endif /* ! _PREPROCESS_H */

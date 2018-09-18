@@ -8,29 +8,89 @@
 
 #include "common.h"
 
-#define list_empty(l)           ((l)->head == NULL)
+#define list_empty(L)           ((L)->head == NULL)
 
-#define list_foreach(p, l)                                                     \
-	for ((p) = (l)->head; (p); (p) = (p)->next)
+#define list_foreach(E, T, L)                                                  \
+    for ((E) = (T *)((L)->head); (E) != NULL; (E) = (T *)((E)->link.next))
 
-#define list_foreach_safe(p, n, l)                                             \
-	for ((p) = (l)->head, (n) = (p)->next; (p); (p) = (n), (n) = (n)->next)
+#define list_foreach_safe(E, N, T, L)                                          \
+    for ((E) = (T *)((L)->head), (N) = (T *)((E)->link.next); (E) != NULL;     \
+         (E) = (N), (N) = (T *)((N)->link.next))
 
-#define list_foreach_reverse(p, l)                                             \
-	for ((p) = (l)->tail; (p); (p) = (p)->prev)
+#define list_foreach_reverse(E, T, L)                                          \
+    for ((E) = (T *)((L)->tail); (E) != NULL; (E) = (T *)((E)->link.prev))
 
-#define list_foreach_reverse_safe(p, n, l)                                     \
-	for ((p) = (l)->tail, (n) = (p)->prev; (p); (p) = (n), (n) = (n)->prev)
+#define list_foreach_reverse_safe(E, N, T, L)                                  \
+    for ((E) = (T *)((L)->tail), (N) = (T *)((E)->link.prev); (E) != NULL;     \
+         (E) = (N), (N) = (T *)((N)->link.prev))
 
-typedef struct list_node_s {
-  	struct list_node_s *next;
-  	struct list_node_s *prev;
-  	void *item;
-} list_node_t;
+#define list_link_init(L)                                                      \
+    do {                                                                       \
+        (L)->next = NULL;                                                      \
+        (L)->prev = NULL;                                                      \
+    } while (0)
+
+#define list_add_var(L, E)      list_add((L), ast_var_t, (E))
+#define list_add_exp(L, E)      list_add((L), ast_exp_t, (E))
+#define list_add_stmt(L, E)     list_add((L), ast_stmt_t, (E))
+
+#define list_add(L, T, E)                                                      \
+    do {                                                                       \
+        T *p = (T *)((L)->head);                                               \
+        if (p == NULL) {                                                       \
+            (L)->head = (E);                                                   \
+            (L)->tail = (E);                                                   \
+            break;                                                             \
+        }                                                                      \
+        while (p->link.next != NULL) {                                         \
+            p = (T *)(p->link.next);                                           \
+        }                                                                      \
+        (E)->link.prev = p;                                                    \
+        p->link.next = (E);                                                    \
+        (L)->tail = (E);                                                       \
+    } while (0)
+
+#define list_del(L, T, E)                                                      \
+    do {                                                                       \
+        T *p = (T *)((L)->head);                                               \
+        if (p == (E)) {                                                        \
+            (L)->head = NULL;                                                  \
+            (L)->tail = NULL;                                                  \
+            break;                                                             \
+        }                                                                      \
+        while (p->link.next != (E)) {                                          \
+            p = (T *)(p->link.next);                                           \
+        }                                                                      \
+        if ((L)->tail == (E))                                                  \
+            (L)->tail = p;                                                     \
+        p->link.next = (E)->link.next;                                         \
+        ((T *)((E)->link.next))->prev = p;                                     \
+    } while (0)
+
+#define list_clear(L, T)                                                       \
+    do {                                                                       \
+        T *entry, *next;                                                       \
+        list_foreach_safe(entry, next, T, L) {                                 \
+            xfree(entry);                                                      \
+        }                                                                      \
+        (L)->head = NULL;                                                      \
+        (L)->tail = NULL;                                                      \
+    } while (0)
+
+#define list_destroy(L, T)                                                     \
+    do {                                                                       \
+        list_clear(L, T);                                                      \
+        xfree(L);                                                              \
+    } while (0)
+
+typedef struct list_link_s {
+  	void *next;
+  	void *prev;
+} list_link_t;
 
 typedef struct list_s {
-  	list_node_t *head;
-  	list_node_t *tail;
+  	void *head;
+  	void *tail;
 } list_t;
 
 static inline void
@@ -50,83 +110,4 @@ list_new(void)
 	return l;
 }
 
-static inline void
-list_node_init(list_node_t *n)
-{
-    n->next = NULL;
-    n->prev = NULL;
-    n->item = NULL;
-}
-
-static inline list_node_t *
-list_node_new(void)
-{
-    list_node_t *n = xmalloc(sizeof(list_node_t));
-
-    list_node_init(n);
-
-    return n;
-}
-
-static inline void
-list_clear(list_t *l)
-{
-	list_node_t *p, *n;
-
-	list_foreach_safe(p, n, l) {
-		xfree(p);
-	}
-
-	l->head = NULL;
-}
-
-static inline void
-list_destroy(list_t *l)
-{
-    list_clear(l);
-    xfree(l);
-}
-
-static inline void
-list_add(list_t *l, list_node_t *n)
-{
-	list_node_t *p = l->head;
-
-    if (p == NULL) {
-        l->head = n;
-        l->tail = n;
-        return;
-    }
-
-	while (p->next != NULL) {
-		p = p->next;
-	}
-
-    n->prev = p;
-	p->next = n;
-    l->tail = n;
-}
-
-static inline void
-list_del(list_t *l, list_node_t *n)
-{
-	list_node_t *p = l->head;
-
-	if (p == n) {
-		l->head = NULL;
-		l->tail = NULL;
-		return;
-	}
-
-	while (p->next != n) {
-		p = p->next;
-	}
-
-    if (l->tail == n)
-        l->tail = p;
-
-	p->next = n->next;
-    n->next->prev = p;
-}
-
-#endif /*_LIST_H */
+#endif /* ! _LIST_H */

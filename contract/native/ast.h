@@ -11,25 +11,27 @@
 #include "list.h"
 #include "location.h"
 
+#define AST_NODE_DECL                                                          \
+    list_link_t link;                                                          \
+    yylloc_t lloc
+
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;
-#endif  /* _AST_BLK_T */
+#endif /* ! _AST_BLK_T */
 
-typedef struct ast_ctr_s {
+typedef struct ast_cont_s {
+    AST_NODE_DECL;
+
     char *name;
 
     list_t var_l;
     list_t struct_l;
     list_t func_l;
-
-    ast_blk_t *blk;     // constructor
-
-    yypos_t pos;
-} ast_ctr_t;
+} ast_cont_t;
 
 typedef struct ast_s {
-    list_t ctr_l;
+    list_t cont_l;
 } ast_t; 
 
-#endif /* _AST_H */
+#endif /* ! _AST_H */

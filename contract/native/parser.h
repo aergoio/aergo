@@ -10,6 +10,15 @@
 
 #include "location.h"
 #include "strbuf.h"
+#include "list.h"
+
+#include "ast_meta.h"
+#include "ast_var.h"
+#include "ast_blk.h"
+#include "ast_exp.h"
+#include "ast_stmt.h"
+#include "ast_struct.h"
+#include "ast_func.h"
 
 typedef struct yyparam_s {
     char *path;
@@ -28,6 +37,6 @@ typedef struct yyparam_s {
 
 #include "grammar.tab.h"
 
-int parse(char *path, opt_t opt, strbuf_t *src);
+int parse(char *path, flag_t flag, strbuf_t *src);
 
-#endif /*_PARSER_H */
+#endif /* ! _PARSER_H */

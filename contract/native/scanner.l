@@ -71,7 +71,7 @@
 
 #define yy_return_buf(tok)                                                     \
     do {                                                                       \
-        lval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));      \
+        lval->sval = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));     \
         strbuf_reset(YY_BUF);                                                  \
         return (tok);                                                          \
     } while (0)
@@ -274,7 +274,7 @@ id                          {L}({L}|{D})*
 <DIRECTIVE>{nl}             BEGIN(INITIAL);
 
 {id} {
-    lval->str = yy_text();
+    lval->sval = yy_text();
     yy_return(ID);
 }
 

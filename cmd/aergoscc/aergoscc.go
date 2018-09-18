@@ -31,7 +31,7 @@ var (
 			} else if len(args) < 1 {
 				cmd.Usage()
 			} else {
-				C.compile(C.CString(args[0]), C.OPT_NONE)
+				C.compile(C.CString(args[0]), C.FLAG_NONE)
 			}
 		},
 	}

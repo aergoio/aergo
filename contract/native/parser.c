@@ -38,7 +38,7 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
 }
 
 int
-parse(char *path, opt_t opt, strbuf_t *src)
+parse(char *path, flag_t flag, strbuf_t *src)
 {
     yyparam_t param;
     void *scanner;
@@ -48,16 +48,16 @@ parse(char *path, opt_t opt, strbuf_t *src)
 
     yyset_extra(&param, scanner);
 
-    if (opt_enabled(opt, OPT_LEX_DUMP))
+    if (flag_enabled(flag, FLAG_LEX_DUMP))
         yyset_debug(1, scanner);
 
-    if (opt_enabled(opt, OPT_YACC_DUMP))
+    if (flag_enabled(flag, FLAG_YACC_DUMP))
         yydebug = 1;
 
     yyparse(&param, scanner);
     yylex_destroy(scanner);
 
-    if (!opt_enabled(opt, OPT_SILENT))
+    if (!flag_enabled(flag, FLAG_SILENT))
         error_dump();
 
     return error_first();

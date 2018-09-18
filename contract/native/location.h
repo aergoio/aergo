@@ -27,4 +27,4 @@ yypos_init(yypos_t *pos)
     pos->offset = 0;
 }
 
-#endif /* _LOCATION_H */
+#endif /* ! _LOCATION_H */

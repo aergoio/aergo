@@ -15,7 +15,7 @@
 #include <ctype.h>
 
 #include "xalloc.h"
-#include "option.h"
+#include "flag.h"
 #include "error.h"
 
 #define PATH_MAX_LEN        256
@@ -24,6 +24,9 @@
 #define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
 #define __SOURCE__          FILENAME(__FILE__), __LINE__
 
+#define PTR2INT(x)          ((int)((ptrdiff_t)(x)))
+#define INT2PTR(x)          ((void *)((ptrdiff_t)(x)))
+
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 typedef unsigned char bool;
 #define true                1
@@ -31,4 +34,4 @@ typedef unsigned char bool;
 #define __bool_true_false_are_defined
 #endif
 
-#endif /*_COMMON_H */
+#endif /* ! _COMMON_H */

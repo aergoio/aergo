@@ -23,7 +23,8 @@ TARGET = ../../bin/aergoscc
 LIBRARY = $(LIB_DIR)/libaergoscc.a
 
 SRCS = compile.c parser.c grammar.tab.c scanner.yy.c prep.c \
-	error.c strbuf.c stack.c util.c xalloc.c
+	ast_var.c ast_struct.c ast_blk.c ast_stmt.c ast_exp.c ast_func.c \
+	error.c strbuf.c stack.c util.c xalloc.c 
 
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o)
 DEPS = $(SRCS:%.c=$(DEP_DIR)/%.d)
