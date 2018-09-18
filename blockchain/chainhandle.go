@@ -367,10 +367,12 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 		receiverID = types.ToAccountID(recipient)
 	} else {
 		createContract = true
+		// Determine new contract address
 		h := sha256.New()
 		h.Write(txBody.Account)
 		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
-		recipient = h.Sum(nil)[:20]
+		recipientHash := h.Sum(nil) // byte array with length 32
+		recipient = append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 		receiverID = types.ToAccountID(recipient)
 	}
 	receiverState, err := sdb.GetBlockAccountClone(bs, receiverID)

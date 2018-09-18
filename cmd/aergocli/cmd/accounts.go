@@ -6,7 +6,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/mr-tron/base58/base58"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/aergoio/aergo/account/key"
@@ -72,9 +71,9 @@ var newAccountCmd = &cobra.Command{
 			fmt.Printf("Failed: %s\n", err.Error())
 		} else {
 			if msg != nil {
-				fmt.Println(base58.Encode(msg.GetAddress()))
+				fmt.Println(types.EncodeAddress(msg.GetAddress()))
 			} else {
-				fmt.Println(base58.Encode(addr))
+				fmt.Println(types.EncodeAddress(addr))
 			}
 		}
 	},
@@ -111,14 +110,14 @@ var getAccountsCmd = &cobra.Command{
 			if msg != nil {
 				addresslist := msg.GetAccounts()
 				for _, a := range addresslist {
-					out = fmt.Sprintf("%s%s, ", out, base58.Encode(a.Address))
+					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
 				}
 				if addresslist != nil {
 					out = out[:len(out)-2]
 				}
 			} else if addrs != nil {
 				for _, a := range addrs {
-					out = fmt.Sprintf("%s%s, ", out, base58.Encode(a))
+					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
 				}
 				out = out[:len(out)-2]
 			}
@@ -143,7 +142,7 @@ var lockAccountCmd = &cobra.Command{
 		}
 		msg, err := client.LockAccount(context.Background(), param)
 		if err == nil {
-			fmt.Println(base58.Encode(msg.GetAddress()))
+			fmt.Println(types.EncodeAddress(msg.GetAddress()))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}
@@ -162,7 +161,7 @@ var unlockAccountCmd = &cobra.Command{
 		}
 		msg, err := client.UnlockAccount(context.Background(), param)
 		if nil == err {
-			fmt.Println(base58.Encode(msg.GetAddress()))
+			fmt.Println(types.EncodeAddress(msg.GetAddress()))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}
@@ -173,7 +172,7 @@ func parsePersonalParam() (*types.Personal, error) {
 	var err error
 	param := &types.Personal{Account: &types.Account{}}
 	if address != "" {
-		param.Account.Address, err = base58.Decode(address)
+		param.Account.Address, err = types.DecodeAddress(address)
 		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
 			return nil, err

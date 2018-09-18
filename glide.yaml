@@ -73,6 +73,7 @@ import:
   version: ~0.1.4
 - package: github.com/aergoio/aergo-lib
 - package: github.com/minio/sha256-simd
+- package: github.com/anaskhan96/base58check
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2

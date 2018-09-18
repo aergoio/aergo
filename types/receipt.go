@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gogo/protobuf/jsonpb"
-	"github.com/mr-tron/base58/base58"
 	"strings"
 )
 
@@ -41,7 +40,7 @@ func (r Receipt) MarshalJSONPB(*jsonpb.Marshaler) ([]byte, error) {
 func (r Receipt) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteString(`{"contractAddress":"`)
-	b.WriteString(base58.Encode(r.ContractAddress))
+	b.WriteString(EncodeAddress(r.ContractAddress))
 	b.WriteString(`","status":"`)
 	b.WriteString(strings.Replace(r.Status, "\"", "'", -1))
 	b.WriteString(`","ret":"`)

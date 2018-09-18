@@ -10,8 +10,8 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/mr-tron/base58/base58"
 )
 
 type aergokey = btcec.PrivateKey
@@ -70,7 +70,7 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	if key == nil {
 		return nil, err
 	}
-	ks.unlocked[base58.Encode(addr)], _ = btcec.PrivKeyFromBytes(btcec.S256(), key)
+	ks.unlocked[types.EncodeAddress(addr)], _ = btcec.PrivKeyFromBytes(btcec.S256(), key)
 	return addr, nil
 }
 
@@ -79,7 +79,7 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 	if key == nil {
 		return nil, err
 	}
-	b58addr := base58.Encode(addr)
+	b58addr := types.EncodeAddress(addr)
 	ks.unlocked[b58addr] = nil
 	delete(ks.unlocked, b58addr)
 	return addr, nil

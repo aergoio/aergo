@@ -46,7 +46,7 @@ var voteCmd = &cobra.Command{
 const peerIDLength = 39
 
 func execVote(cmd *cobra.Command, args []string) {
-	account, err := base58.Decode(from)
+	account, err := types.DecodeAddress(from)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return
@@ -143,6 +143,6 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		fmt.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		fmt.Println(i+1, " : ", types.EncodeAddress(r.Candidate), " : ", r.Amount)
 	}
 }
