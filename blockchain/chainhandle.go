@@ -261,10 +261,12 @@ type executor struct {
 	blockState *types.BlockState
 	execTx     txExecFn
 	txs        []*types.Tx
+	receiptTx  db.Transaction
 }
 
 func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*executor, error) {
 	var exec txExecFn
+	var receiptTx db.Transaction
 
 	sdb := cs.sdb
 
@@ -278,8 +280,11 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 		}
 
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
+
+		receiptTx = contract.DB.NewTx(true)
+
 		exec = func(tx *types.Tx) error {
-			return executeTx(sdb, bState, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
+			return executeTx(sdb, bState, receiptTx, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
 		}
 	}
 
@@ -290,10 +295,13 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 		blockState: bState,
 		execTx:     exec,
 		txs:        txs,
+		receiptTx:  receiptTx,
 	}, nil
 }
 
 func (e *executor) execute() error {
+	defer e.receiptTx.Commit()
+
 	if e.execTx != nil {
 		for _, tx := range e.txs {
 			if err := e.execTx(tx); err != nil {
@@ -341,7 +349,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Transaction, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -380,9 +388,6 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
 		if txBody.Payload != nil {
-			receiptTx := contract.DB.NewTx(true)
-			defer receiptTx.Commit()
-
 			contractState, err := sdb.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
