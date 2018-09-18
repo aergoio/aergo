@@ -479,6 +479,35 @@ func TestHeight0LeafShortcut(t *testing.T) {
 	}
 }
 
+func TestRollback(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+	smt := NewTrie(nil, Hasher, st)
+	// Add data to empty trie
+	keys := getFreshData(20, 32)
+	values := getFreshData(20, 32)
+	root, _ := smt.Update(keys, values)
+	cacheSize := len(smt.db.liveCache)
+	smt.Commit()
+	values = getFreshData(20, 32)
+	smt.Update(keys, values)
+	smt.Stash(true)
+	if !bytes.Equal(smt.Root, root) {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.updatedNodes) != 0 {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.liveCache) != cacheSize {
+		t.Fatal("Trie not rolled back")
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
 func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
 	//b.ReportAllocs()
 	newvalues := getFreshData(1000, 32)

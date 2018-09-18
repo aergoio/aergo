@@ -36,6 +36,8 @@ func (db *CacheDB) commit() {
 	defer db.updatedMux.Unlock()
 	txn := db.store.NewTx(true)
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
+	// NOTE DB transaction couldn't have been used in Update
+	// because serialize and rollback are necessary
 	for key, batch := range db.updatedNodes {
 		//node := key
 		var node []byte

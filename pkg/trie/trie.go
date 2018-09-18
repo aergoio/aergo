@@ -21,6 +21,8 @@ type Trie struct {
 	db *CacheDB
 	// Root is the current root of the smt.
 	Root []byte
+	// prevRoot is the root before the last update
+	prevRoot []byte
 	// lock is for the whole struct
 	lock sync.RWMutex
 	// hash is the hash function used in the trie
@@ -149,6 +151,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch uint8, height uint6
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	s.prevRoot = s.Root
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
 	ch := make(chan mresult, 1)
@@ -198,7 +201,9 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 	}
 
 	// Load the node to update
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, true)
+	// updateSafe in loadChildren is set to false so intermediate node modifications by multiple update calls
+	// will not be commited. Setting true will record intermediate modifications by every update. Useful if several blocks commited at same time.
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
 	if err != nil {
 		ch <- mresult{nil, false, err}
 		return
@@ -581,6 +586,17 @@ func (s *Trie) get(root []byte, key []byte, batch [][]byte, iBatch uint8, height
 	return s.get(lnode, key, batch, 2*iBatch+1, height-1)
 }
 
+// TrieRootExists returns true if the root exists in Database.
+func (s *Trie) TrieRootExists(root []byte) bool {
+	s.db.lock.RLock()
+	dbval := s.db.store.Get(root)
+	s.db.lock.RUnlock()
+	if len(dbval) != 0 {
+		return true
+	}
+	return false
+}
+
 // DefaultHash is a getter for the defaultHashes array
 func (s *Trie) DefaultHash(height uint64) []byte {
 	return s.defaultHashes[height]
@@ -654,7 +670,8 @@ func (s *Trie) interiorHash(left, right []byte, batch [][]byte, iBatch uint8, he
 	return h
 }
 
-// Commit stores the updated nodes to disk
+// Commit stores the updated nodes to disk.
+// Commit should be called for every block otherwise past tries are not recorded and it is not possible to revert to them
 func (s *Trie) Commit() error {
 	if s.db.store == nil {
 		return fmt.Errorf("DB not connected to trie")
@@ -667,6 +684,28 @@ func (s *Trie) Commit() error {
 		s.pastTries = append(s.pastTries, s.Root)
 	}
 	s.db.commit()
-	s.db.updatedNodes = make(map[Hash][][]byte, len(s.db.updatedNodes)*2)
+	s.db.updatedNodes = make(map[Hash][][]byte)
+	return nil
+}
+
+// Stash rolls back the changes made by previous updates
+// and loads the cache from before the rollback.
+func (s *Trie) Stash(rollbackCache bool) error {
+	s.Root = s.prevRoot
+	if rollbackCache {
+		// Making a temporary liveCache requires it to be copied, so it's quicker
+		// to just load the cache from DB if a block state root was incorrect.
+		s.db.liveCache = make(map[Hash][][]byte)
+		ch := make(chan error, 1)
+		s.loadCache(s.Root, nil, 0, s.TrieHeight, ch)
+		err := <-ch
+		if err != nil {
+			return err
+		}
+	} else {
+		s.db.liveCache = make(map[Hash][][]byte)
+	}
+
+	s.db.updatedNodes = make(map[Hash][][]byte)
 	return nil
 }
