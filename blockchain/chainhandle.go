@@ -251,7 +251,37 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 	// unnecessary chain execution & rollback.
 	cp.reorganize()
 
+	logger.Debug().Uint64("best", cs.cdb.getBestBlockNo()).Int("count", cs.CountTxsInChain()).
+		Msg("number of tx in chain")
+
 	return nil
+}
+
+func (cs *ChainService) CountTxsInChain() int {
+	var txCount int
+
+	blk, err := cs.GetBestBlock()
+	if err != nil {
+		return -1
+	}
+
+	var no uint64
+	for {
+		no = blk.GetHeader().GetBlockNo()
+		if no == 0 {
+			break
+		}
+
+		txCount += len(blk.GetBody().GetTxs())
+
+		blk, err = cs.getBlock(blk.GetHeader().GetPrevBlockHash())
+		if err != nil {
+			txCount = -1
+			break
+		}
+	}
+
+	return txCount
 }
 
 type txExecFn func(tx *types.Tx) error
@@ -371,7 +401,7 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 		h := sha256.New()
 		h.Write(txBody.Account)
 		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
-		recipientHash := h.Sum(nil) // byte array with length 32
+		recipientHash := h.Sum(nil)                        // byte array with length 32
 		recipient = append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 		receiverID = types.ToAccountID(recipient)
 	}
