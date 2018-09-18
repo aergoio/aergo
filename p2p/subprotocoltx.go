@@ -6,10 +6,8 @@
 package p2p
 
 import (
-	"bytes"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -128,15 +126,3 @@ func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.M
 	th.peer.handleNewTxNotice(data)
 }
 
-func bytesArrToString(bbarray [][]byte) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	for _, hash := range bbarray {
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString(hash))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
