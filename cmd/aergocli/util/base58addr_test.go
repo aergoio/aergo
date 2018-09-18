@@ -3,11 +3,11 @@ package util
 import (
 	"testing"
 
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/types"
 )
 
 func TestParseConvBase58Tx(t *testing.T) {
-	testjson := "[{\"Hash\":\"4yCbNsb5MTb3ZTuZ7RvkpFmCbDc1uNTnCuUv4HkAHeKW\",\"Body\":{\"Nonce\":1,\"Account\":\"s7RA1sZhAzec5WhPdthJcLen63f\",\"Recipient\":\"2TjCzArubVYD6tSzsaF2HZWNWMcz\",\"Amount\":25000,\"Payload\":null,\"Limit\":100,\"Price\":1,\"Type\":0,\"Sign\":\"3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW\"}}]"
+	testjson := "[{\"Hash\":\"525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi\",\"Body\":{\"Nonce\":9,\"Account\":\"AsiFCzSukVNUGufJSzSNLA1nKx39NxKcVBEWvW3riyfixcBjN1Qd\",\"Recipient\":\"AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR\",\"Amount\":100000000,\"Payload\":null,\"Limit\":100,\"Price\":1,\"Type\":0,\"Sign\":\"3tMHYrizQ532D1WJkt5RSs5AcRmq7betw8zvC66Wh3XHUdvNpNzLWh1SkkGYMGJ669nCVuYHrhwfg1HrUUp6KDwzK\"}}]"
 	res, err := ParseBase58Tx([]byte(testjson))
 	if err != nil {
 		t.Errorf("Failed to parse : %s ", err.Error())
@@ -15,12 +15,12 @@ func TestParseConvBase58Tx(t *testing.T) {
 	if res == nil {
 		t.Error("Return nil")
 	}
-	if base58.Encode(res[0].Body.Recipient) != "2TjCzArubVYD6tSzsaF2HZWNWMcz" {
+	if types.EncodeAddress(res[0].Body.Recipient) != "AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR" {
 		t.Error("Failed to parse recipient")
 	}
 }
 func TestParseBase58TxBody(t *testing.T) {
-	testjson := "{\"Nonce\":1,\"Account\":\"s7RA1sZhAzec5WhPdthJcLen63f\",\"Recipient\":\"2TjCzArubVYD6tSzsaF2HZWNWMcz\",\"Amount\":25000,\"Payload\":null,\"Limit\":100,\"Price\":1,\"Type\":0,\"Sign\":\"3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW\"}"
+	testjson := "{\"Nonce\":1,\"Account\":\"AsiFCzSukVNUGufJSzSNLA1nKx39NxKcVBEWvW3riyfixcBjN1Qd\",\"Recipient\":\"AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR\",\"Amount\":25000,\"Payload\":null,\"Limit\":100,\"Price\":1,\"Type\":0,\"Sign\":\"3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW\"}"
 	res, err := ParseBase58TxBody([]byte(testjson))
 	if err != nil {
 		t.Errorf("Failed to parse : %s ", err.Error())
@@ -28,7 +28,7 @@ func TestParseBase58TxBody(t *testing.T) {
 	if res == nil {
 		t.Error("return nil")
 	}
-	if base58.Encode(res.Recipient) != "2TjCzArubVYD6tSzsaF2HZWNWMcz" {
+	if types.EncodeAddress(res.Recipient) != "AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR" {
 		t.Error("Failed to parse recipient")
 	}
 }

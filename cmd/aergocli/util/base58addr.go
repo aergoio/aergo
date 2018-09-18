@@ -43,13 +43,13 @@ func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 		}
 		tx.Body.Nonce = in.Body.Nonce
 		if in.Body.Account != "" {
-			tx.Body.Account, err = base58.Decode(in.Body.Account)
+			tx.Body.Account, err = types.DecodeAddress(in.Body.Account)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if in.Body.Recipient != "" {
-			tx.Body.Recipient, err = base58.Decode(in.Body.Recipient)
+			tx.Body.Recipient, err = types.DecodeAddress(in.Body.Recipient)
 			if err != nil {
 				return nil, err
 			}
@@ -87,13 +87,13 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 
 	body.Nonce = in.Nonce
 	if in.Account != "" {
-		body.Account, err = base58.Decode(in.Account)
+		body.Account, err = types.DecodeAddress(in.Account)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if in.Recipient != "" {
-		body.Recipient, err = base58.Decode(in.Recipient)
+		body.Recipient, err = types.DecodeAddress(in.Recipient)
 		if err != nil {
 			return nil, err
 		}
@@ -122,8 +122,8 @@ func ConvBase58Addr(tx *types.Tx) string {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
-	out.Body.Account = base58.Encode(tx.Body.Account)
-	out.Body.Recipient = base58.Encode(tx.Body.Recipient)
+	out.Body.Account = types.EncodeAddress(tx.Body.Account)
+	out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	out.Body.Amount = tx.Body.Amount
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.Limit = tx.Body.Limit
