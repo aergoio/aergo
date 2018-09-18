@@ -93,7 +93,10 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	}
 
 	defer func() {
-		logger.Debug().Int("candidates", nCand).Int("collected", nCollected).Msg("transactions collected")
+		logger.Debug().
+			Int("candidates", nCand).
+			Int("collected", nCollected).
+			Msg("transactions collected")
 	}()
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
@@ -118,5 +121,5 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 
 	nCollected = last + 1
 
-	return txIn[0 : last+1], blockState, nil
+	return txIn[0:nCollected], blockState, nil
 }

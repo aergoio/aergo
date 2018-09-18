@@ -72,7 +72,9 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp
 	block := types.NewBlock(prevBlock, txs, ts)
 
 	if len(txs) != 0 {
-		logger.Debug().Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+		logger.Debug().
+			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+			Int("hashed", len(txs)).
 			Msg("BF: tx root hash")
 	}
 
