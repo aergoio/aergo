@@ -96,6 +96,16 @@ func (st *State) GetHash() []byte {
 	return digest.Sum(nil)
 }
 
+func (st *State) Equals(alt *State) bool {
+	if st.Nonce != alt.Nonce ||
+		st.Balance != alt.Balance ||
+		bytes.Compare(st.CodeHash, alt.CodeHash) != 0 ||
+		bytes.Compare(st.StorageRoot, alt.StorageRoot) != 0 {
+		return false
+	}
+	return true
+}
+
 // func (st *State) ToBytes() []byte {
 // 	buf, _ := proto.Marshal(st)
 // 	return buf
@@ -130,6 +140,7 @@ type BlockInfo struct {
 	BlockNo   BlockNo
 	BlockHash BlockID
 	PrevHash  BlockID
+	StateRoot HashID
 }
 type BlockState struct {
 	BlockInfo

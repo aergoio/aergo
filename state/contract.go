@@ -1,6 +1,8 @@
 package state
 
 import (
+	"bytes"
+
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -19,7 +21,8 @@ func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, err
 	res := &ContractState{
 		State:   st,
 		storage: trie.NewTrie(32, types.TrieHasher, *sdb.statedb),
-		dbstore: sdb.statedb,
+		caches:  newStateCaches(),
+		store:   sdb.statedb,
 	}
 	if st.StorageRoot != nil {
 		res.storage.Root = st.StorageRoot
@@ -28,12 +31,29 @@ func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, err
 }
 
 func (sdb *ChainStateDB) CommitContractState(st *ContractState) error {
-	err := st.storage.Commit()
+	defer func() {
+		if bytes.Compare(st.State.StorageRoot, st.storage.Root) != 0 {
+			st.State.StorageRoot = st.storage.Root
+		}
+		st.storage = nil
+	}()
+
+	if st.caches.isEmpty() {
+		// do nothing
+		return nil
+	}
+
+	keys, vals := st.caches.export()
+	_, err := st.storage.Update(keys, vals)
 	if err != nil {
 		return err
 	}
-	st.State.StorageRoot = st.storage.Root
-	st.storage = nil
+	st.caches.commit(st.store)
+
+	err = st.storage.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -41,7 +61,8 @@ type ContractState struct {
 	*types.State
 	code    []byte
 	storage *trie.Trie
-	dbstore *db.DB
+	caches  *stateCaches
+	store   *db.DB
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
@@ -60,7 +81,7 @@ func (st *ContractState) GetBalance() uint64 {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := sha256.Sum256(code)
-	err := saveData(st.dbstore, codeHash[:], &code)
+	err := saveData(st.store, codeHash[:], &code)
 	if err != nil {
 		return err
 	}
@@ -77,7 +98,7 @@ func (st *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(st.dbstore, st.State.CodeHash, &st.code)
+	err := loadData(st.store, st.State.CodeHash, &st.code)
 	if err != nil {
 		return nil, err
 	}
@@ -85,18 +106,23 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	hkey := types.TrieHasher(key)
-	_, err := st.storage.Update(trie.DataArray{hkey[:]}, trie.DataArray{value})
-	if err != nil {
-		return err
-	}
-	st.State.StorageRoot = st.storage.Root
+	entry := newCacheEntry(types.GetHashID(key), value)
+	st.caches.puts(entry)
 	return nil
 }
 
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
-	hkey := types.TrieHasher(key)
-	value, err := st.storage.Get(hkey[:])
+	id := types.GetHashID(key)
+	entry := st.caches.get(id)
+	if entry != nil {
+		return entry.dataBytes, nil
+	}
+	dkey, err := st.storage.Get(id[:])
+	if err != nil {
+		return nil, err
+	}
+	value := []byte{}
+	err = loadData(st.store, dkey, &value)
 	if err != nil {
 		return nil, err
 	}

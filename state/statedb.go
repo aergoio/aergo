@@ -7,14 +7,15 @@ package state
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path"
-	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -34,6 +35,11 @@ var (
 	emptyHashID    = types.HashID{}
 	emptyBlockID   = types.BlockID{}
 	emptyAccountID = types.AccountID{}
+)
+
+var (
+	errSaveStateData = errors.New("Failed to save StateData: invalid HashID")
+	errLoadStateData = errors.New("Failed to load StateData: invalid HashID")
 )
 
 type ChainStateDB struct {
@@ -73,7 +79,14 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 
 	// load data from db
 	err := sdb.loadStateDB()
-	return err
+	if err != nil {
+		return err
+	}
+	if sdb.latest != nil && sdb.latest.StateRoot != emptyHashID {
+		sdb.trie.Root = sdb.latest.StateRoot[:]
+		sdb.trie.LoadCache(sdb.trie.Root)
+	}
+	return nil
 }
 
 func (sdb *ChainStateDB) Close() error {
@@ -117,13 +130,38 @@ func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, err
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
+	// TODO: use trie instead of accounts
 	if state, ok := sdb.accounts[aid]; ok {
+		// TODO: check conflict of states temporally
+		alt, err := sdb.getAccountStateData(aid)
+		if err != nil {
+			return nil, err
+		}
+		if !state.Equals(alt) {
+			logger.Debug().Str("state", state.String()).
+				Str("alt", alt.String()).Msg("state conflict")
+		}
 		return state, nil
 	}
 	state := types.NewState()
 	sdb.accounts[aid] = state
 	return state, nil
 }
+func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
+	dkey, err := sdb.trie.Get(aid[:])
+	if err != nil {
+		return nil, err
+	}
+	if len(dkey) == 0 {
+		return nil, fmt.Errorf("Failed to get state: invalid HashID. dkey=%s", enc.ToString(dkey))
+	}
+	data, err := sdb.loadStateData(dkey)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
 	state, err := sdb.getAccountState(aid)
 	if err != nil {
@@ -153,32 +191,27 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.Ac
 
 func (sdb *ChainStateDB) updateTrie(bstate *types.BlockState) error {
 	accounts := bstate.GetAccountStates()
-	size := len(accounts)
-	if size <= 0 {
+	if len(accounts) <= 0 {
 		// do nothing
 		return nil
 	}
-	accs := make([]types.AccountID, 0, size)
-	for k := range accounts {
-		accs = append(accs, k)
-	}
-	sort.Slice(accs, func(i, j int) bool {
-		return bytes.Compare(accs[i][:], accs[j][:]) == -1
-	})
-	keys := make(trie.DataArray, size)
-	vals := make(trie.DataArray, size)
-	var err error
-	for i, v := range accs {
-		keys[i] = accs[i][:]
-		vals[i], err = proto.Marshal(accounts[v])
+	bufs := []cacheEntry{}
+	for k, v := range accounts {
+		data, err := proto.Marshal(v)
 		if err != nil {
 			return err
 		}
+		et := newCacheEntry(types.HashID(k), data)
+		bufs = append(bufs, et)
 	}
-	_, err = sdb.trie.Update(keys, vals)
+	caches := newStateCaches()
+	caches.puts(bufs...)
+	keys, vals := caches.export()
+	_, err := sdb.trie.Update(keys, vals)
 	if err != nil {
 		return err
 	}
+	caches.commit(sdb.statedb)
 	sdb.trie.Commit()
 	return nil
 }
@@ -219,9 +252,6 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 		bstate.Undo.StateRoot = types.ToHashID(sdb.trie.Root)
 	}
 
-	// save blockState
-	sdb.saveBlockState(bstate)
-
 	// apply blockState to statedb
 	accounts := bstate.GetAccountStates()
 	for k, v := range accounts {
@@ -232,7 +262,17 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 	if err != nil {
 		return err
 	}
-	// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
+
+	// check state root
+	if bstate.BlockInfo.StateRoot != types.ToHashID(sdb.GetHash()) {
+		// TODO: if validation failed, than revert statedb.
+		bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetHash())
+	}
+	logger.Debug().Str("stateRoot", enc.ToString(sdb.GetHash())).Msg("apply block state")
+
+	// save blockState
+	sdb.saveBlockState(bstate)
+
 	sdb.latest = &bstate.BlockInfo
 	err = sdb.saveStateDB()
 	return err

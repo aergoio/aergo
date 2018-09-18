@@ -115,3 +115,15 @@ func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, e
 	}
 	return data, nil
 }
+
+func (sdb *ChainStateDB) loadStateData(key []byte) (*types.State, error) {
+	if key == nil || len(key) == 0 {
+		return nil, errLoadStateData
+	}
+	data := &types.State{}
+	err := loadData(sdb.statedb, key, data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
