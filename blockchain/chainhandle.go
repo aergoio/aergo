@@ -15,6 +15,7 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -185,7 +186,7 @@ func (cp *chainProcessor) execute() error {
 
 		// XXX Something similar should be also done during
 		// reorganization.
-		cp.StatusUpdate(block)
+		cp.UpdateStatus(block)
 		cp.notifyBlock(block)
 
 		logger.Debug().
@@ -205,6 +206,11 @@ func (cp *chainProcessor) reorganize() {
 	// - Add block if new bestblock then update context connect next orphan
 	if cp.needReorg(cp.lastBlock) {
 		err := cp.reorg(cp.lastBlock)
+		if e, ok := err.(consensus.ErrorConsensus); ok {
+			logger.Info().Err(e).Msg("stop reorganization")
+			return
+		}
+
 		if err != nil {
 			panic(err)
 		}
