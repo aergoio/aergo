@@ -121,6 +121,9 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(dkey) == 0 {
+		return nil, nil
+	}
 	value := []byte{}
 	err = loadData(st.store, dkey, &value)
 	if err != nil {

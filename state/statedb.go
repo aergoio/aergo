@@ -134,9 +134,6 @@ func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, err
 	if err != nil {
 		return nil, err
 	}
-	if state == nil {
-		return types.NewState(), nil
-	}
 	return state, nil
 }
 func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
@@ -145,7 +142,7 @@ func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State,
 		return nil, err
 	}
 	if len(dkey) == 0 {
-		return nil, fmt.Errorf("Failed to get state: invalid HashID. dkey=%s", enc.ToString(dkey))
+		return types.NewState(), nil
 	}
 	data, err := sdb.loadStateData(dkey)
 	if err != nil {
