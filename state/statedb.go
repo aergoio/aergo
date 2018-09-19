@@ -110,7 +110,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	block := genesisBlock.Block
 	gbInfo := &types.BlockInfo{
 		BlockNo:   0,
-		BlockHash: types.ToBlockID(block.Hash),
+		BlockHash: types.ToBlockID(block.BlockHash()),
 	}
 	sdb.latest = gbInfo
 
