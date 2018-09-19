@@ -3,10 +3,7 @@ package types
 import (
 	"bytes"
 
-	sha256 "github.com/minio/sha256-simd"
-
 	"crypto/sha512"
-	"encoding/binary"
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -85,49 +82,28 @@ func NewState() *State {
 	}
 }
 
-func (st *State) IsEmpty() bool {
-	return st.Nonce == 0 && st.Balance == 0
-}
-
-func (st *State) GetHash() []byte {
-	digest := sha256.New()
-	binary.Write(digest, binary.LittleEndian, st.Nonce)
-	binary.Write(digest, binary.LittleEndian, st.Balance)
-	return digest.Sum(nil)
-}
-
-func (st *State) Equals(alt *State) bool {
-	if st.Nonce != alt.Nonce ||
-		st.Balance != alt.Balance ||
-		bytes.Compare(st.CodeHash, alt.CodeHash) != 0 ||
-		bytes.Compare(st.StorageRoot, alt.StorageRoot) != 0 {
-		return false
-	}
-	return true
-}
-
-// func (st *State) ToBytes() []byte {
-// 	buf, _ := proto.Marshal(st)
-// 	return buf
+// func (st *State) IsEmpty() bool {
+// 	return st.Nonce == 0 && st.Balance == 0
 // }
-// func (st *State) FromBytes(buf []byte) {
+
+// func (st *State) GetHash() []byte {
+// 	digest := sha256.New()
+// 	binary.Write(digest, binary.LittleEndian, st.Nonce)
+// 	binary.Write(digest, binary.LittleEndian, st.Balance)
+// 	return digest.Sum(nil)
+// }
+
+// func (st *State) Clone() *State {
 // 	if st == nil {
-// 		st = &State{}
+// 		return nil
 // 	}
-// 	_ = proto.Unmarshal(buf, st)
+// 	return &State{
+// 		Nonce:       st.Nonce,
+// 		Balance:     st.Balance,
+// 		CodeHash:    st.CodeHash,
+// 		StorageRoot: st.StorageRoot,
+// 	}
 // }
-
-func (st *State) Clone() *State {
-	if st == nil {
-		return nil
-	}
-	return &State{
-		Nonce:       st.Nonce,
-		Balance:     st.Balance,
-		CodeHash:    st.CodeHash,
-		StorageRoot: st.StorageRoot,
-	}
-}
 
 func Clone(i interface{}) interface{} {
 	if i == nil {

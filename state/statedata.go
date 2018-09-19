@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
@@ -12,7 +11,7 @@ import (
 
 func saveData(store *db.DB, key []byte, data interface{}) error {
 	if key == nil {
-		return fmt.Errorf("Failed to set data: key is nil")
+		return errSaveData
 	}
 	var err error
 	var raw []byte
@@ -36,21 +35,19 @@ func saveData(store *db.DB, key []byte, data interface{}) error {
 			return err
 		}
 	}
-	// logger.Debug().Str("key", enc.ToString(key)).Int("size", len(raw)).Msg("saveData")
 	(*store).Set(key, raw)
 	return nil
 }
 
 func loadData(store *db.DB, key []byte, data interface{}) error {
 	if key == nil {
-		return fmt.Errorf("Failed to get data: key is nil")
+		return errLoadData
 	}
 	if !(*store).Exist(key) {
 		return nil
 	}
 	raw := (*store).Get(key)
 
-	// logger.Debug().Str("key", enc.ToString(key)).Int("size", len(raw)).Msg("loadData")
 	if raw == nil || len(raw) == 0 {
 		return nil
 	}
@@ -69,13 +66,7 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 }
 
 func (sdb *ChainStateDB) saveStateDB() error {
-	// logger.Debug().Int("blockNo", int(sdb.latest.BlockNo)).Str("blockHash", sdb.latest.BlockHash.String()).Msg("saveStateDB.latest")
-	// logger.Debug().Int("size", len(sdb.accounts)).Msg("saveStateDB.accounts")
-	err := saveData(sdb.statedb, []byte(stateAccounts), sdb.accounts)
-	if err != nil {
-		return err
-	}
-	err = saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
+	err := saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
 	if err != nil {
 		return err
 	}
@@ -87,26 +78,20 @@ func (sdb *ChainStateDB) loadStateDB() error {
 	if err != nil {
 		return err
 	}
-	// logger.Debug().Int("blockNo", int(sdb.latest.BlockNo)).Str("blockHash", sdb.latest.BlockHash.String()).Msg("loadStateDB.latest")
-	err = loadData(sdb.statedb, []byte(stateAccounts), &sdb.accounts)
-	if err != nil {
-		return err
-	}
-	// logger.Debug().Int("size", len(sdb.accounts)).Msg("loadStateDB.accounts")
 	return nil
 }
 
 func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
 	bid := data.BlockHash
 	if bid == emptyBlockID {
-		return fmt.Errorf("Invalid ID to save BlockState: empty")
+		return errSaveBlockState
 	}
 	err := saveData(sdb.statedb, bid[:], data)
 	return err
 }
 func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, error) {
 	if bid == emptyBlockID {
-		return nil, fmt.Errorf("Invalid ID to load BlockState: empty")
+		return nil, errLoadBlockState
 	}
 	data := &types.BlockState{}
 	err := loadData(sdb.statedb, bid[:], data)

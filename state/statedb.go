@@ -22,13 +22,12 @@ import (
 )
 
 const (
-	stateName     = "state"
-	stateAccounts = stateName + ".accounts"
-	stateLatest   = stateName + ".latest"
+	stateName   = "state"
+	stateLatest = stateName + ".latest"
 )
 
 var (
-	logger = log.NewLogger("state")
+	logger = log.NewLogger(stateName)
 )
 
 var (
@@ -38,22 +37,23 @@ var (
 )
 
 var (
-	errSaveStateData = errors.New("Failed to save StateData: invalid HashID")
-	errLoadStateData = errors.New("Failed to load StateData: invalid HashID")
+	errSaveData       = errors.New("Failed to save data: invalid key")
+	errLoadData       = errors.New("Failed to load data: invalid key")
+	errSaveBlockState = errors.New("Failed to save blockState: invalid BlockID")
+	errLoadBlockState = errors.New("Failed to load blockState: invalid BlockID")
+	errSaveStateData  = errors.New("Failed to save StateData: invalid HashID")
+	errLoadStateData  = errors.New("Failed to load StateData: invalid HashID")
 )
 
 type ChainStateDB struct {
 	sync.RWMutex
-	accounts map[types.AccountID]*types.State
-	trie     *trie.Trie
-	latest   *types.BlockInfo
-	statedb  *db.DB
+	trie    *trie.Trie
+	latest  *types.BlockInfo
+	statedb *db.DB
 }
 
 func NewStateDB() *ChainStateDB {
-	return &ChainStateDB{
-		accounts: make(map[types.AccountID]*types.State),
-	}
+	return &ChainStateDB{}
 }
 
 func InitDB(basePath, dbName string) *db.DB {
@@ -130,21 +130,13 @@ func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, err
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
-	// TODO: use trie instead of accounts
-	if state, ok := sdb.accounts[aid]; ok {
-		// TODO: check conflict of states temporally
-		alt, err := sdb.getAccountStateData(aid)
-		if err != nil {
-			return nil, err
-		}
-		if !state.Equals(alt) {
-			logger.Debug().Str("state", state.String()).
-				Str("alt", alt.String()).Msg("state conflict")
-		}
-		return state, nil
+	state, err := sdb.getAccountStateData(aid)
+	if err != nil {
+		return nil, err
 	}
-	state := types.NewState()
-	sdb.accounts[aid] = state
+	if state == nil {
+		return types.NewState(), nil
+	}
 	return state, nil
 }
 func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
@@ -252,11 +244,6 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 		bstate.Undo.StateRoot = types.ToHashID(sdb.trie.Root)
 	}
 
-	// apply blockState to statedb
-	accounts := bstate.GetAccountStates()
-	for k, v := range accounts {
-		sdb.accounts[k] = v
-	}
 	// apply blockState to trie
 	err := sdb.updateTrie(bstate)
 	if err != nil {
@@ -297,9 +284,6 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			break
 		}
 
-		for k, v := range bs.Undo.Accounts {
-			sdb.accounts[k] = v
-		}
 		err = sdb.revertTrie(bs.Undo.StateRoot)
 		if err != nil {
 			return err
