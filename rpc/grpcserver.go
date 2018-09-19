@@ -220,7 +220,7 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
 	}
 	if getStateRsp.Err != nil {
-		return nil, status.Errorf(codes.Internal, "internal error : %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
 	}
 	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 

@@ -329,7 +329,7 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 
 	if err != nil {
 		//FIXME PANIC?
-		mp.Fatal().Err(err).Msg("failed to get state")
+		//mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err
 	}
 
