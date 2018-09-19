@@ -168,6 +168,8 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 }
 
 func (cdb *ChainDB) setLatest(newLatest types.BlockNo) (oldLatest types.BlockNo) {
+	logger.Debug().Uint64("old", cdb.latest).Uint64("new", newLatest).Msg("update latest block")
+
 	oldLatest = cdb.latest
 	cdb.latest = newLatest
 
