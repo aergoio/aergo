@@ -20,9 +20,9 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, types.TrieHasher, *sdb.statedb),
+		storage: trie.NewTrie(nil, types.TrieHasher, *sdb.store),
 		caches:  newStateCaches(),
-		store:   sdb.statedb,
+		store:   sdb.store,
 	}
 	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
 		res.storage.Root = st.StorageRoot

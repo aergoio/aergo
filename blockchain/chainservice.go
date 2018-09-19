@@ -45,7 +45,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		ChainConsensus: cc,
 		cfg:            cfg,
 		cdb:            NewChainDB(),
-		sdb:            state.NewStateDB(),
+		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
 	Init(cfg.Blockchain.MaxBlockSize)

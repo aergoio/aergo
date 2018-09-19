@@ -431,8 +431,8 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 		return err
 	}
 
-	senderChange := types.Clone(*senderState).(types.State)
-	receiverChange := types.Clone(*receiverState).(types.State)
+	senderChange := types.State(*senderState)
+	receiverChange := types.State(*receiverState)
 
 	switch txBody.Type {
 	case types.TxType_NORMAL:

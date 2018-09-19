@@ -47,12 +47,12 @@ var (
 
 type ChainStateDB struct {
 	sync.RWMutex
-	trie    *trie.Trie
-	latest  *types.BlockInfo
-	statedb *db.DB
+	trie   *trie.Trie
+	latest *types.BlockInfo
+	store  *db.DB
 }
 
-func NewStateDB() *ChainStateDB {
+func NewChainStateDB() *ChainStateDB {
 	return &ChainStateDB{}
 }
 
@@ -70,12 +70,12 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	defer sdb.Unlock()
 
 	// init db
-	if sdb.statedb == nil {
-		sdb.statedb = InitDB(dataDir, stateName)
+	if sdb.store == nil {
+		sdb.store = InitDB(dataDir, stateName)
 	}
 
 	// init trie
-	sdb.trie = trie.NewTrie(nil, types.TrieHasher, *sdb.statedb)
+	sdb.trie = trie.NewTrie(nil, types.TrieHasher, *sdb.store)
 
 	// load data from db
 	err := sdb.loadStateDB()
@@ -100,8 +100,8 @@ func (sdb *ChainStateDB) Close() error {
 	}
 
 	// close db
-	if sdb.statedb != nil {
-		(*sdb.statedb).Close()
+	if sdb.store != nil {
+		(*sdb.store).Close()
 	}
 	return nil
 }
@@ -163,7 +163,7 @@ func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State
 	if err != nil {
 		return nil, err
 	}
-	res := types.Clone(*state).(types.State)
+	res := types.State(*state)
 	return &res, nil
 }
 func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
@@ -181,7 +181,7 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.Ac
 	if err != nil {
 		return nil, err
 	}
-	res := types.Clone(*state).(types.State)
+	res := types.State(*state)
 	return &res, nil
 }
 
@@ -207,7 +207,7 @@ func (sdb *ChainStateDB) updateTrie(bstate *types.BlockState) error {
 	if err != nil {
 		return err
 	}
-	caches.commit(sdb.statedb)
+	caches.commit(sdb.store)
 	sdb.trie.Commit()
 	return nil
 }

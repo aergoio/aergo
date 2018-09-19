@@ -66,11 +66,11 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 }
 
 func (sdb *ChainStateDB) saveStateDB() error {
-	return saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
+	return saveData(sdb.store, []byte(stateLatest), sdb.latest)
 }
 
 func (sdb *ChainStateDB) loadStateDB() error {
-	return loadData(sdb.statedb, []byte(stateLatest), &sdb.latest)
+	return loadData(sdb.store, []byte(stateLatest), &sdb.latest)
 }
 
 func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
@@ -79,7 +79,7 @@ func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
 		return errSaveBlockState
 	}
 
-	err := saveData(sdb.statedb, bid[:], data)
+	err := saveData(sdb.store, bid[:], data)
 	return err
 }
 func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, error) {
@@ -87,7 +87,7 @@ func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, e
 		return nil, errLoadBlockState
 	}
 	data := &types.BlockState{}
-	err := loadData(sdb.statedb, bid[:], data)
+	err := loadData(sdb.store, bid[:], data)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (sdb *ChainStateDB) loadStateData(key []byte) (*types.State, error) {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}
-	err := loadData(sdb.statedb, key, data)
+	err := loadData(sdb.store, key, data)
 	if err != nil {
 		return nil, err
 	}
