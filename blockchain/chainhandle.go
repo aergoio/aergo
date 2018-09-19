@@ -161,7 +161,6 @@ func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
 	}
-
 	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
 
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
@@ -174,8 +173,7 @@ func (cp *chainProcessor) execute() error {
 		blockNo := block.BlockNo()
 		cp.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 			// FIXME: remove legacy
-			BlockNo: blockNo,
-			Txs:     block.GetBody().GetTxs(),
+			Block: block,
 		})
 
 		//SyncWithConsensus :

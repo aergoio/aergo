@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -39,7 +40,7 @@ var (
 	logger = log.NewLogger("chain")
 )
 
-func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService {
+func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool.MemPool) *ChainService {
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
@@ -53,6 +54,9 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 	}
 
 	actor.validator = NewBlockValidator(actor.sdb)
+	if pool != nil {
+		pool.SetStateDb(actor.sdb)
+	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor

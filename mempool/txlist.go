@@ -15,19 +15,25 @@ import (
 // TxList is internal struct for transactions per account
 type TxList struct {
 	sync.RWMutex
-	min    uint64
-	list   []*types.Tx
-	deps   map[uint64][]*types.Tx // <empty key, aggregated slice>
-	parent map[uint64]uint64      //<lastkey, empty key>
+	min     uint64
+	account []byte
+	list    []*types.Tx
+	deps    map[uint64][]*types.Tx // <empty key, aggregated slice>
+	parent  map[uint64]uint64      //<lastkey, empty key>
 }
 
 // NewTxList creates new TxList with given nonce as min
-func NewTxList(nonce uint64) *TxList {
+func NewTxList(acc []byte, nonce uint64) *TxList {
 	return &TxList{
-		min:    nonce,
-		deps:   map[uint64][]*types.Tx{},
-		parent: map[uint64]uint64{},
+		min:     nonce,
+		account: acc,
+		deps:    map[uint64][]*types.Tx{},
+		parent:  map[uint64]uint64{},
 	}
+}
+
+func (tl *TxList) GetAccount() []byte {
+	return tl.account
 }
 
 // Len returns number of transactios which are ready to be processed
@@ -75,7 +81,17 @@ func (tl *TxList) SetMinNonce(n uint64) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 	defer func() { tl.min = n }()
-
+	if tl.min == n {
+		return 0, nil
+	}
+	if tl.min > n {
+		neworphan := len(tl.list)
+		l := tl.list[neworphan-1].GetBody().GetNonce()
+		tl.deps[n] = tl.list
+		tl.parent[l] = n
+		tl.list = nil
+		return -neworphan, nil
+	}
 	delOrphan := 0
 	var delTxs []*types.Tx
 	processed := n - tl.min
@@ -140,14 +156,15 @@ func (tl *TxList) len() int {
 
 func (tl *TxList) putOrphan(tx *types.Tx) {
 	n := tx.GetBody().GetNonce()
+	lastN := n
 	var tmp []*types.Tx
 	tmp = append(tmp, tx)
 	v, ok := tl.deps[n]
 	if ok {
 		delete(tl.deps, n)
 		tmp = append(tmp, v...)
+		lastN = tmp[len(tmp)-1].GetBody().GetNonce()
 	}
-	lastN := tmp[len(tmp)-1].GetBody().GetNonce()
 
 	parent, dok := tl.parent[n-1]
 	if !dok {
@@ -192,21 +209,27 @@ func (tl *TxList) checkSanity() bool {
 /*
 func (tl *TxList) printList() {
 
-	var l uint64
+	var f, l, before uint64
 	if tl.list != nil {
+		f = tl.list[0].GetBody().GetNonce()
 		l = tl.list[len(tl.list)-1].GetBody().GetNonce()
 	}
-	fmt.Printf("ready(%d)(min:%d)(last:%d)", len(tl.list), tl.min, l)
+	fmt.Printf("min: %d ready(nr:%d)[%d~%d]", tl.min, len(tl.list), f, l)
 
 	for i := 0; i < len(tl.list); i++ {
-		fmt.Printf("%d,", tl.list[i].GetBody().GetNonce())
+		cur := tl.list[i].GetBody().GetNonce()
+		if i != 0 && before+1 != cur {
+			fmt.Printf("WARN: List is not sequential")
+		}
+		before = cur
 	}
 
 	fmt.Println()
 	fmt.Printf("deps 1st(%d):", len(tl.deps))
 	for k, v := range tl.deps {
+		f := v[0].GetBody().GetNonce()
 		l := v[len(v)-1].GetBody().GetNonce()
-		fmt.Printf("(%d, %d)", k, l)
+		fmt.Printf("%d=>[%d~%d],", k, f, l)
 	}
 	fmt.Println()
 
@@ -215,6 +238,5 @@ func (tl *TxList) printList() {
 		fmt.Printf("(%d, %d)", k, v)
 	}
 	fmt.Println()
-
 }
 */

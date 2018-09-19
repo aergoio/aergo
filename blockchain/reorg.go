@@ -308,8 +308,7 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy
-		BlockNo: blockNo,
-		Txs:     block.GetBody().GetTxs(),
+		Block: block,
 	})
 
 	//SyncWithConsensus

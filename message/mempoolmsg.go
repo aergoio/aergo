@@ -71,8 +71,7 @@ type MemPoolExistRsp struct {
 // MemPoolDel is interface of MemPool service for deleting transactions
 // including given transactions
 type MemPoolDel struct {
-	BlockNo uint64
-	Txs     []*types.Tx
+	Block *types.Block
 }
 
 // MemPoolDelRsp defines struct of result for MemPoolDel

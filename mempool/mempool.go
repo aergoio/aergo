@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/csv"
-	"encoding/hex"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -23,6 +22,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -43,11 +43,10 @@ type MemPool struct {
 	//curBestBlockNo uint32
 	curBestBlockNo types.BlockNo
 
-	orphan     int
-	cache      map[types.TxID]*types.Tx
-	pool       map[types.AccountID]*TxList
-	stateCache map[types.AccountID]*types.State
-
+	orphan   int
+	cache    map[types.TxID]*types.Tx
+	pool     map[types.AccountID]*TxList
+	sdb      *state.ChainStateDB
 	dumpPath string
 	status   int32
 	// misc configs
@@ -57,12 +56,11 @@ type MemPool struct {
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config) *MemPool {
 	actor := &MemPool{
-		cfg:        cfg,
-		cache:      map[types.TxID]*types.Tx{},
-		pool:       map[types.AccountID]*TxList{},
-		stateCache: map[types.AccountID]*types.State{},
-		dumpPath:   cfg.Mempool.DumpFilePath,
-		status:     initial,
+		cfg:      cfg,
+		cache:    map[types.TxID]*types.Tx{},
+		pool:     map[types.AccountID]*TxList{},
+		dumpPath: cfg.Mempool.DumpFilePath,
+		status:   initial,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -104,6 +102,10 @@ func (mp *MemPool) BeforeStop() {
 	mp.dumpTxsToFile()
 }
 
+func (mp *MemPool) SetStateDb(sdb *state.ChainStateDB) {
+	mp.sdb = sdb
+}
+
 // Size returns current maintaining number of transactions
 // and number of orphan transaction
 func (mp *MemPool) Size() (int, int) {
@@ -128,7 +130,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Err: err,
 		})
 	case *message.MemPoolDel:
-		errs := mp.removeOnBlockArrival(msg.BlockNo, msg.Txs...)
+		errs := mp.removeOnBlockArrival(msg.Block)
 		context.Respond(&message.MemPoolDelRsp{
 			Err: errs,
 		})
@@ -212,35 +214,34 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 
 // input tx based ? or pool based?
 // concurrency consideration,
-func (mp *MemPool) removeOnBlockArrival(blockNo types.BlockNo, txs ...*types.Tx) error {
-	accSet := map[types.AccountID]bool{}
+func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	mp.Lock()
 	defer mp.Unlock()
 
-	// better to have account slice
-	for _, v := range txs {
-		acc := v.GetBody().GetAccount()
-		id := types.ToAccountID(acc)
+	//FIXME improvement
+	// it is fine because all account's state is cached for now.
+	// if eviction on statedb cached is occured, it should be improved
+	// to avoid disk access
+	//FIXME after block has state root hash, use it
+	for _, v := range mp.pool {
 
-		if !accSet[id] {
-			ns, err := mp.getAccountState(acc, true)
-			if err != nil {
-				mp.Error().Err(err).Msg("getting Account status failed")
-				// TODO : ????
+		acc := v.GetAccount()
+		ns, err := mp.getAccountState(acc, true)
+		if err != nil {
+			mp.Error().Err(err).Msg("getting Account status failed")
+			// TODO : ????
+		}
+		list, err := mp.acquireMemPoolList(acc)
+		if err == nil {
+			diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
+			mp.orphan -= diff
+			if list.Empty() {
+				mp.delMemPoolList(acc)
 			}
-			list, err := mp.acquireMemPoolList(acc)
-			if err == nil {
-				diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
-				mp.orphan -= diff
-				if list.Empty() {
-					mp.delMemPoolList(acc)
-				}
-				for _, tx := range delTxs {
-					h := types.ToTxID(tx.Hash)
-					delete(mp.cache, h) // need lock
-				}
+			for _, tx := range delTxs {
+				h := types.ToTxID(tx.Hash)
+				delete(mp.cache, h) // need lock
 			}
-			accSet[id] = true
 		}
 	}
 	return nil
@@ -300,7 +301,7 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 	}
 	nonce = ns.Nonce
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(nonce + 1)
+	mp.pool[id] = NewTxList(acc, nonce+1)
 	return mp.pool[id], nil
 }
 
@@ -314,36 +315,25 @@ func (mp *MemPool) delMemPoolList(acc []byte) {
 	delete(mp.pool, id)
 }
 
-func (mp *MemPool) setAccountState(acc []byte) (*types.State, error) {
-	result, err := mp.RequestToFuture(message.ChainSvc,
-		&message.GetState{Account: acc}, time.Second).Result()
-	if err != nil {
-		return nil, err
-	}
-	rsp := result.(message.GetStateRsp)
-	if rsp.Err != nil {
-		return nil, rsp.Err
-	}
-	mp.stateCache[types.ToAccountID(acc)] = rsp.State
-	return rsp.State, nil
-}
-
 func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, error) {
 	if mp.testConfig {
-		strAcc := hex.EncodeToString(acc)
+		aid := types.ToAccountID(acc)
+		strAcc := aid.String()
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
+		mp.Error().Str("acc:", strAcc).Int("????", int(nonce)).Msg("")
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
-	if v, ok := mp.stateCache[types.ToAccountID(acc)]; ok && !refresh {
-		return v, nil
-	}
-	rsp, err := mp.setAccountState(acc)
+	state, err := mp.sdb.GetAccountStateClone(types.ToAccountID(acc))
+
 	if err != nil {
+		//FIXME PANIC?
+		mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err
 	}
-	return rsp, nil
+
+	return state, nil
 }
 
 func (mp *MemPool) notifyNewTx(tx types.Tx) {

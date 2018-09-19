@@ -86,10 +86,10 @@ func rootRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	chainSvc := blockchain.NewChainService(cfg, consensusSvc)
-	compMng.Register(chainSvc)
 	mpoolSvc := mempool.NewMemPoolService(cfg)
 	compMng.Register(mpoolSvc)
+	chainSvc := blockchain.NewChainService(cfg, consensusSvc, mpoolSvc)
+	compMng.Register(chainSvc)
 	accountsvc := account.NewAccountService(cfg)
 	compMng.Register(accountsvc)
 	rpcSvc := rpc.NewRPC(compMng, cfg)

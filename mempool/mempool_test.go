@@ -6,7 +6,6 @@ package mempool
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"math/rand"
 	"testing"
 
@@ -35,7 +34,10 @@ func _itobU32(argv uint32) []byte {
 }
 
 func getAccount(tx *types.Tx) string {
-	return hex.EncodeToString(tx.GetBody().GetAccount())
+	ab := tx.GetBody().GetAccount()
+	aid := types.ToAccountID(ab)
+	as := aid.String()
+	return as
 }
 
 func simulateBlockGen(txs ...*types.Tx) error {
@@ -51,7 +53,7 @@ func simulateBlockGen(txs ...*types.Tx) error {
 		}
 		balance[acc] -= tx.GetBody().GetAmount()
 	}
-	bestBlockNo++
+	//bestBlockNo++
 	return nil
 }
 func initTest(t *testing.T) {
@@ -318,7 +320,13 @@ func TestDeleteOTxs(t *testing.T) {
 
 	txs[4] = genTx(0, 1, 5, 150)
 	simulateBlockGen(txs...)
-	pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs...)
+	block := &types.Block{
+		Body: &types.BlockBody{
+			Txs: txs[:],
+		},
+	}
+	pool.removeOnBlockArrival(block)
+	//pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs...)
 	if r, o := pool.Size(); r != 0 || o != 0 {
 		t.Error("pool should contain nothing", r, o)
 	}
@@ -344,7 +352,13 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 	for j := 0; j < 10; j++ {
 		simulateBlockGen(txs[:10]...)
 		//	pool.removes(uint32(pool.curBestBlockNo+1), txs[:10]...)
-		pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs[:10]...)
+		block := &types.Block{
+			Body: &types.BlockBody{
+				Txs: txs[:10],
+			},
+		}
+
+		pool.removeOnBlockArrival(block)
 		if ps, _ := pool.Size(); ps != 10*(9-j) {
 			t.Errorf("pool should contain 90 , %d", ps)
 		}
@@ -415,7 +429,12 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 	for i := 0; i < len(start); i++ {
 		s, e := start[i]-1, end[i]
 		simulateBlockGen(txs[s:e]...)
-		pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs[s:e]...)
+		block := &types.Block{
+			Body: &types.BlockBody{
+				Txs: txs[s:e],
+			},
+		}
+		pool.removeOnBlockArrival(block)
 
 		//p1, p2 := pool.Size()
 		//t.Errorf("%d, %d, %d", i, p1, p2)
@@ -439,7 +458,95 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 	}
 }
 
+func TestSwitchingBestBlock(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	txs := make([]*types.Tx, 0)
+	tx0 := genTx(0, 1, 1, 1)
+	tx1 := genTx(0, 1, 2, 1)
+	txs = append(txs, tx0, tx1)
+
+	err := pool.puts(txs...)
+	if len(err) != 2 || err[0] != nil || err[1] != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+	simulateBlockGen(txs...)
+	pool.removeOnBlockArrival(
+		&types.Block{
+			Body: &types.BlockBody{
+				Txs: txs[:],
+			}})
+
+	tx2 := genTx(0, 1, 3, 1)
+	if err := pool.put(tx2); err != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+	ready, orphan := pool.Size()
+	if ready != 1 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+
+	simulateBlockGen(txs[:1]...)
+	pool.removeOnBlockArrival(
+		&types.Block{
+			Body: &types.BlockBody{
+				Txs: txs[:1],
+			}})
+
+	ready, orphan = pool.Size()
+	if ready != 1 || orphan != 1 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+
+	tx4 := genTx(0, 1, 5, 1)
+	if err := pool.put(tx4); err != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+
+	ready, orphan = pool.Size()
+	if ready != 2 || orphan != 2 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+
+	if err := pool.put(tx1); err != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+	ready, orphan = pool.Size()
+	if ready != 3 || orphan != 1 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+}
+
 /*
+// bug found (to be fixed)
+//   - puting orphan tx whose nonce is already in mempool
+//   - add testcase first
+func TestEvitOnProfit(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	if err := pool.put(genTx(0, 0, 1, 3)); err != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+	if err := pool.put(genTx(0, 0, 1, 10)); err == nil {
+		t.Errorf("put should failed") //FIXME
+	}
+
+	if err := pool.put(genTx(0, 0, 5, 3)); err != nil {
+		t.Errorf("put should succeed, %s", err)
+	}
+	pool.put(genTx(0, 0, 6, 3))
+	pool.put(genTx(0, 0, 7, 3))
+
+	pool.pool[types.ToAccountID(accs[0])].printList()
+	fmt.Println()
+	if err := pool.put(genTx(0, 0, 6, 10)); err == nil {
+		t.Errorf("put should failed") // FIXME
+	}
+	pool.pool[types.ToAccountID(accs[0])].printList()
+}
+
 func TestDeleteInvokePriceFilterOut(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
