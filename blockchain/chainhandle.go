@@ -506,7 +506,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 		return err
 	}
 	// request missing
-	anchors := cs.getAnchorsFromHash(block.Hash)
+	anchors := cs.getAnchorsFromHash(block.BlockHash())
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
@@ -550,7 +550,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 			continue
 		}
 
-		if bytes.Equal(mainhash, mainblock.Hash) {
+		if bytes.Equal(mainhash, mainblock.BlockHash()) {
 			break
 		}
 		mainblock = nil

@@ -111,9 +111,9 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
 		if cs.cdb.latest == 0 {
 			if genesis == nil {
-				genesis = GetDefaultGenesis()
+				genesis = types.GetDefaultGenesis()
 			}
-			err := cs.cdb.addGenesisBlock(GenesisToBlock(genesis))
+			err := cs.cdb.addGenesisBlock(types.GenesisToBlock(genesis))
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
