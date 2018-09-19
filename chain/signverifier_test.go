@@ -1,13 +1,14 @@
-package blockchain
+package chain
 
 import (
 	"encoding/binary"
+	"testing"
+
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const (

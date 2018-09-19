@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
@@ -63,7 +63,7 @@ var initGenesis = &cobra.Command{
 			return
 		}
 
-		chainsvc := blockchain.NewChainService(cfg, nil, nil)
+		chainsvc := chain.NewChainService(cfg, nil, nil)
 		err = chainsvc.InitGenesisBlock(genesis, initpath)
 		if err != nil {
 			fmt.Printf("fail to init genesis block data (error:%s)\n", err)

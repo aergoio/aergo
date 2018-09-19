@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -58,7 +58,7 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 //
 // TODO: This is not an exact size. Let's make it exact!
 func MaxBlockBodySize() uint32 {
-	return blockchain.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
+	return chain.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
 }
 
 // GenerateBlock generate & return a new block

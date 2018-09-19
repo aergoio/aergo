@@ -13,7 +13,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
-	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl"
@@ -97,7 +97,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	mpoolSvc := mempool.NewMemPoolService(cfg)
 	compMng.Register(mpoolSvc)
-	chainSvc := blockchain.NewChainService(cfg, consensusSvc, mpoolSvc)
+	chainSvc := chain.NewChainService(cfg, consensusSvc, mpoolSvc)
 	compMng.Register(chainSvc)
 	consensusSvc.SetChainAccessor(chainSvc)
 	accountsvc := account.NewAccountService(cfg)

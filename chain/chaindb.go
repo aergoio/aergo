@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package blockchain
+package chain
 
 import (
 	"bytes"

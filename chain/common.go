@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package blockchain
+package chain
 
 var (
 	// MaxBlockSize is the maximum size of a block.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -101,7 +101,7 @@ func NodePubKey() crypto.PubKey {
 }
 
 // NewP2P create a new ActorService for p2p
-func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *blockchain.ChainService) *P2P {
+func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 	p2psvc := &P2P{
 		hub: hub,
 	}
@@ -131,9 +131,9 @@ func (p2ps *P2P) Statics() *map[string]interface{} {
 	return nil
 }
 
-func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
+func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
-	mf := &pbMOFactory{signer:signer}
+	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
 	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
 	// connect managers each other

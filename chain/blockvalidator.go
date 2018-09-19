@@ -3,11 +3,12 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package blockchain
+package chain
 
 import (
 	"bytes"
 	"errors"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"

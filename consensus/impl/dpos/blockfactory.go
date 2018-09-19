@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/blockchain"
+	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/p2p"
@@ -27,7 +27,7 @@ const (
 type txExec struct {
 	sdb        *state.ChainStateDB
 	blockState *types.BlockState
-	execTx     blockchain.TxExecFn
+	execTx     bc.TxExecFn
 }
 
 func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.TxOp {
@@ -41,7 +41,7 @@ func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.
 	return &txExec{
 		sdb:        sdb,
 		blockState: bState,
-		execTx:     blockchain.NewTxExecutor(sdb, bState, ts),
+		execTx:     bc.NewTxExecutor(sdb, bState, ts),
 	}
 }
 
