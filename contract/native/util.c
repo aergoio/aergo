@@ -6,7 +6,6 @@
 #include "common.h"
 
 #include "strbuf.h"
-#include "parser.h"
 
 #include "util.h"
 

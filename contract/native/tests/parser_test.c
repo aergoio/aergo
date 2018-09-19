@@ -19,6 +19,7 @@
 extern void mark_file(char *path, int line, int offset, strbuf_t *out);
 
 char *tc = NULL;
+bool is_failed = false;
 
 static char *
 trim_str(char *str)
@@ -81,6 +82,8 @@ run_test(char *title, ec_t ex, char *path, flag_t flag, strbuf_t *sb)
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_text(ex), error_text(ac));
+
+        is_failed = true;
     }
 
     error_clear();
@@ -178,7 +181,8 @@ main(int argc, char **argv)
     }
 
     printf("%s\n", delim);
-    printf("* Finished %s successfully\n", FILENAME(argv[0]));
+    printf("* Finished %s %s\n", FILENAME(argv[0]),
+           is_failed ? "with error(s)" : "successfully");
     printf("%s\n", delim);
 
     return EXIT_SUCCESS;

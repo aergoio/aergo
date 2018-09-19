@@ -8,6 +8,9 @@ debug.test
 Gopkg.lock
 *.o
 *.a
+*.yy.c
+*.tab.*
+*.output
 
 # vim swp file
 *.swp
@@ -21,3 +24,7 @@ Gopkg.lock
 # developer workspace specific
 /conf
 
+# cmake-related
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
