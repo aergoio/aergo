@@ -159,20 +159,20 @@ struct ast_exp_s {
     };
 };
 
-ast_exp_t *exp_lit_new(lit_kind_t kind, char *val, yylloc_t *lloc);
+ast_exp_t *exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos);
 ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
-                        ast_exp_t *v_exp, yylloc_t *lloc);
-ast_exp_t *exp_id_ref_new(char *name, yylloc_t *lloc);
+                        ast_exp_t *v_exp, errpos_t *pos);
+ast_exp_t *exp_id_ref_new(char *name, errpos_t *pos);
 ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, 
-                         yylloc_t *lloc);
-ast_exp_t *exp_call_new(ast_exp_t *id_exp, list_t *param_l, yylloc_t *lloc);
+                         errpos_t *pos);
+ast_exp_t *exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos);
 ast_exp_t *exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, 
-                          yylloc_t *lloc);
+                          errpos_t *pos);
 ast_exp_t *exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, 
-                      yylloc_t *lloc);
+                      errpos_t *pos);
 ast_exp_t *exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, 
-                        ast_exp_t *f_exp, yylloc_t *lloc);
-ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, yylloc_t *lloc);
-ast_exp_t *exp_tuple_new(ast_exp_t *exp, yylloc_t *lloc);
+                        ast_exp_t *f_exp, errpos_t *pos);
+ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, errpos_t *pos);
+ast_exp_t *exp_tuple_new(ast_exp_t *exp, errpos_t *pos);
 
 #endif /* ! _AST_EXP_H */

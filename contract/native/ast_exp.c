@@ -8,12 +8,12 @@
 #include "ast_exp.h"
 
 static ast_exp_t *
-ast_exp_new(expn_t type, yylloc_t *lloc)
+ast_exp_new(expn_t type, errpos_t *pos)
 {
     ast_exp_t *exp = xmalloc(sizeof(ast_exp_t));
 
     list_link_init(&exp->link);
-    exp->lloc = *lloc;
+    exp->pos = *pos;
     exp->type = type;
     ast_meta_init(&exp->meta);
 
@@ -21,9 +21,9 @@ ast_exp_new(expn_t type, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_lit_new(lit_kind_t kind, char *val, yylloc_t *lloc)
+exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_LIT, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_LIT, pos);
 
     exp->u_lit.kind = kind;
     exp->u_lit.val = val;
@@ -33,9 +33,9 @@ exp_lit_new(lit_kind_t kind, char *val, yylloc_t *lloc)
 
 ast_exp_t *
 exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp, 
-             yylloc_t *lloc)
+             errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_TYPE, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_TYPE, pos);
 
     exp->meta.type = type;
 
@@ -47,9 +47,9 @@ exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp,
 }
 
 ast_exp_t *
-exp_id_ref_new(char *name, yylloc_t *lloc)
+exp_id_ref_new(char *name, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ID, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_ID, pos);
 
     exp->u_id.name = name;
 
@@ -57,9 +57,9 @@ exp_id_ref_new(char *name, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, yylloc_t *lloc)
+exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ARRAY, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_ARRAY, pos);
 
     exp->u_arr.id_exp = id_exp;
     exp->u_arr.param_exp = param_exp;
@@ -68,9 +68,9 @@ exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_call_new(ast_exp_t *id_exp, list_t *param_l, yylloc_t *lloc)
+exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_CALL, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
     exp->u_call.id_exp = id_exp;
     exp->u_call.param_l = param_l;
@@ -79,9 +79,9 @@ exp_call_new(ast_exp_t *id_exp, list_t *param_l, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, yylloc_t *lloc)
+exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ACCESS, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_ACCESS, pos);
 
     exp->u_acc.id_exp = id_exp;
     exp->u_acc.memb_exp = memb_exp;
@@ -90,9 +90,9 @@ exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, yylloc_t *lloc)
+exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_OP, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_OP, pos);
 
     exp->u_op.op = op;
     exp->u_op.l_exp = l_exp;
@@ -103,9 +103,9 @@ exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, yylloc_t *lloc)
 
 ast_exp_t *
 exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, ast_exp_t *f_exp, 
-             yylloc_t *lloc)
+             errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_COND, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_COND, pos);
 
     exp->u_cond.cond_exp = cond_exp;
     exp->u_cond.t_exp = t_exp;
@@ -115,9 +115,9 @@ exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, ast_exp_t *f_exp,
 }
 
 ast_exp_t *
-exp_sql_new(sql_kind_t kind, char *sql, yylloc_t *lloc)
+exp_sql_new(sql_kind_t kind, char *sql, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_SQL, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_SQL, pos);
 
     exp->u_sql.kind = kind;
     exp->u_sql.sql = sql;
@@ -126,9 +126,9 @@ exp_sql_new(sql_kind_t kind, char *sql, yylloc_t *lloc)
 }
 
 ast_exp_t *
-exp_tuple_new(ast_exp_t *elem_exp, yylloc_t *lloc)
+exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_TUPLE, lloc);
+    ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
     exp->u_tuple.exp_l = list_new();
 

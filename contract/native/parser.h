@@ -27,12 +27,12 @@ typedef struct yyparam_s {
     int pos;
 
     int adj_token;
-    yylloc_t adj_lloc;
+    errpos_t adj_pos;
 
     strbuf_t buf;
 } yyparam_t;
 
-#define YYLTYPE             yylloc_t
+#define YYLTYPE             errpos_t
 
 #include "grammar.tab.h"
 

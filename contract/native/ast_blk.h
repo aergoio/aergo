@@ -25,6 +25,6 @@ struct ast_blk_s {
     ast_blk_t *up;
 };
 
-ast_blk_t *ast_blk_new(yylloc_t *lloc);
+ast_blk_t *ast_blk_new(errpos_t *pos);
 
 #endif /* ! _AST_BLK_H */

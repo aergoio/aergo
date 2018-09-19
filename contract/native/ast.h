@@ -12,7 +12,7 @@
 
 #define AST_NODE_DECL                                                          \
     list_link_t link;                                                          \
-    yylloc_t lloc
+    errpos_t pos
 
 #ifndef _AST_BLK_T
 #define _AST_BLK_T

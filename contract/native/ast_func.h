@@ -36,6 +36,6 @@ typedef struct ast_func_s {
 } ast_func_t;
 
 ast_func_t *ast_func_new(char *name, modifier_t mod, list_t *param_l,
-                         list_t *return_l, ast_stmt_t *blk, yylloc_t *lloc);
+                         list_t *return_l, ast_stmt_t *blk, errpos_t *pos);
 
 #endif /* ! _AST_FUNC_H */

@@ -71,7 +71,7 @@ typedef enum ec_e {
     ERROR_MAX
 } ec_t;
 
-typedef enum lvl_e {
+typedef enum errlvl_e {
     LVL_FATAL = 0,
     LVL_ERROR,
     LVL_INFO,
@@ -80,12 +80,22 @@ typedef enum lvl_e {
     LVL_TRACE,
 
     LEVEL_MAX
-} lvl_t;
+} errlvl_t;
+
+typedef struct errpos_s {
+    char *path;
+    int first_line;
+    int first_col;
+    int first_offset;
+    int last_line;
+    int last_col;
+    int last_offset;
+} errpos_t;
 
 typedef struct error_s {
     ec_t code;
-    lvl_t level;
-    yylloc_t lloc;
+    errlvl_t level;
+    errpos_t pos;
     char desc[ERROR_MAX_DESC_LEN];
 } error_t;
 
@@ -96,10 +106,22 @@ int error_count(void);
 ec_t error_first(void);
 ec_t error_last(void);
 
-void error_push(ec_t ec, lvl_t lvl, yylloc_t *lloc, ...);
+void error_push(ec_t ec, errlvl_t lvl, errpos_t *pos, ...);
 error_t *error_pop(void);
 
 void error_clear(void);
 void error_dump(void);
+
+static inline void
+errpos_init(errpos_t *pos, char *path)
+{
+    pos->path = path;
+    pos->first_line = 1;
+    pos->first_col = 1;
+    pos->first_offset = 0;
+    pos->last_line = 1;
+    pos->last_col = 1;
+    pos->last_offset = 0;
+}
 
 #endif /* ! _ERROR_H */

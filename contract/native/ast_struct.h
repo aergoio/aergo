@@ -17,6 +17,6 @@ typedef struct ast_struct_s {
     list_t *field_l;
 } ast_struct_t;
 
-ast_struct_t *ast_struct_new(char *name, list_t *field_l, yylloc_t *lloc);
+ast_struct_t *ast_struct_new(char *name, list_t *field_l, errpos_t *pos);
 
 #endif /* ! _AST_STRUCT_H */

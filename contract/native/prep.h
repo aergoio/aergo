@@ -19,7 +19,7 @@ typedef struct scan_s {
     char *path;
     FILE *fp;
 
-    yylloc_t lloc;
+    errpos_t pos;
 
     int buf_len;
     int buf_pos;

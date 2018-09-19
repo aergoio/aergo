@@ -299,7 +299,7 @@ yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
 
     if (param->adj_token != 0) {
         token = param->adj_token;
-        *lloc = param->adj_lloc;
+        *lloc = param->adj_pos;
         param->adj_token = 0;
         return token;
     }
@@ -313,7 +313,7 @@ yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc)
     yyparam_t *param = yyget_extra(yyscanner);
 
     param->adj_token = token;
-    param->adj_lloc = *lloc;
+    param->adj_pos = *lloc;
 }
 
 /* end of scanner.l */

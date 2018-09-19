@@ -11,13 +11,13 @@
 
 #include "prep.h"
 
-#define YY_LINE                 scan->lloc.first_line
-#define YY_COL                  scan->lloc.first_col
-#define YY_OFFSET               scan->lloc.first_offset
+#define YY_LINE                 scan->pos.first_line
+#define YY_COL                  scan->pos.first_col
+#define YY_OFFSET               scan->pos.first_offset
 
-#define yy_update_line()        scan->lloc.first_line++
-#define yy_update_col()         scan->lloc.first_col++
-#define yy_update_offset()      scan->lloc.first_offset++
+#define yy_update_line()        scan->pos.first_line++
+#define yy_update_col()         scan->pos.first_col++
+#define yy_update_offset()      scan->pos.first_offset++
 
 static void substitue(char *path, stack_t *imp, strbuf_t *out);
 
@@ -27,7 +27,7 @@ scan_init(scan_t *scan, char *path, strbuf_t *out)
     scan->path = path;
     scan->fp = open_file(path, "r");
 
-    yylloc_init(&scan->lloc, path);
+    errpos_init(&scan->pos, path);
 
     scan->buf_len = 0;
     scan->buf_pos = 0;
@@ -89,11 +89,11 @@ add_file(scan_t *scan, char *path, stack_t *imp)
 
     while (true) {
         if (strcmp(node->item, path) == 0)
-            TRACE(ERROR_CROSS_IMPORT, &scan->lloc, path);
+            TRACE(ERROR_CROSS_IMPORT, &scan->pos, path);
     }
 
     stack_push(imp, xstrdup(path));
-    scan->lloc.path = path;
+    scan->pos.path = path;
 }
 
 static void

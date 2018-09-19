@@ -30,7 +30,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    yylloc_init(&yylloc, param->path);
+    errpos_init(&yylloc, param->path);
 }
 
 /* identifier */

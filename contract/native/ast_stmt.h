@@ -107,15 +107,15 @@ struct ast_stmt_s {
     };
 };
 
-ast_stmt_t *ast_stmt_new(stmt_type_t type, yylloc_t *lloc);
-ast_stmt_t *stmt_exp_new(ast_exp_t *exp, yylloc_t *lloc);
-ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, yylloc_t *lloc);
+ast_stmt_t *ast_stmt_new(stmt_type_t type, errpos_t *pos);
+ast_stmt_t *stmt_exp_new(ast_exp_t *exp, errpos_t *pos);
+ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, errpos_t *pos);
 ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp,
-                         ast_exp_t *inc_exp, ast_stmt_t *blk, yylloc_t *lloc);
-ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, yylloc_t *lloc);
-ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, yylloc_t *lloc);
-ast_stmt_t *stmt_return_new(ast_exp_t *exp, yylloc_t *lloc);
-ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, yylloc_t *lloc);
-ast_stmt_t *stmt_blk_new(ast_blk_t *blk, yylloc_t *lloc);
+                         ast_exp_t *inc_exp, ast_stmt_t *blk, errpos_t *pos);
+ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, errpos_t *pos);
+ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, errpos_t *pos);
+ast_stmt_t *stmt_return_new(ast_exp_t *exp, errpos_t *pos);
+ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos);
+ast_stmt_t *stmt_blk_new(ast_blk_t *blk, errpos_t *pos);
 
 #endif /* ! _AST_STMT_H */

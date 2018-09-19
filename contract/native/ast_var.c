@@ -10,14 +10,14 @@
 #include "ast_var.h"
 
 ast_var_t *
-ast_var_new(ast_exp_t *id_exp, ast_exp_t *init_exp, yylloc_t *lloc)
+ast_var_new(ast_exp_t *id_exp, ast_exp_t *init_exp, errpos_t *pos)
 {
     ast_var_t *var = xmalloc(sizeof(ast_var_t));
 
     ASSERT(id_exp != NULL);
 
     list_link_init(&var->link);
-    var->lloc = *lloc;
+    var->pos = *pos;
 
     var->meta = id_exp->meta;
 

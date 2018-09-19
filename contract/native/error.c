@@ -66,17 +66,17 @@ error_last(void)
 }
 
 static error_t *
-error_new(ec_t ec, lvl_t lvl, yylloc_t *lloc, char *desc)
+error_new(ec_t ec, errlvl_t lvl, errpos_t *pos, char *desc)
 {
     error_t *error = xmalloc(sizeof(error_t));
 
     error->code = ec;
     error->level = lvl;
 
-    if (lloc == NULL)
-        yylloc_init(&error->lloc, NULL);
+    if (pos == NULL)
+        errpos_init(&error->pos, NULL);
     else
-        error->lloc = *lloc;
+        error->pos = *pos;
 
     strcpy(error->desc, desc);
 
@@ -84,16 +84,16 @@ error_new(ec_t ec, lvl_t lvl, yylloc_t *lloc, char *desc)
 }
 
 void
-error_push(ec_t ec, lvl_t lvl, yylloc_t *lloc, ...)
+error_push(ec_t ec, errlvl_t lvl, errpos_t *pos, ...)
 {
     va_list vargs;
     char errdesc[ERROR_MAX_DESC_LEN];
 
-    va_start(vargs, lloc);
+    va_start(vargs, pos);
     vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
     va_end(vargs);
 
-    stack_push(&errstack_, error_new(ec, lvl, lloc, errdesc));
+    stack_push(&errstack_, error_new(ec, lvl, pos, errdesc));
 }
 
 error_t *
@@ -113,36 +113,36 @@ error_clear(void)
 }
 
 static char *
-make_trace(yylloc_t *lloc)
+make_trace(errpos_t *pos)
 {
 #define TRACE_LINE_MAX      80
     int i, j;
     int nread;
     int tok_len;
-    int adj_offset = lloc->first_offset;
-    int adj_col = lloc->first_col;
-    FILE *fp = open_file(lloc->path, "r");
+    int adj_offset = pos->first_offset;
+    int adj_col = pos->first_col;
+    FILE *fp = open_file(pos->path, "r");
     char *buf;
 
     ASSERT(adj_offset >= 0);
     ASSERT(adj_col > 0);
 
-    tok_len = MIN(lloc->last_offset - lloc->first_offset, TRACE_LINE_MAX - 1);
+    tok_len = MIN(pos->last_offset - pos->first_offset, TRACE_LINE_MAX - 1);
     ASSERT(tok_len >= 0);
 
     if (adj_col + tok_len > TRACE_LINE_MAX) {
         adj_col = TRACE_LINE_MAX - tok_len;
-        adj_offset += lloc->first_col - adj_col;
+        adj_offset += pos->first_col - adj_col;
     }
 
     if (fseek(fp, adj_offset, SEEK_SET) < 0)
-        FATAL(ERROR_FILE_IO, lloc->path, strerror(errno));
+        FATAL(ERROR_FILE_IO, pos->path, strerror(errno));
 
     buf = xmalloc(TRACE_LINE_MAX * 3);
 
     nread = fread(buf, 1, TRACE_LINE_MAX, fp);
     if (nread <= 0 && !feof(fp))
-        FATAL(ERROR_FILE_IO, lloc->path, strerror(errno));
+        FATAL(ERROR_FILE_IO, pos->path, strerror(errno));
 
     for (i = 0; i < nread; i++) {
         if (buf[i] == '\n' || buf[i] == '\r')
@@ -170,7 +170,7 @@ error_dump(void)
         error_t *e = (error_t *)n->item;
         if (e->level == LVL_TRACE)
             fprintf(stderr, "%s: "ANSI_NONE"%s\n%s\n", errlvls_[e->level],
-                    e->desc, make_trace(&e->lloc));
+                    e->desc, make_trace(&e->pos));
         else
             fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[e->level], e->desc);
     }

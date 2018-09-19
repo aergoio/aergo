@@ -31,7 +31,7 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
     param->pos = 0;
 
     param->adj_token = 0;
-    yylloc_init(&param->adj_lloc, path);
+    errpos_init(&param->adj_pos, path);
 
     strbuf_init(&param->buf);
 }
