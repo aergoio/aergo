@@ -10,8 +10,8 @@
 #include "util.h"
 #include "parser.h"
 
-#define YY_PARAM_DECL           YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner
-#define YY_DECL                 int yyscan(YY_PARAM_DECL)
+#define YY_DECL                                                                \
+    int yyscan(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner)
 
 #undef  YY_INPUT
 #define YY_INPUT(buf, result, MAX)                                             \
@@ -26,25 +26,27 @@
 #define YY_EXTRA_TYPE           yyparam_t *
 #define YY_BUF                  &yyextra->buf
 
-#define yy_update_last_col()    lloc->last.col += yyleng
+#define yy_update_last_col()    lloc->last_col += yyleng
 
 #define yy_update_last_line()                                                  \
     do {                                                                       \
-        lloc->last.line++;                                                     \
-        lloc->last.offset += lloc->last.col;                                   \
-        lloc->last.col = 1;                                                    \
+        lloc->last_line++;                                                     \
+        lloc->last_offset += lloc->last_col;                                   \
+        lloc->last_col = 1;                                                    \
     } while (0)
 
-#define yy_update_first()       lloc->first = lloc->last
+#define yy_update_first()                                                      \
+    do {                                                                       \
+        lloc->first_line = lloc->last_line;                                    \
+        lloc->first_col = lloc->last_col;                                      \
+        lloc->first_offset = lloc->last_offset;                                \
+    } while (0)
 
 #define yy_text()               xstrndup(yytext, yyleng)
 #define yy_literal()            xstrndup(yytext + 1, yyleng - 2)
 
-#define yy_append()             strbuf_append(YY_BUF, yytext, yyleng)
-
 #define yy_error(ec)                                                           \
-    ERROR(ec, FILENAME(yyextra->path), lloc->first.line,                       \
-          make_trace(yyextra->path, lloc))
+    TRACE(ec, lloc, FILENAME(lloc->path), lloc->first_line)
 
 #define yy_recover()                                                           \
     do {                                                                       \
@@ -58,7 +60,7 @@
             else if (c == '\0') {                                              \
                 yyterminate();                                                 \
             }                                                                  \
-            lloc->last.col++;                                                  \
+            lloc->last_col++;                                                  \
         }                                                                      \
     } while (0)
 
@@ -71,7 +73,7 @@
 
 #define yy_return_buf(tok)                                                     \
     do {                                                                       \
-        lval->sval = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));     \
+        lval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));      \
         strbuf_reset(YY_BUF);                                                  \
         return (tok);                                                          \
     } while (0)
@@ -81,13 +83,13 @@
         char c, prev = '\0';                                                   \
         while ((c = input(yyscanner)) != '\0') {                               \
             if (c == '/' && prev == '*') {                                     \
-                lloc->last.col++;                                              \
+                lloc->last_col++;                                              \
                 break;                                                         \
             }                                                                  \
             if (c == '\n')                                                     \
                 yy_update_last_line();                                         \
             else                                                               \
-                lloc->last.col++;                                              \
+                lloc->last_col++;                                              \
             prev = c;                                                          \
         }                                                                      \
         if (c == '\0') {                                                       \
@@ -101,7 +103,7 @@
         char c, prev = '\0';                                                   \
         while ((c = input(yyscanner)) != '\0') {                               \
             if (c == '"' && prev != '\\') {                                    \
-                lloc->last.col++;                                              \
+                lloc->last_col++;                                              \
                 break;                                                         \
             }                                                                  \
             if (c == '\n') {                                                   \
@@ -111,7 +113,7 @@
                 break;                                                         \
             }                                                                  \
             else {                                                             \
-                lloc->last.col++;                                              \
+                lloc->last_col++;                                              \
                 strbuf_append(YY_BUF, &c, 1);                                  \
             }                                                                  \
             prev = c;                                                          \
@@ -266,15 +268,15 @@ id                          {L}({L}|{D})*
 
 "#file"                     BEGIN(DIRECTIVE);
 <DIRECTIVE>{ws}+
-<DIRECTIVE>\"[^\"\n\r]+\"   yyextra->path = yy_literal();
+<DIRECTIVE>\"[^\"\n\r]+\"   lloc->path = yy_literal();
 <DIRECTIVE>{D}+" "{D}+ {
-    lloc->last.line = atoi(strtok(yy_text(), " "));
-    lloc->last.offset = atoi(strtok(NULL, " "));
+    lloc->last_line = atoi(strtok(yy_text(), " "));
+    lloc->last_offset = atoi(strtok(NULL, " "));
 }
 <DIRECTIVE>{nl}             BEGIN(INITIAL);
 
 {id} {
-    lval->sval = yy_text();
+    lval->str = yy_text();
     yy_return(ID);
 }
 
@@ -295,10 +297,10 @@ yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
     int token;
     yyparam_t *param = yyget_extra(yyscanner);
 
-    if (param->token != 0) {
-        token = param->token;
-        *lloc = param->lloc;
-        param->token = 0;
+    if (param->adj_token != 0) {
+        token = param->adj_token;
+        *lloc = param->adj_lloc;
+        param->adj_token = 0;
         return token;
     }
 
@@ -310,8 +312,8 @@ yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc)
 {
     yyparam_t *param = yyget_extra(yyscanner);
 
-    param->token = token;
-    param->lloc = *lloc;
+    param->adj_token = token;
+    param->adj_lloc = *lloc;
 }
 
 /* end of scanner.l */

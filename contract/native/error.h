@@ -44,15 +44,21 @@
 
 #define FATAL(ec, ...)                                                         \
     do {                                                                       \
-        error_push((ec), LVL_FATAL, ## __VA_ARGS__);                           \
+        error_push((ec), LVL_FATAL, NULL, ## __VA_ARGS__);                     \
         error_dump();                                                          \
         exit(EXIT_FAILURE);                                                    \
     } while (0)
 
-#define ERROR(ec, ...)          error_push((ec), LVL_ERROR, ## __VA_ARGS__)
-#define INFO(ec, ...)           error_push((ec), LVL_INFO, ## __VA_ARGS__)
-#define WARN(ec, ...)           error_push((ec), LVL_WARN, ## __VA_ARGS__)
-#define DEBUG(ec, ...)          error_push((ec), LVL_DEBUG, ## __VA_ARGS__)
+#define ERROR(ec, ...)                                                         \
+    error_push((ec), LVL_ERROR, NULL, ## __VA_ARGS__)
+#define INFO(ec, ...)                                                          \
+    error_push((ec), LVL_INFO, NULL, ## __VA_ARGS__)
+#define WARN(ec, ...)                                                          \
+    error_push((ec), LVL_WARN, NULL, ## __VA_ARGS__)
+#define DEBUG(ec, ...)                                                         \
+    error_push((ec), LVL_DEBUG, NULL, ## __VA_ARGS__)
+#define TRACE(ec, pos, ...)                                                    \
+    error_push((ec), LVL_TRACE, (pos), ## __VA_ARGS__)
 
 #define error_empty()           (error_count() == 0)
 
@@ -71,6 +77,7 @@ typedef enum lvl_e {
     LVL_INFO,
     LVL_WARN,
     LVL_DEBUG,
+    LVL_TRACE,
 
     LEVEL_MAX
 } lvl_t;
@@ -78,6 +85,7 @@ typedef enum lvl_e {
 typedef struct error_s {
     ec_t code;
     lvl_t level;
+    yylloc_t lloc;
     char desc[ERROR_MAX_DESC_LEN];
 } error_t;
 
@@ -88,7 +96,7 @@ int error_count(void);
 ec_t error_first(void);
 ec_t error_last(void);
 
-void error_push(ec_t ec, lvl_t lvl, ...);
+void error_push(ec_t ec, lvl_t lvl, yylloc_t *lloc, ...);
 error_t *error_pop(void);
 
 void error_clear(void);

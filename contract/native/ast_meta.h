@@ -46,8 +46,8 @@ typedef struct meta_struct_s {
 } meta_struct_t;
 
 typedef struct meta_map_s {
-    ast_meta_t *k_meta;
-    ast_meta_t *v_meta;
+    type_t k_type;
+    type_t v_type;
 } meta_map_t;
 
 struct ast_meta_s {

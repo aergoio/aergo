@@ -8,23 +8,26 @@
 
 #include "common.h"
 
-typedef struct yypos_s {
-    int line;
-    int col;
-    int offset;
-} yypos_t;
-
 typedef struct yylloc_s {
-    yypos_t first;
-    yypos_t last;
+    char *path;
+    int first_line;
+    int first_col;
+    int first_offset;
+    int last_line;
+    int last_col;
+    int last_offset;
 } yylloc_t;
 
 static inline void
-yypos_init(yypos_t *pos)
+yylloc_init(yylloc_t *lloc, char *path)
 {
-    pos->line = 1;
-    pos->col = 1;
-    pos->offset = 0;
+    lloc->path = path;
+    lloc->first_line = 1;
+    lloc->first_col = 1;
+    lloc->first_offset = 0;
+    lloc->last_line = 1;
+    lloc->last_col = 1;
+    lloc->last_offset = 0;
 }
 
 #endif /* ! _LOCATION_H */

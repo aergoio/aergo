@@ -30,9 +30,8 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
     param->len = strbuf_length(src);
     param->pos = 0;
 
-    yypos_init(&param->lloc.first);
-    yypos_init(&param->lloc.last);
-    param->token = 0;
+    param->adj_token = 0;
+    yylloc_init(&param->adj_lloc, path);
 
     strbuf_init(&param->buf);
 }

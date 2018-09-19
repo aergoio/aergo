@@ -16,6 +16,7 @@
 
 #include "xalloc.h"
 #include "flag.h"
+#include "location.h"
 #include "error.h"
 
 #define PATH_MAX_LEN        256

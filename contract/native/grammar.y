@@ -30,20 +30,15 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    yylloc.first.line = 1;
-    yylloc.first.col = 1;
-    yylloc.first.offset = 0;
-    yylloc.last.line = 1;
-    yylloc.last.col = 1;
-    yylloc.last.offset = 0;
+    yylloc_init(&yylloc, param->path);
 }
 
 /* identifier */
-%token  <sval>
+%token  <str>
         ID              "identifier"
 
 /* literal */
-%token  <sval>
+%token  <str>
         L_FLOAT         "floating-point literal"
         L_HEXA          "hexadecimal literal"
         L_INT           "integer literal"
@@ -136,9 +131,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* types */
 %union {
-    bool bval;
-    int ival;
-    char *sval;
+    bool flag;
+    char *str;
 
     type_t type;
     scope_t scope;
@@ -213,8 +207,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %type <exp>     exp_prim
 %type <exp>     exp_new
 %type <list>    exp_list
-%type <sval>    non_reserved_token
-%type <sval>    identifier
+%type <str>     non_reserved_token
+%type <str>     identifier
 
 %start  smart_contract
 
@@ -608,8 +602,8 @@ stmt_ddl:
         char *ddl;
         yyerrok;
         error_pop();
-        len = @$.last.offset - @$.first.offset;
-        ddl = xstrndup(param->src + @$.first.offset, len);
+        len = @$.last_offset - @$.first_offset;
+        ddl = xstrndup(param->src + @$.first_offset, len);
         $$ = stmt_ddl_new($1, ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -716,8 +710,8 @@ exp_sql:
         char *sql;
         yyerrok;
         error_pop();
-        len = @$.last.offset - @$.first.offset;
-        sql = xstrndup(param->src + @$.first.offset, len);
+        len = @$.last_offset - @$.first_offset;
+        sql = xstrndup(param->src + @$.first_offset, len);
         $$ = exp_sql_new($1, sql, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -987,8 +981,7 @@ identifier:
 static void
 yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
 {
-    ERROR(ERROR_SYNTAX, FILENAME(param->path), lloc->first.line, msg,
-          make_trace(param->path, lloc));
+    TRACE(ERROR_SYNTAX, lloc, FILENAME(param->path), lloc->first_line, msg);
 }
 
 /* end of grammar.y */

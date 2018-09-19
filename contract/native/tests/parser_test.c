@@ -91,7 +91,7 @@ read_test(char *path, flag_t flag)
 {
     int line = 1;
     int offset = 0;
-    char title[128];
+    char title[128] = { "unknown\0" };
     ec_t ec = NO_ERROR;
     strbuf_t sb;
     char buf[1024];

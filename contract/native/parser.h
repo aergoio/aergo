@@ -8,7 +8,6 @@
 
 #include "common.h"
 
-#include "location.h"
 #include "strbuf.h"
 #include "list.h"
 
@@ -27,8 +26,8 @@ typedef struct yyparam_s {
     int len;
     int pos;
 
-    yylloc_t lloc;
-    int token;
+    int adj_token;
+    yylloc_t adj_lloc;
 
     strbuf_t buf;
 } yyparam_t;

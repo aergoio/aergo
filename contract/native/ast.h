@@ -9,7 +9,6 @@
 #include "common.h"
 
 #include "list.h"
-#include "location.h"
 
 #define AST_NODE_DECL                                                          \
     list_link_t link;                                                          \

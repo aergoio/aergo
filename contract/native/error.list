@@ -14,10 +14,10 @@ error(ERROR_FILE_IO,                "%s: %s")
 
 error(ERROR_CROSS_IMPORT,           "%s:%d: cross reference with import '%s'")
 
-error(ERROR_UNTERMINATED_COMMENT,   "%s:%d: unterminated comment\n%s")
-error(ERROR_UNTERMINATED_STRING,    "%s:%d: unterminated string\n%s")
-error(ERROR_UNTERMINATED_SQL,       "%s:%d: unterminated SQL\n%s")
-error(ERROR_UNKNOWN_CHAR,           "%s:%d: unknown character\n%s")
-error(ERROR_SYNTAX,                 "%s:%d: %s\n%s")
+error(ERROR_UNTERMINATED_COMMENT,   "%s:%d: unterminated comment")
+error(ERROR_UNTERMINATED_STRING,    "%s:%d: unterminated string")
+error(ERROR_UNTERMINATED_SQL,       "%s:%d: unterminated SQL")
+error(ERROR_UNKNOWN_CHAR,           "%s:%d: unknown character")
+error(ERROR_SYNTAX,                 "%s:%d: %s")
 
 /* vim:set filetype=c: */
