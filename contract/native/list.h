@@ -33,6 +33,7 @@
 #define list_add_var(L, E)      list_add((L), ast_var_t, (E))
 #define list_add_exp(L, E)      list_add((L), ast_exp_t, (E))
 #define list_add_stmt(L, E)     list_add((L), ast_stmt_t, (E))
+#define list_add_struct(L, E)   list_add((L), ast_struct_t, (E))
 
 #define list_add(L, T, E)                                                      \
     do {                                                                       \
@@ -81,6 +82,22 @@
     do {                                                                       \
         list_clear(L, T);                                                      \
         xfree(L);                                                              \
+    } while (0)
+
+#define list_join(O, T, I)                                                     \
+    do {                                                                       \
+        if ((O)->head == NULL) {                                               \
+            ASSERT((O)->tail == NULL);                                         \
+            (O)->head = (I)->head;                                             \
+            (O)->tail = (I)->tail;                                             \
+        }                                                                      \
+        else {                                                                 \
+            ((T *)((O)->tail))->link.next = (I)->head;                         \
+            ((T *)((I)->head))->link.prev = (O)->tail;                         \
+            (O)->tail = (I)->tail;                                             \
+        }                                                                      \
+        (I)->head = NULL;                                                      \
+        (I)->tail = NULL;                                                      \
     } while (0)
 
 typedef struct list_link_s {

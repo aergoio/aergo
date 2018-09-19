@@ -169,7 +169,6 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %type <list>    init_list
 %type <struc>   struct
 %type <list>    field_list
-%type <var>     field_decl
 %type <fn>      constructor
 %type <list>    param_list_opt
 %type <list>    param_list
@@ -381,23 +380,14 @@ struct:
 ;
 
 field_list:
-    field_decl
-    {
-        $$ = list_new();
-        list_add_var($$, $1);
-    }
-|   field_list field_decl
+    variable
     {
         $$ = $1;
-        list_add_var($$, $2);
     }
-;
-
-field_decl:
-    var_type declarator ';'
+|   field_list variable
     {
-        $$ = ast_var_new($2, NULL, &@$);
-        $$->type_exp = $1;
+        $$ = $1;
+        list_join($$, ast_var_t, $2);
     }
 ;
 
@@ -481,7 +471,7 @@ statement:
 stmt_exp:
     ';'
     {
-        $$ = NULL;
+        $$ = ast_stmt_new(STMT_NULL, &@$);
     }
 |   expression ';'
     {
@@ -583,14 +573,12 @@ stmt_list:
     statement
     {
         $$ = list_new();
-        if ($1 != NULL)
-            list_add_stmt($$, $1);
+        list_add_stmt($$, $1);
     }
 |   stmt_list statement
     {
         $$ = $1;
-        if ($2 != NULL)
-            list_add_stmt($$, $2);
+        list_add_stmt($$, $2);
     }
 ;
 
@@ -649,23 +637,28 @@ stmt_blk:
 blk_decl:
     variable
     {
-        $$ = NULL;
+        $$ = ast_blk_new(&@$);
+        list_join(&$$->var_l, ast_var_t, $1);
     }
 |   struct
     {
-        $$ = NULL;
+        $$ = ast_blk_new(&@$);
+        list_add_struct(&$$->struct_l, $1);
     }
 |   statement
     {
         $$ = ast_blk_new(&@$);
+        list_add_stmt(&$$->stmt_l, $1);
     }
 |   blk_decl variable
     {
         $$ = $1;
+        list_join(&$$->var_l, ast_var_t, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
+        list_add_struct(&$$->struct_l, $2);
     }
 |   blk_decl statement
     {

@@ -26,7 +26,8 @@ typedef struct ast_stmt_s ast_stmt_t;
 #endif /* ! _AST_STMT_T */
 
 typedef enum stmt_type_e {
-    STMT_EXP        = 0,
+    STMT_NULL           = 0,
+    STMT_EXP,
     STMT_IF,
     STMT_FOR,
     STMT_SWITCH,
