@@ -1,3 +1,6 @@
 [submodule "libtool/src/luajit"]
 	path = libtool/src/luajit
 	url = https://github.com/aergoio/luajit.git
+[submodule "aergo-protobuf"]
+	path = aergo-protobuf
+	url = https://github.com/aergoio/aergo-protobuf.git
