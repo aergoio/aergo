@@ -85,7 +85,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 			if !ok || nil == foundBlock {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			foundBlock.Body = nil
 			headers = append(headers, foundBlock)
 			idx++
@@ -105,7 +105,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 			if !ok || nil == foundBlock {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			foundBlock.Body = nil
 			headers = append(headers, foundBlock)
 			idx++
