@@ -36,7 +36,7 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
     strbuf_init(&param->buf);
 }
 
-int
+void
 parse(char *path, flag_t flag, strbuf_t *src)
 {
     yyparam_t param;
@@ -55,11 +55,6 @@ parse(char *path, flag_t flag, strbuf_t *src)
 
     yyparse(&param, scanner);
     yylex_destroy(scanner);
-
-    if (!flag_enabled(flag, FLAG_SILENT))
-        error_dump();
-
-    return error_first();
 }
 
 /* end of parser.c */

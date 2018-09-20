@@ -8,96 +8,98 @@
 
 #include "common.h"
 
-#define list_empty(L)           ((L)->head == NULL)
+#define list_empty(list)                ((list)->head == NULL)
 
-#define list_foreach(E, T, L)                                                  \
-    for ((E) = (T *)((L)->head); (E) != NULL; (E) = (T *)((E)->link.next))
+#define list_foreach(entry, type, list)                                        \
+    for ((entry) = (type *)((list)->head); (entry) != NULL;                    \
+         (entry) = (type *)((entry)->link.next))
 
-#define list_foreach_safe(E, N, T, L)                                          \
-    for ((E) = (T *)((L)->head), (N) = (T *)((E)->link.next); (E) != NULL;     \
-         (E) = (N), (N) = (T *)((N)->link.next))
+#define list_foreach_safe(entry, N, type, list)                                \
+    for ((entry) = (type *)((list)->head), (N) = (type *)((entry)->link.next); \
+         (entry) != NULL; (entry) = (N), (N) = (type *)((N)->link.next))
 
-#define list_foreach_reverse(E, T, L)                                          \
-    for ((E) = (T *)((L)->tail); (E) != NULL; (E) = (T *)((E)->link.prev))
+#define list_foreach_reverse(entry, type, list)                                \
+    for ((entry) = (type *)((list)->tail); (entry) != NULL;                    \
+         (entry) = (type *)((entry)->link.prev))
 
-#define list_foreach_reverse_safe(E, N, T, L)                                  \
-    for ((E) = (T *)((L)->tail), (N) = (T *)((E)->link.prev); (E) != NULL;     \
-         (E) = (N), (N) = (T *)((N)->link.prev))
+#define list_foreach_reverse_safe(entry, N, type, list)                        \
+    for ((entry) = (type *)((list)->tail), (N) = (type *)((entry)->link.prev); \
+         (entry) != NULL; (entry) = (N), (N) = (type *)((N)->link.prev))
 
-#define list_link_init(L)                                                      \
+#define list_link_init(list)                                                   \
     do {                                                                       \
-        (L)->next = NULL;                                                      \
-        (L)->prev = NULL;                                                      \
+        (list)->next = NULL;                                                   \
+        (list)->prev = NULL;                                                   \
     } while (0)
 
-#define list_add_var(L, E)      list_add((L), ast_var_t, (E))
-#define list_add_exp(L, E)      list_add((L), ast_exp_t, (E))
-#define list_add_stmt(L, E)     list_add((L), ast_stmt_t, (E))
-#define list_add_struct(L, E)   list_add((L), ast_struct_t, (E))
+#define list_add_var(list, entry)       list_add((list), ast_var_t, (entry))
+#define list_add_exp(list, entry)       list_add((list), ast_exp_t, (entry))
+#define list_add_stmt(list, entry)      list_add((list), ast_stmt_t, (entry))
+#define list_add_struct(list, entry)    list_add((list), ast_struct_t, (entry))
 
-#define list_add(L, T, E)                                                      \
+#define list_add(list, type, entry)                                            \
     do {                                                                       \
-        T *p = (T *)((L)->head);                                               \
+        type *p = (type *)((list)->head);                                      \
         if (p == NULL) {                                                       \
-            (L)->head = (E);                                                   \
-            (L)->tail = (E);                                                   \
+            (list)->head = (entry);                                            \
+            (list)->tail = (entry);                                            \
             break;                                                             \
         }                                                                      \
         while (p->link.next != NULL) {                                         \
-            p = (T *)(p->link.next);                                           \
+            p = (type *)(p->link.next);                                        \
         }                                                                      \
-        (E)->link.prev = p;                                                    \
-        p->link.next = (E);                                                    \
-        (L)->tail = (E);                                                       \
+        (entry)->link.prev = p;                                                \
+        p->link.next = (entry);                                                \
+        (list)->tail = (entry);                                                \
     } while (0)
 
-#define list_del(L, T, E)                                                      \
+#define list_del(list, type, entry)                                            \
     do {                                                                       \
-        T *p = (T *)((L)->head);                                               \
-        if (p == (E)) {                                                        \
-            (L)->head = NULL;                                                  \
-            (L)->tail = NULL;                                                  \
+        type *p = (type *)((list)->head);                                      \
+        if (p == (entry)) {                                                    \
+            (list)->head = NULL;                                               \
+            (list)->tail = NULL;                                               \
             break;                                                             \
         }                                                                      \
-        while (p->link.next != (E)) {                                          \
-            p = (T *)(p->link.next);                                           \
+        while (p->link.next != (entry)) {                                      \
+            p = (type *)(p->link.next);                                        \
         }                                                                      \
-        if ((L)->tail == (E))                                                  \
-            (L)->tail = p;                                                     \
-        p->link.next = (E)->link.next;                                         \
-        ((T *)((E)->link.next))->prev = p;                                     \
+        if ((list)->tail == (entry))                                           \
+            (list)->tail = p;                                                  \
+        p->link.next = (entry)->link.next;                                     \
+        ((type *)((entry)->link.next))->prev = p;                              \
     } while (0)
 
-#define list_clear(L, T)                                                       \
+#define list_clear(list, type)                                                 \
     do {                                                                       \
-        T *entry, *next;                                                       \
-        list_foreach_safe(entry, next, T, L) {                                 \
+        type *entry, *next;                                                    \
+        list_foreach_safe(entry, next, type, list) {                           \
             xfree(entry);                                                      \
         }                                                                      \
-        (L)->head = NULL;                                                      \
-        (L)->tail = NULL;                                                      \
+        (list)->head = NULL;                                                   \
+        (list)->tail = NULL;                                                   \
     } while (0)
 
-#define list_destroy(L, T)                                                     \
+#define list_destroy(list, type)                                               \
     do {                                                                       \
-        list_clear(L, T);                                                      \
-        xfree(L);                                                              \
+        list_clear(list, type);                                                \
+        xfree(list);                                                           \
     } while (0)
 
-#define list_join(O, T, I)                                                     \
+#define list_join(dest, type, src)                                             \
     do {                                                                       \
-        if ((O)->head == NULL) {                                               \
-            ASSERT((O)->tail == NULL);                                         \
-            (O)->head = (I)->head;                                             \
-            (O)->tail = (I)->tail;                                             \
+        if ((dest)->head == NULL) {                                            \
+            ASSERT((dest)->tail == NULL);                                      \
+            (dest)->head = (src)->head;                                        \
+            (dest)->tail = (src)->tail;                                        \
         }                                                                      \
         else {                                                                 \
-            ((T *)((O)->tail))->link.next = (I)->head;                         \
-            ((T *)((I)->head))->link.prev = (O)->tail;                         \
-            (O)->tail = (I)->tail;                                             \
+            ((type *)((dest)->tail))->link.next = (src)->head;                 \
+            ((type *)((src)->head))->link.prev = (dest)->tail;                 \
+            (dest)->tail = (src)->tail;                                        \
         }                                                                      \
-        (I)->head = NULL;                                                      \
-        (I)->tail = NULL;                                                      \
+        (src)->head = NULL;                                                    \
+        (src)->tail = NULL;                                                    \
     } while (0)
 
 typedef struct list_link_s {

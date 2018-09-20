@@ -36,9 +36,22 @@ char *errstrs_[ERROR_MAX] = {
 stack_t errstack_ = { 0, NULL };
 
 char *
-error_text(ec_t ec)
+error_to_string(ec_t ec)
 {
+    ASSERT(ec >= 0 && ec < ERROR_MAX);
     return errstrs_[ec];
+}
+
+ec_t 
+error_to_code(char *str)
+{
+    int i;
+
+    for (i = 0; i < ERROR_MAX; i++) {
+        if (strcmp(errstrs_[i], str) == 0)
+            return i;
+    }
+    ASSERT(!"invalid errcode");
 }
 
 int

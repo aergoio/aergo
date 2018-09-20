@@ -14,11 +14,6 @@
     list_link_t link;                                                          \
     errpos_t pos
 
-#ifndef _AST_BLK_T
-#define _AST_BLK_T
-typedef struct ast_blk_s ast_blk_t;
-#endif /* ! _AST_BLK_T */
-
 typedef struct ast_cont_s {
     AST_NODE_DECL;
 
@@ -31,6 +26,6 @@ typedef struct ast_cont_s {
 
 typedef struct ast_s {
     list_t cont_l;
-} ast_t; 
+} ast_t;
 
 #endif /* ! _AST_H */

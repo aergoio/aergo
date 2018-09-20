@@ -21,7 +21,7 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_var_s ast_var_t;
 #endif /* ! _AST_VAR_T */
 
-typedef enum expn_e {
+typedef enum exp_kind_e {
     EXP_ID          = 0,
     EXP_LIT,
     EXP_TYPE,
@@ -33,9 +33,9 @@ typedef enum expn_e {
     EXP_COND,
     EXP_TUPLE,
     EXP_MAX
-} expn_t;
+} exp_kind_t;
 
-typedef enum op_e {
+typedef enum op_kind_e {
     OP_ASSIGN       = 0,
     OP_ADD,
     OP_SUB,
@@ -59,7 +59,7 @@ typedef enum op_e {
     OP_DEC,
     OP_NOT,
     OP_MAX
-} op_t;
+} op_kind_t;
 
 typedef enum sql_kind_e {
     SQL_QUERY       = 0,
@@ -109,15 +109,15 @@ typedef struct exp_call_s {
     list_t *param_l;
 } exp_call_t;
 
-// id.memb
+// id.fld
 typedef struct exp_access_s {
     ast_exp_t *id_exp;
-    ast_exp_t *memb_exp;
+    ast_exp_t *fld_exp;
 } exp_access_t;
 
-// l op r
+// l kind r
 typedef struct exp_op_s {
-    op_t op;
+    op_kind_t kind;
     ast_exp_t *l_exp;
     ast_exp_t *r_exp;
 } exp_op_t;
@@ -135,6 +135,7 @@ typedef struct exp_sql_s {
     char *sql;
 } exp_sql_t;
 
+// (exp, exp, exp, ...)
 typedef struct exp_tuple_s {
     list_t *exp_l;
 } exp_tuple_t;
@@ -142,7 +143,7 @@ typedef struct exp_tuple_s {
 struct ast_exp_s {
     AST_NODE_DECL;
 
-    expn_t type;
+    exp_kind_t kind;
     ast_meta_t meta;
 
     union {
@@ -159,18 +160,20 @@ struct ast_exp_s {
     };
 };
 
+ast_exp_t *ast_exp_new(exp_kind_t kind, errpos_t *pos);
+
 ast_exp_t *exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos);
 ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
                         ast_exp_t *v_exp, errpos_t *pos);
 ast_exp_t *exp_id_ref_new(char *name, errpos_t *pos);
-ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, 
+ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp,
                          errpos_t *pos);
 ast_exp_t *exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos);
-ast_exp_t *exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, 
+ast_exp_t *exp_access_new(ast_exp_t *id_exp, ast_exp_t *fld_exp,
                           errpos_t *pos);
-ast_exp_t *exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, 
+ast_exp_t *exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                       errpos_t *pos);
-ast_exp_t *exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, 
+ast_exp_t *exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp,
                         ast_exp_t *f_exp, errpos_t *pos);
 ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, errpos_t *pos);
 ast_exp_t *exp_tuple_new(ast_exp_t *exp, errpos_t *pos);

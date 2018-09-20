@@ -136,7 +136,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
     type_t type;
     scope_t scope;
-    op_t op;
+    op_kind_t op;
     sql_kind_t sql;
     ddl_kind_t ddl;
     modifier_t mod;
@@ -167,6 +167,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %type <list>    param_list_opt
 %type <list>    param_list
 %type <var>     param_decl
+%type <blk>     block
+%type <blk>     blk_decl
 %type <fn>      function
 %type <mod>     modifier_opt
 %type <list>    return_opt
@@ -175,7 +177,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %type <stmt>    stmt_exp
 %type <stmt>    stmt_if
 %type <stmt>    stmt_loop
-%type <exp>     loop_exp
+%type <exp>     exp_loop
 %type <stmt>    stmt_switch
 %type <list>    label_list
 %type <stmt>    label
@@ -183,7 +185,6 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %type <stmt>    stmt_jump
 %type <stmt>    stmt_ddl
 %type <stmt>    stmt_blk
-%type <blk>     blk_decl
 %type <ddl>     ddl_prefix
 %type <exp>     expression
 %type <exp>     exp_assign
@@ -316,11 +317,11 @@ var_decl_list:
 var_decl:
     declarator
     {
-        $$ = ast_var_new($1, NULL, &@$);
+        $$ = ast_var_new(NULL, $1, NULL, &@$);
     }
 |   declarator '=' initializer
     {
-        $$ = ast_var_new($1, $3, &@$);
+        $$ = ast_var_new(NULL, $1, $3, &@$);
     }
 ;
 
@@ -386,7 +387,7 @@ field_list:
 ;
 
 constructor:
-    identifier '(' param_list_opt ')' stmt_blk
+    identifier '(' param_list_opt ')' block
     {
         $$ = ast_func_new($1, MOD_GLOBAL, $3, NULL, $5, &@$);
     }
@@ -413,13 +414,50 @@ param_list:
 param_decl:
     var_type declarator
     {
-        $$ = ast_var_new($2, NULL, &@$);
-        $$->type_exp = $1;
+        $$ = ast_var_new($1, $2, NULL, &@$);
+    }
+;
+
+block:
+    '{' '}'             { $$ = NULL; }
+|   '{' blk_decl '}'    { $$ = $2; }
+;
+
+blk_decl:
+    variable
+    {
+        $$ = ast_blk_new(&@$);
+        list_join(&$$->var_l, ast_var_t, $1);
+    }
+|   struct
+    {
+        $$ = ast_blk_new(&@$);
+        list_add_struct(&$$->struct_l, $1);
+    }
+|   statement
+    {
+        $$ = ast_blk_new(&@$);
+        list_add_stmt(&$$->stmt_l, $1);
+    }
+|   blk_decl variable
+    {
+        $$ = $1;
+        list_join(&$$->var_l, ast_var_t, $2);
+    }
+|   blk_decl struct
+    {
+        $$ = $1;
+        list_add_struct(&$$->struct_l, $2);
+    }
+|   blk_decl statement
+    {
+        $$ = $1;
+        list_add_stmt(&$$->stmt_l, $2);
     }
 ;
 
 function:
-    modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt stmt_blk
+    modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
         $$ = ast_func_new($3, $1, $5, $7, $8, &@$);
     }
@@ -435,8 +473,8 @@ modifier_opt:
 
 return_opt:
     /* empty */                 { $$ = NULL; }
-|   return_list                 { $$ = $1; }
 |   '(' return_list ')'         { $$ = $2; }
+|   return_list 
 ;
 
 return_list:
@@ -474,16 +512,16 @@ stmt_exp:
 ;
 
 stmt_if:
-    K_IF '(' expression ')' stmt_blk
+    K_IF '(' expression ')' block
     {
         $$ = stmt_if_new($3, $5, &@$);
     }
-|   stmt_if K_ELSE K_IF '(' expression ')' stmt_blk
+|   stmt_if K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
         list_add_stmt(&$$->u_if.elsif_l, stmt_if_new($5, $7, &@2));
     }
-|   stmt_if K_ELSE stmt_blk
+|   stmt_if K_ELSE block
     {
         $$ = $1;
         $$->u_if.else_blk = $3;
@@ -491,35 +529,43 @@ stmt_if:
 ;
 
 stmt_loop:
-    K_FOR '(' loop_exp loop_exp ')' stmt_blk
+    K_FOR block
+    {
+        $$ = stmt_for_new(NULL, NULL, NULL, $2, &@$);
+    }
+|   K_FOR '(' exp_or ')' block
+    {
+        $$ = stmt_for_new($3, NULL, NULL, $5, &@$);
+    }
+|   K_FOR '(' exp_loop exp_loop ')' block
     {
         $$ = stmt_for_new($3, $4, NULL, $6, &@$);
     }
-|   K_FOR '(' loop_exp loop_exp expression ')' stmt_blk
+|   K_FOR '(' exp_loop exp_loop expression ')' block
     {
         $$ = stmt_for_new($3, $4, $5, $7, &@$);
     }
-|   K_FOR '(' variable loop_exp ')' stmt_blk
+|   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
         $$->u_for.init_l = $3;
     }
-|   K_FOR '(' variable loop_exp expression ')' stmt_blk
+|   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
         $$->u_for.init_l = $3;
     }
-|   K_FOR stmt_blk
+|   K_FOR '(' exp_loop K_IN exp_post ')' block
     {
-        $$ = stmt_for_new(NULL, NULL, NULL, $2, &@$);
+        $$ = NULL;
     }
-|   K_FOREACH '(' iter_decl ',' iter_decl K_IN exp_post ')' stmt_blk
+|   K_FOREACH '(' iter_decl ',' iter_decl K_IN exp_post ')' block
     {
         $$ = NULL;
     }
 ;
 
-loop_exp:
+exp_loop:
     ';'                     { $$ = NULL; }
 |   expression ';'          { $$ = $1; }
 ;
@@ -618,46 +664,9 @@ ddl_prefix:
 ;
 
 stmt_blk:
-    '{' '}'
+    block
     {
-        $$ = NULL;
-    }
-|   '{' blk_decl '}'
-    {
-        $$ = stmt_blk_new($2, &@$);
-    }
-;
-
-blk_decl:
-    variable
-    {
-        $$ = ast_blk_new(&@$);
-        list_join(&$$->var_l, ast_var_t, $1);
-    }
-|   struct
-    {
-        $$ = ast_blk_new(&@$);
-        list_add_struct(&$$->struct_l, $1);
-    }
-|   statement
-    {
-        $$ = ast_blk_new(&@$);
-        list_add_stmt(&$$->stmt_l, $1);
-    }
-|   blk_decl variable
-    {
-        $$ = $1;
-        list_join(&$$->var_l, ast_var_t, $2);
-    }
-|   blk_decl struct
-    {
-        $$ = $1;
-        list_add_struct(&$$->struct_l, $2);
-    }
-|   blk_decl statement
-    {
-        $$ = $1;
-        list_add_stmt(&$$->stmt_l, $2);
+        $$ = stmt_blk_new($1, &@$);
     }
 ;
 
@@ -966,7 +975,6 @@ exp_list:
 
 non_reserved_token:
     K_CONTRACT          { $$ = xstrdup("contract"); }
-|   K_IN                { $$ = xstrdup("in"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
 ;

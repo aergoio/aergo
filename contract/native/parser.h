@@ -36,6 +36,6 @@ typedef struct yyparam_s {
 
 #include "grammar.tab.h"
 
-int parse(char *path, flag_t flag, strbuf_t *src);
+void parse(char *path, flag_t flag, strbuf_t *src);
 
 #endif /* ! _PARSER_H */

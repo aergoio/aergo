@@ -8,11 +8,11 @@
 #include "ast_stmt.h"
 
 ast_stmt_t *
-ast_stmt_new(stmt_type_t type, errpos_t *pos)
+ast_stmt_new(stmt_kind_t kind, errpos_t *pos)
 {
     ast_stmt_t *stmt = xmalloc(sizeof(ast_stmt_t));
 
-    stmt->type = type;
+    stmt->kind = kind;
     stmt->pos = *pos;
     list_link_init(&stmt->link);
 
@@ -30,7 +30,7 @@ stmt_exp_new(ast_exp_t *exp, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, errpos_t *pos)
+stmt_if_new(ast_exp_t *cmp_exp, ast_blk_t *if_blk, errpos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_IF, pos);
 
@@ -44,7 +44,7 @@ stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, errpos_t *pos)
 
 ast_stmt_t *
 stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp, ast_exp_t *inc_exp, 
-             ast_stmt_t *blk, errpos_t *pos)
+             ast_blk_t *blk, errpos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_FOR, pos);
 

@@ -12,7 +12,7 @@
 
 #include "compile.h"
 
-int
+void
 compile(char *path, flag_t flag)
 {
     strbuf_t src;
@@ -20,8 +20,9 @@ compile(char *path, flag_t flag)
     strbuf_init(&src);
 
     preprocess(path, &src);
+    parse(path, flag, &src);
 
-    return parse(path, flag, &src);
+    error_dump();
 }
 
 /* end of compile.c */

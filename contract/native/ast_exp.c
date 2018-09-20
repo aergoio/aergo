@@ -7,14 +7,15 @@
 
 #include "ast_exp.h"
 
-static ast_exp_t *
-ast_exp_new(expn_t type, errpos_t *pos)
+ast_exp_t *
+ast_exp_new(exp_kind_t kind, errpos_t *pos)
 {
     ast_exp_t *exp = xmalloc(sizeof(ast_exp_t));
 
     list_link_init(&exp->link);
     exp->pos = *pos;
-    exp->type = type;
+
+    exp->kind = kind;
     ast_meta_init(&exp->meta);
 
     return exp;
@@ -32,7 +33,7 @@ exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp, 
+exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp,
              errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TYPE, pos);
@@ -79,22 +80,22 @@ exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_access_new(ast_exp_t *id_exp, ast_exp_t *memb_exp, errpos_t *pos)
+exp_access_new(ast_exp_t *id_exp, ast_exp_t *fld_exp, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ACCESS, pos);
 
     exp->u_acc.id_exp = id_exp;
-    exp->u_acc.memb_exp = memb_exp;
+    exp->u_acc.fld_exp = fld_exp;
 
     return exp;
 }
 
 ast_exp_t *
-exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, errpos_t *pos)
+exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_OP, pos);
 
-    exp->u_op.op = op;
+    exp->u_op.kind = kind;
     exp->u_op.l_exp = l_exp;
     exp->u_op.r_exp = r_exp;
 
@@ -102,7 +103,7 @@ exp_op_new(op_t op, ast_exp_t *l_exp, ast_exp_t *r_exp, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, ast_exp_t *f_exp, 
+exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, ast_exp_t *f_exp,
              errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_COND, pos);

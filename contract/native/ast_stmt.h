@@ -25,7 +25,7 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_stmt_s ast_stmt_t;
 #endif /* ! _AST_STMT_T */
 
-typedef enum stmt_type_e {
+typedef enum stmt_kind_e {
     STMT_NULL           = 0,
     STMT_EXP,
     STMT_IF,
@@ -38,7 +38,7 @@ typedef enum stmt_type_e {
     STMT_DDL,
     STMT_BLK,
     STMT_MAX
-} stmt_type_t;
+} stmt_kind_t;
 
 typedef struct stmt_exp_s {
     ast_exp_t *exp;
@@ -46,8 +46,8 @@ typedef struct stmt_exp_s {
 
 typedef struct stmt_if_s {
     ast_exp_t *cmp_exp;
-    ast_stmt_t *if_blk;
-    ast_stmt_t *else_blk;
+    ast_blk_t *if_blk;
+    ast_blk_t *else_blk;
     list_t elsif_l;
 } stmt_if_t;
 
@@ -56,7 +56,7 @@ typedef struct stmt_for_s {
     ast_exp_t *init_exp;
     ast_exp_t *check_exp;
     ast_exp_t *inc_exp;
-    ast_stmt_t *blk;
+    ast_blk_t *blk;
 } stmt_for_t;
 
 typedef struct stmt_switch_s {
@@ -93,7 +93,7 @@ typedef struct stmt_blk_s {
 struct ast_stmt_s {
     AST_NODE_DECL;
 
-    stmt_type_t type;
+    stmt_kind_t kind;
 
     union {
         stmt_exp_t u_exp;
@@ -107,11 +107,12 @@ struct ast_stmt_s {
     };
 };
 
-ast_stmt_t *ast_stmt_new(stmt_type_t type, errpos_t *pos);
+ast_stmt_t *ast_stmt_new(stmt_kind_t kind, errpos_t *pos);
+
 ast_stmt_t *stmt_exp_new(ast_exp_t *exp, errpos_t *pos);
-ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_stmt_t *if_blk, errpos_t *pos);
+ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_blk_t *if_blk, errpos_t *pos);
 ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp,
-                         ast_exp_t *inc_exp, ast_stmt_t *blk, errpos_t *pos);
+                         ast_exp_t *inc_exp, ast_blk_t *blk, errpos_t *pos);
 ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, errpos_t *pos);
 ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, errpos_t *pos);
 ast_stmt_t *stmt_return_new(ast_exp_t *exp, errpos_t *pos);

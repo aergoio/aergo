@@ -22,4 +22,6 @@ void close_file(FILE *fp);
 void read_file(char *path, strbuf_t *sb);
 void write_file(char *path, strbuf_t *sb);
 
+char *trim_str(char *str);
+
 #endif /* ! _UTIL_H */

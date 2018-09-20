@@ -13,7 +13,7 @@ FILE *
 open_file(char *path, char *mode)
 {
     FILE *fp;
-   
+
     fp = fopen(path, mode);
     if (fp == NULL)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
@@ -60,6 +60,32 @@ write_file(char *path, strbuf_t *sb)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
 
     fclose(fp);
+}
+
+char *
+trim_str(char *str)
+{
+    int i;
+    int str_len = strlen(str);
+    char *ptr = str;
+
+    for (i = 0; i < str_len; i++) {
+        if (!isspace(str[i]))
+            break;
+
+        ptr++;
+    }
+
+    str_len = strlen(ptr);
+
+    for (i = str_len - 1; i >= 0; i--) {
+        if (!isspace(ptr[i]))
+            break;
+
+        ptr[i] = '\0';
+    }
+
+    return ptr;
 }
 
 /* end of util.c */

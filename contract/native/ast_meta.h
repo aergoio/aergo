@@ -65,10 +65,7 @@ struct ast_meta_s {
 static inline void
 ast_meta_init(ast_meta_t *meta)
 {
-    meta->type = TYPE_NONE;
-    meta->scope = SCOPE_GLOBAL;
-    meta->is_const = false;
-    meta->arr_size = 0;
+    memset(meta, 0x00, sizeof(ast_meta_t));
 }
 
 #endif /* ! _AST_META_H */

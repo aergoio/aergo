@@ -1,10 +1,9 @@
 /**
- * @file    parser_test.c
+ * @file    compile_test.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
 #include "common.h"
-#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -21,44 +20,6 @@ extern void mark_file(char *path, int line, int offset, strbuf_t *out);
 char *tc = NULL;
 bool is_failed = false;
 
-static char *
-trim_str(char *str)
-{
-    int i;
-    int str_len = strlen(str);
-    char *ptr = str;
-
-    for (i = 0; i < str_len; i++) {
-        if (!isspace(str[i]))
-            break;
-
-        ptr++;
-    }
-
-    str_len = strlen(ptr);
-
-    for (i = str_len - 1; i >= 0; i--) {
-        if (!isspace(ptr[i]))
-            break;
-
-        ptr[i] = '\0';
-    }
-
-    return ptr;
-}
-
-static int
-get_errcode(char *str)
-{
-    int i;
-
-    for (i = 0; i < ERROR_MAX; i++) {
-        if (strcmp(error_text(i), str) == 0)
-            return i;
-    }
-    ASSERT(!"invalid errcode");
-}
-
 static void
 run_test(char *title, ec_t ex, char *path, flag_t flag, strbuf_t *sb)
 {
@@ -70,7 +31,9 @@ run_test(char *title, ec_t ex, char *path, flag_t flag, strbuf_t *sb)
     printf("  + %-67s ", title);
     fflush(stdout);
 
-    ac = parse(path, flag, sb);
+    parse(path, flag, sb);
+
+    ac = error_first();
     if (ex == ac) {
         printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
     }
@@ -81,7 +44,7 @@ run_test(char *title, ec_t ex, char *path, flag_t flag, strbuf_t *sb)
             error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
-               error_text(ex), error_text(ac));
+               error_to_string(ex), error_to_string(ac));
 
         is_failed = true;
     }
@@ -94,7 +57,8 @@ read_test(char *path, flag_t flag)
 {
     int line = 1;
     int offset = 0;
-    char title[128] = { "unknown\0" };
+    char title[PATH_MAX_LEN + 1];
+    char *file = FILENAME(path);
     ec_t ec = NO_ERROR;
     strbuf_t sb;
     char buf[1024];
@@ -103,8 +67,9 @@ read_test(char *path, flag_t flag)
     fp = open_file(path, "r");
 
     strbuf_init(&sb);
+    strcpy(title, file);
 
-    printf("Checking %s...\n", FILENAME(path));
+    printf("Checking %s...\n", file);
 
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
@@ -120,7 +85,7 @@ read_test(char *path, flag_t flag)
         }
         else if (strncasecmp(buf, TAG_ERROR, strlen(TAG_ERROR)) == 0) {
             offset += strlen(buf);
-            ec = get_errcode(trim_str(buf + strlen(TAG_ERROR)));
+            ec = error_to_code(trim_str(buf + strlen(TAG_ERROR)));
         }
         else {
             if (strbuf_empty(&sb))
@@ -146,9 +111,7 @@ get_opt(int argc, char **argv, flag_t *flag)
         if (*argv[i] != '-')
             continue;
 
-        if (strcmp(argv[i], "--silent") == 0)
-            flag_set(*flag, FLAG_SILENT);
-        else if (strcmp(argv[i], "--lex-dump") == 0)
+        if (strcmp(argv[i], "--lex-dump") == 0)
             flag_set(*flag, FLAG_LEX_DUMP);
         else if (strcmp(argv[i], "--yacc-dump") == 0)
             flag_set(*flag, FLAG_YACC_DUMP);
@@ -188,4 +151,4 @@ main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-/* end of parser_test.c */
+/* end of compile_test.c */

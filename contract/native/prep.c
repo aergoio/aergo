@@ -77,23 +77,24 @@ scan_peek(scan_t *scan, int cnt)
     return scan->buf[scan->buf_pos + cnt];
 }
 
-static void
+static bool
 add_file(scan_t *scan, char *path, stack_t *imp)
 {
     stack_node_t *node = stack_top(imp);
 
-    if (node == NULL) {
-        stack_push(imp, xstrdup(path));
-        return;
-    }
-
-    while (true) {
-        if (strcmp(node->item, path) == 0)
-            TRACE(ERROR_CROSS_IMPORT, &scan->pos, path);
+    if (node != NULL) {
+        while (true) {
+            if (strcmp(node->item, path) == 0) {
+                TRACE(ERROR_CROSS_IMPORT, &scan->pos, path);
+                return false;
+            }
+        }
     }
 
     stack_push(imp, xstrdup(path));
     scan->pos.path = path;
+
+    return true;
 }
 
 static void
@@ -146,7 +147,7 @@ put_literal(scan_t *scan, char c)
     }
 }
 
-/* need to keep just "void" for tests */
+/* need to keep "void" not "static void" for tests */
 void
 mark_file(char *path, int line, int offset, strbuf_t *out)
 {
@@ -197,7 +198,8 @@ substitue(char *path, stack_t *imp, strbuf_t *out)
 
     scan_init(&scan, path, out);
 
-    add_file(&scan, path, imp);
+    if (!add_file(&scan, path, imp))
+        return;
 
     while ((c = scan_next(&scan)) != EOF) {
         if (c == '/') {

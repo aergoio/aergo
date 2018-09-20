@@ -99,7 +99,8 @@ typedef struct error_s {
     char desc[ERROR_MAX_DESC_LEN];
 } error_t;
 
-char *error_text(ec_t ec);
+char *error_to_string(ec_t ec);
+ec_t error_to_code(char *str);
 
 int error_count(void);
 

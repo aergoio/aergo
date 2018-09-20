@@ -9,7 +9,7 @@
 
 ast_func_t *
 ast_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l, 
-             ast_stmt_t *blk, errpos_t *pos)
+             ast_blk_t *blk, errpos_t *pos)
 {
     ast_func_t *func = xmalloc(sizeof(ast_func_t));
 
