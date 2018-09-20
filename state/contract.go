@@ -20,9 +20,9 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, types.TrieHasher, *sdb.store),
+		storage: trie.NewTrie(nil, types.TrieHasher, sdb.store),
 		buffer:  newStateBuffer(),
-		store:   sdb.store,
+		store:   &sdb.store,
 	}
 	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
 		res.storage.Root = st.StorageRoot
@@ -54,7 +54,7 @@ func (sdb *ChainStateDB) CommitContractState(st *ContractState) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return st.buffer.reset()
 }
 
 type ContractState struct {
@@ -106,16 +106,14 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	entry := newBufferEntry(types.GetHashID(key), value)
-	st.buffer.puts(entry)
-	return nil
+	return st.buffer.put(types.GetHashID(key), value)
 }
 
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
 	entry := st.buffer.get(id)
 	if entry != nil {
-		return entry.dataBytes, nil
+		return entry.data.([]byte), nil
 	}
 	dkey, err := st.storage.Get(id[:])
 	if err != nil {
