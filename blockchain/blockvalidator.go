@@ -8,6 +8,7 @@ package blockchain
 import (
 	"bytes"
 	"errors"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -66,14 +67,14 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	txs := block.GetBody().GetTxs()
 
 	// TxRootHash
-	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", enc.ToString(block.GetHeader().GetTxsRootHash())).
 		Msg("tx root verify")
 
 	computeTxRootHash := types.CalculateTxsRootHash(txs)
 	if bytes.Equal(block.GetHeader().GetTxsRootHash(), computeTxRootHash) == false {
 		logger.Error().Str("block", block.ID()).
-			Str("txroot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
-			Str("compute txroot", types.EncodeB64(computeTxRootHash)).
+			Str("txroot", enc.ToString(block.GetHeader().GetTxsRootHash())).
+			Str("compute txroot", enc.ToString(computeTxRootHash)).
 			Msg("tx root validation failed")
 		return ErrorBlockVerifyTxRoot
 	}

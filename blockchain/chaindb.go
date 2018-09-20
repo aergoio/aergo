@@ -115,7 +115,7 @@ func (cdb *ChainDB) loadChainData() error {
 			buf.Hash = bHash
 		} else if !bytes.Equal(buf.Hash, bHash) {
 			return fmt.Errorf("invalid Block Hash: hash=%s, check=%s",
-				EncodeB64(buf.Hash), EncodeB64(bHash))
+				enc.ToString(buf.Hash), enc.ToString(bHash))
 		}
 		for _, v := range buf.Body.Txs {
 			tHash := v.CalculateTxHash()
@@ -123,7 +123,7 @@ func (cdb *ChainDB) loadChainData() error {
 				v.Hash = tHash
 			} else if !bytes.Equal(v.Hash, tHash) {
 				return fmt.Errorf("invalid Transaction Hash: hash=%s, check=%s",
-					EncodeB64(v.Hash), EncodeB64(tHash))
+					enc.ToString(v.Hash), enc.ToString(tHash))
 			}
 		}
 		cdb.blocks[i] = &buf
@@ -153,7 +153,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	if buf == nil || len(buf) == 0 {
 		return fmt.Errorf("failed to load data: key=%v", key)
 	}
-	//logger.Debugf("  loadData: key=%d, len=%d, val=%s\n", Btoi(key), len(buf), EncodeB64(buf))
+	//logger.Debugf("  loadData: key=%d, len=%d, val=%s\n", Btoi(key), len(buf), enc.ToString(buf))
 	err := proto.Unmarshal(buf, pb)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal: key=%v, len=%d", key, len(buf))
@@ -273,7 +273,7 @@ func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, EncodeB64(blockHash))
+	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, enc.ToString(blockHash))
 	return cdb.getBlock(blockHash)
 }
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
@@ -286,7 +286,7 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 		return nil, &ErrNoBlock{id: blockHash}
 	}
 
-	//logger.Debugf("getblockbyHash Hash=%v", EncodeB64(blockHash))
+	//logger.Debugf("getblockbyHash Hash=%v", enc.ToString(blockHash))
 	return &buf, nil
 }
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
