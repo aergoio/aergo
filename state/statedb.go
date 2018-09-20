@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -120,8 +119,9 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
-		gbState.PutAccount(id, nil, balance)
+		gbState.PutAccount(id, &types.State{}, balance)
 	}
+
 	// save state of genesis block
 	err := sdb.apply(gbState)
 	return err
@@ -256,7 +256,10 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 	logger.Debug().Str("stateRoot", enc.ToString(sdb.GetHash())).Msg("apply block state")
 
 	// save blockState
-	sdb.saveBlockState(bstate)
+	err = sdb.saveBlockState(bstate)
+	if err != nil {
+		return err
+	}
 
 	sdb.latest = &bstate.BlockInfo
 	err = sdb.saveStateDB()
@@ -277,8 +280,6 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			return err
 		}
 		sdb.latest = &bs.BlockInfo
-		logger.Debug().Uint64("final target block no", blockNo).
-			Msgf("rollback to block: %v", log.DoLazyEval(func() string { return spew.Sdump(sdb.latest) }))
 
 		if target.BlockNo == blockNo {
 			break

@@ -152,16 +152,20 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 }
 
 func (cs *ChainService) BeforeStop() {
+	cs.CloseDB()
+
+	cs.validator.Stop()
+
+	contract.DB.Close()
+}
+
+func (cs *ChainService) CloseDB() {
 	if cs.sdb != nil {
 		cs.sdb.Close()
 	}
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-
-	cs.validator.Stop()
-
-	contract.DB.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {

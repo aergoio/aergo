@@ -70,5 +70,6 @@ var initGenesis = &cobra.Command{
 		}
 		fmt.Printf("genesis block is created in (%s)\n", initpath)
 
+		chainsvc.CloseDB()
 	},
 }

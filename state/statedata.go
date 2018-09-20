@@ -5,9 +5,7 @@ import (
 	"encoding/gob"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -68,11 +66,7 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 }
 
 func (sdb *ChainStateDB) saveStateDB() error {
-	err := saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
-	logger.Debug().Msgf("save state db. sdb.latest: %v",
-		log.DoLazyEval(func() string { return spew.Sdump(sdb.latest) }))
-
-	return err
+	return saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
 }
 
 func (sdb *ChainStateDB) loadStateDB() error {
@@ -84,6 +78,7 @@ func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
 	if bid == emptyBlockID {
 		return errSaveBlockState
 	}
+
 	err := saveData(sdb.statedb, bid[:], data)
 	return err
 }
