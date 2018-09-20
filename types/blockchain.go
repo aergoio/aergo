@@ -79,7 +79,7 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 	var blockNo BlockNo
 
 	if prevBlock != nil {
-		prevBlockHash = prevBlock.Hash
+		prevBlockHash = prevBlock.BlockHash()
 		blockNo = prevBlock.Header.BlockNo + 1
 	}
 
