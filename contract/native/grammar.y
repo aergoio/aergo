@@ -39,10 +39,10 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 /* literal */
 %token  <str>
-        L_FLOAT         "floating-point literal"
-        L_HEXA          "hexadecimal literal"
-        L_INT           "integer literal"
-        L_STR           "string literal"
+        L_FLOAT         "floating-point"
+        L_HEXA          "hexadecimal"
+        L_INT           "integer"
+        L_STR           "characters"
 
 /* operator */
 %token  ASSIGN_ADD      "+="

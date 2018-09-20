@@ -27,19 +27,22 @@
 #define CHECK(cond)                                                            \
     do {                                                                       \
         if (!(cond))                                                           \
-            WARN(ERROR_INTERNAL, __SOURCE__, "check failed, " #cond);          \
+            WARN(ERROR_INTERNAL, __SOURCE__,                                   \
+                 "optional requirements failed with condition '"#cond"'");     \
     } while (0)
 
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __SOURCE__, "assertion failed, " #cond);     \
+            FATAL(ERROR_INTERNAL, __SOURCE__,                                  \
+                  "internal error with condition '"#cond"'");                  \
     } while (0)
 
 #define ASSERT2(cond, msg)                                                     \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __SOURCE__, "assertion failed, " #msg);      \
+            FATAL(ERROR_INTERNAL, __SOURCE__,                                  \
+                  "internal error with '"#msg"'");                             \
     } while (0)
 
 #define FATAL(ec, ...)                                                         \

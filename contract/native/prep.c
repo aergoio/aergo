@@ -50,7 +50,7 @@ scan_next(scan_t *scan)
     }
 
     c = scan->buf[scan->buf_pos++];
-    
+
     if (c == '\n' || c == '\r')
         yy_update_line();
 
@@ -68,7 +68,7 @@ scan_peek(scan_t *scan, int cnt)
         scan->buf_pos = 0;
 
         scan->buf_len +=
-            fread(scan->buf + scan->buf_len, 1, 
+            fread(scan->buf + scan->buf_len, 1,
                   sizeof(scan->buf) - scan->buf_len, scan->fp);
         if (scan->buf_len <= cnt)
             return EOF;
@@ -104,7 +104,18 @@ put_char(scan_t *scan, char c)
 }
 
 static void
-put_comment(scan_t *scan, char c)
+skip_to_eol(scan_t *scan)
+{
+    char c;
+
+    while ((c = scan_next(scan)) != EOF) {
+        if (c == '\n' || c == '\r')
+            break;
+    }
+}
+
+static void
+skip_comment(scan_t *scan, char c)
 {
     char n;
 
@@ -112,21 +123,14 @@ put_comment(scan_t *scan, char c)
 
     if (scan_peek(scan, 0) == '*') {
         while ((n = scan_next(scan)) != EOF) {
-            put_char(scan, n);
-
             if (n == '*' && scan_peek(scan, 0) == '/') {
-                put_char(scan, scan_next(scan));
+                scan_next(scan);
                 break;
             }
         }
     }
     else if (scan_peek(scan, 0) == '/') {
-        while ((n = scan_next(scan)) != EOF) {
-            put_char(scan, n);
-
-            if (n == '\n' || n == '\r')
-                break;
-        }
+        skip_to_eol(scan);
     }
 }
 
@@ -147,7 +151,7 @@ put_literal(scan_t *scan, char c)
     }
 }
 
-/* need to keep "void" not "static void" for tests */
+/* WARNING: keep "void" not "static void" for tests */
 void
 mark_file(char *path, int line, int offset, strbuf_t *out)
 {
@@ -164,7 +168,9 @@ put_import(scan_t *scan, stack_t *imp)
     int offset = 0;
     char path[PATH_MAX_LEN];
     char c, n;
+    stack_node_t *node;
 
+    // TODO: need more error handling
     while ((c = scan_next(scan)) != EOF) {
         if (c == '"') {
             while ((n = scan_next(scan)) != EOF) {
@@ -175,7 +181,7 @@ put_import(scan_t *scan, stack_t *imp)
 
                     mark_file(path, 1, 0, scan->out);
                     substitue(path, imp, scan->out);
-                    mark_file(path, YY_LINE + 1, YY_OFFSET, scan->out);
+                    mark_file(scan->path, YY_LINE + 1, YY_OFFSET, scan->out);
 
                     stack_pop(imp);
                     offset = 0;
@@ -186,6 +192,13 @@ put_import(scan_t *scan, stack_t *imp)
         else if (c == '\n' || c == '\r') {
             break;
         }
+        /*
+        else if (!isspace(c)) {
+            TRACE(ERROR_UNKNOWN_CHAR, &scan->pos, scan->path);
+            skip_to_eol(scan);
+            break;
+        }
+        */
     }
 }
 
@@ -203,7 +216,7 @@ substitue(char *path, stack_t *imp, strbuf_t *out)
 
     while ((c = scan_next(&scan)) != EOF) {
         if (c == '/') {
-            put_comment(&scan, c);
+            skip_comment(&scan, c);
             is_first_ch = false;
         }
         else if (c == '"') {
