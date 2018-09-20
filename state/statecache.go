@@ -9,74 +9,74 @@ import (
 )
 
 var (
-	emptyCacheEntry = cacheEntry{}
+	emptyBufferEntry = bufferEntry{}
 )
 
-type cacheEntry struct {
+type bufferEntry struct {
 	key       types.HashID
 	dataHash  types.HashID
 	dataBytes []byte
 }
 
-func newCacheEntry(key types.HashID, data []byte) cacheEntry {
-	return cacheEntry{
+func newBufferEntry(key types.HashID, data []byte) bufferEntry {
+	return bufferEntry{
 		key:       key,
 		dataHash:  types.GetHashID(data),
 		dataBytes: data,
 	}
 }
 
-type stateCaches struct {
+type stateBuffer struct {
 	lock    sync.RWMutex
-	entries []cacheEntry
+	entries []bufferEntry
 	indexes map[types.HashID]int
 }
 
-func newStateCaches() *stateCaches {
-	return &stateCaches{
-		entries: []cacheEntry{},
+func newStateBuffer() *stateBuffer {
+	return &stateBuffer{
+		entries: []bufferEntry{},
 		indexes: map[types.HashID]int{},
 	}
 }
 
-func (caches *stateCaches) get(key types.HashID) *cacheEntry {
-	caches.lock.RLock()
-	defer caches.lock.RUnlock()
-	if index, ok := caches.indexes[key]; ok {
-		return &caches.entries[index]
+func (buffer *stateBuffer) get(key types.HashID) *bufferEntry {
+	buffer.lock.RLock()
+	defer buffer.lock.RUnlock()
+	if index, ok := buffer.indexes[key]; ok {
+		return &buffer.entries[index]
 	}
 	return nil
 }
 
-func (caches *stateCaches) puts(ets ...cacheEntry) {
-	caches.lock.Lock()
-	defer caches.lock.Unlock()
+func (buffer *stateBuffer) puts(ets ...bufferEntry) {
+	buffer.lock.Lock()
+	defer buffer.lock.Unlock()
 	for _, v := range ets {
-		caches.entries = append(caches.entries, v)
-		caches.indexes[v.key] = caches.snapshot()
+		buffer.entries = append(buffer.entries, v)
+		buffer.indexes[v.key] = buffer.snapshot()
 	}
 }
 
-func (caches *stateCaches) snapshot() int {
+func (buffer *stateBuffer) snapshot() int {
 	// TODO: last index of entries
-	return len(caches.entries) - 1
+	return len(buffer.entries) - 1
 }
 
-func (caches *stateCaches) revert(snapshot int) {
+func (buffer *stateBuffer) revert(snapshot int) {
 	// TODO: revert entries and indexes
 }
 
-func (caches *stateCaches) isEmpty() bool {
-	return len(caches.entries) == 0
+func (buffer *stateBuffer) isEmpty() bool {
+	return len(buffer.entries) == 0
 }
 
-func (caches *stateCaches) export() ([][]byte, [][]byte) {
-	caches.lock.RLock()
-	defer caches.lock.RUnlock()
-	size := len(caches.indexes)
-	bufs := make([]cacheEntry, 0, size)
-	for _, v := range caches.indexes {
-		bufs = append(bufs, caches.entries[v])
+func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
+	buffer.lock.RLock()
+	defer buffer.lock.RUnlock()
+	size := len(buffer.indexes)
+	bufs := make([]bufferEntry, 0, size)
+	for _, v := range buffer.indexes {
+		bufs = append(bufs, buffer.entries[v])
 	}
 	sort.Slice(bufs, func(i, j int) bool {
 		return -1 == (bufs[i].key).Compare(bufs[j].key)
@@ -90,12 +90,12 @@ func (caches *stateCaches) export() ([][]byte, [][]byte) {
 	return keys, vals
 }
 
-func (caches *stateCaches) commit(store *db.DB) {
-	caches.lock.Lock()
-	defer caches.lock.Unlock()
+func (buffer *stateBuffer) commit(store *db.DB) {
+	buffer.lock.Lock()
+	defer buffer.lock.Unlock()
 	dbtx := (*store).NewTx()
-	for _, v := range caches.indexes {
-		et := caches.entries[v]
+	for _, v := range buffer.indexes {
+		et := buffer.entries[v]
 		dbtx.Set(et.dataHash[:], et.dataBytes)
 	}
 	dbtx.Commit()

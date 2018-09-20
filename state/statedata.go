@@ -65,11 +65,11 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	return err
 }
 
-func (sdb *ChainStateDB) saveStateDB() error {
+func (sdb *ChainStateDB) saveStateLatest() error {
 	return saveData(sdb.store, []byte(stateLatest), sdb.latest)
 }
 
-func (sdb *ChainStateDB) loadStateDB() error {
+func (sdb *ChainStateDB) loadStateLatest() error {
 	return loadData(sdb.store, []byte(stateLatest), &sdb.latest)
 }
 
@@ -99,7 +99,7 @@ func (sdb *ChainStateDB) loadStateData(key []byte) (*types.State, error) {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}
-	err := loadData(sdb.store, key, data)
+	err := loadData(sdb.states.store, key, data)
 	if err != nil {
 		return nil, err
 	}
