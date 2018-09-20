@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "system_module.h"
+#include "contract_module.h"
 #include "util.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -9,6 +10,7 @@ const char *luaExecContext= "__exec_context__";
 static void preloadModules(lua_State *L)
 {
 	luaopen_system(L);
+	luaopen_contract(L);
 }
 
 static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)
@@ -95,4 +97,18 @@ const char *vm_get_json_ret(lua_State *L, int nresult)
 const char *vm_tostring(lua_State *L, int idx)
 {
     return lua_tolstring(L, idx, NULL);
+}
+
+void vm_copy_result(lua_State *L, lua_State *target, int cnt)
+{
+	int i;
+	sbuff_t sbuf;
+	lua_util_sbuf_init(&sbuf, 64);
+
+	for (i = 1; i <= cnt; ++i) {
+		lua_util_dump_json (L, i, &sbuf);
+		lua_util_json_to_lua(target, sbuf.buf);
+		sbuf.idx  = 0;
+	}
+	free(sbuf.buf);
 }

@@ -115,7 +115,7 @@ func TestContractSystem(t *testing.T) {
 	callInfo := "{\"Name\":\"testState\", \"Args\":[]}"
 	sender, _ := base58.Decode("sender2")
 	contractState := getContractState(t, systemCode)
-	bcCtx := NewContext(contractState, sender, tid, 100, 1234,
+	bcCtx := NewContext(sdb, nil, contractState, sender, tid, 100, 1234,
 		"node", true, aid, false)
 
 	contractCall(t, contractState, callInfo, bcCtx)
@@ -148,7 +148,7 @@ func TestContractQuery(t *testing.T) {
 		t.Errorf("failed check error: %s", err.Error())
 	}
 
-	bcCtx := NewContext(contractState, nil, nil, 100, 1234,
+	bcCtx := NewContext(sdb, nil, contractState, nil, nil, 100, 1234,
 		"node", true, aid, false)
 
 	contractCall(t, contractState, setInfo, bcCtx)

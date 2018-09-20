@@ -441,8 +441,8 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
-			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-				blockNo, ts, "", false, recipient, false)
+			bcCtx := contract.NewContext(sdb, bs, contractState, txBody.GetAccount(), tx.GetHash(),
+					blockNo, ts, "", false, recipient, false)
 
 			if createContract {
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
