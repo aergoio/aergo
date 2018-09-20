@@ -442,19 +442,18 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
+			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
+				blockNo, ts, "", false, recipient, false)
 
 			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, receiptTx)
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
 			} else {
-				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-					blockNo, ts, "", false, recipient, false)
-
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
-				if err != nil {
-					return err
-				}
-				err = sdb.CommitContractState(contractState)
 			}
+			if err != nil {
+				return err
+			}
+			err = sdb.CommitContractState(contractState)
 			if err != nil {
 				return err
 			}
