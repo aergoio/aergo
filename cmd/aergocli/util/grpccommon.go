@@ -6,11 +6,10 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/types"
-	"github.com/gogo/protobuf/jsonpb"
 	protobuf "github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
@@ -42,13 +41,10 @@ func (c *ConnClient) Close() {
 
 // JSON converts protobuf message(struct) to json notation
 func JSON(pb protobuf.Message) string {
-	var w bytes.Buffer
-	var marshaler jsonpb.Marshaler
-	marshaler.Indent = "\t"
-
-	err := marshaler.Marshal(&w, pb)
+	jsonout, err := json.MarshalIndent(pb, "", " ")
 	if err != nil {
-		return "[marshal fail]"
+		fmt.Printf("Failed: %s\n", err.Error())
+		return ""
 	}
-	return w.String()
+	return string(jsonout)
 }

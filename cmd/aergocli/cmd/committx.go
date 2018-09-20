@@ -73,20 +73,8 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 		}
 	}
 	for i, r := range msg.Results {
-		fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
-}
-
-func convertBase58(in []byte) []byte {
-	if in == nil {
-		return nil
-	}
-	b64in := util.EncodeB64(in)
-	out, err := base58.Decode(b64in)
-	if err != nil {
-		panic("could not convert input to base58")
-	}
-	return out
 }
 
 func caculateHash(body *types.TxBody) []byte {

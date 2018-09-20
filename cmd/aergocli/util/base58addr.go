@@ -1,7 +1,6 @@
 package util
 
 import (
-	"encoding/base64"
 	"encoding/json"
 
 	"github.com/aergoio/aergo/types"
@@ -12,6 +11,7 @@ type InOutTx struct {
 	Hash string
 	Body *InOutTxBody
 }
+
 type InOutTxBody struct {
 	Nonce     uint64
 	Account   string
@@ -20,13 +20,44 @@ type InOutTxBody struct {
 	Payload   string
 	Limit     uint64
 	Price     uint64
-	Sign      string
 	Type      types.TxType
+	Sign      string
 }
 
+func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
+	var err error
+	target.Nonce = source.Nonce
+	if source.Account != "" {
+		target.Account, err = types.DecodeAddress(source.Account)
+		if err != nil {
+			return err
+		}
+	}
+	if source.Recipient != "" {
+		target.Recipient, err = types.DecodeAddress(source.Recipient)
+		if err != nil {
+			return err
+		}
+	}
+	target.Amount = source.Amount
+	if source.Payload != "" {
+		target.Payload, err = base58.Decode(source.Payload)
+		if err != nil {
+			return err
+		}
+	}
+	target.Limit = source.Limit
+	target.Price = source.Price
+	if source.Sign != "" {
+		target.Sign, err = base58.Decode(source.Sign)
+		if err != nil {
+			return err
+		}
+	}
+	target.Type = source.Type
+	return nil
+}
 func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
-	//tx := &types.Tx{Body: &types.TxBody{}}
-	//in := &InOutTx{Body: &InOutTxBody{}}
 	var inputlist []InOutTx
 	err := json.Unmarshal([]byte(jsonTx), &inputlist)
 	if err != nil {
@@ -41,35 +72,10 @@ func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 				return nil, err
 			}
 		}
-		tx.Body.Nonce = in.Body.Nonce
-		if in.Body.Account != "" {
-			tx.Body.Account, err = types.DecodeAddress(in.Body.Account)
-			if err != nil {
-				return nil, err
-			}
+		err = FillTxBody(in.Body, tx.Body)
+		if err != nil {
+			return nil, err
 		}
-		if in.Body.Recipient != "" {
-			tx.Body.Recipient, err = types.DecodeAddress(in.Body.Recipient)
-			if err != nil {
-				return nil, err
-			}
-		}
-		tx.Body.Amount = in.Body.Amount
-		if in.Body.Payload != "" {
-			tx.Body.Payload, err = base58.Decode(in.Body.Payload)
-			if err != nil {
-				return nil, err
-			}
-		}
-		tx.Body.Limit = in.Body.Limit
-		tx.Body.Price = in.Body.Price
-		if in.Body.Sign != "" {
-			tx.Body.Sign, err = base58.Decode(in.Body.Sign)
-			if err != nil {
-				return nil, err
-			}
-		}
-		tx.Body.Type = in.Body.Type
 		txs[i] = tx
 	}
 
@@ -85,40 +91,15 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 		return nil, err
 	}
 
-	body.Nonce = in.Nonce
-	if in.Account != "" {
-		body.Account, err = types.DecodeAddress(in.Account)
-		if err != nil {
-			return nil, err
-		}
+	err = FillTxBody(in, body)
+	if err != nil {
+		return nil, err
 	}
-	if in.Recipient != "" {
-		body.Recipient, err = types.DecodeAddress(in.Recipient)
-		if err != nil {
-			return nil, err
-		}
-	}
-	body.Amount = in.Amount
-	if in.Payload != "" {
-		body.Payload, err = base58.Decode(in.Payload)
-		if err != nil {
-			return nil, err
-		}
-	}
-	body.Limit = in.Limit
-	body.Price = in.Price
-	if in.Sign != "" {
-		body.Sign, err = base58.Decode(in.Sign)
-		if err != nil {
-			return nil, err
-		}
-	}
-	body.Type = in.Type
 
 	return body, nil
 }
 
-func ConvBase58Addr(tx *types.Tx) string {
+func TxConvBase58Addr(tx *types.Tx) string {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
@@ -135,12 +116,4 @@ func ConvBase58Addr(tx *types.Tx) string {
 		return ""
 	}
 	return string(jsonout)
-}
-
-//TODO: refactoring util function
-func EncodeB64(bs []byte) string {
-	return base64.StdEncoding.EncodeToString(bs)
-}
-func DecodeB64(sb string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(sb)
 }

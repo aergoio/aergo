@@ -10,6 +10,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/mr-tron/base58/base58"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -59,7 +61,7 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 			}
 			fmt.Printf("Trying to append change input to %s by appending filling char =\n", hash)
 		}
-		decoded, err := util.DecodeB64(hash)
+		decoded, err := base58.Decode(hash)
 		if err != nil {
 			fmt.Printf("decode error: %s", err.Error())
 			return
