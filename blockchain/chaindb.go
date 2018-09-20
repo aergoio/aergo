@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"errors"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/gogo/protobuf/proto"
+	"sync/atomic"
 )
 
 const (
@@ -24,7 +26,8 @@ const (
 
 var (
 	// ErrNoChainDB reports chaindb is not prepared.
-	ErrNoChainDB = fmt.Errorf("chaindb not prepared")
+	ErrNoChainDB       = fmt.Errorf("chaindb not prepared")
+	ErrorLoadBestBlock = errors.New("failed to load latest block from DB")
 
 	latestKey = []byte(chainDBName + ".latest")
 )
@@ -50,7 +53,8 @@ func (e ErrNoBlock) Error() string {
 type ChainDB struct {
 	consensus.ChainConsensus
 
-	latest types.BlockNo
+	latest    types.BlockNo
+	bestBlock atomic.Value // *types.Block
 	//	blocks []*types.Block
 	store db.DB
 }
@@ -125,7 +129,11 @@ func (cdb *ChainDB) loadChainData() error {
 		cdb.blocks[i] = &buf
 	}
 	*/
-	cdb.setLatest(latestNo)
+	latestBlock, err := cdb.getBlockByNo(latestNo)
+	if err != nil {
+		return ErrorLoadBestBlock
+	}
+	cdb.setLatest(latestBlock)
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
@@ -161,17 +169,18 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	setMainChainStatus(tx, block)
 
 	tx.Commit()
-	cdb.setLatest(0)
+	cdb.setLatest(block)
 
 	logger.Info().Msg("Genesis Block Added")
 	return nil
 }
 
-func (cdb *ChainDB) setLatest(newLatest types.BlockNo) (oldLatest types.BlockNo) {
-	logger.Debug().Uint64("old", cdb.latest).Uint64("new", newLatest).Msg("update latest block")
-
+func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockNo) {
 	oldLatest = cdb.latest
-	cdb.latest = newLatest
+	cdb.latest = newBestBlock.GetHeader().GetBlockNo()
+	cdb.bestBlock.Store(newBestBlock)
+
+	logger.Debug().Uint64("old", oldLatest).Uint64("new", cdb.latest).Msg("update latest block")
 
 	return
 }

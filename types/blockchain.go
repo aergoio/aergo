@@ -11,12 +11,12 @@ import (
 	"io"
 	"reflect"
 
-	sha256 "github.com/minio/sha256-simd"
+	"github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -55,6 +55,11 @@ type Genesis struct {
 	Timestamp int64             `json:"timestamp,omitempty"`
 	// TODO: bp Peer info
 	Block *Block `json:"-"`
+}
+
+// ChainAccessor is an interface for a another actor module to get info of chain
+type ChainAccessor interface {
+	GetBestBlock() (*Block, error)
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).

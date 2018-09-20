@@ -31,10 +31,9 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 	return cs.getBestBlock()
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
-	blockNo := cs.cdb.getBestBlockNo()
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
 
-	return cs.cdb.getBlockByNo(blockNo)
+	return cs.cdb.bestBlock.Load().(*types.Block), nil
 }
 
 func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
@@ -180,7 +179,7 @@ func (cp *chainProcessor) execute() error {
 		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
 		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
 		//	In this case, messages of mempool is synchronized in actor message queue.
-		oldLatest := cp.cdb.setLatest(blockNo)
+		oldLatest := cp.cdb.setLatest(block)
 
 		// XXX Something similar should be also done during
 		// reorganization.
@@ -264,7 +263,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 func (cs *ChainService) CountTxsInChain() int {
 	var txCount int
 
-	blk, err := cs.GetBestBlock()
+	blk, err := cs.getBestBlock()
 	if err != nil {
 		return -1
 	}

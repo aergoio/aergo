@@ -32,6 +32,7 @@ type SimpleBlockFactory struct {
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
+	ca               types.ChainAccessor
 }
 
 // New returns a SimpleBlockFactory.
@@ -67,7 +68,7 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
-	if b := chain.GetBestBlock(s); b != nil {
+	if b, _ := s.ca.GetBestBlock(); b != nil {
 		jq <- b
 	}
 }
@@ -102,6 +103,10 @@ func (s *SimpleBlockFactory) UpdateStatus(block *types.Block) {
 // BlockFactory returns s itself.
 func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 	return s
+}
+
+func (s *SimpleBlockFactory) SetChainAccessor(chainAccessor types.ChainAccessor) {
+	s.ca = chainAccessor
 }
 
 // NeedReorganization has nothing to do.
