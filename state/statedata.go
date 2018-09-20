@@ -5,7 +5,9 @@ import (
 	"encoding/gob"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -48,7 +50,7 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	}
 	raw := (*store).Get(key)
 
-	if raw == nil || len(raw) == 0 {
+	if len(raw) == 0 {
 		return nil
 	}
 	var err error
@@ -67,18 +69,14 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 
 func (sdb *ChainStateDB) saveStateDB() error {
 	err := saveData(sdb.statedb, []byte(stateLatest), sdb.latest)
-	if err != nil {
-		return err
-	}
-	return nil
+	logger.Debug().Msgf("save state db. sdb.latest: %v",
+		log.DoLazyEval(func() string { return spew.Sdump(sdb.latest) }))
+
+	return err
 }
 
 func (sdb *ChainStateDB) loadStateDB() error {
-	err := loadData(sdb.statedb, []byte(stateLatest), &sdb.latest)
-	if err != nil {
-		return err
-	}
-	return nil
+	return loadData(sdb.statedb, []byte(stateLatest), &sdb.latest)
 }
 
 func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
@@ -102,7 +100,7 @@ func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, e
 }
 
 func (sdb *ChainStateDB) loadStateData(key []byte) (*types.State, error) {
-	if key == nil || len(key) == 0 {
+	if len(key) == 0 {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}

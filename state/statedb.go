@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -276,6 +277,8 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			return err
 		}
 		sdb.latest = &bs.BlockInfo
+		logger.Debug().Uint64("final target block no", blockNo).
+			Msgf("rollback to block: %v", log.DoLazyEval(func() string { return spew.Sdump(sdb.latest) }))
 
 		if target.BlockNo == blockNo {
 			break
