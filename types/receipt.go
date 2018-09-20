@@ -17,9 +17,9 @@ func NewReceipt(contractAddress []byte, status string, jsonRet string) Receipt {
 
 func NewReceiptFromBytes(b []byte) *Receipt {
 	r := new(Receipt)
-	r.ContractAddress = b[:20]
-	endIdx := bytes.IndexByte(b[20:], 0x00) + 20
-	r.Status = string(b[20:endIdx])
+	r.ContractAddress = b[:33]
+	endIdx := bytes.IndexByte(b[33:], 0x00) + 33
+	r.Status = string(b[33:endIdx])
 	r.Ret = string(b[endIdx+1:])
 	return r
 }
