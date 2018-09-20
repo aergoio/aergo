@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"log"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -36,7 +37,7 @@ func init() {
 				}
 				defer client.Close()
 
-				txHash, err := util.DecodeB64(args[0])
+				txHash, err := base58.Decode(args[0])
 				if err != nil {
 					log.Fatal(err)
 				}

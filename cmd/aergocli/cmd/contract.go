@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"io/ioutil"
 	"log"
 	"os"
@@ -117,7 +118,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -166,7 +167,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 

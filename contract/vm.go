@@ -153,7 +153,7 @@ func (ce *Executor) call(ci *types.CallInfo) {
 			C.lua_pushstring(ce.L, argC)
 			C.free(unsafe.Pointer(argC))
 		case int:
-			C.lua_pushinteger(ce.L, C.long(arg))
+			C.lua_pushinteger(ce.L, C.lua_Integer(arg))
 		case bool:
 			var b int
 			if arg {
