@@ -17,7 +17,6 @@ ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp,
 
     ASSERT(id_exp != NULL);
 
-    list_link_init(&var->link);
     var->pos = *pos;
 
     var->type_exp = type_exp;

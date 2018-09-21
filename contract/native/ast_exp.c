@@ -12,7 +12,6 @@ ast_exp_new(exp_kind_t kind, errpos_t *pos)
 {
     ast_exp_t *exp = xmalloc(sizeof(ast_exp_t));
 
-    list_link_init(&exp->link);
     exp->pos = *pos;
 
     exp->kind = kind;
@@ -134,7 +133,7 @@ exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
     exp->u_tuple.exp_l = list_new();
 
     if (elem_exp != NULL)
-        list_add_exp(exp->u_tuple.exp_l, elem_exp);
+        list_add_tail(exp->u_tuple.exp_l, elem_exp);
 
     return exp;
 }

@@ -11,7 +11,6 @@
 #include "list.h"
 
 #define AST_NODE_DECL                                                          \
-    list_link_t link;                                                          \
     errpos_t pos
 
 typedef struct ast_cont_s {

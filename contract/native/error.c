@@ -179,7 +179,7 @@ error_dump(void)
 {
     stack_node_t *n;
 
-    stack_foreach(&errstack_, n) {
+    stack_foreach(n, &errstack_) {
         error_t *e = (error_t *)n->item;
         if (e->level == LVL_TRACE)
             fprintf(stderr, "%s: "ANSI_NONE"%s\n%s\n", errlvls_[e->level],

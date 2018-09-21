@@ -12,9 +12,8 @@ ast_stmt_new(stmt_kind_t kind, errpos_t *pos)
 {
     ast_stmt_t *stmt = xmalloc(sizeof(ast_stmt_t));
 
-    stmt->kind = kind;
     stmt->pos = *pos;
-    list_link_init(&stmt->link);
+    stmt->kind = kind;
 
     return stmt;
 }

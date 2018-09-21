@@ -14,7 +14,7 @@
 #define stack_tail(stack)       ((stack)->tail)
 #define stack_top(stack)        stack_tail(stack)
 
-#define stack_foreach(stack, node)                                             \
+#define stack_foreach(node, stack)                                             \
     for ((node) = (stack)->head; (node) != NULL; (node) = (node)->next)
 
 typedef struct stack_node_s {

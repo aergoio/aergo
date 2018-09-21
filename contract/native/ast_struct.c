@@ -12,7 +12,6 @@ ast_struct_new(char *name, list_t *field_l, errpos_t *pos)
 {
     ast_struct_t *struc = xmalloc(sizeof(ast_struct_t));
 
-    list_link_init(&struc->link);
     struc->pos = *pos;
 
     struc->name = name;

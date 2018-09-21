@@ -239,9 +239,9 @@ contract_body:
 variable:
     var_type var_decl_list ';'
     {
-        ast_var_t *var;
-        list_foreach(var, ast_var_t, $2) {
-            var->type_exp = $1;
+        list_node_t *node;
+        list_foreach(node, $2) {
+            ((ast_var_t *)node)->type_exp = $1;
         }
         $$ = $2;
     }
@@ -305,12 +305,12 @@ var_decl_list:
     var_decl
     {
         $$ = list_new();
-        list_add_var($$, $1);
+        list_add_tail($$, $1);
     }
 |   var_decl_list ',' var_decl
     {
         $$ = $1;
-        list_add_var($$, $3);
+        list_add_tail($$, $3);
     }
 ;
 
@@ -358,12 +358,12 @@ init_list:
     initializer
     {
         $$ = list_new();
-        list_add_exp($$, $1);
+        list_add_tail($$, $1);
     }
 |   init_list ',' initializer
     {
         $$ = $1;
-        list_add_exp($$, $3);
+        list_add_tail($$, $3);
     }
 ;
 
@@ -382,7 +382,7 @@ field_list:
 |   field_list variable
     {
         $$ = $1;
-        list_join($$, ast_var_t, $2);
+        list_join($$, $2);
     }
 ;
 
@@ -402,12 +402,12 @@ param_list:
     param_decl
     {
         $$ = list_new();
-        list_add_var($$, $1);
+        list_add_tail($$, $1);
     }
 |   param_list ',' param_decl
     {
         $$ = $1;
-        list_add_var($$, $3);
+        list_add_tail($$, $3);
     }
 ;
 
@@ -427,32 +427,32 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        list_join(&$$->var_l, ast_var_t, $1);
+        list_join(&$$->var_l, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        list_add_struct(&$$->struct_l, $1);
+        list_add_tail(&$$->struct_l, $1);
     }
 |   statement
     {
         $$ = ast_blk_new(&@$);
-        list_add_stmt(&$$->stmt_l, $1);
+        list_add_tail(&$$->stmt_l, $1);
     }
 |   blk_decl variable
     {
         $$ = $1;
-        list_join(&$$->var_l, ast_var_t, $2);
+        list_join(&$$->var_l, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
-        list_add_struct(&$$->struct_l, $2);
+        list_add_tail(&$$->struct_l, $2);
     }
 |   blk_decl statement
     {
         $$ = $1;
-        list_add_stmt(&$$->stmt_l, $2);
+        list_add_tail(&$$->stmt_l, $2);
     }
 ;
 
@@ -481,12 +481,12 @@ return_list:
     var_type
     {
         $$ = list_new();
-        list_add_exp($$, $1);
+        list_add_tail($$, $1);
     }
 |   return_list ',' var_type
     {
         $$ = $1;
-        list_add_exp($$, $3);
+        list_add_tail($$, $3);
     }
 ;
 
@@ -519,7 +519,7 @@ stmt_if:
 |   stmt_if K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
-        list_add_stmt(&$$->u_if.elsif_l, stmt_if_new($5, $7, &@2));
+        list_add_tail(&$$->u_if.elsif_l, stmt_if_new($5, $7, &@2));
     }
 |   stmt_if K_ELSE block
     {
@@ -589,12 +589,12 @@ label_list:
     label
     {
         $$ = list_new();
-        list_add_stmt($$, $1);
+        list_add_tail($$, $1);
     }
 |   label_list label
     {
         $$ = $1;
-        list_add_stmt($$, $2);
+        list_add_tail($$, $2);
     }
 ;
 
@@ -613,12 +613,12 @@ stmt_list:
     statement
     {
         $$ = list_new();
-        list_add_stmt($$, $1);
+        list_add_tail($$, $1);
     }
 |   stmt_list statement
     {
         $$ = $1;
-        list_add_stmt($$, $2);
+        list_add_tail($$, $2);
     }
 ;
 
@@ -678,7 +678,7 @@ expression:
 |   expression ',' exp_assign
     {
         $$ = $1;
-        list_add_exp($$->u_tuple.exp_l, $3);
+        list_add_tail($$->u_tuple.exp_l, $3);
     }
 ;
 
@@ -955,7 +955,7 @@ exp_new:
         list_t *exp_l = list_new();
         ast_exp_t *id_exp = exp_id_ref_new(xstrdup("map"), &@2);
         ast_exp_t *size_exp = exp_lit_new(LIT_INT, $4, &@4);
-        list_add_exp(exp_l, size_exp);
+        list_add_tail(exp_l, size_exp);
         $$ = exp_call_new(id_exp, exp_l, &@$);
     }
 ;
@@ -964,12 +964,12 @@ exp_list:
     exp_cond
     {
         $$ = list_new();
-        list_add_exp($$, $1);
+        list_add_tail($$, $1);
     }
 |   exp_list ',' exp_cond
     {
         $$ = $1;
-        list_add_exp($$, $3);
+        list_add_tail($$, $3);
     }
 ;
 

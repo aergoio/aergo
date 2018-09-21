@@ -12,7 +12,6 @@ ast_blk_new(errpos_t *pos)
 {
     ast_blk_t *blk = xmalloc(sizeof(ast_blk_t));
 
-    list_link_init(&blk->link);
     blk->pos = *pos;
 
     list_init(&blk->var_l);

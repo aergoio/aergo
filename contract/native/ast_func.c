@@ -13,7 +13,6 @@ ast_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
 {
     ast_func_t *func = xmalloc(sizeof(ast_func_t));
 
-    list_link_init(&func->link);
     func->pos = *pos;
     func->name = name;
     func->mod = mod;
