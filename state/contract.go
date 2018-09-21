@@ -20,7 +20,7 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(32, types.TrieHasher, *sdb.statedb),
+		storage: trie.NewTrie(nil, types.TrieHasher, *sdb.statedb),
 		caches:  newStateCaches(),
 		store:   sdb.statedb,
 	}
