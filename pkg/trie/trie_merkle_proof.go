@@ -14,11 +14,16 @@ import (
 // a leaf node is on the path of the non included key.
 // returns the audit path, true (key included), key, value on the path if false (non inclusion), error
 func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false // so loadChildren doesnt return a copy
 	return s.merkleProof(s.Root, s.TrieHeight, key, nil, 0)
 }
 
 // MerkleProofCompressed returns a compressed merkle proof
 func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool, []byte, []byte, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	// create a regular merkle proof and then compress it
 	mpFull, included, proofKey, proofVal, err := s.merkleProof(s.Root, s.TrieHeight, key, nil, 0)
 	if err != nil {
@@ -52,7 +57,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 		return nil, true, nil, nil, nil
 	}
 	// Fetch the children of the node
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
 	if err != nil {
 		return nil, false, nil, nil, err
 	}

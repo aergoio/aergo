@@ -32,6 +32,7 @@ func TestTrieEmpty(t *testing.T) {
 
 func TestTrieUpdateAndGet(t *testing.T) {
 	smt := NewTrie(nil, Hasher, nil)
+	smt.atomicUpdate = false
 
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
@@ -65,7 +66,28 @@ func TestTrieUpdateAndGet(t *testing.T) {
 			t.Fatal("failed to get value")
 		}
 	}
-	// Check old keys are still stored
+}
+
+func TestTrieAtomicUpdate(t *testing.T) {
+	smt := NewTrie(nil, Hasher, nil)
+	smt.CacheHeightLimit = 0
+	keys := getFreshData(1, 32)
+	values := getFreshData(1, 32)
+	root, _ := smt.AtomicUpdate(keys, values)
+	updatedNb := len(smt.db.updatedNodes)
+	cacheNb := len(smt.db.liveCache)
+	newvalues := getFreshData(1, 32)
+	smt.AtomicUpdate(keys, newvalues)
+	if len(smt.db.updatedNodes) != 2*updatedNb {
+		t.Fatal("Atomic update doesnt store all tries")
+	}
+	if len(smt.db.liveCache) != cacheNb {
+		t.Fatal("Cache size should remain the same")
+	}
+
+	// check keys of previous atomic update are accessible in
+	// updated nodes with root.
+	smt.atomicUpdate = false
 	for i, key := range keys {
 		value, _ := smt.get(root, key, nil, 0, smt.TrieHeight)
 		if !bytes.Equal(values[i], value) {
@@ -76,10 +98,13 @@ func TestTrieUpdateAndGet(t *testing.T) {
 
 func TestTriePublicUpdateAndGet(t *testing.T) {
 	smt := NewTrie(nil, Hasher, nil)
+	smt.CacheHeightLimit = 0
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
 	values := getFreshData(20, 32)
 	root, _ := smt.Update(keys, values)
+	updatedNb := len(smt.db.updatedNodes)
+	cacheNb := len(smt.db.liveCache)
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -94,6 +119,13 @@ func TestTriePublicUpdateAndGet(t *testing.T) {
 
 	newValues := getFreshData(20, 32)
 	smt.Update(keys, newValues)
+
+	if len(smt.db.updatedNodes) != updatedNb {
+		t.Fatal("multiple updates don't actualise updated nodes")
+	}
+	if len(smt.db.liveCache) != cacheNb {
+		t.Fatal("multiple updates don't actualise liveCache")
+	}
 	// Check all keys have been modified
 	for i, key := range keys {
 		value, _ := smt.Get(key)
@@ -122,6 +154,7 @@ func TestTrieDelete(t *testing.T) {
 	ch = make(chan mresult, 1)
 	smt.update(root, keys[0:1], [][]byte{DefaultLeaf}, nil, 0, smt.TrieHeight, ch)
 	result = <-ch
+	updatedNb := len(smt.db.updatedNodes)
 	newRoot := result.update
 	newValue, _ := smt.get(newRoot, keys[0], nil, 0, smt.TrieHeight)
 	if len(newValue) != 0 {
@@ -136,6 +169,10 @@ func TestTrieDelete(t *testing.T) {
 	cleanRoot := result.update
 	if !bytes.Equal(newRoot, cleanRoot) {
 		t.Fatal("roots mismatch")
+	}
+
+	if len(smt2.db.updatedNodes) != updatedNb {
+		t.Fatal("deleting doesn't actualise updated nodes")
 	}
 
 	//Empty the trie
@@ -171,7 +208,10 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 	key0 := make([]byte, 32, 32)
 	values := getFreshData(1, 32)
 	root, _ := smt.Update([][]byte{key0}, values)
-	_, _, k, v, isShortcut, _ := smt.loadChildren(root, smt.TrieHeight, nil, 0, false)
+	cacheNb := len(smt.db.liveCache)
+	updatedNb := len(smt.db.updatedNodes)
+	smt.atomicUpdate = false
+	_, _, k, v, isShortcut, _ := smt.loadChildren(root, smt.TrieHeight, nil, 0)
 	if !isShortcut || !bytes.Equal(k[:HashLength], key0) || !bytes.Equal(v[:HashLength], values[0]) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
@@ -182,7 +222,16 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 	keys := [][]byte{key0, key1}
 	values = [][]byte{DefaultLeaf, getFreshData(1, 32)[0]}
 	root, _ = smt.Update(keys, values)
-	_, _, k, v, isShortcut, _ = smt.loadChildren(root, smt.TrieHeight, nil, 0, false)
+
+	if len(smt.db.liveCache) != cacheNb {
+		t.Fatal("number of cache nodes not correct after delete")
+	}
+	if len(smt.db.updatedNodes) != updatedNb {
+		t.Fatal("number of cache nodes not correct after delete")
+	}
+
+	smt.atomicUpdate = false
+	_, _, k, v, isShortcut, _ = smt.loadChildren(root, smt.TrieHeight, nil, 0)
 	if !isShortcut || !bytes.Equal(k[:HashLength], key1) || !bytes.Equal(v[:HashLength], values[1]) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
@@ -248,9 +297,11 @@ func TestTrieCommit(t *testing.T) {
 	smt.Commit()
 	// liveCache is deleted so the key is fetched in badger db
 	smt.db.liveCache = make(map[Hash][][]byte)
-	value, _ := smt.Get(keys[0])
-	if !bytes.Equal(values[0], value) {
-		t.Fatal("failed to get value in committed db")
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(value, values[i]) {
+			t.Fatal("failed to get value in committed db")
+		}
 	}
 	st.Close()
 	os.RemoveAll(".aergo")
@@ -275,11 +326,14 @@ func TestTrieRevert(t *testing.T) {
 	keys := [][]byte{key0, key1}
 	root, _ := smt.Update([][]byte{key0}, [][]byte{values[0]})
 	smt.Commit()
-	smt.Update([][]byte{key1}, [][]byte{values[1]})
+	root2, _ := smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
 	smt.Revert(root)
 	if len(smt.db.store.Get(root)) == 0 {
 		t.Fatal("shortcut node shouldnt be deleted by revert")
+	}
+	if len(smt.db.store.Get(root2)) != 0 {
+		t.Fatal("reverted root should have been deleted")
 	}
 	key1 = make([]byte, 32, 32)
 	// setting the bit at 255 stores the keys as the tip
@@ -382,7 +436,8 @@ func TestTrieRaisesError(t *testing.T) {
 		t.Fatal("Error not created if database not connected")
 	}
 	smt.db.liveCache = make(map[Hash][][]byte)
-	_, _, _, _, _, err = smt.loadChildren(make([]byte, 32, 32), smt.TrieHeight, nil, 0, false)
+	smt.atomicUpdate = false
+	_, _, _, _, _, err = smt.loadChildren(make([]byte, 32, 32), smt.TrieHeight, nil, 0)
 	if err == nil {
 		t.Fatal("Error not created if database not connected")
 	}
@@ -444,6 +499,7 @@ func TestHeight0LeafShortcut(t *testing.T) {
 	keys := [][]byte{key0, key1}
 	values := getFreshData(2, 32)
 	smt.Update(keys, values)
+	updatedNb := len(smt.db.updatedNodes)
 
 	// Check all keys have been stored
 	for i, key := range keys {
@@ -464,8 +520,15 @@ func TestHeight0LeafShortcut(t *testing.T) {
 	}
 
 	// Delete one key and check that the remaining one moved up to the root of the tree
-	newRoot, _ := smt.Update(keys[0:1], [][]byte{DefaultLeaf})
-	_, _, k, v, isShortcut, err := smt.loadChildren(newRoot, smt.TrieHeight, nil, 0, false)
+	newRoot, _ := smt.AtomicUpdate(keys[0:1], [][]byte{DefaultLeaf})
+
+	// Nb of updated nodes remains same because the new shortcut root was already stored at height 0.
+	if len(smt.db.updatedNodes) != updatedNb {
+		fmt.Println(len(smt.db.updatedNodes), updatedNb)
+		t.Fatal("number of cache nodes not correct after delete")
+	}
+	smt.atomicUpdate = false
+	_, _, k, v, isShortcut, err := smt.loadChildren(newRoot, smt.TrieHeight, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,20 +573,32 @@ func TestRollback(t *testing.T) {
 
 func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
 	//b.ReportAllocs()
-	newvalues := getFreshData(1000, 32)
+	keys := getFreshData(100, 32)
+	values := getFreshData(100, 32)
+	smt.Update(keys, values)
 	fmt.Println("\nLoading b.N x 1000 accounts")
 	for i := 0; i < b.N; i++ {
 		newkeys := getFreshData(1000, 32)
+		newvalues := getFreshData(1000, 32)
 		start := time.Now()
 		smt.Update(newkeys, newvalues)
 		end := time.Now()
 		smt.Commit()
 		end2 := time.Now()
+		for j, key := range newkeys {
+			val, _ := smt.Get(key)
+			if !bytes.Equal(val, newvalues[j]) {
+				b.Fatal("new key not included")
+			}
+		}
+		end3 := time.Now()
 		elapsed := end.Sub(start)
 		elapsed2 := end2.Sub(end)
+		elapsed3 := end3.Sub(end2)
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		fmt.Println(i, " : update time : ", elapsed, "commit time : ", elapsed2,
+			"\n1000 Get time : ", elapsed3,
 			"\ndb read : ", smt.LoadDbCounter, "    cache read : ", smt.LoadCacheCounter,
 			"\ncache size : ", len(smt.db.liveCache),
 			"\nRAM : ", m.Sys/1024/1024, " MiB")

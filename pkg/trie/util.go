@@ -7,7 +7,7 @@ package trie
 
 import (
 	"bytes"
-	"crypto/sha512"
+	"crypto/sha256"
 )
 
 var (
@@ -36,7 +36,7 @@ func bitSplit(bits []byte, i uint64) (split []byte) {
 }
 
 func Hasher(data ...[]byte) []byte {
-	hasher := sha512.New512_256()
+	hasher := sha256.New()
 	for i := 0; i < len(data); i++ {
 		hasher.Write(data[i])
 	}

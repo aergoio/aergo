@@ -13,11 +13,14 @@ import (
 // Revert rewinds the state tree to a previous version
 // All the nodes (subtree roots and values) reverted are deleted from the database.
 func (s *Trie) Revert(toOldRoot []byte) error {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	if bytes.Equal(s.Root, toOldRoot) {
-		return fmt.Errorf("Trying to revers to the same root %x", s.Root)
+		return nil
 	}
 	// safety precaution if reverting to a shortcut batch that might have been deleted
-	batch, _, _, _, isShortcut, err := s.loadChildren(toOldRoot, s.TrieHeight, nil, 0, false)
+	s.atomicUpdate = false // so loadChildren doesnt return a copy
+	batch, _, _, _, isShortcut, err := s.loadChildren(toOldRoot, s.TrieHeight, nil, 0)
 	if err != nil {
 		return err
 	}
@@ -82,12 +85,12 @@ func (s *Trie) maybeDeleteSubTree(original []byte, maybeDelete []byte, height ui
 	}
 	// if this point os reached, then the root of the batch is same
 	// so the batch is also same.
-	batch, iBatch, lnode, rnode, isShortcut, lerr := s.loadChildren(original, height, batch, iBatch, false)
+	batch, iBatch, lnode, rnode, isShortcut, lerr := s.loadChildren(original, height, batch, iBatch)
 	if lerr != nil {
 		ch <- lerr
 		return
 	}
-	batch2, _, lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete, height, batch2, iBatch, false)
+	batch2, _, lnode2, rnode2, isShortcut2, rerr := s.loadChildren(maybeDelete, height, batch2, iBatch)
 	if rerr != nil {
 		ch <- rerr
 		return
@@ -149,7 +152,7 @@ func (s *Trie) deleteSubTree(root []byte, height uint64, batch [][]byte, iBatch 
 		ch <- nil
 		return
 	}
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch, false)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
 	if err != nil {
 		ch <- err
 		return
