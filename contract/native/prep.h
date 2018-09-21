@@ -19,6 +19,8 @@ typedef struct scan_s {
     char *path;
     FILE *fp;
 
+    char *work_dir;
+
     errpos_t pos;
 
     int buf_len;
@@ -28,6 +30,6 @@ typedef struct scan_s {
     strbuf_t *out;
 } scan_t;
 
-void preprocess(char *path, strbuf_t *out);
+void preprocess(char *path, flag_t flag, strbuf_t *out);
 
 #endif /* ! _PREPROCESS_H */

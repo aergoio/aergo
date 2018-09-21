@@ -19,7 +19,7 @@ compile(char *path, flag_t flag)
 
     strbuf_init(&src);
 
-    preprocess(path, &src);
+    preprocess(path, flag, &src);
     parse(path, flag, &src);
 
     error_dump();

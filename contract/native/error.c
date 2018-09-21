@@ -189,4 +189,19 @@ error_dump(void)
     }
 }
 
+void
+error_exit(ec_t ec, errlvl_t lvl, ...)
+{
+    va_list vargs;
+    char errdesc[ERROR_MAX_DESC_LEN];
+
+    va_start(vargs, lvl);
+    vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
+    va_end(vargs);
+
+    fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[lvl], errdesc);
+
+    exit(EXIT_FAILURE);
+}
+
 /* end of errors.c */

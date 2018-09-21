@@ -45,12 +45,7 @@
                   "internal error with '"#msg"'");                             \
     } while (0)
 
-#define FATAL(ec, ...)                                                         \
-    do {                                                                       \
-        error_push((ec), LVL_FATAL, NULL, ## __VA_ARGS__);                     \
-        error_dump();                                                          \
-        exit(EXIT_FAILURE);                                                    \
-    } while (0)
+#define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
 
 #define ERROR(ec, ...)                                                         \
     error_push((ec), LVL_ERROR, NULL, ## __VA_ARGS__)
@@ -115,6 +110,8 @@ error_t *error_pop(void);
 
 void error_clear(void);
 void error_dump(void);
+
+void error_exit(ec_t ec, errlvl_t lvl, ...);
 
 static inline void
 errpos_init(errpos_t *pos, char *path)

@@ -55,7 +55,7 @@ write_file(char *path, strbuf_t *sb)
 
     fp = open_file(path, "w");
 
-    n = fwrite(strbuf_text(sb), strbuf_length(sb), 1, fp);
+    n = fwrite(strbuf_text(sb), 1, strbuf_length(sb), fp);
     if (n == 0)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
 

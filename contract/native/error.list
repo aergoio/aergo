@@ -10,6 +10,7 @@
 error(ERROR_INTERNAL,               "%s:%d: %s")
 error(ERROR_INVALID_FLAG,           "invalid command line flag: %s")
 
+error(ERROR_DIR_IO,                 "%s: %s")
 error(ERROR_FILE_IO,                "%s: %s")
 
 error(ERROR_CROSS_IMPORT,           "%s:%d: cross reference with import '%s'")

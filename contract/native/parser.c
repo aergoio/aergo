@@ -47,10 +47,10 @@ parse(char *path, flag_t flag, strbuf_t *src)
 
     yyset_extra(&param, scanner);
 
-    if (flag_enabled(flag, FLAG_LEX_DUMP))
+    if (flag_on(flag, FLAG_LEX_DUMP))
         yyset_debug(1, scanner);
 
-    if (flag_enabled(flag, FLAG_YACC_DUMP))
+    if (flag_on(flag, FLAG_YACC_DUMP))
         yydebug = 1;
 
     yyparse(&param, scanner);

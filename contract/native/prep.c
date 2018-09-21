@@ -15,17 +15,28 @@
 #define YY_COL                  scan->pos.first_col
 #define YY_OFFSET               scan->pos.first_offset
 
-#define yy_update_line()        scan->pos.first_line++
-#define yy_update_col()         scan->pos.first_col++
-#define yy_update_offset()      scan->pos.first_offset++
+#define yy_update_line()        scan->pos.last_line++
+#define yy_update_col()         scan->pos.last_col++
+#define yy_update_offset()      scan->pos.last_offset++
 
-static void substitue(char *path, stack_t *imp, strbuf_t *out);
+#define yy_update_first()                                                      \
+    do {                                                                       \
+        scan->pos.first_line = scan->pos.last_line;                            \
+        scan->pos.first_col = scan->pos.last_col;                              \
+        scan->pos.first_offset = scan->pos.last_offset;                        \
+    } while (0)
+
+static void substitue(char *path, char *work_dir, stack_t *imp, strbuf_t *out);
 
 static void
-scan_init(scan_t *scan, char *path, strbuf_t *out)
+scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
 {
+    char *delim;
+
     scan->path = path;
     scan->fp = open_file(path, "r");
+
+    scan->work_dir = work_dir;
 
     errpos_init(&scan->pos, path);
 
@@ -51,10 +62,12 @@ scan_next(scan_t *scan)
 
     c = scan->buf[scan->buf_pos++];
 
-    if (c == '\n' || c == '\r')
-        yy_update_line();
-
     yy_update_offset();
+
+    if (c == '\n' || c == '\r') {
+        yy_update_line();
+        yy_update_first();
+    }
 
     return c;
 }
@@ -80,14 +93,13 @@ scan_peek(scan_t *scan, int cnt)
 static bool
 add_file(scan_t *scan, char *path, stack_t *imp)
 {
-    stack_node_t *node = stack_top(imp);
+    stack_node_t *node;
 
-    if (node != NULL) {
-        while (true) {
-            if (strcmp(node->item, path) == 0) {
-                TRACE(ERROR_CROSS_IMPORT, &scan->pos, path);
-                return false;
-            }
+    stack_foreach(imp, node) {
+        if (strcmp(node->item, path) == 0) {
+            TRACE(ERROR_CROSS_IMPORT, &scan->pos, scan->path,
+                  scan->pos.first_line, FILENAME(path));
+            return false;
         }
     }
 
@@ -98,24 +110,20 @@ add_file(scan_t *scan, char *path, stack_t *imp)
 }
 
 static void
+del_file(scan_t *scan, char *path, stack_t *imp)
+{
+    stack_pop(imp);
+    scan->pos.path = path;
+}
+
+static void
 put_char(scan_t *scan, char c)
 {
     strbuf_append(scan->out, &c, 1);
 }
 
 static void
-skip_to_eol(scan_t *scan)
-{
-    char c;
-
-    while ((c = scan_next(scan)) != EOF) {
-        if (c == '\n' || c == '\r')
-            break;
-    }
-}
-
-static void
-skip_comment(scan_t *scan, char c)
+put_comment(scan_t *scan, char c)
 {
     char n;
 
@@ -123,14 +131,21 @@ skip_comment(scan_t *scan, char c)
 
     if (scan_peek(scan, 0) == '*') {
         while ((n = scan_next(scan)) != EOF) {
+            put_char(scan, n);
+
             if (n == '*' && scan_peek(scan, 0) == '/') {
-                scan_next(scan);
+                put_char(scan, scan_next(scan));
                 break;
             }
         }
     }
     else if (scan_peek(scan, 0) == '/') {
-        skip_to_eol(scan);
+        while ((n = scan_next(scan)) != EOF) {
+            put_char(scan, n);
+            
+            if (n == '\n' || n == '\r')
+                break;
+        }
     }
 }
 
@@ -151,8 +166,7 @@ put_literal(scan_t *scan, char c)
     }
 }
 
-/* WARNING: keep "void" not "static void" for tests */
-void
+static void
 mark_file(char *path, int line, int offset, strbuf_t *out)
 {
     char buf[PATH_MAX_LEN + 16];
@@ -165,10 +179,13 @@ mark_file(char *path, int line, int offset, strbuf_t *out)
 static void
 put_import(scan_t *scan, stack_t *imp)
 {
-    int offset = 0;
+    int offset;
     char path[PATH_MAX_LEN];
     char c, n;
     stack_node_t *node;
+
+    strcpy(path, scan->work_dir);
+    offset = strlen(path);
 
     // TODO: need more error handling
     while ((c = scan_next(scan)) != EOF) {
@@ -177,13 +194,16 @@ put_import(scan_t *scan, stack_t *imp)
                 path[offset++] = n;
 
                 if (n != '\\' && scan_peek(scan, 0) == '"') {
+                    scan_next(scan);
                     path[offset] = '\0';
 
-                    mark_file(path, 1, 0, scan->out);
-                    substitue(path, imp, scan->out);
-                    mark_file(scan->path, YY_LINE + 1, YY_OFFSET, scan->out);
-
-                    stack_pop(imp);
+                    if (add_file(scan, path, imp)) {
+                        mark_file(path, 1, 0, scan->out);
+                        substitue(path, scan->work_dir, imp, scan->out);
+                        mark_file(scan->path, YY_LINE + 1, YY_OFFSET, 
+                                  scan->out);
+                        del_file(scan, scan->path, imp);
+                    }
                     offset = 0;
                     break;
                 }
@@ -192,31 +212,21 @@ put_import(scan_t *scan, stack_t *imp)
         else if (c == '\n' || c == '\r') {
             break;
         }
-        /*
-        else if (!isspace(c)) {
-            TRACE(ERROR_UNKNOWN_CHAR, &scan->pos, scan->path);
-            skip_to_eol(scan);
-            break;
-        }
-        */
     }
 }
 
 static void
-substitue(char *path, stack_t *imp, strbuf_t *out)
+substitue(char *path, char *work_dir, stack_t *imp, strbuf_t *out)
 {
     bool is_first_ch = true;
     char c;
     scan_t scan;
 
-    scan_init(&scan, path, out);
-
-    if (!add_file(&scan, path, imp))
-        return;
+    scan_init(&scan, path, work_dir, out);
 
     while ((c = scan_next(&scan)) != EOF) {
         if (c == '/') {
-            skip_comment(&scan, c);
+            put_comment(&scan, c);
             is_first_ch = false;
         }
         else if (c == '"') {
@@ -232,11 +242,11 @@ substitue(char *path, stack_t *imp, strbuf_t *out)
         }
         else if (is_first_ch && c == 'i' &&
                  scan_peek(&scan, 0) == 'm' &&
-                 scan_peek(&scan, 0) == 'p' &&
-                 scan_peek(&scan, 0) == 'o' &&
-                 scan_peek(&scan, 0) == 'r' &&
-                 scan_peek(&scan, 0) == 't' &&
-                 isblank(scan_peek(&scan, 0))) {
+                 scan_peek(&scan, 1) == 'p' &&
+                 scan_peek(&scan, 2) == 'o' &&
+                 scan_peek(&scan, 3) == 'r' &&
+                 scan_peek(&scan, 4) == 't' &&
+                 isblank(scan_peek(&scan, 5))) {
             put_import(&scan, imp);
             is_first_ch = false;
         }
@@ -248,13 +258,34 @@ substitue(char *path, stack_t *imp, strbuf_t *out)
 }
 
 void
-preprocess(char *path, strbuf_t *out)
+preprocess(char *path, flag_t flag, strbuf_t *out)
 {
     stack_t imp;
+    char *delim;
+    char work_dir[PATH_MAX_LEN];
 
     stack_init(&imp);
 
-    substitue(path, &imp, out);
+    strcpy(work_dir, path);
+    delim = strrchr(work_dir, PATH_DELIM);
+    if (delim == NULL)
+        work_dir[0] = '\0';
+    else
+        *delim = '\0';
+
+    stack_push(&imp, path);
+
+    substitue(path, work_dir, &imp, out);
+
+    stack_pop(&imp);
+
+    if (flag_on(flag, FLAG_VERBOSE)) {
+        char file[PATH_MAX_LEN];
+
+        snprintf(file, sizeof(file), "%s.i", path);
+
+        write_file(file, out);
+    }
 }
 
 /* end of preprocess.c */

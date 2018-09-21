@@ -9,7 +9,8 @@
 #include "common.h"
 
 #define flag_set(x, y)      ((x) |= (y))
-#define flag_enabled(x, y)  (((x) & (y)) == (y))
+#define flag_on(x, y)       (((x) & (y)) == (y))
+#define flag_off(x, y)      (((x) & (y)) != (y))
 
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
