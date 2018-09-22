@@ -17,7 +17,7 @@ func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	s.atomicUpdate = false // so loadChildren doesnt return a copy
-	return s.merkleProof(s.Root, s.TrieHeight, key, nil, 0)
+	return s.merkleProof(s.Root, key, nil, s.TrieHeight, 0)
 }
 
 // MerkleProofCompressed returns a compressed merkle proof
@@ -25,7 +25,7 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	// create a regular merkle proof and then compress it
-	mpFull, included, proofKey, proofVal, err := s.merkleProof(s.Root, s.TrieHeight, key, nil, 0)
+	mpFull, included, proofKey, proofVal, err := s.merkleProof(s.Root, key, nil, s.TrieHeight, 0)
 	if err != nil {
 		return nil, nil, 0, true, nil, nil, err
 	}
@@ -46,7 +46,7 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 // The proof of non inclusion is not explicit : it is a proof that
 // a leaf node is on the path of the non included key.
 // returns the audit path, true (key included), key, value on the path if false (non inclusion), error
-func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byte, iBatch uint8) ([][]byte, bool, []byte, []byte, error) {
+func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint64) ([][]byte, bool, []byte, []byte, error) {
 	if len(root) == 0 {
 		rest := make([][]byte, height)
 		// copy because the array will be appended to.
@@ -57,7 +57,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 		return nil, true, nil, nil, nil
 	}
 	// Fetch the children of the node
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
 	if err != nil {
 		return nil, false, nil, nil, err
 	}
@@ -72,7 +72,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 
 	// append the left or right node to the proof
 	if bitIsSet(key, s.TrieHeight-height) {
-		mp, included, proofKey, proofValue, err := s.merkleProof(rnode, height-1, key, batch, 2*iBatch+2)
+		mp, included, proofKey, proofValue, err := s.merkleProof(rnode, key, batch, height-1, 2*iBatch+2)
 		if err != nil {
 			return nil, false, nil, nil, err
 		}
@@ -83,7 +83,7 @@ func (s *Trie) merkleProof(root []byte, height uint64, key []byte, batch [][]byt
 		}
 
 	}
-	mp, included, proofKey, proofValue, err := s.merkleProof(lnode, height-1, key, batch, 2*iBatch+1)
+	mp, included, proofKey, proofValue, err := s.merkleProof(lnode, key, batch, height-1, 2*iBatch+1)
 	if err != nil {
 		return nil, false, nil, nil, err
 	}

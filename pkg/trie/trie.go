@@ -95,7 +95,7 @@ func (s *Trie) LoadCache(root []byte) error {
 }
 
 // loadCache loads the first layers of the merkle tree given a root
-func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch uint8, height uint64, ch chan<- (error)) {
+func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch chan<- (error)) {
 	if height < s.CacheHeightLimit || len(root) == 0 {
 		ch <- nil
 		return
@@ -218,7 +218,7 @@ type mresult struct {
 // It returns the root of the updated tree.
 // A DefaultLeaf shouldn't be updated to a DefaultLeaf as shortcut nodes
 // could be moved down the tree resulting in an invalid root
-func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
+func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
 		if bytes.Equal(DefaultLeaf, values[0]) {
 			// Delete the key-value from the trie if it is being set to DefaultLeaf
@@ -230,14 +230,14 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 			// simply storing the value will make it hard to move up the
 			// shortcut in case of sibling deletion
 			batch = make([][]byte, 31, 31)
-			node := s.leafHash(keys[0], values[0], batch, 0, height, root)
+			node := s.leafHash(keys[0], values[0], root, batch, 0, height)
 			ch <- mresult{node, false, nil}
 		}
 		return
 	}
 
 	// Load the node to update
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
 	if err != nil {
 		ch <- mresult{nil, false, err}
 		return
@@ -266,7 +266,7 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 		if bytes.Equal(DefaultLeaf, values[0]) {
 			ch <- mresult{nil, true, nil}
 		} else {
-			node := s.leafHash(keys[0], values[0], batch, iBatch, height, root)
+			node := s.leafHash(keys[0], values[0], root, batch, iBatch, height)
 			ch <- mresult{node, false, nil}
 		}
 		return
@@ -288,7 +288,7 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch uint8, h
 }
 
 // updateRight updates the right side of the tree
-func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
 	// all the keys go in the right subtree
 	newch := make(chan mresult, 1)
 	s.update(rnode, keys, values, batch, 2*iBatch+2, height-1, newch)
@@ -303,12 +303,12 @@ func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]by
 			return
 		}
 	}
-	node := s.interiorHash(lnode, result.update, batch, iBatch, height, root)
+	node := s.interiorHash(lnode, result.update, root, batch, iBatch, height)
 	ch <- mresult{node, false, nil}
 }
 
 // updateLeft updates the left side of the tree
-func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
 	// all the keys go in the left subtree
 	newch := make(chan mresult, 1)
 	s.update(lnode, keys, values, batch, 2*iBatch+1, height-1, newch)
@@ -323,12 +323,12 @@ func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byt
 			return
 		}
 	}
-	node := s.interiorHash(result.update, rnode, batch, iBatch, height, root)
+	node := s.interiorHash(result.update, rnode, root, batch, iBatch, height)
 	ch <- mresult{node, false, nil}
 }
 
 // updateParallel updates both sides of the trie simultaneously
-func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
 	lch := make(chan mresult, 1)
 	rch := make(chan mresult, 1)
 	go s.update(lnode, lkeys, lvalues, batch, 2*iBatch+1, height-1, lch)
@@ -350,7 +350,7 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 			return
 		}
 	}
-	node := s.interiorHash(lresult.update, rresult.update, batch, iBatch, height, root)
+	node := s.interiorHash(lresult.update, rresult.update, root, batch, iBatch, height)
 	ch <- mresult{node, false, nil}
 }
 
@@ -383,7 +383,7 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 }
 
 // maybeMoveUpShortcut moves up a shortcut if it's sibling node is default
-func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBatch uint8, height uint64, ch chan<- (mresult)) bool {
+func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) bool {
 	if len(left) == 0 && len(right) == 0 {
 		// Both update and sibling are deleted subtrees
 		if iBatch == 0 {
@@ -410,9 +410,9 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 	return false
 }
 
-func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut uint8, height uint64, ch chan<- (mresult)) bool {
+func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut, height uint64, ch chan<- (mresult)) bool {
 	// it doesn't matter if atomic update is true or false since the batch is node modified
-	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, batch, iShortcut)
+	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, iShortcut, batch)
 	if err != nil {
 		ch <- mresult{nil, false, err}
 		return false
@@ -500,7 +500,7 @@ func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcut
 
 // loadChildren looks for the children of a node.
 // if the node is not stored in cache, it will be loaded from db.
-func (s *Trie) loadChildren(root []byte, height uint64, batch [][]byte, iBatch uint8) ([][]byte, uint8, []byte, []byte, bool, error) {
+func (s *Trie) loadChildren(root []byte, height, iBatch uint64, batch [][]byte) ([][]byte, uint64, []byte, []byte, bool, error) {
 	isShortcut := false
 	if height%4 == 0 {
 		if len(root) == 0 {
@@ -614,13 +614,13 @@ func (s *Trie) Get(key []byte) ([]byte, error) {
 }
 
 // get fetches the value of a key given a trie root
-func (s *Trie) get(root []byte, key []byte, batch [][]byte, iBatch uint8, height uint64) ([]byte, error) {
+func (s *Trie) get(root []byte, key []byte, batch [][]byte, iBatch, height uint64) ([]byte, error) {
 	if len(root) == 0 {
 		// the trie does not contain the key
 		return nil, nil
 	}
 	// Fetch the children of the node
-	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, batch, iBatch)
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +655,7 @@ func (s *Trie) DefaultHash(height uint64) []byte {
 
 // leafHash returns the hash of key_value_byte(height) concatenated, stores it in the updatedNodes and maybe in liveCache.
 // leafHash is never called for a default value. Default value should not be stored.
-func (s *Trie) leafHash(key, value []byte, batch [][]byte, iBatch uint8, height uint64, oldRoot []byte) []byte {
+func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, height uint64) []byte {
 	// byte(height) is here for 2 reasons.
 	// 1- to prevent potential problems with merkle proofs where if an account
 	// has the same address as a node, it would be possible to prove a
@@ -694,7 +694,7 @@ func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height uint64) {
 }
 
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
-func (s *Trie) interiorHash(left, right []byte, batch [][]byte, iBatch uint8, height uint64, oldRoot []byte) []byte {
+func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height uint64) []byte {
 	var h []byte
 	// left and right cannot both be default. It is  handled by moveUpShortcut()
 	if len(left) == 0 {
