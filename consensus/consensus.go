@@ -61,6 +61,7 @@ type Consensus interface {
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
+	SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
 // ChainConsensus includes chainstatus and validation API.

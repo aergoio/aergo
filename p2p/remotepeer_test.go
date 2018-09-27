@@ -108,7 +108,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 	}
 }
 
-func TestRemotePeer_sendPing(t *testing.T) {
+func TestePeer_sendPing(t *testing.T) {
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
@@ -122,8 +122,7 @@ func TestRemotePeer_sendPing(t *testing.T) {
 		getBlockErr error
 		wants       wants
 	}{
-		{"TN", nil, wants{wantWrite: true}},
-		{"TF", sampleErr, wants{wantWrite: false}},
+		{"TSucc", nil, wants{wantWrite: true}},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -154,7 +153,8 @@ func TestRemotePeer_sendPing(t *testing.T) {
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
 			mockPeerManager.AssertNotCalled(t, "SelfMeta")
-			mockActorServ.AssertNumberOfCalls(t, "CallRequest", 1)
+			// ping request does not contain best block information anymore.
+			mockActorServ.AssertNotCalled(t, "CallRequest")
 		})
 	}
 }

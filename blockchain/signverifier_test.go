@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -32,10 +31,6 @@ func _itobU32(argv uint32) []byte {
 	bs := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bs, argv)
 	return bs
-}
-
-func getAccount(tx *types.Tx) string {
-	return hex.EncodeToString(tx.GetBody().GetAccount())
 }
 
 func beforeTest(txCount int) error {

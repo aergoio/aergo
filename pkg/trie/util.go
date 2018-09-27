@@ -7,12 +7,12 @@ package trie
 
 import (
 	"bytes"
-	"crypto/sha512"
+	"crypto/sha256"
 )
 
 var (
 	// Trie default value : hash of 0x0
-	DefaultLeaf = hash([]byte{0x0})
+	DefaultLeaf = Hasher([]byte{0x0})
 )
 
 const (
@@ -35,8 +35,8 @@ func bitSplit(bits []byte, i uint64) (split []byte) {
 	return
 }
 
-func hash(data ...[]byte) []byte {
-	hasher := sha512.New512_256()
+func Hasher(data ...[]byte) []byte {
+	hasher := sha256.New()
 	for i := 0; i < len(data); i++ {
 		hasher.Write(data[i])
 	}

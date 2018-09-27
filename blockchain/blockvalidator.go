@@ -8,21 +8,26 @@ package blockchain
 import (
 	"bytes"
 	"errors"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 type BlockValidator struct {
 	signVerifier *SignVerifier
+	sdb          *state.ChainStateDB
 }
 
 var (
-	ErrorBlockVerifySign   = errors.New("Block verify failed, because Tx sign is invalid")
-	ErrorBlockVerifyTxRoot = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifySign      = errors.New("Block verify failed, because Tx sign is invalid")
+	ErrorBlockVerifyTxRoot    = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifyStateRoot = errors.New("Block verify failed, because state root hash is not equal")
 )
 
-func NewBlockValidator() *BlockValidator {
+func NewBlockValidator(sdb *state.ChainStateDB) *BlockValidator {
 	bv := BlockValidator{
 		signVerifier: NewSignVerifier(DefaultVerifierCnt),
+		sdb:          sdb,
 	}
 
 	logger.Debug().Msg("started signverifier")
@@ -51,6 +56,10 @@ func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	//	MaxHeaderSize
 	//	ChainVersion
 	//	StateRootHash
+	if bv.sdb.IsExistState(header.GetBlocksRootHash()) {
+		return ErrorBlockVerifyStateRoot
+	}
+
 	return nil
 }
 
@@ -58,14 +67,14 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	txs := block.GetBody().GetTxs()
 
 	// TxRootHash
-	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", enc.ToString(block.GetHeader().GetTxsRootHash())).
 		Msg("tx root verify")
 
 	computeTxRootHash := types.CalculateTxsRootHash(txs)
 	if bytes.Equal(block.GetHeader().GetTxsRootHash(), computeTxRootHash) == false {
 		logger.Error().Str("block", block.ID()).
-			Str("txroot", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
-			Str("compute txroot", types.EncodeB64(computeTxRootHash)).
+			Str("txroot", enc.ToString(block.GetHeader().GetTxsRootHash())).
+			Str("compute txroot", enc.ToString(computeTxRootHash)).
 			Msg("tx root validation failed")
 		return ErrorBlockVerifyTxRoot
 	}

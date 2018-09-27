@@ -15,11 +15,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	inet "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
@@ -276,15 +275,15 @@ func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, sch
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *RemotePeer) sendPing() {
 	// find my best block
-	bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
-	if err != nil {
-		p.logger.Error().Err(err).Msg("Failed to get best block")
-		return
-	}
+	//bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
+	//if err != nil {
+	//	p.logger.Error().Err(err).Msg("Failed to get best block")
+	//	return
+	//}
 	// create message data
 	pingMsg := &types.Ping{
-		BestBlockHash: bestBlock.BlockHash(),
-		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
+		//BestBlockHash: bestBlock.BlockHash(),
+		//BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
 	p.sendMessage(newPbMsgRequestOrder(true, pingRequest, pingMsg, p.signer))

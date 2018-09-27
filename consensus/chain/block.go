@@ -14,8 +14,7 @@ import (
 
 var (
 	// ErrQuit indicates that shutdown is initiated.
-	ErrQuit = errors.New("shutdown initiated")
-
+	ErrQuit           = errors.New("shutdown initiated")
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 

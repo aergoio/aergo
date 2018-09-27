@@ -6,8 +6,10 @@
 package p2p
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"net"
 	"reflect"
 
@@ -173,4 +175,18 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 	}
 	// check which is longer
 	return l1 - l2
+}
+
+// bytesArrToString converts array of byte array to json array of b58 encoded string.
+func bytesArrToString(bbarray [][]byte) string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for _, hash := range bbarray {
+		buf.WriteByte('"')
+		buf.WriteString(enc.ToString(hash))
+		buf.WriteByte('"')
+		buf.WriteByte(',')
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }

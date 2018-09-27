@@ -31,10 +31,9 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 	return cs.getBestBlock()
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
-	blockNo := cs.cdb.getBestBlockNo()
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
 
-	return cs.cdb.getBlockByNo(blockNo)
+	return cs.cdb.bestBlock.Load().(*types.Block), nil
 }
 
 func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
@@ -42,7 +41,15 @@ func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error
 }
 
 func (cs *ChainService) getBlock(blockHash []byte) (*types.Block, error) {
-	return cs.cdb.getBlock(blockHash)
+	block, err := cs.cdb.getBlock(blockHash)
+	if err != nil {
+		return nil, err
+	}
+	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return block, errors.New("block is not in the main chain")
+	}
+	return block, nil
 }
 
 func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
@@ -56,11 +63,14 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, err
 	}
 	block, err := cs.cdb.getBlock(txidx.BlockHash)
+	if err != nil {
+		return nil, nil, err
+	}
 	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return tx, nil, errors.New("tx is not in the main chain")
 	}
-	return tx, txidx, err
+	return tx, txidx, nil
 }
 
 type chainProcessor struct {
@@ -161,7 +171,6 @@ func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
 	}
-
 	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
 
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
@@ -174,15 +183,14 @@ func (cp *chainProcessor) execute() error {
 		blockNo := block.BlockNo()
 		cp.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 			// FIXME: remove legacy
-			BlockNo: blockNo,
-			Txs:     block.GetBody().GetTxs(),
+			Block: block,
 		})
 
 		//SyncWithConsensus :
 		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
 		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
 		//	In this case, messages of mempool is synchronized in actor message queue.
-		oldLatest := cp.cdb.setLatest(blockNo)
+		oldLatest := cp.cdb.setLatest(block)
 
 		// XXX Something similar should be also done during
 		// reorganization.
@@ -266,7 +274,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 func (cs *ChainService) CountTxsInChain() int {
 	var txCount int
 
-	blk, err := cs.GetBestBlock()
+	blk, err := cs.getBestBlock()
 	if err != nil {
 		return -1
 	}
@@ -292,7 +300,7 @@ func (cs *ChainService) CountTxsInChain() int {
 
 type txExecFn func(tx *types.Tx) error
 
-type executor struct {
+type blockExecutor struct {
 	sdb        *state.ChainStateDB
 	blockState *types.BlockState
 	execTx     txExecFn
@@ -300,7 +308,7 @@ type executor struct {
 	receiptTx  db.Transaction
 }
 
-func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*executor, error) {
+func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec txExecFn
 	var receiptTx db.Transaction
 
@@ -326,7 +334,7 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 
 	txs := block.GetBody().GetTxs()
 
-	return &executor{
+	return &blockExecutor{
 		sdb:        sdb,
 		blockState: bState,
 		execTx:     exec,
@@ -335,7 +343,7 @@ func newExecutor(cs *ChainService, bState *types.BlockState, block *types.Block)
 	}, nil
 }
 
-func (e *executor) execute() error {
+func (e *blockExecutor) execute() error {
 	defer func() {
 		if e.receiptTx != nil {
 			e.receiptTx.Commit()
@@ -367,7 +375,7 @@ func setMainChainStatus(tx db.Transaction, block *types.Block) {
 }
 
 func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
-	ex, err := newExecutor(cs, bstate, block)
+	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
 	}
@@ -434,19 +442,18 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
+			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
+				blockNo, ts, "", false, recipient, false)
 
 			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, receiptTx)
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
 			} else {
-				bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-					blockNo, ts, "", false, recipient, false)
-
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
-				if err != nil {
-					return err
-				}
-				err = sdb.CommitContractState(contractState)
 			}
+			if err != nil {
+				return err
+			}
+			err = sdb.CommitContractState(contractState)
 			if err != nil {
 				return err
 			}
@@ -508,7 +515,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 		return err
 	}
 	// request missing
-	anchors := cs.getAnchorsFromHash(block.Hash)
+	anchors := cs.getAnchorsFromHash(block.BlockHash())
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
@@ -552,7 +559,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 			continue
 		}
 
-		if bytes.Equal(mainhash, mainblock.Hash) {
+		if bytes.Equal(mainhash, mainblock.BlockHash()) {
 			break
 		}
 		mainblock = nil

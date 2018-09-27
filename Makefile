@@ -25,9 +25,9 @@ deps: liball
 # FIXME: make recursive to subdirectories
 protoc:
 	protoc -I/usr/local/include \
-		-I${GOPATH}/src/${REPOPATH}/types \
+		-I${GOPATH}/src/${REPOPATH}/aergo-protobuf/proto \
 		--go_out=plugins=grpc:${GOPATH}/src \
-		${GOPATH}/src/${REPOPATH}/types/*.proto 
+		${GOPATH}/src/${REPOPATH}/aergo-protobuf/proto/*.proto
 	go build ./types/...
 
 aergosvr: cmd/aergosvr/*.go

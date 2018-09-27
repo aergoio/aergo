@@ -145,7 +145,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 			if err != nil || foundBlock == nil {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			headers = append(headers, getBlockHeader(foundBlock))
 			idx++
 			hash = foundBlock.Header.PrevBlockHash
@@ -164,7 +164,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 			if err != nil || foundBlock == nil {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			headers = append(headers, getBlockHeader(foundBlock))
 			idx++
 		}

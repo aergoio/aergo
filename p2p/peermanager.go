@@ -18,7 +18,7 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -27,10 +27,9 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/pkg/component"
-	libp2p "github.com/libp2p/go-libp2p"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -54,7 +53,6 @@ type PeerManager interface {
 	host.Host
 	Start() error
 	Stop() error
-	GetStatus() component.Status
 
 	PrivateKey() crypto.PrivKey
 	PublicKey() crypto.PubKey
@@ -74,10 +72,6 @@ type PeerManager interface {
 	GetPeer(ID peer.ID) (*RemotePeer, bool)
 	GetPeers() []*RemotePeer
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
-
-	// deprecated methods... use sendmessage helper functions instead
-	//	SignProtoMessage(message proto.Message) ([]byte, error)
-	//	AuthenticateMessage(message proto.Message, data *types.MsgHeader) bool
 }
 
 /**
@@ -102,8 +96,6 @@ type peerManager struct {
 	mutex       *sync.Mutex
 	peerCache   []*RemotePeer
 
-	status component.Status
-
 	addPeerChannel    chan PeerMeta
 	removePeerChannel chan peer.ID
 	fillPoolChannel   chan []PeerMeta
@@ -111,6 +103,7 @@ type peerManager struct {
 	eventListeners    []PeerEventListener
 
 	invCache *lru.Cache
+	txInvCache *lru.Cache
 }
 
 var _ PeerManager = (*peerManager)(nil)
@@ -145,7 +138,6 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm Re
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
 		peerCache:   make([]*RemotePeer, 0, p2pConf.NPMaxPeers),
 
-		status:            component.StoppedStatus,
 		addPeerChannel:    make(chan PeerMeta, 2),
 		removePeerChannel: make(chan peer.ID),
 		fillPoolChannel:   make(chan []PeerMeta),
@@ -155,6 +147,10 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm Re
 
 	var err error
 	pm.invCache, err = lru.New(DefaultGlobalInvCacheSize)
+	if err != nil {
+		panic("Failed to create peermanager " + err.Error())
+	}
+	pm.txInvCache, err = lru.New(DefaultGlobalInvCacheSize)
 	if err != nil {
 		panic("Failed to create peermanager " + err.Error())
 	}
@@ -559,7 +555,6 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 
 func (pm *peerManager) Start() error {
 	pm.run()
-	pm.status = component.StartedStatus
 	//pm.conf.NPAddPeers
 	return nil
 }
@@ -567,21 +562,8 @@ func (pm *peerManager) Stop() error {
 	// TODO stop service
 	// close(pm.addPeerChannel)
 	// close(pm.removePeerChannel)
-	pm.status = component.StoppedStatus
 	pm.finishChannel <- struct{}{}
 	return nil
-}
-
-func (pm *peerManager) GetStatus() component.Status {
-	return pm.status
-}
-
-func (pm *peerManager) Started() bool {
-	return pm.status == component.StartedStatus
-}
-
-func (pm *peerManager) Ended() bool {
-	return pm.status == component.StoppedStatus
 }
 
 func (pm *peerManager) GetName() string {
@@ -725,7 +707,7 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {
-		ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+		ok, _ := pm.txInvCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 		if ok {
 			// Kickout duplicated notice log.
 			// if pm.logger.IsDebugEnabled() {

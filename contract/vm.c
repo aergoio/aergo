@@ -61,7 +61,11 @@ void vm_getfield(lua_State *L, const char *name)
 {
 	lua_getfield(L, LUA_GLOBALSINDEX, name);
 }
-
+void vm_remove_construct(lua_State *L, const char *construct_name)
+{
+    lua_pushnil(L);
+	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
+}
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;

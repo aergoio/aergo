@@ -5,6 +5,7 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"errors"
+	"github.com/aergoio/aergo/internal/enc"
 	"runtime"
 )
 
@@ -59,7 +60,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 		err := verifyTx(txWork.tx)
 
 		if err != nil {
-			logger.Error().Int("worker", workerNo).Str("hash", types.EncodeB64(txWork.tx.GetHash())).
+			logger.Error().Int("worker", workerNo).Str("hash", enc.ToString(txWork.tx.GetHash())).
 				Str("err", err.Error()).Msg("error verify tx")
 		}
 

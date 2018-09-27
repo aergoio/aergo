@@ -68,7 +68,7 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 // NotifyNewBlock send notice message of new block to a peer
 func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	req := &types.NewBlockNotice{
-		BlockHash: newBlock.Block.Hash,
+		BlockHash: newBlock.Block.BlockHash(),
 		BlockNo:   newBlock.BlockNo}
 	msg := newPbMsgBlkBroadcastOrder(req, p2ps.signer)
 
@@ -82,7 +82,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 			skipped++
 		}
 	}
-	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hash", enc.ToString(newBlock.Block.Hash)).Msg("Notifying new block")
+	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
 	return true
 }
 

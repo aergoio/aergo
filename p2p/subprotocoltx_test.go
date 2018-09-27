@@ -11,25 +11,8 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 
-	"github.com/aergoio/aergo-actor/actor"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
-
-var _ ActorService = (*mockIServ)(nil)
-
-type mockIServ struct {
-}
-
-func (m mockIServ) SendRequest(actor string, msg interface{}) {
-
-}
-
-func (m mockIServ) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	return nil, nil
-}
-func (m mockIServ) FutureRequest(actor string, msg interface{}) *actor.Future {
-	return nil
-}
 
 const hashSize = 32
 
@@ -78,8 +61,7 @@ func Test_bytesArrToString(t *testing.T) {
 		args args
 		want string
 	}{
-		{name: "tsucc-01", args: args{[][]byte{[]byte("abcde"), []byte("12345")}}, want: "[\"YWJjZGU=\",\"MTIzNDU=\",]"},
-		// TODO: Add test cases.
+		{name: "TSucc-01", args: args{[][]byte{[]byte("abcde"), []byte("12345")}}, want: "[\"YWJjZGU=\",\"MTIzNDU=\",]"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

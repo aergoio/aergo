@@ -46,11 +46,15 @@ func execGetTX(cmd *cobra.Command, args []string) {
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if nil == err {
-		fmt.Println("Pending: ", util.ConvBase58Addr(msg))
+		fmt.Println("Pending: ", util.TxConvBase58Addr(msg))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if nil == err {
-			fmt.Println("Confirm: ", util.JSON(msgblock.GetTxIdx()), util.ConvBase58Addr(msgblock.GetTx()))
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			fmt.Println("Confirm: ", util.JSON(msgblock))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}

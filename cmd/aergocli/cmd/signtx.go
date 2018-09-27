@@ -78,7 +78,7 @@ var signCmd = &cobra.Command{
 		}
 
 		if nil == err && msg != nil {
-			fmt.Println(util.ConvBase58Addr(msg))
+			fmt.Println(util.TxConvBase58Addr(msg))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}
@@ -109,7 +109,7 @@ var verifyCmd = &cobra.Command{
 		msg, err := client.VerifyTX(context.Background(), param[0])
 		if nil == err {
 			if msg.Tx != nil {
-				fmt.Println(util.ConvBase58Addr(msg.Tx))
+				fmt.Println(util.TxConvBase58Addr(msg.Tx))
 			} else {
 				fmt.Println(msg.Error)
 			}

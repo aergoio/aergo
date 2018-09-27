@@ -141,16 +141,28 @@ func blockBP(block *types.Block) string {
 
 // NeedReorganization reports whether reorganization is needed or not.
 func (s *Status) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
-	libNo := s.lib.blockNo
+	return true
+	// Disable until the reorganization logic is correctly implmented.
+	/*
+		s.RLock()
+		defer s.RUnlock()
 
-	reorganizable := rootNo < libNo && bestNo > libNo
-	if reorganizable {
-		logger.Info().
-			Uint64("LIB", libNo).
-			Uint64("branch root no", rootNo).
-			Uint64("best no", bestNo).
-			Msg("not reorganizable - the current main branch has a LIB.")
-	}
+		if s.lib == nil {
+			logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
+			return true
+		}
 
-	return reorganizable
+		libNo := s.lib.blockNo
+
+		reorganizable := rootNo < libNo && bestNo > libNo
+		if reorganizable {
+			logger.Info().
+				Uint64("LIB", libNo).
+				Uint64("branch root no", rootNo).
+				Uint64("best no", bestNo).
+				Msg("not reorganizable - the current main branch has a LIB.")
+		}
+
+		return reorganizable
+	*/
 }

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -31,6 +32,7 @@ import (
 )
 
 const DbName = "contracts.db"
+const constructorName = "constructor"
 
 var (
 	ctrLog      *log.Logger
@@ -131,10 +133,40 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	return ce
 }
 
+func (ce *Executor) processArgs(ci *types.CallInfo) {
+	for _, v := range ci.Args {
+		switch arg := v.(type) {
+		case string:
+			argC := C.CString(arg)
+			C.lua_pushstring(ce.L, argC)
+			C.free(unsafe.Pointer(argC))
+		case int:
+			C.lua_pushinteger(ce.L, C.lua_Integer(arg))
+		case float64:
+			C.lua_pushnumber(ce.L, C.double(arg))
+		case bool:
+			var b int
+			if arg {
+				b = 1
+			}
+			C.lua_pushboolean(ce.L, C.int(b))
+		default:
+			fmt.Println("unsupported type:" + reflect.TypeOf(v).Name())
+			ce.err = errors.New("unsupported type:" + reflect.TypeOf(v).Name())
+			return
+		}
+	}
+}
+
 func (ce *Executor) call(ci *types.CallInfo) {
 	if ce.err != nil {
 		return
 	}
+	constructStr := C.CString(constructorName)
+	C.lua_pushnil(ce.L)
+	C.vm_remove_construct(ce.L, constructStr)
+	C.free(unsafe.Pointer(constructStr))
+
 	abiStr := C.CString("abi")
 	callStr := C.CString("call")
 	abiName := C.CString(ci.Name)
@@ -146,27 +178,34 @@ func (ce *Executor) call(ci *types.CallInfo) {
 	C.vm_getfield(ce.L, abiStr)
 	C.lua_getfield(ce.L, -1, callStr)
 	C.lua_pushstring(ce.L, abiName)
-	for _, v := range ci.Args {
-		switch arg := v.(type) {
-		case string:
-			argC := C.CString(arg)
-			C.lua_pushstring(ce.L, argC)
-			C.free(unsafe.Pointer(argC))
-		case int:
-			C.lua_pushinteger(ce.L, C.long(arg))
-		case bool:
-			var b int
-			if arg {
-				b = 1
-			}
-			C.lua_pushboolean(ce.L, C.int(b))
-		default:
-			ce.err = errors.New("unsupported type")
-			return
-		}
-	}
+
+	ce.processArgs(ci)
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		C.free(unsafe.Pointer(cErrMsg))
+		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
+		ce.err = errors.New(errMsg)
+		return
+	}
+	ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+}
+
+func (ce *Executor) constructCall(ci *types.CallInfo) {
+	if ce.err != nil {
+		return
+	}
+	initName := C.CString(constructorName)
+	defer C.free(unsafe.Pointer(initName))
+
+	C.vm_getfield(ce.L, initName)
+	ce.processArgs(ci)
+
+	if ce.err != nil {
+		return
+	}
+	nret := C.int(0)
+	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
@@ -195,7 +234,7 @@ func (ce *Executor) close() {
 func Call(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	var err error
 	var ci types.CallInfo
-	contract := getContract(contractState, contractAddress)
+	contract := getContract(contractState, contractAddress, nil)
 	if contract != nil {
 		err = json.Unmarshal(code, &ci)
 		if err != nil {
@@ -223,13 +262,39 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	return err
 }
 
-func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, dbTx db.Transaction) error {
+func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
-	err := contractState.SetCode(code)
+	codeLen := binary.LittleEndian.Uint32(code[0:])
+	sCode := code[4:codeLen]
+
+	err := contractState.SetCode(sCode)
 	if err != nil {
 		return err
 	}
-	receipt := types.NewReceipt(contractAddress, "CREATED", "{}")
+	contract := getContract(contractState, contractAddress, sCode)
+	if contract == nil {
+		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+		return err
+	}
+	var ce *Executor
+	ctrLog.Debug().Str("deploy code", string(code)).Msgf("contract deploy %s", types.EncodeAddress(contractAddress))
+	ce = newExecutor(contract, bcCtx)
+	defer ce.close()
+
+	var ci types.CallInfo
+	if len(code) != int(codeLen) {
+		err = json.Unmarshal(code[codeLen:], &ci.Args)
+	}
+	var errMsg string
+	if err != nil {
+		errMsg = err.Error()
+	}
+	ce.constructCall(&ci)
+	if ce.err != nil {
+		errMsg += "\", \"constructor call error:" + ce.err.Error()
+	}
+	receipt := types.NewReceipt(contractAddress, "CREATED", "{\""+errMsg+"\"}")
 	dbTx.Set(txHash, receipt.Bytes())
 
 	return nil
@@ -238,7 +303,7 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
 	var ci types.CallInfo
 	var err error
-	contract := getContract(contractState, contractAddress)
+	contract := getContract(contractState, contractAddress, nil)
 	if contract != nil {
 		err = json.Unmarshal(queryInfo, &ci)
 		if err != nil {
@@ -264,11 +329,16 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	return []byte(ce.jsonRet), err
 }
 
-func getContract(contractState *state.ContractState, contractAddress []byte) *Contract {
-	val, err := contractState.GetCode()
+func getContract(contractState *state.ContractState, contractAddress []byte, code []byte) *Contract {
+	var val []byte
+	val = code
+	if val == nil {
+		var err error
+		val, err = contractState.GetCode()
 
-	if err != nil {
-		return nil
+		if err != nil {
+			return nil
+		}
 	}
 	if len(val) > 0 {
 		l := binary.LittleEndian.Uint32(val[0:])

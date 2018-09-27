@@ -63,12 +63,13 @@ var initGenesis = &cobra.Command{
 			return
 		}
 
-		chainsvc := blockchain.NewChainService(cfg, nil)
+		chainsvc := blockchain.NewChainService(cfg, nil, nil)
 		err = chainsvc.InitGenesisBlock(genesis, initpath)
 		if err != nil {
 			fmt.Printf("fail to init genesis block data (error:%s)\n", err)
 		}
 		fmt.Printf("genesis block is created in (%s)\n", initpath)
 
+		chainsvc.CloseDB()
 	},
 }

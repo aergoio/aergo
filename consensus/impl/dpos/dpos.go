@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/internal/enc"
@@ -40,6 +39,7 @@ type DPoS struct {
 	bpc  *bp.Cluster
 	bf   *BlockFactory
 	quit chan interface{}
+	ca   types.ChainAccessor
 }
 
 // Status shows DPoS consensus's current status
@@ -95,6 +95,10 @@ func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 // BlockFactory returns the BlockFactory interface in dpos.
 func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
+}
+
+func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
+	dpos.ca = chainAccessor
 }
 
 // SetStateDB sets sdb to the corresponding field of DPoS. This method is
@@ -174,7 +178,9 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 		return nil
 	}
 
-	block := chain.GetBestBlock(dpos)
+	block, _ := dpos.ca.GetBestBlock()
+	logger.Debug().Str("best", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).
+		Msg("GetBestBlock from BP")
 	if block == nil {
 		return nil
 	}

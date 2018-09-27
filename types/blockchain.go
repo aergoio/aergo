@@ -11,12 +11,12 @@ import (
 	"io"
 	"reflect"
 
-	sha256 "github.com/minio/sha256-simd"
+	"github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -57,6 +57,11 @@ type Genesis struct {
 	Block *Block `json:"-"`
 }
 
+// ChainAccessor is an interface for a another actor module to get info of chain
+type ChainAccessor interface {
+	GetBestBlock() (*Block, error)
+}
+
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
@@ -79,7 +84,7 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 	var blockNo BlockNo
 
 	if prevBlock != nil {
-		prevBlockHash = prevBlock.Hash
+		prevBlockHash = prevBlock.BlockHash()
 		blockNo = prevBlock.Header.BlockNo + 1
 	}
 

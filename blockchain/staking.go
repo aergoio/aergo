@@ -37,7 +37,9 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 	if when > blockNo+stakingDelay {
 		return ErrLessTimeHasPassed
 	}
+	amount := txBody.Amount
 	if staked < txBody.Amount {
+		amount = staked
 		err = setStaking(scs, txBody.Account, 0, blockNo)
 		if err != nil {
 			return err
@@ -53,7 +55,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		}
 		err = voting(txBody, scs, blockNo)
 	}
-	senderState.Balance = senderState.Balance + txBody.Amount
+	senderState.Balance = senderState.Balance + amount
 	return nil
 }
 
@@ -62,7 +64,7 @@ func setStaking(scs *state.ContractState, who []byte, balance uint64, blockNo ui
 	v := make([]byte, 16)
 	binary.LittleEndian.PutUint64(v, balance)
 	binary.LittleEndian.PutUint64(v[8:], blockNo) //TODO:change to block no
-	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE setStaking")
+	//logger.Info().Str("key", util.enc.ToString(key)).Msg("VOTE setStaking")
 	//logger.Info().Uint64("balance", balance).Uint64("blockNo", blockNo).Msg("VOTE setStaking")
 	return scs.SetData(key, v)
 }
@@ -85,7 +87,7 @@ func getStaking(scs *state.ContractState, who []byte) (uint64, uint64, error) {
 			blockNo = binary.LittleEndian.Uint64(data[8:16])
 		}
 	}
-	//logger.Info().Str("key", util.EncodeB64(key)).Msg("VOTE getStaking")
+	//logger.Info().Str("key", util.enc.ToString(key)).Msg("VOTE getStaking")
 	//logger.Info().Uint64("staked", staked).Uint64("blockNo", blockNo).Msg("VOTE getStaking")
 	return staked, blockNo, nil
 }

@@ -1,10 +1,9 @@
 package types
 
 import (
-	sha256 "github.com/minio/sha256-simd"
+	"bytes"
 
 	"crypto/sha512"
-	"encoding/binary"
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -22,6 +21,12 @@ type AccountID HashID
 // TxID is a HashID to identify a transaction
 type TxID HashID
 
+// GetHashID make a HashID from hash of bytes
+func GetHashID(bytes []byte) HashID {
+	hash := TrieHasher(bytes)
+	return ToHashID(hash)
+}
+
 // ToHashID make a HashID from bytes
 func ToHashID(hash []byte) HashID {
 	buf := HashID{}
@@ -30,6 +35,11 @@ func ToHashID(hash []byte) HashID {
 }
 func (id HashID) String() string {
 	return enc.ToString(id[:])
+}
+
+// Compare returns an integer comparing two HashIDs as byte slices.
+func (id HashID) Compare(alt HashID) int {
+	return bytes.Compare(id[:], alt[:])
 }
 
 // ToBlockID make a BlockID from bytes
@@ -50,8 +60,7 @@ func (id TxID) String() string {
 
 // ToAccountID make a AccountHash from bytes
 func ToAccountID(account []byte) AccountID {
-	accountHash := TrieHasher(account)
-	return AccountID(ToHashID(accountHash))
+	return AccountID(GetHashID(account))
 }
 func (id AccountID) String() string {
 	return HashID(id).String()
@@ -73,39 +82,28 @@ func NewState() *State {
 	}
 }
 
-func (st *State) IsEmpty() bool {
-	return st.Nonce == 0 && st.Balance == 0
-}
-
-func (st *State) GetHash() []byte {
-	digest := sha256.New()
-	binary.Write(digest, binary.LittleEndian, st.Nonce)
-	binary.Write(digest, binary.LittleEndian, st.Balance)
-	return digest.Sum(nil)
-}
-
-// func (st *State) ToBytes() []byte {
-// 	buf, _ := proto.Marshal(st)
-// 	return buf
+// func (st *State) IsEmpty() bool {
+// 	return st.Nonce == 0 && st.Balance == 0
 // }
-// func (st *State) FromBytes(buf []byte) {
+
+// func (st *State) GetHash() []byte {
+// 	digest := sha256.New()
+// 	binary.Write(digest, binary.LittleEndian, st.Nonce)
+// 	binary.Write(digest, binary.LittleEndian, st.Balance)
+// 	return digest.Sum(nil)
+// }
+
+// func (st *State) Clone() *State {
 // 	if st == nil {
-// 		st = &State{}
+// 		return nil
 // 	}
-// 	_ = proto.Unmarshal(buf, st)
+// 	return &State{
+// 		Nonce:       st.Nonce,
+// 		Balance:     st.Balance,
+// 		CodeHash:    st.CodeHash,
+// 		StorageRoot: st.StorageRoot,
+// 	}
 // }
-
-func (st *State) Clone() *State {
-	if st == nil {
-		return nil
-	}
-	return &State{
-		Nonce:       st.Nonce,
-		Balance:     st.Balance,
-		CodeHash:    st.CodeHash,
-		StorageRoot: st.StorageRoot,
-	}
-}
 
 func Clone(i interface{}) interface{} {
 	if i == nil {
@@ -118,6 +116,7 @@ type BlockInfo struct {
 	BlockNo   BlockNo
 	BlockHash BlockID
 	PrevHash  BlockID
+	StateRoot HashID
 }
 type BlockState struct {
 	BlockInfo

@@ -16,7 +16,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
@@ -119,7 +118,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	}
 
 	for _, r := range msg.Results {
-		fmt.Println("voting hash :", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println("voting hash :", base58.Encode(r.Hash), r.Error)
 		return
 	}
 }
@@ -143,6 +142,6 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		fmt.Println(i+1, " : ", types.EncodeAddress(r.Candidate), " : ", r.Amount)
+		fmt.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
 	}
 }

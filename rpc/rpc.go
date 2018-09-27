@@ -42,10 +42,12 @@ type RPC struct {
 //var _ component.IComponent = (*RPCComponent)(nil)
 
 // NewRPC create an rpc service
-func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
+func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
 		hub:       hub,
 		msgHelper: message.GetHelper(),
+
+		ca: chainAccessor,
 	}
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
@@ -56,8 +58,9 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config) *RPC {
 	grpcWebServer := grpcweb.WrapServer(grpcServer)
 
 	rpcsvc := &RPC{
-		conf:          cfg,
-		hub:           hub,
+		conf: cfg,
+		hub:  hub,
+
 		grpcServer:    grpcServer,
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,

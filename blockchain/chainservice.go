@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -39,7 +40,7 @@ var (
 	logger = log.NewLogger("chain")
 )
 
-func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService {
+func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool.MemPool) *ChainService {
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
@@ -52,7 +53,10 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus) *ChainService
 		cc.SetStateDB(actor.sdb)
 	}
 
-	actor.validator = NewBlockValidator()
+	actor.validator = NewBlockValidator(actor.sdb)
+	if pool != nil {
+		pool.SetStateDb(actor.sdb)
+	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -107,9 +111,9 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
 		if cs.cdb.latest == 0 {
 			if genesis == nil {
-				genesis = GetDefaultGenesis()
+				genesis = types.GetDefaultGenesis()
 			}
-			err := cs.cdb.addGenesisBlock(GenesisToBlock(genesis))
+			err := cs.cdb.addGenesisBlock(types.GenesisToBlock(genesis))
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
@@ -148,16 +152,20 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 }
 
 func (cs *ChainService) BeforeStop() {
+	cs.CloseDB()
+
+	cs.validator.Stop()
+
+	contract.DB.Close()
+}
+
+func (cs *ChainService) CloseDB() {
 	if cs.sdb != nil {
 		cs.sdb.Close()
 	}
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-
-	cs.validator.Stop()
-
-	contract.DB.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {

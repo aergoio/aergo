@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mr-tron/base58/base58"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -45,7 +47,7 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 		panic("Internal error. wrong RPC client type")
 	}
 	defer client.Close()
-	blockHash, err := util.DecodeB64(gbhHash)
+	blockHash, err := base58.Decode(gbhHash)
 	if err != nil {
 		fmt.Printf("decode error: %s", err.Error())
 		return

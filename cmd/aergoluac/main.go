@@ -18,12 +18,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"io/ioutil"
 	"log"
 	"os"
 	"unsafe"
 
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -91,7 +91,7 @@ func dumpFromFile(srcFileName string) {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
-	fmt.Print(base58.Encode(b.Bytes()))
+	fmt.Print(types.EncodeAddress(b.Bytes()))
 }
 
 func dumpFromStdin() {
@@ -109,7 +109,7 @@ func dumpFromStdin() {
 		var bBuf bytes.Buffer
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
-			bBuf.WriteString(scanner.Text()+"\n")
+			bBuf.WriteString(scanner.Text() + "\n")
 		}
 		if err = scanner.Err(); err != nil {
 			log.Fatal(err)
@@ -127,7 +127,7 @@ func dumpFromStdin() {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
-	fmt.Print(base58.Encode(b.Bytes()))
+	fmt.Print(types.EncodeAddress(b.Bytes()))
 }
 
 //export addLen

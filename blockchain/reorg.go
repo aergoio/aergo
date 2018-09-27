@@ -233,14 +233,14 @@ func (reorg *reorganizer) rollbackChainState() error {
 func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 	cdb := reorg.cs.cdb
 
-	blockNo := block.GetHeader().GetBlockNo()
+	//blockNo := block.GetHeader().GetBlockNo()
 
 	for _, tx := range block.GetBody().GetTxs() {
 		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
 		cdb.deleteTx(reorg.dbtx, tx)
 	}
 
-	cdb.setLatest(blockNo - 1)
+	//cdb.setLatest(blockNo - 1)
 }
 
 /*
@@ -251,6 +251,8 @@ func (reorg *reorganizer) rollbackBlock(block *types.Block) {
 func (reorg *reorganizer) rollforwardChain() error {
 	cs := reorg.cs
 	cdb := cs.cdb
+	var targetBlock *types.Block
+	var err error
 
 	for i := len(reorg.rfBlocks) - 1; i >= 0; i-- {
 		rfBlock := reorg.rfBlocks[i]
@@ -258,7 +260,8 @@ func (reorg *reorganizer) rollforwardChain() error {
 		logger.Debug().Str("hash", enc.ToString(rfBlock.Hash)).Uint64("blockNo", rfBlock.BlockNo).
 			Msg("rollforward block")
 
-		targetBlock, err := cdb.getBlock(rfBlock.Hash)
+		targetBlock, err = cdb.getBlock(rfBlock.Hash)
+
 		if err != nil {
 			return fmt.Errorf("can not find target block(%d, %v)", rfBlock.BlockNo, rfBlock.Hash)
 		}
@@ -272,14 +275,16 @@ func (reorg *reorganizer) rollforwardChain() error {
 		}
 	}
 
+	cdb.setLatest(targetBlock)
+
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	cntRbTxs := len(reorg.rbTxs)
 	if cntRbTxs > 0 {
 		txs := make([]*types.Tx, 0, cntRbTxs)
 		logger.Debug().Int("tx count", cntRbTxs).Msg("tx add to mempool")
 
-		for txID, tx := range reorg.rbTxs {
-			logger.Debug().Str("txID", txID.String()).Msg("tx added")
+		for _, tx := range reorg.rbTxs {
+			//			logger.Debug().Str("txID", txID.String()).Msg("tx added")
 			txs = append(txs, tx)
 		}
 
@@ -299,21 +304,20 @@ func (reorg *reorganizer) rollforwardChain() error {
 */
 func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
-	cdb := reorg.cs.cdb
+	//cdb := reorg.cs.cdb
 
 	if err := cs.executeBlock(nil, block); err != nil {
 		return err
 	}
 
-	blockNo := block.GetHeader().GetBlockNo()
+	//eblockNo := block.GetHeader().GetBlockNo()
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		// FIXME: remove legacy
-		BlockNo: blockNo,
-		Txs:     block.GetBody().GetTxs(),
+		Block: block,
 	})
 
 	//SyncWithConsensus
-	cdb.setLatest(blockNo)
+	//cdb.setLatest(blockNo)
 
 	//remove played tx from rbTxs
 	reorg.removePlayedTxs(block)
@@ -322,15 +326,15 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 }
 
 func (reorg *reorganizer) removePlayedTxs(block *types.Block) {
-	blockNo := block.GetHeader().GetBlockNo()
+	//blockNo := block.GetHeader().GetBlockNo()
 	txs := block.GetBody().GetTxs()
 
 	for _, tx := range txs {
 		txID := types.ToTxID(tx.GetHash())
 
 		if _, exists := reorg.rbTxs[txID]; exists {
-			logger.Debug().Str("tx", txID.String()).Uint64("blockNo", blockNo).
-				Msg("played tx deleted from rollback Tx set")
+			//logger.Debug().Str("tx", txID.String()).Uint64("blockNo", blockNo).
+			//	Msg("played tx deleted from rollback Tx set")
 
 			delete(reorg.rbTxs, txID)
 		}

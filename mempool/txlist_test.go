@@ -12,7 +12,7 @@ import (
 func TestListBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(uint64(1))
+	mpl := NewTxList(nil, uint64(1))
 
 	count := 1000
 	nonce := make([]int, count)
@@ -34,7 +34,7 @@ func TestListBasic(t *testing.T) {
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(uint64(1))
+	mpl := NewTxList(nil, uint64(1))
 	count := 100
 
 	//put 1~10 excpet 4 6 8

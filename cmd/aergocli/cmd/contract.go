@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"io/ioutil"
 	"log"
 	"os"
@@ -72,11 +73,12 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 	var payload []byte
 	if len(data) == 0 {
-		if len(args) != 3 {
-			fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile>")
+		if len(args) < 3 {
+			fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
 			os.Exit(1)
 		}
 		var code []byte
+		var argLen int
 		code, err = ioutil.ReadFile(args[1])
 		if err != nil {
 			log.Fatal(err)
@@ -86,13 +88,41 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		payload = make([]byte, 4+len(code)+len(abi))
-
-		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)))
-		copy(payload[4:], code)
-		copy(payload[4+len(code):], abi)
+		if len(args) == 4 {
+			var ci types.CallInfo
+			err = json.Unmarshal([]byte(args[3]), &ci.Args)
+			if err != nil {
+				log.Fatal(err)
+			}
+			argLen = len(args[3])
+		}
+		payload = make([]byte, 8+len(code)+len(abi)+argLen)
+		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+len(abi)+8))
+		binary.LittleEndian.PutUint32(payload[4:], uint32(len(code)))
+		codeLen := copy(payload[8:], code)
+		abiLen := copy(payload[8+codeLen:], abi)
+		if argLen != 0 {
+			copy(payload[8+codeLen+abiLen:], args[3])
+		}
 	} else {
-		payload, err = types.DecodeAddress(data)
+		var argLen int
+
+		if len(args) == 2 {
+			var ci types.CallInfo
+			err = json.Unmarshal([]byte(args[1]), &ci.Args)
+			if err != nil {
+				log.Fatal(err)
+			}
+			argLen = len(args[1])
+		}
+		code, err := types.DecodeAddress(data)
+		payload = make([]byte, 4+len(code)+argLen)
+		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
+		codeLen := copy(payload[4:], code)
+		if argLen != 0 {
+			copy(payload[4+codeLen:], args[1])
+		}
+
 		if err != nil {
 			fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
@@ -117,7 +147,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -166,7 +196,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", util.EncodeB64(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 

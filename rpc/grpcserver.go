@@ -35,6 +35,8 @@ type AergoRPCService struct {
 	hub         *component.ComponentHub
 	actorHelper p2p.ActorService
 	msgHelper   message.Helper
+
+	ca types.ChainAccessor
 }
 
 // FIXME remove redundant constants
@@ -46,19 +48,25 @@ var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*types.BlockchainStatus, error) {
 	//last, _ := rpc.ChainService.GetBestBlock()
-	result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout,
-		"rpc.(*AergoRPCService).Blockchain").Result()
+	/*
+		result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout,
+			"rpc.(*AergoRPCService).Blockchain").Result()
+		if err != nil {
+			return nil, err
+		}
+		rsp, ok := result.(message.GetBestBlockRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type error")
+		}
+		if rsp.Err != nil {
+			return nil, rsp.Err
+		}
+		last := rsp.Block
+	*/
+	last, err := rpc.ca.GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
-	rsp, ok := result.(message.GetBestBlockRsp)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "internal type error")
-	}
-	if rsp.Err != nil {
-		return nil, rsp.Err
-	}
-	last := rsp.Block
 	return &types.BlockchainStatus{
 		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
@@ -85,7 +93,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 			if !ok || nil == foundBlock {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			foundBlock.Body = nil
 			headers = append(headers, foundBlock)
 			idx++
@@ -105,7 +113,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 			if !ok || nil == foundBlock {
 				break
 			}
-			hashes = append(hashes, foundBlock.Hash)
+			hashes = append(hashes, foundBlock.BlockHash())
 			foundBlock.Body = nil
 			headers = append(headers, foundBlock)
 			idx++
@@ -220,7 +228,7 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
 	}
 	if getStateRsp.Err != nil {
-		return nil, status.Errorf(codes.Internal, "internal error : %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
 	}
 	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
