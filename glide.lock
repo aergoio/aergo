@@ -1,5 +1,5 @@
-hash: bef90f2a4379c9b04ca54081eb0bb7fc8b4d32edecdf9110686077523a050ae9
-updated: 2018-09-14T11:26:10.068355+09:00
+hash: 49329607add8c122cd49d0857a766aa5e65d3d719675364097d61c51ba2bc501
+updated: 2018-09-27T16:56:15.332564+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: c64cbdbabc820bb9bdd772303bf96f56e7c9005a
@@ -37,7 +37,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/dgraph-io/badger
-  version: 391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9
+  version: 99233d725dbdd26d156c61b2f42ae1671b794656
   subpackages:
   - options
   - protos
@@ -149,7 +149,7 @@ imports:
 - name: github.com/libp2p/go-flow-metrics
   version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
 - name: github.com/libp2p/go-libp2p
-  version: 7dffae8a14e99b5042872ba790fd89c57593ef50
+  version: 2787133b0469926b58dd819707cc4297a3ca7306
   subpackages:
   - config
   - p2p/host/basic
@@ -164,9 +164,9 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 609d60a267a8a3ac0abd4e411ba3f0d611adad78
+  version: 28ec0a42060315368874a2e09d7cd4dc6102814c
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: f81018e8b2ec3e3747455a823f5f62127e5fd9cd
+  version: 74fba35f582dc5026b6dc1c43a7616f01c4598a9
 - name: github.com/libp2p/go-libp2p-interface-pnet
   version: 86e6fc84b906599eac696308369896ece0ced63b
 - name: github.com/libp2p/go-libp2p-loggables
@@ -176,13 +176,14 @@ imports:
 - name: github.com/libp2p/go-libp2p-nat
   version: a5aa365517b7400c54636f1dac89294ea19b43aa
 - name: github.com/libp2p/go-libp2p-net
-  version: 674eaa7c042aeae16b11efb56ab59b1732b9a675
+  version: c070e8fb6eade68612d96e0fbace731f89897d33
 - name: github.com/libp2p/go-libp2p-peer
-  version: 010c46e7b432a0b454d9ca397f08f364fa2139af
+  version: 993d742bc29dcf4894b7730ba610fd78900be76c
 - name: github.com/libp2p/go-libp2p-peerstore
-  version: 4d62f4830a4eaf81eac61fa842b3e6199628dad1
+  version: eef8402e045f9a9513070c30d2c4ee78fd54f10b
   subpackages:
   - addr
+  - pstoremem
 - name: github.com/libp2p/go-libp2p-protocol
   version: e34f0d7468b3519bf9bf4e43c1d028ce651eab51
 - name: github.com/libp2p/go-libp2p-secio
@@ -190,7 +191,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: 47c2aca63800c221f3262fcce9bfb9f4d4de6647
+  version: 67f7e37245d17c8308dcf6ac5f5f0f66797694ef
 - name: github.com/libp2p/go-libp2p-transport
   version: c87b841d9637c0a42485bc4cff2a7656d429fbee
 - name: github.com/libp2p/go-libp2p-transport-upgrader
@@ -235,19 +236,19 @@ imports:
   subpackages:
   - base58
 - name: github.com/multiformats/go-multiaddr
-  version: f36800afeb9c141e1adb7da099e6f010dfd4c419
+  version: 2b4e098f3e0aa2c8bc960f0e4bdc3247efc3749c
 - name: github.com/multiformats/go-multiaddr-dns
-  version: 4c36f46414bba59a19ffe5154841f76d4a55b780
+  version: ab7059599c0215374d05ceb716f54d6ed9bb1d5f
 - name: github.com/multiformats/go-multiaddr-net
-  version: 4d4b901d1729f55ee20cc0c8d8021aa58eb5ebe3
+  version: cba4f9fea8613343eb7ecc4ddadd8e7298a00c39
 - name: github.com/multiformats/go-multicodec
-  version: 65c82c261bfdac27035eb81f3b0f0fc55edbc536
+  version: b67bc51f663437753e2028cc4b5fea6192479956
   subpackages:
   - protobuf
 - name: github.com/multiformats/go-multihash
   version: bffb9dfeaca3b66c0accb675d2910407f3615eec
 - name: github.com/multiformats/go-multistream
-  version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
+  version: 0e509f6b999d3be262c0702d25fe868c77de1565
 - name: github.com/opentracing/opentracing-go
   version: bd9c3193394760d98b2fa6ebb2291f0cd1d06a7d
   subpackages:
@@ -264,7 +265,7 @@ imports:
 - name: github.com/rs/cors
   version: dc7332ab32be5dfec05dae2a6ab79cbfa53b6407
 - name: github.com/rs/zerolog
-  version: 77db4b4f350e31be66a57c332acb7721cf9ff9bb
+  version: 338f9bc14084d22cb8eeacd6492861f8449d715c
   subpackages:
   - internal/cbor
   - internal/json

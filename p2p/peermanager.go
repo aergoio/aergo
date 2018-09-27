@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"net"
 	"reflect"
 	"strconv"
@@ -490,7 +491,7 @@ func (pm *peerManager) startListener() {
 	listen, _ = ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", pm.selfMeta.Port))
 	listens = append(listens, listen)
 
-	peerStore := pstore.NewPeerstore()
+	peerStore := pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())
 
 	newHost, err := libp2p.New(context.Background(), libp2p.Identity(pm.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...))
 	if err != nil {
