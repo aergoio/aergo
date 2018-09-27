@@ -19,8 +19,9 @@ set_directory_properties(PROPERTIES
 
 set(SRCS
     compile.c
-    parser.c
+    parse.c
     prep.c
+    check.c
 	ast_var.c
     ast_struct.c
     ast_blk.c

@@ -1,10 +1,10 @@
 /**
- * @file    parser.h
+ * @file    parse.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
+#ifndef _PARSE_H
+#define _PARSE_H
 
 #include "common.h"
 
@@ -40,4 +40,4 @@ typedef struct yyparam_s {
 
 void parse(char *path, flag_t flag, strbuf_t *src, list_t *blk_l);
 
-#endif /* ! _PARSER_H */
+#endif /* ! _PARSE_H */

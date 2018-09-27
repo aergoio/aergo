@@ -8,7 +8,7 @@
 #include "common.h"
 
 #include "util.h"
-#include "parser.h"
+#include "parse.h"
 
 #define YY_DECL                                                                \
     int yyscan(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t yyscanner)

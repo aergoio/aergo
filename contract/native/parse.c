@@ -8,7 +8,7 @@
 #include "prep.h"
 #include "util.h"
 
-#include "parser.h"
+#include "parse.h"
 
 extern int yylex_init(void **);
 extern int yylex_destroy(void *);

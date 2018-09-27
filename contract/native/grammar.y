@@ -9,7 +9,7 @@
 
 #include "util.h"
 #include "error.h"
-#include "parser.h"
+#include "parse.h"
 
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)

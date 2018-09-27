@@ -6,7 +6,8 @@
 #include "common.h"
 
 #include "prep.h"
-#include "parser.h"
+#include "parse.h"
+#include "check.h"
 #include "ast.h"
 #include "strbuf.h"
 
@@ -22,7 +23,10 @@ compile(char *path, flag_t flag)
     list_init(&blk_l);
 
     preprocess(path, flag, &src);
+
     parse(path, flag, &src, &blk_l);
+
+    check(&blk_l, flag);
 
     if (flag_off(flag, FLAG_SILENT))
         error_dump();
