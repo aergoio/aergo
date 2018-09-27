@@ -11,8 +11,7 @@
 #include "strbuf.h"
 #include "util.h"
 #include "stack.h"
-#include "prep.h"
-#include "parser.h"
+#include "compile.h"
 
 #define FILE_MAX_CNT    100
 
@@ -37,6 +36,7 @@ env_init(env_t *env)
 {
     memset(env, 0x00, sizeof(env_t));
 
+    env->flag = FLAG_SILENT;
     stack_init(&env->exp);
 }
 
@@ -59,7 +59,6 @@ static void
 run_test(env_t *env, char *path)
 {
     ec_t ac;
-    strbuf_t sb;
 
     if (env->needle != NULL && strstr(env->title, env->needle) == NULL) {
         unlink(path);
@@ -70,10 +69,7 @@ run_test(env_t *env, char *path)
     printf("  + %-67s ", env->title);
     fflush(stdout);
 
-    strbuf_init(&sb);
-
-    preprocess(path, env->flag, &sb);
-    parse(path, env->flag, &sb);
+    compile(path, env->flag);
 
     ac = error_first();
     if (ac == env->ec) {

@@ -151,6 +151,8 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
     ast_func_t *fn;
 }
 
+%type <blk>     contract_decl
+%type <blk>     contract_body
 %type <list>    variable
 %type <exp>     var_type
 %type <exp>     var_spec
@@ -217,23 +219,70 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 
 smart_contract:
     contract_decl
+    {
+        ASSERT(list_empty(param->blk_l));
+        list_add_tail(param->blk_l, $1);
+    }
 |   smart_contract contract_decl
+    {
+        list_add_tail(param->blk_l, $2);
+    }
 ;
 
 contract_decl:
     K_CONTRACT identifier '{' '}'
+    {
+        $$ = ast_blk_new(&@$);
+        $$->name = $2;
+    }
 |   K_CONTRACT identifier '{' contract_body '}'
+    {
+        $$ = $4;
+        $$->name = $2;
+    }
 ;
 
 contract_body:
     variable
+    {
+        $$ = ast_blk_new(&@$);
+        list_join(&$$->var_l, $1);
+    }
 |   struct
+    {
+        $$ = ast_blk_new(&@$);
+        list_add_tail(&$$->struct_l, $1);
+    }
 |   constructor
+    {
+        $$ = ast_blk_new(&@$);
+        list_add_tail(&$$->func_l, $1);
+    }
 |   function
+    {
+        $$ = ast_blk_new(&@$);
+        list_add_tail(&$$->func_l, $1);
+    }
 |   contract_body variable
+    {
+        $$ = $1;
+        list_join(&$$->var_l, $2);
+    }
 |   contract_body struct
+    {
+        $$ = $1;
+        list_add_tail(&$$->struct_l, $2);
+    }
 |   contract_body constructor
+    {
+        $$ = $1;
+        list_add_tail(&$$->func_l, $2);
+    }
 |   contract_body function
+    {
+        $$ = $1;
+        list_add_tail(&$$->func_l, $2);
+    }
 ;
 
 variable:

@@ -21,7 +21,7 @@ extern int yyparse(yyparam_t *, void *);
 extern int yydebug;
 
 static void
-yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
+yyparam_init(yyparam_t *param, char *path, strbuf_t *src, list_t *blk_l)
 {
     param->path = path;
     ASSERT(param->path != NULL);
@@ -30,6 +30,8 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
     param->len = strbuf_length(src);
     param->pos = 0;
 
+    param->blk_l = blk_l;
+
     param->adj_token = 0;
     errpos_init(&param->adj_pos, path);
 
@@ -37,12 +39,12 @@ yyparam_init(yyparam_t *param, char *path, strbuf_t *src)
 }
 
 void
-parse(char *path, flag_t flag, strbuf_t *src)
+parse(char *path, flag_t flag, strbuf_t *src, list_t *blk_l)
 {
     yyparam_t param;
     void *scanner;
 
-    yyparam_init(&param, path, src);
+    yyparam_init(&param, path, src, blk_l);
     yylex_init(&scanner);
 
     yyset_extra(&param, scanner);

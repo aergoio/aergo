@@ -36,7 +36,7 @@ set(SRCS
     ${LEX_SRC}
 )
 
-set(TEST_LIBS ascl CACHE STRING "this is a library for testing")
+set(TEST_LIBS ascl CACHE STRING "this is a main library")
 
 add_library(ascl STATIC ${SRCS})
 set_target_properties(ascl PROPERTIES

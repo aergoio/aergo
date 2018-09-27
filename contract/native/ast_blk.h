@@ -18,9 +18,12 @@ typedef struct ast_blk_s ast_blk_t;
 struct ast_blk_s {
     AST_NODE_DECL;
 
+    char *name;
+
     list_t var_l;
     list_t struct_l;
     list_t stmt_l;
+    list_t func_l;
 
     ast_blk_t *up;
 };

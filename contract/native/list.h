@@ -75,7 +75,12 @@ list_node_new(void *item)
 static inline void
 list_add_head(list_t *list, void *item)
 {
-    list_node_t *node = list_node_new(item);
+    list_node_t *node;
+
+    if (item == NULL)
+        return;
+
+    node = list_node_new(item);
 
     if (list->head == NULL) {
         ASSERT(list->tail == NULL);
@@ -93,7 +98,12 @@ list_add_head(list_t *list, void *item)
 static inline void
 list_add_tail(list_t *list, void *item)
 {
-    list_node_t *node = list_node_new(item);
+    list_node_t *node;
+
+    if (item == NULL)
+        return;
+
+    node = list_node_new(item);
 
     if (list->tail == NULL) {
         ASSERT(list->head == NULL);
@@ -113,6 +123,9 @@ list_find(list_t *list, void *item)
 {
     list_node_t *node;
 
+    if (item == NULL)
+        return NULL;
+
     list_foreach(node, list) {
         if (node->item == item)
             return node;
@@ -124,6 +137,8 @@ list_find(list_t *list, void *item)
 static inline void
 list_del(list_t *list, list_node_t *node)
 {
+    ASSERT(node != NULL);
+
     if (list->head == node && list->tail == node) {
         list->head = NULL;
         list->tail = NULL;
@@ -162,6 +177,9 @@ list_clear(list_t *list)
 static inline void
 list_join(list_t *dest, list_t *src)
 {
+    ASSERT(src != NULL);
+    ASSERT(dest != NULL);
+
     if (dest->head == NULL) {
         ASSERT(dest->tail == NULL);
         dest->head = src->head;
