@@ -559,6 +559,10 @@ stmt_loop:
     {
         $$ = NULL;
     }
+|   K_FOR '(' variable K_IN exp_post ')' block
+    {
+        $$ = NULL;
+    }
 |   K_FOREACH '(' iter_decl ',' iter_decl K_IN exp_post ')' block
     {
         $$ = NULL;
