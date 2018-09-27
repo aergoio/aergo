@@ -24,10 +24,10 @@ struct ast_blk_s {
     list_t struct_l;
     list_t stmt_l;
     list_t func_l;
-
-    ast_blk_t *up;
 };
 
 ast_blk_t *ast_blk_new(errpos_t *pos);
+
+void ast_blk_dump(ast_blk_t *blk);
 
 #endif /* ! _AST_BLK_H */

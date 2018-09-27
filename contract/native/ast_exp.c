@@ -138,4 +138,9 @@ exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
     return exp;
 }
 
+void
+ast_exp_dump(FILE *fp)
+{
+}
+
 /* end of ast_exp.c */

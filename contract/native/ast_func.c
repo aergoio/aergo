@@ -23,4 +23,9 @@ ast_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
     return func;
 }
 
+void
+ast_func_dump(ast_func_t *func)
+{
+}
+
 /* end of ast_func.c */

@@ -18,6 +18,11 @@ ast_struct_new(char *name, list_t *field_l, errpos_t *pos)
     struc->field_l = field_l;
 
     return struc;
-} 
+}
+
+void
+ast_struct_dump(ast_struct_t *struc)
+{
+}
 
 /* end of ast_struct.c */

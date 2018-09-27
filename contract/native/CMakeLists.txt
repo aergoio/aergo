@@ -22,12 +22,15 @@ set(SRCS
     parse.c
     prep.c
     check.c
+    gen.c
+    ast.c
 	ast_var.c
     ast_struct.c
     ast_blk.c
     ast_stmt.c
     ast_exp.c
     ast_func.c
+    ast_meta.c
 	error.c
     strbuf.c
     stack.c

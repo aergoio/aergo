@@ -178,4 +178,6 @@ ast_exp_t *exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp,
 ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, errpos_t *pos);
 ast_exp_t *exp_tuple_new(ast_exp_t *exp, errpos_t *pos);
 
+void ast_exp_dump(FILE *fp);
+
 #endif /* ! _AST_EXP_H */

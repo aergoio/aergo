@@ -283,8 +283,7 @@ preprocess(char *path, flag_t flag, strbuf_t *out)
         char file[PATH_MAX_LEN];
 
         snprintf(file, sizeof(file), "%s.i", path);
-
-        write_file(file, out);
+        strbuf_dump(out, file);
     }
 }
 

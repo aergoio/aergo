@@ -62,6 +62,8 @@ struct ast_meta_s {
     };
 };
 
+void ast_meta_dump(ast_meta_t *meta);
+
 static inline void
 ast_meta_init(ast_meta_t *meta)
 {

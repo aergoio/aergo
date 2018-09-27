@@ -109,4 +109,9 @@ stmt_blk_new(ast_blk_t *blk, errpos_t *pos)
     return stmt;
 }
 
+void
+ast_stmt_dump(ast_stmt_t *stmt)
+{
+}
+
 /* end of ast_stmt.c */

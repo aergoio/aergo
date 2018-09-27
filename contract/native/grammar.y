@@ -220,12 +220,12 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 smart_contract:
     contract_decl
     {
-        ASSERT(list_empty(param->blk_l));
-        list_add_tail(param->blk_l, $1);
+        *param->ast = ast_new();
+        list_add_tail(&(*param->ast)->blk_l, $1);
     }
 |   smart_contract contract_decl
     {
-        list_add_tail(param->blk_l, $2);
+        list_add_tail(&(*param->ast)->blk_l, $2);
     }
 ;
 

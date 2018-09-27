@@ -28,40 +28,6 @@ close_file(FILE *fp)
     fclose(fp);
 }
 
-void
-read_file(char *path, strbuf_t *sb)
-{
-    int n;
-    FILE *fp;
-    char buf[STRBUF_INIT_SIZE];
-
-    fp = open_file(path, "r");
-
-    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-        strbuf_append(sb, buf, n);
-    }
-
-    if (!feof(fp))
-        FATAL(ERROR_FILE_IO, path, strerror(errno));
-
-    fclose(fp);
-}
-
-void
-write_file(char *path, strbuf_t *sb)
-{
-    int n;
-    FILE *fp;
-
-    fp = open_file(path, "w");
-
-    n = fwrite(strbuf_text(sb), 1, strbuf_length(sb), fp);
-    if (n == 0)
-        FATAL(ERROR_FILE_IO, path, strerror(errno));
-
-    fclose(fp);
-}
-
 char *
 trim_str(char *str)
 {

@@ -53,4 +53,19 @@ strbuf_copy(strbuf_t *src, strbuf_t *dest)
     strbuf_append(dest, src->buf, src->offset);
 }
 
+void
+strbuf_dump(strbuf_t *sb, char *path)
+{
+    int n;
+    FILE *fp;
+
+    fp = open_file(path, "w");
+
+    n = fwrite(strbuf_text(sb), 1, strbuf_length(sb), fp);
+    if (n < 0)
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
+
+    fclose(fp);
+}
+
 /* end of strbuf.c */

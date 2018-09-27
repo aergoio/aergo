@@ -8,8 +8,8 @@
 
 #include "common.h"
 
-#include "list.h"
+#include "ast.h"
 
-void check(list_t *blk_l, flag_t flag);
+void check(ast_t *ast, flag_t flag);
 
 #endif /* ! _CHECK_H */

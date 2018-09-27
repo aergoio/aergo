@@ -119,4 +119,6 @@ ast_stmt_t *stmt_return_new(ast_exp_t *exp, errpos_t *pos);
 ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos);
 ast_stmt_t *stmt_blk_new(ast_blk_t *blk, errpos_t *pos);
 
+void ast_stmt_dump(ast_stmt_t *stmt);
+
 #endif /* ! _AST_STMT_H */

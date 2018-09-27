@@ -13,18 +13,12 @@
 #define AST_NODE_DECL                                                          \
     errpos_t pos
 
-typedef struct ast_cont_s {
-    AST_NODE_DECL;
-
-    char *name;
-
-    list_t var_l;
-    list_t struct_l;
-    list_t func_l;
-} ast_cont_t;
-
 typedef struct ast_s {
-    list_t cont_l;
+    list_t blk_l;
 } ast_t;
+
+ast_t *ast_new(void);
+
+void ast_dump(ast_t *ast);
 
 #endif /* ! _AST_H */

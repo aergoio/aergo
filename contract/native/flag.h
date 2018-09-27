@@ -17,7 +17,8 @@ typedef enum flag_e {
     FLAG_VERBOSE    = 0x01,
     FLAG_LEX_DUMP   = 0x02,
     FLAG_YACC_DUMP  = 0x04,
-    FLAG_SILENT     = 0x08
+    FLAG_AST_DUMP   = 0x08,
+    FLAG_TEST       = 0x10
 } flag_t;
 
 #endif /* ! _FLAG_H */

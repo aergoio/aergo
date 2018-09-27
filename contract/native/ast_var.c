@@ -10,7 +10,7 @@
 #include "ast_var.h"
 
 ast_var_t *
-ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp, 
+ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp,
             errpos_t *pos)
 {
     ast_var_t *var = xmalloc(sizeof(ast_var_t));
@@ -24,6 +24,11 @@ ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp,
     var->init_exp = init_exp;
 
     return var;
-} 
+}
+
+void
+ast_var_dump(ast_var_t *var)
+{
+}
 
 /* end of ast_var.c */

@@ -36,7 +36,7 @@ env_init(env_t *env)
 {
     memset(env, 0x00, sizeof(env_t));
 
-    env->flag = FLAG_SILENT;
+    env->flag = FLAG_TEST;
     stack_init(&env->exp);
 }
 
@@ -205,7 +205,6 @@ main(int argc, char **argv)
     struct dirent *entry;
     struct stat st;
     env_t env;
-    flag_t flag = FLAG_NONE;
     
     dir = opendir(".");
     if (dir == NULL)

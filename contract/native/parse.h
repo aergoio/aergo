@@ -26,7 +26,7 @@ typedef struct yyparam_s {
     int len;
     int pos;
 
-    list_t *blk_l;
+    ast_t **ast;
 
     int adj_token;
     errpos_t adj_pos;
@@ -38,6 +38,6 @@ typedef struct yyparam_s {
 
 #include "grammar.tab.h"
 
-void parse(char *path, flag_t flag, strbuf_t *src, list_t *blk_l);
+void parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast);
 
 #endif /* ! _PARSE_H */

@@ -8,8 +8,9 @@
 #include "check.h"
 
 void
-check(list_t *blk_l, flag_t flag)
+check(ast_t *ast, flag_t flag)
 {
+    ASSERT(ast != NULL);
 }
 
 /* end of check.c */

@@ -8,6 +8,7 @@
 #include "prep.h"
 #include "parse.h"
 #include "check.h"
+#include "gen.h"
 #include "ast.h"
 #include "strbuf.h"
 
@@ -17,18 +18,20 @@ void
 compile(char *path, flag_t flag)
 {
     strbuf_t src;
-    list_t blk_l;
+    ast_t *ast;
 
     strbuf_init(&src);
-    list_init(&blk_l);
 
     preprocess(path, flag, &src);
+    parse(path, flag, &src, &ast);
 
-    parse(path, flag, &src, &blk_l);
+    if (flag_on(flag, FLAG_AST_DUMP))
+        ast_dump(ast);
 
-    check(&blk_l, flag);
+    check(ast, flag);
+    gen(ast, flag);
 
-    if (flag_off(flag, FLAG_SILENT))
+    if (flag_off(flag, FLAG_TEST))
         error_dump();
 }
 

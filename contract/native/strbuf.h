@@ -23,7 +23,7 @@ struct strbuf_s {
     int size;
     int offset;
     char *buf;
-}; 
+};
 
 void strbuf_init(strbuf_t *sb);
 void strbuf_reset(strbuf_t *sb);
@@ -32,5 +32,7 @@ void strbuf_append(strbuf_t *sb, char *str, int str_len);
 void strbuf_trunc(strbuf_t *sb, int len);
 
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
+
+void strbuf_dump(strbuf_t *sb, char *path);
 
 #endif /* ! _STRBUF_H */
