@@ -37,7 +37,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
 			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
 
-			pr := newPbMsgRequestOrder(true, pingRequest, &types.Ping{}, mockSigner)
+			pr := newPbMsgRequestOrder(true, PingRequest, &types.Ping{}, mockSigner)
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
@@ -79,7 +79,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
 			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
 
-			pr := newPbMsgResponseOrder("id"+tt.name, pingResponse, &types.Pong{}, mockSigner)
+			pr := newPbMsgResponseOrder("id"+tt.name, PingResponse, &types.Pong{}, mockSigner)
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &pbRequestOrder{}

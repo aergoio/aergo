@@ -125,9 +125,9 @@ func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 			mockRW := new(MockMsgReadWriter)
 			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
 			if tt.readReturn != nil {
-				containerMsg.Header.Subprotocol = statusRequest.Uint32()
+				containerMsg.Header.Subprotocol = StatusRequest.Uint32()
 			} else {
-				containerMsg.Header.Subprotocol = addressesRequest.Uint32()
+				containerMsg.Header.Subprotocol = AddressesRequest.Uint32()
 			}
 
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
@@ -178,9 +178,9 @@ func TestPeerHandshaker_handshakeInboundPeer(t *testing.T) {
 			mockRW := new(MockMsgReadWriter)
 			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
 			if tt.readReturn != nil {
-				containerMsg.Header.Subprotocol = statusRequest.Uint32()
+				containerMsg.Header.Subprotocol = StatusRequest.Uint32()
 			} else {
-				containerMsg.Header.Subprotocol = addressesRequest.Uint32()
+				containerMsg.Header.Subprotocol = AddressesRequest.Uint32()
 			}
 
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)

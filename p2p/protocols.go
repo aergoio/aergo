@@ -11,26 +11,26 @@ type SubProtocol uint32
 //
 const (
 	_ SubProtocol = 0x00 + iota
-	statusRequest
-	pingRequest
-	pingResponse
-	goAway
-	addressesRequest
-	addressesResponse
+	StatusRequest
+	PingRequest
+	PingResponse
+	GoAway
+	AddressesRequest
+	AddressesResponse
 )
 const (
-	getBlocksRequest SubProtocol = 0x010 + iota
-	getBlocksResponse
-	getBlockHeadersRequest
-	getBlockHeadersResponse
-	getMissingRequest
-	getMissingResponse
-	newBlockNotice
+	GetBlocksRequest SubProtocol = 0x010 + iota
+	GetBlocksResponse
+	GetBlockHeadersRequest
+	GetBlockHeadersResponse
+	GetMissingRequest
+	GetMissingResponse
+	NewBlockNotice
 )
 const (
-	getTXsRequest SubProtocol = 0x020 + iota
-	getTxsResponse
-	newTxNotice
+	GetTXsRequest SubProtocol = 0x020 + iota
+	GetTxsResponse
+	NewTxNotice
 )
 
 //go:generate stringer -type=SubProtocol

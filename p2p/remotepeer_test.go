@@ -86,7 +86,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockOrder.On("IsNeedSign").Return(true)
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
 			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.RemotePeer")).Return(tt.args.sendErr == nil)
-			mockOrder.On("GetProtocolID").Return(pingRequest)
+			mockOrder.On("GetProtocolID").Return(PingRequest)
 			mockOrder.On("GetMsgID").Return("test_req")
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
 
@@ -146,7 +146,7 @@ func TestePeer_sendPing(t *testing.T) {
 			actualWrite := false
 			select {
 			case msg := <-p.write.Out():
-				assert.Equal(t, pingRequest, msg.(msgOrder).GetProtocolID())
+				assert.Equal(t, PingRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
 				p.write.Done() <- msg
 			default:
@@ -198,7 +198,7 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 			actualWrite := false
 			select {
 			case msg := <-p.write.Out():
-				assert.Equal(t, statusRequest, msg.(msgOrder).GetProtocolID())
+				assert.Equal(t, StatusRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
 				p.write.Done() <- msg
 			default:
@@ -294,7 +294,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 		mockPeerManager := new(MockPeerManager)
 		mockMsg := new(MockMsgOrder)
 		mockMsg.On("GetMsgID").Return(tt.args.msgID)
-		mockMsg.On("GetProtocolID").Return(newBlockNotice)
+		mockMsg.On("GetProtocolID").Return(NewBlockNotice)
 
 		writeCnt := int32(0)
 		t.Run(tt.name, func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	mockMsg := new(MockMsgOrder)
 	mockMsg.On("GetMsgID").Return("m1")
-	mockMsg.On("GetProtocolID").Return(newBlockNotice)
+	mockMsg.On("GetProtocolID").Return(NewBlockNotice)
 
 	type args struct {
 		nohandler bool
@@ -370,7 +370,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		mockMsgHandler := new(MockMessageHandler)
 		mockSigner := new(mockMsgSigner)
 		t.Run(tt.name, func(t *testing.T) {
-			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingRequest.Uint32()}}
+			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingRequest.Uint32()}}
 			if tt.args.nohandler {
 				msg.Header.Subprotocol = 3999999999
 			}
@@ -379,7 +379,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(tt.args.autherr)
 			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MsgHeader"), mock.Anything)
 			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, nil)
-			target.handlers[pingRequest] = mockMsgHandler
+			target.handlers[PingRequest] = mockMsgHandler
 
 			if err := target.handleMsg(msg); (err != nil) != tt.wantErr {
 				t.Errorf("RemotePeer.handleMsg() error = %v, wantErr %v", err, tt.wantErr)

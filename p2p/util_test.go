@@ -72,13 +72,13 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 		name string
 		args args
 	}{
-		{"nil", args{pingRequest, nil}},
-		{"int", args{pingResponse, len(msgID)}},
-		{"pointer", args{statusRequest, &logger}},
-		{"array", args{getMissingRequest, dummyArray}},
-		{"string", args{getMissingResponse, "string addition"}},
-		{"obj", args{pingRequest, P2P{}}},
-		{"lazy", args{pingRequest, log.DoLazyEval(func() string {
+		{"nil", args{PingRequest, nil}},
+		{"int", args{PingResponse, len(msgID)}},
+		{"pointer", args{StatusRequest, &logger}},
+		{"array", args{GetMissingRequest, dummyArray}},
+		{"string", args{GetMissingResponse, "string addition"}},
+		{"obj", args{PingRequest, P2P{}}},
+		{"lazy", args{PingRequest, log.DoLazyEval(func() string {
 			return "Length is " + strconv.Itoa(len(dummyArray))
 		})}},
 		// TODO: Add test cases.

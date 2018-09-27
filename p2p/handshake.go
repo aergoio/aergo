@@ -87,7 +87,7 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status,
 		return nil, err
 	}
 	h.localStatus = statusMsg
-	container := newP2PMessage("", false, statusRequest, statusMsg)
+	container := newP2PMessage("", false, StatusRequest, statusMsg)
 	if container == nil {
 		// h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
@@ -108,9 +108,9 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status,
 		return nil, err
 	}
 
-	if data.Header.GetSubprotocol() != statusRequest.Uint32() {
+	if data.Header.GetSubprotocol() != StatusRequest.Uint32() {
 		// TODO: parse message and return
-		// h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", statusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
+		// h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
 		return nil, fmt.Errorf("Unexpected message type")
 	}
 	statusResp := &types.Status{}
@@ -141,9 +141,9 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw MsgReadWriter) (*types.Status, 
 		return nil, err
 	}
 
-	if data.Header.GetSubprotocol() != statusRequest.Uint32() {
+	if data.Header.GetSubprotocol() != StatusRequest.Uint32() {
 		// TODO: parse message and return
-		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", statusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected message type")
+		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected message type")
 		return nil, fmt.Errorf("Unexpected message type")
 	}
 
@@ -160,7 +160,7 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw MsgReadWriter) (*types.Status, 
 		h.logger.Warn().Err(err).Msg("failed to create status message")
 		return nil, err
 	}
-	container := newP2PMessage("", false, statusRequest, statusResp)
+	container := newP2PMessage("", false, StatusRequest, statusResp)
 	if container == nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")

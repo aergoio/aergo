@@ -103,7 +103,7 @@ func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessa
 func newPbMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice, signer msgSigner) msgOrder {
 	rmo := &pbBlkNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newBlockNotice, noticeMsg, signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewBlockNotice, noticeMsg, signer) {
 		rmo.blkHash = noticeMsg.BlockHash
 		return rmo
 	}
@@ -113,7 +113,7 @@ func newPbMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice, signer msgSigner
 func newPbMsgTxBroadcastOrder(message *types.NewTransactionsNotice, signer msgSigner) msgOrder {
 	rmo := &pbTxNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, newTxNotice, message, signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewTxNotice, message, signer) {
 		rmo.txHashes = message.TxHashes
 		return rmo
 	}

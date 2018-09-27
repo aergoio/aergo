@@ -33,7 +33,7 @@ func Test_bufMsgReadWriter_ReadMsg(t *testing.T) {
 }
 
 func Test_bufMsgReader_ReadMsg(t *testing.T) {
-	sampleObj := newPbMsgRequestOrder(true, pingRequest, &types.Ping{BestBlockHash:dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
+	sampleObj := newPbMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
 	buf := bytes.NewBuffer(nil)
 	encoder := mc_pb.Multicodec(nil).Encoder(buf)
 	encoder.Encode(sampleObj)
@@ -75,7 +75,7 @@ func Test_bufMsgReader_ReadMsg(t *testing.T) {
 
 
 func Test_bufMsgWriter_WriteMsg(t *testing.T) {
-	sampleObj := newPbMsgRequestOrder(true, pingRequest, &types.Ping{BestBlockHash:dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
+	sampleObj := newPbMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
 	buf := bytes.NewBuffer(nil)
 	encoder := mc_pb.Multicodec(nil).Encoder(buf)
 	encoder.Encode(sampleObj)

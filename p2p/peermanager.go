@@ -392,7 +392,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting.
-	mo := newPbMsgRequestOrder(false, goAway, goMsg, pm.signer).(*pbRequestOrder)
+	mo := newPbMsgRequestOrder(false, GoAway, goMsg, pm.signer).(*pbRequestOrder)
 	container := mo.message
 
 	rw.WriteMsg(container)
@@ -400,24 +400,24 @@ func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 
 func (pm *peerManager) insertHandlers(peer *RemotePeer) {
 	// PingHandlers
-	peer.handlers[pingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[pingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[goAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[addressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[addressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
 
 	// BlockHandlers
-	peer.handlers[getBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[getBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[getBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[getBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[getMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[newBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
 
 	// TxHandlers
-	peer.handlers[getTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[getTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[newTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
