@@ -122,9 +122,15 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 		gbState.PutAccount(id, &types.State{}, balance)
 	}
 
+	if genesisBlock.VoteState != nil {
+		aid := types.ToAccountID([]byte(types.AergoSystem))
+		gbState.PutAccount(aid, &types.State{}, genesisBlock.VoteState)
+	}
 	// save state of genesis block
-	err := sdb.apply(gbState)
-	return err
+	if err := sdb.apply(gbState); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {

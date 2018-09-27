@@ -226,7 +226,7 @@ func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 }
 
 func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(aergosystem)))
+	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 	if err != nil {
 		return nil, err
 	}

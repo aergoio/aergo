@@ -118,6 +118,11 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
 			}
+			err = InitGenesisBPs(cs.sdb, genesis)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot set bp identifications")
+				return err
+			}
 			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")

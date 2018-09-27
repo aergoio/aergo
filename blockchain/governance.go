@@ -12,7 +12,6 @@ import (
 )
 
 const minimum = 1000
-const aergosystem = "aergo.system"
 
 func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
 	blockNo types.BlockNo) error {
@@ -23,7 +22,7 @@ func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderSt
 		return err
 	}
 	switch governance {
-	case aergosystem:
+	case types.AergoSystem:
 		/*
 			TODO: need validate?
 			peerID, err := peer.IDFromBytes(to)
@@ -56,5 +55,32 @@ func executeSystemTx(txBody *types.TxBody, senderState *types.State,
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// InitGenesisBPs opens system contract and put initial voting result
+// it also set *State in Genesis to use statedb
+func InitGenesisBPs(sdb *state.ChainStateDB, genesis *types.Genesis) error {
+
+	if len(genesis.BPIds) == 0 {
+		return nil
+	}
+	aid := types.ToAccountID([]byte(types.AergoSystem))
+	scs, err := sdb.OpenContractStateAccount(aid)
+	if err != nil {
+		return err
+	}
+
+	voteResult := make(map[string]uint64)
+	for _, v := range genesis.BPIds {
+		voteResult[v] = uint64(0)
+	}
+	if err = syncVoteResult(scs, &voteResult); err != nil {
+		return err
+	}
+	if err = sdb.CommitContractState(scs); err != nil {
+		return err
+	}
+	genesis.VoteState = scs.State
 	return nil
 }
