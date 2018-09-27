@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var listblockheadersCmd = &cobra.Command{
@@ -40,13 +39,6 @@ func init() {
 }
 
 func execListBlockHeaders(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
 	blockHash, err := base58.Decode(gbhHash)
 	if err != nil {
 		fmt.Printf("decode error: %s", err.Error())

@@ -30,11 +30,9 @@ func init() {
 }
 
 var stakingCmd = &cobra.Command{
-	Use:               "staking",
-	Short:             "",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
-	Run:               execStaking,
+	Use:   "staking",
+	Short: "",
+	Run:   execStaking,
 }
 
 func execStaking(cmd *cobra.Command, args []string) {
@@ -42,11 +40,9 @@ func execStaking(cmd *cobra.Command, args []string) {
 }
 
 var unstakingCmd = &cobra.Command{
-	Use:               "unstaking",
-	Short:             "",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
-	Run:               execUnstaking,
+	Use:   "unstaking",
+	Short: "",
+	Run:   execUnstaking,
 }
 
 func execUnstaking(cmd *cobra.Command, args []string) {

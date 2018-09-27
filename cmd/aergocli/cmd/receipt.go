@@ -8,13 +8,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
 	"log"
+
+	"github.com/mr-tron/base58/base58"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -30,13 +30,6 @@ func init() {
 			Short: "get a receipt",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-				opts := []grpc.DialOption{grpc.WithInsecure()}
-				client, ok := util.GetClient(GetServerAddress(), opts).(*util.ConnClient)
-				if !ok {
-					log.Fatal("Internal error. wrong RPC client type")
-				}
-				defer client.Close()
-
 				txHash, err := base58.Decode(args[0])
 				if err != nil {
 					log.Fatal(err)

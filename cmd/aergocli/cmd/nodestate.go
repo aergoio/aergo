@@ -10,10 +10,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var nodeCmd = &cobra.Command{
@@ -29,14 +27,6 @@ func init() {
 }
 
 func execNodeState(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
-
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(number))
 	msg, err := client.NodeState(context.Background(), &types.SingleBytes{Value: b})

@@ -13,7 +13,6 @@ import (
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var gettxCmd = &cobra.Command{
@@ -31,14 +30,6 @@ func init() {
 }
 
 func execGetTX(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
-
 	txHash, err := base58.Decode(args[0])
 	if err != nil {
 		fmt.Printf("decode error: %s", err.Error())

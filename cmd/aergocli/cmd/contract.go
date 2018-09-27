@@ -5,15 +5,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
 	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/mr-tron/base58/base58"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -23,10 +23,8 @@ var (
 
 func init() {
 	contractCmd := &cobra.Command{
-		Use:               "contract [flags] subcommand",
-		Short:             "contract command",
-		PersistentPreRun:  connectAergo,
-		PersistentPostRun: disconnectAergo,
+		Use:   "contract [flags] subcommand",
+		Short: "contract command",
 	}
 
 	deployCmd := &cobra.Command{
@@ -241,20 +239,4 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	fmt.Println(ret)
-}
-
-func connectAergo(cmd *cobra.Command, args []string) {
-	serverAddr := GetServerAddress()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var ok bool
-	client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient)
-	if !ok {
-		log.Fatal("internal error. wrong RPC client type")
-	}
-}
-
-func disconnectAergo(cmd *cobra.Command, args []string) {
-	if client != nil {
-		client.Close()
-	}
 }

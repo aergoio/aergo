@@ -17,7 +17,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var committxCmd = &cobra.Command{
@@ -42,14 +41,6 @@ func init() {
 }
 
 func execCommitTX(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
-
 	var msg *types.CommitResultList
 	if jsonPath != "" {
 		b, readerr := ioutil.ReadFile(jsonPath)

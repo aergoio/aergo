@@ -16,12 +16,10 @@ import (
 )
 
 var sendtxCmd = &cobra.Command{
-	Use:     "sendtx",
-	Short:   "Send transaction",
-	Args:    cobra.MinimumNArgs(0),
-	Run:     execSendTX,
-	PreRun:  connectAergo,
-	PostRun: disconnectAergo,
+	Use:   "sendtx",
+	Short: "Send transaction",
+	Args:  cobra.MinimumNArgs(0),
+	Run:   execSendTX,
 }
 
 var amount uint64

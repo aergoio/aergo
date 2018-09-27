@@ -35,11 +35,9 @@ func init() {
 }
 
 var voteCmd = &cobra.Command{
-	Use:               "vote",
-	Short:             "vote to BPs",
-	Run:               execVote,
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
+	Use:   "vote",
+	Short: "vote to BPs",
+	Run:   execVote,
 }
 
 const peerIDLength = 39
@@ -124,11 +122,9 @@ func execVote(cmd *cobra.Command, args []string) {
 }
 
 var voteStatCmd = &cobra.Command{
-	Use:               "votestat",
-	Short:             "show voting stat",
-	Run:               execVoteStat,
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
+	Use:   "votestat",
+	Short: "show voting stat",
+	Run:   execVoteStat,
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {

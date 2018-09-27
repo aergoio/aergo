@@ -10,23 +10,30 @@ import (
 	"log"
 	"os"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 var (
 	// Used for flags.
 	home    string
 	cfgFile string
-	keyFile string
 	host    string
 	port    int32
+
+	pw      string
+	remote  bool
+	dataDir string
 
 	rootConfig CliConfig
 
 	rootCmd = &cobra.Command{
-		Use:   "aergocli",
-		Short: "Argo light commandline interface",
-		Long:  `Argo is right`,
+		Use:               "aergocli",
+		Short:             "Argo light commandline interface",
+		Long:              `Argo is right`,
+		PersistentPreRun:  connectAergo,
+		PersistentPostRun: disconnectAergo,
 	}
 )
 
@@ -35,7 +42,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo home path")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $AG_HOME/.aergo/config.toml)")
-	rootCmd.PersistentFlags().StringVar(&keyFile, "key", "", "private key file (readonly mode if missing)")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
 }
@@ -64,4 +70,20 @@ func Execute() {
 // GetServerAddress return ip address and port of server
 func GetServerAddress() string {
 	return fmt.Sprintf("%s:%d", rootConfig.Host, rootConfig.Port)
+}
+
+func connectAergo(cmd *cobra.Command, args []string) {
+	serverAddr := GetServerAddress()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	var ok bool
+	client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient)
+	if !ok {
+		log.Fatal("internal error. wrong RPC client type")
+	}
+}
+
+func disconnectAergo(cmd *cobra.Command, args []string) {
+	if client != nil {
+		client.Close()
+	}
 }

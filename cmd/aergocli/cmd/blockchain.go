@@ -22,12 +22,9 @@ func init() {
 }
 
 var blockchainCmd = &cobra.Command{
-	Use:               "blockchain",
-	Short:             "Print current blockchain status",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
+	Use:   "blockchain",
+	Short: "Print current blockchain status",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		msg, err := client.Blockchain(context.Background(), &aergorpc.Empty{})
 		if nil == err {
 			if printHex {

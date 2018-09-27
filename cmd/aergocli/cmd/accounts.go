@@ -9,39 +9,40 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func init() {
-	rootCmd.AddCommand(newAccountCmd)
-	newAccountCmd.Flags().StringVar(&pw, "password", "", "password")
-	newAccountCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
-	newAccountCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
-	rootCmd.AddCommand(getAccountsCmd)
-	getAccountsCmd.Flags().StringVar(&pw, "password", "", "password")
-	getAccountsCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
-	getAccountsCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
-	rootCmd.AddCommand(unlockAccountCmd)
-	unlockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
-	unlockAccountCmd.MarkFlagRequired("address")
-	unlockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
-	rootCmd.AddCommand(lockAccountCmd)
-	lockAccountCmd.Flags().StringVar(&address, "address", "", "address of account")
-	lockAccountCmd.MarkFlagRequired("address")
-	lockAccountCmd.Flags().StringVar(&pw, "password", "", "password")
+	accountCmd := &cobra.Command{
+		Use:               "account [flags] subcommand",
+		Short:             "account command",
+		PersistentPreRun:  preConnectAergo,
+		PersistentPostRun: disconnectAergo,
+	}
+
+	newCmd.Flags().StringVar(&pw, "password", "", "password")
+	newCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+
+	allCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	allCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+
+	unlockCmd.Flags().StringVar(&address, "address", "", "address of account")
+	unlockCmd.MarkFlagRequired("address")
+	unlockCmd.Flags().StringVar(&pw, "password", "", "password")
+
+	lockCmd.Flags().StringVar(&address, "address", "", "address of account")
+	lockCmd.MarkFlagRequired("address")
+	lockCmd.Flags().StringVar(&pw, "password", "", "password")
+
+	accountCmd.AddCommand(newCmd, allCmd, unlockCmd, lockCmd)
+	rootCmd.AddCommand(accountCmd)
 }
 
-var pw string
-var remote bool
-var dataDir string
-var newAccountCmd = &cobra.Command{
-	Use:     "newaccount",
-	Short:   "Create new account in the node or cli",
-	PreRun:  preConnectAergo,
-	PostRun: disconnectAergo,
+var newCmd = &cobra.Command{
+	Use:   "new [flags]",
+	Short: "Create new account in the node or cli",
 	Run: func(cmd *cobra.Command, args []string) {
 		var param types.Personal
 		var err error
@@ -79,26 +80,14 @@ var newAccountCmd = &cobra.Command{
 	},
 }
 
-var getAccountsCmd = &cobra.Command{
-	Use:     "getaccounts",
-	Short:   "Get account list in the node or cli",
-	PreRun:  preConnectAergo,
-	PostRun: disconnectAergo,
+var allCmd = &cobra.Command{
+	Use:   "all [flags]",
+	Short: "Get all account list in the node or cli",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		var err error
 		var msg *types.AccountList
 		var addrs [][]byte
 		if remote {
-			serverAddr := GetServerAddress()
-			opts := []grpc.DialOption{grpc.WithInsecure()}
-			var client *util.ConnClient
-			var ok bool
-			if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-				panic("Internal error. wrong RPC client type")
-			}
-			defer client.Close()
-
 			msg, err = client.GetAccounts(context.Background(), &types.Empty{})
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
@@ -129,13 +118,10 @@ var getAccountsCmd = &cobra.Command{
 	},
 }
 
-var lockAccountCmd = &cobra.Command{
-	Use:               "lockaccount",
-	Short:             "Lock account in the node",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
+var lockCmd = &cobra.Command{
+	Use:   "lock [flags]",
+	Short: "Lock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		param, err := parsePersonalParam()
 		if err != nil {
 			return
@@ -149,11 +135,9 @@ var lockAccountCmd = &cobra.Command{
 	},
 }
 
-var unlockAccountCmd = &cobra.Command{
-	Use:               "unlockaccount",
-	Short:             "Unlock account in the node",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
+var unlockCmd = &cobra.Command{
+	Use:   "unlock [flags]",
+	Short: "Unlock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
 		param, err := parsePersonalParam()
 		if err != nil {
