@@ -49,6 +49,7 @@ func (as *AccountService) BeforeStart() {
 func (as *AccountService) AfterStart() {}
 
 func (as *AccountService) BeforeStop() {
+	as.ks.DestroyStore()
 	as.accounts = nil
 }
 
