@@ -13,16 +13,16 @@
 #include "check.h"
 
 static void
-check_init(check_t *cenv, ast_t *ast)
+check_init(check_t *ctx, ast_t *ast)
 {
     ASSERT(ast != NULL);
 
-    cenv->ast = ast;
-    cenv->blk = NULL;
+    ctx->ast = ast;
+    ctx->blk = NULL;
 }
 
 static void
-check_type_exp_to_prim(check_t *cenv, ast_exp_t *exp)
+check_type_exp_to_prim(check_t *ctx, ast_exp_t *exp)
 {
     ASSERT(exp->u_type.name == NULL);
     ASSERT(exp->u_type.k_exp == NULL);
@@ -30,7 +30,7 @@ check_type_exp_to_prim(check_t *cenv, ast_exp_t *exp)
 }
 
 static void
-check_type_exp_to_struct(check_t *cenv, ast_exp_t *exp)
+check_type_exp_to_struct(check_t *ctx, ast_exp_t *exp)
 {
     ast_struct_t *struc;
 
@@ -38,35 +38,35 @@ check_type_exp_to_struct(check_t *cenv, ast_exp_t *exp)
     ASSERT(exp->u_type.k_exp == NULL);
     ASSERT(exp->u_type.v_exp == NULL);
 
-    struc = ast_blk_search_struct(cenv->blk, exp->num, exp->u_type.name);
+    struc = ast_blk_search_struct(ctx->blk, exp->num, exp->u_type.name);
     if (struc == NULL)
         TRACE(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
 }
 
 static void
-exp_type_check(check_t *cenv, ast_exp_t *exp)
+exp_type_check(check_t *ctx, ast_exp_t *exp)
 {
     ASSERT(exp->kind == EXP_TYPE);
     ASSERT(exp->u_type.type > TYPE_NONE);
     ASSERT(exp->u_type.type < TYPE_MAX);
 
     if (type_is_primitive(exp->u_type.type)) {
-        check_type_exp_to_prim(cenv, exp);
+        check_type_exp_to_prim(ctx, exp);
     }
     else if (type_is_struct(exp->u_type.type)) {
-        check_type_exp_to_struct(cenv, exp);
+        check_type_exp_to_struct(ctx, exp);
     }
     else if (type_is_map(exp->u_type.type)) {
         ASSERT(exp->u_type.name == NULL);
         ASSERT(exp->u_type.k_exp != NULL);
         ASSERT(exp->u_type.v_exp != NULL);
 
-        //ast_exp_check(cenv, exp->u_type.k_exp);
+        //ast_exp_check(ctx, exp->u_type.k_exp);
     }
 }
 
 static void
-ast_exp_check(check_t *cenv, ast_exp_t *exp)
+ast_exp_check(check_t *ctx, ast_exp_t *exp)
 {
     ASSERT(exp->kind < EXP_MAX);
 
@@ -76,7 +76,7 @@ ast_exp_check(check_t *cenv, ast_exp_t *exp)
     case EXP_LIT:
         break;
     case EXP_TYPE:
-        exp_type_check(cenv, exp);
+        exp_type_check(ctx, exp);
         break;
     case EXP_ARRAY:
         break;
@@ -98,45 +98,45 @@ ast_exp_check(check_t *cenv, ast_exp_t *exp)
 }
 
 static void
-ast_var_check(check_t *cenv, ast_var_t *var)
+ast_var_check(check_t *ctx, ast_var_t *var)
 {
     ASSERT(var->type_exp != NULL);
     ASSERT(var->id_exp != NULL);
 
-    ast_exp_check(cenv, var->type_exp);
-    ast_exp_check(cenv, var->id_exp);
+    ast_exp_check(ctx, var->type_exp);
+    ast_exp_check(ctx, var->id_exp);
 
     if (var->init_exp != NULL)
-        ast_exp_check(cenv, var->init_exp);
+        ast_exp_check(ctx, var->init_exp);
 }
 
 static void
-ast_blk_check(check_t *cenv, ast_blk_t *blk)
+ast_blk_check(check_t *ctx, ast_blk_t *blk)
 {
     list_node_t *node;
 
     ASSERT(blk != NULL);
 
-    blk->up = cenv->blk;
-    cenv->blk = blk;
+    blk->up = ctx->blk;
+    ctx->blk = blk;
 
     list_foreach(node, &blk->var_l) {
-        ast_var_check(cenv, (ast_var_t *)node->item);
+        ast_var_check(ctx, (ast_var_t *)node->item);
     }
 
-    cenv->blk = blk->up;
+    ctx->blk = blk->up;
 }
 
 void
 check(ast_t *ast, flag_t flag)
 {
-    check_t cenv;
+    check_t ctx;
     list_node_t *node;
 
-    check_init(&cenv, ast);
+    check_init(&ctx, ast);
 
     list_foreach(node, &ast->blk_l) {
-        ast_blk_check(&cenv, (ast_blk_t *)node->item);
+        ast_blk_check(&ctx, (ast_blk_t *)node->item);
     }
 }
 

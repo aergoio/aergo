@@ -19,7 +19,7 @@
 #include "ast_struct.h"
 #include "ast_func.h"
 
-typedef struct yyparam_s {
+typedef struct parse_s {
     char *path;
 
     char *src;
@@ -32,7 +32,7 @@ typedef struct yyparam_s {
     errpos_t adj_pos;
 
     strbuf_t buf;
-} yyparam_t;
+} parse_t;
 
 #define YYLTYPE             errpos_t
 

@@ -17,12 +17,12 @@
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
 
-static void yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner,
+static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
                     const char *msg);
 
 %}
 
-%parse-param { yyparam_t *penv }
+%parse-param { parse_t *ctx }
 %param { void *yyscanner }
 %locations
 %debug
@@ -30,7 +30,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    errpos_init(&yylloc, penv->path);
+    errpos_init(&yylloc, ctx->path);
 }
 
 /* identifier */
@@ -220,12 +220,12 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner,
 smart_contract:
     contract_decl
     {
-        *penv->ast = ast_new();
-        list_add_tail(&(*penv->ast)->blk_l, $1);
+        *ctx->ast = ast_new();
+        list_add_tail(&(*ctx->ast)->blk_l, $1);
     }
 |   smart_contract contract_decl
     {
-        list_add_tail(&(*penv->ast)->blk_l, $2);
+        list_add_tail(&(*ctx->ast)->blk_l, $2);
     }
 ;
 
@@ -702,7 +702,7 @@ stmt_ddl:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        ddl = xstrndup(penv->src + @$.first_offset, len);
+        ddl = xstrndup(ctx->src + @$.first_offset, len);
         $$ = stmt_ddl_new($1, ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -773,7 +773,7 @@ exp_sql:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        sql = xstrndup(penv->src + @$.first_offset, len);
+        sql = xstrndup(ctx->src + @$.first_offset, len);
         $$ = exp_sql_new($1, sql, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -1040,7 +1040,7 @@ identifier:
 %%
 
 static void
-yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner, const char *msg)
+yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner, const char *msg)
 {
     TRACE(ERROR_SYNTAX, lloc, msg);
 }

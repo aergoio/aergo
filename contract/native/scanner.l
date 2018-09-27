@@ -23,7 +23,7 @@
         }                                                                      \
     } while (0)
 
-#define YY_EXTRA_TYPE           yyparam_t *
+#define YY_EXTRA_TYPE           parse_t *
 #define YY_BUF                  &yyextra->buf
 
 #define yy_update_last_col()    lloc->last_col += yyleng
@@ -294,12 +294,12 @@ int
 yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
 {
     int token;
-    yyparam_t *param = yyget_extra(yyscanner);
+    parse_t *ctx = yyget_extra(yyscanner);
 
-    if (param->adj_token != 0) {
-        token = param->adj_token;
-        *lloc = param->adj_pos;
-        param->adj_token = 0;
+    if (ctx->adj_token != 0) {
+        token = ctx->adj_token;
+        *lloc = ctx->adj_pos;
+        ctx->adj_token = 0;
         return token;
     }
 
@@ -309,10 +309,10 @@ yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
 void
 yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc)
 {
-    yyparam_t *param = yyget_extra(yyscanner);
+    parse_t *ctx = yyget_extra(yyscanner);
 
-    param->adj_token = token;
-    param->adj_pos = *lloc;
+    ctx->adj_token = token;
+    ctx->adj_pos = *lloc;
 }
 
 /* end of scanner.l */
