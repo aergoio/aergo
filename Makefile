@@ -43,7 +43,7 @@ aergoluac: ./cmd/aergoluac/*.go
 	@echo "Done buidling aergoluac."
 
 aergoscc: ./cmd/aergoscc/*.go
-	go build -o $(BINPATH)/aergoscc ./cmd/aergoscc
+	go build -o $(BINPATH)/aergoscc -gcflags='-N -l' ./cmd/aergoscc
 	@echo "Done buidling aergoscc."
 
 test:

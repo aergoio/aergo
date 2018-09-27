@@ -8,7 +8,7 @@
 #include "ast_meta.h"
 
 void 
-ast_meta_dump(ast_meta_t *meta)
+ast_meta_dump(ast_meta_t *meta, int indent)
 {
 }
 

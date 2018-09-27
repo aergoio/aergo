@@ -12,7 +12,7 @@ ast_struct_new(char *name, list_t *field_l, errpos_t *pos)
 {
     ast_struct_t *struc = xmalloc(sizeof(ast_struct_t));
 
-    struc->pos = *pos;
+    ast_node_init(struc, pos);
 
     struc->name = name;
     struc->field_l = field_l;
@@ -21,7 +21,7 @@ ast_struct_new(char *name, list_t *field_l, errpos_t *pos)
 }
 
 void
-ast_struct_dump(ast_struct_t *struc)
+ast_struct_dump(ast_struct_t *struc, int indent)
 {
 }
 

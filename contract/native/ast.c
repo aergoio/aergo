@@ -5,9 +5,9 @@
 
 #include "common.h"
 
-#include "ast_blk.h"
-
 #include "ast.h"
+
+int node_num_ = 0;
 
 ast_t *
 ast_new(void)
@@ -22,11 +22,6 @@ ast_new(void)
 void 
 ast_dump(ast_t *ast)
 {
-    list_node_t *node;
-
-    list_foreach(node, &ast->blk_l) {
-        ast_blk_dump((ast_blk_t *)node->item);
-    }
 }
 
 /* end of ast.c */

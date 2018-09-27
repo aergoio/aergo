@@ -97,8 +97,7 @@ add_file(scan_t *scan, char *path, stack_t *imp)
 
     stack_foreach(node, imp) {
         if (strcmp(node->item, path) == 0) {
-            TRACE(ERROR_CROSS_IMPORT, &scan->pos, scan->path,
-                  scan->pos.first_line, FILENAME(path));
+            TRACE(ERROR_CROSS_IMPORT, &scan->pos, FILENAME(path));
             return false;
         }
     }

@@ -17,7 +17,8 @@ xmalloc(size_t size)
     void *mem;
 
     mem = malloc(size);
-    ASSERT2(mem != NULL, strerror(errno));
+    if (mem == NULL)
+        FATAL(ERROR_OUT_OF_MEM, strerror(errno));
         
     return mem;
 }
@@ -28,7 +29,8 @@ xcalloc(size_t size)
     void *mem;
 
     mem = calloc(1, size);
-    ASSERT2(mem != NULL, strerror(errno));
+    if (mem == NULL)
+        FATAL(ERROR_OUT_OF_MEM, strerror(errno));
         
     return mem;
 }
@@ -39,7 +41,8 @@ xrealloc(void *ptr, size_t size)
     void *mem;
 
     mem = realloc(ptr, size);
-    ASSERT2(mem != NULL, strerror(errno));
+    if (mem == NULL)
+        FATAL(ERROR_OUT_OF_MEM, strerror(errno));
         
     return mem;
 }

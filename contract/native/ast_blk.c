@@ -9,6 +9,7 @@
 #include "ast_struct.h"
 #include "ast_stmt.h"
 #include "ast_func.h"
+#include "util.h"
 
 #include "ast_blk.h"
 
@@ -17,7 +18,8 @@ ast_blk_new(errpos_t *pos)
 {
     ast_blk_t *blk = xmalloc(sizeof(ast_blk_t));
 
-    blk->pos = *pos;
+    ast_node_init(blk, pos);
+
     blk->name = NULL;
 
     list_init(&blk->var_l);
@@ -25,29 +27,31 @@ ast_blk_new(errpos_t *pos)
     list_init(&blk->stmt_l);
     list_init(&blk->func_l);
 
+    blk->up = NULL;
+
     return blk;
 }
 
-void
-ast_blk_dump(ast_blk_t *blk)
+ast_struct_t *
+ast_blk_search_struct(ast_blk_t *blk, int num, char *name)
 {
     list_node_t *node;
 
-    list_foreach(node, &blk->var_l) {
-        ast_var_dump((ast_var_t *)node->item);
-    }
+    do {
+        list_foreach(node, &blk->struct_l) {
+            ast_struct_t *struc = (ast_struct_t *)node->item;
+            if (struc->num > num)
+                break;
 
-    list_foreach(node, &blk->struct_l) {
-        ast_struct_dump((ast_struct_t *)node->item);
-    }
+            if (strcmp(struc->name, name) == 0)
+                return struc;
+        }
+    } while ((blk = blk->up) != NULL);
+}
 
-    list_foreach(node, &blk->stmt_l) {
-        ast_stmt_dump((ast_stmt_t *)node->item);
-    }
-
-    list_foreach(node, &blk->func_l) {
-        ast_func_dump((ast_func_t *)node->item);
-    }
+void
+ast_blk_dump(ast_blk_t *blk, int indent)
+{
 }
 
 /* end of ast_blk.c */

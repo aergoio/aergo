@@ -123,7 +123,7 @@ read_test(env_t *env, char *path)
             exp_fp = NULL;
 
             offset += strlen(buf);
-            strcpy(env->title, trim_str(buf + strlen(TAG_TITLE)));
+            strcpy(env->title, strtrim(buf + strlen(TAG_TITLE)));
 
             snprintf(out_file, sizeof(out_file), "%s", env->title);
             out_fp = open_file(out_file, "w");
@@ -134,7 +134,7 @@ read_test(env_t *env, char *path)
             ASSERT(env->ec == NO_ERROR);
 
             offset += strlen(buf);
-            env->ec = error_to_code(trim_str(buf + strlen(TAG_ERROR)));
+            env->ec = error_to_code(strtrim(buf + strlen(TAG_ERROR)));
         }
         else if (strncasecmp(buf, TAG_EXPORT, strlen(TAG_EXPORT)) == 0) {
             char *exp_file;
@@ -149,7 +149,7 @@ read_test(env_t *env, char *path)
 
             out_fp = NULL;
 
-            exp_file = trim_str(xstrdup(buf) + strlen(TAG_EXPORT));
+            exp_file = strtrim(xstrdup(buf) + strlen(TAG_EXPORT));
             exp_fp = open_file(exp_file, "w");
 
             offset += strlen(buf);
@@ -185,6 +185,8 @@ get_opt(env_t *env, int argc, char **argv)
 
         if (strcmp(argv[i], "--verbose") == 0)
             flag_set(env->flag, FLAG_VERBOSE);
+        else if (strcmp(argv[i], "--ast-dump") == 0)
+            flag_set(env->flag, FLAG_AST_DUMP);
         else if (strcmp(argv[i], "--lex-dump") == 0)
             flag_set(env->flag, FLAG_LEX_DUMP);
         else if (strcmp(argv[i], "--yacc-dump") == 0)
@@ -213,8 +215,7 @@ main(int argc, char **argv)
     env_init(&env);
     get_opt(&env, argc, argv);
 
-    memset(delim, '*', 80);
-    delim[80] = '\0';
+    strset(delim, '*', 80);
 
     printf("%s\n", delim);
     printf("* Starting %s...\n", FILENAME(argv[0]));

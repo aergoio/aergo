@@ -17,12 +17,12 @@
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
 
-static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
+static void yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner,
                     const char *msg);
 
 %}
 
-%parse-param { yyparam_t *param }
+%parse-param { yyparam_t *penv }
 %param { void *yyscanner }
 %locations
 %debug
@@ -30,7 +30,7 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    errpos_init(&yylloc, param->path);
+    errpos_init(&yylloc, penv->path);
 }
 
 /* identifier */
@@ -220,12 +220,12 @@ static void yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner,
 smart_contract:
     contract_decl
     {
-        *param->ast = ast_new();
-        list_add_tail(&(*param->ast)->blk_l, $1);
+        *penv->ast = ast_new();
+        list_add_tail(&(*penv->ast)->blk_l, $1);
     }
 |   smart_contract contract_decl
     {
-        list_add_tail(&(*param->ast)->blk_l, $2);
+        list_add_tail(&(*penv->ast)->blk_l, $2);
     }
 ;
 
@@ -290,7 +290,7 @@ variable:
     {
         list_node_t *node;
         list_foreach(node, $2) {
-            ((ast_var_t *)node)->type_exp = $1;
+            ((ast_var_t *)node->item)->type_exp = $1;
         }
         $$ = $2;
     }
@@ -702,7 +702,7 @@ stmt_ddl:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        ddl = xstrndup(param->src + @$.first_offset, len);
+        ddl = xstrndup(penv->src + @$.first_offset, len);
         $$ = stmt_ddl_new($1, ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -773,7 +773,7 @@ exp_sql:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        sql = xstrndup(param->src + @$.first_offset, len);
+        sql = xstrndup(penv->src + @$.first_offset, len);
         $$ = exp_sql_new($1, sql, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -1040,9 +1040,9 @@ identifier:
 %%
 
 static void
-yyerror(YYLTYPE *lloc, yyparam_t *param, void *scanner, const char *msg)
+yyerror(YYLTYPE *lloc, yyparam_t *penv, void *scanner, const char *msg)
 {
-    TRACE(ERROR_SYNTAX, lloc, FILENAME(param->path), lloc->first_line, msg);
+    TRACE(ERROR_SYNTAX, lloc, msg);
 }
 
 /* end of grammar.y */

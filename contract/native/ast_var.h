@@ -32,6 +32,6 @@ struct ast_var_s {
 ast_var_t *ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp,
                        ast_exp_t *init_exp, errpos_t *pos);
 
-void ast_var_dump(ast_var_t *var);
+void ast_var_dump(ast_var_t *var, int indent);
 
 #endif /* ! _AST_VAR_H */

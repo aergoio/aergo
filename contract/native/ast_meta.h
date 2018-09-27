@@ -13,6 +13,10 @@
 typedef struct ast_meta_s ast_meta_t;
 #endif /* ! _AST_META_T */
 
+#define type_is_primitive(type)     ((type) < TYPE_MAP)
+#define type_is_struct(type)        ((type) == TYPE_STRUCT)
+#define type_is_map(type)           ((type) == TYPE_MAP)
+
 typedef enum type_e {
     TYPE_NONE       = 0,
     TYPE_ACCOUNT,
@@ -62,7 +66,7 @@ struct ast_meta_s {
     };
 };
 
-void ast_meta_dump(ast_meta_t *meta);
+void ast_meta_dump(ast_meta_t *meta, int indent);
 
 static inline void
 ast_meta_init(ast_meta_t *meta)

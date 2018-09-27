@@ -45,8 +45,7 @@
 #define yy_text()               xstrndup(yytext, yyleng)
 #define yy_literal()            xstrndup(yytext + 1, yyleng - 2)
 
-#define yy_error(ec)                                                           \
-    TRACE(ec, lloc, FILENAME(lloc->path), lloc->first_line)
+#define yy_error(ec)            TRACE(ec, lloc)
 
 #define yy_recover()                                                           \
     do {                                                                       \

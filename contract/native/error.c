@@ -10,7 +10,7 @@
 
 #include "error.h"
 
-char *errlvls_[LEVEL_MAX] = {
+char *err_lvls_[LEVEL_MAX] = {
     ANSI_RED"fatal",
     ANSI_RED"error",
     ANSI_WHITE"info",
@@ -19,14 +19,14 @@ char *errlvls_[LEVEL_MAX] = {
     ANSI_RED"error"
 };
 
-char *errmsgs_[ERROR_MAX] = {
+char *err_msgs_[ERROR_MAX] = {
     "no error",
 #undef error
 #define error(code, msg)    msg,
 #include "error.list"
 };
 
-char *errstrs_[ERROR_MAX] = {
+char *err_codes_[ERROR_MAX] = {
     "NO_ERROR",
 #undef error
 #define error(code, msg)    #code,
@@ -39,7 +39,7 @@ char *
 error_to_string(ec_t ec)
 {
     ASSERT(ec >= 0 && ec < ERROR_MAX);
-    return errstrs_[ec];
+    return err_codes_[ec];
 }
 
 ec_t 
@@ -48,7 +48,7 @@ error_to_code(char *str)
     int i;
 
     for (i = 0; i < ERROR_MAX; i++) {
-        if (strcmp(errstrs_[i], str) == 0)
+        if (strcmp(err_codes_[i], str) == 0)
             return i;
     }
     ASSERT(!"invalid errcode");
@@ -103,7 +103,7 @@ error_push(ec_t ec, errlvl_t lvl, errpos_t *pos, ...)
     char errdesc[ERROR_MAX_DESC_LEN];
 
     va_start(vargs, pos);
-    vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
+    vsnprintf(errdesc, sizeof(errdesc), err_msgs_[ec], vargs);
     va_end(vargs);
 
     stack_push(&errstack_, error_new(ec, lvl, pos, errdesc));
@@ -182,10 +182,10 @@ error_dump(void)
     stack_foreach(n, &errstack_) {
         error_t *e = (error_t *)n->item;
         if (e->level == LVL_TRACE)
-            fprintf(stderr, "%s: "ANSI_NONE"%s\n%s\n", errlvls_[e->level],
+            fprintf(stderr, "%s: "ANSI_NONE"%s\n%s\n", err_lvls_[e->level],
                     e->desc, make_trace(&e->pos));
         else
-            fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[e->level], e->desc);
+            fprintf(stderr, "%s: "ANSI_NONE"%s\n", err_lvls_[e->level], e->desc);
     }
 }
 
@@ -196,10 +196,61 @@ error_exit(ec_t ec, errlvl_t lvl, ...)
     char errdesc[ERROR_MAX_DESC_LEN];
 
     va_start(vargs, lvl);
-    vsnprintf(errdesc, sizeof(errdesc), errmsgs_[ec], vargs);
+    vsnprintf(errdesc, sizeof(errdesc), err_msgs_[ec], vargs);
     va_end(vargs);
 
-    fprintf(stderr, "%s: "ANSI_NONE"%s\n", errlvls_[lvl], errdesc);
+    fprintf(stderr, "%s: "ANSI_NONE"%s\n", err_lvls_[lvl], errdesc);
+
+    exit(EXIT_FAILURE);
+}
+
+void
+assert_exit(char *cond, char *file, int line, int argc, ...)
+{
+    int i;
+    va_list vargs;
+    char errdesc[ERROR_MAX_DESC_LEN];
+
+    snprintf(errdesc, sizeof(errdesc), 
+             "%s:%d: internal error with condition '%s'", file, line, cond);
+
+    fprintf(stderr, "%s: "ANSI_NONE"%s\n", err_lvls_[LVL_FATAL], errdesc);
+
+    va_start(vargs, argc);
+
+    for (i = 0; i < argc; i++) {
+        int size;
+        char *name;
+        char c;
+        uint32_t i32;
+        uint64_t i64;
+
+        name = va_arg(vargs, char *);
+        size = va_arg(vargs, int);
+
+        fprintf(stderr, "    %s = ", name);
+
+        switch (size) {
+        case 1:
+            c = (char)va_arg(vargs, int);
+            fprintf(stderr, "'%c' = 0x%x\n", c, c);
+            break;
+        case 2:
+        case 4:
+            i32 = va_arg(vargs, uint32_t);
+            fprintf(stderr, "%d = %u = 0x%x\n", i32, i32, i32);
+            break;
+        case 8:
+            i64 = va_arg(vargs, uint64_t);
+            fprintf(stderr, "%"PRId64" = %"PRIu64" = 0x%"PRIx64"\n", 
+                    (int64_t)i64, i64, i64);
+            break;
+        default:
+            break;
+        }
+    }
+
+    va_end(vargs);
 
     exit(EXIT_FAILURE);
 }

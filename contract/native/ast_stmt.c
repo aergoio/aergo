@@ -12,7 +12,8 @@ ast_stmt_new(stmt_kind_t kind, errpos_t *pos)
 {
     ast_stmt_t *stmt = xmalloc(sizeof(ast_stmt_t));
 
-    stmt->pos = *pos;
+    ast_node_init(stmt, pos);
+
     stmt->kind = kind;
 
     return stmt;
@@ -110,7 +111,7 @@ stmt_blk_new(ast_blk_t *blk, errpos_t *pos)
 }
 
 void
-ast_stmt_dump(ast_stmt_t *stmt)
+ast_stmt_dump(ast_stmt_t *stmt, int indent)
 {
 }
 

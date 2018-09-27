@@ -5,14 +5,70 @@
 
 #include "common.h"
 
+#include "util.h"
+
 #include "ast_exp.h"
+
+char *exp_kinds_[EXP_MAX] = {
+    "ID",
+    "LIT",
+    "TYPE",
+    "ARRAY",
+    "OP",
+    "ACCESS",
+    "CALL",
+    "SQL",
+    "COND",
+    "TUPLE"
+};
+
+char *op_strs_[OP_MAX] = {
+    "ASSIGN",
+    "ADD",
+    "SUB",
+    "MUL",
+    "DIV",
+    "MOD",
+    "AND",
+    "OR",
+    "BIT_AND",
+    "BIT_OR",
+    "BIT_XOR",
+    "EQ",
+    "NE",
+    "LT",
+    "GT",
+    "LE",
+    "GE",
+    "RSHIFT",
+    "LSHIFT",
+    "INC",
+    "DEC",
+    "NOT"
+};
+
+char *sql_strs_[SQL_MAX] = {
+    "QUERY",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+};
+
+char *lit_strs_[LIT_MAX] = {
+    "NULL",
+    "BOOL",
+    "INT",
+    "FLOAT",
+    "HEXA",
+    "STR"
+};
 
 ast_exp_t *
 ast_exp_new(exp_kind_t kind, errpos_t *pos)
 {
     ast_exp_t *exp = xmalloc(sizeof(ast_exp_t));
 
-    exp->pos = *pos;
+    ast_node_init(exp, pos);
 
     exp->kind = kind;
     ast_meta_init(&exp->meta);
@@ -37,8 +93,7 @@ exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp,
 {
     ast_exp_t *exp = ast_exp_new(EXP_TYPE, pos);
 
-    exp->meta.type = type;
-
+    exp->u_type.type = type;
     exp->u_type.name = name;
     exp->u_type.k_exp = k_exp;
     exp->u_type.v_exp = v_exp;
@@ -139,7 +194,7 @@ exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
 }
 
 void
-ast_exp_dump(FILE *fp)
+ast_exp_dump(ast_exp_t *exp, int indent)
 {
 }
 

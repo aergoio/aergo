@@ -38,6 +38,6 @@ typedef struct ast_func_s {
 ast_func_t *ast_func_new(char *name, modifier_t mod, list_t *param_l,
                          list_t *return_l, ast_blk_t *blk, errpos_t *pos);
 
-void ast_func_dump(ast_func_t *func);
+void ast_func_dump(ast_func_t *func, int indent);
 
 #endif /* ! _AST_FUNC_H */

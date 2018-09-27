@@ -29,7 +29,7 @@ close_file(FILE *fp)
 }
 
 char *
-trim_str(char *str)
+strtrim(char *str)
 {
     int i;
     int str_len = strlen(str);
@@ -52,6 +52,13 @@ trim_str(char *str)
     }
 
     return ptr;
+}
+
+void
+strset(char *buf, char ch, int size)
+{
+    memset(buf, ch, size);
+    buf[size] = '\0';
 }
 
 /* end of util.c */

@@ -18,7 +18,7 @@ void
 compile(char *path, flag_t flag)
 {
     strbuf_t src;
-    ast_t *ast;
+    ast_t *ast = NULL;
 
     strbuf_init(&src);
 
@@ -28,8 +28,10 @@ compile(char *path, flag_t flag)
     if (flag_on(flag, FLAG_AST_DUMP))
         ast_dump(ast);
 
-    check(ast, flag);
-    gen(ast, flag);
+    if (ast != NULL) {
+        check(ast, flag);
+        gen(ast, flag);
+    }
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();

@@ -16,9 +16,13 @@ typedef struct strbuf_s strbuf_t;
 #define MAX(x, y)           ((x) > (y) ? (x) : (y))
 #define MIN(x, y)           ((x) > (y) ? (y) : (x))
 
+#define STR_ARG(v)          ((v) == NULL ? "" : (v))
+#define BOOL_ARG(v)         ((v) ? "true" : "false")
+
 FILE *open_file(char *path, char *mode);
 void close_file(FILE *fp);
 
-char *trim_str(char *str);
+char *strtrim(char *str);
+void strset(char *buf, char ch, int size);
 
 #endif /* ! _UTIL_H */

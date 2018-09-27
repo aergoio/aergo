@@ -34,15 +34,18 @@
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __SOURCE__,                                  \
-                  "internal error with condition '"#cond"'");                  \
+            assert_exit(#cond, __SOURCE__, 0);                                 \
     } while (0)
-
-#define ASSERT2(cond, msg)                                                     \
+#define ASSERT1(cond, p1)                                                      \
     do {                                                                       \
         if (!(cond))                                                           \
-            FATAL(ERROR_INTERNAL, __SOURCE__,                                  \
-                  "internal error with '"#msg"'");                             \
+            assert_exit(#cond, __SOURCE__, 1, #p1, sizeof(p1), p1);            \
+    } while (0)
+#define ASSERT2(cond, p1, p2)                                                  \
+    do {                                                                       \
+        if (!(cond))                                                           \
+            assert_exit(#cond, __SOURCE__, 2, #p1, sizeof(p1), p1,             \
+                        #p2, sizeof(p2), p2);                                  \
     } while (0)
 
 #define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
@@ -56,7 +59,8 @@
 #define DEBUG(ec, ...)                                                         \
     error_push((ec), LVL_DEBUG, NULL, ## __VA_ARGS__)
 #define TRACE(ec, pos, ...)                                                    \
-    error_push((ec), LVL_TRACE, (pos), ## __VA_ARGS__)
+    error_push((ec), LVL_TRACE, (pos), FILENAME((pos)->path),                  \
+               (pos)->first_line, ## __VA_ARGS__)
 
 #define error_empty()           (error_count() == 0)
 
@@ -112,6 +116,8 @@ void error_clear(void);
 void error_dump(void);
 
 void error_exit(ec_t ec, errlvl_t lvl, ...);
+
+void assert_exit(char *cond, char *file, int line, int argc, ...);
 
 static inline void
 errpos_init(errpos_t *pos, char *path)

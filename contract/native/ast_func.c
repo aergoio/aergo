@@ -13,7 +13,8 @@ ast_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
 {
     ast_func_t *func = xmalloc(sizeof(ast_func_t));
 
-    func->pos = *pos;
+    ast_node_init(func, pos);
+
     func->name = name;
     func->mod = mod;
     func->param_l = param_l;
@@ -24,7 +25,7 @@ ast_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
 }
 
 void
-ast_func_dump(ast_func_t *func)
+ast_func_dump(ast_func_t *func, int indent)
 {
 }
 

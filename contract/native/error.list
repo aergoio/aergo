@@ -9,6 +9,7 @@
 
 error(ERROR_INTERNAL,               "%s:%d: %s")
 error(ERROR_INVALID_FLAG,           "invalid command line flag: %s")
+error(ERROR_OUT_OF_MEM,             "out of memory: %s")
 
 error(ERROR_DIR_IO,                 "%s: %s")
 error(ERROR_FILE_IO,                "%s: %s")
@@ -20,5 +21,8 @@ error(ERROR_UNTERMINATED_STRING,    "%s:%d: unterminated string")
 error(ERROR_UNTERMINATED_SQL,       "%s:%d: unterminated SQL")
 error(ERROR_UNKNOWN_CHAR,           "%s:%d: unknown character")
 error(ERROR_SYNTAX,                 "%s:%d: %s")
+
+error(ERROR_UNDEFINED_TYPE,         "%s:%d: undefined type '%s'")
+error(ERROR_UNDEFINED_ID,           "%s:%d: undefined identifier '%s'")
 
 /* vim:set filetype=c: */

@@ -87,6 +87,7 @@ typedef struct exp_lit_s {
 
 // primitive, struct, map
 typedef struct exp_type_s {
+    type_t type;
     char *name;
     ast_exp_t *k_exp;
     ast_exp_t *v_exp;
@@ -178,6 +179,6 @@ ast_exp_t *exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp,
 ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, errpos_t *pos);
 ast_exp_t *exp_tuple_new(ast_exp_t *exp, errpos_t *pos);
 
-void ast_exp_dump(FILE *fp);
+void ast_exp_dump(ast_exp_t *exp, int indent);
 
 #endif /* ! _AST_EXP_H */
