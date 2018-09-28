@@ -3,6 +3,7 @@ package p2p
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"github.com/aergoio/aergo/internal/enc"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -12,6 +13,7 @@ import (
 
 var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint64 = 100215
+var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
 const (
 	sampleKey1PrivBase64 = "CAISIM1yE7XjJyKTw4fQYMROnlxmEBut5OPPGVde7PeVAf0x"
