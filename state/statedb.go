@@ -82,7 +82,7 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	if err != nil {
 		return err
 	}
-	if sdb.latest != nil && sdb.latest.StateRoot != emptyHashID {
+	if sdb.latest != nil && !sdb.latest.StateRoot.Equal(emptyHashID) {
 		sdb.trie.Root = sdb.latest.StateRoot[:]
 		sdb.trie.LoadCache(sdb.trie.Root)
 	}
@@ -146,7 +146,7 @@ func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, err
 func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
 	dkey, err := sdb.trie.Get(aid[:])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get account state from trie: %s", err)
 	}
 	if len(dkey) == 0 {
 		return types.NewState(), nil
@@ -213,15 +213,20 @@ func (sdb *ChainStateDB) updateTrie(bstate *types.BlockState) error {
 }
 
 func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot types.HashID) error {
-	if bytes.Equal(sdb.trie.Root, prevBlockStateRoot[:]) {
+	var targetRoot []byte
+	if !prevBlockStateRoot.Equal(emptyHashID) {
+		targetRoot = prevBlockStateRoot[:]
+	}
+
+	if bytes.Equal(sdb.trie.Root, targetRoot) {
 		// same root, do nothing
 		return nil
 	}
-	err := sdb.trie.Revert(prevBlockStateRoot[:])
+	err := sdb.trie.Revert(targetRoot)
 	if err != nil {
 		// FIXME: is that enough?
 		// if prevRoot is not contained in the cached tries.
-		sdb.trie.Root = prevBlockStateRoot[:]
+		sdb.trie.Root = targetRoot
 		err = sdb.trie.LoadCache(sdb.trie.Root)
 		return err
 	}

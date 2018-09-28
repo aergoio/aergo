@@ -42,6 +42,11 @@ func (id HashID) Compare(alt HashID) int {
 	return bytes.Compare(id[:], alt[:])
 }
 
+// Equal returns a boolean comparing two HashIDs as byte slices.
+func (id HashID) Equal(alt HashID) bool {
+	return bytes.Equal(id[:], alt[:])
+}
+
 // ToBlockID make a BlockID from bytes
 func ToBlockID(blockHash []byte) BlockID {
 	return BlockID(ToHashID(blockHash))

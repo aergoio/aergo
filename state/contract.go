@@ -24,7 +24,7 @@ func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, err
 		caches:  newStateCaches(),
 		store:   sdb.statedb,
 	}
-	if st.StorageRoot != nil {
+	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
 		res.storage.Root = st.StorageRoot
 	}
 	return res, nil
