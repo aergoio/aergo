@@ -160,7 +160,6 @@ func TestTrieDelete(t *testing.T) {
 	if len(newValue) != 0 {
 		t.Fatal("Failed to delete from trie")
 	}
-	smt.get(root, keys[0], nil, 0, smt.TrieHeight)
 	// Remove deleted key from keys and check root with a clean trie.
 	smt2 := NewTrie(nil, Hasher, nil)
 	ch = make(chan mresult, 1)
@@ -205,6 +204,7 @@ func TestTrieDelete(t *testing.T) {
 // test updating and deleting at the same time
 func TestTrieUpdateAndDelete(t *testing.T) {
 	smt := NewTrie(nil, Hasher, nil)
+	smt.CacheHeightLimit = 0
 	key0 := make([]byte, 32, 32)
 	values := getFreshData(1, 32)
 	root, _ := smt.Update([][]byte{key0}, values)
