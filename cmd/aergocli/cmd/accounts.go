@@ -6,8 +6,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/mr-tron/base58/base58"
-
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/aergoio/aergo/account/key"
@@ -187,9 +185,9 @@ var importCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		var address []byte
-		importBuf, err := base58.Decode(importFormat)
+		importBuf, err := types.DecodePrivKey(importFormat)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			fmt.Printf("Failed to decode input: %s\n", err.Error())
 			return
 		}
 		wif := &types.ImportFormat{Wif: &types.SingleBytes{Value: importBuf}}
@@ -210,11 +208,12 @@ var importCmd = &cobra.Command{
 		}
 
 		if remote {
-			msg, err := client.ImportAccount(context.Background(), wif)
-			if nil == err {
+			msg, errRemote := client.ImportAccount(context.Background(), wif)
+			if nil == errRemote {
 				fmt.Println(types.EncodeAddress(msg.GetAddress()))
 				return
 			}
+			err = errRemote
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
@@ -224,7 +223,7 @@ var importCmd = &cobra.Command{
 				return
 			}
 		}
-		fmt.Printf("Failed: %s\n", err.Error())
+		fmt.Printf("Failed to import account: %s\n", err.Error())
 
 	},
 }
@@ -255,7 +254,7 @@ var exportCmd = &cobra.Command{
 			}
 			result = wif
 		}
-		fmt.Println(base58.Encode(result))
+		fmt.Println(types.EncodePrivKey(result))
 	},
 }
 
