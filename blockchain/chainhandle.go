@@ -8,6 +8,7 @@ package blockchain
 import (
 	"bytes"
 	"container/list"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -441,8 +442,9 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
-			bcCtx := contract.NewContext(sdb, bs, contractState, txBody.GetAccount(), tx.GetHash(),
-					blockNo, ts, "", false, recipient, false)
+			bcCtx := contract.NewContext(sdb, bs, contractState, types.EncodeAddress(txBody.GetAccount()),
+				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+				types.EncodeAddress(recipient), 0)
 
 			if createContract {
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)

@@ -29,6 +29,16 @@ const bc_ctx_t *getLuaExecContext(lua_State *L)
 	return exec;
 }
 
+void bc_ctx_delete(bc_ctx_t *bc_ctx) {
+	if (bc_ctx == NULL)
+		return;
+	free(bc_ctx->stateKey);
+	free(bc_ctx->sender);
+	free(bc_ctx->txHash);
+	free(bc_ctx->contractId);
+	free(bc_ctx->node);
+}
+
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
@@ -85,11 +95,11 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 
 const char *vm_get_json_ret(lua_State *L, int nresult)
 {
-	sbuff_t sbuf;
-	lua_util_sbuf_init(&sbuf, 64);
+	int top = lua_gettop(L);
+	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top);
 
-	lua_pushstring(L, lua_util_get_json_from_ret(L, nresult, &sbuf));
-	free(sbuf.buf);
+	lua_pushstring(L, json_ret);
+	free(json_ret);
 	
 	return lua_tostring(L, -1);
 }
@@ -102,10 +112,12 @@ const char *vm_tostring(lua_State *L, int idx)
 void vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
 	int i;
+	int top;
 	sbuff_t sbuf;
 	lua_util_sbuf_init(&sbuf, 64);
+	top = lua_gettop(L);
 
-	for (i = 1; i <= cnt; ++i) {
+	for (i = top - cnt + 1; i <= top; ++i) {
 		lua_util_dump_json (L, i, &sbuf);
 		lua_util_json_to_lua(target, sbuf.buf);
 		sbuf.idx  = 0;

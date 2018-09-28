@@ -7,7 +7,7 @@ package contract
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
-#cgo LDFLAGS: -g ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
+#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +16,6 @@ package contract
 import "C"
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -79,32 +78,22 @@ func init() {
 	contractMap.init()
 }
 
-func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, contractState *state.ContractState, Sender, txHash []byte, blockHeight uint64,
-	timestamp int64, node string, confirmed bool, contractID []byte, query bool) *LBlockchainCtx {
+func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, contractState *state.ContractState, Sender string,
+	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int, contractId string, query int) *LBlockchainCtx {
 
-	var iConfirmed, isQuery int
-	if confirmed {
-		iConfirmed = 1
-	}
-	if query {
-		isQuery = 1
-	}
-	enContractId := types.EncodeAddress(contractID)
-	enTxHash := hex.EncodeToString(txHash)
-
-	stateKey := fmt.Sprintf("%s%s", enContractId, enTxHash)
+	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
 	contractMap.register(stateKey, &StateSet{contract: contractState, bs: blockState, sdb: sdb})
 
 	return &LBlockchainCtx{
 		stateKey:    C.CString(stateKey),
-		sender:      C.CString(types.EncodeAddress(Sender)),
-		txHash:      C.CString(enTxHash),
+		sender:      C.CString(Sender),
+		txHash:      C.CString(txHash),
 		blockHeight: C.ulonglong(blockHeight),
 		timestamp:   C.longlong(timestamp),
 		node:        C.CString(node),
-		confirmed:   C.int(iConfirmed),
-		contractId:  C.CString(enContractId),
-		isQuery:     C.int(isQuery),
+		confirmed:   C.int(confirmed),
+		contractId:  C.CString(contractId),
+		isQuery:     C.int(query),
 	}
 }
 
@@ -123,12 +112,13 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	defer C.free(unsafe.Pointer(address))
 
 	ce := &Executor{
-		contract: contract,
-		L:        newLState(),
+		contract:      contract,
+		L:             newLState(),
+		blockchainCtx: bcCtx,
 	}
 	if ce.L == nil {
-		ctrLog.Error().Str("error", "Failed: create lua state")
-		ce.err = errors.New("Failed: create lua state")
+		ctrLog.Error().Str("error", "failed: create lua state")
+		ce.err = errors.New("failed: create lua state")
 		return ce
 	}
 	if cErrMsg := C.vm_loadbuff(
@@ -171,9 +161,9 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 	}
 }
 
-func (ce *Executor) call(ci *types.CallInfo, target *LState) {
+func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
-		return
+		return 0
 	}
 	abiStr := C.CString("abi")
 	callStr := C.CString("call")
@@ -194,7 +184,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) {
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
 		ce.err = errors.New(errMsg)
-		return
+		return 0
 	}
 
 	if target == nil {
@@ -202,6 +192,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) {
 	} else {
 		C.vm_copy_result(ce.L, target, nret)
 	}
+	return nret
 }
 
 func (ce *Executor) constructCall(ci *types.CallInfo) {
@@ -255,18 +246,13 @@ func (ce *Executor) commitCalledContract() error {
 	return nil
 }
 
-func (ce *Executor) close() {
+func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
 		ce.L.Close()
-		if ce.blockchainCtx != nil {
+		if ce.blockchainCtx != nil && bcCtxFree {
 			context := ce.blockchainCtx
 			contractMap.unregister(C.GoString(context.stateKey))
-
-			C.free(unsafe.Pointer(context.sender))
-			C.free(unsafe.Pointer(context.txHash))
-			C.free(unsafe.Pointer(context.node))
-			C.free(unsafe.Pointer(context.stateKey))
-			C.free(unsafe.Pointer(context))
+			C.bc_ctx_delete(context)
 		}
 	}
 }
@@ -288,7 +274,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	if err == nil {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		ce = newExecutor(contract, bcCtx)
-		defer ce.close()
+		defer ce.close(true)
 		ce.call(&ci, nil)
 		err = ce.err
 		if err == nil {
@@ -323,7 +309,7 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	var ce *Executor
 	ctrLog.Debug().Str("deploy code", string(code)).Msgf("contract deploy %s", types.EncodeAddress(contractAddress))
 	ce = newExecutor(contract, bcCtx)
-	defer ce.close()
+	defer ce.close(true)
 
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
@@ -361,11 +347,11 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	var ce *Executor
 
-	bcCtx := NewContext(nil, nil, contractState, contractAddress, nil,
-		0, 0, "", false, contractAddress, true)
+	bcCtx := NewContext(nil, nil, contractState, "", "",
+		0, 0, "", 0, types.EncodeAddress(contractAddress), 1)
 	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	ce = newExecutor(contract, bcCtx)
-	defer ce.close()
+	defer ce.close(true)
 	ce.call(&ci, nil)
 	err = ce.err
 
@@ -550,10 +536,10 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		return -1
 	}
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
-		C.GoBytes(unsafe.Pointer(bcCtx.sender), C.int(C.strlen(bcCtx.sender))),
-		[]byte(""), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp), "", false, cid, false)
+		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery))
 	ce := newExecutor(contract, newBcCtx)
-	defer ce.close()
+	defer ce.close(true)
 
 	if ce.err != nil {
 		luaPushStr(L, "[System.LuaGetContract]newExecutor Error :"+ce.err.Error())
@@ -567,11 +553,58 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		luaPushStr(L, "[System.LuaCallContract] invalid args:"+err.Error())
 		return -1
 	}
-	ce.call(&ci, L)
+	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
 		return -1
 	}
+	return ret
+}
 
-	return 0
+//export LuaDelegateCallContract
+func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname *C.char, args *C.char) C.int {
+	stateKeyStr := C.GoString(bcCtx.stateKey)
+	contractIdStr := C.GoString(contractId)
+	fnameStr := C.GoString(fname)
+	argsStr := C.GoString(args)
+
+	cid, err := types.DecodeAddress(contractIdStr)
+	if err != nil {
+		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
+		return -1
+	}
+
+	stateSet := contractMap.lookup(stateKeyStr)
+	if stateSet == nil {
+		luaPushStr(L, "[System.LuaCallContract]not found contract state")
+		return -1
+	}
+	sdb := stateSet.sdb
+	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(cid))
+	contract := getContract(contractState, cid, nil)
+	if contract == nil {
+		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
+		return -1
+	}
+	ce := newExecutor(contract, bcCtx)
+	defer ce.close(false)
+
+	if ce.err != nil {
+		luaPushStr(L, "[System.LuaGetContract]newExecutor Error :"+ce.err.Error())
+		return -1
+	}
+
+	var ci types.CallInfo
+	ci.Name = fnameStr
+	err = json.Unmarshal([]byte(argsStr), &ci.Args)
+	if err != nil {
+		luaPushStr(L, "[System.LuaCallContract] invalid args:"+err.Error())
+		return -1
+	}
+	ret := ce.call(&ci, L)
+	if ce.err != nil {
+		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
+		return -1
+	}
+	return ret
 }

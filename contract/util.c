@@ -140,35 +140,16 @@ int lua_util_json_to_lua (lua_State *L, char *json)
 	return 0;
 }
 
-char *lua_util_get_json_from_ret (lua_State *L, int nresult, sbuff_t *sbuf)
-{
-	int i;
-
-	int nr = lua_gettop(L);
-	copy_to_buffer ("[", 1, sbuf);
-	for (i = nr - nresult; i < nr; ++i) {
-		lua_util_dump_json (L, i + 1, sbuf);
-	}
-	lua_pop(L, nresult);
-	if (sbuf->idx != 1)
-		--sbuf->idx;
-	copy_to_buffer ("]", 2, sbuf);
-
-	return sbuf->buf;
-}
-
-char *lua_util_get_json_from_args (lua_State *L, int start)
+char *lua_util_get_json_from_stack (lua_State *L, int start, int end)
 {
 	int i;
 	sbuff_t sbuf;
 	lua_util_sbuf_init (&sbuf, 64);
 
-	int argc = lua_gettop(L);
 	copy_to_buffer ("[", 1, &sbuf);
-	for (i = start; i <= argc; ++i) {
+	for (i = start; i <= end; ++i) {
 		lua_util_dump_json (L, i, &sbuf);
 	}
-	lua_pop(L, argc - start);
 	if (sbuf.idx != 1)
 		--sbuf.idx;
 	copy_to_buffer ("]", 2, &sbuf);

@@ -25,5 +25,7 @@ const char *vm_pcall(lua_State *L, int argc, int* nresult);
 const char *vm_get_json_ret(lua_State *L, int nresult);
 const char *vm_tostring(lua_State *L, int idx);
 void vm_copy_result(lua_State *L, lua_State *target, int cnt);
+void bc_ctx_delete(bc_ctx_t *bcctx);
+bc_ctx_t *bc_ctx_dup(bc_ctx_t *bc_ctx);
 
 #endif /* _VM_H */

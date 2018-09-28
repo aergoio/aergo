@@ -31,11 +31,11 @@ protoc:
 	go build ./types/...
 
 aergosvr: cmd/aergosvr/*.go
-	go build -gcflags=all="-N -l" -o $(BINPATH)/aergosvr ./cmd/aergosvr
+	go build -o $(BINPATH)/aergosvr ./cmd/aergosvr
 	@echo "Done buidling aergosvr."
 
 aergocli: cmd/aergocli/*.go
-	go build -gcflags=all="-N -l" -o $(BINPATH)/aergocli ./cmd/aergocli
+	go build -o $(BINPATH)/aergocli ./cmd/aergocli
 	@echo "Done buidling aergocli."
 
 aergoluac: ./cmd/aergoluac/*.go
