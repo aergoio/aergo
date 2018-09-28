@@ -14,21 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const aergosystem = "aergo.system"
-
-func init() {
-	rootCmd.AddCommand(stakingCmd)
-	rootCmd.AddCommand(unstakingCmd)
-	stakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
-	stakingCmd.MarkFlagRequired("address")
-	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
-	stakingCmd.MarkFlagRequired("amount")
-	unstakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
-	unstakingCmd.MarkFlagRequired("address")
-	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
-	unstakingCmd.MarkFlagRequired("amount")
-}
-
 var stakingCmd = &cobra.Command{
 	Use:   "staking",
 	Short: "",

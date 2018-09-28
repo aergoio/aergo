@@ -26,11 +26,8 @@ var committxCmd = &cobra.Command{
 	Run:   execCommitTX,
 }
 
-var nonce uint64
 var recipient string
-var price int64
 
-//var script string
 var jsonTx string
 var jsonPath string
 

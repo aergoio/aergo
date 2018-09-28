@@ -381,6 +381,34 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 	return rsp.Account, rsp.Err
 }
 
+func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportFormat) (*types.Account, error) {
+	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+		&message.ImportAccount{Wif: in.Wif.Value, OldPass: in.Oldpass, NewPass: in.Newpass},
+		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.ImportAccountRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Account, rsp.Err
+}
+
+func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase},
+		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.ExportAccountRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Wif}, rsp.Err
+}
+
 // SignTX handle rpc request signtx
 func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,

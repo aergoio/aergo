@@ -31,6 +31,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 	param, err := types.DecodeAddress(address)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
+		return
 	}
 	msg, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: param})

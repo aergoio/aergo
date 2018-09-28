@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const aergosystem = "aergo.system"
+
 var (
 	// Used for flags.
 	home    string
@@ -25,6 +27,12 @@ var (
 	pw      string
 	remote  bool
 	dataDir string
+
+	from   string
+	to     string
+	amount uint64
+
+	importFormat string
 
 	rootConfig CliConfig
 

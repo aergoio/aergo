@@ -6,6 +6,8 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/mr-tron/base58/base58"
+
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/aergoio/aergo/account/key"
@@ -25,8 +27,8 @@ func init() {
 	newCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
-	allCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
-	allCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	listCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	listCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
 	unlockCmd.Flags().StringVar(&address, "address", "", "address of account")
 	unlockCmd.MarkFlagRequired("address")
@@ -36,7 +38,34 @@ func init() {
 	lockCmd.MarkFlagRequired("address")
 	lockCmd.Flags().StringVar(&pw, "password", "", "password")
 
-	accountCmd.AddCommand(newCmd, allCmd, unlockCmd, lockCmd)
+	importCmd.Flags().StringVar(&importFormat, "if", "", "base58 import format string")
+	importCmd.MarkFlagRequired("if")
+	importCmd.Flags().StringVar(&pw, "password", "", "password when exporting")
+	importCmd.Flags().StringVar(&to, "newpassword", "", "password to be reset")
+	importCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	importCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+
+	exportCmd.Flags().StringVar(&address, "address", "", "address of account")
+	exportCmd.MarkFlagRequired("address")
+	exportCmd.Flags().StringVar(&pw, "password", "", "password")
+	exportCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	exportCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+
+	voteCmd.Flags().StringVar(&address, "address", "", "base58 address of voter")
+	voteCmd.MarkFlagRequired("address")
+	voteCmd.Flags().StringVar(&to, "to", "", "json array which has base58 address of candidates or input file path")
+	voteCmd.MarkFlagRequired("to")
+
+	stakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
+	stakingCmd.MarkFlagRequired("address")
+	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
+	stakingCmd.MarkFlagRequired("amount")
+	unstakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
+	unstakingCmd.MarkFlagRequired("address")
+	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
+	unstakingCmd.MarkFlagRequired("amount")
+
+	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakingCmd, unstakingCmd)
 	rootCmd.AddCommand(accountCmd)
 }
 
@@ -80,9 +109,9 @@ var newCmd = &cobra.Command{
 	},
 }
 
-var allCmd = &cobra.Command{
-	Use:   "all [flags]",
-	Short: "Get all account list in the node or cli",
+var listCmd = &cobra.Command{
+	Use:   "list [flags]",
+	Short: "Get account list in the node or cli",
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		var msg *types.AccountList
@@ -149,6 +178,84 @@ var unlockCmd = &cobra.Command{
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}
+	},
+}
+
+var importCmd = &cobra.Command{
+	Use:   "import [flags]",
+	Short: "Import account",
+	Run: func(cmd *cobra.Command, args []string) {
+		var err error
+		var address []byte
+		importBuf, err := base58.Decode(importFormat)
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		wif := &types.ImportFormat{Wif: &types.SingleBytes{Value: importBuf}}
+		if pw != "" {
+			wif.Oldpass = pw
+		} else {
+			wif.Oldpass, err = getPasswd()
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+		}
+
+		if to != "" {
+			wif.Newpass = to
+		} else {
+			wif.Newpass = pw
+		}
+
+		if remote {
+			msg, err := client.ImportAccount(context.Background(), wif)
+			if nil == err {
+				fmt.Println(types.EncodeAddress(msg.GetAddress()))
+				return
+			}
+		} else {
+			dataEnvPath := os.ExpandEnv(dataDir)
+			ks := key.NewStore(dataEnvPath)
+			address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
+			if nil == err {
+				fmt.Println(types.EncodeAddress(address))
+				return
+			}
+		}
+		fmt.Printf("Failed: %s\n", err.Error())
+
+	},
+}
+
+var exportCmd = &cobra.Command{
+	Use:   "export [flags]",
+	Short: "Export account",
+	Run: func(cmd *cobra.Command, args []string) {
+		param, err := parsePersonalParam()
+		if err != nil {
+			return
+		}
+		var result []byte
+		if remote {
+			msg, err := client.ExportAccount(context.Background(), param)
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			result = msg.Value
+		} else {
+			dataEnvPath := os.ExpandEnv(dataDir)
+			ks := key.NewStore(dataEnvPath)
+			wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			result = wif
+		}
+		fmt.Println(base58.Encode(result))
 	},
 }
 

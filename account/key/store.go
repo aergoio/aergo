@@ -1,6 +1,7 @@
 package key
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
@@ -57,18 +58,29 @@ func (ks *Store) CreateKey(pass string) (Address, error) {
 }
 
 //ImportKey is to import encrypted key
-func (ks *Store) ImportKey(imported []byte, oldpass *string, newpass *string) (Address, error) {
-	hash := hashBytes([]byte(*oldpass), nil)
-	rehash := hashBytes([]byte(*oldpass), hash)
+func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Address, error) {
+	hash := hashBytes([]byte(oldpass), nil)
+	rehash := hashBytes([]byte(oldpass), hash)
 	key, err := decrypt(hash, rehash, imported)
 	if err != nil {
 		return nil, err
 	}
-	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
-	if newpass == nil {
-		newpass = oldpass
+	privkey, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), key)
+	address := GenerateAddress(pubkey.ToECDSA())
+	addresses, err := ks.GetAddresses()
+	if err != nil {
+		return nil, err
 	}
-	return ks.addKey(privkey, *newpass)
+	for _, v := range addresses {
+		if bytes.Equal(address, v) {
+			return nil, errors.New("already exisit")
+		}
+	}
+	err = ks.SaveAddress(address)
+	if err != nil {
+		return nil, err
+	}
+	return ks.addKey(privkey, newpass)
 }
 
 //ExportKey is to export encrypted key

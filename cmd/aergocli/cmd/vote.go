@@ -20,16 +20,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var from string
-var to string
 var revert bool
 
 func init() {
-	rootCmd.AddCommand(voteCmd)
-	voteCmd.Flags().StringVar(&from, "from", "", "base58 address of voter")
-	voteCmd.MarkFlagRequired("from")
-	voteCmd.Flags().StringVar(&to, "to", "", "json array which has base58 address of candidates or input file path")
-	voteCmd.MarkFlagRequired("to")
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().Uint64Var(&number, "count", 1, "the number of elected")
 }
@@ -43,7 +36,7 @@ var voteCmd = &cobra.Command{
 const peerIDLength = 39
 
 func execVote(cmd *cobra.Command, args []string) {
-	account, err := types.DecodeAddress(from)
+	account, err := types.DecodeAddress(address)
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return
