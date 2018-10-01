@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -23,7 +22,6 @@ const (
 type reorganizer struct {
 	//input info
 	cs         *ChainService
-	dbtx       *db.Transaction
 	brTopBlock *types.Block //branch top block
 
 	//collected info from chain
@@ -55,14 +53,11 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 //TODO: on booting, delete played tx of block. because deleting txs from mempool is done after commit
 //TODO: gather delete request of played tx (1 msg)
 func (cs *ChainService) reorg(topBlock *types.Block) error {
-	reorgtx := cs.cdb.store.NewTx(true)
-
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Msg("reorg started")
 
 	reorg := &reorganizer{
 		cs:         cs,
-		dbtx:       &reorgtx,
 		brTopBlock: topBlock,
 		rfBlocks:   make([]*reorgBlock, 0, initBlkCount),
 		rbBlocks:   make([]*reorgBlock, 0, initBlkCount),
@@ -78,9 +73,6 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return consensus.ErrorConsensus{Msg: "reorganization rejected by consensus"}
 	}
 
-	/* XXX */
-	//reorg.dumpRbBlocks()
-
 	err = reorg.rollbackChain()
 	if err != nil {
 		return err
@@ -91,8 +83,6 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 	}
 
 	logger.Info().Msg("reorg end")
-
-	reorgtx.Commit()
 
 	return nil
 }
@@ -182,30 +172,52 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	rollback overall stateDB
 */
 func (reorg *reorganizer) rollbackChain() error {
+	var prevHash []byte
+	var prevBlock *types.Block
 	cdb := reorg.cs.cdb
 
-	for _, rbBlock := range reorg.rbBlocks {
+	rbBlock := reorg.rbBlocks[0]
+	targetBlock, err := cdb.getBlock(rbBlock.Hash)
+	if err != nil {
+		return err
+	}
+
+	cntRollback := len(reorg.rbBlocks)
+	for i, rbBlock := range reorg.rbBlocks {
+		if i < cntRollback-1 {
+			prevHash = reorg.rbBlocks[i+1].Hash
+
+			prevBlock, err = cdb.getBlock(prevHash)
+			if err != nil {
+				return err
+			}
+		} else {
+			prevBlock = nil
+		}
+
 		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
 			Msg("rollback block")
-
-		//get target block
-		targetBlock, err := cdb.getBlock(rbBlock.Hash)
-		if err != nil {
-			return err
-		}
 
 		if targetBlock.GetHeader().GetBlockNo() != rbBlock.BlockNo {
 			return fmt.Errorf("invalid rollback target block(%d, %v.err=%s)", rbBlock.BlockNo, rbBlock.Hash,
 				err.Error())
 		}
 
-		reorg.rollbackBlock(targetBlock)
+		reorg.rollbackBlock(targetBlock, prevBlock)
+
+		targetBlock = prevBlock
 	}
 
-	//rollback stateDB
-	if err := reorg.rollbackChainState(); err != nil {
-		logger.Debug().Err(err).Msg("reorganization failed")
-		return err
+	return nil
+}
+
+func (reorg *reorganizer) rollbackBlockState(blockNo types.BlockNo) error {
+	if blockNo < 1 {
+		return nil
+	}
+
+	if err := reorg.cs.sdb.Rollback(blockNo - 1); err != nil {
+		return fmt.Errorf("failed to rollback sdb(no=%d)", blockNo)
 	}
 
 	return nil
@@ -216,7 +228,6 @@ func (reorg *reorganizer) rollbackChainState() error {
 	brRootBlockNo := brRootBlock.GetHeader().GetBlockNo()
 
 	if err := reorg.cs.sdb.Rollback(brRootBlockNo); err != nil {
-
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brRootBlockNo,
 			brRootBlock.ID())
 	}
@@ -230,17 +241,27 @@ func (reorg *reorganizer) rollbackChainState() error {
 	- gather rollbacked Txs
     - delete tx/block mapping
 */
-func (reorg *reorganizer) rollbackBlock(block *types.Block) {
+func (reorg *reorganizer) rollbackBlock(block *types.Block, prevBlock *types.Block) error {
 	cdb := reorg.cs.cdb
 
-	//blockNo := block.GetHeader().GetBlockNo()
+	reorgtx := cdb.store.NewTx(true)
+
+	blockNo := block.GetHeader().GetBlockNo()
 
 	for _, tx := range block.GetBody().GetTxs() {
 		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
-		cdb.deleteTx(reorg.dbtx, tx)
+		cdb.deleteTx(&reorgtx, tx)
 	}
 
-	//cdb.setLatest(blockNo - 1)
+	if err := reorg.rollbackBlockState(blockNo); err != nil {
+		return err
+	}
+
+	reorgtx.Commit()
+
+	cdb.setLatest(prevBlock)
+
+	return nil
 }
 
 /*
@@ -275,8 +296,6 @@ func (reorg *reorganizer) rollforwardChain() error {
 		}
 	}
 
-	cdb.setLatest(targetBlock)
-
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	cntRbTxs := len(reorg.rbTxs)
 	if cntRbTxs > 0 {
@@ -304,7 +323,8 @@ func (reorg *reorganizer) rollforwardChain() error {
 */
 func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
-	//cdb := reorg.cs.cdb
+	cdb := reorg.cs.cdb
+	reorgtx := cdb.store.NewTx(true)
 
 	if err := cs.executeBlock(nil, block); err != nil {
 		return err
@@ -321,6 +341,10 @@ func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 
 	//remove played tx from rbTxs
 	reorg.removePlayedTxs(block)
+
+	reorgtx.Commit()
+
+	cdb.setLatest(block)
 
 	return nil
 }
