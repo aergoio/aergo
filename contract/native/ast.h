@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "list.h"
+#include "array.h"
 
 #define AST_NODE_DECL                                                          \
     int num;                                                                   \

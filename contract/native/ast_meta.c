@@ -19,24 +19,22 @@ meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
 }
 
 void
-meta_set_tuple(ast_meta_t *meta, list_t *field_l)
+meta_set_tuple(ast_meta_t *meta, array_t *fld_ids)
 {
-    int i = 0;
+    int i;
     ast_exp_t *exp;
-    list_node_t *node;
 
-    ASSERT(field_l != NULL);
+    ASSERT(fld_ids != NULL);
 
     ast_meta_init(meta, TYPE_TUPLE);
 
-    meta->u_tup.size = list_size(field_l);
+    meta->u_tup.size = array_size(fld_ids);
     meta->u_tup.metas = xmalloc(sizeof(ast_meta_t *) * meta->u_tup.size);
 
-    list_foreach(node, field_l) {
-        ast_exp_t *exp = list_item(node, ast_exp_t);
+    for (i = 0; i < array_size(fld_ids); i++) {
+        ast_exp_t *exp = array_item(fld_ids, i, ast_exp_t);
 
         ASSERT1(type_is_valid(exp->meta.type), exp->meta.type);
-
         meta->u_tup.metas[i++] = &exp->meta;
     }
 }

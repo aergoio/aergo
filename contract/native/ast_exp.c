@@ -114,12 +114,12 @@ exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos)
+exp_call_new(ast_exp_t *id_exp, array_t *param_exps, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
     exp->u_call.id_exp = id_exp;
-    exp->u_call.param_l = param_l;
+    exp->u_call.param_exps = param_exps;
 
     return exp;
 }
@@ -176,10 +176,10 @@ exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
-    exp->u_tup.exp_l = list_new();
+    exp->u_tup.exps = array_new();
 
     if (elem_exp != NULL)
-        list_add_tail(exp->u_tup.exp_l, elem_exp);
+        array_add(exp->u_tup.exps, elem_exp);
 
     return exp;
 }

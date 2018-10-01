@@ -19,7 +19,7 @@ check_init(check_t *ctx, ast_t *ast)
     root = ast->root;
 
     ASSERT(root != NULL);
-    ASSERT(list_empty(&root->stmt_l));
+    ASSERT(array_empty(&root->stmts));
     ASSERT(root->up == NULL);
 
     ctx->root = root;
@@ -29,13 +29,13 @@ check_init(check_t *ctx, ast_t *ast)
 void
 check(ast_t *ast, flag_t flag)
 {
+    int i;
     check_t ctx;
-    list_node_t *node;
 
     check_init(&ctx, ast);
 
-    list_foreach(node, &ctx.root->id_l) {
-        check_id(&ctx, (ast_id_t *)node->item);
+    for (i = 0; i < array_size(&ctx.root->ids); i++) {
+        check_id(&ctx, array_item(&ctx.root->ids, i, ast_id_t));
     }
 }
 

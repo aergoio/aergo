@@ -39,7 +39,7 @@ struct ast_meta_s {
 };
 
 void meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta);
-void meta_set_tuple(ast_meta_t *meta, list_t *field_l);
+void meta_set_tuple(ast_meta_t *meta, array_t *fld_ids);
 
 void ast_meta_dump(ast_meta_t *meta, int indent);
 

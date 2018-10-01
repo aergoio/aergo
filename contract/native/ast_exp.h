@@ -102,7 +102,7 @@ typedef struct exp_array_s {
 // id(param...)
 typedef struct exp_call_s {
     ast_exp_t *id_exp;
-    list_t *param_l;
+    array_t *param_exps;
 } exp_call_t;
 
 // id.fld
@@ -133,7 +133,7 @@ typedef struct exp_sql_s {
 
 // (exp, exp, exp, ...)
 typedef struct exp_tuple_s {
-    list_t *exp_l;
+    array_t *exps;
 } exp_tuple_t;
 
 struct ast_exp_s {
@@ -168,7 +168,7 @@ ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
 ast_exp_t *exp_id_ref_new(char *name, errpos_t *pos);
 ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp,
                          errpos_t *pos);
-ast_exp_t *exp_call_new(ast_exp_t *id_exp, list_t *param_l, errpos_t *pos);
+ast_exp_t *exp_call_new(ast_exp_t *id_exp, array_t *param_exps, errpos_t *pos);
 ast_exp_t *exp_access_new(ast_exp_t *id_exp, ast_exp_t *fld_exp,
                           errpos_t *pos);
 ast_exp_t *exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,

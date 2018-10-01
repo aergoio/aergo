@@ -48,11 +48,11 @@ typedef struct stmt_if_s {
     ast_exp_t *cmp_exp;
     ast_blk_t *if_blk;
     ast_blk_t *else_blk;
-    list_t elsif_l;
+    array_t elif_stmts;
 } stmt_if_t;
 
 typedef struct stmt_for_s {
-    list_t *init_l;
+    array_t *init_ids;
     ast_exp_t *init_exp;
     ast_exp_t *check_exp;
     ast_exp_t *inc_exp;
@@ -61,12 +61,12 @@ typedef struct stmt_for_s {
 
 typedef struct stmt_switch_s {
     ast_exp_t *cmp_exp;
-    list_t *case_l;
+    array_t *case_stmts;
 } stmt_switch_t;
 
 typedef struct stmt_case_s {
     ast_exp_t *cmp_exp;
-    list_t *stmt_l;
+    array_t *stmts;
 } stmt_case_t;
 
 typedef struct stmt_return_s {
@@ -113,8 +113,8 @@ ast_stmt_t *stmt_exp_new(ast_exp_t *exp, errpos_t *pos);
 ast_stmt_t *stmt_if_new(ast_exp_t *cmp_exp, ast_blk_t *if_blk, errpos_t *pos);
 ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp,
                          ast_exp_t *inc_exp, ast_blk_t *blk, errpos_t *pos);
-ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, errpos_t *pos);
-ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, errpos_t *pos);
+ast_stmt_t *stmt_switch_new(ast_exp_t *cmp_exp, array_t *case_stmts, errpos_t *pos);
+ast_stmt_t *stmt_case_new(ast_exp_t *cmp_exp, array_t *stmts, errpos_t *pos);
 ast_stmt_t *stmt_return_new(ast_exp_t *exp, errpos_t *pos);
 ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos);
 ast_stmt_t *stmt_blk_new(ast_blk_t *blk, errpos_t *pos);

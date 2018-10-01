@@ -47,12 +47,12 @@ typedef struct id_var_s {
 } id_var_t;
 
 typedef struct id_struct_s {
-    list_t *field_l;
+    array_t *fld_ids;
 } id_struct_t;
 
 typedef struct id_func_s {
-    list_t *param_l;
-    list_t *return_l;
+    array_t *param_ids;
+    array_t *ret_exps;
 
     ast_blk_t *blk;
 } id_func_t;
@@ -85,10 +85,10 @@ ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, errpos_t *pos);
 ast_id_t *id_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp,
                      ast_exp_t *init_exp, errpos_t *pos);
 
-ast_id_t *id_struct_new(char *name, list_t *field_l, errpos_t *pos);
+ast_id_t *id_struct_new(char *name, array_t *fld_ids, errpos_t *pos);
 
-ast_id_t *id_func_new(char *name, modifier_t mod, list_t *param_l,
-                      list_t *return_l, ast_blk_t *blk, errpos_t *pos);
+ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
+                      array_t *ret_exps, ast_blk_t *blk, errpos_t *pos);
 
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos);
 

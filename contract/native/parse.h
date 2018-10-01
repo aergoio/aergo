@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "strbuf.h"
-#include "list.h"
+#include "array.h"
 
 #include "ast_id.h"
 #include "ast_blk.h"

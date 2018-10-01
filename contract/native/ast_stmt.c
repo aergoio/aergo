@@ -37,7 +37,7 @@ stmt_if_new(ast_exp_t *cmp_exp, ast_blk_t *if_blk, errpos_t *pos)
     stmt->u_if.cmp_exp = cmp_exp;
     stmt->u_if.if_blk = if_blk;
     stmt->u_if.else_blk = NULL;
-    list_init(&stmt->u_if.elsif_l);
+    array_init(&stmt->u_if.elif_stmts);
 
     return stmt;
 }
@@ -48,7 +48,7 @@ stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp, ast_exp_t *inc_exp,
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_FOR, pos);
 
-    stmt->u_for.init_l = NULL;
+    stmt->u_for.init_ids = NULL;
     stmt->u_for.init_exp = init_exp;
     stmt->u_for.check_exp = check_exp;
     stmt->u_for.inc_exp = inc_exp;
@@ -58,23 +58,23 @@ stmt_for_new(ast_exp_t *init_exp, ast_exp_t *check_exp, ast_exp_t *inc_exp,
 }
 
 ast_stmt_t *
-stmt_switch_new(ast_exp_t *cmp_exp, list_t *case_l, errpos_t *pos)
+stmt_switch_new(ast_exp_t *cmp_exp, array_t *case_stmts, errpos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_SWITCH, pos);
 
     stmt->u_sw.cmp_exp = cmp_exp;
-    stmt->u_sw.case_l = case_l;
+    stmt->u_sw.case_stmts = case_stmts;
 
     return stmt;
 }
 
 ast_stmt_t *
-stmt_case_new(ast_exp_t *cmp_exp, list_t *stmt_l, errpos_t *pos)
+stmt_case_new(ast_exp_t *cmp_exp, array_t *stmts, errpos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_CASE, pos);
 
     stmt->u_case.cmp_exp = cmp_exp;
-    stmt->u_case.stmt_l = stmt_l;
+    stmt->u_case.stmts = stmts;
 
     return stmt;
 }

@@ -19,8 +19,8 @@ ast_blk_new(errpos_t *pos)
 
     ast_node_init(blk, pos);
 
-    list_init(&blk->id_l);
-    list_init(&blk->stmt_l);
+    array_init(&blk->ids);
+    array_init(&blk->stmts);
 
     return blk;
 }

@@ -43,23 +43,23 @@ id_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp,
 }
 
 ast_id_t *
-id_struct_new(char *name, list_t *field_l, errpos_t *pos)
+id_struct_new(char *name, array_t *fld_ids, errpos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, pos);
 
     ASSERT(name != NULL);
-    ASSERT(field_l != NULL);
+    ASSERT(fld_ids != NULL);
 
     ast_node_init(id, pos);
 
     id->name = name;
-    id->u_st.field_l = field_l;
+    id->u_st.fld_ids = fld_ids;
 
     return id;
 }
 
 ast_id_t *
-id_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
+id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
             ast_blk_t *blk, errpos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FUNC, mod, pos);
@@ -69,8 +69,8 @@ id_func_new(char *name, modifier_t mod, list_t *param_l, list_t *return_l,
     ast_node_init(id, pos);
 
     id->name = name;
-    id->u_func.param_l = param_l;
-    id->u_func.return_l = return_l;
+    id->u_func.param_ids = param_ids;
+    id->u_func.ret_exps = ret_exps;
     id->u_func.blk = blk;
 
     return id;
@@ -94,15 +94,15 @@ id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos)
 ast_id_t *
 ast_id_search(ast_blk_t *blk, int num, char *name)
 {
-    list_node_t *node;
+    int i;
 
     if (blk == NULL)
         return NULL;
 
     do {
         // XXX: need to check siblings of root blk
-        list_foreach(node, &blk->id_l) {
-            ast_id_t *id = (ast_id_t *)node->item;
+        for (i = 0; i < array_size(&blk->ids); i++) {
+            ast_id_t *id = array_item(&blk->ids, i, ast_id_t);
 
             ASSERT(id->name != NULL);
             ASSERT2(id->num != num, id->num, num);

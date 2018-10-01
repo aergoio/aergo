@@ -132,14 +132,13 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 %union {
     bool flag;
     char *str;
+    array_t *array;
 
     type_t type;
     op_kind_t op;
     sql_kind_t sql;
     ddl_kind_t ddl;
     modifier_t mod;
-
-    list_t *list;
 
     ast_id_t *id;
     ast_blk_t *blk;
@@ -149,36 +148,36 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 
 %type <id>      contract_decl
 %type <blk>     contract_body
-%type <list>    variable
+%type <array>   variable
 %type <exp>     var_type
 %type <exp>     var_spec
 %type <type>    prim_type
-%type <list>    var_decl_list
+%type <array>   var_decl_list
 %type <id>      var_decl
 %type <exp>     declarator
 %type <exp>     initializer
-%type <list>    init_list
+%type <array>   init_list
 %type <id>      struct
-%type <list>    field_list
+%type <array>   field_list
 %type <id>      constructor
-%type <list>    param_list_opt
-%type <list>    param_list
+%type <array>   param_list_opt
+%type <array>   param_list
 %type <id>      param_decl
 %type <blk>     block
 %type <blk>     blk_decl
 %type <id>      function
 %type <mod>     modifier_opt
-%type <list>    return_opt
-%type <list>    return_list
+%type <array>   return_opt
+%type <array>   return_list
 %type <stmt>    statement
 %type <stmt>    stmt_exp
 %type <stmt>    stmt_if
 %type <stmt>    stmt_loop
 %type <exp>     exp_loop
 %type <stmt>    stmt_switch
-%type <list>    label_list
+%type <array>   label_list
 %type <stmt>    label
-%type <list>    stmt_list
+%type <array>   stmt_list
 %type <stmt>    stmt_jump
 %type <stmt>    stmt_ddl
 %type <stmt>    stmt_blk
@@ -204,7 +203,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 %type <exp>     exp_post
 %type <exp>     exp_prim
 %type <exp>     exp_new
-%type <list>    exp_list
+%type <array>   exp_list
 %type <str>     non_reserved_token
 %type <str>     identifier
 
@@ -216,11 +215,11 @@ smart_contract:
     contract_decl
     {
         *ctx->ast = ast_new();
-        list_add_tail(&(*ctx->ast)->root->id_l, $1);
+        array_add(&(*ctx->ast)->root->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        list_add_tail(&(*ctx->ast)->root->id_l, $2);
+        array_add(&(*ctx->ast)->root->ids, $2);
     }
 ;
 
@@ -239,51 +238,51 @@ contract_body:
     variable
     {
         $$ = ast_blk_new(&@$);
-        list_join(&$$->id_l, $1);
+        array_join(&$$->ids, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->id_l, $1);
+        array_add(&$$->ids, $1);
     }
 |   constructor
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->id_l, $1);
+        array_add(&$$->ids, $1);
     }
 |   function
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->id_l, $1);
+        array_add(&$$->ids, $1);
     }
 |   contract_body variable
     {
         $$ = $1;
-        list_join(&$$->id_l, $2);
+        array_join(&$$->ids, $2);
     }
 |   contract_body struct
     {
         $$ = $1;
-        list_add_tail(&$$->id_l, $2);
+        array_add(&$$->ids, $2);
     }
 |   contract_body constructor
     {
         $$ = $1;
-        list_add_tail(&$$->id_l, $2);
+        array_add(&$$->ids, $2);
     }
 |   contract_body function
     {
         $$ = $1;
-        list_add_tail(&$$->id_l, $2);
+        array_add(&$$->ids, $2);
     }
 ;
 
 variable:
     var_type var_decl_list ';'
     {
-        list_node_t *node;
-        list_foreach(node, $2) {
-            ast_id_t *id = (ast_id_t *)node->item;
+        int i;
+        for (i = 0; i < array_size($2); i++) {
+            ast_id_t *id = array_item($2, i, ast_id_t);
 
             ASSERT(id->kind == ID_VAR);
             id->u_var.type_exp = $1;
@@ -344,13 +343,13 @@ prim_type:
 var_decl_list:
     var_decl
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   var_decl_list ',' var_decl
     {
         $$ = $1;
-        list_add_tail($$, $3);
+        array_add($$, $3);
     }
 ;
 
@@ -385,25 +384,25 @@ initializer:
 |   '{' init_list '}'
     {
         $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exp_l = $2;
+        $$->u_tup.exps = $2;
     }
 |   '{' init_list ',' '}'
     {
         $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exp_l = $2;
+        $$->u_tup.exps = $2;
     }
 ;
 
 init_list:
     initializer
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   init_list ',' initializer
     {
         $$ = $1;
-        list_add_tail($$, $3);
+        array_add($$, $3);
     }
 ;
 
@@ -422,7 +421,7 @@ field_list:
 |   field_list variable
     {
         $$ = $1;
-        list_join($$, $2);
+        array_join($$, $2);
     }
 ;
 
@@ -441,13 +440,13 @@ param_list_opt:
 param_list:
     param_decl
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   param_list ',' param_decl
     {
         $$ = $1;
-        list_add_tail($$, $3);
+        array_add($$, $3);
     }
 ;
 
@@ -467,32 +466,32 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        list_join(&$$->id_l, $1);
+        array_join(&$$->ids, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->id_l, $1);
+        array_add(&$$->ids, $1);
     }
 |   statement
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->stmt_l, $1);
+        array_add(&$$->stmts, $1);
     }
 |   blk_decl variable
     {
         $$ = $1;
-        list_join(&$$->id_l, $2);
+        array_join(&$$->ids, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
-        list_add_tail(&$$->id_l, $2);
+        array_add(&$$->ids, $2);
     }
 |   blk_decl statement
     {
         $$ = $1;
-        list_add_tail(&$$->stmt_l, $2);
+        array_add(&$$->stmts, $2);
     }
 ;
 
@@ -527,13 +526,13 @@ return_opt:
 return_list:
     var_type
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   return_list ',' var_type
     {
         $$ = $1;
-        list_add_tail($$, $3);
+        array_add($$, $3);
     }
 ;
 
@@ -566,7 +565,7 @@ stmt_if:
 |   stmt_if K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
-        list_add_tail(&$$->u_if.elsif_l, stmt_if_new($5, $7, &@2));
+        array_add(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
     }
 |   stmt_if K_ELSE block
     {
@@ -595,12 +594,12 @@ stmt_loop:
 |   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
-        $$->u_for.init_l = $3;
+        $$->u_for.init_ids = $3;
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
-        $$->u_for.init_l = $3;
+        $$->u_for.init_ids = $3;
     }
 |   K_FOR '(' exp_loop K_IN exp_post ')' block
     {
@@ -639,13 +638,13 @@ stmt_switch:
 label_list:
     label
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   label_list label
     {
         $$ = $1;
-        list_add_tail($$, $2);
+        array_add($$, $2);
     }
 ;
 
@@ -663,13 +662,13 @@ label:
 stmt_list:
     statement
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   stmt_list statement
     {
         $$ = $1;
-        list_add_tail($$, $2);
+        array_add($$, $2);
     }
 ;
 
@@ -729,7 +728,7 @@ expression:
 |   expression ',' exp_assign
     {
         $$ = $1;
-        list_add_tail($$->u_tup.exp_l, $3);
+        array_add($$->u_tup.exps, $3);
     }
 ;
 
@@ -1010,27 +1009,27 @@ exp_new:
     }
 |   K_NEW K_MAP '(' L_INT ')'
     {
-        list_t *exp_l = list_new();
+        array_t *exps = array_new();
         ast_exp_t *id_exp = exp_id_ref_new(xstrdup("map"), &@2);
         ast_exp_t *param_exp = exp_lit_new(&@4);
 
         val_set_int(&param_exp->u_lit.val, $4);
-        list_add_tail(exp_l, param_exp);
+        array_add(exps, param_exp);
 
-        $$ = exp_call_new(id_exp, exp_l, &@$);
+        $$ = exp_call_new(id_exp, exps, &@$);
     }
 ;
 
 exp_list:
     exp_cond
     {
-        $$ = list_new();
-        list_add_tail($$, $1);
+        $$ = array_new();
+        array_add($$, $1);
     }
 |   exp_list ',' exp_cond
     {
         $$ = $1;
-        list_add_tail($$, $3);
+        array_add($$, $3);
     }
 ;
 
