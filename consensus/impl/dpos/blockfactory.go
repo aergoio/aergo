@@ -35,15 +35,19 @@ func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.
 	prevHash := bestBlock.BlockID()
 	blockInfo := types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)
 
+	bState := types.NewBlockState(blockInfo, contract.DB.NewTx(true))
+
 	// Block hash not determined yet
 	return &txExec{
-		blockState: types.NewBlockState(blockInfo, contract.DB.NewTx(true)),
 		sdb:        sdb,
+		blockState: bState,
+		execTx:     blockchain.NewTxExecutor(sdb, bState, ts),
 	}
 }
 
 func (te *txExec) Apply(tx *types.Tx) (*types.BlockState, error) {
-	return nil, nil
+	err := te.execTx(tx)
+	return te.blockState, err
 }
 
 // BlockFactory is the main data structure for DPoS block factory.
@@ -190,12 +194,10 @@ func (bf *BlockFactory) worker() {
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *types.BlockState, error) {
 	ts := bpi.slot.UnixNano()
 
-	// txOp := chain.NewCompTxOp(
-	// 	bf.txOp,
-	// 	newTxExec(bpi.bestBlock, bf.sdb, ts),
-	// )
-
-	txOp := bf.txOp
+	txOp := chain.NewCompTxOp(
+		bf.txOp,
+		newTxExec(bpi.bestBlock, bf.sdb, ts),
+	)
 
 	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, ts)
 	if err != nil {

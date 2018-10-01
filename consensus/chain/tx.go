@@ -115,6 +115,7 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 		} else if err == errBlockSizeLimit {
 			break
 		} else if err != nil {
+			// XXX: failed transactions must not be collected into the block.
 			return nil, nil, err
 		}
 	}

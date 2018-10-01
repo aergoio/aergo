@@ -337,6 +337,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 		exec = NewTxExecutor(
 			cs.sdb, bState, block.GetHeader().GetTimestamp())
 	} else {
+		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
 		// executed by the block factory.
 		commitOnly = true
