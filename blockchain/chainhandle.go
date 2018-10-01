@@ -331,7 +331,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		bState = types.NewBlockState(
 			types.NewBlockInfo(block.BlockNo(), block.BlockID(), block.PrevBlockID()),
-			contract.DB.NewTx(true),
+			contract.DB.NewTx(),
 		)
 
 		exec = NewTxExecutor(
@@ -403,7 +403,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	cdbTx := cs.cdb.store.NewTx(true)
+	cdbTx := cs.cdb.store.NewTx()
 	// This is a chain DB update.
 	setChainState(cdbTx, block)
 	// TODO: What happens if DB update is failed in setChainState()? Such an
