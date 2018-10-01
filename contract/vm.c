@@ -73,6 +73,12 @@ void vm_getfield(lua_State *L, const char *name)
 {
 	lua_getfield(L, LUA_GLOBALSINDEX, name);
 }
+
+int vm_isnil(lua_State *L, int idx)
+{
+	return lua_isnil(L, idx);
+}
+
 void vm_remove_construct(lua_State *L, const char *construct_name)
 {
     lua_pushnil(L);

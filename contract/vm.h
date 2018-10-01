@@ -18,6 +18,7 @@ typedef struct blockchain_ctx {
 } bc_ctx_t;
 
 lua_State *vm_newstate();
+int vm_isnil(lua_State *L, int idx);
 void vm_getfield(lua_State *L, const char *name);
 void vm_remove_construct(lua_State *L, const char *constructName);
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx);

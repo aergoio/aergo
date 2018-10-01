@@ -203,6 +203,10 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	defer C.free(unsafe.Pointer(initName))
 
 	C.vm_getfield(ce.L, initName)
+	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+		return
+	}
+
 	ce.processArgs(ci)
 
 	if ce.err != nil {
@@ -212,7 +216,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
+		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.contract.address))
 		ce.err = errors.New(errMsg)
 		return
 	}
@@ -307,7 +311,6 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 		return err
 	}
 	var ce *Executor
-	ctrLog.Debug().Str("deploy code", string(code)).Msgf("contract deploy %s", types.EncodeAddress(contractAddress))
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
 
