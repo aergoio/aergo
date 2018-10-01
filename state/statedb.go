@@ -406,38 +406,26 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 	return err
 }
 
-func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
-	if sdb.latest.BlockNo <= blockNo {
-		return fmt.Errorf("Failed to rollback: invalid block no")
-	}
+func (sdb *ChainStateDB) Rollback(targetBlockID types.BlockID) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	target := sdb.latest
-	for target.BlockNo >= blockNo {
-		bs, err := sdb.loadBlockState(target.BlockHash)
-		if err != nil {
-			return err
-		}
-		sdb.latest = &bs.BlockInfo
-
-		if target.BlockNo == blockNo {
-			break
-		}
-
-		err = sdb.revertStateDB(bs.Undo.StateRoot)
-		if err != nil {
-			return err
-		}
-		// logger.Debugf("- trie.root: %v", base64.StdEncoding.EncodeToString(sdb.GetHash()))
-
-		target = &types.BlockInfo{
-			BlockNo:   sdb.latest.BlockNo - 1,
-			BlockHash: sdb.latest.PrevHash,
-		}
+	target, err := sdb.loadBlockState(targetBlockID)
+	if err != nil {
+		return err
 	}
-	err := sdb.saveStateLatest()
-	return err
+	logger.Debug().
+		Str("latest", fmt.Sprintf("[%d]%v(s:%v)", sdb.latest.BlockNo, sdb.latest.BlockHash, sdb.latest.StateRoot)).
+		Str("target", fmt.Sprintf("[%d]%v(s:%v)", target.BlockNo, target.BlockHash, target.StateRoot)).
+		Msg("rollback statedb")
+
+	err = sdb.revertStateDB(target.StateRoot)
+	if err != nil {
+		return err
+	}
+
+	sdb.latest = &target.BlockInfo
+	return sdb.saveStateLatest()
 }
 
 func (sdb *ChainStateDB) GetHash() []byte {

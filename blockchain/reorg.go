@@ -212,25 +212,21 @@ func (reorg *reorganizer) rollbackChain() error {
 	return nil
 }
 
-func (reorg *reorganizer) rollbackBlockState(blockNo types.BlockNo) error {
-	if blockNo < 1 {
-		return nil
+func (reorg *reorganizer) rollbackBlockState(targetBlockID types.BlockID) error {
+	if err := reorg.cs.sdb.Rollback(targetBlockID); err != nil {
+		return fmt.Errorf("failed to rollback sdb(id=%v)", targetBlockID)
 	}
-
-	if err := reorg.cs.sdb.Rollback(blockNo - 1); err != nil {
-		return fmt.Errorf("failed to rollback sdb(no=%d)", blockNo)
-	}
-
 	return nil
 }
 
 func (reorg *reorganizer) rollbackChainState() error {
 	brRootBlock := reorg.brRootBlock
+	brRootBlockID := brRootBlock.BlockID()
 	brRootBlockNo := brRootBlock.GetHeader().GetBlockNo()
 
-	if err := reorg.cs.sdb.Rollback(brRootBlockNo); err != nil {
-		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brRootBlockNo,
-			brRootBlock.ID())
+	if err := reorg.cs.sdb.Rollback(brRootBlockID); err != nil {
+		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)",
+			brRootBlockNo, brRootBlockID)
 	}
 
 	return nil
@@ -244,22 +240,19 @@ func (reorg *reorganizer) rollbackChainState() error {
 */
 func (reorg *reorganizer) rollbackBlock(block *types.Block, prevBlock *types.Block) error {
 	cdb := reorg.cs.cdb
-
 	reorgtx := cdb.store.NewTx()
 
-	blockNo := block.GetHeader().GetBlockNo()
-
+	targetBlockID := prevBlock.BlockID()
 	for _, tx := range block.GetBody().GetTxs() {
 		reorg.rbTxs[types.ToTxID(tx.GetHash())] = tx
 		cdb.deleteTx(&reorgtx, tx)
 	}
 
-	if err := reorg.rollbackBlockState(blockNo); err != nil {
+	if err := reorg.rollbackBlockState(targetBlockID); err != nil {
 		return err
 	}
 
 	reorgtx.Commit()
-
 	cdb.setLatest(prevBlock)
 
 	return nil
