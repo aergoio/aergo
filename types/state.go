@@ -5,6 +5,7 @@ import (
 
 	"reflect"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 )
@@ -117,8 +118,9 @@ type BlockInfo struct {
 }
 type BlockState struct {
 	BlockInfo
-	accounts map[AccountID]*State
-	Undo     undoStates
+	accounts  map[AccountID]*State
+	Undo      undoStates
+	receiptTx db.Transaction
 }
 type undoStates struct {
 	StateRoot HashID
@@ -135,13 +137,26 @@ func NewBlockInfo(blockNo BlockNo, blockHash, prevHash BlockID) *BlockInfo {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(blockInfo *BlockInfo) *BlockState {
+func NewBlockState(blockInfo *BlockInfo, rTx db.Transaction) *BlockState {
 	return &BlockState{
 		BlockInfo: *blockInfo,
 		accounts:  make(map[AccountID]*State),
 		Undo: undoStates{
 			Accounts: make(map[AccountID]*State),
 		},
+		receiptTx: rTx,
+	}
+}
+
+// ReceiptTx return bs.receiptTx.
+func (bs *BlockState) ReceiptTx() db.Transaction {
+	return bs.receiptTx
+}
+
+// CommitReceipt commit bs.receiptTx.
+func (bs *BlockState) CommitReceipt() {
+	if bs.receiptTx != nil {
+		bs.receiptTx.Commit()
 	}
 }
 

@@ -168,7 +168,7 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}
-	setMainChainStatus(tx, block)
+	setChainState(tx, block)
 
 	tx.Commit()
 	cdb.setLatest(block)

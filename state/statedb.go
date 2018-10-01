@@ -246,7 +246,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	sdb.latest = gbInfo
 
 	// create state of genesis block
-	gbState := types.NewBlockState(gbInfo)
+	gbState := types.NewBlockState(gbInfo, nil)
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)

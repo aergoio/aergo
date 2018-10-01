@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/blockchain"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -23,14 +25,19 @@ const (
 )
 
 type txExec struct {
-	blockState *types.BlockState
 	sdb        *state.ChainStateDB
+	blockState *types.BlockState
+	execTx     blockchain.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, prevHash types.BlockID, sdb *state.ChainStateDB) chain.TxOp {
+func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.TxOp {
+	blockNo := bestBlock.BlockNo() + 1
+	prevHash := bestBlock.BlockID()
+	blockInfo := types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)
+
 	// Block hash not determined yet
 	return &txExec{
-		blockState: types.NewBlockState(types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)),
+		blockState: types.NewBlockState(blockInfo, contract.DB.NewTx(true)),
 		sdb:        sdb,
 	}
 }
@@ -181,15 +188,16 @@ func (bf *BlockFactory) worker() {
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *types.BlockState, error) {
-	/*
-		txOp := chain.NewCompTxOp(
-			bf.txOp,
-			newTxExec(bpi.bestBlock.BlockNo()+1, bpi.bestBlock.BlockID()),
-		)
-	*/
+	ts := bpi.slot.UnixNano()
+
+	// txOp := chain.NewCompTxOp(
+	// 	bf.txOp,
+	// 	newTxExec(bpi.bestBlock, bf.sdb, ts),
+	// )
+
 	txOp := bf.txOp
 
-	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, bpi.slot.UnixNano())
+	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, ts)
 	if err != nil {
 		return nil, nil, err
 	}
