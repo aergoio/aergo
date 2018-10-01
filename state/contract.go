@@ -6,6 +6,7 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
@@ -20,7 +21,7 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, types.TrieHasher, sdb.store),
+		storage: trie.NewTrie(nil, common.Hasher, sdb.store),
 		buffer:  newStateBuffer(),
 		store:   &sdb.store,
 	}

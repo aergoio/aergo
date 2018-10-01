@@ -63,7 +63,7 @@ type StateDB struct {
 func NewStateDB(dbstore *db.DB) *StateDB {
 	return &StateDB{
 		buffer: newStateBuffer(),
-		trie:   trie.NewTrie(nil, types.TrieHasher, *dbstore),
+		trie:   trie.NewTrie(nil, common.Hasher, *dbstore),
 		store:  dbstore,
 	}
 }
