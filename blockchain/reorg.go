@@ -245,7 +245,7 @@ func (reorg *reorganizer) rollbackChainState() error {
 func (reorg *reorganizer) rollbackBlock(block *types.Block, prevBlock *types.Block) error {
 	cdb := reorg.cs.cdb
 
-	reorgtx := cdb.store.NewTx(true)
+	reorgtx := cdb.store.NewTx()
 
 	blockNo := block.GetHeader().GetBlockNo()
 
@@ -325,7 +325,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 func (reorg *reorganizer) rollforwardBlock(block *types.Block) error {
 	cs := reorg.cs
 	cdb := reorg.cs.cdb
-	reorgtx := cdb.store.NewTx(true)
+	reorgtx := cdb.store.NewTx()
 
 	if err := cs.executeBlock(nil, block); err != nil {
 		return err

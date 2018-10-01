@@ -160,8 +160,6 @@ func (cs *ChainService) BeforeStop() {
 	cs.CloseDB()
 
 	cs.validator.Stop()
-
-	contract.DB.Close()
 }
 
 func (cs *ChainService) CloseDB() {
@@ -170,6 +168,9 @@ func (cs *ChainService) CloseDB() {
 	}
 	if cs.cdb != nil {
 		cs.cdb.Close()
+	}
+	if contract.DB != nil {
+		contract.DB.Close()
 	}
 }
 

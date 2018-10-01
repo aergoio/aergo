@@ -76,7 +76,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPEnableTLS:     false,
 		NPCert:          "",
 		NPKey:           "",
-		NPAddPeers:      []string{},
+		NPAddPeers:      nil,
 		NPMaxPeers:      100,
 		NPPeerPool:      100,
 	}
@@ -98,6 +98,6 @@ func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 		EnableBp:      true,
 		BlockInterval: consensus.DefaultBlockIntervalSec,
 		DposBpNumber:  consensus.DefaultDposBpNumber,
-		BpIds:         []string{},
+		BpIds:         nil,
 	}
 }

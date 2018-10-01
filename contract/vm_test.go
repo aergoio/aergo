@@ -91,7 +91,7 @@ func getContractState(t *testing.T, code string) *state.ContractState {
 
 func contractCall(t *testing.T, contractState *state.ContractState, ci string,
 	bcCtx *LBlockchainCtx) {
-	dbTx := DB.NewTx(true)
+	dbTx := DB.NewTx()
 	err := Call(contractState, []byte(ci), aid, tid, bcCtx, dbTx)
 	dbTx.Commit()
 	if err != nil {

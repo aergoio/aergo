@@ -121,7 +121,7 @@ func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainSer
 }
 
 func (cp *chainProcessor) addCommon(blk *types.Block) error {
-	dbTx := cp.cdb.store.NewTx(true)
+	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
 	if err := cp.cdb.addBlock(&dbTx, blk); err != nil {
@@ -332,7 +332,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
 
-		receiptTx = contract.DB.NewTx(true)
+		receiptTx = contract.DB.NewTx()
 
 		exec = func(tx *types.Tx) error {
 			return executeTx(sdb, bState, receiptTx, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
@@ -387,7 +387,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	dbTx := cs.cdb.store.NewTx(true)
+	dbTx := cs.cdb.store.NewTx()
 	defer dbTx.Discard()
 
 	if err := ex.execute(); err != nil {

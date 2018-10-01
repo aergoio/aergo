@@ -11,13 +11,14 @@ import (
 	"fmt"
 
 	"errors"
+	"sync/atomic"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/gogo/protobuf/proto"
-	"sync/atomic"
 )
 
 const (
@@ -162,7 +163,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	return nil
 }
 func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
-	tx := cdb.store.NewTx(true)
+	tx := cdb.store.NewTx()
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}

@@ -93,7 +93,7 @@ func (caches *stateCaches) export() ([][]byte, [][]byte) {
 func (caches *stateCaches) commit(store *db.DB) {
 	caches.lock.Lock()
 	defer caches.lock.Unlock()
-	dbtx := (*store).NewTx(true)
+	dbtx := (*store).NewTx()
 	for _, v := range caches.indexes {
 		et := caches.entries[v]
 		dbtx.Set(et.dataHash[:], et.dataBytes)
