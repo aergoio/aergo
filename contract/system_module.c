@@ -31,10 +31,11 @@ static int setItem(lua_State *L)
 	key = luaL_checkstring(L, 1);
 
 	jsonValue = lua_util_get_json (L, -1);
-
 	dbKey = lua_util_get_db_key(exec, key);
 
 	if (LuaSetDB(L, exec->stateKey, dbKey, jsonValue) != 0) {
+		free(jsonValue);
+		free(dbKey);
 		lua_error(L);
 	}
 	free(jsonValue);
@@ -59,18 +60,18 @@ static int getItem(lua_State *L)
 
 	ret = LuaGetDB(L, exec->stateKey, dbKey);
 
-    if (ret < 0) {
+	free(dbKey);
+	if (ret < 0) {
 		lua_error(L);
-    }
-    if (ret == 0)
-        return 0;
-    jsonValue = (char *)luaL_checkstring(L, -1);
-    lua_pop(L, 1);
+	}
+	if (ret == 0)
+		return 0;
+	jsonValue = (char *)luaL_checkstring(L, -1);
+	lua_pop(L, 1);
 
 	if (lua_util_json_to_lua(L, jsonValue) != 0) {
 		luaL_error(L, "getItem error : can't convert %s", jsonValue);
 	}
-	free(dbKey);
 	return 1;
 }
 
