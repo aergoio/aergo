@@ -61,7 +61,7 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 		}
 	}
 	for i, r := range msg.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
+		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
 	}
 }
 

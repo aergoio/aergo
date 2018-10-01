@@ -276,7 +276,11 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(memPoolPutResult))
 	}
-	return &types.CommitResult{Hash: tx.Hash, Error: convertError(memPoolPutRsp.Err[0])}, err
+	resultErr := memPoolPutRsp.Err[0]
+	if resultErr != nil {
+		return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr), Detail: resultErr.Error()}, err
+	}
+	return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr)}, err
 }
 
 // CommitTX handle rpc request commit
@@ -323,6 +327,9 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 
 			for j, err := range rsp.Err {
 				results.Results[start+j].Error = convertError(err)
+				if err != nil {
+					results.Results[start+j].Detail = err.Error()
+				}
 			}
 			start += cnt
 			cnt = 0
