@@ -22,7 +22,7 @@ const (
 type reorganizer struct {
 	//input info
 	cs         *ChainService
-	brTopBlock *types.Block //branch top block
+	brTopBlock *types.Block //side branch top block
 
 	//collected info from chain
 	brRootBlock *types.Block
@@ -172,8 +172,8 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	rollback overall stateDB
 */
 func (reorg *reorganizer) rollbackChain() error {
-	var prevHash []byte
-	var prevBlock *types.Block
+	var parrentHash []byte
+	var parrentBlock *types.Block
 	cdb := reorg.cs.cdb
 
 	rbBlock := reorg.rbBlocks[0]
@@ -184,15 +184,16 @@ func (reorg *reorganizer) rollbackChain() error {
 
 	cntRollback := len(reorg.rbBlocks)
 	for i, rbBlock := range reorg.rbBlocks {
+		//rollback target to parrent block
 		if i < cntRollback-1 {
-			prevHash = reorg.rbBlocks[i+1].Hash
+			parrentHash = reorg.rbBlocks[i+1].Hash
 
-			prevBlock, err = cdb.getBlock(prevHash)
+			parrentBlock, err = cdb.getBlock(parrentHash)
 			if err != nil {
 				return err
 			}
 		} else {
-			prevBlock = nil
+			parrentBlock = reorg.brRootBlock
 		}
 
 		logger.Debug().Str("hash", enc.ToString(rbBlock.Hash)).Uint64("blockNo", rbBlock.BlockNo).
@@ -203,9 +204,9 @@ func (reorg *reorganizer) rollbackChain() error {
 				err.Error())
 		}
 
-		reorg.rollbackBlock(targetBlock, prevBlock)
+		reorg.rollbackBlock(targetBlock, parrentBlock)
 
-		targetBlock = prevBlock
+		targetBlock = parrentBlock
 	}
 
 	return nil
