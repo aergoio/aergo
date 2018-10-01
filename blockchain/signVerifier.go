@@ -5,8 +5,9 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"errors"
-	"github.com/aergoio/aergo/internal/enc"
 	"runtime"
+
+	"github.com/aergoio/aergo/internal/enc"
 )
 
 type SignVerifier struct {
@@ -61,7 +62,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 
 		if err != nil {
 			logger.Error().Int("worker", workerNo).Str("hash", enc.ToString(txWork.tx.GetHash())).
-				Str("err", err.Error()).Msg("error verify tx")
+				Err(err).Msg("error verify tx")
 		}
 
 		sv.doneCh <- VerifyResult{work: &txWork, err: err}
@@ -123,7 +124,7 @@ LOOP:
 			errors[result.work.idx] = result.err
 
 			if result.err != nil {
-				logger.Error().Str("err", result.err.Error()).Int("txno", result.work.idx).
+				logger.Error().Err(result.err).Int("txno", result.work.idx).
 					Msg("verifing tx failed")
 				failed = true
 			}
