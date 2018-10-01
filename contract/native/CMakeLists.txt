@@ -31,6 +31,13 @@ set(SRCS
     ast_exp.c
     ast_func.c
     ast_meta.c
+    ast_type.c
+	check_var.c
+    check_struct.c
+    check_blk.c
+    check_stmt.c
+    check_exp.c
+    check_func.c
 	error.c
     strbuf.c
     stack.c

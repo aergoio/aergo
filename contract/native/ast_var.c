@@ -24,6 +24,8 @@ ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp, ast_exp_t *init_exp,
     var->id_exp = id_exp;
     var->init_exp = init_exp;
 
+    var->name = NULL;
+
     return var;
 }
 

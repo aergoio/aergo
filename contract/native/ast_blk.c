@@ -32,23 +32,6 @@ ast_blk_new(errpos_t *pos)
     return blk;
 }
 
-ast_struct_t *
-ast_blk_search_struct(ast_blk_t *blk, int num, char *name)
-{
-    list_node_t *node;
-
-    do {
-        list_foreach(node, &blk->struct_l) {
-            ast_struct_t *struc = (ast_struct_t *)node->item;
-            if (struc->num > num)
-                break;
-
-            if (strcmp(struc->name, name) == 0)
-                return struc;
-        }
-    } while ((blk = blk->up) != NULL);
-}
-
 void
 ast_blk_dump(ast_blk_t *blk, int indent)
 {

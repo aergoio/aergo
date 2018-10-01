@@ -22,9 +22,9 @@ typedef struct ast_var_s ast_var_t;
 #endif /* ! _AST_VAR_T */
 
 typedef enum exp_kind_e {
-    EXP_ID          = 0,
-    EXP_LIT,
+    EXP_LIT         = 0,
     EXP_TYPE,
+    EXP_ID,
     EXP_ARRAY,
     EXP_OP,
     EXP_ACCESS,
@@ -145,7 +145,6 @@ struct ast_exp_s {
     AST_NODE_DECL;
 
     exp_kind_t kind;
-    ast_meta_t meta;
 
     union {
         exp_lit_t u_lit;
@@ -159,6 +158,9 @@ struct ast_exp_s {
         exp_sql_t u_sql;
         exp_tuple_t u_tuple;
     };
+
+    // results of semantic checker
+    ast_meta_t meta;
 };
 
 ast_exp_t *ast_exp_new(exp_kind_t kind, errpos_t *pos);

@@ -182,7 +182,8 @@ error_dump(void)
     stack_foreach(n, &errstack_) {
         error_t *e = (error_t *)n->item;
         if (e->level == LVL_TRACE)
-            fprintf(stderr, "%s: "ANSI_NONE"%s\n%s\n", err_lvls_[e->level],
+            fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n%s\n", 
+                    err_lvls_[e->level], e->pos.path, e->pos.first_line, 
                     e->desc, make_trace(&e->pos));
         else
             fprintf(stderr, "%s: "ANSI_NONE"%s\n", err_lvls_[e->level], e->desc);

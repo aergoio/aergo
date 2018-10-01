@@ -27,6 +27,10 @@ struct ast_var_s {
     ast_exp_t *type_exp;
     ast_exp_t *id_exp;
     ast_exp_t *init_exp;
+
+    // results of semantic checker
+    char *name;
+    ast_meta_t *meta;
 };
 
 ast_var_t *ast_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp,

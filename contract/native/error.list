@@ -14,15 +14,19 @@ error(ERROR_OUT_OF_MEM,             "out of memory: %s")
 error(ERROR_DIR_IO,                 "%s: %s")
 error(ERROR_FILE_IO,                "%s: %s")
 
-error(ERROR_CROSS_IMPORT,           "%s:%d: cross reference with import '%s'")
+error(ERROR_CROSS_IMPORT,           "cross reference with import '%s'")
 
-error(ERROR_UNTERMINATED_COMMENT,   "%s:%d: unterminated comment")
-error(ERROR_UNTERMINATED_STRING,    "%s:%d: unterminated string")
-error(ERROR_UNTERMINATED_SQL,       "%s:%d: unterminated SQL")
-error(ERROR_UNKNOWN_CHAR,           "%s:%d: unknown character")
-error(ERROR_SYNTAX,                 "%s:%d: %s")
+error(ERROR_UNTERMINATED_COMMENT,   "unterminated comment")
+error(ERROR_UNTERMINATED_STRING,    "unterminated string")
+error(ERROR_UNTERMINATED_SQL,       "unterminated SQL")
+error(ERROR_UNKNOWN_CHAR,           "unknown character")
+error(ERROR_SYNTAX,                 "%s")
 
-error(ERROR_UNDEFINED_TYPE,         "%s:%d: undefined type '%s'")
-error(ERROR_UNDEFINED_ID,           "%s:%d: undefined identifier '%s'")
+error(ERROR_UNDEFINED_TYPE,         "undefined type '%s'")
+error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
+
+error(ERROR_UNSUPPORTED_TYPE,       "unsupported type '%s'")
+
+error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types '%s' and '%s'")
 
 /* vim:set filetype=c: */

@@ -66,11 +66,12 @@ char *lit_strs_[LIT_MAX] = {
 ast_exp_t *
 ast_exp_new(exp_kind_t kind, errpos_t *pos)
 {
-    ast_exp_t *exp = xmalloc(sizeof(ast_exp_t));
+    ast_exp_t *exp = xcalloc(sizeof(ast_exp_t));
 
     ast_node_init(exp, pos);
 
     exp->kind = kind;
+
     ast_meta_init(&exp->meta);
 
     return exp;

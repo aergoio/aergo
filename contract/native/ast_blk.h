@@ -35,8 +35,6 @@ struct ast_blk_s {
 
 ast_blk_t *ast_blk_new(errpos_t *pos);
 
-ast_struct_t *ast_blk_search_struct(ast_blk_t *blk, int num, char *name);
-
 void ast_blk_dump(ast_blk_t *blk, int indent);
 
 #endif /* ! _AST_BLK_H */
