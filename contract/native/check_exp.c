@@ -556,7 +556,8 @@ exp_call_check(check_t *ctx, ast_exp_t *exp)
     int i;
     ast_exp_t *id_exp;
     ast_meta_t *id_meta;
-    ast_id_t *id;
+    ast_id_t *func_id;
+    array_t *param_ids;
     array_t *param_exps;
 
     ASSERT1(exp->kind == EXP_CALL, exp->kind);
@@ -566,18 +567,32 @@ exp_call_check(check_t *ctx, ast_exp_t *exp)
 
     TRY(check_exp(ctx, id_exp));
 
-    id = id_exp->id;
-    if (id == NULL || id->kind != ID_FUNC) {
+    func_id = id_exp->id;
+    if (func_id == NULL || func_id->kind != ID_FUNC) {
         ERROR(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
         return RC_ERROR;
     }
 
+    param_ids = func_id->u_func.param_ids;
     param_exps = exp->u_call.param_exps;
 
+    if (array_size(param_ids) != array_size(param_exps)) {
+        ERROR(ERROR_MISMATCHED_PARAM, &id_exp->pos, func_id->name);
+        return RC_ERROR;
+    }
+
     for (i = 0; i < array_size(param_exps); i++) {
+        ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
         ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
 
         TRY(check_exp(ctx, param_exp));
+
+        if (!ast_meta_equals(param_id->meta, &param_exp->meta)) {
+            ERROR(ERROR_MISMATCHED_TYPE, &param_exp->pos,
+                  TYPENAME(param_id->meta->type),
+                  TYPENAME(param_exp->meta.type));
+            return RC_ERROR;
+        }
     }
 
     return RC_OK;

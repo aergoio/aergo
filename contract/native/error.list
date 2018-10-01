@@ -29,6 +29,7 @@ error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")
 error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
 error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types %s and %s")
 error(ERROR_MISMATCHED_TYPE,        "mismatched types %s and %s")
+error(ERROR_MISMATCHED_PARAM,       "mismatched parameters of function '%s'")
 error(ERROR_INVALID_LVALUE,         "expression or constant cannot be an lvalue")
 error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
 
