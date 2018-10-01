@@ -293,12 +293,12 @@ int
 yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
 {
     int token;
-    parse_t *ctx = yyget_extra(yyscanner);
+    parse_t *parse = yyget_extra(yyscanner);
 
-    if (ctx->adj_token != 0) {
-        token = ctx->adj_token;
-        *lloc = ctx->adj_pos;
-        ctx->adj_token = 0;
+    if (parse->adj_token != 0) {
+        token = parse->adj_token;
+        *lloc = parse->adj_pos;
+        parse->adj_token = 0;
         return token;
     }
 
@@ -308,10 +308,10 @@ yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner)
 void
 yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc)
 {
-    parse_t *ctx = yyget_extra(yyscanner);
+    parse_t *parse = yyget_extra(yyscanner);
 
-    ctx->adj_token = token;
-    ctx->adj_pos = *lloc;
+    parse->adj_token = token;
+    parse->adj_pos = *lloc;
 }
 
 /* end of scanner.l */

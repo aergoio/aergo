@@ -21,33 +21,33 @@ extern int yyparse(parse_t *, void *);
 extern int yydebug;
 
 static void
-parse_init(parse_t *ctx, char *path, strbuf_t *src, ast_t **ast)
+parse_init(parse_t *parse, char *path, strbuf_t *src, ast_t **ast)
 {
-    ctx->path = path;
-    ASSERT(ctx->path != NULL);
+    parse->path = path;
+    ASSERT(parse->path != NULL);
 
-    ctx->src = strbuf_text(src);
-    ctx->len = strbuf_length(src);
-    ctx->pos = 0;
+    parse->src = strbuf_text(src);
+    parse->len = strbuf_length(src);
+    parse->pos = 0;
 
-    ctx->ast = ast;
+    parse->ast = ast;
 
-    ctx->adj_token = 0;
-    errpos_init(&ctx->adj_pos, path);
+    parse->adj_token = 0;
+    errpos_init(&parse->adj_pos, path);
 
-    strbuf_init(&ctx->buf);
+    strbuf_init(&parse->buf);
 }
 
 void
 parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast)
 {
-    parse_t ctx;
+    parse_t parse;
     void *scanner;
 
-    parse_init(&ctx, path, src, ast);
+    parse_init(&parse, path, src, ast);
     yylex_init(&scanner);
 
-    yyset_extra(&ctx, scanner);
+    yyset_extra(&parse, scanner);
 
     if (flag_on(flag, FLAG_LEX_DUMP))
         yyset_debug(1, scanner);
@@ -55,7 +55,7 @@ parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast)
     if (flag_on(flag, FLAG_YACC_DUMP))
         yydebug = 1;
 
-    yyparse(&ctx, scanner);
+    yyparse(&parse, scanner);
     yylex_destroy(scanner);
 }
 

@@ -11,20 +11,20 @@
 #include "check_blk.h"
 
 void
-check_blk(check_t *ctx, ast_blk_t *blk)
+check_blk(check_t *check, ast_blk_t *blk)
 {
     int i;
 
     ASSERT(blk != NULL);
 
-    blk->up = ctx->blk;
-    ctx->blk = blk;
+    blk->up = check->blk;
+    check->blk = blk;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        check_id(ctx, array_item(&blk->ids, i, ast_id_t));
+        check_id(check, array_item(&blk->ids, i, ast_id_t));
     }
 
-    ctx->blk = blk->up;
+    check->blk = blk->up;
 }
 
 /* end of check_blk.c */

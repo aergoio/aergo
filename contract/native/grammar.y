@@ -17,12 +17,12 @@
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
 
-static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
+static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
                     const char *msg);
 
 %}
 
-%parse-param { parse_t *ctx }
+%parse-param { parse_t *parse }
 %param { void *yyscanner }
 %locations
 %debug
@@ -30,7 +30,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    errpos_init(&yylloc, ctx->path);
+    errpos_init(&yylloc, parse->path);
 }
 
 /* identifier */
@@ -214,12 +214,12 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 smart_contract:
     contract_decl
     {
-        *ctx->ast = ast_new();
-        array_add(&(*ctx->ast)->root->ids, $1);
+        *parse->ast = ast_new();
+        array_add(&(*parse->ast)->root->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        array_add(&(*ctx->ast)->root->ids, $2);
+        array_add(&(*parse->ast)->root->ids, $2);
     }
 ;
 
@@ -699,7 +699,7 @@ stmt_ddl:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        ddl = xstrndup(ctx->src + @$.first_offset, len);
+        ddl = xstrndup(parse->src + @$.first_offset, len);
         $$ = stmt_ddl_new($1, ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -770,7 +770,7 @@ exp_sql:
         yyerrok;
         error_pop();
         len = @$.last_offset - @$.first_offset;
-        sql = xstrndup(ctx->src + @$.first_offset, len);
+        sql = xstrndup(parse->src + @$.first_offset, len);
         $$ = exp_sql_new($1, sql, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -1047,7 +1047,7 @@ identifier:
 %%
 
 static void
-yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner, const char *msg)
+yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner, const char *msg)
 {
     ERROR(ERROR_SYNTAX, lloc, msg);
 }

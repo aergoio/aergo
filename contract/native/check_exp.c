@@ -7,16 +7,16 @@
 
 #include "check_exp.h"
 
-static int exp_type_check(check_t *ctx, ast_exp_t *exp);
+static int exp_type_check(check_t *check, ast_exp_t *exp);
 
 static int
-exp_id_ref_check(check_t *ctx, ast_exp_t *exp)
+exp_id_ref_check(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id;
 
     ASSERT1(exp->kind == EXP_ID, exp->kind);
 
-    id = ast_id_search(ctx->blk, exp->num, exp->u_id.name);
+    id = ast_id_search(check->blk, exp->num, exp->u_id.name);
     if (id == NULL) {
         ERROR(ERROR_UNDEFINED_ID, &exp->pos, exp->u_id.name);
         return RC_ERROR;
@@ -31,7 +31,7 @@ exp_id_ref_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_lit_check(check_t *ctx, ast_exp_t *exp)
+exp_lit_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_LIT, exp->kind);
 
@@ -59,7 +59,7 @@ exp_lit_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_type_check_struct(check_t *ctx, ast_exp_t *exp)
+exp_type_check_struct(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id;
 
@@ -67,7 +67,7 @@ exp_type_check_struct(check_t *ctx, ast_exp_t *exp)
     ASSERT(exp->u_type.k_exp == NULL);
     ASSERT(exp->u_type.v_exp == NULL);
 
-    id = ast_id_search(ctx->blk, exp->num, exp->u_type.name);
+    id = ast_id_search(check->blk, exp->num, exp->u_type.name);
     if (id == NULL) {
         ERROR(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
         return RC_ERROR;
@@ -80,7 +80,7 @@ exp_type_check_struct(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_type_check_map(check_t *ctx, ast_exp_t *exp)
+exp_type_check_map(check_t *check, ast_exp_t *exp)
 {
     ast_meta_t *k_meta, *v_meta;
 
@@ -88,7 +88,7 @@ exp_type_check_map(check_t *ctx, ast_exp_t *exp)
     ASSERT(exp->u_type.k_exp != NULL);
     ASSERT(exp->u_type.v_exp != NULL);
 
-    TRY(exp_type_check(ctx, exp->u_type.k_exp));
+    TRY(exp_type_check(check, exp->u_type.k_exp));
 
     k_meta = &exp->u_type.k_exp->meta;
     if (k_meta->type > TYPE_STRING) {
@@ -96,7 +96,7 @@ exp_type_check_map(check_t *ctx, ast_exp_t *exp)
         return RC_ERROR;
     }
 
-    TRY(exp_type_check(ctx, exp->u_type.v_exp));
+    TRY(exp_type_check(check, exp->u_type.v_exp));
 
     v_meta = &exp->u_type.v_exp->meta;
     ASSERT(!type_is_tuple(v_meta->type));
@@ -107,16 +107,16 @@ exp_type_check_map(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_type_check(check_t *ctx, ast_exp_t *exp)
+exp_type_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_TYPE, exp->kind);
     ASSERT1(type_is_valid(exp->u_type.type), exp->u_type.type);
 
     if (type_is_struct(exp->u_type.type)) {
-        TRY(exp_type_check_struct(ctx, exp));
+        TRY(exp_type_check_struct(check, exp));
     }
     else if (type_is_map(exp->u_type.type)) {
-        TRY(exp_type_check_map(ctx, exp));
+        TRY(exp_type_check_map(check, exp));
     }
     else {
         ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
@@ -130,7 +130,7 @@ exp_type_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_array_check(check_t *ctx, ast_exp_t *exp)
+exp_array_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
     ast_meta_t *id_meta;
@@ -140,7 +140,7 @@ exp_array_check(check_t *ctx, ast_exp_t *exp)
     id_exp = exp->u_arr.id_exp;
     ASSERT(id_exp != NULL);
 
-    TRY(exp_id_ref_check(ctx, id_exp));
+    TRY(exp_id_ref_check(check, id_exp));
     id_meta = &id_exp->meta;
 
     if (exp->u_arr.param_exp != NULL) {
@@ -151,7 +151,7 @@ exp_array_check(check_t *ctx, ast_exp_t *exp)
             ERROR(ERROR_NOT_ALLOWED_TYPE, &id_exp->pos,
                   TYPENAME(id_meta->type));
 
-        TRY(check_exp(ctx, param_exp));
+        TRY(check_exp(check, param_exp));
         param_meta = &param_exp->meta;
 
         // TODO: restriction of array size
@@ -168,7 +168,7 @@ exp_array_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_assign(check_t *ctx, ast_exp_t *exp)
+exp_op_check_assign(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *l_exp, *r_exp;
@@ -180,7 +180,7 @@ exp_op_check_assign(check_t *ctx, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
+    TRY(check_exp(check, l_exp));
 
     if (type_is_tuple(l_meta->type)) {
         int i;
@@ -204,7 +204,7 @@ exp_op_check_assign(check_t *ctx, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    TRY(check_exp(ctx, r_exp));
+    TRY(check_exp(check, r_exp));
 
     if (r_exp->kind == EXP_LIT && type_is_integer(l_meta->type)) {
         ast_val_t *val = &r_exp->u_lit.val;
@@ -232,7 +232,7 @@ exp_op_check_assign(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_arith(check_t *ctx, ast_exp_t *exp)
+exp_op_check_arith(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     ast_meta_t *l_meta, *r_meta;
@@ -246,8 +246,8 @@ exp_op_check_arith(check_t *ctx, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
-    TRY(check_exp(ctx, r_exp));
+    TRY(check_exp(check, l_exp));
+    TRY(check_exp(check, r_exp));
 
     if (!ast_meta_equals(l_meta, r_meta)) {
         ERROR(ERROR_MISMATCHED_TYPE, &r_exp->pos, TYPENAME(l_meta->type),
@@ -273,7 +273,7 @@ exp_op_check_arith(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_log_cmp(check_t *ctx, ast_exp_t *exp)
+exp_op_check_log_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     ast_meta_t *l_meta, *r_meta;
@@ -287,14 +287,14 @@ exp_op_check_log_cmp(check_t *ctx, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
+    TRY(check_exp(check, l_exp));
 
     if (!type_is_bool(l_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &l_exp->pos, TYPENAME(l_meta->type));
         return RC_ERROR;
     }
 
-    TRY(check_exp(ctx, r_exp));
+    TRY(check_exp(check, r_exp));
 
     if (!type_is_bool(r_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &r_exp->pos, TYPENAME(r_meta->type));
@@ -307,7 +307,7 @@ exp_op_check_log_cmp(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_bit(check_t *ctx, ast_exp_t *exp)
+exp_op_check_bit(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     ast_meta_t *l_meta, *r_meta;
@@ -318,7 +318,7 @@ exp_op_check_bit(check_t *ctx, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     r_exp = exp->u_op.r_exp;
 
-    TRY(check_exp(ctx, l_exp));
+    TRY(check_exp(check, l_exp));
 
     if (!type_is_integer(l_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &l_exp->pos, TYPENAME(l_meta->type));
@@ -328,7 +328,7 @@ exp_op_check_bit(check_t *ctx, ast_exp_t *exp)
     l_meta = &l_exp->meta;
     r_meta = &r_exp->meta;
 
-    TRY(check_exp(ctx, r_exp));
+    TRY(check_exp(check, r_exp));
 
     if (!type_is_integer(r_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &r_exp->pos, TYPENAME(r_meta->type));
@@ -347,7 +347,7 @@ exp_op_check_bit(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_cmp(check_t *ctx, ast_exp_t *exp)
+exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     ast_meta_t *l_meta, *r_meta;
@@ -361,8 +361,8 @@ exp_op_check_cmp(check_t *ctx, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
-    TRY(check_exp(ctx, r_exp));
+    TRY(check_exp(check, l_exp));
+    TRY(check_exp(check, r_exp));
 
     if (type_is_float(l_meta->type) && type_is_integer(r_meta->type)) {
         WARN(ERROR_TRUNCATED_TYPE, &l_exp->pos, TYPENAME(l_meta->type),
@@ -389,7 +389,7 @@ exp_op_check_cmp(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_unary(check_t *ctx, ast_exp_t *exp)
+exp_op_check_unary(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp;
     ast_meta_t *l_meta;
@@ -400,7 +400,7 @@ exp_op_check_unary(check_t *ctx, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
+    TRY(check_exp(check, l_exp));
 
     if (!type_is_integer(l_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &l_exp->pos, TYPENAME(l_meta->type));
@@ -413,7 +413,7 @@ exp_op_check_unary(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_not(check_t *ctx, ast_exp_t *exp)
+exp_op_check_not(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp;
     ast_meta_t *l_meta;
@@ -424,7 +424,7 @@ exp_op_check_not(check_t *ctx, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    TRY(check_exp(ctx, l_exp));
+    TRY(check_exp(check, l_exp));
 
     if (!type_is_bool(l_meta->type)) {
         ERROR(ERROR_NOT_ALLOWED_TYPE, &l_exp->pos, TYPENAME(l_meta->type));
@@ -437,31 +437,31 @@ exp_op_check_not(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_op_check(check_t *ctx, ast_exp_t *exp)
+exp_op_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_OP, exp->kind);
 
     switch (exp->u_op.kind) {
     case OP_ASSIGN:
-        return exp_op_check_assign(ctx, exp);
+        return exp_op_check_assign(check, exp);
 
     case OP_ADD:
     case OP_SUB:
     case OP_MUL:
     case OP_DIV:
     case OP_MOD:
-        return exp_op_check_arith(ctx, exp);
+        return exp_op_check_arith(check, exp);
 
     case OP_AND:
     case OP_OR:
-        return exp_op_check_log_cmp(ctx, exp);
+        return exp_op_check_log_cmp(check, exp);
 
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
     case OP_RSHIFT:
     case OP_LSHIFT:
-        return exp_op_check_bit(ctx, exp);
+        return exp_op_check_bit(check, exp);
 
     case OP_EQ:
     case OP_NE:
@@ -469,14 +469,14 @@ exp_op_check(check_t *ctx, ast_exp_t *exp)
     case OP_GT:
     case OP_LE:
     case OP_GE:
-        return exp_op_check_cmp(ctx, exp);
+        return exp_op_check_cmp(check, exp);
 
     case OP_INC:
     case OP_DEC:
-        return exp_op_check_unary(ctx, exp);
+        return exp_op_check_unary(check, exp);
 
     case OP_NOT:
-        return exp_op_check_not(ctx, exp);
+        return exp_op_check_not(check, exp);
 
     default:
         ASSERT1(!"invalid operator", exp->u_op.kind);
@@ -486,7 +486,7 @@ exp_op_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_access_check(check_t *ctx, ast_exp_t *exp)
+exp_access_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
     ast_meta_t *id_meta, *fld_meta;
@@ -498,7 +498,7 @@ exp_access_check(check_t *ctx, ast_exp_t *exp)
     id_exp = exp->u_acc.id_exp;
     id_meta = &id_exp->meta;
 
-    TRY(check_exp(ctx, id_exp));
+    TRY(check_exp(check, id_exp));
 
     id = id_exp->id;
     if (id == NULL || (id->kind != ID_STRUCT && id->kind != ID_CONTRACT)) {
@@ -509,7 +509,7 @@ exp_access_check(check_t *ctx, ast_exp_t *exp)
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
 
-    TRY(check_exp(ctx, fld_exp));
+    TRY(check_exp(check, fld_exp));
 
     fld_id = fld_exp->id;
     if (fld_id == NULL) {
@@ -551,7 +551,7 @@ exp_access_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_call_check(check_t *ctx, ast_exp_t *exp)
+exp_call_check(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
@@ -565,7 +565,7 @@ exp_call_check(check_t *ctx, ast_exp_t *exp)
     id_exp = exp->u_call.id_exp;
     id_meta = &id_exp->meta;
 
-    TRY(check_exp(ctx, id_exp));
+    TRY(check_exp(check, id_exp));
 
     func_id = id_exp->id;
     if (func_id == NULL || func_id->kind != ID_FUNC) {
@@ -585,7 +585,7 @@ exp_call_check(check_t *ctx, ast_exp_t *exp)
         ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
         ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
 
-        TRY(check_exp(ctx, param_exp));
+        TRY(check_exp(check, param_exp));
 
         if (!ast_meta_equals(param_id->meta, &param_exp->meta)) {
             ERROR(ERROR_MISMATCHED_TYPE, &param_exp->pos,
@@ -599,7 +599,7 @@ exp_call_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_sql_check(check_t *ctx, ast_exp_t *exp)
+exp_sql_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_SQL, exp->kind);
 
@@ -607,7 +607,7 @@ exp_sql_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_cond_check(check_t *ctx, ast_exp_t *exp)
+exp_cond_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_COND, exp->kind);
 
@@ -615,7 +615,7 @@ exp_cond_check(check_t *ctx, ast_exp_t *exp)
 }
 
 static int
-exp_tuple_check(check_t *ctx, ast_exp_t *exp)
+exp_tuple_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp->kind == EXP_TUPLE, exp->kind);
 
@@ -623,38 +623,38 @@ exp_tuple_check(check_t *ctx, ast_exp_t *exp)
 }
 
 int
-check_exp(check_t *ctx, ast_exp_t *exp)
+check_exp(check_t *check, ast_exp_t *exp)
 {
     switch (exp->kind) {
     case EXP_ID:
-        return exp_id_ref_check(ctx, exp);
+        return exp_id_ref_check(check, exp);
 
     case EXP_LIT:
-        return exp_lit_check(ctx, exp);
+        return exp_lit_check(check, exp);
 
     case EXP_TYPE:
-        return exp_type_check(ctx, exp);
+        return exp_type_check(check, exp);
 
     case EXP_ARRAY:
-        return exp_array_check(ctx, exp);
+        return exp_array_check(check, exp);
 
     case EXP_OP:
-        return exp_op_check(ctx, exp);
+        return exp_op_check(check, exp);
 
     case EXP_ACCESS:
-        return exp_access_check(ctx, exp);
+        return exp_access_check(check, exp);
 
     case EXP_CALL:
-        return exp_call_check(ctx, exp);
+        return exp_call_check(check, exp);
 
     case EXP_SQL:
-        return exp_sql_check(ctx, exp);
+        return exp_sql_check(check, exp);
 
     case EXP_COND:
-        return exp_cond_check(ctx, exp);
+        return exp_cond_check(check, exp);
 
     case EXP_TUPLE:
-        return exp_tuple_check(ctx, exp);
+        return exp_tuple_check(check, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

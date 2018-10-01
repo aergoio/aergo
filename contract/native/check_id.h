@@ -11,6 +11,6 @@
 #include "check.h"
 #include "ast_id.h"
 
-void check_id(check_t *ctx, ast_id_t *id);
+void check_id(check_t *check, ast_id_t *id);
 
 #endif /* ! _CHECK_ID_H */

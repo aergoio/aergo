@@ -8,7 +8,7 @@
 #include "check_stmt.h"
 
 void
-check_stmt(check_t *ctx, ast_stmt_t *stmt)
+check_stmt(check_t *check, ast_stmt_t *stmt)
 {
 }
 

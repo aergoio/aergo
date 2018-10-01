@@ -10,7 +10,7 @@
 #include "check_id.h"
 
 void
-check_id(check_t *ctx, ast_id_t *id)
+check_id(check_t *check, ast_id_t *id)
 {
 }
 

@@ -10,7 +10,7 @@
 #include "check.h"
 
 static void
-check_init(check_t *ctx, ast_t *ast)
+check_init(check_t *check, ast_t *ast)
 {
     ast_blk_t *root;
 
@@ -22,20 +22,20 @@ check_init(check_t *ctx, ast_t *ast)
     ASSERT(array_empty(&root->stmts));
     ASSERT(root->up == NULL);
 
-    ctx->root = root;
-    ctx->blk = root;
+    check->root = root;
+    check->blk = root;
 }
 
 void
 check(ast_t *ast, flag_t flag)
 {
     int i;
-    check_t ctx;
+    check_t check;
 
-    check_init(&ctx, ast);
+    check_init(&check, ast);
 
-    for (i = 0; i < array_size(&ctx.root->ids); i++) {
-        check_id(&ctx, array_item(&ctx.root->ids, i, ast_id_t));
+    for (i = 0; i < array_size(&check.root->ids); i++) {
+        check_id(&check, array_item(&check.root->ids, i, ast_id_t));
     }
 }
 
