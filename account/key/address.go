@@ -16,10 +16,13 @@ func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	addr := new(bytes.Buffer)
 	// Compressed pubkey
 	binary.Write(addr, binary.LittleEndian, uint8(0x2+pubkey.Y.Bit(0))) // 0x2 for even, 0x3 for odd Y
-	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
-	for len(addr.Bytes()) < addressLength {
-		binary.Write(addr, binary.LittleEndian, uint8(0))
+	keyLength := len(pubkey.X.Bytes())
+	if keyLength < 32 { //add padding
+		for i := 1; i < addressLength-keyLength; i++ {
+			binary.Write(addr, binary.LittleEndian, uint8(0))
+		}
 	}
+	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
 	return addr.Bytes() // 33 bytes
 }
 

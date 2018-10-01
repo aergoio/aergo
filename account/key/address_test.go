@@ -1,6 +1,7 @@
 package key
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -13,9 +14,13 @@ func TestGenerateAddress(t *testing.T) {
 			t.Fatal("could not create private key")
 		}
 		address := GenerateAddress(&key.PublicKey)
-		t.Logf("trace: %d, len(%d)", key.PublicKey.X, len(key.PublicKey.X.Bytes()))
 		if len(address) != addressLength {
 			t.Errorf("wrong address length : %d", len(address))
+		}
+
+		if !bytes.Equal(key.PubKey().SerializeCompressed(), address) {
+			t.Errorf("wrong address contents : %v, %v",
+				key.PubKey().SerializeCompressed(), address)
 		}
 	}
 }
