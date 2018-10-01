@@ -525,7 +525,7 @@ func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block,
 	// request missing
 	orphanNo := block.GetHeader().GetBlockNo()
 	bestNo := bestBlock.GetHeader().GetBlockNo()
-	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+2 {
+	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
 		logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
 			Msg("skip sync with too old block")
 		return nil
