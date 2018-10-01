@@ -309,13 +309,16 @@ type TxExecFn func(tx *types.Tx) error
 
 type blockExecutor struct {
 	*types.BlockState
-	sdb    *state.ChainStateDB
-	execTx TxExecFn
-	txs    []*types.Tx
+	sdb        *state.ChainStateDB
+	execTx     TxExecFn
+	txs        []*types.Tx
+	commitOnly bool
 }
 
 func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec TxExecFn
+
+	commitOnly := false
 
 	// The DPoS block factory excutes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
@@ -333,6 +336,10 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		exec = NewTxExecutor(
 			cs.sdb, bState, block.GetHeader().GetTimestamp())
+	} else {
+		// In this case (bState != nil), the transactions has already been
+		// executed by the block factory.
+		commitOnly = true
 	}
 
 	txs := block.GetBody().GetTxs()
@@ -342,6 +349,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 		sdb:        cs.sdb,
 		execTx:     exec,
 		txs:        txs,
+		commitOnly: commitOnly,
 	}, nil
 }
 
@@ -356,7 +364,7 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	defer e.CommitReceipt()
 
-	if e.execTx != nil {
+	if !e.commitOnly {
 		for _, tx := range e.txs {
 			if err := e.execTx(tx); err != nil {
 				return err
@@ -397,7 +405,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 	cdbTx := cs.cdb.store.NewTx(true)
 	// This is a chain DB update.
 	setChainState(cdbTx, block)
-	// TODO: What happens if db update is failed in setChainState?  The
+	// TODO: What happens if DB update is failed in setChainState()? Such an
 	// unconditional commit is OK?
 	cdbTx.Commit()
 
