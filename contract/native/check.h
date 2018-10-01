@@ -20,7 +20,8 @@
 
 #define TRY(stmt)                                                              \
     do {                                                                       \
-        if ((stmt) != RC_OK)                                                   \
+        int rc = (stmt);                                                       \
+        if (rc != RC_OK)                                                       \
             return RC_ERROR;                                                   \
     } while (0)
 

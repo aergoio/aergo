@@ -9,6 +9,7 @@
 
 char *type_strs_[TYPE_MAX] = {
     "undefined",
+    "void",
     "bool",
     "byte",
     "float",
@@ -23,7 +24,7 @@ char *type_strs_[TYPE_MAX] = {
     "account",
     "struct",
     "map",
-    "contract"
+    "tuple"
 }; 
 
 /* end of ast_type.c */

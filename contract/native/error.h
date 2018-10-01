@@ -50,17 +50,14 @@
 
 #define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
 
-#define ERROR(ec, ...)                                                         \
-    error_push((ec), LVL_ERROR, NULL, ## __VA_ARGS__)
-#define INFO(ec, ...)                                                          \
-    error_push((ec), LVL_INFO, NULL, ## __VA_ARGS__)
-#define WARN(ec, ...)                                                          \
-    error_push((ec), LVL_WARN, NULL, ## __VA_ARGS__)
-#define DEBUG(ec, ...)                                                         \
-    error_push((ec), LVL_DEBUG, NULL, ## __VA_ARGS__)
-#define TRACE(ec, pos, ...)                                                    \
-    error_push((ec), LVL_TRACE, (pos), FILENAME((pos)->path),                  \
-               (pos)->first_line, ## __VA_ARGS__)
+#define ERROR(ec, pos, ...)                                                    \
+    error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__)
+#define INFO(ec, pos, ...)                                                     \
+    error_push((ec), LVL_INFO, (pos), ## __VA_ARGS__)
+#define WARN(ec, pos, ...)                                                     \
+    error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
+#define DEBUG(ec, pos, ...)                                                    \
+    error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
 
 #define error_empty()           (error_count() == 0)
 
@@ -79,7 +76,6 @@ typedef enum errlvl_e {
     LVL_INFO,
     LVL_WARN,
     LVL_DEBUG,
-    LVL_TRACE,
 
     LEVEL_MAX
 } errlvl_t;

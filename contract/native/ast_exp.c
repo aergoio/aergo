@@ -176,10 +176,10 @@ exp_tuple_new(ast_exp_t *elem_exp, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
-    exp->u_tuple.exp_l = list_new();
+    exp->u_tup.exp_l = list_new();
 
     if (elem_exp != NULL)
-        list_add_tail(exp->u_tuple.exp_l, elem_exp);
+        list_add_tail(exp->u_tup.exp_l, elem_exp);
 
     return exp;
 }

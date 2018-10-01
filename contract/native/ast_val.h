@@ -27,7 +27,7 @@ struct ast_val_s {
 
     union {
         bool bv;
-        uint64_t iv;
+        int64_t iv;
         double dv;
         char *sv;
     };
@@ -57,7 +57,7 @@ static inline void
 val_set_int(ast_val_t *val, char *str)
 {
     val->kind = VAL_INT;
-    sscanf(str, "%"SCNu64, &val->iv);
+    sscanf(str, "%"SCNd64, &val->iv);
 }
 
 static inline void 

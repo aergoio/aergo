@@ -100,15 +100,14 @@ ast_id_search(ast_blk_t *blk, int num, char *name)
         return NULL;
 
     do {
-        // XXX: need to check siblings of blk
+        // XXX: need to check siblings of root blk
         list_foreach(node, &blk->id_l) {
             ast_id_t *id = (ast_id_t *)node->item;
-            if (id->num > num)
-                break;
 
             ASSERT(id->name != NULL);
+            ASSERT2(id->num != num, id->num, num);
 
-            if (strcmp(id->name, name) == 0)
+            if (id->num < num && strcmp(id->name, name) == 0)
                 return id;
         }
     } while ((blk = blk->up) != NULL);

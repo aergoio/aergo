@@ -10,6 +10,7 @@
 
 #define list_empty(list)                ((list)->head == NULL)
 #define list_size(list)                 (list)->size
+#define list_item(node, type)           (type *)((node)->item)
 
 #define list_foreach(node, list)                                               \
     for ((node) = (list)->head; (node) != NULL; (node) = (node)->next)

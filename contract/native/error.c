@@ -15,8 +15,7 @@ char *err_lvls_[LEVEL_MAX] = {
     ANSI_RED"error",
     ANSI_WHITE"info",
     ANSI_YELLOW"warning",
-    ANSI_BLUE"debug",
-    ANSI_RED"error"
+    ANSI_BLUE"debug"
 };
 
 char *err_msgs_[ERROR_MAX] = {
@@ -181,12 +180,9 @@ error_dump(void)
 
     stack_foreach(n, &errstack_) {
         error_t *e = (error_t *)n->item;
-        if (e->level == LVL_TRACE)
-            fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n%s\n", 
-                    err_lvls_[e->level], e->pos.path, e->pos.first_line, 
-                    e->desc, make_trace(&e->pos));
-        else
-            fprintf(stderr, "%s: "ANSI_NONE"%s\n", err_lvls_[e->level], e->desc);
+
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n%s\n", err_lvls_[e->level], 
+                e->pos.path, e->pos.first_line, e->desc, make_trace(&e->pos));
     }
 }
 

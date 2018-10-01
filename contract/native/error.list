@@ -22,11 +22,16 @@ error(ERROR_UNTERMINATED_SQL,       "unterminated SQL")
 error(ERROR_UNKNOWN_CHAR,           "unknown character")
 error(ERROR_SYNTAX,                 "%s")
 
-error(ERROR_UNDEFINED_TYPE,         "undefined type '%s'")
+error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
 error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
+error(ERROR_NOT_ALLOWED_TYPE,       "not allowed type %s")
+error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")
+error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
+error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types %s and %s")
+error(ERROR_MISMATCHED_TYPE,        "mismatched types %s and %s")
+error(ERROR_INVALID_LVALUE,         "expression or constant cannot be an lvalue")
+error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
 
-error(ERROR_UNSUPPORTED_TYPE,       "unsupported type '%s'")
-
-error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types '%s' and '%s'")
+error(ERROR_TRUNCATED_TYPE,          "%s truncated to %s")
 
 /* vim:set filetype=c: */

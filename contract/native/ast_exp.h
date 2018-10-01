@@ -12,6 +12,11 @@
 #include "ast_meta.h"
 #include "ast_val.h"
 
+#define exp_can_be_lval(exp)                                                   \
+    (!(exp)->meta.is_const &&                                                  \
+     ((exp)->kind == EXP_ID || (exp)->kind == EXP_ARRAY ||                     \
+      (exp)->kind == EXP_ACCESS))
+
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
@@ -146,7 +151,7 @@ struct ast_exp_s {
         exp_op_t u_op;
         exp_cond_t u_cond;
         exp_sql_t u_sql;
-        exp_tuple_t u_tuple;
+        exp_tuple_t u_tup;
     };
 
     // results of semantic checker

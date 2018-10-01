@@ -385,12 +385,12 @@ initializer:
 |   '{' init_list '}'
     {
         $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tuple.exp_l = $2;
+        $$->u_tup.exp_l = $2;
     }
 |   '{' init_list ',' '}'
     {
         $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tuple.exp_l = $2;
+        $$->u_tup.exp_l = $2;
     }
 ;
 
@@ -729,7 +729,7 @@ expression:
 |   expression ',' exp_assign
     {
         $$ = $1;
-        list_add_tail($$->u_tuple.exp_l, $3);
+        list_add_tail($$->u_tup.exp_l, $3);
     }
 ;
 
@@ -738,12 +738,12 @@ exp_assign:
 |   exp_unary op_assign exp_assign
     {
         if ($2 == OP_ASSIGN) {
-            $$ = exp_op_new($2, $1, $3, &@$);
+            $$ = exp_op_new($2, $1, $3, &@2);
         }
         else {
             ast_exp_t *op_exp = exp_op_new($2, $1, $3, &@2);
 
-            $$ = exp_op_new(OP_ASSIGN, $1, op_exp, &@$);
+            $$ = exp_op_new(OP_ASSIGN, $1, op_exp, &@2);
         }
     }
 ;
@@ -797,7 +797,7 @@ exp_or:
     exp_and
 |   exp_or CMP_OR exp_and
     {
-        $$ = exp_op_new(OP_OR, $1, $3, &@$);
+        $$ = exp_op_new(OP_OR, $1, $3, &@2);
     }
 ;
 
@@ -805,7 +805,7 @@ exp_and:
     exp_bit_or
 |   exp_and CMP_AND exp_bit_or
     {
-        $$ = exp_op_new(OP_AND, $1, $3, &@$);
+        $$ = exp_op_new(OP_AND, $1, $3, &@2);
     }
 ;
 
@@ -813,7 +813,7 @@ exp_bit_or:
     exp_bit_xor
 |   exp_bit_or '|' exp_bit_xor
     {
-        $$ = exp_op_new(OP_BIT_OR, $1, $3, &@$);
+        $$ = exp_op_new(OP_BIT_OR, $1, $3, &@2);
     }
 ;
 
@@ -821,7 +821,7 @@ exp_bit_xor:
     exp_bit_and
 |   exp_bit_xor '^' exp_bit_and
     {
-        $$ = exp_op_new(OP_BIT_XOR, $1, $3, &@$);
+        $$ = exp_op_new(OP_BIT_XOR, $1, $3, &@2);
     }
 ;
 
@@ -829,7 +829,7 @@ exp_bit_and:
     exp_eq
 |   exp_bit_and '&' exp_eq
     {
-        $$ = exp_op_new(OP_BIT_AND, $1, $3, &@$);
+        $$ = exp_op_new(OP_BIT_AND, $1, $3, &@2);
     }
 ;
 
@@ -837,11 +837,11 @@ exp_eq:
     exp_cmp
 |   exp_eq CMP_EQ exp_cmp
     {
-        $$ = exp_op_new(OP_EQ, $1, $3, &@$);
+        $$ = exp_op_new(OP_EQ, $1, $3, &@2);
     }
 |   exp_eq CMP_NE exp_cmp
     {
-        $$ = exp_op_new(OP_NE, $1, $3, &@$);
+        $$ = exp_op_new(OP_NE, $1, $3, &@2);
     }
 ;
 
@@ -849,7 +849,7 @@ exp_cmp:
     exp_shift
 |   exp_cmp op_cmp exp_shift
     {
-        $$ = exp_op_new($2, $1, $3, &@$);
+        $$ = exp_op_new($2, $1, $3, &@2);
     }
 ;
 
@@ -864,11 +864,11 @@ exp_shift:
     exp_add
 |   exp_shift SHIFT_R exp_add
     {
-        $$ = exp_op_new(OP_RSHIFT, $1, $3, &@$);
+        $$ = exp_op_new(OP_RSHIFT, $1, $3, &@2);
     }
 |   exp_shift SHIFT_L exp_add
     {
-        $$ = exp_op_new(OP_LSHIFT, $1, $3, &@$);
+        $$ = exp_op_new(OP_LSHIFT, $1, $3, &@2);
     }
 ;
 
@@ -876,11 +876,11 @@ exp_add:
     exp_mul
 |   exp_add '+' exp_mul
     {
-        $$ = exp_op_new(OP_ADD, $1, $3, &@$);
+        $$ = exp_op_new(OP_ADD, $1, $3, &@2);
     }
 |   exp_add '-' exp_mul
     {
-        $$ = exp_op_new(OP_SUB, $1, $3, &@$);
+        $$ = exp_op_new(OP_SUB, $1, $3, &@2);
     }
 ;
 
@@ -888,15 +888,15 @@ exp_mul:
     exp_unary
 |   exp_mul '*' exp_unary
     {
-        $$ = exp_op_new(OP_MUL, $1, $3, &@$);
+        $$ = exp_op_new(OP_MUL, $1, $3, &@2);
     }
 |   exp_mul '/' exp_unary
     {
-        $$ = exp_op_new(OP_DIV, $1, $3, &@$);
+        $$ = exp_op_new(OP_DIV, $1, $3, &@2);
     }
 |   exp_mul '%' exp_unary
     {
-        $$ = exp_op_new(OP_MOD, $1, $3, &@$);
+        $$ = exp_op_new(OP_MOD, $1, $3, &@2);
     }
 ;
 
@@ -1050,7 +1050,7 @@ identifier:
 static void
 yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner, const char *msg)
 {
-    TRACE(ERROR_SYNTAX, lloc, msg);
+    ERROR(ERROR_SYNTAX, lloc, msg);
 }
 
 /* end of grammar.y */
