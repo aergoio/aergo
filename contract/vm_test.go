@@ -52,7 +52,7 @@ const (
 )
 
 func init() {
-	sdb = state.NewStateDB()
+	sdb = state.NewChainStateDB()
 
 	tmpDir, _ := ioutil.TempDir("", "vmtest")
 

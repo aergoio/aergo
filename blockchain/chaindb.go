@@ -15,8 +15,8 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/gogo/protobuf/proto"
 )
@@ -72,7 +72,8 @@ func NewChainDB() *ChainDB {
 
 func (cdb *ChainDB) Init(dataDir string) error {
 	if cdb.store == nil {
-		cdb.store = *state.InitDB(dataDir, chainDBName)
+		dbPath := common.PathMkdirAll(dataDir, chainDBName)
+		cdb.store = db.NewDB(db.BadgerImpl, dbPath)
 	}
 
 	// load data

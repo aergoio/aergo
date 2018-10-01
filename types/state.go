@@ -80,6 +80,7 @@ var TrieHasher = func(data ...[]byte) []byte {
 	return hasher.Sum(nil)
 }
 
+// NewState returns an instance of account state
 func NewState() *State {
 	return &State{
 		Nonce:   0,

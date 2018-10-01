@@ -11,7 +11,7 @@ import (
 var chainStateDB *ChainStateDB
 
 func initTest(t *testing.T) {
-	chainStateDB = NewStateDB()
+	chainStateDB = NewChainStateDB()
 	chainStateDB.Init("test")
 	genesis := types.GetTestGenesis()
 
