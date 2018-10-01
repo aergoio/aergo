@@ -16,10 +16,10 @@
 typedef struct ast_exp_s ast_exp_t;
 #endif /* ! _AST_EXP_T */
 
-#ifndef _AST_VAR_T
-#define _AST_VAR_T
-typedef struct ast_var_s ast_var_t;
-#endif /* ! _AST_VAR_T */
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
 
 typedef enum exp_kind_e {
     EXP_LIT         = 0,

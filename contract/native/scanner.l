@@ -246,7 +246,6 @@ id                          {L}({L}|{D})*
 "null"                      yy_return(K_NULL);
 "readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
-"shared"                    yy_return(K_SHARED);
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);

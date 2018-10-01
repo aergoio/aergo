@@ -72,7 +72,7 @@ ast_exp_new(exp_kind_t kind, errpos_t *pos)
 
     exp->kind = kind;
 
-    ast_meta_init(&exp->meta);
+    ast_meta_init(&exp->meta, TYPE_NONE);
 
     return exp;
 }

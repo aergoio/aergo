@@ -20,8 +20,13 @@
         (node)->pos = *(epos);                                                 \
     } while (0)
 
+#ifndef _AST_BLK_T
+#define _AST_BLK_T
+typedef struct ast_blk_s ast_blk_t;
+#endif /* ! _AST_BLK_T */
+
 typedef struct ast_s {
-    list_t blk_l;
+    ast_blk_t *root;
 } ast_t;
 
 extern int node_num_;

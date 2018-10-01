@@ -101,7 +101,6 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
         K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
-        K_SHARED        "shared"
         K_STRING        "string"
         K_STRUCT        "struct"
         K_SWITCH        "switch"
@@ -135,7 +134,6 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
     char *str;
 
     type_t type;
-    scope_t scope;
     op_kind_t op;
     sql_kind_t sql;
     ddl_kind_t ddl;
@@ -143,35 +141,32 @@ static void yyerror(YYLTYPE *lloc, parse_t *ctx, void *scanner,
 
     list_t *list;
 
-    ast_var_t *var;
-    ast_struct_t *struc;
+    ast_id_t *id;
     ast_blk_t *blk;
     ast_exp_t *exp;
     ast_stmt_t *stmt;
-    ast_func_t *fn;
 }
 
-%type <blk>     contract_decl
+%type <id>      contract_decl
 %type <blk>     contract_body
 %type <list>    variable
 %type <exp>     var_type
 %type <exp>     var_spec
-%type <scope>   var_scope
 %type <type>    prim_type
 %type <list>    var_decl_list
-%type <var>     var_decl
+%type <id>      var_decl
 %type <exp>     declarator
 %type <exp>     initializer
 %type <list>    init_list
-%type <struc>   struct
+%type <id>      struct
 %type <list>    field_list
-%type <fn>      constructor
+%type <id>      constructor
 %type <list>    param_list_opt
 %type <list>    param_list
-%type <var>     param_decl
+%type <id>      param_decl
 %type <blk>     block
 %type <blk>     blk_decl
-%type <fn>      function
+%type <id>      function
 %type <mod>     modifier_opt
 %type <list>    return_opt
 %type <list>    return_list
@@ -221,24 +216,22 @@ smart_contract:
     contract_decl
     {
         *ctx->ast = ast_new();
-        list_add_tail(&(*ctx->ast)->blk_l, $1);
+        list_add_tail(&(*ctx->ast)->root->id_l, $1);
     }
 |   smart_contract contract_decl
     {
-        list_add_tail(&(*ctx->ast)->blk_l, $2);
+        list_add_tail(&(*ctx->ast)->root->id_l, $2);
     }
 ;
 
 contract_decl:
     K_CONTRACT identifier '{' '}'
     {
-        $$ = ast_blk_new(&@$);
-        $$->name = $2;
+        $$ = id_contract_new($2, NULL, &@$);
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        $$ = $4;
-        $$->name = $2;
+        $$ = id_contract_new($2, $4, &@$);
     }
 ;
 
@@ -246,42 +239,42 @@ contract_body:
     variable
     {
         $$ = ast_blk_new(&@$);
-        list_join(&$$->var_l, $1);
+        list_join(&$$->id_l, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->struct_l, $1);
+        list_add_tail(&$$->id_l, $1);
     }
 |   constructor
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->func_l, $1);
+        list_add_tail(&$$->id_l, $1);
     }
 |   function
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->func_l, $1);
+        list_add_tail(&$$->id_l, $1);
     }
 |   contract_body variable
     {
         $$ = $1;
-        list_join(&$$->var_l, $2);
+        list_join(&$$->id_l, $2);
     }
 |   contract_body struct
     {
         $$ = $1;
-        list_add_tail(&$$->struct_l, $2);
+        list_add_tail(&$$->id_l, $2);
     }
 |   contract_body constructor
     {
         $$ = $1;
-        list_add_tail(&$$->func_l, $2);
+        list_add_tail(&$$->id_l, $2);
     }
 |   contract_body function
     {
         $$ = $1;
-        list_add_tail(&$$->func_l, $2);
+        list_add_tail(&$$->id_l, $2);
     }
 ;
 
@@ -290,7 +283,10 @@ variable:
     {
         list_node_t *node;
         list_foreach(node, $2) {
-            ((ast_var_t *)node->item)->type_exp = $1;
+            ast_id_t *id = (ast_id_t *)node->item;
+
+            ASSERT(id->kind == ID_VAR);
+            id->u_var.type_exp = $1;
         }
         $$ = $2;
     }
@@ -306,16 +302,11 @@ var_type:
         $$ = $2;
         $$->meta.is_const = true;
     }
-|   var_scope var_type
+|   K_LOCAL var_spec
     {
         $$ = $2;
-        $$->meta.scope = $1;
+        $$->meta.is_local = true;
     }
-;
-
-var_scope:
-    K_LOCAL             { $$ = SCOPE_LOCAL; }
-|   K_SHARED            { $$ = SCOPE_SHARED; }
 ;
 
 var_spec:
@@ -366,11 +357,11 @@ var_decl_list:
 var_decl:
     declarator
     {
-        $$ = ast_var_new(NULL, $1, NULL, &@$);
+        $$ = id_var_new(NULL, $1, NULL, &@$);
     }
 |   declarator '=' initializer
     {
-        $$ = ast_var_new(NULL, $1, $3, &@$);
+        $$ = id_var_new(NULL, $1, $3, &@$);
     }
 ;
 
@@ -419,7 +410,7 @@ init_list:
 struct:
     K_STRUCT identifier '{' field_list '}'
     {
-        $$ = ast_struct_new($2, $4, &@$);
+        $$ = id_struct_new($2, $4, &@$);
     }
 ;
 
@@ -438,7 +429,7 @@ field_list:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = ast_func_new($1, MOD_GLOBAL, $3, NULL, $5, &@$);
+        $$ = id_func_new($1, MOD_GLOBAL, $3, NULL, $5, &@$);
     }
 ;
 
@@ -463,7 +454,7 @@ param_list:
 param_decl:
     var_type declarator
     {
-        $$ = ast_var_new($1, $2, NULL, &@$);
+        $$ = id_var_new($1, $2, NULL, &@$);
     }
 ;
 
@@ -476,12 +467,12 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        list_join(&$$->var_l, $1);
+        list_join(&$$->id_l, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        list_add_tail(&$$->struct_l, $1);
+        list_add_tail(&$$->id_l, $1);
     }
 |   statement
     {
@@ -491,12 +482,12 @@ blk_decl:
 |   blk_decl variable
     {
         $$ = $1;
-        list_join(&$$->var_l, $2);
+        list_join(&$$->id_l, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
-        list_add_tail(&$$->struct_l, $2);
+        list_add_tail(&$$->id_l, $2);
     }
 |   blk_decl statement
     {
@@ -508,22 +499,29 @@ blk_decl:
 function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
-        $$ = ast_func_new($3, $1, $5, $7, $8, &@$);
+        $$ = id_func_new($3, $1, $5, $7, $8, &@$);
     }
 ;
 
 modifier_opt:
     /* empty */                 { $$ = MOD_GLOBAL; }
 |   K_LOCAL                     { $$ = MOD_LOCAL; }
-|   K_SHARED                    { $$ = MOD_SHARED; }
-|   modifier_opt K_READONLY     { flag_set($$, MOD_READONLY); }
-|   modifier_opt K_TRANSFER     { flag_set($$, MOD_TRANSFER); }
+|   modifier_opt K_READONLY
+    {
+        $$ = $1;
+        flag_set($$, MOD_READONLY);
+    }
+|   modifier_opt K_TRANSFER
+    {
+        $$ = $1;
+        flag_set($$, MOD_TRANSFER);
+    }
 ;
 
 return_opt:
     /* empty */                 { $$ = NULL; }
 |   '(' return_list ')'         { $$ = $2; }
-|   return_list 
+|   return_list
 ;
 
 return_list:

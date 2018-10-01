@@ -24,20 +24,16 @@ set(SRCS
     check.c
     gen.c
     ast.c
-	ast_var.c
-    ast_struct.c
+	ast_id.c
     ast_blk.c
     ast_stmt.c
     ast_exp.c
-    ast_func.c
     ast_meta.c
     ast_type.c
-	check_var.c
-    check_struct.c
+	check_id.c
     check_blk.c
     check_stmt.c
     check_exp.c
-    check_func.c
 	error.c
     strbuf.c
     stack.c

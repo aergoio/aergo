@@ -12,12 +12,10 @@
 #include "list.h"
 
 #include "ast_meta.h"
-#include "ast_var.h"
+#include "ast_id.h"
 #include "ast_blk.h"
 #include "ast_exp.h"
 #include "ast_stmt.h"
-#include "ast_struct.h"
-#include "ast_func.h"
 
 typedef struct parse_s {
     char *path;

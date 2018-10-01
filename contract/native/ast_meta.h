@@ -22,40 +22,40 @@ typedef enum scope_e {
     SCOPE_MAX
 } scope_t;
 
-struct ast_meta_s {
-    type_t type;
-    scope_t scope;
-    bool is_const;
+typedef struct meta_struct_s {
+    int fld_cnt;
+    ast_meta_t **fld_metas;
+} meta_struct_t;
 
-    /* only for map */
+typedef struct meta_map_s {
     type_t k_type;
     ast_meta_t *v_meta;
+} meta_map_t;
+
+struct ast_meta_s {
+    type_t type;
+    bool is_const;
+    bool is_local;
+
+    union {
+        meta_struct_t u_st;
+        meta_map_t u_map;
+    };
 };
+
+void meta_set_struct(ast_meta_t *meta, list_t *field_l);
+void meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta);
 
 void ast_meta_dump(ast_meta_t *meta, int indent);
 
 static inline void
-ast_meta_init(ast_meta_t *meta)
+ast_meta_init(ast_meta_t *meta, type_t type)
 {
-    memset(meta, 0x00, sizeof(ast_meta_t));
-}
+    ASSERT(meta != NULL);
 
-static inline void
-ast_meta_set(ast_meta_t *meta, type_t type)
-{
-    ast_meta_init(meta);
+    memset(meta, 0x00, sizeof(ast_meta_t));
 
     meta->type = type;
-}
-
-static inline void
-ast_meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
-{
-    ast_meta_init(meta);
-
-    meta->type = TYPE_MAP;
-    meta->k_type = k_type;
-    meta->v_meta = v_meta;
 }
 
 #endif /* ! _AST_META_H */
