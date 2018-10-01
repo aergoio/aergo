@@ -49,8 +49,6 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 	return BaseConfig{
 		DataDir:       ctx.ExpandPathEnv("$HOME/data"),
-		GenesisPath:   ctx.ExpandPathEnv("$HOME/data/genesis.block"),
-		GenesisSeed:   1530838800, // time.Parse(time.RFC3339, "2018-07-06T10:00:00+09:00")
 		EnableProfile: false,
 		ProfilePort:   6060,
 		EnableRest:    false,
@@ -78,7 +76,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPEnableTLS:     false,
 		NPCert:          "",
 		NPKey:           "",
-		NPAddPeers:      []string{},
+		NPAddPeers:      nil,
 		NPMaxPeers:      100,
 		NPPeerPool:      100,
 	}
@@ -100,6 +98,6 @@ func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 		EnableBp:      true,
 		BlockInterval: consensus.DefaultBlockIntervalSec,
 		DposBpNumber:  consensus.DefaultDposBpNumber,
-		BpIds:         []string{},
+		BpIds:         nil,
 	}
 }

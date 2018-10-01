@@ -1,8 +1,6 @@
 package key
 
 import (
-	"bytes"
-
 	sha256 "github.com/minio/sha256-simd"
 
 	"encoding/binary"
@@ -19,16 +17,20 @@ func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
 		return nil, err
 	}
 	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), k)
-	return btcec.SignCompact(btcec.S256(), key, hash, true)
+	sign, err := key.Sign(hash)
+	if err != nil {
+		return nil, err
+	}
+	return sign.Serialize(), nil
 }
 
 func SignTx(tx *types.Tx, key *aergokey) error {
 	hash := CalculateHashWithoutSign(tx.Body)
-	sign, err := btcec.SignCompact(btcec.S256(), key, hash, true)
+	sign, err := key.Sign(hash)
 	if err != nil {
 		return err
 	}
-	tx.Body.Sign = sign
+	tx.Body.Sign = sign.Serialize()
 	tx.Hash = tx.CalculateTxHash()
 	return nil
 }
@@ -47,16 +49,22 @@ func (ks *Store) SignTx(tx *types.Tx) error {
 func VerifyTx(tx *types.Tx) error {
 	txBody := tx.Body
 	hash := CalculateHashWithoutSign(txBody)
-	pubkey, _, err := btcec.RecoverCompact(btcec.S256(), txBody.Sign, hash)
+	sign, err := btcec.ParseSignature(txBody.Sign, btcec.S256())
 	if err != nil {
-		return message.ErrCouldNotRecoverPubKey
+		return err
 	}
-	address := GenerateAddress(pubkey.ToECDSA())
-	if !bytes.Equal(address, txBody.Account) {
+	account := tx.Body.Account
+	pubkey, err := btcec.ParsePubKey(account, btcec.S256())
+	if err != nil {
+		return err
+	}
+	if !sign.Verify(hash, pubkey) {
 		return message.ErrSignNotMatch
 	}
 	return nil
 }
+
+//VerifyTx return result to varify sign
 func (ks *Store) VerifyTx(tx *types.Tx) error {
 	return VerifyTx(tx)
 }

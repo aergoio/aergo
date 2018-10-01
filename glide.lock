@@ -1,8 +1,8 @@
-hash: bef90f2a4379c9b04ca54081eb0bb7fc8b4d32edecdf9110686077523a050ae9
-updated: 2018-09-14T11:26:10.068355+09:00
+hash: d400543974b0f617cafc6a2a472406c45dea5119c6b3f7d7b93487db480d0b85
+updated: 2018-10-01T17:54:16.344395+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
-  version: c64cbdbabc820bb9bdd772303bf96f56e7c9005a
+  version: b33acec1163b419b28c6a18e5e3f55f336fa7327
   subpackages:
   - actor
   - eventstream
@@ -10,7 +10,7 @@ imports:
   - internal/queue/mpsc
   - mailbox
 - name: github.com/aergoio/aergo-lib
-  version: 671edde07880ba49b09c698a07b9106e73110559
+  version: cd68a0a48fd82882e9367a0c9bcb47fd0e3c2b72
   subpackages:
   - config
   - db
@@ -23,9 +23,9 @@ imports:
 - name: github.com/anaskhan96/base58check
   version: fcff33ba49dde3181fa69fb346f45582e52a3815
 - name: github.com/AndreasBriese/bbloom
-  version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
+  version: 343706a395b76e5ca5c7dca46a5d937b48febc74
 - name: github.com/btcsuite/btcd
-  version: cff30e1d23fc9e800b2b5b4b41ef1817dda07e9f
+  version: 2a560b2036bee5e3679ec2133eb6520b2f195213
   subpackages:
   - btcec
 - name: github.com/coreos/go-semver
@@ -37,7 +37,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/dgraph-io/badger
-  version: 391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9
+  version: 99233d725dbdd26d156c61b2f42ae1671b794656
   subpackages:
   - options
   - protos
@@ -47,7 +47,7 @@ imports:
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
 - name: github.com/emirpasic/gods
-  version: bba54c718c4e39e4db35f73e0c660df44a4de4cd
+  version: 1615341f118ae12f353cc8a983f35b584342c9b3
   subpackages:
   - containers
   - lists
@@ -77,10 +77,12 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/golang/snappy
+  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
 - name: github.com/google/uuid
-  version: e704694aed0ea004bb7eb1fc2e911d048a54606a
+  version: 9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8
 - name: github.com/gorilla/websocket
-  version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
+  version: 3130e8d3f1986de7dc3fd86255f4ce9618677508
 - name: github.com/gxed/eventfd
   version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
 - name: github.com/gxed/GoEndian
@@ -94,7 +96,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
-  version: 8cb6e5b959231cc1119e43259c4a608f9c51a241
+  version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -121,7 +123,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/ipfs/go-log
-  version: f2bdd6b39490312e392e2004831afeb9e58fd8de
+  version: 4040da784a6be3829112e12ed1ee4b8e2fc69341
   subpackages:
   - tracer
   - tracer/wire
@@ -139,24 +141,26 @@ imports:
   - periodic
   - ratelimit
 - name: github.com/libp2p/go-addr-util
-  version: 26ae616f0dac754fff557513e984f930fbd88a92
+  version: 2dc53609d9aa745f7bf5755bef6f54fb9ff77cd6
+- name: github.com/libp2p/go-buffer-pool
+  version: 1d28ab5fdb424e5b3523d357553082e68df9b068
 - name: github.com/libp2p/go-conn-security
-  version: 99d74deb2467141f291494833ceca76049c54d0e
+  version: 49eda33ab1bbdd3ac1115e573a4f8dee777bd901
   subpackages:
   - insecure
 - name: github.com/libp2p/go-conn-security-multistream
-  version: 397cc1367f25da0ebdde6ea3ad09c36ec72d8d2e
+  version: 9b6cfc8078f3d7030037e5686acb2989ba2a3683
 - name: github.com/libp2p/go-flow-metrics
-  version: 3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347
+  version: 7e5a55af485341567f98d6847a373eb5ddcdcd43
 - name: github.com/libp2p/go-libp2p
-  version: 7dffae8a14e99b5042872ba790fd89c57593ef50
+  version: 2787133b0469926b58dd819707cc4297a3ca7306
   subpackages:
   - config
   - p2p/host/basic
   - p2p/protocol/identify
   - p2p/protocol/identify/pb
 - name: github.com/libp2p/go-libp2p-circuit
-  version: 9bb6dd6edd5ec39fb0693d8932979fe8e337deb6
+  version: eca2b86a1bcf00adba4f71b3654c3898b19ef421
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-crypto
@@ -164,50 +168,51 @@ imports:
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-host
-  version: 609d60a267a8a3ac0abd4e411ba3f0d611adad78
+  version: 28ec0a42060315368874a2e09d7cd4dc6102814c
 - name: github.com/libp2p/go-libp2p-interface-connmgr
-  version: f81018e8b2ec3e3747455a823f5f62127e5fd9cd
+  version: 74fba35f582dc5026b6dc1c43a7616f01c4598a9
 - name: github.com/libp2p/go-libp2p-interface-pnet
-  version: 86e6fc84b906599eac696308369896ece0ced63b
+  version: d240acf619f63dfb776821a1d4d28a918f77edd5
 - name: github.com/libp2p/go-libp2p-loggables
-  version: d6d01a5f5e0bcc27c612fd1e6aa8fc97e1cac488
+  version: fc4c4dc5d90bcd55e0af5b5f744005519e070dc3
 - name: github.com/libp2p/go-libp2p-metrics
-  version: 2e91117d783799237709d7f5165eb55c86b623a1
+  version: a10ff6e75dae3c868023867e8caa534a04bdc624
 - name: github.com/libp2p/go-libp2p-nat
-  version: a5aa365517b7400c54636f1dac89294ea19b43aa
+  version: fcc8db1a9963a3d489abbc632f2c0f404e4ff607
 - name: github.com/libp2p/go-libp2p-net
-  version: 674eaa7c042aeae16b11efb56ab59b1732b9a675
+  version: c070e8fb6eade68612d96e0fbace731f89897d33
 - name: github.com/libp2p/go-libp2p-peer
-  version: 010c46e7b432a0b454d9ca397f08f364fa2139af
+  version: 993d742bc29dcf4894b7730ba610fd78900be76c
 - name: github.com/libp2p/go-libp2p-peerstore
-  version: 4d62f4830a4eaf81eac61fa842b3e6199628dad1
+  version: eef8402e045f9a9513070c30d2c4ee78fd54f10b
   subpackages:
   - addr
+  - pstoremem
 - name: github.com/libp2p/go-libp2p-protocol
   version: e34f0d7468b3519bf9bf4e43c1d028ce651eab51
 - name: github.com/libp2p/go-libp2p-secio
-  version: 0613eff75c6b8203930579b9159f8d3dbb21e392
+  version: 7b61c65c05f627ae0d02c4e9f5c5815ef1486d68
   subpackages:
   - pb
 - name: github.com/libp2p/go-libp2p-swarm
-  version: 47c2aca63800c221f3262fcce9bfb9f4d4de6647
+  version: 67f7e37245d17c8308dcf6ac5f5f0f66797694ef
 - name: github.com/libp2p/go-libp2p-transport
-  version: c87b841d9637c0a42485bc4cff2a7656d429fbee
+  version: bba5e63c9faea32bcb9b5416d70180bf2bc8033b
 - name: github.com/libp2p/go-libp2p-transport-upgrader
-  version: 915345fa39935b4b4e308d6437fdda9b7df1a988
+  version: 49139764f899e43870cd4c0485a8bbbb89f467db
 - name: github.com/libp2p/go-maddr-filter
   version: 57fd7e2ed649ba28b4f2c7bcab3a606e7cc4b12c
+- name: github.com/libp2p/go-mplex
+  version: e717d3c8e1c30cadaab678b6909f7d1a35847c35
 - name: github.com/libp2p/go-msgio
-  version: d82125c9907e1365775356505f14277d47dfd4d6
-  subpackages:
-  - mpool
+  version: 5b7d4ee2db24d582f5c255f0e3411d7144835311
 - name: github.com/libp2p/go-reuseport
-  version: e46628cb7483cfb92096837ad8f85e9b66f17fc1
+  version: dd0c37d7767bc38280bd9813145b65f8bd560629
   subpackages:
   - poll
   - singlepoll
 - name: github.com/libp2p/go-reuseport-transport
-  version: 90b3b0a82752ab21f0c7fc2921335eabb64077c5
+  version: 5cdb097c8035e75fc59d12f22509aeb700a272d0
 - name: github.com/libp2p/go-sockaddr
   version: a7494d4eefeb607c8bc491cf8850a6e8dbd41cab
   subpackages:
@@ -215,9 +220,9 @@ imports:
 - name: github.com/libp2p/go-stream-muxer
   version: 9c6bd93eecbbab56630bb2688bb435d9fd1dfeb1
 - name: github.com/libp2p/go-tcp-transport
-  version: 6542203d415dadff641ae94f9a6b51fead8bded7
+  version: 5e52db593970b614b25507ad331d098cdc25998b
 - name: github.com/libp2p/go-ws-transport
-  version: 32d17885f64a5e902a758dfa793988c3cbbd28e9
+  version: ac3f59a8924f35d6403210da5287096dfde75bd2
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mattn/go-colorable
@@ -229,42 +234,42 @@ imports:
 - name: github.com/minio/sha256-simd
   version: ad98a36ba0da87206e3378c556abbfeaeaa98668
 - name: github.com/mitchellh/mapstructure
-  version: fa473d140ef3c6adf42d6b391fe76707f1f243c8
+  version: 5a380f224700b8a6c4eaad048804f5bff514cb35
 - name: github.com/mr-tron/base58
-  version: f84df45a6b88974a98d1473e9f0de0eac859a3d9
+  version: 9ad991d48a423a0e52c77eac173b1b589665492a
   subpackages:
   - base58
 - name: github.com/multiformats/go-multiaddr
-  version: f36800afeb9c141e1adb7da099e6f010dfd4c419
+  version: 2b4e098f3e0aa2c8bc960f0e4bdc3247efc3749c
 - name: github.com/multiformats/go-multiaddr-dns
-  version: 4c36f46414bba59a19ffe5154841f76d4a55b780
+  version: ab7059599c0215374d05ceb716f54d6ed9bb1d5f
 - name: github.com/multiformats/go-multiaddr-net
-  version: 4d4b901d1729f55ee20cc0c8d8021aa58eb5ebe3
+  version: cba4f9fea8613343eb7ecc4ddadd8e7298a00c39
 - name: github.com/multiformats/go-multicodec
   version: 65c82c261bfdac27035eb81f3b0f0fc55edbc536
   subpackages:
   - protobuf
 - name: github.com/multiformats/go-multihash
-  version: bffb9dfeaca3b66c0accb675d2910407f3615eec
+  version: 66cd79b386e51ddf63270f2b71c57436a60035f3
 - name: github.com/multiformats/go-multistream
   version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
 - name: github.com/opentracing/opentracing-go
-  version: bd9c3193394760d98b2fa6ebb2291f0cd1d06a7d
+  version: 6aa6febac7b98f836100ecaea478c04f30b6dbd0
   subpackages:
   - ext
   - log
 - name: github.com/orcaman/concurrent-map
   version: b28018939af9022337862b94a463abb18abb3e0e
 - name: github.com/pelletier/go-toml
-  version: c2dbbc24a97911339e01bda0b8cabdbd8f13b602
+  version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
-  version: 816c9085562cd7ee03e7f8188a1cfd942858cded
+  version: c059e472caf75dbe73903f6521a20abac245b17f
 - name: github.com/rcrowley/go-metrics
   version: e2704e165165ec55d062f5919b4b29494e9fa790
 - name: github.com/rs/cors
   version: dc7332ab32be5dfec05dae2a6ab79cbfa53b6407
 - name: github.com/rs/zerolog
-  version: 77db4b4f350e31be66a57c332acb7721cf9ff9bb
+  version: 338f9bc14084d22cb8eeacd6492861f8449d715c
   subpackages:
   - internal/cbor
   - internal/json
@@ -275,7 +280,7 @@ imports:
 - name: github.com/spaolacci/murmur3
   version: f09979ecbc725b9e6d41a297405f65e7e8804acc
 - name: github.com/spf13/afero
-  version: 787d034dfe70e44075ccc060d346146ef53270ad
+  version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
   - mem
 - name: github.com/spf13/cast
@@ -283,42 +288,55 @@ imports:
 - name: github.com/spf13/cobra
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/jwalterweatherman
-  version: 14d3d4c518341bea657dd8a226f5121c0ff8c9f2
+  version: 4a4406e478ca629068e7768fc33f3f044173c0a6
 - name: github.com/spf13/pflag
   version: 9a97c102cda95a86cec2345a6f09f55a939babf5
 - name: github.com/spf13/viper
-  version: 8fb642006536c8d3760c99d4fa2389f5e2205631
+  version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
+- name: github.com/syndtr/goleveldb
+  version: ae2bd5eed72d46b28834ec3f60db3a3ebedd8dbd
+  subpackages:
+  - leveldb
+  - leveldb/cache
+  - leveldb/comparer
+  - leveldb/errors
+  - leveldb/filter
+  - leveldb/iterator
+  - leveldb/journal
+  - leveldb/memdb
+  - leveldb/opt
+  - leveldb/storage
+  - leveldb/table
+  - leveldb/util
 - name: github.com/whyrusleeping/go-logging
   version: 0457bb6b88fc1973573aaf6b5145d8d3ae972390
-- name: github.com/whyrusleeping/go-multiplex
-  version: 0cf3aebfba46b9267722f196b12146a7553da895
 - name: github.com/whyrusleeping/go-notifier
   version: 097c5d47330ff6a823f67e3515faa13566a62c6f
 - name: github.com/whyrusleeping/go-smux-multiplex
-  version: cc30230b7c9a992ab1614cf9fb9bfc5f8244f907
+  version: b905dd063c9764201a381824e7191a7ccaf3f4bc
 - name: github.com/whyrusleeping/go-smux-multistream
   version: e799b10bc6eea2cc5ce18f7b7b4d8e1a0439476d
 - name: github.com/whyrusleeping/go-smux-yamux
-  version: eac25f3e2d47aae211e457e7664b52634c95eea8
+  version: f60148d42be1861638cbb16dfd32bee46251f86b
 - name: github.com/whyrusleeping/mafmt
   version: 1dc32401ee9fdd3f6cdb3405ec984d5dae877b2a
 - name: github.com/whyrusleeping/multiaddr-filter
   version: e903e4adabd70b78bc9293b6ee4f359afb3f9f59
 - name: github.com/whyrusleeping/yamux
-  version: cb29a700b01dc3c2fdd743c00cf54685056bb62a
+  version: 3f61f992de5b927691ca81b814e04061f5ca625a
 - name: github.com/Workiva/go-datastructures
   version: f07cbe3f82ca2fd6e5ab94afce65fe43319f675f
   subpackages:
   - queue
 - name: golang.org/x/crypto
-  version: 0709b304e793a5edb4a2c0145f281ecdc20838a4
+  version: 5295e8364332db77d75fce11f1d19c053919a9c9
   subpackages:
   - blake2s
   - blowfish
   - sha3
   - ssh/terminal
 - name: golang.org/x/net
-  version: 8a410e7b638dca158bf9e766925842f6651ff828
+  version: 4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de
   subpackages:
   - context
   - html
@@ -331,13 +349,13 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: ebe1bf3edb3325c393447059974de898d5133eb8
+  version: e4b3c5e9061176387e7cea65e4dc5853801f3fb7
   subpackages:
   - cpu
   - unix
   - windows
 - name: golang.org/x/text
-  version: 6e3c4e7365ddcc329f090f96e4348398f6310088
+  version: 905a57155faa8230500121607930ebb9dd8e139c
   subpackages:
   - encoding
   - encoding/charmap
@@ -360,7 +378,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: 11092d34479b07829b72e10713b159248caf5dad
+  version: c7e5094acea1ca1b899e2259d80a6b0f882f81f8
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc

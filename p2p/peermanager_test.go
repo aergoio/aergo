@@ -6,6 +6,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"strconv"
 	"sync"
 	"testing"
@@ -32,7 +33,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 		nil, new(MockReconnectManager),
 		log.NewLogger("test.p2p")).(*peerManager)
 
-	target.Host = &mockHost{pstore.NewPeerstore()}
+	target.Host = &mockHost{pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
 	target.selfMeta.ID = peer.ID("gwegw")
 	go target.runManagePeers()
 

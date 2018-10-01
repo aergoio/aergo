@@ -48,7 +48,7 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 		}
 	}
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
-	txn := s.db.store.NewTx(true)
+	txn := s.db.store.NewTx()
 	for _, key := range s.db.nodesToRevert {
 		txn.Delete(key[:HashLength])
 	}

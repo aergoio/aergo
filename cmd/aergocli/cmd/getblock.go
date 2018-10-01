@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var getblockCmd = &cobra.Command{
@@ -35,13 +34,6 @@ func init() {
 }
 
 func execGetBlock(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
 	fflags := cmd.Flags()
 	if fflags.Changed("number") == false && fflags.Changed("hash") == false {
 		fmt.Println("no block --hash or --number specified")

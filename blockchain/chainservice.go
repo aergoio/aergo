@@ -45,7 +45,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		ChainConsensus: cc,
 		cfg:            cfg,
 		cdb:            NewChainDB(),
-		sdb:            state.NewStateDB(),
+		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
 	Init(cfg.Blockchain.MaxBlockSize)
@@ -118,6 +118,11 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
 			}
+			err = InitGenesisBPs(cs.sdb, genesis)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot set bp identifications")
+				return err
+			}
 			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
@@ -155,8 +160,6 @@ func (cs *ChainService) BeforeStop() {
 	cs.CloseDB()
 
 	cs.validator.Stop()
-
-	contract.DB.Close()
 }
 
 func (cs *ChainService) CloseDB() {
@@ -165,6 +168,9 @@ func (cs *ChainService) CloseDB() {
 	}
 	if cs.cdb != nil {
 		cs.cdb.Close()
+	}
+	if contract.DB != nil {
+		contract.DB.Close()
 	}
 }
 

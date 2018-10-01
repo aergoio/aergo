@@ -5,28 +5,27 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
 	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/mr-tron/base58/base58"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var (
 	client *util.ConnClient
 	data   string
+	nonce  uint64
 )
 
 func init() {
 	contractCmd := &cobra.Command{
-		Use:               "contract [flags] subcommand",
-		Short:             "contract command",
-		PersistentPreRun:  connectAergo,
-		PersistentPostRun: disconnectAergo,
+		Use:   "contract [flags] subcommand",
+		Short: "contract command",
 	}
 
 	deployCmd := &cobra.Command{
@@ -37,14 +36,17 @@ func init() {
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 
+	callCmd := &cobra.Command{
+		Use:   "call [flags] sender contract name [args]",
+		Short: "call a contract function",
+		Args:  cobra.MinimumNArgs(3),
+		Run:   runCallCmd,
+	}
+	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+
 	contractCmd.AddCommand(
 		deployCmd,
-		&cobra.Command{
-			Use:   "call [flags] sender contract name [args]",
-			Short: "call a contract function",
-			Args:  cobra.MinimumNArgs(3),
-			Run:   runCallCmd,
-		},
+		callCmd,
 		&cobra.Command{
 			Use:   "abi [flags] contract",
 			Short: "get ABI of the contract",
@@ -115,7 +117,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			}
 			argLen = len(args[1])
 		}
-		code, err := types.DecodeAddress(data)
+		code, err := util.DecodeCode(data)
 		payload = make([]byte, 4+len(code)+argLen)
 		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
 		codeLen := copy(payload[4:], code)
@@ -156,14 +158,18 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
-	if err != nil {
-		log.Fatal(err)
+	if nonce == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
+		if err != nil {
+			log.Fatal(err)
+		}
+		nonce = state.GetNonce() + 1
 	}
 	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	var ci types.CallInfo
 	ci.Name = args[2]
 	if len(args) > 3 {
@@ -176,9 +182,25 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
+	if err != nil {
+		log.Fatal(err)
+	}
+	var found bool
+	for _, fn := range abi.Functions {
+		if fn.GetName() == args[2] {
+			found = true
+			break
+		}
+	}
+	if !found {
+		log.Fatal(args[2], " function not found in contract :", args[1])
+	}
+
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:     state.GetNonce() + 1,
+			Nonce:     nonce,
 			Account:   caller,
 			Recipient: contract,
 			Payload:   payload,
@@ -241,20 +263,4 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	fmt.Println(ret)
-}
-
-func connectAergo(cmd *cobra.Command, args []string) {
-	serverAddr := GetServerAddress()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var ok bool
-	client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient)
-	if !ok {
-		log.Fatal("internal error. wrong RPC client type")
-	}
-}
-
-func disconnectAergo(cmd *cobra.Command, args []string) {
-	if client != nil {
-		client.Close()
-	}
 }

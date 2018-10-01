@@ -14,27 +14,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const aergosystem = "aergo.system"
-
-func init() {
-	rootCmd.AddCommand(stakingCmd)
-	rootCmd.AddCommand(unstakingCmd)
-	stakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
-	stakingCmd.MarkFlagRequired("address")
-	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
-	stakingCmd.MarkFlagRequired("amount")
-	unstakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
-	unstakingCmd.MarkFlagRequired("address")
-	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
-	unstakingCmd.MarkFlagRequired("amount")
-}
-
 var stakingCmd = &cobra.Command{
-	Use:               "staking",
-	Short:             "",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
-	Run:               execStaking,
+	Use:   "staking",
+	Short: "",
+	Run:   execStaking,
 }
 
 func execStaking(cmd *cobra.Command, args []string) {
@@ -42,11 +25,9 @@ func execStaking(cmd *cobra.Command, args []string) {
 }
 
 var unstakingCmd = &cobra.Command{
-	Use:               "unstaking",
-	Short:             "",
-	PersistentPreRun:  connectAergo,
-	PersistentPostRun: disconnectAergo,
-	Run:               execUnstaking,
+	Use:   "unstaking",
+	Short: "",
+	Run:   execUnstaking,
 }
 
 func execUnstaking(cmd *cobra.Command, args []string) {

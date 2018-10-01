@@ -3,9 +3,9 @@ package types
 import (
 	"bytes"
 
-	"crypto/sha512"
 	"reflect"
 
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 )
 
@@ -23,7 +23,7 @@ type TxID HashID
 
 // GetHashID make a HashID from hash of bytes
 func GetHashID(bytes []byte) HashID {
-	hash := TrieHasher(bytes)
+	hash := common.Hasher(bytes)
 	return ToHashID(hash)
 }
 
@@ -40,6 +40,11 @@ func (id HashID) String() string {
 // Compare returns an integer comparing two HashIDs as byte slices.
 func (id HashID) Compare(alt HashID) int {
 	return bytes.Compare(id[:], alt[:])
+}
+
+// Equal returns a boolean comparing two HashIDs as byte slices.
+func (id HashID) Equal(alt HashID) bool {
+	return bytes.Equal(id[:], alt[:])
 }
 
 // ToBlockID make a BlockID from bytes
@@ -66,15 +71,7 @@ func (id AccountID) String() string {
 	return HashID(id).String()
 }
 
-// TrieHasher exports default hash function for trie
-var TrieHasher = func(data ...[]byte) []byte {
-	hasher := sha512.New512_256()
-	for i := 0; i < len(data); i++ {
-		hasher.Write(data[i])
-	}
-	return hasher.Sum(nil)
-}
-
+// NewState returns an instance of account state
 func NewState() *State {
 	return &State{
 		Nonce:   0,

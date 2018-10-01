@@ -21,17 +21,15 @@ func NewCliContext(homePath string, configFilePath string) *CliContext {
 
 // CliConfig is configs for aergo cli.
 type CliConfig struct {
-	KeyFile string `mapstructure:"keyfile" description:"Private Key file to sign tx. "`
-	Host    string `mapstructure:"host" description:"Target server host. default is localhost"`
-	Port    int    `mapstructure:"port" description:"Target server port. default is 7845"`
+	Host string `mapstructure:"host" description:"Target server host. default is localhost"`
+	Port int    `mapstructure:"port" description:"Target server port. default is 7845"`
 }
 
 // GetDefaultConfig return cliconfig with default value. It ALWAYS returns NEW object.
 func (ctx *CliContext) GetDefaultConfig() interface{} {
 	return CliConfig{
-		KeyFile: "",
-		Host:    "localhost",
-		Port:    7845,
+		Host: "localhost",
+		Port: 7845,
 	}
 }
 
@@ -48,7 +46,6 @@ func (ctx *CliContext) GetTemplate() string {
 }
 
 const configTemplate = `# aergo cli TOML Configuration File (https://github.com/toml-lang/toml)
-keyfile = "{{.KeyFile}}"
 host = "{{.Host}}"
 port = "{{.Port}}"
 `

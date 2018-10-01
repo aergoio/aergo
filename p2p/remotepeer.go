@@ -286,7 +286,7 @@ func (p *RemotePeer) sendPing() {
 		//BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(true, pingRequest, pingMsg, p.signer))
+	p.sendMessage(newPbMsgRequestOrder(true, PingRequest, pingMsg, p.signer))
 }
 
 // sendStatus is called once when a peer is added.()
@@ -300,13 +300,13 @@ func (p *RemotePeer) sendStatus() {
 		return
 	}
 
-	p.sendMessage(newPbMsgRequestOrder(false, statusRequest, statusMsg, p.signer))
+	p.sendMessage(newPbMsgRequestOrder(false, StatusRequest, statusMsg, p.signer))
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *RemotePeer) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(newPbMsgRequestOrder(false, goAway, &types.GoAwayNotice{Message: msg}, p.signer))
+	p.sendMessage(newPbMsgRequestOrder(false, GoAway, &types.GoAwayNotice{Message: msg}, p.signer))
 	p.pm.RemovePeer(p.meta.ID)
 }
 

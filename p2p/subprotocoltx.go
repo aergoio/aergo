@@ -15,6 +15,7 @@ import (
 
 type txRequestHandler struct {
 	BaseMsgHandler
+	msgHelper message.Helper
 }
 
 var _ MessageHandler = (*txRequestHandler)(nil)
@@ -33,7 +34,8 @@ var _ MessageHandler = (*newTxNoticeHandler)(nil)
 
 // newTxReqHandler creates handler for GetTransactionsRequest
 func newTxReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txRequestHandler {
-	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	th := &txRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTXsRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	th.msgHelper = message.GetHelper()
 	return th
 }
 
@@ -48,33 +50,26 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
 
 	// find transactions from chainservice
+	status := types.ResultStatus_OK
 	idx := 0
-	var keyArray [txhashLen]byte
-	hashesMap := make(map[[txhashLen]byte][]byte, len(data.Hashes))
-	for _, hash := range data.Hashes {
-		if len(hash) != txhashLen {
-			// TODO ignore just single hash or return invalid request
-			continue
-		}
-		copy(keyArray[:], hash)
-		hashesMap[keyArray] = hash
-	}
 	hashes := make([][]byte, 0, len(data.Hashes))
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
-	// FIXME: chain에 들어간 트랜잭션을 볼 방법이 없다. 멤풀도 검색이 안 되서 전체를 다 본 다음에 그중에 매칭이 되는 것을 추출하는 방식으로 처리한다.
-	txs, _ := extractTXsFromRequest(th.actor.CallRequest(message.MemPoolSvc,
-		&message.MemPoolGet{}))
-	for _, tx := range txs {
-		copy(keyArray[:], tx.Hash)
-		hash, found := hashesMap[keyArray]
-		if !found {
+	for _, hash := range data.Hashes {
+		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequest(message.MemPoolSvc,
+			&message.MemPoolExist{}))
+		if err != nil {
+			// response error to peer
+			status = types.ResultStatus_INTERNAL
+			break
+		}
+		if tx == nil {
+			// ignore not existing hash
 			continue
 		}
 		hashes = append(hashes, hash)
 		txInfos = append(txInfos, tx)
 		idx++
 	}
-	status := types.ResultStatus_OK
 
 	// generate response message
 	resp := &types.GetTransactionsResponse{
@@ -82,12 +77,12 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), getTxsResponse, resp, th.signer))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetTxsResponse, resp, th.signer))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func newTxRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: getTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTxsResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 
@@ -109,7 +104,7 @@ func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Me
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
 func newNewTxNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: newTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewTxNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return th
 }
 

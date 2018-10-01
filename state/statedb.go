@@ -9,16 +9,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
-	"path"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -45,24 +43,154 @@ var (
 	errLoadStateData  = errors.New("Failed to load StateData: invalid HashID")
 )
 
+var (
+	errInvalidArgs = errors.New("invalid arguments")
+	errInvalidRoot = errors.New("invalid root")
+	errSetRoot     = errors.New("Failed to set root: invalid root")
+	errLoadRoot    = errors.New("Failed to load root: invalid root")
+	errGetState    = errors.New("Failed to get state: invalid account id")
+	errPutState    = errors.New("Failed to put state: invalid account id")
+)
+
+type StateDB struct {
+	sync.RWMutex
+	buffer *stateBuffer
+	trie   *trie.Trie
+	store  *db.DB
+}
+
+// NewStateDB craete StateDB instance
+func NewStateDB(dbstore *db.DB) *StateDB {
+	return &StateDB{
+		buffer: newStateBuffer(),
+		trie:   trie.NewTrie(nil, common.Hasher, *dbstore),
+		store:  dbstore,
+	}
+}
+
+// GetRoot returns root hash of trie
+func (states *StateDB) GetRoot() []byte {
+	return states.trie.Root
+}
+
+// SetRoot sets root hash to trie
+func (states *StateDB) SetRoot(root types.HashID) error {
+	var targetRoot []byte
+	if root != emptyHashID {
+		targetRoot = root[:]
+	}
+	states.trie.Root = targetRoot
+	return nil
+}
+
+// LoadRoot sets root hash to trie and loads cache
+func (states *StateDB) LoadRoot(root types.HashID) error {
+	var targetRoot []byte
+	if root != emptyHashID {
+		targetRoot = root[:]
+	}
+	states.trie.Root = targetRoot
+	return states.trie.LoadCache(targetRoot)
+}
+
+// Revert rollbacks trie to previous root hash
+func (states *StateDB) Revert(root types.HashID) error {
+	// handle nil bytes
+	var targetRoot []byte
+	if root != emptyHashID {
+		targetRoot = root[:]
+	}
+	// revert trie
+	err := states.trie.Revert(targetRoot)
+	if err != nil {
+		// when targetRoot is not contained in the cached tries.
+		states.trie.Root = targetRoot
+	}
+	// reset buffer
+	return states.buffer.reset()
+}
+
+// PutState puts account id and its state into state buffer.
+func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
+	if id == emptyAccountID {
+		return errPutState
+	}
+	return states.buffer.put(types.HashID(id), state)
+}
+
+// GetState gets state of account id from state buffer and trie
+func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
+	if id == emptyAccountID {
+		return nil, errGetState
+	}
+	// get state from buffer
+	entry := states.buffer.get(types.HashID(id))
+	if entry != nil {
+		return entry.getData().(*types.State), nil
+	}
+	// get state from trie
+	key, err := states.trie.Get(id[:])
+	if err != nil {
+		return nil, err
+	}
+	st := types.State{}
+	err = loadData(states.store, key, st)
+	if err != nil {
+		return nil, err
+	}
+	return &st, nil
+}
+
+// Snapshot returns revision number of state buffer
+func (states *StateDB) Snapshot() int {
+	return states.buffer.snapshot()
+}
+
+// Rollback discards changes of state buffer to revision number
+func (states *StateDB) Rollback(snapshot int) error {
+	return states.buffer.rollback(snapshot)
+}
+
+// Update applies changes of state buffer to trie
+func (states *StateDB) Update() error {
+	keys, vals := states.buffer.export()
+	_, err := states.trie.Update(keys, vals)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// // Discard ...
+// func (states *StateDB) Discard() error {
+// 	// TODO
+// 	// discard changes not commited.
+// 	// requires previous root hash.
+// 	return nil
+// }
+
+// Commit writes state buffer and trie to db
+func (states *StateDB) Commit() error {
+	err := states.trie.Commit()
+	if err != nil {
+		return err
+	}
+	err = states.buffer.commit(states.store)
+	if err != nil {
+		return err
+	}
+	return states.buffer.reset()
+}
+
 type ChainStateDB struct {
 	sync.RWMutex
-	trie    *trie.Trie
-	latest  *types.BlockInfo
-	statedb *db.DB
+	latest *types.BlockInfo
+	states *StateDB
+	store  db.DB
 }
 
-func NewStateDB() *ChainStateDB {
+func NewChainStateDB() *ChainStateDB {
 	return &ChainStateDB{}
-}
-
-func InitDB(basePath, dbName string) *db.DB {
-	dbPath := path.Join(basePath, dbName)
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		_ = os.MkdirAll(dbPath, 0711)
-	}
-	dbInst := db.NewDB(db.BadgerImpl, dbPath)
-	return &dbInst
 }
 
 func (sdb *ChainStateDB) Init(dataDir string) error {
@@ -70,38 +198,41 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 	defer sdb.Unlock()
 
 	// init db
-	if sdb.statedb == nil {
-		sdb.statedb = InitDB(dataDir, stateName)
+	if sdb.store == nil {
+		dbPath := common.PathMkdirAll(dataDir, stateName)
+		sdb.store = db.NewDB(db.BadgerImpl, dbPath)
 	}
 
 	// init trie
-	sdb.trie = trie.NewTrie(nil, types.TrieHasher, *sdb.statedb)
+	if sdb.states == nil {
+		sdb.states = NewStateDB(&sdb.store)
+	}
 
-	// load data from db
-	err := sdb.loadStateDB()
+	// load latest data from db
+	err := sdb.loadStateLatest()
 	if err != nil {
 		return err
 	}
-	if sdb.latest != nil && sdb.latest.StateRoot != emptyHashID {
-		sdb.trie.Root = sdb.latest.StateRoot[:]
-		sdb.trie.LoadCache(sdb.trie.Root)
+	if sdb.latest != nil && !sdb.latest.StateRoot.Equal(emptyHashID) {
+		sdb.states.LoadRoot(sdb.latest.StateRoot)
 	}
 	return nil
 }
 
+// Close saves latest block information of the chain
 func (sdb *ChainStateDB) Close() error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
 	// save data to db
-	err := sdb.saveStateDB()
+	err := sdb.saveStateLatest()
 	if err != nil {
 		return err
 	}
 
 	// close db
-	if sdb.statedb != nil {
-		(*sdb.statedb).Close()
+	if sdb.store != nil {
+		sdb.store.Close()
 	}
 	return nil
 }
@@ -122,9 +253,15 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 		gbState.PutAccount(id, &types.State{}, balance)
 	}
 
+	if genesisBlock.VoteState != nil {
+		aid := types.ToAccountID([]byte(types.AergoSystem))
+		gbState.PutAccount(aid, &types.State{}, genesisBlock.VoteState)
+	}
 	// save state of genesis block
-	err := sdb.apply(gbState)
-	return err
+	if err := sdb.apply(gbState); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
@@ -138,9 +275,9 @@ func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, err
 	return state, nil
 }
 func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
-	dkey, err := sdb.trie.Get(aid[:])
+	dkey, err := sdb.states.trie.Get(aid[:])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get account state from trie: %s", err)
 	}
 	if len(dkey) == 0 {
 		return types.NewState(), nil
@@ -157,7 +294,7 @@ func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State
 	if err != nil {
 		return nil, err
 	}
-	res := types.Clone(*state).(types.State)
+	res := types.State(*state)
 	return &res, nil
 }
 func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
@@ -175,51 +312,54 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.Ac
 	if err != nil {
 		return nil, err
 	}
-	res := types.Clone(*state).(types.State)
+	res := types.State(*state)
 	return &res, nil
 }
 
-func (sdb *ChainStateDB) updateTrie(bstate *types.BlockState) error {
+func (sdb *ChainStateDB) updateStateDB(bstate *types.BlockState) error {
 	accounts := bstate.GetAccountStates()
 	if len(accounts) <= 0 {
 		// do nothing
 		return nil
 	}
-	bufs := []cacheEntry{}
+
+	var err error
+	// put states to buffer
 	for k, v := range accounts {
-		data, err := proto.Marshal(v)
+		err = sdb.states.PutState(k, v)
 		if err != nil {
+			err2 := sdb.states.Rollback(0)
+			if err2 != nil {
+				return fmt.Errorf("%v + %v", err.Error(), err2.Error())
+			}
 			return err
 		}
-		et := newCacheEntry(types.HashID(k), data)
-		bufs = append(bufs, et)
 	}
-	caches := newStateCaches()
-	caches.puts(bufs...)
-	keys, vals := caches.export()
-	_, err := sdb.trie.Update(keys, vals)
+	// update state db
+	err = sdb.states.Update()
 	if err != nil {
+		// rollback to latest
+		err2 := sdb.states.Revert(sdb.latest.StateRoot)
+		if err2 != nil {
+			return fmt.Errorf("%v + %v", err.Error(), err2.Error())
+		}
 		return err
 	}
-	caches.commit(sdb.statedb)
-	sdb.trie.Commit()
-	return nil
+	// commit state db
+	return sdb.states.Commit()
 }
 
-func (sdb *ChainStateDB) revertTrie(prevBlockStateRoot types.HashID) error {
-	if bytes.Equal(sdb.trie.Root, prevBlockStateRoot[:]) {
+func (sdb *ChainStateDB) revertStateDB(prevBlockStateRoot types.HashID) error {
+	if sdb.states.trie.Root == nil && prevBlockStateRoot.Equal(emptyHashID) {
+		// nil and empty bytes, do nothing
+		return nil
+	}
+	if bytes.Equal(sdb.states.trie.Root, prevBlockStateRoot[:]) {
 		// same root, do nothing
 		return nil
 	}
-	err := sdb.trie.Revert(prevBlockStateRoot[:])
-	if err != nil {
-		// FIXME: is that enough?
-		// if prevRoot is not contained in the cached tries.
-		sdb.trie.Root = prevBlockStateRoot[:]
-		err = sdb.trie.LoadCache(sdb.trie.Root)
-		return err
-	}
-	return nil
+	// revert state db
+	return sdb.states.Revert(prevBlockStateRoot)
 }
 
 func (sdb *ChainStateDB) Apply(bstate *types.BlockState) error {
@@ -239,11 +379,11 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 
 	// rollback and revert trie requires state root before apply
 	if bstate.Undo.StateRoot == emptyHashID {
-		bstate.Undo.StateRoot = types.ToHashID(sdb.trie.Root)
+		bstate.Undo.StateRoot = types.ToHashID(sdb.states.trie.Root)
 	}
 
 	// apply blockState to trie
-	err := sdb.updateTrie(bstate)
+	err := sdb.updateStateDB(bstate)
 	if err != nil {
 		return err
 	}
@@ -262,7 +402,7 @@ func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
 	}
 
 	sdb.latest = &bstate.BlockInfo
-	err = sdb.saveStateDB()
+	err = sdb.saveStateLatest()
 	return err
 }
 
@@ -285,7 +425,7 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			break
 		}
 
-		err = sdb.revertTrie(bs.Undo.StateRoot)
+		err = sdb.revertStateDB(bs.Undo.StateRoot)
 		if err != nil {
 			return err
 		}
@@ -296,12 +436,12 @@ func (sdb *ChainStateDB) Rollback(blockNo types.BlockNo) error {
 			BlockHash: sdb.latest.PrevHash,
 		}
 	}
-	err := sdb.saveStateDB()
+	err := sdb.saveStateLatest()
 	return err
 }
 
 func (sdb *ChainStateDB) GetHash() []byte {
-	return sdb.trie.Root
+	return sdb.states.trie.Root
 }
 
 func (sdb *ChainStateDB) IsExistState(hash []byte) bool {

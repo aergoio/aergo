@@ -15,10 +15,8 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var getpeersCmd = &cobra.Command{
@@ -32,14 +30,6 @@ func init() {
 }
 
 func execGetPeers(cmd *cobra.Command, args []string) {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	var client *util.ConnClient
-	var ok bool
-	if client, ok = util.GetClient(GetServerAddress(), opts).(*util.ConnClient); !ok {
-		panic("Internal error. wrong RPC client type")
-	}
-	defer client.Close()
-
 	msg2, err := client.GetPeers(context.Background(), &types.Empty{})
 	if err != nil {
 		fmt.Printf("Failed to get peer from server: %s\n", err.Error())

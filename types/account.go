@@ -37,6 +37,7 @@ func NewAccountList(accounts []*Account) *AccountList {
 
 type Address = []byte
 const AddressVersion = 0x42
+const PrivKeyVersion = 0xAA
 
 func EncodeAddress(addr Address) (string) {
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
@@ -55,6 +56,28 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	version := decodedBytes[0]
 	if version != AddressVersion {
 		return nil, errors.New("Invalid address version")
+	}
+	decoded := decodedBytes[1:]
+	return decoded, nil
+}
+
+func EncodePrivKey(key []byte) (string) {
+	encoded, _ := base58check.Encode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
+	return encoded
+}
+
+func DecodePrivKey(encodedKey string) ([]byte, error) {
+	decodedString, err := base58check.Decode(encodedKey)
+	if err != nil {
+		return nil, err
+	}
+	decodedBytes, err := hex.DecodeString(decodedString)
+	if err != nil {
+		return nil, err
+	}
+	version := decodedBytes[0]
+	if version != PrivKeyVersion {
+		return nil, errors.New("Invalid private key version")
 	}
 	decoded := decodedBytes[1:]
 	return decoded, nil

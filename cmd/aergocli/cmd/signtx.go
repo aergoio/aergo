@@ -9,7 +9,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -17,18 +16,19 @@ func init() {
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
 	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
-	signCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
+	signCmd.Flags().BoolVar(&remote, "remote", true, "indicate account in the remote node or not")
 	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
+	verifyCmd.Flags().BoolVar(&remote, "remote", true, "choose verify in the remote node or not")
 }
 
 var signCmd = &cobra.Command{
-	Use:   "signtx",
-	Short: "Sign transaction",
-	Args:  cobra.MinimumNArgs(0),
+	Use:    "signtx",
+	Short:  "Sign transaction",
+	Args:   cobra.MinimumNArgs(0),
+	PreRun: preConnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		var err error
 		if jsonTx == "" {
 			fmt.Printf("need to transaction json input")
@@ -41,19 +41,7 @@ var signCmd = &cobra.Command{
 		}
 		var msg *types.Tx
 		if remote {
-
-			serverAddr := GetServerAddress()
-			opts := []grpc.DialOption{grpc.WithInsecure()}
-			var client *util.ConnClient
-			var ok bool
-			if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-				panic("Internal error. wrong RPC client type")
-			}
-			defer client.Close()
-			//param := &types.Tx{Body: &types.TxBody{}}
-
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})
-
 		} else {
 			tx := &types.Tx{Body: param}
 			if tx.Body.Sign != nil {
@@ -86,17 +74,10 @@ var signCmd = &cobra.Command{
 }
 
 var verifyCmd = &cobra.Command{
-	Use:   "verifytx",
-	Short: "Verify transaction",
+	Use:    "verifytx",
+	Short:  "Verify transaction",
+	PreRun: preConnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-		serverAddr := GetServerAddress()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		var client *util.ConnClient
-		var ok bool
-		if client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient); !ok {
-			panic("Internal error. wrong RPC client type")
-		}
-		defer client.Close()
 		if jsonTx == "" {
 			fmt.Printf("need to transaction json input")
 			return
@@ -106,15 +87,23 @@ var verifyCmd = &cobra.Command{
 			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		msg, err := client.VerifyTX(context.Background(), param[0])
-		if nil == err {
-			if msg.Tx != nil {
-				fmt.Println(util.TxConvBase58Addr(msg.Tx))
+		if remote {
+			msg, err := client.VerifyTX(context.Background(), param[0])
+			if nil == err {
+				if msg.Tx != nil {
+					fmt.Println(util.TxConvBase58Addr(msg.Tx))
+				} else {
+					fmt.Println(msg.Error)
+				}
 			} else {
-				fmt.Println(msg.Error)
+				fmt.Printf("Failed: %s\n", err.Error())
 			}
 		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+			err := key.VerifyTx(param[0])
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
 		}
 	},
 }

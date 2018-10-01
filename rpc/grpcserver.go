@@ -124,6 +124,30 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 
 }
 
+// real-time streaming most recent block header
+func (rpc *AergoRPCService) ListBlockHeadersStream(in *types.Empty, stream types.AergoRPCService_ListBlockHeadersStreamServer) error {
+	var prev *types.Block;
+	for {
+		last, err := rpc.ca.GetBestBlock()
+		if err != nil {
+			break
+		}
+
+		if prev == last {
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+		prev = last
+
+		if err = stream.Send(last.GetHeader()); err != nil {
+			break
+		}
+
+		time.Sleep(time.Millisecond * 500)
+	}
+	return nil
+}
+
 func extractBlockFromFuture(future *actor.Future) (*types.Block, bool) {
 	rawResponse, err := future.Result()
 	if err != nil {
@@ -252,7 +276,11 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(memPoolPutResult))
 	}
-	return &types.CommitResult{Hash: tx.Hash, Error: convertError(memPoolPutRsp.Err[0])}, err
+	resultErr := memPoolPutRsp.Err[0]
+	if resultErr != nil {
+		return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr), Detail: resultErr.Error()}, err
+	}
+	return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr)}, err
 }
 
 // CommitTX handle rpc request commit
@@ -299,6 +327,9 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 
 			for j, err := range rsp.Err {
 				results.Results[start+j].Error = convertError(err)
+				if err != nil {
+					results.Results[start+j].Detail = err.Error()
+				}
 			}
 			start += cnt
 			cnt = 0
@@ -379,6 +410,34 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Account, rsp.Err
+}
+
+func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportFormat) (*types.Account, error) {
+	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+		&message.ImportAccount{Wif: in.Wif.Value, OldPass: in.Oldpass, NewPass: in.Newpass},
+		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.ImportAccountRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Account, rsp.Err
+}
+
+func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase},
+		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.ExportAccountRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Wif}, rsp.Err
 }
 
 // SignTX handle rpc request signtx

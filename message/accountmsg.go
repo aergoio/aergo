@@ -18,6 +18,7 @@ const AccountsSvc = "AccountsSvc"
 type CreateAccount struct {
 	Passphrase string
 }
+
 type CreateAccountRsp struct {
 	Account *types.Account
 }
@@ -57,6 +58,7 @@ type SignTxRsp struct {
 	Tx  *types.Tx
 	Err error
 }
+
 type VerifyTx struct {
 	Tx *types.Tx
 }
@@ -68,4 +70,24 @@ type VerifyTxRsp struct {
 type GetAccounts struct{}
 type GetAccountsRsp struct {
 	Accounts *types.AccountList
+}
+
+type ImportAccount struct {
+	Wif     []byte
+	OldPass string
+	NewPass string
+}
+type ImportAccountRsp struct {
+	Account *types.Account
+	Err     error
+}
+
+type ExportAccount struct {
+	Account *types.Account
+	Pass    string
+}
+
+type ExportAccountRsp struct {
+	Wif []byte
+	Err error
 }

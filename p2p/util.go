@@ -27,7 +27,7 @@ const (
 	LogProtoID = "protocol_id"
 	LogMsgID   = "msg_id"
 	LogBlkHash = "blk_hash"
-	LogTxHash = "blk_hash"
+	LogTxHash = "tx_hash"
 
 )
 
@@ -69,9 +69,9 @@ func extractBlock(from *message.GetBlockRsp) (*types.Block, error) {
 
 }
 
-func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, bool) {
+func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, error) {
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
 	var rsponse *message.MemPoolGetRsp
 	switch v := rawResponse.(type) {
@@ -85,11 +85,11 @@ func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, boo
 	return extractTXs(rsponse)
 }
 
-func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, bool) {
-	if nil != from.Err {
-		return nil, false
+func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, error) {
+	if from.Err != nil{
+		return nil, from.Err
 	}
-	return from.Txs, true
+	return from.Txs, nil
 }
 
 func getIP(a *types.PeerAddress) net.IP {

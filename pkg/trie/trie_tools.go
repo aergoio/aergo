@@ -127,8 +127,8 @@ func (s *Trie) DefaultHash(height uint64) []byte {
 // Commit stores the updated nodes to disk.
 // Commit should be called for every block otherwise past tries are not recorded and it is not possible to revert to them
 func (s *Trie) Commit() error {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	if s.db.store == nil {
 		return fmt.Errorf("DB not connected to trie")
 	}
@@ -150,6 +150,8 @@ func (s *Trie) Commit() error {
 // Stash rolls back the changes made by previous updates
 // and loads the cache from before the rollback.
 func (s *Trie) Stash(rollbackCache bool) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.Root = s.prevRoot
 	if rollbackCache {
 		// Making a temporary liveCache requires it to be copied, so it's quicker

@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/message/mocks"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -60,12 +61,12 @@ var dummyPayload = []byte("OPreturn I am groooot")
 
 var hubStub *component.ComponentHub
 var mockCtx context.Context
-var mockMsgHelper *MockMsgHelper
+var mockMsgHelper *mocks.Helper
 var mockActorHelper *MockActorService
 
 func init() {
 	hubStub = &component.ComponentHub{}
-	mockMsgHelper = &MockMsgHelper{}
+	mockMsgHelper = &mocks.Helper{}
 	mockActorHelper = &MockActorService{}
 
 	mockCtx = &Context{}

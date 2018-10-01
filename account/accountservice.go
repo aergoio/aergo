@@ -49,6 +49,7 @@ func (as *AccountService) BeforeStart() {
 func (as *AccountService) AfterStart() {}
 
 func (as *AccountService) BeforeStop() {
+	as.ks.DestroyStore()
 	as.accounts = nil
 }
 
@@ -71,6 +72,12 @@ func (as *AccountService) Receive(context actor.Context) {
 	case *message.UnlockAccount:
 		account, err := as.unlockAccount(msg.Account.Address, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
+	case *message.ImportAccount:
+		account, err := as.importAccount(msg.Wif, msg.OldPass, msg.NewPass)
+		context.Respond(&message.ImportAccountRsp{Account: account, Err: err})
+	case *message.ExportAccount:
+		wif, err := as.exportAccount(msg.Account.Address, msg.Pass)
+		context.Respond(&message.ExportAccountRsp{Wif: wif, Err: err})
 	case *message.SignTx:
 		err := as.signTx(context, msg.Tx)
 		if err != nil {
@@ -106,6 +113,29 @@ func (as *AccountService) createAccount(passphrase string) (*types.Account, erro
 	as.accounts = append(as.accounts, account)
 	as.accountLock.Unlock()
 	return account, nil
+}
+
+func (as *AccountService) importAccount(wif []byte, old string, new string) (*types.Account, error) {
+	address, err := as.ks.ImportKey(wif, old, new)
+	if err != nil {
+		return nil, err
+	}
+	//append list
+	account := &types.Account{Address: address}
+	as.accountLock.Lock()
+	//TODO: performance turning here
+	as.ks.SaveAddress(address)
+	as.accounts = append(as.accounts, account)
+	as.accountLock.Unlock()
+	return account, nil
+}
+
+func (as *AccountService) exportAccount(address []byte, pass string) ([]byte, error) {
+	wif, err := as.ks.ExportKey(address, pass)
+	if err != nil {
+		return nil, err
+	}
+	return wif, nil
 }
 
 func (as *AccountService) unlockAccount(address []byte, passphrase string) (*types.Account, error) {

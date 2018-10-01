@@ -25,8 +25,6 @@ type Config struct {
 // BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
 	DataDir       string `mapstructure:"datadir" description:"Directory to store datafiles"`
-	GenesisPath   string `mapstructure:"genesispath" description:"Genesis Block File Location"`
-	GenesisSeed   int64  `mapstructure:"genesisseed" description:"Generate Genesis Block using a single long seed"`
 	EnableProfile bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort   int    `mapstructure:"profileport" description:"profiling port(default:6060)"`
 	EnableRest    bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
@@ -99,8 +97,6 @@ map = does not support
 const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
-genesispath = "{{.BaseConfig.GenesisPath}}"
-genesisseed = {{.BaseConfig.GenesisSeed}} # unix time
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enablerest = {{.BaseConfig.EnableRest}}

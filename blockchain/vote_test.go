@@ -20,7 +20,7 @@ import (
 var sdb *state.ChainStateDB
 
 func initTest(t *testing.T) {
-	sdb = state.NewStateDB()
+	sdb = state.NewChainStateDB()
 	sdb.Init("test")
 	genesis := types.GetTestGenesis()
 

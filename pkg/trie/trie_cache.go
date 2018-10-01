@@ -34,7 +34,7 @@ type CacheDB struct {
 func (db *CacheDB) commit() {
 	db.updatedMux.Lock()
 	defer db.updatedMux.Unlock()
-	txn := db.store.NewTx(true)
+	txn := db.store.NewTx()
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
 	// NOTE DB transaction couldn't have been used in Update
 	// because serialize and rollback are necessary

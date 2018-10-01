@@ -27,7 +27,7 @@ var _ MessageHandler = (*addressesResponseHandler)(nil)
 
 // newAddressesReqHandler creates handler for PingRequest
 func newAddressesReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *addressesRequestHandler {
-	ph := &addressesRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: addressesRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	ph := &addressesRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: AddressesRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return ph
 }
 
@@ -63,7 +63,7 @@ func (ph *addressesRequestHandler) handle(msgHeader *types.MsgHeader, msgBody pr
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.Id, addressesResponse, resp, ph.signer))
+	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.Id, AddressesResponse, resp, ph.signer))
 }
 
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
@@ -84,7 +84,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 
 // newAddressesRespHandler creates handler for PingRequest
 func newAddressesRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *addressesResponseHandler {
-	ph := &addressesResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: addressesResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+	ph := &addressesResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: AddressesResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
 	return ph
 }
 

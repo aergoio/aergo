@@ -6,6 +6,7 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
@@ -20,11 +21,11 @@ func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*Contrac
 func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, types.TrieHasher, *sdb.statedb),
-		caches:  newStateCaches(),
-		store:   sdb.statedb,
+		storage: trie.NewTrie(nil, common.Hasher, sdb.store),
+		buffer:  newStateBuffer(),
+		store:   &sdb.store,
 	}
-	if st.StorageRoot != nil {
+	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
 		res.storage.Root = st.StorageRoot
 	}
 	return res, nil
@@ -38,30 +39,30 @@ func (sdb *ChainStateDB) CommitContractState(st *ContractState) error {
 		st.storage = nil
 	}()
 
-	if st.caches.isEmpty() {
+	if st.buffer.isEmpty() {
 		// do nothing
 		return nil
 	}
 
-	keys, vals := st.caches.export()
+	keys, vals := st.buffer.export()
 	_, err := st.storage.Update(keys, vals)
 	if err != nil {
 		return err
 	}
-	st.caches.commit(st.store)
+	st.buffer.commit(st.store)
 
 	err = st.storage.Commit()
 	if err != nil {
 		return err
 	}
-	return nil
+	return st.buffer.reset()
 }
 
 type ContractState struct {
 	*types.State
 	code    []byte
 	storage *trie.Trie
-	caches  *stateCaches
+	buffer  *stateBuffer
 	store   *db.DB
 }
 
@@ -106,16 +107,14 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	entry := newCacheEntry(types.GetHashID(key), value)
-	st.caches.puts(entry)
-	return nil
+	return st.buffer.put(types.GetHashID(key), value)
 }
 
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	entry := st.caches.get(id)
+	entry := st.buffer.get(id)
 	if entry != nil {
-		return entry.dataBytes, nil
+		return entry.data.([]byte), nil
 	}
 	dkey, err := st.storage.Get(id[:])
 	if err != nil {

@@ -15,8 +15,8 @@ import (
 func Test_defaultMsgSigner_signMsg(t *testing.T) {
 	t.Run("TSameKey", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
-		sampleMsg2 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg2 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		if err := pm.signMsg(sampleMsg1); (err != nil) != false {
 			t.Errorf("defaultMsgSigner.signMsg() error = %v, wantErr %v", err, false)
@@ -33,8 +33,8 @@ func Test_defaultMsgSigner_signMsg(t *testing.T) {
 
 	t.Run("TDiffKey", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
-		sampleMsg2 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg2 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		if err := pm.signMsg(sampleMsg1); (err != nil) != false {
 			t.Errorf("defaultMsgSigner.signMsg() error = %v, wantErr %v", err, false)
@@ -55,7 +55,7 @@ func Test_defaultMsgSigner_signMsg(t *testing.T) {
 func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
 	t.Run("TSucc", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
 
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		assert.Nil(t, pm.signMsg(sampleMsg1))
@@ -74,7 +74,7 @@ func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
 
 	t.Run("TDiffKey", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
 
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		assert.Nil(t, pm.signMsg(sampleMsg1))
@@ -93,7 +93,7 @@ func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
 
 	t.Run("TDiffFields", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: pingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
 
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		assert.Nil(t, pm.signMsg(sampleMsg1))

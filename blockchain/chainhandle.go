@@ -8,6 +8,7 @@ package blockchain
 import (
 	"bytes"
 	"container/list"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -32,8 +33,12 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+	block := cs.cdb.bestBlock.Load().(*types.Block)
 
-	return cs.cdb.bestBlock.Load().(*types.Block), nil
+	if block == nil {
+		return nil, errors.New("best block is null")
+	}
+	return block, nil
 }
 
 func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
@@ -116,7 +121,7 @@ func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainSer
 }
 
 func (cp *chainProcessor) addCommon(blk *types.Block) error {
-	dbTx := cp.cdb.store.NewTx(true)
+	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
 	if err := cp.cdb.addBlock(&dbTx, blk); err != nil {
@@ -177,6 +182,9 @@ func (cp *chainProcessor) execute() error {
 		block := e.Value.(*types.Block)
 
 		if err := cp.executeBlock(block); err != nil {
+			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
+				Msg("failed to execute block")
+
 			return err
 		}
 
@@ -245,7 +253,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 		if usedBstate != nil {
 			return fmt.Errorf("block received from BP can not be orphan")
 		}
-		err := cs.handleOrphan(newBlock, peerID)
+		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		return err
 	}
 
@@ -265,8 +273,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 	// unnecessary chain execution & rollback.
 	cp.reorganize()
 
-	logger.Debug().Uint64("best", cs.cdb.getBestBlockNo()).Int("count", cs.CountTxsInChain()).
-		Msg("number of tx in chain")
+	logger.Debug().Uint64("best", cs.cdb.getBestBlockNo()).Msg("added block successfully. ")
 
 	return nil
 }
@@ -325,7 +332,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
 
-		receiptTx = contract.DB.NewTx(true)
+		receiptTx = contract.DB.NewTx()
 
 		exec = func(tx *types.Tx) error {
 			return executeTx(sdb, bState, receiptTx, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
@@ -380,7 +387,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	dbTx := cs.cdb.store.NewTx(true)
+	dbTx := cs.cdb.store.NewTx()
 	defer dbTx.Discard()
 
 	if err := ex.execute(); err != nil {
@@ -424,8 +431,8 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 		return err
 	}
 
-	senderChange := types.Clone(*senderState).(types.State)
-	receiverChange := types.Clone(*receiverState).(types.State)
+	senderChange := types.State(*senderState)
+	receiverChange := types.State(*receiverState)
 
 	switch txBody.Type {
 	case types.TxType_NORMAL:
@@ -442,8 +449,9 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
-			bcCtx := contract.NewContext(contractState, txBody.GetAccount(), tx.GetHash(),
-				blockNo, ts, "", false, recipient, false)
+			bcCtx := contract.NewContext(sdb, bs, contractState, types.EncodeAddress(txBody.GetAccount()),
+				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+				types.EncodeAddress(recipient), 0)
 
 			if createContract {
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
@@ -506,7 +514,7 @@ func (cs *ChainService) isOrphan(block *types.Block) bool {
 	return err != nil
 }
 
-func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
+func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		// logging???
@@ -515,6 +523,13 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 		return err
 	}
 	// request missing
+	orphanNo := block.GetHeader().GetBlockNo()
+	bestNo := bestBlock.GetHeader().GetBlockNo()
+	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
+		logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
+			Msg("skip sync with too old block")
+		return nil
+	}
 	anchors := cs.getAnchorsFromHash(block.BlockHash())
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {

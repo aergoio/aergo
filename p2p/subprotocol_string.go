@@ -5,9 +5,9 @@ package p2p
 import "strconv"
 
 const (
-	_SubProtocol_name_0 = "statusRequestpingRequestpingResponsegoAwayaddressesRequestaddressesResponse"
-	_SubProtocol_name_1 = "getBlocksRequestgetBlocksResponsegetBlockHeadersRequestgetBlockHeadersResponsegetMissingRequestgetMissingResponsenewBlockNotice"
-	_SubProtocol_name_2 = "getTXsRequestgetTxsResponsenewTxNotice"
+	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
+	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNotice"
+	_SubProtocol_name_2 = "GetTXsRequestGetTxsResponseNewTxNotice"
 )
 
 var (
