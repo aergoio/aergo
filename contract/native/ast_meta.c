@@ -37,7 +37,6 @@ meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
 {
     ast_meta_init(meta, TYPE_MAP);
 
-    meta->type = TYPE_MAP;
     meta->u_map.k_type = k_type;
     meta->u_map.v_meta = v_meta;
 }

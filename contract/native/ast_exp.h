@@ -10,6 +10,7 @@
 
 #include "ast.h"
 #include "ast_meta.h"
+#include "ast_val.h"
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
@@ -69,20 +70,9 @@ typedef enum sql_kind_e {
     SQL_MAX
 } sql_kind_t;
 
-typedef enum lit_kind_e {
-    LIT_NULL        = 0,
-    LIT_BOOL,
-    LIT_INT,
-    LIT_FLOAT,
-    LIT_HEXA,
-    LIT_STR,
-    LIT_MAX
-} lit_kind_t;
-
 // null, true, false, 1, 1.0, 0x1, "..."
 typedef struct exp_lit_s {
-    lit_kind_t kind;
-    char *val;
+    ast_val_t val;
 } exp_lit_t;
 
 // primitive, struct, map
@@ -160,12 +150,14 @@ struct ast_exp_s {
     };
 
     // results of semantic checker
+    // might be a part of ir_exp_t
     ast_meta_t meta;
+    ast_id_t *id;
 };
 
 ast_exp_t *ast_exp_new(exp_kind_t kind, errpos_t *pos);
 
-ast_exp_t *exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos);
+ast_exp_t *exp_lit_new(errpos_t *pos);
 ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
                         ast_exp_t *v_exp, errpos_t *pos);
 ast_exp_t *exp_id_ref_new(char *name, errpos_t *pos);

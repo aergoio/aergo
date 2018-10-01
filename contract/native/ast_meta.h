@@ -10,6 +10,8 @@
 
 #include "ast_type.h"
 
+#define ast_meta_set_prim           ast_meta_init
+
 #ifndef _AST_META_T
 #define _AST_META_T
 typedef struct ast_meta_s ast_meta_t;
@@ -54,7 +56,6 @@ ast_meta_init(ast_meta_t *meta, type_t type)
     ASSERT(meta != NULL);
 
     memset(meta, 0x00, sizeof(ast_meta_t));
-
     meta->type = type;
 }
 

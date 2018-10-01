@@ -949,31 +949,38 @@ exp_prim:
     exp_new
 |   K_NULL
     {
-        $$ = exp_lit_new(LIT_NULL, NULL, &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_null(&$$->u_lit.val);
     }
 |   K_TRUE
     {
-        $$ = exp_lit_new(LIT_BOOL, INT2PTR(1), &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_bool(&$$->u_lit.val, true);
     }
 |   K_FALSE
     {
-        $$ = exp_lit_new(LIT_BOOL, INT2PTR(0), &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_bool(&$$->u_lit.val, false);
     }
 |   L_INT
     {
-        $$ = exp_lit_new(LIT_INT, $1, &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_int(&$$->u_lit.val, $1);
     }
 |   L_FLOAT
     {
-        $$ = exp_lit_new(LIT_FLOAT, $1, &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_fp(&$$->u_lit.val, $1);
     }
 |   L_HEXA
     {
-        $$ = exp_lit_new(LIT_HEXA, $1, &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_hexa(&$$->u_lit.val, $1);
     }
 |   L_STR
     {
-        $$ = exp_lit_new(LIT_STR, $1, &@$);
+        $$ = exp_lit_new(&@$);
+        val_set_str(&$$->u_lit.val, $1);
     }
 |   identifier
     {
@@ -1005,8 +1012,11 @@ exp_new:
     {
         list_t *exp_l = list_new();
         ast_exp_t *id_exp = exp_id_ref_new(xstrdup("map"), &@2);
-        ast_exp_t *size_exp = exp_lit_new(LIT_INT, $4, &@4);
-        list_add_tail(exp_l, size_exp);
+        ast_exp_t *param_exp = exp_lit_new(&@4);
+
+        val_set_int(&param_exp->u_lit.val, $4);
+        list_add_tail(exp_l, param_exp);
+
         $$ = exp_call_new(id_exp, exp_l, &@$);
     }
 ;

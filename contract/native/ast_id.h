@@ -92,6 +92,8 @@ ast_id_t *id_func_new(char *name, modifier_t mod, list_t *param_l,
 
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos);
 
+ast_id_t *ast_id_search(ast_blk_t *blk, int num, char *name);
+
 void ast_id_dump(ast_id_t *id, int indent);
 
 #endif /* ! _AST_ID_H */

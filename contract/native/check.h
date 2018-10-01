@@ -15,6 +15,15 @@
 #include "ast_id.h"
 #include "ast_meta.h"
 
+#define RC_OK           0
+#define RC_ERROR        (-1)
+
+#define TRY(stmt)                                                              \
+    do {                                                                       \
+        if ((stmt) != RC_OK)                                                   \
+            return RC_ERROR;                                                   \
+    } while (0)
+
 typedef struct check_s {
     ast_blk_t *root;
 
@@ -22,7 +31,5 @@ typedef struct check_s {
 } check_t;
 
 void check(ast_t *ast, flag_t flag);
-
-ast_id_t *check_search_id(check_t *ctx, int num, char *name);
 
 #endif /* ! _CHECK_H */

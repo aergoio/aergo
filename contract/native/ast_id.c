@@ -5,8 +5,9 @@
 
 #include "common.h"
 
-#include "ast_exp.h"
 #include "util.h"
+
+#include "ast_blk.h"
 
 #include "ast_id.h"
 
@@ -88,6 +89,29 @@ id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos)
     id->u_cont.blk = blk;
 
     return id;
+}
+
+ast_id_t *
+ast_id_search(ast_blk_t *blk, int num, char *name)
+{
+    list_node_t *node;
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        // XXX: need to check siblings of blk
+        list_foreach(node, &blk->id_l) {
+            ast_id_t *id = (ast_id_t *)node->item;
+            if (id->num > num)
+                break;
+
+            ASSERT(id->name != NULL);
+
+            if (strcmp(id->name, name) == 0)
+                return id;
+        }
+    } while ((blk = blk->up) != NULL);
 }
 
 void

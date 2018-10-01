@@ -54,15 +54,6 @@ char *sql_strs_[SQL_MAX] = {
     "DELETE"
 };
 
-char *lit_strs_[LIT_MAX] = {
-    "NULL",
-    "BOOL",
-    "INT",
-    "FLOAT",
-    "HEXA",
-    "STR"
-};
-
 ast_exp_t *
 ast_exp_new(exp_kind_t kind, errpos_t *pos)
 {
@@ -78,12 +69,11 @@ ast_exp_new(exp_kind_t kind, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_lit_new(lit_kind_t kind, char *val, errpos_t *pos)
+exp_lit_new(errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LIT, pos);
 
-    exp->u_lit.kind = kind;
-    exp->u_lit.val = val;
+    ast_val_init(&exp->u_lit.val);
 
     return exp;
 }
