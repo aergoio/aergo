@@ -1,5 +1,5 @@
-hash: 49329607add8c122cd49d0857a766aa5e65d3d719675364097d61c51ba2bc501
-updated: 2018-10-01T17:29:59.9938851+09:00
+hash: d400543974b0f617cafc6a2a472406c45dea5119c6b3f7d7b93487db480d0b85
+updated: 2018-10-01T17:54:16.344395+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -246,13 +246,13 @@ imports:
 - name: github.com/multiformats/go-multiaddr-net
   version: cba4f9fea8613343eb7ecc4ddadd8e7298a00c39
 - name: github.com/multiformats/go-multicodec
-  version: b67bc51f663437753e2028cc4b5fea6192479956
+  version: 65c82c261bfdac27035eb81f3b0f0fc55edbc536
   subpackages:
   - protobuf
 - name: github.com/multiformats/go-multihash
   version: 66cd79b386e51ddf63270f2b71c57436a60035f3
 - name: github.com/multiformats/go-multistream
-  version: 0e509f6b999d3be262c0702d25fe868c77de1565
+  version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
 - name: github.com/opentracing/opentracing-go
   version: 6aa6febac7b98f836100ecaea478c04f30b6dbd0
   subpackages:
