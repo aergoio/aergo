@@ -33,8 +33,12 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+	block := cs.cdb.bestBlock.Load().(*types.Block)
 
-	return cs.cdb.bestBlock.Load().(*types.Block), nil
+	if block == nil {
+		return nil, errors.New("best block is null")
+	}
+	return block, nil
 }
 
 func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
@@ -178,6 +182,9 @@ func (cp *chainProcessor) execute() error {
 		block := e.Value.(*types.Block)
 
 		if err := cp.executeBlock(block); err != nil {
+			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
+				Msg("failed to execute block")
+
 			return err
 		}
 
@@ -246,7 +253,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 		if usedBstate != nil {
 			return fmt.Errorf("block received from BP can not be orphan")
 		}
-		err := cs.handleOrphan(newBlock, peerID)
+		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		return err
 	}
 
@@ -507,7 +514,7 @@ func (cs *ChainService) isOrphan(block *types.Block) bool {
 	return err != nil
 }
 
-func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
+func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		// logging???
@@ -516,6 +523,13 @@ func (cs *ChainService) handleOrphan(block *types.Block, peerID peer.ID) error {
 		return err
 	}
 	// request missing
+	orphanNo := block.GetHeader().GetBlockNo()
+	bestNo := bestBlock.GetHeader().GetBlockNo()
+	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+2 {
+		logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
+			Msg("skip sync with too old block")
+		return nil
+	}
 	anchors := cs.getAnchorsFromHash(block.BlockHash())
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
