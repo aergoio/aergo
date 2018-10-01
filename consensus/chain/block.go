@@ -89,7 +89,7 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
 		time.Second, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {
-		logger.Error().Uint64("no", block.Header.BlockNo).
+		logger.Error().Err(err).Uint64("no", block.Header.BlockNo).
 			Str("hash", block.ID()).
 			Str("prev", block.PrevID()).
 			Msg("failed to connect block")
