@@ -11,7 +11,7 @@ fi
 NR_ACC=$1
 NR_TX=$2
 TARGET_DIR=$3
-TO_ACC=ApvPDY2fu55E6ztva5BCZ1FwxZtHvq56ikBcoCUQbedBQSakFdaZ
+TO_ACC=AmMHA3fjtQS2xrXU6LuHqTxM97eLVGSCjcTosfTmV4gQyZ3ck8a6
 rm -fr $TARGET_DIR
 mkdir -p $TARGET_DIR
 
@@ -19,9 +19,9 @@ mkdir -p $TARGET_DIR
 echo "Make $NR_ACC account(/w $NR_TX transactions) in $TARGET_DIR..."
 for ((i = 1; i <= $NR_ACC; i++))
 do
-	NEWKEY=`./aergocli newaccount --password 1 2> /dev/null`
+	NEWKEY=`./aergocli account new --password 1 2> /dev/null`
 	echo $NEWKEY
-	./aergocli unlockaccount --address $NEWKEY --password 1 &> /dev/null
+	./aergocli account unlock --address $NEWKEY --password 1 &> /dev/null
 	echo "[" > "$TARGET_DIR/$NEWKEY.trx"
 	for ((j = 1; j <= $NR_TX; j++))
 	do
