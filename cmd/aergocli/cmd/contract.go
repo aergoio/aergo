@@ -117,7 +117,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			}
 			argLen = len(args[1])
 		}
-		code, err := types.DecodeAddress(data)
+		code, err := util.DecodeCode(data)
 		payload = make([]byte, 4+len(code)+argLen)
 		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
 		codeLen := copy(payload[4:], code)

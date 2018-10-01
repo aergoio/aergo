@@ -18,12 +18,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"io/ioutil"
 	"log"
 	"os"
 	"unsafe"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/spf13/cobra"
 )
 
@@ -91,7 +91,8 @@ func dumpFromFile(srcFileName string) {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
-	fmt.Print(types.EncodeAddress(b.Bytes()))
+
+	fmt.Print(util.EncodeCode(b.Bytes()))
 }
 
 func dumpFromStdin() {
@@ -127,7 +128,7 @@ func dumpFromStdin() {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
-	fmt.Print(types.EncodeAddress(b.Bytes()))
+	fmt.Print(util.EncodeCode(b.Bytes()))
 }
 
 //export addLen
