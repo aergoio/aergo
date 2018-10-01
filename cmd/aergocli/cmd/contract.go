@@ -19,6 +19,7 @@ import (
 var (
 	client *util.ConnClient
 	data   string
+	nonce  uint64
 )
 
 func init() {
@@ -35,14 +36,17 @@ func init() {
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 
+	callCmd := &cobra.Command{
+		Use:   "call [flags] sender contract name [args]",
+		Short: "call a contract function",
+		Args:  cobra.MinimumNArgs(3),
+		Run:   runCallCmd,
+	}
+	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+
 	contractCmd.AddCommand(
 		deployCmd,
-		&cobra.Command{
-			Use:   "call [flags] sender contract name [args]",
-			Short: "call a contract function",
-			Args:  cobra.MinimumNArgs(3),
-			Run:   runCallCmd,
-		},
+		callCmd,
 		&cobra.Command{
 			Use:   "abi [flags] contract",
 			Short: "get ABI of the contract",
@@ -154,14 +158,18 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
-	if err != nil {
-		log.Fatal(err)
+	if nonce == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
+		if err != nil {
+			log.Fatal(err)
+		}
+		nonce = state.GetNonce() + 1
 	}
 	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	var ci types.CallInfo
 	ci.Name = args[2]
 	if len(args) > 3 {
@@ -174,9 +182,25 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
+	if err != nil {
+		log.Fatal(err)
+	}
+	var found bool
+	for _, fn := range abi.Functions {
+		if fn.GetName() == args[2] {
+			found = true
+			break
+		}
+	}
+	if !found {
+		log.Fatal(args[2], " function not found in contract :", args[1])
+	}
+
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:     state.GetNonce() + 1,
+			Nonce:     nonce,
 			Account:   caller,
 			Recipient: contract,
 			Payload:   payload,
