@@ -132,10 +132,10 @@ func (bf *BlockFactory) controller() {
 
 	notifyBpTimeout := func(bpi *bpInfo) {
 		timeout := bpi.slot.GetBpTimeout()
-		logger.Debug().Int64("timeout", timeout).Msg("block production timeout")
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		// TODO: skip when the triggered block has already been genearted!
 		bf.bpTimeoutC <- struct{}{}
+		logger.Debug().Int64("timeout", timeout).Msg("block production timeout signaled")
 	}
 
 	for {
