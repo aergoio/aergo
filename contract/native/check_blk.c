@@ -5,8 +5,8 @@
 
 #include "common.h"
 
-#include "ast_id.h"
 #include "check_id.h"
+#include "check_stmt.h"
 
 #include "check_blk.h"
 
@@ -22,6 +22,10 @@ check_blk(check_t *check, ast_blk_t *blk)
 
     for (i = 0; i < array_size(&blk->ids); i++) {
         check_id(check, array_item(&blk->ids, i, ast_id_t));
+    }
+
+    for (i = 0; i < array_size(&blk->stmts); i++) {
+        check_stmt(check, array_item(&blk->stmts, i, ast_stmt_t));
     }
 
     check->blk = blk->up;

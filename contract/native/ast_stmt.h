@@ -10,6 +10,21 @@
 
 #include "ast.h"
 
+#define stmt_is_null(stmt)          ((stmt)->kind == STMT_NULL)
+#define stmt_is_exp(stmt)           ((stmt)->kind == STMT_EXP)
+#define stmt_is_if(stmt)            ((stmt)->kind == STMT_IF)
+#define stmt_is_for(stmt)           ((stmt)->kind == STMT_FOR)
+#define stmt_is_switch(stmt)        ((stmt)->kind == STMT_SWITCH)
+#define stmt_is_case(stmt)          ((stmt)->kind == STMT_CASE)
+#define stmt_is_cont(stmt)          ((stmt)->kind == STMT_CONTINUE)
+#define stmt_is_break(stmt)         ((stmt)->kind == STMT_BREAK)
+#define stmt_is_return(stmt)        ((stmt)->kind == STMT_RETURN)
+#define stmt_is_ddl(stmt)           ((stmt)->kind == STMT_DDL)
+#define stmt_is_blk(stmt)           ((stmt)->kind == STMT_BLK)
+
+#define ast_stmt_add                array_add
+#define ast_stmt_merge              array_merge
+
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;

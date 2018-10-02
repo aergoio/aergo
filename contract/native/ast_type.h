@@ -12,20 +12,6 @@
 
 #define type_is_valid(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
 
-#define type_is_bool(type)          ((type) == TYPE_BOOL)
-#define type_is_integer(type)                                                  \
-    ((type) >= TYPE_INT16 && (type) <= TYPE_UINT64)
-#define type_is_float(type)                                                    \
-    ((type) == TYPE_FLOAT || (type) == TYPE_DOUBLE)
-#define type_is_string(type)        ((type) == TYPE_STRING)
-
-#define type_is_primitive(type)     ((type) <= TYPE_MAP)
-
-#define type_is_struct(type)        ((type) == TYPE_STRUCT)
-#define type_is_map(type)           ((type) == TYPE_MAP)
-#define type_is_void(type)          ((type) == TYPE_VOID)
-#define type_is_tuple(type)         ((type) == TYPE_TUPLE)
-
 typedef enum type_e {
     TYPE_NONE       = 0,
     TYPE_BOOL,
@@ -40,9 +26,13 @@ typedef enum type_e {
     TYPE_UINT64,
     TYPE_STRING,
     TYPE_STRUCT,
-    TYPE_MAP,
     TYPE_ACCOUNT,
-    TYPE_VOID,
+    TYPE_COMPARABLE = TYPE_ACCOUNT,
+
+    TYPE_MAP,
+    TYPE_PRIMITIVE  = TYPE_MAP,
+
+    TYPE_REF,
     TYPE_TUPLE,
     TYPE_MAX
 } type_t;

@@ -9,7 +9,6 @@
 #include "common.h"
 
 #include "check.h"
-#include "ast_blk.h"
 
 void check_blk(check_t *check, ast_blk_t *blk);
 

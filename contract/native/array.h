@@ -12,7 +12,7 @@
 
 #define array_empty(array)              ((array)->idx == 0)
 #define array_size(array)               (array)->idx
-#define array_item(array, idx, type)    (type *)((array)->items[idx])
+#define array_item(array, idx, type)    ((type *)((array)->items[idx]))
 
 #define array_reset(array)              ((array)->idx = 0)
 
@@ -55,7 +55,7 @@ array_add(array_t *array, void *item)
 }
 
 static inline void
-array_join(array_t *dest, array_t *src)
+array_merge(array_t *dest, array_t *src)
 {
     ASSERT(src != NULL);
     ASSERT(dest != NULL);

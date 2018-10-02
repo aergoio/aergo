@@ -9,8 +9,7 @@
 #include "common.h"
 
 #include "check.h"
-#include "ast_stmt.h"
 
-void check_stmt(check_t *check, ast_stmt_t *stmt);
+int check_stmt(check_t *check, ast_stmt_t *stmt);
 
 #endif /* ! _CHECK_STMT_H */

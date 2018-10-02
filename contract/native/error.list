@@ -7,32 +7,42 @@
 #define error(code, msg)
 #endif
 
-error(ERROR_INTERNAL,               "%s:%d: %s")
-error(ERROR_INVALID_FLAG,           "invalid command line flag: %s")
+/* common */
+error(ERROR_INVALID_FLAG,           "invalid command line flag '%s'")
 error(ERROR_OUT_OF_MEM,             "out of memory: %s")
-
 error(ERROR_DIR_IO,                 "%s: %s")
 error(ERROR_FILE_IO,                "%s: %s")
 
+/* preprocessor */
 error(ERROR_CROSS_IMPORT,           "cross reference with import '%s'")
 
+/* parser */
 error(ERROR_UNTERMINATED_COMMENT,   "unterminated comment")
 error(ERROR_UNTERMINATED_STRING,    "unterminated string")
 error(ERROR_UNTERMINATED_SQL,       "unterminated SQL")
 error(ERROR_UNKNOWN_CHAR,           "unknown character")
+error(ERROR_DUPLICATED_ID,          "duplicated identifier '%s'")
 error(ERROR_SYNTAX,                 "%s")
 
-error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
+/* semantic checker */
 error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
+error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
 error(ERROR_NOT_ALLOWED_TYPE,       "not allowed type %s")
+error(ERROR_NOT_COMPARABLE_TYPE,    "not comparable type %s")
 error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")
 error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
-error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types %s and %s")
 error(ERROR_MISMATCHED_TYPE,        "mismatched types %s and %s")
-error(ERROR_MISMATCHED_PARAM,       "mismatched parameters of function '%s'")
+error(ERROR_MISMATCHED_PARAM,       "mismatched parameter count in function '%s'")
+error(ERROR_MISMATCHED_ELEM,        "mismatched element count in initializer")
+error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types %s and %s")
 error(ERROR_INVALID_LVALUE,         "expression or constant cannot be an lvalue")
-error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
-
+error(ERROR_INVALID_SUBSCRIPT,      "subscripted value is neither array nor map")
+error(ERROR_INVALID_KEY_TYPE,       "key of map has not comparable type %s")
+error(ERROR_INVALID_SIZE_TYPE,      "size of array has non-integer type %s")
+error(ERROR_INVALID_IDX_TYPE,       "index of array has non-integer type %s")
+error(ERROR_INVALID_OP_TYPE,        "operand(s) has invalid type %s")
+error(ERROR_MISSING_INITIALIZER,    "missing array initializer")
 error(ERROR_TRUNCATED_TYPE,          "%s truncated to %s")
+error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
 
 /* vim:set filetype=c: */

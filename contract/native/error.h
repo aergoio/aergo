@@ -18,19 +18,6 @@
 #define ANSI_PURPLE             "\x1b[35m"
 #define ANSI_WHITE              "\x1b[37m"
 
-#define EXIT(ec)                                                               \
-    do {                                                                       \
-        fflush(stdout);                                                        \
-        exit(ec);                                                              \
-    } while (0)
-
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond))                                                           \
-            WARN(ERROR_INTERNAL, __SOURCE__,                                   \
-                 "optional requirements failed with condition '"#cond"'");     \
-    } while (0)
-
 #define ASSERT(cond)                                                           \
     do {                                                                       \
         if (!(cond))                                                           \

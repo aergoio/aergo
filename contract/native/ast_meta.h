@@ -10,7 +10,34 @@
 
 #include "ast_type.h"
 
-#define ast_meta_set_prim           ast_meta_init
+#define meta_is_bool(meta)          ((meta)->type == TYPE_BOOL)
+
+#define meta_is_integer(meta)                                                  \
+    ((meta)->type >= TYPE_INT16 && (meta)->type <= TYPE_UINT64)
+
+#define meta_is_float(meta)                                                    \
+    ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
+
+#define meta_is_string(meta)        ((meta)->type == TYPE_STRING)
+
+#define meta_is_struct(meta)        ((meta)->type == TYPE_STRUCT)
+#define meta_is_map(meta)           ((meta)->type == TYPE_MAP)
+#define meta_is_ref(meta)           ((meta)->type == TYPE_REF)
+#define meta_is_tuple(meta)         ((meta)->type == TYPE_TUPLE)
+
+#define meta_is_const(meta)         (meta)->is_const
+#define meta_is_local(meta)         (meta)->is_local
+#define meta_is_array(meta)         (meta)->is_array
+
+#define meta_is_primitive(meta)     ((meta)->type <= TYPE_PRIMITIVE)
+#define meta_is_comparable(meta)    ((meta)->type <= TYPE_COMPARABLE)
+
+#define meta_is_compatible(meta1, meta2)                                       \
+    (meta_is_integer(meta1) ? meta_is_integer(meta2) :                         \
+     (meta_is_float(meta1) ? meta_is_float(meta2) :                            \
+      meta_equals(meta1, meta2)))
+
+#define meta_set_prim               ast_meta_init
 
 #ifndef _AST_META_T
 #define _AST_META_T
@@ -29,8 +56,10 @@ typedef struct meta_map_s {
 
 struct ast_meta_s {
     type_t type;
+
     bool is_const;
     bool is_local;
+    bool is_array;
 
     union {
         meta_tuple_t u_tup;
@@ -39,7 +68,7 @@ struct ast_meta_s {
 };
 
 void meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta);
-void meta_set_tuple(ast_meta_t *meta, array_t *fld_ids);
+void meta_set_tuple(ast_meta_t *meta, array_t *exps);
 
 void ast_meta_dump(ast_meta_t *meta, int indent);
 
@@ -53,28 +82,31 @@ ast_meta_init(ast_meta_t *meta, type_t type)
 }
 
 static inline bool
-ast_meta_equals(ast_meta_t *x, ast_meta_t *y)
+meta_equals(ast_meta_t *x, ast_meta_t *y)
 {
-    if (x->type != y->type)
-        return false;
+    if (x->type == TYPE_MAP) {
+        if (y->type == TYPE_REF)
+            return true;
 
-    if (type_is_map(x->type)) {
-        if (x->u_map.k_type != y->u_map.k_type)
+        if (x->type != y->type || x->u_map.k_type != y->u_map.k_type)
             return false;
 
-        if (!ast_meta_equals(x->u_map.v_meta, y->u_map.v_meta))
+        if (!meta_equals(x->u_map.v_meta, y->u_map.v_meta))
             return false;
     }
-    else if (type_is_tuple(x->type)) {
+    else if (x->type == TYPE_TUPLE) {
         int i;
 
-        if (x->u_tup.size != y->u_tup.size)
+        if (x->type != y->type || x->u_tup.size != y->u_tup.size)
             return false;
 
         for (i = 0; i < x->u_tup.size; i++) {
-            if (!ast_meta_equals(x->u_tup.metas[i], y->u_tup.metas[i]))
+            if (!meta_equals(x->u_tup.metas[i], y->u_tup.metas[i]))
                 return false;
         }
+    }
+    else if (x->type != y->type) {
+        return false;
     }
 
     return true;

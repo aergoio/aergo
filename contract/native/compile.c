@@ -28,10 +28,10 @@ compile(char *path, flag_t flag)
     if (flag_on(flag, FLAG_AST_DUMP))
         ast_dump(ast);
 
-    if (ast != NULL) {
-        check(ast, flag);
+    check(ast, flag);
+
+    if (error_empty())
         gen(ast, flag);
-    }
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();

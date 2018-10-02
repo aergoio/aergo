@@ -154,7 +154,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 %type <type>    prim_type
 %type <array>   var_decl_list
 %type <id>      var_decl
-%type <exp>     declarator
+%type <id>      declarator
 %type <exp>     initializer
 %type <array>   init_list
 %type <id>      struct
@@ -187,7 +187,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 %type <op>      op_assign
 %type <exp>     exp_sql
 %type <sql>     sql_prefix
-%type <exp>     exp_cond
+%type <exp>     exp_ternary
 %type <exp>     exp_or
 %type <exp>     exp_and
 %type <exp>     exp_bit_or
@@ -215,11 +215,11 @@ smart_contract:
     contract_decl
     {
         *parse->ast = ast_new();
-        array_add(&(*parse->ast)->root->ids, $1);
+        ast_id_add(&(*parse->ast)->root->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        array_add(&(*parse->ast)->root->ids, $2);
+        ast_id_add(&(*parse->ast)->root->ids, $2);
     }
 ;
 
@@ -238,42 +238,42 @@ contract_body:
     variable
     {
         $$ = ast_blk_new(&@$);
-        array_join(&$$->ids, $1);
+        ast_id_merge(&$$->ids, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        array_add(&$$->ids, $1);
+        ast_id_add(&$$->ids, $1);
     }
 |   constructor
     {
         $$ = ast_blk_new(&@$);
-        array_add(&$$->ids, $1);
+        ast_id_add(&$$->ids, $1);
     }
 |   function
     {
         $$ = ast_blk_new(&@$);
-        array_add(&$$->ids, $1);
+        ast_id_add(&$$->ids, $1);
     }
 |   contract_body variable
     {
         $$ = $1;
-        array_join(&$$->ids, $2);
+        ast_id_merge(&$$->ids, $2);
     }
 |   contract_body struct
     {
         $$ = $1;
-        array_add(&$$->ids, $2);
+        ast_id_add(&$$->ids, $2);
     }
 |   contract_body constructor
     {
         $$ = $1;
-        array_add(&$$->ids, $2);
+        ast_id_add(&$$->ids, $2);
     }
 |   contract_body function
     {
         $$ = $1;
-        array_add(&$$->ids, $2);
+        ast_id_add(&$$->ids, $2);
     }
 ;
 
@@ -344,38 +344,38 @@ var_decl_list:
     var_decl
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_id_add($$, $1);
     }
 |   var_decl_list ',' var_decl
     {
         $$ = $1;
-        array_add($$, $3);
+        ast_id_add($$, $3);
     }
 ;
 
 var_decl:
     declarator
-    {
-        $$ = id_var_new(NULL, $1, NULL, &@$);
-    }
 |   declarator '=' initializer
     {
-        $$ = id_var_new(NULL, $1, $3, &@$);
+        $$ = $1;
+        $$->u_var.type_exp = $3;
     }
 ;
 
 declarator:
     identifier
     {
-        $$ = exp_id_ref_new($1, &@1);
+        $$ = id_var_new($1, &@1);
     }
 |   declarator '[' exp_add ']'
     {
-        $$ = exp_array_new($1, $3, &@$);
+        $$ = $1;
+        $$->u_var.arr_exp = $3;
     }
 |   declarator '[' ']'
     {
-        $$ = exp_array_new($1, NULL, &@$);
+        $$ = $1;
+        $$->u_var.arr_exp = exp_null_new(&@2);
     }
 ;
 
@@ -397,12 +397,12 @@ init_list:
     initializer
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_exp_add($$, $1);
     }
 |   init_list ',' initializer
     {
         $$ = $1;
-        array_add($$, $3);
+        ast_exp_add($$, $3);
     }
 ;
 
@@ -421,7 +421,7 @@ field_list:
 |   field_list variable
     {
         $$ = $1;
-        array_join($$, $2);
+        ast_id_merge($$, $2);
     }
 ;
 
@@ -441,19 +441,20 @@ param_list:
     param_decl
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_exp_add($$, $1);
     }
 |   param_list ',' param_decl
     {
         $$ = $1;
-        array_add($$, $3);
+        ast_exp_add($$, $3);
     }
 ;
 
 param_decl:
     var_type declarator
     {
-        $$ = id_var_new($1, $2, NULL, &@$);
+        $$ = $2;
+        $$->u_var.type_exp = $1;
     }
 ;
 
@@ -466,32 +467,32 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        array_join(&$$->ids, $1);
+        ast_id_merge(&$$->ids, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        array_add(&$$->ids, $1);
+        ast_id_add(&$$->ids, $1);
     }
 |   statement
     {
         $$ = ast_blk_new(&@$);
-        array_add(&$$->stmts, $1);
+        ast_stmt_add(&$$->stmts, $1);
     }
 |   blk_decl variable
     {
         $$ = $1;
-        array_join(&$$->ids, $2);
+        ast_id_merge(&$$->ids, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
-        array_add(&$$->ids, $2);
+        ast_id_add(&$$->ids, $2);
     }
 |   blk_decl statement
     {
         $$ = $1;
-        array_add(&$$->stmts, $2);
+        ast_stmt_add(&$$->stmts, $2);
     }
 ;
 
@@ -527,12 +528,12 @@ return_list:
     var_type
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_exp_add($$, $1);
     }
 |   return_list ',' var_type
     {
         $$ = $1;
-        array_add($$, $3);
+        ast_exp_add($$, $3);
     }
 ;
 
@@ -565,7 +566,7 @@ stmt_if:
 |   stmt_if K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
-        array_add(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
+        ast_stmt_add(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
     }
 |   stmt_if K_ELSE block
     {
@@ -639,12 +640,12 @@ label_list:
     label
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_stmt_add($$, $1);
     }
 |   label_list label
     {
         $$ = $1;
-        array_add($$, $2);
+        ast_stmt_add($$, $2);
     }
 ;
 
@@ -663,12 +664,12 @@ stmt_list:
     statement
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_stmt_add($$, $1);
     }
 |   stmt_list statement
     {
         $$ = $1;
-        array_add($$, $2);
+        ast_stmt_add($$, $2);
     }
 ;
 
@@ -728,7 +729,7 @@ expression:
 |   expression ',' exp_assign
     {
         $$ = $1;
-        array_add($$->u_tup.exps, $3);
+        ast_exp_add($$->u_tup.exps, $3);
     }
 ;
 
@@ -762,7 +763,7 @@ op_assign:
 ;
 
 exp_sql:
-    exp_cond
+    exp_ternary
 |   sql_prefix error ';'
     {
         int len;
@@ -784,11 +785,11 @@ sql_prefix:
 |   K_UPDATE            { $$ = SQL_UPDATE; }
 ;
 
-exp_cond:
+exp_ternary:
     exp_or
-|   exp_or '?' exp_sql ':' exp_cond
+|   exp_or '?' exp_sql ':' exp_ternary
     {
-        $$ = exp_cond_new($1, $3, $5, &@$);
+        $$ = exp_ternary_new($1, $3, $5, &@$);
     }
 ;
 
@@ -931,7 +932,7 @@ exp_post:
     }
 |   exp_post '.' identifier
     {
-        ast_exp_t *id_exp = exp_id_ref_new($3, &@3);
+        ast_exp_t *id_exp = exp_id_new($3, &@3);
         $$ = exp_access_new($1, id_exp, &@$);
     }
 |   exp_post UNARY_INC
@@ -983,7 +984,7 @@ exp_prim:
     }
 |   identifier
     {
-        $$ = exp_id_ref_new($1, &@$);
+        $$ = exp_id_new($1, &@$);
     }
 |   '(' expression ')'
     {
@@ -994,42 +995,42 @@ exp_prim:
 exp_new:
     K_NEW identifier '(' ')'
     {
-        ast_exp_t *id_exp = exp_id_ref_new($2, &@2);
+        ast_exp_t *id_exp = exp_id_new($2, &@2);
         $$ = exp_call_new(id_exp, NULL, &@$);
     }
 |   K_NEW identifier '(' exp_list ')'
     {
-        ast_exp_t *id_exp = exp_id_ref_new($2, &@2);
+        ast_exp_t *id_exp = exp_id_new($2, &@2);
         $$ = exp_call_new(id_exp, $4, &@$);
     }
 |   K_NEW K_MAP '(' ')'
     {
-        ast_exp_t *id_exp = exp_id_ref_new(xstrdup("map"), &@2);
+        ast_exp_t *id_exp = exp_id_new(xstrdup("map"), &@2);
         $$ = exp_call_new(id_exp, NULL, &@$);
     }
 |   K_NEW K_MAP '(' L_INT ')'
     {
         array_t *exps = array_new();
-        ast_exp_t *id_exp = exp_id_ref_new(xstrdup("map"), &@2);
-        ast_exp_t *param_exp = exp_lit_new(&@4);
+        ast_exp_t *id_exp = exp_id_new(xstrdup("map"), &@2);
+        ast_exp_t *size_exp = exp_lit_new(&@4);
 
-        val_set_int(&param_exp->u_lit.val, $4);
-        array_add(exps, param_exp);
+        val_set_int(&size_exp->u_lit.val, $4);
+        ast_exp_add(exps, size_exp);
 
         $$ = exp_call_new(id_exp, exps, &@$);
     }
 ;
 
 exp_list:
-    exp_cond
+    exp_ternary
     {
         $$ = array_new();
-        array_add($$, $1);
+        ast_exp_add($$, $1);
     }
-|   exp_list ',' exp_cond
+|   exp_list ',' exp_ternary
     {
         $$ = $1;
-        array_add($$, $3);
+        ast_exp_add($$, $3);
     }
 ;
 

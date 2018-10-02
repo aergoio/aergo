@@ -9,6 +9,12 @@
 #include "common.h"
 
 #include "ast.h"
+#include "ast_meta.h"
+
+#define id_is_var(id)               ((id)->kind == ID_VAR)
+#define id_is_struct(id)            ((id)->kind == ID_STRUCT)
+#define id_is_func(id)              ((id)->kind == ID_FUNC)
+#define id_is_contract(id)          ((id)->kind == ID_CONTRACT)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -19,11 +25,6 @@ typedef struct ast_id_s ast_id_t;
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
 #endif /* ! _AST_EXP_T */
-
-#ifndef _AST_META_T
-#define _AST_META_T
-typedef struct ast_meta_s ast_meta_t;
-#endif /* ! _AST_META_T */
 
 typedef enum id_kind_e {
     ID_VAR          = 0,
@@ -42,7 +43,7 @@ typedef enum modifier_e {
 
 typedef struct id_var_s {
     ast_exp_t *type_exp;
-    ast_exp_t *id_exp;
+    ast_exp_t *arr_exp;
     ast_exp_t *init_exp;
 } id_var_t;
 
@@ -77,22 +78,22 @@ struct ast_id_s {
     };
 
     // results of semantic checker
-    ast_meta_t *meta;
+    ast_meta_t meta;
 };
 
-ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, errpos_t *pos);
+ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, errpos_t *pos);
 
-ast_id_t *id_var_new(ast_exp_t *type_exp, ast_exp_t *id_exp,
-                     ast_exp_t *init_exp, errpos_t *pos);
-
+ast_id_t *id_var_new(char *name, errpos_t *pos);
 ast_id_t *id_struct_new(char *name, array_t *fld_ids, errpos_t *pos);
-
 ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, errpos_t *pos);
-
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos);
 
-ast_id_t *ast_id_search(ast_blk_t *blk, int num, char *name);
+ast_id_t *ast_id_search_fld(ast_id_t *id, int num, char *name);
+ast_id_t *ast_id_search_blk(ast_blk_t *blk, int num, char *name);
+
+void ast_id_add(array_t *ids, ast_id_t *new_id);
+void ast_id_merge(array_t *ids, array_t *new_ids);
 
 void ast_id_dump(ast_id_t *id, int indent);
 

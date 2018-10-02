@@ -69,6 +69,12 @@ ast_exp_new(exp_kind_t kind, errpos_t *pos)
 }
 
 ast_exp_t *
+exp_null_new(errpos_t *pos)
+{
+    return ast_exp_new(EXP_NULL, pos);
+}
+
+ast_exp_t *
 exp_lit_new(errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LIT, pos);
@@ -93,7 +99,7 @@ exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp,
 }
 
 ast_exp_t *
-exp_id_ref_new(char *name, errpos_t *pos)
+exp_id_new(char *name, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ID, pos);
 
@@ -103,12 +109,12 @@ exp_id_ref_new(char *name, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_array_new(ast_exp_t *id_exp, ast_exp_t *param_exp, errpos_t *pos)
+exp_array_new(ast_exp_t *id_exp, ast_exp_t *idx_exp, errpos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ARRAY, pos);
 
     exp->u_arr.id_exp = id_exp;
-    exp->u_arr.param_exp = param_exp;
+    exp->u_arr.idx_exp = idx_exp;
 
     return exp;
 }
@@ -148,14 +154,14 @@ exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, errpos_t *pos)
 }
 
 ast_exp_t *
-exp_cond_new(ast_exp_t *cond_exp, ast_exp_t *t_exp, ast_exp_t *f_exp,
-             errpos_t *pos)
+exp_ternary_new(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
+                errpos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_COND, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_TERNARY, pos);
 
-    exp->u_cond.cond_exp = cond_exp;
-    exp->u_cond.t_exp = t_exp;
-    exp->u_cond.f_exp = f_exp;
+    exp->u_tern.pre_exp = pre_exp;
+    exp->u_tern.in_exp = in_exp;
+    exp->u_tern.post_exp = post_exp;
 
     return exp;
 }

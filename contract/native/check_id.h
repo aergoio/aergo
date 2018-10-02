@@ -9,8 +9,7 @@
 #include "common.h"
 
 #include "check.h"
-#include "ast_id.h"
 
-void check_id(check_t *check, ast_id_t *id);
+int check_id(check_t *check, ast_id_t *id);
 
 #endif /* ! _CHECK_ID_H */

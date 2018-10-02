@@ -15,20 +15,25 @@
 #include "ast_id.h"
 #include "ast_meta.h"
 
-#define RC_OK           0
-#define RC_ERROR        (-1)
-
 #define TRY(stmt)                                                              \
     do {                                                                       \
-        int rc = (stmt);                                                       \
-        if (rc != RC_OK)                                                       \
-            return RC_ERROR;                                                   \
+        ec_t ec = (stmt);                                                      \
+        if (ec != NO_ERROR)                                                    \
+            return ec;                                                         \
+    } while (0)
+
+#define THROW(ec, pos, ...)                                                    \
+    do {                                                                       \
+        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
+        return (ec);                                                           \
     } while (0)
 
 typedef struct check_s {
     ast_blk_t *root;
 
-    ast_blk_t *blk;     // current block
+    /* temporary context */
+    ast_blk_t *blk;     /* current block */
+    ast_id_t *id;       /* access qualifier */
 } check_t;
 
 void check(ast_t *ast, flag_t flag);

@@ -14,8 +14,6 @@ check_init(check_t *check, ast_t *ast)
 {
     ast_blk_t *root;
 
-    ASSERT(ast != NULL);
-
     root = ast->root;
 
     ASSERT(root != NULL);
@@ -24,6 +22,7 @@ check_init(check_t *check, ast_t *ast)
 
     check->root = root;
     check->blk = root;
+    check->id = NULL;
 }
 
 void
@@ -31,6 +30,10 @@ check(ast_t *ast, flag_t flag)
 {
     int i;
     check_t check;
+
+    if (ast == NULL)
+        /* empty contract can be null */
+        return;
 
     check_init(&check, ast);
 

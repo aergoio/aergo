@@ -9,7 +9,6 @@
 
 char *type_strs_[TYPE_MAX] = {
     "undefined",
-    "void",
     "bool",
     "byte",
     "float",
@@ -21,9 +20,10 @@ char *type_strs_[TYPE_MAX] = {
     "int64",
     "uint64",
     "string",
-    "account",
     "struct",
+    "account",
     "map",
+    "reference",
     "tuple"
 }; 
 
