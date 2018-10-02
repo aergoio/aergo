@@ -34,7 +34,7 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 		p2ps.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
 		return false
 	}
-	peerID := remotePeer.meta.ID
+	peerID := remotePeer.ID()
 
 	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data

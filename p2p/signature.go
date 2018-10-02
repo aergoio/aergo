@@ -19,7 +19,7 @@ type msgSigner interface {
 	// signMsg calulate signature and fill related fields in msg(peerid, pubkey, signature or etc)
 	signMsg(msg *types.P2PMessage) error
 	// verifyMsg check signature is valid
-	vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error
+	verifyMsg(msg *types.P2PMessage, senderID peer.ID) error
 }
 
 type defaultMsgSigner struct {
@@ -76,12 +76,17 @@ func (pm *defaultMsgSigner) signBytes(data []byte) ([]byte, error) {
 	return res, err
 }
 
-func (pm *defaultMsgSigner) vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error {
+func (pm *defaultMsgSigner) verifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
+	// check signature
+	pubKey, err := crypto.UnmarshalPublicKey(msg.Header.NodePubKey)
+	if err != nil {
+		return err
+	}
 	signature := msg.Header.Sign
 	checkOrigin := false
 	if checkOrigin {
 		// TODO it can be needed, and if that modify code to get peerid from caller and enable this code
-		if err := checkPidWithPubkey(peer.ID("dummy"), pubKey); err != nil {
+		if err := checkPidWithPubkey(senderID, pubKey); err != nil {
 			return err
 		}
 	}
@@ -129,7 +134,7 @@ func (d *dummySigner) signMsg(msg *types.P2PMessage) error {
 	return nil
 }
 
-func (d *dummySigner) vefifyMsg(msg *types.P2PMessage, pubKey crypto.PubKey) error {
+func (d *dummySigner) verifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
 	return nil
 }
 

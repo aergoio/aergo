@@ -70,8 +70,8 @@ type PeerManager interface {
 	HandleNewTxNotice(peerID peer.ID, hashes [][txhashLen]byte, data *types.NewTransactionsNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
-	GetPeer(ID peer.ID) (*RemotePeer, bool)
-	GetPeers() []*RemotePeer
+	GetPeer(ID peer.ID) (RemotePeer, bool)
+	GetPeers() []RemotePeer
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 }
 
@@ -91,12 +91,12 @@ type peerManager struct {
 
 	designatedPeers map[peer.ID]PeerMeta
 
-	remotePeers map[peer.ID]*RemotePeer
+	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
 	mutex       *sync.Mutex
-	peerCache   []*RemotePeer
+	peerCache   []RemotePeer
 
 	addPeerChannel    chan PeerMeta
 	removePeerChannel chan peer.ID
@@ -137,9 +137,9 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm Re
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
-		remotePeers: make(map[peer.ID]*RemotePeer, p2pConf.NPMaxPeers),
+		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
-		peerCache:   make([]*RemotePeer, 0, p2pConf.NPMaxPeers),
+		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		addPeerChannel:    make(chan PeerMeta, 2),
 		removePeerChannel: make(chan peer.ID),
@@ -374,7 +374,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, rw)
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -400,26 +400,26 @@ func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	rw.WriteMsg(container)
 }
 
-func (pm *peerManager) insertHandlers(peer *RemotePeer) {
+func (pm *peerManager) insertHandlers(peer *remotePeerImpl) {
 	// PingHandlers
-	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.actorServ)
 
 	// BlockHandlers
-	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.actorServ)
 
 	// TxHandlers
-	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.actorServ)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -547,7 +547,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, rw)
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	pm.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)
@@ -592,7 +592,7 @@ func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
 		pm.logger.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
-	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
+	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.ID(), Size: 20, Offset: 0})
 }
 
 func (pm *peerManager) hasEnoughPeers() bool {
@@ -646,7 +646,7 @@ func (pm *peerManager) tryConnectPeers() {
 	}
 }
 
-func (pm *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
+func (pm *peerManager) GetPeer(ID peer.ID) (RemotePeer, bool) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -658,7 +658,7 @@ func (pm *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 	return ptr, ok
 }
 
-func (pm *peerManager) GetPeers() []*RemotePeer {
+func (pm *peerManager) GetPeers() []RemotePeer {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	return pm.peerCache
@@ -730,7 +730,7 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) insertPeer(ID peer.ID, peer *RemotePeer) {
+func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }
@@ -742,7 +742,7 @@ func (pm *peerManager) deletePeer(ID peer.ID) {
 }
 
 func (pm *peerManager) updatePeerCache() {
-	newSlice := make([]*RemotePeer, 0, len(pm.remotePeers))
+	newSlice := make([]RemotePeer, 0, len(pm.remotePeers))
 	for _, peer := range pm.remotePeers {
 		newSlice = append(newSlice, peer)
 	}

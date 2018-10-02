@@ -52,10 +52,12 @@ func Test_defaultMsgSigner_signMsg(t *testing.T) {
 
 }
 
-func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
+func Test_defaultMsgSigner_verifyMsg(t *testing.T) {
+	pubkey1bytes, _ := sampleKey1Pub.Bytes()
+	pubkey2bytes, _ := sampleKey2Pub.Bytes()
 	t.Run("TSucc", func(t *testing.T) {
 		// msg and msg2 is same at first
-		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
+		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5, NodePubKey:pubkey1bytes}, Data: []byte{0, 1, 2, 3, 4}}
 
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		assert.Nil(t, pm.signMsg(sampleMsg1))
@@ -64,30 +66,30 @@ func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
 
 		pm2 := newDefaultMsgSigner(sampleKey2Priv, sampleKey2Pub, sampleKey2ID)
 		// different memory but same value is same signature
-		if err := pm.vefifyMsg(sampleMsg1, sampleKey1Pub); (err != nil) != false {
-			t.Errorf("defaultMsgSigner.vefifyMsg() error = %v, wantErr %v", err, false)
+		if err := pm.verifyMsg(sampleMsg1, sampleKey1ID); (err != nil) != false {
+			t.Errorf("defaultMsgSigner.verifyMsg() error = %v, wantErr %v", err, false)
 		}
-		if err := pm2.vefifyMsg(sampleMsg1, sampleKey1Pub); (err != nil) != false {
-			t.Errorf("defaultMsgSigner.vefifyMsg() error = %v, wantErr %v", err, false)
+		if err := pm2.verifyMsg(sampleMsg1, sampleKey1ID); (err != nil) != false {
+			t.Errorf("defaultMsgSigner.verifyMsg() error = %v, wantErr %v", err, false)
 		}
 	})
 
 	t.Run("TDiffKey", func(t *testing.T) {
 		// msg and msg2 is same at first
 		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingResponse.Uint32(), Length: 5}, Data: []byte{0, 1, 2, 3, 4}}
-
 		pm := newDefaultMsgSigner(sampleKey1Priv, sampleKey1Pub, sampleKey1ID)
 		assert.Nil(t, pm.signMsg(sampleMsg1))
 		expectedSig := append(make([]byte, 0), sampleMsg1.GetHeader().GetSign()...)
 		assert.Equal(t, expectedSig, sampleMsg1.GetHeader().GetSign())
 
+		sampleMsg1.Header.NodePubKey = pubkey2bytes
 		pm2 := newDefaultMsgSigner(sampleKey2Priv, sampleKey2Pub, sampleKey2ID)
 		// different memory but same value is same signature
-		if err := pm.vefifyMsg(sampleMsg1, sampleKey2Pub); (err != nil) != true {
-			t.Errorf("defaultMsgSigner.vefifyMsg() error = %v, wantErr %v", err, false)
+		if err := pm.verifyMsg(sampleMsg1, sampleKey2ID); (err != nil) != true {
+			t.Errorf("defaultMsgSigner.verifyMsg() error = %v, wantErr %v", err, false)
 		}
-		if err := pm2.vefifyMsg(sampleMsg1, sampleKey2Pub); (err != nil) != true {
-			t.Errorf("defaultMsgSigner.vefifyMsg() error = %v, wantErr %v", err, false)
+		if err := pm2.verifyMsg(sampleMsg1, sampleKey2ID); (err != nil) != true {
+			t.Errorf("defaultMsgSigner.verifyMsg() error = %v, wantErr %v", err, false)
 		}
 	})
 
@@ -102,8 +104,8 @@ func Test_defaultMsgSigner_vefifyMsg(t *testing.T) {
 		sampleMsg1.Data = append(sampleMsg1.Data, 5, 6)
 		pm2 := newDefaultMsgSigner(sampleKey2Priv, sampleKey2Pub, sampleKey2ID)
 		// different memory but same value is same signature
-		if err := pm2.vefifyMsg(sampleMsg1, sampleKey1Pub); (err != nil) != true {
-			t.Errorf("defaultMsgSigner.vefifyMsg() error = %v, wantErr %v", err, false)
+		if err := pm2.verifyMsg(sampleMsg1, sampleKey1ID); (err != nil) != true {
+			t.Errorf("defaultMsgSigner.verifyMsg() error = %v, wantErr %v", err, false)
 		}
 	})
 

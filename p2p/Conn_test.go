@@ -131,7 +131,7 @@ func (_m *MockConn) RemoteMultiaddr() multiaddr.Multiaddr {
 	return r0
 }
 
-// RemotePeer provides a mock function with given fields:
+// remotePeerImpl provides a mock function with given fields:
 func (_m *MockConn) RemotePeer() peer.ID {
 	ret := _m.Called()
 

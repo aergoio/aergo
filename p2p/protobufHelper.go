@@ -11,9 +11,8 @@ import (
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
@@ -76,7 +75,7 @@ func (pr *pbMessageOrder) Skippable() bool {
 	return false
 }
 
-func (pr *pbMessageOrder) SendTo(p *RemotePeer) bool {
+func (pr *pbMessageOrder) SendTo(p *remotePeerImpl) bool {
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
 		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
@@ -92,7 +91,7 @@ type pbRequestOrder struct {
 	pbMessageOrder
 }
 
-func (pr *pbRequestOrder) SendTo(p *RemotePeer) bool {
+func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) bool {
 	if pr.pbMessageOrder.SendTo(p) {
 		p.requests[pr.GetMsgID()] = pr
 		return true
@@ -105,7 +104,7 @@ type pbBlkNoticeOrder struct {
 	blkHash []byte
 }
 
-func (pr *pbBlkNoticeOrder) SendTo(p *RemotePeer) bool {
+func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) bool {
 	var blkhash [blkhashLen]byte
 	copy(blkhash[:], pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
@@ -132,7 +131,7 @@ type pbTxNoticeOrder struct {
 	txHashes [][]byte
 }
 
-func (pr *pbTxNoticeOrder) SendTo(p *RemotePeer) bool {
+func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) bool {
 	var txHash [txhashLen]byte
 	send, skip := 0, 0
 	for _, h := range pr.txHashes {
@@ -171,21 +170,6 @@ func SendProtoMessage(data proto.Message, rw *bufio.Writer) error {
 	}
 	rw.Flush()
 	return nil
-}
-
-// SignProtoMessage sign protocol buffer messge by privKey
-func SignProtoMessage(message proto.Message, privKey crypto.PrivKey) ([]byte, error) {
-	data, err := proto.Marshal(message)
-	if err != nil {
-		return nil, err
-	}
-	return SignData(data, privKey)
-}
-
-// SignData sign binary data using the local node's private key
-func SignData(data []byte, privKey crypto.PrivKey) ([]byte, error) {
-	res, err := privKey.Sign(data)
-	return res, err
 }
 
 func marshalMessage(message proto.Message) ([]byte, error) {

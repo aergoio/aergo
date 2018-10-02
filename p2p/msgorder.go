@@ -24,7 +24,7 @@ type msgOrder interface {
 	Skippable() bool
 
 	// send message to remote peer
-	SendTo(p *RemotePeer) bool
+	SendTo(p *remotePeerImpl) bool
 }
 
 // mf is interface of factory which create mo object

@@ -187,11 +187,11 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			mockActor := new(MockActorService)
 			mockRW := new(MockMsgReadWriter)
 			mockMF := new(MockMoFactory)
-			dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockMF, mockRW)
+			dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockMF, &dummySigner{}, mockRW)
 			mockMsgHelper := new(mocks.Helper)
 
 			header, body := test.setup(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
-			target := newTxReqHandler(mockPM, dummyPeer, logger, nil)
+			target := newTxReqHandler(mockPM, dummyPeer, logger, mockActor)
 			target.msgHelper = mockMsgHelper
 
 			target.handle(header, body)

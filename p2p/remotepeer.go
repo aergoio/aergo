@@ -24,8 +24,26 @@ import (
 
 const defaultPingInterval = time.Second * 60
 
-// RemotePeer represent remote peer to which is connected
-type RemotePeer struct {
+type RemotePeer interface {
+	ID() peer.ID
+	Meta() PeerMeta
+	State() types.PeerState
+
+	runPeer()
+	stop()
+
+	sendMessage(msg msgOrder)
+	consumeRequest(msgID string)
+
+	handleNewBlockNotice(data *types.NewBlockNotice)
+	handleNewTxNotice(data *types.NewTransactionsNotice)
+
+	// TODO
+	MF() moFactory
+}
+
+// remotePeerImpl represent remote peer to which is connected
+type remotePeerImpl struct {
 	logger       *log.Logger
 	pingDuration time.Duration
 
@@ -33,7 +51,8 @@ type RemotePeer struct {
 	state     types.PeerState
 	actorServ ActorService
 	pm        PeerManager
-	mf    moFactory
+	mf        moFactory
+	signer    msgSigner
 
 	stopChan chan struct{}
 
@@ -56,14 +75,16 @@ type RemotePeer struct {
 	rw MsgReadWriter
 }
 
+var _ RemotePeer = (*remotePeerImpl)(nil)
+
 const (
 	cleanRequestDuration = time.Hour
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log.Logger, mf moFactory, rw MsgReadWriter) *RemotePeer {
-	peer := &RemotePeer{
-		meta: meta, pm: p2ps, actorServ: iServ, logger: log, mf: mf, rw: rw,
+func newRemotePeer(meta PeerMeta, p2ps PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, rw MsgReadWriter) *remotePeerImpl {
+	peer := &remotePeerImpl{
+		meta: meta, pm: p2ps, actorServ: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -92,16 +113,24 @@ func newRemotePeer(meta PeerMeta, p2ps PeerManager, iServ ActorService, log *log
 }
 
 // ID return id of peer, same as peer.meta.ID
-func (p *RemotePeer) ID() peer.ID {
+func (p *remotePeerImpl) ID() peer.ID {
 	return p.meta.ID
 }
 
+func (p *remotePeerImpl) Meta() PeerMeta {
+	return p.meta
+}
+
+func (p *remotePeerImpl) MF() moFactory {
+	return p.mf
+}
+
 // State returns current state of peer
-func (p *RemotePeer) State() types.PeerState {
+func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *RemotePeer) checkState() error {
+func (p *remotePeerImpl) checkState() error {
 	switch p.State() {
 	case types.HANDSHAKING:
 		return fmt.Errorf("not handshaked")
@@ -113,7 +142,7 @@ func (p *RemotePeer) checkState() error {
 }
 
 // runPeer should be called by go routine
-func (p *RemotePeer) runPeer() {
+func (p *remotePeerImpl) runPeer() {
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 	go p.runWrite()
@@ -139,7 +168,7 @@ READNOPLOOP:
 	close(p.stopChan)
 }
 
-func (p *RemotePeer) runWrite() {
+func (p *remotePeerImpl) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestDuration)
 	defer func() {
 		if r := recover(); r != nil {
@@ -169,7 +198,7 @@ WRITELOOP:
 	// close(p.consumeChan)
 }
 
-func (p *RemotePeer) runRead() {
+func (p *remotePeerImpl) runRead() {
 	for {
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
@@ -187,7 +216,7 @@ func (p *RemotePeer) runRead() {
 
 }
 
-func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
+func (p *remotePeerImpl) handleMsg(msg *types.P2PMessage) error {
 	var err error
 	proto := SubProtocol(msg.Header.Subprotocol)
 	defer func() {
@@ -207,6 +236,11 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
 		return fmt.Errorf("Invalid message data")
 	}
+	err = p.signer.verifyMsg(msg, p.meta.ID)
+	if err != nil {
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to check signature")
+		return fmt.Errorf("Failed to check signature")
+	}
 	err = handler.checkAuth(msg, payload)
 	if err != nil {
 		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
@@ -218,13 +252,13 @@ func (p *RemotePeer) handleMsg(msg *types.P2PMessage) error {
 }
 
 // Stop stops aPeer works
-func (p *RemotePeer) stop() {
+func (p *remotePeerImpl) stop() {
 	p.stopChan <- struct{}{}
 }
 
 const writeChannelTimeout = time.Second * 2
 
-func (p *RemotePeer) sendMessage(msg msgOrder) {
+func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 	if p.state.Get() != types.RUNNING {
 		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
 			Str(LogMsgID, msg.GetMsgID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
@@ -234,22 +268,22 @@ func (p *RemotePeer) sendMessage(msg msgOrder) {
 }
 
 // consumeRequest remove request from request history.
-func (p *RemotePeer) consumeRequest(requestID string) {
+func (p *remotePeerImpl) consumeRequest(requestID string) {
 	p.consumeChan <- requestID
 }
 
-func (p *RemotePeer) updateMetaInfo(statusMsg *types.Status) {
+func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
 	// check address. and apply current
 	receivedMeta := FromPeerAddress(statusMsg.Sender)
 	p.meta.IPAddress = receivedMeta.IPAddress
 	p.meta.Port = receivedMeta.Port
 }
 
-func (p *RemotePeer) writeToPeer(m msgOrder) {
+func (p *remotePeerImpl) writeToPeer(m msgOrder) {
 	m.SendTo(p)
 }
 
-func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
+func (p *remotePeerImpl) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
 	streamChannel := make(chan inet.Stream)
 	var s inet.Stream = nil
 	go p.getStreamForWriting(msgID, protocol, streamChannel)
@@ -262,7 +296,7 @@ func (p *RemotePeer) tryGetStream(msgID string, protocol protocol.ID, timeout ti
 	return s
 }
 
-func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, schannel chan inet.Stream) {
+func (p *remotePeerImpl) getStreamForWriting(msgID string, protocol protocol.ID, schannel chan inet.Stream) {
 	ctx := context.Background()
 	s, err := p.pm.NewStream(ctx, p.meta.ID, protocol)
 	if err != nil {
@@ -273,7 +307,7 @@ func (p *RemotePeer) getStreamForWriting(msgID string, protocol protocol.ID, sch
 }
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
-func (p *RemotePeer) sendPing() {
+func (p *remotePeerImpl) sendPing() {
 	// find my best block
 	//bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	//if err != nil {
@@ -290,7 +324,7 @@ func (p *RemotePeer) sendPing() {
 }
 
 // sendStatus is called once when a peer is added.()
-func (p *RemotePeer) sendStatus() {
+func (p *remotePeerImpl) sendStatus() {
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
 
 	// create message data
@@ -304,13 +338,13 @@ func (p *RemotePeer) sendStatus() {
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
-func (p *RemotePeer) goAwayMsg(msg string) {
+func (p *remotePeerImpl) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
 	p.sendMessage(p.mf.newMsgRequestOrder(false, GoAway, &types.GoAwayNotice{Message: msg}))
 	p.pm.RemovePeer(p.meta.ID)
 }
 
-func (p *RemotePeer) pruneRequests() {
+func (p *remotePeerImpl) pruneRequests() {
 	debugLog := p.logger.IsDebugEnabled()
 	deletedCnt := 0
 	var deletedReqs []string
@@ -334,7 +368,7 @@ func (p *RemotePeer) pruneRequests() {
 
 }
 
-func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
+func (p *remotePeerImpl) handleNewBlockNotice(data *types.NewBlockNotice) {
 	// lru cache can accept hashable key
 	var hashArr [blkhashLen]byte
 	copy(hashArr[:], data.BlockHash)
@@ -343,7 +377,7 @@ func (p *RemotePeer) handleNewBlockNotice(data *types.NewBlockNotice) {
 	p.pm.HandleNewBlockNotice(p.meta.ID, hashArr, data)
 }
 
-func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
+func (p *remotePeerImpl) handleNewTxNotice(data *types.NewTransactionsNotice) {
 	if len(data.TxHashes) == 0 {
 		return
 	}
@@ -356,16 +390,16 @@ func (p *RemotePeer) handleNewTxNotice(data *types.NewTransactionsNotice) {
 	p.pm.HandleNewTxNotice(p.meta.ID, hashArrs, data)
 }
 
-func (p *RemotePeer) sendGoAway(msg string) {
+func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
 }
 
-func newHangresolver(peer *RemotePeer, logger *log.Logger) *hangResolver {
+func newHangresolver(peer *remotePeerImpl, logger *log.Logger) *hangResolver {
 	return &hangResolver{p: peer, logger: logger}
 }
 
 type hangResolver struct {
-	p      *RemotePeer
+	p      *remotePeerImpl
 	logger *log.Logger
 
 	consecutiveDrops uint64
