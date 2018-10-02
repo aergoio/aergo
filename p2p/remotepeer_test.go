@@ -129,12 +129,12 @@ func TestePeer_sendPing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockMsgSigner := new(mockMsgSigner)
+			mockMF := new(MockMoFactory)
 
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
-			mockMsgSigner.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMsgSigner, nil)
+			mockMF.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, nil)
 			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
@@ -368,7 +368,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		mockActorServ := new(MockActorService)
 		mockPeerManager := new(MockPeerManager)
 		mockMsgHandler := new(MockMessageHandler)
-		mockSigner := new(mockMsgSigner)
+		mockMF := new(MockMoFactory)
 		t.Run(tt.name, func(t *testing.T) {
 			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingRequest.Uint32()}}
 			if tt.args.nohandler {
@@ -378,7 +378,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)
 			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(tt.args.autherr)
 			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MsgHeader"), mock.Anything)
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, nil)
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, nil)
 			target.handlers[PingRequest] = mockMsgHandler
 
 			if err := target.handleMsg(msg); (err != nil) != tt.wantErr {

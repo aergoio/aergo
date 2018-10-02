@@ -86,7 +86,7 @@ func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.
 		Status: status,
 		Blocks: blockInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
@@ -174,7 +174,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -244,7 +244,7 @@ func (bh *getMissingRequestHandler) notifyBranchBlock(peer *RemotePeer, hash mes
 		BlockHash: hash,
 		BlockNo:   uint64(blockno)}
 
-	peer.sendMessage(newPbMsgRequestOrder(false, NewBlockNotice, req, bh.signer))
+	peer.sendMessage(peer.mf.newMsgRequestOrder(false, NewBlockNotice, req))
 	return true
 }
 
@@ -312,5 +312,5 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer *RemotePeer, requ
 		Blocks: blockInfos}
 
 	// ???: have to check arguments
-	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, GetBlocksResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(requestID, GetBlocksResponse, resp))
 }

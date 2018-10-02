@@ -37,87 +37,12 @@ type pbMessageOrder struct {
 
 var _ msgOrder = (*pbMessageOrder)(nil)
 
-// newPbMsgOrder is base form of making sendrequest struct
-// TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(mo *pbMessageOrder, reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
-	bytes, err := marshalMessage(message)
-	if err != nil {
-		return false
-	}
-
-	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
-	p2pmsg.Data = bytes
-	request := false
-	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
-	p2pmsg.Header.Length = uint32(len(bytes))
-	p2pmsg.Header.Subprotocol = protocolID.Uint32()
-	// pubKey and peerID will be set soon before signing process
-	// expecteResponse is only applied when message is request and not a gossip.
-	if request == false || gossip {
-		expecteResponse = false
-	}
-	err = signer.signMsg(p2pmsg)
-	if err != nil {
-		panic("Failed to sign data " + err.Error())
-		return false
-	}
-
-	mo.request = request
-	mo.protocolID = protocolID
-	mo.expecteResponse = expecteResponse
-	mo.gossip = gossip
-	mo.needSign = true
-	mo.message = p2pmsg
-
-	return true
-}
 
 func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
 	md.Id = reqID
 	md.Gossip = gossip
 	md.ClientVersion = version
 	md.Timestamp = ts
-}
-
-// newPbMsgRequestOrder make send order for p2p request
-func newPbMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
-	rmo := &pbRequestOrder{}
-	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, expecteResponse, false, protocolID, message, signer) {
-		return rmo
-	}
-	return nil
-}
-
-// newPbMsgResponseOrder make send order for p2p response
-func newPbMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage, signer msgSigner) msgOrder {
-	rmo := &pbMessageOrder{}
-	if newPbMsgOrder(rmo, reqID, false, false, protocolID, message, signer) {
-		return rmo
-	}
-	return nil
-}
-
-// newPbMsgBroadcastOrder make send order for p2p broadcast,
-// which will be fanouted and doesn't expect response of receiving peer
-func newPbMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice, signer msgSigner) msgOrder {
-	rmo := &pbBlkNoticeOrder{}
-	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewBlockNotice, noticeMsg, signer) {
-		rmo.blkHash = noticeMsg.BlockHash
-		return rmo
-	}
-	return nil
-}
-
-func newPbMsgTxBroadcastOrder(message *types.NewTransactionsNotice, signer msgSigner) msgOrder {
-	rmo := &pbTxNoticeOrder{}
-	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewTxNotice, message, signer) {
-		rmo.txHashes = message.TxHashes
-		return rmo
-	}
-	return nil
 }
 
 func (pr *pbMessageOrder) GetMsgID() string {
@@ -289,4 +214,81 @@ func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pb
 	setupMessageData(p2pmsg.Header, msgID, gossip, ClientVersion, time.Now().Unix())
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	return p2pmsg
+}
+
+
+type pbMOFactory struct {
+	signer msgSigner
+}
+
+func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
+	rmo := &pbRequestOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, expecteResponse, false, protocolID, message, mf.signer) {
+		return rmo
+	}
+	return nil
+}
+
+func (mf *pbMOFactory) newMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage) msgOrder {
+	rmo := &pbMessageOrder{}
+	if newPbMsgOrder(rmo, reqID, false, false, protocolID, message, mf.signer) {
+		return rmo
+	}
+	return nil
+}
+
+func (mf *pbMOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder {
+	rmo := &pbBlkNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewBlockNotice, noticeMsg, mf.signer) {
+		rmo.blkHash = noticeMsg.BlockHash
+		return rmo
+	}
+	return nil
+}
+
+func (mf *pbMOFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder {
+	rmo := &pbTxNoticeOrder{}
+	reqID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, false, true, NewTxNotice, message, mf.signer) {
+		rmo.txHashes = message.TxHashes
+		return rmo
+	}
+	return nil
+}
+
+// newPbMsgOrder is base form of making sendrequest struct
+// TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
+func newPbMsgOrder(mo *pbMessageOrder, reqID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
+	bytes, err := marshalMessage(message)
+	if err != nil {
+		return false
+	}
+
+	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
+	p2pmsg.Data = bytes
+	request := false
+	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
+	p2pmsg.Header.Length = uint32(len(bytes))
+	p2pmsg.Header.Subprotocol = protocolID.Uint32()
+	// pubKey and peerID will be set soon before signing process
+	// expecteResponse is only applied when message is request and not a gossip.
+	if request == false || gossip {
+		expecteResponse = false
+	}
+	err = signer.signMsg(p2pmsg)
+	if err != nil {
+		panic("Failed to sign data " + err.Error())
+		return false
+	}
+
+	mo.request = request
+	mo.protocolID = protocolID
+	mo.expecteResponse = expecteResponse
+	mo.gossip = gossip
+	mo.needSign = true
+	mo.message = p2pmsg
+
+	return true
 }

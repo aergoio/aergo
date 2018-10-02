@@ -49,7 +49,7 @@ func (ph *pingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.M
 	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending ping response")
 	resp := &types.Pong{}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), PingResponse, resp, ph.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(msgHeader.GetId(), PingResponse, resp))
 }
 
 // newPingRespHandler creates handler for PingResponse

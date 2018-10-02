@@ -56,7 +56,7 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
 	for _, hash := range data.Hashes {
 		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequest(message.MemPoolSvc,
-			&message.MemPoolExist{}))
+			&message.MemPoolExist{Hash:hash}))
 		if err != nil {
 			// response error to peer
 			status = types.ResultStatus_INTERNAL
@@ -77,7 +77,7 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetTxsResponse, resp, th.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(msgHeader.GetId(), GetTxsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse

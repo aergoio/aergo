@@ -15,8 +15,8 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 type nodeInfo struct {
@@ -34,6 +34,7 @@ type P2P struct {
 
 	pm     PeerManager
 	rm     ReconnectManager
+	mf     moFactory
 	signer msgSigner
 }
 
@@ -132,12 +133,14 @@ func (p2ps *P2P) Statics() *map[string]interface{} {
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *blockchain.ChainService) {
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
+	mf := &pbMOFactory{signer:signer}
 	reconMan := newReconnectManager(p2ps.Logger)
-	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger)
+	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
 	// connect managers each other
 	reconMan.pm = peerMan
 
 	p2ps.signer = signer
+	p2ps.mf = mf
 	p2ps.pm = peerMan
 	p2ps.rm = reconMan
 }

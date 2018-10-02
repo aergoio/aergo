@@ -16,6 +16,8 @@ import (
 
 func Test_pbRequestOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	factory := &pbMOFactory{signer: &dummySigner{}}
+
 	tests := []struct {
 		name     string
 		writeErr error
@@ -30,14 +32,12 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockSigner.On("signMsg", mock.Anything).Return(nil)
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, mockRW)
 
-			pr := newPbMsgRequestOrder(true, PingRequest, &types.Ping{}, mockSigner)
+			pr := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
@@ -58,6 +58,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 func Test_pbMessageOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	factory := &pbMOFactory{signer: &dummySigner{}}
 
 	tests := []struct {
 		name     string
@@ -72,14 +73,12 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockSigner.On("signMsg", mock.Anything).Return(nil)
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, mockRW)
 
-			pr := newPbMsgResponseOrder("id"+tt.name, PingResponse, &types.Pong{}, mockSigner)
+			pr := factory.newMsgResponseOrder("id"+tt.name, PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &pbRequestOrder{}
@@ -97,9 +96,8 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
-	// TODO
-	// t.SkipNow()
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	factory := &pbMOFactory{signer: &dummySigner{}}
 
 	tests := []struct {
 		name     string
@@ -117,15 +115,12 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockSigner.On("signMsg", mock.Anything).Return(nil)
-
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, mockRW)
 
-			pr := newPbMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash}, mockSigner)
-			msgID := pr.GetMsgID()
+			target := factory.newMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash})
+			msgID := sampleMsgID
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
 			peer.requests[msgID] = &pbRequestOrder{}
@@ -135,7 +130,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 				copy(hashKey[:], dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}
-			if got := pr.SendTo(peer); got != tt.want {
+			if got := target.SendTo(peer); got != tt.want {
 				t.Errorf("pbMessageOrder.SendTo() = %v, want %v", got, tt.want)
 			}
 			if tt.keyExist {
@@ -153,9 +148,9 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
-	// TODO
-	// t.SkipNow()
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	factory := &pbMOFactory{signer: &dummySigner{}}
+
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
 		sampleHashes[i] = []byte(fmt.Sprint("tx_000", i))
@@ -177,14 +172,12 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockSigner.On("signMsg", mock.Anything).Return(nil)
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, mockRW)
 
-			pr := newPbMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes}, mockSigner)
+			pr := factory.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()
 			// notice broadcast is affected by cache
 			// put dummy request information in cache

@@ -86,6 +86,7 @@ type peerManager struct {
 	selfMeta   PeerMeta
 	actorServ  ActorService
 	signer     msgSigner
+	mf 		   moFactory
 	rm         ReconnectManager
 
 	designatedPeers map[peer.ID]PeerMeta
@@ -122,13 +123,14 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		actorServ: iServ,
 		conf:      p2pConf,
 		signer:    signer,
+		mf:        mf,
 		rm:        rm,
 		logger:    logger,
 		mutex:     &sync.Mutex{},
@@ -372,7 +374,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, rw)
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -392,7 +394,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting.
-	mo := newPbMsgRequestOrder(false, GoAway, goMsg, pm.signer).(*pbRequestOrder)
+	mo := pm.mf.newMsgRequestOrder(false, GoAway, goMsg).(*pbRequestOrder)
 	container := mo.message
 
 	rw.WriteMsg(container)
@@ -545,7 +547,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, rw)
 	pm.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)

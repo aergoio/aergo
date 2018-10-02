@@ -33,7 +33,8 @@ func Test_bufMsgReadWriter_ReadMsg(t *testing.T) {
 }
 
 func Test_bufMsgReader_ReadMsg(t *testing.T) {
-	sampleObj := newPbMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
+	factory := &pbMOFactory{signer: &dummySigner{}}
+	sampleObj := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}).(*pbRequestOrder).message
 	buf := bytes.NewBuffer(nil)
 	encoder := mc_pb.Multicodec(nil).Encoder(buf)
 	encoder.Encode(sampleObj)
@@ -75,7 +76,8 @@ func Test_bufMsgReader_ReadMsg(t *testing.T) {
 
 
 func Test_bufMsgWriter_WriteMsg(t *testing.T) {
-	sampleObj := newPbMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}, &dummySigner{}).(*pbRequestOrder).message
+	factory := &pbMOFactory{signer: &dummySigner{}}
+	sampleObj := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{BestBlockHash: dummyBlockHash, BestHeight:123}).(*pbRequestOrder).message
 	buf := bytes.NewBuffer(nil)
 	encoder := mc_pb.Multicodec(nil).Encoder(buf)
 	encoder.Encode(sampleObj)
@@ -91,14 +93,14 @@ func Test_bufMsgWriter_WriteMsg(t *testing.T) {
 	assert.Equal(t, sampleBytes, actualBytes)
 
 	r := newBufMsgReader(bufio.NewReader(bytes.NewReader(actualBytes)))
-	readbackObj, err := r.ReadMsg()
+	readBackObj, err := r.ReadMsg()
 	assert.Nil(t, err)
 
-		assert.Equal(t, sampleObj.Header.ClientVersion, readbackObj.Header.ClientVersion)
-		assert.Equal(t, sampleObj.Header.Timestamp, readbackObj.Header.Timestamp)
-		assert.Equal(t, sampleObj.Header.Id, readbackObj.Header.Id)
-		assert.Equal(t, sampleObj.Header.Subprotocol, readbackObj.Header.Subprotocol)
-		assert.Equal(t, sampleObj.Header.Length, readbackObj.Header.Length)
-		assert.Equal(t, sampleObj.Data, readbackObj.Data)
+		assert.Equal(t, sampleObj.Header.ClientVersion, readBackObj.Header.ClientVersion)
+		assert.Equal(t, sampleObj.Header.Timestamp, readBackObj.Header.Timestamp)
+		assert.Equal(t, sampleObj.Header.Id, readBackObj.Header.Id)
+		assert.Equal(t, sampleObj.Header.Subprotocol, readBackObj.Header.Subprotocol)
+		assert.Equal(t, sampleObj.Header.Length, readBackObj.Header.Length)
+		assert.Equal(t, sampleObj.Data, readBackObj.Data)
 
 }

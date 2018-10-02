@@ -63,7 +63,7 @@ func (ph *addressesRequestHandler) handle(msgHeader *types.MsgHeader, msgBody pr
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.Id, AddressesResponse, resp, ph.signer))
+	remotePeer.sendMessage(remotePeer.mf.newMsgResponseOrder(msgHeader.Id, AddressesResponse, resp))
 }
 
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
