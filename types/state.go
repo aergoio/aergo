@@ -22,6 +22,15 @@ type AccountID HashID
 // TxID is a HashID to identify a transaction
 type TxID HashID
 
+// ImplHashID is a object has HashID
+type ImplHashID interface {
+	HashID() HashID
+}
+
+var (
+	emptyHashID = HashID{}
+)
+
 // GetHashID make a HashID from hash of bytes
 func GetHashID(bytes []byte) HashID {
 	hash := common.Hasher(bytes)
@@ -38,14 +47,22 @@ func (id HashID) String() string {
 	return enc.ToString(id[:])
 }
 
+// Bytes make a byte slice from id
+func (id HashID) Bytes() []byte {
+	if id == emptyHashID {
+		return nil
+	}
+	return id[:]
+}
+
 // Compare returns an integer comparing two HashIDs as byte slices.
 func (id HashID) Compare(alt HashID) int {
-	return bytes.Compare(id[:], alt[:])
+	return bytes.Compare(id.Bytes(), alt.Bytes())
 }
 
 // Equal returns a boolean comparing two HashIDs as byte slices.
 func (id HashID) Equal(alt HashID) bool {
-	return bytes.Equal(id[:], alt[:])
+	return bytes.Equal(id.Bytes(), alt.Bytes())
 }
 
 // ToBlockID make a BlockID from bytes

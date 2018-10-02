@@ -53,53 +53,51 @@ var (
 )
 
 type StateDB struct {
-	sync.RWMutex
+	lock   sync.RWMutex
 	buffer *stateBuffer
 	trie   *trie.Trie
 	store  *db.DB
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore *db.DB) *StateDB {
-	return &StateDB{
+func NewStateDB(dbstore *db.DB, root []byte) *StateDB {
+	sdb := StateDB{
 		buffer: newStateBuffer(),
-		trie:   trie.NewTrie(nil, common.Hasher, *dbstore),
+		trie:   trie.NewTrie(root, common.Hasher, *dbstore),
 		store:  dbstore,
 	}
+	return &sdb
 }
 
 // GetRoot returns root hash of trie
 func (states *StateDB) GetRoot() []byte {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
 	return states.trie.Root
 }
 
 // SetRoot sets root hash to trie
-func (states *StateDB) SetRoot(root types.HashID) error {
-	var targetRoot []byte
-	if root != emptyHashID {
-		targetRoot = root[:]
-	}
-	states.trie.Root = targetRoot
-	return nil
+func (states *StateDB) SetRoot(root types.HashID) {
+	states.lock.Lock()
+	defer states.lock.Unlock()
+	states.trie.Root = root.Bytes()
 }
 
 // LoadRoot sets root hash to trie and loads cache
 func (states *StateDB) LoadRoot(root types.HashID) error {
-	var targetRoot []byte
-	if root != emptyHashID {
-		targetRoot = root[:]
-	}
+	states.lock.Lock()
+	defer states.lock.Unlock()
+	targetRoot := root.Bytes()
 	states.trie.Root = targetRoot
 	return states.trie.LoadCache(targetRoot)
 }
 
 // Revert rollbacks trie to previous root hash
 func (states *StateDB) Revert(root types.HashID) error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
 	// handle nil bytes
-	var targetRoot []byte
-	if root != emptyHashID {
-		targetRoot = root[:]
-	}
+	targetRoot := root.Bytes()
 	// revert trie
 	err := states.trie.Revert(targetRoot)
 	if err != nil {
@@ -112,6 +110,8 @@ func (states *StateDB) Revert(root types.HashID) error {
 
 // PutState puts account id and its state into state buffer.
 func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
 	if id == emptyAccountID {
 		return errPutState
 	}
@@ -119,7 +119,9 @@ func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
 }
 
 // GetState gets state of account id from state buffer and trie
-func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
+func (states *StateDB) GetState(id types.AccountID, strict bool) (*types.State, error) {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
 	if id == emptyAccountID {
 		return nil, errGetState
 	}
@@ -129,30 +131,47 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 		return entry.getData().(*types.State), nil
 	}
 	// get state from trie
+	return states.getState(id, strict)
+}
+
+// getState gets state of account id from trie
+func (states *StateDB) getState(id types.AccountID, strict bool) (*types.State, error) {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
 	key, err := states.trie.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
-	st := types.State{}
-	err = loadData(states.store, key, st)
-	if err != nil {
-		return nil, err
+	if !strict && len(key) == 0 {
+		return &types.State{}, nil
 	}
-	return &st, nil
+	return states.loadStateData(key)
+	// st := types.State{}
+	// err = loadData(states.store, key, st)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &st, nil
 }
 
 // Snapshot returns revision number of state buffer
 func (states *StateDB) Snapshot() int {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
 	return states.buffer.snapshot()
 }
 
 // Rollback discards changes of state buffer to revision number
 func (states *StateDB) Rollback(snapshot int) error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
 	return states.buffer.rollback(snapshot)
 }
 
 // Update applies changes of state buffer to trie
 func (states *StateDB) Update() error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
 	keys, vals := states.buffer.export()
 	_, err := states.trie.Update(keys, vals)
 	if err != nil {
@@ -161,16 +180,10 @@ func (states *StateDB) Update() error {
 	return nil
 }
 
-// // Discard ...
-// func (states *StateDB) Discard() error {
-// 	// TODO
-// 	// discard changes not commited.
-// 	// requires previous root hash.
-// 	return nil
-// }
-
 // Commit writes state buffer and trie to db
 func (states *StateDB) Commit() error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
 	err := states.trie.Commit()
 	if err != nil {
 		return err
@@ -203,18 +216,18 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 		sdb.store = db.NewDB(db.BadgerImpl, dbPath)
 	}
 
-	// init trie
-	if sdb.states == nil {
-		sdb.states = NewStateDB(&sdb.store)
-	}
-
 	// load latest data from db
 	err := sdb.loadStateLatest()
 	if err != nil {
 		return err
 	}
-	if sdb.latest != nil && !sdb.latest.StateRoot.Equal(emptyHashID) {
-		sdb.states.LoadRoot(sdb.latest.StateRoot)
+
+	// init trie
+	if sdb.states == nil {
+		sdb.states = NewStateDB(&sdb.store, nil)
+		if sdb.latest != nil {
+			sdb.states.LoadRoot(sdb.latest.StateRoot)
+		}
 	}
 	return nil
 }
@@ -265,28 +278,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 }
 
 func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
-	if aid == emptyAccountID {
-		return nil, fmt.Errorf("Failed to get block account: invalid account id")
-	}
-	state, err := sdb.getAccountStateData(aid)
-	if err != nil {
-		return nil, err
-	}
-	return state, nil
-}
-func (sdb *ChainStateDB) getAccountStateData(aid types.AccountID) (*types.State, error) {
-	dkey, err := sdb.states.trie.Get(aid[:])
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get account state from trie: %s", err)
-	}
-	if len(dkey) == 0 {
-		return types.NewState(), nil
-	}
-	data, err := sdb.loadStateData(dkey)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return sdb.states.getState(aid, false)
 }
 
 func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
@@ -414,10 +406,8 @@ func (sdb *ChainStateDB) Rollback(targetBlockID types.BlockID) error {
 	if err != nil {
 		return err
 	}
-	logger.Debug().
-		Str("latest", fmt.Sprintf("[%d]%v(s:%v)", sdb.latest.BlockNo, sdb.latest.BlockHash, sdb.latest.StateRoot)).
-		Str("target", fmt.Sprintf("[%d]%v(s:%v)", target.BlockNo, target.BlockHash, target.StateRoot)).
-		Msg("rollback statedb")
+	logger.Debug().Str("from", sdb.latest.StateRoot.String()).
+		Str("to", target.StateRoot.String()).Msg("rollback state")
 
 	err = sdb.revertStateDB(target.StateRoot)
 	if err != nil {
