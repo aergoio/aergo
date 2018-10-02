@@ -269,11 +269,9 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	/*
-		if tx.GetBody().GetAmount() > ns.Balance {
-			return ErrInsufficientBalance
-		}
-	*/
+	if tx.GetBody().GetAmount() > ns.Balance {
+		return message.ErrInsufficientBalance
+	}
 	if tx.GetBody().GetNonce() <= ns.Nonce {
 		return message.ErrTxNonceTooLow
 	}

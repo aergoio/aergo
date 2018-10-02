@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -42,7 +43,6 @@ func getAccount(tx *types.Tx) string {
 
 func simulateBlockGen(txs ...*types.Tx) error {
 	lock.Lock()
-	defer lock.Unlock()
 	for _, tx := range txs {
 		acc := getAccount(tx)
 		n := tx.GetBody().GetNonce()
@@ -53,6 +53,13 @@ func simulateBlockGen(txs ...*types.Tx) error {
 		}
 		balance[acc] -= tx.GetBody().GetAmount()
 	}
+	lock.Unlock()
+	pool.removeOnBlockArrival(
+		&types.Block{
+			Body: &types.BlockBody{
+				Txs: txs[:],
+			}})
+
 	//bestBlockNo++
 	return nil
 }
@@ -114,32 +121,30 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 	return &tx
 }
 
-// func TestInvalidTransaction(t *testing.T) {
+func TestInvalidTransaction(t *testing.T) {
 
-//	initTest(t)
-// 	defer deinitTest()
-// 	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
-// 	if err != ErrInsufficientBalance {
-// 		t.Errorf("check valid failed, err != ErrInsufficientBalance, but %s", err)
-// 	}
+	initTest(t)
+	defer deinitTest()
+	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
+	if err != message.ErrInsufficientBalance {
+		t.Errorf("check valid failed, err != ErrInsufficientBalance, but %s", err)
+	}
 
-// 	err = pool.put(genTx(0, 1, 1, 1))
-// 	if err != nil {
-// 		t.Errorf("tx should be accepted, err:%s", err)
-// 	}
-// 	err = pool.put(genTx(0, 1, 1, 1))
-// 	if err != ErrTxAlreadyInMempool {
-// 		t.Errorf("tx should be denied /w ErrTxAlreadyInMempool, err:%s", err)
-// 	}
-// 	txs := []*types.Tx{genTx(0, 1, 1, 1)}
-// 	simulateBlockGen(txs...)
-
-// 	pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs...)
-// 	err = pool.put(genTx(0, 1, 1, 1))
-// 	if err != ErrTxNonceTooLow {
-// 		t.Errorf("tx should be denied /w ErrTxNonceTooLow, err:%s", err)
-// 	}
-// }
+	err = pool.put(genTx(0, 1, 1, 1))
+	if err != nil {
+		t.Errorf("tx should be accepted, err:%s", err)
+	}
+	err = pool.put(genTx(0, 1, 1, 1))
+	if err != message.ErrTxAlreadyInMempool {
+		t.Errorf("tx should be denied /w ErrTxAlreadyInMempool, err:%s", err)
+	}
+	txs := []*types.Tx{genTx(0, 1, 1, 1)}
+	simulateBlockGen(txs...)
+	err = pool.put(genTx(0, 1, 1, 1))
+	if err != message.ErrTxNonceTooLow {
+		t.Errorf("tx should be denied /w ErrTxNonceTooLow, err:%s", err)
+	}
+}
 
 func TestInvalidTransactions(t *testing.T) {
 	initTest(t)
@@ -320,13 +325,6 @@ func TestDeleteOTxs(t *testing.T) {
 
 	txs[4] = genTx(0, 1, 5, 150)
 	simulateBlockGen(txs...)
-	block := &types.Block{
-		Body: &types.BlockBody{
-			Txs: txs[:],
-		},
-	}
-	pool.removeOnBlockArrival(block)
-	//pool.removeOnBlockArrival(getCurrentBestBlockNoMock(), txs...)
 	if r, o := pool.Size(); r != 0 || o != 0 {
 		t.Error("pool should contain nothing", r, o)
 	}
@@ -351,14 +349,6 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 
 	for j := 0; j < 10; j++ {
 		simulateBlockGen(txs[:10]...)
-		//	pool.removes(uint32(pool.curBestBlockNo+1), txs[:10]...)
-		block := &types.Block{
-			Body: &types.BlockBody{
-				Txs: txs[:10],
-			},
-		}
-
-		pool.removeOnBlockArrival(block)
 		if ps, _ := pool.Size(); ps != 10*(9-j) {
 			t.Errorf("pool should contain 90 , %d", ps)
 		}
@@ -429,12 +419,6 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 	for i := 0; i < len(start); i++ {
 		s, e := start[i]-1, end[i]
 		simulateBlockGen(txs[s:e]...)
-		block := &types.Block{
-			Body: &types.BlockBody{
-				Txs: txs[s:e],
-			},
-		}
-		pool.removeOnBlockArrival(block)
 
 		//p1, p2 := pool.Size()
 		//t.Errorf("%d, %d, %d", i, p1, p2)
@@ -472,11 +456,6 @@ func TestSwitchingBestBlock(t *testing.T) {
 		t.Errorf("put should succeed, %s", err)
 	}
 	simulateBlockGen(txs...)
-	pool.removeOnBlockArrival(
-		&types.Block{
-			Body: &types.BlockBody{
-				Txs: txs[:],
-			}})
 
 	tx2 := genTx(0, 1, 3, 1)
 	if err := pool.put(tx2); err != nil {
@@ -488,11 +467,6 @@ func TestSwitchingBestBlock(t *testing.T) {
 	}
 
 	simulateBlockGen(txs[:1]...)
-	pool.removeOnBlockArrival(
-		&types.Block{
-			Body: &types.BlockBody{
-				Txs: txs[:1],
-			}})
 
 	ready, orphan = pool.Size()
 	if ready != 1 || orphan != 1 {
