@@ -305,21 +305,20 @@ func (cs *ChainService) CountTxsInChain() int {
 	return txCount
 }
 
-type txExecFn func(tx *types.Tx) error
+type TxExecFn func(tx *types.Tx) error
 
 type blockExecutor struct {
+	*types.BlockState
 	sdb        *state.ChainStateDB
-	blockState *types.BlockState
-	execTx     txExecFn
+	execTx     TxExecFn
 	txs        []*types.Tx
-	receiptTx  db.Transaction
+	commitOnly bool
 }
 
 func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*blockExecutor, error) {
-	var exec txExecFn
-	var receiptTx db.Transaction
+	var exec TxExecFn
 
-	sdb := cs.sdb
+	commitOnly := false
 
 	// The DPoS block factory excutes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
@@ -330,34 +329,43 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 			return nil, err
 		}
 
-		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
+		bState = types.NewBlockState(
+			types.NewBlockInfo(block.BlockNo(), block.BlockID(), block.PrevBlockID()),
+			contract.DB.NewTx(),
+		)
 
-		receiptTx = contract.DB.NewTx()
-
-		exec = func(tx *types.Tx) error {
-			return executeTx(sdb, bState, receiptTx, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
-		}
+		exec = NewTxExecutor(
+			cs.sdb, bState, block.GetHeader().GetTimestamp())
+	} else {
+		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
+		// In this case (bState != nil), the transactions has already been
+		// executed by the block factory.
+		commitOnly = true
 	}
 
 	txs := block.GetBody().GetTxs()
 
 	return &blockExecutor{
-		sdb:        sdb,
-		blockState: bState,
+		BlockState: bState,
+		sdb:        cs.sdb,
 		execTx:     exec,
 		txs:        txs,
-		receiptTx:  receiptTx,
+		commitOnly: commitOnly,
 	}, nil
 }
 
-func (e *blockExecutor) execute() error {
-	defer func() {
-		if e.receiptTx != nil {
-			e.receiptTx.Commit()
-		}
-	}()
+// NewTxExecutor returns a new TxExecFn.
+func NewTxExecutor(sdb *state.ChainStateDB, bState *types.BlockState, ts int64) TxExecFn {
+	return func(tx *types.Tx) error {
+		return executeTx(sdb, bState, tx, bState.BlockNo, ts)
+	}
+}
 
-	if e.execTx != nil {
+func (e *blockExecutor) execute() error {
+	// Receipt must be committed unconditionally.
+	defer e.CommitReceipt()
+
+	if !e.commitOnly {
 		for _, tx := range e.txs {
 			if err := e.execTx(tx); err != nil {
 				return err
@@ -367,13 +375,13 @@ func (e *blockExecutor) execute() error {
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
-	err := e.sdb.Apply(e.blockState)
+	err := e.sdb.Apply(e.BlockState)
 
 	return err
 }
 
-func setMainChainStatus(tx db.Transaction, block *types.Block) {
-	blockNo := block.GetHeader().GetBlockNo()
+func setChainState(tx db.Transaction, block *types.Block) {
+	blockNo := block.BlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
 	// Update best block hash
@@ -387,9 +395,7 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	dbTx := cs.cdb.store.NewTx()
-	defer dbTx.Discard()
-
+	// contract & state DB update is done during execution.
 	if err := ex.execute(); err != nil {
 		// FIXME: is that enough?
 		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to execute block")
@@ -397,14 +403,17 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	setMainChainStatus(dbTx, block)
-
-	dbTx.Commit()
+	cdbTx := cs.cdb.store.NewTx()
+	// This is a chain DB update.
+	setChainState(cdbTx, block)
+	// TODO: What happens if DB update is failed in setChainState()? Such an
+	// unconditional commit is OK?
+	cdbTx.Commit()
 
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Transaction, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
@@ -454,9 +463,9 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 				types.EncodeAddress(recipient), 0)
 
 			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
+				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			} else {
-				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
+				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			}
 			if err != nil {
 				return err
