@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -56,10 +57,13 @@ func init() {
 
 	tmpDir, _ := ioutil.TempDir("", "vmtest")
 
-	sdb.Init(path.Join(tmpDir, "testDB"))
-	DB = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
+	err := sdb.Init(path.Join(tmpDir, "testDB"))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
 
-	var err error
 	aid, err = types.DecodeAddress(accountId)
 	if err != nil {
 		fmt.Println(err)
@@ -70,6 +74,13 @@ func init() {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
+
+	dir, err := ioutil.TempDir("", "SqlDB")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	LoadDatabase(dir)
 }
 
 func getContractState(t *testing.T, code string) *state.ContractState {
@@ -91,7 +102,7 @@ func getContractState(t *testing.T, code string) *state.ContractState {
 
 func contractCall(t *testing.T, contractState *state.ContractState, ci string,
 	bcCtx *LBlockchainCtx) {
-	dbTx := DB.NewTx()
+	dbTx := TempReceiptDb.NewTx()
 	err := Call(contractState, []byte(ci), aid, tid, bcCtx, dbTx)
 	dbTx.Commit()
 	if err != nil {
@@ -100,13 +111,13 @@ func contractCall(t *testing.T, contractState *state.ContractState, ci string,
 }
 
 func TestContractHello(t *testing.T) {
-	callInfo := "{\"Name\":\"hello\", \"Args\":[\"World\"]}"
+	callInfo := `{"Name":"hello", "Args":["World"]}`
 
 	contractState := getContractState(t, helloCode)
 	contractCall(t, contractState, callInfo, nil)
-	receipt := types.NewReceiptFromBytes(DB.Get(tid))
+	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tid))
 
-	if receipt.GetRet() != "[\"Hello World\"]" {
+	if receipt.GetRet() != `["Hello World"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
@@ -115,13 +126,13 @@ func TestContractSystem(t *testing.T) {
 	callInfo := "{\"Name\":\"testState\", \"Args\":[]}"
 	contractState := getContractState(t, systemCode)
 	bcCtx := NewContext(sdb, nil, contractState, "HNM6akcic1ou1fX", "c2b36750", 100, 1234,
-		"node", 1, accountId, 0)
+		"node", 1, accountId, 0, nil)
 
 	contractCall(t, contractState, callInfo, bcCtx)
-	receipt := types.NewReceiptFromBytes(DB.Get(tid))
+	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tid))
 
 	// sender, txhash, contractid, timestamp, blockheight, getItem("key1")
-	if receipt.GetRet() != "[\"HNM6akcic1ou1fX\",\"c2b36750\",\"AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6\",1234,100,999]" {
+	if receipt.GetRet() != `["HNM6akcic1ou1fX","c2b36750","AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6",1234,100,999]` {
 		t.Errorf("contract Call ret error: %s\n", receipt.GetRet())
 	}
 
@@ -137,22 +148,28 @@ func TestGetABI(t *testing.T) {
 }
 
 func TestContractQuery(t *testing.T) {
-	queryInfo := "{\"Name\":\"query\", \"Args\":[\"key1\"]}"
-	setInfo := "{\"Name\":\"inc\", \"Args\":[]}"
+	queryInfo := `{"Name":"query", "Args":["key1"]}`
+	setInfo := `{"Name":"inc", "Args":[]}`
 
 	contractState := getContractState(t, queryCode)
 
-	ret, err := Query(aid, contractState, []byte(setInfo))
+	tx, err := BeginTx(types.ToAccountID(aid), 1)
+	if err != nil {
+		t.Error(err)
+	}
+	tx.Commit()
+
+	_, err = Query(aid, contractState, []byte(setInfo))
 	if err == nil || !strings.Contains(err.Error(), "not permitted set in query") {
 		t.Errorf("failed check error: %s", err.Error())
 	}
 
 	bcCtx := NewContext(sdb, nil, contractState, "", "", 100, 1234,
-		"node", 1, accountId, 0)
+		"node", 1, accountId, 0, nil)
 
 	contractCall(t, contractState, setInfo, bcCtx)
 
-	ret, err = Query(aid, contractState, []byte(queryInfo))
+	ret, err := Query(aid, contractState, []byte(queryInfo))
 	if err != nil {
 		t.Errorf("contract query error :%s\n", err.Error())
 	}

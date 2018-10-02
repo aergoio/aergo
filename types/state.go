@@ -76,6 +76,7 @@ func NewState() *State {
 	return &State{
 		Nonce:   0,
 		Balance: 0,
+		SqlRecoveryPoint: uint64(1),
 	}
 }
 

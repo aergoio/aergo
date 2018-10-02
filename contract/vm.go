@@ -21,22 +21,21 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"unsafe"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
-	"unsafe"
-
 	"github.com/aergoio/aergo/state"
+	"github.com/aergoio/aergo/types"
 )
 
 const DbName = "contracts.db"
 const constructorName = "constructor"
 
 var (
-	ctrLog      *log.Logger
-	DB          db.DB
-	contractMap stateMap
+	ctrLog        *log.Logger
+	TempReceiptDb db.DB
+	contractMap   stateMap
 )
 
 type Contract struct {
@@ -79,7 +78,8 @@ func init() {
 }
 
 func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, contractState *state.ContractState, Sender string,
-	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int, contractId string, query int) *LBlockchainCtx {
+	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int, contractId string, query int,
+	dbHandle *C.sqlite3) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
 	contractMap.register(stateKey, &StateSet{contract: contractState, bs: blockState, sdb: sdb})
@@ -94,6 +94,7 @@ func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, contractS
 		confirmed:   C.int(confirmed),
 		contractId:  C.CString(contractId),
 		isQuery:     C.int(query),
+		db:          dbHandle,
 	}
 }
 
@@ -208,7 +209,6 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	}
 
 	ce.processArgs(ci)
-
 	if ce.err != nil {
 		return
 	}
@@ -350,8 +350,16 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	var ce *Executor
 
+	tx, err := BeginReadOnly(types.ToAccountID(contractAddress), contractState.SqlRecoveryPoint)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	bcCtx := NewContext(nil, nil, contractState, "", "",
-		0, 0, "", 0, types.EncodeAddress(contractAddress), 1)
+		0, 0, "", 0, types.EncodeAddress(contractAddress), 1,
+		tx.GetHandle())
+
 	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
@@ -383,7 +391,7 @@ func getContract(contractState *state.ContractState, contractAddress []byte, cod
 }
 
 func GetReceipt(txHash []byte) (*types.Receipt, error) {
-	val := DB.Get(txHash)
+	val := TempReceiptDb.Get(txHash)
 	if len(val) == 0 {
 		return nil, errors.New("cannot find a receipt")
 	}
@@ -533,21 +541,29 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 			&CallState{ctrState: contractState, prevState: prevState, curState: &curState}
 		stateSet.callState[contractIdStr] = callState
 	}
-	contract := getContract(callState.ctrState, cid, nil)
-	if contract == nil {
+	callee := getContract(callState.ctrState, cid, nil)
+	if callee == nil {
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
 		return -1
 	}
+	sqlTx, err := BeginTx(types.ToAccountID(callee.address), callState.curState.SqlRecoveryPoint)
+	if err != nil {
+		luaPushStr(L, "[System.LuaGetContract] begin tx:" + err.Error())
+		return -1
+	}
+	sqlTx.Savepoint()
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery))
-	ce := newExecutor(contract, newBcCtx)
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), sqlTx.GetHandle())
+	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
 
 	if ce.err != nil {
+		sqlTx.RollbackToSavepoint()
 		luaPushStr(L, "[System.LuaGetContract]newExecutor Error :"+ce.err.Error())
 		return -1
 	}
+	sqlTx.Release()
 
 	var ci types.CallInfo
 	ci.Name = fnameStr
