@@ -4,7 +4,6 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
-#include <sqlite3.h>
 
 typedef struct blockchain_ctx {
     char *stateKey;
@@ -16,13 +15,11 @@ typedef struct blockchain_ctx {
     char *node;
     int confirmed;
     int isQuery;
-    sqlite3 *db;
 } bc_ctx_t;
 
 lua_State *vm_newstate();
 int vm_isnil(lua_State *L, int idx);
 void vm_getfield(lua_State *L, const char *name);
-int vm_isnil(lua_State *L, int idx);
 void vm_remove_construct(lua_State *L, const char *constructName);
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx);
 const char *vm_pcall(lua_State *L, int argc, int* nresult);

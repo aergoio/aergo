@@ -332,7 +332,7 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		bState = types.NewBlockState(types.NewBlockInfo(block.Header.BlockNo, block.BlockID(), block.PrevBlockID()))
 
-		receiptTx = contract.TempReceiptDb.NewTx()
+		receiptTx = contract.DB.NewTx()
 
 		exec = func(tx *types.Tx) error {
 			return executeTx(sdb, bState, receiptTx, tx, block.BlockNo(), block.GetHeader().GetTimestamp())
@@ -365,14 +365,9 @@ func (e *blockExecutor) execute() error {
 		}
 	}
 
-	err := contract.SaveRecoveryPoint(e.sdb, e.blockState)
-	if err != nil {
-		return err
-	}
-
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
-	err = e.sdb.Apply(e.blockState)
+	err := e.sdb.Apply(e.blockState)
 
 	return err
 }
@@ -454,31 +449,22 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, receiptTx db.Trans
 			if err != nil {
 				return err
 			}
-			sqlTx, err := contract.BeginTx(receiverID, receiverChange.SqlRecoveryPoint)
-			if err != nil {
-				return err
-			}
-			sqlTx.Savepoint()
-
 			bcCtx := contract.NewContext(sdb, bs, contractState, types.EncodeAddress(txBody.GetAccount()),
 				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(recipient), 0, sqlTx.GetHandle())
+				types.EncodeAddress(recipient), 0)
 
 			if createContract {
-				receiverChange.SqlRecoveryPoint = 1
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
 			} else {
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, receiptTx)
 			}
 			if err != nil {
-				sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = sdb.CommitContractState(contractState)
 			if err != nil {
 				return err
 			}
-			sqlTx.Release()
 		}
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)

@@ -1,5 +1,5 @@
-hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-10-01T21:09:25.091223+09:00
+hash: d400543974b0f617cafc6a2a472406c45dea5119c6b3f7d7b93487db480d0b85
+updated: 2018-10-01T17:54:16.344395+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -36,8 +36,6 @@ imports:
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
-- name: github.com/derekparker/trie
-  version: e608c2733dc704cd4a73f825f4acab8f3c3d4d15
 - name: github.com/dgraph-io/badger
   version: 99233d725dbdd26d156c61b2f42ae1671b794656
   subpackages:

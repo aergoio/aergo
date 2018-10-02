@@ -254,7 +254,7 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	}
 
 	query := &types.Query{
-		ContractAddress: contract,
+		ContractAddress: []byte(contract),
 		Queryinfo:       callinfo,
 	}
 

@@ -12,7 +12,7 @@ var chainStateDB *ChainStateDB
 
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
-	_ = chainStateDB.Init("test")
+	chainStateDB.Init("test")
 	genesis := types.GetTestGenesis()
 
 	err := chainStateDB.SetGenesis(genesis)
@@ -21,8 +21,8 @@ func initTest(t *testing.T) {
 	}
 }
 func deinitTest() {
-	_ = chainStateDB.Close()
-	_ = os.RemoveAll("test")
+	chainStateDB.Close()
+	os.RemoveAll("test")
 }
 func TestContractStateCode(t *testing.T) {
 	initTest(t)

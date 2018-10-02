@@ -6,13 +6,15 @@
 package blockchain
 
 import (
+	"os"
+	"path"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
@@ -72,14 +74,8 @@ func (cs *ChainService) initDB(dataDir string) error {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
-
-	receiptDbPath := common.PathMkdirAll(dataDir, contract.DbName)
-	contract.TempReceiptDb = db.NewDB(db.BadgerImpl, receiptDbPath)
-	contract.LoadDatabase(dataDir)
-
 	return nil
 }
-
 func (cs *ChainService) BeforeStart() {
 
 	if err := cs.initDB(cs.cfg.DataDir); err != nil {
@@ -138,6 +134,12 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	gb, _ := cs.cdb.getBlockByNo(0)
 	logger.Info().Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
 
+	dbPath := path.Join(cs.cfg.DataDir, contract.DbName)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	contract.DB = db.NewDB(db.BadgerImpl, dbPath)
+
 	return nil
 }
 
@@ -167,10 +169,9 @@ func (cs *ChainService) CloseDB() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-	if contract.TempReceiptDb != nil {
-		contract.TempReceiptDb.Close()
+	if contract.DB != nil {
+		contract.DB.Close()
 	}
-	contract.CloseDatabase()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {
