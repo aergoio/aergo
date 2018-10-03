@@ -3,6 +3,7 @@
 #include "vm.h"
 #include "system_module.h"
 #include "contract_module.h"
+#include "db_module.h"
 #include "util.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -11,6 +12,7 @@ static void preloadModules(lua_State *L)
 {
 	luaopen_system(L);
 	luaopen_contract(L);
+    luaopen_db(L);
 }
 
 static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)
@@ -84,6 +86,7 @@ void vm_remove_construct(lua_State *L, const char *construct_name)
     lua_pushnil(L);
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
 }
+
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;

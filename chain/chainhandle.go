@@ -331,11 +331,10 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 
 		bState = types.NewBlockState(
 			types.NewBlockInfo(block.BlockNo(), block.BlockID(), block.PrevBlockID()),
-			contract.DB.NewTx(),
+			contract.TempReceiptDb.NewTx(),
 		)
 
-		exec = NewTxExecutor(
-			cs.sdb, bState, block.GetHeader().GetTimestamp())
+		exec = NewTxExecutor(cs.sdb, bState, block.GetHeader().GetTimestamp())
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
@@ -373,9 +372,14 @@ func (e *blockExecutor) execute() error {
 		}
 	}
 
+	err := contract.SaveRecoveryPoint(e.sdb, e.BlockState)
+	if err != nil {
+		return err
+	}
+
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
-	err := e.sdb.Apply(e.BlockState)
+	err = e.sdb.Apply(e.BlockState)
 
 	return err
 }
@@ -458,22 +462,31 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			if err != nil {
 				return err
 			}
+			sqlTx, err := contract.BeginTx(receiverID, receiverChange.SqlRecoveryPoint)
+			if err != nil {
+				return err
+			}
+			sqlTx.Savepoint()
+
 			bcCtx := contract.NewContext(sdb, bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
 				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(recipient), 0, nil)
+				types.EncodeAddress(recipient), 0, nil, sqlTx.GetHandle())
 
 			if createContract {
+				receiverChange.SqlRecoveryPoint = 1
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			} else {
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			}
 			if err != nil {
+				sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = sdb.CommitContractState(contractState)
 			if err != nil {
 				return err
 			}
+			sqlTx.Release()
 		}
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)
