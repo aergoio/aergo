@@ -206,6 +206,7 @@ func openDB(dbName types.AccountID) (*DB, error) {
 		return nil, ErrDBOpen
 	}
 	database.DBs[dbName].Conn = c
+	database.DBs[dbName].db = db
 	return database.DBs[dbName], nil
 }
 
