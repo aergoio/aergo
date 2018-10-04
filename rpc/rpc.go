@@ -55,7 +55,12 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 
 	grpcServer := grpc.NewServer(opts...)
 
-	grpcWebServer := grpcweb.WrapServer(grpcServer)
+	grpcWebServer := grpcweb.WrapServer(
+		grpcServer,
+		grpcweb.WithWebsockets(true),
+		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
+		return true
+	}))
 
 	rpcsvc := &RPC{
 		conf: cfg,
@@ -103,9 +108,10 @@ func (ns *RPC) Receive(context actor.Context) {
 // Create HTTP handler that redirects matching requests to the grpc-web wrapper.
 func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) {
+		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
 			grpcWebServer.ServeHTTP(w, r)
 		} else {
+			ns.Info().Msg("Request handled by other hanlder. is this correct?")
 			otherHandler.ServeHTTP(w, r)
 		}
 	})

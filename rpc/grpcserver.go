@@ -125,7 +125,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 }
 
 // real-time streaming most recent block header
-func (rpc *AergoRPCService) ListBlockHeadersStream(in *types.Empty, stream types.AergoRPCService_ListBlockHeadersStreamServer) error {
+func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
 	var prev *types.Block;
 	for {
 		last, err := rpc.ca.GetBestBlock()
@@ -139,7 +139,7 @@ func (rpc *AergoRPCService) ListBlockHeadersStream(in *types.Empty, stream types
 		}
 		prev = last
 
-		if err = stream.Send(last.GetHeader()); err != nil {
+		if err = stream.Send(last); err != nil {
 			break
 		}
 
