@@ -8,8 +8,8 @@ package mempool
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/csv"
+	"io"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -355,25 +355,35 @@ func (mp *MemPool) loadTxs() {
 	}
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	var drop, count int
+	var count int
 	for {
+		buf := types.Tx{}
 		rc, err := reader.Read()
 		if err != nil {
+			if err != io.EOF {
+				mp.Error().Err(err).Msg("err on read file during loading")
+			}
 			break
 		}
 		count++
-		dataBuf, err := base64.StdEncoding.DecodeString(rc[0])
-		if err == nil {
-			buf := types.Tx{}
-			if proto.Unmarshal(dataBuf, &buf) == nil {
-				mp.put(&buf) // nolint: errcheck
-				continue
-			}
+		dataBuf, err := enc.ToBytes(rc[0])
+		if err != nil {
+			mp.Error().Err(err).Msg("err on decoding tx during loading")
+			continue
 		}
-		drop++
+		err = proto.Unmarshal(dataBuf, &buf)
+		if err != nil {
+			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
+			continue
+		}
+		mp.put(&buf) // nolint: errcheck
 	}
 
-	mp.Info().Int("len", len(mp.cache)).Int("orphan", mp.orphan).Msg("loading mempool done")
+	mp.Info().Int("try", count).
+		Int("drop", count-len(mp.cache)-mp.orphan).
+		Int("suceed", len(mp.cache)).
+		Int("orphan", mp.orphan).
+		Msg("loading mempool done")
 }
 
 func (mp *MemPool) isRunning() bool {
