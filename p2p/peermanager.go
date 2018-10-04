@@ -329,7 +329,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		// peer is already exist
-		pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
+		pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peermanager")
 		if meta.Designated {
 			// If remote peer was connected first. designated flag is not set yet.
 			newPeer.meta.Designated = true
@@ -364,14 +364,14 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok = pm.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is lower priority that remote.")
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and remote peer is higher priority and close this outbound connection.")
 			pm.mutex.Unlock()
-			pm.sendGoAway(rw, "Already Handshaked")
+			pm.sendGoAway(rw, "Already handshaked")
 			s.Close()
 			return true
 		} else {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is higher priority that remote.")
-			// TODO: disconnect lower valued connection
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and local peer is higher priority and reming this outbound connection.")
+			// disconnect lower valued connection
 			pm.deletePeer(meta.ID)
 			newPeer.stop()
 		}
@@ -548,9 +548,14 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	peer, found := pm.remotePeers[peerID]
 
 	if found {
-		// already found. drop this connection
-		if ComparePeerID(pm.selfMeta.ID, peerID) <= 0 {
+		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
+			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and remote peer is higher priority and close this inbound connection.")
 			return false
+		} else {
+			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and local peer is higher priority and remain this inbound connection.")
+			// disconnect lower valued connection
+			pm.deletePeer(meta.ID)
+			peer.stop()
 		}
 	}
 	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
