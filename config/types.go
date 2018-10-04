@@ -24,10 +24,11 @@ type Config struct {
 
 // BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
-	DataDir       string `mapstructure:"datadir" description:"Directory to store datafiles"`
-	EnableProfile bool   `mapstructure:"enableprofile" description:"enable profiling"`
-	ProfilePort   int    `mapstructure:"profileport" description:"profiling port(default:6060)"`
-	EnableRest    bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
+	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
+	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
+	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
+	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
+	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`  
 }
 
 // RPCConfig defines configurations for rpc service
@@ -100,6 +101,7 @@ datadir = "{{.BaseConfig.DataDir}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enablerest = {{.BaseConfig.EnableRest}}
+enabletestmode = {{.BaseConfig.EnableTestmode}}
 
 [rpc]
 netserviceaddr = "{{.RPC.NetServiceAddr}}"

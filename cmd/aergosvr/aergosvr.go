@@ -41,6 +41,7 @@ var (
 	}
 	homePath       string
 	configFilePath string
+	enableTestmode bool
 	svrlog         *log.Logger
 
 	cfg *config.Config
@@ -51,6 +52,7 @@ func init() {
 	fs := rootCmd.PersistentFlags()
 	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
+	fs.BoolVar(&enableTestmode, "testmode", false, "enable unsafe test mode (skips certain validations)")
 }
 
 func initConfig() {
@@ -60,6 +62,9 @@ func initConfig() {
 	if err != nil {
 		fmt.Printf("Fail to load configuration file %v: %v", serverCtx.Vc.ConfigFileUsed(), err.Error())
 		os.Exit(1)
+	}
+	if enableTestmode {
+		cfg.EnableTestmode = true
 	}
 }
 
@@ -74,6 +79,10 @@ func rootRun(cmd *cobra.Command, args []string) {
 			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
 			svrlog.Info().Err(err).Msg("Run Profile Server")
 		}()
+	}
+
+	if cfg.EnableTestmode {
+		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
 
 	p2p.InitNodeInfo(cfg.P2P, svrlog)
