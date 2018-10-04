@@ -140,22 +140,10 @@ ast_id_add(array_t *ids, ast_id_t *new_id)
 void
 ast_id_merge(array_t *ids, array_t *new_ids)
 {
-    int i, j;
+    int i;
 
     for (i = 0; i < array_size(new_ids); i++) {
-        ast_id_t *new_id = array_item(new_ids, i, ast_id_t);
-
-        for (j = 0; j < array_size(ids); j++) {
-            ast_id_t *id = array_item(ids, j, ast_id_t);
-
-            if (strcmp(id->name, new_id->name) == 0) {
-                ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
-                break;
-            }
-        }
-
-        if (j == array_size(ids))
-            array_add(ids, new_id);
+        ast_id_add(ids, array_item(new_ids, i, ast_id_t));
     }
 }
 

@@ -14,6 +14,9 @@
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
+#define AST             (*parse->ast)
+#define BLK             parse->blk
+
 extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
 
@@ -147,7 +150,6 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 }
 
 %type <id>      contract_decl
-%type <blk>     contract_body
 %type <array>   variable
 %type <exp>     var_type
 %type <exp>     var_spec
@@ -164,7 +166,6 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 %type <array>   param_list
 %type <id>      param_decl
 %type <blk>     block
-%type <blk>     blk_decl
 %type <id>      function
 %type <mod>     modifier_opt
 %type <array>   return_opt
@@ -214,66 +215,73 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 smart_contract:
     contract_decl
     {
-        *parse->ast = ast_new();
-        ast_id_add(&(*parse->ast)->root->ids, $1);
+        AST = ast_new();
+        ast_id_add(&AST->root->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        ast_id_add(&(*parse->ast)->root->ids, $2);
+        ast_id_add(&AST->root->ids, $2);
     }
 ;
 
 contract_decl:
     K_CONTRACT identifier '{' '}'
     {
+        ASSERT(BLK == NULL);
         $$ = id_contract_new($2, NULL, &@$);
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        $$ = id_contract_new($2, $4, &@$);
+        ASSERT(BLK != NULL);
+        $$ = id_contract_new($2, BLK, &@$);
+        BLK = NULL;
     }
 ;
 
 contract_body:
     variable
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_merge(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_merge(&BLK->ids, $1);
     }
 |   struct
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_add(&BLK->ids, $1);
     }
 |   constructor
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_add(&BLK->ids, $1);
     }
 |   function
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_add(&BLK->ids, $1);
     }
 |   contract_body variable
     {
-        $$ = $1;
-        ast_id_merge(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_merge(&BLK->ids, $2);
     }
 |   contract_body struct
     {
-        $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_add(&BLK->ids, $2);
     }
 |   contract_body constructor
     {
-        $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_add(&BLK->ids, $2);
     }
 |   contract_body function
     {
-        $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_add(&BLK->ids, $2);
     }
 ;
 
@@ -460,39 +468,48 @@ param_decl:
 
 block:
     '{' '}'             { $$ = NULL; }
-|   '{' blk_decl '}'    { $$ = $2; }
+|   '{' blk_decl '}'    
+    { 
+        ASSERT(BLK != NULL);
+
+        $$ = BLK; 
+        BLK = NULL;
+    }
 ;
 
 blk_decl:
     variable
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_merge(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_merge(&BLK->ids, $1);
     }
 |   struct
     {
-        $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_id_add(&BLK->ids, $1);
     }
 |   statement
     {
-        $$ = ast_blk_new(&@$);
-        ast_stmt_add(&$$->stmts, $1);
+        ASSERT(BLK == NULL);
+        BLK = ast_blk_new(&@$);
+        ast_stmt_add(&BLK->stmts, $1);
     }
 |   blk_decl variable
     {
-        $$ = $1;
-        ast_id_merge(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_merge(&BLK->ids, $2);
     }
 |   blk_decl struct
     {
-        $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        ASSERT(BLK != NULL);
+        ast_id_add(&BLK->ids, $2);
     }
 |   blk_decl statement
     {
-        $$ = $1;
-        ast_stmt_add(&$$->stmts, $2);
+        ASSERT(BLK != NULL);
+        ast_stmt_add(&BLK->stmts, $2);
     }
 ;
 
@@ -595,12 +612,12 @@ stmt_loop:
 |   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
-        $$->u_for.init_ids = $3;
+        ast_id_merge(&BLK->ids, $3);
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
-        $$->u_for.init_ids = $3;
+        ast_id_merge(&BLK->ids, $3);
     }
 |   K_FOR '(' exp_loop K_IN exp_post ')' block
     {

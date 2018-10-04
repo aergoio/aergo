@@ -14,8 +14,8 @@ exp_id_check(check_t *check, ast_exp_t *exp)
 
     ASSERT1(exp_is_id(exp), exp->kind);
 
-    if (check->id != NULL)
-        id = ast_id_search_fld(check->id, exp->num, exp->u_id.name);
+    if (check->aq_id != NULL)
+        id = ast_id_search_fld(check->aq_id, exp->num, exp->u_id.name);
     else
         id = ast_id_search_blk(check->blk, exp->num, exp->u_id.name);
 
@@ -65,8 +65,8 @@ exp_type_check_struct(check_t *check, ast_exp_t *exp)
     ASSERT(exp->u_type.k_exp == NULL);
     ASSERT(exp->u_type.v_exp == NULL);
 
-    if (check->id != NULL)
-        id = ast_id_search_fld(check->id, exp->num, exp->u_type.name);
+    if (check->aq_id != NULL)
+        id = ast_id_search_fld(check->aq_id, exp->num, exp->u_type.name);
     else
         id = ast_id_search_blk(check->blk, exp->num, exp->u_type.name);
 
@@ -469,9 +469,9 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
 
-    check->id = id;
+    check->aq_id = id;
     ec = check_exp(check, fld_exp);
-    check->id = NULL;
+    check->aq_id = NULL;
 
     if (ec != NO_ERROR)
         return ec;
@@ -531,6 +531,8 @@ exp_sql_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp_is_sql(exp), exp->kind);
     ASSERT(exp->u_sql.sql != NULL);
+
+    // TODO: need column meta
 
     return NO_ERROR;
 }

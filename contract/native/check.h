@@ -32,8 +32,9 @@ typedef struct check_s {
     ast_blk_t *root;
 
     /* temporary context */
-    ast_blk_t *blk;     /* current block */
-    ast_id_t *id;       /* access qualifier */
+    ast_blk_t *blk;         /* current block */
+    ast_id_t *aq_id;        /* access qualifier */
+    ast_id_t *fn_id;        /* function identifier */
 } check_t;
 
 void check(ast_t *ast, flag_t flag);

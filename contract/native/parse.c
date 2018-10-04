@@ -31,6 +31,7 @@ parse_init(parse_t *parse, char *path, strbuf_t *src, ast_t **ast)
     parse->pos = 0;
 
     parse->ast = ast;
+    parse->blk = NULL;
 
     parse->adj_token = 0;
     errpos_init(&parse->adj_pos, path);

@@ -116,24 +116,31 @@ id_func_check(check_t *check, ast_id_t *id)
     ASSERT1(id_is_func(id), id->kind);
 
     param_ids = id->u_func.param_ids;
-    if (param_ids != NULL) {
-        for (i = 0; i < array_size(param_ids); i++) {
-            ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
 
-            TRY(id_var_check(check, param_id));
-        }
+    for (i = 0; i < array_size(param_ids); i++) {
+        ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
+
+        id_var_check(check, param_id);
     }
 
     ret_exps = id->u_func.ret_exps;
+
     if (ret_exps != NULL) {
         for (i = 0; i < array_size(ret_exps); i++) {
             ast_exp_t *type_exp = array_item(ret_exps, i, ast_exp_t);
 
-            TRY(exp_type_check(check, type_exp));
+            exp_type_check(check, type_exp);
         }
 
         meta_set_tuple(&id->meta, ret_exps);
     }
+
+    check->fn_id = id;
+
+    if (id->u_func.blk != NULL)
+        check_blk(check, id->u_func.blk);
+
+    check->fn_id = NULL;
 
     return NO_ERROR;
 }

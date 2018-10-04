@@ -26,6 +26,7 @@ typedef struct parse_s {
     int pos;
 
     ast_t **ast;
+    ast_blk_t *blk;
 
     int adj_token;
     errpos_t adj_pos;

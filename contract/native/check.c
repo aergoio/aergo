@@ -22,7 +22,7 @@ check_init(check_t *check, ast_t *ast)
 
     check->root = root;
     check->blk = root;
-    check->id = NULL;
+    check->aq_id = NULL;
 }
 
 void
