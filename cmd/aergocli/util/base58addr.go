@@ -108,8 +108,12 @@ func TxConvBase58Addr(tx *types.Tx) string {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
-	out.Body.Account = types.EncodeAddress(tx.Body.Account)
-	out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
+	if tx.Body.Account != nil {
+		out.Body.Account = types.EncodeAddress(tx.Body.Account)
+	}
+	if tx.Body.Recipient != nil {
+		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
+	}
 	out.Body.Amount = tx.Body.Amount
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.Limit = tx.Body.Limit
