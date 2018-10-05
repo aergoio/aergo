@@ -50,36 +50,51 @@ func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 	}
 }
 
-func (ps *pLibStatus) init() {
-	ps.confirms.Init()
+func (pls *pLibStatus) init() {
+	pls.confirms.Init()
 }
 
-func (ps *pLibStatus) updateStatus(block *types.Block) *blockInfo {
-	ps.confirms.PushBack(newConfirmInfo(block, ps.confirmsRequired))
+func (pls *pLibStatus) updateStatus(block *types.Block) *blockInfo {
+	return pls.addBlock(block)
+}
 
-	if bi := ps.getPreLIB(); bi != nil {
-		bp := block.BPID2Str()
-		ps.plib[bp] = bi
+func (pls *pLibStatus) addBlock(block *types.Block) *blockInfo {
+	bp := block.BPID2Str()
+	ci := newConfirmInfo(block, pls.confirmsRequired)
+	pls.confirms.PushBack(ci)
+
+	logger.Debug().Str("BP", bp).
+		Str("hash", block.ID()).Uint64("no", block.BlockNo()).
+		Msg("new confirm info added")
+
+	if bi := pls.getPreLIB(ci.blockInfo); bi != nil {
+		pls.plib[bp] = bi
 
 		logger.Debug().Str("BP", bp).
 			Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
 			Msg("proposed LIB map updated")
 
-		return ps.calcLIB()
+		return pls.calcLIB()
 	}
 
 	return nil
 }
 
-func (ps *pLibStatus) getPreLIB() (bi *blockInfo) {
+func (pls *pLibStatus) removeBlock(block *types.Block) (bi *blockInfo) {
+	return nil
+}
+
+func (pls *pLibStatus) getPreLIB(curBlockInfo *blockInfo) (bi *blockInfo) {
 	var (
 		prev *list.Element
 		del  = false
-		e    = ps.confirms.Back()
+		e    = pls.confirms.Back()
+		cr   = curBlockInfo.confirmRange
 	)
 
-	for e != nil {
+	for e != nil && cr > 0 {
 		prev = e.Prev()
+		cr--
 
 		if !del {
 			c := e.Value.(*confirmInfo)
@@ -96,7 +111,7 @@ func (ps *pLibStatus) getPreLIB() (bi *blockInfo) {
 		// necessary any more, since all the blocks before a finalized block
 		// are also final.
 		if del {
-			ps.confirms.Remove(e)
+			pls.confirms.Remove(e)
 		}
 
 		e = prev
@@ -105,9 +120,9 @@ func (ps *pLibStatus) getPreLIB() (bi *blockInfo) {
 	return
 }
 
-func (ps *pLibStatus) calcLIB() *blockInfo {
-	libInfos := make([]*blockInfo, 0, len(ps.plib))
-	for _, l := range ps.plib {
+func (pls *pLibStatus) calcLIB() *blockInfo {
+	libInfos := make([]*blockInfo, 0, len(pls.plib))
+	for _, l := range pls.plib {
 		libInfos = append(libInfos, l)
 	}
 
@@ -126,16 +141,18 @@ type confirmInfo struct {
 func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	return &confirmInfo{
 		blockInfo: &blockInfo{
-			blockHash: block.ID(),
-			blockNo:   block.BlockNo(),
+			blockHash:    block.ID(),
+			blockNo:      block.BlockNo(),
+			confirmRange: block.GetHeader().GetConfirms(),
 		},
 		confirmsLeft: confirmsRequired,
 	}
 }
 
 type blockInfo struct {
-	blockHash string
-	blockNo   uint64
+	blockHash    string
+	blockNo      uint64
+	confirmRange uint64
 }
 
 // UpdateStatus updates the last irreversible block (LIB).
