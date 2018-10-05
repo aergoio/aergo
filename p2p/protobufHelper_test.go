@@ -126,7 +126,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			peer.requests[msgID] = &pbRequestOrder{}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
-				var hashKey [blkhashLen]byte
+				var hashKey BlockHash
 				copy(hashKey[:], dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}
@@ -162,11 +162,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 		want     bool
 	}{
 		{"TSucc", nil, 0, true},
-		{"TSucc3", nil, 9, true},
-		// when failed in send
 		{"TWriteFail", fmt.Errorf("writeFail"), 0, false},
-		{"TExist", nil, 10, false},
-		{"TExistWriteFail", fmt.Errorf("writeFail"), 10, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
