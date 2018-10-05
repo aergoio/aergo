@@ -145,16 +145,16 @@ func hashBytes(b1 []byte, b2 []byte) []byte {
 	return h.Sum(nil)
 }
 
-func encrypt(address, key, data []byte) ([]byte, error) {
+func encrypt(base, key, data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 	// Never use more than 2^32 random nonces with a given key because of the risk of a repeat.
-	if len(address) < 16 {
+	if len(base) < 16 {
 		return nil, errors.New("too short address length")
 	}
-	nonce := address[4:16]
+	nonce := base[4:16]
 
 	aesgcm, err := cipher.NewGCM(block)
 	if err != nil {
@@ -165,11 +165,11 @@ func encrypt(address, key, data []byte) ([]byte, error) {
 	return cipherbytes, nil
 }
 
-func decrypt(address, key, data []byte) ([]byte, error) {
-	if len(address) < 16 {
+func decrypt(base, key, data []byte) ([]byte, error) {
+	if len(base) < 16 {
 		return nil, errors.New("too short address length")
 	}
-	nonce := address[4:16]
+	nonce := base[4:16]
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
