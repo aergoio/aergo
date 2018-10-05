@@ -46,6 +46,11 @@ func sendStaking(s bool) {
 	} else {
 		payload[0] = 'u'
 	}
+	if amount < types.Minimum {
+		fmt.Printf("Failed: minimum staking value is %d\n", types.Minimum)
+		return
+	}
+
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,

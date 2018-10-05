@@ -13,7 +13,7 @@ const stakingDelay = 5
 
 func staking(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
-	if txBody.Amount < minimum {
+	if txBody.Amount < types.Minimum {
 		return ErrTooSmallAmount
 	}
 	staked, _, err := getStaking(scs, txBody.Account)

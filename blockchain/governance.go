@@ -11,8 +11,6 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const minimum = 1000
-
 func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
 	blockNo types.BlockNo) error {
 	governance := string(txBody.GetRecipient())

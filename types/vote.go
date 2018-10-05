@@ -1,6 +1,7 @@
 package types
 
 const AergoSystem = "aergo.system"
+const Minimum = 1000
 
 func (v VoteList) Len() int           { return len(v.Votes) }
 func (v VoteList) Less(i, j int) bool { return v.Votes[i].Amount < v.Votes[j].Amount }
