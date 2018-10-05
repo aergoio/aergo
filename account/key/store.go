@@ -41,7 +41,7 @@ func NewStore(storePath string) *Store {
 		storage:   db.NewDB(db.BadgerImpl, dbPath),
 	}
 }
-func (ks *Store) DestroyStore() {
+func (ks *Store) CloseStore() {
 	ks.unlocked = nil
 	ks.addresses = ""
 	ks.storage.Close()
