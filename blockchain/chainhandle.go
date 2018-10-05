@@ -458,9 +458,9 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			if err != nil {
 				return err
 			}
-			bcCtx := contract.NewContext(sdb, bs, contractState, types.EncodeAddress(txBody.GetAccount()),
+			bcCtx := contract.NewContext(sdb, bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
 				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(recipient), 0)
+				types.EncodeAddress(recipient), 0, nil)
 
 			if createContract {
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
