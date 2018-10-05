@@ -24,6 +24,8 @@ exp_id_check(check_t *check, ast_exp_t *exp)
     if (id == NULL)
         THROW(ERROR_UNDEFINED_ID, &exp->pos, exp->u_id.name);
 
+    id->is_used = true;
+
     exp->id = id;
     exp->meta = id->meta;
 

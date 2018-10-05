@@ -10,7 +10,7 @@
 
 #include "error.h"
 
-char *err_lvls_[LEVEL_MAX] = {
+char *err_lvls_[LVL_MAX] = {
     ANSI_RED"fatal",
     ANSI_RED"error",
     ANSI_WHITE"info",
@@ -56,25 +56,30 @@ error_to_code(char *str)
 int
 error_count(void)
 {
-    return errstack_.size;
+    int errcnt = 0;
+    stack_node_t *n;
+
+    stack_foreach(n, &errstack_) {
+        if (((error_t *)n->item)->level <= LVL_INFO)
+            errcnt++;
+    }
+
+    return errcnt;
 }
 
 ec_t
 error_first(void)
 {
-    if (stack_empty(&errstack_))
-        return NO_ERROR;
+    stack_node_t *n;
 
-    return ((error_t *)stack_head(&errstack_)->item)->code;
-}
+    stack_foreach(n, &errstack_) {
+        error_t *e = (error_t *)n->item;
 
-ec_t
-error_last(void)
-{
-    if (stack_empty(&errstack_))
-        return NO_ERROR;
+        if (e->level <= LVL_INFO)
+            return e->code;
+    }
 
-    return ((error_t *)stack_tail(&errstack_)->item)->code;
+    return NO_ERROR;
 }
 
 static error_t *
@@ -124,8 +129,8 @@ error_clear(void)
     }
 }
 
-static char *
-make_trace(errpos_t *pos)
+static void
+dump_trace(errpos_t *pos)
 {
 #define TRACE_LINE_MAX      80
     int i, j;
@@ -134,7 +139,7 @@ make_trace(errpos_t *pos)
     int adj_offset = pos->first_offset;
     int adj_col = pos->first_col;
     FILE *fp = open_file(pos->path, "r");
-    char *buf;
+    char buf[TRACE_LINE_MAX * 3];
 
     ASSERT(adj_offset >= 0);
     ASSERT(adj_col > 0);
@@ -149,8 +154,6 @@ make_trace(errpos_t *pos)
 
     if (fseek(fp, adj_offset, SEEK_SET) < 0)
         FATAL(ERROR_FILE_IO, pos->path, strerror(errno));
-
-    buf = xmalloc(TRACE_LINE_MAX * 3);
 
     nread = fread(buf, 1, TRACE_LINE_MAX, fp);
     if (nread <= 0 && !feof(fp))
@@ -170,20 +173,50 @@ make_trace(errpos_t *pos)
 
     close_file(fp);
 
-    return buf;
+    fprintf(stderr, "%s\n", buf);
 }
 
 void
 error_dump(void)
 {
-    stack_node_t *n;
+    int i;
+    array_t *array = stack_to_array(&errstack_, error_cmp);
 
-    stack_foreach(n, &errstack_) {
-        error_t *e = (error_t *)n->item;
+    for (i = 0; i < array_size(array); i++) {
+        error_t *e = array_item(array, i, error_t);
 
-        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n%s\n", err_lvls_[e->level], 
-                e->pos.path, e->pos.first_line, e->desc, make_trace(&e->pos));
+        ASSERT1(e->level >= LVL_FATAL && e->level < LVL_MAX, e->level); 
+        ASSERT(e->pos.path != NULL);
+
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level], 
+                e->pos.path, e->pos.first_line, e->desc);
+
+        dump_trace(&e->pos);
     }
+
+    array_clear(array);
+}
+
+int
+error_cmp(const void *e1, const void *e2)
+{
+    int res;
+    errpos_t *pos1 = &((error_t *)e1)->pos;
+    errpos_t *pos2 = &((error_t *)e2)->pos;
+
+    ASSERT(pos1->path != NULL);
+    ASSERT(pos2->path != NULL);
+
+    res = strcmp(pos1->path, pos2->path);
+    if (res != 0)
+        return res;
+
+    if (pos1->first_line == pos2->first_line)
+        return 0;
+    else if (pos1->first_line < pos2->first_line)
+        return -1;
+    else
+        return 1;
 }
 
 void

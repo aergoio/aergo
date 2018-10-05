@@ -17,6 +17,8 @@
 
 #define array_reset(array)              ((array)->idx = 0)
 
+#define array_add(array, item)          array_sadd((array), (item), NULL)
+
 typedef struct array_s {
     int size;
     int idx;
@@ -42,17 +44,22 @@ array_new(void)
 }
 
 static inline void
-array_add(array_t *array, void *item)
+array_clear(array_t *array)
 {
-    if (item == NULL)
-        return;
+    ASSERT(array != NULL);
+    ASSERT(array->items != NULL);
 
-    if (array->idx == array->size) {
-        array->size += ARRAY_INIT_SIZE;
-        array->items = xrealloc(array->items, sizeof(void *) * array->size);
-    }
+    xfree(array->items);
+    xfree(array);
+}
 
-    array->items[array->idx++] = item;
+static inline void
+array_extend(array_t *array, int size)
+{
+    ASSERT(array != NULL);
+
+    array->size += size;
+    array->items = xrealloc(array->items, sizeof(void *) * array->size);
 }
 
 static inline void
@@ -61,13 +68,44 @@ array_merge(array_t *dest, array_t *src)
     ASSERT(src != NULL);
     ASSERT(dest != NULL);
 
-    if (src->idx + dest->idx > dest->size) {
-        dest->size += src->size;
-        dest->items = xrealloc(dest->items, sizeof(void *) * dest->size);
-    }
+    if (src->idx + dest->idx > dest->size)
+        array_extend(dest, src->size);
 
     memcpy(&dest->items[dest->idx], &src->items[0], sizeof(void *) * src->idx);
     dest->idx += src->idx;
+}
+
+static inline void
+array_sadd(array_t *array, void *item,
+           int (*cmp_fn)(const void *, const void *))
+{
+    ASSERT(array != NULL);
+
+    if (item == NULL)
+        return;
+
+    if (array->idx == array->size)
+        array_extend(array, ARRAY_INIT_SIZE);
+
+    if (cmp_fn == NULL) {
+        array->items[array->idx++] = item;
+    }
+    else {
+        int i;
+
+        for (i = 0; i < array->idx; i++) {
+            if (cmp_fn(item, array->items[i]) <= 0) {
+                memmove(&array->items[i + 1], &array->items[i],
+                        sizeof(void *) * (array->idx - i));
+                array->items[i] = item;
+                array->idx++;
+                break;
+            }
+        }
+
+        if (i == array->idx)
+            array->items[array->idx++] = item;
+    }
 }
 
 #endif /* ! _ARRAY_H */

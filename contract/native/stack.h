@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "array.h"
+
 #define stack_size(stack)       ((stack)->size)
 #define stack_empty(stack)      ((stack)->size == 0)
 #define stack_head(stack)       ((stack)->head)
@@ -30,6 +32,9 @@ typedef struct stack_s {
 
 void stack_push(stack_t *stack, void *item);
 void *stack_pop(stack_t *stack);
+
+array_t *stack_to_array(stack_t *stack, 
+                        int (*cmp_fn)(const void *, const void *));
 
 static inline void
 stack_init(stack_t *stack)

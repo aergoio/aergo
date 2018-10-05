@@ -28,7 +28,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     TRY(check_exp(check, cond_exp));
 
     if (!meta_is_bool(cond_meta))
-        THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos, 
+        THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos,
               TYPENAME(cond_meta->type));
 
     if (stmt->u_if.if_blk != NULL)
@@ -40,7 +40,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
         check_stmt(check, array_item(elif_stmts, i, ast_stmt_t));
     }
 
-    if (stmt->u_if.else_blk != NULL) 
+    if (stmt->u_if.else_blk != NULL)
         check_blk(check, stmt->u_if.else_blk);
 
     return NO_ERROR;
@@ -71,12 +71,12 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *exp = array_item(exps, i, ast_exp_t);
 
                 if (!meta_is_bool(&exp->meta))
-                    THROW(ERROR_INVALID_COND_TYPE, &exp->pos, 
+                    THROW(ERROR_INVALID_COND_TYPE, &exp->pos,
                           TYPENAME(exp->meta.type));
             }
         }
         else if (!meta_is_bool(cond_meta)) {
-            THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos, 
+            THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos,
                   TYPENAME(cond_meta->type));
         }
     }
@@ -106,9 +106,15 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
 
         check_exp(check, val_exp);
 
-        if (!meta_is_compatible(meta, val_meta))
-            THROW(ERROR_MISMATCHED_TYPE, &val_exp->pos, 
+        if (meta == NULL) {
+            if (!meta_is_bool(val_meta))
+                THROW(ERROR_INVALID_COND_TYPE, &val_exp->pos,
+                      TYPENAME(val_meta->type));
+        }
+        else if (!meta_is_compatible(meta, val_meta)) {
+            THROW(ERROR_MISMATCHED_TYPE, &val_exp->pos,
                   TYPENAME(meta->type), TYPENAME(val_meta->type));
+        }
     }
 
     stmts = stmt->u_case.stmts;
@@ -138,16 +144,15 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
         check_exp(check, cond_exp);
 
         if (!meta_is_comparable(cond_meta))
-            THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos, 
+            THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos,
                   TYPENAME(cond_meta->type));
     }
 
     case_stmts = stmt->u_sw.case_stmts;
 
     for (i = 0; i < array_size(case_stmts); i++) {
-        ast_stmt_t *case_stmt = array_item(case_stmts, i, ast_stmt_t);
-
-        stmt_case_check(check, stmt, cond_meta);
+        stmt_case_check(check, array_item(case_stmts, i, ast_stmt_t),
+                        cond_meta);
     }
 
     return NO_ERROR;
@@ -192,8 +197,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                 if ((exp_is_lit(ret_exp) &&
                      !meta_is_compatible(ret_meta, fn_ret_meta)) ||
                     meta_equals(ret_meta, fn_ret_meta))
-                    THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos, 
-                          TYPENAME(fn_ret_meta->type), 
+                    THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
+                          TYPENAME(fn_ret_meta->type),
                           TYPENAME(ret_meta->type));
             }
         }
@@ -209,7 +214,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             if ((exp_is_lit(arg_exp) &&
                  !meta_is_compatible(arg_meta, fn_ret_meta)) ||
                 meta_equals(arg_meta, fn_ret_meta))
-                THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos, 
+                THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
                       TYPENAME(fn_ret_meta->type), TYPENAME(arg_meta->type));
         }
     }

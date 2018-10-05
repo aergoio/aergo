@@ -27,6 +27,7 @@ error(ERROR_SYNTAX,                 "%s")
 /* semantic checker */
 error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
 error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
+error(ERROR_UNUSED_ID,              "'%s' declared, but not used")
 error(ERROR_NOT_COMPARABLE_TYPE,    "not comparable type %s")
 error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")
 error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
@@ -42,7 +43,7 @@ error(ERROR_INVALID_IDX_TYPE,       "index of array has non-integer type %s")
 error(ERROR_INVALID_OP_TYPE,        "operand(s) has invalid type %s")
 error(ERROR_INVALID_COND_TYPE,      "condition(s) has non-boolean type %s")
 error(ERROR_MISSING_INITIALIZER,    "missing array initializer")
-error(ERROR_TRUNCATED_TYPE,          "%s truncated to %s")
+error(ERROR_TRUNCATED_TYPE,         "%s truncated to %s")
 error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
 
 /* vim:set filetype=c: */

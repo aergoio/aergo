@@ -78,6 +78,7 @@ struct ast_id_s {
     };
 
     // results of semantic checker
+    bool is_used;
     ast_meta_t meta;
 };
 

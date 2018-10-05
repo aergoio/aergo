@@ -64,7 +64,7 @@ typedef enum errlvl_e {
     LVL_WARN,
     LVL_DEBUG,
 
-    LEVEL_MAX
+    LVL_MAX
 } errlvl_t;
 
 typedef struct errpos_s {
@@ -88,15 +88,15 @@ char *error_to_string(ec_t ec);
 ec_t error_to_code(char *str);
 
 int error_count(void);
-
 ec_t error_first(void);
-ec_t error_last(void);
 
 void error_push(ec_t ec, errlvl_t lvl, errpos_t *pos, ...);
 error_t *error_pop(void);
 
 void error_clear(void);
 void error_dump(void);
+
+int error_cmp(const void *e1, const void *e2);
 
 void error_exit(ec_t ec, errlvl_t lvl, ...);
 
