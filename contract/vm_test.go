@@ -114,8 +114,8 @@ func TestContractHello(t *testing.T) {
 func TestContractSystem(t *testing.T) {
 	callInfo := "{\"Name\":\"testState\", \"Args\":[]}"
 	contractState := getContractState(t, systemCode)
-	bcCtx := NewContext(sdb, nil, contractState, "HNM6akcic1ou1fX", "c2b36750", 100, 1234,
-		"node", 1, accountId, 0)
+	bcCtx := NewContext(sdb, nil, nil, contractState, "HNM6akcic1ou1fX", "c2b36750", 100, 1234,
+		"node", 1, accountId, 0, nil)
 
 	contractCall(t, contractState, callInfo, bcCtx)
 	receipt := types.NewReceiptFromBytes(DB.Get(tid))
@@ -147,8 +147,8 @@ func TestContractQuery(t *testing.T) {
 		t.Errorf("failed check error: %s", err.Error())
 	}
 
-	bcCtx := NewContext(sdb, nil, contractState, "", "", 100, 1234,
-		"node", 1, accountId, 0)
+	bcCtx := NewContext(sdb, nil, nil, contractState, "", "", 100, 1234,
+		"node", 1, accountId, 0, nil)
 
 	contractCall(t, contractState, setInfo, bcCtx)
 
