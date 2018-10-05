@@ -182,9 +182,6 @@ func (cp *chainProcessor) execute() error {
 		block := e.Value.(*types.Block)
 
 		if err := cp.executeBlock(block); err != nil {
-			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
-				Msg("failed to execute block")
-
 			return err
 		}
 
