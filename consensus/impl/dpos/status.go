@@ -2,50 +2,157 @@ package dpos
 
 import (
 	"container/list"
+	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 )
+
+type errLibUpdate struct {
+	current string
+	parent  string
+	oldBest string
+}
+
+func (e errLibUpdate) Error() string {
+	return fmt.Sprintf(
+		"current block %v (parent %v) inconsistent with old best %v",
+		e.current, e.parent, e.oldBest)
+}
 
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
-	bestBlock        *types.Block
-	confirmsRequired uint16
-	plibConfirms     *list.List            // confirm counts to become proposed LIB
-	plib             map[string]*blockInfo // BP-wise proposed LIB map
-	lib              *blockInfo
-}
-
-type blockInfo struct {
-	blockHash string
-	blockNo   uint64
-}
-
-type plibConfirm struct {
-	*blockInfo
-	confirmsLeft uint16
+	bestBlock *types.Block
+	pls       *pLibStatus
+	lib       *blockInfo
 }
 
 // NewStatus returns a newly allocated Status.
 func NewStatus(confirmsRequired uint16) *Status {
 	return &Status{
+		pls: newPlibStatus(confirmsRequired),
+	}
+}
+
+type pLibStatus struct {
+	confirmsRequired uint16
+	confirms         *list.List
+	plib             map[string]*blockInfo // BP-wise proposed LIB map
+}
+
+func newPlibStatus(confirmsRequired uint16) *pLibStatus {
+	return &pLibStatus{
 		confirmsRequired: confirmsRequired,
-		plibConfirms:     list.New(),
+		confirms:         list.New(),
 		plib:             make(map[string]*blockInfo),
 	}
 }
 
-func newPLibConfirm(block *types.Block, confirmsRequired uint16) *plibConfirm {
-	return &plibConfirm{
+func (pls *pLibStatus) init() {
+	pls.confirms.Init()
+}
+
+func (pls *pLibStatus) updateStatus(block *types.Block) *blockInfo {
+	return pls.addBlock(block)
+}
+
+func (pls *pLibStatus) addBlock(block *types.Block) *blockInfo {
+	bp := block.BPID2Str()
+	ci := newConfirmInfo(block, pls.confirmsRequired)
+	pls.confirms.PushBack(ci)
+
+	logger.Debug().Str("BP", bp).
+		Str("hash", block.ID()).Uint64("no", block.BlockNo()).
+		Msg("new confirm info added")
+
+	if bi := pls.getPreLIB(ci.blockInfo); bi != nil {
+		pls.plib[bp] = bi
+
+		logger.Debug().Str("BP", bp).
+			Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+			Msg("proposed LIB map updated")
+
+		return pls.calcLIB()
+	}
+
+	return nil
+}
+
+func (pls *pLibStatus) removeBlock(block *types.Block) (bi *blockInfo) {
+	return nil
+}
+
+func (pls *pLibStatus) getPreLIB(curBlockInfo *blockInfo) (bi *blockInfo) {
+	var (
+		prev *list.Element
+		del  = false
+		e    = pls.confirms.Back()
+		cr   = curBlockInfo.confirmRange
+	)
+
+	for e != nil && cr > 0 {
+		prev = e.Prev()
+		cr--
+
+		if !del {
+			c := e.Value.(*confirmInfo)
+			c.confirmsLeft--
+			if c.confirmsLeft == 0 {
+				// proposed LIB info to return
+				bi = c.blockInfo
+				del = true
+			}
+		}
+
+		// Delete all the previous elements including the one corresponding to
+		// a block to be finalized (c.confirmsLeft == 0). They are not
+		// necessary any more, since all the blocks before a finalized block
+		// are also final.
+		if del {
+			pls.confirms.Remove(e)
+		}
+
+		e = prev
+	}
+
+	return
+}
+
+func (pls *pLibStatus) calcLIB() *blockInfo {
+	libInfos := make([]*blockInfo, 0, len(pls.plib))
+	for _, l := range pls.plib {
+		libInfos = append(libInfos, l)
+	}
+
+	sort.Slice(libInfos, func(i, j int) bool {
+		return libInfos[i].blockNo < libInfos[j].blockNo
+	})
+
+	return libInfos[(len(libInfos)-1)/3]
+}
+
+type confirmInfo struct {
+	*blockInfo
+	confirmsLeft uint16
+}
+
+func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
+	return &confirmInfo{
 		blockInfo: &blockInfo{
-			blockHash: block.ID(),
-			blockNo:   block.BlockNo(),
+			blockHash:    block.ID(),
+			blockNo:      block.BlockNo(),
+			confirmRange: block.GetHeader().GetConfirms(),
 		},
 		confirmsLeft: confirmsRequired,
 	}
+}
+
+type blockInfo struct {
+	blockHash    string
+	blockNo      uint64
+	confirmRange uint64
 }
 
 // UpdateStatus updates the last irreversible block (LIB).
@@ -58,85 +165,44 @@ func (s *Status) UpdateStatus(block *types.Block) {
 		return
 	}
 
-	oldBest := s.bestBlock
-	s.bestBlock = block
-	if block.PrevID() != oldBest.ID() {
-		logger.Debug().
-			Int("len", s.plibConfirms.Len()).
-			Msg("plibConfirms reset due to chain reorganization")
+	curBestID := s.bestBlock.ID()
+	switch {
+	case curBestID == block.PrevID():
+		// Block connected
+		s.bestBlock = block
 
-		// Chain reorganized.
-		s.plibConfirms.Init()
-		// TODO: Rebuild LIB status & update a new LIB (if needed) after the
-		// last LIB, of which infomation should be able to retrieve from DB.
-		return
-	}
+		if lib := s.pls.updateStatus(block); lib != nil {
+			s.updateLIB(lib)
+		}
 
-	libInfo := calcProposedLIB(s.plibConfirms, block, s.confirmsRequired)
-	if libInfo != nil {
-		bp := blockBP(block)
-		logger.Debug().Str("BP", bp).
-			Str("lib hash", libInfo.blockHash).Uint64("lib no", libInfo.blockNo).
-			Str("best block hash", block.ID()).Uint64("best block no", block.BlockNo()).
-			Msg("proposed LIB map updated")
-		s.updateLIB(bp, libInfo)
+	case curBestID == block.ID():
+		// TODO: handle correctly a block disconnected (rollback) instead of
+		// initializing.
+		s.pls.init()
+
+	default:
+		logger.Debug().Err(errLibUpdate{
+			current: block.ID(),
+			parent:  block.PrevID(),
+			oldBest: curBestID,
+		}).Msg("inconsistent block")
+
+		/*
+			panic(errLibUpdate{
+				current: block.ID(),
+				parent:  block.PrevID(),
+				oldBest: curBestID,
+			})
+		*/
 	}
 }
 
-func calcProposedLIB(confirms *list.List, block *types.Block, confirmsRequired uint16) (bi *blockInfo) {
-	pc := newPLibConfirm(block, confirmsRequired)
-	confirms.PushBack(pc)
-	logger.Debug().Int("len", confirms.Len()).Str("hash", spew.Sdump(pc)).Msg("new plibConfirm added")
-
-	var c *plibConfirm
-	var remEnd *list.Element
-	for e := confirms.Back(); e != nil; e = e.Prev() {
-		c = e.Value.(*plibConfirm)
-		// TODO: Apply DPoS 3.0 modification (ranged confirmation)
-		c.confirmsLeft--
-		if c.confirmsLeft == 0 {
-			// proposed LIB info to return
-			bi = c.blockInfo
-			remEnd = e.Next()
-			break
-		}
-	}
-
-	if c.confirmsLeft == 0 {
-		// Remove all the blockInfos before remEnd. They correspond to lower
-		// heights than the proposed LIB's height so we don't neet them
-		// anymore.
-		var next *list.Element
-		for e := confirms.Front(); e != remEnd; e = next {
-			next = e.Next()
-			confirms.Remove(e)
-		}
-	}
-
-	return
-}
-
-func (s *Status) updateLIB(bp string, libInfo *blockInfo) {
-	s.plib[bp] = libInfo
-
-	libInfos := make([]*blockInfo, 0, len(s.plib))
-	for _, l := range s.plib {
-		libInfos = append(libInfos, l)
-	}
-	// TODO: find better method.
-	sort.Slice(libInfos, func(i, j int) bool {
-		return libInfos[i].blockNo < libInfos[j].blockNo
-	})
-
-	s.lib = libInfos[(len(libInfos)-1)/3]
+func (s *Status) updateLIB(lib *blockInfo) {
+	s.lib = lib
 	logger.Debug().
 		Str("block hash", s.lib.blockHash).
 		Uint64("block no", s.lib.blockNo).
 		Msg("last irreversible block (BFT) updated")
-}
-
-func blockBP(block *types.Block) string {
-	return block.BPID2Str()
 }
 
 // NeedReorganization reports whether reorganization is needed or not.
