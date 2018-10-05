@@ -1,5 +1,5 @@
 /**
- * @file    ast_type.c
+ * @file    types.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
@@ -13,6 +13,8 @@ char *type_strs_[TYPE_MAX] = {
     "byte",
     "float",
     "double",
+    "int8",
+    "uint8",
     "int16",
     "uint16",
     "int32",
@@ -28,4 +30,4 @@ char *type_strs_[TYPE_MAX] = {
     "tuple"
 }; 
 
-/* end of ast_type.c */
+/* end of types.c */

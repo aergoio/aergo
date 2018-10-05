@@ -240,6 +240,7 @@ id                          {L}({L}|{D})*
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
+"int8"                      yy_return(K_INT8);
 "local"                     yy_return(K_LOCAL);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
@@ -256,6 +257,7 @@ id                          {L}({L}|{D})*
 "uint16"                    yy_return(K_UINT16);
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
+"uint8"                     yy_return(K_UINT8);
 
 "create"                    yy_return(K_CREATE);
 "delete"                    yy_return(K_DELETE);

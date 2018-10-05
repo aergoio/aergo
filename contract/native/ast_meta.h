@@ -13,7 +13,7 @@
 #define meta_is_bool(meta)          ((meta)->type == TYPE_BOOL)
 
 #define meta_is_integer(meta)                                                  \
-    ((meta)->type >= TYPE_INT16 && (meta)->type <= TYPE_UINT64)
+    ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
 
 #define meta_is_float(meta)                                                    \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)

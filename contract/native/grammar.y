@@ -97,6 +97,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
         K_INT16         "int16"
         K_INT32         "int32"
         K_INT64         "int64"
+        K_INT8          "int8"
         K_LOCAL         "local"
         K_MAP           "map"
         K_NEW           "new"
@@ -114,6 +115,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
         K_UINT16        "uint16"
         K_UINT32        "uint32"
         K_UINT64        "uint64"
+        K_UINT8         "uint8"
         K_UPDATE        "update"
 
 %token  END 0           "EOF"
@@ -342,11 +344,13 @@ prim_type:
 |   K_INT16             { $$ = TYPE_INT16; }
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
+|   K_INT8              { $$ = TYPE_INT8; }
 |   K_STRING            { $$ = TYPE_STRING; }
 |   K_UINT              { $$ = TYPE_UINT32; }
 |   K_UINT16            { $$ = TYPE_UINT16; }
 |   K_UINT32            { $$ = TYPE_UINT32; }
 |   K_UINT64            { $$ = TYPE_UINT64; }
+|   K_UINT8             { $$ = TYPE_UINT8; }
 ;
 
 var_decl_list:

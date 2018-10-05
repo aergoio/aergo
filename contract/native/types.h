@@ -18,6 +18,8 @@ typedef enum type_e {
     TYPE_BYTE,
     TYPE_FLOAT,
     TYPE_DOUBLE,
+    TYPE_INT8,
+    TYPE_UINT8,
     TYPE_INT16,
     TYPE_UINT16,
     TYPE_INT32,
@@ -43,30 +45,23 @@ extern char *type_strs_[TYPE_MAX];
 static inline bool
 type_check_range(type_t type, int64_t val)
 {
-    switch (type) {
-    case TYPE_INT16:
-        if (val < INT16_MIN || val > INT16_MAX)
-            return false;
-        break;
+    if (type == TYPE_INT8 && (val < INT8_MIN || val > INT8_MAX))
+        return false;
 
-    case TYPE_UINT16:
-        if (val > UINT16_MAX)
-            return false;
-        break;
+    if (type == TYPE_UINT8 && val > UINT8_MAX)
+        return false;
 
-    case TYPE_INT32:
-        if (val < INT32_MIN || val > INT32_MAX)
-            return false;
-        break;
+    if (type == TYPE_INT16 && (val < INT16_MIN || val > INT16_MAX))
+        return false;
 
-    case TYPE_UINT32:
-        if (val > UINT32_MAX)
-            return false;
-        break;
+    if (type == TYPE_UINT16 && val > UINT16_MAX)
+        return false;
 
-    default:
-        break;
-    }
+    if (type == TYPE_INT32 && (val < INT32_MIN || val > INT32_MAX))
+        return false;
+
+    if (type == TYPE_UINT32 && val > UINT32_MAX)
+        return false;
 
     return true;
 }

@@ -1,25 +1,27 @@
 @desc primitive_type
 contract test {
     int v1;
-    int16 v2;
-    int32 v3;
-    int64 v4;
-    uint v5;
-    uint16 v6;
-    uint32 v7;
-    uint64 v8;
-    float v9;
-    double v10;
-    bool v11;
-    byte v12;
-    string v13;
-    int v14, v15;
+    int8 v2;
+    int16 v3;
+    int32 v4;
+    int64 v5;
+    uint v6;
+    uint8 v7;
+    uint16 v8;
+    uint32 v9;
+    uint64 v10;
+    float v11;
+    double v12;
+    bool v13;
+    byte v14;
+    string v15;
+    int v16, v17;
 }
 
 @desc incompatible_declaration
 @error ERROR_SYNTAX
 contract test {
-    int v16, string v17;
+    int v1, string v2;
 }
 
 @desc constant_qualifier
