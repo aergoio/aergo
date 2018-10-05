@@ -153,6 +153,14 @@ func NewBlockInfo(blockNo BlockNo, blockHash, prevHash BlockID) *BlockInfo {
 	}
 }
 
+// GetStateRoot return bytes of bi.StateRoot
+func (bi *BlockInfo) GetStateRoot() []byte {
+	if bi == nil {
+		return nil
+	}
+	return bi.StateRoot.Bytes()
+}
+
 // NewBlockState create new blockState contains blockInfo, account states and undo states
 func NewBlockState(blockInfo *BlockInfo, rTx db.Transaction) *BlockState {
 	return &BlockState{

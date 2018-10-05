@@ -24,6 +24,7 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+// ChainService manage connectivity of blocks
 type ChainService struct {
 	*component.BaseComponent
 	consensus.ChainConsensus
@@ -40,6 +41,7 @@ var (
 	logger = log.NewLogger("chain")
 )
 
+// NewChainService create instance of ChainService
 func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool.MemPool) *ChainService {
 	actor := &ChainService{
 		ChainConsensus: cc,
@@ -76,6 +78,8 @@ func (cs *ChainService) initDB(dataDir string) error {
 	}
 	return nil
 }
+
+// BeforeStart initialize chain database and generate empty genesis block if necessary
 func (cs *ChainService) BeforeStart() {
 
 	if err := cs.initDB(cs.cfg.DataDir); err != nil {
@@ -89,9 +93,11 @@ func (cs *ChainService) BeforeStart() {
 
 }
 
+// AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
 }
 
+// InitGenesisBlock initialize chain database and generate specified genesis block if necessary
 func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
 
 	if err := cs.initDB(dataDir); err != nil {
@@ -143,7 +149,7 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	return nil
 }
 
-// Sync with peer
+// ChainSync synchronize with peer
 func (cs *ChainService) ChainSync(peerID peer.ID) {
 	// handlt it like normal block (orphan)
 	logger.Debug().Msg("Best Block Request")
@@ -156,12 +162,14 @@ func (cs *ChainService) ChainSync(peerID peer.ID) {
 	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 }
 
+// BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
 	cs.CloseDB()
 
 	cs.validator.Stop()
 }
 
+// CloseDB close chain database
 func (cs *ChainService) CloseDB() {
 	if cs.sdb != nil {
 		cs.sdb.Close()
@@ -182,6 +190,7 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 		})
 }
 
+// Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
