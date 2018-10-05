@@ -62,9 +62,16 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		return err
 	}
 
-	for offset := 0; offset < len(txBody.Payload[1:]); offset += peerIDLength {
-		key := txBody.Payload[offset+1 : offset+peerIDLength+1]
-		(*voteResult)[base58.Encode(key)] += staked
+	if txBody.Payload[0] != 'v' { //called from staking/unstaking
+		for offset := 0; offset < len(candidates); offset += peerIDLength {
+			key := candidates[offset : offset+peerIDLength]
+			(*voteResult)[base58.Encode(key)] += staked
+		}
+	} else {
+		for offset := 0; offset < len(txBody.Payload[1:]); offset += peerIDLength {
+			key := txBody.Payload[offset+1 : offset+peerIDLength+1]
+			(*voteResult)[base58.Encode(key)] += staked
+		}
 	}
 
 	err = syncVoteResult(scs, voteResult)
