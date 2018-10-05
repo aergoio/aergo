@@ -82,6 +82,8 @@ var signCmd = &cobra.Command{
 			}
 			tx.Hash = tx.CalculateTxHash()
 			msg = tx
+
+			ks.CloseStore()
 		}
 
 		if nil == err && msg != nil {

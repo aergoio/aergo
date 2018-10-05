@@ -94,6 +94,7 @@ var newCmd = &cobra.Command{
 				fmt.Printf("Failed: %s\n", err.Error())
 			}
 			err = ks.SaveAddress(addr)
+			ks.CloseStore()
 		}
 		if nil != err {
 			fmt.Printf("Failed: %s\n", err.Error())
@@ -120,6 +121,7 @@ var listCmd = &cobra.Command{
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
 			addrs, err = ks.GetAddresses()
+			ks.CloseStore()
 		}
 		if nil == err {
 			out := fmt.Sprintf("%s", "[")
@@ -222,6 +224,7 @@ var importCmd = &cobra.Command{
 				fmt.Println(types.EncodeAddress(address))
 				return
 			}
+			ks.CloseStore()
 		}
 		fmt.Printf("Failed to import account: %s\n", err.Error())
 
@@ -253,6 +256,7 @@ var exportCmd = &cobra.Command{
 				return
 			}
 			result = wif
+			ks.CloseStore()
 		}
 		fmt.Println(types.EncodePrivKey(result))
 	},
