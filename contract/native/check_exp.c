@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "ast_id.h"
+
 #include "check_exp.h"
 
 static int
@@ -226,7 +228,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (!meta_equals(l_meta, r_meta))
+    if (!meta_is_compatible(l_meta, r_meta))
         THROW(ERROR_MISMATCHED_TYPE, &exp->pos, TYPENAME(l_meta->type),
               TYPENAME(r_meta->type));
 
@@ -245,7 +247,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_log_cmp(check_t *check, ast_exp_t *exp)
+exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     ast_meta_t *l_meta, *r_meta;
@@ -323,25 +325,17 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (meta_is_float(l_meta) && meta_is_integer(r_meta)) {
+    if (meta_is_float(l_meta) && meta_is_integer(r_meta))
         WARN(ERROR_TRUNCATED_TYPE, &l_exp->pos, TYPENAME(l_meta->type),
              TYPENAME(r_meta->type));
-
-        exp->meta = *r_meta;
-    }
-    else if (meta_is_integer(l_meta) && meta_is_float(r_meta)) {
+    else if (meta_is_integer(l_meta) && meta_is_float(r_meta))
         WARN(ERROR_TRUNCATED_TYPE, &r_exp->pos, TYPENAME(r_meta->type),
              TYPENAME(l_meta->type));
-
-        exp->meta = *l_meta;
-    }
-    else if (!meta_equals(l_meta, r_meta)) {
+    else if (!meta_equals(l_meta, r_meta))
         THROW(ERROR_MISMATCHED_TYPE, &exp->pos, TYPENAME(l_meta->type),
               TYPENAME(r_meta->type));
-    }
-    else {
-        exp->meta = *l_meta;
-    }
+
+    meta_set_prim(&exp->meta, TYPE_BOOL);
 
     return NO_ERROR;
 }
@@ -399,7 +393,7 @@ exp_op_check(check_t *check, ast_exp_t *exp)
 
     case OP_AND:
     case OP_OR:
-        return exp_op_check_log_cmp(check, exp);
+        return exp_op_check_bool_cmp(check, exp);
 
     case OP_BIT_AND:
     case OP_BIT_OR:

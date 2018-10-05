@@ -24,20 +24,20 @@ set(SRCS
     check.c
     gen.c
     ast.c
-	ast_id.c
+    ast_id.c
     ast_blk.c
     ast_stmt.c
     ast_exp.c
     ast_meta.c
-    ast_type.c
-	check_id.c
+    check_id.c
     check_blk.c
     check_stmt.c
     check_exp.c
-	error.c
+    error.c
     strbuf.c
     stack.c
     util.c
+    types.c
     xalloc.c
     ${YACC_SRC}
     ${LEX_SRC}

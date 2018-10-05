@@ -36,14 +36,12 @@ contract test {
 @desc type_modifier
 contract test {
     local int v1;
-    shared int v1;
 }
 
-@desc invalid_type_modifier
+@desc invalid_modifier_position
 @error ERROR_SYNTAX
 contract test {
-    public int v1;
-    private int v1;
+    int local v1;
 }
 
 @desc primitive_array
@@ -52,9 +50,6 @@ contract test {
     int v2, v3[10];
     int v4[10], v5;
     int v6[10], v7[10];
-
-    byte v8[];
-    byte v9[], v10[];
 }
 
 @desc invalid_brace_position
@@ -120,6 +115,10 @@ contract test {
 @desc map_type
 contract test {
     map(int, string) v1;
-    map(v, string) v2;
-    map(byte, v) v3;
+    struct x {
+        int a;
+    }
+    map(x, string) v2;
+    map(byte, x) v3;
+    map(int, map(int, string)) v4;
 }

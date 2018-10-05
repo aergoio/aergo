@@ -1,10 +1,10 @@
 /**
- * @file    ast_type.h
+ * @file    types.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _AST_TYPE_H
-#define _AST_TYPE_H
+#ifndef _TYPES_H
+#define _TYPES_H
 
 #include "common.h"
 
@@ -33,7 +33,7 @@ typedef enum type_e {
     TYPE_PRIMITIVE  = TYPE_MAP,
 
     TYPE_VOID,
-    TYPE_REF,                       /* only for NULL */
+    TYPE_REF,                       /* for NULL */
     TYPE_TUPLE,
     TYPE_MAX
 } type_t;
@@ -71,4 +71,4 @@ type_check_range(type_t type, int64_t val)
     return true;
 }
 
-#endif /* ! _AST_TYPE_H */
+#endif /* ! _TYPES_H */

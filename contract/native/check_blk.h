@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "ast_blk.h"
 #include "check.h"
 
 void check_blk(check_t *check, ast_blk_t *blk);

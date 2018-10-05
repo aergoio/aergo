@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "ast_exp.h"
 #include "check.h"
 
 int check_exp(check_t *check, ast_exp_t *exp);

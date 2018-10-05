@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "ast_type.h"
+#include "types.h"
 
 #define meta_is_bool(meta)          ((meta)->type == TYPE_BOOL)
 
@@ -35,11 +35,13 @@
 #define meta_is_compatible(meta1, meta2)                                       \
     (meta_is_integer(meta1) ? meta_is_integer(meta2) :                         \
      (meta_is_float(meta1) ? meta_is_float(meta2) :                            \
-      meta_equals(meta1, meta2)))
+      (meta_is_struct(meta1) ? meta_is_ref(meta2) || meta_is_struct(meta2) :   \
+       (meta_is_map(meta1) ? meta_is_ref(meta2) || meta_equals(meta1, meta2) : \
+        meta_equals(meta1, meta2)))))
 
-#define meta_set_prim(meta, typ)    (meta)->type = (typ)
-#define meta_set_tuple(meta)        (meta)->type = TYPE_TUPLE
-#define meta_set_void(meta)         (meta)->type = TYPE_VOID
+#define meta_set_prim               ast_meta_set
+#define meta_set_tuple(meta)        ast_meta_set((meta), TYPE_TUPLE)
+#define meta_set_void(meta)         ast_meta_set((meta), TYPE_VOID)
 
 #ifndef _AST_META_T
 #define _AST_META_T
@@ -66,19 +68,26 @@ struct ast_meta_s {
 void ast_meta_dump(ast_meta_t *meta, int indent);
 
 static inline void
-ast_meta_init(ast_meta_t *meta, type_t type)
+ast_meta_init(ast_meta_t *meta)
+{
+    ASSERT(meta != NULL);
+
+    memset(meta, 0x00, sizeof(ast_meta_t));
+}
+
+static inline void
+ast_meta_set(ast_meta_t *meta, type_t type)
 {
     ASSERT(meta != NULL);
     ASSERT1(type_is_valid(type), type);
 
-    memset(meta, 0x00, sizeof(ast_meta_t));
     meta->type = type;
 }
 
 static inline void
 meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
 {
-    ast_meta_init(meta, TYPE_MAP);
+    ast_meta_set(meta, TYPE_MAP);
 
     meta->u_map.k_type = k_type;
     meta->u_map.v_meta = v_meta;
@@ -87,18 +96,15 @@ meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
 static inline bool
 meta_equals(ast_meta_t *x, ast_meta_t *y)
 {
-    if (x->type == TYPE_MAP) {
-        if (y->type == TYPE_REF)
-            return true;
+    if (x->type != y->type)
+        return false;
 
-        if (x->type != y->type || x->u_map.k_type != y->u_map.k_type)
+    if (x->type == TYPE_MAP) {
+        if (x->u_map.k_type != y->u_map.k_type)
             return false;
 
         if (!meta_equals(x->u_map.v_meta, y->u_map.v_meta))
             return false;
-    }
-    else if (x->type != y->type) {
-        return false;
     }
 
     return true;

@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "ast_type.h"
+#include "types.h"
 
 char *type_strs_[TYPE_MAX] = {
     "undefined",

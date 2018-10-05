@@ -19,15 +19,11 @@ contract test {
 
 @desc bitwise_operator
 contract test {
-    bool v1 = true & false;
-    bool v2 = true | false;
-    bool v3 = (true & true) | false;
+    int v1 = (0x08 & 0x02);
+    int v2 = 0xFF ^ 0x02;
 
-    int v4 = (0x08 & 0x02);
-    int v5 = 0xFF ^ 0x02;
-
-    int v6 = 1 << 1;
-    int v7 = 0xff >> 1;
+    int v3 = 1 << 1;
+    int v4 = 0xff >> 1;
 }
 
 @desc comparison_operator

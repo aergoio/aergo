@@ -8,6 +8,12 @@
 
 #include "common.h"
 
+#define val_is_null(val)            ((val)->kind == VAL_NULL)
+#define val_is_bool(val)            ((val)->kind == VAL_BOOL)
+#define val_is_int(val)             ((val)->kind == VAL_INT)
+#define val_is_float(val)           ((val)->kind == VAL_FP)
+#define val_is_string(val)          ((val)->kind == VAL_STR)
+
 #ifndef _AST_VAL_T
 #define _AST_VAL_T
 typedef struct ast_val_s ast_val_t;

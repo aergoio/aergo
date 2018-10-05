@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "ast_stmt.h"
 #include "check.h"
 
 int check_stmt(check_t *check, ast_stmt_t *stmt);

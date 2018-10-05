@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "ast_id.h"
 #include "check.h"
 
 int check_id(check_t *check, ast_id_t *id);

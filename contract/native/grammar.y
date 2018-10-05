@@ -166,6 +166,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 %type <array>   param_list
 %type <id>      param_decl
 %type <blk>     block
+%type <blk>     blk_decl
 %type <id>      function
 %type <mod>     modifier_opt
 %type <array>   return_opt
@@ -366,7 +367,7 @@ var_decl:
 |   declarator '=' initializer
     {
         $$ = $1;
-        $$->u_var.type_exp = $3;
+        $$->u_var.init_exp = $3;
     }
 ;
 
@@ -467,49 +468,40 @@ param_decl:
 ;
 
 block:
-    '{' '}'             { $$ = NULL; }
-|   '{' blk_decl '}'    
-    { 
-        ASSERT(BLK != NULL);
-
-        $$ = BLK; 
-        BLK = NULL;
-    }
+    '{' '}'                 { $$ = NULL; }
+|   '{' blk_decl '}'        { $$ = $2; }
 ;
 
 blk_decl:
     variable
     {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_merge(&BLK->ids, $1);
+        $$ = ast_blk_new(&@$);
+        ast_id_merge(&$$->ids, $1);
     }
 |   struct
     {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_add(&BLK->ids, $1);
+        $$ = ast_blk_new(&@$);
+        ast_id_add(&$$->ids, $1);
     }
 |   statement
     {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_stmt_add(&BLK->stmts, $1);
+        $$ = ast_blk_new(&@$);
+        ast_stmt_add(&$$->stmts, $1);
     }
 |   blk_decl variable
     {
-        ASSERT(BLK != NULL);
-        ast_id_merge(&BLK->ids, $2);
+        $$ = $1;
+        ast_id_merge(&$$->ids, $2);
     }
 |   blk_decl struct
     {
-        ASSERT(BLK != NULL);
-        ast_id_add(&BLK->ids, $2);
+        $$ = $1;
+        ast_id_add(&$$->ids, $2);
     }
 |   blk_decl statement
     {
-        ASSERT(BLK != NULL);
-        ast_stmt_add(&BLK->stmts, $2);
+        $$ = $1;
+        ast_stmt_add(&$$->stmts, $2);
     }
 ;
 
@@ -741,11 +733,15 @@ stmt_blk:
 expression:
     exp_assign
     {
-        $$ = exp_tuple_new($1, &@$);
+        $$ = $1;
     }
 |   expression ',' exp_assign
     {
-        $$ = $1;
+        if (exp_is_tuple($1))
+            $$ = $1;
+        else
+            $$ = exp_tuple_new($1, &@$);
+
         ast_exp_add($$->u_tup.exps, $3);
     }
 ;
@@ -935,7 +931,7 @@ exp_unary:
 
 exp_post:
     exp_prim
-|   exp_post '[' expression ']'
+|   exp_post '[' exp_ternary ']'
     {
         $$ = exp_array_new($1, $3, &@$);
     }

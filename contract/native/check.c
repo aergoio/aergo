@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "ast_blk.h"
+
 #include "check_id.h"
 
 #include "check.h"
@@ -23,6 +25,7 @@ check_init(check_t *check, ast_t *ast)
     check->root = root;
     check->blk = root;
     check->aq_id = NULL;
+    check->fn_id = NULL;
 }
 
 void
