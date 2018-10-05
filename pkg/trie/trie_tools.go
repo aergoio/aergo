@@ -17,7 +17,7 @@ func (s *Trie) LoadCache(root []byte) error {
 	if s.db.store == nil {
 		return fmt.Errorf("DB not connected to trie")
 	}
-	s.loadDefaultHashes()
+	s.db.liveCache = make(map[Hash][][]byte)
 	ch := make(chan error, 1)
 	s.loadCache(root, nil, 0, s.TrieHeight, ch)
 	s.Root = root
