@@ -23,6 +23,7 @@ char *type_strs_[TYPE_MAX] = {
     "struct",
     "account",
     "map",
+    "void",
     "reference",
     "tuple"
 }; 

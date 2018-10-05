@@ -7,7 +7,7 @@
 
 #include "check_exp.h"
 
-int
+static int
 exp_id_check(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id;
@@ -28,7 +28,7 @@ exp_id_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_lit_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp_is_lit(exp), exp->kind);
@@ -57,69 +57,52 @@ exp_lit_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_type_check_struct(check_t *check, ast_exp_t *exp)
-{
-    ast_id_t *id;
-
-    ASSERT(exp->u_type.name != NULL);
-    ASSERT(exp->u_type.k_exp == NULL);
-    ASSERT(exp->u_type.v_exp == NULL);
-
-    if (check->aq_id != NULL)
-        id = ast_id_search_fld(check->aq_id, exp->num, exp->u_type.name);
-    else
-        id = ast_id_search_blk(check->blk, exp->num, exp->u_type.name);
-
-    if (id == NULL || id->kind != ID_STRUCT)
-        THROW(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
-
-    exp->id = id;
-    meta_set_prim(&exp->meta, TYPE_STRUCT);
-
-    return NO_ERROR;
-}
-
-static int
-exp_type_check_map(check_t *check, ast_exp_t *exp)
-{
-    ast_exp_t *k_exp, *v_exp;
-    ast_meta_t *k_meta, *v_meta;
-
-    ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
-    ASSERT(exp->u_type.k_exp != NULL);
-    ASSERT(exp->u_type.v_exp != NULL);
-
-    k_exp = exp->u_type.k_exp;
-    k_meta = &k_exp->meta;
-
-    TRY(exp_type_check(check, k_exp));
-
-    if (!meta_is_comparable(k_meta))
-        THROW(ERROR_INVALID_KEY_TYPE, &k_exp->pos, TYPENAME(k_meta->type));
-
-    v_exp = exp->u_type.v_exp;
-    v_meta = &v_exp->meta;
-
-    TRY(exp_type_check(check, v_exp));
-
-    ASSERT(!meta_is_tuple(v_meta));
-
-    meta_set_map(&exp->meta, k_meta->type, v_meta);
-
-    return NO_ERROR;
-}
-
-int
 exp_type_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp_is_type(exp), exp->kind);
     ASSERT1(type_is_valid(exp->u_type.type), exp->u_type.type);
 
     if (exp->u_type.type == TYPE_STRUCT) {
-        TRY(exp_type_check_struct(check, exp));
+        ast_id_t *id;
+
+        ASSERT(exp->u_type.name != NULL);
+        ASSERT(exp->u_type.k_exp == NULL);
+        ASSERT(exp->u_type.v_exp == NULL);
+
+        if (check->aq_id != NULL)
+            id = ast_id_search_fld(check->aq_id, exp->num, exp->u_type.name);
+        else
+            id = ast_id_search_blk(check->blk, exp->num, exp->u_type.name);
+
+        if (id == NULL || id->kind != ID_STRUCT)
+            THROW(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
+
+        exp->id = id;
+        meta_set_prim(&exp->meta, TYPE_STRUCT);
     }
     else if (exp->u_type.type == TYPE_MAP) {
-        TRY(exp_type_check_map(check, exp));
+        ast_exp_t *k_exp, *v_exp;
+        ast_meta_t *k_meta, *v_meta;
+
+        ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
+        ASSERT(exp->u_type.k_exp != NULL);
+        ASSERT(exp->u_type.v_exp != NULL);
+
+        k_exp = exp->u_type.k_exp;
+        k_meta = &k_exp->meta;
+
+        TRY(exp_type_check(check, k_exp));
+
+        if (!meta_is_comparable(k_meta))
+            THROW(ERROR_INVALID_KEY_TYPE, &k_exp->pos, TYPENAME(k_meta->type));
+
+        v_exp = exp->u_type.v_exp;
+        v_meta = &v_exp->meta;
+
+        TRY(exp_type_check(check, v_exp));
+
+        ASSERT(!meta_is_tuple(v_meta));
+        meta_set_map(&exp->meta, k_meta->type, v_meta);
     }
     else {
         ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
@@ -132,7 +115,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_array_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
@@ -398,7 +381,7 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_op_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp_is_op(exp), exp->kind);
@@ -445,7 +428,7 @@ exp_op_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_access_check(check_t *check, ast_exp_t *exp)
 {
     ec_t ec;
@@ -482,7 +465,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_call_check(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -526,7 +509,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_sql_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(exp_is_sql(exp), exp->kind);
@@ -537,7 +520,7 @@ exp_sql_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_ternary_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *pre_exp, *in_exp, *post_exp;
@@ -576,7 +559,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     return NO_ERROR;
 }
 
-int
+static int
 exp_tuple_check(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -591,7 +574,7 @@ exp_tuple_check(check_t *check, ast_exp_t *exp)
         TRY(check_exp(check, item));
     }
 
-    meta_set_tuple(&exp->meta, exps);
+    meta_set_tuple(&exp->meta);
 
     return NO_ERROR;
 }

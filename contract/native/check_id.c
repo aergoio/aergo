@@ -22,7 +22,9 @@ id_var_check(check_t *check, ast_id_t *id)
     type_exp = id->u_var.type_exp;
     type_meta = &type_exp->meta;
 
-    TRY(exp_type_check(check, type_exp));
+    ASSERT1(exp_is_type(type_exp), type_exp->kind);
+
+    TRY(check_exp(check, type_exp));
 
     id->meta = *type_meta;
 
@@ -45,7 +47,9 @@ id_var_check(check_t *check, ast_id_t *id)
         ast_exp_t *init_exp = id->u_var.init_exp;
         ast_id_t *type_id = type_exp->id;
 
-        TRY(exp_tuple_check(check, init_exp));
+        ASSERT1(exp_is_tuple(init_exp), init_exp->kind);
+
+        TRY(check_exp(check, init_exp));
 
         val_exps = init_exp->u_tup.exps;
 
@@ -129,10 +133,15 @@ id_func_check(check_t *check, ast_id_t *id)
         for (i = 0; i < array_size(ret_exps); i++) {
             ast_exp_t *type_exp = array_item(ret_exps, i, ast_exp_t);
 
-            exp_type_check(check, type_exp);
+            ASSERT1(exp_is_type(type_exp), type_exp->kind);
+
+            check_exp(check, type_exp);
         }
 
-        meta_set_tuple(&id->meta, ret_exps);
+        meta_set_tuple(&id->meta);
+    }
+    else {
+        meta_set_void(&id->meta);
     }
 
     check->fn_id = id;
@@ -152,6 +161,8 @@ id_contract_check(check_t *check, ast_id_t *id)
 
     if (id->u_cont.blk != NULL)
         check_blk(check, id->u_cont.blk);
+
+    meta_set_void(&id->meta);
 
     return NO_ERROR;
 }

@@ -32,7 +32,8 @@ typedef enum type_e {
     TYPE_MAP,
     TYPE_PRIMITIVE  = TYPE_MAP,
 
-    TYPE_REF,
+    TYPE_VOID,
+    TYPE_REF,                       /* only for NULL */
     TYPE_TUPLE,
     TYPE_MAX
 } type_t;

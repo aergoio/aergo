@@ -37,17 +37,14 @@
      (meta_is_float(meta1) ? meta_is_float(meta2) :                            \
       meta_equals(meta1, meta2)))
 
-#define meta_set_prim               ast_meta_init
+#define meta_set_prim(meta, typ)    (meta)->type = (typ)
+#define meta_set_tuple(meta)        (meta)->type = TYPE_TUPLE
+#define meta_set_void(meta)         (meta)->type = TYPE_VOID
 
 #ifndef _AST_META_T
 #define _AST_META_T
 typedef struct ast_meta_s ast_meta_t;
 #endif /* ! _AST_META_T */
-
-typedef struct meta_tuple_s {
-    int size;
-    ast_meta_t **metas;
-} meta_tuple_t;
 
 typedef struct meta_map_s {
     type_t k_type;
@@ -62,13 +59,9 @@ struct ast_meta_s {
     bool is_array;
 
     union {
-        meta_tuple_t u_tup;
         meta_map_t u_map;
     };
 };
-
-void meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta);
-void meta_set_tuple(ast_meta_t *meta, array_t *exps);
 
 void ast_meta_dump(ast_meta_t *meta, int indent);
 
@@ -76,9 +69,19 @@ static inline void
 ast_meta_init(ast_meta_t *meta, type_t type)
 {
     ASSERT(meta != NULL);
+    ASSERT1(type_is_valid(type), type);
 
     memset(meta, 0x00, sizeof(ast_meta_t));
     meta->type = type;
+}
+
+static inline void
+meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
+{
+    ast_meta_init(meta, TYPE_MAP);
+
+    meta->u_map.k_type = k_type;
+    meta->u_map.v_meta = v_meta;
 }
 
 static inline bool
@@ -93,17 +96,6 @@ meta_equals(ast_meta_t *x, ast_meta_t *y)
 
         if (!meta_equals(x->u_map.v_meta, y->u_map.v_meta))
             return false;
-    }
-    else if (x->type == TYPE_TUPLE) {
-        int i;
-
-        if (x->type != y->type || x->u_tup.size != y->u_tup.size)
-            return false;
-
-        for (i = 0; i < x->u_tup.size; i++) {
-            if (!meta_equals(x->u_tup.metas[i], y->u_tup.metas[i]))
-                return false;
-        }
     }
     else if (x->type != y->type) {
         return false;
