@@ -318,7 +318,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	codeLen := binary.LittleEndian.Uint32(code[0:])
-	if uint32(len(code)) < codeLen+4 {
+	if uint32(len(code)) < codeLen {
 		err := fmt.Errorf("invalid deploy code(%d:%d)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
 		return err
