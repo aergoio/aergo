@@ -29,6 +29,27 @@ type InOutTxBody struct {
 	Sign      string
 }
 
+type InOutBlockHeader struct {
+	PrevBlockHash string
+	BlockNo       uint64
+	Timestamp     int64
+	BlockRootHash string
+	TxRootHash    string
+	Confirms      uint64
+	PubKey        string
+	Sign          string
+}
+
+type InOutBlockBody struct {
+	Txs []*InOutTx
+}
+
+type InOutBlock struct {
+	Hash   string
+	Header InOutBlockHeader
+	Body   InOutBlockBody
+}
+
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	var err error
 	target.Nonce = source.Nonce
@@ -62,6 +83,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	target.Type = source.Type
 	return nil
 }
+
 func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 	var inputlist []InOutTx
 	err := json.Unmarshal([]byte(jsonTx), &inputlist)
@@ -104,7 +126,7 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	return body, nil
 }
 
-func TxConvBase58Addr(tx *types.Tx) string {
+func ConvTx(tx *types.Tx) *InOutTx {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
@@ -120,6 +142,30 @@ func TxConvBase58Addr(tx *types.Tx) string {
 	out.Body.Price = tx.Body.Price
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
+	return out
+}
+
+func TxConvBase58Addr(tx *types.Tx) string {
+	out := ConvTx(tx)
+	jsonout, err := json.MarshalIndent(out, "", " ")
+	if err != nil {
+		return ""
+	}
+	return string(jsonout)
+}
+
+func ConvBlock(b *types.Block) *InOutBlock {
+	out := &InOutBlock{}
+	out.Hash = base58.Encode(b.Hash)
+	out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
+	for _, tx := range b.Body.Txs {
+		out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+	}
+	return out
+}
+
+func BlockConvBase58Addr(b *types.Block) string {
+	out := ConvBlock(b)
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {
 		return ""
