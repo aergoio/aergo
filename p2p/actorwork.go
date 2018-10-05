@@ -138,24 +138,22 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 
 // NotifyNewTX notice tx(s) id created
 func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	hashes := make([][]byte, len(newTXs.Txs))
+	hashes := make([]TxHash, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
-		hashes[i] = tx.Hash
+		copy(hashes[i][:], tx.Hash)
 	}
 	// create message data
-	req := &types.NewTransactionsNotice{TxHashes: hashes}
-	msg := p2ps.mf.newMsgTxBroadcastOrder(req)
 	skipped, sent := 0, 0
 	// send to peers
 	for _, peer := range p2ps.pm.GetPeers() {
 		if peer != nil && peer.State() == types.RUNNING {
 			sent++
-			peer.sendMessage(msg)
+			peer.pushTxsNotice(hashes)
 		} else {
 			skipped++
 		}
 	}
-	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
+	//p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Int("hash_cnt", len(hashes)).Msg("Notifying newTXs to peers")
 
 	return true
 }

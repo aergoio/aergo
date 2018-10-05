@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,7 @@ import (
 const testDuration = time.Second >> 1
 
 var samplePeerID peer.ID
+var sampleMeta PeerMeta
 var sampleErr error
 
 var logger *log.Logger
@@ -29,6 +31,7 @@ func init() {
 
 	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
+	sampleMeta = PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 }
 
 // TODO refactor rw and modify this test
@@ -52,7 +55,6 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 }
 
 func TestRemotePeer_writeToPeer(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 
 	type args struct {
 		StreamResult error
@@ -112,7 +114,6 @@ func TestePeer_sendPing(t *testing.T) {
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
 		wantWrite bool
@@ -164,7 +165,6 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
 		wantWrite bool
@@ -210,7 +210,6 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 }
 
 func TestRemotePeer_pruneRequests(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	tests := []struct {
 		name     string
 		loglevel string
@@ -238,7 +237,6 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 }
 
 func TestRemotePeer_tryGetStream(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	mockStream := new(MockStream)
 	type args struct {
 		msgID    string
@@ -273,7 +271,6 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 }
 
 func TestRemotePeer_sendMessage(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 
 	type args struct {
 		msgID    string
@@ -341,7 +338,6 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 }
 
 func TestRemotePeer_handleMsg(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	mockMsg := new(MockMsgOrder)
 	mockMsg.On("GetMsgID").Return("m1")
 	mockMsg.On("GetProtocolID").Return(NewBlockNotice)
@@ -404,4 +400,52 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRemotePeer_trySendTxNotices(t *testing.T) {
+	sampleSize := DefaultPeerTxQueueSize<<1
+	sampleHashes := make([]TxHash, sampleSize)
+	maxTxHashSize := 100
+	for i:=0; i<sampleSize ; i++ {
+		sampleHashes[i] = generateHash(uint64(i))
+	}
+	tests := []struct {
+		name string
+		initCnt int
+		moCnt int
+	}{
+		{"TZero", 0, 0},
+		{"TSingle", 1, 1},
+		{"TSmall", 100, 1},
+		{"TBig", 1001, 11},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+			mockOrder := new(MockMsgOrder)
+			mockOrder.On("IsNeedSign").Return(true)
+			mockOrder.On("IsRequest", mockPeerManager).Return(true)
+			mockOrder.On("GetProtocolID").Return(NewTxNotice)
+			mockOrder.On("GetMsgID").Return("test_req")
+
+			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			target.maxTxNoticeHashSize = maxTxHashSize
+
+			for i:=0; i<test.initCnt; i++ {
+				target.txNoticeQueue.Press(sampleHashes[i])
+			}
+			target.trySendTxNotices()
+			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder",test.moCnt)
+		})
+	}
+}
+func generateHash(i uint64) TxHash {
+	bs := TxHash{}
+	binary.LittleEndian.PutUint64(bs[:], i)
+	return bs
 }

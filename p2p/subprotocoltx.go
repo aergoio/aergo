@@ -113,10 +113,10 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
-	// peerID := th.peer.ID()
+	peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
-	// debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return bytesArrToString(data.TxHashes) }))
+	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.TxHashes))
 
 	th.peer.handleNewTxNotice(data)
 }

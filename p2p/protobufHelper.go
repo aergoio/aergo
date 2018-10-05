@@ -71,10 +71,6 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
 
-func (pr *pbMessageOrder) Skippable() bool {
-	return false
-}
-
 func (pr *pbMessageOrder) SendTo(p *remotePeerImpl) bool {
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
@@ -105,7 +101,7 @@ type pbBlkNoticeOrder struct {
 }
 
 func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) bool {
-	var blkhash [blkhashLen]byte
+	var blkhash BlockHash
 	copy(blkhash[:], pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it
@@ -122,42 +118,19 @@ func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) bool {
 	return true
 }
 
-func (pr *pbBlkNoticeOrder) Skippable() bool {
-	return true
-}
-
 type pbTxNoticeOrder struct {
 	pbMessageOrder
 	txHashes [][]byte
 }
 
 func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) bool {
-	var txHash [txhashLen]byte
-	send, skip := 0, 0
-	for _, h := range pr.txHashes {
-		copy(txHash[:], h)
-		if ok, _ := p.txHashCache.ContainsOrAdd(txHash, cachePlaceHolder); ok {
-			skip++
-		} else {
-			send++
-		}
-	}
-	if skip == len(pr.txHashes) {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-			Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending tx notice. peer knows all hashes")
-		return false
-	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID()).Msg("Sending tx notice. peer knows all hashes")
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
 		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
 		return false
 	}
-	return true
-}
-
-func (pr *pbTxNoticeOrder) Skippable() bool {
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Int("hash_cnt", len(pr.txHashes)).Msg("Sent tx notice")
 	return true
 }
 

@@ -20,9 +20,6 @@ type msgOrder interface {
 	ResponseExpected() bool
 	GetProtocolID() SubProtocol
 
-	//
-	Skippable() bool
-
 	// send message to remote peer
 	SendTo(p *remotePeerImpl) bool
 }

@@ -37,8 +37,10 @@ import (
 
 // TODO this value better related to max peer and block produce interval, not constant
 const (
-	DefaultGlobalInvCacheSize = 100
-	DefaultPeerInvCacheSize   = 30
+	DefaultGlobalInvCacheSize = 5000
+	DefaultPeerInvCacheSize   = 1000
+
+	DefaultPeerTxQueueSize = 50000
 
 	defaultTTL          = time.Second * 4
 	defaultHandshakeTTL = time.Second * 20
@@ -48,6 +50,9 @@ const (
 
 	cachePlaceHolder = true
 )
+
+type BlockHash [blkhashLen]byte
+type TxHash [txhashLen]byte
 
 // PeerManager is internal service that provide peer management
 type PeerManager interface {
@@ -66,8 +71,8 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, hash [blkhashLen]byte, data *types.NewBlockNotice)
-	HandleNewTxNotice(peerID peer.ID, hashes [][txhashLen]byte, data *types.NewTransactionsNotice)
+	HandleNewBlockNotice(peerID peer.ID, hash BlockHash, data *types.NewBlockNotice)
+	HandleNewTxNotice(peerID peer.ID, hashes []TxHash, data *types.NewTransactionsNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
@@ -146,6 +151,7 @@ func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm Re
 		fillPoolChannel:   make(chan []PeerMeta),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
+
 	}
 
 	var err error
@@ -675,7 +681,7 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 	return peers, states
 }
 
-func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]byte, data *types.NewBlockNotice) {
+func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr BlockHash, data *types.NewBlockNotice) {
 	// TODO check if evicted return value is needed.
 	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
@@ -706,7 +712,7 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]
 
 }
 
-func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]byte, data *types.NewTransactionsNotice) {
+func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs []TxHash, data *types.NewTransactionsNotice) {
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {

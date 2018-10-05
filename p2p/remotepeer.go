@@ -33,6 +33,7 @@ type RemotePeer interface {
 	stop()
 
 	sendMessage(msg msgOrder)
+	pushTxsNotice(txHashes []TxHash)
 	consumeRequest(msgID string)
 
 	handleNewBlockNotice(data *types.NewBlockNotice)
@@ -59,8 +60,6 @@ type remotePeerImpl struct {
 	write      p2putil.ChannelPipe
 	closeWrite chan struct{}
 
-	hsLock *sync.Mutex
-
 	// used to access request data from response handlers
 	requests    map[string]msgOrder
 	consumeChan chan string
@@ -72,30 +71,38 @@ type remotePeerImpl struct {
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
 
+	txQueueLock *sync.Mutex
+	txNoticeQueue *p2putil.PressableQueue
+	maxTxNoticeHashSize int
+
 	rw MsgReadWriter
 }
 
 var _ RemotePeer = (*remotePeerImpl)(nil)
 
 const (
-	cleanRequestDuration = time.Hour
+	cleanRequestInterval = time.Hour
+	txNoticeInterval     = time.Second * 5
 )
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, p2ps PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, rw MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, rw MsgReadWriter) *remotePeerImpl {
 	peer := &remotePeerImpl{
-		meta: meta, pm: p2ps, actorServ: actor, logger: log, mf: mf, signer: signer, rw: rw,
+		meta: meta, pm: pm, actorServ: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
 		stopChan:   make(chan struct{}),
 		closeWrite: make(chan struct{}),
-		hsLock:     &sync.Mutex{},
 
 		requests:    make(map[string]msgOrder),
 		consumeChan: make(chan string, 10),
 
 		handlers: make(map[SubProtocol]MessageHandler),
+
+		txQueueLock: &sync.Mutex{},
+		txNoticeQueue: p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
+		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 	}
 	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
 
@@ -145,15 +152,23 @@ func (p *remotePeerImpl) checkState() error {
 func (p *remotePeerImpl) runPeer() {
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
+
 	go p.runWrite()
 	p.write.Open()
 	go p.runRead()
+
+	txNoticeTicker := time.NewTicker(txNoticeInterval)
+	defer txNoticeTicker.Stop()
+
 	// peer state is changed to RUNNIG after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
 READNOPLOOP:
 	for {
 		select {
 		case <-pingTicker.C:
+			// no operation for now
+		case <- txNoticeTicker.C:
+			p.trySendTxNotices()
 		case <-p.stopChan:
 			break READNOPLOOP
 		}
@@ -169,7 +184,7 @@ READNOPLOOP:
 }
 
 func (p *remotePeerImpl) runWrite() {
-	cleanupTicker := time.NewTicker(cleanRequestDuration)
+	cleanupTicker := time.NewTicker(cleanRequestInterval)
 	defer func() {
 		if r := recover(); r != nil {
 			p.logger.Panic().Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
@@ -267,6 +282,17 @@ func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 	p.write.In() <- msg
 }
 
+
+func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
+	p.txQueueLock.Lock()
+	defer p.txQueueLock.Unlock()
+	for _,hash := range txHashes {
+		p.txNoticeQueue.Press(hash)
+	}
+}
+
+
+
 // consumeRequest remove request from request history.
 func (p *remotePeerImpl) consumeRequest(requestID string) {
 	p.consumeChan <- requestID
@@ -281,6 +307,34 @@ func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
 
 func (p *remotePeerImpl) writeToPeer(m msgOrder) {
 	m.SendTo(p)
+}
+
+func (p *remotePeerImpl) trySendTxNotices() {
+	p.txQueueLock.Lock()
+	defer p.txQueueLock.Unlock()
+	// make create multiple message if queue is too many hashes.
+	for {
+		// no need to send if queue is empty
+		if p.txNoticeQueue.Size() == 0 {
+			return
+		}
+		hashes := make([][]byte,0,p.txNoticeQueue.Size())
+		idx := 0
+		for  element := p.txNoticeQueue.Poll(); element != nil; element = p.txNoticeQueue.Poll() {
+			hash := element.(TxHash)
+			if p.txHashCache.Contains(hash) {
+				continue
+			}
+			hashes = append(hashes, hash[:])
+			idx++
+			p.txHashCache.Add(hash, cachePlaceHolder)
+			if idx >= p.maxTxNoticeHashSize {
+				break
+			}
+		}
+		mo := p.mf.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes:hashes})
+		p.sendMessage(mo)
+	}
 }
 
 func (p *remotePeerImpl) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
@@ -370,7 +424,7 @@ func (p *remotePeerImpl) pruneRequests() {
 
 func (p *remotePeerImpl) handleNewBlockNotice(data *types.NewBlockNotice) {
 	// lru cache can accept hashable key
-	var hashArr [blkhashLen]byte
+	var hashArr BlockHash
 	copy(hashArr[:], data.BlockHash)
 
 	p.blkHashCache.Add(hashArr, true)
@@ -382,7 +436,7 @@ func (p *remotePeerImpl) handleNewTxNotice(data *types.NewTransactionsNotice) {
 		return
 	}
 	// lru cache can accept hashable key
-	hashArrs := make([][txhashLen]byte, len(data.TxHashes))
+	hashArrs := make([]TxHash, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		copy(hashArrs[i][:], hash)
 		p.blkHashCache.Add(hashArrs[i], true)
