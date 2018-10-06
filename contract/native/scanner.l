@@ -229,13 +229,13 @@ id                          {L}({L}|{D})*
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
+"payable"                   yy_return(K_PAYABLE);
 "readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
 "table"                     yy_return(K_TABLE);
-"transfer"                  yy_return(K_TRANSFER);
 "true"                      yy_return(K_TRUE);
 "uint"                      yy_return(K_UINT);
 "uint16"                    yy_return(K_UINT16);

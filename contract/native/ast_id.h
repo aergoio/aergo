@@ -37,8 +37,9 @@ typedef enum id_kind_e {
 typedef enum modifier_e {
     MOD_GLOBAL      = 0x00,
     MOD_LOCAL       = 0x01,
-    MOD_TRANSFER    = 0x02,
-    MOD_READONLY    = 0x04
+    MOD_PAYABLE     = 0x02,
+    MOD_READONLY    = 0x04,
+    MOD_INITIAL     = 0x08
 } modifier_t;
 
 typedef struct id_var_s {

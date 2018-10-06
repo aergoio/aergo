@@ -102,6 +102,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_MAP           "map"
         K_NEW           "new"
         K_NULL          "null"
+        K_PAYABLE       "payable"
         K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
@@ -109,7 +110,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_STRUCT        "struct"
         K_SWITCH        "switch"
         K_TABLE         "table"
-        K_TRANSFER      "transfer"
         K_TRUE          "true"
         K_UINT          "uint"
         K_UINT16        "uint16"
@@ -441,7 +441,7 @@ field_list:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_func_new($1, MOD_GLOBAL, $3, NULL, $5, &@$);
+        $$ = id_func_new($1, MOD_INITIAL, $3, NULL, $5, &@$);
     }
 ;
 
@@ -524,10 +524,10 @@ modifier_opt:
         $$ = $1;
         flag_set($$, MOD_READONLY);
     }
-|   modifier_opt K_TRANSFER
+|   modifier_opt K_PAYABLE
     {
         $$ = $1;
-        flag_set($$, MOD_TRANSFER);
+        flag_set($$, MOD_PAYABLE);
     }
 ;
 

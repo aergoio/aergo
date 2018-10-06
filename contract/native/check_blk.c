@@ -18,7 +18,7 @@ check_unused_ids(array_t *ids)
     for (i = 0; i < array_size(ids); i++) {
         ast_id_t *id = array_item(ids, i, ast_id_t);
 
-        if (!id->is_used) {
+        if (id->mod != MOD_INITIAL && !id->is_used) {
             WARN(ERROR_UNUSED_ID, &id->trc, id->name);
         }
         else if (id_is_func(id)) {

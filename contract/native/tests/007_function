@@ -9,22 +9,18 @@ contract test {
 @desc function_modifier
 contract test {
     local func f1() { }
-    shared func f2() { }
-    local transfer func f3() { }
-    shared transfer func f4() { }
-    local readonly func f5() { }
-    shared readonly func f6() { }
-    local readonly transfer func f7() { }
-    shared readonly transfer func f8() { }
-    readonly func f9() { }
-    readonly transfer func f10() { }
-    transfer func f11() { }
+    local payable func f2() { }
+    local readonly func f3() { }
+    local readonly payable func f4() { }
+    readonly func f5() { }
+    readonly payable func f6() { }
+    payable func f7() { }
 }
 
-@desc invalid_transfer_modifier
+@desc invalid_payable_modifier
 @error ERROR_SYNTAX
 contract test {
-    transfer local func f1() { }
+    payable local func f1() { }
 }
 
 @desc parameter_declaration
