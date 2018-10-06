@@ -17,9 +17,9 @@
             return ec;                                                         \
     } while (0)
 
-#define THROW(ec, pos, ...)                                                    \
+#define THROW(ec, trc, ...)                                                    \
     do {                                                                       \
-        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
+        error_push((ec), LVL_ERROR, (trc), ## __VA_ARGS__);                    \
         return (ec);                                                           \
     } while (0)
 

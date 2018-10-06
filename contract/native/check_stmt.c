@@ -28,7 +28,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     TRY(check_exp(check, cond_exp));
 
     if (!meta_is_bool(cond_meta))
-        THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos,
+        THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
               TYPENAME(cond_meta->type));
 
     if (stmt->u_if.if_blk != NULL)
@@ -71,12 +71,12 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *exp = array_item(exps, i, ast_exp_t);
 
                 if (!meta_is_bool(&exp->meta))
-                    THROW(ERROR_INVALID_COND_TYPE, &exp->pos,
+                    THROW(ERROR_INVALID_COND_TYPE, &exp->trc,
                           TYPENAME(exp->meta.type));
             }
         }
         else if (!meta_is_bool(cond_meta)) {
-            THROW(ERROR_INVALID_COND_TYPE, &cond_exp->pos,
+            THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
                   TYPENAME(cond_meta->type));
         }
     }
@@ -108,11 +108,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
 
         if (meta == NULL) {
             if (!meta_is_bool(val_meta))
-                THROW(ERROR_INVALID_COND_TYPE, &val_exp->pos,
+                THROW(ERROR_INVALID_COND_TYPE, &val_exp->trc,
                       TYPENAME(val_meta->type));
         }
         else if (!meta_is_compatible(meta, val_meta)) {
-            THROW(ERROR_MISMATCHED_TYPE, &val_exp->pos,
+            THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                   TYPENAME(meta->type), TYPENAME(val_meta->type));
         }
     }
@@ -144,7 +144,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
         check_exp(check, cond_exp);
 
         if (!meta_is_comparable(cond_meta))
-            THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos,
+            THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->trc,
                   TYPENAME(cond_meta->type));
     }
 
@@ -177,7 +177,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
     if (arg_exp != NULL) {
         if (fn_ret_exps == NULL)
-            THROW(ERROR_MISMATCHED_RETURN, &arg_exp->pos);
+            THROW(ERROR_MISMATCHED_RETURN, &arg_exp->trc);
 
         check_exp(check, arg_exp);
 
@@ -186,7 +186,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             array_t *ret_exps = arg_exp->u_tup.exps;
 
             if (array_size(ret_exps) != array_size(fn_ret_exps))
-                THROW(ERROR_MISMATCHED_RETURN, &arg_exp->pos);
+                THROW(ERROR_MISMATCHED_RETURN, &arg_exp->trc);
 
             for (i = 0; i < array_size(ret_exps); i++) {
                 ast_exp_t *ret_exp = array_item(ret_exps, i, ast_exp_t);
@@ -197,7 +197,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                 if ((exp_is_lit(ret_exp) &&
                      !meta_is_compatible(ret_meta, fn_ret_meta)) ||
                     meta_equals(ret_meta, fn_ret_meta))
-                    THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
+                    THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                           TYPENAME(fn_ret_meta->type),
                           TYPENAME(ret_meta->type));
             }
@@ -207,20 +207,20 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             ast_meta_t *arg_meta = &arg_exp->meta;
 
             if (array_size(fn_ret_exps) != 1)
-                THROW(ERROR_MISMATCHED_RETURN, &arg_exp->pos);
+                THROW(ERROR_MISMATCHED_RETURN, &arg_exp->trc);
 
             fn_ret_meta = &array_item(fn_ret_exps, 0, ast_exp_t)->meta;
 
             if ((exp_is_lit(arg_exp) &&
                  !meta_is_compatible(arg_meta, fn_ret_meta)) ||
                 meta_equals(arg_meta, fn_ret_meta))
-                THROW(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
+                THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                       TYPENAME(fn_ret_meta->type), TYPENAME(arg_meta->type));
         }
     }
     else {
         if (fn_ret_exps != NULL)
-            THROW(ERROR_MISMATCHED_RETURN, &stmt->pos);
+            THROW(ERROR_MISMATCHED_RETURN, &stmt->trc);
     }
 
     return NO_ERROR;

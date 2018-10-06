@@ -24,7 +24,7 @@ struct ast_blk_s {
     ast_blk_t *up;
 };
 
-ast_blk_t *ast_blk_new(errpos_t *pos);
+ast_blk_t *ast_blk_new(trace_t *trc);
 
 void ast_blk_dump(ast_blk_t *blk, int indent);
 

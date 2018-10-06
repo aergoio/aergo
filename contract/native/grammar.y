@@ -17,10 +17,10 @@
 #define AST             (*parse->ast)
 #define BLK             parse->blk
 
-extern int yylex(YYSTYPE *lval, YYLTYPE *lloc, void *yyscanner);
-extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *lloc);
+extern int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
+extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 
-static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
+static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
 %}
@@ -33,7 +33,7 @@ static void yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    errpos_init(&yylloc, parse->path);
+    trace_init(&yylloc, parse->src, parse->path);
 }
 
 /* identifier */
@@ -712,8 +712,8 @@ stmt_ddl:
         char *ddl;
         yyerrok;
         error_pop();
-        len = @$.last_offset - @$.first_offset;
-        ddl = xstrndup(parse->src + @$.first_offset, len);
+        len = @$.abs.last_offset - @$.abs.first_offset;
+        ddl = xstrndup(parse->src + @$.abs.first_offset, len);
         $$ = stmt_ddl_new($1, ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -787,8 +787,8 @@ exp_sql:
         char *sql;
         yyerrok;
         error_pop();
-        len = @$.last_offset - @$.first_offset;
-        sql = xstrndup(parse->src + @$.first_offset, len);
+        len = @$.abs.last_offset - @$.abs.first_offset;
+        sql = xstrndup(parse->src + @$.abs.first_offset, len);
         $$ = exp_sql_new($1, sql, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
@@ -1065,9 +1065,9 @@ identifier:
 %%
 
 static void
-yyerror(YYLTYPE *lloc, parse_t *parse, void *scanner, const char *msg)
+yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)
 {
-    ERROR(ERROR_SYNTAX, lloc, msg);
+    ERROR(ERROR_SYNTAX, yylloc, msg);
 }
 
 /* end of grammar.y */

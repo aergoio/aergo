@@ -12,12 +12,12 @@
 
 #define AST_NODE_DECL                                                          \
     int num;                                                                   \
-    errpos_t pos
+    trace_t trc
 
 #define ast_node_init(node, epos)                                              \
     do {                                                                       \
         (node)->num = node_num_++;                                             \
-        (node)->pos = *(epos);                                                 \
+        (node)->trc = *(epos);                                                 \
     } while (0)
 
 #ifndef _AST_BLK_T

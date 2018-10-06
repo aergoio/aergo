@@ -12,13 +12,13 @@
 #include "ast_id.h"
 
 ast_id_t *
-ast_id_new(id_kind_t kind, modifier_t mod, char *name, errpos_t *pos)
+ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc)
 {
     ast_id_t *id = xcalloc(sizeof(ast_id_t));
 
     ASSERT(name != NULL);
 
-    ast_node_init(id, pos);
+    ast_node_init(id, trc);
 
     id->kind = kind;
     id->mod = mod;
@@ -28,15 +28,15 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, errpos_t *pos)
 }
 
 ast_id_t *
-id_var_new(char *name, errpos_t *pos)
+id_var_new(char *name, trace_t *trc)
 {
-    return ast_id_new(ID_VAR, MOD_GLOBAL, name, pos);
+    return ast_id_new(ID_VAR, MOD_GLOBAL, name, trc);
 }
 
 ast_id_t *
-id_struct_new(char *name, array_t *fld_ids, errpos_t *pos)
+id_struct_new(char *name, array_t *fld_ids, trace_t *trc)
 {
-    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, name, pos);
+    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, name, trc);
 
     ASSERT(fld_ids != NULL);
 
@@ -47,9 +47,9 @@ id_struct_new(char *name, array_t *fld_ids, errpos_t *pos)
 
 ast_id_t *
 id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
-            ast_blk_t *blk, errpos_t *pos)
+            ast_blk_t *blk, trace_t *trc)
 {
-    ast_id_t *id = ast_id_new(ID_FUNC, mod, name, pos);
+    ast_id_t *id = ast_id_new(ID_FUNC, mod, name, trc);
 
     id->u_func.param_ids = param_ids;
     id->u_func.ret_exps = ret_exps;
@@ -59,9 +59,9 @@ id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
 }
 
 ast_id_t *
-id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos)
+id_contract_new(char *name, ast_blk_t *blk, trace_t *trc)
 {
-    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_GLOBAL, name, pos);
+    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_GLOBAL, name, trc);
 
     id->u_cont.blk = blk;
 
@@ -129,7 +129,7 @@ ast_id_add(array_t *ids, ast_id_t *new_id)
         ast_id_t *id = array_item(ids, i, ast_id_t);
 
         if (strcmp(id->name, new_id->name) == 0) {
-            ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
+            ERROR(ERROR_DUPLICATED_ID, &new_id->trc, new_id->name);
             return;
         }
     }

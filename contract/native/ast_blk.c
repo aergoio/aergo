@@ -13,11 +13,11 @@
 #include "ast_blk.h"
 
 ast_blk_t *
-ast_blk_new(errpos_t *pos)
+ast_blk_new(trace_t *trc)
 {
     ast_blk_t *blk = xcalloc(sizeof(ast_blk_t));
 
-    ast_node_init(blk, pos);
+    ast_node_init(blk, trc);
 
     array_init(&blk->ids);
     array_init(&blk->stmts);

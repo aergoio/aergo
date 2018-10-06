@@ -11,20 +11,15 @@
 
 #include "prep.h"
 
-#define YY_LINE                 scan->pos.first_line
-#define YY_COL                  scan->pos.first_col
-#define YY_OFFSET               scan->pos.first_offset
+#define YY_LINE                 trace_rel_line(&scan->trc)
+#define YY_COL                  trace_rel_col(&scan->trc)
+#define YY_OFFSET               trace_rel_offset(&scan->trc)
 
-#define yy_update_line()        scan->pos.last_line++
-#define yy_update_col()         scan->pos.last_col++
-#define yy_update_offset()      scan->pos.last_offset++
+#define yy_update_line()        trace_update_last_line(&scan->trc)
+#define yy_update_col()         trace_update_last_col(&scan->trc, 1)
+#define yy_update_offset()      trace_update_last_offset(&scan->trc, 1)
 
-#define yy_update_first()                                                      \
-    do {                                                                       \
-        scan->pos.first_line = scan->pos.last_line;                            \
-        scan->pos.first_col = scan->pos.last_col;                              \
-        scan->pos.first_offset = scan->pos.last_offset;                        \
-    } while (0)
+#define yy_update_first()       trace_update_first(&scan->trc)
 
 static void substitue(char *path, char *work_dir, stack_t *imp, strbuf_t *out);
 
@@ -38,7 +33,7 @@ scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
 
     scan->work_dir = work_dir;
 
-    errpos_init(&scan->pos, path);
+    trace_init(&scan->trc, strbuf_text(out), path);
 
     scan->buf_len = 0;
     scan->buf_pos = 0;
@@ -97,13 +92,13 @@ add_file(scan_t *scan, char *path, stack_t *imp)
 
     stack_foreach(node, imp) {
         if (strcmp(node->item, path) == 0) {
-            ERROR(ERROR_CROSS_IMPORT, &scan->pos, FILENAME(path));
+            ERROR(ERROR_CROSS_IMPORT, &scan->trc, FILENAME(path));
             return false;
         }
     }
 
     stack_push(imp, xstrdup(path));
-    scan->pos.path = path;
+    trace_set_rel_path(&scan->trc, path);
 
     return true;
 }
@@ -112,7 +107,7 @@ static void
 del_file(scan_t *scan, char *path, stack_t *imp)
 {
     stack_pop(imp);
-    scan->pos.path = path;
+    trace_set_rel_path(&scan->trc, path);
 }
 
 static void

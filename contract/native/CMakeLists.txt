@@ -33,6 +33,7 @@ set(SRCS
     check_blk.c
     check_stmt.c
     check_exp.c
+    assert.c
     error.c
     strbuf.c
     stack.c

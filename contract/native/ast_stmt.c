@@ -8,11 +8,11 @@
 #include "ast_stmt.h"
 
 ast_stmt_t *
-ast_stmt_new(stmt_kind_t kind, errpos_t *pos)
+ast_stmt_new(stmt_kind_t kind, trace_t *trc)
 {
     ast_stmt_t *stmt = xmalloc(sizeof(ast_stmt_t));
 
-    ast_node_init(stmt, pos);
+    ast_node_init(stmt, trc);
 
     stmt->kind = kind;
 
@@ -20,9 +20,9 @@ ast_stmt_new(stmt_kind_t kind, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_exp_new(ast_exp_t *exp, errpos_t *pos)
+stmt_exp_new(ast_exp_t *exp, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_EXP, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_EXP, trc);
 
     stmt->u_exp.exp = exp;
 
@@ -30,9 +30,9 @@ stmt_exp_new(ast_exp_t *exp, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, errpos_t *pos)
+stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_IF, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_IF, trc);
 
     stmt->u_if.cond_exp = cond_exp;
     stmt->u_if.if_blk = if_blk;
@@ -44,9 +44,9 @@ stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, errpos_t *pos)
 
 ast_stmt_t *
 stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp, ast_exp_t *loop_exp, 
-             ast_blk_t *blk, errpos_t *pos)
+             ast_blk_t *blk, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_FOR, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_FOR, trc);
 
     stmt->u_for.init_exp = init_exp;
     stmt->u_for.cond_exp = cond_exp;
@@ -57,9 +57,9 @@ stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
 }
 
 ast_stmt_t *
-stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, errpos_t *pos)
+stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_SWITCH, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_SWITCH, trc);
 
     stmt->u_sw.cond_exp = cond_exp;
     stmt->u_sw.case_stmts = case_stmts;
@@ -68,9 +68,9 @@ stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_case_new(ast_exp_t *val_exp, array_t *stmts, errpos_t *pos)
+stmt_case_new(ast_exp_t *val_exp, array_t *stmts, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_CASE, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_CASE, trc);
 
     stmt->u_case.val_exp = val_exp;
     stmt->u_case.stmts = stmts;
@@ -79,9 +79,9 @@ stmt_case_new(ast_exp_t *val_exp, array_t *stmts, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_return_new(ast_exp_t *arg_exp, errpos_t *pos)
+stmt_return_new(ast_exp_t *arg_exp, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_RETURN, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_RETURN, trc);
 
     stmt->u_ret.arg_exp = arg_exp;
 
@@ -89,9 +89,9 @@ stmt_return_new(ast_exp_t *arg_exp, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos)
+stmt_ddl_new(ddl_kind_t kind, char *ddl, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_DDL, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_DDL, trc);
 
     stmt->u_ddl.kind = kind;
     stmt->u_ddl.ddl = ddl;
@@ -100,9 +100,9 @@ stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos)
 }
 
 ast_stmt_t *
-stmt_blk_new(ast_blk_t *blk, errpos_t *pos)
+stmt_blk_new(ast_blk_t *blk, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_BLK, pos);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_BLK, trc);
 
     stmt->u_blk.blk = blk;
 

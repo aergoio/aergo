@@ -21,7 +21,7 @@ typedef struct scan_s {
 
     char *work_dir;
 
-    errpos_t pos;
+    trace_t trc;
 
     int buf_len;
     int buf_pos;

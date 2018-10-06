@@ -44,10 +44,10 @@ id_var_check(check_t *check, ast_id_t *id)
 
         if (arr_exp->kind == EXP_NULL) {
             if (init_exp == NULL)
-                THROW(ERROR_MISSING_INITIALIZER, &id->pos);
+                THROW(ERROR_MISSING_INITIALIZER, &id->trc);
         }
         else if (!meta_is_integer(arr_meta)) {
-            THROW(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPENAME(arr_meta->type));
+            THROW(ERROR_INVALID_SIZE_TYPE, &id->trc, TYPENAME(arr_meta->type));
         }
     }
 
@@ -65,7 +65,7 @@ id_var_check(check_t *check, ast_id_t *id)
                     ast_meta_t *val_meta = &val_exp->meta;
 
                     if (!meta_is_compatible(type_meta, val_meta))
-                        THROW(ERROR_MISMATCHED_TYPE, &val_exp->pos,
+                        THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPENAME(type_meta->type),
                               TYPENAME(val_meta->type));
                 }
@@ -77,21 +77,21 @@ id_var_check(check_t *check, ast_id_t *id)
                 fld_ids = type_id->u_st.fld_ids;
 
                 if (array_size(fld_ids) != array_size(val_exps))
-                    THROW(ERROR_MISMATCHED_ELEM, &init_exp->pos);
+                    THROW(ERROR_MISMATCHED_ELEM, &init_exp->trc);
 
                 for (i = 0; i < array_size(fld_ids); i++) {
                     ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
 
                     if (!meta_is_compatible(&fld_id->meta, &val_exp->meta))
-                        THROW(ERROR_MISMATCHED_TYPE, &val_exp->pos,
+                        THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPENAME(fld_id->meta.type),
                               TYPENAME(val_exp->meta.type));
                 }
             }
         }
         else if (!meta_is_compatible(type_meta, &init_exp->meta)) {
-            THROW(ERROR_MISMATCHED_TYPE, &init_exp->pos,
+            THROW(ERROR_MISMATCHED_TYPE, &init_exp->trc,
                   TYPENAME(type_meta->type), TYPENAME(init_exp->meta.type));
         }
     }

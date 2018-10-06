@@ -82,13 +82,13 @@ struct ast_id_s {
     ast_meta_t meta;
 };
 
-ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, errpos_t *pos);
+ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc);
 
-ast_id_t *id_var_new(char *name, errpos_t *pos);
-ast_id_t *id_struct_new(char *name, array_t *fld_ids, errpos_t *pos);
+ast_id_t *id_var_new(char *name, trace_t *trc);
+ast_id_t *id_struct_new(char *name, array_t *fld_ids, trace_t *trc);
 ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
-                      array_t *ret_exps, ast_blk_t *blk, errpos_t *pos);
-ast_id_t *id_contract_new(char *name, ast_blk_t *blk, errpos_t *pos);
+                      array_t *ret_exps, ast_blk_t *blk, trace_t *trc);
+ast_id_t *id_contract_new(char *name, ast_blk_t *blk, trace_t *trc);
 
 ast_id_t *ast_id_search_fld(ast_id_t *id, int num, char *name);
 ast_id_t *ast_id_search_blk(ast_blk_t *blk, int num, char *name);

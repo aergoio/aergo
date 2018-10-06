@@ -29,12 +29,12 @@ typedef struct parse_s {
     ast_blk_t *blk;
 
     int adj_token;
-    errpos_t adj_pos;
+    trace_t adj_pos;
 
     strbuf_t buf;
 } parse_t;
 
-#define YYLTYPE             errpos_t
+#define YYLTYPE             trace_t
 
 #include "grammar.tab.h"
 

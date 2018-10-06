@@ -121,18 +121,18 @@ struct ast_stmt_s {
     };
 };
 
-ast_stmt_t *ast_stmt_new(stmt_kind_t kind, errpos_t *pos);
+ast_stmt_t *ast_stmt_new(stmt_kind_t kind, trace_t *trc);
 
-ast_stmt_t *stmt_exp_new(ast_exp_t *exp, errpos_t *pos);
-ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, errpos_t *pos);
+ast_stmt_t *stmt_exp_new(ast_exp_t *exp, trace_t *trc);
+ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc);
 ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp,
-                         ast_exp_t *loop_exp, ast_blk_t *blk, errpos_t *pos);
+                         ast_exp_t *loop_exp, ast_blk_t *blk, trace_t *trc);
 ast_stmt_t *stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, 
-                            errpos_t *pos);
-ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, errpos_t *pos);
-ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, errpos_t *pos);
-ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, errpos_t *pos);
-ast_stmt_t *stmt_blk_new(ast_blk_t *blk, errpos_t *pos);
+                            trace_t *trc);
+ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, trace_t *trc);
+ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, trace_t *trc);
+ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, trace_t *trc);
+ast_stmt_t *stmt_blk_new(ast_blk_t *blk, trace_t *trc);
 
 void ast_stmt_dump(ast_stmt_t *stmt, int indent);
 
