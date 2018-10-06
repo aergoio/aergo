@@ -46,8 +46,7 @@ contract test {
     int v2[] = { 1, 2, 3, };
     string v3[] = { "a", "b", "c" };
 
-    int v4[] = {1}, 
-        v5[] = {2};
+    int v4[], v5[] = {1}, {2};
 }
 
 @desc struct_initializer

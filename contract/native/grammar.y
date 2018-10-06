@@ -156,9 +156,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     var_type
 %type <exp>     var_spec
 %type <type>    prim_type
-%type <array>   var_decl_list
-%type <id>      var_decl
+%type <array>   var_name_list
 %type <id>      declarator
+%type <array>   var_init_list
 %type <exp>     initializer
 %type <array>   init_list
 %type <id>      struct
@@ -187,8 +187,8 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    stmt_blk
 %type <ddl>     ddl_prefix
 %type <exp>     expression
-%type <exp>     exp_assign
 %type <op>      op_assign
+%type <exp>     exp_tuple
 %type <exp>     exp_sql
 %type <sql>     sql_prefix
 %type <exp>     exp_ternary
@@ -289,7 +289,7 @@ contract_body:
 ;
 
 variable:
-    var_type var_decl_list ';'
+    var_type var_name_list ';'
     {
         int i;
         for (i = 0; i < array_size($2); i++) {
@@ -297,6 +297,24 @@ variable:
 
             ASSERT(id->kind == ID_VAR);
             id->u_var.type_exp = $1;
+        }
+        $$ = $2;
+    }
+|   var_type var_name_list '=' var_init_list ';'
+    {
+        int i;
+        if (array_size($2) != array_size($4)) {
+            yyerror(&yylloc, parse, yyscanner, "mismatched initializer");
+        }
+        else {
+            for (i = 0; i < array_size($2); i++) {
+                ast_id_t *id = array_item($2, i, ast_id_t);
+                ast_exp_t *exp = array_item($4, i, ast_exp_t);
+
+                ASSERT(id->kind == ID_VAR);
+                id->u_var.type_exp = $1;
+                id->u_var.init_exp = exp;
+            }
         }
         $$ = $2;
     }
@@ -353,6 +371,77 @@ prim_type:
 |   K_UINT8             { $$ = TYPE_UINT8; }
 ;
 
+var_name_list:
+    declarator
+    {
+        $$ = array_new();
+        ast_id_add($$, $1);
+    }
+|   var_name_list ',' declarator
+    {
+        $$ = $1;
+        ast_id_add($$, $3);
+    }
+;
+
+declarator:
+    identifier
+    {
+        $$ = id_var_new($1, &@1);
+    }
+|   declarator '[' exp_add ']'
+    {
+        $$ = $1;
+        $$->u_var.arr_exp = $3;
+    }
+|   declarator '[' ']'
+    {
+        $$ = $1;
+        $$->u_var.arr_exp = exp_null_new(&@2);
+    }
+;
+
+var_init_list:
+    initializer
+    {
+        $$ = array_new();
+        ast_exp_add($$, $1);
+    }
+|   var_init_list ',' initializer
+    {
+        $$ = $1;
+        ast_exp_add($$, $3);
+    }
+;
+
+initializer:
+    exp_sql
+|   '{' init_list '}'
+    {
+        $$ = exp_tuple_new(NULL, &@$);
+        $$->u_tup.exps = $2;
+    }
+|   '{' init_list ',' '}'
+    {
+        $$ = exp_tuple_new(NULL, &@$);
+        $$->u_tup.exps = $2;
+    }
+;
+
+init_list:
+    initializer
+    {
+        $$ = array_new();
+        ast_exp_add($$, $1);
+    }
+|   init_list ',' initializer
+    {
+        $$ = $1;
+        ast_exp_add($$, $3);
+    }
+;
+
+    /*
 var_decl_list:
     var_decl
     {
@@ -418,6 +507,7 @@ init_list:
         ast_exp_add($$, $3);
     }
 ;
+    */
 
 struct:
     K_STRUCT identifier '{' field_list '}'
@@ -735,24 +825,8 @@ stmt_blk:
 ;
 
 expression:
-    exp_assign
-    {
-        $$ = $1;
-    }
-|   expression ',' exp_assign
-    {
-        if (exp_is_tuple($1))
-            $$ = $1;
-        else
-            $$ = exp_tuple_new($1, &@$);
-
-        ast_exp_add($$->u_tup.exps, $3);
-    }
-;
-
-exp_assign:
-    exp_sql
-|   exp_unary op_assign exp_assign
+    exp_tuple
+|   exp_tuple op_assign exp_tuple
     {
         if ($2 == OP_ASSIGN) {
             $$ = exp_op_new($2, $1, $3, &@2);
@@ -777,6 +851,19 @@ op_assign:
 |   ASSIGN_OR           { $$ = OP_BIT_OR; }
 |   ASSIGN_RS           { $$ = OP_RSHIFT; }
 |   ASSIGN_LS           { $$ = OP_LSHIFT; }
+;
+
+exp_tuple:
+    exp_sql
+|   exp_tuple ',' exp_sql
+    {
+        if (exp_is_tuple($1))
+            $$ = $1;
+        else
+            $$ = exp_tuple_new($1, &@$);
+
+        ast_exp_add($$->u_tup.exps, $3);
+    }
 ;
 
 exp_sql:
@@ -1009,6 +1096,19 @@ exp_prim:
     }
 ;
 
+exp_list:
+    exp_ternary
+    {
+        $$ = array_new();
+        ast_exp_add($$, $1);
+    }
+|   exp_list ',' exp_ternary
+    {
+        $$ = $1;
+        ast_exp_add($$, $3);
+    }
+;
+
 exp_new:
     K_NEW identifier '(' ')'
     {
@@ -1035,19 +1135,6 @@ exp_new:
         ast_exp_add(exps, size_exp);
 
         $$ = exp_call_new(id_exp, exps, &@$);
-    }
-;
-
-exp_list:
-    exp_ternary
-    {
-        $$ = array_new();
-        ast_exp_add($$, $1);
-    }
-|   exp_list ',' exp_ternary
-    {
-        $$ = $1;
-        ast_exp_add($$, $3);
     }
 ;
 
