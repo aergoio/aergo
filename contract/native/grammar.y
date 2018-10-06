@@ -512,7 +512,7 @@ blk_decl:
 function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
-        $$ = id_func_new($3, $1, $5, $7, $8, &@$);
+        $$ = id_func_new($3, $1, $5, $7, $8, &@3);
     }
 ;
 
