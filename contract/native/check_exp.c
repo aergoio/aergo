@@ -86,7 +86,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
     }
     else if (exp->u_type.type == TYPE_MAP) {
         ast_exp_t *k_exp, *v_exp;
-        ast_meta_t *k_meta, *v_meta;
+        meta_t *k_meta, *v_meta;
 
         ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
         ASSERT(exp->u_type.k_exp != NULL);
@@ -123,7 +123,7 @@ static int
 exp_array_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
-    ast_meta_t *id_meta;
+    meta_t *id_meta;
 
     ASSERT1(is_array_exp(exp), exp->kind);
     ASSERT(exp->u_arr.id_exp != NULL);
@@ -140,7 +140,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 
     if (exp->u_arr.idx_exp != NULL) {
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        ast_meta_t *param_meta = &idx_exp->meta;
+        meta_t *param_meta = &idx_exp->meta;
 
         TRY(check_exp(check, idx_exp));
 
@@ -161,7 +161,7 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *l_exp, *r_exp;
-    ast_meta_t *l_meta, *r_meta;
+    meta_t *l_meta, *r_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp != NULL);
@@ -215,7 +215,7 @@ static int
 exp_op_check_arith(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
-    ast_meta_t *l_meta, *r_meta;
+    meta_t *l_meta, *r_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp != NULL);
@@ -252,7 +252,7 @@ static int
 exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
-    ast_meta_t *l_meta, *r_meta;
+    meta_t *l_meta, *r_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp != NULL);
@@ -282,7 +282,7 @@ static int
 exp_op_check_bit(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
-    ast_meta_t *l_meta, *r_meta;
+    meta_t *l_meta, *r_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp != NULL);
@@ -312,7 +312,7 @@ static int
 exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
-    ast_meta_t *l_meta, *r_meta;
+    meta_t *l_meta, *r_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp != NULL);
@@ -346,7 +346,7 @@ static int
 exp_op_check_unary(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp;
-    ast_meta_t *l_meta;
+    meta_t *l_meta;
 
     ASSERT(exp->u_op.l_exp != NULL);
     ASSERT(exp->u_op.r_exp == NULL);
@@ -429,7 +429,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
 {
     ec_t ec;
     ast_exp_t *id_exp, *fld_exp;
-    ast_meta_t *id_meta, *fld_meta;
+    meta_t *id_meta, *fld_meta;
     ast_id_t *id;
 
     ASSERT1(is_access_exp(exp), exp->kind);
@@ -466,7 +466,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
-    ast_meta_t *id_meta;
+    meta_t *id_meta;
     ast_id_t *func_id;
     array_t *param_ids;
     array_t *param_exps;
@@ -520,7 +520,7 @@ static int
 exp_ternary_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *pre_exp, *in_exp, *post_exp;
-    ast_meta_t *pre_meta, *in_meta, *post_meta;
+    meta_t *pre_meta, *in_meta, *post_meta;
 
     ASSERT1(is_ternary_exp(exp), exp->kind);
     ASSERT(exp->u_tern.pre_exp != NULL);

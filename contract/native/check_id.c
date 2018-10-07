@@ -17,7 +17,7 @@ static int
 id_var_check(check_t *check, ast_id_t *id)
 {
     ast_exp_t *type_exp;
-    ast_meta_t *type_meta;
+    meta_t *type_meta;
     ast_exp_t *init_exp;
 
     ASSERT1(is_var_id(id), id->kind);
@@ -39,7 +39,7 @@ id_var_check(check_t *check, ast_id_t *id)
 
     if (id->u_var.arr_exp != NULL) {
         ast_exp_t *arr_exp = id->u_var.arr_exp;
-        ast_meta_t *arr_meta = &arr_exp->meta;
+        meta_t *arr_meta = &arr_exp->meta;
 
         id->meta.is_array = true;
 
@@ -65,7 +65,7 @@ id_var_check(check_t *check, ast_id_t *id)
             if (type_id == NULL) {
                 for (i = 0; i < array_size(val_exps); i++) {
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
-                    ast_meta_t *val_meta = &val_exp->meta;
+                    meta_t *val_meta = &val_exp->meta;
 
                     if (!is_compatible_type(type_meta, val_meta))
                         THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,

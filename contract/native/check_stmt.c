@@ -16,7 +16,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     ast_exp_t *cond_exp;
-    ast_meta_t *cond_meta;
+    meta_t *cond_meta;
     array_t *elif_stmts;
 
     ASSERT1(is_if_stmt(stmt), stmt->kind);
@@ -59,7 +59,7 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
     cond_exp = stmt->u_for.cond_exp;
 
     if (cond_exp != NULL) {
-        ast_meta_t *cond_meta = &cond_exp->meta;
+        meta_t *cond_meta = &cond_exp->meta;
 
         check_exp(check, cond_exp);
 
@@ -91,7 +91,7 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
+stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
 {
     int i;
     ast_exp_t *val_exp;
@@ -102,7 +102,7 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
     val_exp = stmt->u_case.val_exp;
 
     if (val_exp != NULL) {
-        ast_meta_t *val_meta = &val_exp->meta;
+        meta_t *val_meta = &val_exp->meta;
 
         check_exp(check, val_exp);
 
@@ -131,7 +131,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     ast_exp_t *cond_exp;
-    ast_meta_t *cond_meta = NULL;
+    meta_t *cond_meta = NULL;
     array_t *case_stmts;
 
     ASSERT1(is_switch_stmt(stmt), stmt->kind);
@@ -190,9 +190,9 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
             for (i = 0; i < array_size(ret_exps); i++) {
                 ast_exp_t *ret_exp = array_item(ret_exps, i, ast_exp_t);
-                ast_meta_t *ret_meta = &ret_exp->meta;
+                meta_t *ret_meta = &ret_exp->meta;
                 ast_exp_t *fn_ret_exp = array_item(fn_ret_exps, i, ast_exp_t);
-                ast_meta_t *fn_ret_meta = &fn_ret_exp->meta;
+                meta_t *fn_ret_meta = &fn_ret_exp->meta;
 
                 if ((is_lit_exp(ret_exp) &&
                      !is_compatible_type(ret_meta, fn_ret_meta)) ||
@@ -203,8 +203,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             }
         }
         else {
-            ast_meta_t *fn_ret_meta;
-            ast_meta_t *arg_meta = &arg_exp->meta;
+            meta_t *fn_ret_meta;
+            meta_t *arg_meta = &arg_exp->meta;
 
             if (array_size(fn_ret_exps) != 1)
                 THROW(ERROR_MISMATCHED_RETURN, &arg_exp->trc);

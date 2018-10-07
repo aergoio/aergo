@@ -1,10 +1,10 @@
 /**
- * @file    ast_meta.h
+ * @file    meta.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _AST_META_H
-#define _AST_META_H
+#ifndef _META_H
+#define _META_H
 
 #include "common.h"
 
@@ -41,14 +41,14 @@
        (is_map_type(meta1) ? is_ref_type(meta2) || meta_equals(meta1, meta2) : \
         meta_equals(meta1, meta2)))))
 
-#define meta_set_prim               ast_meta_set
-#define meta_set_tuple(meta)        ast_meta_set((meta), TYPE_TUPLE)
-#define meta_set_void(meta)         ast_meta_set((meta), TYPE_VOID)
+#define meta_set_prim               meta_set
+#define meta_set_tuple(meta)        meta_set((meta), TYPE_TUPLE)
+#define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#ifndef _AST_META_T
-#define _AST_META_T
-typedef struct ast_meta_s ast_meta_t;
-#endif /* ! _AST_META_T */
+#ifndef _META_T
+#define _META_T
+typedef struct meta_s meta_t;
+#endif /* ! _META_T */
 
 typedef enum type_e {
     TYPE_NONE       = 0,
@@ -80,10 +80,10 @@ typedef enum type_e {
 
 typedef struct meta_map_s {
     type_t k_type;
-    ast_meta_t *v_meta;
+    meta_t *v_meta;
 } meta_map_t;
 
-struct ast_meta_s {
+struct meta_s {
     type_t type;
 
     bool is_const;
@@ -97,18 +97,18 @@ struct ast_meta_s {
 
 extern char *type_strs_[TYPE_MAX];
 
-void ast_meta_dump(ast_meta_t *meta, int indent);
+void meta_dump(meta_t *meta, int indent);
 
 static inline void
-ast_meta_init(ast_meta_t *meta)
+meta_init(meta_t *meta)
 {
     ASSERT(meta != NULL);
 
-    memset(meta, 0x00, sizeof(ast_meta_t));
+    memset(meta, 0x00, sizeof(meta_t));
 }
 
 static inline void
-ast_meta_set(ast_meta_t *meta, type_t type)
+meta_set(meta_t *meta, type_t type)
 {
     ASSERT(meta != NULL);
     ASSERT1(is_valid_type(type), type);
@@ -117,24 +117,24 @@ ast_meta_set(ast_meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_literal(ast_meta_t *meta, type_t type)
+meta_set_literal(meta_t *meta, type_t type)
 {
-    ast_meta_set(meta, type);
+    meta_set(meta, type);
 
     meta->is_dynamic = true;
 }
 
 static inline void
-meta_set_map(ast_meta_t *meta, type_t k_type, ast_meta_t *v_meta)
+meta_set_map(meta_t *meta, type_t k_type, meta_t *v_meta)
 {
-    ast_meta_set(meta, TYPE_MAP);
+    meta_set(meta, TYPE_MAP);
 
     meta->u_map.k_type = k_type;
     meta->u_map.v_meta = v_meta;
 }
 
 static inline bool
-meta_equals(ast_meta_t *x, ast_meta_t *y)
+meta_equals(meta_t *x, meta_t *y)
 {
     if (x->type != y->type)
         return false;
@@ -150,4 +150,4 @@ meta_equals(ast_meta_t *x, ast_meta_t *y)
     return true;
 }
 
-#endif /* ! _AST_META_H */
+#endif /* ! _META_H */

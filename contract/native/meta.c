@@ -1,11 +1,11 @@
 /**
- * @file    ast_meta.c
+ * @file    meta.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
 #include "common.h"
 
-#include "ast_meta.h"
+#include "meta.h"
 
 char *type_strs_[TYPE_MAX] = {
     "undefined",
@@ -31,8 +31,8 @@ char *type_strs_[TYPE_MAX] = {
 };
 
 void 
-ast_meta_dump(ast_meta_t *meta, int indent)
+meta_dump(meta_t *meta, int indent)
 {
 }
 
-/* end of ast_meta.c */
+/* end of meta.c */

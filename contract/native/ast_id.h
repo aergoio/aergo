@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
-#include "ast_meta.h"
+#include "meta.h"
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
@@ -80,7 +80,7 @@ struct ast_id_s {
 
     // results of semantic checker
     bool is_used;
-    ast_meta_t meta;
+    meta_t meta;
 };
 
 ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc);

@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
-#include "ast_meta.h"
+#include "meta.h"
 #include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
@@ -172,7 +172,7 @@ struct ast_exp_s {
 
     // results of semantic checker
     // might be a part of ir_exp_t
-    ast_meta_t meta;
+    meta_t meta;
     ast_id_t *id;
 };
 

@@ -15,7 +15,7 @@
 #include "ast_blk.h"
 #include "ast_exp.h"
 #include "ast_stmt.h"
-#include "ast_meta.h"
+#include "meta.h"
 #include "value.h"
 
 typedef struct parse_s {

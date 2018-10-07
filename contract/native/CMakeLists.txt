@@ -28,7 +28,6 @@ set(SRCS
     ast_blk.c
     ast_stmt.c
     ast_exp.c
-    ast_meta.c
     check_id.c
     check_blk.c
     check_stmt.c
@@ -37,6 +36,7 @@ set(SRCS
     error.c
     strbuf.c
     stack.c
+    meta.c
     util.c
     xalloc.c
     ${YACC_SRC}
