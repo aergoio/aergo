@@ -21,7 +21,7 @@
 #define DEBUG(ec, trc, ...)                                                    \
     error_push((ec), LVL_DEBUG, (trc), ## __VA_ARGS__)
 
-#define error_empty()           (error_count() == 0)
+#define is_no_error()           (error_count() == 0)
 
 typedef enum ec_e {
     NO_ERROR = 0,

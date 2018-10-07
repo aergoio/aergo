@@ -10,7 +10,7 @@
 
 #define ARRAY_INIT_SIZE                 4
 
-#define array_empty(array)                                                     \
+#define is_empty_array(array)                                                  \
     ((array) == NULL ? true : (array)->idx == 0)
 #define array_size(array)               ((array) == NULL ? 0 : (array)->idx)
 #define array_item(array, idx, type)    ((type *)((array)->items[idx]))

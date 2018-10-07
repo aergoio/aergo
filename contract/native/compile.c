@@ -30,7 +30,7 @@ compile(char *path, flag_t flag)
 
     check(ast, flag);
 
-    if (error_empty())
+    if (is_no_error())
         gen(ast, flag);
 
     if (flag_off(flag, FLAG_TEST))

@@ -19,7 +19,7 @@ check_init(check_t *check, ast_t *ast)
     root = ast->root;
 
     ASSERT(root != NULL);
-    ASSERT(array_empty(&root->stmts));
+    ASSERT(is_empty_array(&root->stmts));
     ASSERT(root->up == NULL);
 
     check->root = root;

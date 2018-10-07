@@ -10,8 +10,8 @@
 
 #include "array.h"
 
+#define is_empty_stack(stack)   ((stack)->size == 0)
 #define stack_size(stack)       ((stack)->size)
-#define stack_empty(stack)      ((stack)->size == 0)
 #define stack_head(stack)       ((stack)->head)
 #define stack_tail(stack)       ((stack)->tail)
 #define stack_top(stack)        stack_tail(stack)
