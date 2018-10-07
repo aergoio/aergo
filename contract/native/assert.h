@@ -13,11 +13,13 @@
         if (!(cond))                                                           \
             assert_exit(#cond, __SOURCE__, 0);                                 \
     } while (0)
+
 #define ASSERT1(cond, p1)                                                      \
     do {                                                                       \
         if (!(cond))                                                           \
             assert_exit(#cond, __SOURCE__, 1, #p1, sizeof(p1), p1);            \
     } while (0)
+
 #define ASSERT2(cond, p1, p2)                                                  \
     do {                                                                       \
         if (!(cond))                                                           \

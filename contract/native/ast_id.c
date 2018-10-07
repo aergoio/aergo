@@ -89,7 +89,8 @@ ast_id_search_fld(ast_id_t *id, int num, char *name)
             ASSERT(fld_id->name != NULL);
             ASSERT2(fld_id->num != num, fld_id->num, num);
 
-            if (fld_id->num < num && strcmp(fld_id->name, name) == 0)
+            if (fld_id->num < num && flag_off(fld_id->mod, MOD_LOCAL) &&
+                strcmp(fld_id->name, name) == 0)
                 return fld_id;
         }
     }

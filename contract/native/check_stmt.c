@@ -29,7 +29,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 
     if (!meta_is_bool(cond_meta))
         THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
-              TYPENAME(cond_meta->type));
+              TYPE_NAME(cond_meta->type));
 
     if (stmt->u_if.if_blk != NULL)
         check_blk(check, stmt->u_if.if_blk);
@@ -72,12 +72,12 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
 
                 if (!meta_is_bool(&exp->meta))
                     THROW(ERROR_INVALID_COND_TYPE, &exp->trc,
-                          TYPENAME(exp->meta.type));
+                          TYPE_NAME(exp->meta.type));
             }
         }
         else if (!meta_is_bool(cond_meta)) {
             THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
-                  TYPENAME(cond_meta->type));
+                  TYPE_NAME(cond_meta->type));
         }
     }
 
@@ -109,11 +109,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
         if (meta == NULL) {
             if (!meta_is_bool(val_meta))
                 THROW(ERROR_INVALID_COND_TYPE, &val_exp->trc,
-                      TYPENAME(val_meta->type));
+                      TYPE_NAME(val_meta->type));
         }
         else if (!meta_is_compatible(meta, val_meta)) {
             THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
-                  TYPENAME(meta->type), TYPENAME(val_meta->type));
+                  TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
         }
     }
 
@@ -145,7 +145,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 
         if (!meta_is_comparable(cond_meta))
             THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->trc,
-                  TYPENAME(cond_meta->type));
+                  TYPE_NAME(cond_meta->type));
     }
 
     case_stmts = stmt->u_sw.case_stmts;
@@ -198,8 +198,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                      !meta_is_compatible(ret_meta, fn_ret_meta)) ||
                     meta_equals(ret_meta, fn_ret_meta))
                     THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
-                          TYPENAME(fn_ret_meta->type),
-                          TYPENAME(ret_meta->type));
+                          TYPE_NAME(fn_ret_meta->type),
+                          TYPE_NAME(ret_meta->type));
             }
         }
         else {
@@ -215,7 +215,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                  !meta_is_compatible(arg_meta, fn_ret_meta)) ||
                 meta_equals(arg_meta, fn_ret_meta))
                 THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
-                      TYPENAME(fn_ret_meta->type), TYPENAME(arg_meta->type));
+                      TYPE_NAME(fn_ret_meta->type), TYPE_NAME(arg_meta->type));
         }
     }
     else {

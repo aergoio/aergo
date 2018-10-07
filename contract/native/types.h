@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#define TYPENAME(type)              type_strs_[type]
+#define TYPE_NAME(type)             type_strs_[type]
 
 #define type_is_valid(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
 
@@ -28,15 +28,15 @@ typedef enum type_e {
     TYPE_UINT64,
     TYPE_STRING,
     TYPE_STRUCT,
+    TYPE_REF,
     TYPE_ACCOUNT,
     TYPE_COMPARABLE = TYPE_ACCOUNT,
 
     TYPE_MAP,
     TYPE_PRIMITIVE  = TYPE_MAP,
 
-    TYPE_VOID,
-    TYPE_REF,                       /* for NULL */
-    TYPE_TUPLE,
+    TYPE_VOID,                      /* for return type of function */
+    TYPE_TUPLE,                     /* for tuple expression */
     TYPE_MAX
 } type_t;
 

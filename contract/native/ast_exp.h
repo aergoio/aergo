@@ -24,10 +24,9 @@
 #define exp_is_ternary(exp)         ((exp)->kind == EXP_TERNARY)
 #define exp_is_tuple(exp)           ((exp)->kind == EXP_TUPLE)
 
-#define exp_can_be_lval(exp)                                                   \
-    (!meta_is_const(&(exp)->meta) &&                                           \
-     ((exp)->kind == EXP_ID || (exp)->kind == EXP_ARRAY ||                     \
-      (exp)->kind == EXP_ACCESS))
+#define exp_is_usable_lval(exp)                                                \
+    (!meta_is_const(&(exp)->meta) && !meta_is_dynamic(&(exp)->meta) &&         \
+     (exp_is_id(exp) || exp_is_array(exp) || exp_is_access(exp)))
 
 #define ast_exp_add                 array_add
 #define ast_exp_merge               array_merge
@@ -100,6 +99,7 @@ typedef struct exp_lit_s {
 typedef struct exp_type_s {
     type_t type;
     char *name;
+    bool is_local;
     ast_exp_t *k_exp;
     ast_exp_t *v_exp;
 } exp_type_t;

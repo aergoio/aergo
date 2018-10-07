@@ -26,8 +26,8 @@
 #define meta_is_tuple(meta)         ((meta)->type == TYPE_TUPLE)
 
 #define meta_is_const(meta)         (meta)->is_const
-#define meta_is_local(meta)         (meta)->is_local
 #define meta_is_array(meta)         (meta)->is_array
+#define meta_is_dynamic(meta)       (meta)->is_dynamic
 
 #define meta_is_primitive(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define meta_is_comparable(meta)    ((meta)->type <= TYPE_COMPARABLE)
@@ -57,8 +57,8 @@ struct ast_meta_s {
     type_t type;
 
     bool is_const;
-    bool is_local;
     bool is_array;
+    bool is_dynamic;
 
     union {
         meta_map_t u_map;
@@ -82,6 +82,14 @@ ast_meta_set(ast_meta_t *meta, type_t type)
     ASSERT1(type_is_valid(type), type);
 
     meta->type = type;
+}
+
+static inline void
+meta_set_literal(ast_meta_t *meta, type_t type)
+{
+    ast_meta_set(meta, type);
+
+    meta->is_dynamic = true;
 }
 
 static inline void

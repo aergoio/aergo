@@ -330,10 +330,12 @@ var_type:
         $$ = $2;
         $$->meta.is_const = true;
     }
-|   K_LOCAL var_spec
+|   K_LOCAL var_type
     {
+        ASSERT1(exp_is_type($2), $2->kind);
+
         $$ = $2;
-        $$->meta.is_local = true;
+        $$->u_type.is_local = true;
     }
 ;
 

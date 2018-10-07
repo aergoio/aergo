@@ -23,11 +23,11 @@ char *type_strs_[TYPE_MAX] = {
     "uint64",
     "string",
     "struct",
+    "reference",
     "account",
     "map",
     "void",
-    "reference",
     "tuple"
-}; 
+};
 
 /* end of types.c */
