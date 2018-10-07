@@ -8,35 +8,37 @@
 
 #include "common.h"
 
-#include "type.h"
+#define TYPE_NAME(type)             type_strs_[type]
 
-#define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
+#define is_valid_type(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
 
-#define is_integer_meta(meta)                                                  \
+#define is_bool_type(meta)          ((meta)->type == TYPE_BOOL)
+
+#define is_integer_type(meta)                                                  \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
 
-#define is_float_meta(meta)                                                    \
+#define is_float_type(meta)                                                    \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
 
-#define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
+#define is_string_type(meta)        ((meta)->type == TYPE_STRING)
 
-#define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
-#define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
-#define is_ref_meta(meta)           ((meta)->type == TYPE_REF)
-#define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
+#define is_struct_type(meta)        ((meta)->type == TYPE_STRUCT)
+#define is_map_type(meta)           ((meta)->type == TYPE_MAP)
+#define is_ref_type(meta)           ((meta)->type == TYPE_REF)
+#define is_tuple_type(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_const_meta(meta)         (meta)->is_const
-#define is_array_meta(meta)         (meta)->is_array
-#define is_dynamic_meta(meta)       (meta)->is_dynamic
+#define is_const_type(meta)         (meta)->is_const
+#define is_array_type(meta)         (meta)->is_array
+#define is_dynamic_type(meta)       (meta)->is_dynamic
 
-#define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
-#define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
+#define is_primitive_type(meta)     ((meta)->type <= TYPE_PRIMITIVE)
+#define is_comparable_type(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
-#define is_compatible_meta(meta1, meta2)                                       \
-    (is_integer_meta(meta1) ? is_integer_meta(meta2) :                         \
-     (is_float_meta(meta1) ? is_float_meta(meta2) :                            \
-      (is_struct_meta(meta1) ? is_ref_meta(meta2) || is_struct_meta(meta2) :   \
-       (is_map_meta(meta1) ? is_ref_meta(meta2) || meta_equals(meta1, meta2) : \
+#define is_compatible_type(meta1, meta2)                                       \
+    (is_integer_type(meta1) ? is_integer_type(meta2) :                         \
+     (is_float_type(meta1) ? is_float_type(meta2) :                            \
+      (is_struct_type(meta1) ? is_ref_type(meta2) || is_struct_type(meta2) :   \
+       (is_map_type(meta1) ? is_ref_type(meta2) || meta_equals(meta1, meta2) : \
         meta_equals(meta1, meta2)))))
 
 #define meta_set_prim               ast_meta_set
@@ -47,6 +49,34 @@
 #define _AST_META_T
 typedef struct ast_meta_s ast_meta_t;
 #endif /* ! _AST_META_T */
+
+typedef enum type_e {
+    TYPE_NONE       = 0,
+    TYPE_BOOL,
+    TYPE_BYTE,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_INT8,
+    TYPE_UINT8,
+    TYPE_INT16,
+    TYPE_UINT16,
+    TYPE_INT32,
+    TYPE_UINT32,
+    TYPE_INT64,
+    TYPE_UINT64,
+    TYPE_STRING,
+    TYPE_STRUCT,
+    TYPE_REF,
+    TYPE_ACCOUNT,
+    TYPE_COMPARABLE = TYPE_ACCOUNT,
+
+    TYPE_MAP,
+    TYPE_PRIMITIVE  = TYPE_MAP,
+
+    TYPE_VOID,                      /* for return type of function */
+    TYPE_TUPLE,                     /* for tuple expression */
+    TYPE_MAX
+} type_t;
 
 typedef struct meta_map_s {
     type_t k_type;
@@ -64,6 +94,8 @@ struct ast_meta_s {
         meta_map_t u_map;
     };
 };
+
+extern char *type_strs_[TYPE_MAX];
 
 void ast_meta_dump(ast_meta_t *meta, int indent);
 

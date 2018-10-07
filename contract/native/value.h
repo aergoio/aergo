@@ -87,4 +87,31 @@ val_set_str(value_t *val, char *str)
     val->sv = str;
 }
 
+static inline bool
+value_check_range(value_t *val, type_t type)
+{
+    if (type == TYPE_INT8 && (val->iv < INT8_MIN || val->iv > INT8_MAX))
+        return false;
+
+    if (type == TYPE_UINT8 && val->iv > UINT8_MAX)
+        return false;
+
+    if (type == TYPE_INT16 && (val->iv < INT16_MIN || val->iv > INT16_MAX))
+        return false;
+
+    if (type == TYPE_UINT16 && val->iv > UINT16_MAX)
+        return false;
+
+    if (type == TYPE_INT32 && (val->iv < INT32_MIN || val->iv > INT32_MAX))
+        return false;
+
+    if (type == TYPE_UINT32 && val->iv > UINT32_MAX)
+        return false;
+
+    if (type == TYPE_FLOAT && (val->dv < FLT_MIN || val->dv > FLT_MAX))
+        return false;
+
+    return true;
+}
+
 #endif /* ! _VALUE_H */

@@ -49,7 +49,7 @@ id_var_check(check_t *check, ast_id_t *id)
             if (init_exp == NULL)
                 THROW(ERROR_MISSING_INITIALIZER, &id->trc);
         }
-        else if (!is_integer_meta(arr_meta)) {
+        else if (!is_integer_type(arr_meta)) {
             THROW(ERROR_INVALID_SIZE_TYPE, &id->trc, TYPE_NAME(arr_meta->type));
         }
     }
@@ -67,7 +67,7 @@ id_var_check(check_t *check, ast_id_t *id)
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
                     ast_meta_t *val_meta = &val_exp->meta;
 
-                    if (!is_compatible_meta(type_meta, val_meta))
+                    if (!is_compatible_type(type_meta, val_meta))
                         THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPE_NAME(type_meta->type),
                               TYPE_NAME(val_meta->type));
@@ -86,14 +86,14 @@ id_var_check(check_t *check, ast_id_t *id)
                     ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
 
-                    if (!is_compatible_meta(&fld_id->meta, &val_exp->meta))
+                    if (!is_compatible_type(&fld_id->meta, &val_exp->meta))
                         THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPE_NAME(fld_id->meta.type),
                               TYPE_NAME(val_exp->meta.type));
                 }
             }
         }
-        else if (!is_compatible_meta(type_meta, &init_exp->meta)) {
+        else if (!is_compatible_type(type_meta, &init_exp->meta)) {
             THROW(ERROR_MISMATCHED_TYPE, &init_exp->trc,
                   TYPE_NAME(type_meta->type), TYPE_NAME(init_exp->meta.type));
         }

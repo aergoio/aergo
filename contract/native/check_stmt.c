@@ -27,7 +27,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 
     TRY(check_exp(check, cond_exp));
 
-    if (!is_bool_meta(cond_meta))
+    if (!is_bool_type(cond_meta))
         THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
               TYPE_NAME(cond_meta->type));
 
@@ -70,12 +70,12 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
             for (i = 0; i < array_size(exps); i++) {
                 ast_exp_t *exp = array_item(exps, i, ast_exp_t);
 
-                if (!is_bool_meta(&exp->meta))
+                if (!is_bool_type(&exp->meta))
                     THROW(ERROR_INVALID_COND_TYPE, &exp->trc,
                           TYPE_NAME(exp->meta.type));
             }
         }
-        else if (!is_bool_meta(cond_meta)) {
+        else if (!is_bool_type(cond_meta)) {
             THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
                   TYPE_NAME(cond_meta->type));
         }
@@ -107,11 +107,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
         check_exp(check, val_exp);
 
         if (meta == NULL) {
-            if (!is_bool_meta(val_meta))
+            if (!is_bool_type(val_meta))
                 THROW(ERROR_INVALID_COND_TYPE, &val_exp->trc,
                       TYPE_NAME(val_meta->type));
         }
-        else if (!is_compatible_meta(meta, val_meta)) {
+        else if (!is_compatible_type(meta, val_meta)) {
             THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                   TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
         }
@@ -143,7 +143,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 
         check_exp(check, cond_exp);
 
-        if (!is_comparable_meta(cond_meta))
+        if (!is_comparable_type(cond_meta))
             THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->trc,
                   TYPE_NAME(cond_meta->type));
     }
@@ -195,7 +195,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                 ast_meta_t *fn_ret_meta = &fn_ret_exp->meta;
 
                 if ((is_lit_exp(ret_exp) &&
-                     !is_compatible_meta(ret_meta, fn_ret_meta)) ||
+                     !is_compatible_type(ret_meta, fn_ret_meta)) ||
                     meta_equals(ret_meta, fn_ret_meta))
                     THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                           TYPE_NAME(fn_ret_meta->type),
@@ -212,7 +212,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             fn_ret_meta = &array_item(fn_ret_exps, 0, ast_exp_t)->meta;
 
             if ((is_lit_exp(arg_exp) &&
-                 !is_compatible_meta(arg_meta, fn_ret_meta)) ||
+                 !is_compatible_type(arg_meta, fn_ret_meta)) ||
                 meta_equals(arg_meta, fn_ret_meta))
                 THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                       TYPE_NAME(fn_ret_meta->type), TYPE_NAME(arg_meta->type));
