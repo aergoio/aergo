@@ -79,7 +79,7 @@ exp_lit_new(trace_t *trc)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LIT, trc);
 
-    ast_val_init(&exp->u_lit.val);
+    value_init(&exp->u_lit.val);
 
     return exp;
 }

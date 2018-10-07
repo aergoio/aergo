@@ -10,7 +10,7 @@
 
 #include "ast.h"
 #include "ast_meta.h"
-#include "ast_val.h"
+#include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
@@ -92,7 +92,7 @@ typedef enum sql_kind_e {
 
 // null, true, false, 1, 1.0, 0x1, "..."
 typedef struct exp_lit_s {
-    ast_val_t val;
+    value_t val;
 } exp_lit_t;
 
 // primitive, struct, map

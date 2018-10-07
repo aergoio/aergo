@@ -133,7 +133,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %left   UNARY_INC UNARY_DEC
 %left   '.'
 
-/* types */
+/* type */
 %union {
     bool flag;
     char *str;

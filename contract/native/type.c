@@ -1,11 +1,11 @@
 /**
- * @file    types.c
+ * @file    type.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
 #include "common.h"
 
-#include "types.h"
+#include "type.h"
 
 char *type_strs_[TYPE_MAX] = {
     "undefined",
@@ -30,4 +30,4 @@ char *type_strs_[TYPE_MAX] = {
     "tuple"
 };
 
-/* end of types.c */
+/* end of type.c */

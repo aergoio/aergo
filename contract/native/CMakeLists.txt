@@ -38,7 +38,7 @@ set(SRCS
     strbuf.c
     stack.c
     util.c
-    types.c
+    type.c
     xalloc.c
     ${YACC_SRC}
     ${LEX_SRC}

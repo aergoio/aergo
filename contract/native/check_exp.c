@@ -192,7 +192,7 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
     TRY(check_exp(check, r_exp));
 
     if (r_exp->kind == EXP_LIT && is_integer_meta(l_meta)) {
-        ast_val_t *val = &r_exp->u_lit.val;
+        value_t *val = &r_exp->u_lit.val;
 
         if (!is_integer_meta(r_meta))
             THROW(ERROR_MISMATCHED_TYPE, &r_exp->trc,

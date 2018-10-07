@@ -1,10 +1,10 @@
 /**
- * @file    ast_val.h
+ * @file    value.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _AST_VAL_H
-#define _AST_VAL_H
+#ifndef _VALUE_H
+#define _VALUE_H
 
 #include "common.h"
 
@@ -14,10 +14,10 @@
 #define is_float_val(val)           ((val)->kind == VAL_FP)
 #define is_string_val(val)          ((val)->kind == VAL_STR)
 
-#ifndef _AST_VAL_T
-#define _AST_VAL_T
-typedef struct ast_val_s ast_val_t;
-#endif /* ! _AST_VAL_T */
+#ifndef _VALUE_T
+#define _VALUE_T
+typedef struct value_s value_t;
+#endif /* ! _VALUE_T */
 
 typedef enum val_kind_e {
     VAL_NULL        = 0,
@@ -28,7 +28,7 @@ typedef enum val_kind_e {
     VAL_MAX
 } val_kind_t;
 
-struct ast_val_s {
+struct value_s {
     val_kind_t kind;
 
     union {
@@ -40,51 +40,51 @@ struct ast_val_s {
 };
 
 static inline void
-ast_val_init(ast_val_t *val)
+value_init(value_t *val)
 {
     ASSERT(val != NULL);
-    memset(val, 0x00, sizeof(ast_val_t));
+    memset(val, 0x00, sizeof(value_t));
 }
 
 static inline void
-val_set_null(ast_val_t *val)
+val_set_null(value_t *val)
 {
     val->kind = VAL_NULL;
 }
 
 static inline void 
-val_set_bool(ast_val_t *val, bool bv)
+val_set_bool(value_t *val, bool bv)
 {
     val->kind = VAL_BOOL;
     val->bv = bv;
 }
 
 static inline void 
-val_set_int(ast_val_t *val, char *str)
+val_set_int(value_t *val, char *str)
 {
     val->kind = VAL_INT;
     sscanf(str, "%"SCNd64, &val->iv);
 }
 
 static inline void 
-val_set_hexa(ast_val_t *val, char *str)
+val_set_hexa(value_t *val, char *str)
 {
     val->kind = VAL_INT;
     sscanf(str, "%"SCNx64, &val->iv);
 }
 
 static inline void 
-val_set_fp(ast_val_t *val, char *str)
+val_set_fp(value_t *val, char *str)
 {
     val->kind = VAL_FP;
     sscanf(str, "%lf", &val->dv);
 }
 
 static inline void 
-val_set_str(ast_val_t *val, char *str)
+val_set_str(value_t *val, char *str)
 {
     val->kind = VAL_STR;
     val->sv = str;
 }
 
-#endif /* ! _AST_VAL_H */
+#endif /* ! _VALUE_H */

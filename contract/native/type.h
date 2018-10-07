@@ -1,10 +1,10 @@
 /**
- * @file    types.h
+ * @file    type.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _TYPES_H
-#define _TYPES_H
+#ifndef _TYPE_H
+#define _TYPE_H
 
 #include "common.h"
 
@@ -66,4 +66,4 @@ type_check_range(type_t type, int64_t val)
     return true;
 }
 
-#endif /* ! _TYPES_H */
+#endif /* ! _TYPE_H */

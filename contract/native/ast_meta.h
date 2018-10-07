@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "types.h"
+#include "type.h"
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
