@@ -14,7 +14,6 @@
 
 #define trace_rel_path(trc)             (trc)->rel.path
 #define trace_rel_line(trc)             (trc)->rel.first_line
-#define trace_rel_col(trc)              (trc)->rel.first_col
 #define trace_rel_offset(trc)           (trc)->rel.first_offset
 
 typedef struct src_pos_s {
@@ -81,6 +80,14 @@ trace_init(trace_t *trc, char *src, char *path)
     trc->src = src;
     src_pos_set(&trc->abs, path, 1, 1, 0);
     src_pos_set(&trc->rel, path, 1, 1, 0);
+}
+
+static inline void
+trace_set_src(trace_t *trc, char *src)
+{
+    ASSERT(trc != NULL);
+
+    trc->src = src;
 }
 
 static inline void

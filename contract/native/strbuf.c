@@ -54,6 +54,23 @@ strbuf_copy(strbuf_t *src, strbuf_t *dest)
 }
 
 void
+strbuf_load(strbuf_t *sb, char *path)
+{
+    int n;
+    FILE *fp = open_file(path, "r");
+    char buf[STRBUF_INIT_SIZE];
+
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+        strbuf_append(sb, buf, n);
+    }
+
+    if (!feof(fp))
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
+
+    fclose(fp);
+}
+
+void
 strbuf_dump(strbuf_t *sb, char *path)
 {
     int n;

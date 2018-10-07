@@ -1,5 +1,5 @@
 /**
- * @file    preprocess.c
+ * @file    prep.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
@@ -12,7 +12,6 @@
 #include "prep.h"
 
 #define YY_LINE                 trace_rel_line(&scan->trc)
-#define YY_COL                  trace_rel_col(&scan->trc)
 #define YY_OFFSET               trace_rel_offset(&scan->trc)
 
 #define yy_update_line()        trace_update_last_line(&scan->trc)
@@ -29,15 +28,14 @@ scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
     char *delim;
 
     scan->path = path;
-    scan->fp = open_file(path, "r");
-
     scan->work_dir = work_dir;
 
-    trace_init(&scan->trc, strbuf_text(out), path);
+    scan->offset = 0;
 
-    scan->buf_len = 0;
-    scan->buf_pos = 0;
-    scan->buf[0] = '\0';
+    strbuf_init(&scan->in);
+    strbuf_load(&scan->in, path);
+
+    trace_init(&scan->trc, strbuf_text(&scan->in), xstrdup(path));
 
     scan->out = out;
 }
@@ -47,15 +45,10 @@ scan_next(scan_t *scan)
 {
     char c;
 
-    if (scan->buf_pos >= scan->buf_len) {
-        scan->buf_len = fread(scan->buf, 1, sizeof(scan->buf), scan->fp);
-        if (scan->buf_len == 0)
-            return EOF;
+    if (scan->offset >= strbuf_length(&scan->in))
+        return EOF;
 
-        scan->buf_pos = 0;
-    }
-
-    c = scan->buf[scan->buf_pos++];
+    c = strbuf_char(&scan->in, scan->offset++);
 
     yy_update_offset();
 
@@ -70,19 +63,10 @@ scan_next(scan_t *scan)
 static char
 scan_peek(scan_t *scan, int cnt)
 {
-    if (scan->buf_pos + cnt >= scan->buf_len) {
-        scan->buf_len -= scan->buf_pos;
-        memmove(scan->buf, scan->buf + scan->buf_pos, scan->buf_len);
-        scan->buf_pos = 0;
+    if (scan->offset >= strbuf_length(&scan->in))
+        return EOF;
 
-        scan->buf_len +=
-            fread(scan->buf + scan->buf_len, 1,
-                  sizeof(scan->buf) - scan->buf_len, scan->fp);
-        if (scan->buf_len <= cnt)
-            return EOF;
-    }
-
-    return scan->buf[scan->buf_pos + cnt];
+    return strbuf_char(&scan->in, scan->offset + cnt);
 }
 
 static bool
@@ -98,7 +82,6 @@ add_file(scan_t *scan, char *path, stack_t *imp)
     }
 
     stack_push(imp, xstrdup(path));
-    trace_set_rel_path(&scan->trc, path);
 
     return true;
 }
@@ -107,7 +90,6 @@ static void
 del_file(scan_t *scan, char *path, stack_t *imp)
 {
     stack_pop(imp);
-    trace_set_rel_path(&scan->trc, path);
 }
 
 static void
@@ -281,4 +263,4 @@ preprocess(char *path, flag_t flag, strbuf_t *out)
     }
 }
 
-/* end of preprocess.c */
+/* end of prep.c */
