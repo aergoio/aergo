@@ -21,7 +21,7 @@ check_unused_ids(array_t *ids)
         if (id->mod != MOD_INITIAL && !id->is_used) {
             WARN(ERROR_UNUSED_ID, &id->trc, id->name);
         }
-        else if (id_is_func(id)) {
+        else if (is_func_id(id)) {
             array_t *param_ids = id->u_func.param_ids;
 
             for (j = 0; j < array_size(param_ids); j++) {

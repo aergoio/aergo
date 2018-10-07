@@ -19,7 +19,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     ast_meta_t *cond_meta;
     array_t *elif_stmts;
 
-    ASSERT1(stmt_is_if(stmt), stmt->kind);
+    ASSERT1(is_if_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_if.cond_exp != NULL);
 
     cond_exp = stmt->u_if.cond_exp;
@@ -27,7 +27,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 
     TRY(check_exp(check, cond_exp));
 
-    if (!meta_is_bool(cond_meta))
+    if (!is_bool_meta(cond_meta))
         THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
               TYPE_NAME(cond_meta->type));
 
@@ -51,7 +51,7 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp;
 
-    ASSERT1(stmt_is_for(stmt), stmt->kind);
+    ASSERT1(is_for_stmt(stmt), stmt->kind);
 
     if (stmt->u_for.init_exp != NULL)
         check_exp(check, stmt->u_for.init_exp);
@@ -63,19 +63,19 @@ stmt_for_check(check_t *check, ast_stmt_t *stmt)
 
         check_exp(check, cond_exp);
 
-        if (exp_is_tuple(cond_exp)) {
+        if (is_tuple_exp(cond_exp)) {
             int i;
             array_t *exps = cond_exp->u_tup.exps;
 
             for (i = 0; i < array_size(exps); i++) {
                 ast_exp_t *exp = array_item(exps, i, ast_exp_t);
 
-                if (!meta_is_bool(&exp->meta))
+                if (!is_bool_meta(&exp->meta))
                     THROW(ERROR_INVALID_COND_TYPE, &exp->trc,
                           TYPE_NAME(exp->meta.type));
             }
         }
-        else if (!meta_is_bool(cond_meta)) {
+        else if (!is_bool_meta(cond_meta)) {
             THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
                   TYPE_NAME(cond_meta->type));
         }
@@ -97,7 +97,7 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
     ast_exp_t *val_exp;
     array_t *stmts;
 
-    ASSERT1(stmt_is_case(stmt), stmt->kind);
+    ASSERT1(is_case_stmt(stmt), stmt->kind);
 
     val_exp = stmt->u_case.val_exp;
 
@@ -107,11 +107,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, ast_meta_t *meta)
         check_exp(check, val_exp);
 
         if (meta == NULL) {
-            if (!meta_is_bool(val_meta))
+            if (!is_bool_meta(val_meta))
                 THROW(ERROR_INVALID_COND_TYPE, &val_exp->trc,
                       TYPE_NAME(val_meta->type));
         }
-        else if (!meta_is_compatible(meta, val_meta)) {
+        else if (!is_compatible_meta(meta, val_meta)) {
             THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                   TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
         }
@@ -134,7 +134,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
     ast_meta_t *cond_meta = NULL;
     array_t *case_stmts;
 
-    ASSERT1(stmt_is_switch(stmt), stmt->kind);
+    ASSERT1(is_switch_stmt(stmt), stmt->kind);
 
     cond_exp = stmt->u_sw.cond_exp;
 
@@ -143,7 +143,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 
         check_exp(check, cond_exp);
 
-        if (!meta_is_comparable(cond_meta))
+        if (!is_comparable_meta(cond_meta))
             THROW(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->trc,
                   TYPE_NAME(cond_meta->type));
     }
@@ -165,13 +165,13 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
     ast_id_t *fn_id;
     array_t *fn_ret_exps;
 
-    ASSERT1(stmt_is_return(stmt), stmt->kind);
+    ASSERT1(is_return_stmt(stmt), stmt->kind);
 
     arg_exp = stmt->u_ret.arg_exp;
 
     fn_id = check->fn_id;
     ASSERT(fn_id != NULL);
-    ASSERT1(id_is_func(fn_id), fn_id->kind);
+    ASSERT1(is_func_id(fn_id), fn_id->kind);
 
     fn_ret_exps = fn_id->u_func.ret_exps;
 
@@ -181,7 +181,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
         check_exp(check, arg_exp);
 
-        if (exp_is_tuple(arg_exp)) {
+        if (is_tuple_exp(arg_exp)) {
             int i;
             array_t *ret_exps = arg_exp->u_tup.exps;
 
@@ -194,8 +194,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *fn_ret_exp = array_item(fn_ret_exps, i, ast_exp_t);
                 ast_meta_t *fn_ret_meta = &fn_ret_exp->meta;
 
-                if ((exp_is_lit(ret_exp) &&
-                     !meta_is_compatible(ret_meta, fn_ret_meta)) ||
+                if ((is_lit_exp(ret_exp) &&
+                     !is_compatible_meta(ret_meta, fn_ret_meta)) ||
                     meta_equals(ret_meta, fn_ret_meta))
                     THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                           TYPE_NAME(fn_ret_meta->type),
@@ -211,8 +211,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
             fn_ret_meta = &array_item(fn_ret_exps, 0, ast_exp_t)->meta;
 
-            if ((exp_is_lit(arg_exp) &&
-                 !meta_is_compatible(arg_meta, fn_ret_meta)) ||
+            if ((is_lit_exp(arg_exp) &&
+                 !is_compatible_meta(arg_meta, fn_ret_meta)) ||
                 meta_equals(arg_meta, fn_ret_meta))
                 THROW(ERROR_MISMATCHED_TYPE, &arg_exp->trc,
                       TYPE_NAME(fn_ret_meta->type), TYPE_NAME(arg_meta->type));
@@ -229,7 +229,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_ddl_check(check_t *check, ast_stmt_t *stmt)
 {
-    ASSERT1(stmt_is_ddl(stmt), stmt->kind);
+    ASSERT1(is_ddl_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_ddl.ddl != NULL);
 
     return NO_ERROR;
@@ -238,7 +238,7 @@ stmt_ddl_check(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_blk_check(check_t *check, ast_stmt_t *stmt)
 {
-    ASSERT1(stmt_is_blk(stmt), stmt->kind);
+    ASSERT1(is_blk_stmt(stmt), stmt->kind);
 
     if (stmt->u_blk.blk != NULL)
         check_blk(check, stmt->u_blk.blk);

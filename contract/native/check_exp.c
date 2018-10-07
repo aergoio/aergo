@@ -14,7 +14,7 @@ exp_id_check(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id;
 
-    ASSERT1(exp_is_id(exp), exp->kind);
+    ASSERT1(is_id_exp(exp), exp->kind);
 
     if (check->aq_id != NULL)
         id = ast_id_search_fld(check->aq_id, exp->num, exp->u_id.name);
@@ -35,7 +35,7 @@ exp_id_check(check_t *check, ast_exp_t *exp)
 static int
 exp_lit_check(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(exp_is_lit(exp), exp->kind);
+    ASSERT1(is_lit_exp(exp), exp->kind);
 
     switch (exp->u_lit.val.kind) {
     case VAL_NULL:
@@ -63,8 +63,8 @@ exp_lit_check(check_t *check, ast_exp_t *exp)
 static int
 exp_type_check(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(exp_is_type(exp), exp->kind);
-    ASSERT1(type_is_valid(exp->u_type.type), exp->u_type.type);
+    ASSERT1(is_type_exp(exp), exp->kind);
+    ASSERT1(is_valid_type(exp->u_type.type), exp->u_type.type);
 
     if (exp->u_type.type == TYPE_STRUCT) {
         ast_id_t *id;
@@ -97,7 +97,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
 
         TRY(exp_type_check(check, k_exp));
 
-        if (!meta_is_comparable(k_meta))
+        if (!is_comparable_meta(k_meta))
             THROW(ERROR_INVALID_KEY_TYPE, &k_exp->trc, TYPE_NAME(k_meta->type));
 
         v_exp = exp->u_type.v_exp;
@@ -105,7 +105,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
 
         TRY(exp_type_check(check, v_exp));
 
-        ASSERT(!meta_is_tuple(v_meta));
+        ASSERT(!is_tuple_meta(v_meta));
         meta_set_map(&exp->meta, k_meta->type, v_meta);
     }
     else {
@@ -125,7 +125,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
     ast_exp_t *id_exp;
     ast_meta_t *id_meta;
 
-    ASSERT1(exp_is_array(exp), exp->kind);
+    ASSERT1(is_array_exp(exp), exp->kind);
     ASSERT(exp->u_arr.id_exp != NULL);
 
     id_exp = exp->u_arr.id_exp;
@@ -133,7 +133,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, id_exp));
 
-    if (id_exp->id == NULL || !meta_is_array(id_meta) || !meta_is_map(id_meta))
+    if (id_exp->id == NULL || !is_array_meta(id_meta) || !is_map_meta(id_meta))
         THROW(ERROR_INVALID_SUBSCRIPT, &id_exp->trc);
 
     exp->id = id_exp->id;
@@ -145,7 +145,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
         TRY(check_exp(check, idx_exp));
 
         // TODO: restriction of array size
-        if (!meta_is_integer(param_meta))
+        if (!is_integer_meta(param_meta))
             THROW(ERROR_INVALID_IDX_TYPE, &idx_exp->trc,
                   TYPE_NAME(param_meta->type));
     }
@@ -178,11 +178,11 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
         for (i = 0; i < array_size(tuple); i++) {
             ast_exp_t *item = array_item(tuple, i, ast_exp_t);
 
-            if (!exp_is_usable_lval(item))
+            if (!is_usable_lval(item))
                 THROW(ERROR_INVALID_LVALUE, &item->trc);
         }
     }
-    else if (!exp_is_usable_lval(l_exp)) {
+    else if (!is_usable_lval(l_exp)) {
         THROW(ERROR_INVALID_LVALUE, &l_exp->trc);
     }
 
@@ -191,10 +191,10 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (r_exp->kind == EXP_LIT && meta_is_integer(l_meta)) {
+    if (r_exp->kind == EXP_LIT && is_integer_meta(l_meta)) {
         ast_val_t *val = &r_exp->u_lit.val;
 
-        if (!meta_is_integer(r_meta))
+        if (!is_integer_meta(r_meta))
             THROW(ERROR_MISMATCHED_TYPE, &r_exp->trc,
                   TYPE_NAME(l_meta->type), TYPE_NAME(r_meta->type));
 
@@ -230,16 +230,16 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (!meta_is_compatible(l_meta, r_meta))
+    if (!is_compatible_meta(l_meta, r_meta))
         THROW(ERROR_MISMATCHED_TYPE, &exp->trc, TYPE_NAME(l_meta->type),
               TYPE_NAME(r_meta->type));
 
     if (exp->u_op.kind == OP_ADD) {
-        if (!meta_is_integer(l_meta) && !meta_is_float(l_meta) &&
-            !meta_is_string(l_meta))
+        if (!is_integer_meta(l_meta) && !is_float_meta(l_meta) &&
+            !is_string_meta(l_meta))
             THROW(ERROR_INVALID_OP_TYPE, &exp->trc, TYPE_NAME(l_meta->type));
     }
-    else if (!meta_is_integer(l_meta) && !meta_is_float(l_meta)) {
+    else if (!is_integer_meta(l_meta) && !is_float_meta(l_meta)) {
         THROW(ERROR_INVALID_OP_TYPE, &exp->trc, TYPE_NAME(l_meta->type));
     }
 
@@ -262,7 +262,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, l_exp));
 
-    if (!meta_is_bool(l_meta))
+    if (!is_bool_meta(l_meta))
         THROW(ERROR_INVALID_OP_TYPE, &l_exp->trc, TYPE_NAME(l_meta->type));
 
     r_exp = exp->u_op.r_exp;
@@ -270,7 +270,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (!meta_is_bool(r_meta))
+    if (!is_bool_meta(r_meta))
         THROW(ERROR_INVALID_OP_TYPE, &r_exp->trc, TYPE_NAME(r_meta->type));
 
     meta_set_prim(&exp->meta, TYPE_BOOL);
@@ -292,7 +292,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, l_exp));
 
-    if (!meta_is_integer(l_meta))
+    if (!is_integer_meta(l_meta))
         THROW(ERROR_INVALID_OP_TYPE, &l_exp->trc, TYPE_NAME(l_meta->type));
 
     r_exp = exp->u_op.r_exp;
@@ -300,7 +300,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (!meta_is_integer(r_meta))
+    if (!is_integer_meta(r_meta))
         THROW(ERROR_INVALID_OP_TYPE, &r_exp->trc, TYPE_NAME(r_meta->type));
 
     exp->meta = l_exp->meta;
@@ -327,10 +327,10 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (meta_is_float(l_meta) && meta_is_integer(r_meta))
+    if (is_float_meta(l_meta) && is_integer_meta(r_meta))
         WARN(ERROR_TRUNCATED_TYPE, &l_exp->trc, TYPE_NAME(l_meta->type),
              TYPE_NAME(r_meta->type));
-    else if (meta_is_integer(l_meta) && meta_is_float(r_meta))
+    else if (is_integer_meta(l_meta) && is_float_meta(r_meta))
         WARN(ERROR_TRUNCATED_TYPE, &r_exp->trc, TYPE_NAME(r_meta->type),
              TYPE_NAME(l_meta->type));
     else if (!meta_equals(l_meta, r_meta))
@@ -359,12 +359,12 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
     switch (exp->u_op.kind) {
     case OP_INC:
     case OP_DEC:
-        if (!meta_is_integer(l_meta))
+        if (!is_integer_meta(l_meta))
             THROW(ERROR_INVALID_OP_TYPE, &l_exp->trc, TYPE_NAME(l_meta->type));
         break;
 
     case OP_NOT:
-        if (!meta_is_bool(l_meta))
+        if (!is_bool_meta(l_meta))
             THROW(ERROR_INVALID_OP_TYPE, &l_exp->trc, TYPE_NAME(l_meta->type));
         break;
 
@@ -380,7 +380,7 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
 static int
 exp_op_check(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(exp_is_op(exp), exp->kind);
+    ASSERT1(is_op_exp(exp), exp->kind);
 
     switch (exp->u_op.kind) {
     case OP_ASSIGN:
@@ -432,7 +432,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     ast_meta_t *id_meta, *fld_meta;
     ast_id_t *id;
 
-    ASSERT1(exp_is_access(exp), exp->kind);
+    ASSERT1(is_access_exp(exp), exp->kind);
 
     id_exp = exp->u_acc.id_exp;
     id_meta = &id_exp->meta;
@@ -440,9 +440,9 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     TRY(check_exp(check, id_exp));
 
     id = id_exp->id;
-    if (id == NULL || id->kind == ID_VAR || meta_is_tuple(id_meta) ||
+    if (id == NULL || id->kind == ID_VAR || is_tuple_meta(id_meta) ||
         (id->kind == ID_FUNC &&
-         !meta_is_struct(id_meta) && !meta_is_ref(id_meta)))
+         !is_struct_meta(id_meta) && !is_ref_meta(id_meta)))
         THROW(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->trc);
 
     fld_exp = exp->u_acc.fld_exp;
@@ -471,7 +471,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
     array_t *param_ids;
     array_t *param_exps;
 
-    ASSERT1(exp_is_call(exp), exp->kind);
+    ASSERT1(is_call_exp(exp), exp->kind);
 
     id_exp = exp->u_call.id_exp;
     id_meta = &id_exp->meta;
@@ -508,7 +508,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 static int
 exp_sql_check(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(exp_is_sql(exp), exp->kind);
+    ASSERT1(is_sql_exp(exp), exp->kind);
     ASSERT(exp->u_sql.sql != NULL);
 
     // TODO: need column meta
@@ -522,7 +522,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     ast_exp_t *pre_exp, *in_exp, *post_exp;
     ast_meta_t *pre_meta, *in_meta, *post_meta;
 
-    ASSERT1(exp_is_ternary(exp), exp->kind);
+    ASSERT1(is_ternary_exp(exp), exp->kind);
     ASSERT(exp->u_tern.pre_exp != NULL);
     ASSERT(exp->u_tern.in_exp != NULL);
     ASSERT(exp->u_tern.post_exp != NULL);
@@ -532,7 +532,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, pre_exp));
 
-    if (!meta_is_bool(pre_meta))
+    if (!is_bool_meta(pre_meta))
         THROW(ERROR_INVALID_OP_TYPE, &pre_exp->trc,
               TYPE_NAME(pre_meta->type));
 
@@ -561,7 +561,7 @@ exp_tuple_check(check_t *check, ast_exp_t *exp)
     int i;
     array_t *exps = exp->u_tup.exps;
 
-    ASSERT1(exp_is_tuple(exp), exp->kind);
+    ASSERT1(is_tuple_exp(exp), exp->kind);
     ASSERT(exps != NULL);
 
     for (i = 0; i < array_size(exps); i++) {

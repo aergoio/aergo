@@ -12,21 +12,21 @@
 #include "ast_meta.h"
 #include "ast_val.h"
 
-#define exp_is_null(exp)            ((exp)->kind == EXP_NULL)
-#define exp_is_lit(exp)             ((exp)->kind == EXP_LIT)
-#define exp_is_type(exp)            ((exp)->kind == EXP_TYPE)
-#define exp_is_id(exp)              ((exp)->kind == EXP_ID)
-#define exp_is_array(exp)           ((exp)->kind == EXP_ARRAY)
-#define exp_is_op(exp)              ((exp)->kind == EXP_OP)
-#define exp_is_access(exp)          ((exp)->kind == EXP_ACCESS)
-#define exp_is_call(exp)            ((exp)->kind == EXP_CALL)
-#define exp_is_sql(exp)             ((exp)->kind == EXP_SQL)
-#define exp_is_ternary(exp)         ((exp)->kind == EXP_TERNARY)
-#define exp_is_tuple(exp)           ((exp)->kind == EXP_TUPLE)
+#define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
+#define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
+#define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
+#define is_id_exp(exp)              ((exp)->kind == EXP_ID)
+#define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
+#define is_op_exp(exp)              ((exp)->kind == EXP_OP)
+#define is_access_exp(exp)          ((exp)->kind == EXP_ACCESS)
+#define is_call_exp(exp)            ((exp)->kind == EXP_CALL)
+#define is_sql_exp(exp)             ((exp)->kind == EXP_SQL)
+#define is_ternary_exp(exp)         ((exp)->kind == EXP_TERNARY)
+#define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 
-#define exp_is_usable_lval(exp)                                                \
-    (!meta_is_const(&(exp)->meta) && !meta_is_dynamic(&(exp)->meta) &&         \
-     (exp_is_id(exp) || exp_is_array(exp) || exp_is_access(exp)))
+#define is_usable_lval(exp)                                                    \
+    (!is_const_meta(&(exp)->meta) && !is_dynamic_meta(&(exp)->meta) &&         \
+     (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
 #define ast_exp_add                 array_add
 #define ast_exp_merge               array_merge

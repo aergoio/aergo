@@ -11,10 +11,10 @@
 #include "ast.h"
 #include "ast_meta.h"
 
-#define id_is_var(id)               ((id)->kind == ID_VAR)
-#define id_is_struct(id)            ((id)->kind == ID_STRUCT)
-#define id_is_func(id)              ((id)->kind == ID_FUNC)
-#define id_is_contract(id)          ((id)->kind == ID_CONTRACT)
+#define is_var_id(id)               ((id)->kind == ID_VAR)
+#define is_struct_id(id)            ((id)->kind == ID_STRUCT)
+#define is_func_id(id)              ((id)->kind == ID_FUNC)
+#define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T

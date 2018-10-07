@@ -20,13 +20,13 @@ id_var_check(check_t *check, ast_id_t *id)
     ast_meta_t *type_meta;
     ast_exp_t *init_exp;
 
-    ASSERT1(id_is_var(id), id->kind);
+    ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
 
     type_exp = id->u_var.type_exp;
     type_meta = &type_exp->meta;
 
-    ASSERT1(exp_is_type(type_exp), type_exp->kind);
+    ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
     TRY(check_exp(check, type_exp));
 
@@ -49,7 +49,7 @@ id_var_check(check_t *check, ast_id_t *id)
             if (init_exp == NULL)
                 THROW(ERROR_MISSING_INITIALIZER, &id->trc);
         }
-        else if (!meta_is_integer(arr_meta)) {
+        else if (!is_integer_meta(arr_meta)) {
             THROW(ERROR_INVALID_SIZE_TYPE, &id->trc, TYPE_NAME(arr_meta->type));
         }
     }
@@ -57,7 +57,7 @@ id_var_check(check_t *check, ast_id_t *id)
     if (init_exp != NULL) {
         TRY(check_exp(check, init_exp));
 
-        if (exp_is_tuple(init_exp)) {
+        if (is_tuple_exp(init_exp)) {
             int i;
             ast_id_t *type_id = type_exp->id;
             array_t *val_exps = init_exp->u_tup.exps;
@@ -67,7 +67,7 @@ id_var_check(check_t *check, ast_id_t *id)
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
                     ast_meta_t *val_meta = &val_exp->meta;
 
-                    if (!meta_is_compatible(type_meta, val_meta))
+                    if (!is_compatible_meta(type_meta, val_meta))
                         THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPE_NAME(type_meta->type),
                               TYPE_NAME(val_meta->type));
@@ -76,7 +76,7 @@ id_var_check(check_t *check, ast_id_t *id)
             else {
                 array_t *fld_ids;
 
-                ASSERT1(id_is_struct(type_id), type_id->kind);
+                ASSERT1(is_struct_id(type_id), type_id->kind);
                 fld_ids = type_id->u_st.fld_ids;
 
                 if (array_size(fld_ids) != array_size(val_exps))
@@ -86,14 +86,14 @@ id_var_check(check_t *check, ast_id_t *id)
                     ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
                     ast_exp_t *val_exp = array_item(val_exps, i, ast_exp_t);
 
-                    if (!meta_is_compatible(&fld_id->meta, &val_exp->meta))
+                    if (!is_compatible_meta(&fld_id->meta, &val_exp->meta))
                         THROW(ERROR_MISMATCHED_TYPE, &val_exp->trc,
                               TYPE_NAME(fld_id->meta.type),
                               TYPE_NAME(val_exp->meta.type));
                 }
             }
         }
-        else if (!meta_is_compatible(type_meta, &init_exp->meta)) {
+        else if (!is_compatible_meta(type_meta, &init_exp->meta)) {
             THROW(ERROR_MISMATCHED_TYPE, &init_exp->trc,
                   TYPE_NAME(type_meta->type), TYPE_NAME(init_exp->meta.type));
         }
@@ -108,7 +108,7 @@ id_struct_check(check_t *check, ast_id_t *id)
     int i;
     array_t *fld_ids;
 
-    ASSERT1(id_is_struct(id), id->kind);
+    ASSERT1(is_struct_id(id), id->kind);
 
     fld_ids = id->u_st.fld_ids;
     ASSERT(fld_ids != NULL);
@@ -131,7 +131,7 @@ id_func_check(check_t *check, ast_id_t *id)
     array_t *param_ids;
     array_t *ret_exps;
 
-    ASSERT1(id_is_func(id), id->kind);
+    ASSERT1(is_func_id(id), id->kind);
 
     param_ids = id->u_func.param_ids;
 
@@ -147,7 +147,7 @@ id_func_check(check_t *check, ast_id_t *id)
         for (i = 0; i < array_size(ret_exps); i++) {
             ast_exp_t *type_exp = array_item(ret_exps, i, ast_exp_t);
 
-            ASSERT1(exp_is_type(type_exp), type_exp->kind);
+            ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
             check_exp(check, type_exp);
         }
@@ -171,7 +171,7 @@ id_func_check(check_t *check, ast_id_t *id)
 static int
 id_contract_check(check_t *check, ast_id_t *id)
 {
-    ASSERT1(id_is_contract(id), id->kind);
+    ASSERT1(is_contract_id(id), id->kind);
 
     if (id->u_cont.blk != NULL)
         check_blk(check, id->u_cont.blk);

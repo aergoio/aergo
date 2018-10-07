@@ -10,17 +10,17 @@
 
 #include "ast.h"
 
-#define stmt_is_null(stmt)          ((stmt)->kind == STMT_NULL)
-#define stmt_is_exp(stmt)           ((stmt)->kind == STMT_EXP)
-#define stmt_is_if(stmt)            ((stmt)->kind == STMT_IF)
-#define stmt_is_for(stmt)           ((stmt)->kind == STMT_FOR)
-#define stmt_is_switch(stmt)        ((stmt)->kind == STMT_SWITCH)
-#define stmt_is_case(stmt)          ((stmt)->kind == STMT_CASE)
-#define stmt_is_cont(stmt)          ((stmt)->kind == STMT_CONTINUE)
-#define stmt_is_break(stmt)         ((stmt)->kind == STMT_BREAK)
-#define stmt_is_return(stmt)        ((stmt)->kind == STMT_RETURN)
-#define stmt_is_ddl(stmt)           ((stmt)->kind == STMT_DDL)
-#define stmt_is_blk(stmt)           ((stmt)->kind == STMT_BLK)
+#define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
+#define is_exp_stmt(stmt)           ((stmt)->kind == STMT_EXP)
+#define is_if_stmt(stmt)            ((stmt)->kind == STMT_IF)
+#define is_for_stmt(stmt)           ((stmt)->kind == STMT_FOR)
+#define is_switch_stmt(stmt)        ((stmt)->kind == STMT_SWITCH)
+#define is_case_stmt(stmt)          ((stmt)->kind == STMT_CASE)
+#define is_cont_stmt(stmt)          ((stmt)->kind == STMT_CONTINUE)
+#define is_break_stmt(stmt)         ((stmt)->kind == STMT_BREAK)
+#define is_return_stmt(stmt)        ((stmt)->kind == STMT_RETURN)
+#define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
+#define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
 #define ast_stmt_add                array_add
 #define ast_stmt_merge              array_merge

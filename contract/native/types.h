@@ -10,7 +10,7 @@
 
 #define TYPE_NAME(type)             type_strs_[type]
 
-#define type_is_valid(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
+#define is_valid_type(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
 
 typedef enum type_e {
     TYPE_NONE       = 0,

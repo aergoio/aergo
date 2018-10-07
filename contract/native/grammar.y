@@ -332,7 +332,7 @@ var_type:
     }
 |   K_LOCAL var_type
     {
-        ASSERT1(exp_is_type($2), $2->kind);
+        ASSERT1(is_type_exp($2), $2->kind);
 
         $$ = $2;
         $$->u_type.is_local = true;
@@ -859,7 +859,7 @@ exp_tuple:
     exp_sql
 |   exp_tuple ',' exp_sql
     {
-        if (exp_is_tuple($1))
+        if (is_tuple_exp($1))
             $$ = $1;
         else
             $$ = exp_tuple_new($1, &@$);

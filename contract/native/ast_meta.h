@@ -10,33 +10,33 @@
 
 #include "types.h"
 
-#define meta_is_bool(meta)          ((meta)->type == TYPE_BOOL)
+#define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
-#define meta_is_integer(meta)                                                  \
+#define is_integer_meta(meta)                                                  \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
 
-#define meta_is_float(meta)                                                    \
+#define is_float_meta(meta)                                                    \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
 
-#define meta_is_string(meta)        ((meta)->type == TYPE_STRING)
+#define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
 
-#define meta_is_struct(meta)        ((meta)->type == TYPE_STRUCT)
-#define meta_is_map(meta)           ((meta)->type == TYPE_MAP)
-#define meta_is_ref(meta)           ((meta)->type == TYPE_REF)
-#define meta_is_tuple(meta)         ((meta)->type == TYPE_TUPLE)
+#define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
+#define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
+#define is_ref_meta(meta)           ((meta)->type == TYPE_REF)
+#define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define meta_is_const(meta)         (meta)->is_const
-#define meta_is_array(meta)         (meta)->is_array
-#define meta_is_dynamic(meta)       (meta)->is_dynamic
+#define is_const_meta(meta)         (meta)->is_const
+#define is_array_meta(meta)         (meta)->is_array
+#define is_dynamic_meta(meta)       (meta)->is_dynamic
 
-#define meta_is_primitive(meta)     ((meta)->type <= TYPE_PRIMITIVE)
-#define meta_is_comparable(meta)    ((meta)->type <= TYPE_COMPARABLE)
+#define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
+#define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
-#define meta_is_compatible(meta1, meta2)                                       \
-    (meta_is_integer(meta1) ? meta_is_integer(meta2) :                         \
-     (meta_is_float(meta1) ? meta_is_float(meta2) :                            \
-      (meta_is_struct(meta1) ? meta_is_ref(meta2) || meta_is_struct(meta2) :   \
-       (meta_is_map(meta1) ? meta_is_ref(meta2) || meta_equals(meta1, meta2) : \
+#define is_compatible_meta(meta1, meta2)                                       \
+    (is_integer_meta(meta1) ? is_integer_meta(meta2) :                         \
+     (is_float_meta(meta1) ? is_float_meta(meta2) :                            \
+      (is_struct_meta(meta1) ? is_ref_meta(meta2) || is_struct_meta(meta2) :   \
+       (is_map_meta(meta1) ? is_ref_meta(meta2) || meta_equals(meta1, meta2) : \
         meta_equals(meta1, meta2)))))
 
 #define meta_set_prim               ast_meta_set
@@ -79,7 +79,7 @@ static inline void
 ast_meta_set(ast_meta_t *meta, type_t type)
 {
     ASSERT(meta != NULL);
-    ASSERT1(type_is_valid(type), type);
+    ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
 }
