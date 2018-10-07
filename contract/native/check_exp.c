@@ -39,19 +39,19 @@ exp_lit_check(check_t *check, ast_exp_t *exp)
 
     switch (exp->u_lit.val.kind) {
     case VAL_NULL:
-        meta_set_literal(&exp->meta, TYPE_REF);
+        meta_set_prim(&exp->meta, TYPE_REF);
         break;
     case VAL_BOOL:
-        meta_set_literal(&exp->meta, TYPE_BOOL);
+        meta_set_prim(&exp->meta, TYPE_BOOL);
         break;
     case VAL_INT:
-        meta_set_literal(&exp->meta, TYPE_INT64);
+        meta_set_dynamic(&exp->meta, TYPE_INT64);
         break;
     case VAL_FP:
-        meta_set_literal(&exp->meta, TYPE_DOUBLE);
+        meta_set_dynamic(&exp->meta, TYPE_DOUBLE);
         break;
     case VAL_STR:
-        meta_set_literal(&exp->meta, TYPE_STRING);
+        meta_set_prim(&exp->meta, TYPE_STRING);
         break;
     default:
         ASSERT1(!"invalid value", exp->u_lit.val.kind);
@@ -191,22 +191,15 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (r_exp->kind == EXP_LIT && is_integer_type(l_meta)) {
-        value_t *val = &r_exp->u_lit.val;
-
-        if (!is_integer_type(r_meta))
-            THROW(ERROR_MISMATCHED_TYPE, &r_exp->trc,
-                  TYPE_NAME(l_meta->type), TYPE_NAME(r_meta->type));
-
-        if (!value_check_range(val, l_meta->type))
-            THROW(ERROR_INT_OVERFLOW, &r_exp->trc, TYPE_NAME(l_meta->type));
-    }
-    else if (!meta_equals(l_meta, r_meta)) {
+    if (!meta_equals(l_meta, r_meta))
         THROW(ERROR_MISMATCHED_TYPE, &r_exp->trc, TYPE_NAME(l_meta->type),
               TYPE_NAME(r_meta->type));
-    }
 
-    exp->meta = *l_meta;
+    if (is_lit_exp(r_exp) && 
+        !value_check_range(&r_exp->u_lit.val, l_meta->type))
+        THROW(ERROR_NUMERIC_OVERFLOW, &r_exp->trc, TYPE_NAME(l_meta->type));
+
+    meta_set_from(&exp->meta, l_meta, r_meta);
 
     return NO_ERROR;
 }
@@ -230,7 +223,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 
     TRY(check_exp(check, r_exp));
 
-    if (!is_compatible_type(l_meta, r_meta))
+    if (!meta_equals(l_meta, r_meta))
         THROW(ERROR_MISMATCHED_TYPE, &exp->trc, TYPE_NAME(l_meta->type),
               TYPE_NAME(r_meta->type));
 
@@ -243,7 +236,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
         THROW(ERROR_INVALID_OP_TYPE, &exp->trc, TYPE_NAME(l_meta->type));
     }
 
-    exp->meta = *l_meta;
+    meta_set_from(&exp->meta, l_meta, r_meta);
 
     return NO_ERROR;
 }

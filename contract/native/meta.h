@@ -54,8 +54,6 @@ typedef enum type_e {
     TYPE_NONE       = 0,
     TYPE_BOOL,
     TYPE_BYTE,
-    TYPE_FLOAT,
-    TYPE_DOUBLE,
     TYPE_INT8,
     TYPE_UINT8,
     TYPE_INT16,
@@ -64,6 +62,8 @@ typedef enum type_e {
     TYPE_UINT32,
     TYPE_INT64,
     TYPE_UINT64,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
     TYPE_STRING,
     TYPE_STRUCT,
     TYPE_REF,
@@ -117,7 +117,7 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_literal(meta_t *meta, type_t type)
+meta_set_dynamic(meta_t *meta, type_t type)
 {
     meta_set(meta, type);
 
@@ -133,21 +133,48 @@ meta_set_map(meta_t *meta, type_t k_type, meta_t *v_meta)
     meta->u_map.v_meta = v_meta;
 }
 
+static inline void
+meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
+{
+    ASSERT(meta != NULL);
+
+    if (is_dynamic_type(x) && is_dynamic_type(y)) {
+        ASSERT1(is_primitive_type(x), x->type);
+        ASSERT1(is_primitive_type(y), y->type);
+
+        meta_set_dynamic(meta, MAX(x->type, y->type));
+    }
+    else if (is_dynamic_type(x)) {
+        *meta = *y;
+    }
+    else {
+        *meta = *x;
+    }
+}
+
 static inline bool
 meta_equals(meta_t *x, meta_t *y)
 {
-    if (x->type != y->type)
+    if (is_dynamic_type(x) || is_dynamic_type(y)) {
+        if (x->type == y->type ||
+            (is_integer_type(x) && is_integer_type(y)) ||
+            (is_float_type(x) && is_float_type(y)))
+            return true;
+
         return false;
-
-    if (x->type == TYPE_MAP) {
-        if (x->u_map.k_type != y->u_map.k_type)
-            return false;
-
-        if (!meta_equals(x->u_map.v_meta, y->u_map.v_meta))
-            return false;
     }
 
-    return true;
+    if (is_map_type(x) || is_map_type(y)) {
+        if (is_ref_type(x) || is_ref_type(y) ||
+            (x->type == y->type &&
+             x->u_map.k_type == y->u_map.k_type &&
+             meta_equals(x->u_map.v_meta, y->u_map.v_meta)))
+            return true;
+
+        return false;
+    }
+
+    return x->type == y->type;
 }
 
 #endif /* ! _META_H */

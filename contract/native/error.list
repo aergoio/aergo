@@ -44,6 +44,6 @@ error(ERROR_INVALID_OP_TYPE,        "operand(s) has invalid type %s")
 error(ERROR_INVALID_COND_TYPE,      "condition(s) has non-boolean type %s")
 error(ERROR_MISSING_INITIALIZER,    "missing array initializer")
 error(ERROR_TRUNCATED_TYPE,         "%s truncated to %s")
-error(ERROR_INT_OVERFLOW,           "integer value overflows %s")
+error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
 
 /* vim:set filetype=c: */
