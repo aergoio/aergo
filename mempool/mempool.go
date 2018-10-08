@@ -269,14 +269,14 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
+	if tx.GetBody().GetNonce() <= ns.Nonce {
+		return message.ErrTxNonceTooLow
+	}
 	if tx.GetBody().GetAmount() > ns.Balance {
 		if !mp.cfg.EnableTestmode {
 			// Skip balance validation in test mode
 			return message.ErrInsufficientBalance
 		}
-	}
-	if tx.GetBody().GetNonce() <= ns.Nonce {
-		return message.ErrTxNonceTooLow
 	}
 	return nil
 }
