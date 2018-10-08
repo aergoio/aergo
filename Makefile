@@ -8,9 +8,7 @@ REPOPATH := github.com/aergoio/aergo
 
 build: vendor libtool
 	GOBIN=$(BINPATH) \
-CGO_CFLAGS="-I$(LIBPATH)/include" \
-CGO_LDFLAGS="-L$(LIBPATH)/lib" \
-go install ./cmd/...
+    go install ./cmd/...
 
 all: clean test build
 	@echo "Done All"
@@ -21,14 +19,10 @@ vendor: glide.yaml glide.lock
 # test
 
 test:
-	@CGO_CFLAGS="-I$(LIBPATH)/include" \
-	CGO_LDFLAGS="-L$(LIBPATH)/lib" \
-	go test -timeout 60s ./...
+	@go test -timeout 60s ./...
 
 cover-test:
-	@CGO_CFLAGS="-I$(LIBPATH)/include" \
-	CGO_LDFLAGS="-L$(LIBPATH)/lib" \
-	go test -coverprofile c.out ./...
+	@go test -coverprofile c.out ./...
 
 # clean
 

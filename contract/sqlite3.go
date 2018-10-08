@@ -20,6 +20,7 @@ package contract
 #cgo linux CFLAGS: -DHAVE_PREAD64=1 -DHAVE_PWRITE64=1
 #cgo CFLAGS: -DSQLITE_TRACE_SIZE_LIMIT=15
 #cgo CFLAGS: -DSQLITE_DISABLE_INTRINSIC
+#cgo CFLAGS: -I${SRCDIR}/../libtool/include
 #cgo LDFLAGS: ${SRCDIR}/../libtool/lib/liblmdb.a -lm
 #include "sqlite3-binding.h"
 #include <stdlib.h>
