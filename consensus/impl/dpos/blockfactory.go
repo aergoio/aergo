@@ -35,7 +35,7 @@ func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.
 	prevHash := bestBlock.BlockID()
 	blockInfo := types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)
 
-	bState := types.NewBlockState(blockInfo, contract.DB.NewTx())
+	bState := types.NewBlockState(blockInfo, contract.TempReceiptDb.NewTx())
 
 	// Block hash not determined yet
 	return &txExec{

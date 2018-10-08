@@ -1,12 +1,11 @@
 #include "lua.h"
+#include "vm.h"
 
 typedef struct sbuff {
 	char *buf;
 	int idx;
 	int buf_len;
 } sbuff_t;
-
-typedef struct blockchain_ctx bc_ctx_t;
 
 void lua_util_sbuf_init(sbuff_t *sbuf, int len);
 char *lua_util_get_json (lua_State *L, int idx);
