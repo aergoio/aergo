@@ -462,6 +462,9 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			if err != nil {
 				return err
 			}
+			if createContract {
+				receiverChange.SqlRecoveryPoint = 1
+			}
 			sqlTx, err := contract.BeginTx(receiverID, receiverChange.SqlRecoveryPoint)
 			if err != nil {
 				return err
