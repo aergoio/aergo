@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "ast_id.h"
+
 #include "ast_stmt.h"
 
 ast_stmt_t *
@@ -105,6 +107,16 @@ stmt_blk_new(ast_blk_t *blk, trace_t *trc)
     ast_stmt_t *stmt = ast_stmt_new(STMT_BLK, trc);
 
     stmt->u_blk.blk = blk;
+
+    return stmt;
+}
+
+ast_stmt_t *
+stmt_pragma_new(ast_id_t *id, trace_t *trc)
+{
+    ast_stmt_t *stmt = ast_stmt_new(STMT_PRAGMA, trc);
+
+    stmt->u_prag.id = id;
 
     return stmt;
 }

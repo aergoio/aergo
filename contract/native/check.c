@@ -12,7 +12,7 @@
 #include "check.h"
 
 static void
-check_init(check_t *check, ast_t *ast)
+check_init(check_t *check, ast_t *ast, flag_t flag)
 {
     ast_blk_t *root;
 
@@ -22,7 +22,9 @@ check_init(check_t *check, ast_t *ast)
     ASSERT(is_empty_array(&root->stmts));
     ASSERT(root->up == NULL);
 
+    check->flag = flag;
     check->root = root;
+
     check->blk = root;
     check->aq_id = NULL;
     check->fn_id = NULL;
@@ -38,7 +40,7 @@ check(ast_t *ast, flag_t flag)
         /* empty contract can be null */
         return;
 
-    check_init(&check, ast);
+    check_init(&check, ast, flag);
 
     for (i = 0; i < array_size(&check.root->ids); i++) {
         check_id(&check, array_item(&check.root->ids, i, ast_id_t));

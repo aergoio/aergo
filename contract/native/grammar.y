@@ -75,6 +75,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_BREAK         "break"
         K_BYTE          "byte"
         K_CASE          "case"
+        K_CHECK         "check"
         K_CONST         "const"
         K_CONTINUE      "continue"
         K_CONTRACT      "contract"
@@ -103,6 +104,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_NEW           "new"
         K_NULL          "null"
         K_PAYABLE       "payable"
+        K_PRAGMA        "pragma"
         K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
@@ -161,6 +163,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   var_init_list
 %type <exp>     initializer
 %type <array>   init_list
+%type <id>      compound
 %type <id>      struct
 %type <array>   field_list
 %type <id>      constructor
@@ -173,6 +176,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <mod>     modifier_opt
 %type <array>   return_opt
 %type <array>   return_list
+%type <id>      pragma
 %type <stmt>    statement
 %type <stmt>    stmt_exp
 %type <stmt>    stmt_if
@@ -184,8 +188,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   stmt_list
 %type <stmt>    stmt_jump
 %type <stmt>    stmt_ddl
-%type <stmt>    stmt_blk
 %type <ddl>     ddl_prefix
+%type <stmt>    stmt_blk
+%type <stmt>    stmt_pragma
 %type <exp>     expression
 %type <op>      op_assign
 %type <exp>     exp_tuple
@@ -246,21 +251,9 @@ contract_body:
     {
         ASSERT(BLK == NULL);
         BLK = ast_blk_new(&@$);
-        ast_id_merge(&BLK->ids, $1);
+        ast_id_join(&BLK->ids, $1);
     }
-|   struct
-    {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_add(&BLK->ids, $1);
-    }
-|   constructor
-    {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_add(&BLK->ids, $1);
-    }
-|   function
+|   compound
     {
         ASSERT(BLK == NULL);
         BLK = ast_blk_new(&@$);
@@ -269,19 +262,9 @@ contract_body:
 |   contract_body variable
     {
         ASSERT(BLK != NULL);
-        ast_id_merge(&BLK->ids, $2);
+        ast_id_join(&BLK->ids, $2);
     }
-|   contract_body struct
-    {
-        ASSERT(BLK != NULL);
-        ast_id_add(&BLK->ids, $2);
-    }
-|   contract_body constructor
-    {
-        ASSERT(BLK != NULL);
-        ast_id_add(&BLK->ids, $2);
-    }
-|   contract_body function
+|   contract_body compound
     {
         ASSERT(BLK != NULL);
         ast_id_add(&BLK->ids, $2);
@@ -318,6 +301,7 @@ variable:
         }
         $$ = $2;
     }
+|   var_type error ';'      { $$ = NULL; }
 ;
 
 var_type:
@@ -443,79 +427,19 @@ init_list:
     }
 ;
 
-    /*
-var_decl_list:
-    var_decl
-    {
-        $$ = array_new();
-        ast_id_add($$, $1);
-    }
-|   var_decl_list ',' var_decl
-    {
-        $$ = $1;
-        ast_id_add($$, $3);
-    }
+compound:
+    struct
+|   constructor
+|   function
+|   pragma
 ;
-
-var_decl:
-    declarator
-|   declarator '=' initializer
-    {
-        $$ = $1;
-        $$->u_var.init_exp = $3;
-    }
-;
-
-declarator:
-    identifier
-    {
-        $$ = id_var_new($1, &@1);
-    }
-|   declarator '[' exp_add ']'
-    {
-        $$ = $1;
-        $$->u_var.arr_exp = $3;
-    }
-|   declarator '[' ']'
-    {
-        $$ = $1;
-        $$->u_var.arr_exp = exp_null_new(&@2);
-    }
-;
-
-initializer:
-    exp_sql
-|   '{' init_list '}'
-    {
-        $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exps = $2;
-    }
-|   '{' init_list ',' '}'
-    {
-        $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exps = $2;
-    }
-;
-
-init_list:
-    initializer
-    {
-        $$ = array_new();
-        ast_exp_add($$, $1);
-    }
-|   init_list ',' initializer
-    {
-        $$ = $1;
-        ast_exp_add($$, $3);
-    }
-;
-    */
 
 struct:
     K_STRUCT identifier '{' field_list '}'
     {
         $$ = id_struct_new($2, $4, &@$);
     }
+|   K_STRUCT error '}'          { $$ = NULL; }
 ;
 
 field_list:
@@ -526,7 +450,7 @@ field_list:
 |   field_list variable
     {
         $$ = $1;
-        ast_id_merge($$, $2);
+        ast_id_join($$, $2);
     }
 ;
 
@@ -572,7 +496,7 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        ast_id_merge(&$$->ids, $1);
+        ast_id_join(&$$->ids, $1);
     }
 |   struct
     {
@@ -587,7 +511,7 @@ blk_decl:
 |   blk_decl variable
     {
         $$ = $1;
-        ast_id_merge(&$$->ids, $2);
+        ast_id_join(&$$->ids, $2);
     }
 |   blk_decl struct
     {
@@ -642,6 +566,13 @@ return_list:
     }
 ;
 
+pragma:
+    K_PRAGMA K_CHECK '(' identifier ')' ';'
+    {
+        $$ = id_pragma_new($4, &@1);
+    }
+;
+
 statement:
     stmt_exp
 |   stmt_if
@@ -650,6 +581,7 @@ statement:
 |   stmt_jump
 |   stmt_ddl
 |   stmt_blk
+|   stmt_pragma
 ;
 
 stmt_exp:
@@ -700,12 +632,12 @@ stmt_loop:
 |   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
-        ast_id_merge(&BLK->ids, $3);
+        ast_id_join(&BLK->ids, $3);
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
-        ast_id_merge(&BLK->ids, $3);
+        ast_id_join(&BLK->ids, $3);
     }
 |   K_FOR '(' exp_loop K_IN exp_post ')' block
     {
@@ -823,6 +755,13 @@ stmt_blk:
     block
     {
         $$ = stmt_blk_new($1, &@$);
+    }
+;
+
+stmt_pragma:
+    pragma
+    {
+        $$ = stmt_pragma_new($1, &@$);
     }
 ;
 
@@ -1141,7 +1080,8 @@ exp_new:
 ;
 
 non_reserved_token:
-    K_CONTRACT          { $$ = xstrdup("contract"); }
+    K_CHECK             { $$ = xstrdup("check"); }
+|   K_CONTRACT          { $$ = xstrdup("contract"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
 ;

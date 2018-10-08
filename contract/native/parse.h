@@ -20,6 +20,7 @@
 
 typedef struct parse_s {
     char *path;
+    flag_t flag;
 
     char *src;
     int len;

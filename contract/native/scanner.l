@@ -206,6 +206,7 @@ id                          {L}({L}|{D})*
 "break"                     yy_return(K_BREAK);
 "byte"                      yy_return(K_BYTE);
 "case"                      yy_return(K_CASE);
+"check"                     yy_return(K_CHECK);
 "const"                     yy_return(K_CONST);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
@@ -230,6 +231,7 @@ id                          {L}({L}|{D})*
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
 "payable"                   yy_return(K_PAYABLE);
+"pragma"                    yy_return(K_PRAGMA);
 "readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);

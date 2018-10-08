@@ -34,6 +34,8 @@ typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
 typedef struct check_s {
+    flag_t flag;
+
     ast_blk_t *root;
 
     /* temporary context */

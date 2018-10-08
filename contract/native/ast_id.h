@@ -15,6 +15,7 @@
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
 #define is_func_id(id)              ((id)->kind == ID_FUNC)
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
+#define is_pragma_id(id)            ((id)->kind == ID_PRAGMA)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -31,6 +32,7 @@ typedef enum id_kind_e {
     ID_STRUCT,
     ID_FUNC,
     ID_CONTRACT,
+    ID_PRAGMA,
     ID_MAX
 } id_kind_t;
 
@@ -63,6 +65,10 @@ typedef struct id_cont_s {
     ast_blk_t *blk;
 } id_cont_t;
 
+typedef struct id_pragma_s {
+    char *val;
+} id_pragma_t;
+
 struct ast_id_s {
     AST_NODE_DECL;
 
@@ -76,6 +82,7 @@ struct ast_id_s {
         id_struct_t u_st;
         id_func_t u_func;
         id_cont_t u_cont;
+        id_pragma_t u_prag;
     };
 
     // results of semantic checker
@@ -90,12 +97,13 @@ ast_id_t *id_struct_new(char *name, array_t *fld_ids, trace_t *trc);
 ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, trace_t *trc);
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, trace_t *trc);
+ast_id_t *id_pragma_new(char *val, trace_t *trc);
 
 ast_id_t *ast_id_search_fld(ast_id_t *id, int num, char *name);
 ast_id_t *ast_id_search_blk(ast_blk_t *blk, int num, char *name);
 
 void ast_id_add(array_t *ids, ast_id_t *new_id);
-void ast_id_merge(array_t *ids, array_t *new_ids);
+void ast_id_join(array_t *ids, array_t *new_ids);
 
 void ast_id_dump(ast_id_t *id, int indent);
 

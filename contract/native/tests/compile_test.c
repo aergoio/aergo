@@ -20,7 +20,9 @@
 #define TAG_EXPORT      "@export"
 
 typedef struct env_s {
+    char *path;
     char *needle;
+
     flag_t flag;
 
     char title[PATH_MAX_LEN];
@@ -60,7 +62,9 @@ run_test(env_t *env, char *path)
 {
     ec_t ac;
 
-    if (env->needle != NULL && strstr(env->title, env->needle) == NULL) {
+    if (env->needle != NULL &&
+        strstr(env->path, env->needle) == NULL &&
+        strstr(env->title, env->needle) == NULL) {
         unlink(path);
         env_reset(env);
         return;
@@ -109,6 +113,7 @@ read_test(env_t *env, char *path)
     FILE *exp_fp = NULL;
 
     printf("Checking %s...\n", FILENAME(path));
+    env->path = path;
 
     while (fgets(buf, sizeof(buf), in_fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
@@ -207,7 +212,7 @@ main(int argc, char **argv)
     struct dirent *entry;
     struct stat st;
     env_t env;
-    
+
     dir = opendir(".");
     if (dir == NULL)
         FATAL(ERROR_DIR_IO, ".", strerror(errno));
@@ -233,7 +238,7 @@ main(int argc, char **argv)
         strcpy(files[file_cnt++], entry->d_name);
     }
 
-    qsort(files, file_cnt, PATH_MAX_LEN, 
+    qsort(files, file_cnt, PATH_MAX_LEN,
           (int (*)(const void *, const void *))&strcmp);
 
     for (i = 0; i < file_cnt; i++) {

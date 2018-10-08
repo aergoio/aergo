@@ -16,7 +16,6 @@
 
 #define yy_update_line()        trace_update_last_line(&scan->trc)
 #define yy_update_col()         trace_update_last_col(&scan->trc, 1)
-#define yy_update_offset()      trace_update_last_offset(&scan->trc, 1)
 
 #define yy_update_first()       trace_update_first(&scan->trc)
 
@@ -50,7 +49,7 @@ scan_next(scan_t *scan)
 
     c = strbuf_char(&scan->in, scan->offset++);
 
-    yy_update_offset();
+    yy_update_col();
 
     if (c == '\n' || c == '\r') {
         yy_update_line();

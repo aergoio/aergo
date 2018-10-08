@@ -61,6 +61,8 @@ error_t *error_pop(void);
 void error_clear(void);
 void error_dump(void);
 
+void error_print(error_t *e);
+
 void error_exit(ec_t ec, errlvl_t lvl, ...);
 
 static inline int

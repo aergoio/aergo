@@ -133,18 +133,22 @@ error_dump(void)
     array_t *array = stack_to_array(&errstack_, error_cmp);
 
     for (i = 0; i < array_size(array); i++) {
-        error_t *e = array_item(array, i, error_t);
-
-        ASSERT1(e->level >= LVL_FATAL && e->level < LVL_MAX, e->level); 
-        ASSERT(trace_rel_path(&e->trc) != NULL);
-
-        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level], 
-                trace_rel_path(&e->trc), trace_rel_line(&e->trc), e->desc);
-
-        trace_dump(&e->trc);
+        error_print(array_item(array, i, error_t));
     }
 
     array_clear(array);
+}
+
+void
+error_print(error_t *e)
+{
+    ASSERT1(e->level >= LVL_FATAL && e->level < LVL_MAX, e->level); 
+    ASSERT(trace_rel_path(&e->trc) != NULL);
+
+    fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level], 
+            trace_rel_path(&e->trc), trace_rel_line(&e->trc), e->desc);
+
+    trace_dump(&e->trc);
 }
 
 void

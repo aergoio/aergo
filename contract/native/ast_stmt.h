@@ -21,6 +21,7 @@
 #define is_return_stmt(stmt)        ((stmt)->kind == STMT_RETURN)
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
+#define is_pragma_stmt(stmt)        ((stmt)->kind == STMT_PRAGMA)
 
 #define ast_stmt_add                array_add
 #define ast_stmt_merge              array_merge
@@ -34,6 +35,11 @@ typedef struct ast_blk_s ast_blk_t;
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
 #endif /* ! _AST_EXP_T */
+
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
 
 #ifndef _AST_STMT_T
 #define _AST_STMT_T
@@ -52,6 +58,7 @@ typedef enum stmt_kind_e {
     STMT_RETURN,
     STMT_DDL,
     STMT_BLK,
+    STMT_PRAGMA,                /* only for testing */
     STMT_MAX
 } stmt_kind_t;
 
@@ -104,6 +111,10 @@ typedef struct stmt_blk_s {
     ast_blk_t *blk;
 } stmt_blk_t;
 
+typedef struct stmt_pragma_s {
+    ast_id_t *id;
+} stmt_pragma_t;
+
 struct ast_stmt_s {
     AST_NODE_DECL;
 
@@ -118,6 +129,7 @@ struct ast_stmt_s {
         stmt_return_t u_ret;
         stmt_ddl_t u_ddl;
         stmt_blk_t u_blk;
+        stmt_pragma_t u_prag;
     };
 };
 
@@ -133,6 +145,7 @@ ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, trace_t *trc);
 ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, trace_t *trc);
 ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, trace_t *trc);
 ast_stmt_t *stmt_blk_new(ast_blk_t *blk, trace_t *trc);
+ast_stmt_t *stmt_pragma_new(ast_id_t *id, trace_t *trc);
 
 void ast_stmt_dump(ast_stmt_t *stmt, int indent);
 

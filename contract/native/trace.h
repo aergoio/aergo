@@ -32,6 +32,10 @@ typedef struct trace_s {
     src_pos_t rel;      /* relative position */
 } trace_t;
 
+int trace_cmp(trace_t *trc1, trace_t *trc2);
+
+void trace_dump(trace_t *trc);
+
 static inline void
 src_pos_set(src_pos_t *trc, char *path, int line, int col, int offset)
 {
@@ -64,12 +68,6 @@ static inline void
 src_pos_update_last_col(src_pos_t *trc, int cnt)
 {
     trc->last_col += cnt;
-}
-
-static inline void
-src_pos_update_last_offset(src_pos_t *trc, int cnt)
-{
-    trc->last_offset += cnt;
 }
 
 static inline void
@@ -118,15 +116,6 @@ trace_update_last_col(trace_t *trc, int cnt)
 }
 
 static inline void
-trace_update_last_offset(trace_t *trc, int cnt)
-{
-    ASSERT(trc != NULL);
-
-    src_pos_update_last_offset(&trc->abs, cnt);
-    src_pos_update_last_offset(&trc->rel, cnt);
-}
-
-static inline void
 trace_set_rel_path(trace_t *trc, char *path)
 {
     ASSERT(trc != NULL);
@@ -142,74 +131,6 @@ trace_set_rel_pos(trace_t *trc, int line, int col, int offset)
     trc->rel.last_line = line;
     trc->rel.last_col = col;
     trc->rel.last_offset = offset;
-}
-
-static inline int
-trace_cmp(trace_t *trc1, trace_t *trc2)
-{
-    int res;
-    src_pos_t *pos1 = &trc1->rel;
-    src_pos_t *pos2 = &trc2->rel;
-
-    ASSERT(pos1->path != NULL);
-    ASSERT(pos2->path != NULL);
-
-    res = strcmp(pos1->path, pos2->path);
-    if (res != 0)
-        return res;
-
-    if (pos1->first_line == pos2->first_line)
-        return 0;
-    else if (pos1->first_line < pos2->first_line)
-        return -1;
-    else
-        return 1;
-}
-
-static inline void
-trace_dump(trace_t *trc)
-{
-#define TRACE_LINE_MAX      80
-    int i;
-    int tok_len;
-    int adj_col, adj_offset, adj_len;
-    char buf[TRACE_LINE_MAX * 3 + 4];
-    src_pos_t *pos = &trc->abs;
-
-    adj_offset = pos->first_offset;
-    ASSERT(adj_offset >= 0);
-
-    adj_col = pos->first_col;
-    ASSERT(adj_col > 0);
-
-    tok_len = MIN(pos->last_offset - pos->first_offset, TRACE_LINE_MAX - 1);
-    ASSERT(tok_len >= 0);
-
-    if (adj_col + tok_len > TRACE_LINE_MAX) {
-        adj_col = TRACE_LINE_MAX - tok_len;
-        adj_offset += pos->first_col - adj_col;
-    }
-
-    adj_len = MIN(strlen(trc->src + adj_offset), TRACE_LINE_MAX);
-
-    for (i = 0; i < adj_len; i++) {
-        char c = trc->src[i + adj_offset];
-
-        if (c == '\0' || c == '\n' || c == '\r')
-            break;
-
-        buf[i] = c;
-    }
-    buf[i] = '\0';
-
-    fprintf(stderr, "%s\n", buf);
-
-    for (i = 0; i < adj_col - 1; i++) {
-        buf[i] = ' ';
-    }
-    strcpy(&buf[i], ANSI_GREEN"^"ANSI_NONE);
-
-    fprintf(stderr, "%s\n", buf);
 }
 
 #endif /* no _TRACE_H */

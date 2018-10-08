@@ -11,6 +11,6 @@
 #include "ast_stmt.h"
 #include "check.h"
 
-int check_stmt(check_t *check, ast_stmt_t *stmt);
+void check_stmt(check_t *check, ast_stmt_t *stmt);
 
 #endif /* ! _CHECK_STMT_H */

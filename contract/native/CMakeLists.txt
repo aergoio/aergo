@@ -36,6 +36,7 @@ set(SRCS
     error.c
     strbuf.c
     stack.c
+    trace.c
     meta.c
     util.c
     xalloc.c

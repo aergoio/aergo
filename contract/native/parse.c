@@ -21,10 +21,12 @@ extern int yyparse(parse_t *, void *);
 extern int yydebug;
 
 static void
-parse_init(parse_t *parse, char *path, strbuf_t *src, ast_t **ast)
+parse_init(parse_t *parse, char *path, flag_t flag, strbuf_t *src, ast_t **ast)
 {
+    ASSERT(path != NULL);
+
     parse->path = path;
-    ASSERT(parse->path != NULL);
+    parse->flag = flag;
 
     parse->src = strbuf_text(src);
     parse->len = strbuf_length(src);
@@ -45,7 +47,7 @@ parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast)
     parse_t parse;
     void *scanner;
 
-    parse_init(&parse, path, src, ast);
+    parse_init(&parse, path, flag, src, ast);
     yylex_init(&scanner);
 
     yyset_extra(&parse, scanner);

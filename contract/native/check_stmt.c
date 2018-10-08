@@ -246,41 +246,61 @@ stmt_blk_check(check_t *check, ast_stmt_t *stmt)
     return NO_ERROR;
 }
 
-int
+static int
+stmt_pragma_check(check_t *check, ast_stmt_t *stmt)
+{
+    ASSERT1(is_pragma_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_prag.id != NULL);
+
+    check_id(check, stmt->u_prag.id);
+
+    return NO_ERROR;
+}
+
+void
 check_stmt(check_t *check, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
     case STMT_NULL:
     case STMT_CONTINUE:
     case STMT_BREAK:
-        return NO_ERROR;
+        break;
 
     case STMT_EXP:
-        return check_exp(check, stmt->u_exp.exp);
+        check_exp(check, stmt->u_exp.exp);
+        break;
 
     case STMT_IF:
-        return stmt_if_check(check, stmt);
+        stmt_if_check(check, stmt);
+        break;
 
     case STMT_FOR:
-        return stmt_for_check(check, stmt);
+        stmt_for_check(check, stmt);
+        break;
 
     case STMT_SWITCH:
-        return stmt_switch_check(check, stmt);
+        stmt_switch_check(check, stmt);
+        break;
 
     case STMT_RETURN:
-        return stmt_return_check(check, stmt);
+        stmt_return_check(check, stmt);
+        break;
 
     case STMT_DDL:
-        return stmt_ddl_check(check, stmt);
+        stmt_ddl_check(check, stmt);
+        break;
 
     case STMT_BLK:
-        return stmt_blk_check(check, stmt);
+        stmt_blk_check(check, stmt);
+        break;
+
+    case STMT_PRAGMA:
+        stmt_pragma_check(check, stmt);
+        break;
 
     default:
         ASSERT1(!"invalid statement", stmt->kind);
     }
-
-    return NO_ERROR;
 }
 
 /* end of check_stmt.c */
