@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 )
 
 var (
@@ -26,16 +26,16 @@ const (
 	accountId = "AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6"
 	txId      = "c2b36750"
 	/*function hello(say) return "Hello " .. say end abi.register(hello)*/
-	helloCode = "C34wJetPFqYBV8bpSao36R2NxFcW5X4ZGZoPcnfJvHkvvBR4PcbsZ5xki8nSHubPMnNusFPpn19x7myhR8baq12RvoufQ8z2DR1PyvGfYf6VmAzhF5rg8F7mvVEBRdqnAMnFmb5E6E2iey4wEjXNrjJ8RfsPEfottZ2umDN5WFc8egeydXesa1a59QLBp926MoETbDwRJMeFHeGHuvQ4bikCXhXaQS6Vi73y4Xpcu3Bv1rMnfBxEX5ZehtcuYDFUoZzn8"
+	helloCode = "CNHAxLsQM73PTo14NxWGxfEDTjbxiZ2SQVAZRR7WeKkXFhu9LCCtqbZj2pFwkoE8cX28YWf8FcmioGRe4Mi7vhUTFHhadhAVpVSv2inngQJ3d3cRnnpo6UgP2VzWX52R5fpWyjg12EdRNK9K74aypS69uEqv68xibXavPdpPBAidPkVuJV5tkivZ3LYcVeQ4pn4L7QDqSyGrJmPy2ME7iKfawSZUmRGW1vERzjcKqH17SZAgrbdHG2KkmCVCHat2ogtJDyXE9b7F"
 	/*function testState()
-		print(string.format("creator: %s",system.getContractID()))
-		print(string.format("timestamp: %d",system.getTimestamp()))
-		print(string.format("blockheight: %d",system.getBlockheight()))
+		string.format("creator: %s",system.getContractID())
+		string.format("timestamp: %d",system.getTimestamp())
+		string.format("blockheight: %d",system.getBlockheight())
 		system.setItem("key1", 999)
-		print(string.format("getitem : %s",system.getItem("key1")))
-		return system.getSender(), system.getTxHash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
+		string.format("getitem : %s",system.getItem("key1"))
+		return system.getSender(), system.getTxhash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
 	  end abi.register(testState) */
-	systemCode = "CCPAqwHFihSv6zD8ri2HiE1nqhxojJUywAwgU1aA78ZQthLAPFUbF3dtMDa1Ti79SdXu853dGSrejzuvxkgm3GPXD6rUgx9HvD7AhcRRzwcon2LmvnMgzCf8F2jPVHxquP9NU7DyWPbdBiMi99ByUFQePHwQ6dE2n3wLNaqVPs3uAapDWzHZBPR3EbhxjnQUfrRv8YzFXMeVYbWxgoWwivpZTFwgNyWcbJcEkXZWwYdfmuC5v2bbTpsWtvPP8Qw95F4XGui1mZ2FLawFoCMG3NA5twDyyfeQ2CHhjCK3GzfoXCBKKQJSfdfRsHrgdukpU3aB9R3QKiGbZRd8MV6uxmrRAcwm6Uu2Xj1dJMUrbYE1iQU6SJ9tV6X44NXafvtuyRrLvpvkoyU95m2F1tQRtLVtFV75S72W5gGMgeAF4RjJWWTdh4dNoDy4LcPNH86aT6CDE876vMLLGhwnAXKG8EU7W3TD14aoGZEVhymMHbu6Afrpk1sXD5hiw39iKUKTH5m8AzQKJEQJT2tfN5pu3Q1SZsLqtF9uuSKcAostds34czYkm6BY9BuNL6v3GR4T5uiobKWy9VdhRsq7NENGTLYUTgNFjKGVrEHQbVtqBCJVJbpLjhQkSL2ztemcjC243JjnsyRLVQfZijLWPj1oWrsNzdVvgNvZEJi7M5czxVuRZBepTF28KwQHCftvEtoovfGgjmU2gTrf3nCiJbzhCKKNzwUaS8LwkhuCgf1tw34zmH36LPtrCz1kYF4SLEVtts8dmYAJYSErDmhNYV2"
+	systemCode = "86VMDdo4twhyq7NpCkCqnn3uWVdL4EetXKSCKpVocGaShaZzeZnTbD8o6ikoLuz9XSJ3U4nyCDHMWa69Yf5YKyUciPTAfCHSmMXcrTpttEA3Gw2Ew6mZ6ceHGuYg8yaEA1vS7orTaCU6Lkdt1xTCmVoYfxXVFzB4jroCJvn6YpT5qba3mbgEsQ92zafTtGCbVjTgK7mBu2PTCgLLwfkR1G6aQy2QR851FHk5UqbZbioFUL5WhkpKpwXTZW78iwpgDgFzQsK56bYciv9MN26KYhLaM5KmJMjdRQdUi6z89JKFJxBAEf1wtZ389HCG4RzRHLiMUvqriDQtKqTJfCdP6wHERfdTi7SowvhPev2iqctS18hf5zFBWfAJZMh2Khd2wYbhSfXHcJDQ9ma2tnLR5ESbRiQAvsyu5aAFzkJH5sZvoNUHda4xyPuQE6wZLqnC6cDJQdWy1wXrHpBkwQ2tpATevya4j2e4KcM6TXert5jGKkSSe5tK3RTxW9LGYqkUnTKyMxtnGpfMMqPxvR7tGD8cZymf1he7xS8kt8aXr6MT9HQ3DdqJUvBpJ3GJEvxVa3Kf5kTfjKC3AaEwpdy4tUFLWHrxzzqKefw1k1rdQF6WUQCacZCFiswTvU1hpx6rdycDzxKeXYTyEgxWbb2L5th6ayd5VAezehDUHZLHeFwxc23fNqPrPsLQkZzxVxobf4Q6ckY9gBFzsmQqkQTeCQvckC7mZ9g33LNpLZ"
 	/*function inc()
 		a = system.getItem("key1")
 		if (a == nil) then
@@ -49,7 +49,7 @@ const (
 	end
 	abi.register(inc)
 	abi.register(query) */
-	queryCode = "Bc9qiEuzkF76vQfsmDgW15NCgEVNpQvJcEXLD5Ug6afZkfawubznZxgCwTpGtDttsntWgogxAfd7h1Ki6hWd6YhSdzoeJWQ3biTpkFuiB8t15vgx6FKQur3q9zwkQcgN2BGEAjsrKE47j1fVDBGcYPEbZFgWn5nbet3R3NHa3dfT7RMZNVSR1NKLdKXvbh81vHAKbsERsMsNRHg1E8fLs4dJR4yPvJy2rteC4JcmZ5EuVLeier8WMNxadgVsLhcdRbgj2j9A4vW2AUawvFFrZPG4mkVNJ2Z51KcCvFecEXXZN4bpvhihA6RbX6s8DwxQt3ajfXyS5ge79CXcq1nbq53SQPP8arEox1tdHqsVZ39X6dr4juEtWNe8d1uu1Stsb7DdSfqDv9CwPmE5oeMXwurCqBRYBy5n6vrG7Bqtbxjhv6UX7jzWRttDzHCSiq5pRtzgsMkUjcZ6d9q9R3bYPQm6uRNi9rHpEf6AhHTiWiLvafPrD2iTvizwWJqeobjzBNAhoz"
+	queryCode = "52fg8Ywt6dwekcRC6KHx27QSg8umh2nF6bVdmYRp81s3eXW9fXP8bLVJqbjsqC3yhVFPFPQFVoQz1s77f9osQw4hRwSBtGRUbxTbxDtnJTxhP3oNgEAmFg7vujtRER7z5bH3P1nkoRgSaCX2A6qws4ueVZF1vrCbehfkYNcCedHDYFuJhpcRuWicL8Mfuj4aBLWsnXtTUGfN9xSKJWYYprAeUfDQAVSrPRS1TfmhwJhm3PJaxBGswSFcH1b3kCYDsXyj8mDjCPUKXdaMj7j5qnVg2FVXMiSDizeibjfrs3ySZ13dQwhWmn1NZvgxSirnW7bNYjsF39Hsm5iNBizLZWatBisVXrVpQPj2xAX7esLZMemFwxoJtmMZAwYHzKCvT1Sq5sJZgPBJ17mhwB2MTC1h6aH7y9bMcDtPQfxNoNsyJEqKG4kFTpwSrLJ1o2zDuHt1rYsz69ZYB1uvtdG8v5vDmSpZjhzgVmmQCEKwbMGYJAFQU65p3s9RvyaiFPNHMef91cgq5uXxQ"
 )
 
 func init() {
@@ -88,7 +88,7 @@ func getContractState(t *testing.T, code string) *state.ContractState {
 	if err != nil {
 		t.Fatalf("contract state open error : %s\n", err.Error())
 	}
-	rcode, err := base58.Decode(code)
+	rcode, err := util.DecodeCode(code)
 	if err != nil {
 		t.Fatalf("contract SetCode error : %s\n", err.Error())
 	}
