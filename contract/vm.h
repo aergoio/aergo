@@ -4,7 +4,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
-#include <sqlite3.h>
+#include "sqlite3-binding.h"
 
 typedef struct blockchain_ctx {
     char *stateKey;
