@@ -15,7 +15,6 @@ import (
 
 	sha256 "github.com/minio/sha256-simd"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
@@ -178,24 +177,28 @@ func (cp *chainProcessor) execute() error {
 	}
 	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
 
+	var err error
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
 		block := e.Value.(*types.Block)
 
-		if err := cp.executeBlock(block); err != nil {
+		if err = cp.executeBlock(block); err != nil {
+			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
+				Msg("failed to execute block")
+
 			return err
 		}
 
 		blockNo := block.BlockNo()
-		cp.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
-			// FIXME: remove legacy
-			Block: block,
-		})
 
-		//SyncWithConsensus :
+		var oldLatest types.BlockNo
+
+		//SyncWithConsensus :ga
 		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
 		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
 		//	In this case, messages of mempool is synchronized in actor message queue.
-		oldLatest := cp.cdb.setLatest(block)
+		if oldLatest, err = cp.connectToChain(block); err != nil {
+			return err
+		}
 
 		// XXX Something similar should be also done during
 		// reorganization.
@@ -212,6 +215,21 @@ func (cp *chainProcessor) execute() error {
 	}
 
 	return nil
+}
+
+func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, error) {
+	dbTx := cp.cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	oldLatest := cp.cdb.connectToChain(&dbTx, block)
+
+	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
+		return 0, err
+	}
+
+	dbTx.Commit()
+
+	return oldLatest, nil
 }
 
 func (cp *chainProcessor) reorganize() {
@@ -270,7 +288,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockS
 	// unnecessary chain execution & rollback.
 	cp.reorganize()
 
-	logger.Debug().Uint64("best", cs.cdb.getBestBlockNo()).Msg("added block successfully. ")
+	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("added block successfully. ")
 
 	return nil
 }
@@ -381,15 +399,7 @@ func (e *blockExecutor) execute() error {
 	return err
 }
 
-func setChainState(tx db.Transaction, block *types.Block) {
-	blockNo := block.BlockNo()
-	blockIdx := types.BlockNoToBytes(blockNo)
-
-	// Update best block hash
-	tx.Set(latestKey, blockIdx)
-	tx.Set(blockIdx, block.BlockHash())
-}
-
+//TODO Refactoring: batch
 func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
@@ -404,12 +414,9 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 		return err
 	}
 
-	cdbTx := cs.cdb.store.NewTx()
-	// This is a chain DB update.
-	setChainState(cdbTx, block)
-	// TODO: What happens if DB update is failed in setChainState()? Such an
-	// unconditional commit is OK?
-	cdbTx.Commit()
+	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
+		Block: block,
+	})
 
 	return nil
 }
