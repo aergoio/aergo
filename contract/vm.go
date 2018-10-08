@@ -598,11 +598,9 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	defer ce.close(true)
 
 	if ce.err != nil {
-		sqlTx.RollbackToSavepoint()
 		luaPushStr(L, "[System.LuaGetContract]newExecutor Error :"+ce.err.Error())
 		return -1
 	}
-	sqlTx.Release()
 
 	var ci types.CallInfo
 	ci.Name = fnameStr
@@ -613,9 +611,12 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
+		sqlTx.RollbackToSavepoint()
 		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
 		return -1
 	}
+	sqlTx.Release()
+
 	return ret
 }
 
