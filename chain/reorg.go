@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"errors"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
@@ -283,6 +284,8 @@ func (reorg *reorganizer) rollbackChain() error {
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brStartBlockNo,
 			brStartBlock.ID())
 	}
+
+	reorg.cs.UpdateStatus(brStartBlock)
 
 	return nil
 }

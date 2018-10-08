@@ -166,8 +166,7 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	}
 
 	curBestID := s.bestBlock.ID()
-	switch {
-	case curBestID == block.PrevID():
+	if curBestID == block.PrevID() {
 		// Block connected
 		s.bestBlock = block
 
@@ -175,25 +174,9 @@ func (s *Status) UpdateStatus(block *types.Block) {
 			s.updateLIB(lib)
 		}
 
-	case curBestID == block.ID():
-		// TODO: handle correctly a block disconnected (rollback) instead of
-		// initializing.
+	} else {
+		// Block reorganized. TODO: update consensus status, correctly.
 		s.pls.init()
-
-	default:
-		logger.Debug().Err(errLibUpdate{
-			current: block.ID(),
-			parent:  block.PrevID(),
-			oldBest: curBestID,
-		}).Msg("inconsistent block")
-
-		/*
-			panic(errLibUpdate{
-				current: block.ID(),
-				parent:  block.PrevID(),
-				oldBest: curBestID,
-			})
-		*/
 	}
 }
 

@@ -200,9 +200,6 @@ func (cp *chainProcessor) execute() error {
 			return err
 		}
 
-		// XXX Something similar should be also done during
-		// reorganization.
-		cp.UpdateStatus(block)
 		cp.notifyBlock(block)
 
 		logger.Debug().
@@ -417,6 +414,8 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		Block: block,
 	})
+
+	cs.UpdateStatus(block)
 
 	return nil
 }
