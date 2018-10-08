@@ -25,6 +25,11 @@ test:
 	CGO_LDFLAGS="-L$(LIBPATH)/lib" \
 	go test -timeout 60s ./...
 
+cover-test:
+	@CGO_CFLAGS="-I$(LIBPATH)/include" \
+	CGO_LDFLAGS="-L$(LIBPATH)/lib" \
+	go test -coverprofile c.out ./...
+
 # clean
 
 clean: libtool-clean
