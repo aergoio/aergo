@@ -18,12 +18,10 @@ func init() {
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
 	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
-	signCmd.Flags().BoolVar(&remote, "remote", true, "indicate account in the remote node or not")
 	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	signCmd.Flags().StringVar(&privKey, "key", "", "base58 encoded key for sign")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
-	verifyCmd.Flags().BoolVar(&remote, "remote", true, "choose verify in the remote node or not")
 }
 
 var signCmd = &cobra.Command{
@@ -59,7 +57,7 @@ var signCmd = &cobra.Command{
 			}
 			fmt.Println(types.EncodeAddress(key.GenerateAddress(pubkey.ToECDSA())))
 			msg = tx
-		} else if remote {
+		} else if cmd.Flags().Changed("path") == false {
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})
 		} else {
 			tx := &types.Tx{Body: param}
@@ -108,7 +106,7 @@ var verifyCmd = &cobra.Command{
 			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		if remote {
+		if cmd.Flags().Changed("path") == false {
 			msg, err := client.VerifyTX(context.Background(), param[0])
 			if nil == err {
 				if msg.Tx != nil {

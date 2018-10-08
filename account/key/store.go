@@ -20,9 +20,8 @@ type aergokey = btcec.PrivateKey
 
 // Store stucture of keystore
 type Store struct {
-	unlocked  map[string]*aergokey
-	addresses string
-	storage   db.DB
+	unlocked map[string]*aergokey
+	storage  db.DB
 }
 
 // NewStore make new instance of keystore
@@ -32,18 +31,14 @@ func NewStore(storePath string) *Store {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
-	const addressFile = "addresses"
-	addrPath := path.Join(storePath, addressFile)
 
 	return &Store{
-		unlocked:  map[string]*aergokey{},
-		addresses: addrPath,
-		storage:   db.NewDB(db.BadgerImpl, dbPath),
+		unlocked: map[string]*aergokey{},
+		storage:  db.NewDB(db.BadgerImpl, dbPath),
 	}
 }
 func (ks *Store) CloseStore() {
 	ks.unlocked = nil
-	ks.addresses = ""
 	ks.storage.Close()
 }
 
@@ -73,7 +68,7 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Add
 	}
 	for _, v := range addresses {
 		if bytes.Equal(address, v) {
-			return nil, errors.New("already exisit")
+			return nil, errors.New("already exist")
 		}
 	}
 	err = ks.SaveAddress(address)

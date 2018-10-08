@@ -26,7 +26,6 @@ var (
 
 	privKey string
 	pw      string
-	remote  bool
 	dataDir string
 
 	from   string
