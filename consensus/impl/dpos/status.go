@@ -55,10 +55,6 @@ func (pls *pLibStatus) init() {
 }
 
 func (pls *pLibStatus) updateStatus(block *types.Block) *blockInfo {
-	return pls.addBlock(block)
-}
-
-func (pls *pLibStatus) addBlock(block *types.Block) *blockInfo {
 	bp := block.BPID2Str()
 	ci := newConfirmInfo(block, pls.confirmsRequired)
 	pls.confirms.PushBack(ci)
@@ -80,7 +76,10 @@ func (pls *pLibStatus) addBlock(block *types.Block) *blockInfo {
 	return nil
 }
 
-func (pls *pLibStatus) removeBlock(block *types.Block) (bi *blockInfo) {
+func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
+	// XXX Do the real status rollback instead of init.
+	pls.init()
+
 	return nil
 }
 
@@ -130,7 +129,16 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 		return libInfos[i].blockNo < libInfos[j].blockNo
 	})
 
-	return libInfos[(len(libInfos)-1)/(3*int(bpConsensusCount))]
+	lib := libInfos[(len(libInfos)-1)/(3*int(bpConsensusCount))]
+	if lib != nil {
+		for _, l := range pls.plib {
+			if l.blockNo < lib.blockNo {
+				delete(pls.plib, l.blockHash)
+			}
+		}
+	}
+
+	return lib
 }
 
 type confirmInfo struct {
@@ -166,18 +174,30 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	}
 
 	curBestID := s.bestBlock.ID()
-	if curBestID == block.PrevID() {
-		// Block connected
-		s.bestBlock = block
 
+	if curBestID == block.PrevID() {
+		logger.Debug().
+			Str("block hash", block.ID()).
+			Uint64("block no", block.BlockNo()).
+			Msg("update LIB status")
+
+		// Block connected
 		if lib := s.pls.updateStatus(block); lib != nil {
 			s.updateLIB(lib)
 		}
-
 	} else {
+		logger.Debug().
+			Str("block hash", block.ID()).
+			Uint64("target block no", block.BlockNo()).
+			Msg("rollback LIB status")
+
 		// Block reorganized. TODO: update consensus status, correctly.
-		s.pls.init()
+		if err := s.pls.rollbackStatusTo(block); err != nil {
+			panic(err)
+		}
 	}
+
+	s.bestBlock = block
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
