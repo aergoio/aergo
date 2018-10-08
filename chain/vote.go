@@ -36,7 +36,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 	if err != nil {
 		return err
 	}
-	if when > blockNo+votingDelay {
+	if when+stakingDelay > blockNo {
 		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
 		return ErrLessTimeHasPassed
 	}

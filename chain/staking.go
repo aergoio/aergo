@@ -34,7 +34,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 	if err != nil {
 		return err
 	}
-	if when > blockNo+stakingDelay {
+	if when+stakingDelay > blockNo {
 		return ErrLessTimeHasPassed
 	}
 	amount := txBody.Amount
