@@ -278,7 +278,7 @@ variable:
         for (i = 0; i < array_size($2); i++) {
             ast_id_t *id = array_item($2, i, ast_id_t);
 
-            ASSERT(id->kind == ID_VAR);
+            ASSERT(is_var_id(id));
             id->u_var.type_exp = $1;
         }
         $$ = $2;
@@ -294,7 +294,7 @@ variable:
                 ast_id_t *id = array_item($2, i, ast_id_t);
                 ast_exp_t *exp = array_item($4, i, ast_exp_t);
 
-                ASSERT(id->kind == ID_VAR);
+                ASSERT(is_var_id(id));
                 id->u_var.type_exp = $1;
                 id->u_var.init_exp = exp;
             }

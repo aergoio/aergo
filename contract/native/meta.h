@@ -12,34 +12,27 @@
 
 #define is_valid_type(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
 
-#define is_bool_type(meta)          ((meta)->type == TYPE_BOOL)
+#define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
-#define is_integer_type(meta)                                                  \
+#define is_integer_meta(meta)                                                  \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
 
-#define is_float_type(meta)                                                    \
+#define is_float_meta(meta)                                                    \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
 
-#define is_string_type(meta)        ((meta)->type == TYPE_STRING)
+#define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
 
-#define is_struct_type(meta)        ((meta)->type == TYPE_STRUCT)
-#define is_map_type(meta)           ((meta)->type == TYPE_MAP)
-#define is_ref_type(meta)           ((meta)->type == TYPE_REF)
-#define is_tuple_type(meta)         ((meta)->type == TYPE_TUPLE)
+#define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
+#define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
+#define is_ref_meta(meta)           ((meta)->type == TYPE_REF)
+#define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_const_type(meta)         (meta)->is_const
-#define is_array_type(meta)         (meta)->is_array
-#define is_dynamic_type(meta)       (meta)->is_dynamic
+#define is_const_meta(meta)         (meta)->is_const
+#define is_array_meta(meta)         (meta)->is_array
+#define is_dynamic_meta(meta)       (meta)->is_dynamic
 
-#define is_primitive_type(meta)     ((meta)->type <= TYPE_PRIMITIVE)
-#define is_comparable_type(meta)    ((meta)->type <= TYPE_COMPARABLE)
-
-#define is_compatible_type(meta1, meta2)                                       \
-    (is_integer_type(meta1) ? is_integer_type(meta2) :                         \
-     (is_float_type(meta1) ? is_float_type(meta2) :                            \
-      (is_struct_type(meta1) ? is_ref_type(meta2) || is_struct_type(meta2) :   \
-       (is_map_type(meta1) ? is_ref_type(meta2) || meta_equals(meta1, meta2) : \
-        meta_equals(meta1, meta2)))))
+#define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
+#define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
 #define meta_set_prim               meta_set
 #define meta_set_tuple(meta)        meta_set((meta), TYPE_TUPLE)
@@ -138,13 +131,13 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
-    if (is_dynamic_type(x) && is_dynamic_type(y)) {
-        ASSERT1(is_primitive_type(x), x->type);
-        ASSERT1(is_primitive_type(y), y->type);
+    if (is_dynamic_meta(x) && is_dynamic_meta(y)) {
+        ASSERT1(is_primitive_meta(x), x->type);
+        ASSERT1(is_primitive_meta(y), y->type);
 
         meta_set_dynamic(meta, MAX(x->type, y->type));
     }
-    else if (is_dynamic_type(x)) {
+    else if (is_dynamic_meta(x)) {
         *meta = *y;
     }
     else {
@@ -155,17 +148,17 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
 static inline bool
 meta_equals(meta_t *x, meta_t *y)
 {
-    if (is_dynamic_type(x) || is_dynamic_type(y)) {
+    if (is_dynamic_meta(x) || is_dynamic_meta(y)) {
         if (x->type == y->type ||
-            (is_integer_type(x) && is_integer_type(y)) ||
-            (is_float_type(x) && is_float_type(y)))
+            (is_integer_meta(x) && is_integer_meta(y)) ||
+            (is_float_meta(x) && is_float_meta(y)))
             return true;
 
         return false;
     }
 
-    if (is_map_type(x) || is_map_type(y)) {
-        if (is_ref_type(x) || is_ref_type(y) ||
+    if (is_map_meta(x) || is_map_meta(y)) {
+        if (is_ref_meta(x) || is_ref_meta(y) ||
             (x->type == y->type &&
              x->u_map.k_type == y->u_map.k_type &&
              meta_equals(x->u_map.v_meta, y->u_map.v_meta)))

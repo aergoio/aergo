@@ -80,28 +80,29 @@ id_pragma_new(char *val, trace_t *trc)
 ast_id_t *
 ast_id_search_fld(ast_id_t *id, int num, char *name)
 {
+    int i;
     array_t *fld_ids = NULL;
 
-    // XXX: search function
+    ASSERT(id != NULL);
 
-    if (id->kind == ID_STRUCT)
+    if (is_struct_id(id))
         fld_ids = id->u_st.fld_ids;
-    else if (id->kind == ID_CONTRACT && id->u_cont.blk != NULL)
+    else if (is_contract_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
+    else
+        return NULL;
 
-    if (fld_ids != NULL) {
-        int i;
+    ASSERT(fld_ids != NULL);
 
-        for (i = 0; i < array_size(fld_ids); i++) {
-            ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
+    for (i = 0; i < array_size(fld_ids); i++) {
+        ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
-            ASSERT(fld_id->name != NULL);
-            ASSERT2(fld_id->num != num, fld_id->num, num);
+        ASSERT(fld_id->name != NULL);
+        ASSERT2(fld_id->num != num, fld_id->num, num);
 
-            if (fld_id->num < num && flag_off(fld_id->mod, MOD_LOCAL) &&
-                strcmp(fld_id->name, name) == 0)
-                return fld_id;
-        }
+        if (fld_id->num < num && flag_off(fld_id->mod, MOD_LOCAL) &&
+            strcmp(fld_id->name, name) == 0)
+            return fld_id;
     }
 
     return NULL;
