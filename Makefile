@@ -21,7 +21,9 @@ vendor: glide.yaml glide.lock
 # test
 
 test:
-	@go test -timeout 60s ./...
+	@CGO_CFLAGS="-I$(LIBPATH)/include" \
+	CGO_LDFLAGS="-L$(LIBPATH)/lib" \
+	go test -timeout 60s ./...
 
 # clean
 
