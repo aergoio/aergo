@@ -23,6 +23,8 @@ import (
 
 const (
 	chainDBName = "chain"
+
+	TxBatchMax = 10000
 )
 
 var (
@@ -168,10 +170,10 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}
-	setChainState(tx, block)
+
+	cdb.connectToChain(&tx, block)
 
 	tx.Commit()
-	cdb.setLatest(block)
 
 	logger.Info().Msg("Genesis Block Added")
 	return nil
@@ -185,6 +187,52 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 	logger.Debug().Uint64("old", oldLatest).Uint64("new", cdb.latest).Msg("update latest block")
 
 	return
+}
+
+func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
+	blockNo := block.GetHeader().GetBlockNo()
+	blockIdx := types.BlockNoToBytes(blockNo)
+
+	// Update best block hash
+	(*dbtx).Set(latestKey, blockIdx)
+	(*dbtx).Set(blockIdx, block.BlockHash())
+
+	oldLatest = cdb.setLatest(block)
+
+	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
+
+	return
+}
+
+func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
+	oldNo := cdb.getBestBlockNo()
+	newNo := newBlocks[0].GetHeader().GetBlockNo()
+
+	if oldNo >= newNo {
+		logger.Error().Uint64("old", oldNo).Uint64("new", newNo).
+			Msg("New chain is not longger than old chain")
+		return ErrInvalidSwapChain
+	}
+
+	tx := cdb.store.NewTx()
+
+	defer tx.Discard()
+
+	var blockIdx []byte
+
+	for i := len(newBlocks) - 1; i >= 0; i-- {
+		block := newBlocks[i]
+		blockIdx = types.BlockNoToBytes(block.GetHeader().GetBlockNo())
+
+		tx.Set(blockIdx, block.BlockHash())
+	}
+	tx.Set(latestKey, blockIdx)
+
+	tx.Commit()
+
+	cdb.setLatest(newBlocks[0])
+
+	return nil
 }
 
 func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
@@ -213,6 +261,19 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 type txInfo struct {
 	blockHash []byte
 	idx       int
+}
+
+func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHash []byte) error {
+	for i, txEntry := range txs {
+		if err := cdb.addTx(dbTx, txEntry, blockHash, i); err != nil {
+			logger.Error().Err(err).Str("hash", enc.ToString(blockHash)).Int("txidx", i).
+				Msg("failed to add tx")
+
+			return err
+		}
+	}
+
+	return nil
 }
 
 // stor tx info to DB
@@ -249,15 +310,6 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		return err
-	}
-
-	//add txs
-	txs := block.GetBody().GetTxs()
-	for i, txEntry := range txs {
-		if err := cdb.addTx(dbtx, txEntry, block.BlockHash(), i); err != nil {
-			logger.Error().Err(err).Str("hash", block.ID()).Int("txidx", i).Msg("failed to add tx")
-			return err
-		}
 	}
 
 	//add block
