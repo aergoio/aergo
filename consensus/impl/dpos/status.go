@@ -130,7 +130,7 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 		return libInfos[i].blockNo < libInfos[j].blockNo
 	})
 
-	return libInfos[(len(libInfos)-1)/3]
+	return libInfos[(len(libInfos)-1)/(3*int(bpConsensusCount))]
 }
 
 type confirmInfo struct {
