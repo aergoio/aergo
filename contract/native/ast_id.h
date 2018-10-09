@@ -96,6 +96,7 @@ ast_id_t *id_contract_new(char *name, ast_blk_t *blk, trace_t *trc);
 
 ast_id_t *ast_id_search_fld(ast_id_t *id, int num, char *name);
 ast_id_t *ast_id_search_blk(ast_blk_t *blk, int num, char *name);
+ast_id_t *ast_id_search_param(ast_id_t *id, int num, char *name);
 
 void ast_id_add(array_t *ids, ast_id_t *new_id);
 void ast_id_join(array_t *ids, array_t *new_ids);

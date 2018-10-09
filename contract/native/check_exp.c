@@ -12,7 +12,7 @@
 static int
 exp_id_check(check_t *check, ast_exp_t *exp)
 {
-    ast_id_t *id;
+    ast_id_t *id = NULL;
 
     ASSERT1(is_id_exp(exp), exp->kind);
 
@@ -20,10 +20,15 @@ exp_id_check(check_t *check, ast_exp_t *exp)
         id = ast_id_search_fld(check->aq_id, exp->num, exp->u_id.name);
     }
     else {
-        id = ast_id_search_blk(check->blk, exp->num, exp->u_id.name);
+        if (check->fn_id != NULL)
+            id = ast_id_search_param(check->fn_id, exp->num, exp->u_id.name);
 
-        if (id != NULL && is_contract_id(id))
-            id = ast_id_search_fld(id, exp->num, exp->u_id.name);
+        if (id == NULL) {
+            id = ast_id_search_blk(check->blk, exp->num, exp->u_id.name);
+
+            if (id != NULL && is_contract_id(id))
+                id = ast_id_search_fld(id, exp->num, exp->u_id.name);
+        }
     }
 
     if (id == NULL)
@@ -438,22 +443,33 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     TRY(check_exp(check, id_exp));
 
     id = id_exp->id;
-    if (id == NULL || is_var_id(id) || is_tuple_meta(id_meta) ||
-        (is_func_id(id) && !is_struct_meta(id_meta) && !is_ref_meta(id_meta)))
+    if (id == NULL || is_tuple_meta(id_meta))
         THROW(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->trc);
+
+    if (is_var_id(id)) {
+        ast_id_t *type_id = id->u_var.type_exp->id;
+
+        if (type_id == NULL || 
+            (!is_struct_id(type_id) && !is_contract_id(type_id)))
+            THROW(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->trc);
+
+        id = type_id;
+    }
+    else if (is_func_id(id) && !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
+        THROW(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->trc);
+    }
 
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
 
     check->aq_id = id;
-    ec = check_exp(check, fld_exp);
+
+    if (check_exp(check, fld_exp) == NO_ERROR) {
+        exp->id = fld_exp->id;
+        exp->meta = *fld_meta;
+    }
+
     check->aq_id = NULL;
-
-    if (ec != NO_ERROR)
-        return ec;
-
-    exp->id = fld_exp->id;
-    exp->meta = *fld_meta;
 
     return NO_ERROR;
 }
@@ -498,6 +514,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
     }
 
     exp->id = func_id;
+    exp->meta = func_id->meta;
 
     return NO_ERROR;
 }

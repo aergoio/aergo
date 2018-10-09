@@ -186,10 +186,13 @@ id_func_check(check_t *check, ast_id_t *id)
             check_exp(check, type_exp);
         }
 
-        meta_set_tuple(&id->meta);
+        meta_set_prim(&id->meta, TYPE_TUPLE);
+    }
+    else if (id->mod == MOD_INITIAL) {
+        meta_set_prim(&id->meta, TYPE_REF);
     }
     else {
-        meta_set_void(&id->meta);
+        meta_set_prim(&id->meta, TYPE_VOID);
     }
 
     check->fn_id = id;

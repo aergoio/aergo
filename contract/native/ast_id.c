@@ -74,6 +74,7 @@ ast_id_search_fld(ast_id_t *id, int num, char *name)
     array_t *fld_ids = NULL;
 
     ASSERT(id != NULL);
+    ASSERT(name != NULL);
 
     if (is_struct_id(id))
         fld_ids = id->u_st.fld_ids;
@@ -103,6 +104,8 @@ ast_id_search_blk(ast_blk_t *blk, int num, char *name)
 {
     int i;
 
+    ASSERT(name != NULL);
+
     if (blk == NULL)
         return NULL;
 
@@ -117,6 +120,28 @@ ast_id_search_blk(ast_blk_t *blk, int num, char *name)
                 return id;
         }
     } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
+ast_id_t *
+ast_id_search_param(ast_id_t *id, int num, char *name)
+{
+    int i;
+
+    ASSERT(id != NULL);
+    ASSERT1(is_func_id(id), id->kind);
+    ASSERT(name != NULL);
+
+    for (i = 0; i < array_size(id->u_func.param_ids); i++) {
+        ast_id_t *param_id = array_item(id->u_func.param_ids, i, ast_id_t);
+
+        ASSERT(param_id->name != NULL);
+        ASSERT2(param_id->num != num, param_id->num, num);
+
+        if (param_id->num < num && strcmp(param_id->name, name) == 0)
+            return param_id;
+    }
 
     return NULL;
 }
