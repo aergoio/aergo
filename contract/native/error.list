@@ -25,8 +25,9 @@ error(ERROR_DUPLICATED_ID,          "duplicated identifier '%s'")
 error(ERROR_SYNTAX,                 "%s")
 
 /* semantic checker */
-error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
 error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
+error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
+error(ERROR_UNDEFINED_LABEL,        "undefined label '%s'")
 error(ERROR_UNUSED_ID,              "'%s' declared, but not used")
 error(ERROR_NOT_COMPARABLE_TYPE,    "not comparable type %s")
 error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")

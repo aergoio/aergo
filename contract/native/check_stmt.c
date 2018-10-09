@@ -223,6 +223,32 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
+stmt_goto_check(check_t *check, ast_stmt_t *stmt)
+{
+    int i;
+    int stmt_cnt;
+    ast_blk_t *blk = check->blk;
+
+    ASSERT1(is_goto_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_goto.label != NULL);
+
+    stmt_cnt = array_size(&blk->stmts);
+
+    for (i = 0; i < stmt_cnt; i++) {
+        ast_stmt_t *prev = array_item(&blk->stmts, i, ast_stmt_t);
+
+        if (prev->label != NULL && prev->num <= stmt->num &&
+            strcmp(prev->label, stmt->u_goto.label) == 0)
+            break;
+    }
+
+    if (i == stmt_cnt)
+        THROW(ERROR_UNDEFINED_LABEL, &stmt->trc, stmt->u_goto.label);
+
+    return NO_ERROR;
+}
+
+static int
 stmt_ddl_check(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_ddl_stmt(stmt), stmt->kind);
@@ -238,17 +264,6 @@ stmt_blk_check(check_t *check, ast_stmt_t *stmt)
 
     if (stmt->u_blk.blk != NULL)
         check_blk(check, stmt->u_blk.blk);
-
-    return NO_ERROR;
-}
-
-static int
-stmt_pragma_check(check_t *check, ast_stmt_t *stmt)
-{
-    ASSERT1(is_pragma_stmt(stmt), stmt->kind);
-    ASSERT(stmt->u_prag.id != NULL);
-
-    check_id(check, stmt->u_prag.id);
 
     return NO_ERROR;
 }
@@ -282,16 +297,16 @@ check_stmt(check_t *check, ast_stmt_t *stmt)
         stmt_return_check(check, stmt);
         break;
 
+    case STMT_GOTO:
+        stmt_goto_check(check, stmt);
+        break;
+
     case STMT_DDL:
         stmt_ddl_check(check, stmt);
         break;
 
     case STMT_BLK:
         stmt_blk_check(check, stmt);
-        break;
-
-    case STMT_PRAGMA:
-        stmt_pragma_check(check, stmt);
         break;
 
     default:

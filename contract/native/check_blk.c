@@ -25,7 +25,7 @@ check_unused_ids(array_t *ids)
             array_t *param_ids = id->u_func.param_ids;
 
             for (j = 0; j < array_size(param_ids); j++) {
-                ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
+                ast_id_t *param_id = array_item(param_ids, j, ast_id_t);
 
                 if (!param_id->is_used)
                     WARN(ERROR_UNUSED_ID, &param_id->trc, param_id->name);

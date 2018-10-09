@@ -68,16 +68,6 @@ id_contract_new(char *name, ast_blk_t *blk, trace_t *trc)
 }
 
 ast_id_t *
-id_pragma_new(char *val, trace_t *trc)
-{
-    ast_id_t *id = ast_id_new(ID_PRAGMA, MOD_LOCAL, xstrdup("pragma"), trc);
-
-    id->u_prag.val = val;
-
-    return id;
-}
-
-ast_id_t *
 ast_id_search_fld(ast_id_t *id, int num, char *name)
 {
     int i;

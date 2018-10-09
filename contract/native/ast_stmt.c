@@ -12,7 +12,7 @@
 ast_stmt_t *
 ast_stmt_new(stmt_kind_t kind, trace_t *trc)
 {
-    ast_stmt_t *stmt = xmalloc(sizeof(ast_stmt_t));
+    ast_stmt_t *stmt = xcalloc(sizeof(ast_stmt_t));
 
     ast_node_init(stmt, trc);
 
@@ -91,6 +91,16 @@ stmt_return_new(ast_exp_t *arg_exp, trace_t *trc)
 }
 
 ast_stmt_t *
+stmt_goto_new(char *label, trace_t *trc)
+{
+    ast_stmt_t *stmt = ast_stmt_new(STMT_GOTO, trc);
+
+    stmt->u_goto.label = label;
+
+    return stmt;
+}
+
+ast_stmt_t *
 stmt_ddl_new(ddl_kind_t kind, char *ddl, trace_t *trc)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_DDL, trc);
@@ -107,16 +117,6 @@ stmt_blk_new(ast_blk_t *blk, trace_t *trc)
     ast_stmt_t *stmt = ast_stmt_new(STMT_BLK, trc);
 
     stmt->u_blk.blk = blk;
-
-    return stmt;
-}
-
-ast_stmt_t *
-stmt_pragma_new(ast_id_t *id, trace_t *trc)
-{
-    ast_stmt_t *stmt = ast_stmt_new(STMT_PRAGMA, trc);
-
-    stmt->u_prag.id = id;
 
     return stmt;
 }

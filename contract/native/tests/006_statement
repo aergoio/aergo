@@ -147,6 +147,14 @@ contract test {
     }
 }
 
+@desc goto_label
+contract test {
+    test() {
+here:
+        goto here;
+    }
+}
+
 @desc inline_ddl
 contract test {
     int v1;

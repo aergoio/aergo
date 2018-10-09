@@ -215,29 +215,6 @@ id_contract_check(check_t *check, ast_id_t *id)
     return NO_ERROR;
 }
 
-static int
-id_pragma_check(check_t *check, ast_id_t *id)
-{
-    ec_t ex, ac;
-
-    ASSERT1(is_pragma_id(id), id->kind);
-    ASSERT(id->u_prag.val != NULL);
-
-    ac = error_first();
-    ex = error_to_code(id->u_prag.val);
-
-    if (ac == ex) {
-        error_t *e = error_pop();
-
-        if (flag_on(check->flag, FLAG_VERBOSE))
-            error_print(e);
-    }
-
-    id->is_used = true;
-
-    return NO_ERROR;
-}
-
 void
 check_id(check_t *check, ast_id_t *id)
 {
@@ -258,10 +235,6 @@ check_id(check_t *check, ast_id_t *id)
 
     case ID_CONTRACT:
         id_contract_check(check, id);
-        break;
-
-    case ID_PRAGMA:
-        id_pragma_check(check, id);
         break;
 
     default:

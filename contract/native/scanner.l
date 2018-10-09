@@ -218,6 +218,7 @@ id                          {L}({L}|{D})*
 "for"                       yy_return(K_FOR);
 "foreach"                   yy_return(K_FOREACH);
 "func"                      yy_return(K_FUNC);
+"goto"                      yy_return(K_GOTO);
 "if"                        yy_return(K_IF);
 "in"                        yy_return(K_IN);
 "index"                     yy_return(K_INDEX);
@@ -231,7 +232,6 @@ id                          {L}({L}|{D})*
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
 "payable"                   yy_return(K_PAYABLE);
-"pragma"                    yy_return(K_PRAGMA);
 "readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);

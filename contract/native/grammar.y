@@ -90,6 +90,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_FOR           "for"
         K_FOREACH       "foreach"
         K_FUNC          "func"
+        K_GOTO          "goto"
         K_IF            "if"
         K_IN            "in"
         K_INDEX         "index"
@@ -104,7 +105,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_NEW           "new"
         K_NULL          "null"
         K_PAYABLE       "payable"
-        K_PRAGMA        "pragma"
         K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
@@ -177,21 +177,20 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <mod>     modifier_opt
 %type <array>   return_opt
 %type <array>   return_list
-%type <id>      pragma
 %type <stmt>    statement
 %type <stmt>    stmt_exp
+%type <stmt>    stmt_label
 %type <stmt>    stmt_if
 %type <stmt>    stmt_loop
 %type <exp>     exp_loop
 %type <stmt>    stmt_switch
-%type <array>   label_list
-%type <stmt>    label
+%type <array>   case_list
+%type <stmt>    stmt_case
 %type <array>   stmt_list
 %type <stmt>    stmt_jump
 %type <stmt>    stmt_ddl
 %type <ddl>     ddl_prefix
 %type <stmt>    stmt_blk
-%type <stmt>    stmt_pragma
 %type <exp>     expression
 %type <op>      op_assign
 %type <exp>     exp_tuple
@@ -434,7 +433,6 @@ compound:
     struct
 |   constructor
 |   function
-|   pragma
 ;
 
 struct:
@@ -569,22 +567,15 @@ return_list:
     }
 ;
 
-pragma:
-    K_PRAGMA K_CHECK '(' identifier ')' ';'
-    {
-        $$ = id_pragma_new($4, &@1);
-    }
-;
-
 statement:
     stmt_exp
+|   stmt_label
 |   stmt_if
 |   stmt_loop
 |   stmt_switch
 |   stmt_jump
 |   stmt_ddl
 |   stmt_blk
-|   stmt_pragma
 ;
 
 stmt_exp:
@@ -595,6 +586,14 @@ stmt_exp:
 |   expression ';'
     {
         $$ = stmt_exp_new($1, &@$);
+    }
+;
+
+stmt_label:
+    identifier ':' statement
+    {
+        $$ = $3;
+        $$->label = $1;
     }
 ;
 
@@ -664,30 +663,30 @@ iter_decl:
 ;
 
 stmt_switch:
-    K_SWITCH '{' label_list '}'
+    K_SWITCH '{' case_list '}'
     {
         $$ = stmt_switch_new(NULL, $3, &@$);
     }
-|   K_SWITCH '(' expression ')' '{' label_list '}'
+|   K_SWITCH '(' expression ')' '{' case_list '}'
     {
         $$ = stmt_switch_new($3, $6, &@$);
     }
 ;
 
-label_list:
-    label
+case_list:
+    stmt_case
     {
         $$ = array_new();
         ast_stmt_add($$, $1);
     }
-|   label_list label
+|   case_list stmt_case
     {
         $$ = $1;
         ast_stmt_add($$, $2);
     }
 ;
 
-label:
+stmt_case:
     K_CASE exp_eq ':' stmt_list
     {
         $$ = stmt_case_new($2, $4, &@$);
@@ -728,6 +727,10 @@ stmt_jump:
     {
         $$ = stmt_return_new($2, &@$);
     }
+|   K_GOTO identifier ';'
+    {
+        $$ = stmt_goto_new($2, &@2);
+    }
 ;
 
 stmt_ddl:
@@ -756,13 +759,6 @@ stmt_blk:
     block
     {
         $$ = stmt_blk_new($1, &@$);
-    }
-;
-
-stmt_pragma:
-    pragma
-    {
-        $$ = stmt_pragma_new($1, &@$);
     }
 ;
 
