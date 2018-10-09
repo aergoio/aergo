@@ -25,7 +25,7 @@
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 
 #define is_usable_lval(exp)                                                    \
-    (!is_const_meta(&(exp)->meta) && !is_dynamic_meta(&(exp)->meta) &&         \
+    (!is_const_meta(&(exp)->meta) && !is_untyped_meta(&(exp)->meta) &&         \
      (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
 #define ast_exp_add                 array_add

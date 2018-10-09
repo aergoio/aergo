@@ -29,7 +29,7 @@
 
 #define is_const_meta(meta)         (meta)->is_const
 #define is_array_meta(meta)         (meta)->is_array
-#define is_dynamic_meta(meta)       (meta)->is_dynamic
+#define is_untyped_meta(meta)       (meta)->is_untyped
 
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
@@ -81,7 +81,7 @@ struct meta_s {
 
     bool is_const;
     bool is_array;
-    bool is_dynamic;
+    bool is_untyped;
 
     union {
         meta_map_t u_map;
@@ -110,11 +110,11 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_dynamic(meta_t *meta, type_t type)
+meta_set_untyped(meta_t *meta, type_t type)
 {
     meta_set(meta, type);
 
-    meta->is_dynamic = true;
+    meta->is_untyped = true;
 }
 
 static inline void
@@ -131,13 +131,13 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
-    if (is_dynamic_meta(x) && is_dynamic_meta(y)) {
+    if (is_untyped_meta(x) && is_untyped_meta(y)) {
         ASSERT1(is_primitive_meta(x), x->type);
         ASSERT1(is_primitive_meta(y), y->type);
 
-        meta_set_dynamic(meta, MAX(x->type, y->type));
+        meta_set_untyped(meta, MAX(x->type, y->type));
     }
-    else if (is_dynamic_meta(x)) {
+    else if (is_untyped_meta(x)) {
         *meta = *y;
     }
     else {
@@ -148,7 +148,7 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
 static inline bool
 meta_equals(meta_t *x, meta_t *y)
 {
-    if (is_dynamic_meta(x) || is_dynamic_meta(y)) {
+    if (is_untyped_meta(x) || is_untyped_meta(y)) {
         if (x->type == y->type ||
             (is_integer_meta(x) && is_integer_meta(y)) ||
             (is_float_meta(x) && is_float_meta(y)))

@@ -14,6 +14,8 @@
     int num;                                                                   \
     trace_t trc
 
+#define AST_NODE_NUM                node_num_
+
 #define ast_node_init(node, epos)                                              \
     do {                                                                       \
         (node)->num = node_num_++;                                             \

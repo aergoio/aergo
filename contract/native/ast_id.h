@@ -17,6 +17,9 @@
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
 #define is_pragma_id(id)            ((id)->kind == ID_PRAGMA)
 
+#define id_ctor_new(name, params, blk, trc)                                    \
+    id_func_new((name), MOD_INITIAL, params, NULL, blk, (trc))
+
 #ifndef _AST_ID_T
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;

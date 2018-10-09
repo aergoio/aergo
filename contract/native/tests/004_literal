@@ -34,10 +34,7 @@ contract test {
 contract test {
     bool v1 = true;
     bool v2 = false;
-    struct s1 {
-        int a;
-    }
-    s1 y = null;
+    map(int, string) m = null;
 }
 
 @desc array_initializer

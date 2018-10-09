@@ -26,12 +26,14 @@ typedef struct parse_s {
     int len;
     int pos;
 
+    /* abstract syntax tree */
     ast_t **ast;
-    ast_blk_t *blk;
 
+    /* for error token */
     int adj_token;
     trace_t adj_pos;
 
+    /* for string literal */
     strbuf_t buf;
 } parse_t;
 

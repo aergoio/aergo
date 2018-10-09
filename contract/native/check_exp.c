@@ -50,10 +50,10 @@ exp_lit_check(check_t *check, ast_exp_t *exp)
         meta_set_prim(&exp->meta, TYPE_BOOL);
         break;
     case VAL_INT:
-        meta_set_dynamic(&exp->meta, TYPE_INT64);
+        meta_set_untyped(&exp->meta, TYPE_INT64);
         break;
     case VAL_FP:
-        meta_set_dynamic(&exp->meta, TYPE_DOUBLE);
+        meta_set_untyped(&exp->meta, TYPE_DOUBLE);
         break;
     case VAL_STR:
         meta_set_prim(&exp->meta, TYPE_STRING);
@@ -509,6 +509,19 @@ exp_sql_check(check_t *check, ast_exp_t *exp)
     ASSERT(exp->u_sql.sql != NULL);
 
     // TODO: need column meta
+    switch (exp->u_sql.kind) {
+    case SQL_QUERY:
+        break;
+
+    case SQL_INSERT:
+    case SQL_UPDATE:
+    case SQL_DELETE:
+        meta_set_prim(&exp->meta, TYPE_INT32);
+        break;
+
+    default:
+        ASSERT1(!"invalid sql type", exp->u_sql.kind);
+    }
 
     return NO_ERROR;
 }

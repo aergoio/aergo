@@ -15,7 +15,7 @@
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
 #define AST             (*parse->ast)
-#define BLK             parse->blk
+#define ROOT            AST->root
 
 extern int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
@@ -154,6 +154,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 }
 
 %type <id>      contract_decl
+%type <blk>     contract_body
 %type <array>   variable
 %type <exp>     var_type
 %type <exp>     var_spec
@@ -224,50 +225,52 @@ smart_contract:
     contract_decl
     {
         AST = ast_new();
-        ast_id_add(&AST->root->ids, $1);
+        ast_id_add(&ROOT->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        ast_id_add(&AST->root->ids, $2);
+        ast_id_add(&ROOT->ids, $2);
     }
 ;
 
 contract_decl:
     K_CONTRACT identifier '{' '}'
     {
-        ASSERT(BLK == NULL);
-        $$ = id_contract_new($2, NULL, &@$);
+        ast_blk_t *blk = ast_blk_new(&@3);
+
+        ast_id_add(&blk->ids, id_ctor_new($2, NULL, NULL, &@2));
+
+        $$ = id_contract_new($2, blk, &@$);
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        ASSERT(BLK != NULL);
-        $$ = id_contract_new($2, BLK, &@$);
-        BLK = NULL;
+        if (ast_id_search_blk($4, AST_NODE_NUM, $2) == NULL)
+            ast_id_add(&$4->ids, id_ctor_new($2, NULL, NULL, &@2));
+
+        $$ = id_contract_new($2, $4, &@$);
     }
 ;
 
 contract_body:
     variable
     {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_join(&BLK->ids, $1);
+        $$ = ast_blk_new(&@$);
+        ast_id_join(&$$->ids, $1);
     }
 |   compound
     {
-        ASSERT(BLK == NULL);
-        BLK = ast_blk_new(&@$);
-        ast_id_add(&BLK->ids, $1);
+        $$ = ast_blk_new(&@$);
+        ast_id_add(&$$->ids, $1);
     }
 |   contract_body variable
     {
-        ASSERT(BLK != NULL);
-        ast_id_join(&BLK->ids, $2);
+        $$ = $1;
+        ast_id_join(&$$->ids, $2);
     }
 |   contract_body compound
     {
-        ASSERT(BLK != NULL);
-        ast_id_add(&BLK->ids, $2);
+        $$ = $1;
+        ast_id_add(&$$->ids, $2);
     }
 ;
 
@@ -457,7 +460,7 @@ field_list:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_func_new($1, MOD_INITIAL, $3, NULL, $5, &@$);
+        $$ = id_ctor_new($1, $3, $5, &@$);
     }
 ;
 
@@ -632,12 +635,10 @@ stmt_loop:
 |   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
-        ast_id_join(&BLK->ids, $3);
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
-        ast_id_join(&BLK->ids, $3);
     }
 |   K_FOR '(' exp_loop K_IN exp_post ')' block
     {

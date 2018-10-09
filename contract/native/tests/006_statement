@@ -55,7 +55,7 @@ contract test {
 
         if (v1 == 1) {
             v2 = "first";
-        } else if (f1(v2)) {
+        } else if (v1 == 2) {
             v2 = "second";
         } else {
             v2 = "don't care";
@@ -104,8 +104,6 @@ contract test {
             break;
         case v1 == 1 + 1:
             break;
-        case v1 == f1():
-            break;
         }
     }
 }
@@ -115,15 +113,16 @@ contract test {
     int v1;
 
     test() {
-        for (int i = 0; i < 10; i++) { 
+        int i;
+        for (i = 0; i < 10; i++) { 
             v1 += i;
         }
-        for (int i = f1(); i < f2(); i++) { }
-        for (i = 0; i < 10; i++) { }
+        for (int j = 1 + 1; j >= 0; i--) { }
         for ( ; i < 10; ) { }
         for ( ; i < 10; i++) { }
         for ( ; ; i++) { }
         for ( ; ; ) { }
+        for (true) { }
         for {
             v1++;
             if (v1 % 2 == 0) {
@@ -182,7 +181,7 @@ contract test {
             emp values (20, 'Bill');
 
         delete from emp where id = 10;
-        int cnt = delete from emp
+        cnt = delete from emp 
             where name = 'Bill';
 
         update emp set name = 'Tom' where c1 = 10;
@@ -194,11 +193,13 @@ contract test {
     int v1;
     string v2;
     test() {
+        /*
         v1 = select id from emp;
         v1, v2 = 
             select id, 
                    name 
               from emp;
+              */
     }
 }
 
