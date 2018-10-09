@@ -12,12 +12,11 @@
 
 #define is_empty_array(array)                                                  \
     ((array) == NULL ? true : (array)->idx == 0)
+
 #define array_size(array)               ((array) == NULL ? 0 : (array)->idx)
 #define array_item(array, idx, type)    ((type *)((array)->items[idx]))
 
 #define array_reset(array)              ((array)->idx = 0)
-
-#define array_add(array, item)          array_sadd((array), (item), NULL)
 
 typedef struct array_s {
     int size;
@@ -63,7 +62,7 @@ array_extend(array_t *array, int size)
 }
 
 static inline void
-array_merge(array_t *dest, array_t *src)
+array_join(array_t *dest, array_t *src)
 {
     ASSERT(src != NULL);
     ASSERT(dest != NULL);
@@ -73,6 +72,37 @@ array_merge(array_t *dest, array_t *src)
 
     memcpy(&dest->items[dest->idx], &src->items[0], sizeof(void *) * src->idx);
     dest->idx += src->idx;
+}
+
+static inline void
+array_add_head(array_t *array, void *item)
+{
+    ASSERT(array != NULL);
+
+    if (item == NULL)
+        return;
+
+    if (array->idx == array->size)
+        array_extend(array, ARRAY_INIT_SIZE);
+
+    memmove(&array->items[1], &array->items[0], sizeof(void *) * array->idx);
+
+    array->items[0] = item;
+    array->idx++;
+}
+
+static inline void
+array_add_tail(array_t *array, void *item)
+{
+    ASSERT(array != NULL);
+
+    if (item == NULL)
+        return;
+
+    if (array->idx == array->size)
+        array_extend(array, ARRAY_INIT_SIZE);
+
+    array->items[array->idx++] = item;
 }
 
 static inline void

@@ -49,43 +49,70 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_for_check(check_t *check, ast_stmt_t *stmt)
 {
+    char begin_label[128];
+    char end_label[128];
     ast_exp_t *cond_exp;
+    ast_exp_t *loop_exp;
+    ast_stmt_t *null_stmt;
+    ast_blk_t *blk;
 
     ASSERT1(is_for_stmt(stmt), stmt->kind);
 
-    if (stmt->u_for.init_exp != NULL)
-        check_exp(check, stmt->u_for.init_exp);
+    if (stmt->u_for.blk == NULL)
+        stmt->u_for.blk = ast_blk_new(&stmt->trc);
+
+    blk = stmt->u_for.blk;
+
+    snprintf(begin_label, sizeof(begin_label), "begin_for_loop_%d", stmt->num);
+    snprintf(end_label, sizeof(end_label), "end_for_loop_%d", stmt->num);
+
+    if (stmt->u_for.init_vars != NULL) {
+        ASSERT(stmt->u_for.init_exp == NULL);
+        array_join(&blk->ids, stmt->u_for.init_vars);
+    }
+    else {
+        ast_exp_t *init_exp = stmt->u_for.init_exp;
+
+        if (init_exp != NULL) {
+            ast_stmt_t *exp_stmt = stmt_exp_new(init_exp, &init_exp->trc);
+            array_add_head(&blk->stmts, exp_stmt);
+        }
+    }
 
     cond_exp = stmt->u_for.cond_exp;
 
     if (cond_exp != NULL) {
-        meta_t *cond_meta = &cond_exp->meta;
+        ast_blk_t *if_blk;
+        ast_stmt_t *goto_stmt;
+        ast_exp_t *not_exp;
+        ast_stmt_t *if_stmt;
 
-        check_exp(check, cond_exp);
+        goto_stmt = stmt_goto_new(xstrdup(end_label), &cond_exp->trc);
 
-        if (is_tuple_exp(cond_exp)) {
-            int i;
-            array_t *exps = cond_exp->u_tup.exps;
+        if_blk = ast_blk_new(&cond_exp->trc);
+        array_add_tail(&if_blk->stmts, goto_stmt);
 
-            for (i = 0; i < array_size(exps); i++) {
-                ast_exp_t *exp = array_item(exps, i, ast_exp_t);
+        not_exp = exp_op_new(OP_NOT, cond_exp, NULL, &cond_exp->trc);
 
-                if (!is_bool_meta(&exp->meta))
-                    THROW(ERROR_INVALID_COND_TYPE, &exp->trc,
-                          TYPE_NAME(exp->meta.type));
-            }
-        }
-        else if (!is_bool_meta(cond_meta)) {
-            THROW(ERROR_INVALID_COND_TYPE, &cond_exp->trc,
-                  TYPE_NAME(cond_meta->type));
-        }
+        if_stmt = stmt_if_new(not_exp, if_blk, &cond_exp->trc);
+        if_stmt->label = xstrdup(begin_label);
+
+        array_add_head(&blk->stmts, if_stmt);
     }
 
-    if (stmt->u_for.loop_exp != NULL)
-        check_exp(check, stmt->u_for.loop_exp);
+    loop_exp = stmt->u_for.loop_exp;
 
-    if (stmt->u_for.blk != NULL)
-        check_blk(check, stmt->u_for.blk);
+    if (loop_exp != NULL) {
+        ast_stmt_t *exp_stmt = stmt_exp_new(loop_exp, &loop_exp->trc);
+        array_add_tail(&blk->stmts, exp_stmt);
+    }
+
+    null_stmt = stmt_null_new(&stmt->trc);
+    null_stmt->label = xstrdup(end_label);
+
+    array_add_tail(&blk->stmts, null_stmt);
+
+    check_blk(check, blk);
 
     return NO_ERROR;
 }
@@ -227,22 +254,28 @@ stmt_goto_check(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     int stmt_cnt;
+    bool has_found = false;
     ast_blk_t *blk = check->blk;
 
     ASSERT1(is_goto_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_goto.label != NULL);
+    ASSERT(blk != NULL);
 
-    stmt_cnt = array_size(&blk->stmts);
+    do {
+        stmt_cnt = array_size(&blk->stmts);
 
-    for (i = 0; i < stmt_cnt; i++) {
-        ast_stmt_t *prev = array_item(&blk->stmts, i, ast_stmt_t);
+        for (i = 0; i < stmt_cnt; i++) {
+            ast_stmt_t *prev = array_item(&blk->stmts, i, ast_stmt_t);
 
-        if (prev->label != NULL && prev->num <= stmt->num &&
-            strcmp(prev->label, stmt->u_goto.label) == 0)
-            break;
-    }
+            if (prev->label != NULL && 
+                strcmp(prev->label, stmt->u_goto.label) == 0) {
+                has_found = true;
+                break;
+            }
+        }
+    } while ((blk = blk->up) != NULL);
 
-    if (i == stmt_cnt)
+    if (!has_found)
         THROW(ERROR_UNDEFINED_LABEL, &stmt->trc, stmt->u_goto.label);
 
     return NO_ERROR;

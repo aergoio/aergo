@@ -138,7 +138,7 @@ ast_id_add(array_t *ids, ast_id_t *new_id)
         }
     }
 
-    array_add(ids, new_id);
+    array_add_tail(ids, new_id);
 }
 
 void

@@ -22,6 +22,12 @@ ast_stmt_new(stmt_kind_t kind, trace_t *trc)
 }
 
 ast_stmt_t *
+stmt_null_new(trace_t *trc)
+{
+    return ast_stmt_new(STMT_NULL, trc);
+}
+
+ast_stmt_t *
 stmt_exp_new(ast_exp_t *exp, trace_t *trc)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_EXP, trc);

@@ -28,8 +28,8 @@
     (!is_const_meta(&(exp)->meta) && !is_untyped_meta(&(exp)->meta) &&         \
      (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
-#define ast_exp_add                 array_add
-#define ast_exp_merge               array_merge
+#define ast_exp_add                 array_add_tail
+#define ast_exp_merge               array_join
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T

@@ -23,8 +23,8 @@
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
-#define ast_stmt_add                array_add
-#define ast_stmt_merge              array_merge
+#define ast_stmt_add                array_add_tail
+#define ast_stmt_merge              array_join
 
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
@@ -74,6 +74,7 @@ typedef struct stmt_if_s {
 } stmt_if_t;
 
 typedef struct stmt_for_s {
+    array_t *init_vars;
     ast_exp_t *init_exp;
     ast_exp_t *cond_exp;
     ast_exp_t *loop_exp;
@@ -137,6 +138,7 @@ struct ast_stmt_s {
 
 ast_stmt_t *ast_stmt_new(stmt_kind_t kind, trace_t *trc);
 
+ast_stmt_t *stmt_null_new(trace_t *trc);
 ast_stmt_t *stmt_exp_new(ast_exp_t *exp, trace_t *trc);
 ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc);
 ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp,

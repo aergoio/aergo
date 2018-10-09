@@ -185,7 +185,7 @@ exp_tuple_new(ast_exp_t *elem_exp, trace_t *trc)
     exp->u_tup.exps = array_new();
 
     if (elem_exp != NULL)
-        array_add(exp->u_tup.exps, elem_exp);
+        array_add_tail(exp->u_tup.exps, elem_exp);
 
     return exp;
 }

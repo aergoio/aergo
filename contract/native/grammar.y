@@ -581,7 +581,7 @@ statement:
 stmt_exp:
     ';'
     {
-        $$ = ast_stmt_new(STMT_NULL, &@$);
+        $$ = stmt_null_new(&@$);
     }
 |   expression ';'
     {
@@ -621,7 +621,7 @@ stmt_loop:
     }
 |   K_FOR '(' exp_or ')' block
     {
-        $$ = stmt_for_new($3, NULL, NULL, $5, &@$);
+        $$ = stmt_for_new(NULL, $3, NULL, $5, &@$);
     }
 |   K_FOR '(' exp_loop exp_loop ')' block
     {
@@ -634,10 +634,12 @@ stmt_loop:
 |   K_FOR '(' variable exp_loop ')' block
     {
         $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
+        $$->u_for.init_vars = $3;
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
         $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
+        $$->u_for.init_vars = $3;
     }
 |   K_FOR '(' exp_loop K_IN exp_post ')' block
     {
