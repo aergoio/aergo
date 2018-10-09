@@ -49,8 +49,8 @@ type getMissingRequestHandler struct {
 var _ MessageHandler = (*getMissingRequestHandler)(nil)
 
 // newBlockReqHandler creates handler for GetBlockRequest
-func newBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockRequestHandler {
+	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -86,12 +86,12 @@ func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.
 		Status: status,
 		Blocks: blockInfos}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
-func newBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newBlockRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockResponseHandler {
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -117,8 +117,8 @@ func (bh *blockResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto
 }
 
 // newListBlockReqHandler creates handler for GetBlockHeadersRequest
-func newListBlockReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *listBlockHeadersRequestHandler {
-	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newListBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
+	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -174,7 +174,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -182,8 +182,8 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 }
 
 // newListBlockRespHandler creates handler for GetBlockHeadersResponse
-func newListBlockRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *listBlockHeadersResponseHandler {
-	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newListBlockRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersResponseHandler {
+	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -204,8 +204,8 @@ func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, ms
 }
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
-func newNewBlockNoticeHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *newBlockNoticeHandler {
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -236,21 +236,21 @@ func min(a, b uint32) uint32 {
 }
 
 // TODO need to add comment
-func (bh *getMissingRequestHandler) notifyBranchBlock(peer *RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
-	bh.logger.Debug().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Notifying branch block")
+func (bh *getMissingRequestHandler) notifyBranchBlock(peer RemotePeer, hash message.BlockHash, blockno types.BlockNo) bool {
+	bh.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Msg("Notifying branch block")
 
 	// create message data
 	req := &types.NewBlockNotice{
 		BlockHash: hash,
 		BlockNo:   uint64(blockno)}
 
-	peer.sendMessage(newPbMsgRequestOrder(false, NewBlockNotice, req, bh.signer))
+	peer.sendMessage(peer.MF().newMsgRequestOrder(false, NewBlockNotice, req))
 	return true
 }
 
 // newGetMissingReqHandler creates handler for GetMissingRequest
-func newGetMissingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *getMissingRequestHandler {
-	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetMissingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newGetMissingReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *getMissingRequestHandler {
+	bh := &getMissingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetMissingRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -290,7 +290,7 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 }
 
 // replying chain tree
-func (bh *getMissingRequestHandler) sendMissingResp(remotePeer *RemotePeer, requestID string, missing []message.BlockHash) {
+func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, requestID string, missing []message.BlockHash) {
 	// find block info from chainservice
 	blockInfos := make([]*types.Block, 0, len(missing))
 	for _, hash := range missing {
@@ -312,5 +312,5 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer *RemotePeer, requ
 		Blocks: blockInfos}
 
 	// ???: have to check arguments
-	remotePeer.sendMessage(newPbMsgResponseOrder(requestID, GetBlocksResponse, resp, bh.signer))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
 }

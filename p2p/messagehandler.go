@@ -4,7 +4,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 )
 
 // MessageHandler handle incoming subprotocol message
@@ -21,8 +20,7 @@ type BaseMsgHandler struct {
 	protocol SubProtocol
 
 	pm     PeerManager
-	signer msgSigner
-	peer   *RemotePeer
+	peer   RemotePeer
 	actor  ActorService
 
 	logger *log.Logger
@@ -31,14 +29,6 @@ type BaseMsgHandler struct {
 }
 
 func (bh *BaseMsgHandler) checkAuth(msg *types.P2PMessage, msgBody proto.Message) error {
-	// check signature
-	key, err := crypto.UnmarshalPublicKey(msg.Header.NodePubKey)
-	if err != nil {
-		return err
-	}
-	if err = bh.signer.vefifyMsg(msg, key); err != nil {
-		return err
-	}
 	// check permissions
 	// or etc...
 

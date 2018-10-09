@@ -30,8 +30,8 @@ type goAwayHandler struct {
 var _ MessageHandler = (*goAwayHandler)(nil)
 
 // newPingReqHandler creates handler for PingRequest
-func newPingReqHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *pingRequestHandler {
-	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingRequest, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newPingReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *pingRequestHandler {
+	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -49,12 +49,12 @@ func (ph *pingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.M
 	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending ping response")
 	resp := &types.Pong{}
 
-	remotePeer.sendMessage(newPbMsgResponseOrder(msgHeader.GetId(), PingResponse, resp, ph.signer))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), PingResponse, resp))
 }
 
 // newPingRespHandler creates handler for PingResponse
-func newPingRespHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *pingResponseHandler {
-	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingResponse, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newPingRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *pingResponseHandler {
+	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -71,8 +71,8 @@ func (ph *pingResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.
 }
 
 // newGoAwayHandler creates handler for PingResponse
-func newGoAwayHandler(pm PeerManager, peer *RemotePeer, logger *log.Logger, signer msgSigner) *goAwayHandler {
-	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: GoAway, pm: pm, peer: peer, actor: peer.actorServ, logger: logger, signer: signer}}
+func newGoAwayHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *goAwayHandler {
+	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: GoAway, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 

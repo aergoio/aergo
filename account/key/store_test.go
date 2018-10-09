@@ -19,7 +19,7 @@ func initTest() {
 }
 
 func deinitTest() {
-	ks.DestroyStore()
+	ks.CloseStore()
 }
 func TestCreateKey(t *testing.T) {
 	initTest()

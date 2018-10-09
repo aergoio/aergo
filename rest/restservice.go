@@ -16,7 +16,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	bc "github.com/aergoio/aergo/blockchain"
+	bc "github.com/aergoio/aergo/chain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"

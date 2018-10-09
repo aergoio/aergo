@@ -71,3 +71,26 @@ func TestListDel(t *testing.T) {
 	}
 
 }
+
+func TestListDelMiddle(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := NewTxList(nil, uint64(4))
+
+	mpl.Put(genTx(0, 0, uint64(4), 0))
+	mpl.Put(genTx(0, 0, uint64(5), 0))
+	mpl.Put(genTx(0, 0, uint64(6), 0))
+
+	if mpl.Len() != 3 {
+		t.Error("should be 3 not ", len(mpl.list))
+	}
+	ret, txs := mpl.SetMinNonce(uint64(3))
+	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+	ret, txs = mpl.SetMinNonce(uint64(5))
+	if ret != 3 || mpl.Len() != 2 || len(txs) != 1 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+
+}

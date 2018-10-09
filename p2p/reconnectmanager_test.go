@@ -27,7 +27,7 @@ func Test_reconnectManager_AddJob(t *testing.T) {
 	dummyMeta3 := PeerMeta{ID: dummyPeerID3}
 
 	mockPm := &MockPeerManager{}
-	dummyPeer := &RemotePeer{}
+	dummyPeer := &remotePeerImpl{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID2 })).Return(dummyPeer, true)
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID3 })).Return(nil, false)

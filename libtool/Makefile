@@ -1,29 +1,43 @@
-.PHONY: install uninstall 
+# 3rd party libs
 
-LIBPATH = $(shell pwd)
-LIBTOOLS = luajit # m4-1.4.18 bison-3.0.5 flex-2.6.4
+.PHONY: install uninstall libs-clean libluajit-clean
 
-all: install
+LIBPATH := $(shell pwd)
 
-install:
-	@echo -e "\033[32m[INFO]  \033[0mInstalling dependent tools"
-	@for dir in $(LIBTOOLS); do \
-		if [ ! -f "$(LIBPATH)/src/$$dir/Makefile" ]; then \
-			echo -e "\033[32m[INFO]  \033[0m--> Configuring $$dir"; \
-			cd $(LIBPATH)/src/$$dir && ./configure --prefix=$(LIBPATH) --silent; \
-			if [ $$? != 0 ]; then exit 1; fi; \
-		fi; \
-		echo -e "\033[32m[INFO]  \033[0m--> Installing $$dir"; \
-		cd $(LIBPATH)/src/$$dir && $(MAKE) PREFIX=$(LIBPATH) install > install.log; \
-		if [ $$? != 0 ]; then exit 1; fi; \
-	done
+libluajit := $(LIBPATH)/lib/libluajit-5.1.a
+libluajit_SRCDIR := $(LIBPATH)/src/luajit/src
+libluajit_MAKEDIR := $(LIBPATH)/src/luajit
 
-uninstall:
-	@echo -e "\033[32m[INFO]  \033[0mUninstalling dependent tools"
-	@for dir in $(LIBTOOLS); do \
-		echo -e "\033[32m[INFO]  \033[0m--> Cleaning $$dir"; \
-		if [ -f "$(LIBPATH)/src/$$dir/Makefile" ]; then \
-			cd $(LIBPATH)/src/$$dir && $(MAKE) clean > clean.log; \
-			if [ $$? != 0 ]; then exit 1; fi; \
-		fi; \
-	done
+liblmdb := $(LIBPATH)/lib/liblmdb.so
+liblmdb_SRCDIR := $(LIBPATH)/src/lmdb/libraries/liblmdb
+liblmdb_MAKEDIR := $(liblmdb_SRCDIR)
+
+install: $(libluajit) $(liblmdb)
+
+$(libluajit): | $(liblua_SRCDIR)
+	$(MAKE) PREFIX=$(LIBPATH) -C $(libluajit_MAKEDIR) all install
+
+$(libluajit_SRCDIR):
+	git submodule init
+	git submodule update
+
+$(liblmdb): | $(liblmdb_SRCDIR)
+	$(MAKE) prefix=$(LIBPATH) -C $(liblmdb_MAKEDIR) all install
+
+$(liblmdb_SRCDIR):
+	git clone https://github.com/lmdb/lmdb.git src/lmdb
+
+uninstall: libs-clean
+	rm -rf $(LIBPATH)/lib/*
+	rm -rf $(LIBPATH)/include/*
+	rm -rf $(LIBPATH)/bin/*
+	rm -rf $(LIBPATH)/share/*
+
+libs-clean: libluajit-clean liblmdb-clean
+
+libluajit-clean:
+	$(MAKE) PREFIX=$(LIBPATH) -C $(libluajit_MAKEDIR) clean
+
+liblmdb-clean:
+	$(MAKE) prefix=$(LIBPATH) -C $(liblmdb_MAKEDIR) clean
+

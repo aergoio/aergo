@@ -5,11 +5,13 @@
 package p2p
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/message/mocks"
 	"github.com/aergoio/aergo/types"
+	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
@@ -24,7 +26,11 @@ var sampleTxsB58 = []string{ "4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45", "6x
 "E8dbBGe9Hnuhk35cJoekPjL3VoL4xAxtnRuP47UoxzHd",
 }
 var sampleTxs [][]byte
+var sampleHeader *types.MsgHeader
+var sampleMsgID string
 func init() {
+	sampleMsgID = uuid.Must(uuid.NewV4()).String()
+	sampleHeader = &types.MsgHeader{Id:sampleMsgID}
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
 		hash, _ := enc.ToBytes(hashb58)
@@ -34,64 +40,123 @@ func init() {
 func TestTxRequestHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	dummyMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
-	mockSigner := new(mockMsgSigner)
-	mockSigner.On("signMsg",mock.Anything).Return(nil)
+	mockMo := new(MockMsgOrder)
+	mockMo.On("GetProtocolID").Return(GetTxsResponse)
+	mockMo.On("GetMsgID").Return(sampleMsgID)
+	//mockSigner := new(mockMsgSigner)
+	//mockSigner.On("signMsg",mock.Anything).Return(nil)
 	tests := []struct {
 		name string
-		setup func(pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest)
-		verify func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter)
+		setup func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest)
+		verify func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter)
 	}{
 		// 1. success case (single tx)
-		{"TSucc1",func(pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
+		{"TSucc1",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
+			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
 			msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs[:1]
-			return nil, &types.GetTransactionsRequest{Hashes:hashes}
-		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+				resp := args[2].(*types.GetTransactionsResponse)
+				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
+				assert.Equal(tt, 1, len(resp.Hashes))
+				assert.Equal(tt, sampleTxs[0], resp.Hashes[0])
+			}).Return(mockMo)
+			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
 			actor.AssertNumberOfCalls(tt,"CallRequest",1)
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",1)
+			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
 		// 1-1 success case2 (multiple tx)
-		{"TSucc2",func(pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
+		{"TSucc2",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
+			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
 			msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs
-			return nil, &types.GetTransactionsRequest{Hashes:hashes}
-		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+				resp := args[2].(*types.GetTransactionsResponse)
+				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
+				assert.Equal(tt, len(sampleTxs), len(resp.Hashes))
+
+			}).Return(mockMo)
+			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
 			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
+			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
 		// 2. hash not found (partial)
-		// TODO testcase 2 and 3 need refactoring to test. it should verify response parameter
-		//{"TPartialFailure",func(pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
-		//	dummyTx := &types.Tx{Hash:nil}
-		//	actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(in *message.MemPoolExist) bool {
-		//		if( bytes.Equal(in.Hash, sampleTxs[1])  ) {
-		//			return true
-		//		} else {
-		//			return false
-		//		}
-		//	})).Return(&message.MemPoolExistRsp{}, nil)
-		//	actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(in *message.MemPoolExist) bool {
-		//		if( bytes.Equal(in.Hash, sampleTxs[1])  ) {
-		//			return false
-		//		} else {
-		//			return true
-		//		}
-		//	})).Return(nil, fmt.Errorf("not found"))
-		//
-		//	msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
-		//	hashes := sampleTxs
-		//	return nil, &types.GetTransactionsRequest{Hashes:hashes}
-		//}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) {
-		//	actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
-		//	msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
-		//}},
+		{"TPartialExist",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
+			dummyTx := &types.Tx{Hash:nil}
+			// emulate second tx is not exists.
+			actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
+				if bytes.Equal(m.Hash,sampleTxs[1]) {
+					return false
+				}
+				return true
+			})).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
+			actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
+				if bytes.Equal(m.Hash,sampleTxs[1]) {
+					return true
+				}
+				return false
+			})).Return(&message.MemPoolExistRsp{Tx:nil}, nil)
+			msgHelper.On("ExtractTxFromResponseAndError", mock.MatchedBy(func(m *message.MemPoolExistRsp) bool {
+				if m.Tx == nil {
+					return false
+				}
+				return true
+			}), nil).Return(dummyTx, nil)
+			msgHelper.On("ExtractTxFromResponseAndError", mock.MatchedBy(func(m *message.MemPoolExistRsp) bool {
+				if m.Tx == nil {
+					return true
+				}
+				return false
+				}), nil).Return(nil, nil)
+			hashes := sampleTxs
+			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+					resp := args[2].(*types.GetTransactionsResponse)
+					assert.Equal(tt, types.ResultStatus_OK, resp.Status)
+					assert.Equal(tt, len(sampleTxs)-1, len(resp.Hashes))
+				}).Return(mockMo)
+			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
+			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
+			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
+			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
+		}},
 		// 3. hash not found (all)
+		{"TNoExist",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
+			dummyTx := &types.Tx{Hash:nil}
+			// emulate second tx is not exists.
+			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
+			msgHelper.On("ExtractTxFromResponseAndError", mock.MatchedBy(func(m *message.MemPoolExistRsp) bool {
+				if m.Tx == nil {
+					return false
+				}
+				return true
+			}), nil).Return(dummyTx, nil)
+			msgHelper.On("ExtractTxFromResponseAndError", mock.MatchedBy(func(m *message.MemPoolExistRsp) bool {
+				if m.Tx == nil {
+					return true
+				}
+				return false
+			}), nil).Return(nil, nil)
+			hashes := sampleTxs
+			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+				resp := args[2].(*types.GetTransactionsResponse)
+				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
+				assert.Equal(tt, 0, len(resp.Hashes))
+			}).Return(mockMo)
+			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
+			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
+			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
+			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
+		}},
 		// 4. actor failure
-		{"TActorError",func(pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
+		{"TActorError",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (*types.MsgHeader,*types.GetTransactionsRequest){
 			//dummyTx := &types.Tx{Hash:nil}
 			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(nil, fmt.Errorf("timeout"))
 			//msgHelper.On("ExtractTxFromResponseAndError", nil, mock.AnythingOfType("error")).Return(nil, fmt.Errorf("error"))
@@ -102,8 +167,12 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				return false})).Return(nil, fmt.Errorf("error"))
 			//msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs
-			return nil, &types.GetTransactionsRequest{Hashes:hashes}
-		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockRW *MockMsgReadWriter) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+				resp := args[2].(*types.GetTransactionsResponse)
+				assert.Equal(tt, types.ResultStatus_INTERNAL, resp.Status)
+			}).Return(mockMo)
+			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
 			// break at first eval
 			actor.AssertNumberOfCalls(tt,"CallRequest",1)
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",1)
@@ -111,58 +180,25 @@ func TestTxRequestHandler_handle(t *testing.T) {
 		}},
 
 		// 5. invalid parameter (no input hash, or etc.)
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
 			mockRW := new(MockMsgReadWriter)
-			dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockSigner, mockRW)
+			mockMF := new(MockMoFactory)
+			dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockMF, &dummySigner{}, mockRW)
 			mockMsgHelper := new(mocks.Helper)
 
-			header, body := test.setup(mockPM, mockActor, mockMsgHelper, mockRW)
-			target := newTxReqHandler(mockPM, dummyPeer, logger, mockSigner)
+			header, body := test.setup(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
+			target := newTxReqHandler(mockPM, dummyPeer, logger, mockActor)
 			target.msgHelper = mockMsgHelper
 
 			target.handle(header, body)
 
-			test.verify(t, mockPM, mockActor, mockMsgHelper, mockRW)
+			test.verify(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
 		})
 	}
-}
-
-func TestTxRequestHandler_handle1(t *testing.T) {
-	logger := log.NewLogger("test.p2p")
-	dummyMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
-	dummyTx := &types.Tx{Hash:nil}
-	hashes := make([][]byte,0,0)
-	hashes = append(hashes, dummyTxHash)
-	dummyReq := &types.GetTransactionsRequest{Hashes:hashes}
-
-	mockPM := new(MockPeerManager)
-	mockActor := new(MockActorService)
-	dummyRW := new(MockMsgReadWriter)
-	mockSigner := new(mockMsgSigner)
-	mockSigner.On("signMsg",mock.Anything).Return(nil)
-
-	dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockSigner, dummyRW)
-	mockMsgHelper := new(mocks.Helper)
-
-	target := newTxReqHandler(mockPM, dummyPeer, logger, mockSigner)
-	target.msgHelper = mockMsgHelper
-	// 1. success case (single tx)
-	mockActor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
-	mockMsgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
-	target.handle(nil, dummyReq)
-	mockActor.AssertNumberOfCalls(t,"CallRequest",1)
-	mockMsgHelper.AssertNumberOfCalls(t,"ExtractTxFromResponseAndError",1)
-
-	// 1-1 success case2 (multiple tx)
-	// 2. hash not found (partial)
-	// 3. hash not found (all)
-	// 4. actor failure
-	// 5. invalid parameter (no input hash, or etc.)
 }
 
 func BenchmarkArrayKey(b *testing.B) {

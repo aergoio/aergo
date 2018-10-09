@@ -80,15 +80,21 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 func (tl *TxList) SetMinNonce(n uint64) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
+
 	defer func() { tl.min = n }()
 	if tl.min == n {
 		return 0, nil
 	}
+
 	if tl.min > n {
 		neworphan := len(tl.list)
+		if neworphan == 0 {
+			return 0, nil
+		}
+		key := tl.list[0].GetBody().GetNonce() - 1
 		l := tl.list[neworphan-1].GetBody().GetNonce()
-		tl.deps[n] = tl.list
-		tl.parent[l] = n
+		tl.deps[key] = tl.list
+		tl.parent[l] = key
 		tl.list = nil
 		return -neworphan, nil
 	}
@@ -180,6 +186,7 @@ func (tl *TxList) putOrphan(tx *types.Tx) {
 	delete(tl.parent, oldlast)
 	tl.parent[lastN] = parent
 }
+
 func (tl *TxList) getOrphans(nonce uint64) []*types.Tx {
 
 	v, ok := tl.deps[nonce]

@@ -187,15 +187,15 @@ func (_m *MockPeerManager) Connect(ctx context.Context, pi pstore.PeerInfo) erro
 }
 
 // GetPeer provides a mock function with given fields: ID
-func (_m *MockPeerManager) LookupPeer(ID peer.ID) (*RemotePeer, bool) {
+func (_m *MockPeerManager) LookupPeer(ID peer.ID) (*remotePeerImpl, bool) {
 	ret := _m.Called(ID)
 
-	var r0 *RemotePeer
-	if rf, ok := ret.Get(0).(func(peer.ID) *RemotePeer); ok {
+	var r0 *remotePeerImpl
+	if rf, ok := ret.Get(0).(func(peer.ID) *remotePeerImpl); ok {
 		r0 = rf(ID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*RemotePeer)
+			r0 = ret.Get(0).(*remotePeerImpl)
 		}
 	}
 
@@ -210,15 +210,15 @@ func (_m *MockPeerManager) LookupPeer(ID peer.ID) (*RemotePeer, bool) {
 }
 
 // GetPeer provides a mock function with given fields: ID
-func (_m *MockPeerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
+func (_m *MockPeerManager) GetPeer(ID peer.ID) (RemotePeer, bool) {
 	ret := _m.Called(ID)
 
-	var r0 *RemotePeer
-	if rf, ok := ret.Get(0).(func(peer.ID) *RemotePeer); ok {
+	var r0 RemotePeer
+	if rf, ok := ret.Get(0).(func(peer.ID) RemotePeer); ok {
 		r0 = rf(ID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*RemotePeer)
+			r0 = ret.Get(0).(RemotePeer)
 		}
 	}
 
@@ -233,15 +233,15 @@ func (_m *MockPeerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 }
 
 // GetPeers provides a mock function with given fields:
-func (_m *MockPeerManager) GetPeers() []*RemotePeer {
+func (_m *MockPeerManager) GetPeers() []RemotePeer {
 	ret := _m.Called()
 
-	var r0 []*RemotePeer
-	if rf, ok := ret.Get(0).(func() []*RemotePeer); ok {
+	var r0 []RemotePeer
+	if rf, ok := ret.Get(0).(func() []RemotePeer); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*RemotePeer)
+			r0 = ret.Get(0).([]RemotePeer)
 		}
 	}
 
@@ -520,11 +520,11 @@ func (_m *MockPeerManager) Stop() error {
 }
 
 // NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, b64hash [blkhashLen]byte, data *types.NewBlockNotice) {
-	_m.Called(peerID, b64hash, data)
+func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, hash BlockHash, data *types.NewBlockNotice) {
+	_m.Called(peerID, hash, data)
 }
 
 // NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewTxNotice(peerID peer.ID, b64hash [][txhashLen]byte, data *types.NewTransactionsNotice) {
-	_m.Called(peerID, b64hash, data)
+func (_m *MockPeerManager) HandleNewTxNotice(peerID peer.ID, hash []TxHash, data *types.NewTransactionsNotice) {
+	_m.Called(peerID, hash, data)
 }

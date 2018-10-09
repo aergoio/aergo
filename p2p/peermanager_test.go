@@ -25,13 +25,14 @@ import (
 
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
 func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
-	mockActorServ := MockActorService{}
+	mockActor := new(MockActorService)
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	target := NewPeerManager(&mockActorServ,
+	mockActor.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
+	mockMF := new(MockMoFactory)
+	target := NewPeerManager(mockActor,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, new(MockReconnectManager),
-		log.NewLogger("test.p2p")).(*peerManager)
+		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	target.Host = &mockHost{pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
 	target.selfMeta.ID = peer.ID("gwegw")
@@ -56,10 +57,11 @@ func FailTestGetPeers(t *testing.T) {
 	mockActorServ := &MockActorService{}
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
+	mockMF := new(MockMoFactory)
 	target := NewPeerManager(mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, new(MockReconnectManager),
-		log.NewLogger("test.p2p")).(*peerManager)
+		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	iterSize := 500
 	wg := sync.WaitGroup{}
@@ -69,7 +71,7 @@ func FailTestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil)
+			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -91,6 +93,7 @@ func TestGetPeers(t *testing.T) {
 	mockActorServ := &MockActorService{}
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
+	mockMF := new(MockMoFactory)
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
@@ -98,7 +101,7 @@ func TestGetPeers(t *testing.T) {
 	target := NewPeerManager(mockActorServ,
 		tConfig,
 		nil, new(MockReconnectManager),
-		tLogger).(*peerManager)
+		tLogger, mockMF).(*peerManager)
 
 	iterSize := 500
 	wg := &sync.WaitGroup{}
@@ -110,7 +113,7 @@ func TestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil))
+			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil,nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}

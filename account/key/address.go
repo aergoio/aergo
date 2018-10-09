@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
-	"io/ioutil"
-	"os"
+	"errors"
 )
 
 type Address = []byte
 
 const addressLength = 33
+
+var addresses = []byte("ADDRESSES")
 
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	addr := new(bytes.Buffer)
@@ -27,25 +28,16 @@ func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 }
 
 func (ks *Store) SaveAddress(addr Address) error {
-	f, err := os.OpenFile(ks.addresses, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
+	if len(addr) != addressLength {
+		return errors.New("invalid address length")
 	}
-	defer f.Close()
-	if _, err = f.Write(addr); err != nil {
-		return err
-	}
+	addrs := append(ks.storage.Get(addresses), addr...)
+	ks.storage.Set(addresses, addrs)
 	return nil
 }
 
 func (ks *Store) GetAddresses() ([]Address, error) {
-	b, err := ioutil.ReadFile(ks.addresses)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
+	b := ks.storage.Get(addresses)
 	var ret []Address
 	for i := 0; i < len(b); i += addressLength {
 		ret = append(ret, b[i:i+addressLength])

@@ -86,6 +86,8 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 		nCand      int
 	)
 
+	logger.Debug().Msg("start gathering tx")
+
 	txIn := FetchTXs(hs)
 	nCand = len(txIn)
 	if nCand == 0 {
@@ -110,11 +112,15 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 		}
 
 		if e, ok := err.(ErrTimeout); ok {
+			logger.Debug().Msg("stop gathering tx due to time limit")
 			err = e
 			break
 		} else if err == errBlockSizeLimit {
+			logger.Debug().Msg("stop gathering tx due to size limit")
 			break
 		} else if err != nil {
+			logger.Debug().Err(err).Msg("stop to produce block")
+			// XXX: failed transactions must not be collected into the block.
 			return nil, nil, err
 		}
 	}

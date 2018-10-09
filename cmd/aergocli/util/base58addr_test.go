@@ -30,6 +30,7 @@ func TestParseConvBase58Tx(t *testing.T) {
 		t.Error("Failed to parse recipient")
 	}
 }
+
 func TestParseBase58TxBody(t *testing.T) {
 	testjson := "{\"Nonce\":1,\"Account\":\"AsiFCzSukVNUGufJSzSNLA1nKx39NxKcVBEWvW3riyfixcBjN1Qd\",\"Recipient\":\"AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR\",\"Amount\":25000,\"Payload\":\"aergo\",\"Limit\":100,\"Price\":1,\"Type\":0,\"Sign\":\"3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW\"}"
 	res, err := ParseBase58TxBody([]byte(testjson))
@@ -51,4 +52,45 @@ func TestParseBase58TxBody(t *testing.T) {
 	if types.EncodeAddress(res.Recipient) != "AsjHhFbCuULoUVZPiNNV6WEemtEi7Eiy6G4TDaUsMDiedCARbhQR" {
 		t.Error("Failed to parse recipient")
 	}
+}
+
+func TestBlockConvBase58(t *testing.T) {
+	const accountBase58 = "AmMW2bVcfroiuV4Bvy56op5zzqn42xgrLCwSxMka23K75yTBmudz"
+	const recipientBase58 = "AmMW2bVcfroiuV4Bvy56op5zzqn42xgrLCwSxMka23K75yTBmudz"
+	const payloadBase58 = "525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi"
+	testBlock := &types.Block{Body: &types.BlockBody{Txs: []*types.Tx{}}}
+	result := ConvBlock(testBlock)
+	if result.Body.Txs != nil {
+		t.Error("Failed to convert Txs")
+	}
+	account, err := types.DecodeAddress(accountBase58)
+	if err != nil {
+		t.Fatalf("could not decode account address : %s", err.Error())
+	}
+	recipient, err := types.DecodeAddress(recipientBase58)
+	if err != nil {
+		t.Fatalf("could not decode recipient address : %s", err.Error())
+	}
+	payload, err := base58.Decode(payloadBase58)
+	if err != nil {
+		t.Fatalf("could not decode payload: %s", err.Error())
+	}
+
+	testTx := &types.Tx{Body: &types.TxBody{
+		Account:   account,
+		Recipient: recipient,
+		Payload:   payload,
+	}}
+	testBlock.Body.Txs = append(testBlock.Body.Txs, testTx)
+	result = ConvBlock(testBlock)
+	if result.Body.Txs[0].Body.Account != accountBase58 {
+		t.Error("Failed to convert account")
+	}
+	if result.Body.Txs[0].Body.Recipient != recipientBase58 {
+		t.Error("Failed to convert recipient")
+	}
+	if result.Body.Txs[0].Body.Payload != payloadBase58 {
+		t.Error("Failed to convert payload")
+	}
+	t.Log(BlockConvBase58Addr(testBlock))
 }

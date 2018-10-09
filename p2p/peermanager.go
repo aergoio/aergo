@@ -37,8 +37,10 @@ import (
 
 // TODO this value better related to max peer and block produce interval, not constant
 const (
-	DefaultGlobalInvCacheSize = 100
-	DefaultPeerInvCacheSize   = 30
+	DefaultGlobalInvCacheSize = 5000
+	DefaultPeerInvCacheSize   = 1000
+
+	DefaultPeerTxQueueSize = 50000
 
 	defaultTTL          = time.Second * 4
 	defaultHandshakeTTL = time.Second * 20
@@ -48,6 +50,9 @@ const (
 
 	cachePlaceHolder = true
 )
+
+type BlockHash [blkhashLen]byte
+type TxHash [txhashLen]byte
 
 // PeerManager is internal service that provide peer management
 type PeerManager interface {
@@ -66,12 +71,12 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, hash [blkhashLen]byte, data *types.NewBlockNotice)
-	HandleNewTxNotice(peerID peer.ID, hashes [][txhashLen]byte, data *types.NewTransactionsNotice)
+	HandleNewBlockNotice(peerID peer.ID, hash BlockHash, data *types.NewBlockNotice)
+	HandleNewTxNotice(peerID peer.ID, hashes []TxHash, data *types.NewTransactionsNotice)
 
 	// GetPeer return registered(handshaked) remote peer object
-	GetPeer(ID peer.ID) (*RemotePeer, bool)
-	GetPeers() []*RemotePeer
+	GetPeer(ID peer.ID) (RemotePeer, bool)
+	GetPeers() []RemotePeer
 	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
 }
 
@@ -86,16 +91,17 @@ type peerManager struct {
 	selfMeta   PeerMeta
 	actorServ  ActorService
 	signer     msgSigner
+	mf 		   moFactory
 	rm         ReconnectManager
 
 	designatedPeers map[peer.ID]PeerMeta
 
-	remotePeers map[peer.ID]*RemotePeer
+	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
 	mutex       *sync.Mutex
-	peerCache   []*RemotePeer
+	peerCache   []RemotePeer
 
 	addPeerChannel    chan PeerMeta
 	removePeerChannel chan peer.ID
@@ -122,28 +128,30 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger) PeerManager {
+func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		actorServ: iServ,
 		conf:      p2pConf,
 		signer:    signer,
+		mf:        mf,
 		rm:        rm,
 		logger:    logger,
 		mutex:     &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
-		remotePeers: make(map[peer.ID]*RemotePeer, p2pConf.NPMaxPeers),
+		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
-		peerCache:   make([]*RemotePeer, 0, p2pConf.NPMaxPeers),
+		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		addPeerChannel:    make(chan PeerMeta, 2),
 		removePeerChannel: make(chan peer.ID),
 		fillPoolChannel:   make(chan []PeerMeta),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
+
 	}
 
 	var err error
@@ -321,7 +329,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		// peer is already exist
-		pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peerService")
+		pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peermanager")
 		if meta.Designated {
 			// If remote peer was connected first. designated flag is not set yet.
 			newPeer.meta.Designated = true
@@ -356,14 +364,14 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	newPeer, ok = pm.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is lower priority that remote.")
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and remote peer is higher priority and close this outbound connection.")
 			pm.mutex.Unlock()
-			pm.sendGoAway(rw, "Already Handshaked")
+			pm.sendGoAway(rw, "Already handshaked")
 			s.Close()
 			return true
 		} else {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is added while handshaking. this peer is higher priority that remote.")
-			// TODO: disconnect lower valued connection
+			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and local peer is higher priority and reming this outbound connection.")
+			// disconnect lower valued connection
 			pm.deletePeer(meta.ID)
 			newPeer.stop()
 		}
@@ -372,7 +380,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
+	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
 	pm.insertHandlers(newPeer)
 	go newPeer.runPeer()
@@ -392,32 +400,32 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting.
-	mo := newPbMsgRequestOrder(false, GoAway, goMsg, pm.signer).(*pbRequestOrder)
+	mo := pm.mf.newMsgRequestOrder(false, GoAway, goMsg).(*pbRequestOrder)
 	container := mo.message
 
 	rw.WriteMsg(container)
 }
 
-func (pm *peerManager) insertHandlers(peer *RemotePeer) {
+func (pm *peerManager) insertHandlers(peer *remotePeerImpl) {
 	// PingHandlers
-	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.actorServ)
 
 	// BlockHandlers
-	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.actorServ)
 
 	// TxHandlers
-	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.signer)
-	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.signer)
+	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.actorServ)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.actorServ)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -540,12 +548,17 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	peer, found := pm.remotePeers[peerID]
 
 	if found {
-		// already found. drop this connection
-		if ComparePeerID(pm.selfMeta.ID, peerID) <= 0 {
+		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
+			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and remote peer is higher priority and close this inbound connection.")
 			return false
+		} else {
+			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and local peer is higher priority and remain this inbound connection.")
+			// disconnect lower valued connection
+			pm.deletePeer(meta.ID)
+			peer.stop()
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.signer, rw)
+	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	pm.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)
@@ -590,7 +603,7 @@ func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
 		pm.logger.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
-	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.meta.ID, Size: 20, Offset: 0})
+	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.ID(), Size: 20, Offset: 0})
 }
 
 func (pm *peerManager) hasEnoughPeers() bool {
@@ -644,7 +657,7 @@ func (pm *peerManager) tryConnectPeers() {
 	}
 }
 
-func (pm *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
+func (pm *peerManager) GetPeer(ID peer.ID) (RemotePeer, bool) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 
@@ -656,7 +669,7 @@ func (pm *peerManager) GetPeer(ID peer.ID) (*RemotePeer, bool) {
 	return ptr, ok
 }
 
-func (pm *peerManager) GetPeers() []*RemotePeer {
+func (pm *peerManager) GetPeers() []RemotePeer {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	return pm.peerCache
@@ -673,7 +686,7 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 	return peers, states
 }
 
-func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]byte, data *types.NewBlockNotice) {
+func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr BlockHash, data *types.NewBlockNotice) {
 	// TODO check if evicted return value is needed.
 	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
@@ -704,7 +717,7 @@ func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr [blkhashLen]
 
 }
 
-func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]byte, data *types.NewTransactionsNotice) {
+func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs []TxHash, data *types.NewTransactionsNotice) {
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {
@@ -728,7 +741,7 @@ func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs [][txhashLen]b
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) insertPeer(ID peer.ID, peer *RemotePeer) {
+func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }
@@ -740,7 +753,7 @@ func (pm *peerManager) deletePeer(ID peer.ID) {
 }
 
 func (pm *peerManager) updatePeerCache() {
-	newSlice := make([]*RemotePeer, 0, len(pm.remotePeers))
+	newSlice := make([]RemotePeer, 0, len(pm.remotePeers))
 	for _, peer := range pm.remotePeers {
 		newSlice = append(newSlice, peer)
 	}

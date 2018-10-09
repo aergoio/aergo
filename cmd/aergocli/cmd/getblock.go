@@ -67,7 +67,7 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 
 	msg, err := client.GetBlock(context.Background(), &aergorpc.SingleBytes{Value: blockQuery})
 	if nil == err {
-		fmt.Println(util.JSON(msg))
+		fmt.Println(util.BlockConvBase58Addr(msg))
 	} else {
 		fmt.Printf("Failed: %s\n", err.Error())
 	}

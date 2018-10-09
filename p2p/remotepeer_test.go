@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,7 @@ import (
 const testDuration = time.Second >> 1
 
 var samplePeerID peer.ID
+var sampleMeta PeerMeta
 var sampleErr error
 
 var logger *log.Logger
@@ -29,6 +31,7 @@ func init() {
 
 	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
+	sampleMeta = PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 }
 
 // TODO refactor rw and modify this test
@@ -36,10 +39,10 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	t.SkipNow()
 	mockActorServ := new(MockActorService)
 	dummyP2PServ := new(MockPeerManager)
-
+	mockMF := new(MockMoFactory)
 	dummyRW := new(MockMsgReadWriter)
 	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, dummyP2PServ, mockActorServ,
-		logger, nil, dummyRW)
+		logger, mockMF, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
@@ -52,7 +55,6 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 }
 
 func TestRemotePeer_writeToPeer(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 
 	type args struct {
 		StreamResult error
@@ -85,12 +87,12 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			dummyRW := new(MockMsgReadWriter)
 			mockOrder.On("IsNeedSign").Return(true)
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
-			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.RemotePeer")).Return(tt.args.sendErr == nil)
+			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.remotePeerImpl")).Return(tt.args.sendErr == nil)
 			mockOrder.On("GetProtocolID").Return(PingRequest)
 			mockOrder.On("GetMsgID").Return("test_req")
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
 
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, dummyRW)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, dummyRW)
 			p.state.SetAndGet(types.RUNNING)
 			p.write.Open()
 			defer p.write.Close()
@@ -112,7 +114,6 @@ func TestePeer_sendPing(t *testing.T) {
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
 		wantWrite bool
@@ -129,12 +130,12 @@ func TestePeer_sendPing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActorServ := new(MockActorService)
 			mockPeerManager := new(MockPeerManager)
-			mockMsgSigner := new(mockMsgSigner)
+			mockMF := new(MockMoFactory)
 
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
-			mockMsgSigner.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMsgSigner, nil)
+			mockMF.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, nil, nil)
 			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
@@ -164,7 +165,6 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
 		wantWrite bool
@@ -186,7 +186,7 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil,nil)
 			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
@@ -210,7 +210,6 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 }
 
 func TestRemotePeer_pruneRequests(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	tests := []struct {
 		name     string
 		loglevel string
@@ -225,7 +224,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		// logger.SetLevel(tt.loglevel)
 		mockActorServ := new(MockActorService)
 		mockPeerManager := new(MockPeerManager)
-		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil)
+		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			p.requests["r1"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
 			p.requests["r2"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
@@ -238,7 +237,6 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 }
 
 func TestRemotePeer_tryGetStream(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	mockStream := new(MockStream)
 	type args struct {
 		msgID    string
@@ -264,7 +262,7 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).Return(mockStream, nil)
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
 			got := p.tryGetStream(tt.args.msgID, tt.args.protocol, tt.args.timeout)
 
 			assert.Equal(t, got, tt.want)
@@ -273,7 +271,6 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 }
 
 func TestRemotePeer_sendMessage(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 
 	type args struct {
 		msgID    string
@@ -303,7 +300,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 			wg.Add(1)
 			wg2 := &sync.WaitGroup{}
 			wg2.Add(1)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil,nil)
 			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
 			defer p.write.Close()
@@ -341,7 +338,6 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 }
 
 func TestRemotePeer_handleMsg(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	mockMsg := new(MockMsgOrder)
 	mockMsg.On("GetMsgID").Return("m1")
 	mockMsg.On("GetProtocolID").Return(NewBlockNotice)
@@ -368,7 +364,8 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		mockActorServ := new(MockActorService)
 		mockPeerManager := new(MockPeerManager)
 		mockMsgHandler := new(MockMessageHandler)
-		mockSigner := new(mockMsgSigner)
+		mockSigner := new (mockMsgSigner)
+		mockMF := new(MockMoFactory)
 		t.Run(tt.name, func(t *testing.T) {
 			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingRequest.Uint32()}}
 			if tt.args.nohandler {
@@ -378,11 +375,13 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)
 			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(tt.args.autherr)
 			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MsgHeader"), mock.Anything)
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockSigner, nil)
+			mockSigner.On("verifyMsg", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(nil)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
 			target.handlers[PingRequest] = mockMsgHandler
 
 			if err := target.handleMsg(msg); (err != nil) != tt.wantErr {
-				t.Errorf("RemotePeer.handleMsg() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("remotePeerImpl.handleMsg() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.args.nohandler {
 				mockMsgHandler.AssertNotCalled(t, "parsePayload", mock.AnythingOfType("[]uint8"))
@@ -401,4 +400,52 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRemotePeer_trySendTxNotices(t *testing.T) {
+	sampleSize := DefaultPeerTxQueueSize<<1
+	sampleHashes := make([]TxHash, sampleSize)
+	maxTxHashSize := 100
+	for i:=0; i<sampleSize ; i++ {
+		sampleHashes[i] = generateHash(uint64(i))
+	}
+	tests := []struct {
+		name string
+		initCnt int
+		moCnt int
+	}{
+		{"TZero", 0, 0},
+		{"TSingle", 1, 1},
+		{"TSmall", 100, 1},
+		{"TBig", 1001, 11},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+			mockOrder := new(MockMsgOrder)
+			mockOrder.On("IsNeedSign").Return(true)
+			mockOrder.On("IsRequest", mockPeerManager).Return(true)
+			mockOrder.On("GetProtocolID").Return(NewTxNotice)
+			mockOrder.On("GetMsgID").Return("test_req")
+
+			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			target.maxTxNoticeHashSize = maxTxHashSize
+
+			for i:=0; i<test.initCnt; i++ {
+				target.txNoticeQueue.Press(sampleHashes[i])
+			}
+			target.trySendTxNotices()
+			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder",test.moCnt)
+		})
+	}
+}
+func generateHash(i uint64) TxHash {
+	bs := TxHash{}
+	binary.LittleEndian.PutUint64(bs[:], i)
+	return bs
 }

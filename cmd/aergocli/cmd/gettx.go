@@ -45,7 +45,7 @@ func execGetTX(cmd *cobra.Command, args []string) {
 				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			fmt.Println("Confirm: ", util.JSON(msgblock))
+			fmt.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
 		} else {
 			fmt.Printf("Failed: %s\n", err.Error())
 		}

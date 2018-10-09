@@ -22,10 +22,8 @@ func init() {
 	}
 
 	newCmd.Flags().StringVar(&pw, "password", "", "password")
-	newCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
-	listCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	listCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
 	unlockCmd.Flags().StringVar(&address, "address", "", "address of account")
@@ -40,13 +38,11 @@ func init() {
 	importCmd.MarkFlagRequired("if")
 	importCmd.Flags().StringVar(&pw, "password", "", "password when exporting")
 	importCmd.Flags().StringVar(&to, "newpassword", "", "password to be reset")
-	importCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	importCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
 	exportCmd.Flags().StringVar(&address, "address", "", "address of account")
 	exportCmd.MarkFlagRequired("address")
 	exportCmd.Flags().StringVar(&pw, "password", "", "password")
-	exportCmd.Flags().BoolVar(&remote, "remote", true, "choose account in the remote node or not")
 	exportCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
 
 	voteCmd.Flags().StringVar(&address, "address", "", "base58 address of voter")
@@ -84,7 +80,7 @@ var newCmd = &cobra.Command{
 		}
 		var msg *types.Account
 		var addr []byte
-		if remote {
+		if cmd.Flags().Changed("path") == false {
 			msg, err = client.CreateAccount(context.Background(), &param)
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
@@ -94,6 +90,7 @@ var newCmd = &cobra.Command{
 				fmt.Printf("Failed: %s\n", err.Error())
 			}
 			err = ks.SaveAddress(addr)
+			ks.CloseStore()
 		}
 		if nil != err {
 			fmt.Printf("Failed: %s\n", err.Error())
@@ -114,12 +111,13 @@ var listCmd = &cobra.Command{
 		var err error
 		var msg *types.AccountList
 		var addrs [][]byte
-		if remote {
+		if cmd.Flags().Changed("path") == false {
 			msg, err = client.GetAccounts(context.Background(), &types.Empty{})
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
 			addrs, err = ks.GetAddresses()
+			ks.CloseStore()
 		}
 		if nil == err {
 			out := fmt.Sprintf("%s", "[")
@@ -207,7 +205,7 @@ var importCmd = &cobra.Command{
 			wif.Newpass = pw
 		}
 
-		if remote {
+		if cmd.Flags().Changed("path") == false {
 			msg, errRemote := client.ImportAccount(context.Background(), wif)
 			if nil == errRemote {
 				fmt.Println(types.EncodeAddress(msg.GetAddress()))
@@ -222,6 +220,7 @@ var importCmd = &cobra.Command{
 				fmt.Println(types.EncodeAddress(address))
 				return
 			}
+			ks.CloseStore()
 		}
 		fmt.Printf("Failed to import account: %s\n", err.Error())
 
@@ -237,7 +236,7 @@ var exportCmd = &cobra.Command{
 			return
 		}
 		var result []byte
-		if remote {
+		if cmd.Flags().Changed("path") == false {
 			msg, err := client.ExportAccount(context.Background(), param)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
@@ -253,6 +252,7 @@ var exportCmd = &cobra.Command{
 				return
 			}
 			result = wif
+			ks.CloseStore()
 		}
 		fmt.Println(types.EncodePrivKey(result))
 	},
@@ -288,7 +288,7 @@ func getPasswd() (string, error) {
 }
 
 func preConnectAergo(cmd *cobra.Command, args []string) {
-	if remote {
+	if cmd.Flags().Changed("path") == false {
 		connectAergo(cmd, args)
 	}
 }

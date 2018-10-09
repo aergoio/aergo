@@ -26,7 +26,7 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	trials := len(durations)
 	maxTrial = trials
 	mockPm := &MockPeerManager{}
-	dummyPeer := &RemotePeer{}
+	dummyPeer := &remotePeerImpl{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
 	mockPm.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
 	mockPm2 := &MockPeerManager{}

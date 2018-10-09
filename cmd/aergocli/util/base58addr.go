@@ -29,6 +29,36 @@ type InOutTxBody struct {
 	Sign      string
 }
 
+type InOutTxIdx struct {
+	BlockHash string
+	Idx       int32
+}
+type InOutTxInBlock struct {
+	TxIdx *InOutTxIdx
+	Tx    *InOutTx
+}
+
+type InOutBlockHeader struct {
+	PrevBlockHash string
+	BlockNo       uint64
+	Timestamp     int64
+	BlockRootHash string
+	TxRootHash    string
+	Confirms      uint64
+	PubKey        string
+	Sign          string
+}
+
+type InOutBlockBody struct {
+	Txs []*InOutTx
+}
+
+type InOutBlock struct {
+	Hash   string
+	Header InOutBlockHeader
+	Body   InOutBlockBody
+}
+
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	var err error
 	target.Nonce = source.Nonce
@@ -62,6 +92,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	target.Type = source.Type
 	return nil
 }
+
 func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 	var inputlist []InOutTx
 	err := json.Unmarshal([]byte(jsonTx), &inputlist)
@@ -104,18 +135,61 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	return body, nil
 }
 
-func TxConvBase58Addr(tx *types.Tx) string {
+func ConvTx(tx *types.Tx) *InOutTx {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
-	out.Body.Account = types.EncodeAddress(tx.Body.Account)
-	out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
+	if tx.Body.Account != nil {
+		out.Body.Account = types.EncodeAddress(tx.Body.Account)
+	}
+	if tx.Body.Recipient != nil {
+		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
+	}
 	out.Body.Amount = tx.Body.Amount
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.Limit = tx.Body.Limit
 	out.Body.Price = tx.Body.Price
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
+	return out
+}
+
+func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
+	out := &InOutTxInBlock{TxIdx: &InOutTxIdx{}, Tx: &InOutTx{}}
+	out.TxIdx.BlockHash = base58.Encode(txInBlock.GetTxIdx().GetBlockHash())
+	out.TxIdx.Idx = txInBlock.GetTxIdx().GetIdx()
+	out.Tx = ConvTx(txInBlock.GetTx())
+	return out
+}
+
+func ConvBlock(b *types.Block) *InOutBlock {
+	out := &InOutBlock{}
+	out.Hash = base58.Encode(b.Hash)
+	out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
+	out.Header.BlockNo = b.GetHeader().GetBlockNo()
+	out.Header.Timestamp = b.GetHeader().GetTimestamp()
+	out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
+	out.Header.Confirms = b.GetHeader().GetConfirms()
+	out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
+	out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
+	for _, tx := range b.Body.Txs {
+		out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+	}
+	return out
+}
+
+func TxConvBase58Addr(tx *types.Tx) string {
+	return toString(ConvTx(tx))
+}
+
+func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {
+	return toString(ConvTxInBlock(txInBlock))
+}
+
+func BlockConvBase58Addr(b *types.Block) string {
+	return toString(ConvBlock(b))
+}
+func toString(out interface{}) string {
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {
 		return ""

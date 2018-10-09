@@ -8,8 +8,8 @@ package mempool
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/csv"
+	"io"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -269,13 +269,14 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	/*
-		if tx.GetBody().GetAmount() > ns.Balance {
-			return ErrInsufficientBalance
-		}
-	*/
 	if tx.GetBody().GetNonce() <= ns.Nonce {
 		return message.ErrTxNonceTooLow
+	}
+	if tx.GetBody().GetAmount() > ns.Balance {
+		if !mp.cfg.EnableTestmode {
+			// Skip balance validation in test mode
+			return message.ErrInsufficientBalance
+		}
 	}
 	return nil
 }
@@ -321,7 +322,7 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		strAcc := aid.String()
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
-		mp.Error().Str("acc:", strAcc).Int("????", int(nonce)).Msg("")
+		mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
@@ -357,25 +358,35 @@ func (mp *MemPool) loadTxs() {
 	}
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	var drop, count int
+	var count int
 	for {
+		buf := types.Tx{}
 		rc, err := reader.Read()
 		if err != nil {
+			if err != io.EOF {
+				mp.Error().Err(err).Msg("err on read file during loading")
+			}
 			break
 		}
 		count++
-		dataBuf, err := base64.StdEncoding.DecodeString(rc[0])
-		if err == nil {
-			buf := types.Tx{}
-			if proto.Unmarshal(dataBuf, &buf) == nil {
-				mp.put(&buf) // nolint: errcheck
-				continue
-			}
+		dataBuf, err := enc.ToBytes(rc[0])
+		if err != nil {
+			mp.Error().Err(err).Msg("err on decoding tx during loading")
+			continue
 		}
-		drop++
+		err = proto.Unmarshal(dataBuf, &buf)
+		if err != nil {
+			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
+			continue
+		}
+		mp.put(&buf) // nolint: errcheck
 	}
 
-	mp.Info().Int("len", len(mp.cache)).Int("orphan", mp.orphan).Msg("loading mempool done")
+	mp.Info().Int("try", count).
+		Int("drop", count-len(mp.cache)-mp.orphan).
+		Int("suceed", len(mp.cache)).
+		Int("orphan", mp.orphan).
+		Msg("loading mempool done")
 }
 
 func (mp *MemPool) isRunning() bool {

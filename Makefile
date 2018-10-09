@@ -1,28 +1,50 @@
 # This Makefile is meant to be used by all-in-one build of aergo project
 
-.PHONY: clean protoclean protoc deps test aergosvr aergocli prepare compile build \
-	liball liball-clean
-BINPATH = $(shell pwd)/bin
-REPOPATH = github.com/aergoio/aergo
-LIBPATH = $(shell pwd)/libtool
+.PHONY: build all test clean libtool libtool-clean deps protoc protoclean
 
-default: compile
-	@echo "Done"
+BINPATH := $(shell pwd)/bin
+CMDS := aergocli aergosvr aergoluac aergoscc
+REPOPATH := github.com/aergoio/aergo
 
-prepare: deps
+build: vendor libtool
+	GOBIN=$(BINPATH) \
+    go install ./cmd/...
 
-compile: aergocli aergosvr aergoluac aergoscc
-
-build: test compile
-
-all: clean prepare build
+all: clean test build
 	@echo "Done All"
 
+vendor: glide.yaml glide.lock
+	@glide install
 
-deps: liball
-	glide install
+# test
 
-# FIXME: make recursive to subdirectories
+test:
+	@go test -timeout 60s ./...
+
+cover-test:
+	@go test -coverprofile c.out ./...
+
+# clean
+
+clean: libtool-clean
+	go clean
+	rm -f $(addprefix $(BINPATH)/,$(CMDS))
+
+# 3rd party libs
+
+LIBPATH := $(shell pwd)/libtool
+
+libtool: 
+	$(MAKE) -C $(LIBPATH) install
+
+libtool-clean:
+	$(MAKE) -C $(LIBPATH) uninstall
+
+# etc
+
+deps: vendor libtool
+	@glide install
+
 protoc:
 	protoc -I/usr/local/include \
 		-I${GOPATH}/src/${REPOPATH}/aergo-protobuf/proto \
@@ -30,37 +52,6 @@ protoc:
 		${GOPATH}/src/${REPOPATH}/aergo-protobuf/proto/*.proto
 	go build ./types/...
 
-aergosvr: cmd/aergosvr/*.go
-	go build -o $(BINPATH)/aergosvr ./cmd/aergosvr
-	@echo "Done buidling aergosvr."
-
-aergocli: cmd/aergocli/*.go
-	go build -o $(BINPATH)/aergocli ./cmd/aergocli
-	@echo "Done buidling aergocli."
-
-aergoluac: ./cmd/aergoluac/*.go
-	go build -o $(BINPATH)/aergoluac ./cmd/aergoluac
-	@echo "Done buidling aergoluac."
-
-aergoscc: ./cmd/aergoscc/*.go
-	go build -o $(BINPATH)/aergoscc -gcflags='-N -l' ./cmd/aergoscc
-	@echo "Done buidling aergoscc."
-
-test:
-	@go test -timeout 60s ./...
-
-liball:
-	@cd $(LIBPATH) && $(MAKE) install
-	@echo "Done installing tools."
-
-liball-clean:
-	@cd $(LIBPATH) && $(MAKE) uninstall
-	@echo "Done uninstalling tools."
-
-clean: liball-clean
-	go clean
-	rm -f $(BINPATH)/aergosvr
-	rm -f $(BINPATH)/aergocli
-
 protoclean:
 	rm -f types/*.pb.go
+

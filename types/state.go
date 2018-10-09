@@ -5,6 +5,7 @@ import (
 
 	"reflect"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 )
@@ -20,6 +21,15 @@ type AccountID HashID
 
 // TxID is a HashID to identify a transaction
 type TxID HashID
+
+// ImplHashID is a object has HashID
+type ImplHashID interface {
+	HashID() HashID
+}
+
+var (
+	emptyHashID = HashID{}
+)
 
 // GetHashID make a HashID from hash of bytes
 func GetHashID(bytes []byte) HashID {
@@ -37,14 +47,22 @@ func (id HashID) String() string {
 	return enc.ToString(id[:])
 }
 
+// Bytes make a byte slice from id
+func (id HashID) Bytes() []byte {
+	if id == emptyHashID {
+		return nil
+	}
+	return id[:]
+}
+
 // Compare returns an integer comparing two HashIDs as byte slices.
 func (id HashID) Compare(alt HashID) int {
-	return bytes.Compare(id[:], alt[:])
+	return bytes.Compare(id.Bytes(), alt.Bytes())
 }
 
 // Equal returns a boolean comparing two HashIDs as byte slices.
 func (id HashID) Equal(alt HashID) bool {
-	return bytes.Equal(id[:], alt[:])
+	return bytes.Equal(id.Bytes(), alt.Bytes())
 }
 
 // ToBlockID make a BlockID from bytes
@@ -76,6 +94,7 @@ func NewState() *State {
 	return &State{
 		Nonce:   0,
 		Balance: 0,
+		SqlRecoveryPoint: uint64(1),
 	}
 }
 
@@ -117,8 +136,9 @@ type BlockInfo struct {
 }
 type BlockState struct {
 	BlockInfo
-	accounts map[AccountID]*State
-	Undo     undoStates
+	accounts  map[AccountID]*State
+	Undo      undoStates
+	receiptTx db.Transaction
 }
 type undoStates struct {
 	StateRoot HashID
@@ -134,14 +154,35 @@ func NewBlockInfo(blockNo BlockNo, blockHash, prevHash BlockID) *BlockInfo {
 	}
 }
 
+// GetStateRoot return bytes of bi.StateRoot
+func (bi *BlockInfo) GetStateRoot() []byte {
+	if bi == nil {
+		return nil
+	}
+	return bi.StateRoot.Bytes()
+}
+
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(blockInfo *BlockInfo) *BlockState {
+func NewBlockState(blockInfo *BlockInfo, rTx db.Transaction) *BlockState {
 	return &BlockState{
 		BlockInfo: *blockInfo,
 		accounts:  make(map[AccountID]*State),
 		Undo: undoStates{
 			Accounts: make(map[AccountID]*State),
 		},
+		receiptTx: rTx,
+	}
+}
+
+// ReceiptTx return bs.receiptTx.
+func (bs *BlockState) ReceiptTx() db.Transaction {
+	return bs.receiptTx
+}
+
+// CommitReceipt commit bs.receiptTx.
+func (bs *BlockState) CommitReceipt() {
+	if bs.receiptTx != nil {
+		bs.receiptTx.Commit()
 	}
 }
 

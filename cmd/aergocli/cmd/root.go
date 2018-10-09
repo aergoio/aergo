@@ -24,8 +24,8 @@ var (
 	host    string
 	port    int32
 
+	privKey string
 	pw      string
-	remote  bool
 	dataDir string
 
 	from   string

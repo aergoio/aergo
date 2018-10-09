@@ -23,7 +23,7 @@ func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
 	// create message data
 	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, AddressesRequest, req, p2ps.signer))
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, AddressesRequest, req))
 	return true
 }
 
@@ -34,14 +34,14 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 		p2ps.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
 		return false
 	}
-	peerID := remotePeer.meta.ID
+	peerID := remotePeer.ID()
 
 	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data
 	reqMsg := &types.GetBlockHeadersRequest{Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
 	}
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, GetBlockHeadersRequest, reqMsg, p2ps.signer))
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetBlockHeadersRequest, reqMsg))
 	return true
 }
 
@@ -61,7 +61,7 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 	// create message data
 	req := &types.GetBlockRequest{Hashes: hashes}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, GetBlocksRequest, req, p2ps.signer))
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetBlocksRequest, req))
 	return true
 }
 
@@ -70,7 +70,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	req := &types.NewBlockNotice{
 		BlockHash: newBlock.Block.BlockHash(),
 		BlockNo:   newBlock.BlockNo}
-	msg := newPbMsgBlkBroadcastOrder(req, p2ps.signer)
+	msg := p2ps.mf.newMsgBlkBroadcastOrder(req)
 
 	skipped, sent := 0, 0
 	// create message data
@@ -104,7 +104,7 @@ func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bo
 		Hashes:   bhashes[1:],
 		Stophash: bhashes[0]}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(false, GetMissingRequest, req, p2ps.signer))
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(false, GetMissingRequest, req))
 	return true
 }
 
@@ -132,30 +132,28 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	// create message data
 	req := &types.GetTransactionsRequest{Hashes: hashes}
 
-	remotePeer.sendMessage(newPbMsgRequestOrder(true, GetTXsRequest, req, p2ps.signer))
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetTXsRequest, req))
 	return true
 }
 
 // NotifyNewTX notice tx(s) id created
 func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	hashes := make([][]byte, len(newTXs.Txs))
+	hashes := make([]TxHash, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
-		hashes[i] = tx.Hash
+		copy(hashes[i][:], tx.Hash)
 	}
 	// create message data
-	req := &types.NewTransactionsNotice{TxHashes: hashes}
-	msg := newPbMsgTxBroadcastOrder(req, p2ps.signer)
 	skipped, sent := 0, 0
 	// send to peers
 	for _, peer := range p2ps.pm.GetPeers() {
 		if peer != nil && peer.State() == types.RUNNING {
 			sent++
-			peer.sendMessage(msg)
+			peer.pushTxsNotice(hashes)
 		} else {
 			skipped++
 		}
 	}
-	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hashes", bytesArrToString(hashes)).Msg("Notifying newTXs to peers")
+	//p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Int("hash_cnt", len(hashes)).Msg("Notifying newTXs to peers")
 
 	return true
 }
