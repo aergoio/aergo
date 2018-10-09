@@ -129,7 +129,8 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 		return libInfos[i].blockNo < libInfos[j].blockNo
 	})
 
-	lib := libInfos[(len(libInfos)-1)/(3*int(bpConsensusCount))]
+	// TODO: check the correctness of the formula.
+	lib := libInfos[(len(libInfos)-1)/3]
 	if lib != nil {
 		for _, l := range pls.plib {
 			if l.blockNo < lib.blockNo {
