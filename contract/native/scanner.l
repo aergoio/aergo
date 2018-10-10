@@ -216,7 +216,6 @@ id                          {L}({L}|{D})*
 "false"                     yy_return(K_FALSE);
 "float"                     yy_return(K_FLOAT);
 "for"                       yy_return(K_FOR);
-"foreach"                   yy_return(K_FOREACH);
 "func"                      yy_return(K_FUNC);
 "goto"                      yy_return(K_GOTO);
 "if"                        yy_return(K_IF);

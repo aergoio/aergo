@@ -83,15 +83,11 @@ exp_val_new(trace_t *trc)
 }
 
 ast_exp_t *
-exp_type_new(type_t type, char *name, ast_exp_t *k_exp, ast_exp_t *v_exp,
-             trace_t *trc)
+exp_type_new(type_t type, trace_t *trc)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TYPE, trc);
 
     exp->u_type.type = type;
-    exp->u_type.name = name;
-    exp->u_type.k_exp = k_exp;
-    exp->u_type.v_exp = v_exp;
 
     return exp;
 }

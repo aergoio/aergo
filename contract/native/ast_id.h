@@ -72,7 +72,6 @@ struct ast_id_s {
 
     id_kind_t kind;
     modifier_t mod;
-
     char *name;
 
     union {

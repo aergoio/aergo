@@ -143,7 +143,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 
     CHECK(check_exp(check, id_exp));
 
-    if (id_exp->id == NULL || !is_array_meta(id_meta) || !is_map_meta(id_meta))
+    if (!is_array_meta(id_meta) && !is_map_meta(id_meta))
         RETURN(ERROR_INVALID_SUBSCRIPT, exp_pos(id_exp));
 
     exp->id = id_exp->id;
@@ -161,7 +161,6 @@ exp_array_check(check_t *check, ast_exp_t *exp)
     }
 
     exp->meta = *id_meta;
-    exp->meta.is_array = true;
 
     return NO_ERROR;
 }

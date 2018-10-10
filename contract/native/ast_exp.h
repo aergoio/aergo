@@ -171,7 +171,7 @@ struct ast_exp_s {
         exp_tuple_t u_tup;
     };
 
-    // results of semantic checker (might be a part of ir_exp_t in later)
+    // results of semantic checker
     ast_id_t *id;
     value_t val;
 };
@@ -180,8 +180,7 @@ ast_exp_t *ast_exp_new(exp_kind_t kind, trace_t *trc);
 
 ast_exp_t *exp_null_new(trace_t *trc);
 ast_exp_t *exp_val_new(trace_t *trc);
-ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
-                        ast_exp_t *v_exp, trace_t *trc);
+ast_exp_t *exp_type_new(type_t type, trace_t *trc);
 ast_exp_t *exp_id_new(char *name, trace_t *trc);
 ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *idx_exp,
                          trace_t *trc);

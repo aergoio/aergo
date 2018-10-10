@@ -140,10 +140,10 @@ contract test {
     string v1[10];
 
     test() {
-        foreach (int i, string j in v1) { }
-        foreach (int i, string j in f1()) { }
+        for (string e1 in v1) { }
 
-        //foreach (int i, string j = range v1) { }
+        string e2;
+        for (e2 in v1) { }
     }
 }
 

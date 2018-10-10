@@ -13,7 +13,7 @@
 #define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
 #define is_exp_stmt(stmt)           ((stmt)->kind == STMT_EXP)
 #define is_if_stmt(stmt)            ((stmt)->kind == STMT_IF)
-#define is_for_stmt(stmt)           ((stmt)->kind == STMT_FOR)
+#define is_loop_stmt(stmt)          ((stmt)->kind == STMT_LOOP)
 #define is_switch_stmt(stmt)        ((stmt)->kind == STMT_SWITCH)
 #define is_case_stmt(stmt)          ((stmt)->kind == STMT_CASE)
 #define is_cont_stmt(stmt)          ((stmt)->kind == STMT_CONTINUE)
@@ -52,7 +52,7 @@ typedef enum stmt_kind_e {
     STMT_NULL           = 0,
     STMT_EXP,
     STMT_IF,
-    STMT_FOR,
+    STMT_LOOP,
     STMT_SWITCH,
     STMT_CASE,
     STMT_CONTINUE,
@@ -75,13 +75,22 @@ typedef struct stmt_if_s {
     array_t elif_stmts;
 } stmt_if_t;
 
-typedef struct stmt_for_s {
-    array_t *init_vars;
+typedef enum loop_kind_e {
+    LOOP_FOR            = 0,
+    LOOP_EACH,
+    LOOP_MAX
+} loop_kind_t;
+
+typedef struct stmt_loop_s {
+    loop_kind_t kind;
+
+    array_t *init_ids;
     ast_exp_t *init_exp;
     ast_exp_t *cond_exp;
     ast_exp_t *loop_exp;
+
     ast_blk_t *blk;
-} stmt_for_t;
+} stmt_loop_t;
 
 typedef struct stmt_switch_s {
     ast_exp_t *cond_exp;
@@ -122,13 +131,12 @@ struct ast_stmt_s {
     AST_NODE_DECL;
 
     stmt_kind_t kind;
-
     char *label;
 
     union {
         stmt_exp_t u_exp;
         stmt_if_t u_if;
-        stmt_for_t u_for;
+        stmt_loop_t u_loop;
         stmt_switch_t u_sw;
         stmt_case_t u_case;
         stmt_return_t u_ret;
@@ -143,9 +151,9 @@ ast_stmt_t *ast_stmt_new(stmt_kind_t kind, trace_t *trc);
 ast_stmt_t *stmt_null_new(trace_t *trc);
 ast_stmt_t *stmt_exp_new(ast_exp_t *exp, trace_t *trc);
 ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc);
-ast_stmt_t *stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp,
-                         ast_exp_t *loop_exp, ast_blk_t *blk, trace_t *trc);
-ast_stmt_t *stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, 
+ast_stmt_t *stmt_loop_new(loop_kind_t kind, ast_exp_t *cond_exp, 
+                          ast_exp_t *loop_exp, ast_blk_t *blk, trace_t *trc);
+ast_stmt_t *stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts,
                             trace_t *trc);
 ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, trace_t *trc);
 ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, trace_t *trc);

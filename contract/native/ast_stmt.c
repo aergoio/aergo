@@ -51,15 +51,15 @@ stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc)
 }
 
 ast_stmt_t *
-stmt_for_new(ast_exp_t *init_exp, ast_exp_t *cond_exp, ast_exp_t *loop_exp, 
-             ast_blk_t *blk, trace_t *trc)
+stmt_loop_new(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
+              ast_blk_t *blk, trace_t *trc)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_FOR, trc);
+    ast_stmt_t *stmt = ast_stmt_new(STMT_LOOP, trc);
 
-    stmt->u_for.init_exp = init_exp;
-    stmt->u_for.cond_exp = cond_exp;
-    stmt->u_for.loop_exp = loop_exp;
-    stmt->u_for.blk = blk;
+    stmt->u_loop.kind = kind;
+    stmt->u_loop.cond_exp = cond_exp;
+    stmt->u_loop.loop_exp = loop_exp;
+    stmt->u_loop.blk = blk;
 
     return stmt;
 }

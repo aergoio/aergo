@@ -88,7 +88,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_FALSE         "false"
         K_FLOAT         "float"
         K_FOR           "for"
-        K_FOREACH       "foreach"
         K_FUNC          "func"
         K_GOTO          "goto"
         K_IF            "if"
@@ -156,6 +155,8 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      contract_decl
 %type <blk>     contract_body
 %type <array>   variable
+%type <array>   var_decl
+%type <array>   var_init_decl
 %type <exp>     var_type
 %type <exp>     var_spec
 %type <type>    prim_type
@@ -274,7 +275,13 @@ contract_body:
 ;
 
 variable:
-    var_type var_name_list ';'
+    var_decl ';'                { $$ = $1; }
+|   var_init_decl ';'           { $$ = $1; }
+|   var_type error ';'          { $$ = NULL; }
+;
+
+var_decl:
+    var_type var_name_list
     {
         int i;
         for (i = 0; i < array_size($2); i++) {
@@ -285,7 +292,10 @@ variable:
         }
         $$ = $2;
     }
-|   var_type var_name_list '=' var_init_list ';'
+;
+
+var_init_decl:
+    var_type var_name_list '=' var_init_list
     {
         int i;
         if (array_size($2) != array_size($4)) {
@@ -303,7 +313,6 @@ variable:
         }
         $$ = $2;
     }
-|   var_type error ';'      { $$ = NULL; }
 ;
 
 var_type:
@@ -328,15 +337,18 @@ var_type:
 var_spec:
     prim_type
     {
-        $$ = exp_type_new($1, NULL, NULL, NULL, &@$);
+        $$ = exp_type_new($1, &@$);
     }
 |   identifier
     {
-        $$ = exp_type_new(TYPE_STRUCT, $1, NULL, NULL, &@$);
+        $$ = exp_type_new(TYPE_STRUCT, &@$);
+        $$->u_type.name = $1;
     }
 |   K_MAP '(' var_spec ',' var_spec ')'
     {
-        $$ = exp_type_new(TYPE_MAP, NULL, $3, $5, &@$);
+        $$ = exp_type_new(TYPE_MAP, &@$);
+        $$->u_type.k_exp = $3;
+        $$->u_type.v_exp = $5;
     }
 ;
 
@@ -617,51 +629,47 @@ stmt_if:
 stmt_loop:
     K_FOR block
     {
-        $$ = stmt_for_new(NULL, NULL, NULL, $2, &@$);
+        $$ = stmt_loop_new(LOOP_FOR, NULL, NULL, $2, &@$);
     }
 |   K_FOR '(' exp_or ')' block
     {
-        $$ = stmt_for_new(NULL, $3, NULL, $5, &@$);
+        $$ = stmt_loop_new(LOOP_FOR, $3, NULL, $5, &@$);
     }
 |   K_FOR '(' exp_loop exp_loop ')' block
     {
-        $$ = stmt_for_new($3, $4, NULL, $6, &@$);
+        $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
+        $$->u_loop.init_exp = $3;
     }
 |   K_FOR '(' exp_loop exp_loop expression ')' block
     {
-        $$ = stmt_for_new($3, $4, $5, $7, &@$);
+        $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
+        $$->u_loop.init_exp = $3;
     }
 |   K_FOR '(' variable exp_loop ')' block
     {
-        $$ = stmt_for_new(NULL, $4, NULL, $6, &@$);
-        $$->u_for.init_vars = $3;
+        $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
+        $$->u_loop.init_ids = $3;
     }
 |   K_FOR '(' variable exp_loop expression ')' block
     {
-        $$ = stmt_for_new(NULL, $4, $5, $7, &@$);
-        $$->u_for.init_vars = $3;
+        $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
+        $$->u_loop.init_ids = $3;
     }
-|   K_FOR '(' exp_loop K_IN exp_post ')' block
+|   K_FOR '(' expression K_IN exp_post ')' block
     {
-        $$ = NULL;
+        $$ = stmt_loop_new(LOOP_EACH, NULL, $5, $7, &@$);
+        $$->u_loop.init_exp = $3;
     }
-|   K_FOR '(' variable K_IN exp_post ')' block
+|   K_FOR '(' var_decl K_IN exp_post ')' block
     {
-        $$ = NULL;
-    }
-|   K_FOREACH '(' iter_decl ',' iter_decl K_IN exp_post ')' block
-    {
-        $$ = NULL;
+        $$ = stmt_loop_new(LOOP_EACH, NULL, $5, $7, &@$);
+        $$->u_loop.init_ids = $3;
     }
 ;
 
 exp_loop:
     ';'                     { $$ = NULL; }
 |   expression ';'          { $$ = $1; }
-;
-
-iter_decl:
-    var_type declarator
 ;
 
 stmt_switch:
