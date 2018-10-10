@@ -126,7 +126,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 
 // real-time streaming most recent block header
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
-	var prev *types.Block;
+	var prev *types.Block
 	for {
 		last, err := rpc.ca.GetBestBlock()
 		if err != nil {
@@ -505,8 +505,10 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
 	const addresslength = 32
 	var number int
-	if len(in.Value) < addresslength {
+	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
