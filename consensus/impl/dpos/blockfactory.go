@@ -32,9 +32,10 @@ type txExec struct {
 
 func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.TxOp {
 	blockNo := bestBlock.BlockNo() + 1
-	blockInfo := state.NewBlockInfo(types.BlockID{}, types.HashID{})
+	// blockInfo := state.NewBlockInfo(types.BlockID{}, types.HashID{})
 
-	bState := state.NewBlockState(blockInfo, contract.TempReceiptDb.NewTx())
+	bState := state.NewBlockState(types.BlockID{},
+		sdb.OpenNewStateDB(sdb.GetRoot()), contract.TempReceiptDb.NewTx())
 
 	// Block hash not determined yet
 	return &txExec{

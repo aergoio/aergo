@@ -342,7 +342,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			state.NewBlockInfo(block.BlockID(), types.HashID{}),
+			block.BlockID(),
+			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			contract.TempReceiptDb.NewTx(),
 		)
 
@@ -423,7 +424,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
+	senderState, err := bs.GetAccountState(senderID)
 	if err != nil {
 		return err
 	}
@@ -442,7 +443,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 		recipient = append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 		receiverID = types.ToAccountID(recipient)
 	}
-	receiverState, err := sdb.GetBlockAccountClone(bs, receiverID)
+	receiverState, err := bs.GetAccountState(receiverID)
 	if err != nil {
 		return err
 	}
@@ -507,9 +508,15 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 	}
 
 	senderChange.Nonce = txBody.Nonce
-	bs.PutAccount(senderID, &senderChange)
+	err = bs.PutState(senderID, &senderChange)
+	if err != nil {
+		return err
+	}
 	if senderID != receiverID {
-		bs.PutAccount(receiverID, &receiverChange)
+		err = bs.PutState(receiverID, &receiverChange)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err

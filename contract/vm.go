@@ -264,7 +264,10 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		aid, _ := types.DecodeAddress(k)
-		bs.PutAccount(types.ToAccountID(aid), v.ctrState.State)
+		err = bs.PutState(types.ToAccountID(aid), v.ctrState.State)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -558,7 +561,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		sdb := rootState.sdb
 		bs := rootState.bs
 
-		prevState, err := sdb.GetBlockAccountClone(bs, types.ToAccountID(cid))
+		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
 			return -1
@@ -693,10 +696,10 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		sdb := rootState.sdb
+		// sdb := rootState.sdb
 		bs := rootState.bs
 
-		prevState, err := sdb.GetBlockAccountClone(bs, types.ToAccountID(cid))
+		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
 			return -1

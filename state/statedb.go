@@ -8,7 +8,6 @@ package state
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -206,6 +205,10 @@ func (states *StateDB) Update() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 	keys, vals := states.buffer.export()
+	if len(keys) == 0 || len(vals) == 0 {
+		// nothing to update
+		return nil
+	}
 	_, err := states.trie.Update(keys, vals)
 	if err != nil {
 		return err
@@ -310,16 +313,21 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	sdb.latest = gbInfo
 
 	// create state of genesis block
-	gbState := NewBlockState(gbInfo, nil)
+	gbState := NewBlockState(gbInfo.BlockHash,
+		sdb.OpenNewStateDB(sdb.GetRoot()), nil)
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
-		gbState.PutAccount(id, balance)
+		if err := gbState.PutState(id, balance); err != nil {
+			return err
+		}
 	}
 
 	if genesisBlock.VoteState != nil {
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		gbState.PutAccount(aid, genesisBlock.VoteState)
+		if err := gbState.PutState(aid, genesisBlock.VoteState); err != nil {
+			return err
+		}
 	}
 	// save state of genesis block
 	if err := sdb.apply(gbState); err != nil {
@@ -336,65 +344,66 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 // 	}
 // 	return state, nil
 // }
-func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
-	state, err := sdb.states.GetAccountState(aid)
-	if err != nil {
-		return nil, err
-	}
-	res := types.State(*state)
-	return &res, nil
-}
-func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
-	if aid == emptyAccountID {
-		return nil, fmt.Errorf("Failed to get block account: invalid account id")
-	}
+// func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
+// 	state, err := sdb.states.GetAccountState(aid)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	res := types.State(*state)
+// 	return &res, nil
+// }
 
-	if prev, ok := bs.GetAccount(aid); ok {
-		return prev, nil
-	}
-	return sdb.states.GetAccountState(aid)
-}
-func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
-	state, err := sdb.getBlockAccount(bs, aid)
-	if err != nil {
-		return nil, err
-	}
-	res := types.State(*state)
-	return &res, nil
-}
+// func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
+// 	if aid == emptyAccountID {
+// 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
+// 	}
 
-func (sdb *ChainStateDB) updateStateDB(bstate *BlockState) error {
-	accounts := bstate.GetAccountStates()
-	if len(accounts) <= 0 {
-		// do nothing
-		return nil
-	}
+// 	if prev, ok := bs.GetAccountState(aid); ok {
+// 		return prev, nil
+// 	}
+// 	return sdb.states.GetAccountState(aid)
+// }
+// func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
+// 	state, err := sdb.getBlockAccount(bs, aid)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	res := types.State(*state)
+// 	return &res, nil
+// }
 
-	var err error
-	// put states to buffer
-	for k, v := range accounts {
-		err = sdb.states.PutState(k, v)
-		if err != nil {
-			err2 := sdb.states.Rollback(0)
-			if err2 != nil {
-				return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-			}
-			return err
-		}
-	}
-	// update state db
-	err = sdb.states.Update()
-	if err != nil {
-		// rollback to latest
-		err2 := sdb.states.Revert(sdb.latest.StateRoot)
-		if err2 != nil {
-			return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-		}
-		return err
-	}
-	// commit state db
-	return sdb.states.Commit()
-}
+// func (sdb *ChainStateDB) updateStateDB(bstate *BlockState) error {
+// 	accounts := bstate.GetAccountStates()
+// 	if len(accounts) <= 0 {
+// 		// do nothing
+// 		return nil
+// 	}
+
+// 	var err error
+// 	// put states to buffer
+// 	for k, v := range accounts {
+// 		err = sdb.states.PutState(k, v)
+// 		if err != nil {
+// 			err2 := sdb.states.Rollback(0)
+// 			if err2 != nil {
+// 				return fmt.Errorf("%v + %v", err.Error(), err2.Error())
+// 			}
+// 			return err
+// 		}
+// 	}
+// 	// update state db
+// 	err = bstate.Update()
+// 	if err != nil {
+// 		// rollback to latest
+// 		err2 := sdb.states.Revert(sdb.latest.StateRoot)
+// 		if err2 != nil {
+// 			return fmt.Errorf("%v + %v", err.Error(), err2.Error())
+// 		}
+// 		return err
+// 	}
+// 	// commit state db
+// 	return sdb.states.Commit()
+// }
 
 func (sdb *ChainStateDB) revertStateDB(prevBlockStateRoot types.HashID) error {
 	if sdb.states.trie.Root == nil && prevBlockStateRoot.Equal(emptyHashID) {
@@ -423,23 +432,34 @@ func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	// }
 
 	// apply blockState to trie
-	if err := sdb.updateStateDB(bstate); err != nil {
+	if err := bstate.Update(); err != nil {
+		return err
+	}
+	if err := bstate.Commit(); err != nil {
 		return err
 	}
 
-	// check state root
-	if bstate.BlockInfo.StateRoot != types.ToHashID(sdb.GetRoot()) {
-		// TODO: if validation failed, than revert statedb.
-		bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetRoot())
-	}
-	logger.Debug().Str("stateRoot", enc.ToString(sdb.GetRoot())).Msg("apply block state")
+	// // check state root
+	// if bstate.BlockInfo.StateRoot != types.ToHashID(bstate.GetRoot()) {
+	// 	// TODO: if validation failed, than revert statedb.
+	// 	bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetRoot())
+	// }
 
-	// save blockState
-	if err := sdb.saveBlockInfo(&bstate.BlockInfo); err != nil {
+	logger.Debug().Str("before", enc.ToString(sdb.states.GetRoot())).
+		Str("stateRoot", enc.ToString(bstate.GetRoot())).Msg("apply block state")
+
+	if err := sdb.states.SetRoot(bstate.GetRoot()); err != nil {
 		return err
 	}
 
-	sdb.latest = &bstate.BlockInfo
+	// save blockInfo
+	binfo := bstate.GetBlockInfo()
+	if err := sdb.saveBlockInfo(binfo); err != nil {
+		return err
+	}
+
+	// save latest
+	sdb.latest = binfo
 	return sdb.saveStateLatest()
 }
 

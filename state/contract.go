@@ -12,7 +12,7 @@ import (
 )
 
 func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
-	st, err := sdb.GetAccountStateClone(aid)
+	st, err := sdb.states.GetAccountState(aid)
 	if err != nil {
 		return nil, err
 	}

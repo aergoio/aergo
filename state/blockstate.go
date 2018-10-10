@@ -13,8 +13,8 @@ type BlockInfo struct {
 
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
-	BlockInfo
-	accounts  map[types.AccountID]*types.State
+	StateDB
+	blockHash types.BlockID
 	receiptTx db.Transaction
 }
 
@@ -35,10 +35,10 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(blockInfo *BlockInfo, rTx db.Transaction) *BlockState {
+func NewBlockState(blockHash types.BlockID, states *StateDB, rTx db.Transaction) *BlockState {
 	return &BlockState{
-		BlockInfo: *blockInfo,
-		accounts:  make(map[types.AccountID]*types.State),
+		StateDB:   *states,
+		blockHash: blockHash,
 		receiptTx: rTx,
 	}
 }
@@ -55,26 +55,39 @@ func (bs *BlockState) CommitReceipt() {
 	}
 }
 
-// GetAccount gets account state from blockState
-func (bs *BlockState) GetAccount(aid types.AccountID) (*types.State, bool) {
-	state, ok := bs.accounts[aid]
-	return state, ok
-}
+// // GetAccount gets account state from blockState
+// func (bs *BlockState) GetAccount(aid types.AccountID) (*types.State, bool) {
+// 	state, ok := bs.accounts[aid]
+// 	return state, ok
+// }
 
-// GetAccountStates gets account states from blockState
-func (bs *BlockState) GetAccountStates() map[types.AccountID]*types.State {
-	return bs.accounts
-}
+// // GetAccountStates gets account states from blockState
+// func (bs *BlockState) GetAccountStates() map[types.AccountID]*types.State {
+// 	return bs.accounts
+// }
 
-// PutAccount sets before and changed state to blockState
-func (bs *BlockState) PutAccount(aid types.AccountID, stateChanged *types.State) {
-	bs.accounts[aid] = stateChanged
-}
+// // PutAccount sets before and changed state to blockState
+// func (bs *BlockState) PutAccount(aid types.AccountID, stateChanged *types.State) {
+// 	bs.accounts[aid] = stateChanged
+// }
 
-// SetBlockHash sets bs.BlockInfo.BlockHash to blockHash
+// SetBlockHash stores blockHash
 func (bs *BlockState) SetBlockHash(blockHash types.BlockID) {
 	if bs == nil {
 		return
 	}
-	bs.BlockInfo.BlockHash = blockHash
+	bs.blockHash = blockHash
+}
+
+// GetBlockHash returns blockHash
+func (bs *BlockState) GetBlockHash() types.BlockID {
+	return bs.blockHash
+}
+
+// GetBlockInfo returnes BlockInfo contain block hash and state root hash
+func (bs *BlockState) GetBlockInfo() *BlockInfo {
+	return &BlockInfo{
+		BlockHash: bs.blockHash,
+		StateRoot: types.ToHashID(bs.GetRoot()),
+	}
 }
