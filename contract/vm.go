@@ -51,7 +51,7 @@ type CallState struct {
 
 type StateSet struct {
 	contract  *state.ContractState
-	bs        *types.BlockState
+	bs        *state.BlockState
 	sdb       *state.ChainStateDB
 	callState map[string]*CallState
 	rootState *StateSet
@@ -79,7 +79,7 @@ func init() {
 	contractMap.init()
 }
 
-func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, senderState *types.State,
+func NewContext(sdb *state.ChainStateDB, blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
 	contractId string, query int, root *StateSet, dbHandle *C.sqlite3) *LBlockchainCtx {
@@ -264,7 +264,7 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		aid, _ := types.DecodeAddress(k)
-		bs.PutAccount(types.ToAccountID(aid), v.prevState, v.ctrState.State)
+		bs.PutAccount(types.ToAccountID(aid), v.ctrState.State)
 	}
 	return nil
 }

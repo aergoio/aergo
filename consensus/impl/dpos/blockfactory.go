@@ -26,26 +26,25 @@ const (
 
 type txExec struct {
 	sdb        *state.ChainStateDB
-	blockState *types.BlockState
+	blockState *state.BlockState
 	execTx     bc.TxExecFn
 }
 
 func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.TxOp {
 	blockNo := bestBlock.BlockNo() + 1
-	prevHash := bestBlock.BlockID()
-	blockInfo := types.NewBlockInfo(blockNo, types.BlockID{}, prevHash)
+	blockInfo := state.NewBlockInfo(types.BlockID{}, types.HashID{})
 
-	bState := types.NewBlockState(blockInfo, contract.TempReceiptDb.NewTx())
+	bState := state.NewBlockState(blockInfo, contract.TempReceiptDb.NewTx())
 
 	// Block hash not determined yet
 	return &txExec{
 		sdb:        sdb,
 		blockState: bState,
-		execTx:     bc.NewTxExecutor(sdb, bState, ts),
+		execTx:     bc.NewTxExecutor(sdb, bState, blockNo, ts),
 	}
 }
 
-func (te *txExec) Apply(tx *types.Tx) (*types.BlockState, error) {
+func (te *txExec) Apply(tx *types.Tx) (*state.BlockState, error) {
 	err := te.execTx(tx)
 	return te.blockState, err
 }
@@ -79,7 +78,7 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
-		chain.TxOpFn(func(txIn *types.Tx) (*types.BlockState, error) {
+		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
 			return nil, bf.checkBpTimeout()
 		}),
 	)
@@ -191,7 +190,7 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *types.BlockState, error) {
+func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
 	ts := bpi.slot.UnixNano()
 
 	txOp := chain.NewCompTxOp(

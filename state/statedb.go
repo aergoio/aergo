@@ -231,7 +231,7 @@ func (states *StateDB) Commit() error {
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	latest *types.BlockInfo
+	latest *BlockInfo
 	states *StateDB
 	store  db.DB
 }
@@ -304,23 +304,22 @@ func (sdb *ChainStateDB) GetStateRoot(blockID []byte) ([]byte, error) {
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	block := genesisBlock.Block
-	gbInfo := &types.BlockInfo{
-		BlockNo:   0,
+	gbInfo := &BlockInfo{
 		BlockHash: types.ToBlockID(block.BlockHash()),
 	}
 	sdb.latest = gbInfo
 
 	// create state of genesis block
-	gbState := types.NewBlockState(gbInfo, nil)
+	gbState := NewBlockState(gbInfo, nil)
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
-		gbState.PutAccount(id, &types.State{}, balance)
+		gbState.PutAccount(id, balance)
 	}
 
 	if genesisBlock.VoteState != nil {
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		gbState.PutAccount(aid, &types.State{}, genesisBlock.VoteState)
+		gbState.PutAccount(aid, genesisBlock.VoteState)
 	}
 	// save state of genesis block
 	if err := sdb.apply(gbState); err != nil {
@@ -345,7 +344,7 @@ func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State
 	res := types.State(*state)
 	return &res, nil
 }
-func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
 	if aid == emptyAccountID {
 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
 	}
@@ -355,7 +354,7 @@ func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.Account
 	}
 	return sdb.states.GetAccountState(aid)
 }
-func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
+func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
 	state, err := sdb.getBlockAccount(bs, aid)
 	if err != nil {
 		return nil, err
@@ -364,7 +363,7 @@ func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.Ac
 	return &res, nil
 }
 
-func (sdb *ChainStateDB) updateStateDB(bstate *types.BlockState) error {
+func (sdb *ChainStateDB) updateStateDB(bstate *BlockState) error {
 	accounts := bstate.GetAccountStates()
 	if len(accounts) <= 0 {
 		// do nothing
@@ -410,25 +409,18 @@ func (sdb *ChainStateDB) revertStateDB(prevBlockStateRoot types.HashID) error {
 	return sdb.states.Revert(prevBlockStateRoot)
 }
 
-func (sdb *ChainStateDB) Apply(bstate *types.BlockState) error {
-	if sdb.latest.BlockNo+1 != bstate.BlockNo {
-		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
-	}
-	if sdb.latest.BlockHash != bstate.PrevHash {
-		return fmt.Errorf("Failed to apply: invalid previous block latest=%v, bstate=%v",
-			sdb.latest.BlockHash, bstate.PrevHash)
-	}
+func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	return sdb.apply(bstate)
 }
 
-func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
+func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	// rollback and revert trie requires state root before apply
-	if bstate.Undo.StateRoot == emptyHashID {
-		bstate.Undo.StateRoot = types.ToHashID(sdb.states.trie.Root)
-	}
+	// // rollback and revert trie requires state root before apply
+	// if bstate.Undo.StateRoot == emptyHashID {
+	// 	bstate.Undo.StateRoot = types.ToHashID(sdb.states.trie.Root)
+	// }
 
 	// apply blockState to trie
 	if err := sdb.updateStateDB(bstate); err != nil {

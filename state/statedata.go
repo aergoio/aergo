@@ -73,7 +73,7 @@ func (sdb *ChainStateDB) loadStateLatest() error {
 	return loadData(&sdb.store, []byte(stateLatest), &sdb.latest)
 }
 
-func (sdb *ChainStateDB) saveBlockInfo(data *types.BlockInfo) error {
+func (sdb *ChainStateDB) saveBlockInfo(data *BlockInfo) error {
 	bid := data.BlockHash
 	if bid == emptyBlockID {
 		return errSaveBlockInfo
@@ -82,11 +82,11 @@ func (sdb *ChainStateDB) saveBlockInfo(data *types.BlockInfo) error {
 	err := saveData(&sdb.store, bid[:], data)
 	return err
 }
-func (sdb *ChainStateDB) loadBlockInfo(bid types.BlockID) (*types.BlockInfo, error) {
+func (sdb *ChainStateDB) loadBlockInfo(bid types.BlockID) (*BlockInfo, error) {
 	if bid == emptyBlockID {
 		return nil, errLoadBlockInfo
 	}
-	data := &types.BlockInfo{}
+	data := &BlockInfo{}
 	err := loadData(&sdb.store, bid[:], data)
 	if err != nil {
 		return nil, err
