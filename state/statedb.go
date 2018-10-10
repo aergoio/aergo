@@ -296,6 +296,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	if err := sdb.apply(gbState); err != nil {
 		return err
 	}
+
 	return nil
 }
 
