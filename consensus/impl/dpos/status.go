@@ -150,13 +150,16 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 
 	// TODO: check the correctness of the formula.
 	lib := libInfos[(len(libInfos)-1)/3]
-	if lib != nil {
-		for _, l := range pls.plib {
-			if l.blockNo < lib.blockNo {
-				delete(pls.plib, l.blockHash)
-			}
-		}
-	}
+	// Comment out until it proves to be necessary. TODO: check whether the
+	// cleanup below is correct.
+	//
+	// if lib != nil {
+	// 	for _, l := range pls.plib {
+	// 		if l.blockNo < lib.blockNo {
+	// 			delete(pls.plib, l.blockHash)
+	// 		}
+	// 	}
+	// }
 
 	return lib
 }
