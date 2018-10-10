@@ -236,7 +236,7 @@ smart_contract:
 contract_decl:
     K_CONTRACT identifier '{' '}'
     {
-        ast_blk_t *blk = ast_blk_new(&@3);
+        ast_blk_t *blk = blk_anon_new(&@3);
 
         id_add_last(&blk->ids, id_ctor_new($2, NULL, NULL, &@2));
 
@@ -254,12 +254,12 @@ contract_decl:
 contract_body:
     variable
     {
-        $$ = ast_blk_new(&@$);
+        $$ = blk_anon_new(&@$);
         id_join_last(&$$->ids, $1);
     }
 |   compound
     {
-        $$ = ast_blk_new(&@$);
+        $$ = blk_anon_new(&@$);
         id_add_last(&$$->ids, $1);
     }
 |   contract_body variable
@@ -508,17 +508,17 @@ block:
 blk_decl:
     variable
     {
-        $$ = ast_blk_new(&@$);
+        $$ = blk_anon_new(&@$);
         id_join_last(&$$->ids, $1);
     }
 |   struct
     {
-        $$ = ast_blk_new(&@$);
+        $$ = blk_anon_new(&@$);
         id_add_last(&$$->ids, $1);
     }
 |   statement
     {
-        $$ = ast_blk_new(&@$);
+        $$ = blk_anon_new(&@$);
         stmt_add_last(&$$->stmts, $1);
     }
 |   blk_decl variable

@@ -171,9 +171,8 @@ struct ast_exp_s {
         exp_tuple_t u_tup;
     };
 
-    // results of semantic checker
+    /* results of semantic checker */
     ast_id_t *id;
-    value_t val;
 };
 
 ast_exp_t *exp_null_new(trace_t *trc);

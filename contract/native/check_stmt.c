@@ -78,7 +78,7 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
 
         goto_stmt = stmt_goto_new(xstrdup(end_label), exp_pos(cond_exp));
 
-        if_blk = ast_blk_new(exp_pos(cond_exp));
+        if_blk = blk_anon_new(exp_pos(cond_exp));
         array_add_last(&if_blk->stmts, goto_stmt);
 
         not_exp = exp_op_new(OP_NOT, cond_exp, NULL, exp_pos(cond_exp));
@@ -189,7 +189,7 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
 
     if (stmt->u_loop.blk == NULL)
-        stmt->u_loop.blk = ast_blk_new(stmt_pos(stmt));
+        stmt->u_loop.blk = blk_loop_new(stmt_pos(stmt));
 
     blk = stmt->u_loop.blk;
 

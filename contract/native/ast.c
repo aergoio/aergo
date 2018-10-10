@@ -19,7 +19,7 @@ ast_new(void)
 
     trace_init(&trc, NULL, NULL);
 
-    ast->root = ast_blk_new(&trc);
+    ast->root = blk_root_new(&trc);
 
     return ast;
 }
