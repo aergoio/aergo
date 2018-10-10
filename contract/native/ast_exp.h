@@ -9,7 +9,6 @@
 #include "common.h"
 
 #include "ast.h"
-#include "meta.h"
 #include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
@@ -27,6 +26,8 @@
 #define is_usable_lval(exp)                                                    \
     (!is_const_meta(&(exp)->meta) && !is_untyped_meta(&(exp)->meta) &&         \
      (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
+
+#define exp_pos(exp)                (&(exp)->meta.trc)
 
 #define ast_exp_add                 array_add_tail
 #define ast_exp_merge               array_join
@@ -170,10 +171,9 @@ struct ast_exp_s {
         exp_tuple_t u_tup;
     };
 
-    // results of semantic checker
-    // might be a part of ir_exp_t
-    meta_t meta;
+    // results of semantic checker (might be a part of ir_exp_t in later)
     ast_id_t *id;
+    value_t val;
 };
 
 ast_exp_t *ast_exp_new(exp_kind_t kind, trace_t *trc);

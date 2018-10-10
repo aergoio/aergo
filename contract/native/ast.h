@@ -9,17 +9,18 @@
 #include "common.h"
 
 #include "array.h"
+#include "meta.h"
 
 #define AST_NODE_DECL                                                          \
     int num;                                                                   \
-    trace_t trc
+    meta_t meta
 
 #define AST_NODE_NUM                node_num_
 
-#define ast_node_init(node, epos)                                              \
+#define ast_node_init(node, trc)                                               \
     do {                                                                       \
         (node)->num = node_num_++;                                             \
-        (node)->trc = *(epos);                                                 \
+        meta_init(&(node)->meta, (trc));                                       \
     } while (0)
 
 #ifndef _AST_BLK_T

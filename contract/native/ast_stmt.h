@@ -23,6 +23,8 @@
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
+#define stmt_pos(stmt)              (&(stmt)->meta.trc)
+
 #define ast_stmt_add                array_add_tail
 #define ast_stmt_merge              array_join
 

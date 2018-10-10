@@ -58,8 +58,6 @@ contract test {
 
 @desc map_initializer
 contract test {
-    /*
     map(int, string) m1 = new map();
     map(int, string) m2 = new map(10);
-    */
 }

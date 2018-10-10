@@ -63,8 +63,6 @@ ast_exp_new(exp_kind_t kind, trace_t *trc)
 
     exp->kind = kind;
 
-    meta_init(&exp->meta);
-
     return exp;
 }
 

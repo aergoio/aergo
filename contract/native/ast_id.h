@@ -9,7 +9,6 @@
 #include "common.h"
 
 #include "ast.h"
-#include "meta.h"
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
@@ -18,6 +17,8 @@
 
 #define id_ctor_new(name, params, blk, trc)                                    \
     id_func_new((name), MOD_INITIAL, params, NULL, blk, (trc))
+
+#define id_pos(id)                  (&(id)->meta.trc)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -83,7 +84,6 @@ struct ast_id_s {
 
     // results of semantic checker
     bool is_used;
-    meta_t meta;
 };
 
 ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc);

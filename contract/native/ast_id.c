@@ -158,7 +158,7 @@ ast_id_add(array_t *ids, ast_id_t *new_id)
         ast_id_t *id = array_item(ids, i, ast_id_t);
 
         if (strcmp(id->name, new_id->name) == 0) {
-            ERROR(ERROR_DUPLICATED_ID, &new_id->trc, new_id->name);
+            ERROR(ERROR_DUPLICATED_ID, id_pos(new_id), new_id->name);
             return;
         }
     }

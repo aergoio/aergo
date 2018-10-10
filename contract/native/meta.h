@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "array.h"
+
 #define TYPE_NAME(type)             type_strs_[type]
 
 #define is_valid_type(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
@@ -25,6 +27,7 @@
 #define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
 #define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
 #define is_ref_meta(meta)           ((meta)->type == TYPE_REF)
+#define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
 #define is_const_meta(meta)         (meta)->is_const
@@ -34,8 +37,27 @@
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
-#define meta_set_prim               meta_set
-#define meta_set_tuple(meta)        meta_set((meta), TYPE_TUPLE)
+#define meta_pos(meta)              (&(meta)->trc)
+#define meta_size(meta)                                                        \
+    (is_void_meta(meta) ? 0 :                                                  \
+     (is_tuple_meta(meta) ? array_size((meta)->u_tup.metas) :                  \
+      (is_struct_meta(meta) ? array_size((meta)->u_st.metas) : 1)))
+
+#define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
+#define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
+#define meta_set_int8(meta)         meta_set((meta), TYPE_INT8)
+#define meta_set_uint8(meta)        meta_set((meta), TYPE_UINT8)
+#define meta_set_int16(meta)        meta_set((meta), TYPE_INT16)
+#define meta_set_uint16(meta)       meta_set((meta), TYPE_UINT16)
+#define meta_set_int32(meta)        meta_set((meta), TYPE_INT32)
+#define meta_set_uint32(meta)       meta_set((meta), TYPE_UINT32)
+#define meta_set_int64(meta)        meta_set((meta), TYPE_INT64)
+#define meta_set_uint64(meta)       meta_set((meta), TYPE_UINT64)
+#define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
+#define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
+#define meta_set_string(meta)       meta_set((meta), TYPE_STRING)
+#define meta_set_ref(meta)          meta_set((meta), TYPE_REF)
+#define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
 #ifndef _META_T
@@ -71,6 +93,12 @@ typedef enum type_e {
     TYPE_MAX
 } type_t;
 
+typedef struct meta_tuple_s {
+    array_t *metas;
+} meta_tuple_t;
+
+typedef meta_tuple_t meta_struct_t;
+
 typedef struct meta_map_s {
     type_t k_type;
     meta_t *v_meta;
@@ -81,23 +109,35 @@ struct meta_s {
 
     bool is_const;
     bool is_array;
-    bool is_untyped;
+    bool is_untyped;                /* integer or float literal, new map() */
 
     union {
         meta_map_t u_map;
+        meta_struct_t u_st;
+        meta_tuple_t u_tup;
     };
+
+    trace_t trc;
 };
 
 extern char *type_strs_[TYPE_MAX];
 
+void meta_set_struct(meta_t *meta, array_t *ids);
+void meta_set_tuple(meta_t *meta, array_t *exps);
+
+bool meta_equals(meta_t *x, meta_t *y);
+
 void meta_dump(meta_t *meta, int indent);
 
 static inline void
-meta_init(meta_t *meta)
+meta_init(meta_t *meta, trace_t *trc)
 {
     ASSERT(meta != NULL);
+    ASSERT(trc != NULL);
 
     memset(meta, 0x00, sizeof(meta_t));
+
+    meta->trc = *trc;
 }
 
 static inline void
@@ -143,31 +183,6 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
     else {
         *meta = *x;
     }
-}
-
-static inline bool
-meta_equals(meta_t *x, meta_t *y)
-{
-    if (is_untyped_meta(x) || is_untyped_meta(y)) {
-        if (x->type == y->type ||
-            (is_integer_meta(x) && is_integer_meta(y)) ||
-            (is_float_meta(x) && is_float_meta(y)))
-            return true;
-
-        return false;
-    }
-
-    if (is_map_meta(x) || is_map_meta(y)) {
-        if (is_ref_meta(x) || is_ref_meta(y) ||
-            (x->type == y->type &&
-             x->u_map.k_type == y->u_map.k_type &&
-             meta_equals(x->u_map.v_meta, y->u_map.v_meta)))
-            return true;
-
-        return false;
-    }
-
-    return x->type == y->type;
 }
 
 #endif /* ! _META_H */

@@ -9,14 +9,11 @@
 #include "common.h"
 
 #include "strbuf.h"
-#include "array.h"
 
 #include "ast_id.h"
 #include "ast_blk.h"
 #include "ast_exp.h"
 #include "ast_stmt.h"
-#include "meta.h"
-#include "value.h"
 
 typedef struct parse_s {
     char *path;
