@@ -292,7 +292,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.GetABI:
 		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err == nil {
-			abi, err := contract.GetABI(contractState, msg.Contract)
+			abi, err := contract.GetABI(contractState)
 			context.Respond(message.GetABIRsp{
 				ABI: abi,
 				Err: err,

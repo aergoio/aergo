@@ -1,42 +1,41 @@
 package contract
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
-	"os"
+	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-)
-
-var (
-	sdb *state.ChainStateDB
-	aid []byte
-	tid []byte
+	"github.com/minio/sha256-simd"
 )
 
 const (
-	accountId = "AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6"
-	txId      = "c2b36750"
-	/*function hello(say) return "Hello " .. say end abi.register(hello)*/
-	helloCode = "CNHAxLsQM73PTo14NxWGxfEDTjbxiZ2SQVAZRR7WeKkXFhu9LCCtqbZj2pFwkoE8cX28YWf8FcmioGRe4Mi7vhUTFHhadhAVpVSv2inngQJ3d3cRnnpo6UgP2VzWX52R5fpWyjg12EdRNK9K74aypS69uEqv68xibXavPdpPBAidPkVuJV5tkivZ3LYcVeQ4pn4L7QDqSyGrJmPy2ME7iKfawSZUmRGW1vERzjcKqH17SZAgrbdHG2KkmCVCHat2ogtJDyXE9b7F"
-	/*function testState()
+	helloCode = `function hello(say) return "Hello " .. say end abi.register(hello)`
+
+	systemCode = `function testState()
 		string.format("creator: %s",system.getContractID())
 		string.format("timestamp: %d",system.getTimestamp())
 		string.format("blockheight: %d",system.getBlockheight())
 		system.setItem("key1", 999)
 		string.format("getitem : %s",system.getItem("key1"))
 		return system.getSender(), system.getTxhash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
-	  end abi.register(testState) */
-	systemCode = "86VMDdo4twhyq7NpCkCqnn3uWVdL4EetXKSCKpVocGaShaZzeZnTbD8o6ikoLuz9XSJ3U4nyCDHMWa69Yf5YKyUciPTAfCHSmMXcrTpttEA3Gw2Ew6mZ6ceHGuYg8yaEA1vS7orTaCU6Lkdt1xTCmVoYfxXVFzB4jroCJvn6YpT5qba3mbgEsQ92zafTtGCbVjTgK7mBu2PTCgLLwfkR1G6aQy2QR851FHk5UqbZbioFUL5WhkpKpwXTZW78iwpgDgFzQsK56bYciv9MN26KYhLaM5KmJMjdRQdUi6z89JKFJxBAEf1wtZ389HCG4RzRHLiMUvqriDQtKqTJfCdP6wHERfdTi7SowvhPev2iqctS18hf5zFBWfAJZMh2Khd2wYbhSfXHcJDQ9ma2tnLR5ESbRiQAvsyu5aAFzkJH5sZvoNUHda4xyPuQE6wZLqnC6cDJQdWy1wXrHpBkwQ2tpATevya4j2e4KcM6TXert5jGKkSSe5tK3RTxW9LGYqkUnTKyMxtnGpfMMqPxvR7tGD8cZymf1he7xS8kt8aXr6MT9HQ3DdqJUvBpJ3GJEvxVa3Kf5kTfjKC3AaEwpdy4tUFLWHrxzzqKefw1k1rdQF6WUQCacZCFiswTvU1hpx6rdycDzxKeXYTyEgxWbb2L5th6ayd5VAezehDUHZLHeFwxc23fNqPrPsLQkZzxVxobf4Q6ckY9gBFzsmQqkQTeCQvckC7mZ9g33LNpLZ"
-	/*function inc()
+	  end 
+abi.register(testState)`
+
+	queryCode = `function inc()
 		a = system.getItem("key1")
 		if (a == nil) then
 			system.setItem("key1", 1)
@@ -47,134 +46,411 @@ const (
 	function query(a)
 			return system.getItem(a)
 	end
-	abi.register(inc)
-	abi.register(query) */
-	queryCode = "52fg8Ywt6dwekcRC6KHx27QSg8umh2nF6bVdmYRp81s3eXW9fXP8bLVJqbjsqC3yhVFPFPQFVoQz1s77f9osQw4hRwSBtGRUbxTbxDtnJTxhP3oNgEAmFg7vujtRER7z5bH3P1nkoRgSaCX2A6qws4ueVZF1vrCbehfkYNcCedHDYFuJhpcRuWicL8Mfuj4aBLWsnXtTUGfN9xSKJWYYprAeUfDQAVSrPRS1TfmhwJhm3PJaxBGswSFcH1b3kCYDsXyj8mDjCPUKXdaMj7j5qnVg2FVXMiSDizeibjfrs3ySZ13dQwhWmn1NZvgxSirnW7bNYjsF39Hsm5iNBizLZWatBisVXrVpQPj2xAX7esLZMemFwxoJtmMZAwYHzKCvT1Sq5sJZgPBJ17mhwB2MTC1h6aH7y9bMcDtPQfxNoNsyJEqKG4kFTpwSrLJ1o2zDuHt1rYsz69ZYB1uvtdG8v5vDmSpZjhzgVmmQCEKwbMGYJAFQU65p3s9RvyaiFPNHMef91cgq5uXxQ"
+	abi.register(inc, query)`
 )
 
-func init() {
-	sdb = state.NewChainStateDB()
+func TestReturn(t *testing.T) {
+	bc := loadBlockChain(t)
 
-	tmpDir, _ := ioutil.TempDir("", "vmtest")
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "return_num", 10, "function return_num() return 10 end abi.register(return_num)"),
+		newLuaTxCall("ktlee", "return_num", 10, `{"Name":"return_num", "Args":[]}`),
+	)
 
-	err := sdb.Init(path.Join(tmpDir, "testDB"))
+	rv, err := bc.query("return_num", `{"Name":"return_num", "Args":[]}`, t)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+		t.Error(err)
 	}
-	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(tmpDir, "receiptDB"))
-
-	aid, err = types.DecodeAddress(accountId)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-	tid, err = hex.DecodeString(txId)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-
-	dir, err := ioutil.TempDir("", "SqlDB")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	LoadDatabase(dir)
-}
-
-func getContractState(t *testing.T, code string) *state.ContractState {
-	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(aid))
-	if err != nil {
-		t.Fatalf("contract state open error : %s\n", err.Error())
-	}
-	rcode, err := util.DecodeCode(code)
-	if err != nil {
-		t.Fatalf("contract SetCode error : %s\n", err.Error())
-	}
-
-	err = contractState.SetCode(rcode)
-	if err != nil {
-		t.Fatalf("contract SetCode error : %s\n", err.Error())
-	}
-	return contractState
-}
-
-func contractCall(t *testing.T, contractState *state.ContractState, ci string,
-	bcCtx *LBlockchainCtx) {
-	dbTx := TempReceiptDb.NewTx()
-	err := Call(contractState, []byte(ci), aid, tid, bcCtx, dbTx)
-	dbTx.Commit()
-	if err != nil {
-		t.Fatalf("contract Call error : %s\n", err.Error())
+	if rv != "[10]" {
+		t.Errorf("expected: %s, bug got: %s", "[10]", rv)
 	}
 }
 
 func TestContractHello(t *testing.T) {
-	callInfo := `{"Name":"hello", "Args":["World"]}`
+	bc := loadBlockChain(t)
 
-	contractState := getContractState(t, helloCode)
-	contractCall(t, contractState, callInfo, nil)
-	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tid))
-
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+	)
+	bc.connectBlock(
+		newLuaTxDef("ktlee", "hello", 1, helloCode),
+	)
+	tx := newLuaTxCall("ktlee", "hello", 1, `{"Name":"hello", "Args":["World"]}`)
+	bc.connectBlock(tx)
+	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tx.hash()))
 	if receipt.GetRet() != `["Hello World"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
 
 func TestContractSystem(t *testing.T) {
-	callInfo := "{\"Name\":\"testState\", \"Args\":[]}"
-	contractState := getContractState(t, systemCode)
-	bcCtx := NewContext(sdb, nil, nil, contractState, "HNM6akcic1ou1fX", "c2b36750", 100, 1234,
-		"node", 1, accountId, 0, nil, nil)
+	bc := loadBlockChain(t)
 
-	contractCall(t, contractState, callInfo, bcCtx)
-	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tid))
-
-	// sender, txhash, contractid, timestamp, blockheight, getItem("key1")
-	if receipt.GetRet() != `["HNM6akcic1ou1fX","c2b36750","AnZNgPahfxH1pE8DkLFCt3uEQZBbivmxsF1s2QbHG7J6owEV2qh6",1234,100,999]` {
-		t.Errorf("contract Call ret error: %s\n", receipt.GetRet())
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+	)
+	bc.connectBlock(
+		newLuaTxDef("ktlee", "system", 1, systemCode),
+	)
+	tx := newLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
+	bc.connectBlock(tx)
+	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tx.hash()))
+	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0ce7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp)
+	if receipt.GetRet() != exRv {
+		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
 	}
-
 }
 
 func TestGetABI(t *testing.T) {
-	contractState := getContractState(t, helloCode)
-	abi, err := GetABI(contractState, aid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(abi)
-}
+	bc := loadBlockChain(t)
 
-func TestContractQuery(t *testing.T) {
-	queryInfo := `{"Name":"query", "Args":["key1"]}`
-	setInfo := `{"Name":"inc", "Args":[]}`
-
-	contractState := getContractState(t, queryCode)
-
-	tx, err := BeginTx(types.ToAccountID(aid), 1)
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "hello", 1,
+			`function hello(say) return "Hello " .. say end abi.register(hello)`),
+	)
+	cState, err := bc.sdb.OpenContractStateAccount(types.ToAccountID(strHash("hello")))
 	if err != nil {
 		t.Error(err)
 	}
-	tx.Commit()
-
-	_, err = Query(aid, contractState, []byte(setInfo))
-	if err == nil || !strings.Contains(err.Error(), "not permitted set in query") {
-		t.Errorf("failed check error: %s", err.Error())
-	}
-
-	bcCtx := NewContext(sdb, nil, nil, contractState, "", "", 100, 1234,
-		"node", 1, accountId, 0, nil, nil)
-
-	contractCall(t, contractState, setInfo, bcCtx)
-
-	ret, err := Query(aid, contractState, []byte(queryInfo))
+	abi, err := GetABI(cState)
 	if err != nil {
-		t.Errorf("contract query error :%s\n", err.Error())
+		t.Error(err)
+	}
+	b, err := json.Marshal(abi)
+	if err != nil {
+		t.Error(err)
+	}
+	if string(b) != `{"version":"0.1","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}]}` {
+		t.Error(string(b))
+	}
+}
+
+func TestContractQuery(t *testing.T) {
+	bc := loadBlockChain(t)
+
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+	)
+	bc.connectBlock(
+		newLuaTxDef("ktlee", "query", 1, queryCode),
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	)
+
+	rv, err := bc.query("query", `{"Name":"inc", "Args":[]}`, t)
+	if err == nil {
+		t.Error("error expected")
+
+	}
+	if !strings.Contains(err.Error(), "not permitted set in query") {
+		t.Errorf("failed check error: %v", err)
 	}
 
-	if string(ret) != "[1]" {
-		t.Errorf("contract query ret error :%s\n", ret)
+	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	if err != nil {
+		t.Errorf("contract query error: %v", err)
 	}
+	if rv != "[1]" {
+		t.Errorf("expected: %s, bug got: %s", "[1]", rv)
+	}
+}
+
+type blockChain struct {
+	sdb         *state.ChainStateDB
+	bestBlock   *types.Block
+	cBlock      *types.Block
+	bestBlockNo types.BlockNo
+	bestBlockId types.BlockID
+	rTx         db.Transaction
+}
+
+func loadBlockChain(t *testing.T) *blockChain {
+	bc := &blockChain{sdb: state.NewChainStateDB()}
+	dataPath, err := ioutil.TempDir("", "data")
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	err = bc.sdb.Init(dataPath)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	genesis := types.GetTestGenesis()
+	bc.sdb.SetGenesis(genesis)
+	bc.bestBlockNo = genesis.Block.BlockNo()
+	bc.bestBlockId = genesis.Block.BlockID()
+
+	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
+	LoadDatabase(dataPath)
+	return bc
+}
+
+func (bc *blockChain) newBState() *types.BlockState {
+	b := types.Block{
+		Header: &types.BlockHeader{
+			PrevBlockHash: []byte(bc.bestBlockId.String()),
+			BlockNo:       bc.bestBlockNo + 1,
+			Timestamp:     time.Now().Unix(),
+		},
+	}
+	bc.cBlock = &b
+	blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
+	return types.NewBlockState(blockInfo, TempReceiptDb.NewTx())
+}
+
+type luaTx interface {
+	run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error
+}
+
+type luaTxAccount struct {
+	name    []byte
+	balance uint64
+}
+
+func newLuaTxAccount(name string, balance uint64) *luaTxAccount {
+	return &luaTxAccount{
+		name:    strHash(name),
+		balance: balance,
+	}
+}
+
+func (l *luaTxAccount) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+	id := types.ToAccountID(l.name)
+	accountState, err := sdb.GetBlockAccountClone(bs, id)
+	if err != nil {
+		return err
+	}
+	updatedAccountState := types.State(*accountState)
+	updatedAccountState.Balance = l.balance
+	bs.PutAccount(id, accountState, &updatedAccountState)
+	return nil
+}
+
+type luaTxDef struct {
+	sender   []byte
+	contract []byte
+	amount   uint64
+	code     []byte
+	id       uint64
+}
+
+func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
+	luac := exec.Command("../bin/aergoluac", "--payload")
+	stdin, err := luac.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, code)
+	}()
+	out, err := luac.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := util.DecodeCode(string(out))
+	if err != nil {
+		log.Fatal(err)
+	}
+	codeWithInit := make([]byte, 4+len(b))
+	binary.LittleEndian.PutUint32(codeWithInit, uint32(4+len(b)))
+	copy(codeWithInit[4:], b)
+	return &luaTxDef{
+		sender:   strHash(sender),
+		contract: strHash(contract),
+		code:     codeWithInit,
+		amount:   amount,
+		id:       newTxId(),
+	}
+}
+
+func strHash(d string) []byte {
+	h := sha256.New()
+	h.Write([]byte(d))
+	b := h.Sum(nil)
+	b = append([]byte{0x0C}, b...)
+	return b
+}
+
+var luaTxId uint64 = 0
+
+func newTxId() uint64 {
+	luaTxId++
+	return luaTxId
+}
+
+func (l *luaTxDef) hash() []byte {
+	h := sha256.New()
+	h.Write([]byte(strconv.FormatUint(l.id, 10)))
+	b := h.Sum(nil)
+	b = append([]byte{0x0C}, b...)
+	return b
+}
+
+func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+	creatorId := types.ToAccountID(l.sender)
+	creatorState, err := sdb.GetBlockAccountClone(bs, creatorId)
+	if err != nil {
+		return err
+	}
+
+	contractId := types.ToAccountID(l.contract)
+	contractState, err := sdb.GetBlockAccountClone(bs, contractId)
+	if err != nil {
+		return err
+	}
+
+	uContractState := types.State(*contractState)
+	eContractState, err := sdb.OpenContractState(&uContractState)
+	if err != nil {
+		return err
+	}
+	contractState.SqlRecoveryPoint = 1
+	sqlTx, err := BeginTx(contractId, contractState.SqlRecoveryPoint)
+	if err != nil {
+		return err
+	}
+	err = sqlTx.Savepoint()
+	if err != nil {
+		return err
+	}
+
+	bcCtx := NewContext(sdb, bs, creatorState, eContractState,
+		types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
+		"", 1, types.EncodeAddress(l.contract),
+		0, nil, sqlTx.GetHandle())
+
+	err = Create(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+	if err != nil {
+		_ = sqlTx.RollbackToSavepoint()
+		return err
+	}
+	err = sdb.CommitContractState(eContractState)
+	if err != nil {
+		_ = sqlTx.RollbackToSavepoint()
+		return err
+	}
+	err = sqlTx.Release()
+	if err != nil {
+		return err
+	}
+
+	uCallerState := types.State(*creatorState)
+	uCallerState.Balance -= l.amount
+	uContractState.Balance += l.amount
+
+	bs.PutAccount(creatorId, creatorState, &uCallerState)
+	bs.PutAccount(contractId, contractState, &uContractState)
+	return nil
+}
+
+type luaTxCall struct {
+	sender   []byte
+	contract []byte
+	amount   uint64
+	code     []byte
+	id       uint64
+}
+
+func newLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
+	return &luaTxCall{
+		sender:   strHash(sender),
+		contract: strHash(contract),
+		amount:   amount,
+		code:     []byte(code),
+		id:       newTxId(),
+	}
+}
+
+func (l *luaTxCall) hash() []byte {
+	h := sha256.New()
+	h.Write([]byte(strconv.FormatUint(l.id, 10)))
+	b := h.Sum(nil)
+	b = append([]byte{0x0C}, b...)
+	return b
+}
+
+func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+	creatorId := types.ToAccountID([]byte(l.sender))
+	creatorState, err := sdb.GetBlockAccountClone(bs, creatorId)
+	if err != nil {
+		return err
+	}
+
+	contractId := types.ToAccountID([]byte(l.contract))
+	contractState, err := sdb.GetBlockAccountClone(bs, contractId)
+	if err != nil {
+		return err
+	}
+
+	uContractState := types.State(*contractState)
+	eContractState, err := sdb.OpenContractState(&uContractState)
+	if err != nil {
+		return err
+	}
+	sqlTx, err := BeginTx(contractId, contractState.SqlRecoveryPoint)
+	if err != nil {
+		return err
+	}
+	sqlTx.Savepoint()
+
+	bcCtx := NewContext(sdb, bs, creatorState, eContractState,
+		types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
+		"", 1, types.EncodeAddress(l.contract),
+		0, nil, sqlTx.GetHandle())
+
+	err = Call(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+	if err != nil {
+		_ = sqlTx.RollbackToSavepoint()
+		return err
+	}
+	err = sdb.CommitContractState(eContractState)
+	if err != nil {
+		_ = sqlTx.RollbackToSavepoint()
+		return err
+	}
+	err = sqlTx.Release()
+	if err != nil {
+		return err
+	}
+
+	uCallerState := types.State(*creatorState)
+	uCallerState.Balance -= l.amount
+	uContractState.Balance += l.amount
+
+	bs.PutAccount(creatorId, creatorState, &uCallerState)
+	bs.PutAccount(contractId, contractState, &uContractState)
+	return nil
+}
+
+func (bc *blockChain) connectBlock(txs ...luaTx) error {
+	blockState := bc.newBState()
+	defer blockState.CommitReceipt()
+
+	for _, x := range txs {
+		x.run(bc.sdb, blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp)
+	}
+	err := SaveRecoveryPoint(bc.sdb, blockState)
+	if err != nil {
+		return err
+	}
+	err = bc.sdb.Apply(blockState)
+	if err != nil {
+		return err
+	}
+	bc.bestBlockNo = blockState.BlockNo
+	bc.bestBlockId = blockState.BlockHash
+	return nil
+}
+
+func (bc *blockChain) query(contract, queryInfo string, t *testing.T) (string, error) {
+	cState, err := bc.sdb.OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+	if err != nil {
+		return "", err
+	}
+	ret, err := Query(strHash(contract), cState, []byte(queryInfo))
+	if err != nil {
+		return "", err
+	}
+	return string(ret), nil
 }

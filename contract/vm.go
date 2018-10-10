@@ -316,7 +316,7 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 
 func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
-	codeLen := binary.LittleEndian.Uint32(code[0:])
+	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
 		err := fmt.Errorf("invalid deploy code(%d:%d)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
@@ -422,7 +422,7 @@ func GetReceipt(txHash []byte) (*types.Receipt, error) {
 	return types.NewReceiptFromBytes(val), nil
 }
 
-func GetABI(contractState *state.ContractState, contractAddress []byte) (*types.ABI, error) {
+func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 	val, err := contractState.GetCode()
 	if err != nil {
 		return nil, err
@@ -430,12 +430,16 @@ func GetABI(contractState *state.ContractState, contractAddress []byte) (*types.
 	if len(val) == 0 {
 		return nil, errors.New("cannot find contract")
 	}
-	l := binary.LittleEndian.Uint32(val[0:])
+	l := codeLength(val)
 	abi := new(types.ABI)
 	if err := json.Unmarshal(val[4+l:], abi); err != nil {
 		return nil, err
 	}
 	return abi, nil
+}
+
+func codeLength(val []byte) uint32 {
+	return binary.LittleEndian.Uint32(val[0:])
 }
 
 func (sm *stateMap) init() {

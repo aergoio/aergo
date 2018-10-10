@@ -34,7 +34,10 @@ void lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf)
 	switch (lua_type(L, idx)) {
 	case LUA_TNUMBER: {
 		char tmp[128];
-		len = sprintf (tmp, "%g,", lua_tonumber(L, idx));
+	    if (luaL_isinteger(L, idx))
+            len = sprintf (tmp, "%ld,", lua_tointeger(L, idx));
+	    else
+            len = sprintf (tmp, "%g,", lua_tonumber(L, idx));
 		src_val = tmp;
 		break;
 	}

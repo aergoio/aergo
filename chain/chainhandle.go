@@ -472,27 +472,33 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 			if err != nil {
 				return err
 			}
-			sqlTx.Savepoint()
+			err = sqlTx.Savepoint()
+			if err != nil {
+				return err
+			}
 
 			bcCtx := contract.NewContext(sdb, bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
 				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
 				types.EncodeAddress(recipient), 0, nil, sqlTx.GetHandle())
 
 			if createContract {
-				receiverChange.SqlRecoveryPoint = 1
 				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			} else {
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			}
 			if err != nil {
-				sqlTx.RollbackToSavepoint()
+				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = sdb.CommitContractState(contractState)
 			if err != nil {
+				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			sqlTx.Release()
+			err = sqlTx.Release()
+			if err != nil {
+				return err
+			}
 		}
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)
