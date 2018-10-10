@@ -993,38 +993,38 @@ exp_prim:
     exp_new
 |   K_NULL
     {
-        $$ = exp_lit_new(&@$);
-        val_set_null(&$$->u_lit.val);
+        $$ = exp_val_new(&@$);
+        val_set_null(&$$->u_val.val);
     }
 |   K_TRUE
     {
-        $$ = exp_lit_new(&@$);
-        val_set_bool(&$$->u_lit.val, true);
+        $$ = exp_val_new(&@$);
+        val_set_bool(&$$->u_val.val, true);
     }
 |   K_FALSE
     {
-        $$ = exp_lit_new(&@$);
-        val_set_bool(&$$->u_lit.val, false);
+        $$ = exp_val_new(&@$);
+        val_set_bool(&$$->u_val.val, false);
     }
 |   L_INT
     {
-        $$ = exp_lit_new(&@$);
-        val_set_int(&$$->u_lit.val, $1);
+        $$ = exp_val_new(&@$);
+        val_set_int(&$$->u_val.val, $1);
     }
 |   L_FLOAT
     {
-        $$ = exp_lit_new(&@$);
-        val_set_fp(&$$->u_lit.val, $1);
+        $$ = exp_val_new(&@$);
+        val_set_fp(&$$->u_val.val, $1);
     }
 |   L_HEXA
     {
-        $$ = exp_lit_new(&@$);
-        val_set_hexa(&$$->u_lit.val, $1);
+        $$ = exp_val_new(&@$);
+        val_set_hexa(&$$->u_val.val, $1);
     }
 |   L_STR
     {
-        $$ = exp_lit_new(&@$);
-        val_set_str(&$$->u_lit.val, $1);
+        $$ = exp_val_new(&@$);
+        val_set_str(&$$->u_val.val, $1);
     }
 |   identifier
     {
@@ -1069,9 +1069,9 @@ exp_new:
     {
         array_t *exps = array_new();
         ast_exp_t *id_exp = exp_id_new(xstrdup("map"), &@2);
-        ast_exp_t *size_exp = exp_lit_new(&@4);
+        ast_exp_t *size_exp = exp_val_new(&@4);
 
-        val_set_int(&size_exp->u_lit.val, $4);
+        val_set_int(&size_exp->u_val.val, $4);
         ast_exp_add(exps, size_exp);
 
         $$ = exp_call_new(id_exp, exps, &@$);

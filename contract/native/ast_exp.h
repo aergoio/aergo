@@ -12,7 +12,7 @@
 #include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
-#define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
+#define is_val_exp(exp)             ((exp)->kind == EXP_VAL)
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
@@ -44,7 +44,7 @@ typedef struct ast_id_s ast_id_t;
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
-    EXP_LIT,
+    EXP_VAL,
     EXP_TYPE,
     EXP_ID,
     EXP_ARRAY,
@@ -92,9 +92,9 @@ typedef enum sql_kind_e {
 } sql_kind_t;
 
 // null, true, false, 1, 1.0, 0x1, "..."
-typedef struct exp_lit_s {
+typedef struct exp_val_s {
     value_t val;
-} exp_lit_t;
+} exp_val_t;
 
 // primitive, struct, map
 typedef struct exp_type_s {
@@ -159,7 +159,7 @@ struct ast_exp_s {
     exp_kind_t kind;
 
     union {
-        exp_lit_t u_lit;
+        exp_val_t u_val;
         exp_type_t u_type;
         exp_id_t u_id;
         exp_array_t u_arr;
@@ -179,7 +179,7 @@ struct ast_exp_s {
 ast_exp_t *ast_exp_new(exp_kind_t kind, trace_t *trc);
 
 ast_exp_t *exp_null_new(trace_t *trc);
-ast_exp_t *exp_lit_new(trace_t *trc);
+ast_exp_t *exp_val_new(trace_t *trc);
 ast_exp_t *exp_type_new(type_t type, char *name, ast_exp_t *k_exp,
                         ast_exp_t *v_exp, trace_t *trc);
 ast_exp_t *exp_id_new(char *name, trace_t *trc);

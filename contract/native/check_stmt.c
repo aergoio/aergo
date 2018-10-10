@@ -25,10 +25,10 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     cond_exp = stmt->u_if.cond_exp;
     cond_meta = &cond_exp->meta;
 
-    TRY(check_exp(check, cond_exp));
+    CHECK(check_exp(check, cond_exp));
 
     if (!is_bool_meta(cond_meta))
-        THROW(ERROR_INVALID_COND_TYPE, exp_pos(cond_exp),
+        RETURN(ERROR_INVALID_COND_TYPE, exp_pos(cond_exp),
               TYPE_NAME(cond_meta->type));
 
     if (stmt->u_if.if_blk != NULL)
@@ -135,11 +135,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
 
         if (meta == NULL) {
             if (!is_bool_meta(val_meta))
-                THROW(ERROR_INVALID_COND_TYPE, exp_pos(val_exp),
+                RETURN(ERROR_INVALID_COND_TYPE, exp_pos(val_exp),
                       TYPE_NAME(val_meta->type));
         }
         else if (!meta_equals(meta, val_meta)) {
-            THROW(ERROR_MISMATCHED_TYPE, exp_pos(val_exp),
+            RETURN(ERROR_MISMATCHED_TYPE, exp_pos(val_exp),
                   TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
         }
     }
@@ -171,7 +171,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
         check_exp(check, cond_exp);
 
         if (!is_comparable_meta(cond_meta))
-            THROW(ERROR_NOT_COMPARABLE_TYPE, exp_pos(cond_exp),
+            RETURN(ERROR_NOT_COMPARABLE_TYPE, exp_pos(cond_exp),
                   TYPE_NAME(cond_meta->type));
     }
 
@@ -206,7 +206,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
         ASSERT1(is_tuple_meta(fn_meta), fn_meta->type);
 
         if (is_void_meta(fn_meta))
-            THROW(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp), 0,
+            RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp), 0,
                   meta_size(&arg_exp->meta));
 
         check_exp(check, arg_exp);
@@ -217,7 +217,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             array_t *ret_metas = fn_meta->u_tup.metas;
 
             if (array_size(arg_metas) != array_size(ret_metas))
-                THROW(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
+                RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
                       array_size(ret_metas), array_size(arg_metas));
 
             for (i = 0; i < array_size(arg_metas); i++) {
@@ -225,7 +225,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
                 meta_t *ret_meta = array_item(ret_metas, i, meta_t);
 
                 if (!meta_equals(ret_meta, arg_meta))
-                    THROW(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
+                    RETURN(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
                           TYPE_NAME(ret_meta->type),
                           TYPE_NAME(arg_meta->type));
             }
@@ -236,18 +236,18 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             meta_t *ret_meta;
 
             if (array_size(ret_metas) != 1)
-                THROW(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
+                RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
                       array_size(ret_metas), 1);
 
             ret_meta = array_item(fn_meta->u_tup.metas, 0, meta_t);
 
             if (!meta_equals(arg_meta, ret_meta))
-                THROW(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
+                RETURN(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
                       TYPE_NAME(ret_meta->type), TYPE_NAME(arg_meta->type));
         }
     }
     else if (!is_void_meta(fn_meta)) {
-        THROW(ERROR_MISMATCHED_COUNT, stmt_pos(stmt), meta_size(fn_meta), 0);
+        RETURN(ERROR_MISMATCHED_COUNT, stmt_pos(stmt), meta_size(fn_meta), 0);
     }
 
     return NO_ERROR;
@@ -280,7 +280,7 @@ stmt_goto_check(check_t *check, ast_stmt_t *stmt)
     } while ((blk = blk->up) != NULL);
 
     if (!has_found)
-        THROW(ERROR_UNDEFINED_LABEL, stmt_pos(stmt), stmt->u_goto.label);
+        RETURN(ERROR_UNDEFINED_LABEL, stmt_pos(stmt), stmt->u_goto.label);
 
     return NO_ERROR;
 }

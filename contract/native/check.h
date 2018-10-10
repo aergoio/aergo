@@ -10,14 +10,14 @@
 
 #include "ast.h"
 
-#define TRY(stmt)                                                              \
+#define CHECK(stmt)                                                            \
     do {                                                                       \
         ec_t ec = (stmt);                                                      \
         if (ec != NO_ERROR)                                                    \
             return ec;                                                         \
     } while (0)
 
-#define THROW(ec, trc, ...)                                                    \
+#define RETURN(ec, trc, ...)                                                   \
     do {                                                                       \
         error_push((ec), LVL_ERROR, (trc), ## __VA_ARGS__);                    \
         return (ec);                                                           \
