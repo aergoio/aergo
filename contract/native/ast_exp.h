@@ -29,8 +29,8 @@
 
 #define exp_pos(exp)                (&(exp)->meta.trc)
 
-#define ast_exp_add                 array_add_tail
-#define ast_exp_merge               array_join
+#define exp_add_first               array_add_first
+#define exp_add_last                array_add_last
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
@@ -175,8 +175,6 @@ struct ast_exp_s {
     ast_id_t *id;
     value_t val;
 };
-
-ast_exp_t *ast_exp_new(exp_kind_t kind, trace_t *trc);
 
 ast_exp_t *exp_null_new(trace_t *trc);
 ast_exp_t *exp_val_new(trace_t *trc);

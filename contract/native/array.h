@@ -11,16 +11,22 @@
 #define ARRAY_INIT_SIZE                 4
 
 #define is_empty_array(array)                                                  \
-    ((array) == NULL ? true : (array)->idx == 0)
+    ((array) == NULL ? true : (array)->cnt == 0)
 
-#define array_size(array)               ((array) == NULL ? 0 : (array)->idx)
+#define array_size(array)               ((array) == NULL ? 0 : (array)->cnt)
 #define array_item(array, idx, type)    ((type *)((array)->items[idx]))
 
-#define array_reset(array)              ((array)->idx = 0)
+#define array_add_first(array, item)    array_add((array), 0, (item))
+#define array_add_last(array, item)     array_add((array), (array)->cnt, (item))
+
+#define array_join_first(dest, src)     array_join((dest), 0, (src))
+#define array_join_last(dest, src)      array_join((dest), (dest)->cnt, (src))
+
+#define array_reset(array)              ((array)->cnt = 0)
 
 typedef struct array_s {
     int size;
-    int idx;
+    int cnt;
     void **items;
 } array_t;
 
@@ -28,7 +34,7 @@ static inline void
 array_init(array_t *array)
 {
     array->size = ARRAY_INIT_SIZE;
-    array->idx = 0;
+    array->cnt = 0;
     array->items = xmalloc(sizeof(void *) * array->size);
 }
 
@@ -62,47 +68,27 @@ array_extend(array_t *array, int size)
 }
 
 static inline void
-array_join(array_t *dest, array_t *src)
-{
-    ASSERT(src != NULL);
-    ASSERT(dest != NULL);
-
-    if (src->idx + dest->idx > dest->size)
-        array_extend(dest, src->size);
-
-    memcpy(&dest->items[dest->idx], &src->items[0], sizeof(void *) * src->idx);
-    dest->idx += src->idx;
-}
-
-static inline void
-array_add_head(array_t *array, void *item)
+array_add(array_t *array, int idx, void *item)
 {
     ASSERT(array != NULL);
+    ASSERT2(idx >= 0 && idx <= array->cnt, idx, array->cnt);
 
     if (item == NULL)
         return;
 
-    if (array->idx == array->size)
+    if (array->cnt == array->size)
         array_extend(array, ARRAY_INIT_SIZE);
 
-    memmove(&array->items[1], &array->items[0], sizeof(void *) * array->idx);
+    if (idx == array->cnt) {
+        array->items[array->cnt++] = item;
+    }
+    else {
+        memmove(&array->items[idx + 1], &array->items[idx], 
+                sizeof(void *) * array->cnt);
 
-    array->items[0] = item;
-    array->idx++;
-}
-
-static inline void
-array_add_tail(array_t *array, void *item)
-{
-    ASSERT(array != NULL);
-
-    if (item == NULL)
-        return;
-
-    if (array->idx == array->size)
-        array_extend(array, ARRAY_INIT_SIZE);
-
-    array->items[array->idx++] = item;
+        array->items[idx] = item;
+        array->cnt++;
+    }
 }
 
 static inline void
@@ -114,28 +100,51 @@ array_sadd(array_t *array, void *item,
     if (item == NULL)
         return;
 
-    if (array->idx == array->size)
+    if (array->cnt == array->size)
         array_extend(array, ARRAY_INIT_SIZE);
 
     if (cmp_fn == NULL) {
-        array->items[array->idx++] = item;
+        array->items[array->cnt++] = item;
     }
     else {
         int i;
 
-        for (i = 0; i < array->idx; i++) {
+        for (i = 0; i < array->cnt; i++) {
             if (cmp_fn(item, array->items[i]) <= 0) {
                 memmove(&array->items[i + 1], &array->items[i],
-                        sizeof(void *) * (array->idx - i));
+                        sizeof(void *) * (array->cnt - i));
                 array->items[i] = item;
-                array->idx++;
+                array->cnt++;
                 break;
             }
         }
 
-        if (i == array->idx)
-            array->items[array->idx++] = item;
+        if (i == array->cnt)
+            array->items[array->cnt++] = item;
     }
+}
+
+static inline void
+array_join(array_t *dest, int idx, array_t *src)
+{
+    ASSERT(src != NULL);
+    ASSERT(dest != NULL);
+    ASSERT2(idx >= 0 && idx <= dest->cnt, idx, dest->cnt);
+
+    if (src->cnt + dest->cnt > dest->size)
+        array_extend(dest, src->size);
+
+    if (idx == dest->cnt) {
+        memcpy(&dest->items[dest->cnt], &src->items[0], sizeof(void *) * src->cnt);
+    }
+    else {
+        memmove(&dest->items[idx + src->cnt], &dest->items[idx],
+                sizeof(void *) * (dest->cnt - idx));
+
+        memcpy(&dest->items[idx], &src->items[0], sizeof(void *) * src->cnt);
+    }
+
+    dest->cnt += src->cnt;
 }
 
 #endif /* ! _ARRAY_H */

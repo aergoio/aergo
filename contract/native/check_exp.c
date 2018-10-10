@@ -17,17 +17,17 @@ exp_id_check(check_t *check, ast_exp_t *exp)
     ASSERT1(is_id_exp(exp), exp->kind);
 
     if (check->aq_id != NULL) {
-        id = ast_id_search_fld(check->aq_id, exp->num, exp->u_id.name);
+        id = id_search_fld(check->aq_id, exp->num, exp->u_id.name);
     }
     else {
         if (check->fn_id != NULL)
-            id = ast_id_search_param(check->fn_id, exp->num, exp->u_id.name);
+            id = id_search_param(check->fn_id, exp->num, exp->u_id.name);
 
         if (id == NULL) {
-            id = ast_id_search_blk(check->blk, exp->num, exp->u_id.name);
+            id = id_search_blk(check->blk, exp->num, exp->u_id.name);
 
             if (id != NULL && is_contract_id(id))
-                id = ast_id_search_fld(id, exp->num, exp->u_id.name);
+                id = id_search_fld(id, exp->num, exp->u_id.name);
         }
     }
 
@@ -84,9 +84,9 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         ASSERT(exp->u_type.v_exp == NULL);
 
         if (check->aq_id != NULL)
-            id = ast_id_search_fld(check->aq_id, exp->num, exp->u_type.name);
+            id = id_search_fld(check->aq_id, exp->num, exp->u_type.name);
         else
-            id = ast_id_search_blk(check->blk, exp->num, exp->u_type.name);
+            id = id_search_blk(check->blk, exp->num, exp->u_type.name);
 
         if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, exp_pos(exp), exp->u_type.name);

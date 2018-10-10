@@ -42,7 +42,7 @@ meta_set_struct(meta_t *meta, array_t *ids)
     meta_set(meta, TYPE_STRUCT);
 
     for (i = 0; i < array_size(ids); i++) {
-        array_add_tail(metas, &array_item(ids, i, ast_id_t)->meta);
+        array_add_last(metas, &array_item(ids, i, ast_id_t)->meta);
     }
 
     meta->u_st.metas = metas;
@@ -57,7 +57,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
     meta_set(meta, TYPE_TUPLE);
 
     for (i = 0; i < array_size(exps); i++) {
-        array_add_tail(metas, &array_item(exps, i, ast_exp_t)->meta);
+        array_add_last(metas, &array_item(exps, i, ast_exp_t)->meta);
     }
 
     meta->u_st.metas = metas;

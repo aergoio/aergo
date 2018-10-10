@@ -12,9 +12,9 @@
 
 #define is_empty_stack(stack)   ((stack)->size == 0)
 #define stack_size(stack)       ((stack)->size)
-#define stack_head(stack)       ((stack)->head)
-#define stack_tail(stack)       ((stack)->tail)
-#define stack_top(stack)        stack_tail(stack)
+#define stack_first(stack)      ((stack)->head)
+#define stack_last(stack)       ((stack)->tail)
+#define stack_top(stack)        stack_last(stack)
 
 #define stack_foreach(node, stack)                                             \
     for ((node) = (stack)->head; (node) != NULL; (node) = (node)->next)

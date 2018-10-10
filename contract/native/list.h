@@ -74,7 +74,7 @@ list_node_new(void *item)
 }
 
 static inline void
-list_add_head(list_t *list, void *item)
+list_add_first(list_t *list, void *item)
 {
     list_node_t *node;
 
@@ -97,7 +97,7 @@ list_add_head(list_t *list, void *item)
 }
 
 static inline void
-list_add_tail(list_t *list, void *item)
+list_add_last(list_t *list, void *item)
 {
     list_node_t *node;
 

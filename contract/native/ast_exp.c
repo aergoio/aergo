@@ -54,7 +54,7 @@ char *sql_strs_[SQL_MAX] = {
     "DELETE"
 };
 
-ast_exp_t *
+static ast_exp_t *
 ast_exp_new(exp_kind_t kind, trace_t *trc)
 {
     ast_exp_t *exp = xcalloc(sizeof(ast_exp_t));
@@ -179,7 +179,7 @@ exp_tuple_new(ast_exp_t *elem_exp, trace_t *trc)
     exp->u_tup.exps = array_new();
 
     if (elem_exp != NULL)
-        array_add_tail(exp->u_tup.exps, elem_exp);
+        array_add_last(exp->u_tup.exps, elem_exp);
 
     return exp;
 }

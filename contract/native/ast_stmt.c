@@ -9,7 +9,7 @@
 
 #include "ast_stmt.h"
 
-ast_stmt_t *
+static ast_stmt_t *
 ast_stmt_new(stmt_kind_t kind, trace_t *trc)
 {
     ast_stmt_t *stmt = xcalloc(sizeof(ast_stmt_t));
@@ -104,6 +104,12 @@ stmt_goto_new(char *label, trace_t *trc)
     stmt->u_goto.label = label;
 
     return stmt;
+}
+
+ast_stmt_t *
+stmt_jump_new(stmt_kind_t kind, trace_t *trc)
+{
+    return ast_stmt_new(kind, trc);
 }
 
 ast_stmt_t *

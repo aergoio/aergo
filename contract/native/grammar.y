@@ -225,11 +225,11 @@ smart_contract:
     contract_decl
     {
         AST = ast_new();
-        ast_id_add(&ROOT->ids, $1);
+        id_add_last(&ROOT->ids, $1);
     }
 |   smart_contract contract_decl
     {
-        ast_id_add(&ROOT->ids, $2);
+        id_add_last(&ROOT->ids, $2);
     }
 ;
 
@@ -238,14 +238,14 @@ contract_decl:
     {
         ast_blk_t *blk = ast_blk_new(&@3);
 
-        ast_id_add(&blk->ids, id_ctor_new($2, NULL, NULL, &@2));
+        id_add_last(&blk->ids, id_ctor_new($2, NULL, NULL, &@2));
 
         $$ = id_contract_new($2, blk, &@$);
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        if (ast_id_search_blk($4, AST_NODE_NUM, $2) == NULL)
-            ast_id_add(&$4->ids, id_ctor_new($2, NULL, NULL, &@2));
+        if (id_search_blk($4, AST_NODE_NUM, $2) == NULL)
+            id_add_last(&$4->ids, id_ctor_new($2, NULL, NULL, &@2));
 
         $$ = id_contract_new($2, $4, &@$);
     }
@@ -255,22 +255,22 @@ contract_body:
     variable
     {
         $$ = ast_blk_new(&@$);
-        ast_id_join(&$$->ids, $1);
+        id_join_last(&$$->ids, $1);
     }
 |   compound
     {
         $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        id_add_last(&$$->ids, $1);
     }
 |   contract_body variable
     {
         $$ = $1;
-        ast_id_join(&$$->ids, $2);
+        id_join_last(&$$->ids, $2);
     }
 |   contract_body compound
     {
         $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        id_add_last(&$$->ids, $2);
     }
 ;
 
@@ -375,12 +375,12 @@ var_name_list:
     declarator
     {
         $$ = array_new();
-        ast_id_add($$, $1);
+        id_add_last($$, $1);
     }
 |   var_name_list ',' declarator
     {
         $$ = $1;
-        ast_id_add($$, $3);
+        id_add_last($$, $3);
     }
 ;
 
@@ -405,12 +405,12 @@ var_init_list:
     initializer
     {
         $$ = array_new();
-        ast_exp_add($$, $1);
+        exp_add_last($$, $1);
     }
 |   var_init_list ',' initializer
     {
         $$ = $1;
-        ast_exp_add($$, $3);
+        exp_add_last($$, $3);
     }
 ;
 
@@ -432,12 +432,12 @@ init_list:
     initializer
     {
         $$ = array_new();
-        ast_exp_add($$, $1);
+        exp_add_last($$, $1);
     }
 |   init_list ',' initializer
     {
         $$ = $1;
-        ast_exp_add($$, $3);
+        exp_add_last($$, $3);
     }
 ;
 
@@ -463,7 +463,7 @@ field_list:
 |   field_list variable
     {
         $$ = $1;
-        ast_id_join($$, $2);
+        id_join_last($$, $2);
     }
 ;
 
@@ -483,12 +483,12 @@ param_list:
     param_decl
     {
         $$ = array_new();
-        ast_exp_add($$, $1);
+        exp_add_last($$, $1);
     }
 |   param_list ',' param_decl
     {
         $$ = $1;
-        ast_exp_add($$, $3);
+        exp_add_last($$, $3);
     }
 ;
 
@@ -509,32 +509,32 @@ blk_decl:
     variable
     {
         $$ = ast_blk_new(&@$);
-        ast_id_join(&$$->ids, $1);
+        id_join_last(&$$->ids, $1);
     }
 |   struct
     {
         $$ = ast_blk_new(&@$);
-        ast_id_add(&$$->ids, $1);
+        id_add_last(&$$->ids, $1);
     }
 |   statement
     {
         $$ = ast_blk_new(&@$);
-        ast_stmt_add(&$$->stmts, $1);
+        stmt_add_last(&$$->stmts, $1);
     }
 |   blk_decl variable
     {
         $$ = $1;
-        ast_id_join(&$$->ids, $2);
+        id_join_last(&$$->ids, $2);
     }
 |   blk_decl struct
     {
         $$ = $1;
-        ast_id_add(&$$->ids, $2);
+        id_add_last(&$$->ids, $2);
     }
 |   blk_decl statement
     {
         $$ = $1;
-        ast_stmt_add(&$$->stmts, $2);
+        stmt_add_last(&$$->stmts, $2);
     }
 ;
 
@@ -570,12 +570,12 @@ return_list:
     var_type
     {
         $$ = array_new();
-        ast_exp_add($$, $1);
+        exp_add_last($$, $1);
     }
 |   return_list ',' var_type
     {
         $$ = $1;
-        ast_exp_add($$, $3);
+        exp_add_last($$, $3);
     }
 ;
 
@@ -617,7 +617,7 @@ stmt_if:
 |   stmt_if K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
-        ast_stmt_add(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
+        stmt_add_last(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
     }
 |   stmt_if K_ELSE block
     {
@@ -687,12 +687,12 @@ case_list:
     stmt_case
     {
         $$ = array_new();
-        ast_stmt_add($$, $1);
+        stmt_add_last($$, $1);
     }
 |   case_list stmt_case
     {
         $$ = $1;
-        ast_stmt_add($$, $2);
+        stmt_add_last($$, $2);
     }
 ;
 
@@ -711,23 +711,23 @@ stmt_list:
     statement
     {
         $$ = array_new();
-        ast_stmt_add($$, $1);
+        stmt_add_last($$, $1);
     }
 |   stmt_list statement
     {
         $$ = $1;
-        ast_stmt_add($$, $2);
+        stmt_add_last($$, $2);
     }
 ;
 
 stmt_jump:
     K_CONTINUE ';'
     {
-        $$ = ast_stmt_new(STMT_CONTINUE, &@$);
+        $$ = stmt_jump_new(STMT_CONTINUE, &@$);
     }
 |   K_BREAK ';'
     {
-        $$ = ast_stmt_new(STMT_BREAK, &@$);
+        $$ = stmt_jump_new(STMT_BREAK, &@$);
     }
 |   K_RETURN ';'
     {
@@ -810,7 +810,7 @@ exp_tuple:
         else
             $$ = exp_tuple_new($1, &@$);
 
-        ast_exp_add($$->u_tup.exps, $3);
+        exp_add_last($$->u_tup.exps, $3);
     }
 ;
 
@@ -1048,12 +1048,12 @@ exp_list:
     exp_ternary
     {
         $$ = array_new();
-        ast_exp_add($$, $1);
+        exp_add_last($$, $1);
     }
 |   exp_list ',' exp_ternary
     {
         $$ = $1;
-        ast_exp_add($$, $3);
+        exp_add_last($$, $3);
     }
 ;
 
@@ -1080,7 +1080,7 @@ exp_new:
         ast_exp_t *size_exp = exp_val_new(&@4);
 
         val_set_int(&size_exp->u_val.val, $4);
-        ast_exp_add(exps, size_exp);
+        exp_add_last(exps, size_exp);
 
         $$ = exp_call_new(id_exp, exps, &@$);
     }

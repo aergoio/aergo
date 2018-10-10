@@ -57,16 +57,14 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
 
     if (stmt->u_loop.init_ids != NULL) {
         ASSERT(stmt->u_loop.init_exp == NULL);
-
-        ast_id_join(stmt->u_loop.init_ids, &blk->ids);
-        blk->ids = *stmt->u_loop.init_ids;
+        id_join_first(&blk->ids, stmt->u_loop.init_ids);
     }
     else {
         ast_exp_t *init_exp = stmt->u_loop.init_exp;
 
         if (init_exp != NULL) {
             ast_stmt_t *exp_stmt = stmt_exp_new(init_exp, exp_pos(init_exp));
-            array_add_head(&blk->stmts, exp_stmt);
+            array_add_first(&blk->stmts, exp_stmt);
         }
     }
 
@@ -81,25 +79,25 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
         goto_stmt = stmt_goto_new(xstrdup(end_label), exp_pos(cond_exp));
 
         if_blk = ast_blk_new(exp_pos(cond_exp));
-        array_add_tail(&if_blk->stmts, goto_stmt);
+        array_add_last(&if_blk->stmts, goto_stmt);
 
         not_exp = exp_op_new(OP_NOT, cond_exp, NULL, exp_pos(cond_exp));
 
         if_stmt = stmt_if_new(not_exp, if_blk, exp_pos(cond_exp));
-        array_add_head(&blk->stmts, if_stmt);
+        array_add_first(&blk->stmts, if_stmt);
     }
 
     null_stmt = stmt_null_new(stmt_pos(stmt));
     null_stmt->label = xstrdup(begin_label);
 
-    array_add_head(&blk->stmts, null_stmt);
+    array_add_first(&blk->stmts, null_stmt);
 
     loop_exp = stmt->u_loop.loop_exp;
 
     if (loop_exp != NULL) {
         ast_stmt_t *exp_stmt = stmt_exp_new(loop_exp, exp_pos(loop_exp));
 
-        array_add_tail(&blk->stmts, exp_stmt);
+        array_add_last(&blk->stmts, exp_stmt);
     }
 
     return NO_ERROR;
@@ -132,7 +130,7 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
     id->u_var.init_exp = exp_val_new(trc);
     val_set_int(&id->u_var.init_exp->u_val.val, "0");
 
-    ast_id_add(&blk->ids, id);
+    id_add_last(&blk->ids, id);
 
     inc_exp = exp_op_new(OP_INC, exp_id_new(xstrdup(name), trc), NULL, trc);
     arr_exp = exp_array_new(loop_exp, inc_exp, exp_pos(loop_exp));
@@ -150,11 +148,10 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
             assign_exp = 
                 exp_op_new(OP_ASSIGN, id_exp, arr_exp, exp_pos(loop_exp));
 
-            array_add_head(&blk->stmts, stmt_exp_new(assign_exp, trc));
+            array_add_first(&blk->stmts, stmt_exp_new(assign_exp, trc));
         }
 
-        ast_id_join(var_ids, &blk->ids);
-        blk->ids = *var_ids;
+        id_join_first(&blk->ids, var_ids);
     }
     else {
         ast_exp_t *init_exp = stmt->u_loop.init_exp;
@@ -169,13 +166,13 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
         assign_exp = 
             exp_op_new(OP_ASSIGN, init_exp, arr_exp, exp_pos(loop_exp));
 
-        array_add_head(&blk->stmts, stmt_exp_new(assign_exp, trc));
+        array_add_first(&blk->stmts, stmt_exp_new(assign_exp, trc));
     }
 
     null_stmt = stmt_null_new(stmt_pos(stmt));
     null_stmt->label = xstrdup(begin_label);
 
-    array_add_head(&blk->stmts, null_stmt);
+    array_add_first(&blk->stmts, null_stmt);
 
     return NO_ERROR;
 }
@@ -217,8 +214,8 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
     null_stmt = stmt_null_new(stmt_pos(stmt));
     null_stmt->label = xstrdup(end_label);
 
-    array_add_tail(&blk->stmts, goto_stmt);
-    array_add_tail(&blk->stmts, null_stmt);
+    array_add_last(&blk->stmts, goto_stmt);
+    array_add_last(&blk->stmts, null_stmt);
 
     check_blk(check, blk);
 

@@ -20,6 +20,12 @@
 
 #define id_pos(id)                  (&(id)->meta.trc)
 
+#define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
+#define id_add_last(ids, new_id)    id_add((ids), (ids)->cnt, (new_id))
+
+#define id_join_first(ids, new_ids) id_join((ids), 0, (new_ids))
+#define id_join_last(ids, new_ids)  id_join((ids), (ids)->cnt, (new_ids))
+
 #ifndef _AST_ID_T
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;
@@ -85,20 +91,18 @@ struct ast_id_s {
     bool is_used;
 };
 
-ast_id_t *ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc);
-
 ast_id_t *id_var_new(char *name, trace_t *trc);
 ast_id_t *id_struct_new(char *name, array_t *fld_ids, trace_t *trc);
 ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, trace_t *trc);
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, trace_t *trc);
 
-ast_id_t *ast_id_search_fld(ast_id_t *id, int num, char *name);
-ast_id_t *ast_id_search_blk(ast_blk_t *blk, int num, char *name);
-ast_id_t *ast_id_search_param(ast_id_t *id, int num, char *name);
+ast_id_t *id_search_fld(ast_id_t *id, int num, char *name);
+ast_id_t *id_search_blk(ast_blk_t *blk, int num, char *name);
+ast_id_t *id_search_param(ast_id_t *id, int num, char *name);
 
-void ast_id_add(array_t *ids, ast_id_t *new_id);
-void ast_id_join(array_t *ids, array_t *new_ids);
+void id_add(array_t *ids, int idx, ast_id_t *new_id);
+void id_join(array_t *ids, int idx, array_t *new_ids);
 
 void ast_id_dump(ast_id_t *id, int indent);
 
