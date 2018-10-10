@@ -1,4 +1,4 @@
-@desc block_comment
+@test(block_comment)
 contract test {
     /* This
      * is
@@ -14,14 +14,14 @@ a
      *****************************************************************************/
 }
 
-@desc line_comment
+@test(line_comment)
 contract test {
 // This is a cpp-style comment
 
     // This is /* a comment with c comment
 }
 
-@desc unterminated_comment
-@error ERROR_UNTERMINATED_COMMENT
+@test(unterminated_comment)
+@error(ERROR_UNTERMINATED_COMMENT)
 contract test {
     /* This is an unterminated comment

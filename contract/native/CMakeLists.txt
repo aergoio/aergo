@@ -48,7 +48,8 @@ set(TEST_LIBS ascl CACHE STRING "this is a main library")
 
 add_library(ascl STATIC ${SRCS})
 set_target_properties(ascl PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib"
+    COMPILE_FLAGS "-Wall")
 
 add_custom_target(realclean)
 add_custom_command(TARGET realclean 

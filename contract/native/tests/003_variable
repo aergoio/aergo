@@ -1,4 +1,4 @@
-@desc primitive_type
+@test(primitive_type)
 contract test {
     int v1;
     int8 v2;
@@ -18,35 +18,35 @@ contract test {
     int v16, v17;
 }
 
-@desc incompatible_declaration
-@error ERROR_SYNTAX
+@test(incompatible_declaration)
+@error(ERROR_SYNTAX)
 contract test {
     int v1, string v2;
 }
 
-@desc constant_qualifier
+@test(constant_qualifier)
 contract test {
     const int v;
 }
 
-@desc invalid_qualifier_position
-@error ERROR_SYNTAX
+@test(invalid_qualifier_position)
+@error(ERROR_SYNTAX)
 contract test {
     int const v;
 }
 
-@desc type_modifier
+@test(type_modifier)
 contract test {
     local int v1;
 }
 
-@desc invalid_modifier_position
-@error ERROR_SYNTAX
+@test(invalid_modifier_position)
+@error(ERROR_SYNTAX)
 contract test {
     int local v1;
 }
 
-@desc primitive_array
+@test(primitive_array)
 contract test {
     int v1[10];
     int v2, v3[10];
@@ -54,25 +54,25 @@ contract test {
     int v6[10], v7[10];
 }
 
-@desc invalid_brace_position
-@error ERROR_SYNTAX
+@test(invalid_brace_position)
+@error(ERROR_SYNTAX)
 contract test {
     int[10] v;
 }
 
-@desc missing_declarator
-@error ERROR_SYNTAX
+@test(missing_declarator)
+@error(ERROR_SYNTAX)
 contract test {
     int;
 }
 
-@desc missing_semicolon
-@error ERROR_SYNTAX
+@test(missing_semicolon)
+@error(ERROR_SYNTAX)
 contract test {
     int v
 }
 
-@desc struct_type
+@test(struct_type)
 contract test {
     struct s1 {
         int a;
@@ -86,7 +86,7 @@ contract test {
     }
 }
 
-@desc struct_array
+@test(struct_array)
 contract test {
     struct s {
         int a, b;
@@ -95,16 +95,16 @@ contract test {
     s y[10];
 }
 
-@desc empty_struct
-@error ERROR_SYNTAX
+@test(empty_struct)
+@error(ERROR_SYNTAX)
 contract test {
     struct s {
     }
     s x[10];
 }
 
-@desc struct_of_struct
-@error ERROR_SYNTAX
+@test(struct_of_struct)
+@error(ERROR_SYNTAX)
 contract test {
     struct outer {
         struct inner {
@@ -114,7 +114,7 @@ contract test {
     s x;
 }
 
-@desc map_type
+@test(map_type)
 contract test {
     map(int, string) v1;
     struct x {

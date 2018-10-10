@@ -15,7 +15,7 @@
 
 #define FILE_MAX_CNT    100
 
-#define TAG_TITLE       "@desc"
+#define TAG_TITLE       "@test"
 #define TAG_ERROR       "@error"
 #define TAG_EXPORT      "@export"
 
@@ -128,7 +128,7 @@ read_test(env_t *env, char *path)
             exp_fp = NULL;
 
             offset += strlen(buf);
-            strcpy(env->title, strtrim(buf + strlen(TAG_TITLE)));
+            strcpy(env->title, strtrim(buf + strlen(TAG_TITLE), "() \t\n\r"));
 
             snprintf(out_file, sizeof(out_file), "%s", env->title);
             out_fp = open_file(out_file, "w");
@@ -139,7 +139,8 @@ read_test(env_t *env, char *path)
             ASSERT(env->ec == NO_ERROR);
 
             offset += strlen(buf);
-            env->ec = error_to_code(strtrim(buf + strlen(TAG_ERROR)));
+            env->ec = 
+                error_to_code(strtrim(buf + strlen(TAG_ERROR), "() \t\n\r"));
         }
         else if (strncasecmp(buf, TAG_EXPORT, strlen(TAG_EXPORT)) == 0) {
             char *exp_file;
@@ -154,7 +155,7 @@ read_test(env_t *env, char *path)
 
             out_fp = NULL;
 
-            exp_file = strtrim(xstrdup(buf) + strlen(TAG_EXPORT));
+            exp_file = strtrim(xstrdup(buf) + strlen(TAG_EXPORT), "() \t\n\r");
             exp_fp = open_file(exp_file, "w");
 
             offset += strlen(buf);

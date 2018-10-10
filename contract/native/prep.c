@@ -24,8 +24,6 @@ static void substitue(char *path, char *work_dir, stack_t *imp, strbuf_t *out);
 static void
 scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
 {
-    char *delim;
-
     scan->path = path;
     scan->work_dir = work_dir;
 
@@ -157,7 +155,6 @@ put_import(scan_t *scan, stack_t *imp)
     int offset;
     char path[PATH_MAX_LEN];
     char c, n;
-    stack_node_t *node;
 
     strcpy(path, scan->work_dir);
     offset = strlen(path);

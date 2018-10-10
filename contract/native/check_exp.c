@@ -447,7 +447,6 @@ exp_op_check(check_t *check, ast_exp_t *exp)
 static int
 exp_access_check(check_t *check, ast_exp_t *exp)
 {
-    ec_t ec;
     ast_exp_t *id_exp, *fld_exp;
     meta_t *id_meta, *fld_meta;
     ast_id_t *id;
@@ -472,7 +471,8 @@ exp_access_check(check_t *check, ast_exp_t *exp)
 
         id = type_id;
     }
-    else if (is_func_id(id) && !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
+    else if (is_func_id(id) && 
+             !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
         RETURN(ERROR_NOT_ACCESSIBLE_EXP, exp_pos(id_exp));
     }
 
@@ -496,16 +496,13 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
-    meta_t *id_meta;
+    array_t *param_exps;
     ast_id_t *func_id;
     array_t *param_ids;
-    array_t *param_exps;
 
     ASSERT1(is_call_exp(exp), exp->kind);
 
     id_exp = exp->u_call.id_exp;
-    id_meta = &id_exp->meta;
-
     param_exps = exp->u_call.param_exps;
 
     if (strcmp(id_exp->u_id.name, "map") == 0) {

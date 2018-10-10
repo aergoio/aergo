@@ -37,7 +37,7 @@ check_unused_ids(array_t *ids)
 void
 check_blk(check_t *check, ast_blk_t *blk)
 {
-    int i, j;
+    int i;
 
     ASSERT(blk != NULL);
 

@@ -1,4 +1,4 @@
-@desc empty_function
+@test(empty_function)
 contract test {
     func f1() { }
     func f2() { 
@@ -6,7 +6,7 @@ contract test {
     }
 }
 
-@desc function_modifier
+@test(function_modifier)
 contract test {
     local func f1() { }
     local payable func f2() { }
@@ -17,13 +17,13 @@ contract test {
     payable func f7() { }
 }
 
-@desc invalid_payable_modifier
-@error ERROR_SYNTAX
+@test(invalid_payable_modifier)
+@error(ERROR_SYNTAX)
 contract test {
     payable local func f1() { }
 }
 
-@desc parameter_declaration
+@test(parameter_declaration)
 contract test {
     func f1(int p1) { }
     func f2(int p1, string p2) { }
@@ -31,7 +31,7 @@ contract test {
     func f4(int p1[]) { }
 }
 
-@desc return_declaration
+@test(return_declaration)
 contract test {
     func f1() { return; }
     func f2() int { return 1; }

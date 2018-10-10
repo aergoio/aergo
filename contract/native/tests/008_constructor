@@ -1,4 +1,4 @@
-@desc instantiate
+@test(instantiate)
 contract callee { }
 
 contract test {
@@ -7,7 +7,7 @@ contract test {
     }
 }
 
-@desc neighbor_reference
+@test(neighbor_reference)
 contract neighbor { 
     int v;
     neighbor(int p) {
@@ -27,8 +27,8 @@ contract test {
     }
 }
 
-@desc missing_parenthesis
-@error ERROR_SYNTAX
+@test(missing_parenthesis)
+@error(ERROR_SYNTAX)
 contract callee { }
 
 contract test {

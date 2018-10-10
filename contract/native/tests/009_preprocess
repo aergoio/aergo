@@ -1,30 +1,30 @@
-@export child
+@export(child)
 contract child { }
 
-@desc import_child
+@test(import_child)
 import "child"
 contract parent { }
 
-@export grand_child
+@export(grand_child)
 contract grand_child { }
 
-@export child
+@export(child)
 import "grand_child"
 contract child { }
 
-@desc import_grand_child
+@test(import_grand_child)
 import "child"
 contract test { }
 
-@export sub
+@export(sub)
 import "main"
 contract sub { }
 
-@export main
+@export(main)
 import "sub"
 contract main { }
 
-@desc cross_reference
-@error ERROR_CROSS_IMPORT
+@test(cross_reference)
+@error(ERROR_CROSS_IMPORT)
 import "main"
 contract test { }

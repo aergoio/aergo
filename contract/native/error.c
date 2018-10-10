@@ -50,7 +50,9 @@ error_to_code(char *str)
         if (strcmp(err_codes_[i], str) == 0)
             return i;
     }
+
     ASSERT(!"invalid errcode");
+    return NO_ERROR;
 }
 
 int

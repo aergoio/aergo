@@ -1,18 +1,18 @@
-@desc empty_declaration
+@test(empty_declaration)
 contract test {
 }
 
-@desc empty_constructor
+@test(empty_constructor)
 contract test {
     test() { }
 }
 
-@desc constructor_with_arguments
+@test(constructor_with_arguments)
 contract test {
     test(int x) { }
 }
 
-@desc multiple_contracts
+@test(multiple_contracts)
 contract test1 { }
 
 contract text2 { }

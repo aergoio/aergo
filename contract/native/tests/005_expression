@@ -1,4 +1,4 @@
-@desc arithmetic_operator
+@test(arithmetic_operator)
 contract test {
     int v1 = 1 + 1;
     int v2 = 1 - 1;
@@ -9,7 +9,7 @@ contract test {
     int v6 = (2 * 3) / (5 + 1) % 1;
 }
 
-@desc logical_operator
+@test(logical_operator)
 contract test {
     bool v1 = true && false;
     bool v2 = true || false;
@@ -17,7 +17,7 @@ contract test {
     bool v3 = (true || false) && (true);
 }
 
-@desc bitwise_operator
+@test(bitwise_operator)
 contract test {
     int v1 = (0x08 & 0x02);
     int v2 = 0xFF ^ 0x02;
@@ -26,7 +26,7 @@ contract test {
     int v4 = 0xff >> 1;
 }
 
-@desc comparison_operator
+@test(comparison_operator)
 contract test {
     bool v1 = 1 == 1;
     bool v2 = 1 != 1;
@@ -36,7 +36,7 @@ contract test {
     bool v6 = 1 <= 1;
 }
 
-@desc conditional_operator
+@test(conditional_operator)
 contract test {
     int v1 = true ? 1 : 0;
     int v2 = true ? 1 : false ? 2 : 0;

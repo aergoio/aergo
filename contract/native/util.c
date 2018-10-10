@@ -14,6 +14,9 @@ open_file(char *path, char *mode)
 {
     FILE *fp;
 
+    ASSERT(path != NULL);
+    ASSERT(mode != NULL);
+
     fp = fopen(path, mode);
     if (fp == NULL)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
@@ -24,19 +27,26 @@ open_file(char *path, char *mode)
 void
 close_file(FILE *fp)
 {
+    ASSERT(fp != NULL);
+
     // ignore error
     fclose(fp);
 }
 
 char *
-strtrim(char *str)
+strtrim(char *str, char *ptn)
 {
     int i;
-    int str_len = strlen(str);
+    int str_len;
     char *ptr = str;
 
+    ASSERT(str != NULL);
+    ASSERT(ptn != NULL);
+
+    str_len = strlen(str);
+
     for (i = 0; i < str_len; i++) {
-        if (!isspace(str[i]))
+        if (strchr(ptn, str[i]) == NULL)
             break;
 
         ptr++;
@@ -45,7 +55,7 @@ strtrim(char *str)
     str_len = strlen(ptr);
 
     for (i = str_len - 1; i >= 0; i--) {
-        if (!isspace(ptr[i]))
+        if (strchr(ptn, ptr[i]) == NULL)
             break;
 
         ptr[i] = '\0';
@@ -57,6 +67,8 @@ strtrim(char *str)
 void
 strset(char *buf, char ch, int size)
 {
+    ASSERT(buf != NULL);
+
     memset(buf, ch, size);
     buf[size] = '\0';
 }

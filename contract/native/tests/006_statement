@@ -1,4 +1,4 @@
-@desc assignment
+@test(assignment)
 contract test {
     int v1;
     int v2;
@@ -23,7 +23,7 @@ contract test {
     }
 }
 
-@desc unary_expression
+@test(unary_expression)
 contract test {
     int v1 = 1;
 
@@ -36,7 +36,7 @@ contract test {
     }
 }
 
-@desc if_else
+@test(if_else)
 contract test {
     int v1 = 1;
     string v2;
@@ -63,8 +63,8 @@ contract test {
     }
 }
 
-@desc missing_if_parenthesis
-@error ERROR_SYNTAX
+@test(missing_if_parenthesis)
+@error(ERROR_SYNTAX)
 contract test {
     test() {
         if 1 == 1 {
@@ -73,8 +73,8 @@ contract test {
     }
 }
 
-@desc missing_if_brace
-@error ERROR_SYNTAX
+@test(missing_if_brace)
+@error(ERROR_SYNTAX)
 contract test {
     test() {
         if (1 == 1) 
@@ -82,7 +82,7 @@ contract test {
     }
 }
 
-@desc switch_case
+@test(switch_case)
 contract test {
     int v1;
     string v2;
@@ -108,7 +108,7 @@ contract test {
     }
 }
 
-@desc for_loop
+@test(for_loop)
 contract test {
     int v1;
 
@@ -135,7 +135,7 @@ contract test {
     }
 }
 
-@desc foreach_loop
+@test(foreach_loop)
 contract test {
     string v1[10];
 
@@ -147,7 +147,7 @@ contract test {
     }
 }
 
-@desc goto_label
+@test(goto_label)
 contract test {
     test() {
 here:
@@ -155,7 +155,7 @@ here:
     }
 }
 
-@desc inline_ddl
+@test(inline_ddl)
 contract test {
     int v1;
     string v2;
@@ -170,8 +170,8 @@ contract test {
     }
 }
 
-@desc invalid_ddl_object
-@error ERROR_SYNTAX
+@test(invalid_ddl_object)
+@error(ERROR_SYNTAX)
 contract test {
     int v1;
     test() {
@@ -179,7 +179,7 @@ contract test {
     }
 }
 
-@desc inline_dml
+@test(inline_dml)
 contract test {
     int v1;
     string v2;
@@ -196,7 +196,7 @@ contract test {
     }
 }
 
-@desc inline_query
+@test(inline_query)
 contract test {
     int v1;
     string v2;
@@ -211,8 +211,8 @@ contract test {
     }
 }
 
-@desc missing_sql_terminator
-@error ERROR_SYNTAX
+@test(missing_sql_terminator)
+@error(ERROR_SYNTAX)
 contract test {
     int v1;
     test() {

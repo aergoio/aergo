@@ -29,7 +29,7 @@ typedef struct strbuf_s strbuf_t;
 FILE *open_file(char *path, char *mode);
 void close_file(FILE *fp);
 
-char *strtrim(char *str);
+char *strtrim(char *str, char *ptn);
 void strset(char *buf, char ch, int size);
 
 #endif /* ! _UTIL_H */
