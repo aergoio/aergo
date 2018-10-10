@@ -37,7 +37,7 @@
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
-#define meta_pos(meta)              (&(meta)->trc)
+#define meta_pos(meta)              (&(meta)->pos)
 #define meta_size(meta)                                                        \
     (is_void_meta(meta) ? 0 :                                                  \
      (is_tuple_meta(meta) ? array_size((meta)->u_tup.metas) :                  \
@@ -117,7 +117,7 @@ struct meta_s {
         meta_tuple_t u_tup;
     };
 
-    trace_t trc;
+    src_pos_t *pos;
 };
 
 extern char *type_strs_[TYPE_MAX];
@@ -130,14 +130,14 @@ bool meta_equals(meta_t *x, meta_t *y);
 void meta_dump(meta_t *meta, int indent);
 
 static inline void
-meta_init(meta_t *meta, trace_t *trc)
+meta_init(meta_t *meta, src_pos_t *pos)
 {
     ASSERT(meta != NULL);
-    ASSERT(trc != NULL);
+    ASSERT(pos != NULL);
 
     memset(meta, 0x00, sizeof(meta_t));
 
-    meta->trc = *trc;
+    meta->pos = pos;
 }
 
 static inline void

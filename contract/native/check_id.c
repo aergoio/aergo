@@ -47,10 +47,10 @@ id_var_check(check_t *check, ast_id_t *id)
 
         if (is_null_exp(arr_exp)) {
             if (init_exp == NULL)
-                RETURN(ERROR_MISSING_INITIALIZER, id_pos(id));
+                RETURN(ERROR_MISSING_INITIALIZER, &id->pos);
         }
         else if (!is_integer_meta(arr_meta)) {
-            RETURN(ERROR_INVALID_SIZE_TYPE, id_pos(id), TYPE_NAME(arr_meta->type));
+            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta->type));
         }
     }
 
@@ -71,9 +71,9 @@ id_var_check(check_t *check, ast_id_t *id)
                     meta_t *val_meta = array_item(val_metas, i, meta_t);
 
                     if (!meta_equals(type_meta, val_meta))
-                        RETURN(ERROR_MISMATCHED_TYPE, meta_pos(val_meta),
-                              TYPE_NAME(type_meta->type),
-                              TYPE_NAME(val_meta->type));
+                        RETURN(ERROR_MISMATCHED_TYPE, val_meta->pos,
+                               TYPE_NAME(type_meta->type),
+                               TYPE_NAME(val_meta->type));
                 }
             }
             else {
@@ -85,23 +85,23 @@ id_var_check(check_t *check, ast_id_t *id)
                 fld_metas = type_meta->u_st.metas;
 
                 if (array_size(fld_metas) != array_size(val_metas))
-                    RETURN(ERROR_MISMATCHED_COUNT, exp_pos(init_exp),
-                          array_size(fld_metas), array_size(val_metas));
+                    RETURN(ERROR_MISMATCHED_COUNT, &init_exp->pos,
+                           array_size(fld_metas), array_size(val_metas));
 
                 for (i = 0; i < array_size(fld_metas); i++) {
                     meta_t *fld_meta = array_item(fld_metas, i, meta_t);
                     meta_t *val_meta = array_item(val_metas, i, meta_t);
 
                     if (!meta_equals(fld_meta, val_meta))
-                        RETURN(ERROR_MISMATCHED_TYPE, meta_pos(val_meta),
-                              TYPE_NAME(fld_meta->type),
-                              TYPE_NAME(val_meta->type));
+                        RETURN(ERROR_MISMATCHED_TYPE, val_meta->pos,
+                               TYPE_NAME(fld_meta->type),
+                               TYPE_NAME(val_meta->type));
                 }
             }
         }
         else if (!meta_equals(type_meta, &init_exp->meta)) {
-            RETURN(ERROR_MISMATCHED_TYPE, exp_pos(init_exp),
-                  TYPE_NAME(type_meta->type), TYPE_NAME(init_exp->meta.type));
+            RETURN(ERROR_MISMATCHED_TYPE, &init_exp->pos,
+                   TYPE_NAME(type_meta->type), TYPE_NAME(init_exp->meta.type));
         }
     }
 
@@ -158,7 +158,7 @@ id_param_check(check_t *check, ast_id_t *id)
         CHECK(check_exp(check, arr_exp));
 
         if (!is_null_exp(arr_exp) && !is_integer_meta(arr_meta))
-            RETURN(ERROR_INVALID_SIZE_TYPE, id_pos(id), TYPE_NAME(arr_meta->type));
+            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta->type));
     }
 
     return NO_ERROR;

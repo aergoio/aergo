@@ -13,14 +13,12 @@
 
 #define AST_NODE_DECL                                                          \
     int num;                                                                   \
-    meta_t meta
+    src_pos_t pos
 
-#define AST_NODE_NUM                node_num_
-
-#define ast_node_init(node, trc)                                               \
+#define ast_node_init(node, pos)                                               \
     do {                                                                       \
         (node)->num = node_num_++;                                             \
-        meta_init(&(node)->meta, (trc));                                       \
+        (node)->pos = *(pos);                                                  \
     } while (0)
 
 #ifndef _AST_BLK_T

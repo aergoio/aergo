@@ -14,12 +14,12 @@ int node_num_ = 0;
 ast_t *
 ast_new(void)
 {
-    trace_t trc;
+    src_pos_t pos;
     ast_t *ast = xmalloc(sizeof(ast_t));
 
-    trace_init(&trc, NULL, NULL);
+    src_pos_init(&pos, NULL, NULL);
 
-    ast->root = blk_root_new(&trc);
+    ast->root = blk_root_new(&pos);
 
     return ast;
 }

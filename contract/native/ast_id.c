@@ -11,31 +11,33 @@
 #include "ast_id.h"
 
 static ast_id_t *
-ast_id_new(id_kind_t kind, modifier_t mod, char *name, trace_t *trc)
+ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 {
     ast_id_t *id = xcalloc(sizeof(ast_id_t));
 
     ASSERT(name != NULL);
 
-    ast_node_init(id, trc);
+    ast_node_init(id, pos);
 
     id->kind = kind;
     id->mod = mod;
     id->name = name;
 
+    meta_init(&id->meta, &id->pos);
+
     return id;
 }
 
 ast_id_t *
-id_var_new(char *name, trace_t *trc)
+id_var_new(char *name, src_pos_t *pos)
 {
-    return ast_id_new(ID_VAR, MOD_GLOBAL, name, trc);
+    return ast_id_new(ID_VAR, MOD_GLOBAL, name, pos);
 }
 
 ast_id_t *
-id_struct_new(char *name, array_t *fld_ids, trace_t *trc)
+id_struct_new(char *name, array_t *fld_ids, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, name, trc);
+    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, name, pos);
 
     ASSERT(fld_ids != NULL);
 
@@ -46,9 +48,9 @@ id_struct_new(char *name, array_t *fld_ids, trace_t *trc)
 
 ast_id_t *
 id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
-            ast_blk_t *blk, trace_t *trc)
+            ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_FUNC, mod, name, trc);
+    ast_id_t *id = ast_id_new(ID_FUNC, mod, name, pos);
 
     id->u_func.param_ids = param_ids;
     id->u_func.ret_exps = ret_exps;
@@ -58,9 +60,9 @@ id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
 }
 
 ast_id_t *
-id_contract_new(char *name, ast_blk_t *blk, trace_t *trc)
+id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_GLOBAL, name, trc);
+    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_GLOBAL, name, pos);
 
     id->u_cont.blk = blk;
 
@@ -68,7 +70,31 @@ id_contract_new(char *name, ast_blk_t *blk, trace_t *trc)
 }
 
 ast_id_t *
-id_search_fld(ast_id_t *id, int num, char *name)
+id_search_var(ast_blk_t *blk, char *name)
+{
+    int i;
+
+    ASSERT(name != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        for (i = 0; i < array_size(&blk->ids); i++) {
+            ast_id_t *id = array_item(&blk->ids, i, ast_id_t);
+
+            ASSERT(id->name != NULL);
+
+            if (strcmp(id->name, name) == 0)
+                return id;
+        }
+    } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
+ast_id_t *
+id_search_fld(ast_id_t *id, char *name)
 {
     int i;
     array_t *fld_ids = NULL;
@@ -89,10 +115,8 @@ id_search_fld(ast_id_t *id, int num, char *name)
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
         ASSERT(fld_id->name != NULL);
-        ASSERT2(fld_id->num != num, fld_id->num, num);
 
-        if (fld_id->num < num && flag_off(fld_id->mod, MOD_LOCAL) &&
-            strcmp(fld_id->name, name) == 0)
+        if (flag_off(fld_id->mod, MOD_LOCAL) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 
@@ -100,32 +124,7 @@ id_search_fld(ast_id_t *id, int num, char *name)
 }
 
 ast_id_t *
-id_search_blk(ast_blk_t *blk, int num, char *name)
-{
-    int i;
-
-    ASSERT(name != NULL);
-
-    if (blk == NULL)
-        return NULL;
-
-    do {
-        for (i = 0; i < array_size(&blk->ids); i++) {
-            ast_id_t *id = array_item(&blk->ids, i, ast_id_t);
-
-            ASSERT(id->name != NULL);
-            ASSERT2(id->num != num, id->num, num);
-
-            if (id->num < num && strcmp(id->name, name) == 0)
-                return id;
-        }
-    } while ((blk = blk->up) != NULL);
-
-    return NULL;
-}
-
-ast_id_t *
-id_search_param(ast_id_t *id, int num, char *name)
+id_search_param(ast_id_t *id, char *name)
 {
     int i;
 
@@ -137,9 +136,8 @@ id_search_param(ast_id_t *id, int num, char *name)
         ast_id_t *param_id = array_item(id->u_func.param_ids, i, ast_id_t);
 
         ASSERT(param_id->name != NULL);
-        ASSERT2(param_id->num != num, param_id->num, num);
 
-        if (param_id->num < num && strcmp(param_id->name, name) == 0)
+        if (strcmp(param_id->name, name) == 0)
             return param_id;
     }
 
@@ -158,7 +156,7 @@ id_add(array_t *ids, int idx, ast_id_t *new_id)
         ast_id_t *id = array_item(ids, i, ast_id_t);
 
         if (strcmp(id->name, new_id->name) == 0) {
-            ERROR(ERROR_DUPLICATED_ID, id_pos(new_id), new_id->name);
+            ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
             return;
         }
     }

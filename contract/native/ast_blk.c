@@ -13,11 +13,11 @@
 #include "ast_blk.h"
 
 static ast_blk_t *
-ast_blk_new(blk_kind_t kind, trace_t *trc)
+ast_blk_new(blk_kind_t kind, src_pos_t *pos)
 {
     ast_blk_t *blk = xcalloc(sizeof(ast_blk_t));
 
-    ast_node_init(blk, trc);
+    ast_node_init(blk, pos);
 
     blk->kind = kind;
 
@@ -28,21 +28,21 @@ ast_blk_new(blk_kind_t kind, trace_t *trc)
 }
 
 ast_blk_t *
-blk_anon_new(trace_t *trc)
+blk_anon_new(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_ANON, trc);
+    return ast_blk_new(BLK_ANON, pos);
 }
 
 ast_blk_t *
-blk_root_new(trace_t *trc)
+blk_root_new(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_ROOT, trc);
+    return ast_blk_new(BLK_ROOT, pos);
 }
 
 ast_blk_t *
-blk_loop_new(trace_t *trc)
+blk_loop_new(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_LOOP, trc);
+    return ast_blk_new(BLK_LOOP, pos);
 }
 
 ast_blk_t *

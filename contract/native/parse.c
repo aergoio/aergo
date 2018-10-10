@@ -35,7 +35,7 @@ parse_init(parse_t *parse, char *path, flag_t flag, strbuf_t *src, ast_t **ast)
     parse->ast = ast;
 
     parse->adj_token = 0;
-    trace_init(&parse->adj_pos, parse->src, path);
+    src_pos_init(&parse->adj_pos, parse->src, path);
 
     strbuf_init(&parse->buf);
 }

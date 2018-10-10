@@ -17,9 +17,9 @@
             return ec;                                                         \
     } while (0)
 
-#define RETURN(ec, trc, ...)                                                   \
+#define RETURN(ec, pos, ...)                                                   \
     do {                                                                       \
-        error_push((ec), LVL_ERROR, (trc), ## __VA_ARGS__);                    \
+        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
         return (ec);                                                           \
     } while (0)
 

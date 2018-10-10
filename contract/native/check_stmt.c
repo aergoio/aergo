@@ -28,8 +28,8 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     CHECK(check_exp(check, cond_exp));
 
     if (!is_bool_meta(cond_meta))
-        RETURN(ERROR_INVALID_COND_TYPE, exp_pos(cond_exp),
-              TYPE_NAME(cond_meta->type));
+        RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos,
+               TYPE_NAME(cond_meta->type));
 
     if (stmt->u_if.if_blk != NULL)
         check_blk(check, stmt->u_if.if_blk);
@@ -63,7 +63,7 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
         ast_exp_t *init_exp = stmt->u_loop.init_exp;
 
         if (init_exp != NULL) {
-            ast_stmt_t *exp_stmt = stmt_exp_new(init_exp, exp_pos(init_exp));
+            ast_stmt_t *exp_stmt = stmt_exp_new(init_exp, &init_exp->pos);
             array_add_first(&blk->stmts, exp_stmt);
         }
     }
@@ -76,18 +76,18 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
         ast_exp_t *not_exp;
         ast_stmt_t *if_stmt;
 
-        goto_stmt = stmt_goto_new(xstrdup(end_label), exp_pos(cond_exp));
+        goto_stmt = stmt_goto_new(xstrdup(end_label), &cond_exp->pos);
 
-        if_blk = blk_anon_new(exp_pos(cond_exp));
+        if_blk = blk_anon_new(&cond_exp->pos);
         array_add_last(&if_blk->stmts, goto_stmt);
 
-        not_exp = exp_op_new(OP_NOT, cond_exp, NULL, exp_pos(cond_exp));
+        not_exp = exp_op_new(OP_NOT, cond_exp, NULL, &cond_exp->pos);
 
-        if_stmt = stmt_if_new(not_exp, if_blk, exp_pos(cond_exp));
+        if_stmt = stmt_if_new(not_exp, if_blk, &cond_exp->pos);
         array_add_first(&blk->stmts, if_stmt);
     }
 
-    null_stmt = stmt_null_new(stmt_pos(stmt));
+    null_stmt = stmt_null_new(&stmt->pos);
     null_stmt->label = xstrdup(begin_label);
 
     array_add_first(&blk->stmts, null_stmt);
@@ -95,7 +95,7 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
     loop_exp = stmt->u_loop.loop_exp;
 
     if (loop_exp != NULL) {
-        ast_stmt_t *exp_stmt = stmt_exp_new(loop_exp, exp_pos(loop_exp));
+        ast_stmt_t *exp_stmt = stmt_exp_new(loop_exp, &loop_exp->pos);
 
         array_add_last(&blk->stmts, exp_stmt);
     }
@@ -115,7 +115,7 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
     ast_exp_t *loop_exp;
     ast_stmt_t *null_stmt;
     ast_blk_t *blk = stmt->u_loop.blk;
-    trace_t *trc = stmt_pos(stmt);
+    src_pos_t *pos = &stmt->pos;
 
     loop_exp = stmt->u_loop.loop_exp;
     ASSERT(loop_exp != NULL);
@@ -123,17 +123,17 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
     /* make "int i = 0" */
     snprintf(name, sizeof(name), "each_loop_idx_%d", blk->num);
 
-    id = id_var_new(xstrdup(name), trc);
+    id = id_var_new(xstrdup(name), pos);
 
-    id->u_var.type_exp = exp_type_new(TYPE_INT32, trc);
+    id->u_var.type_exp = exp_type_new(TYPE_INT32, pos);
     id->u_var.arr_exp = NULL;
-    id->u_var.init_exp = exp_val_new(trc);
+    id->u_var.init_exp = exp_val_new(pos);
     val_set_int(&id->u_var.init_exp->u_val.val, "0");
 
     id_add_last(&blk->ids, id);
 
-    inc_exp = exp_op_new(OP_INC, exp_id_new(xstrdup(name), trc), NULL, trc);
-    arr_exp = exp_array_new(loop_exp, inc_exp, exp_pos(loop_exp));
+    inc_exp = exp_op_new(OP_INC, exp_id_new(xstrdup(name), pos), NULL, pos);
+    arr_exp = exp_array_new(loop_exp, inc_exp, &loop_exp->pos);
 
     if (stmt->u_loop.init_ids != NULL) {
         int i;
@@ -144,11 +144,11 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
             ast_id_t *var_id = array_item(var_ids, i, ast_id_t);
             ast_exp_t *id_exp;
 
-            id_exp = exp_id_new(var_id->name, trc);
-            assign_exp = 
-                exp_op_new(OP_ASSIGN, id_exp, arr_exp, exp_pos(loop_exp));
+            id_exp = exp_id_new(var_id->name, pos);
+            assign_exp =
+                exp_op_new(OP_ASSIGN, id_exp, arr_exp, &loop_exp->pos);
 
-            array_add_first(&blk->stmts, stmt_exp_new(assign_exp, trc));
+            array_add_first(&blk->stmts, stmt_exp_new(assign_exp, pos));
         }
 
         id_join_first(&blk->ids, var_ids);
@@ -160,16 +160,16 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
 
         /* TODO: map iteration */
         if (is_tuple_exp(init_exp))
-            RETURN(ERROR_NOT_SUPPORTED, exp_pos(init_exp));
+            RETURN(ERROR_NOT_SUPPORTED, &init_exp->pos);
 
         /* make "init_exp = loop_exp[i++]" */
-        assign_exp = 
-            exp_op_new(OP_ASSIGN, init_exp, arr_exp, exp_pos(loop_exp));
+        assign_exp =
+            exp_op_new(OP_ASSIGN, init_exp, arr_exp, &loop_exp->pos);
 
-        array_add_first(&blk->stmts, stmt_exp_new(assign_exp, trc));
+        array_add_first(&blk->stmts, stmt_exp_new(assign_exp, pos));
     }
 
-    null_stmt = stmt_null_new(stmt_pos(stmt));
+    null_stmt = stmt_null_new(&stmt->pos);
     null_stmt->label = xstrdup(begin_label);
 
     array_add_first(&blk->stmts, null_stmt);
@@ -189,7 +189,7 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
 
     if (stmt->u_loop.blk == NULL)
-        stmt->u_loop.blk = blk_loop_new(stmt_pos(stmt));
+        stmt->u_loop.blk = blk_loop_new(&stmt->pos);
 
     blk = stmt->u_loop.blk;
 
@@ -209,9 +209,9 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
         ASSERT1(!"invalid loop", stmt->u_loop.kind);
     }
 
-    goto_stmt = stmt_goto_new(xstrdup(begin_label), stmt_pos(stmt));
+    goto_stmt = stmt_goto_new(xstrdup(begin_label), &stmt->pos);
 
-    null_stmt = stmt_null_new(stmt_pos(stmt));
+    null_stmt = stmt_null_new(&stmt->pos);
     null_stmt->label = xstrdup(end_label);
 
     array_add_last(&blk->stmts, goto_stmt);
@@ -240,12 +240,12 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
 
         if (meta == NULL) {
             if (!is_bool_meta(val_meta))
-                RETURN(ERROR_INVALID_COND_TYPE, exp_pos(val_exp),
-                      TYPE_NAME(val_meta->type));
+                RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos,
+                       TYPE_NAME(val_meta->type));
         }
         else if (!meta_equals(meta, val_meta)) {
-            RETURN(ERROR_MISMATCHED_TYPE, exp_pos(val_exp),
-                  TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
+            RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos,
+                   TYPE_NAME(meta->type), TYPE_NAME(val_meta->type));
         }
     }
 
@@ -276,8 +276,8 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
         check_exp(check, cond_exp);
 
         if (!is_comparable_meta(cond_meta))
-            RETURN(ERROR_NOT_COMPARABLE_TYPE, exp_pos(cond_exp),
-                  TYPE_NAME(cond_meta->type));
+            RETURN(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos,
+                   TYPE_NAME(cond_meta->type));
     }
 
     case_stmts = stmt->u_sw.case_stmts;
@@ -311,8 +311,8 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
         ASSERT1(is_tuple_meta(fn_meta), fn_meta->type);
 
         if (is_void_meta(fn_meta))
-            RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp), 0,
-                  meta_size(&arg_exp->meta));
+            RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, 0,
+                   meta_size(&arg_exp->meta));
 
         check_exp(check, arg_exp);
 
@@ -322,17 +322,17 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             array_t *ret_metas = fn_meta->u_tup.metas;
 
             if (array_size(arg_metas) != array_size(ret_metas))
-                RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
-                      array_size(ret_metas), array_size(arg_metas));
+                RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos,
+                       array_size(ret_metas), array_size(arg_metas));
 
             for (i = 0; i < array_size(arg_metas); i++) {
                 meta_t *arg_meta = array_item(arg_metas, i, meta_t);
                 meta_t *ret_meta = array_item(ret_metas, i, meta_t);
 
                 if (!meta_equals(ret_meta, arg_meta))
-                    RETURN(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
-                          TYPE_NAME(ret_meta->type),
-                          TYPE_NAME(arg_meta->type));
+                    RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
+                           TYPE_NAME(ret_meta->type),
+                           TYPE_NAME(arg_meta->type));
             }
         }
         else {
@@ -341,18 +341,18 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
             meta_t *ret_meta;
 
             if (array_size(ret_metas) != 1)
-                RETURN(ERROR_MISMATCHED_COUNT, exp_pos(arg_exp),
-                      array_size(ret_metas), 1);
+                RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos,
+                       array_size(ret_metas), 1);
 
             ret_meta = array_item(fn_meta->u_tup.metas, 0, meta_t);
 
             if (!meta_equals(arg_meta, ret_meta))
-                RETURN(ERROR_MISMATCHED_TYPE, exp_pos(arg_exp),
-                      TYPE_NAME(ret_meta->type), TYPE_NAME(arg_meta->type));
+                RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
+                       TYPE_NAME(ret_meta->type), TYPE_NAME(arg_meta->type));
         }
     }
     else if (!is_void_meta(fn_meta)) {
-        RETURN(ERROR_MISMATCHED_COUNT, stmt_pos(stmt), meta_size(fn_meta), 0);
+        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, meta_size(fn_meta), 0);
     }
 
     return NO_ERROR;
@@ -385,7 +385,7 @@ stmt_goto_check(check_t *check, ast_stmt_t *stmt)
     } while ((blk = blk->up) != NULL);
 
     if (!has_found)
-        RETURN(ERROR_UNDEFINED_LABEL, stmt_pos(stmt), stmt->u_goto.label);
+        RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 
     return NO_ERROR;
 }

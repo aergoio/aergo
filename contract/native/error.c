@@ -41,7 +41,7 @@ error_to_string(ec_t ec)
     return err_codes_[ec];
 }
 
-ec_t 
+ec_t
 error_to_code(char *str)
 {
     int i;
@@ -85,31 +85,42 @@ error_first(void)
 }
 
 static error_t *
-error_new(ec_t ec, errlvl_t lvl, trace_t *trc, char *desc)
+error_new(ec_t ec, errlvl_t lvl, src_pos_t *pos, char *desc)
 {
+    char buf[DESC_MAX_LEN];
     error_t *error = xmalloc(sizeof(error_t));
 
-    ASSERT(trc != NULL);
+    ASSERT1(ec > NO_ERROR && ec < ERROR_MAX, ec);
+    ASSERT1(lvl >= LVL_FATAL && lvl < LVL_MAX, lvl);
+    ASSERT(pos != NULL);
+    ASSERT(pos->rel.path != NULL);
+    ASSERT(pos->rel.first_line > 0);
+    ASSERT(pos->rel.first_col > 0);
+    ASSERT(desc != NULL);
 
     error->code = ec;
     error->level = lvl;
-    error->trc = *trc;
-    strcpy(error->desc, desc);
+    error->path = pos->rel.path;
+    error->line = pos->rel.first_line;
+    error->col = pos->rel.first_col;
+
+    src_pos_dump(pos, buf);
+    snprintf(error->desc, sizeof(error->desc), "%s\n%s", desc, buf);
 
     return error;
 }
 
 void
-error_push(ec_t ec, errlvl_t lvl, trace_t *trc, ...)
+error_push(ec_t ec, errlvl_t lvl, src_pos_t *pos, ...)
 {
     va_list vargs;
-    char errdesc[ERROR_MAX_DESC_LEN];
+    char errdesc[DESC_MAX_LEN];
 
-    va_start(vargs, trc);
+    va_start(vargs, pos);
     vsnprintf(errdesc, sizeof(errdesc), err_msgs_[ec], vargs);
     va_end(vargs);
 
-    stack_push(&errstack_, error_new(ec, lvl, trc, errdesc));
+    stack_push(&errstack_, error_new(ec, lvl, pos, errdesc));
 }
 
 error_t *
@@ -135,29 +146,20 @@ error_dump(void)
     array_t *array = stack_to_array(&errstack_, error_cmp);
 
     for (i = 0; i < array_size(array); i++) {
-        error_print(array_item(array, i, error_t));
+        error_t *e = array_item(array, i, error_t);
+
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level],
+                e->path, e->line, e->desc);
     }
 
     array_clear(array);
 }
 
 void
-error_print(error_t *e)
-{
-    ASSERT1(e->level >= LVL_FATAL && e->level < LVL_MAX, e->level); 
-    ASSERT(trace_rel_path(&e->trc) != NULL);
-
-    fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level], 
-            trace_rel_path(&e->trc), trace_rel_line(&e->trc), e->desc);
-
-    trace_dump(&e->trc);
-}
-
-void
 error_exit(ec_t ec, errlvl_t lvl, ...)
 {
     va_list vargs;
-    char errdesc[ERROR_MAX_DESC_LEN];
+    char errdesc[DESC_MAX_LEN];
 
     va_start(vargs, lvl);
     vsnprintf(errdesc, sizeof(errdesc), err_msgs_[ec], vargs);

@@ -23,8 +23,6 @@
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
-#define stmt_pos(stmt)              (&(stmt)->meta.trc)
-
 #define stmt_add_first              array_add_first
 #define stmt_add_last               array_add_last
 
@@ -146,19 +144,19 @@ struct ast_stmt_s {
     };
 };
 
-ast_stmt_t *stmt_null_new(trace_t *trc);
-ast_stmt_t *stmt_exp_new(ast_exp_t *exp, trace_t *trc);
-ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, trace_t *trc);
+ast_stmt_t *stmt_null_new(src_pos_t *pos);
+ast_stmt_t *stmt_exp_new(ast_exp_t *exp, src_pos_t *pos);
+ast_stmt_t *stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos);
 ast_stmt_t *stmt_loop_new(loop_kind_t kind, ast_exp_t *cond_exp, 
-                          ast_exp_t *loop_exp, ast_blk_t *blk, trace_t *trc);
+                          ast_exp_t *loop_exp, ast_blk_t *blk, src_pos_t *pos);
 ast_stmt_t *stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts,
-                            trace_t *trc);
-ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, trace_t *trc);
-ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, trace_t *trc);
-ast_stmt_t *stmt_goto_new(char *label, trace_t *trc);
-ast_stmt_t *stmt_jump_new(stmt_kind_t kind, trace_t *trc);
-ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, trace_t *trc);
-ast_stmt_t *stmt_blk_new(ast_blk_t *blk, trace_t *trc);
+                            src_pos_t *pos);
+ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos);
+ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, src_pos_t *pos);
+ast_stmt_t *stmt_goto_new(char *label, src_pos_t *pos);
+ast_stmt_t *stmt_jump_new(stmt_kind_t kind, src_pos_t *pos);
+ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, src_pos_t *pos);
+ast_stmt_t *stmt_blk_new(ast_blk_t *blk, src_pos_t *pos);
 
 void ast_stmt_dump(ast_stmt_t *stmt, int indent);
 

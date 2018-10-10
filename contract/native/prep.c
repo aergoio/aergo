@@ -11,13 +11,13 @@
 
 #include "prep.h"
 
-#define YY_LINE                 trace_rel_line(&scan->trc)
-#define YY_OFFSET               trace_rel_offset(&scan->trc)
+#define YY_LINE                 src_pos_rel_line(&scan->pos)
+#define YY_OFFSET               src_pos_rel_offset(&scan->pos)
 
-#define yy_update_line()        trace_update_last_line(&scan->trc)
-#define yy_update_col()         trace_update_last_col(&scan->trc, 1)
+#define yy_update_line()        src_pos_update_line(&scan->pos)
+#define yy_update_col()         src_pos_update_col(&scan->pos, 1)
 
-#define yy_update_first()       trace_update_first(&scan->trc)
+#define yy_update_first()       src_pos_update_first(&scan->pos)
 
 static void substitue(char *path, char *work_dir, stack_t *imp, strbuf_t *out);
 
@@ -32,7 +32,7 @@ scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
     strbuf_init(&scan->in);
     strbuf_load(&scan->in, path);
 
-    trace_init(&scan->trc, strbuf_text(&scan->in), xstrdup(path));
+    src_pos_init(&scan->pos, strbuf_text(&scan->in), xstrdup(path));
 
     scan->out = out;
 }
@@ -73,7 +73,7 @@ add_file(scan_t *scan, char *path, stack_t *imp)
 
     stack_foreach(node, imp) {
         if (strcmp(node->item, path) == 0) {
-            ERROR(ERROR_CROSS_IMPORT, &scan->trc, FILENAME(path));
+            ERROR(ERROR_CROSS_IMPORT, &scan->pos, FILENAME(path));
             return false;
         }
     }

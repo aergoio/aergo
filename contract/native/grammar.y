@@ -33,7 +33,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %define api.pure full
 %define parse.error verbose
 %initial-action {
-    trace_init(&yylloc, parse->src, parse->path);
+    src_pos_init(&yylloc, parse->src, parse->path);
 }
 
 /* identifier */
@@ -244,7 +244,7 @@ contract_decl:
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        if (id_search_blk($4, AST_NODE_NUM, $2) == NULL)
+        if (id_search_var($4, $2) == NULL)
             id_add_last(&$4->ids, id_ctor_new($2, NULL, NULL, &@2));
 
         $$ = id_contract_new($2, $4, &@$);

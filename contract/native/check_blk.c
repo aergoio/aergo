@@ -19,7 +19,7 @@ check_unused_ids(array_t *ids)
         ast_id_t *id = array_item(ids, i, ast_id_t);
 
         if (id->mod != MOD_INITIAL && !id->is_used) {
-            WARN(ERROR_UNUSED_ID, id_pos(id), id->name);
+            WARN(ERROR_UNUSED_ID, &id->pos, id->name);
         }
         else if (is_func_id(id)) {
             array_t *param_ids = id->u_func.param_ids;
@@ -28,7 +28,7 @@ check_unused_ids(array_t *ids)
                 ast_id_t *param_id = array_item(param_ids, j, ast_id_t);
 
                 if (!param_id->is_used)
-                    WARN(ERROR_UNUSED_ID, id_pos(param_id), param_id->name);
+                    WARN(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
             }
         }
     }

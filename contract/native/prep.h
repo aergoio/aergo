@@ -17,7 +17,7 @@ typedef struct scan_s {
     int offset;
     strbuf_t in;
 
-    trace_t trc;
+    src_pos_t pos;
 
     strbuf_t *out;
 } scan_t;

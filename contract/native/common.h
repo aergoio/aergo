@@ -44,7 +44,7 @@ typedef unsigned char bool;
 #include "xalloc.h"
 #include "assert.h"
 #include "flag.h"
-#include "trace.h"
+#include "src_pos.h"
 #include "error.h"
 
 #endif /* ! _COMMON_H */

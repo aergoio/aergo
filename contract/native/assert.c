@@ -12,7 +12,7 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
 {
     int i;
     va_list vargs;
-    char errdesc[ERROR_MAX_DESC_LEN];
+    char errdesc[DESC_MAX_LEN];
 
     snprintf(errdesc, sizeof(errdesc), 
              "%s:%d: internal error with condition '%s'", file, line, cond);

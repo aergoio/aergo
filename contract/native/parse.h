@@ -28,13 +28,13 @@ typedef struct parse_s {
 
     /* for error token */
     int adj_token;
-    trace_t adj_pos;
+    src_pos_t adj_pos;
 
     /* for string literal */
     strbuf_t buf;
 } parse_t;
 
-#define YYLTYPE             trace_t
+#define YYLTYPE             src_pos_t
 
 #include "grammar.tab.h"
 
