@@ -21,22 +21,14 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-const hashSize = 32
-var sampleTxsB58 = []string{ "4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45", "6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",
-"E8dbBGe9Hnuhk35cJoekPjL3VoL4xAxtnRuP47UoxzHd",
-}
-var sampleTxs [][]byte
-var sampleHeader *types.MsgHeader
 var sampleMsgID string
+var sampleHeader *types.MsgHeader
+
 func init() {
 	sampleMsgID = uuid.Must(uuid.NewV4()).String()
 	sampleHeader = &types.MsgHeader{Id:sampleMsgID}
-	sampleTxs = make([][]byte, len(sampleTxsB58))
-	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
-		sampleTxs[i] = hash
-	}
 }
+
 func TestTxRequestHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	dummyMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
@@ -197,6 +189,74 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			target.handle(header, body)
 
 			test.verify(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
+		})
+	}
+}
+
+func TestNewTxNoticeHandler_handle(t *testing.T) {
+	logger := log.NewLogger("test.p2p")
+	sampleMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
+	var filledArrs []TxHash = make([]TxHash,1)
+	copy(filledArrs[0][:],dummyTxHash)
+	var emptyArrs []TxHash =make([]TxHash,0)
+
+	tests := []struct {
+		name string
+		//hashes [][]byte
+		//calledUpdataCache bool
+		//passedToSM bool
+		setup func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) (*types.MsgHeader,*types.NewTransactionsNotice)
+		verify func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager)
+	}{
+		// 1. success case (single tx)
+		{"TSuccSingle",func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) (*types.MsgHeader,*types.NewTransactionsNotice){
+			hashes := sampleTxs[:1]
+			mockPeer.On("updateTxCache",mock.Anything).Return(filledArrs)
+			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
+			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+				return len(arg) == 1
+			}))
+			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
+		}},
+		// 1-1 success case2 (multiple tx)
+		{"TSuccMultiHash",func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) (*types.MsgHeader,*types.NewTransactionsNotice){
+			hashes := sampleTxs
+			mockPeer.On("updateTxCache",mock.Anything).Return(filledArrs)
+			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
+			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+				return len(arg) == len(sampleTxs)
+			}))
+			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
+		}},
+		//// 2. All hashes already exist
+		{"TSuccMultiHash",func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) (*types.MsgHeader,*types.NewTransactionsNotice){
+			hashes := sampleTxs
+			mockPeer.On("updateTxCache",mock.Anything).Return(emptyArrs)
+			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
+			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
+		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
+			mockSM.AssertNotCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockActor := new(MockActorService)
+			mockPeer := new(MockRemotePeer)
+			mockPeer.On("Meta").Return(sampleMeta)
+			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockSM := new(MockSyncManager)
+
+			header, body := test.setup(t, mockPM, mockPeer, mockSM)
+
+			target := newNewTxNoticeHandler(mockPM, mockPeer, logger, mockActor, mockSM)
+			target.handle(header, body)
+
+			test.verify(t, mockPM, mockPeer, mockSM)
 		})
 	}
 }

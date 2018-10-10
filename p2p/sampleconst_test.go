@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"github.com/aergoio/aergo/internal/enc"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // this file collect sample global constants used in unit test. I'm tired of creating less meaningfule variables in each tests.
@@ -58,4 +58,21 @@ func init() {
 	dummyPeerID = sampleKey1ID
 	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	dummyPeerID3, _ = peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+}
+
+const hashSize = 32
+var sampleTxsB58 = []string{ "4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45", "6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",
+	"E8dbBGe9Hnuhk35cJoekPjL3VoL4xAxtnRuP47UoxzHd",
+}
+
+var sampleTxs [][]byte
+var sampleTxHashes []TxHash
+func init() {
+	sampleTxs = make([][]byte, len(sampleTxsB58))
+	sampleTxHashes = make([]TxHash, len(sampleTxsB58))
+	for i, hashb58 := range sampleTxsB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleTxs[i] = hash
+		copy(sampleTxHashes[i][:], hash)
+	}
 }

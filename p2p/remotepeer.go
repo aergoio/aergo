@@ -36,8 +36,10 @@ type RemotePeer interface {
 	pushTxsNotice(txHashes []TxHash)
 	consumeRequest(msgID string)
 
-	handleNewBlockNotice(data *types.NewBlockNotice)
-	handleNewTxNotice(data *types.NewTransactionsNotice)
+	// updateBlkCache add hash to block cache and return true if this hash already exists.
+	updateBlkCache(hash BlockHash) bool
+	// updateTxCache add hashes to transaction cache and return newly added hashes.
+	updateTxCache(hashes []TxHash) []TxHash
 
 	// TODO
 	MF() moFactory
@@ -422,26 +424,21 @@ func (p *remotePeerImpl) pruneRequests() {
 
 }
 
-func (p *remotePeerImpl) handleNewBlockNotice(data *types.NewBlockNotice) {
+func (p *remotePeerImpl) updateBlkCache(hash BlockHash) bool {
 	// lru cache can accept hashable key
-	var hashArr BlockHash
-	copy(hashArr[:], data.BlockHash)
-
-	p.blkHashCache.Add(hashArr, true)
-	p.pm.HandleNewBlockNotice(p.meta.ID, hashArr, data)
+	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
+	return found
 }
 
-func (p *remotePeerImpl) handleNewTxNotice(data *types.NewTransactionsNotice) {
-	if len(data.TxHashes) == 0 {
-		return
-	}
+func (p *remotePeerImpl) updateTxCache(hashes []TxHash) []TxHash {
 	// lru cache can accept hashable key
-	hashArrs := make([]TxHash, len(data.TxHashes))
-	for i, hash := range data.TxHashes {
-		copy(hashArrs[i][:], hash)
-		p.blkHashCache.Add(hashArrs[i], true)
+	added := make([]TxHash, 0, len(hashes))
+	for _, hash := range hashes {
+		if found, _ := p.txHashCache.ContainsOrAdd(hash, true); !found {
+			added = append(added, hash)
+		}
 	}
-	p.pm.HandleNewTxNotice(p.meta.ID, hashArrs, data)
+	return added
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

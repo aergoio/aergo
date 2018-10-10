@@ -11,13 +11,10 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"net"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/aergoio/aergo/internal/enc"
 
 	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
@@ -71,9 +68,6 @@ type PeerManager interface {
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
 
-	HandleNewBlockNotice(peerID peer.ID, hash BlockHash, data *types.NewBlockNotice)
-	HandleNewTxNotice(peerID peer.ID, hashes []TxHash, data *types.NewTransactionsNotice)
-
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
@@ -89,6 +83,8 @@ type peerManager struct {
 	privateKey crypto.PrivKey
 	publicKey  crypto.PubKey
 	selfMeta   PeerMeta
+
+	handlerFactory HandlerFactory
 	actorServ  ActorService
 	signer     msgSigner
 	mf 		   moFactory
@@ -128,10 +124,11 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger, mf moFactory) PeerManager {
+func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
+		handlerFactory: handlerFactory,
 		actorServ: iServ,
 		conf:      p2pConf,
 		signer:    signer,
@@ -382,7 +379,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 
 	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
-	pm.insertHandlers(newPeer)
+	pm.handlerFactory.insertHandlers(newPeer)
 	go newPeer.runPeer()
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
@@ -404,28 +401,6 @@ func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	container := mo.message
 
 	rw.WriteMsg(container)
-}
-
-func (pm *peerManager) insertHandlers(peer *remotePeerImpl) {
-	// PingHandlers
-	peer.handlers[PingRequest] = newPingReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[PingResponse] = newPingRespHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GoAway] = newGoAwayHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[AddressesRequest] = newAddressesReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[AddressesResponse] = newAddressesRespHandler(pm, peer, pm.logger, pm.actorServ)
-
-	// BlockHandlers
-	peer.handlers[GetBlocksRequest] = newBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(pm, peer, pm.logger, pm.actorServ)
-
-	// TxHandlers
-	peer.handlers[GetTXsRequest] = newTxReqHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(pm, peer, pm.logger, pm.actorServ)
-	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(pm, peer, pm.logger, pm.actorServ)
 }
 
 func (pm *peerManager) checkInPeerstore(peerID peer.ID) bool {
@@ -559,7 +534,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 		}
 	}
 	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
-	pm.insertHandlers(peer)
+	pm.handlerFactory.insertHandlers(peer)
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
@@ -684,60 +659,6 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerSta
 		states = append(states, aPeer.state)
 	}
 	return peers, states
-}
-
-func (pm *peerManager) HandleNewBlockNotice(peerID peer.ID, hashArr BlockHash, data *types.NewBlockNotice) {
-	// TODO check if evicted return value is needed.
-	ok, _ := pm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
-	if ok {
-		// Kickout duplicated notice log.
-		// if pm.logger.IsDebugEnabled() {
-		// 	pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
-		// }
-		// this notice is already sent to chainservice
-		return
-	}
-
-	// request block info if selfnode does not have block already
-	rawResp, err := pm.actorServ.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
-	if err != nil {
-		pm.logger.Warn().Err(err).Msg("actor return error on getblock")
-		return
-	}
-	resp, ok := rawResp.(message.GetBlockRsp)
-	if !ok {
-		pm.logger.Warn().Str("expected", "message.GetBlockRsp").Str("actual", reflect.TypeOf(rawResp).Name()).Msg("chainservice returned unexpected type")
-		return
-	}
-	if resp.Err != nil {
-		pm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
-		pm.actorServ.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
-			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
-	}
-
-}
-
-func (pm *peerManager) HandleNewTxNotice(peerID peer.ID, hashArrs []TxHash, data *types.NewTransactionsNotice) {
-	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
-	toGet := make([]message.TXHash, 0, len(data.TxHashes))
-	for _, hashArr := range hashArrs {
-		ok, _ := pm.txInvCache.ContainsOrAdd(hashArr, cachePlaceHolder)
-		if ok {
-			// Kickout duplicated notice log.
-			// if pm.logger.IsDebugEnabled() {
-			// 	pm.logger.Debug().Str(LogTxHash, enc.ToString(hashArr[:])).Str(LogPeerID, peerID.Pretty()).Msg("Got NewTx notice, but sent already from other peer")
-			// }
-			// this notice is already sent to chainservice
-			continue
-		}
-		toGet = append(toGet, message.TXHash(hashArr[:]))
-	}
-	if len(toGet) == 0 {
-		// pm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
-		return
-	}
-	// create message data
-	pm.actorServ.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }
 
 // this method should be called inside pm.mutex

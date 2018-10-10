@@ -20,6 +20,8 @@ type BaseMsgHandler struct {
 	protocol SubProtocol
 
 	pm     PeerManager
+	sm     SyncManager
+
 	peer   RemotePeer
 	actor  ActorService
 

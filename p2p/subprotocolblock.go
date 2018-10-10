@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"github.com/hashicorp/golang-lru"
 )
 
 type blockRequestHandler struct {
@@ -38,6 +39,8 @@ var _ MessageHandler = (*listBlockHeadersResponseHandler)(nil)
 
 type newBlockNoticeHandler struct {
 	BaseMsgHandler
+
+	blkHashCache *lru.Cache
 }
 
 var _ MessageHandler = (*newBlockNoticeHandler)(nil)
@@ -51,6 +54,7 @@ var _ MessageHandler = (*getMissingRequestHandler)(nil)
 // newBlockReqHandler creates handler for GetBlockRequest
 func newBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockRequestHandler {
 	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+
 	return bh
 }
 
@@ -204,8 +208,13 @@ func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, ms
 }
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
-func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, peer: peer, actor: actor, logger: logger}}
+func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newBlockNoticeHandler {
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
+	var err error
+	bh.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	if err != nil {
+		panic("Failed to create newBlockNoticeHandler " + err.Error())
+	}
 	return bh
 }
 
@@ -219,7 +228,12 @@ func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody prot
 	// remove to verbose log
 	// debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
-	remotePeer.handleNewBlockNotice(data)
+	// lru cache can accept hashable key
+	var hash BlockHash
+	copy(hash[:], data.BlockHash)
+	if ! remotePeer.updateBlkCache(hash) {
+		bh.sm.HandleNewBlockNotice(remotePeer, hash, data)
+	}
 }
 
 func max(a, b uint32) uint32 {

@@ -33,9 +33,14 @@ type P2P struct {
 	hub *component.ComponentHub
 
 	pm     PeerManager
+	sm     SyncManager
 	rm     ReconnectManager
 	mf     moFactory
 	signer msgSigner
+}
+
+type HandlerFactory interface {
+	insertHandlers(peer *remotePeerImpl)
 }
 
 var (
@@ -135,13 +140,16 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
-	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
+	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
+
 	// connect managers each other
 	reconMan.pm = peerMan
 
 	p2ps.signer = signer
 	p2ps.mf = mf
 	p2ps.pm = peerMan
+	p2ps.sm = syncMan
 	p2ps.rm = reconMan
 }
 
@@ -185,4 +193,28 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error)
 	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
+}
+
+func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
+	logger := p2ps.Logger
+	
+	// PingHandlers
+	peer.handlers[PingRequest] = newPingReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[PingResponse] = newPingRespHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GoAway] = newGoAwayHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(p2ps.pm,  peer, logger, p2ps)
+
+	// BlockHandlers
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm,  peer, logger, p2ps, p2ps.sm)
+
+	// TxHandlers
+	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm,  peer, logger, p2ps, p2ps.sm)
 }
