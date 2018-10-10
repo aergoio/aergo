@@ -10,9 +10,7 @@
 
 #include "array.h"
 
-#define TYPE_NAME(type)             type_strs_[type]
-
-#define is_valid_type(type)         ((type) > TYPE_NONE && (type) < TYPE_MAX)
+#define TYPE_NAME(meta)             type_names_[(meta)->type]
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
@@ -37,7 +35,6 @@
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
 
-#define meta_pos(meta)              (&(meta)->pos)
 #define meta_size(meta)                                                        \
     (is_void_meta(meta) ? 0 :                                                  \
      (is_tuple_meta(meta) ? array_size((meta)->u_tup.metas) :                  \
@@ -120,7 +117,7 @@ struct meta_s {
     src_pos_t *pos;
 };
 
-extern char *type_strs_[TYPE_MAX];
+extern char *type_names_[TYPE_MAX];
 
 void meta_set_struct(meta_t *meta, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
@@ -144,7 +141,7 @@ static inline void
 meta_set(meta_t *meta, type_t type)
 {
     ASSERT(meta != NULL);
-    ASSERT1(is_valid_type(type), type);
+    ASSERT1(type > TYPE_NONE && type < TYPE_MAX, type);
 
     meta->type = type;
 }

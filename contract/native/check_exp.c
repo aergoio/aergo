@@ -75,7 +75,6 @@ static int
 exp_type_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_type_exp(exp), exp->kind);
-    ASSERT1(is_valid_type(exp->u_type.type), exp->u_type.type);
 
     if (exp->u_type.type == TYPE_STRUCT) {
         ast_id_t *id;
@@ -109,7 +108,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         CHECK(exp_type_check(check, k_exp));
 
         if (!is_comparable_meta(k_meta))
-            RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, TYPE_NAME(k_meta->type));
+            RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, TYPE_NAME(k_meta));
 
         v_exp = exp->u_type.v_exp;
         v_meta = &v_exp->meta;
@@ -158,7 +157,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
         // TODO: restriction of array size
         if (!is_integer_meta(param_meta))
             RETURN(ERROR_INVALID_IDX_TYPE, &idx_exp->pos,
-                   TYPE_NAME(param_meta->type));
+                   TYPE_NAME(param_meta));
     }
 
     exp->meta = *id_meta;
@@ -209,8 +208,7 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
             if (!meta_equals(&var_exp->meta, &val_exp->meta))
                 RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos,
-                       TYPE_NAME(var_exp->meta.type),
-                       TYPE_NAME(val_exp->meta.type));
+                       TYPE_NAME(&var_exp->meta), TYPE_NAME(&val_exp->meta));
         }
     }
     else {
@@ -219,12 +217,12 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
         if (!meta_equals(l_meta, r_meta))
             RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos,
-                   TYPE_NAME(l_meta->type), TYPE_NAME(r_meta->type));
+                   TYPE_NAME(l_meta), TYPE_NAME(r_meta));
     }
 
     if (is_val_exp(r_exp) &&
         !value_check_range(&r_exp->u_val.val, l_meta->type))
-        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, TYPE_NAME(l_meta->type));
+        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, TYPE_NAME(l_meta));
 
     meta_set_from(&exp->meta, l_meta, r_meta);
 
@@ -251,16 +249,16 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!meta_equals(l_meta, r_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, TYPE_NAME(l_meta->type),
-               TYPE_NAME(r_meta->type));
+        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos,
+               TYPE_NAME(l_meta), TYPE_NAME(r_meta));
 
     if (exp->u_op.kind == OP_ADD) {
         if (!is_integer_meta(l_meta) && !is_float_meta(l_meta) &&
             !is_string_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta->type));
+            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta));
     }
     else if (!is_integer_meta(l_meta) && !is_float_meta(l_meta)) {
-        RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta));
     }
 
     meta_set_from(&exp->meta, l_meta, r_meta);
@@ -283,7 +281,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, l_exp));
 
     if (!is_bool_meta(l_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
@@ -291,7 +289,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!is_bool_meta(r_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta));
 
     meta_set_bool(&exp->meta);
 
@@ -313,7 +311,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, l_exp));
 
     if (!is_integer_meta(l_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
@@ -321,7 +319,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!is_integer_meta(r_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta));
 
     exp->meta = l_exp->meta;
 
@@ -348,14 +346,14 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (is_float_meta(l_meta) && is_integer_meta(r_meta))
-        WARN(ERROR_TRUNCATED_TYPE, &l_exp->pos, TYPE_NAME(l_meta->type),
-             TYPE_NAME(r_meta->type));
+        WARN(ERROR_TRUNCATED_TYPE, &l_exp->pos,
+             TYPE_NAME(l_meta), TYPE_NAME(r_meta));
     else if (is_integer_meta(l_meta) && is_float_meta(r_meta))
-        WARN(ERROR_TRUNCATED_TYPE, &r_exp->pos, TYPE_NAME(r_meta->type),
-             TYPE_NAME(l_meta->type));
+        WARN(ERROR_TRUNCATED_TYPE, &r_exp->pos,
+             TYPE_NAME(r_meta), TYPE_NAME(l_meta));
     else if (!meta_equals(l_meta, r_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, TYPE_NAME(l_meta->type),
-               TYPE_NAME(r_meta->type));
+        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos,
+               TYPE_NAME(l_meta), TYPE_NAME(r_meta));
 
     meta_set_bool(&exp->meta);
 
@@ -380,12 +378,12 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
     case OP_INC:
     case OP_DEC:
         if (!is_integer_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta->type));
+            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
         break;
 
     case OP_NOT:
         if (!is_bool_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta->type));
+            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
         break;
 
     default:
@@ -471,7 +469,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
 
         id = type_id;
     }
-    else if (is_func_id(id) && 
+    else if (is_func_id(id) &&
              !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
         RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
     }
@@ -541,8 +539,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 
         if (!meta_equals(&param_id->meta, &param_exp->meta))
             RETURN(ERROR_MISMATCHED_TYPE, &param_exp->pos,
-                   TYPE_NAME(param_id->meta.type),
-                   TYPE_NAME(param_exp->meta.type));
+                   TYPE_NAME(&param_id->meta), TYPE_NAME(&param_exp->meta));
     }
 
     exp->id = func_id;
@@ -592,8 +589,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, pre_exp));
 
     if (!is_bool_meta(pre_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &pre_exp->pos,
-               TYPE_NAME(pre_meta->type));
+        RETURN(ERROR_INVALID_OP_TYPE, &pre_exp->pos, TYPE_NAME(pre_meta));
 
     in_exp = exp->u_tern.in_exp;
     in_meta = &in_exp->meta;
@@ -607,7 +603,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
 
     if (!meta_equals(in_meta, post_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &post_exp->pos,
-               TYPE_NAME(in_meta->type), TYPE_NAME(post_meta->type));
+               TYPE_NAME(in_meta), TYPE_NAME(post_meta));
 
     exp->meta = *in_meta;
 

@@ -174,14 +174,14 @@ exp_sql_new(sql_kind_t kind, char *sql, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_tuple_new(ast_exp_t *elem_exp, src_pos_t *pos)
+exp_tuple_new(array_t *exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
-    exp->u_tup.exps = array_new();
-
-    if (elem_exp != NULL)
-        array_add_last(exp->u_tup.exps, elem_exp);
+    if (exps == NULL)
+        exp->u_tup.exps = array_new();
+    else
+        exp->u_tup.exps = exps;
 
     return exp;
 }

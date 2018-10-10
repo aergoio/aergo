@@ -75,7 +75,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_BREAK         "break"
         K_BYTE          "byte"
         K_CASE          "case"
-        K_CHECK         "check"
         K_CONST         "const"
         K_CONTINUE      "continue"
         K_CONTRACT      "contract"
@@ -143,7 +142,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     type_t type;
     op_kind_t op;
     sql_kind_t sql;
-    ddl_kind_t ddl;
     modifier_t mod;
 
     ast_id_t *id;
@@ -190,7 +188,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   stmt_list
 %type <stmt>    stmt_jump
 %type <stmt>    stmt_ddl
-%type <ddl>     ddl_prefix
 %type <stmt>    stmt_blk
 %type <exp>     expression
 %type <op>      op_assign
@@ -284,10 +281,11 @@ var_decl:
     var_type var_name_list
     {
         int i;
+
         for (i = 0; i < array_size($2); i++) {
             ast_id_t *id = array_item($2, i, ast_id_t);
 
-            ASSERT(is_var_id(id));
+            ASSERT1(is_var_id(id), id->kind);
             id->u_var.type_exp = $1;
         }
         $$ = $2;
@@ -298,8 +296,9 @@ var_init_decl:
     var_type var_name_list '=' var_init_list
     {
         int i;
+
         if (array_size($2) != array_size($4)) {
-            yyerror(&yylloc, parse, yyscanner, "mismatched initializer");
+            ERROR(ERROR_MISMATCHED_COUNT, &@4, array_size($2), array_size($4));
         }
         else {
             for (i = 0; i < array_size($2); i++) {
@@ -418,13 +417,11 @@ initializer:
     exp_sql
 |   '{' init_list '}'
     {
-        $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exps = $2;
+        $$ = exp_tuple_new($2, &@$);
     }
 |   '{' init_list ',' '}'
     {
-        $$ = exp_tuple_new(NULL, &@$);
-        $$->u_tup.exps = $2;
+        $$ = exp_tuple_new($2, &@$);
     }
 ;
 
@@ -752,17 +749,17 @@ stmt_ddl:
         error_pop();
         len = @$.abs.last_offset - @$.abs.first_offset;
         ddl = xstrndup(parse->src + @$.abs.first_offset, len);
-        $$ = stmt_ddl_new($1, ddl, &@$);
+        $$ = stmt_ddl_new(ddl, &@$);
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
     }
 ;
 
 ddl_prefix:
-    K_CREATE K_INDEX        { $$ = DDL_CREATE_IDX; }
-|   K_CREATE K_TABLE        { $$ = DDL_CREATE_TBL; }
-|   K_DROP K_INDEX          { $$ = DDL_DROP_IDX; }
-|   K_DROP K_TABLE          { $$ = DDL_DROP_TBL; }
+    K_CREATE K_INDEX
+|   K_CREATE K_TABLE
+|   K_DROP K_INDEX
+|   K_DROP K_TABLE
 ;
 
 stmt_blk:
@@ -776,14 +773,10 @@ expression:
     exp_tuple
 |   exp_tuple op_assign exp_tuple
     {
-        if ($2 == OP_ASSIGN) {
+        if ($2 == OP_ASSIGN)
             $$ = exp_op_new($2, $1, $3, &@2);
-        }
-        else {
-            ast_exp_t *op_exp = exp_op_new($2, $1, $3, &@2);
-
-            $$ = exp_op_new(OP_ASSIGN, $1, op_exp, &@2);
-        }
+        else
+            $$ = exp_op_new(OP_ASSIGN, $1, exp_op_new($2, $1, $3, &@2), &@2);
     }
 ;
 
@@ -805,11 +798,13 @@ exp_tuple:
     exp_sql
 |   exp_tuple ',' exp_sql
     {
-        if (is_tuple_exp($1))
+        if (is_tuple_exp($1)) {
             $$ = $1;
-        else
-            $$ = exp_tuple_new($1, &@$);
-
+        }
+        else {
+            $$ = exp_tuple_new(NULL, &@$);
+            exp_add_last($$->u_tup.exps, $1);
+        }
         exp_add_last($$->u_tup.exps, $3);
     }
 ;
@@ -984,8 +979,7 @@ exp_post:
     }
 |   exp_post '.' identifier
     {
-        ast_exp_t *id_exp = exp_id_new($3, &@3);
-        $$ = exp_access_new($1, id_exp, &@$);
+        $$ = exp_access_new($1, exp_id_new($3, &@3), &@$);
     }
 |   exp_post UNARY_INC
     {
@@ -1002,7 +996,6 @@ exp_prim:
 |   K_NULL
     {
         $$ = exp_val_new(&@$);
-        val_set_null(&$$->u_val.val);
     }
 |   K_TRUE
     {
@@ -1060,35 +1053,33 @@ exp_list:
 exp_new:
     K_NEW identifier '(' ')'
     {
-        ast_exp_t *id_exp = exp_id_new($2, &@2);
-        $$ = exp_call_new(id_exp, NULL, &@$);
+        $$ = exp_call_new(exp_id_new($2, &@2), NULL, &@$);
     }
 |   K_NEW identifier '(' exp_list ')'
     {
-        ast_exp_t *id_exp = exp_id_new($2, &@2);
-        $$ = exp_call_new(id_exp, $4, &@$);
+        $$ = exp_call_new(exp_id_new($2, &@2), $4, &@$);
     }
 |   K_NEW K_MAP '(' ')'
     {
-        ast_exp_t *id_exp = exp_id_new(xstrdup("map"), &@2);
-        $$ = exp_call_new(id_exp, NULL, &@$);
+        $$ = exp_call_new(exp_id_new(xstrdup("map"), &@2), NULL, &@$);
     }
 |   K_NEW K_MAP '(' L_INT ')'
     {
-        array_t *exps = array_new();
-        ast_exp_t *id_exp = exp_id_new(xstrdup("map"), &@2);
-        ast_exp_t *size_exp = exp_val_new(&@4);
+        array_t *exps;
+        ast_exp_t *size_exp;
 
+        size_exp = exp_val_new(&@4);
         val_set_int(&size_exp->u_val.val, $4);
+
+        exps = array_new();
         exp_add_last(exps, size_exp);
 
-        $$ = exp_call_new(id_exp, exps, &@$);
+        $$ = exp_call_new(exp_id_new(xstrdup("map"), &@2), exps, &@$);
     }
 ;
 
 non_reserved_token:
-    K_CHECK             { $$ = xstrdup("check"); }
-|   K_CONTRACT          { $$ = xstrdup("contract"); }
+    K_CONTRACT          { $$ = xstrdup("contract"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
 ;

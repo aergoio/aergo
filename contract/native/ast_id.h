@@ -16,7 +16,7 @@
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
 
 #define id_ctor_new(name, params, blk, pos)                                    \
-    id_func_new((name), MOD_INITIAL, params, NULL, blk, (pos))
+    id_func_new((name), MOD_CTOR, (params), NULL, (blk), (pos))
 
 #define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
 #define id_add_last(ids, new_id)    id_add((ids), (ids)->cnt, (new_id))
@@ -47,7 +47,7 @@ typedef enum modifier_e {
     MOD_LOCAL       = 0x01,
     MOD_PAYABLE     = 0x02,
     MOD_READONLY    = 0x04,
-    MOD_INITIAL     = 0x08
+    MOD_CTOR        = 0x08
 } modifier_t;
 
 typedef struct id_var_s {

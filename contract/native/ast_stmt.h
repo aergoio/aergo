@@ -26,6 +26,11 @@
 #define stmt_add_first              array_add_first
 #define stmt_add_last               array_add_last
 
+#ifndef _AST_STMT_T
+#define _AST_STMT_T
+typedef struct ast_stmt_s ast_stmt_t;
+#endif /* ! _AST_STMT_T */
+
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;
@@ -40,11 +45,6 @@ typedef struct ast_exp_s ast_exp_t;
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
-
-#ifndef _AST_STMT_T
-#define _AST_STMT_T
-typedef struct ast_stmt_s ast_stmt_t;
-#endif /* ! _AST_STMT_T */
 
 typedef enum stmt_kind_e {
     STMT_NULL           = 0,
@@ -108,16 +108,7 @@ typedef struct stmt_goto_s {
     char *label;
 } stmt_goto_t;
 
-typedef enum ddl_kind_e {
-    DDL_CREATE_TBL      = 0,
-    DDL_DROP_TBL,
-    DDL_CREATE_IDX,
-    DDL_DROP_IDX,
-    DDL_MAX
-} ddl_kind_t;
-
 typedef struct stmt_ddl_s {
-    ddl_kind_t kind;
     char *ddl;
 } stmt_ddl_t;
 
@@ -155,7 +146,7 @@ ast_stmt_t *stmt_case_new(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos);
 ast_stmt_t *stmt_return_new(ast_exp_t *arg_exp, src_pos_t *pos);
 ast_stmt_t *stmt_goto_new(char *label, src_pos_t *pos);
 ast_stmt_t *stmt_jump_new(stmt_kind_t kind, src_pos_t *pos);
-ast_stmt_t *stmt_ddl_new(ddl_kind_t kind, char *ddl, src_pos_t *pos);
+ast_stmt_t *stmt_ddl_new(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_blk_new(ast_blk_t *blk, src_pos_t *pos);
 
 void ast_stmt_dump(ast_stmt_t *stmt, int indent);

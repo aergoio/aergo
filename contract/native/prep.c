@@ -11,8 +11,8 @@
 
 #include "prep.h"
 
-#define YY_LINE                 src_pos_rel_line(&scan->pos)
-#define YY_OFFSET               src_pos_rel_offset(&scan->pos)
+#define YY_LINE                 scan->pos.rel.first_line
+#define YY_OFFSET               scan->pos.rel.first_offset
 
 #define yy_update_line()        src_pos_update_line(&scan->pos)
 #define yy_update_col()         src_pos_update_col(&scan->pos, 1)
@@ -42,7 +42,7 @@ scan_next(scan_t *scan)
 {
     char c;
 
-    if (scan->offset >= strbuf_length(&scan->in))
+    if (scan->offset >= strbuf_size(&scan->in))
         return EOF;
 
     c = strbuf_char(&scan->in, scan->offset++);
@@ -60,7 +60,7 @@ scan_next(scan_t *scan)
 static char
 scan_peek(scan_t *scan, int cnt)
 {
-    if (scan->offset >= strbuf_length(&scan->in))
+    if (scan->offset >= strbuf_size(&scan->in))
         return EOF;
 
     return strbuf_char(&scan->in, scan->offset + cnt);

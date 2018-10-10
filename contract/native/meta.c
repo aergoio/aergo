@@ -10,7 +10,7 @@
 
 #include "meta.h"
 
-char *type_strs_[TYPE_MAX] = {
+char *type_names_[TYPE_MAX] = {
     "undefined",
     "bool",
     "byte",

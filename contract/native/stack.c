@@ -10,11 +10,9 @@
 void
 stack_push(stack_t *stack, void *item)
 {
-    stack_node_t *n;
+    stack_node_t *n = xmalloc(sizeof(stack_node_t));
 
     ASSERT(stack != NULL);
-
-    n = xmalloc(sizeof(stack_node_t));
 
     n->item = item;
     n->next = NULL;
@@ -45,14 +43,17 @@ stack_pop(stack_t *stack)
 
     if (stack->head == stack->tail) {
         n = stack->head;
+
         stack->head = NULL;
         stack->tail = NULL;
     }
     else {
         stack_node_t *prev = stack->head;
+
         while (prev->next != stack->tail) {
             prev = prev->next;
         }
+
         n = stack->tail;
         stack->tail = prev;
         prev->next = NULL;

@@ -43,22 +43,8 @@
             else if (c == '\0') {                                              \
                 yyterminate();                                                 \
             }                                                                  \
-            src_pos_update_col(yylloc, 1);                                  \
+            src_pos_update_col(yylloc, 1);                                     \
         }                                                                      \
-    } while (0)
-
-#define yy_return(tok)                                                         \
-    do {                                                                       \
-        src_pos_update_first(yylloc);                                            \
-        src_pos_update_col(yylloc, yyleng);                                 \
-        return (tok);                                                          \
-    } while (0)
-
-#define yy_return_buf(tok)                                                     \
-    do {                                                                       \
-        yylval->str = xstrndup(strbuf_text(YY_BUF), strbuf_length(YY_BUF));    \
-        strbuf_reset(YY_BUF);                                                  \
-        return (tok);                                                          \
     } while (0)
 
 #define yy_scan_comment()                                                      \
@@ -66,13 +52,13 @@
         char c, prev = '\0';                                                   \
         while ((c = input(yyscanner)) != '\0') {                               \
             if (c == '/' && prev == '*') {                                     \
-                src_pos_update_col(yylloc, 1);                              \
+                src_pos_update_col(yylloc, 1);                                 \
                 break;                                                         \
             }                                                                  \
             if (c == '\n')                                                     \
-                src_pos_update_line(yylloc);                                \
+                src_pos_update_line(yylloc);                                   \
             else                                                               \
-                src_pos_update_col(yylloc, 1);                              \
+                src_pos_update_col(yylloc, 1);                                 \
             prev = c;                                                          \
         }                                                                      \
         if (c == '\0') {                                                       \
@@ -81,12 +67,12 @@
         }                                                                      \
     } while (0)
 
-#define yy_scan_literal()                                                      \
+#define yy_return_string()                                                     \
     do {                                                                       \
         char c, prev = '\0';                                                   \
         while ((c = input(yyscanner)) != '\0') {                               \
             if (c == '"' && prev != '\\') {                                    \
-                src_pos_update_col(yylloc, 1);                              \
+                src_pos_update_col(yylloc, 1);                                 \
                 break;                                                         \
             }                                                                  \
             if (c == '\n') {                                                   \
@@ -96,7 +82,7 @@
                 break;                                                         \
             }                                                                  \
             else {                                                             \
-                src_pos_update_col(yylloc, 1);                              \
+                src_pos_update_col(yylloc, 1);                                 \
                 strbuf_append(YY_BUF, &c, 1);                                  \
             }                                                                  \
             prev = c;                                                          \
@@ -105,6 +91,16 @@
             yy_error(ERROR_UNTERMINATED_STRING);                               \
             yyterminate();                                                     \
         }                                                                      \
+        yylval->str = xstrndup(strbuf_text(YY_BUF), strbuf_size(YY_BUF));      \
+        strbuf_reset(YY_BUF);                                                  \
+        return L_STR;                                                          \
+    } while (0)
+
+#define yy_return(tok)                                                         \
+    do {                                                                       \
+        src_pos_update_first(yylloc);                                          \
+        src_pos_update_col(yylloc, yyleng);                                    \
+        return (tok);                                                          \
     } while (0)
 
 %}
@@ -124,10 +120,11 @@ nl                          ([\r\n]|\r\n)
 D                           [0-9]
 L                           [a-zA-Z\x80-\xFF_]
 H                           [a-fA-F0-9]
+E                           ([eE][+-]?{D}+)
 
-integer                     [+-]?{D}+
-float                       [+-]?({D}*"."{D}+|{D}+"."{D}*)
-hexa                        0[xX]{H}+
+integer                     ([+-]?{D}+)
+float                       ([+-]?({D}*"."{D}+|{D}+"."{D}*)E?)
+hexa                        (0[xX]{H}+)
 
 id                          {L}({L}|{D})*
 
@@ -147,8 +144,7 @@ id                          {L}({L}|{D})*
 "\"" {
     src_pos_update_first(yylloc);
     src_pos_update_col(yylloc, yyleng);
-    yy_scan_literal();
-    yy_return_buf(L_STR);
+    yy_return_string();
 }
 
 {integer}                   yy_return(L_INT);
@@ -199,14 +195,12 @@ id                          {L}({L}|{D})*
 "="                         yy_return('=');
 "^"                         yy_return('^');
 "!"                         yy_return('!');
-"'"                         yy_return('\'');
 
 "account"                   yy_return(K_ACCOUNT);
 "bool"                      yy_return(K_BOOL);
 "break"                     yy_return(K_BREAK);
 "byte"                      yy_return(K_BYTE);
 "case"                      yy_return(K_CASE);
-"check"                     yy_return(K_CHECK);
 "const"                     yy_return(K_CONST);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
@@ -220,7 +214,6 @@ id                          {L}({L}|{D})*
 "goto"                      yy_return(K_GOTO);
 "if"                        yy_return(K_IF);
 "in"                        yy_return(K_IN);
-"index"                     yy_return(K_INDEX);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
@@ -236,7 +229,6 @@ id                          {L}({L}|{D})*
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
-"table"                     yy_return(K_TABLE);
 "true"                      yy_return(K_TRUE);
 "uint"                      yy_return(K_UINT);
 "uint16"                    yy_return(K_UINT16);
@@ -244,21 +236,23 @@ id                          {L}({L}|{D})*
 "uint64"                    yy_return(K_UINT64);
 "uint8"                     yy_return(K_UINT8);
 
-"create"                    yy_return(K_CREATE);
-"delete"                    yy_return(K_DELETE);
-"drop"                      yy_return(K_DROP);
-"insert"                    yy_return(K_INSERT);
-"select"                    yy_return(K_SELECT);
-"update"                    yy_return(K_UPDATE);
+"create"|"CREATE"           yy_return(K_CREATE);
+"delete"|"DELETE"           yy_return(K_DELETE);
+"drop"|"DROP"               yy_return(K_DROP);
+"index"|"INDEX"             yy_return(K_INDEX);
+"insert"|"DROP"             yy_return(K_INSERT);
+"select"|"SELECT"           yy_return(K_SELECT);
+"table"|"TABLE"             yy_return(K_TABLE);
+"update"|"UPDATE"           yy_return(K_UPDATE);
 
 "#file"                     BEGIN(DIRECTIVE);
 <DIRECTIVE>{ws}+
-<DIRECTIVE>\"[^\"\n\r]+\"   src_pos_set_rel_path(yylloc, yy_literal());
+<DIRECTIVE>\"[^\"\n\r]+\"   src_pos_set_path(yylloc, yy_literal());
 <DIRECTIVE>{D}+" "{D}+ {
-    int line = atoi(strtok(yy_text(), " ")); 
+    int line = atoi(strtok(yy_text(), " "));
     int offset = atoi(strtok(NULL, " "));
 
-    src_pos_set_rel_pos(yylloc, line, 1, offset);
+    src_pos_set_pos(yylloc, line, 1, offset);
     src_pos_update_first(yylloc);
 }
 <DIRECTIVE>{nl}             BEGIN(INITIAL);

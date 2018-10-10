@@ -30,7 +30,7 @@ strbuf_append(strbuf_t *sb, char *str, int str_len)
 {
     if (sb->offset + str_len > sb->size) {
         sb->size += MAX(sb->size, str_len);
-        sb->buf = realloc(sb->buf, sb->size + 1);
+        sb->buf = xrealloc(sb->buf, sb->size + 1);
     }
 
     memcpy(sb->buf + sb->offset, str, str_len);
@@ -78,7 +78,7 @@ strbuf_dump(strbuf_t *sb, char *path)
 
     fp = open_file(path, "w");
 
-    n = fwrite(strbuf_text(sb), 1, strbuf_length(sb), fp);
+    n = fwrite(strbuf_text(sb), 1, strbuf_size(sb), fp);
     if (n < 0)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
 

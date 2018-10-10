@@ -188,7 +188,7 @@ ast_exp_t *exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
 ast_exp_t *exp_ternary_new(ast_exp_t *pre_exp, ast_exp_t *in_exp,
                            ast_exp_t *post_exp, src_pos_t *pos);
 ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, src_pos_t *pos);
-ast_exp_t *exp_tuple_new(ast_exp_t *exp, src_pos_t *pos);
+ast_exp_t *exp_tuple_new(array_t *exps, src_pos_t *pos);
 
 void ast_exp_dump(ast_exp_t *exp, int indent);
 

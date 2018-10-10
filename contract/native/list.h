@@ -176,7 +176,7 @@ list_clear(list_t *list)
 }
 
 static inline void
-list_merge(list_t *dest, list_t *src)
+list_join(list_t *dest, list_t *src)
 {
     ASSERT(src != NULL);
     ASSERT(dest != NULL);

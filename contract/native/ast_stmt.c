@@ -117,11 +117,10 @@ stmt_jump_new(stmt_kind_t kind, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_ddl_new(ddl_kind_t kind, char *ddl, src_pos_t *pos)
+stmt_ddl_new(char *ddl, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_DDL, pos);
 
-    stmt->u_ddl.kind = kind;
     stmt->u_ddl.ddl = ddl;
 
     return stmt;

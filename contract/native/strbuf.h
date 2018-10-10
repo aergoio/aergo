@@ -11,7 +11,8 @@
 #define STRBUF_INIT_SIZE            1024
 
 #define is_empty_strbuf(sb)         ((sb)->offset == 0)
-#define strbuf_length(sb)           ((sb)->offset)
+
+#define strbuf_size(sb)             ((sb)->offset)
 #define strbuf_text(sb)             ((sb)->buf)
 
 #ifndef _STRBUF_T

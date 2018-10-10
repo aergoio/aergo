@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#define DESC_MAX_LEN            1024
+#define DESC_MAX_LEN            512
 
 #define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
 

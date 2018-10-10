@@ -50,7 +50,7 @@ id_var_check(check_t *check, ast_id_t *id)
                 RETURN(ERROR_MISSING_INITIALIZER, &id->pos);
         }
         else if (!is_integer_meta(arr_meta)) {
-            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta->type));
+            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta));
         }
     }
 
@@ -72,8 +72,7 @@ id_var_check(check_t *check, ast_id_t *id)
 
                     if (!meta_equals(type_meta, val_meta))
                         RETURN(ERROR_MISMATCHED_TYPE, val_meta->pos,
-                               TYPE_NAME(type_meta->type),
-                               TYPE_NAME(val_meta->type));
+                               TYPE_NAME(type_meta), TYPE_NAME(val_meta));
                 }
             }
             else {
@@ -94,14 +93,13 @@ id_var_check(check_t *check, ast_id_t *id)
 
                     if (!meta_equals(fld_meta, val_meta))
                         RETURN(ERROR_MISMATCHED_TYPE, val_meta->pos,
-                               TYPE_NAME(fld_meta->type),
-                               TYPE_NAME(val_meta->type));
+                               TYPE_NAME(fld_meta), TYPE_NAME(val_meta));
                 }
             }
         }
-        else if (!meta_equals(type_meta, &init_exp->meta)) {
+        else if (!meta_equals(type_meta, init_meta)) {
             RETURN(ERROR_MISMATCHED_TYPE, &init_exp->pos,
-                   TYPE_NAME(type_meta->type), TYPE_NAME(init_exp->meta.type));
+                   TYPE_NAME(type_meta), TYPE_NAME(init_meta));
         }
     }
 
@@ -158,7 +156,7 @@ id_param_check(check_t *check, ast_id_t *id)
         CHECK(check_exp(check, arr_exp));
 
         if (!is_null_exp(arr_exp) && !is_integer_meta(arr_meta))
-            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta->type));
+            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta));
     }
 
     return NO_ERROR;
@@ -194,7 +192,7 @@ id_func_check(check_t *check, ast_id_t *id)
 
         meta_set_tuple(&id->meta, ret_exps);
     }
-    else if (id->mod == MOD_INITIAL) {
+    else if (id->mod == MOD_CTOR) {
         meta_set_ref(&id->meta);
     }
     else {

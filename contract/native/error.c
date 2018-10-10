@@ -32,12 +32,12 @@ char *err_codes_[ERROR_MAX] = {
 #include "error.list"
 };
 
-stack_t errstack_ = { 0, NULL };
+stack_t errstack_ = { 0, NULL, NULL };
 
 char *
 error_to_string(ec_t ec)
 {
-    ASSERT(ec >= 0 && ec < ERROR_MAX);
+    ASSERT1(ec >= NO_ERROR && ec < ERROR_MAX, ec);
     return err_codes_[ec];
 }
 
@@ -132,10 +132,10 @@ error_pop(void)
 void
 error_clear(void)
 {
-    void *item;
+    void *e;
 
-    while ((item = stack_pop(&errstack_)) != NULL) {
-        xfree(item);
+    while ((e = stack_pop(&errstack_)) != NULL) {
+        xfree(e);
     }
 }
 

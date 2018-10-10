@@ -11,6 +11,7 @@
 #include "array.h"
 
 #define is_empty_stack(stack)   ((stack)->size == 0)
+
 #define stack_size(stack)       ((stack)->size)
 #define stack_first(stack)      ((stack)->head)
 #define stack_last(stack)       ((stack)->tail)

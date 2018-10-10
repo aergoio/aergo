@@ -10,10 +10,6 @@
 
 #include "util.h"
 
-#define src_pos_rel_path(pos)       (pos)->rel.path
-#define src_pos_rel_line(pos)       (pos)->rel.first_line
-#define src_pos_rel_offset(pos)     (pos)->rel.first_offset
-
 typedef struct pos_s {
     char *path;
     int first_line;
@@ -79,8 +75,6 @@ src_pos_init(src_pos_t *pos, char *src, char *path)
 static inline void
 src_pos_update_first(src_pos_t *src_pos)
 {
-    ASSERT(src_pos != NULL);
-
     pos_update_first(&src_pos->abs);
     pos_update_first(&src_pos->rel);
 }
@@ -88,8 +82,6 @@ src_pos_update_first(src_pos_t *src_pos)
 static inline void
 src_pos_update_line(src_pos_t *src_pos)
 {
-    ASSERT(src_pos != NULL);
-
     pos_update_line(&src_pos->abs);
     pos_update_line(&src_pos->rel);
 }
@@ -97,8 +89,6 @@ src_pos_update_line(src_pos_t *src_pos)
 static inline void
 src_pos_update_col(src_pos_t *src_pos, int cnt)
 {
-    ASSERT(src_pos != NULL);
-
     pos_update_col(&src_pos->abs, cnt);
     pos_update_col(&src_pos->rel, cnt);
 }
@@ -106,24 +96,18 @@ src_pos_update_col(src_pos_t *src_pos, int cnt)
 static inline void
 src_pos_set_src(src_pos_t *src_pos, char *src)
 {
-    ASSERT(src_pos != NULL);
-
     src_pos->src = src;
 }
 
 static inline void
-src_pos_set_rel_path(src_pos_t *src_pos, char *path)
+src_pos_set_path(src_pos_t *src_pos, char *path)
 {
-    ASSERT(src_pos != NULL);
-
     src_pos->rel.path = path;
 }
 
 static inline void
-src_pos_set_rel_pos(src_pos_t *src_pos, int line, int col, int offset)
+src_pos_set_pos(src_pos_t *src_pos, int line, int col, int offset)
 {
-    ASSERT(src_pos != NULL);
-
     src_pos->rel.last_line = line;
     src_pos->rel.last_col = col;
     src_pos->rel.last_offset = offset;
