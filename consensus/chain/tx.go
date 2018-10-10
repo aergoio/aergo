@@ -104,13 +104,12 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 	var blockState *types.BlockState
 	for i, tx := range txIn {
-		last = i
-
 		curState, err := op.Apply(tx)
 		if curState != nil {
 			blockState = curState
 		}
 
+		//don't include tx that error is occured
 		if e, ok := err.(ErrTimeout); ok {
 			logger.Debug().Msg("stop gathering tx due to time limit")
 			err = e
@@ -123,6 +122,8 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 			// XXX: failed transactions must not be collected into the block.
 			return nil, nil, err
 		}
+
+		last = i
 	}
 
 	nCollected = last + 1
