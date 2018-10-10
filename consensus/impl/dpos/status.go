@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -37,6 +38,7 @@ func NewStatus(confirmsRequired uint16) *Status {
 }
 
 type pLibStatus struct {
+	gensisInfo       *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
 	plib             map[string]*blockInfo // BP-wise proposed LIB map
@@ -60,6 +62,11 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 
 	bi := ci.blockInfo
 
+	// Initialize an empty pre-LIB map entry with genesis block info.
+	if _, exist := pls.plib[bi.bpID]; !exist {
+		pls.updatePreLIB(bi.bpID, pls.gensisInfo)
+	}
+
 	logger.Debug().Str("BP", bi.bpID).
 		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
 		Msg("new confirm info added")
@@ -67,16 +74,17 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 
 func (pls *pLibStatus) updateStatus() *blockInfo {
 	if bi := pls.getPreLIB(); bi != nil {
-		pls.plib[bi.bpID] = bi
-
-		logger.Debug().Str("BP", bi.bpID).
-			Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
-			Msg("proposed LIB map updated")
-
-		return pls.calcLIB()
+		pls.updatePreLIB(bi.bpID, bi)
 	}
 
-	return nil
+	return pls.calcLIB()
+}
+
+func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
+	pls.plib[bi.bpID] = bi
+	logger.Debug().Str("BP", bi.bpID).
+		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+		Msg("proposed LIB map updated")
 }
 
 func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
@@ -87,11 +95,19 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 }
 
 func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
+	cInfo := func(e *list.Element) *confirmInfo {
+		return e.Value.(*confirmInfo)
+	}
+
+	bInfo := func(c *confirmInfo) *blockInfo {
+		return c.blockInfo
+	}
+
 	var (
 		prev *list.Element
 		del  = false
 		e    = pls.confirms.Back()
-		cr   = e.Value.(*confirmInfo).blockInfo.confirmRange
+		cr   = bInfo(cInfo(e)).confirmRange
 	)
 
 	for e != nil && cr > 0 {
@@ -99,11 +115,11 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 		cr--
 
 		if !del {
-			c := e.Value.(*confirmInfo)
+			c := cInfo(e)
 			c.confirmsLeft--
 			if c.confirmsLeft == 0 {
 				// proposed LIB info to return
-				bi = c.blockInfo
+				bi = bInfo(c)
 				del = true
 			}
 		}
@@ -174,17 +190,22 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
-	// TODO: Handle block #1, corrrectly!
-	if s.bestBlock == nil {
-		// LIB status must be appripriately stored to DB and restored after
-		// booting. If such a recovery process is correctly done, s.bestBlock must
-		// be nil only if the best block is the gensis block (block number 0).
-		s.bestBlock = block
-		return
+	if s.pls.gensisInfo == nil {
+		if genesisBlock := chain.GetGenesisBlock(); genesisBlock != nil {
+			s.pls.gensisInfo = &blockInfo{
+				blockHash: genesisBlock.ID(),
+				blockNo:   genesisBlock.BlockNo(),
+			}
+
+			// Temporarily set s.bestBlock to genesisBlock whenever the server
+			// is started. TODO: Do the status reovery correctly.
+			if s.bestBlock == nil {
+				s.bestBlock = genesisBlock
+			}
+		}
 	}
 
 	curBestID := s.bestBlock.ID()
-
 	if curBestID == block.PrevID() {
 		s.pls.addConfirmInfo(block)
 

@@ -36,7 +36,8 @@ type ChainService struct {
 }
 
 var (
-	logger = log.NewLogger("chain")
+	logger       = log.NewLogger("chain")
+	genesisBlock *types.Block
 )
 
 // NewChainService create instance of ChainService
@@ -60,6 +61,12 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
+}
+
+// GetGenesisBlock returns the genesis block of the chain, which is initialized
+// by chainservice at booting.
+func GetGenesisBlock() *types.Block {
+	return genesisBlock
 }
 
 func (cs *ChainService) initDB(dataDir string) error {
@@ -114,6 +121,7 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 	}
 	return nil
 }
+
 func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
@@ -140,8 +148,9 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
-	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+	genesisBlock, _ = cs.cdb.getBlockByNo(0)
+
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).Msg("chain initialized")
 
 	return nil
 }
