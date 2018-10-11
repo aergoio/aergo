@@ -369,17 +369,24 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 // NewTxExecutor returns a new TxExecFn.
 func NewTxExecutor(sdb *state.ChainStateDB, bState *state.BlockState, blockNo types.BlockNo, ts int64) TxExecFn {
 	return func(tx *types.Tx) error {
-		return executeTx(sdb, bState, tx, blockNo, ts)
+		snapshot := bState.Snapshot()
+		err := executeTx(sdb, bState, tx, blockNo, ts)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
+			bState.Rollback(snapshot)
+			return err
+		}
+		return nil
 	}
 }
 
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
-	defer e.CommitReceipt()
-
 	if !e.commitOnly {
 		for _, tx := range e.txs {
 			if err := e.execTx(tx); err != nil {
+				//FIXME maybe system error. restart or panic
+				// all txs have executed successfully in BP node
 				return err
 			}
 		}
@@ -392,9 +399,20 @@ func (e *blockExecutor) execute() error {
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 	// sdb.Apply() succeeds
-	err = e.sdb.Apply(e.BlockState)
+	err = e.commit()
 
 	return err
+}
+
+func (e *blockExecutor) commit() error {
+	e.CommitReceipt()
+
+	var err error
+	if err = e.BlockState.Update(); err != nil {
+		return err
+	}
+
+	return e.BlockState.Commit()
 }
 
 //TODO Refactoring: batch
@@ -489,7 +507,9 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			}
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
-				return err
+				//FIXME divide system error and vm error(logical)
+				// - vm error is not tx execution error
+				return nil
 			}
 			err = bs.CommitContractState(contractState)
 			if err != nil {

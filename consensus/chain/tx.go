@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -83,7 +84,6 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, *state.BlockState, error) {
 	var (
 		nCollected int
-		last       int
 		nCand      int
 	)
 
@@ -94,6 +94,7 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	if nCand == 0 {
 		return txIn, nil, nil
 	}
+	txRes := make([]*types.Tx, 0, nCand)
 
 	defer func() {
 		logger.Debug().
@@ -104,7 +105,7 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 	var blockState *state.BlockState
-	for i, tx := range txIn {
+	for _, tx := range txIn {
 		curState, err := op.Apply(tx)
 		if curState != nil {
 			blockState = curState
@@ -119,15 +120,16 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 			logger.Debug().Msg("stop gathering tx due to size limit")
 			break
 		} else if err != nil {
-			logger.Debug().Err(err).Msg("stop to produce block")
-			// XXX: failed transactions must not be collected into the block.
-			return nil, nil, err
+			//FIXME handling system error (panic?)
+			// ex) gas error/nonce error skip, but other system error panic
+			logger.Debug().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+			continue
 		}
 
-		last = i
+		txRes = append(txRes, tx)
 	}
 
-	nCollected = last + 1
+	nCollected = len(txRes)
 
-	return txIn[0:nCollected], blockState, nil
+	return txRes, blockState, nil
 }
