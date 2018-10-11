@@ -108,7 +108,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         CHECK(exp_type_check(check, k_exp));
 
         if (!is_comparable_meta(k_meta))
-            RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, TYPE_NAME(k_meta));
+            RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, META_NAME(k_meta));
 
         v_exp = exp->u_type.v_exp;
         v_meta = &v_exp->meta;
@@ -157,7 +157,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
         // TODO: restriction of array size
         if (!is_untyped_meta(param_meta))
             RETURN(ERROR_NOT_ALLOWED_TYPE, &idx_exp->pos,
-                   TYPE_NAME(param_meta));
+                   META_NAME(param_meta));
     }
 
     exp->meta = *id_meta;
@@ -206,14 +206,14 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 
     if (op == OP_ADD) {
         if (!is_numeric_meta(l_meta) && !is_string_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta));
+            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, META_NAME(l_meta));
     }
     else if (op == OP_MOD) {
         if (!is_integer_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta));
+            RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, META_NAME(l_meta));
     }
     else if (!is_numeric_meta(l_meta)) {
-        RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, TYPE_NAME(l_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &exp->pos, META_NAME(l_meta));
     }
 
     r_exp = exp->u_op.r_exp;
@@ -222,8 +222,8 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!meta_equals(l_meta, r_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, TYPE_NAME(l_meta), 
-               TYPE_NAME(r_meta));
+        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, META_NAME(l_meta), 
+               META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
         exp_op_eval(exp);
@@ -251,7 +251,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, l_exp));
 
     if (!is_integer_meta(l_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
@@ -259,7 +259,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!is_integer_meta(r_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
         exp_op_eval(exp);
@@ -293,7 +293,7 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 
     if (!meta_equals(l_meta, r_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &exp->pos,
-               TYPE_NAME(l_meta), TYPE_NAME(r_meta));
+               META_NAME(l_meta), META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
         exp_op_eval(exp);
@@ -327,14 +327,14 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
 
         if (!is_integer_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
+            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
 
         exp->meta = *l_meta;
         break;
 
     case OP_NOT:
         if (!is_bool_meta(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
+            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
 
         if (is_untyped_meta(l_meta)) {
             value_t *l_val;
@@ -374,7 +374,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, l_exp));
 
     if (!is_bool_meta(l_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, TYPE_NAME(l_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
@@ -382,7 +382,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!is_bool_meta(r_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, TYPE_NAME(r_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
 
     meta_set_bool(&exp->meta);
 
@@ -432,7 +432,7 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
             if (!meta_equals(&var_exp->meta, &val_exp->meta))
                 RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos,
-                       TYPE_NAME(&var_exp->meta), TYPE_NAME(&val_exp->meta));
+                       META_NAME(&var_exp->meta), META_NAME(&val_exp->meta));
         }
     }
     else {
@@ -441,12 +441,12 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 
         if (!meta_equals(l_meta, r_meta))
             RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos,
-                   TYPE_NAME(l_meta), TYPE_NAME(r_meta));
+                   META_NAME(l_meta), META_NAME(r_meta));
     }
 
     if (is_val_exp(r_exp) &&
         !value_check_range(&r_exp->u_val.val, l_meta->type))
-        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, TYPE_NAME(l_meta));
+        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, META_NAME(l_meta));
 
     meta_set_from(&exp->meta, l_meta, r_meta);
 
@@ -597,7 +597,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 
         if (!meta_equals(&param_id->meta, &param_exp->meta))
             RETURN(ERROR_MISMATCHED_TYPE, &param_exp->pos,
-                   TYPE_NAME(&param_id->meta), TYPE_NAME(&param_exp->meta));
+                   META_NAME(&param_id->meta), META_NAME(&param_exp->meta));
     }
 
     exp->id = func_id;
@@ -647,7 +647,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, pre_exp));
 
     if (!is_bool_meta(pre_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &pre_exp->pos, TYPE_NAME(pre_meta));
+        RETURN(ERROR_INVALID_OP_TYPE, &pre_exp->pos, META_NAME(pre_meta));
 
     in_exp = exp->u_tern.in_exp;
     in_meta = &in_exp->meta;
@@ -661,7 +661,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
 
     if (!meta_equals(in_meta, post_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &post_exp->pos,
-               TYPE_NAME(in_meta), TYPE_NAME(post_meta));
+               META_NAME(in_meta), META_NAME(post_meta));
 
     exp->meta = *in_meta;
 

@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#define TYPE_NAME(type)         type_names_[(type)]
+
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
     FLAG_VERBOSE    = 0x01,

@@ -10,7 +10,7 @@
 
 #include "array.h"
 
-#define TYPE_NAME(meta)             type_names_[(meta)->type]
+#define META_NAME(meta)             TYPE_NAME((meta)->type)
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
