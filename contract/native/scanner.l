@@ -26,9 +26,6 @@
 #define YY_EXTRA_TYPE           parse_t *
 #define YY_BUF                  &yyextra->buf
 
-#define yy_text()               xstrndup(yytext, yyleng)
-#define yy_literal()            xstrndup(yytext + 1, yyleng - 2)
-
 #define yy_error(ec)            ERROR(ec, yylloc)
 
 #define yy_recover()                                                           \
@@ -67,7 +64,7 @@
         }                                                                      \
     } while (0)
 
-#define yy_return_string()                                                     \
+#define yy_scan_literal()                                                      \
     do {                                                                       \
         char c, prev = '\0';                                                   \
         while ((c = input(yyscanner)) != '\0') {                               \
@@ -91,9 +88,21 @@
             yy_error(ERROR_UNTERMINATED_STRING);                               \
             yyterminate();                                                     \
         }                                                                      \
+    } while (0)
+
+#define yy_return_strbuf(tok)                                                  \
+    do {                                                                       \
         yylval->str = xstrndup(strbuf_text(YY_BUF), strbuf_size(YY_BUF));      \
         strbuf_reset(YY_BUF);                                                  \
-        return L_STR;                                                          \
+        return (tok);                                                          \
+    } while (0)
+
+#define yy_return_text(tok)                                                    \
+    do {                                                                       \
+        src_pos_update_first(yylloc);                                          \
+        src_pos_update_col(yylloc, yyleng);                                    \
+        yylval->str = xstrndup(yytext, yyleng);                                \
+        return (tok);                                                          \
     } while (0)
 
 #define yy_return(tok)                                                         \
@@ -144,12 +153,13 @@ id                          {L}({L}|{D})*
 "\"" {
     src_pos_update_first(yylloc);
     src_pos_update_col(yylloc, yyleng);
-    yy_return_string();
+    yy_scan_literal();
+    yy_return_strbuf(L_STR);
 }
 
-{integer}                   yy_return(L_INT);
-{float}                     yy_return(L_FLOAT);
-{hexa}                      yy_return(L_HEXA);
+{integer}                   yy_return_text(L_INT);
+{float}                     yy_return_text(L_FLOAT);
+{hexa}                      yy_return_text(L_HEXA);
 
 "+="                        yy_return(ASSIGN_ADD);
 "-="                        yy_return(ASSIGN_SUB);
@@ -248,9 +258,9 @@ id                          {L}({L}|{D})*
 
 "#file"                     BEGIN(DIRECTIVE);
 <DIRECTIVE>{ws}+
-<DIRECTIVE>\"[^\"\n\r]+\"   src_pos_set_path(yylloc, yy_literal());
+<DIRECTIVE>\"[^\"\n\r]+\"   src_pos_set_path(yylloc, xstrndup(yytext + 1, yyleng - 2));
 <DIRECTIVE>{D}+" "{D}+ {
-    int line = atoi(strtok(yy_text(), " "));
+    int line = atoi(strtok(xstrndup(yytext, yyleng), " "));
     int offset = atoi(strtok(NULL, " "));
 
     src_pos_set_pos(yylloc, line, 1, offset);
@@ -258,10 +268,7 @@ id                          {L}({L}|{D})*
 }
 <DIRECTIVE>{nl}             BEGIN(INITIAL);
 
-{id} {
-    yylval->str = yy_text();
-    yy_return(ID);
-}
+{id}                        yy_return_text(ID);
 
 . {
     src_pos_update_first(yylloc);

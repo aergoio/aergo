@@ -317,12 +317,13 @@ var_init_decl:
         }
         else {
             for (i = 0; i < array_size($2); i++) {
-                ast_id_t *id = array_item($2, i, ast_id_t);
-                ast_exp_t *exp = array_item($4, i, ast_exp_t);
+                ast_id_t *id;
 
-                ASSERT(is_var_id(id));
+                id = array_item($2, i, ast_id_t);
+                ASSERT1(is_var_id(id), id->kind);
+
                 id->u_var.type_exp = $1;
-                id->u_var.init_exp = exp;
+                id->u_var.init_exp = array_item($4, i, ast_exp_t);
             }
         }
         $$ = $2;

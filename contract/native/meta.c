@@ -97,6 +97,68 @@ meta_equals(meta_t *x, meta_t *y)
     return x->type == y->type;
 }
 
+int
+meta_cmp(meta_t *x, meta_t *y)
+{
+    if (is_untyped_meta(x) || is_untyped_meta(y)) {
+        if (x->type == y->type ||
+            (is_integer_meta(x) && is_integer_meta(y)) ||
+            (is_float_meta(x) && is_float_meta(y)))
+            return NO_ERROR;
+
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+    }
+
+    if (is_map_meta(x) || is_map_meta(y)) {
+        if (is_ref_meta(x) || is_ref_meta(y))
+            return NO_ERROR;
+
+        if (x->type != y->type)
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+
+        if (x->u_map.k_type != y->u_map.k_type)
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos,
+                   TYPE_NAME(x->u_map.k_type), TYPE_NAME(y->u_map.k_type));
+
+        return meta_cmp(x->u_map.v_meta, y->u_map.v_meta);
+    }
+
+    if (is_struct_meta(x) || is_tuple_meta(x)) {
+        int i;
+        array_t *x_elems, *y_elems;
+
+        if (is_struct_meta(x))
+            x_elems = x->u_st.metas;
+        else
+            x_elems = x->u_tup.metas;
+
+        if (is_struct_meta(y))
+            y_elems = y->u_st.metas;
+        else if (is_tuple_meta(y))
+            y_elems = y->u_tup.metas;
+        else
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+
+        if (array_size(x_elems) != array_size(y_elems))
+            RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos,
+                   array_size(x_elems), array_size(y_elems));
+
+        for (i = 0; i < array_size(x_elems); i++) {
+            meta_t *x_elem = array_item(x_elems, i, meta_t);
+            meta_t *y_elem = array_item(y_elems, i, meta_t);
+
+            CHECK(meta_cmp(x_elem, y_elem));
+        }
+
+        return NO_ERROR;
+    }
+
+    if (x->type != y->type)
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+
+    return NO_ERROR;
+}
+
 void
 meta_dump(meta_t *meta, int indent)
 {

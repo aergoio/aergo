@@ -49,25 +49,45 @@ contract test {
     int v1[3] = { 1, 2, 3 };
     int v2[3] = { 1, 2, 3, };
     string v3[3] = { "a", "b", "c" };
-
-    int v4[1], v5[1] = {1}, {2};
+    int v4[1], v5[2] = { 1 }, { 2, 3 } ;
 }
 
 @test(missing_initializer)
-@error(ERROR_MISSING_INITIALIZER)
+@error(ERROR_MISSING_SIZE)
 contract test {
     int i[];
 }
 
+@test(mismatched_element_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int i[] = { 1, 2, "3" };
+}
+
+@test(mismatched_element_count)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    int i[3] = { 1, 2 };
+}
+
 @test(struct_initializer)
 contract test {
-    struct s {
+    struct s1 {
         int a;
         int b;
         string c;
     }
-    s v1 = { 1, 0x01, "b" };
-    s v2[2] = { { 1, 0x01, "a" }, { 2, 0x02, "b" } };
+    s1 v1 = { 1, 0x01, "b" };
+    s1 v2[2] = { { 1, 0x01, "a" }, { 2, 0x02, "b" } };
+    s1 v3[1], v4[1] = { 1, 0x01, "a" }, { 2, 0x02, "b" };
+
+    struct s2 {
+        int x;
+        s1 y;
+    }
+    s2 v5 = { 1, { 1, 1, "1" } };
+    s2 v6[2] = { { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } } };
+    s2 v7[1], v8[1] = { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } };
 }
 
 @test(map_initializer)
