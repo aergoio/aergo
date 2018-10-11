@@ -78,7 +78,7 @@ func TestContractHello(t *testing.T) {
 	)
 	tx := newLuaTxCall("ktlee", "hello", 1, `{"Name":"hello", "Args":["World"]}`)
 	bc.connectBlock(tx)
-	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tx.hash()))
+	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `["Hello World"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -95,7 +95,7 @@ func TestContractSystem(t *testing.T) {
 	)
 	tx := newLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
 	bc.connectBlock(tx)
-	receipt := types.NewReceiptFromBytes(TempReceiptDb.Get(tx.hash()))
+	receipt := bc.getReceipt(tx.hash())
 	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0ce7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
@@ -110,11 +110,7 @@ func TestGetABI(t *testing.T) {
 		newLuaTxDef("ktlee", "hello", 1,
 			`function hello(say) return "Hello " .. say end abi.register(hello)`),
 	)
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash("hello")))
-	if err != nil {
-		t.Error(err)
-	}
-	abi, err := GetABI(cState)
+	abi, err := bc.getABI("hello")
 	if err != nil {
 		t.Error(err)
 	}
@@ -138,6 +134,23 @@ func TestContractQuery(t *testing.T) {
 		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
+	ktlee, err := bc.getAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if ktlee.Balance != uint64(98) {
+		t.Error(ktlee.Balance)
+	}
+	t.Log(ktlee.Balance)
+	query, err := bc.getAccountState("query")
+	if err != nil {
+		t.Error(err)
+	}
+	if query.Balance != uint64(2) {
+		t.Error(query.Balance)
+	}
+	t.Log(query.Balance)
+
 	rv, err := bc.query("query", `{"Name":"inc", "Args":[]}`, t)
 	if err == nil {
 		t.Error("error expected")
@@ -152,7 +165,7 @@ func TestContractQuery(t *testing.T) {
 		t.Errorf("contract query error: %v", err)
 	}
 	if rv != "[1]" {
-		t.Errorf("expected: %s, bug got: %s", "[1]", rv)
+		t.Errorf("expected: %s, but got: %s", "[1]", rv)
 	}
 }
 
@@ -198,6 +211,22 @@ func (bc *blockChain) newBState() *state.BlockState {
 	return state.NewBlockState(b.BlockID(), bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()), TempReceiptDb.NewTx())
 }
 
+func (bc *blockChain) getABI(contract string) (*types.ABI, error) {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+	if err != nil {
+		return nil, err
+	}
+	return GetABI(cState)
+}
+
+func (bc *blockChain) getReceipt(txHash []byte) *types.Receipt {
+	return types.NewReceiptFromBytes(TempReceiptDb.Get(txHash))
+}
+
+func (bc *blockChain) getAccountState(name string) (*types.State, error) {
+	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(strHash(name)))
+}
+
 type luaTx interface {
 	run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error
 }
@@ -226,12 +255,16 @@ func (l *luaTxAccount) run(sdb *state.ChainStateDB, bs *state.BlockState, blockN
 	return nil
 }
 
-type luaTxDef struct {
+type luaTxCommon struct {
 	sender   []byte
 	contract []byte
 	amount   uint64
 	code     []byte
 	id       uint64
+}
+
+type luaTxDef struct {
+	luaTxCommon
 }
 
 func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
@@ -256,11 +289,13 @@ func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 	binary.LittleEndian.PutUint32(codeWithInit, uint32(4+len(b)))
 	copy(codeWithInit[4:], b)
 	return &luaTxDef{
-		sender:   strHash(sender),
-		contract: strHash(contract),
-		code:     codeWithInit,
-		amount:   amount,
-		id:       newTxId(),
+		luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			code:     codeWithInit,
+			amount:   amount,
+			id:       newTxId(),
+		},
 	}
 }
 
@@ -287,7 +322,9 @@ func (l *luaTxDef) hash() []byte {
 	return b
 }
 
-func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
+func contractFrame(l *luaTxCommon, bs *state.BlockState,
+	run func(s, c *types.State, id types.AccountID, cs *state.ContractState) error) error {
+
 	creatorId := types.ToAccountID(l.sender)
 	creatorState, err := bs.GetAccountState(creatorId)
 	if err != nil {
@@ -305,32 +342,8 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 	if err != nil {
 		return err
 	}
-	contractState.SqlRecoveryPoint = 1
-	sqlTx, err := BeginTx(contractId, contractState.SqlRecoveryPoint)
-	if err != nil {
-		return err
-	}
-	err = sqlTx.Savepoint()
-	if err != nil {
-		return err
-	}
 
-	bcCtx := NewContext(sdb, bs, creatorState, eContractState,
-		types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-		"", 1, types.EncodeAddress(l.contract),
-		0, nil, sqlTx.GetHandle())
-
-	err = Create(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
-	if err != nil {
-		_ = sqlTx.RollbackToSavepoint()
-		return err
-	}
-	err = bs.StateDB.CommitContractState(eContractState)
-	if err != nil {
-		_ = sqlTx.RollbackToSavepoint()
-		return err
-	}
-	err = sqlTx.Release()
+	err = run(creatorState, &uContractState, contractId, eContractState)
 	if err != nil {
 		return err
 	}
@@ -342,23 +355,58 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 	bs.PutState(creatorId, &uCallerState)
 	bs.PutState(contractId, &uContractState)
 	return nil
+
+}
+func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
+	return contractFrame(&l.luaTxCommon, bs,
+		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
+			uContractState.SqlRecoveryPoint = 1
+			sqlTx, err := BeginTx(contractId, uContractState.SqlRecoveryPoint)
+			if err != nil {
+				return err
+			}
+			err = sqlTx.Savepoint()
+			if err != nil {
+				return err
+			}
+
+			bcCtx := NewContext(sdb, bs, senderState, eContractState,
+				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
+				"", 1, types.EncodeAddress(l.contract),
+				0, nil, sqlTx.GetHandle())
+
+			err = Create(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+			if err != nil {
+				_ = sqlTx.RollbackToSavepoint()
+				return err
+			}
+			err = bs.StateDB.CommitContractState(eContractState)
+			if err != nil {
+				_ = sqlTx.RollbackToSavepoint()
+				return err
+			}
+			err = sqlTx.Release()
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	)
 }
 
 type luaTxCall struct {
-	sender   []byte
-	contract []byte
-	amount   uint64
-	code     []byte
-	id       uint64
+	luaTxCommon
 }
 
 func newLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
 	return &luaTxCall{
-		sender:   strHash(sender),
-		contract: strHash(contract),
-		amount:   amount,
-		code:     []byte(code),
-		id:       newTxId(),
+		luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			amount:   amount,
+			code:     []byte(code),
+			id:       newTxId(),
+		},
 	}
 }
 
@@ -371,56 +419,36 @@ func (l *luaTxCall) hash() []byte {
 }
 
 func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
-	creatorId := types.ToAccountID([]byte(l.sender))
-	creatorState, err := bs.GetAccountState(creatorId)
-	if err != nil {
-		return err
-	}
+	return contractFrame(&l.luaTxCommon, bs,
+		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
+			sqlTx, err := BeginTx(contractId, uContractState.SqlRecoveryPoint)
+			if err != nil {
+				return err
+			}
+			sqlTx.Savepoint()
 
-	contractId := types.ToAccountID([]byte(l.contract))
-	contractState, err := bs.GetAccountState(contractId)
-	if err != nil {
-		return err
-	}
+			bcCtx := NewContext(sdb, bs, senderState, eContractState,
+				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
+				"", 1, types.EncodeAddress(l.contract),
+				0, nil, sqlTx.GetHandle())
 
-	uContractState := types.State(*contractState)
-	eContractState, err := bs.StateDB.OpenContractState(&uContractState)
-	if err != nil {
-		return err
-	}
-	sqlTx, err := BeginTx(contractId, contractState.SqlRecoveryPoint)
-	if err != nil {
-		return err
-	}
-	sqlTx.Savepoint()
-
-	bcCtx := NewContext(sdb, bs, creatorState, eContractState,
-		types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-		"", 1, types.EncodeAddress(l.contract),
-		0, nil, sqlTx.GetHandle())
-
-	err = Call(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
-	if err != nil {
-		_ = sqlTx.RollbackToSavepoint()
-		return err
-	}
-	err = bs.StateDB.CommitContractState(eContractState)
-	if err != nil {
-		_ = sqlTx.RollbackToSavepoint()
-		return err
-	}
-	err = sqlTx.Release()
-	if err != nil {
-		return err
-	}
-
-	uCallerState := types.State(*creatorState)
-	uCallerState.Balance -= l.amount
-	uContractState.Balance += l.amount
-
-	bs.PutState(creatorId, &uCallerState)
-	bs.PutState(contractId, &uContractState)
-	return nil
+			err = Call(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+			if err != nil {
+				_ = sqlTx.RollbackToSavepoint()
+				return err
+			}
+			err = bs.StateDB.CommitContractState(eContractState)
+			if err != nil {
+				_ = sqlTx.RollbackToSavepoint()
+				return err
+			}
+			err = sqlTx.Release()
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	)
 }
 
 func (bc *blockChain) connectBlock(txs ...luaTx) error {
