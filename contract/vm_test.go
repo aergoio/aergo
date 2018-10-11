@@ -59,12 +59,9 @@ func TestReturn(t *testing.T) {
 		newLuaTxCall("ktlee", "return_num", 10, `{"Name":"return_num", "Args":[]}`),
 	)
 
-	rv, err := bc.query("return_num", `{"Name":"return_num", "Args":[]}`, t)
+	err := bc.query("return_num", `{"Name":"return_num", "Args":[]}`, "", "[10]")
 	if err != nil {
 		t.Error(err)
-	}
-	if rv != "[10]" {
-		t.Errorf("expected: %s, bug got: %s", "[10]", rv)
 	}
 }
 
@@ -152,21 +149,14 @@ func TestContractQuery(t *testing.T) {
 	}
 	t.Log(query.Balance)
 
-	rv, err := bc.query("query", `{"Name":"inc", "Args":[]}`, t)
-	if err == nil {
-		t.Error("error expected")
-
-	}
-	if !strings.Contains(err.Error(), "not permitted set in query") {
-		t.Errorf("failed check error: %v", err)
-	}
-
-	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "not permitted set in query", "")
 	if err != nil {
-		t.Errorf("contract query error: %v", err)
+		t.Error(err)
 	}
-	if rv != "[1]" {
-		t.Errorf("expected: %s, but got: %s", "[1]", rv)
+
+	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "[1]")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -189,47 +179,37 @@ func TestRollback(t *testing.T) {
 		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
-	rv, err := bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	err := bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "[5]")
 	if err != nil {
-		t.Errorf("contract query error: %v", err)
-	}
-	if rv != "[5]" {
-		t.Errorf("expected: %s, but got: %s", "[5]", rv)
+		t.Error(err)
 	}
 
 	err = bc.disconnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
-	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "[3]")
 	if err != nil {
-		t.Errorf("contract query error: %v", err)
+		t.Error(err)
 	}
-	if rv != "[3]" {
-		t.Errorf("expected: %s, but got: %s", "[3]", rv)
-	}
+
 	err = bc.disconnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
-	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+
+	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "[1]")
 	if err != nil {
-		t.Errorf("contract query error: %v", err)
-	}
-	if rv != "[1]" {
-		t.Errorf("expected: %s, but got: %s", "[1]", rv)
+		t.Error(err)
 	}
 
 	bc.connectBlock(
 		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
-	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "[2]")
 	if err != nil {
-		t.Errorf("contract query error: %v", err)
-	}
-	if rv != "[2]" {
-		t.Errorf("expected: %s, but got: %s", "[2]", rv)
+		t.Error(err)
 	}
 }
 
@@ -548,14 +528,24 @@ func (bc *blockChain) disconnectBlock() error {
 	return bc.sdb.Rollback(bc.bestBlockId)
 }
 
-func (bc *blockChain) query(contract, queryInfo string, t *testing.T) (string, error) {
+func (bc *blockChain) query(contract, queryInfo string, expectedErr, expectedRv string) error {
 	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
 	if err != nil {
-		return "", err
+		return err
 	}
-	ret, err := Query(strHash(contract), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), cState, []byte(queryInfo))
+	if expectedErr != "" {
+		if err == nil || !strings.Contains(err.Error(), expectedErr) {
+			return err
+		}
+		return nil
+	}
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(ret), nil
+
+	if expectedRv != string(rv) {
+		return fmt.Errorf("expected: %s, but got: %s", expectedRv, string(rv))
+	}
+	return nil
 }
