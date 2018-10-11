@@ -38,7 +38,7 @@ func NewStatus(confirmsRequired uint16) *Status {
 }
 
 type pLibStatus struct {
-	gensisInfo       *blockInfo
+	genesisInfo      *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
 	plib             map[string]*blockInfo // BP-wise proposed LIB map
@@ -64,7 +64,7 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
 	if _, exist := pls.plib[bi.bpID]; !exist {
-		pls.updatePreLIB(bi.bpID, pls.gensisInfo)
+		pls.updatePreLIB(bi.bpID, pls.genesisInfo)
 	}
 
 	logger.Debug().Str("BP", bi.bpID).
@@ -193,9 +193,9 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
-	if s.pls.gensisInfo == nil {
+	if s.pls.genesisInfo == nil {
 		if genesisBlock := chain.GetGenesisBlock(); genesisBlock != nil {
-			s.pls.gensisInfo = &blockInfo{
+			s.pls.genesisInfo = &blockInfo{
 				blockHash: genesisBlock.ID(),
 				blockNo:   genesisBlock.BlockNo(),
 			}
