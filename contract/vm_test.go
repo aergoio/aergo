@@ -185,7 +185,7 @@ func loadBlockChain(t *testing.T) *blockChain {
 	return bc
 }
 
-func (bc *blockChain) newBState() *types.BlockState {
+func (bc *blockChain) newBState() *state.BlockState {
 	b := types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: []byte(bc.bestBlockId.String()),
@@ -194,12 +194,12 @@ func (bc *blockChain) newBState() *types.BlockState {
 		},
 	}
 	bc.cBlock = &b
-	blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
-	return types.NewBlockState(blockInfo, TempReceiptDb.NewTx())
+	// blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
+	return state.NewBlockState(b.BlockID(), bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()), TempReceiptDb.NewTx())
 }
 
 type luaTx interface {
-	run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error
+	run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error
 }
 
 type luaTxAccount struct {
@@ -214,15 +214,15 @@ func newLuaTxAccount(name string, balance uint64) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+func (l *luaTxAccount) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
 	id := types.ToAccountID(l.name)
-	accountState, err := sdb.GetBlockAccountClone(bs, id)
+	accountState, err := bs.GetAccountState(id)
 	if err != nil {
 		return err
 	}
 	updatedAccountState := types.State(*accountState)
 	updatedAccountState.Balance = l.balance
-	bs.PutAccount(id, accountState, &updatedAccountState)
+	bs.PutState(id, &updatedAccountState)
 	return nil
 }
 
@@ -287,15 +287,15 @@ func (l *luaTxDef) hash() []byte {
 	return b
 }
 
-func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
 	creatorId := types.ToAccountID(l.sender)
-	creatorState, err := sdb.GetBlockAccountClone(bs, creatorId)
+	creatorState, err := bs.GetAccountState(creatorId)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.contract)
-	contractState, err := sdb.GetBlockAccountClone(bs, contractId)
+	contractState, err := bs.GetAccountState(contractId)
 	if err != nil {
 		return err
 	}
@@ -339,8 +339,8 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo ui
 	uCallerState.Balance -= l.amount
 	uContractState.Balance += l.amount
 
-	bs.PutAccount(creatorId, creatorState, &uCallerState)
-	bs.PutAccount(contractId, contractState, &uContractState)
+	bs.PutState(creatorId, &uCallerState)
+	bs.PutState(contractId, &uContractState)
 	return nil
 }
 
@@ -370,15 +370,15 @@ func (l *luaTxCall) hash() []byte {
 	return b
 }
 
-func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo uint64, ts int64) error {
+func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
 	creatorId := types.ToAccountID([]byte(l.sender))
-	creatorState, err := sdb.GetBlockAccountClone(bs, creatorId)
+	creatorState, err := bs.GetAccountState(creatorId)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID([]byte(l.contract))
-	contractState, err := sdb.GetBlockAccountClone(bs, contractId)
+	contractState, err := bs.GetAccountState(contractId)
 	if err != nil {
 		return err
 	}
@@ -418,8 +418,8 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *types.BlockState, blockNo u
 	uCallerState.Balance -= l.amount
 	uContractState.Balance += l.amount
 
-	bs.PutAccount(creatorId, creatorState, &uCallerState)
-	bs.PutAccount(contractId, contractState, &uContractState)
+	bs.PutState(creatorId, &uCallerState)
+	bs.PutState(contractId, &uContractState)
 	return nil
 }
 
@@ -438,8 +438,8 @@ func (bc *blockChain) connectBlock(txs ...luaTx) error {
 	if err != nil {
 		return err
 	}
-	bc.bestBlockNo = blockState.BlockNo
-	bc.bestBlockId = blockState.BlockHash
+	bc.bestBlockNo = bc.bestBlockNo + 1
+	bc.bestBlockId = blockState.GetBlockHash()
 	return nil
 }
 

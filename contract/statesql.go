@@ -96,7 +96,7 @@ func CloseDatabase() {
 	}
 }
 
-func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *types.BlockState) error {
+func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *state.BlockState) error {
 	for id, db := range database.DBs {
 		if db.tx != nil {
 			err := db.tx.Commit()
@@ -110,13 +110,16 @@ func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *types.BlockState) error {
 			}
 			if rp > 0 {
 				logger.Debug().Str("db_name", id.String()).Uint64("commit_id", rp).Msg("save recovery point")
-				receiverState, err := sdb.GetBlockAccountClone(bs, id)
+				receiverState, err := bs.GetAccountState(id)
 				if err != nil {
 					return err
 				}
-				receiverChange := types.Clone(*receiverState).(types.State)
+				receiverChange := types.State(*receiverState)
 				receiverChange.SqlRecoveryPoint = uint64(rp)
-				bs.PutAccount(id, receiverState, &receiverChange)
+				err = bs.PutState(id, &receiverChange)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -243,7 +243,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
 		} else {
 			block := msg.Block
-			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
+			var bstate *state.BlockState
+			if msg.Bstate != nil {
+				bstate = msg.Bstate.(*state.BlockState)
+			}
+			err := cs.addBlock(block, bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
@@ -260,7 +264,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		}
 	case *message.GetState:
 		id := types.ToAccountID(msg.Account)
-		state, err := cs.sdb.GetAccountStateClone(id)
+		state, err := cs.sdb.GetStateDB().GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}

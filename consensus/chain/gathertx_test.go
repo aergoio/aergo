@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGatherTXs(t *testing.T) {
 	txOp := NewCompTxOp(
-		TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("x")
 			return nil, nil
 		}),
-		TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("y")
 			return nil, nil
 		}))
@@ -25,11 +26,11 @@ func TestGatherTXs(t *testing.T) {
 
 func TestGatherTXsWithError(t *testing.T) {
 	txDo := NewCompTxOp(
-		TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("haha")
 			return nil, nil
 		}),
-		TxOpFn(func(tx *types.Tx) (*types.BlockState, error) {
+		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
 			fmt.Println("blah")
 			return nil, errors.New("blah blah error")
 		}))

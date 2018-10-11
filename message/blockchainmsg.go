@@ -44,7 +44,8 @@ type GetBlockByNoRsp GetBlockRsp
 type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
-	Bstate *types.BlockState
+	Bstate interface{}
+	// Bstate *types.BlockState
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo

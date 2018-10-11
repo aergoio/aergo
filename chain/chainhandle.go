@@ -81,13 +81,13 @@ type chainProcessor struct {
 	*ChainService
 	block     *types.Block // starting block
 	lastBlock *types.Block
-	state     *types.BlockState
+	state     *state.BlockState
 	mainChain *list.List
 
 	add func(blk *types.Block) error
 }
 
-func newChainProcessor(block *types.Block, state *types.BlockState, cs *ChainService) (*chainProcessor, error) {
+func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainService) (*chainProcessor, error) {
 	var isMainChain bool
 	var err error
 
@@ -245,7 +245,7 @@ func (cp *chainProcessor) reorganize() {
 	}
 }
 
-func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *types.BlockState, peerID peer.ID) error {
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -320,14 +320,14 @@ func (cs *ChainService) CountTxsInChain() int {
 type TxExecFn func(tx *types.Tx) error
 
 type blockExecutor struct {
-	*types.BlockState
+	*state.BlockState
 	sdb        *state.ChainStateDB
 	execTx     TxExecFn
 	txs        []*types.Tx
 	commitOnly bool
 }
 
-func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.Block) (*blockExecutor, error) {
+func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec TxExecFn
 
 	commitOnly := false
@@ -341,12 +341,13 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 			return nil, err
 		}
 
-		bState = types.NewBlockState(
-			types.NewBlockInfo(block.BlockNo(), block.BlockID(), block.PrevBlockID()),
+		bState = state.NewBlockState(
+			block.BlockID(),
+			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			contract.TempReceiptDb.NewTx(),
 		)
 
-		exec = NewTxExecutor(cs.sdb, bState, block.GetHeader().GetTimestamp())
+		exec = NewTxExecutor(cs.sdb, bState, block.BlockNo(), block.GetHeader().GetTimestamp())
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
@@ -366,9 +367,9 @@ func newBlockExecutor(cs *ChainService, bState *types.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(sdb *state.ChainStateDB, bState *types.BlockState, ts int64) TxExecFn {
+func NewTxExecutor(sdb *state.ChainStateDB, bState *state.BlockState, blockNo types.BlockNo, ts int64) TxExecFn {
 	return func(tx *types.Tx) error {
-		return executeTx(sdb, bState, tx, bState.BlockNo, ts)
+		return executeTx(sdb, bState, tx, blockNo, ts)
 	}
 }
 
@@ -397,7 +398,7 @@ func (e *blockExecutor) execute() error {
 }
 
 //TODO Refactoring: batch
-func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
@@ -420,10 +421,10 @@ func (cs *ChainService) executeBlock(bstate *types.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := sdb.GetBlockAccountClone(bs, senderID)
+	senderState, err := bs.GetAccountState(senderID)
 	if err != nil {
 		return err
 	}
@@ -442,7 +443,7 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 		recipient = append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 		receiverID = types.ToAccountID(recipient)
 	}
-	receiverState, err := sdb.GetBlockAccountClone(bs, receiverID)
+	receiverState, err := bs.GetAccountState(receiverID)
 	if err != nil {
 		return err
 	}
@@ -507,9 +508,15 @@ func executeTx(sdb *state.ChainStateDB, bs *types.BlockState, tx *types.Tx, bloc
 	}
 
 	senderChange.Nonce = txBody.Nonce
-	bs.PutAccount(senderID, senderState, &senderChange)
+	err = bs.PutState(senderID, &senderChange)
+	if err != nil {
+		return err
+	}
 	if senderID != receiverID {
-		bs.PutAccount(receiverID, receiverState, &receiverChange)
+		err = bs.PutState(receiverID, &receiverChange)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err

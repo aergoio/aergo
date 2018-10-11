@@ -326,7 +326,7 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
-	state, err := mp.sdb.GetAccountStateClone(types.ToAccountID(acc))
+	state, err := mp.sdb.GetStateDB().GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
 		//FIXME PANIC?
