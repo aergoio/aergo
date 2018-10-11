@@ -10,29 +10,6 @@
 
 #include "meta.h"
 
-char *type_names_[TYPE_MAX] = {
-    "undefined",
-    "bool",
-    "byte",
-    "int8",
-    "uint8",
-    "int16",
-    "uint16",
-    "int32",
-    "uint32",
-    "float",
-    "int64",
-    "uint64",
-    "double",
-    "string",
-    "struct",
-    "reference",
-    "account",
-    "map",
-    "void",
-    "tuple"
-};
-
 void
 meta_set_struct(meta_t *meta, array_t *ids)
 {
@@ -119,7 +96,6 @@ meta_equals(meta_t *x, meta_t *y)
 
     return x->type == y->type;
 }
-
 
 void
 meta_dump(meta_t *meta, int indent)

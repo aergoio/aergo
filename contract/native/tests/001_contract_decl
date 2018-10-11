@@ -1,18 +1,12 @@
 @test(empty_declaration)
-contract test {
-}
-
-@test(empty_constructor)
-contract test {
-    test() { }
-}
-
-@test(constructor_with_arguments)
-contract test {
-    test(int x) { }
-}
+contract test { }
 
 @test(multiple_contracts)
 contract test1 { }
-
 contract text2 { }
+contract text3 { }
+
+@test(duplicated_contract)
+@error(ERROR_DUPLICATED_ID)
+contract test { }
+contract test { }

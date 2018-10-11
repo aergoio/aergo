@@ -37,7 +37,9 @@ set(SRCS
     strbuf.c
     stack.c
     src_pos.c
+    enum.c
     meta.c
+    value.c
     util.c
     xalloc.c
     ${YACC_SRC}

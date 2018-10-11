@@ -50,7 +50,10 @@ id_var_check(check_t *check, ast_id_t *id)
                 RETURN(ERROR_MISSING_INITIALIZER, &id->pos);
         }
         else if (!is_integer_meta(arr_meta)) {
-            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta));
+            RETURN(ERROR_NOT_ALLOWED_TYPE, &id->pos, TYPE_NAME(arr_meta));
+        }
+        else if (!is_untyped_meta(arr_meta)) {
+            RETURN(ERROR_NOT_ALLOWED_VALUE, &id->pos);
         }
     }
 
@@ -75,10 +78,9 @@ id_var_check(check_t *check, ast_id_t *id)
                                TYPE_NAME(type_meta), TYPE_NAME(val_meta));
                 }
             }
-            else {
+            else if (is_struct_id(type_id)) {
                 array_t *fld_metas;
 
-                ASSERT1(is_struct_id(type_id), type_id->kind);
                 ASSERT1(is_struct_meta(type_meta), type_meta->type);
 
                 fld_metas = type_meta->u_st.metas;
@@ -95,6 +97,8 @@ id_var_check(check_t *check, ast_id_t *id)
                         RETURN(ERROR_MISMATCHED_TYPE, val_meta->pos,
                                TYPE_NAME(fld_meta), TYPE_NAME(val_meta));
                 }
+            }
+            else {
             }
         }
         else if (!meta_equals(type_meta, init_meta)) {
@@ -156,7 +160,7 @@ id_param_check(check_t *check, ast_id_t *id)
         CHECK(check_exp(check, arr_exp));
 
         if (!is_null_exp(arr_exp) && !is_integer_meta(arr_meta))
-            RETURN(ERROR_INVALID_SIZE_TYPE, &id->pos, TYPE_NAME(arr_meta));
+            RETURN(ERROR_NOT_ALLOWED_TYPE, &id->pos, TYPE_NAME(arr_meta));
     }
 
     return NO_ERROR;

@@ -19,6 +19,7 @@ typedef struct parse_s {
     char *path;
     flag_t flag;
 
+    /* input source information */
     char *src;
     int len;
     int pos;
@@ -26,11 +27,11 @@ typedef struct parse_s {
     /* abstract syntax tree */
     ast_t **ast;
 
-    /* for error token */
+    /* for handling error token */
     int adj_token;
     src_pos_t adj_pos;
 
-    /* for string literal */
+    /* string literal buffer */
     strbuf_t buf;
 } parse_t;
 

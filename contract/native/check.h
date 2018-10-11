@@ -10,19 +10,6 @@
 
 #include "ast.h"
 
-#define CHECK(stmt)                                                            \
-    do {                                                                       \
-        ec_t ec = (stmt);                                                      \
-        if (ec != NO_ERROR)                                                    \
-            return ec;                                                         \
-    } while (0)
-
-#define RETURN(ec, pos, ...)                                                   \
-    do {                                                                       \
-        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
-        return (ec);                                                           \
-    } while (0)
-
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;

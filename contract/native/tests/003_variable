@@ -18,15 +18,22 @@ contract test {
     int v16, v17;
 }
 
-@test(incompatible_declaration)
+@test(invalid_declaration)
 @error(ERROR_SYNTAX)
 contract test {
     int v1, string v2;
 }
 
+@test(invalid_identifier)
+@error(ERROR_SYNTAX)
+contract test {
+    int 1v;
+}
+
 @test(constant_qualifier)
 contract test {
-    const int v;
+    const int v1;
+    const string v2;
 }
 
 @test(invalid_qualifier_position)
@@ -38,6 +45,7 @@ contract test {
 @test(type_modifier)
 contract test {
     local int v1;
+    local bool v2;
 }
 
 @test(invalid_modifier_position)
@@ -83,6 +91,7 @@ contract test {
 
     struct s2 {
         s1 a;
+        string b;
     }
 }
 
@@ -100,7 +109,6 @@ contract test {
 contract test {
     struct s {
     }
-    s x[10];
 }
 
 @test(struct_of_struct)
@@ -111,16 +119,40 @@ contract test {
             int a;
         }
     }
-    s x;
 }
 
 @test(map_type)
 contract test {
-    map(int, string) v1;
+    map(int, int) m1;
+    map(int8, int8) m2;
+    map(int16, int16) m3;
+    map(int32, int32) m4;
+    map(int64, int64) m5;
+    map(uint8, uint8) m6;
+    map(uint16, uint16) m7;
+    map(uint32, uint32) m8;
+    map(uint64, uint64) m9;
+    map(float, float) m10;
+    map(double, double) m11;
+    map(bool, bool) m12;
+    map(byte, byte) m13;
+    map(string, string) m14;
     struct x {
         int a;
     }
-    map(x, string) v2;
-    map(byte, x) v3;
-    map(int, map(int, string)) v4;
+    map(x, x) m15;
+    map(x, map(int, int)) m16;
+    map(int, int) m17, m18;
+}
+
+@test(map_array)
+contract test {
+    map(int, int) m1[1];
+    map(int, int) m2[1], m3[2];
+}
+
+@test(invalid_key_type)
+@error(ERROR_INVALID_KEY_TYPE)
+contract test {
+    map(map(int, int), string) m1;
 }

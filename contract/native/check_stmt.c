@@ -127,7 +127,7 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
     id->u_var.type_exp = exp_type_new(TYPE_INT32, pos);
     id->u_var.arr_exp = NULL;
     id->u_var.init_exp = exp_val_new(pos);
-    val_set_int(&id->u_var.init_exp->u_val.val, "0");
+    value_set_int(&id->u_var.init_exp->u_val.val, 0);
 
     id_add_last(&blk->ids, id);
 

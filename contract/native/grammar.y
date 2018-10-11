@@ -130,8 +130,8 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %left   CMP_LE CMP_GE '<' '>'
 %left   '+' '-' '%'
 %left   '*' '/'
-%left   UNARY_INC UNARY_DEC
-%left   '.'
+%left   '(' ')' '.'
+%right  UNARY_INC UNARY_DEC
 
 /* type */
 %union {
@@ -241,7 +241,22 @@ contract_decl:
     }
 |   K_CONTRACT identifier '{' contract_body '}'
     {
-        if (id_search_var($4, $2) == NULL)
+        int i;
+        bool exist_ctor = false;
+
+        for (i = 0; i < array_size(&$4->ids); i++) {
+            ast_id_t *id = array_item(&$4->ids, i, ast_id_t);
+
+            if (is_ctor_id(id)) {
+                if (strcmp($2, id->name) != 0)
+                    ERROR(ERROR_SYNTAX, &@1, "syntax error, unexpected "
+                          "identifier, expecting 'func'");
+                else
+                    exist_ctor = true;
+            }
+        }
+
+        if (!exist_ctor)
             id_add_last(&$4->ids, id_ctor_new($2, NULL, NULL, &@2));
 
         $$ = id_contract_new($2, $4, &@$);
@@ -1000,32 +1015,38 @@ exp_prim:
 |   K_TRUE
     {
         $$ = exp_val_new(&@$);
-        val_set_bool(&$$->u_val.val, true);
+        value_set_bool(&$$->u_val.val, true);
     }
 |   K_FALSE
     {
         $$ = exp_val_new(&@$);
-        val_set_bool(&$$->u_val.val, false);
+        value_set_bool(&$$->u_val.val, false);
     }
 |   L_INT
     {
+        int64_t v;
         $$ = exp_val_new(&@$);
-        val_set_int(&$$->u_val.val, $1);
+        sscanf($1, "%"SCNd64, &v);
+        value_set_int(&$$->u_val.val, v);
     }
 |   L_FLOAT
     {
+        double v;
         $$ = exp_val_new(&@$);
-        val_set_fp(&$$->u_val.val, $1);
+        sscanf($1, "%lf", &v);
+        value_set_double(&$$->u_val.val, v);
     }
 |   L_HEXA
     {
+        int64_t v;
         $$ = exp_val_new(&@$);
-        val_set_hexa(&$$->u_val.val, $1);
+        sscanf($1, "%"SCNd64, &v);
+        value_set_int(&$$->u_val.val, v);
     }
 |   L_STR
     {
         $$ = exp_val_new(&@$);
-        val_set_str(&$$->u_val.val, $1);
+        value_set_str(&$$->u_val.val, $1);
     }
 |   identifier
     {
@@ -1065,11 +1086,13 @@ exp_new:
     }
 |   K_NEW K_MAP '(' L_INT ')'
     {
+        int64_t v;
         array_t *exps;
         ast_exp_t *size_exp;
 
         size_exp = exp_val_new(&@4);
-        val_set_int(&size_exp->u_val.val, $4);
+        sscanf($4, "%"SCNd64, &v);
+        value_set_int(&size_exp->u_val.val, v);
 
         exps = array_new();
         exp_add_last(exps, size_exp);

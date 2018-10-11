@@ -16,7 +16,7 @@
 #define is_loop_stmt(stmt)          ((stmt)->kind == STMT_LOOP)
 #define is_switch_stmt(stmt)        ((stmt)->kind == STMT_SWITCH)
 #define is_case_stmt(stmt)          ((stmt)->kind == STMT_CASE)
-#define is_cont_stmt(stmt)          ((stmt)->kind == STMT_CONTINUE)
+#define is_continue_stmt(stmt)      ((stmt)->kind == STMT_CONTINUE)
 #define is_break_stmt(stmt)         ((stmt)->kind == STMT_BREAK)
 #define is_return_stmt(stmt)        ((stmt)->kind == STMT_RETURN)
 #define is_goto_stmt(stmt)          ((stmt)->kind == STMT_GOTO)
@@ -46,22 +46,6 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
-typedef enum stmt_kind_e {
-    STMT_NULL           = 0,
-    STMT_EXP,
-    STMT_IF,
-    STMT_LOOP,
-    STMT_SWITCH,
-    STMT_CASE,
-    STMT_CONTINUE,
-    STMT_BREAK,
-    STMT_RETURN,
-    STMT_GOTO,
-    STMT_DDL,
-    STMT_BLK,
-    STMT_MAX
-} stmt_kind_t;
-
 typedef struct stmt_exp_s {
     ast_exp_t *exp;
 } stmt_exp_t;
@@ -72,12 +56,6 @@ typedef struct stmt_if_s {
     ast_blk_t *else_blk;
     array_t elif_stmts;
 } stmt_if_t;
-
-typedef enum loop_kind_e {
-    LOOP_FOR            = 0,
-    LOOP_EACH,
-    LOOP_MAX
-} loop_kind_t;
 
 typedef struct stmt_loop_s {
     loop_kind_t kind;

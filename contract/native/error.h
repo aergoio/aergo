@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "enum.h"
+
 #define DESC_MAX_LEN            512
 
 #define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
@@ -22,25 +24,6 @@
     error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
 
 #define is_no_error()           (error_count() == 0)
-
-typedef enum ec_e {
-    NO_ERROR = 0,
-#undef error
-#define error(code, msg)    code,
-#include "error.list"
-
-    ERROR_MAX
-} ec_t;
-
-typedef enum errlvl_e {
-    LVL_FATAL = 0,
-    LVL_ERROR,
-    LVL_INFO,
-    LVL_WARN,
-    LVL_DEBUG,
-
-    LVL_MAX
-} errlvl_t;
 
 typedef struct error_s {
     ec_t code;

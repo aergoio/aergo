@@ -15,13 +15,6 @@
 typedef struct ast_blk_s ast_blk_t;
 #endif /* ! _AST_BLK_T */
 
-typedef enum blk_kind_e {
-    BLK_ANON        = 0,
-    BLK_ROOT,
-    BLK_LOOP,
-    BLK_MAX
-} blk_kind_t;
-
 struct ast_blk_s {
     AST_NODE_DECL;
 

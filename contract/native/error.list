@@ -7,16 +7,22 @@
 #define error(code, msg)
 #endif
 
-/* common */
+/******************************************************************************
+ * common 
+ *****************************************************************************/
 error(ERROR_INVALID_FLAG,           "invalid command line flag '%s'")
 error(ERROR_OUT_OF_MEM,             "out of memory: %s")
 error(ERROR_DIR_IO,                 "%s: %s")
 error(ERROR_FILE_IO,                "%s: %s")
 
-/* preprocessor */
+/******************************************************************************
+ * preprocessor
+ *****************************************************************************/
 error(ERROR_CROSS_IMPORT,           "cross reference with import '%s'")
 
-/* parser */
+/******************************************************************************
+ * parser
+ *****************************************************************************/
 error(ERROR_UNTERMINATED_COMMENT,   "unterminated comment")
 error(ERROR_UNTERMINATED_STRING,    "unterminated string")
 error(ERROR_UNTERMINATED_SQL,       "unterminated SQL")
@@ -24,7 +30,10 @@ error(ERROR_UNKNOWN_CHAR,           "unknown character")
 error(ERROR_DUPLICATED_ID,          "duplicated identifier '%s'")
 error(ERROR_SYNTAX,                 "%s")
 
-/* semantic checker */
+/******************************************************************************
+ * semantic checker
+ *****************************************************************************/
+/* general */
 error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
 error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
 error(ERROR_UNDEFINED_LABEL,        "undefined label '%s'")
@@ -33,17 +42,24 @@ error(ERROR_NOT_SUPPORTED,          "not supported yet")
 error(ERROR_NOT_COMPARABLE_TYPE,    "not comparable type %s")
 error(ERROR_NOT_ACCESSIBLE_EXP,     "not accessible expression")
 error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
+error(ERROR_NOT_ALLOWED_INIT,       "not allowed initializer")
+error(ERROR_NOT_ALLOWED_VALUE,      "not allowed non-constant value")
+error(ERROR_NOT_ALLOWED_TYPE,       "not allowed non-integer type %s")
 error(ERROR_MISMATCHED_TYPE,        "mismatched type (expected %s, but %s)")
 error(ERROR_MISMATCHED_COUNT,       "mismatched count (expected %d, but %d)")
 error(ERROR_INVALID_LVALUE,         "expression or constant cannot be an lvalue")
-error(ERROR_INVALID_SUBSCRIPT,      "subscripted value is neither array nor map")
-error(ERROR_INVALID_KEY_TYPE,       "key of map has not comparable type %s")
-error(ERROR_INVALID_SIZE_TYPE,      "size of array has non-integer type %s")
-error(ERROR_INVALID_IDX_TYPE,       "index of array has non-integer type %s")
 error(ERROR_INVALID_OP_TYPE,        "operand(s) has invalid type %s")
 error(ERROR_INVALID_COND_TYPE,      "condition(s) has non-boolean type %s")
-error(ERROR_MISSING_INITIALIZER,    "missing array initializer")
-error(ERROR_TRUNCATED_TYPE,         "%s truncated to %s")
 error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
+error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
+
+/* array */
+error(ERROR_INVALID_SUBSCRIPT,      "subscripted value is neither array nor map")
+error(ERROR_MISSING_INITIALIZER,    "missing array initializer")
+
+/* map */
+error(ERROR_MISMATCHED_KEY_TYPE,    "mismatched key type of map (expected %s, but %s)")
+error(ERROR_MISMATCHED_VAL_TYPE,    "mismatched value type of map (expected %s, but %s)")
+error(ERROR_INVALID_KEY_TYPE,       "key of map has incomparable type %s")
 
 /* vim:set filetype=c: */

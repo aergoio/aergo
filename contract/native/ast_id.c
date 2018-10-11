@@ -116,7 +116,7 @@ id_search_fld(ast_id_t *id, char *name)
 
         ASSERT(fld_id->name != NULL);
 
-        if (flag_off(fld_id->mod, MOD_LOCAL) && strcmp(fld_id->name, name) == 0)
+        if (!is_local_id(fld_id) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 

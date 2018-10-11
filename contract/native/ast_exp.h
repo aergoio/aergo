@@ -40,55 +40,6 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
-typedef enum exp_kind_e {
-    EXP_NULL        = 0,
-    EXP_VAL,
-    EXP_TYPE,
-    EXP_ID,
-    EXP_ARRAY,
-    EXP_OP,
-    EXP_ACCESS,
-    EXP_CALL,
-    EXP_SQL,
-    EXP_TERNARY,
-    EXP_TUPLE,
-    EXP_MAX
-} exp_kind_t;
-
-typedef enum op_kind_e {
-    OP_ASSIGN       = 0,
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
-    OP_MOD,
-    OP_AND,
-    OP_OR,
-    OP_BIT_AND,
-    OP_BIT_OR,
-    OP_BIT_XOR,
-    OP_EQ,
-    OP_NE,
-    OP_LT,
-    OP_GT,
-    OP_LE,
-    OP_GE,
-    OP_RSHIFT,
-    OP_LSHIFT,
-    OP_INC,
-    OP_DEC,
-    OP_NOT,
-    OP_MAX
-} op_kind_t;
-
-typedef enum sql_kind_e {
-    SQL_QUERY       = 0,
-    SQL_INSERT,
-    SQL_UPDATE,
-    SQL_DELETE,
-    SQL_MAX
-} sql_kind_t;
-
 // null, true, false, 1, 1.0, 0x1, "..."
 typedef struct exp_val_s {
     value_t val;

@@ -1,3 +1,42 @@
+@test(empty_constructor)
+contract test {
+    test() { }
+}
+
+@test(constructor_with_arguments)
+contract test1 {
+    test1(int x) { }
+}
+contract test2 {
+    test2(int x, map(int, string) y) { }
+}
+
+@test(missing_construtor)
+@error(ERROR_SYNTAX)
+contract test {
+    test2() { }
+}
+
+@test(constructor_with_return)
+@error(ERROR_SYNTAX)
+contract test {
+    test(int x) byte { }
+}
+
+@test(multiple_constructor)
+@error(ERROR_SYNTAX)
+contract test {
+    test(int x) { }
+    test2(int x, string y) { }
+}
+
+@test(duplicated_constructor)
+@error(ERROR_DUPLICATED_ID)
+contract test {
+    test(int x) { }
+    test(int x, string y) { }
+}
+
 @test(instantiate)
 contract callee { }
 
@@ -8,12 +47,12 @@ contract test {
 }
 
 @test(neighbor_reference)
-contract neighbor { 
+contract neighbor {
     int v;
     neighbor(int p) {
         v = p;
     }
-    func f() int { 
+    func f() int {
         return v;
     }
 }

@@ -11,22 +11,30 @@
 #define is_null_val(val)            ((val)->kind == VAL_NULL)
 #define is_bool_val(val)            ((val)->kind == VAL_BOOL)
 #define is_int_val(val)             ((val)->kind == VAL_INT)
-#define is_float_val(val)           ((val)->kind == VAL_FP)
+#define is_fp_val(val)              ((val)->kind == VAL_FP)
 #define is_string_val(val)          ((val)->kind == VAL_STR)
+
+#define is_zero_val(val)                                                       \
+    (is_int_val(val) ? (val)->iv == 0 :                                        \
+     (is_fp_val(val) ? (val)->dv == 0.0f : false))
+
+#define value_eval(op, val, x, y)                                              \
+    do {                                                                       \
+        ASSERT1((op) >= OP_ADD && (op) < OP_CF_MAX, (op));                     \
+        eval_fntab_[(op)]((val), (x), (y));                                    \
+    } while (0)
 
 #ifndef _VALUE_T
 #define _VALUE_T
 typedef struct value_s value_t;
 #endif /* ! _VALUE_T */
 
-typedef enum val_kind_e {
-    VAL_NULL        = 0,
-    VAL_BOOL,
-    VAL_INT,
-    VAL_FP,
-    VAL_STR,
-    VAL_MAX
-} val_kind_t;
+#ifndef _META_T
+#define _META_T
+typedef struct meta_s meta_t;
+#endif /* ! _META_T */
+
+typedef void (*eval_fn_t)(value_t *, value_t *, value_t *) ;
 
 struct value_s {
     val_kind_t kind;
@@ -39,6 +47,8 @@ struct value_s {
     };
 };
 
+extern eval_fn_t eval_fntab_[OP_CF_MAX];
+
 static inline void
 value_init(value_t *val)
 {
@@ -47,41 +57,34 @@ value_init(value_t *val)
 }
 
 static inline void
-val_set_null(value_t *val)
+value_set_null(value_t *val)
 {
     val->kind = VAL_NULL;
 }
 
-static inline void 
-val_set_bool(value_t *val, bool bv)
+static inline void
+value_set_bool(value_t *val, bool bv)
 {
     val->kind = VAL_BOOL;
     val->bv = bv;
 }
 
-static inline void 
-val_set_int(value_t *val, char *str)
+static inline void
+value_set_int(value_t *val, int64_t iv)
 {
     val->kind = VAL_INT;
-    sscanf(str, "%"SCNd64, &val->iv);
+    val->iv = iv;
 }
 
-static inline void 
-val_set_hexa(value_t *val, char *str)
-{
-    val->kind = VAL_INT;
-    sscanf(str, "%"SCNx64, &val->iv);
-}
-
-static inline void 
-val_set_fp(value_t *val, char *str)
+static inline void
+value_set_double(value_t *val, double dv)
 {
     val->kind = VAL_FP;
-    sscanf(str, "%lf", &val->dv);
+    val->dv = dv;
 }
 
-static inline void 
-val_set_str(value_t *val, char *str)
+static inline void
+value_set_str(value_t *val, char *str)
 {
     val->kind = VAL_STR;
     val->sv = str;

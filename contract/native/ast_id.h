@@ -9,11 +9,17 @@
 #include "common.h"
 
 #include "ast.h"
+#include "enum.h"
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
 #define is_func_id(id)              ((id)->kind == ID_FUNC)
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
+
+#define is_local_id(id)             flag_on((id)->mod, MOD_LOCAL)
+#define is_payable_id(id)           flag_on((id)->mod, MOD_PAYABLE)
+#define is_readonly_id(id)          flag_on((id)->mod, MOD_READONLY)
+#define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
 #define id_ctor_new(name, params, blk, pos)                                    \
     id_func_new((name), MOD_CTOR, (params), NULL, (blk), (pos))
@@ -33,22 +39,6 @@ typedef struct ast_id_s ast_id_t;
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
 #endif /* ! _AST_EXP_T */
-
-typedef enum id_kind_e {
-    ID_VAR          = 0,
-    ID_STRUCT,
-    ID_FUNC,
-    ID_CONTRACT,
-    ID_MAX
-} id_kind_t;
-
-typedef enum modifier_e {
-    MOD_GLOBAL      = 0x00,
-    MOD_LOCAL       = 0x01,
-    MOD_PAYABLE     = 0x02,
-    MOD_READONLY    = 0x04,
-    MOD_CTOR        = 0x08
-} modifier_t;
 
 typedef struct id_var_s {
     ast_exp_t *type_exp;
@@ -99,6 +89,7 @@ ast_id_t *id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_search_var(ast_blk_t *blk, char *name);
 ast_id_t *id_search_fld(ast_id_t *id, char *name);
 ast_id_t *id_search_param(ast_id_t *id, char *name);
+ast_id_t *id_search_ctor(array_t *ids);
 
 void id_add(array_t *ids, int idx, ast_id_t *new_id);
 void id_join(array_t *ids, int idx, array_t *new_ids);

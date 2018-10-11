@@ -47,4 +47,17 @@ typedef unsigned char bool;
 #include "src_pos.h"
 #include "error.h"
 
+#define CHECK(stmt)                                                            \
+    do {                                                                       \
+        ec_t ec = (stmt);                                                      \
+        if (ec != NO_ERROR)                                                    \
+            return ec;                                                         \
+    } while (0)
+
+#define RETURN(ec, pos, ...)                                                   \
+    do {                                                                       \
+        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
+        return (ec);                                                           \
+    } while (0)
+
 #endif /* ! _COMMON_H */

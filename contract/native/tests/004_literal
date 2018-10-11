@@ -1,18 +1,26 @@
 @test(numeric_value)
 contract test {
-    int v1 = 1;
-    int v2 = +12;
-    int v3 = -123;
+    int i1 = 1;
+    int i2 = +12;
+    int i3 = -123;
+    int i4 = 0x08;
+    int i5 = 0xff;
 
-    float v5 = 1.0;
-    float v6 = +1.1;
-    float v7 = -1.2;
+    float f1 = 1.0;
+    float f2 = +1.1;
+    float f3 = -1.2;
+    float f4 = 1e1;
+    float f5 = -.2e+1;
+    float f6 = 3.e-1;
 
-    double v8 = 1.;
-    double v9 = .234;
+    double d1 = 1.;
+    double d2 = .234;
+}
 
-    int64 v10 = 0x08;
-    int64 v11 = 0xff;
+@test(mismatched_primitive_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int i = 1.0;
 }
 
 @test(string_value)
@@ -21,7 +29,6 @@ contract test {
     string v2 = "literal";
     string v3 = "literal \"include quotation\"";
     string v4 = "literal /* with */ // comments";
-    string v5 = "splitted " + "literal";
 }
 
 @test(unterminated_string)
@@ -39,11 +46,17 @@ contract test {
 
 @test(array_initializer)
 contract test {
-    int v1[] = { 1, 2, 3 };
-    int v2[] = { 1, 2, 3, };
-    string v3[] = { "a", "b", "c" };
+    int v1[3] = { 1, 2, 3 };
+    int v2[3] = { 1, 2, 3, };
+    string v3[3] = { "a", "b", "c" };
 
-    int v4[], v5[] = {1}, {2};
+    int v4[1], v5[1] = {1}, {2};
+}
+
+@test(missing_initializer)
+@error(ERROR_MISSING_INITIALIZER)
+contract test {
+    int i[];
 }
 
 @test(struct_initializer)
@@ -54,6 +67,7 @@ contract test {
         string c;
     }
     s v1 = { 1, 0x01, "b" };
+    s v2[2] = { { 1, 0x01, "a" }, { 2, 0x02, "b" } };
 }
 
 @test(map_initializer)

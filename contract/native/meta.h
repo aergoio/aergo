@@ -16,9 +16,10 @@
 
 #define is_integer_meta(meta)                                                  \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
-
 #define is_float_meta(meta)                                                    \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
+#define is_numeric_meta(meta)                                                  \
+    ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_DOUBLE)
 
 #define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
 
@@ -62,34 +63,6 @@
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
-typedef enum type_e {
-    TYPE_NONE       = 0,
-    TYPE_BOOL,
-    TYPE_BYTE,
-    TYPE_INT8,
-    TYPE_UINT8,
-    TYPE_INT16,
-    TYPE_UINT16,
-    TYPE_INT32,
-    TYPE_UINT32,
-    TYPE_FLOAT,
-    TYPE_INT64,
-    TYPE_UINT64,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_STRUCT,
-    TYPE_REF,
-    TYPE_ACCOUNT,
-    TYPE_COMPARABLE = TYPE_ACCOUNT,
-
-    TYPE_MAP,
-    TYPE_PRIMITIVE  = TYPE_MAP,
-
-    TYPE_VOID,                      /* for return type of function */
-    TYPE_TUPLE,                     /* for tuple expression */
-    TYPE_MAX
-} type_t;
-
 typedef struct meta_tuple_s {
     array_t *metas;
 } meta_tuple_t;
@@ -116,8 +89,6 @@ struct meta_s {
 
     src_pos_t *pos;
 };
-
-extern char *type_names_[TYPE_MAX];
 
 void meta_set_struct(meta_t *meta, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
