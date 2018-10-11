@@ -462,7 +462,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
 		if txBody.Payload != nil {
-			contractState, err := sdb.OpenContractState(&receiverChange)
+			contractState, err := bs.StateDB.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
 			}
@@ -491,7 +491,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			err = sdb.CommitContractState(contractState)
+			err = bs.StateDB.CommitContractState(contractState)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err
@@ -502,7 +502,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			}
 		}
 	case types.TxType_GOVERNANCE:
-		err = executeGovernanceTx(sdb, txBody, &senderChange, &receiverChange, blockNo)
+		err = executeGovernanceTx(sdb.GetStateDB(), txBody, &senderChange, &receiverChange, blockNo)
 	default:
 		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
 	}

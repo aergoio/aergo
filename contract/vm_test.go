@@ -110,7 +110,7 @@ func TestGetABI(t *testing.T) {
 		newLuaTxDef("ktlee", "hello", 1,
 			`function hello(say) return "Hello " .. say end abi.register(hello)`),
 	)
-	cState, err := bc.sdb.OpenContractStateAccount(types.ToAccountID(strHash("hello")))
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash("hello")))
 	if err != nil {
 		t.Error(err)
 	}
@@ -301,7 +301,7 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 	}
 
 	uContractState := types.State(*contractState)
-	eContractState, err := sdb.OpenContractState(&uContractState)
+	eContractState, err := bs.StateDB.OpenContractState(&uContractState)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 		_ = sqlTx.RollbackToSavepoint()
 		return err
 	}
-	err = sdb.CommitContractState(eContractState)
+	err = bs.StateDB.CommitContractState(eContractState)
 	if err != nil {
 		_ = sqlTx.RollbackToSavepoint()
 		return err
@@ -384,7 +384,7 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 	}
 
 	uContractState := types.State(*contractState)
-	eContractState, err := sdb.OpenContractState(&uContractState)
+	eContractState, err := bs.StateDB.OpenContractState(&uContractState)
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 		_ = sqlTx.RollbackToSavepoint()
 		return err
 	}
-	err = sdb.CommitContractState(eContractState)
+	err = bs.StateDB.CommitContractState(eContractState)
 	if err != nil {
 		_ = sqlTx.RollbackToSavepoint()
 		return err
@@ -444,7 +444,7 @@ func (bc *blockChain) connectBlock(txs ...luaTx) error {
 }
 
 func (bc *blockChain) query(contract, queryInfo string, t *testing.T) (string, error) {
-	cState, err := bc.sdb.OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
 	if err != nil {
 		return "", err
 	}

@@ -9,10 +9,12 @@ import (
 )
 
 var chainStateDB *ChainStateDB
+var stateDB *StateDB
 
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
 	_ = chainStateDB.Init("test")
+	stateDB = chainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 
 	err := chainStateDB.SetGenesis(genesis)
@@ -29,7 +31,7 @@ func TestContractStateCode(t *testing.T) {
 	defer deinitTest()
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
-	contractState, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}
@@ -49,7 +51,7 @@ func TestContractStateData(t *testing.T) {
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
 	testKey := []byte("test_key")
-	contractState, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}
@@ -61,7 +63,7 @@ func TestContractStateData(t *testing.T) {
 	if !bytes.Equal(res, testBytes) {
 		t.Errorf("different data detected : %s =/= %s", testBytes, string(res))
 	}
-	err = chainStateDB.CommitContractState(contractState)
+	err = stateDB.CommitContractState(contractState)
 	if err != nil {
 		t.Errorf("counld commit contract state : %s", err.Error())
 	}
@@ -71,11 +73,11 @@ func TestContractStateEmpty(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	testAddress := []byte("test_address")
-	contractState, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}
-	err = chainStateDB.CommitContractState(contractState)
+	err = stateDB.CommitContractState(contractState)
 	if err != nil {
 		t.Errorf("counld commit contract state : %s", err.Error())
 	}
@@ -87,7 +89,7 @@ func TestContractStateReOpenData(t *testing.T) {
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
 	testKey := []byte("test_key")
-	contractState, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}
@@ -102,12 +104,12 @@ func TestContractStateReOpenData(t *testing.T) {
 	if !bytes.Equal(res, testBytes) {
 		t.Errorf("different data detected : %s =/= %s", testBytes, string(res))
 	}
-	err = chainStateDB.CommitContractState(contractState)
+	err = stateDB.CommitContractState(contractState)
 	if err != nil {
 		t.Errorf("counld commit contract state : %s", err.Error())
 	}
 	//contractState2, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	contractState2, err := chainStateDB.OpenContractState(contractState.State)
+	contractState2, err := stateDB.OpenContractState(contractState.State)
 	if err != nil {
 		t.Errorf("counld not open contract state : %s", err.Error())
 	}

@@ -135,7 +135,7 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return err
 			}
-			err = InitGenesisBPs(cs.sdb, genesis)
+			err = InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set bp identifications")
 				return err
@@ -294,7 +294,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		contractState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err == nil {
 			abi, err := contract.GetABI(contractState)
 			context.Respond(message.GetABIRsp{
@@ -309,7 +309,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		}
 	case *message.GetQuery:
 
-		state, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		state, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})

@@ -245,7 +245,7 @@ func (ce *Executor) commitCalledContract() error {
 		return nil
 	}
 
-	sdb := stateSet.sdb
+	// sdb := stateSet.sdb
 	bs := stateSet.bs
 
 	var err error
@@ -254,7 +254,7 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = sdb.CommitContractState(v.ctrState)
+			err = bs.StateDB.CommitContractState(v.ctrState)
 			if err != nil {
 				return err
 			}
@@ -558,7 +558,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		sdb := rootState.sdb
+		// sdb := rootState.sdb
 		bs := rootState.bs
 
 		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
@@ -568,7 +568,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		}
 
 		curState := types.Clone(*prevState).(types.State)
-		contractState, err := sdb.OpenContractState(&curState)
+		contractState, err := bs.StateDB.OpenContractState(&curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
@@ -578,7 +578,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		rootState.callState[contractIdStr] = callState
 	}
 	if callState.ctrState == nil {
-		callState.ctrState, err = rootState.sdb.OpenContractState(callState.curState)
+		callState.ctrState, err = rootState.bs.StateDB.OpenContractState(callState.curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
@@ -646,8 +646,9 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 		luaPushStr(L, "[System.LuaCallContract]not found contract state")
 		return -1
 	}
-	sdb := stateSet.rootState.sdb
-	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(cid))
+	// sdb := stateSet.rootState.sdb
+	bs := stateSet.rootState.bs
+	contractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(cid))
 	contract := getContract(contractState, cid, nil)
 	if contract == nil {
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))

@@ -11,11 +11,11 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
+func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
 	blockNo types.BlockNo) error {
 	governance := string(txBody.GetRecipient())
 
-	scs, err := sdb.OpenContractState(receiverState)
+	scs, err := states.OpenContractState(receiverState)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderSt
 		*/
 		err = executeSystemTx(txBody, senderState, scs, blockNo)
 		if err == nil {
-			err = sdb.CommitContractState(scs)
+			err = states.CommitContractState(scs)
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
@@ -58,13 +58,13 @@ func executeSystemTx(txBody *types.TxBody, senderState *types.State,
 
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
-func InitGenesisBPs(sdb *state.ChainStateDB, genesis *types.Genesis) error {
+func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 
 	if len(genesis.BPIds) == 0 {
 		return nil
 	}
 	aid := types.ToAccountID([]byte(types.AergoSystem))
-	scs, err := sdb.OpenContractStateAccount(aid)
+	scs, err := states.OpenContractStateAccount(aid)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func InitGenesisBPs(sdb *state.ChainStateDB, genesis *types.Genesis) error {
 	if err = syncVoteResult(scs, &voteResult); err != nil {
 		return err
 	}
-	if err = sdb.CommitContractState(scs); err != nil {
+	if err = states.CommitContractState(scs); err != nil {
 		return err
 	}
 	genesis.VoteState = scs.State

@@ -39,7 +39,7 @@ func TestVoteResult(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
+	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	if err != nil {
 		t.Error("could not open contract state")
 	}
@@ -72,7 +72,7 @@ func TestVoteData(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
+	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
 	if err != nil {
 		t.Error("could not open contract state")
 	}
