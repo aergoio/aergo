@@ -96,6 +96,7 @@ void meta_set_tuple(meta_t *meta, array_t *exps);
 bool meta_equals(meta_t *x, meta_t *y);
 
 int meta_cmp(meta_t *x, meta_t *y);
+int meta_cmp_array(meta_t *x, array_t *y);
 
 void meta_dump(meta_t *meta, int indent);
 

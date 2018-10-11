@@ -20,6 +20,8 @@
 extern int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 
+static bool is_tuple_of_tuple_exp(ast_exp_t *exp);
+
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
@@ -317,13 +319,21 @@ var_init_decl:
         }
         else {
             for (i = 0; i < array_size($2); i++) {
-                ast_id_t *id;
+                ast_id_t *id = array_item($2, i, ast_id_t);
+                ast_exp_t *exp = array_item($4, i, ast_exp_t);
 
-                id = array_item($2, i, ast_id_t);
                 ASSERT1(is_var_id(id), id->kind);
-
                 id->u_var.type_exp = $1;
-                id->u_var.init_exp = array_item($4, i, ast_exp_t);
+
+                if (is_tuple_exp(exp) && !is_tuple_of_tuple_exp(exp)) {
+                    ast_exp_t *tup_exp = exp_tuple_new(NULL, &exp->pos);
+
+                    exp_add_last(tup_exp->u_tup.exps, exp);
+                    id->u_var.init_exp = tup_exp;
+                }
+                else {
+                    id->u_var.init_exp = exp;
+                }
             }
         }
         $$ = $2;
@@ -1114,6 +1124,22 @@ identifier:
 ;
 
 %%
+
+static bool
+is_tuple_of_tuple_exp(ast_exp_t *tup_exp)
+{
+    int i;
+    array_t *elem_exps = tup_exp->u_tup.exps;
+
+    for (i = 0; i < array_size(elem_exps); i++) {
+        ast_exp_t *elem_exp = array_item(elem_exps, i, ast_exp_t);
+
+        if (!is_tuple_exp(elem_exp))
+            return false;
+    }
+
+    return true;
+}
 
 static void
 yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)

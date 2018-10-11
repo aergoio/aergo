@@ -159,6 +159,18 @@ meta_cmp(meta_t *x, meta_t *y)
     return NO_ERROR;
 }
 
+int
+meta_cmp_array(meta_t *x, array_t *y)
+{
+    int i;
+
+    for (i = 0; i < array_size(y); i++) {
+        CHECK(meta_cmp(x, array_item(y, i, meta_t)));
+    }
+
+    return NO_ERROR;
+}
+
 void
 meta_dump(meta_t *meta, int indent)
 {
