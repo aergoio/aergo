@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/hashicorp/golang-lru"
 )
 
 type txRequestHandler struct {
@@ -28,7 +27,6 @@ var _ MessageHandler = (*txResponseHandler)(nil)
 
 type newTxNoticeHandler struct {
 	BaseMsgHandler
-	txHashCache  *lru.Cache
 }
 
 var _ MessageHandler = (*newTxNoticeHandler)(nil)
@@ -106,11 +104,6 @@ func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Me
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
 func newNewTxNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newTxNoticeHandler {
 	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewTxNotice, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
-	var err error
-	th.txHashCache, err = lru.New(DefaultPeerInvCacheSize)
-	if err != nil {
-		panic("Failed to create newTxNoticeHandler " + err.Error())
-	}
 	return th
 }
 

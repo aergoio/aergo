@@ -84,7 +84,7 @@ var _ RemotePeer = (*remotePeerImpl)(nil)
 
 const (
 	cleanRequestInterval = time.Hour
-	txNoticeInterval     = time.Second * 5
+	txNoticeInterval     = time.Second * 3
 )
 
 // newRemotePeer create an object which represent a remote peer.
@@ -109,11 +109,11 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
 
 	var err error
-	peer.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	peer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
-	peer.txHashCache, err = lru.New(DefaultPeerInvCacheSize)
+	peer.txHashCache, err = lru.New(DefaultPeerTxCacheSize)
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}

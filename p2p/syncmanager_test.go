@@ -84,7 +84,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			hash, data := test.setup(t, mockActor)
 			target := newSyncManager(mockActor, mockPM, logger)
 			if test.put != nil  {
-				target.(*syncManager).invCache.Add(*test.put, true)
+				target.(*syncManager).blkCache.Add(*test.put, true)
 			}
 			target.HandleNewBlockNotice(mockPeer, hash, data )
 			test.verify(t,mockActor)
@@ -137,7 +137,7 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 			target := newSyncManager(mockActor, mockPM, logger)
 			if test.put != nil  {
 				for _, hash := range test.put {
-					target.(*syncManager).txInvCache.Add(hash, true)
+					target.(*syncManager).txCache.Add(hash, true)
 				}
 			}
 			target.HandleNewTxNotice(mockPeer, txHashes, data )

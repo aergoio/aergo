@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -34,10 +33,13 @@ import (
 
 // TODO this value better related to max peer and block produce interval, not constant
 const (
-	DefaultGlobalInvCacheSize = 5000
-	DefaultPeerInvCacheSize   = 1000
+	DefaultGlobalBlockCacheSize = 300
+	DefaultPeerBlockCacheSize   = 100
 
-	DefaultPeerTxQueueSize = 50000
+	DefaultGlobalTxCacheSize = 50000
+	DefaultPeerTxCacheSize   = 2000
+	// DefaultPeerTxQueueSize is maximum size of hashes in a single tx notice message
+	DefaultPeerTxQueueSize = 10000
 
 	defaultTTL          = time.Second * 4
 	defaultHandshakeTTL = time.Second * 20
@@ -104,9 +106,6 @@ type peerManager struct {
 	fillPoolChannel   chan []PeerMeta
 	finishChannel     chan struct{}
 	eventListeners    []PeerEventListener
-
-	invCache *lru.Cache
-	txInvCache *lru.Cache
 }
 
 var _ PeerManager = (*peerManager)(nil)
@@ -151,15 +150,6 @@ func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.
 
 	}
 
-	var err error
-	pm.invCache, err = lru.New(DefaultGlobalInvCacheSize)
-	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
-	}
-	pm.txInvCache, err = lru.New(DefaultGlobalInvCacheSize)
-	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
-	}
 	// additional initializations
 	pm.init()
 

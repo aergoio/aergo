@@ -24,19 +24,19 @@ type syncManager struct {
 	actor ActorService
 	pm PeerManager
 
-	invCache   *lru.Cache
-	txInvCache *lru.Cache
+	blkCache *lru.Cache
+	txCache  *lru.Cache
 }
 
 func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) SyncManager {
 	var err error
 	sm := &syncManager{actor:actor, pm:pm, logger:logger}
 
-	sm.invCache, err = lru.New(DefaultGlobalInvCacheSize)
+	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
 		panic("Failed to create peermanager " + err.Error())
 	}
-	sm.txInvCache, err = lru.New(DefaultGlobalInvCacheSize)
+	sm.txCache, err = lru.New(DefaultGlobalTxCacheSize)
 	if err != nil {
 		panic("Failed to create peermanager " + err.Error())
 	}
@@ -48,7 +48,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlockHash, 
 	peerID := peer.ID()
 
 	// TODO check if evicted return value is needed.
-	ok, _ := sm.invCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+	ok, _ := sm.blkCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
 		// Kickout duplicated notice log.
 		// if sm.logger.IsDebugEnabled() {
@@ -83,7 +83,7 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {
-		ok, _ := sm.txInvCache.ContainsOrAdd(hashArr, cachePlaceHolder)
+		ok, _ := sm.txCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 		if ok {
 			// Kickout duplicated notice log.
 			// if sm.logger.IsDebugEnabled() {

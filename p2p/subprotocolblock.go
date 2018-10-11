@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/hashicorp/golang-lru"
 )
 
 type blockRequestHandler struct {
@@ -39,8 +38,6 @@ var _ MessageHandler = (*listBlockHeadersResponseHandler)(nil)
 
 type newBlockNoticeHandler struct {
 	BaseMsgHandler
-
-	blkHashCache *lru.Cache
 }
 
 var _ MessageHandler = (*newBlockNoticeHandler)(nil)
@@ -210,11 +207,6 @@ func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, ms
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newBlockNoticeHandler {
 	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
-	var err error
-	bh.blkHashCache, err = lru.New(DefaultPeerInvCacheSize)
-	if err != nil {
-		panic("Failed to create newBlockNoticeHandler " + err.Error())
-	}
 	return bh
 }
 
