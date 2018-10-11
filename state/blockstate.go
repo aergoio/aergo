@@ -91,3 +91,15 @@ func (bs *BlockState) GetBlockInfo() *BlockInfo {
 		StateRoot: types.ToHashID(bs.GetRoot()),
 	}
 }
+
+// Commit writes statedb and mapping information about block hash and state root
+func (bs *BlockState) Commit() error {
+	blockInfo := bs.GetBlockInfo()
+	if err := bs.saveBlockInfo(blockInfo); err != nil {
+		return err
+	}
+	if err := bs.StateDB.Commit(); err != nil {
+		return err
+	}
+	return nil
+}

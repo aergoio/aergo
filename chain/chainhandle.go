@@ -462,7 +462,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		}
 		if txBody.Payload != nil {
-			contractState, err := bs.StateDB.OpenContractState(&receiverChange)
+			contractState, err := bs.OpenContractState(&receiverChange)
 			if err != nil {
 				return err
 			}
@@ -491,7 +491,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			err = bs.StateDB.CommitContractState(contractState)
+			err = bs.CommitContractState(contractState)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err

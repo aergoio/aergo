@@ -452,14 +452,8 @@ func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 		return err
 	}
 
-	// save blockInfo
-	binfo := bstate.GetBlockInfo()
-	if err := sdb.saveBlockInfo(binfo); err != nil {
-		return err
-	}
-
 	// save latest
-	sdb.latest = binfo
+	sdb.latest = bstate.GetBlockInfo()
 	return sdb.saveStateLatest()
 }
 

@@ -384,7 +384,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 
 	uContractState := types.State(*contractState)
-	eContractState, err := bs.StateDB.OpenContractState(&uContractState)
+	eContractState, err := bs.OpenContractState(&uContractState)
 	if err != nil {
 		return err
 	}
@@ -426,7 +426,7 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			err = bs.StateDB.CommitContractState(eContractState)
+			err = bs.CommitContractState(eContractState)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err
@@ -483,7 +483,7 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			err = bs.StateDB.CommitContractState(eContractState)
+			err = bs.CommitContractState(eContractState)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err
