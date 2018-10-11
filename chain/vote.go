@@ -57,17 +57,21 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay from staking")
 		return ErrLessTimeHasPassed
 	}
-	err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
-	if err != nil {
-		return err
-	}
 
-	if txBody.Payload[0] != 'v' { //called from staking/unstaking
+	if txBody.Payload[0] != 'v' { //called from unstaking
+		err = setVote(scs, txBody.Account, candidates, staked, blockNo)
+		if err != nil {
+			return err
+		}
 		for offset := 0; offset < len(candidates); offset += peerIDLength {
 			key := candidates[offset : offset+peerIDLength]
 			(*voteResult)[base58.Encode(key)] += staked
 		}
 	} else {
+		err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
+		if err != nil {
+			return err
+		}
 		for offset := 0; offset < len(txBody.Payload[1:]); offset += peerIDLength {
 			key := txBody.Payload[offset+1 : offset+peerIDLength+1]
 			(*voteResult)[base58.Encode(key)] += staked
