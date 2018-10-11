@@ -63,51 +63,80 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 	bi := ci.blockInfo
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
-	if _, exist := pls.plib[bi.bpID]; !exist {
-		pls.updatePreLIB(bi.bpID, pls.genesisInfo)
+	if _, exist := pls.plib[bi.BPID]; !exist {
+		pls.updatePreLIB(bi.BPID, pls.genesisInfo)
 	}
 
-	logger.Debug().Str("BP", bi.bpID).
-		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+	logger.Debug().Str("BP", bi.BPID).
+		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("new confirm info added")
+}
+
+func (c *confirmInfo) bInfo() *blockInfo {
+	return c.blockInfo
+}
+
+func cInfo(e *list.Element) *confirmInfo {
+	return e.Value.(*confirmInfo)
 }
 
 func (pls *pLibStatus) updateStatus() *blockInfo {
 	if bi := pls.getPreLIB(); bi != nil {
-		pls.updatePreLIB(bi.bpID, bi)
+		pls.updatePreLIB(bi.BPID, bi)
 	}
 
 	return pls.calcLIB()
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
-	pls.plib[bi.bpID] = bi
-	logger.Debug().Str("BP", bi.bpID).
-		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+	pls.plib[bi.BPID] = bi
+	logger.Debug().Str("BP", bi.BPID).
+		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("proposed LIB map updated")
 }
 
 func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
-	// XXX Do the real status rollback instead of init.
-	pls.init()
+	var (
+		end        *list.Element
+		beg        = pls.confirms.Back()
+		targetHash = block.ID()
+	)
+
+	// Check if block is a valid rollback target.
+	for e := beg; e != nil; e = e.Prev() {
+		c := cInfo(e)
+		if c.bInfo().BlockHash == targetHash {
+			end = e
+			break
+		}
+	}
+
+	if end == nil {
+		return fmt.Errorf("invalid rollback target: block hash %v, no %v",
+			targetHash, block.BlockNo())
+	}
+
+	// * Rollback upto the target block: (1) Remove the confirmInfos
+	//   corresponding to the disconnected blocks. (2) Some existing pre-LIBs
+	//   may become normal blocks by (1).  - The confirmInfos associated with
+	//   those must be restored.  - The related pre-LIB map entries must be
+	//   also recovered to the original.
+	//
+	// * For LIB status recovery, the informations having to be saved &
+	//   restored at a boot time are as follows: (1) LIB itself and (2) pre-LIB
+	//   map including the UNDO blockInfos. (confirmInfos can be reconstructed
+	//   from the block data.
 
 	return nil
 }
 
 func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
-	cInfo := func(e *list.Element) *confirmInfo {
-		return e.Value.(*confirmInfo)
-	}
-
-	bInfo := func(c *confirmInfo) *blockInfo {
-		return c.blockInfo
-	}
 
 	var (
 		prev *list.Element
 		del  = false
 		e    = pls.confirms.Back()
-		cr   = bInfo(cInfo(e)).confirmRange
+		cr   = cInfo(e).bInfo().ConfirmRange
 	)
 
 	for e != nil && cr > 0 {
@@ -119,7 +148,7 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 			c.confirmsLeft--
 			if c.confirmsLeft == 0 {
 				// proposed LIB info to return
-				bi = bInfo(c)
+				bi = c.bInfo()
 				del = true
 			}
 		}
@@ -145,7 +174,7 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 	}
 
 	sort.Slice(libInfos, func(i, j int) bool {
-		return libInfos[i].blockNo < libInfos[j].blockNo
+		return libInfos[i].BlockNo < libInfos[j].BlockNo
 	})
 
 	// TODO: check the correctness of the formula.
@@ -171,21 +200,25 @@ type confirmInfo struct {
 
 func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	return &confirmInfo{
-		blockInfo: &blockInfo{
-			bpID:         block.BPID2Str(),
-			blockHash:    block.ID(),
-			blockNo:      block.BlockNo(),
-			confirmRange: block.GetHeader().GetConfirms(),
-		},
+		blockInfo:    newBlockInfo(block),
 		confirmsLeft: confirmsRequired,
 	}
 }
 
 type blockInfo struct {
-	bpID         string
-	blockHash    string
-	blockNo      uint64
-	confirmRange uint64
+	BPID         string
+	BlockHash    string
+	BlockNo      uint64
+	ConfirmRange uint64
+}
+
+func newBlockInfo(block *types.Block) *blockInfo {
+	return &blockInfo{
+		BPID:         block.BPID2Str(),
+		BlockHash:    block.ID(),
+		BlockNo:      block.BlockNo(),
+		ConfirmRange: block.GetHeader().GetConfirms(),
+	}
 }
 
 // UpdateStatus updates the last irreversible block (LIB).
@@ -196,8 +229,8 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	if s.pls.genesisInfo == nil {
 		if genesisBlock := chain.GetGenesisBlock(); genesisBlock != nil {
 			s.pls.genesisInfo = &blockInfo{
-				blockHash: genesisBlock.ID(),
-				blockNo:   genesisBlock.BlockNo(),
+				BlockHash: genesisBlock.ID(),
+				BlockNo:   genesisBlock.BlockNo(),
 			}
 
 			// Temporarily set s.bestBlock to genesisBlock whenever the server
@@ -239,8 +272,8 @@ func (s *Status) UpdateStatus(block *types.Block) {
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.lib = lib
 	logger.Debug().
-		Str("block hash", s.lib.blockHash).
-		Uint64("block no", s.lib.blockNo).
+		Str("block hash", s.lib.BlockHash).
+		Uint64("block no", s.lib.BlockNo).
 		Msg("last irreversible block (BFT) updated")
 }
 
