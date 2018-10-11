@@ -44,19 +44,15 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		if err != nil {
 			return err
 		}
-		err = voting(txBody, scs, blockNo)
-		if err != nil {
-			return err
-		}
 	} else {
 		err = setStaking(scs, txBody.Account, staked-txBody.Amount, blockNo)
 		if err != nil {
 			return err
 		}
-		err = voting(txBody, scs, blockNo)
-		if err != nil && err != ErrMustStakeBeforeVote {
-			return err
-		}
+	}
+	err = voting(txBody, scs, blockNo)
+	if err != nil && err != ErrMustStakeBeforeVote {
+		return err
 	}
 	senderState.Balance = senderState.Balance + amount
 	return nil
