@@ -233,18 +233,18 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
         int t, b, n = i + 1;
         const char *s;
         size_t l;
-        lua_Number d;
 
         luaL_checkany(L, n);
         t = lua_type(L, n);
 
         switch (t) {
         case LUA_TNUMBER:
-            d = lua_tonumber(L, n);
-            if ((double)d == (double)((lua_Integer)d)) {
+            if (luaL_isinteger(L, n)) {
+                lua_Integer d = lua_tointeger(L, n);
                 rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
             } else {
-                rc = sqlite3_bind_double(pstmt->s, i, (sqlite3_int64)d);
+                lua_Number d = lua_tonumber(L, n);
+                rc = sqlite3_bind_double(pstmt->s, i, (double)d);
             }
             break;
         case LUA_TSTRING:
