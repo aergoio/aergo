@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -169,6 +170,69 @@ func TestContractQuery(t *testing.T) {
 	}
 }
 
+func TestRollback(t *testing.T) {
+	bc := loadBlockChain(t)
+
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+	)
+	bc.connectBlock(
+		newLuaTxDef("ktlee", "query", 1, queryCode),
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	)
+	bc.connectBlock(
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	)
+	bc.connectBlock(
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	)
+
+	rv, err := bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	if err != nil {
+		t.Errorf("contract query error: %v", err)
+	}
+	if rv != "[5]" {
+		t.Errorf("expected: %s, but got: %s", "[5]", rv)
+	}
+
+	err = bc.disconnectBlock()
+	if err != nil {
+		t.Error(err)
+	}
+	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	if err != nil {
+		t.Errorf("contract query error: %v", err)
+	}
+	if rv != "[3]" {
+		t.Errorf("expected: %s, but got: %s", "[3]", rv)
+	}
+	err = bc.disconnectBlock()
+	if err != nil {
+		t.Error(err)
+	}
+	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	if err != nil {
+		t.Errorf("contract query error: %v", err)
+	}
+	if rv != "[1]" {
+		t.Errorf("expected: %s, but got: %s", "[1]", rv)
+	}
+
+	bc.connectBlock(
+		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	)
+
+	rv, err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, t)
+	if err != nil {
+		t.Errorf("contract query error: %v", err)
+	}
+	if rv != "[2]" {
+		t.Errorf("expected: %s, but got: %s", "[2]", rv)
+	}
+}
+
 type blockChain struct {
 	sdb         *state.ChainStateDB
 	bestBlock   *types.Block
@@ -176,6 +240,7 @@ type blockChain struct {
 	bestBlockNo types.BlockNo
 	bestBlockId types.BlockID
 	rTx         db.Transaction
+	blockIds    []types.BlockID
 }
 
 func loadBlockChain(t *testing.T) *blockChain {
@@ -192,6 +257,7 @@ func loadBlockChain(t *testing.T) *blockChain {
 	bc.sdb.SetGenesis(genesis)
 	bc.bestBlockNo = genesis.Block.BlockNo()
 	bc.bestBlockId = genesis.Block.BlockID()
+	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 
 	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath)
@@ -468,7 +534,18 @@ func (bc *blockChain) connectBlock(txs ...luaTx) error {
 	}
 	bc.bestBlockNo = bc.bestBlockNo + 1
 	bc.bestBlockId = blockState.GetBlockHash()
+	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	return nil
+}
+
+func (bc *blockChain) disconnectBlock() error {
+	if len(bc.blockIds) == 1 {
+		return errors.New("genesis block")
+	}
+	bc.bestBlockNo--
+	bc.blockIds = bc.blockIds[0 : len(bc.blockIds)-1]
+	bc.bestBlockId = bc.blockIds[len(bc.blockIds)-1]
+	return bc.sdb.Rollback(bc.bestBlockId)
 }
 
 func (bc *blockChain) query(contract, queryInfo string, t *testing.T) (string, error) {
