@@ -195,6 +195,7 @@ id                          {L}({L}|{D})*
 "="                         yy_return('=');
 "^"                         yy_return('^');
 "!"                         yy_return('!');
+"'"                         yy_return('\'');
 
 "account"                   yy_return(K_ACCOUNT);
 "bool"                      yy_return(K_BOOL);
@@ -240,7 +241,7 @@ id                          {L}({L}|{D})*
 "delete"|"DELETE"           yy_return(K_DELETE);
 "drop"|"DROP"               yy_return(K_DROP);
 "index"|"INDEX"             yy_return(K_INDEX);
-"insert"|"DROP"             yy_return(K_INSERT);
+"insert"|"INSERT"           yy_return(K_INSERT);
 "select"|"SELECT"           yy_return(K_SELECT);
 "table"|"TABLE"             yy_return(K_TABLE);
 "update"|"UPDATE"           yy_return(K_UPDATE);
