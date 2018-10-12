@@ -130,11 +130,13 @@ func (tl *TxList) SetMinNonce(n uint64) (int, []*types.Tx) {
 }
 
 // FilterByPrice will evict transactions that needs more amount than balance
+/*
 func (tl *TxList) FilterByPrice(balance uint64) error {
 	tl.Lock()
 	defer tl.Unlock()
 	return nil
 }
+*/
 
 // Get returns processible transactions
 func (tl *TxList) Get() []*types.Tx {

@@ -7,6 +7,8 @@ package mempool
 import (
 	"encoding/binary"
 	"math/rand"
+	"os"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aergoio/aergo/account/key"
@@ -490,6 +492,67 @@ func TestSwitchingBestBlock(t *testing.T) {
 	if ready != 3 || orphan != 1 {
 		t.Errorf("size wrong:%d, %d", ready, orphan)
 	}
+}
+
+func TestDumpAndLoad(t *testing.T) {
+	initTest(t)
+	//set temporary path for test
+	pool.dumpPath = "./mempool_dump_test"
+	txs := make([]*types.Tx, 0)
+
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+		t.Errorf("err should be NotExist ,but \"%s\"", err)
+	}
+
+	if !atomic.CompareAndSwapInt32(&pool.status, initial, running) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+		t.Errorf("err should be NotExist ,but \"%s\"", err)
+	}
+
+	for i := 0; i < 100; i++ {
+		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
+		txs = append(txs, tmp)
+		if err := pool.put(tmp); err != nil {
+			t.Errorf("put should succeed, %s", err)
+		}
+	}
+
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); err != nil {
+		t.Errorf("dump file should be created but, %s", err)
+	}
+	deinitTest()
+
+	initTest(t)
+	pool.dumpPath = "./mempool_dump_test"
+	ready, orphan := pool.Size()
+	if ready != 0 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+	if !atomic.CompareAndSwapInt32(&pool.status, initial, running) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+	pool.loadTxs()
+	ready, orphan = pool.Size()
+	if ready != 0 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+
+	if !atomic.CompareAndSwapInt32(&pool.status, running, initial) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+
+	pool.loadTxs()
+	ready, orphan = pool.Size()
+	if ready != 100 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+	deinitTest()
+	os.Remove(pool.dumpPath) // nolint: errcheck
 }
 
 /*
