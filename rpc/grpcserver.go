@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
 
@@ -85,6 +86,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 	idx := uint32(0)
 	hashes := make([][]byte, 0, maxFetchSize)
 	headers := make([]*types.Block, 0, maxFetchSize)
+	var err error
 	if len(in.Hash) > 0 {
 		hash := in.Hash
 		for idx < maxFetchSize {
@@ -102,25 +104,43 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 				break
 			}
 		}
+		if in.Asc || in.Offset != 0 {
+			err = errors.New("Has unsupported param")
+		}
 	} else {
 		end := types.BlockNo(0)
-		if types.BlockNo(in.Height) >= types.BlockNo(maxFetchSize) {
-			end = types.BlockNo(in.Height) - types.BlockNo(maxFetchSize-1)
+		start := types.BlockNo(in.Height) - types.BlockNo(in.Offset)
+		if start >= types.BlockNo(maxFetchSize) {
+			end = start - types.BlockNo(maxFetchSize-1)
 		}
-		for i := types.BlockNo(in.Height); i >= end; i-- {
-			foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
-				&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
-			if !ok || nil == foundBlock {
-				break
+		if in.Asc {
+			for i := end; i <= start; i++ {
+				foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
+					&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
+				if !ok || nil == foundBlock {
+					break
+				}
+				hashes = append(hashes, foundBlock.BlockHash())
+				foundBlock.Body = nil
+				headers = append(headers, foundBlock)
+				idx++
 			}
-			hashes = append(hashes, foundBlock.BlockHash())
-			foundBlock.Body = nil
-			headers = append(headers, foundBlock)
-			idx++
+		} else {
+			for i := start; i >= end; i-- {
+				foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
+					&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
+				if !ok || nil == foundBlock {
+					break
+				}
+				hashes = append(hashes, foundBlock.BlockHash())
+				foundBlock.Body = nil
+				headers = append(headers, foundBlock)
+				idx++
+			}
 		}
 	}
 
-	return &types.BlockHeaderList{Blocks: headers}, nil
+	return &types.BlockHeaderList{Blocks: headers}, err
 
 }
 
