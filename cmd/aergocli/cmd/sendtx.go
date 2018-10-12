@@ -25,8 +25,11 @@ var sendtxCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(sendtxCmd)
 	sendtxCmd.Flags().StringVar(&from, "from", "", "")
+	sendtxCmd.MarkFlagRequired("from")
 	sendtxCmd.Flags().StringVar(&to, "to", "", "")
+	sendtxCmd.MarkFlagRequired("to")
 	sendtxCmd.Flags().Uint64Var(&amount, "amount", 0, "")
+	sendtxCmd.MarkFlagRequired("amount")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) {

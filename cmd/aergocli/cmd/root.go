@@ -32,14 +32,15 @@ var (
 	to     string
 	amount uint64
 
+	remote       bool
 	importFormat string
 
 	rootConfig CliConfig
 
 	rootCmd = &cobra.Command{
 		Use:               "aergocli",
-		Short:             "Argo light commandline interface",
-		Long:              `Argo is right`,
+		Short:             "Aergo light commandline interface",
+		Long:              `Aergo is right`,
 		PersistentPreRun:  connectAergo,
 		PersistentPostRun: disconnectAergo,
 	}
@@ -48,17 +49,16 @@ var (
 func init() {
 	log.SetOutput(os.Stderr)
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo home path")
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $AG_HOME/.aergo/config.toml)")
+	rootCmd.PersistentFlags().StringVar(&home, "home", ".", "aergo home path")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "config.toml", "config file (default is config.toml)")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
 }
 
 func initConfig() {
 	cliCtx := NewCliContext(home, cfgFile)
-	//cliCtx.Vc.BindPFlag("key", rootCmd.PersistentFlags().Lookup("key"))
-	//cliCtx.Vc.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
-	//cliCtx.Vc.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
+	cliCtx.Vc.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
+	cliCtx.Vc.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	cliCtx.BindPFlags(rootCmd.PersistentFlags())
 
 	rootConfig = cliCtx.GetDefaultConfig().(CliConfig)

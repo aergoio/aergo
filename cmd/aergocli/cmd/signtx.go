@@ -22,6 +22,7 @@ func init() {
 	signCmd.Flags().StringVar(&privKey, "key", "", "base58 encoded key for sign")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
+	verifyCmd.Flags().BoolVar(&remote, "remote", false, "verify in the node")
 }
 
 var signCmd = &cobra.Command{
@@ -106,7 +107,7 @@ var verifyCmd = &cobra.Command{
 			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		if cmd.Flags().Changed("path") == false {
+		if remote {
 			msg, err := client.VerifyTX(context.Background(), param[0])
 			if nil == err {
 				if msg.Tx != nil {
@@ -123,6 +124,7 @@ var verifyCmd = &cobra.Command{
 				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
+			fmt.Println(util.TxConvBase58Addr(param[0]))
 		}
 	},
 }
