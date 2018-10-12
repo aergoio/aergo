@@ -96,7 +96,7 @@ func CloseDatabase() {
 	}
 }
 
-func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *state.BlockState) error {
+func SaveRecoveryPoint(bs *state.BlockState) error {
 	for id, db := range database.DBs {
 		if db.tx != nil {
 			err := db.tx.Commit()

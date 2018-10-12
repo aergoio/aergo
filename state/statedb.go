@@ -69,6 +69,14 @@ func NewStateDB(dbstore *db.DB, root []byte) *StateDB {
 	return &sdb
 }
 
+// Clone returns a new StateDB which has same store and Root
+func (states *StateDB) Clone() *StateDB {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
+
+	return NewStateDB(states.store, states.GetRoot())
+}
+
 // GetRoot returns root hash of trie
 func (states *StateDB) GetRoot() []byte {
 	states.lock.RLock()
@@ -242,6 +250,18 @@ type ChainStateDB struct {
 // NewChainStateDB creates instance of ChainStateDB
 func NewChainStateDB() *ChainStateDB {
 	return &ChainStateDB{}
+}
+
+// Init initialize database and load statedb of latest block
+func (sdb *ChainStateDB) Clone() *ChainStateDB {
+	sdb.Lock()
+	defer sdb.Unlock()
+
+	newSdb := &ChainStateDB{
+		store:  sdb.store,
+		states: sdb.GetStateDB().Clone(),
+	}
+	return newSdb
 }
 
 // Init initialize database and load statedb of latest block
@@ -439,6 +459,14 @@ func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 		return err
 	}
 
+	if err := sdb.UpdateRoot(bstate); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	// // check state root
 	// if bstate.BlockInfo.StateRoot != types.ToHashID(bstate.GetRoot()) {
 	// 	// TODO: if validation failed, than revert statedb.

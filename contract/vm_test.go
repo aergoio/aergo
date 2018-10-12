@@ -390,6 +390,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 
 	err = run(creatorState, &uContractState, contractId, eContractState)
+
 	if err != nil {
 		return err
 	}
@@ -416,7 +417,7 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 				return err
 			}
 
-			bcCtx := NewContext(sdb, bs, senderState, eContractState,
+			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
 				0, nil, sqlTx.GetHandle())
@@ -473,7 +474,7 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 			}
 			sqlTx.Savepoint()
 
-			bcCtx := NewContext(sdb, bs, senderState, eContractState,
+			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
 				0, nil, sqlTx.GetHandle())
@@ -504,7 +505,7 @@ func (bc *blockChain) connectBlock(txs ...luaTx) error {
 	for _, x := range txs {
 		x.run(bc.sdb, blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp)
 	}
-	err := SaveRecoveryPoint(bc.sdb, blockState)
+	err := SaveRecoveryPoint(blockState)
 	if err != nil {
 		return err
 	}

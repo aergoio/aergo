@@ -12,28 +12,28 @@ import (
 
 func TestGatherTXs(t *testing.T) {
 	txOp := NewCompTxOp(
-		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+		TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 			fmt.Println("x")
-			return nil, nil
+			return nil
 		}),
-		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+		TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 			fmt.Println("y")
-			return nil, nil
+			return nil
 		}))
-	_, err := txOp.Apply(nil)
+	err := txOp.Apply(nil, nil)
 	assert.New(t).Nil(err)
 }
 
 func TestGatherTXsWithError(t *testing.T) {
 	txDo := NewCompTxOp(
-		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+		TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 			fmt.Println("haha")
-			return nil, nil
+			return nil
 		}),
-		TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+		TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 			fmt.Println("blah")
-			return nil, errors.New("blah blah error")
+			return errors.New("blah blah error")
 		}))
-	_, err := txDo.Apply(nil)
+	err := txDo.Apply(nil, nil)
 	assert.New(t).NotNil(err)
 }
