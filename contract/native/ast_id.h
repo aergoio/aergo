@@ -16,7 +16,9 @@
 #define is_func_id(id)              ((id)->kind == ID_FUNC)
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
 
-#define is_local_id(id)             flag_on((id)->mod, MOD_LOCAL)
+#define is_public_id(id)                                                       \
+    (flag_on((id)->mod, MOD_PUBLIC) || flag_on((id)->mod, MOD_CTOR))
+#define is_private_id(id)           flag_on((id)->mod, MOD_PRIVATE)
 #define is_payable_id(id)           flag_on((id)->mod, MOD_PAYABLE)
 #define is_readonly_id(id)          flag_on((id)->mod, MOD_READONLY)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)

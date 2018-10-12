@@ -49,7 +49,7 @@ typedef struct exp_val_s {
 typedef struct exp_type_s {
     type_t type;
     char *name;
-    bool is_local;
+    bool is_public;
     ast_exp_t *k_exp;
     ast_exp_t *v_exp;
 } exp_type_t;

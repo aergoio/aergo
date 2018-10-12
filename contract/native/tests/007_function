@@ -8,10 +8,10 @@ contract test {
 
 @test(function_modifier)
 contract test {
-    local func f1() { }
-    local payable func f2() { }
-    local readonly func f3() { }
-    local readonly payable func f4() { }
+    public func f1() { }
+    public payable func f2() { }
+    public readonly func f3() { }
+    public readonly payable func f4() { }
     readonly func f5() { }
     readonly payable func f6() { }
     payable func f7() { }
@@ -20,7 +20,7 @@ contract test {
 @test(invalid_payable_modifier)
 @error(ERROR_SYNTAX)
 contract test {
-    payable local func f1() { }
+    payable public func f1() { }
 }
 
 @test(parameter_declaration)

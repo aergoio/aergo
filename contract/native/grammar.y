@@ -98,11 +98,11 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_INT32         "int32"
         K_INT64         "int64"
         K_INT8          "int8"
-        K_LOCAL         "local"
         K_MAP           "map"
         K_NEW           "new"
         K_NULL          "null"
         K_PAYABLE       "payable"
+        K_PUBLIC        "public"
         K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
@@ -337,12 +337,12 @@ var_type:
         $$ = $2;
         $$->meta.is_const = true;
     }
-|   K_LOCAL var_type
+|   K_PUBLIC var_type
     {
         ASSERT1(is_type_exp($2), $2->kind);
 
         $$ = $2;
-        $$->u_type.is_local = true;
+        $$->u_type.is_public = true;
     }
 ;
 
@@ -553,8 +553,8 @@ function:
 ;
 
 modifier_opt:
-    /* empty */                 { $$ = MOD_GLOBAL; }
-|   K_LOCAL                     { $$ = MOD_LOCAL; }
+    /* empty */                 { $$ = MOD_PRIVATE; }
+|   K_PUBLIC                    { $$ = MOD_PUBLIC; }
 |   modifier_opt K_READONLY
     {
         $$ = $1;

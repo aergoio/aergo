@@ -230,11 +230,11 @@ id                          {L}({L}|{D})*
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
 "int8"                      yy_return(K_INT8);
-"local"                     yy_return(K_LOCAL);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
 "payable"                   yy_return(K_PAYABLE);
+"public"                    yy_return(K_PUBLIC);
 "readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);

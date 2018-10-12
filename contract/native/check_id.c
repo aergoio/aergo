@@ -32,8 +32,8 @@ id_var_check(check_t *check, ast_id_t *id)
 
     CHECK(check_exp(check, type_exp));
 
-    if (type_exp->u_type.is_local)
-        flag_set(id->mod, MOD_LOCAL);
+    if (type_exp->u_type.is_public)
+        flag_set(id->mod, MOD_PUBLIC);
 
     id->meta = *type_meta;
 

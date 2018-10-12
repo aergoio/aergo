@@ -31,13 +31,13 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 ast_id_t *
 id_var_new(char *name, src_pos_t *pos)
 {
-    return ast_id_new(ID_VAR, MOD_GLOBAL, name, pos);
+    return ast_id_new(ID_VAR, MOD_PRIVATE, name, pos);
 }
 
 ast_id_t *
 id_struct_new(char *name, array_t *fld_ids, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_GLOBAL, name, pos);
+    ast_id_t *id = ast_id_new(ID_STRUCT, MOD_PRIVATE, name, pos);
 
     ASSERT(fld_ids != NULL);
 
@@ -62,7 +62,7 @@ id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
 ast_id_t *
 id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_GLOBAL, name, pos);
+    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_PUBLIC, name, pos);
 
     id->u_cont.blk = blk;
 
@@ -80,6 +80,7 @@ id_search_name(ast_blk_t *blk, int num, char *name)
         return NULL;
 
     do {
+        /* TODO: better to skip if it is equal to the current contract id */
         for (i = 0; i < array_size(&blk->ids); i++) {
             ast_id_t *id = array_item(&blk->ids, i, ast_id_t);
 
@@ -112,7 +113,7 @@ id_search_fld(ast_id_t *id, char *name)
     for (i = 0; i < array_size(fld_ids); i++) {
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
-        if (!is_local_id(fld_id) && strcmp(fld_id->name, name) == 0)
+        if (is_public_id(fld_id) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 

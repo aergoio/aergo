@@ -48,11 +48,11 @@ contract test {
 
 @test(neighbor_reference)
 contract neighbor {
-    int v;
+    public int v;
     neighbor(int p) {
         v = p;
     }
-    func f() int {
+    public func f() int {
         return v;
     }
 }

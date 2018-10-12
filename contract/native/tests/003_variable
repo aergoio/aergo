@@ -44,14 +44,14 @@ contract test {
 
 @test(type_modifier)
 contract test {
-    local int v1;
-    local bool v2;
+    public int v1;
+    public bool v2;
 }
 
 @test(invalid_modifier_position)
 @error(ERROR_SYNTAX)
 contract test {
-    int local v1;
+    int public v1;
 }
 
 @test(out_of_scope_identifier)

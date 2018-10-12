@@ -113,8 +113,8 @@ typedef enum blk_kind_e {
 } blk_kind_t;
 
 typedef enum modifier_e {
-    MOD_GLOBAL      = 0x00,
-    MOD_LOCAL       = 0x01,
+    MOD_PRIVATE     = 0x00,
+    MOD_PUBLIC      = 0x01,
     MOD_PAYABLE     = 0x02,
     MOD_READONLY    = 0x04,
     MOD_CTOR        = 0x08
