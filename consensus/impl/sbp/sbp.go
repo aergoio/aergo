@@ -110,7 +110,7 @@ func (s *SimpleBlockFactory) SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
 // NeedReorganization has nothing to do.
-func (s *SimpleBlockFactory) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+func (s *SimpleBlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
 

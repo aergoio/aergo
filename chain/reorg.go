@@ -95,7 +95,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
-	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo(), cs.getBestBlockNo()) {
+	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo()) {
 		return consensus.ErrorConsensus{Msg: "reorganization rejected by consensus"}
 	}
 

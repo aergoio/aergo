@@ -137,7 +137,7 @@ func (cdb *ChainDB) loadChainData() error {
 	if err != nil {
 		return ErrorLoadBestBlock
 	}
-	cdb.setLatest(latestBlock)
+	cdb.initBestBlock(latestBlock)
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
@@ -152,6 +152,12 @@ func (cdb *ChainDB) loadChainData() error {
 	// }
 	return nil
 }
+
+func (cdb *ChainDB) initBestBlock(block *types.Block) {
+	cdb.setLatest(block)
+	setInitialBestBlock(block)
+}
+
 func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	buf := cdb.store.Get(key)
 	if buf == nil || len(buf) == 0 {

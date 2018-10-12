@@ -41,14 +41,16 @@ type pLibStatus struct {
 	genesisInfo      *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
-	plib             map[string]*blockInfo // BP-wise proposed LIB map
+	undo             *list.List
+	plib             map[string][]*blockInfo // BP-wise proposed LIB map
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 	return &pLibStatus{
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
-		plib:             make(map[string]*blockInfo),
+		undo:             list.New(),
+		plib:             make(map[string][]*blockInfo),
 	}
 }
 
@@ -63,73 +65,97 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 	bi := ci.blockInfo
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
-	if _, exist := pls.plib[bi.bpID]; !exist {
-		pls.updatePreLIB(bi.bpID, pls.genesisInfo)
+	if _, exist := pls.plib[bi.BPID]; !exist {
+		pls.updatePreLIB(bi.BPID, pls.genesisInfo)
 	}
 
-	logger.Debug().Str("BP", bi.bpID).
-		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+	logger.Debug().Str("BP", bi.BPID).
+		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("new confirm info added")
 }
 
 func (pls *pLibStatus) updateStatus() *blockInfo {
 	if bi := pls.getPreLIB(); bi != nil {
-		pls.updatePreLIB(bi.bpID, bi)
+		pls.updatePreLIB(bi.BPID, bi)
 	}
 
 	return pls.calcLIB()
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
-	pls.plib[bi.bpID] = bi
-	logger.Debug().Str("BP", bi.bpID).
-		Str("hash", bi.blockHash).Uint64("no", bi.blockNo).
+	pls.plib[bi.BPID] = append(pls.plib[bi.BPID], bi)
+	logger.Debug().Str("BP", bi.BPID).
+		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("proposed LIB map updated")
 }
 
 func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
-	// XXX Do the real status rollback instead of init.
-	pls.init()
+	var (
+		beg        = pls.confirms.Back()
+		end        *list.Element
+		confirmLow = cInfo(beg).BlockNo
+		targetHash = block.ID()
+	)
+
+	// Check if block is a valid rollback target.
+	for e := beg; e != nil; e = e.Prev() {
+		c := cInfo(e)
+		if min := c.min(); min < confirmLow {
+			confirmLow = min
+		}
+
+		if c.BlockHash == targetHash {
+			end = e
+			break
+		}
+	}
+
+	// XXX To bypass the compile error. TODO: Remove after the LIB recovery is
+	// implemented.
+	_ = end
+	// XXX Temporarily comment out until the LIB recovery is implemented.
+	/*
+		if end == nil && block.ID() != pls.genesisInfo.BlockHash {
+			return fmt.Errorf("not in the main chain: block hash %v, no %v",
+				targetHash, block.BlockNo())
+		}
+	*/
+
+	// Restore the confirm infos in the rollback range by using the undo list.
+	pls.restoreConfirms(confirmLow)
+	pls.replay()
 
 	return nil
 }
 
 func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
-	cInfo := func(e *list.Element) *confirmInfo {
-		return e.Value.(*confirmInfo)
-	}
-
-	bInfo := func(c *confirmInfo) *blockInfo {
-		return c.blockInfo
-	}
-
 	var (
-		prev *list.Element
-		del  = false
-		e    = pls.confirms.Back()
-		cr   = bInfo(cInfo(e)).confirmRange
+		prev   *list.Element
+		toUndo = false
+		e      = pls.confirms.Back()
+		cr     = cInfo(e).ConfirmRange
 	)
 
 	for e != nil && cr > 0 {
 		prev = e.Prev()
 		cr--
 
-		if !del {
+		if !toUndo {
 			c := cInfo(e)
 			c.confirmsLeft--
 			if c.confirmsLeft == 0 {
 				// proposed LIB info to return
-				bi = bInfo(c)
-				del = true
+				bi = c.bInfo()
+				toUndo = true
 			}
 		}
 
-		// Delete all the previous elements including the one corresponding to
-		// a block to be finalized (c.confirmsLeft == 0). They are not
-		// necessary any more, since all the blocks before a finalized block
-		// are also final.
-		if del {
-			pls.confirms.Remove(e)
+		// Move all the previous elements including the one corresponding to a
+		// block to be finalized (c.confirmsLeft == 0). Some of them may be
+		// restored later as needed for rollback, while others will be removed
+		// if LIB is determined.
+		if toUndo {
+			pls.moveToUndo(e)
 		}
 
 		e = prev
@@ -138,14 +164,110 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 	return
 }
 
+func (pls *pLibStatus) moveToUndo(e *list.Element) {
+	moveElem(e, pls.confirms, pls.undo)
+}
+
+func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
+	forEach(pls.undo,
+		func(e *list.Element) {
+			if cInfo(e).BlockNo >= confirmLow {
+				moveElem(e, pls.undo, pls.confirms)
+			}
+		},
+	)
+}
+
+func (pls *pLibStatus) replay() {
+	confirmDec := make(map[uint64]uint16)
+
+	// 1st loop: reset confirmsLeft & collect counts by which confirmLeft must
+	// be decreased.
+	forEach(pls.confirms,
+		func(e *list.Element) {
+			c := cInfo(e)
+			c.confirmsLeft = pls.confirmsRequired - 1
+
+			for i := c.min(); i < c.BlockNo; i++ {
+				if dec, exist := confirmDec[i]; exist {
+					confirmDec[i] = dec + 1
+				} else {
+					confirmDec[i] = 1
+				}
+			}
+		},
+	)
+
+	// 2nd loop: decrease confirmLeft.
+	forEach(pls.confirms,
+		func(e *list.Element) {
+			c := cInfo(e)
+			if dec, exist := confirmDec[c.BlockNo]; exist {
+				if c.confirmsLeft < dec {
+					errMsg := "the restored confirm info is inconsistent"
+					logger.Debug().
+						Uint16("confirm left", c.confirmsLeft).Uint16("", dec).
+						Msg(errMsg)
+					panic(errMsg)
+				}
+				c.confirmsLeft = c.confirmsLeft - dec
+			}
+		},
+	)
+
+	// Don't need to update LIB since there is no other LIBs between the LIB
+	// and the branch root (rollback target).
+}
+
+func moveElem(e *list.Element, src *list.List, dst *list.List) {
+	src.Remove(e)
+	dst.PushFront(e.Value)
+}
+
+func (pls *pLibStatus) gcUndo(lib *blockInfo) {
+	removeIf(pls.undo,
+		func(e *list.Element) bool {
+			return cInfo(e).BlockNo <= lib.BlockNo
+		})
+}
+
+type pridicate func(e *list.Element) bool
+
+func removeIf(l *list.List, p pridicate) {
+	forEach(l,
+		func(e *list.Element) {
+			if p(e) {
+				l.Remove(e)
+			}
+		},
+	)
+}
+
+func forEach(l *list.List, f func(e *list.Element)) {
+	e := l.Front()
+	for e != nil {
+		next := e.Next()
+		f(e)
+		e = next
+	}
+}
+
+func (c *confirmInfo) bInfo() *blockInfo {
+	return c.blockInfo
+}
+
+func cInfo(e *list.Element) *confirmInfo {
+	return e.Value.(*confirmInfo)
+}
+
 func (pls *pLibStatus) calcLIB() *blockInfo {
 	libInfos := make([]*blockInfo, 0, len(pls.plib))
 	for _, l := range pls.plib {
-		libInfos = append(libInfos, l)
+		libInfos = append(libInfos, l[len(l)-1])
 	}
 
 	sort.Slice(libInfos, func(i, j int) bool {
-		return libInfos[i].blockNo < libInfos[j].blockNo
+		return libInfos[i].BlockNo < libInfos[j].BlockNo
 	})
 
 	// TODO: check the correctness of the formula.
@@ -171,21 +293,29 @@ type confirmInfo struct {
 
 func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	return &confirmInfo{
-		blockInfo: &blockInfo{
-			bpID:         block.BPID2Str(),
-			blockHash:    block.ID(),
-			blockNo:      block.BlockNo(),
-			confirmRange: block.GetHeader().GetConfirms(),
-		},
+		blockInfo:    newBlockInfo(block),
 		confirmsLeft: confirmsRequired,
 	}
 }
 
+func (c confirmInfo) min() uint64 {
+	return c.BlockNo - c.ConfirmRange + 1
+}
+
 type blockInfo struct {
-	bpID         string
-	blockHash    string
-	blockNo      uint64
-	confirmRange uint64
+	BPID         string
+	BlockHash    string
+	BlockNo      uint64
+	ConfirmRange uint64
+}
+
+func newBlockInfo(block *types.Block) *blockInfo {
+	return &blockInfo{
+		BPID:         block.BPID2Str(),
+		BlockHash:    block.ID(),
+		BlockNo:      block.BlockNo(),
+		ConfirmRange: block.GetHeader().GetConfirms(),
+	}
 }
 
 // UpdateStatus updates the last irreversible block (LIB).
@@ -193,18 +323,25 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
-	if s.pls.genesisInfo == nil {
-		if genesisBlock := chain.GetGenesisBlock(); genesisBlock != nil {
-			s.pls.genesisInfo = &blockInfo{
-				blockHash: genesisBlock.ID(),
-				blockNo:   genesisBlock.BlockNo(),
-			}
+	var genesisBlock *types.Block
 
-			// Temporarily set s.bestBlock to genesisBlock whenever the server
-			// is started. TODO: Do the status reovery correctly.
-			if s.bestBlock == nil {
-				s.bestBlock = genesisBlock
+	if s.pls.genesisInfo == nil {
+		if genesisBlock = chain.GetGenesisBlock(); genesisBlock != nil {
+			s.pls.genesisInfo = &blockInfo{
+				BlockHash: genesisBlock.ID(),
+				BlockNo:   genesisBlock.BlockNo(),
 			}
+		}
+	}
+
+	if s.bestBlock == nil {
+		if initBlock := chain.GetInitialBestBlock(); initBlock != nil {
+			s.bestBlock = initBlock
+			// Add manually the initial block info to avoid error. TODO: This must
+			// be replaced by a correct LIB status recovery process.
+			s.pls.addConfirmInfo(s.bestBlock)
+		} else {
+			s.bestBlock = genesisBlock
 		}
 	}
 
@@ -229,6 +366,7 @@ func (s *Status) UpdateStatus(block *types.Block) {
 
 		// Block reorganized. TODO: update consensus status, correctly.
 		if err := s.pls.rollbackStatusTo(block); err != nil {
+			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
 			panic(err)
 		}
 	}
@@ -238,35 +376,37 @@ func (s *Status) UpdateStatus(block *types.Block) {
 
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.lib = lib
+	s.pls.gcUndo(lib)
+
 	logger.Debug().
-		Str("block hash", s.lib.blockHash).
-		Uint64("block no", s.lib.blockNo).
+		Str("block hash", s.lib.BlockHash).
+		Uint64("block no", s.lib.BlockNo).
+		Int("undo len", s.pls.undo.Len()).
 		Msg("last irreversible block (BFT) updated")
 }
 
 // NeedReorganization reports whether reorganization is needed or not.
-func (s *Status) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
-	// Disable until the reorganization logic is correctly implmented.
+
 	/*
-		s.RLock()
-		defer s.RUnlock()
+			s.RLock()
+			defer s.RUnlock()
 
-		if s.lib == nil {
-			logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
-			return true
-		}
+			if s.lib == nil {
+				logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
+				return true
+			}
 
-		libNo := s.lib.blockNo
+			libNo := s.lib.BlockNo
 
-		reorganizable := rootNo < libNo && bestNo > libNo
-		if reorganizable {
-			logger.Info().
-				Uint64("LIB", libNo).
-				Uint64("branch root no", rootNo).
-				Uint64("best no", bestNo).
-				Msg("not reorganizable - the current main branch has a LIB.")
-		}
+			reorganizable := rootNo >= libNo
+			if reorganizable {
+				logger.Info().
+					Uint64("LIB", libNo).
+					Uint64("branch root no", rootNo).
+					Msg("not reorganizable - the current main branch has a LIB.")
+			}
 
 		return reorganizable
 	*/
