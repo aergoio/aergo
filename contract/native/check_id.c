@@ -19,6 +19,7 @@ id_var_check(check_t *check, ast_id_t *id)
     int arr_size = 0;
     ast_exp_t *type_exp;
     meta_t *type_meta;
+    ast_exp_t *arr_exp;
     ast_exp_t *init_exp;
 
     ASSERT1(is_var_id(id), id->kind);
@@ -36,21 +37,21 @@ id_var_check(check_t *check, ast_id_t *id)
 
     id->meta = *type_meta;
 
+    arr_exp = id->u_var.arr_exp;
     init_exp = id->u_var.init_exp;
 
-    if (id->u_var.arr_exp != NULL) {
-        ast_exp_t *arr_exp = id->u_var.arr_exp;
-        meta_t *arr_meta = &arr_exp->meta;
+    if (arr_exp != NULL) {
+        CHECK(check_exp(check, arr_exp));
 
         id->meta.is_array = true;
 
-        CHECK(check_exp(check, arr_exp));
-
         if (is_null_exp(arr_exp)) {
             if (init_exp == NULL)
-                RETURN(ERROR_MISSING_SIZE, &arr_exp->pos);
+                RETURN(ERROR_MISSING_ARR_SIZE, &arr_exp->pos);
         }
         else {
+            meta_t *arr_meta = &arr_exp->meta;
+
             if (!is_integer_meta(arr_meta))
                 RETURN(ERROR_INVALID_SIZE_TYPE, &arr_exp->pos, META_NAME(arr_meta));
 
@@ -65,65 +66,38 @@ id_var_check(check_t *check, ast_id_t *id)
     }
 
     if (init_exp != NULL) {
+        /* TODO: named initializer */
         meta_t *init_meta = &init_exp->meta;
 
-        CHECK(check_exp(check, init_exp));
+        if (arr_exp == NULL) {
+            CHECK(check_exp(check, init_exp));
 
-        if (is_tuple_meta(init_meta)) {
-            ast_id_t *type_id = type_exp->id;
-            array_t *elem_metas = init_meta->u_tup.metas;
-            meta_t *elem_meta;
+            if (is_tuple_meta(init_meta) &&
+                !is_map_meta(type_meta) && !is_struct_meta(type_meta))
+                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
+            CHECK(meta_cmp(type_meta, init_meta));
+        }
+        else {
+            array_t *elem_metas;
+
+            CHECK(check_exp(check, init_exp));
+
+            if (!is_tuple_meta(init_meta))
+                RETURN(ERROR_MISSING_ARR_INIT, &init_exp->pos);
+
+            if (type_exp->id != NULL && 
+                !is_struct_meta(type_meta) && !is_map_meta(type_meta))
+                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+
+            elem_metas = init_meta->u_tup.metas;
             ASSERT(array_size(elem_metas) > 0);
 
-            if (type_id == NULL) {
-                /* initializer of primitive array */
-                ASSERT1(is_primitive_meta(type_meta), type_meta->type);
-                ASSERT1(array_size(elem_metas) == 1, array_size(elem_metas));
+            if (arr_size > 0 && arr_size != array_size(elem_metas))
+                RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos, arr_size, 
+                       array_size(elem_metas));
 
-                elem_meta = array_item(elem_metas, 0, meta_t);
-                ASSERT1(is_tuple_meta(elem_meta), elem_meta->type);
-
-                elem_metas = elem_meta->u_tup.metas;
-
-                if (arr_size > 0 && arr_size != array_size(elem_metas))
-                    RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos,
-                           arr_size, array_size(elem_metas));
-
-                CHECK(meta_cmp_array(type_meta, elem_metas));
-            }
-            else {
-                if (is_array_meta(&id->meta)) {
-                    /* initializer for struct array */
-                    if (!is_struct_id(type_id))
-                        /* can be a contract or map */
-                        RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-
-                    ASSERT1(is_struct_meta(type_meta), type_meta->type);
-
-                    if (arr_size > 0 && arr_size != array_size(elem_metas))
-                        RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos,
-                               arr_size, array_size(elem_metas));
-
-                    CHECK(meta_cmp_array(type_meta, elem_metas));
-                }
-                else if (is_map_meta(type_meta)) {
-                    /* initializer for map */
-                    RETURN(ERROR_NOT_SUPPORTED, &init_exp->pos);
-                }
-                else {
-                    /* initializer for struct */
-                    ASSERT1(is_struct_id(type_id), type_id->kind);
-                    ASSERT1(array_size(elem_metas) == 1, array_size(elem_metas));
-
-                    CHECK(meta_cmp_array(type_meta, elem_metas));
-                }
-            }
-        }
-        else if (!meta_equals(type_meta, init_meta)) {
-            /* single value assignment */
-            RETURN(ERROR_MISMATCHED_TYPE, &init_exp->pos,
-                   META_NAME(type_meta), META_NAME(init_meta));
+            CHECK(meta_cmp_array(type_meta, elem_metas));
         }
     }
 

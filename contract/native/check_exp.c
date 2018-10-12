@@ -91,6 +91,8 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
 
+        id->is_used = true;
+
         exp->id = id;
         exp->meta = id->meta;
     }

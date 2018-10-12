@@ -20,8 +20,6 @@
 extern int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 
-static bool is_tuple_of_tuple_exp(ast_exp_t *exp);
-
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
@@ -164,7 +162,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      declarator
 %type <array>   var_init_list
 %type <exp>     initializer
-%type <array>   init_list
+%type <array>   elem_list
 %type <id>      compound
 %type <id>      struct
 %type <array>   field_list
@@ -315,25 +313,16 @@ var_init_decl:
         int i;
 
         if (array_size($2) != array_size($4)) {
-            ERROR(ERROR_MISMATCHED_COUNT, &@4, array_size($2), array_size($4));
+            ERROR(ERROR_MISMATCHED_INIT_CNT, &@4, array_size($2), array_size($4));
         }
         else {
             for (i = 0; i < array_size($2); i++) {
                 ast_id_t *id = array_item($2, i, ast_id_t);
-                ast_exp_t *exp = array_item($4, i, ast_exp_t);
 
                 ASSERT1(is_var_id(id), id->kind);
+
                 id->u_var.type_exp = $1;
-
-                if (is_tuple_exp(exp) && !is_tuple_of_tuple_exp(exp)) {
-                    ast_exp_t *tup_exp = exp_tuple_new(NULL, &exp->pos);
-
-                    exp_add_last(tup_exp->u_tup.exps, exp);
-                    id->u_var.init_exp = tup_exp;
-                }
-                else {
-                    id->u_var.init_exp = exp;
-                }
+                id->u_var.init_exp = array_item($4, i, ast_exp_t);
             }
         }
         $$ = $2;
@@ -441,23 +430,23 @@ var_init_list:
 
 initializer:
     exp_sql
-|   '{' init_list '}'
+|   '{' elem_list '}'
     {
         $$ = exp_tuple_new($2, &@$);
     }
-|   '{' init_list ',' '}'
+|   '{' elem_list ',' '}'
     {
         $$ = exp_tuple_new($2, &@$);
     }
 ;
 
-init_list:
+elem_list:
     initializer
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   init_list ',' initializer
+|   elem_list ',' initializer
     {
         $$ = $1;
         exp_add_last($$, $3);
@@ -1124,22 +1113,6 @@ identifier:
 ;
 
 %%
-
-static bool
-is_tuple_of_tuple_exp(ast_exp_t *tup_exp)
-{
-    int i;
-    array_t *elem_exps = tup_exp->u_tup.exps;
-
-    for (i = 0; i < array_size(elem_exps); i++) {
-        ast_exp_t *elem_exp = array_item(elem_exps, i, ast_exp_t);
-
-        if (!is_tuple_exp(elem_exp))
-            return false;
-    }
-
-    return true;
-}
 
 static void
 yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)

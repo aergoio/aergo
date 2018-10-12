@@ -52,10 +52,16 @@ contract test {
     int v4[1], v5[2] = { 1 }, { 2, 3 } ;
 }
 
-@test(missing_initializer)
-@error(ERROR_MISSING_SIZE)
+@test(missing_size)
+@error(ERROR_MISSING_ARR_SIZE)
 contract test {
     int i[];
+}
+
+@test(invalid_initializer)
+@error(ERROR_NOT_ALLOWED_INIT)
+contract test {
+    int i = { 1, 2 };
 }
 
 @test(mismatched_element_type)
@@ -67,7 +73,7 @@ contract test {
 @test(mismatched_element_count)
 @error(ERROR_MISMATCHED_ELEM_CNT)
 contract test {
-    int i[3] = { 1, 2 };
+    int i[1] = { 1, 2 };
 }
 
 @test(struct_initializer)
@@ -77,32 +83,29 @@ contract test {
         int b;
         string c;
     }
-    /*
     s1 v1 = { 1, 0x01, "b" };
     s1 v2[2] = { { 1, 0x01, "a" }, { 2, 0x02, "b" } };
-    s1 v3[1], v4[1] = { 1, 0x01, "a" }, { 2, 0x02, "b" };
-    */
+    s1 v3[1], v4[1] = { { 1, 0x01, "a" } }, { { 2, 0x02, "b" } };
 
     struct s2 {
         int x;
         s1 y;
     }
-    /*
     s2 v5 = { 1, { 1, 1, "1" } };
     s2 v6[2] = { { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } } };
-    s2 v7[1], v8[1] = { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } };
-    */
+    s2 v7[1], v8[1] = { { 1, { 1, 1, "1" } } }, { { 2, { 2, 2, "2" } } };
 
     struct s3 {
-        s1 i;
+        s1 x;
     }
     s3 v9 = { { 9, 9, "v9" } };
-    s3 v10[1] = { { 10, 10, "v10" } };
-    s3 v11[2] = { { 11, 11, "v11[0]" }, { 11, 11, "v11[1]" } };
+    s3 v10[1] = { { { 10, 10, "v10" } } };
+    s3 v11[2] = { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 }
 
 @test(map_initializer)
 contract test {
     map(int, string) m1 = new map();
     map(int, string) m2 = new map(10);
+    //map(int, string) m3 = { { 1, "value1" } };
 }
