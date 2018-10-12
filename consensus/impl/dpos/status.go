@@ -41,6 +41,7 @@ type pLibStatus struct {
 	genesisInfo      *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
+	undo             *list.List
 	plib             map[string][]*blockInfo // BP-wise proposed LIB map
 }
 
@@ -48,6 +49,7 @@ func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 	return &pLibStatus{
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
+		undo:             list.New(),
 		plib:             make(map[string][]*blockInfo),
 	}
 }
@@ -123,25 +125,24 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 }
 
 func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
-
 	var (
-		prev *list.Element
-		del  = false
-		e    = pls.confirms.Back()
-		cr   = cInfo(e).bInfo().ConfirmRange
+		prev   *list.Element
+		toUndo = false
+		e      = pls.confirms.Back()
+		cr     = cInfo(e).bInfo().ConfirmRange
 	)
 
 	for e != nil && cr > 0 {
 		prev = e.Prev()
 		cr--
 
-		if !del {
+		if !toUndo {
 			c := cInfo(e)
 			c.confirmsLeft--
 			if c.confirmsLeft == 0 {
 				// proposed LIB info to return
 				bi = c.bInfo()
-				del = true
+				toUndo = true
 			}
 		}
 
@@ -149,14 +150,41 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 		// a block to be finalized (c.confirmsLeft == 0). They are not
 		// necessary any more, since all the blocks before a finalized block
 		// are also final.
-		if del {
-			pls.confirms.Remove(e)
+		if toUndo {
+			pls.moveToUndo(e)
 		}
 
 		e = prev
 	}
 
 	return
+}
+
+func (pls *pLibStatus) moveToUndo(e *list.Element) {
+	pls.confirms.Remove(e)
+	pls.undo.PushFront(e.Value)
+}
+
+func (pls *pLibStatus) gcUndo(lib *blockInfo) {
+	removeIf(pls.undo,
+		func(e *list.Element) bool {
+			return cInfo(e).bInfo().BlockNo <= lib.BlockNo
+		})
+}
+
+type pridicate func(e *list.Element) bool
+
+func removeIf(l *list.List, p pridicate) {
+	e := l.Front()
+	for e != nil {
+		next := e.Next()
+
+		if p(e) {
+			l.Remove(e)
+		}
+
+		e = next
+	}
 }
 
 func (c *confirmInfo) bInfo() *blockInfo {
@@ -275,9 +303,12 @@ func (s *Status) UpdateStatus(block *types.Block) {
 
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.lib = lib
+	s.pls.gcUndo(lib)
+
 	logger.Debug().
 		Str("block hash", s.lib.BlockHash).
 		Uint64("block no", s.lib.BlockNo).
+		Int("undo len", s.pls.undo.Len()).
 		Msg("last irreversible block (BFT) updated")
 }
 
