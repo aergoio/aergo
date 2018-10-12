@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
 
@@ -14,7 +15,7 @@ func TestGenerateAddress(t *testing.T) {
 			t.Fatal("could not create private key")
 		}
 		address := GenerateAddress(&key.PublicKey)
-		if len(address) != addressLength {
+		if len(address) != types.AddressLength {
 			t.Errorf("wrong address length : %d", len(address))
 		}
 

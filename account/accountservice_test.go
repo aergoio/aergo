@@ -1,10 +1,10 @@
 package account
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"testing"
-	"bytes"
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
@@ -20,8 +20,6 @@ var (
 	as             *AccountService
 	conf           *config.Config
 )
-
-const AddressLength = 33
 
 func initTest() {
 	serverCtx := config.NewServerContext("", "")
@@ -75,7 +73,7 @@ func TestNewAccountAndUnlockLock(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to create account:%s", err)
 		}
-		if len(account.Address) != AddressLength {
+		if len(account.Address) != types.AddressLength {
 			t.Errorf("invalid account len:%d", len(account.Address))
 		}
 		testaccounts = append(testaccounts, account)
@@ -107,7 +105,7 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to create account:%s", err)
 		}
-		if len(account.Address) != AddressLength {
+		if len(account.Address) != types.AddressLength {
 			t.Errorf("invalid account len:%d", len(account.Address))
 		}
 		testaccounts = append(testaccounts, account)
@@ -185,7 +183,7 @@ func TestVerfiyFail(t *testing.T) {
 func TestBase58CheckEncoding(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	addr := []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33}
+	addr := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}
 
 	encoded := types.EncodeAddress(addr)
 	expected := "AmJaNDXoPbBRn9XHh9onKbDKuAzj88n5Bzt7KniYA78qUEc5EwBd"

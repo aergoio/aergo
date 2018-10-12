@@ -31,7 +31,7 @@ func TestCreateKey(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
-		if len(addr) != addressLength {
+		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
 	}
@@ -47,7 +47,7 @@ func TestCreateKeyLongPass(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
-		if len(addr) != addressLength {
+		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
 	}
@@ -63,7 +63,7 @@ func TestExportKey(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
-		if len(addr) != addressLength {
+		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
 		exported, err := ks.ExportKey(addr, pass)
@@ -86,14 +86,14 @@ func TestSignTx(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
-		if len(addr) != addressLength {
+		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
 		unlocked, err := ks.Unlock(addr, pass)
 		if err != nil {
 			t.Errorf("could not unlock address: %s", err.Error())
 		}
-		if len(unlocked) != addressLength {
+		if len(unlocked) != types.AddressLength {
 			t.Errorf("invalid unlock address : length = %d", len(unlocked))
 		}
 		tx := &types.Tx{Body: &types.TxBody{Account: addr}}
@@ -117,7 +117,7 @@ func TestSign(t *testing.T) {
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
-		if len(addr) != addressLength {
+		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
 		hash := []byte(pass)
