@@ -58,16 +58,22 @@ contract test {
     //int v6[2][2] = { { 1, 1 }, { 2, 2 } };
 }
 
-@test(missing_size)
+@test(missing_array_size)
 @error(ERROR_MISSING_ARR_SIZE)
 contract test {
     int i[];
 }
 
-@test(invalid_initializer)
+@test(invalid_array_initializer)
 @error(ERROR_NOT_ALLOWED_INIT)
 contract test {
     int i = { 1, 2 };
+}
+
+@test(invalid_array_brace)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int i[] = { { 1, 2, 3 } };
 }
 
 @test(mismatched_element_type)
@@ -76,10 +82,16 @@ contract test {
     int i[] = { 1, 2, "3" };
 }
 
-@test(mismatched_element_count)
+@test(excess_element_count)
 @error(ERROR_MISMATCHED_ELEM_CNT)
 contract test {
     int i[1] = { 1, 2 };
+}
+
+@test(shortage_element_count)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    int i[2] = { 1 };
 }
 
 @test(struct_initializer)
@@ -98,6 +110,36 @@ contract test {
     }
     s2 v4 = { 1, { 1, 1, "1" } };
     s2 v5, v6 = { 1, { 1, 0x01, "a" } }, { 2, { 2, 0x02, "b" } };
+}
+
+@test(mismatched_field_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    struct s1 {
+        int a;
+        string b;
+    }
+    s1 v1 = { "a", "b" };
+}
+
+@test(excess_field_count)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    struct s1 {
+        int a;
+        string b;
+    }
+    s1 v1 = { 1, "b", "c" };
+}
+
+@test(shortage_field_count)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    struct s1 {
+        int a;
+        string b;
+    }
+    s1 v1 = { 1, "b", "c" };
 }
 
 @test(struct_array_initializer)

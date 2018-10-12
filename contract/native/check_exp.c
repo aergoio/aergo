@@ -150,17 +150,9 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 
     exp->id = id_exp->id;
 
-    if (exp->u_arr.idx_exp != NULL) {
-        ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        meta_t *param_meta = &idx_exp->meta;
-
-        CHECK(check_exp(check, idx_exp));
-
+    if (exp->u_arr.idx_exp != NULL)
         // TODO: restriction of array size
-        if (!is_untyped_meta(param_meta))
-            RETURN(ERROR_NOT_ALLOWED_TYPE, &idx_exp->pos,
-                   META_NAME(param_meta));
-    }
+        CHECK(check_exp(check, exp->u_arr.idx_exp));
 
     exp->meta = *id_meta;
 

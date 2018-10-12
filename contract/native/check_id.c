@@ -41,7 +41,7 @@ id_var_check(check_t *check, ast_id_t *id)
     init_exp = id->u_var.init_exp;
 
     if (arr_exp != NULL) {
-        /* TODO: multi-dimensional array */
+        /* XXX: multi-dimensional array */
         CHECK(check_exp(check, arr_exp));
 
         id->meta.is_array = true;
@@ -77,6 +77,7 @@ id_var_check(check_t *check, ast_id_t *id)
                 !is_map_meta(type_meta) && !is_struct_meta(type_meta))
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
+            /* XXX: need to check value overflow */
             if (is_map_meta(type_meta))
                 CHECK(meta_cmp_array(type_meta, init_meta->u_tup.metas));
             else
@@ -101,6 +102,7 @@ id_var_check(check_t *check, ast_id_t *id)
                 RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos, arr_size,
                        array_size(elem_metas));
 
+            /* XXX: need to check value overflow */
             if (is_map_meta(type_meta)) {
                 int i;
 
