@@ -288,8 +288,8 @@ contract_body:
 ;
 
 variable:
-    var_decl ';'                { $$ = $1; }
-|   var_init_decl ';'           { $$ = $1; }
+    var_decl ';'
+|   var_init_decl ';'
 |   var_type error ';'          { $$ = NULL; }
 ;
 
@@ -332,9 +332,6 @@ var_init_decl:
 
 var_type:
     var_spec
-    {
-        $$ = $1;
-    }
 |   K_CONST var_spec
     {
         $$ = $2;
@@ -470,9 +467,6 @@ struct:
 
 field_list:
     variable
-    {
-        $$ = $1;
-    }
 |   field_list variable
     {
         $$ = $1;
