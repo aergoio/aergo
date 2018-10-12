@@ -91,35 +91,32 @@ func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
 
 func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 	var (
-		end        *list.Element
 		beg        = pls.confirms.Back()
+		end        *list.Element
+		confirmLow = cInfo(beg).BlockNo
 		targetHash = block.ID()
 	)
 
 	// Check if block is a valid rollback target.
 	for e := beg; e != nil; e = e.Prev() {
 		c := cInfo(e)
-		if c.bInfo().BlockHash == targetHash {
+		if min := c.min(); min < confirmLow {
+			confirmLow = min
+		}
+
+		if c.BlockHash == targetHash {
 			end = e
 			break
 		}
 	}
 
 	if end == nil {
-		return fmt.Errorf("invalid rollback target: block hash %v, no %v",
+		return fmt.Errorf("not in the main chain: block hash %v, no %v",
 			targetHash, block.BlockNo())
 	}
 
-	// * Rollback upto the target block: (1) Remove the confirmInfos
-	//   corresponding to the disconnected blocks. (2) Some existing pre-LIBs
-	//   may become normal blocks by (1).  - The confirmInfos associated with
-	//   those must be restored.  - The related pre-LIB map entries must be
-	//   also recovered to the original.
-	//
-	// * For LIB status recovery, the informations having to be saved &
-	//   restored at a boot time are as follows: (1) LIB itself and (2) pre-LIB
-	//   map including the UNDO blockInfos. (confirmInfos can be reconstructed
-	//   from the block data.
+	// Restore the confirm infos in the rollback range by using the undo list.
+	pls.restoreConfirms(confirmLow)
 
 	return nil
 }
@@ -129,7 +126,7 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 		prev   *list.Element
 		toUndo = false
 		e      = pls.confirms.Back()
-		cr     = cInfo(e).bInfo().ConfirmRange
+		cr     = cInfo(e).ConfirmRange
 	)
 
 	for e != nil && cr > 0 {
@@ -146,10 +143,10 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 			}
 		}
 
-		// Delete all the previous elements including the one corresponding to
-		// a block to be finalized (c.confirmsLeft == 0). They are not
-		// necessary any more, since all the blocks before a finalized block
-		// are also final.
+		// Move all the previous elements including the one corresponding to a
+		// block to be finalized (c.confirmsLeft == 0). Some of them may be
+		// restored later as needed for rollback, while others will be removed
+		// if LIB is determined.
 		if toUndo {
 			pls.moveToUndo(e)
 		}
@@ -161,28 +158,48 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 }
 
 func (pls *pLibStatus) moveToUndo(e *list.Element) {
-	pls.confirms.Remove(e)
-	pls.undo.PushFront(e.Value)
+	moveElem(e, pls.confirms, pls.undo)
+}
+
+func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
+	forEach(pls.undo,
+		func(e *list.Element) {
+			if cInfo(e).BlockNo >= confirmLow {
+				moveElem(e, pls.undo, pls.confirms)
+			}
+		},
+	)
+}
+
+func moveElem(e *list.Element, src *list.List, dst *list.List) {
+	src.Remove(e)
+	dst.PushFront(e.Value)
 }
 
 func (pls *pLibStatus) gcUndo(lib *blockInfo) {
 	removeIf(pls.undo,
 		func(e *list.Element) bool {
-			return cInfo(e).bInfo().BlockNo <= lib.BlockNo
+			return cInfo(e).BlockNo <= lib.BlockNo
 		})
 }
 
 type pridicate func(e *list.Element) bool
 
 func removeIf(l *list.List, p pridicate) {
+	forEach(l,
+		func(e *list.Element) {
+			if p(e) {
+				l.Remove(e)
+			}
+		},
+	)
+}
+
+func forEach(l *list.List, f func(e *list.Element)) {
 	e := l.Front()
 	for e != nil {
 		next := e.Next()
-
-		if p(e) {
-			l.Remove(e)
-		}
-
+		f(e)
 		e = next
 	}
 }
@@ -231,6 +248,10 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 		blockInfo:    newBlockInfo(block),
 		confirmsLeft: confirmsRequired,
 	}
+}
+
+func (c confirmInfo) min() uint64 {
+	return c.BlockNo - c.ConfirmRange + 1
 }
 
 type blockInfo struct {
