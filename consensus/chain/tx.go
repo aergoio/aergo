@@ -34,36 +34,30 @@ func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
 
 // TxOp is an interface used by GatherTXs for apply some transaction related operation.
 type TxOp interface {
-	Apply(tx *types.Tx) (*state.BlockState, error)
+	Apply(bState *state.BlockState, tx *types.Tx) error
 }
 
 // TxOpFn is the type of arguments for CompositeTxDo.
-type TxOpFn func(tx *types.Tx) (*state.BlockState, error)
+type TxOpFn func(bState *state.BlockState, tx *types.Tx) error
 
 // Apply applies f to tx.
-func (f TxOpFn) Apply(tx *types.Tx) (*state.BlockState, error) {
-	return f(tx)
+func (f TxOpFn) Apply(bState *state.BlockState, tx *types.Tx) error {
+	return f(bState, tx)
 }
 
 // NewCompTxOp returns a function which applies each function in fn.
 func NewCompTxOp(fn ...TxOp) TxOp {
-	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
-		var blockState *state.BlockState
+	return TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 		for _, f := range fn {
-			var curState *state.BlockState
 			var err error
-			if curState, err = f.Apply(tx); err != nil {
-				return blockState, err
-			}
-			// Maintain the BlockState resulting from each tx operation.
-			if curState != nil {
-				blockState = curState
+			if err = f.Apply(bState, tx); err != nil {
+				return err
 			}
 		}
 
 		// If TxOp executes tx, it has a resulting BlockState. The final
 		// BlockState must be sent to the chain service receiver.
-		return blockState, nil
+		return nil
 	})
 }
 
@@ -71,17 +65,17 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	// Caution: the closure below captures the local variable 'size.' Generate
 	// it whenever needed. Don't reuse it!
 	size := 0
-	return TxOpFn(func(tx *types.Tx) (*state.BlockState, error) {
+	return TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
 		if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
-			return nil, errBlockSizeLimit
+			return errBlockSizeLimit
 		}
-		return nil, nil
+		return nil
 	})
 }
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, *state.BlockState, error) {
+func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, error) {
 	var (
 		nCollected int
 		nCand      int
@@ -92,7 +86,7 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	txIn := FetchTXs(hs)
 	nCand = len(txIn)
 	if nCand == 0 {
-		return txIn, nil, nil
+		return txIn, nil
 	}
 	txRes := make([]*types.Tx, 0, nCand)
 
@@ -104,12 +98,9 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 	}()
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
-	var blockState *state.BlockState
+
 	for _, tx := range txIn {
-		curState, err := op.Apply(tx)
-		if curState != nil {
-			blockState = curState
-		}
+		err := op.Apply(bState, tx)
 
 		//don't include tx that error is occured
 		if e, ok := err.(ErrTimeout); ok {
@@ -131,5 +122,11 @@ func GatherTXs(hs component.ICompSyncRequester, txOp TxOp, maxBlockBodySize uint
 
 	nCollected = len(txRes)
 
-	return txRes, blockState, nil
+	if bState != nil {
+		if err := bState.Update(); err != nil {
+			return nil, err
+		}
+	}
+
+	return txRes, nil
 }

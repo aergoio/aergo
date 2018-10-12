@@ -104,7 +104,7 @@ func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
 // SetStateDB sets sdb to the corresponding field of DPoS. This method is
 // called only once during the boot sequence.
 func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
-	dpos.bf.setStateDB(sdb)
+	dpos.bf.sdb = sdb
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction

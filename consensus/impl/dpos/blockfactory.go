@@ -12,6 +12,7 @@ import (
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -25,29 +26,19 @@ const (
 )
 
 type txExec struct {
-	sdb        *state.ChainStateDB
-	blockState *state.BlockState
-	execTx     bc.TxExecFn
+	execTx bc.TxExecFn
 }
 
-func newTxExec(bestBlock *types.Block, sdb *state.ChainStateDB, ts int64) chain.TxOp {
-	blockNo := bestBlock.BlockNo() + 1
-	// blockInfo := state.NewBlockInfo(types.BlockID{}, types.HashID{})
-
-	bState := state.NewBlockState(types.BlockID{},
-		sdb.OpenNewStateDB(sdb.GetRoot()), contract.TempReceiptDb.NewTx())
-
+func newTxExec(blockNo types.BlockNo, ts int64) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		sdb:        sdb,
-		blockState: bState,
-		execTx:     bc.NewTxExecutor(sdb, bState, blockNo, ts),
+		execTx: bc.NewTxExecutor(blockNo, ts),
 	}
 }
 
-func (te *txExec) Apply(tx *types.Tx) (*state.BlockState, error) {
-	err := te.execTx(tx)
-	return te.blockState, err
+func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+	err := te.execTx(bState, tx)
+	return err
 }
 
 // BlockFactory is the main data structure for DPoS block factory.
@@ -79,8 +70,8 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
-		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
-			return nil, bf.checkBpTimeout()
+		chain.TxOpFn(func(bState *state.BlockState, txIn *types.Tx) error {
+			return bf.checkBpTimeout()
 		}),
 	)
 
@@ -88,7 +79,7 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 }
 
 func (bf *BlockFactory) setStateDB(sdb *state.ChainStateDB) {
-	bf.sdb = sdb
+	bf.sdb = sdb.Clone()
 }
 
 // Start run a DPoS block factory service.
@@ -191,15 +182,36 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
+func (bf *BlockFactory) newBlockState(bestBlock *types.Block) (*state.BlockState, error) {
+	sdb := bf.sdb
+
+	root, err := sdb.GetStateRoot(bestBlock.GetHash())
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to make new tx executor")
+		return nil, err
+	}
+	logger.Error().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).Str("root", enc.ToString(root)).Msg("get state root")
+
+	bState := state.NewBlockState(types.BlockID{},
+		sdb.OpenNewStateDB(root), contract.TempReceiptDb.NewTx())
+
+	return bState, nil
+}
+
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
 	ts := bpi.slot.UnixNano()
 
+	blockState, err := bf.newBlockState(bpi.bestBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
-		newTxExec(bpi.bestBlock, bf.sdb, ts),
+		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts),
 	)
 
-	block, blockState, err := chain.GenerateBlock(bf, bpi.bestBlock, txOp, ts)
+	block, err := chain.GenerateBlock(bf, bpi.bestBlock, blockState, txOp, ts)
 	if err != nil {
 		return nil, nil, err
 	}

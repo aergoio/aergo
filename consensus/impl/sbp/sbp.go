@@ -48,12 +48,12 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(txIn *types.Tx) (*state.BlockState, error) {
+		chain.TxOpFn(func(bState *state.BlockState, txIn *types.Tx) error {
 			select {
 			case <-s.quit:
-				return nil, chain.ErrQuit
+				return chain.ErrQuit
 			default:
-				return nil, nil
+				return nil
 			}
 		}),
 	)
@@ -122,7 +122,7 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, _, err := chain.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
+				block, err := chain.GenerateBlock(s, prevBlock, nil, s.txOp, time.Now().UnixNano())
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

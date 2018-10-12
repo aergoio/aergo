@@ -63,10 +63,10 @@ func MaxBlockBodySize() uint32 {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, *state.BlockState, error) {
-	txs, blockState, err := GatherTXs(hs, txOp, MaxBlockBodySize())
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64) (*types.Block, error) {
+	txs, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	block := types.NewBlock(prevBlock, txs, ts)
@@ -78,7 +78,7 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp
 			Msg("BF: tx root hash")
 	}
 
-	return block, blockState, nil
+	return block, nil
 }
 
 // ConnectBlock send an AddBlock request to the chain service.

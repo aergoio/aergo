@@ -317,7 +317,7 @@ func (cs *ChainService) CountTxsInChain() int {
 	return txCount
 }
 
-type TxExecFn func(tx *types.Tx) error
+type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
 
 type blockExecutor struct {
 	*state.BlockState
@@ -347,7 +347,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			contract.TempReceiptDb.NewTx(),
 		)
 
-		exec = NewTxExecutor(cs.sdb, bState, block.BlockNo(), block.GetHeader().GetTimestamp())
+		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp())
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
@@ -367,10 +367,15 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(sdb *state.ChainStateDB, bState *state.BlockState, blockNo types.BlockNo, ts int64) TxExecFn {
-	return func(tx *types.Tx) error {
+func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
+	return func(bState *state.BlockState, tx *types.Tx) error {
+		if bState == nil {
+			logger.Error().Msg("bstate is nil in txexec")
+			return ErrGatherChain
+		}
 		snapshot := bState.Snapshot()
-		err := executeTx(sdb, bState, tx, blockNo, ts)
+
+		err := executeTx(bState, tx, blockNo, ts)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -384,15 +389,19 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		for _, tx := range e.txs {
-			if err := e.execTx(tx); err != nil {
+			if err := e.execTx(e.BlockState, tx); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
 		}
+
+		if err := e.Update(); err != nil {
+			return err
+		}
 	}
 
-	err := contract.SaveRecoveryPoint(e.sdb, e.BlockState)
+	err := contract.SaveRecoveryPoint(e.BlockState)
 	if err != nil {
 		return err
 	}
@@ -407,12 +416,16 @@ func (e *blockExecutor) execute() error {
 func (e *blockExecutor) commit() error {
 	e.CommitReceipt()
 
-	var err error
-	if err = e.BlockState.Update(); err != nil {
+	if err := e.BlockState.Commit(); err != nil {
 		return err
 	}
 
-	return e.BlockState.Commit()
+	//TODO: after implementing BlockRootHash, remove statedb.lastest
+	if err := e.sdb.UpdateRoot(e.BlockState); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //TODO Refactoring: batch
@@ -439,7 +452,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
 	senderState, err := bs.GetAccountState(senderID)
@@ -496,7 +509,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 				return err
 			}
 
-			bcCtx := contract.NewContext(sdb, bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
+			bcCtx := contract.NewContext(bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
 				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
 				types.EncodeAddress(recipient), 0, nil, sqlTx.GetHandle())
 
@@ -522,7 +535,7 @@ func executeTx(sdb *state.ChainStateDB, bs *state.BlockState, tx *types.Tx, bloc
 			}
 		}
 	case types.TxType_GOVERNANCE:
-		err = executeGovernanceTx(sdb.GetStateDB(), txBody, &senderChange, &receiverChange, blockNo)
+		err = executeGovernanceTx(&bs.StateDB, txBody, &senderChange, &receiverChange, blockNo)
 	default:
 		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
 	}

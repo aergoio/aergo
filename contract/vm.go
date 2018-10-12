@@ -52,7 +52,6 @@ type CallState struct {
 type StateSet struct {
 	contract  *state.ContractState
 	bs        *state.BlockState
-	sdb       *state.ChainStateDB
 	callState map[string]*CallState
 	rootState *StateSet
 	refCnt    uint
@@ -79,13 +78,13 @@ func init() {
 	contractMap.init()
 }
 
-func NewContext(sdb *state.ChainStateDB, blockState *state.BlockState, senderState *types.State,
+func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
 	contractId string, query int, root *StateSet, dbHandle *C.sqlite3) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
-	stateSet := &StateSet{contract: contractState, bs: blockState, sdb: sdb, rootState: root}
+	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
 	if root == nil {
 		stateSet.callState = make(map[string]*CallState)
 		stateSet.callState[contractId] = &CallState{ctrState: contractState, curState: contractState.State}
@@ -383,7 +382,7 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	defer tx.Rollback()
 
-	bcCtx := NewContext(nil, nil, nil, contractState, "", "",
+	bcCtx := NewContext(nil, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
 		1, nil, tx.GetHandle())
 
@@ -598,7 +597,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		return -1
 	}
 	sqlTx.Savepoint()
-	newBcCtx := NewContext(nil, nil, nil, callState.ctrState,
+	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
 		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle())
 	ce := newExecutor(callee, newBcCtx)
