@@ -41,6 +41,7 @@ id_var_check(check_t *check, ast_id_t *id)
     init_exp = id->u_var.init_exp;
 
     if (arr_exp != NULL) {
+        /* TODO: multi-dimensional array */
         CHECK(check_exp(check, arr_exp));
 
         id->meta.is_array = true;
@@ -76,7 +77,10 @@ id_var_check(check_t *check, ast_id_t *id)
                 !is_map_meta(type_meta) && !is_struct_meta(type_meta))
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-            CHECK(meta_cmp(type_meta, init_meta));
+            if (is_map_meta(type_meta))
+                CHECK(meta_cmp_array(type_meta, init_meta->u_tup.metas));
+            else
+                CHECK(meta_cmp(type_meta, init_meta));
         }
         else {
             array_t *elem_metas;
@@ -86,7 +90,7 @@ id_var_check(check_t *check, ast_id_t *id)
             if (!is_tuple_meta(init_meta))
                 RETURN(ERROR_MISSING_ARR_INIT, &init_exp->pos);
 
-            if (type_exp->id != NULL && 
+            if (type_exp->id != NULL &&
                 !is_struct_meta(type_meta) && !is_map_meta(type_meta))
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
@@ -94,10 +98,22 @@ id_var_check(check_t *check, ast_id_t *id)
             ASSERT(array_size(elem_metas) > 0);
 
             if (arr_size > 0 && arr_size != array_size(elem_metas))
-                RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos, arr_size, 
+                RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos, arr_size,
                        array_size(elem_metas));
 
-            CHECK(meta_cmp_array(type_meta, elem_metas));
+            if (is_map_meta(type_meta)) {
+                int i;
+
+                for (i = 0; i < array_size(elem_metas); i++) {
+                    meta_t *map_meta = array_item(elem_metas, i, meta_t);
+
+                    ASSERT1(is_tuple_meta(map_meta), map_meta->type);
+                    CHECK(meta_cmp_array(type_meta, map_meta->u_tup.metas));
+                }
+            }
+            else{
+                CHECK(meta_cmp_array(type_meta, elem_metas));
+            }
         }
     }
 

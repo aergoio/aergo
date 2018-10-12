@@ -23,8 +23,12 @@ contract test {
     int i = 1.0;
 }
 
-@test(string_value)
+@test(character_value)
 contract test {
+    // byte b1 = 1;
+    // byte b2 = 0x02;
+    // byte b3 = "a";
+
     string v1 = "";
     string v2 = "literal";
     string v3 = "literal \"include quotation\"";
@@ -50,6 +54,8 @@ contract test {
     int v2[3] = { 1, 2, 3, };
     string v3[3] = { "a", "b", "c" };
     int v4[1], v5[2] = { 1 }, { 2, 3 } ;
+
+    //int v6[2][2] = { { 1, 1 }, { 2, 2 } };
 }
 
 @test(missing_size)
@@ -83,7 +89,24 @@ contract test {
         int b;
         string c;
     }
-    s1 v1 = { 1, 0x01, "b" };
+    s1 v1 = { 1, 0x01, "a" };
+    s1 v2, v3 = { 1, 0x01, "a" }, { 2, 0x02, "b" };
+
+    struct s2 {
+        int x;
+        s1 y;
+    }
+    s2 v4 = { 1, { 1, 1, "1" } };
+    s2 v5, v6 = { 1, { 1, 0x01, "a" } }, { 2, { 2, 0x02, "b" } };
+}
+
+@test(struct_array_initializer)
+contract test {
+    struct s1 {
+        int a;
+        int b;
+        string c;
+    }
     s1 v2[2] = { { 1, 0x01, "a" }, { 2, 0x02, "b" } };
     s1 v3[1], v4[1] = { { 1, 0x01, "a" } }, { { 2, 0x02, "b" } };
 
@@ -91,21 +114,32 @@ contract test {
         int x;
         s1 y;
     }
-    s2 v5 = { 1, { 1, 1, "1" } };
     s2 v6[2] = { { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } } };
     s2 v7[1], v8[1] = { { 1, { 1, 1, "1" } } }, { { 2, { 2, 2, "2" } } };
 
     struct s3 {
         s1 x;
     }
-    s3 v9 = { { 9, 9, "v9" } };
     s3 v10[1] = { { { 10, 10, "v10" } } };
     s3 v11[2] = { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 }
+
 
 @test(map_initializer)
 contract test {
     map(int, string) m1 = new map();
     map(int, string) m2 = new map(10);
-    //map(int, string) m3 = { { 1, "value1" } };
+    map(int, string) m3 = { { 1, "value1" } };
+    map(int, string) m4 = { { 1, "value1" }, { 2, "value2" } };
+}
+
+@test(map_array_initializer)
+contract test {
+    map(int, string) m1[1] = { 
+        { { 1, "value1" } } 
+    };
+    map(int, string) m2[2] = {
+        { { 1, "value1" }, { 2, "value2" }, { 3, "value3" } },
+        { { 1, "value1" }, { 2, "value2" }, { 3, "value3" } }
+    };
 }

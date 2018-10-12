@@ -60,6 +60,7 @@ contract test {
     int v2, v3[10];
     int v4[10], v5;
     int v6[10], v7[10];
+    int v8[10][10];
 }
 
 @test(invalid_brace_position)
@@ -101,7 +102,8 @@ contract test {
         int a, b;
         string c;
     }
-    s y[10];
+    s x[10];
+    s y[10][1];
 }
 
 @test(empty_struct)
@@ -137,18 +139,20 @@ contract test {
     map(bool, bool) m12;
     map(byte, byte) m13;
     map(string, string) m14;
+    map(int, int) m15, m16;
+
     struct x {
         int a;
     }
-    map(x, x) m15;
-    map(x, map(int, int)) m16;
-    map(int, int) m17, m18;
+    map(int, x) m17;
+    map(int, map(string, string)) m18;
 }
 
 @test(map_array)
 contract test {
     map(int, int) m1[1];
     map(int, int) m2[1], m3[2];
+    map(int, int) m4[2][2];
 }
 
 @test(invalid_key_type)
