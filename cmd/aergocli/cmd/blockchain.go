@@ -26,14 +26,14 @@ var blockchainCmd = &cobra.Command{
 	Short: "Print current blockchain status",
 	Run: func(cmd *cobra.Command, args []string) {
 		msg, err := client.Blockchain(context.Background(), &aergorpc.Empty{})
-		if nil == err {
-			if printHex {
-				fmt.Println(util.ConvHexBlockchainStatus(msg))
-			} else {
-				fmt.Println(util.JSON(msg))
-			}
-		} else {
+		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		if printHex {
+			fmt.Println(util.ConvHexBlockchainStatus(msg))
+		} else {
+			fmt.Println(util.JSON(msg))
 		}
 	},
 }

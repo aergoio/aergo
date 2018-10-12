@@ -35,11 +35,13 @@ func init() {
 func execSendTX(cmd *cobra.Command, args []string) {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		fmt.Printf("Failed decode: %s\n", err.Error())
+		return
 	}
 	recipient, err := types.DecodeAddress(to)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		fmt.Printf("Failed decode: %s\n", err.Error())
+		return
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amount}}
 	msg, err := client.SendTX(context.Background(), tx)

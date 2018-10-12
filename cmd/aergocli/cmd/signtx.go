@@ -69,6 +69,7 @@ var signCmd = &cobra.Command{
 
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			addr, err := types.DecodeAddress(address)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
@@ -82,7 +83,6 @@ var signCmd = &cobra.Command{
 			tx.Hash = tx.CalculateTxHash()
 			msg = tx
 
-			ks.CloseStore()
 		}
 
 		if nil == err && msg != nil {
@@ -109,14 +109,14 @@ var verifyCmd = &cobra.Command{
 		}
 		if remote {
 			msg, err := client.VerifyTX(context.Background(), param[0])
-			if nil == err {
-				if msg.Tx != nil {
-					fmt.Println(util.TxConvBase58Addr(msg.Tx))
-				} else {
-					fmt.Println(msg.Error)
-				}
-			} else {
+			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			if msg.Tx != nil {
+				fmt.Println(util.TxConvBase58Addr(msg.Tx))
+			} else {
+				fmt.Println(msg.Error)
 			}
 		} else {
 			err := key.VerifyTx(param[0])

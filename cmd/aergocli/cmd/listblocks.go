@@ -45,7 +45,7 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 	if cmd.Flags().Changed("hash") == true {
 		blockHash, err = base58.Decode(gbhHash)
 		if err != nil {
-			fmt.Printf("decode error: %s", err.Error())
+			fmt.Printf("Failed: %s", err.Error())
 			return
 		}
 	} else if cmd.Flags().Changed("height") == false {
@@ -62,9 +62,9 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 	}
 
 	msg, err := client.ListBlockHeaders(context.Background(), uparams)
-	if nil == err {
-		fmt.Println(util.JSON(msg))
-	} else {
-		fmt.Printf("Failed: %s\n", err.Error())
+	if err != nil {
+		fmt.Printf("Failed: %s", err.Error())
+		return
 	}
+	fmt.Println(util.JSON(msg))
 }

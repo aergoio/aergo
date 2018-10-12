@@ -74,7 +74,7 @@ var newCmd = &cobra.Command{
 		} else {
 			param.Passphrase, err = getPasswd()
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				fmt.Printf("Failed get password: %s\n", err.Error())
 				return
 			}
 		}
@@ -85,21 +85,22 @@ var newCmd = &cobra.Command{
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			addr, err = ks.CreateKey(param.Passphrase)
-			if nil != err {
+			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
+				return
 			}
 			err = ks.SaveAddress(addr)
-			ks.CloseStore()
 		}
-		if nil != err {
+		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		if msg != nil {
+			fmt.Println(types.EncodeAddress(msg.GetAddress()))
 		} else {
-			if msg != nil {
-				fmt.Println(types.EncodeAddress(msg.GetAddress()))
-			} else {
-				fmt.Println(types.EncodeAddress(addr))
-			}
+			fmt.Println(types.EncodeAddress(addr))
 		}
 	},
 }
@@ -116,30 +117,30 @@ var listCmd = &cobra.Command{
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			addrs, err = ks.GetAddresses()
-			ks.CloseStore()
 		}
-		if nil == err {
-			out := fmt.Sprintf("%s", "[")
-			if msg != nil {
-				addresslist := msg.GetAccounts()
-				for _, a := range addresslist {
-					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
-				}
-				if addresslist != nil {
-					out = out[:len(out)-2]
-				}
-			} else if addrs != nil {
-				for _, a := range addrs {
-					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
-				}
+		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		out := fmt.Sprintf("%s", "[")
+		if msg != nil {
+			addresslist := msg.GetAccounts()
+			for _, a := range addresslist {
+				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
+			}
+			if addresslist != nil {
 				out = out[:len(out)-2]
 			}
-			out = fmt.Sprintf("%s%s", out, "]")
-			fmt.Println(out)
-		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+		} else if addrs != nil {
+			for _, a := range addrs {
+				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
+			}
+			out = out[:len(out)-2]
 		}
+		out = fmt.Sprintf("%s%s", out, "]")
+		fmt.Println(out)
 	},
 }
 
@@ -149,14 +150,15 @@ var lockCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		param, err := parsePersonalParam()
 		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.LockAccount(context.Background(), param)
-		if err == nil {
-			fmt.Println(types.EncodeAddress(msg.GetAddress()))
-		} else {
+		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
+			return
 		}
+		fmt.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -166,14 +168,15 @@ var unlockCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		param, err := parsePersonalParam()
 		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.UnlockAccount(context.Background(), param)
-		if nil == err {
-			fmt.Println(types.EncodeAddress(msg.GetAddress()))
-		} else {
+		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
+			return
 		}
+		fmt.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -207,23 +210,22 @@ var importCmd = &cobra.Command{
 
 		if cmd.Flags().Changed("path") == false {
 			msg, errRemote := client.ImportAccount(context.Background(), wif)
-			if nil == errRemote {
-				fmt.Println(types.EncodeAddress(msg.GetAddress()))
+			if errRemote != nil {
+				fmt.Printf("Failed: %s\n", errRemote.Error())
 				return
 			}
-			err = errRemote
+			address = msg.GetAddress()
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
-			if nil == err {
-				fmt.Println(types.EncodeAddress(address))
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			ks.CloseStore()
 		}
-		fmt.Printf("Failed to import account: %s\n", err.Error())
-
+		fmt.Println(types.EncodeAddress(address))
 	},
 }
 
@@ -233,6 +235,7 @@ var exportCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		param, err := parsePersonalParam()
 		if err != nil {
+			fmt.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		var result []byte
@@ -246,13 +249,13 @@ var exportCmd = &cobra.Command{
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
 			if err != nil {
 				fmt.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			result = wif
-			ks.CloseStore()
 		}
 		fmt.Println(types.EncodePrivKey(result))
 	},

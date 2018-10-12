@@ -30,16 +30,16 @@ func init() {
 }
 
 func execGetPeers(cmd *cobra.Command, args []string) {
-	msg2, err := client.GetPeers(context.Background(), &types.Empty{})
+	msg, err := client.GetPeers(context.Background(), &types.Empty{})
 	if err != nil {
 		fmt.Printf("Failed to get peer from server: %s\n", err.Error())
 		return
 	}
 	// address and peerid should be encoded, respectively
-	resultView := make([]map[string]string, 0, len(msg2.Peers))
-	for i, peer := range msg2.Peers {
+	resultView := make([]map[string]string, 0, len(msg.Peers))
+	for i, peer := range msg.Peers {
 		peerData := make(map[string]string)
-		peerState := types.PeerState(msg2.States[i]).String()
+		peerState := types.PeerState(msg.States[i]).String()
 		peerData["Address"] = net.IP(peer.Address).String()
 		peerData["Port"] = strconv.Itoa(int(peer.Port))
 		peerData["PeerID"] = base58.Encode(peer.PeerID)
@@ -48,11 +48,7 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "\t")
-	if nil == err {
-		encoder.Encode(resultView)
-	} else {
-		fmt.Printf("Failed: %s\n", err.Error())
-	}
+	encoder.Encode(resultView)
 }
 
 func Must(a0 string, a1 error) string {

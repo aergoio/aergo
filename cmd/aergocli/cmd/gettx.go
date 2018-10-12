@@ -32,23 +32,19 @@ func init() {
 func execGetTX(cmd *cobra.Command, args []string) {
 	txHash, err := base58.Decode(args[0])
 	if err != nil {
-		fmt.Printf("decode error: %s", err.Error())
+		fmt.Printf("Failed decode: %s", err.Error())
 		return
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
-	if nil == err {
+	if err == nil {
 		fmt.Println("Pending: ", util.TxConvBase58Addr(msg))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
-		if nil == err {
-			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
-				return
-			}
-			fmt.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
-		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+		if err != nil {
+			fmt.Printf("Failed: %s", err.Error())
+			return
 		}
+		fmt.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
 	}
 
 }
