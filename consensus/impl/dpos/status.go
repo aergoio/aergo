@@ -41,14 +41,14 @@ type pLibStatus struct {
 	genesisInfo      *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
-	plib             map[string]*blockInfo // BP-wise proposed LIB map
+	plib             map[string][]*blockInfo // BP-wise proposed LIB map
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 	return &pLibStatus{
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
-		plib:             make(map[string]*blockInfo),
+		plib:             make(map[string][]*blockInfo),
 	}
 }
 
@@ -72,14 +72,6 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 		Msg("new confirm info added")
 }
 
-func (c *confirmInfo) bInfo() *blockInfo {
-	return c.blockInfo
-}
-
-func cInfo(e *list.Element) *confirmInfo {
-	return e.Value.(*confirmInfo)
-}
-
 func (pls *pLibStatus) updateStatus() *blockInfo {
 	if bi := pls.getPreLIB(); bi != nil {
 		pls.updatePreLIB(bi.BPID, bi)
@@ -89,7 +81,7 @@ func (pls *pLibStatus) updateStatus() *blockInfo {
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
-	pls.plib[bi.BPID] = bi
+	pls.plib[bi.BPID] = append(pls.plib[bi.BPID], bi)
 	logger.Debug().Str("BP", bi.BPID).
 		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("proposed LIB map updated")
@@ -167,10 +159,18 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 	return
 }
 
+func (c *confirmInfo) bInfo() *blockInfo {
+	return c.blockInfo
+}
+
+func cInfo(e *list.Element) *confirmInfo {
+	return e.Value.(*confirmInfo)
+}
+
 func (pls *pLibStatus) calcLIB() *blockInfo {
 	libInfos := make([]*blockInfo, 0, len(pls.plib))
 	for _, l := range pls.plib {
-		libInfos = append(libInfos, l)
+		libInfos = append(libInfos, l[len(l)-1])
 	}
 
 	sort.Slice(libInfos, func(i, j int) bool {
@@ -260,10 +260,14 @@ func (s *Status) UpdateStatus(block *types.Block) {
 			Uint64("target block no", block.BlockNo()).
 			Msg("rollback LIB status")
 
+		s.pls.init()
+
 		// Block reorganized. TODO: update consensus status, correctly.
-		if err := s.pls.rollbackStatusTo(block); err != nil {
-			panic(err)
-		}
+		/*
+			if err := s.pls.rollbackStatusTo(block); err != nil {
+				panic(err)
+			}
+		*/
 	}
 
 	s.bestBlock = block
