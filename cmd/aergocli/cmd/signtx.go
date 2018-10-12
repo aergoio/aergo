@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/aergoio/aergo/account/key"
@@ -33,12 +32,12 @@ var signCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		if jsonTx == "" {
-			fmt.Printf("need to transaction json input")
+			cmd.Printf("need to transaction json input")
 			return
 		}
 		param, err := util.ParseBase58TxBody([]byte(jsonTx))
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 
@@ -46,17 +45,17 @@ var signCmd = &cobra.Command{
 		if privKey != "" {
 			rawKey, err := base58.Decode(privKey)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			tx := &types.Tx{Body: param}
 			signKey, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), rawKey)
 			err = key.SignTx(tx, signKey)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			fmt.Println(types.EncodeAddress(key.GenerateAddress(pubkey.ToECDSA())))
+			cmd.Println(types.EncodeAddress(key.GenerateAddress(pubkey.ToECDSA())))
 			msg = tx
 		} else if cmd.Flags().Changed("path") == false {
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})
@@ -72,12 +71,12 @@ var signCmd = &cobra.Command{
 			defer ks.CloseStore()
 			addr, err := types.DecodeAddress(address)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			tx.Body.Sign, err = ks.Sign(addr, pw, hash)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			tx.Hash = tx.CalculateTxHash()
@@ -86,9 +85,9 @@ var signCmd = &cobra.Command{
 		}
 
 		if nil == err && msg != nil {
-			fmt.Println(util.TxConvBase58Addr(msg))
+			cmd.Println(util.TxConvBase58Addr(msg))
 		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 		}
 	},
 }
@@ -99,32 +98,32 @@ var verifyCmd = &cobra.Command{
 	PreRun: preConnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
 		if jsonTx == "" {
-			fmt.Printf("need to transaction json input")
+			cmd.Printf("need to transaction json input")
 			return
 		}
 		param, err := util.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		if remote {
 			msg, err := client.VerifyTX(context.Background(), param[0])
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			if msg.Tx != nil {
-				fmt.Println(util.TxConvBase58Addr(msg.Tx))
+				cmd.Println(util.TxConvBase58Addr(msg.Tx))
 			} else {
-				fmt.Println(msg.Error)
+				cmd.Println(msg.Error)
 			}
 		} else {
 			err := key.VerifyTx(param[0])
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			fmt.Println(util.TxConvBase58Addr(param[0]))
+			cmd.Println(util.TxConvBase58Addr(param[0]))
 		}
 	},
 }

@@ -8,7 +8,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -32,7 +31,7 @@ func init() {
 func execGetPeers(cmd *cobra.Command, args []string) {
 	msg, err := client.GetPeers(context.Background(), &types.Empty{})
 	if err != nil {
-		fmt.Printf("Failed to get peer from server: %s\n", err.Error())
+		cmd.Printf("Failed to get peer from server: %s\n", err.Error())
 		return
 	}
 	// address and peerid should be encoded, respectively

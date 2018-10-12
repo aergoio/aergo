@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/mr-tron/base58/base58"
 
@@ -45,11 +44,11 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 	if cmd.Flags().Changed("hash") == true {
 		blockHash, err = base58.Decode(gbhHash)
 		if err != nil {
-			fmt.Printf("Failed: %s", err.Error())
+			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
 	} else if cmd.Flags().Changed("height") == false {
-		fmt.Printf("Error: required flag(s) \"hash\" or \"height\"not set")
+		cmd.Printf("Error: required flag(s) \"hash\" or \"height\"not set")
 		return
 	}
 
@@ -63,8 +62,8 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 
 	msg, err := client.ListBlockHeaders(context.Background(), uparams)
 	if err != nil {
-		fmt.Printf("Failed: %s", err.Error())
+		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-	fmt.Println(util.JSON(msg))
+	cmd.Println(util.JSON(msg))
 }

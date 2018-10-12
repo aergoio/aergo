@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -30,15 +29,15 @@ func init() {
 func execGetState(cmd *cobra.Command, args []string) {
 	param, err := types.DecodeAddress(address)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	msg, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: param})
 	if err != nil {
-		fmt.Printf("Failed: %s", err.Error())
+		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-	fmt.Printf("{account:%s, nonce:%d, balance:%d}\n",
+	cmd.Printf("{account:%s, nonce:%d, balance:%d}\n",
 		address, msg.GetNonce(), msg.GetBalance())
 }

@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/mr-tron/base58/base58"
@@ -38,7 +37,7 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				fmt.Println(util.JSON(msg))
+				cmd.Println(util.JSON(msg))
 			},
 		},
 	)

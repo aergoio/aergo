@@ -8,7 +8,6 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 
 	"github.com/mr-tron/base58/base58"
 
@@ -36,7 +35,7 @@ func init() {
 func execGetBlock(cmd *cobra.Command, args []string) {
 	fflags := cmd.Flags()
 	if fflags.Changed("number") == false && fflags.Changed("hash") == false {
-		fmt.Println("no block --hash or --number specified")
+		cmd.Println("no block --hash or --number specified")
 		return
 	}
 	var blockQuery []byte
@@ -51,15 +50,15 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 				hash = hash + "="
 				toAdd--
 			}
-			fmt.Printf("Trying to append change input to %s by appending filling char =\n", hash)
+			cmd.Printf("Trying to append change input to %s by appending filling char =\n", hash)
 		}
 		decoded, err := base58.Decode(hash)
 		if err != nil {
-			fmt.Printf("decode error: %s", err.Error())
+			cmd.Printf("decode error: %s", err.Error())
 			return
 		}
 		if len(decoded) == 0 {
-			fmt.Println("decode error:")
+			cmd.Println("decode error:")
 			return
 		}
 		blockQuery = decoded
@@ -67,8 +66,8 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 
 	msg, err := client.GetBlock(context.Background(), &aergorpc.SingleBytes{Value: blockQuery})
 	if nil == err {
-		fmt.Println(util.BlockConvBase58Addr(msg))
+		cmd.Println(util.BlockConvBase58Addr(msg))
 	} else {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 	}
 }

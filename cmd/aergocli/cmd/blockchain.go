@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -27,13 +26,13 @@ var blockchainCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		msg, err := client.Blockchain(context.Background(), &aergorpc.Empty{})
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		if printHex {
-			fmt.Println(util.ConvHexBlockchainStatus(msg))
+			cmd.Println(util.ConvHexBlockchainStatus(msg))
 		} else {
-			fmt.Println(util.JSON(msg))
+			cmd.Println(util.JSON(msg))
 		}
 	},
 }

@@ -72,9 +72,9 @@ var newCmd = &cobra.Command{
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd()
+			param.Passphrase, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed get password: %s\n", err.Error())
+				cmd.Printf("Failed get password: %s\n", err.Error())
 				return
 			}
 		}
@@ -88,19 +88,19 @@ var newCmd = &cobra.Command{
 			defer ks.CloseStore()
 			addr, err = ks.CreateKey(param.Passphrase)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			err = ks.SaveAddress(addr)
 		}
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		if msg != nil {
-			fmt.Println(types.EncodeAddress(msg.GetAddress()))
+			cmd.Println(types.EncodeAddress(msg.GetAddress()))
 		} else {
-			fmt.Println(types.EncodeAddress(addr))
+			cmd.Println(types.EncodeAddress(addr))
 		}
 	},
 }
@@ -121,7 +121,7 @@ var listCmd = &cobra.Command{
 			addrs, err = ks.GetAddresses()
 		}
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		out := fmt.Sprintf("%s", "[")
@@ -140,7 +140,7 @@ var listCmd = &cobra.Command{
 			out = out[:len(out)-2]
 		}
 		out = fmt.Sprintf("%s%s", out, "]")
-		fmt.Println(out)
+		cmd.Println(out)
 	},
 }
 
@@ -148,17 +148,17 @@ var lockCmd = &cobra.Command{
 	Use:   "lock [flags]",
 	Short: "Lock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.LockAccount(context.Background(), param)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		fmt.Println(types.EncodeAddress(msg.GetAddress()))
+		cmd.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -166,17 +166,17 @@ var unlockCmd = &cobra.Command{
 	Use:   "unlock [flags]",
 	Short: "Unlock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.UnlockAccount(context.Background(), param)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		fmt.Println(types.EncodeAddress(msg.GetAddress()))
+		cmd.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -188,16 +188,16 @@ var importCmd = &cobra.Command{
 		var address []byte
 		importBuf, err := types.DecodePrivKey(importFormat)
 		if err != nil {
-			fmt.Printf("Failed to decode input: %s\n", err.Error())
+			cmd.Printf("Failed to decode input: %s\n", err.Error())
 			return
 		}
 		wif := &types.ImportFormat{Wif: &types.SingleBytes{Value: importBuf}}
 		if pw != "" {
 			wif.Oldpass = pw
 		} else {
-			wif.Oldpass, err = getPasswd()
+			wif.Oldpass, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 		}
@@ -211,7 +211,7 @@ var importCmd = &cobra.Command{
 		if cmd.Flags().Changed("path") == false {
 			msg, errRemote := client.ImportAccount(context.Background(), wif)
 			if errRemote != nil {
-				fmt.Printf("Failed: %s\n", errRemote.Error())
+				cmd.Printf("Failed: %s\n", errRemote.Error())
 				return
 			}
 			address = msg.GetAddress()
@@ -221,11 +221,11 @@ var importCmd = &cobra.Command{
 			defer ks.CloseStore()
 			address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 		}
-		fmt.Println(types.EncodeAddress(address))
+		cmd.Println(types.EncodeAddress(address))
 	},
 }
 
@@ -233,16 +233,16 @@ var exportCmd = &cobra.Command{
 	Use:   "export [flags]",
 	Short: "Export account",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		var result []byte
 		if cmd.Flags().Changed("path") == false {
 			msg, err := client.ExportAccount(context.Background(), param)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			result = msg.Value
@@ -252,30 +252,28 @@ var exportCmd = &cobra.Command{
 			defer ks.CloseStore()
 			wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			result = wif
 		}
-		fmt.Println(types.EncodePrivKey(result))
+		cmd.Println(types.EncodePrivKey(result))
 	},
 }
 
-func parsePersonalParam() (*types.Personal, error) {
+func parsePersonalParam(cmd *cobra.Command) (*types.Personal, error) {
 	var err error
 	param := &types.Personal{Account: &types.Account{}}
 	if address != "" {
 		param.Account.Address, err = types.DecodeAddress(address)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
 			return nil, err
 		}
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd()
+			param.Passphrase, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
 				return nil, err
 			}
 		}
@@ -283,10 +281,10 @@ func parsePersonalParam() (*types.Personal, error) {
 	return param, nil
 }
 
-func getPasswd() (string, error) {
-	fmt.Print("Enter Password: ")
+func getPasswd(cmd *cobra.Command) (string, error) {
+	cmd.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
+	cmd.Println("")
 	return string(bytePassword), err
 }
 

@@ -149,7 +149,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
+		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -218,7 +218,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
+		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -231,7 +231,7 @@ func runGetABICmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(util.JSON(abi))
+	cmd.Println(util.JSON(abi))
 }
 
 func runQueryCmd(cmd *cobra.Command, args []string) {
@@ -262,5 +262,5 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(ret)
+	cmd.Println(ret)
 }

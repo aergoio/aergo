@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -32,19 +31,19 @@ func init() {
 func execGetTX(cmd *cobra.Command, args []string) {
 	txHash, err := base58.Decode(args[0])
 	if err != nil {
-		fmt.Printf("Failed decode: %s", err.Error())
+		cmd.Printf("Failed decode: %s", err.Error())
 		return
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if err == nil {
-		fmt.Println("Pending: ", util.TxConvBase58Addr(msg))
+		cmd.Println("Pending: ", util.TxConvBase58Addr(msg))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if err != nil {
-			fmt.Printf("Failed: %s", err.Error())
+			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		fmt.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
+		cmd.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
 	}
 
 }

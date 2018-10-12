@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -38,14 +37,14 @@ const peerIDLength = 39
 func execVote(cmd *cobra.Command, args []string) {
 	account, err := types.DecodeAddress(address)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	_, err = os.Stat(to)
 	if err == nil {
 		b, readerr := ioutil.ReadFile(to)
 		if readerr != nil {
-			fmt.Printf("Failed: %s\n", readerr.Error())
+			cmd.Printf("Failed: %s\n", readerr.Error())
 			return
 		}
 		to = string(b)
@@ -53,7 +52,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	var candidates []string
 	err = json.Unmarshal([]byte(to), &candidates)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
@@ -62,12 +61,12 @@ func execVote(cmd *cobra.Command, args []string) {
 	for i, v := range candidates {
 		candidate, err := base58.Decode(v)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		_, err = peer.IDFromBytes(candidate)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		copy(payload[1+(i*peerIDLength):], candidate)
@@ -78,7 +77,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	state, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: account})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
@@ -97,19 +96,19 @@ func execVote(cmd *cobra.Command, args []string) {
 	//TODO : support local
 	tx, err := client.SignTX(context.Background(), txs[0])
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	txs[0] = tx
 
 	msg, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
 	for _, r := range msg.Results {
-		fmt.Println("voting hash :", base58.Encode(r.Hash), r.Error)
+		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error)
 		return
 	}
 }
@@ -127,10 +126,10 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 	voteQuery = b
 	msg, err := client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		fmt.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
 	}
 }
