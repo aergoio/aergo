@@ -36,8 +36,9 @@ type ChainService struct {
 }
 
 var (
-	logger       = log.NewLogger("chain")
-	genesisBlock *types.Block
+	logger           = log.NewLogger("chain")
+	genesisBlock     *types.Block
+	initialBestBlock *types.Block
 )
 
 // NewChainService create instance of ChainService
@@ -67,6 +68,15 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 // by chainservice at booting.
 func GetGenesisBlock() *types.Block {
 	return genesisBlock
+}
+
+func setInitialBestBlock(block *types.Block) {
+	initialBestBlock = block
+}
+
+// GetInitialBestBlock returns the best block loaded at boot time.
+func GetInitialBestBlock() *types.Block {
+	return initialBestBlock
 }
 
 func (cs *ChainService) initDB(dataDir string) error {

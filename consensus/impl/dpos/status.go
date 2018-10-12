@@ -110,10 +110,16 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 		}
 	}
 
-	if end == nil && block.ID() != pls.genesisInfo.BlockHash {
-		return fmt.Errorf("not in the main chain: block hash %v, no %v",
-			targetHash, block.BlockNo())
-	}
+	// XXX To bypass the compile error. TODO: Remove after the LIB recovery is
+	// implemented.
+	_ = end
+	// XXX Temporarily comment out until the LIB recovery is implemented.
+	/*
+		if end == nil && block.ID() != pls.genesisInfo.BlockHash {
+			return fmt.Errorf("not in the main chain: block hash %v, no %v",
+				targetHash, block.BlockNo())
+		}
+	*/
 
 	// Restore the confirm infos in the rollback range by using the undo list.
 	pls.restoreConfirms(confirmLow)
@@ -317,18 +323,25 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
+	var genesisBlock *types.Block
+
 	if s.pls.genesisInfo == nil {
-		if genesisBlock := chain.GetGenesisBlock(); genesisBlock != nil {
+		if genesisBlock = chain.GetGenesisBlock(); genesisBlock != nil {
 			s.pls.genesisInfo = &blockInfo{
 				BlockHash: genesisBlock.ID(),
 				BlockNo:   genesisBlock.BlockNo(),
 			}
+		}
+	}
 
-			// Temporarily set s.bestBlock to genesisBlock whenever the server
-			// is started. TODO: Do the status reovery correctly.
-			if s.bestBlock == nil {
-				s.bestBlock = genesisBlock
-			}
+	if s.bestBlock == nil {
+		if initBlock := chain.GetInitialBestBlock(); initBlock != nil {
+			s.bestBlock = initBlock
+			// Add manually the initial block info to avoid error. TODO: This must
+			// be replaced by a correct LIB status recovery process.
+			s.pls.addConfirmInfo(s.bestBlock)
+		} else {
+			s.bestBlock = genesisBlock
 		}
 	}
 
