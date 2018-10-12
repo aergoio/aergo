@@ -110,13 +110,14 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 		}
 	}
 
-	if end == nil {
+	if end == nil && block.ID() != pls.genesisInfo.BlockHash {
 		return fmt.Errorf("not in the main chain: block hash %v, no %v",
 			targetHash, block.BlockNo())
 	}
 
 	// Restore the confirm infos in the rollback range by using the undo list.
 	pls.restoreConfirms(confirmLow)
+	pls.replay()
 
 	return nil
 }
@@ -169,6 +170,47 @@ func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
 			}
 		},
 	)
+}
+
+func (pls *pLibStatus) replay() {
+	confirmDec := make(map[uint64]uint16)
+
+	// 1st loop: reset confirmsLeft & collect counts by which confirmLeft must
+	// be decreased.
+	forEach(pls.confirms,
+		func(e *list.Element) {
+			c := cInfo(e)
+			c.confirmsLeft = pls.confirmsRequired - 1
+
+			for i := c.min(); i < c.BlockNo; i++ {
+				if dec, exist := confirmDec[i]; exist {
+					confirmDec[i] = dec + 1
+				} else {
+					confirmDec[i] = 1
+				}
+			}
+		},
+	)
+
+	// 2nd loop: decrease confirmLeft.
+	forEach(pls.confirms,
+		func(e *list.Element) {
+			c := cInfo(e)
+			if dec, exist := confirmDec[c.BlockNo]; exist {
+				if c.confirmsLeft < dec {
+					errMsg := "the restored confirm info is inconsistent"
+					logger.Debug().
+						Uint16("confirm left", c.confirmsLeft).Uint16("", dec).
+						Msg(errMsg)
+					panic(errMsg)
+				}
+				c.confirmsLeft = c.confirmsLeft - dec
+			}
+		},
+	)
+
+	// Don't need to update LIB since there is no other LIBs between the LIB
+	// and the branch root (rollback target).
 }
 
 func moveElem(e *list.Element, src *list.List, dst *list.List) {
@@ -309,14 +351,11 @@ func (s *Status) UpdateStatus(block *types.Block) {
 			Uint64("target block no", block.BlockNo()).
 			Msg("rollback LIB status")
 
-		s.pls.init()
-
 		// Block reorganized. TODO: update consensus status, correctly.
-		/*
-			if err := s.pls.rollbackStatusTo(block); err != nil {
-				panic(err)
-			}
-		*/
+		if err := s.pls.rollbackStatusTo(block); err != nil {
+			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
+			panic(err)
+		}
 	}
 
 	s.bestBlock = block
@@ -334,28 +373,27 @@ func (s *Status) updateLIB(lib *blockInfo) {
 }
 
 // NeedReorganization reports whether reorganization is needed or not.
-func (s *Status) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
-	// Disable until the reorganization logic is correctly implmented.
+
 	/*
-		s.RLock()
-		defer s.RUnlock()
+			s.RLock()
+			defer s.RUnlock()
 
-		if s.lib == nil {
-			logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
-			return true
-		}
+			if s.lib == nil {
+				logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
+				return true
+			}
 
-		libNo := s.lib.blockNo
+			libNo := s.lib.BlockNo
 
-		reorganizable := rootNo < libNo && bestNo > libNo
-		if reorganizable {
-			logger.Info().
-				Uint64("LIB", libNo).
-				Uint64("branch root no", rootNo).
-				Uint64("best no", bestNo).
-				Msg("not reorganizable - the current main branch has a LIB.")
-		}
+			reorganizable := rootNo >= libNo
+			if reorganizable {
+				logger.Info().
+					Uint64("LIB", libNo).
+					Uint64("branch root no", rootNo).
+					Msg("not reorganizable - the current main branch has a LIB.")
+			}
 
 		return reorganizable
 	*/
