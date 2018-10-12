@@ -183,7 +183,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    loop_stmt
 %type <exp>     init_exp
 %type <exp>     cond_exp
-%type <exp>     loop_exp
 %type <stmt>    switch_stmt
 %type <array>   case_list
 %type <stmt>    case_stmt
@@ -212,7 +211,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     post_exp
 %type <exp>     prim_exp
 %type <exp>     new_exp
-%type <array>   exp_list
+%type <array>   arg_list
 %type <str>     non_reserved_token
 %type <str>     identifier
 
@@ -613,6 +612,7 @@ exp_stmt:
     {
         $$ = stmt_exp_new($1, &@$);
     }
+|   error ';'       { $$ = NULL; }
 ;
 
 label_stmt:
@@ -638,6 +638,10 @@ if_stmt:
         $$ = $1;
         $$->u_if.else_blk = $3;
     }
+|   K_IF error '}'
+    {
+        $$ = NULL;
+    }
 ;
 
 loop_stmt:
@@ -654,7 +658,7 @@ loop_stmt:
         $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
         $$->u_loop.init_exp = $3;
     }
-|   K_FOR '(' init_exp cond_exp loop_exp ')' block
+|   K_FOR '(' init_exp cond_exp expression ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_exp = $3;
@@ -664,7 +668,7 @@ loop_stmt:
         $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
         $$->u_loop.init_ids = $3;
     }
-|   K_FOR '(' variable cond_exp loop_exp ')' block
+|   K_FOR '(' variable cond_exp expression ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
@@ -679,31 +683,20 @@ loop_stmt:
         $$ = stmt_loop_new(LOOP_EACH, NULL, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
     }
+|   K_FOR error '}'
+    {
+        $$ = NULL;
+    }
 ;
 
 init_exp:
-    ';'                     { $$ = NULL; }
-|   expression ';'          { $$ = $1; }
+    ';'             { $$ = NULL; }
+|   expression ';'
 ;
 
 cond_exp:
-    ';'                     { $$ = NULL; }
-|   or_exp ';'              { $$ = $1; }
-;
-
-loop_exp:
-    unary_exp
-|   loop_exp ',' unary_exp
-    {
-        if (is_tuple_exp($1)) {
-            $$ = $1;
-        }
-        else {
-            $$ = exp_tuple_new(NULL, &@$);
-            exp_add_last($$->u_tup.exps, $1);
-        }
-        exp_add_last($$->u_tup.exps, $3);
-    }
+    ';'             { $$ = NULL; }
+|   or_exp ';'
 ;
 
 switch_stmt:
@@ -714,6 +707,10 @@ switch_stmt:
 |   K_SWITCH '(' expression ')' '{' case_list '}'
     {
         $$ = stmt_switch_new($3, $6, &@$);
+    }
+|   K_SWITCH error '}'
+    {
+        $$ = NULL;
     }
 ;
 
@@ -1010,7 +1007,7 @@ post_exp:
     {
         $$ = exp_call_new($1, NULL, &@$);
     }
-|   post_exp '(' exp_list ')'
+|   post_exp '(' arg_list ')'
     {
         $$ = exp_call_new($1, $3, &@$);
     }
@@ -1080,13 +1077,13 @@ prim_exp:
     }
 ;
 
-exp_list:
+arg_list:
     ternary_exp
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   exp_list ',' ternary_exp
+|   arg_list ',' ternary_exp
     {
         $$ = $1;
         exp_add_last($$, $3);
@@ -1098,7 +1095,7 @@ new_exp:
     {
         $$ = exp_call_new(exp_id_new($2, &@2), NULL, &@$);
     }
-|   K_NEW identifier '(' exp_list ')'
+|   K_NEW identifier '(' arg_list ')'
     {
         $$ = exp_call_new(exp_id_new($2, &@2), $4, &@$);
     }
