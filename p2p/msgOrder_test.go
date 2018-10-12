@@ -27,14 +27,14 @@ func (_m *MockMsgOrder) GetProtocolID() SubProtocol {
 }
 
 // GetRequestID provides a mock function with given fields:
-func (_m *MockMsgOrder) GetMsgID() string {
+func (_m *MockMsgOrder) GetMsgID() MsgID {
 	ret := _m.Called()
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 MsgID
+	if rf, ok := ret.Get(0).(func() MsgID); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(MsgID)
 	}
 
 	return r0

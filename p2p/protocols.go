@@ -5,7 +5,7 @@
 
 package p2p
 
-// SubProtocol indentify the type of p2p message
+// SubProtocol identifies the type of p2p message
 type SubProtocol uint32
 
 //

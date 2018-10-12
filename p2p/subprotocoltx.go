@@ -42,11 +42,11 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
 }
 
-func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	remotePeer := th.peer
 	data := msgBody.(*types.GetTransactionsRequest)
-	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
 	// find transactions from chainservice
 	status := types.ResultStatus_OK
@@ -76,7 +76,7 @@ func (th *txRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Mes
 		Hashes: hashes,
 		Txs:    txInfos}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetTxsResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
@@ -89,10 +89,10 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
 }
 
-func (th *txResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.Txs))
+	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(data.Txs))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
@@ -111,13 +111,12 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
 }
 
-func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
-	//debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.TxHashes))
 	if th.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, bytesArrToString(data.TxHashes))
+		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, bytesArrToString(data.TxHashes))
 	}
 
 	if len(data.TxHashes) == 0 {

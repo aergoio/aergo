@@ -78,6 +78,7 @@ func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status, error) {
+
 	peerID := h.peerID
 
 	h.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Starting Handshake")
@@ -87,7 +88,8 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status,
 		return nil, err
 	}
 	h.localStatus = statusMsg
-	container := newP2PMessage("", false, StatusRequest, statusMsg)
+	moFactory := &v030MOFactory{}
+	container := moFactory.newHandshakeMessage(StatusRequest, statusMsg)
 	if container == nil {
 		// h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
@@ -108,13 +110,13 @@ func (h *PeerHandshaker) handshakeOutboundPeer(rw MsgReadWriter) (*types.Status,
 		return nil, err
 	}
 
-	if data.Header.GetSubprotocol() != StatusRequest.Uint32() {
+	if data.Subprotocol() != StatusRequest {
 		// TODO: parse message and return
 		// h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
 		return nil, fmt.Errorf("Unexpected message type")
 	}
 	statusResp := &types.Status{}
-	err = unmarshalMessage(data.Data, statusResp)
+	err = unmarshalMessage(data.Payload(), statusResp)
 	if err != nil {
 		// h.logger.Warn().Err(err).Msg("Failed to decode status message")
 		return nil, err
@@ -141,14 +143,14 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw MsgReadWriter) (*types.Status, 
 		return nil, err
 	}
 
-	if data.Header.GetSubprotocol() != StatusRequest.Uint32() {
+	if data.Subprotocol() != StatusRequest {
 		// TODO: parse message and return
-		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected message type")
+		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("Unexpected message type")
 		return nil, fmt.Errorf("Unexpected message type")
 	}
 
 	statusMsg := &types.Status{}
-	if err := unmarshalMessage(data.Data, statusMsg); err != nil {
+	if err := unmarshalMessage(data.Payload(), statusMsg); err != nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message")
 		return nil, err
 	}
@@ -160,7 +162,8 @@ func (h *PeerHandshaker) handshakeInboundPeer(rw MsgReadWriter) (*types.Status, 
 		h.logger.Warn().Err(err).Msg("failed to create status message")
 		return nil, err
 	}
-	container := newP2PMessage("", false, StatusRequest, statusResp)
+	moFactory := &v030MOFactory{}
+	container := moFactory.newHandshakeMessage(StatusRequest, statusResp)
 	if container == nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")

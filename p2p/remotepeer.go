@@ -34,7 +34,7 @@ type RemotePeer interface {
 
 	sendMessage(msg msgOrder)
 	pushTxsNotice(txHashes []TxHash)
-	consumeRequest(msgID string)
+	consumeRequest(msgID MsgID)
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
 	updateBlkCache(hash BlockHash) bool
@@ -63,8 +63,8 @@ type remotePeerImpl struct {
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
-	requests    map[string]msgOrder
-	consumeChan chan string
+	requests    map[MsgID]msgOrder
+	consumeChan chan MsgID
 
 	handlers map[SubProtocol]MessageHandler
 
@@ -97,8 +97,8 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		stopChan:   make(chan struct{}),
 		closeWrite: make(chan struct{}),
 
-		requests:    make(map[string]msgOrder),
-		consumeChan: make(chan string, 10),
+		requests:    make(map[MsgID]msgOrder),
+		consumeChan: make(chan MsgID, 10),
 
 		handlers: make(map[SubProtocol]MessageHandler),
 
@@ -233,9 +233,9 @@ func (p *remotePeerImpl) runRead() {
 
 }
 
-func (p *remotePeerImpl) handleMsg(msg *types.P2PMessage) error {
+func (p *remotePeerImpl) handleMsg(msg Message) error {
 	var err error
-	proto := SubProtocol(msg.Header.Subprotocol)
+	proto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
 			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler")
@@ -245,26 +245,26 @@ func (p *remotePeerImpl) handleMsg(msg *types.P2PMessage) error {
 
 	handler, found := p.handlers[proto]
 	if !found {
-		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid protocol")
+		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Invalid protocol")
 		return fmt.Errorf("invalid protocol %s", proto)
 	}
-	payload, err := handler.parsePayload(msg.Data)
+	payload, err := handler.parsePayload(msg.Payload())
 	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
 		return fmt.Errorf("Invalid message data")
 	}
-	err = p.signer.verifyMsg(msg, p.meta.ID)
-	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to check signature")
-		return fmt.Errorf("Failed to check signature")
-	}
+	//err = p.signer.verifyMsg(msg, p.meta.ID)
+	//if err != nil {
+	//	p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Failed to check signature")
+	//	return fmt.Errorf("Failed to check signature")
+	//}
 	err = handler.checkAuth(msg, payload)
 	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.Header.GetId()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
 		return fmt.Errorf("Failed to authenticate message")
 	}
 
-	handler.handle(msg.Header, payload)
+	handler.handle(msg, payload)
 	return nil
 }
 
@@ -278,7 +278,7 @@ const writeChannelTimeout = time.Second * 2
 func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 	if p.state.Get() != types.RUNNING {
 		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
-			Str(LogMsgID, msg.GetMsgID()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+			Str(LogMsgID, msg.GetMsgID().String()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
 	p.write.In() <- msg
@@ -296,7 +296,7 @@ func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
 
 
 // consumeRequest remove request from request history.
-func (p *remotePeerImpl) consumeRequest(requestID string) {
+func (p *remotePeerImpl) consumeRequest(requestID MsgID) {
 	p.consumeChan <- requestID
 }
 
@@ -411,7 +411,7 @@ func (p *remotePeerImpl) pruneRequests() {
 		if m.Timestamp() < expireTime {
 			delete(p.requests, key)
 			if debugLog {
-				deletedReqs = append(deletedReqs, m.GetProtocolID().String()+"/"+key+time.Unix(m.Timestamp(), 0).String())
+				deletedReqs = append(deletedReqs, m.GetProtocolID().String()+"/"+key.String()+time.Unix(m.Timestamp(), 0).String())
 			}
 			deletedCnt++
 		}
@@ -469,7 +469,7 @@ func (l *hangResolver) OnDrop(element interface{}) {
 		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
 		l.p.pm.RemovePeer(l.p.ID())
 	} else {
-		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID().String()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
 	}
 }
 

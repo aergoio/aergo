@@ -78,7 +78,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
 			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 
-			pr := factory.newMsgResponseOrder("id"+tt.name, PingResponse, &types.Pong{})
+			pr := factory.newMsgResponseOrder(NewMsgID(), PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &pbRequestOrder{}
@@ -136,7 +136,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			if tt.keyExist {
 				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
 			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*types.P2PMessage"))
+				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V020Wrapper"))
 
 			}
 			// not affect any cache
@@ -191,7 +191,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			if tt.keyExist == len(sampleHashes) {
 				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
 			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*types.P2PMessage"))
+				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V020Wrapper"))
 			}
 			// not affect any cache
 			assert.Equal(t, prevCacheSize, len(peer.requests))

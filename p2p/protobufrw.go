@@ -24,15 +24,11 @@ func newBufMsgReadWriter(r *bufio.Reader, w *bufio.Writer) *bufMsgReadWriter {
 	}
 }
 
-func newBufMsgRW(rw *bufio.ReadWriter) *bufMsgReadWriter {
-	return newBufMsgReadWriter(rw.Reader, rw.Writer)
-}
-
-func (rw *bufMsgReadWriter) ReadMsg() (*types.P2PMessage, error) {
+func (rw *bufMsgReadWriter) ReadMsg() (Message, error) {
 	return rw.r.ReadMsg()
 }
 
-func (rw *bufMsgReadWriter) WriteMsg(msg *types.P2PMessage) error {
+func (rw *bufMsgReadWriter) WriteMsg(msg Message) error {
 	return rw.w.WriteMsg(msg)
 }
 
@@ -48,21 +44,21 @@ type bufMsgReader struct {
 	rd *bufio.Reader
 }
 
-func (r *bufMsgReader) ReadMsg() (*types.P2PMessage, error) {
+func (r *bufMsgReader) ReadMsg() (Message, error) {
 	msg := &types.P2PMessage{}
 	decoder := mc_pb.Multicodec(nil).Decoder(r.rd)
 	err := decoder.Decode(msg)
 	if err != nil {
 		return nil, err
 	}
-	return msg, nil
+	return &V020Wrapper{P2PMessage:msg}, nil
 }
 
 type bufMsgWriter struct {
 	wr *bufio.Writer
 }
 
-func (w *bufMsgWriter) WriteMsg(msg *types.P2PMessage) error {
-	err := SendProtoMessage(msg, w.wr)
+func (w *bufMsgWriter) WriteMsg(msg Message) error {
+	err := SendProtoMessage(msg.(*V020Wrapper).P2PMessage, w.wr)
 	return err
 }

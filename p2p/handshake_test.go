@@ -123,15 +123,15 @@ func TestPeerHandshaker_handshakeOutboundPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
 			mockRW := new(MockMsgReadWriter)
-			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
+			containerMsg := &V030Message{payload:statusBytes}
 			if tt.readReturn != nil {
-				containerMsg.Header.Subprotocol = StatusRequest.Uint32()
+				containerMsg.subProtocol = StatusRequest
 			} else {
-				containerMsg.Header.Subprotocol = AddressesRequest.Uint32()
+				containerMsg.subProtocol = AddressesRequest
 			}
 
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
-			mockRW.On("WriteMsg", mock.AnythingOfType("*types.P2PMessage")).Return(tt.writeError)
+			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
 
 			got, err := h.handshakeOutboundPeer(mockRW)
 			if (err != nil) != tt.wantErr {
@@ -176,15 +176,15 @@ func TestPeerHandshaker_handshakeInboundPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
 			mockRW := new(MockMsgReadWriter)
-			containerMsg := &types.P2PMessage{Header: &types.MsgHeader{}, Data: statusBytes}
+			containerMsg := &V030Message{payload:statusBytes}
 			if tt.readReturn != nil {
-				containerMsg.Header.Subprotocol = StatusRequest.Uint32()
+				containerMsg.subProtocol = StatusRequest
 			} else {
-				containerMsg.Header.Subprotocol = AddressesRequest.Uint32()
+				containerMsg.subProtocol = AddressesRequest
 			}
 
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
-			mockRW.On("WriteMsg", mock.AnythingOfType("*types.P2PMessage")).Return(tt.writeError)
+			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
 
 			got, err := h.handshakeInboundPeer(mockRW)
 			if (err != nil) != tt.wantErr {

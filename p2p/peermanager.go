@@ -337,7 +337,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		pm.logger.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
-	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
 	if err != nil {
@@ -481,7 +481,7 @@ func (pm *peerManager) startListener() {
 
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
 
 	statusMsg, err := h.handshakeInboundPeer(rw)
