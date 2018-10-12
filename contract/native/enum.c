@@ -22,9 +22,9 @@ char *type_names_[TYPE_MAX] = {
     "float",
     "double",
     "string",
+    "struct",
     "reference",
     "account",
-    "struct",
     "map",
     "void",
     "tuple"

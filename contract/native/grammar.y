@@ -177,39 +177,41 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   return_opt
 %type <array>   return_list
 %type <stmt>    statement
-%type <stmt>    stmt_exp
-%type <stmt>    stmt_label
-%type <stmt>    stmt_if
-%type <stmt>    stmt_loop
-%type <exp>     exp_loop
-%type <stmt>    stmt_switch
+%type <stmt>    exp_stmt
+%type <stmt>    label_stmt
+%type <stmt>    if_stmt
+%type <stmt>    loop_stmt
+%type <exp>     init_exp
+%type <exp>     cond_exp
+%type <exp>     loop_exp
+%type <stmt>    switch_stmt
 %type <array>   case_list
-%type <stmt>    stmt_case
+%type <stmt>    case_stmt
 %type <array>   stmt_list
-%type <stmt>    stmt_jump
-%type <stmt>    stmt_ddl
-%type <stmt>    stmt_blk
+%type <stmt>    jump_stmt
+%type <stmt>    ddl_stmt
+%type <stmt>    blk_stmt
 %type <exp>     expression
-%type <op>      op_assign
-%type <exp>     exp_tuple
-%type <exp>     exp_sql
+%type <op>      assign_op
+%type <exp>     tuple_exp
+%type <exp>     sql_exp
 %type <sql>     sql_prefix
-%type <exp>     exp_ternary
-%type <exp>     exp_or
-%type <exp>     exp_and
-%type <exp>     exp_bit_or
-%type <exp>     exp_bit_xor
-%type <exp>     exp_bit_and
-%type <exp>     exp_eq
-%type <exp>     exp_cmp
-%type <op>      op_cmp
-%type <exp>     exp_shift
-%type <exp>     exp_add
-%type <exp>     exp_mul
-%type <exp>     exp_unary
-%type <exp>     exp_post
-%type <exp>     exp_prim
-%type <exp>     exp_new
+%type <exp>     ternary_exp
+%type <exp>     or_exp
+%type <exp>     and_exp
+%type <exp>     bit_or_exp
+%type <exp>     bit_xor_exp
+%type <exp>     bit_and_exp
+%type <exp>     eq_exp
+%type <exp>     cmp_exp
+%type <op>      cmp_op
+%type <exp>     shift_exp
+%type <exp>     add_exp
+%type <exp>     mul_exp
+%type <exp>     unary_exp
+%type <exp>     post_exp
+%type <exp>     prim_exp
+%type <exp>     new_exp
 %type <array>   exp_list
 %type <str>     non_reserved_token
 %type <str>     identifier
@@ -403,7 +405,7 @@ declarator:
     {
         $$ = id_var_new($1, &@1);
     }
-|   declarator '[' exp_add ']'
+|   declarator '[' add_exp ']'
     {
         $$ = $1;
         $$->u_var.arr_exp = $3;
@@ -429,7 +431,7 @@ var_init_list:
 ;
 
 initializer:
-    exp_sql
+    sql_exp
 |   '{' elem_list '}'
     {
         $$ = exp_tuple_new($2, &@$);
@@ -592,17 +594,17 @@ return_list:
 ;
 
 statement:
-    stmt_exp
-|   stmt_label
-|   stmt_if
-|   stmt_loop
-|   stmt_switch
-|   stmt_jump
-|   stmt_ddl
-|   stmt_blk
+    exp_stmt
+|   label_stmt
+|   if_stmt
+|   loop_stmt
+|   switch_stmt
+|   jump_stmt
+|   ddl_stmt
+|   blk_stmt
 ;
 
-stmt_exp:
+exp_stmt:
     ';'
     {
         $$ = stmt_null_new(&@$);
@@ -613,7 +615,7 @@ stmt_exp:
     }
 ;
 
-stmt_label:
+label_stmt:
     identifier ':' statement
     {
         $$ = $3;
@@ -621,70 +623,90 @@ stmt_label:
     }
 ;
 
-stmt_if:
+if_stmt:
     K_IF '(' expression ')' block
     {
         $$ = stmt_if_new($3, $5, &@$);
     }
-|   stmt_if K_ELSE K_IF '(' expression ')' block
+|   if_stmt K_ELSE K_IF '(' expression ')' block
     {
         $$ = $1;
         stmt_add_last(&$$->u_if.elif_stmts, stmt_if_new($5, $7, &@2));
     }
-|   stmt_if K_ELSE block
+|   if_stmt K_ELSE block
     {
         $$ = $1;
         $$->u_if.else_blk = $3;
     }
 ;
 
-stmt_loop:
+loop_stmt:
     K_FOR block
     {
         $$ = stmt_loop_new(LOOP_FOR, NULL, NULL, $2, &@$);
     }
-|   K_FOR '(' exp_or ')' block
+|   K_FOR '(' or_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $3, NULL, $5, &@$);
     }
-|   K_FOR '(' exp_loop exp_loop ')' block
+|   K_FOR '(' init_exp cond_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
         $$->u_loop.init_exp = $3;
     }
-|   K_FOR '(' exp_loop exp_loop expression ')' block
+|   K_FOR '(' init_exp cond_exp loop_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_exp = $3;
     }
-|   K_FOR '(' variable exp_loop ')' block
+|   K_FOR '(' variable cond_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, NULL, $6, &@$);
         $$->u_loop.init_ids = $3;
     }
-|   K_FOR '(' variable exp_loop expression ')' block
+|   K_FOR '(' variable cond_exp loop_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
     }
-|   K_FOR '(' expression K_IN exp_post ')' block
+|   K_FOR '(' expression K_IN post_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_EACH, NULL, $5, $7, &@$);
         $$->u_loop.init_exp = $3;
     }
-|   K_FOR '(' var_decl K_IN exp_post ')' block
+|   K_FOR '(' var_decl K_IN post_exp ')' block
     {
         $$ = stmt_loop_new(LOOP_EACH, NULL, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
     }
 ;
 
-exp_loop:
+init_exp:
     ';'                     { $$ = NULL; }
 |   expression ';'          { $$ = $1; }
 ;
 
-stmt_switch:
+cond_exp:
+    ';'                     { $$ = NULL; }
+|   or_exp ';'              { $$ = $1; }
+;
+
+loop_exp:
+    unary_exp
+|   loop_exp ',' unary_exp
+    {
+        if (is_tuple_exp($1)) {
+            $$ = $1;
+        }
+        else {
+            $$ = exp_tuple_new(NULL, &@$);
+            exp_add_last($$->u_tup.exps, $1);
+        }
+        exp_add_last($$->u_tup.exps, $3);
+    }
+;
+
+switch_stmt:
     K_SWITCH '{' case_list '}'
     {
         $$ = stmt_switch_new(NULL, $3, &@$);
@@ -696,20 +718,20 @@ stmt_switch:
 ;
 
 case_list:
-    stmt_case
+    case_stmt
     {
         $$ = array_new();
         stmt_add_last($$, $1);
     }
-|   case_list stmt_case
+|   case_list case_stmt
     {
         $$ = $1;
         stmt_add_last($$, $2);
     }
 ;
 
-stmt_case:
-    K_CASE exp_eq ':' stmt_list
+case_stmt:
+    K_CASE eq_exp ':' stmt_list
     {
         $$ = stmt_case_new($2, $4, &@$);
     }
@@ -732,7 +754,7 @@ stmt_list:
     }
 ;
 
-stmt_jump:
+jump_stmt:
     K_CONTINUE ';'
     {
         $$ = stmt_jump_new(STMT_CONTINUE, &@$);
@@ -755,7 +777,7 @@ stmt_jump:
     }
 ;
 
-stmt_ddl:
+ddl_stmt:
     ddl_prefix error ';'
     {
         int len;
@@ -777,7 +799,7 @@ ddl_prefix:
 |   K_DROP K_TABLE
 ;
 
-stmt_blk:
+blk_stmt:
     block
     {
         $$ = stmt_blk_new($1, &@$);
@@ -785,19 +807,19 @@ stmt_blk:
 ;
 
 expression:
-    exp_tuple
-|   exp_tuple op_assign exp_tuple
+    tuple_exp
+|   tuple_exp '=' tuple_exp
     {
-        if ($2 == OP_ASSIGN)
-            $$ = exp_op_new($2, $1, $3, &@2);
-        else
-            $$ = exp_op_new(OP_ASSIGN, $1, exp_op_new($2, $1, $3, &@2), &@2);
+        $$ = exp_op_new(OP_ASSIGN, $1, $3, &@2);
+    }
+|   unary_exp assign_op sql_exp
+    {
+        $$ = exp_op_new(OP_ASSIGN, $1, exp_op_new($2, $1, $3, &@2), &@2);
     }
 ;
 
-op_assign:
-    '='                 { $$ = OP_ASSIGN; }
-|   ASSIGN_ADD          { $$ = OP_ADD; }
+assign_op:
+    ASSIGN_ADD          { $$ = OP_ADD; }
 |   ASSIGN_SUB          { $$ = OP_SUB; }
 |   ASSIGN_MUL          { $$ = OP_MUL; }
 |   ASSIGN_DIV          { $$ = OP_DIV; }
@@ -809,9 +831,9 @@ op_assign:
 |   ASSIGN_LS           { $$ = OP_LSHIFT; }
 ;
 
-exp_tuple:
-    exp_sql
-|   exp_tuple ',' exp_sql
+tuple_exp:
+    sql_exp
+|   tuple_exp ',' sql_exp
     {
         if (is_tuple_exp($1)) {
             $$ = $1;
@@ -824,8 +846,8 @@ exp_tuple:
     }
 ;
 
-exp_sql:
-    exp_ternary
+sql_exp:
+    ternary_exp
 |   sql_prefix error ';'
     {
         int len;
@@ -847,167 +869,167 @@ sql_prefix:
 |   K_UPDATE            { $$ = SQL_UPDATE; }
 ;
 
-exp_ternary:
-    exp_or
-|   exp_or '?' exp_sql ':' exp_ternary
+ternary_exp:
+    or_exp
+|   or_exp '?' sql_exp ':' ternary_exp
     {
         $$ = exp_ternary_new($1, $3, $5, &@$);
     }
 ;
 
-exp_or:
-    exp_and
-|   exp_or CMP_OR exp_and
+or_exp:
+    and_exp
+|   or_exp CMP_OR and_exp
     {
         $$ = exp_op_new(OP_OR, $1, $3, &@2);
     }
 ;
 
-exp_and:
-    exp_bit_or
-|   exp_and CMP_AND exp_bit_or
+and_exp:
+    bit_or_exp
+|   and_exp CMP_AND bit_or_exp
     {
         $$ = exp_op_new(OP_AND, $1, $3, &@2);
     }
 ;
 
-exp_bit_or:
-    exp_bit_xor
-|   exp_bit_or '|' exp_bit_xor
+bit_or_exp:
+    bit_xor_exp
+|   bit_or_exp '|' bit_xor_exp
     {
         $$ = exp_op_new(OP_BIT_OR, $1, $3, &@2);
     }
 ;
 
-exp_bit_xor:
-    exp_bit_and
-|   exp_bit_xor '^' exp_bit_and
+bit_xor_exp:
+    bit_and_exp
+|   bit_xor_exp '^' bit_and_exp
     {
         $$ = exp_op_new(OP_BIT_XOR, $1, $3, &@2);
     }
 ;
 
-exp_bit_and:
-    exp_eq
-|   exp_bit_and '&' exp_eq
+bit_and_exp:
+    eq_exp
+|   bit_and_exp '&' eq_exp
     {
         $$ = exp_op_new(OP_BIT_AND, $1, $3, &@2);
     }
 ;
 
-exp_eq:
-    exp_cmp
-|   exp_eq CMP_EQ exp_cmp
+eq_exp:
+    cmp_exp
+|   eq_exp CMP_EQ cmp_exp
     {
         $$ = exp_op_new(OP_EQ, $1, $3, &@2);
     }
-|   exp_eq CMP_NE exp_cmp
+|   eq_exp CMP_NE cmp_exp
     {
         $$ = exp_op_new(OP_NE, $1, $3, &@2);
     }
 ;
 
-exp_cmp:
-    exp_shift
-|   exp_cmp op_cmp exp_shift
+cmp_exp:
+    shift_exp
+|   cmp_exp cmp_op shift_exp
     {
         $$ = exp_op_new($2, $1, $3, &@2);
     }
 ;
 
-op_cmp:
+cmp_op:
     '<'             { $$ = OP_LT; }
 |   '>'             { $$ = OP_GT; }
 |   CMP_LE          { $$ = OP_LE; }
 |   CMP_GE          { $$ = OP_GE; }
 ;
 
-exp_shift:
-    exp_add
-|   exp_shift SHIFT_R exp_add
+shift_exp:
+    add_exp
+|   shift_exp SHIFT_R add_exp
     {
         $$ = exp_op_new(OP_RSHIFT, $1, $3, &@2);
     }
-|   exp_shift SHIFT_L exp_add
+|   shift_exp SHIFT_L add_exp
     {
         $$ = exp_op_new(OP_LSHIFT, $1, $3, &@2);
     }
 ;
 
-exp_add:
-    exp_mul
-|   exp_add '+' exp_mul
+add_exp:
+    mul_exp
+|   add_exp '+' mul_exp
     {
         $$ = exp_op_new(OP_ADD, $1, $3, &@2);
     }
-|   exp_add '-' exp_mul
+|   add_exp '-' mul_exp
     {
         $$ = exp_op_new(OP_SUB, $1, $3, &@2);
     }
 ;
 
-exp_mul:
-    exp_unary
-|   exp_mul '*' exp_unary
+mul_exp:
+    unary_exp
+|   mul_exp '*' unary_exp
     {
         $$ = exp_op_new(OP_MUL, $1, $3, &@2);
     }
-|   exp_mul '/' exp_unary
+|   mul_exp '/' unary_exp
     {
         $$ = exp_op_new(OP_DIV, $1, $3, &@2);
     }
-|   exp_mul '%' exp_unary
+|   mul_exp '%' unary_exp
     {
         $$ = exp_op_new(OP_MOD, $1, $3, &@2);
     }
 ;
 
-exp_unary:
-    exp_post
-|   UNARY_INC exp_unary
+unary_exp:
+    post_exp
+|   UNARY_INC unary_exp
     {
         $$ = exp_op_new(OP_INC, $2, NULL, &@$);
     }
-|   UNARY_DEC exp_unary
+|   UNARY_DEC unary_exp
     {
         $$ = exp_op_new(OP_DEC, $2, NULL, &@$);
     }
-|   '!' exp_unary
+|   '!' unary_exp
     {
         $$ = exp_op_new(OP_NOT, $2, NULL, &@$);
     }
 ;
 
-exp_post:
-    exp_prim
-|   exp_post '[' exp_ternary ']'
+post_exp:
+    prim_exp
+|   post_exp '[' ternary_exp ']'
     {
         $$ = exp_array_new($1, $3, &@$);
     }
-|   exp_post '(' ')'
+|   post_exp '(' ')'
     {
         $$ = exp_call_new($1, NULL, &@$);
     }
-|   exp_post '(' exp_list ')'
+|   post_exp '(' exp_list ')'
     {
         $$ = exp_call_new($1, $3, &@$);
     }
-|   exp_post '.' identifier
+|   post_exp '.' identifier
     {
         $$ = exp_access_new($1, exp_id_new($3, &@3), &@$);
     }
-|   exp_post UNARY_INC
+|   post_exp UNARY_INC
     {
         $$ = exp_op_new(OP_INC, $1, NULL, &@$);
     }
-|   exp_post UNARY_DEC
+|   post_exp UNARY_DEC
     {
         $$ = exp_op_new(OP_DEC, $1, NULL, &@$);
     }
 ;
 
-exp_prim:
-    exp_new
+prim_exp:
+    new_exp
 |   K_NULL
     {
         $$ = exp_val_new(&@$);
@@ -1059,19 +1081,19 @@ exp_prim:
 ;
 
 exp_list:
-    exp_ternary
+    ternary_exp
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   exp_list ',' exp_ternary
+|   exp_list ',' ternary_exp
     {
         $$ = $1;
         exp_add_last($$, $3);
     }
 ;
 
-exp_new:
+new_exp:
     K_NEW identifier '(' ')'
     {
         $$ = exp_call_new(exp_id_new($2, &@2), NULL, &@$);

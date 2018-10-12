@@ -54,6 +54,18 @@ contract test {
     int local v1;
 }
 
+@test(out_of_scope_identifier)
+@error(ERROR_UNDEFINED_ID)
+contract test {
+    int i = j;
+    int j = 1;
+}
+
+@test(self_reference)
+contract test {
+    int i = i;
+}
+
 @test(primitive_array)
 contract test {
     int v1[10];
@@ -61,6 +73,9 @@ contract test {
     int v4[10], v5;
     int v6[10], v7[10];
     int v8[10][10];
+
+    string v9[1 + 1];
+    string v10[1 + 1 * 3];
 }
 
 @test(invalid_brace_position)
@@ -146,6 +161,8 @@ contract test {
     }
     map(int, x) m17;
     map(int, map(string, string)) m18;
+    map(x, x) m19;
+    map(x, map(string, string)) m20;
 }
 
 @test(map_array)

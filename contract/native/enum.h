@@ -53,11 +53,11 @@ typedef enum type_e {
     TYPE_FLOAT,
     TYPE_DOUBLE,
     TYPE_STRING,
+    TYPE_STRUCT,
     TYPE_REF,
     TYPE_ACCOUNT,
     TYPE_COMPARABLE = TYPE_ACCOUNT,
 
-    TYPE_STRUCT,
     TYPE_MAP,
     TYPE_PRIMITIVE  = TYPE_MAP,
 

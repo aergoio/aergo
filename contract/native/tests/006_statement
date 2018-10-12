@@ -1,38 +1,78 @@
 @test(assignment)
 contract test {
-    int v1;
-    int v2;
-    string v3, v4;
-    bool v5, v6;
+    int i1, i2;
 
     test() {
-        v1 += 1;
-        v1 -= 1;
-        v1 *= 1 + 1;
-        v1 /= 2;
-        v1 %= 10;
+        i1 += 1;
+        i1 -= 1;
+        i1 *= 1 + 1;
+        i1 /= 2;
+        i1 %= 10;
 
-        v2 |= 0xff;
-        v2 &= 0x01;
-        v2 ^= 0x01;
+        i2 |= 0xff;
+        i2 &= 0x01;
+        i2 ^= 0x01;
 
-        v1, v2 = 1, 2;
-        (v1, v2) = 1 * 1, 2;
-        v3, v4 = ("a", "b");
-        v3, v4 = ("a", "b");
+        string s = "first";
+        s += ", second";
     }
 }
 
-@test(unary_expression)
+@test(invalid_literal_lvalue)
+@error(ERROR_INVALID_LVALUE)
 contract test {
-    int v1 = 1;
+    test() {
+        1 = 1;
+    }
+}
+
+@test(constant_lvalue)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    const int i = 0;
+    test() {
+        i = 1;
+    }
+}
+
+@test(array_assignment)
+contract test {
+    test() {
+        int i[10];
+        i[0] = 0;
+        i[0] += 1;
+        i[0]++;
+
+        int idx = 1;
+        i[idx] = i[0];
+        i[idx]--;
+
+        i[idx + 1] = i[0] + i[idx];
+        i[idx + 2] = 7;
+    }
+}
+
+@test(tuple_assignment)
+contract test {
+    string s3, s4;
 
     test() {
-        v1++;
-        ++v1;
-        v1--;
-        --v1;
-        ;
+        int i1, i2 = 1, 2;
+        (i1, i2) = 1 * 1, 2;
+
+        s3, s4 = ("a", "b");
+        s3, s4 = "a", "b";
+
+        i1, s3 = 3, "c";
+    }
+}
+
+@test(mismatched_tuple_count)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    test() {
+        int i, j;
+        i, j = 1;
     }
 }
 
@@ -42,9 +82,7 @@ contract test {
     string v2;
 
     test() {
-        if (0 == 0) {
-            v2 = "sole if";
-        }
+        if (0 == 0) { }
 
         if (!true) {
             v2 = "this is if";
@@ -67,9 +105,7 @@ contract test {
 @error(ERROR_SYNTAX)
 contract test {
     test() {
-        if 1 == 1 {
-            ;
-        }
+        if 1 == 1 { }
     }
 }
 
@@ -77,33 +113,72 @@ contract test {
 @error(ERROR_SYNTAX)
 contract test {
     test() {
-        if (1 == 1) 
-            ;
+        if (1 == 1);
+    }
+}
+
+@test(invalid_if_condition)
+@error(ERROR_INVALID_COND_TYPE)
+contract test {
+    test() {
+        if (1) { }
     }
 }
 
 @test(switch_case)
 contract test {
-    int v1;
-    string v2;
+    int i;
+    string s;
 
     test() {
-        switch (v1) {
+        switch (i) {
         case 1:
-            v2 = "case 1";
+            s = "case 1";
             break;
         case 2:
-            { v2 = "case 2"; }
+            { s = "case 2"; }
             break;
         default:
             break;
         }
+    }
+}
 
+@test(mismatched_case_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int i;
+
+    test() {
+        switch (i) {
+        case 1: break;
+        case "2": break;
+        }
+    }
+}
+
+@test(without_switch_variable)
+contract test {
+    int i;
+    string s;
+
+    test() {
         switch {
-        case v1 == 1: { }
+        case i == 1: { }
             break;
-        case v1 == 1 + 1:
+        case s == "second":
             break;
+        }
+    }
+}
+
+@test(non_boolean_case_condition)
+@error(ERROR_INVALID_COND_TYPE)
+contract test {
+    test() {
+        switch {
+        case 1 == 1: break;
+        case 2: break;
         }
     }
 }
@@ -114,24 +189,34 @@ contract test {
 
     test() {
         int i;
-        for (i = 0; i < 10; i++) { 
+        /*
+        for (i = 0; i < 10; i++) {
             v1 += i;
         }
-        for (int j = 1 + 1; j >= 0; i--) { }
+        for (i = 0; i < 10; ) { }
+        for (i = 0; ; ) { }
         for ( ; i < 10; ) { }
         for ( ; i < 10; i++) { }
         for ( ; ; i++) { }
         for ( ; ; ) { }
         for (true) { }
-        for {
-            v1++;
-            if (v1 % 2 == 0) {
-                break;
-            }
-            else {
-                continue;
-            }
-        }
+        for { }
+
+        for (int j = 1; j >= 0; i--) { }
+        for (int j = i; j >= 0; ) { }
+        for (int j = i; ; ) { }
+        */
+
+        int j;
+        for (i, j = 0, 5; i < 10 && j >= 0; i++, j -= 2) { }
+    }
+}
+
+@test(iterator_scope)
+contract test {
+    test() {
+        int i;
+        for (int i = 0; i <= 10; i++) { }
     }
 }
 
@@ -185,11 +270,11 @@ contract test {
     string v2;
     test() {
         insert into emp values (10, 'Sam');
-        int cnt = insert into 
+        int cnt = insert into
             emp values (20, 'Bill');
 
         delete from emp where id = 10;
-        cnt = delete from emp 
+        cnt = delete from emp
             where name = 'Bill';
 
         update emp set name = 'Tom' where c1 = 10;
@@ -203,9 +288,9 @@ contract test {
     test() {
         /*
         v1 = select id from emp;
-        v1, v2 = 
-            select id, 
-                   name 
+        v1, v2 =
+            select id,
+                   name
               from emp;
               */
     }

@@ -70,7 +70,7 @@ id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_id_t *
-id_search_var(ast_blk_t *blk, char *name)
+id_search_name(ast_blk_t *blk, int num, char *name)
 {
     int i;
 
@@ -83,9 +83,7 @@ id_search_var(ast_blk_t *blk, char *name)
         for (i = 0; i < array_size(&blk->ids); i++) {
             ast_id_t *id = array_item(&blk->ids, i, ast_id_t);
 
-            ASSERT(id->name != NULL);
-
-            if (strcmp(id->name, name) == 0)
+            if (id->num < num && strcmp(id->name, name) == 0)
                 return id;
         }
     } while ((blk = blk->up) != NULL);
@@ -114,8 +112,6 @@ id_search_fld(ast_id_t *id, char *name)
     for (i = 0; i < array_size(fld_ids); i++) {
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
-        ASSERT(fld_id->name != NULL);
-
         if (!is_local_id(fld_id) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
@@ -134,8 +130,6 @@ id_search_param(ast_id_t *id, char *name)
 
     for (i = 0; i < array_size(id->u_func.param_ids); i++) {
         ast_id_t *param_id = array_item(id->u_func.param_ids, i, ast_id_t);
-
-        ASSERT(param_id->name != NULL);
 
         if (strcmp(param_id->name, name) == 0)
             return param_id;

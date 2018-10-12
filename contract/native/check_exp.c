@@ -25,7 +25,7 @@ exp_id_check(check_t *check, ast_exp_t *exp)
             id = id_search_param(check->fn_id, exp->u_id.name);
 
         if (id == NULL) {
-            id = id_search_var(check->blk, exp->u_id.name);
+            id = id_search_name(check->blk, exp->num, exp->u_id.name);
 
             if (id != NULL && is_contract_id(id))
                 id = id_search_fld(id, exp->u_id.name);
@@ -86,7 +86,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         if (check->aq_id != NULL)
             id = id_search_fld(check->aq_id, exp->u_type.name);
         else
-            id = id_search_var(check->blk, exp->u_type.name);
+            id = id_search_name(check->blk, exp->num, exp->u_type.name);
 
         if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
@@ -160,7 +160,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_eval(ast_exp_t *exp)
+exp_op_eval_const(ast_exp_t *exp)
 {
     op_kind_t op = exp->u_op.kind;
     ast_exp_t *l_exp = exp->u_op.l_exp;
@@ -220,7 +220,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
                META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval(exp);
+        exp_op_eval_const(exp);
         meta_set_untyped(&exp->meta, MAX(l_meta->type, r_meta->type));
     }
     else {
@@ -256,7 +256,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval(exp);
+        exp_op_eval_const(exp);
         meta_set_untyped(&exp->meta, l_meta->type);
     }
     else {
@@ -285,12 +285,13 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(check_exp(check, r_exp));
 
+    /* XXX: comparable check */
     if (!meta_equals(l_meta, r_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &exp->pos,
                META_NAME(l_meta), META_NAME(r_meta));
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval(exp);
+        exp_op_eval_const(exp);
         meta_set_untyped(&exp->meta, TYPE_BOOL);
     }
     else {
@@ -317,6 +318,7 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
     switch (exp->u_op.kind) {
     case OP_INC:
     case OP_DEC:
+        /* XXX: need position information (prefix or postfix) */
         if (!is_usable_lval(l_exp))
             RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
 
@@ -410,11 +412,11 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
         array_t *val_exps = r_exp->u_tup.exps;
 
         if (!is_tuple_exp(r_exp))
-            RETURN(ERROR_MISMATCHED_COUNT, &r_exp->pos,
+            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos,
                    array_size(var_exps), 1);
 
         if (array_size(var_exps) != array_size(val_exps))
-            RETURN(ERROR_MISMATCHED_COUNT, &r_exp->pos,
+            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos,
                    array_size(var_exps), array_size(val_exps));
 
         for (i = 0; i < array_size(var_exps); i++) {

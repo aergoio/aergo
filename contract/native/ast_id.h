@@ -86,7 +86,7 @@ ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos);
 
-ast_id_t *id_search_var(ast_blk_t *blk, char *name);
+ast_id_t *id_search_name(ast_blk_t *blk, int num, char *name);
 ast_id_t *id_search_fld(ast_id_t *id, char *name);
 ast_id_t *id_search_param(ast_id_t *id, char *name);
 ast_id_t *id_search_ctor(array_t *ids);

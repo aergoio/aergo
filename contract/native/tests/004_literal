@@ -55,7 +55,23 @@ contract test {
     string v3[3] = { "a", "b", "c" };
     int v4[1], v5[2] = { 1 }, { 2, 3 } ;
 
-    //int v6[2][2] = { { 1, 1 }, { 2, 2 } };
+    int v6[1 + 1] = { 1, 2 };
+    int v7[1 * 3 - 1] = { 3, 4 };
+
+    //int v8[2][2] = { { 1, 1 }, { 2, 2 } };
+}
+
+@test(invalid_size_type)
+@error(ERROR_INVALID_SIZE_TYPE)
+contract test {
+    int i["1"];
+}
+
+@test(invalid_size_value)
+@error(ERROR_INVALID_SIZE_VAL)
+contract test {
+    int i = 1;
+    int j[i];
 }
 
 @test(missing_array_size)

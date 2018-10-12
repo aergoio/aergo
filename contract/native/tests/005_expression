@@ -1,44 +1,143 @@
 @test(arithmetic_operator)
 contract test {
-    int v1 = 1 + 1;
-    int v2 = 1 - 1;
-    int v3 = 1 * 1;
-    int v4 = 1 / 1;
-    int v5 = 1 % 1;
+    int i1 = 1 + 1;
+    int i2 = 1 - 0x1;
+    int i3 = 1 * (1);
+    int i4 = (1) / 1;
+    int i5 = 1 % 1;
+    int i6 = (2 * 3) / (5 + 1) % 1;
+    int i7 = i1 + i2;
 
-    int v6 = (2 * 3) / (5 + 1) % 1;
+    float f1 = 1.0 + (1.0 + .1);
+    float f2 = 1.0e1 - 1.0;
+    float f3 = 1.0 * 1.0;
+    float f4 = 1.0 / 1.0;
+
+    string s1 = "string" + "concat";
+    string s2 = "string" + " " + "concat";
+    string s3 = s1 + "->" + s2;
 }
 
-@test(logical_operator)
+@test(mismatched_operand_type)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
-    bool v1 = true && false;
-    bool v2 = true || false;
+    int i = 1;
+    int64 j = i + 1;
+}
 
-    bool v3 = (true || false) && (true);
+@test(non_integer_operand_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    bool b = true + false;
+}
+
+@test(invalid_modulo_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    float f = 10.0 % 1.0;
+}
+
+@test(zero_divisor_in_modulo)
+@error(ERROR_DIVIDE_BY_ZERO)
+contract test {
+    int i = 10 % 0;
+}
+
+@test(zero_divisor_in_division)
+@error(ERROR_DIVIDE_BY_ZERO)
+contract test {
+    int i = 10 / 0;
 }
 
 @test(bitwise_operator)
 contract test {
-    int v1 = (0x08 & 0x02);
-    int v2 = 0xFF ^ 0x02;
+    int i1 = (0x08 & 0x02);
+    int i2 = 0xFF ^ 0x02;
+    int i3 = i1 | i2;
 
-    int v3 = 1 << 1;
-    int v4 = 0xff >> 1;
+    int i4 = 1 << 1;
+    int i5 = 0xff >> 1;
+    int i6 = i5 >> i4;
+}
+
+@test(non_integer_operand_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    int i = 1.1 & 1.0;
 }
 
 @test(comparison_operator)
 contract test {
-    bool v1 = 1 == 1;
-    bool v2 = 1 != 1;
-    bool v3 = 1 > 1;
-    bool v4 = 1 < 1;
-    bool v5 = 1 >= 1;
-    bool v6 = 1 <= 1;
+    bool b1 = 1 == 1;
+    bool b2 = 1 != 1;
+    bool b3 = 1 > 1;
+    bool b4 = 1 < 1;
+    bool b5 = 1 >= 1;
+    bool b6 = 1 <= 1;
+    bool b7 = (true == true);
 }
 
-@test(conditional_operator)
+@test(mismatched_operand_type)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
-    int v1 = true ? 1 : 0;
-    int v2 = true ? 1 : false ? 2 : 0;
-    int v3 = (1 == 1) ? 1 + 1 : 0;
+    bool b = 1 == 1.0;
+}
+
+@test(logical_operator)
+contract test {
+    bool b1 = true && false;
+    bool b2 = true || false;
+
+    bool b3 = (true || false) && (true);
+    bool b4 = b1 && b2;
+}
+
+@test(non_boolean_operand_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    bool b = true && 0;
+}
+
+@test(unary_operator)
+contract test {
+    int i1 = 0;
+    int i2 = i1++;
+    int i3 = ++i1;
+    int i4 = i1--;
+    int i5 = --i1;
+
+    bool b = !true;
+}
+
+@test(invalid_unary_lvalue)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    const int i = 0;
+    int j = i++;
+}
+
+@test(non_integer_operand_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    float f = 1.0;
+    int i = f++;
+}
+
+@test(ternary_operator)
+contract test {
+    int i1 = true ? 1 : 0;
+    int i2 = true ? 1 : false ? 2 : 0;
+    int i3 = (1 == 1) ? 1 + 1 : 0;
+}
+
+@test(non_boolean_prefix_type)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    string s = 1 ? "true" : "false";
+}
+
+@test(mismatched_infix_postfix_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    string s = 1 == 1 ? "true" : false;
 }
