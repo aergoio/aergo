@@ -22,7 +22,7 @@ meta_set_struct(meta_t *meta, array_t *ids)
         array_add_last(metas, &array_item(ids, i, ast_id_t)->meta);
     }
 
-    meta->u_st.metas = metas;
+    meta->u_tup.metas = metas;
 }
 
 void
@@ -37,7 +37,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
         array_add_last(metas, &array_item(exps, i, ast_exp_t)->meta);
     }
 
-    meta->u_st.metas = metas;
+    meta->u_tup.metas = metas;
 }
 
 bool
@@ -64,22 +64,8 @@ meta_equals(meta_t *x, meta_t *y)
         return false;
     }
 
-    if (is_struct_meta(x) || is_struct_meta(y)) {
-        array_t *x_metas = x->u_st.metas;
-        array_t *y_metas = y->u_st.metas;
-
-        if (x->type != y->type || array_size(x_metas) != array_size(y_metas))
-            return false;
-
-        for (i = 0; i < array_size(x_metas); i++) {
-            if (!meta_equals(array_item(x_metas, i, meta_t),
-                             array_item(y_metas, i, meta_t)))
-                return false;
-        }
-        return true;
-    }
-
-    if (is_tuple_meta(x) || is_tuple_meta(y)) {
+    if (is_struct_meta(x) || is_struct_meta(y) ||
+        is_tuple_meta(x) || is_tuple_meta(y)) {
         array_t *x_metas = x->u_tup.metas;
         array_t *y_metas = y->u_tup.metas;
 
@@ -151,14 +137,12 @@ static int
 meta_cmp_struct(meta_t *x, meta_t *y)
 {
     int i;
-    array_t *x_elems, *y_elems;
+    array_t *x_elems = x->u_tup.metas;
+    array_t *y_elems = y->u_tup.metas;
 
     if ((!is_struct_meta(x) && !is_tuple_meta(x)) ||
         (!is_struct_meta(y) && !is_tuple_meta(y)))
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
-
-    x_elems = is_struct_meta(x) ? x->u_st.metas : x->u_tup.metas;
-    y_elems = is_struct_meta(y) ? y->u_st.metas : y->u_tup.metas;
 
     if (array_size(x_elems) != array_size(y_elems))
         RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos,

@@ -38,8 +38,8 @@
 
 #define meta_size(meta)                                                        \
     (is_void_meta(meta) ? 0 :                                                  \
-     (is_tuple_meta(meta) ? array_size((meta)->u_tup.metas) :                  \
-      (is_struct_meta(meta) ? array_size((meta)->u_st.metas) : 1)))
+     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                          \
+      array_size((meta)->u_tup.metas) : 1))
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -67,8 +67,6 @@ typedef struct meta_tuple_s {
     array_t *metas;
 } meta_tuple_t;
 
-typedef meta_tuple_t meta_struct_t;
-
 typedef struct meta_map_s {
     meta_t *k_meta;
     meta_t *v_meta;
@@ -79,11 +77,10 @@ struct meta_s {
 
     bool is_const;
     bool is_array;
-    bool is_untyped;                /* integer or float literal, new map() */
+    bool is_untyped;        /* integer or float literal, new map() */
 
     union {
         meta_map_t u_map;
-        meta_struct_t u_st;
         meta_tuple_t u_tup;
     };
 
