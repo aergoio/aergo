@@ -123,7 +123,7 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 
 	// Restore the confirm infos in the rollback range by using the undo list.
 	pls.restoreConfirms(confirmLow)
-	pls.replay()
+	pls.rollback()
 
 	return nil
 }
@@ -164,10 +164,6 @@ func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
 	return
 }
 
-func (pls *pLibStatus) moveToUndo(e *list.Element) {
-	moveElem(e, pls.confirms, pls.undo)
-}
-
 func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
 	forEach(pls.undo,
 		func(e *list.Element) {
@@ -178,31 +174,52 @@ func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
 	)
 }
 
-func (pls *pLibStatus) replay() {
-	confirmDec := make(map[uint64]uint16)
+func (pls *pLibStatus) rollback() {
 
-	// 1st loop: reset confirmsLeft & collect counts by which confirmLeft must
-	// be decreased.
+	// Reset confirmsLeft & collect counts by which confirmLeft must be
+	// decreased.
+	decCounts := pls.getDecCounts()
+
+	// Decrease confirmLeft & return the new pre-LIB if exists.
+	pls.rebuildConfirms(decCounts)
+
+	// Rollback the pre-LIB map based on the new confirms list. -- During
+	// rollback, no new pre-LIBs are created. Only some of the existing pre-LIB
+	// map entries may be rollback to the previous one.
+	pls.rollbackPreLIBs()
+
+	// Don't need to update LIB since there is no other LIB between the LIB and
+	// the branch root (rollback target).
+}
+
+func (pls *pLibStatus) getDecCounts() map[uint64]uint16 {
+	decCounts := make(map[uint64]uint16)
+
 	forEach(pls.confirms,
 		func(e *list.Element) {
 			c := cInfo(e)
 			c.confirmsLeft = pls.confirmsRequired - 1
 
 			for i := c.min(); i < c.BlockNo; i++ {
-				if dec, exist := confirmDec[i]; exist {
-					confirmDec[i] = dec + 1
+				if dec, exist := decCounts[i]; exist {
+					decCounts[i] = dec + 1
 				} else {
-					confirmDec[i] = 1
+					decCounts[i] = 1
 				}
 			}
 		},
 	)
 
-	// 2nd loop: decrease confirmLeft.
+	return decCounts
+}
+
+func (pls *pLibStatus) rebuildConfirms(decCounts map[uint64]uint16) {
+	var lastUndoElem *list.Element
+
 	forEach(pls.confirms,
 		func(e *list.Element) {
 			c := cInfo(e)
-			if dec, exist := confirmDec[c.BlockNo]; exist {
+			if dec, exist := decCounts[c.BlockNo]; exist {
 				if c.confirmsLeft < dec {
 					errMsg := "the restored confirm info is inconsistent"
 					logger.Debug().
@@ -211,12 +228,55 @@ func (pls *pLibStatus) replay() {
 					panic(errMsg)
 				}
 				c.confirmsLeft = c.confirmsLeft - dec
+				if c.confirmsLeft == 0 {
+					lastUndoElem = e
+				}
 			}
 		},
 	)
 
-	// Don't need to update LIB since there is no other LIBs between the LIB
-	// and the branch root (rollback target).
+	if lastUndoElem != nil {
+		forEachUntil(pls.confirms, lastUndoElem,
+			func(e *list.Element) {
+				pls.moveToUndo(e)
+			},
+		)
+	}
+}
+
+func (pls *pLibStatus) rollbackPreLIBs() {
+	forEach(pls.confirms,
+		func(e *list.Element) {
+			pls.rollbackPreLIB(cInfo(e))
+		},
+	)
+}
+
+func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
+	if pLib, exist := pls.plib[c.BPID]; exist {
+		purgeBeg := len(pLib)
+		for i, l := range pLib {
+			if l.BlockNo >= c.BlockNo {
+				purgeBeg = i
+				break
+			}
+		}
+		if purgeBeg < len(pLib) {
+			oldLen := len(pLib)
+			newEntry := pLib[0:purgeBeg]
+
+			pls.plib[c.BPID] = newEntry
+
+			logger.Debug().
+				Str("BPID", c.BPID).Uint64("block no", newEntry[len(newEntry)-1].BlockNo).
+				Int("old len", oldLen).Int("new len", purgeBeg).
+				Msg("rollback pre-LIB entry")
+		}
+	}
+}
+
+func (pls *pLibStatus) moveToUndo(e *list.Element) {
+	moveElem(e, pls.confirms, pls.undo)
 }
 
 func moveElem(e *list.Element, src *list.List, dst *list.List) {
@@ -248,6 +308,18 @@ func forEach(l *list.List, f func(e *list.Element)) {
 	for e != nil {
 		next := e.Next()
 		f(e)
+		e = next
+	}
+}
+
+func forEachUntil(l *list.List, end *list.Element, f func(e *list.Element)) {
+	e := l.Front()
+	for e != nil {
+		next := e.Next()
+		f(e)
+		if e == end {
+			break
+		}
 		e = next
 	}
 }
