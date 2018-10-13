@@ -118,7 +118,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         CHECK(exp_type_check(check, v_exp));
 
         ASSERT(!is_tuple_meta(v_meta));
-        meta_set_map(&exp->meta, k_meta->type, v_meta);
+        meta_set_map(&exp->meta, k_meta, v_meta);
     }
     else {
         ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
@@ -136,6 +136,8 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
     meta_t *id_meta;
+    ast_exp_t *idx_exp;
+    meta_t *idx_meta;
 
     ASSERT1(is_array_exp(exp), exp->kind);
     ASSERT(exp->u_arr.id_exp != NULL);
@@ -150,11 +152,24 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 
     exp->id = id_exp->id;
 
-    if (exp->u_arr.idx_exp != NULL)
-        // TODO: restriction of array size
-        CHECK(check_exp(check, exp->u_arr.idx_exp));
+    idx_exp = exp->u_arr.idx_exp;
+    idx_meta = &idx_exp->meta;
 
-    exp->meta = *id_meta;
+    CHECK(check_exp(check, idx_exp));
+
+    /* TODO: multi-dimensional array */
+    if (is_map_meta(id_meta)) {
+        if (is_array_meta(id_meta))
+            RETURN(ERROR_NOT_SUPPORTED, &exp->pos);
+
+        CHECK(meta_cmp(id_meta->u_map.k_meta, idx_meta));
+
+        exp->meta = *id_meta->u_map.v_meta;
+    }
+    else {
+        // TODO: check index value if possible
+        exp->meta = *id_meta;
+    }
 
     return NO_ERROR;
 }
@@ -687,6 +702,8 @@ exp_tuple_check(check_t *check, ast_exp_t *exp)
 int
 check_exp(check_t *check, ast_exp_t *exp)
 {
+    ASSERT(exp != NULL);
+
     switch (exp->kind) {
     case EXP_NULL:
         return NO_ERROR;

@@ -70,7 +70,7 @@ typedef struct meta_tuple_s {
 typedef meta_tuple_t meta_struct_t;
 
 typedef struct meta_map_s {
-    type_t k_type;
+    meta_t *k_meta;
     meta_t *v_meta;
 } meta_map_t;
 
@@ -129,11 +129,11 @@ meta_set_untyped(meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_map(meta_t *meta, type_t k_type, meta_t *v_meta)
+meta_set_map(meta_t *meta, meta_t *k_meta, meta_t *v_meta)
 {
     meta_set(meta, TYPE_MAP);
 
-    meta->u_map.k_type = k_type;
+    meta->u_map.k_meta = k_meta;
     meta->u_map.v_meta = v_meta;
 }
 

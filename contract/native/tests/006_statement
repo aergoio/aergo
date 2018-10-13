@@ -52,6 +52,46 @@ contract test {
     }
 }
 
+@test(map_assignment)
+contract test {
+    test() {
+        map(int, string) m1;
+        m1[1] = "1";
+        m1[2] = "2";
+
+        struct s {
+            int a;
+            string b;
+        }
+        s v1 = { 1, "1" };
+        s v2 = { 2, "2" };
+
+        map(string, s) m3;
+        m3["1"] = v1;
+        m3["2"] = v2;
+
+        map(s, int) m4;
+        m4[v1] = 1;
+        m4[v2] = 2;
+    }
+}
+
+@test(mismatched_map_type)
+contract test {
+    test() {
+        struct s1 {
+            int a;
+        }
+        struct s2 {
+            string a;
+        }
+        s2 v = { "2" };
+
+        map(int, s1) m;
+        m[1] = v;
+    }
+}
+
 @test(tuple_assignment)
 contract test {
     string s3, s4;
