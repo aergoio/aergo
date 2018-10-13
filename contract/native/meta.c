@@ -103,6 +103,8 @@ meta_cmp_map(meta_t *x, meta_t *y)
     meta_t *k_meta;
     meta_t *v_meta;
     array_t *elems;
+    meta_t *kv_meta;
+    src_pos_t *pos;
 
     if ((!is_map_meta(x) && !is_tuple_meta(x)) ||
         (!is_map_meta(y) && !is_tuple_meta(y)))
@@ -118,18 +120,28 @@ meta_cmp_map(meta_t *x, meta_t *y)
         k_meta = x->u_map.k_meta;
         v_meta = x->u_map.v_meta;
         elems = y->u_tup.metas;
+        pos = y->pos;
     }
     else {
         k_meta = y->u_map.k_meta;
         v_meta = y->u_map.v_meta;
         elems = x->u_tup.metas;
+        pos = x->pos;
     }
 
-    if (array_size(elems) != 2)
-        RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, 2, array_size(elems));
+    if (array_size(elems) != 1)
+        RETURN(ERROR_MISMATCHED_ELEM_CNT, pos, 1, array_size(elems));
 
-    /* If one side is a tuple, it may be insufficient to check only by type comparison. 
-     * So, we have to check untyped flag. */
+    kv_meta = array_item(elems, 0, meta_t);
+
+    if (!is_tuple_meta(kv_meta))
+        RETURN(ERROR_MISMATCHED_TYPE, pos, "map", META_NAME(kv_meta));
+
+    elems = kv_meta->u_tup.metas;
+
+    if (array_size(elems) != 2)
+        RETURN(ERROR_MISMATCHED_ELEM_CNT, pos, 2, array_size(elems));
+
     CHECK(meta_cmp(k_meta, array_item(elems, 0, meta_t)));
 
     return meta_cmp(v_meta, array_item(elems, 1, meta_t));

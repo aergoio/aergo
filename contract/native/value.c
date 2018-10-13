@@ -165,6 +165,17 @@ value_shift_r(value_t *val, value_t *x, value_t *y)
 }
 
 static void
+value_neg(value_t *val, value_t *x, value_t *y)
+{
+    if (is_int_val(x))
+        value_set_int(val, -x->iv);
+    else if (is_fp_val(x))
+        value_set_double(val, -x->dv);
+    else
+        ASSERT1(!"invalid value", val->kind);
+}
+
+static void
 value_not(value_t *val, value_t *x, value_t *y)
 {
     if (is_bool_val(x))
@@ -190,6 +201,7 @@ eval_fn_t eval_fntab_[OP_CF_MAX] = {
     value_bit_xor,
     value_shift_l,
     value_shift_r,
+    value_neg,
     value_not
 };
 

@@ -985,6 +985,14 @@ unary_exp:
     {
         $$ = exp_op_new(OP_DEC, $2, NULL, &@$);
     }
+|   '+' unary_exp
+    {
+        $$ = $2;
+    }
+|   '-' unary_exp
+    {
+        $$ = exp_op_new(OP_NEG, $2, NULL, &@$);
+    }
 |   '!' unary_exp
     {
         $$ = exp_op_new(OP_NOT, $2, NULL, &@$);

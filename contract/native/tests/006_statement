@@ -116,6 +116,25 @@ contract test {
     }
 }
 
+@test(struct_access)
+contract test {
+    struct s {
+        int a;
+        string b;
+        map(int, bool) c;
+        double d[2];
+    }
+    test() {
+        s v = { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
+        v.a++;
+        v.a |= 0xabcd;
+        v.b += "2";
+        v.a, v.b = 2, "2";
+        v.c[1] = false;
+        v.d[2] = -v.d[1];
+    }
+}
+
 @test(if_else)
 contract test {
     int v1 = 1;

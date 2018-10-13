@@ -138,6 +138,7 @@ typedef enum op_kind_e {
     OP_BIT_XOR,
     OP_RSHIFT,
     OP_LSHIFT,
+    OP_NEG,
     OP_NOT,
     OP_CF_MAX,                      
 

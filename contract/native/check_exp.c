@@ -175,25 +175,28 @@ exp_array_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_eval_const(ast_exp_t *exp)
+exp_op_eval_const(ast_exp_t *exp, type_t type)
 {
     op_kind_t op = exp->u_op.kind;
     ast_exp_t *l_exp = exp->u_op.l_exp;
     ast_exp_t *r_exp = exp->u_op.r_exp;
-    value_t *l_val, *r_val;
+    value_t *r_val = NULL;
 
     ASSERT1(is_val_exp(l_exp), l_exp->kind);
-    ASSERT1(is_val_exp(r_exp), r_exp->kind);
 
-    l_val = &l_exp->u_val.val;
-    r_val = &r_exp->u_val.val;
+    if (r_exp != NULL) {
+        ASSERT1(is_val_exp(r_exp), r_exp->kind);
 
-    if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
-        RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
+        r_val = &r_exp->u_val.val;
 
-    value_eval(op, &exp->u_val.val, l_val, r_val);
+        if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
+            RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
+    }
+
+    value_eval(op, &exp->u_val.val, &l_exp->u_val.val, r_val);
 
     exp->kind = EXP_VAL;
+    meta_set_untyped(&exp->meta, type);
 
     return NO_ERROR;
 }
@@ -231,16 +234,13 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
     CHECK(check_exp(check, r_exp));
 
     if (!meta_equals(l_meta, r_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, META_NAME(l_meta), 
+        RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, META_NAME(l_meta),
                META_NAME(r_meta));
 
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval_const(exp);
-        meta_set_untyped(&exp->meta, MAX(l_meta->type, r_meta->type));
-    }
-    else {
+    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
+        exp_op_eval_const(exp, MAX(l_meta->type, r_meta->type));
+    else
         meta_set_from(&exp->meta, l_meta, r_meta);
-    }
 
     return NO_ERROR;
 }
@@ -270,13 +270,10 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     if (!is_integer_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
 
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval_const(exp);
-        meta_set_untyped(&exp->meta, l_meta->type);
-    }
-    else {
-        exp->meta = l_exp->meta;
-    }
+    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
+        exp_op_eval_const(exp, l_meta->type);
+    else
+        exp->meta = *l_meta;
 
     return NO_ERROR;
 }
@@ -305,13 +302,10 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_MISMATCHED_TYPE, &exp->pos,
                META_NAME(l_meta), META_NAME(r_meta));
 
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta)) {
-        exp_op_eval_const(exp);
-        meta_set_untyped(&exp->meta, TYPE_BOOL);
-    }
-    else {
+    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
+        exp_op_eval_const(exp, TYPE_BOOL);
+    else
         meta_set_bool(&exp->meta);
-    }
 
     return NO_ERROR;
 }
@@ -343,24 +337,24 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
         exp->meta = *l_meta;
         break;
 
+    case OP_NEG:
+        if (!is_numeric_meta(l_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
+
+        if (is_untyped_meta(l_meta))
+            exp_op_eval_const(exp, l_meta->type);
+        else
+            exp->meta = *l_meta;
+        break;
+
     case OP_NOT:
         if (!is_bool_meta(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
 
-        if (is_untyped_meta(l_meta)) {
-            value_t *l_val;
-
-            ASSERT1(is_val_exp(l_exp), l_exp->kind);
-            l_val = &l_exp->u_val.val;
-
-            value_eval(exp->u_op.kind, &exp->u_val.val, l_val, NULL);
-
-            exp->kind = EXP_VAL;
-            meta_set_untyped(&exp->meta, TYPE_BOOL);
-        }
-        else {
+        if (is_untyped_meta(l_meta))
+            exp_op_eval_const(exp, TYPE_BOOL);
+        else
             exp->meta = *l_meta;
-        }
         break;
 
     default:
@@ -495,6 +489,7 @@ exp_op_check(check_t *check, ast_exp_t *exp)
     case OP_INC:
     case OP_DEC:
     case OP_NOT:
+    case OP_NEG:
         return exp_op_check_unary(check, exp);
 
     case OP_AND:
