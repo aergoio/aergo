@@ -404,12 +404,20 @@ declarator:
 |   declarator '[' add_exp ']'
     {
         $$ = $1;
-        $$->u_var.arr_exp = $3;
+
+        if ($$->u_var.size_exps == NULL)
+            $$->u_var.size_exps = array_new();
+
+        exp_add_last($$->u_var.size_exps, $3);
     }
 |   declarator '[' ']'
     {
         $$ = $1;
-        $$->u_var.arr_exp = exp_null_new(&@2);
+
+        if ($$->u_var.size_exps == NULL)
+            $$->u_var.size_exps = array_new();
+
+        exp_add_last($$->u_var.size_exps, exp_null_new(&@2));
     }
 ;
 
@@ -773,11 +781,15 @@ ddl_stmt:
     {
         int len;
         char *ddl;
+
         yyerrok;
         error_pop();
+
         len = @$.abs.last_offset - @$.abs.first_offset;
         ddl = xstrndup(parse->src + @$.abs.first_offset, len);
+
         $$ = stmt_ddl_new(ddl, &@$);
+
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
     }
@@ -843,11 +855,15 @@ sql_exp:
     {
         int len;
         char *sql;
+
         yyerrok;
         error_pop();
+
         len = @$.abs.last_offset - @$.abs.first_offset;
         sql = xstrndup(parse->src + @$.abs.first_offset, len);
+
         $$ = exp_sql_new($1, sql, &@$);
+
         yylex_set_token(yyscanner, ';', &@3);
         yyclearin;
     }

@@ -58,7 +58,7 @@ contract test {
     int v6[1 + 1] = { 1, 2 };
     int v7[1 * 3 - 1] = { 3, 4 };
 
-    //int v8[2][2] = { { 1, 1 }, { 2, 2 } };
+    int v8[2][2] = { { 1, 1 }, { 2, 2 } };
 }
 
 @test(invalid_size_type)
@@ -95,7 +95,7 @@ contract test {
 @test(mismatched_element_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
-    int i[] = { 1, 2, "3" };
+    int i[2][2] = { { 1, 1 }, { 2, "2" } };
 }
 
 @test(excess_element_count)
@@ -181,7 +181,6 @@ contract test {
     s3 v10[1] = { { { 10, 10, "v10" } } };
     s3 v11[2] = { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 }
-
 
 @test(map_initializer)
 contract test {

@@ -30,8 +30,8 @@
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
 #define is_const_meta(meta)         (meta)->is_const
-#define is_array_meta(meta)         (meta)->is_array
 #define is_untyped_meta(meta)       (meta)->is_untyped
+#define is_array_meta(meta)         ((meta)->arr_dim > 0)
 
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
@@ -75,9 +75,11 @@ typedef struct meta_map_s {
 struct meta_s {
     type_t type;
 
-    bool is_const;
-    bool is_array;
+    bool is_const;          /* const qualifier */
     bool is_untyped;        /* integer or float literal, new map() */
+
+    int arr_dim;            /* dimension of array */
+    int *arr_size;          /* array size of each dimension */
 
     union {
         meta_map_t u_map;
@@ -93,7 +95,6 @@ void meta_set_tuple(meta_t *meta, array_t *exps);
 bool meta_equals(meta_t *x, meta_t *y);
 
 int meta_cmp(meta_t *x, meta_t *y);
-int meta_cmp_array(meta_t *x, array_t *y);
 
 void meta_dump(meta_t *meta, int indent);
 
@@ -115,6 +116,16 @@ meta_set(meta_t *meta, type_t type)
     ASSERT1(type > TYPE_NONE && type < TYPE_MAX, type);
 
     meta->type = type;
+}
+
+static inline void 
+meta_set_array(meta_t *meta, int arr_dim)
+{
+    ASSERT(meta != NULL);
+    ASSERT(arr_dim >= 0);
+
+    meta->arr_dim = arr_dim;
+    meta->arr_size = xcalloc(sizeof(int) * arr_dim);
 }
 
 static inline void

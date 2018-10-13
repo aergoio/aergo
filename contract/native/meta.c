@@ -88,9 +88,10 @@ meta_cmp_map(meta_t *x, meta_t *y)
 {
     meta_t *k_meta;
     meta_t *v_meta;
-    array_t *elems;
-    meta_t *kv_meta;
-    src_pos_t *pos;
+    array_t *cmp_metas;
+
+    if (is_ref_meta(x) || is_ref_meta(y))
+        return NO_ERROR;
 
     if ((!is_map_meta(x) && !is_tuple_meta(x)) ||
         (!is_map_meta(y) && !is_tuple_meta(y)))
@@ -105,32 +106,20 @@ meta_cmp_map(meta_t *x, meta_t *y)
     if (is_map_meta(x)) {
         k_meta = x->u_map.k_meta;
         v_meta = x->u_map.v_meta;
-        elems = y->u_tup.metas;
-        pos = y->pos;
+        cmp_metas = y->u_tup.metas;
     }
     else {
         k_meta = y->u_map.k_meta;
         v_meta = y->u_map.v_meta;
-        elems = x->u_tup.metas;
-        pos = x->pos;
+        cmp_metas = x->u_tup.metas;
     }
 
-    if (array_size(elems) != 1)
-        RETURN(ERROR_MISMATCHED_ELEM_CNT, pos, 1, array_size(elems));
+    if (array_size(cmp_metas) != 2)
+        RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, 2, array_size(cmp_metas));
 
-    kv_meta = array_item(elems, 0, meta_t);
+    CHECK(meta_cmp(k_meta, array_item(cmp_metas, 0, meta_t)));
 
-    if (!is_tuple_meta(kv_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, pos, "map", META_NAME(kv_meta));
-
-    elems = kv_meta->u_tup.metas;
-
-    if (array_size(elems) != 2)
-        RETURN(ERROR_MISMATCHED_ELEM_CNT, pos, 2, array_size(elems));
-
-    CHECK(meta_cmp(k_meta, array_item(elems, 0, meta_t)));
-
-    return meta_cmp(v_meta, array_item(elems, 1, meta_t));
+    return meta_cmp(v_meta, array_item(cmp_metas, 1, meta_t));
 }
 
 static int
@@ -145,8 +134,7 @@ meta_cmp_struct(meta_t *x, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
 
     if (array_size(x_elems) != array_size(y_elems))
-        RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos,
-               array_size(x_elems), array_size(y_elems));
+        RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, array_size(x_elems), array_size(y_elems));
 
     for (i = 0; i < array_size(x_elems); i++) {
         meta_t *x_elem = array_item(x_elems, i, meta_t);
@@ -170,30 +158,14 @@ meta_cmp(meta_t *x, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
     }
 
-    if (is_map_meta(x) || is_map_meta(y)) {
-        if (is_ref_meta(x) || is_ref_meta(y))
-            return NO_ERROR;
-
+    if (is_map_meta(x) || is_map_meta(y))
         return meta_cmp_map(x, y);
-    }
 
     if (is_struct_meta(x) || is_struct_meta(y))
         return meta_cmp_struct(x, y);
 
     if (x->type != y->type)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
-
-    return NO_ERROR;
-}
-
-int
-meta_cmp_array(meta_t *x, array_t *y)
-{
-    int i;
-
-    for (i = 0; i < array_size(y); i++) {
-        CHECK(meta_cmp(x, array_item(y, i, meta_t)));
-    }
 
     return NO_ERROR;
 }

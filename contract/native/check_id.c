@@ -14,13 +14,90 @@
 #include "check_id.h"
 
 static int
+id_var_check_array(check_t *check, ast_id_t *id)
+{
+    int i;
+    array_t *size_exps = id->u_var.size_exps;
+
+    meta_set_array(&id->meta, array_size(size_exps));
+
+    for (i = 0; i < array_size(size_exps); i++) {
+        ast_exp_t *size_exp = array_item(size_exps, i, ast_exp_t);
+
+        CHECK(check_exp(check, size_exp));
+
+        if (is_null_exp(size_exp)) {
+            if (id->u_var.init_exp == NULL)
+                RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
+
+            id->meta.arr_size[i] = -1;
+        }
+        else {
+            value_t *size_val = &size_exp->u_val.val;
+            meta_t *size_meta = &size_exp->meta;
+
+            if (!is_integer_meta(size_meta))
+                RETURN(ERROR_INVALID_SIZE_TYPE, &size_exp->pos,
+                       META_NAME(size_meta));
+
+            if (!is_untyped_meta(size_meta))
+                RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
+
+            ASSERT1(is_val_exp(size_exp), size_exp->kind);
+            ASSERT1(is_int_val(size_val), size_val->kind);
+
+            id->meta.arr_size[i] = size_val->iv;
+        }
+    }
+
+    return NO_ERROR;
+}
+
+static int
+id_var_cmp_arr_meta(meta_t *id_meta, int dim_idx, meta_t *arr_meta)
+{
+    int i;
+    array_t *arr_elems;
+
+    if (!is_tuple_meta(arr_meta))
+        RETURN(ERROR_MISMATCHED_TYPE, arr_meta->pos,
+               META_NAME(id_meta), META_NAME(arr_meta));
+
+    arr_elems = arr_meta->u_tup.metas;
+
+    if (id_meta->arr_size[dim_idx] == -1)
+        id_meta->arr_size[dim_idx] = array_size(arr_elems);
+    else if (id_meta->arr_size[dim_idx] != array_size(arr_elems))
+        RETURN(ERROR_MISMATCHED_ELEM_CNT, arr_meta->pos,
+               id_meta->arr_size[dim_idx], array_size(arr_elems));
+
+    for (i = 0; i < array_size(arr_elems); i++) {
+        meta_t *val_meta = array_item(arr_elems, i, meta_t);
+
+        if (dim_idx < id_meta->arr_dim - 1) {
+            id_var_cmp_arr_meta(id_meta, dim_idx + 1, val_meta);
+        }
+        else if (is_map_meta(id_meta) && is_tuple_meta(val_meta)) {
+            int i;
+            array_t *kv_metas = val_meta->u_tup.metas;
+
+            for (i = 0; i < array_size(kv_metas); i++) {
+                CHECK(meta_cmp(id_meta, array_item(kv_metas, i, meta_t)));
+            }
+        }
+        else {
+            CHECK(meta_cmp(id_meta, val_meta));
+        }
+    }
+
+    return NO_ERROR;
+}
+
+static int
 id_var_check(check_t *check, ast_id_t *id)
 {
-    int arr_size = 0;
     ast_exp_t *type_exp;
     meta_t *type_meta;
-    ast_exp_t *arr_exp;
-    ast_exp_t *init_exp;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
@@ -37,85 +114,44 @@ id_var_check(check_t *check, ast_id_t *id)
 
     id->meta = *type_meta;
 
-    arr_exp = id->u_var.arr_exp;
-    init_exp = id->u_var.init_exp;
+    if (id->u_var.size_exps != NULL)
+        CHECK(id_var_check_array(check, id));
 
-    if (arr_exp != NULL) {
-        /* XXX: multi-dimensional array */
-        CHECK(check_exp(check, arr_exp));
-
-        id->meta.is_array = true;
-
-        if (is_null_exp(arr_exp)) {
-            if (init_exp == NULL)
-                RETURN(ERROR_MISSING_ARR_SIZE, &arr_exp->pos);
-        }
-        else {
-            meta_t *arr_meta = &arr_exp->meta;
-
-            if (!is_integer_meta(arr_meta))
-                RETURN(ERROR_INVALID_SIZE_TYPE, &arr_exp->pos, META_NAME(arr_meta));
-
-            if (!is_untyped_meta(arr_meta))
-                RETURN(ERROR_INVALID_SIZE_VAL, &arr_exp->pos);
-
-            ASSERT1(is_val_exp(arr_exp), arr_exp->kind);
-            ASSERT1(is_int_val(&arr_exp->u_val.val), arr_exp->u_val.val.kind);
-
-            arr_size = (int)arr_exp->u_val.val.iv;
-        }
-    }
-
-    if (init_exp != NULL) {
+    if (id->u_var.init_exp != NULL) {
         /* TODO: named initializer */
+        ast_exp_t *init_exp = id->u_var.init_exp;
         meta_t *init_meta = &init_exp->meta;
 
-        if (arr_exp == NULL) {
-            CHECK(check_exp(check, init_exp));
+        CHECK(check_exp(check, init_exp));
 
+        if (id->u_var.size_exps == NULL) {
             if (is_tuple_meta(init_meta) &&
                 !is_map_meta(type_meta) && !is_struct_meta(type_meta))
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-            /* XXX: need to check value overflow */
-            if (is_map_meta(type_meta))
-                CHECK(meta_cmp_array(type_meta, init_meta->u_tup.metas));
-            else
-                CHECK(meta_cmp(type_meta, init_meta));
+            /* TODO: need to check value overflow */
+            if (is_map_meta(&id->meta) && is_tuple_meta(init_meta)) {
+                int i;
+                array_t *elem_metas = init_meta->u_tup.metas;
+
+                for (i = 0; i < array_size(elem_metas); i++) {
+                    CHECK(meta_cmp(&id->meta, array_item(elem_metas, i, meta_t)));
+                }
+            }
+            else {
+                return meta_cmp(&id->meta, init_meta);
+            }
         }
-        else {
-            array_t *elem_metas;
-
-            CHECK(check_exp(check, init_exp));
-
-            if (!is_tuple_meta(init_meta))
-                RETURN(ERROR_MISSING_ARR_INIT, &init_exp->pos);
-
+        else if (is_tuple_meta(init_meta)) {
+            /* in case of contract type */
             if (type_exp->id != NULL &&
                 !is_struct_meta(type_meta) && !is_map_meta(type_meta))
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-            elem_metas = init_meta->u_tup.metas;
-            ASSERT(array_size(elem_metas) > 0);
-
-            if (arr_size > 0 && arr_size != array_size(elem_metas))
-                RETURN(ERROR_MISMATCHED_ELEM_CNT, &init_exp->pos, arr_size,
-                       array_size(elem_metas));
-
-            /* XXX: need to check value overflow */
-            if (is_map_meta(type_meta)) {
-                int i;
-
-                for (i = 0; i < array_size(elem_metas); i++) {
-                    meta_t *map_meta = array_item(elem_metas, i, meta_t);
-
-                    ASSERT1(is_tuple_meta(map_meta), map_meta->type);
-                    CHECK(meta_cmp_array(type_meta, map_meta->u_tup.metas));
-                }
-            }
-            else{
-                CHECK(meta_cmp_array(type_meta, elem_metas));
-            }
+            return id_var_cmp_arr_meta(&id->meta, 0, init_meta);
+        }
+        else {
+            RETURN(ERROR_NOT_SUPPORTED, &init_exp->pos);
         }
     }
 
@@ -148,32 +184,20 @@ static int
 id_param_check(check_t *check, ast_id_t *id)
 {
     ast_exp_t *type_exp;
-    meta_t *type_meta;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
     ASSERT(id->u_var.init_exp == NULL);
 
     type_exp = id->u_var.type_exp;
-    type_meta = &type_exp->meta;
-
     ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
     CHECK(check_exp(check, type_exp));
 
-    id->meta = *type_meta;
+    id->meta = type_exp->meta;
 
-    if (id->u_var.arr_exp != NULL) {
-        ast_exp_t *arr_exp = id->u_var.arr_exp;
-        meta_t *arr_meta = &arr_exp->meta;
-
-        id->meta.is_array = true;
-
-        CHECK(check_exp(check, arr_exp));
-
-        if (!is_null_exp(arr_exp) && !is_integer_meta(arr_meta))
-            RETURN(ERROR_NOT_ALLOWED_TYPE, &id->pos, META_NAME(arr_meta));
-    }
+    if (id->u_var.size_exps != NULL)
+        CHECK(id_var_check_array(check, id));
 
     return NO_ERROR;
 }

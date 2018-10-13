@@ -44,8 +44,8 @@ typedef struct ast_exp_s ast_exp_t;
 
 typedef struct id_var_s {
     ast_exp_t *type_exp;
-    ast_exp_t *arr_exp;
     ast_exp_t *init_exp;
+    array_t *size_exps;
 } id_var_t;
 
 typedef struct id_struct_s {
