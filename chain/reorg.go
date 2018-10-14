@@ -285,7 +285,7 @@ func (reorg *reorganizer) rollbackChain() error {
 			brStartBlock.ID())
 	}
 
-	reorg.cs.UpdateStatus(brStartBlock)
+	reorg.cs.Update(brStartBlock)
 
 	return nil
 }

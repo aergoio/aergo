@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
@@ -460,8 +461,14 @@ func newBlockInfo(block *types.Block) *blockInfo {
 	}
 }
 
-// UpdateStatus updates the last irreversible block (LIB).
-func (s *Status) UpdateStatus(block *types.Block) {
+// Init recovers the last DPoS status including pre-LIB map and confirms
+// list between LIB and the best block.
+func (s *Status) Init(bestBlock *types.Block, getBestStatus func([]byte) []byte,
+	getBlock func(types.BlockNo) *types.Block) {
+}
+
+// Update updates the last irreversible block (LIB).
+func (s *Status) Update(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -525,6 +532,11 @@ func (s *Status) updateLIB(lib *blockInfo) {
 		Uint64("block no", s.lib.BlockNo).
 		Int("undo len", s.pls.undo.Len()).
 		Msg("last irreversible block (BFT) updated")
+}
+
+// Save saves the consensus status information for the later recovery.
+func (s *Status) Save(tx db.Transaction) error {
+	return nil
 }
 
 // NeedReorganization reports whether reorganization is needed or not.

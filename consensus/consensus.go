@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -69,7 +70,9 @@ type ChainConsensus interface {
 	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	UpdateStatus(block *types.Block)
+	Init(bestBlock *types.Block, getBestStatus func([]byte) []byte, getBlock func(types.BlockNo) *types.Block)
+	Update(block *types.Block)
+	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool
 }
 
