@@ -65,26 +65,26 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 	bi := ci.blockInfo
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
-	if _, exist := pls.plib[bi.BPID]; !exist {
-		pls.updatePreLIB(bi.BPID, pls.genesisInfo)
+	if _, exist := pls.plib[ci.BPID]; !exist {
+		pls.updatePreLIB(ci.BPID, pls.genesisInfo)
 	}
 
-	logger.Debug().Str("BP", bi.BPID).
+	logger.Debug().Str("BP", ci.BPID).
 		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("new confirm info added")
 }
 
 func (pls *pLibStatus) updateStatus() *blockInfo {
-	if bi := pls.getPreLIB(); bi != nil {
-		pls.updatePreLIB(bi.BPID, bi)
+	if bpID, bi := pls.getPreLIB(); bi != nil {
+		pls.updatePreLIB(bpID, bi)
 	}
 
 	return pls.calcLIB()
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
-	pls.plib[bi.BPID] = append(pls.plib[bi.BPID], bi)
-	logger.Debug().Str("BP", bi.BPID).
+	pls.plib[bpID] = append(pls.plib[bpID], bi)
+	logger.Debug().Str("BP", bpID).
 		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("proposed LIB map updated")
 }
@@ -128,13 +128,14 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 	return nil
 }
 
-func (pls *pLibStatus) getPreLIB() (bi *blockInfo) {
+func (pls *pLibStatus) getPreLIB() (bpID string, bi *blockInfo) {
 	var (
 		prev   *list.Element
 		toUndo = false
 		e      = pls.confirms.Back()
 		cr     = cInfo(e).ConfirmRange
 	)
+	bpID = cInfo(e).BPID
 
 	for e != nil && cr > 0 {
 		prev = e.Prev()
@@ -360,11 +361,13 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 
 type confirmInfo struct {
 	*blockInfo
+	BPID         string
 	confirmsLeft uint16
 }
 
 func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	return &confirmInfo{
+		BPID:         block.BPID2Str(),
 		blockInfo:    newBlockInfo(block),
 		confirmsLeft: confirmsRequired,
 	}
@@ -375,7 +378,7 @@ func (c confirmInfo) min() uint64 {
 }
 
 type blockInfo struct {
-	BPID         string
+	//BPID         string
 	BlockHash    string
 	BlockNo      uint64
 	ConfirmRange uint64
@@ -383,7 +386,6 @@ type blockInfo struct {
 
 func newBlockInfo(block *types.Block) *blockInfo {
 	return &blockInfo{
-		BPID:         block.BPID2Str(),
 		BlockHash:    block.ID(),
 		BlockNo:      block.BlockNo(),
 		ConfirmRange: block.GetHeader().GetConfirms(),
