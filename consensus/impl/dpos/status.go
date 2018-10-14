@@ -396,7 +396,6 @@ func (c confirmInfo) min() uint64 {
 }
 
 type blockInfo struct {
-	//BPID         string
 	BlockHash    string
 	BlockNo      uint64
 	ConfirmRange uint64
