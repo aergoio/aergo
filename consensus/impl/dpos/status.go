@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type errLibUpdate struct {
@@ -91,11 +92,28 @@ func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
 
 func (pls *pLibStatus) rollbackStatusTo(block *types.Block) error {
 	var (
-		beg        = pls.confirms.Back()
-		end        *list.Element
-		confirmLow = cInfo(beg).BlockNo
-		targetHash = block.ID()
+		beg           = pls.confirms.Back()
+		end           *list.Element
+		confirmLow    = cInfo(beg).BlockNo
+		targetHash    = block.ID()
+		targetBlockNo = block.BlockNo()
 	)
+
+	logger.Debug().
+		Uint64("target no", targetBlockNo).Int("undo len", pls.undo.Len()).
+		Msg("start LIB status rollback")
+
+	// Remove those associated with the blocks reorganized out.
+	removeIf(pls.undo,
+		func(e *list.Element) bool {
+			return cInfo(e).BlockNo > targetBlockNo
+		},
+	)
+
+	logger.Debug().
+		Uint64("target no", targetBlockNo).
+		Int("current undo len", pls.undo.Len()).
+		Msg("irrelevent element removed from undo list")
 
 	// Check if block is a valid rollback target.
 	for e := beg; e != nil; e = e.Prev() {
@@ -484,4 +502,12 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 
 		return reorganizable
 	*/
+}
+
+func dumpConfirmInfo(name string, l *list.List) {
+	forEach(l,
+		func(e *list.Element) {
+			logger.Debug().Str("confirm info", spew.Sdump(cInfo(e))).Msg(name)
+		},
+	)
 }
