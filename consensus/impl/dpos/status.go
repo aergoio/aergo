@@ -1,8 +1,11 @@
 package dpos
 
 import (
+	"bytes"
 	"container/list"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"sort"
 	"sync"
 
@@ -10,6 +13,15 @@ import (
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
+)
+
+type preLIB = map[string][]*blockInfo
+
+var (
+	statusKeyLIB    = []byte("dposStatus.LIB")
+	statusKeyPreLIB = []byte("dposStatus.PreLIB")
+	initialPLIB     = make(preLIB)
+	initialLIB      = &blockInfo{}
 )
 
 type errLibUpdate struct {
@@ -44,7 +56,7 @@ type pLibStatus struct {
 	confirmsRequired uint16
 	confirms         *list.List
 	undo             *list.List
-	plib             map[string][]*blockInfo // BP-wise proposed LIB map
+	plib             preLIB // BP-wise proposed LIB map
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
@@ -52,7 +64,7 @@ func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
 		undo:             list.New(),
-		plib:             make(map[string][]*blockInfo),
+		plib:             make(preLIB),
 	}
 }
 
@@ -463,8 +475,41 @@ func newBlockInfo(block *types.Block) *blockInfo {
 
 // Init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) Init(bestBlock *types.Block, getBestStatus func([]byte) []byte,
+func (s *Status) Init(bestBlock *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) *types.Block) {
+
+	loadLIB(get)
+}
+
+func loadLIB(get func([]byte) []byte) {
+	decodeStatus := func(key []byte, dst interface{}) error {
+		value := get(key)
+		if len(value) == 0 {
+			return fmt.Errorf("LIB status not found: key = %v", string(key))
+		}
+
+		err := decode(bytes.NewBuffer(value), dst)
+		if err != nil {
+			logger.Debug().Err(err).Str("key", string(key)).
+				Msg("failed to decode DPoS status")
+			panic(err)
+		}
+		return nil
+	}
+
+	if err := decodeStatus(statusKeyLIB, initialLIB); err == nil {
+		logger.Debug().Uint64("block no", initialLIB.BlockNo).
+			Str("block hash", initialLIB.BlockHash).Msg("LIB loaded from DB")
+	}
+
+	if err := decodeStatus(statusKeyPreLIB, &initialPLIB); err == nil {
+		logger.Debug().Int("len", len(initialPLIB)).Msg("pre-LIB loaded from DB")
+		for id, p := range initialPLIB {
+			logger.Debug().
+				Str("BPID", id).Str("block hash", p[len(p)-1].BlockHash).
+				Msg("pre-LIB entry")
+		}
+	}
 }
 
 // Update updates the last irreversible block (LIB).
@@ -536,7 +581,39 @@ func (s *Status) updateLIB(lib *blockInfo) {
 
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
+	if len(s.pls.plib) != 0 {
+		buf, err := encode(s.pls.plib)
+		if err != nil {
+			return err
+		}
+		plib := buf.Bytes()
+
+		tx.Set(statusKeyPreLIB, plib)
+	}
+
+	if s.lib != nil {
+		buf, err := encode(s.lib)
+		if err != nil {
+			return err
+		}
+		lib := buf.Bytes()
+
+		tx.Set(statusKeyLIB, lib)
+	}
+
 	return nil
+}
+
+func encode(e interface{}) (bytes.Buffer, error) {
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(e)
+
+	return buf, err
+}
+
+func decode(r io.Reader, e interface{}) error {
+	dec := gob.NewDecoder(r)
+	return dec.Decode(e)
 }
 
 // NeedReorganization reports whether reorganization is needed or not.

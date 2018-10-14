@@ -46,7 +46,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
-		cdb:            NewChainDB(),
+		cdb:            NewChainDB(cc),
 		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
@@ -111,6 +111,7 @@ func (cs *ChainService) BeforeStart() {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
+	cs.ChainConsensus.Init(nil, cs.cdb.store.Get, nil)
 }
 
 // AfterStart ... do nothing
