@@ -35,7 +35,7 @@ char *err_codes_[ERROR_MAX] = {
 stack_t errstack_ = { 0, NULL, NULL };
 
 char *
-error_to_string(ec_t ec)
+error_to_str(ec_t ec)
 {
     ASSERT1(ec >= NO_ERROR && ec < ERROR_MAX, ec);
     return err_codes_[ec];

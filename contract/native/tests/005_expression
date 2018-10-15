@@ -18,14 +18,14 @@ contract test {
     string s3 = s1 + "->" + s2;
 }
 
-@test(mismatched_operand_type)
+@test(mismatched_arithmetic_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
     int i = 1;
     int64 j = i + 1;
 }
 
-@test(non_integer_operand_type)
+@test(non_integer_arithmetic_type)
 @error(ERROR_INVALID_OP_TYPE)
 contract test {
     bool b = true + false;
@@ -60,7 +60,7 @@ contract test {
     int i6 = i5 >> i4;
 }
 
-@test(non_integer_operand_type)
+@test(non_integer_bitwise_type)
 @error(ERROR_INVALID_OP_TYPE)
 contract test {
     int i = 1.1 & 1.0;
@@ -77,7 +77,7 @@ contract test {
     bool b7 = (true == true);
 }
 
-@test(mismatched_operand_type)
+@test(mismatched_comparison_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
     bool b = 1 == 1.0;
@@ -93,7 +93,7 @@ contract test {
 }
 
 @test(non_boolean_operand_type)
-@error(ERROR_INVALID_OP_TYPE)
+@error(ERROR_INVALID_COND_TYPE)
 contract test {
     bool b = true && 0;
 }
@@ -131,7 +131,7 @@ contract test {
 }
 
 @test(non_boolean_prefix_type)
-@error(ERROR_INVALID_OP_TYPE)
+@error(ERROR_INVALID_COND_TYPE)
 contract test {
     string s = 1 ? "true" : "false";
 }

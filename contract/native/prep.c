@@ -32,7 +32,7 @@ scan_init(scan_t *scan, char *path, char *work_dir, strbuf_t *out)
     strbuf_init(&scan->in);
     strbuf_load(&scan->in, path);
 
-    src_pos_init(&scan->pos, strbuf_text(&scan->in), xstrdup(path));
+    src_pos_init(&scan->pos, strbuf_str(&scan->in), xstrdup(path));
 
     scan->out = out;
 }
@@ -92,7 +92,7 @@ del_file(scan_t *scan, char *path, stack_t *imp)
 static void
 put_char(scan_t *scan, char c)
 {
-    strbuf_append(scan->out, &c, 1);
+    strbuf_ncat(scan->out, &c, 1);
 }
 
 static void
@@ -146,7 +146,7 @@ mark_file(char *path, int line, int offset, strbuf_t *out)
 
     snprintf(buf, sizeof(buf), "#file \"%s\" %d %d\n", path, line, offset);
 
-    strbuf_append(out, buf, strlen(buf));
+    strbuf_cat(out, buf);
 }
 
 static void

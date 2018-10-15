@@ -77,6 +77,7 @@ contract test {
 }
 
 @test(mismatched_map_type)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
     test() {
         struct s1 {

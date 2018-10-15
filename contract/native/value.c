@@ -24,7 +24,7 @@
 static void
 value_add(value_t *val, value_t *x, value_t *y)
 {
-    if (is_string_val(x))
+    if (is_str_val(x))
         value_set_str(val, xstrcat(x->sv, y->sv));
     else
         value_arith(+, val, x, y);
@@ -79,7 +79,7 @@ value_mod(value_t *val, value_t *x, value_t *y)
             res = (x)->iv op (y)->iv;                                          \
         else if (is_fp_val(x))                                                 \
             res = (x)->iv op (y)->iv;                                          \
-        else if (is_string_val(x))                                             \
+        else if (is_str_val(x))                                             \
             res = strcmp((x)->sv, (y)->sv) op 0;                               \
         else                                                                   \
             ASSERT1(!"invalid value", (val)->kind);                            \

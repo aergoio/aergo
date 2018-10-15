@@ -10,8 +10,6 @@
 
 #include "array.h"
 
-#define META_NAME(meta)             TYPE_NAME((meta)->type)
-
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
 #define is_integer_meta(meta)                                                  \
@@ -33,13 +31,9 @@
 #define is_untyped_meta(meta)       (meta)->is_untyped
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
 
+#define is_builtin_meta(meta)       ((meta)->type <= TYPE_BUILTIN)
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
-
-#define meta_size(meta)                                                        \
-    (is_void_meta(meta) ? 0 :                                                  \
-     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                          \
-      array_size((meta)->u_tup.metas) : 1))
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -58,24 +52,30 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
+#define meta_size(meta)                                                        \
+    (is_void_meta(meta) ? 0 :                                                  \
+     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                          \
+      array_size((meta)->u_tup.metas) : 1))
+
 #ifndef _META_T
 #define _META_T
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
 typedef struct meta_tuple_s {
+    char *name;             /* name of struct */
     array_t *metas;
 } meta_tuple_t;
 
 typedef struct meta_map_s {
-    meta_t *k_meta;
-    meta_t *v_meta;
+    meta_t *k_meta;         /* key */
+    meta_t *v_meta;         /* value */
 } meta_map_t;
 
 struct meta_s {
     type_t type;
 
-    bool is_const;          /* const qualifier */
+    bool is_const;          /* "const" qualifier */
     bool is_untyped;        /* integer or float literal, new map() */
 
     int arr_dim;            /* dimension of array */
@@ -89,11 +89,12 @@ struct meta_s {
     src_pos_t *pos;
 };
 
-void meta_set_struct(meta_t *meta, array_t *ids);
+char *meta_to_str(meta_t *x);
+
+void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
 
 bool meta_equals(meta_t *x, meta_t *y);
-
 int meta_check(meta_t *x, meta_t *y);
 
 void meta_dump(meta_t *meta, int indent);
@@ -118,7 +119,7 @@ meta_set(meta_t *meta, type_t type)
     meta->type = type;
 }
 
-static inline void 
+static inline void
 meta_set_array(meta_t *meta, int arr_dim)
 {
     ASSERT(meta != NULL);
@@ -146,7 +147,31 @@ meta_set_map(meta_t *meta, meta_t *k_meta, meta_t *v_meta)
 }
 
 static inline void
-meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
+meta_copy(meta_t *dest, meta_t *src)
+{
+    ASSERT(dest != NULL);
+    ASSERT(src != NULL);
+
+    dest->type = src->type;
+
+    dest->is_const = src->is_const;
+    dest->is_untyped = src->is_untyped;
+
+    dest->arr_dim = src->arr_dim;
+    dest->arr_size = src->arr_size;
+
+    if (is_struct_meta(src) || is_tuple_meta(src)) {
+        dest->u_tup.name = src->u_tup.name;
+        dest->u_tup.metas = src->u_tup.metas;
+    }
+    else if (is_map_meta(src)) {
+        dest->u_map.k_meta = src->u_map.k_meta;
+        dest->u_map.v_meta = src->u_map.v_meta;
+    }
+}
+
+static inline void
+meta_merge(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
@@ -157,10 +182,10 @@ meta_set_from(meta_t *meta, meta_t *x, meta_t *y)
         meta_set_untyped(meta, MAX(x->type, y->type));
     }
     else if (is_untyped_meta(x)) {
-        *meta = *y;
+        meta_copy(meta, y);
     }
     else {
-        *meta = *x;
+        meta_copy(meta, x);
     }
 }
 

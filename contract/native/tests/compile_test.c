@@ -91,7 +91,7 @@ run_test(env_t *env, char *path)
             error_dump();
 
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
-               error_to_string(env->ec), error_to_string(ac));
+               error_to_str(env->ec), error_to_str(ac));
 
         is_failed = true;
     }

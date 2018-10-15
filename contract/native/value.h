@@ -12,7 +12,7 @@
 #define is_bool_val(val)            ((val)->kind == VAL_BOOL)
 #define is_int_val(val)             ((val)->kind == VAL_INT)
 #define is_fp_val(val)              ((val)->kind == VAL_FP)
-#define is_string_val(val)          ((val)->kind == VAL_STR)
+#define is_str_val(val)             ((val)->kind == VAL_STR)
 
 #define is_zero_val(val)                                                       \
     (is_int_val(val) ? (val)->iv == 0 :                                        \

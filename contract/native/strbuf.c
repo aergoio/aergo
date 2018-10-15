@@ -26,23 +26,23 @@ strbuf_reset(strbuf_t *sb)
 }
 
 void
-strbuf_append(strbuf_t *sb, char *str, int str_len)
+strbuf_ncat(strbuf_t *sb, char *str, int n)
 {
-    if (sb->offset + str_len > sb->size) {
-        sb->size += MAX(sb->size, str_len);
+    if (sb->offset + n > sb->size) {
+        sb->size += MAX(sb->size, n);
         sb->buf = xrealloc(sb->buf, sb->size + 1);
     }
 
-    memcpy(sb->buf + sb->offset, str, str_len);
+    memcpy(sb->buf + sb->offset, str, n);
 
-    sb->offset += str_len;
+    sb->offset += n;
     sb->buf[sb->offset] = '\0';
 }
 
 void
-strbuf_trunc(strbuf_t *sb, int len)
+strbuf_trunc(strbuf_t *sb, int n)
 {
-    sb->offset -= len;
+    sb->offset -= n;
     sb->buf[sb->offset] = '\0';
 }
 
@@ -50,7 +50,7 @@ void
 strbuf_copy(strbuf_t *src, strbuf_t *dest)
 {
     strbuf_reset(dest);
-    strbuf_append(dest, src->buf, src->offset);
+    strbuf_ncat(dest, src->buf, src->offset);
 }
 
 void
@@ -61,7 +61,7 @@ strbuf_load(strbuf_t *sb, char *path)
     char buf[STRBUF_INIT_SIZE];
 
     while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
-        strbuf_append(sb, buf, n);
+        strbuf_ncat(sb, buf, n);
     }
 
     if (!feof(fp))
@@ -78,7 +78,7 @@ strbuf_dump(strbuf_t *sb, char *path)
 
     fp = open_file(path, "w");
 
-    n = fwrite(strbuf_text(sb), 1, strbuf_size(sb), fp);
+    n = fwrite(strbuf_str(sb), 1, strbuf_size(sb), fp);
     if (n < 0)
         FATAL(ERROR_FILE_IO, path, strerror(errno));
 

@@ -38,7 +38,7 @@ id_var_check_array(check_t *check, ast_id_t *id, bool is_param)
 
             if (!is_integer_meta(size_meta))
                 RETURN(ERROR_INVALID_SIZE_TYPE, &size_exp->pos,
-                       META_NAME(size_meta));
+                       meta_to_str(size_meta));
 
             if (!is_untyped_meta(size_meta))
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
@@ -72,7 +72,7 @@ id_var_check(check_t *check, ast_id_t *id)
     if (type_exp->u_type.is_public)
         flag_set(id->mod, MOD_PUBLIC);
 
-    id->meta = *type_meta;
+    meta_copy(&id->meta, type_meta);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_var_check_array(check, id, false));
@@ -84,25 +84,14 @@ id_var_check(check_t *check, ast_id_t *id)
 
         CHECK(exp_check(check, init_exp));
 
-        if (id->u_var.size_exps == NULL) {
-            if (is_tuple_meta(init_meta) &&
-                !is_map_meta(type_meta) && !is_struct_meta(type_meta))
-                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-
-            /* TODO: need to check value overflow */
-            //return meta_check(&id->meta, init_meta);
-        }
-        else if (is_tuple_meta(init_meta)) {
+        if (id->u_var.size_exps == NULL && is_tuple_meta(init_meta) &&
+            !is_map_meta(type_meta) && !is_struct_meta(type_meta))
+            /* not allowed static initializer except map or struct */
+            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+        else if (is_tuple_meta(init_meta) && type_exp->id != NULL &&
+                 !is_struct_meta(type_meta) && !is_map_meta(type_meta))
             /* in case of contract type */
-            if (type_exp->id != NULL &&
-                !is_struct_meta(type_meta) && !is_map_meta(type_meta))
-                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-
-            //return meta_check_array(&id->meta, 0, init_meta);
-        }
-        else {
-            RETURN(ERROR_NOT_SUPPORTED, &init_exp->pos);
-        }
+            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
         return meta_check(&id->meta, init_meta);
     }
@@ -127,7 +116,7 @@ id_struct_check(check_t *check, ast_id_t *id)
         CHECK(id_var_check(check, fld_id));
     }
 
-    meta_set_struct(&id->meta, fld_ids);
+    meta_set_struct(&id->meta, id->name, fld_ids);
 
     return NO_ERROR;
 }
@@ -146,7 +135,7 @@ id_param_check(check_t *check, ast_id_t *id)
 
     CHECK(exp_check(check, type_exp));
 
-    id->meta = type_exp->meta;
+    meta_copy(&id->meta, &type_exp->meta);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_var_check_array(check, id, true));

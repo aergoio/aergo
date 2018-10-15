@@ -28,7 +28,7 @@ parse_init(parse_t *parse, char *path, flag_t flag, strbuf_t *src, ast_t **ast)
     parse->path = path;
     parse->flag = flag;
 
-    parse->src = strbuf_text(src);
+    parse->src = strbuf_str(src);
     parse->len = strbuf_size(src);
     parse->pos = 0;
 

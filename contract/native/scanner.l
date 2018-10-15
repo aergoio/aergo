@@ -80,7 +80,7 @@
             }                                                                  \
             else {                                                             \
                 src_pos_update_col(yylloc, 1);                                 \
-                strbuf_append(YY_BUF, &c, 1);                                  \
+                strbuf_ncat(YY_BUF, &c, 1);                                    \
             }                                                                  \
             prev = c;                                                          \
         }                                                                      \
@@ -92,7 +92,7 @@
 
 #define yy_return_strbuf(tok)                                                  \
     do {                                                                       \
-        yylval->str = xstrndup(strbuf_text(YY_BUF), strbuf_size(YY_BUF));      \
+        yylval->str = xstrndup(strbuf_str(YY_BUF), strbuf_size(YY_BUF));       \
         strbuf_reset(YY_BUF);                                                  \
         return (tok);                                                          \
     } while (0)

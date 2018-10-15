@@ -28,7 +28,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
     CHECK(exp_check(check, cond_exp));
 
     if (!is_bool_meta(cond_meta))
-        RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, META_NAME(cond_meta));
+        RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
 
     if (stmt->u_if.if_blk != NULL)
         blk_check(check, stmt->u_if.if_blk);
@@ -240,11 +240,11 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
         if (meta == NULL) {
             if (!is_bool_meta(val_meta))
                 RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos,
-                       META_NAME(val_meta));
+                       meta_to_str(val_meta));
         }
         else if (!meta_equals(meta, val_meta)) {
             RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos,
-                   META_NAME(meta), META_NAME(val_meta));
+                   meta_to_str(meta), meta_to_str(val_meta));
         }
     }
 
@@ -276,7 +276,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 
         if (!is_comparable_meta(cond_meta))
             RETURN(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos,
-                   META_NAME(cond_meta));
+                   meta_to_str(cond_meta));
     }
 
     case_stmts = stmt->u_sw.case_stmts;
@@ -330,7 +330,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
                 if (!meta_equals(ret_meta, arg_meta))
                     RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
-                           META_NAME(ret_meta), META_NAME(arg_meta));
+                           meta_to_str(ret_meta), meta_to_str(arg_meta));
             }
         }
         else {
@@ -346,7 +346,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 
             if (!meta_equals(arg_meta, ret_meta))
                 RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos,
-                       META_NAME(ret_meta), META_NAME(arg_meta));
+                       meta_to_str(ret_meta), meta_to_str(arg_meta));
         }
     }
     else if (!is_void_meta(fn_meta)) {

@@ -5,13 +5,60 @@
 
 #include "common.h"
 
+#include "strbuf.h"
 #include "ast_id.h"
 #include "ast_exp.h"
 
 #include "meta.h"
 
+char *
+meta_to_str(meta_t *x)
+{
+    strbuf_t buf;
+
+    if (is_struct_meta(x)) {
+        ASSERT(x->u_tup.name != NULL);
+
+        strbuf_init(&buf);
+        strbuf_cat(&buf, "struct ");
+        strbuf_cat(&buf, x->u_tup.name);
+
+        return strbuf_str(&buf);
+    }
+    else if (is_map_meta(x)) {
+        strbuf_init(&buf);
+        strbuf_cat(&buf, "map(");
+        strbuf_cat(&buf, meta_to_str(x->u_map.k_meta));
+        strbuf_cat(&buf, ", ");
+        strbuf_cat(&buf, meta_to_str(x->u_map.v_meta));
+        strbuf_cat(&buf, ")");
+
+        return strbuf_str(&buf);
+    }
+    /* keep for later
+    else if (is_tuple_meta(x)) {
+        int i;
+        array_t *elems = x->u_tup.metas;
+
+        strbuf_init(&buf);
+        strbuf_cat(&buf, "{");
+        for (i = 0; i < array_size(elems); i++) {
+            if (i > 0)
+                strbuf_cat(&buf, ", ");
+
+            strbuf_cat(&buf, meta_to_str(array_item(elems, i, meta_t)));
+        }
+        strbuf_cat(&buf, "}");
+
+        return strbuf_str(&buf);
+    }
+    */
+
+    return TYPE_NAME(x->type);
+}
+
 void
-meta_set_struct(meta_t *meta, array_t *ids)
+meta_set_struct(meta_t *meta, char *name, array_t *ids)
 {
     int i;
     array_t *metas = array_new();
@@ -22,6 +69,7 @@ meta_set_struct(meta_t *meta, array_t *ids)
         array_add_last(metas, &array_item(ids, i, ast_id_t)->meta);
     }
 
+    meta->u_tup.name = name;
     meta->u_tup.metas = metas;
 }
 
@@ -37,6 +85,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
         array_add_last(metas, &array_item(exps, i, ast_exp_t)->meta);
     }
 
+    meta->u_tup.name = NULL;
     meta->u_tup.metas = metas;
 }
 
@@ -105,7 +154,7 @@ meta_check_map(meta_t *x, meta_t *y)
             array_t *kv_metas = kv_elem->u_tup.metas;
 
             if (!is_tuple_meta(kv_elem))
-                RETURN(ERROR_MISMATCHED_TYPE, y->pos, "map", META_NAME(kv_elem));
+                RETURN(ERROR_MISMATCHED_TYPE, y->pos, "map", meta_to_str(kv_elem));
 
             if (array_size(kv_metas) != 2)
                 RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, 2, array_size(kv_metas));
@@ -115,7 +164,7 @@ meta_check_map(meta_t *x, meta_t *y)
         }
     }
     else {
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     return NO_ERROR;
@@ -129,7 +178,7 @@ meta_check_struct(meta_t *x, meta_t *y)
     array_t *y_elems = y->u_tup.metas;
 
     if (!is_struct_meta(y) && !is_tuple_meta(y))
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
     if (array_size(x_elems) != array_size(y_elems))
         RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, array_size(x_elems),
@@ -156,7 +205,7 @@ meta_check_type(meta_t *x, meta_t *y)
             (is_float_meta(x) && is_float_meta(y)))
             return NO_ERROR;
 
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     if (is_map_meta(x))
@@ -166,7 +215,7 @@ meta_check_type(meta_t *x, meta_t *y)
         return meta_check_struct(x, y);
 
     if (x->type != y->type)
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
     return NO_ERROR;
 }
@@ -178,7 +227,7 @@ meta_check_array(meta_t *x, int idx, meta_t *y)
     array_t *arr_elems;
 
     if (!is_tuple_meta(y))
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, META_NAME(x), META_NAME(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
     arr_elems = y->u_tup.metas;
 

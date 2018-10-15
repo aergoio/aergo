@@ -9,6 +9,7 @@
 #include "common.h"
 
 #define is_empty_list(list)             ((list)->head == NULL)
+
 #define list_size(list)                 (list)->size
 #define list_item(node, type)           (type *)((node)->item)
 

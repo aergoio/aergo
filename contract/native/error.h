@@ -34,7 +34,7 @@ typedef struct error_s {
     char desc[DESC_MAX_LEN];
 } error_t;
 
-char *error_to_string(ec_t ec);
+char *error_to_str(ec_t ec);
 ec_t error_to_code(char *str);
 
 int error_count(void);

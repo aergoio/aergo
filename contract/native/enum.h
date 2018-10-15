@@ -53,6 +53,8 @@ typedef enum type_e {
     TYPE_FLOAT,
     TYPE_DOUBLE,
     TYPE_STRING,
+    TYPE_BUILTIN    = TYPE_STRING,
+
     TYPE_STRUCT,
     TYPE_REF,
     TYPE_ACCOUNT,
@@ -140,7 +142,7 @@ typedef enum op_kind_e {
     OP_LSHIFT,
     OP_NEG,
     OP_NOT,
-    OP_CF_MAX,                      
+    OP_CF_MAX,
 
     /* short-circuit evaluation is possible up to OP_OR */
     OP_AND          = OP_CF_MAX,
