@@ -8,8 +8,7 @@ extern const bc_ctx_t *getLuaExecContext(lua_State *L);
 
 static int systemPrint(lua_State *L)
 {
-	printf ("systemPrinted");
-	return 1;
+	return 0;
 }
 
 static int setItem(lua_State *L)
@@ -30,7 +29,7 @@ static int setItem(lua_State *L)
 	luaL_checkany(L, 2);
 	key = luaL_checkstring(L, 1);
 
-	jsonValue = lua_util_get_json (L, -1);
+	jsonValue = lua_util_get_json (L, -1, false);
 	dbKey = lua_util_get_db_key(exec, key);
 
 	if (LuaSetDB(L, exec->stateKey, dbKey, jsonValue) != 0) {

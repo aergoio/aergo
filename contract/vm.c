@@ -105,7 +105,10 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 const char *vm_get_json_ret(lua_State *L, int nresult)
 {
 	int top = lua_gettop(L);
-	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top);
+	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
+
+    if (json_ret == NULL)
+        return lua_tostring(L, -1);
 
 	lua_pushstring(L, json_ret);
 	free(json_ret);
@@ -118,18 +121,19 @@ const char *vm_tostring(lua_State *L, int idx)
     return lua_tolstring(L, idx, NULL);
 }
 
-void vm_copy_result(lua_State *L, lua_State *target, int cnt)
+const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
 	int i;
-	int top;
-	sbuff_t sbuf;
-	lua_util_sbuf_init(&sbuf, 64);
-	top = lua_gettop(L);
+	int top = lua_gettop(L);
+	char *json;
 
 	for (i = top - cnt + 1; i <= top; ++i) {
-		lua_util_dump_json (L, i, &sbuf);
-		lua_util_json_to_lua(target, sbuf.buf);
-		sbuf.idx  = 0;
+		json = lua_util_get_json (L, i, false);
+		if (json == NULL)
+		    return lua_tostring(L, -1);
+
+		lua_util_json_to_lua(target, json);
+		free (json);
 	}
-	free(sbuf.buf);
+	return NULL;
 }

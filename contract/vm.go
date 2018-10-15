@@ -200,7 +200,10 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	if target == nil {
 		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
 	} else {
-		C.vm_copy_result(ce.L, target, nret)
+		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
+			errMsg := C.GoString(cErrMsg)
+			ce.err = errors.New(errMsg)
+		}
 	}
 	return nret
 }
