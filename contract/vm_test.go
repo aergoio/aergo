@@ -1285,6 +1285,33 @@ abi.register(init, get)`
 	)
 }
 
+func TestSqlVmRecursiveData(t *testing.T) {
+	bc := loadBlockChain(t)
+
+	definition := `
+function r()
+	local t = {}
+	t["name"] = "ktlee"
+	t["self"] = t
+	return t
+end
+abi.register(r)`
+
+	tx := newLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
+	err := bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "r", 1, definition),
+		tx,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `nested table error` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+}
+
 // end of test-cases
 
 // helper functions
