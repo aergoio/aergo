@@ -99,7 +99,7 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
 
-    lua_sethook (L, count_hook, LUA_MASKCOUNT, 10000000);
+    lua_sethook (L, count_hook, LUA_MASKCOUNT, 500000);
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
