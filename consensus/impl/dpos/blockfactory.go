@@ -190,7 +190,7 @@ func (bf *BlockFactory) newBlockState(bestBlock *types.Block) (*state.BlockState
 		logger.Error().Err(err).Msg("failed to make new tx executor")
 		return nil, err
 	}
-	logger.Error().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).Str("root", enc.ToString(root)).Msg("get state root")
+	logger.Debug().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).Str("root", enc.ToString(root)).Msg("get state root")
 
 	bState := state.NewBlockState(types.BlockID{},
 		sdb.OpenNewStateDB(root), contract.TempReceiptDb.NewTx())
@@ -224,6 +224,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.
 
 	logger.Info().
 		Str("BP", bf.ID).Str("id", block.ID()).
+		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.BlockNo()).Uint64("confirms", block.Confirms()).
 		Uint64("lpb", lpbNo).
 		Msg("block produced")

@@ -379,9 +379,12 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 		}
 	}
 	// save state of genesis block
+	// FIXME don't use chainstate API
 	if err := sdb.apply(gbState); err != nil {
 		return err
 	}
+
+	block.SetBlocksRootHash(sdb.GetRoot())
 
 	return nil
 }

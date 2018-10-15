@@ -36,7 +36,9 @@ type ChainService struct {
 }
 
 var (
-	logger = log.NewLogger("chain")
+	logger           = log.NewLogger("chain")
+	genesisBlock     *types.Block
+	initialBestBlock *types.Block
 )
 
 // NewChainService create instance of ChainService
@@ -136,12 +138,9 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
-			err := cs.cdb.addGenesisBlock(types.GenesisToBlock(genesis))
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return nil, err
-			}
-			err = InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
+			genesisBlock := types.GenesisToBlock(genesis)
+
+			err := InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set bp identifications")
 				return nil, err
@@ -149,6 +148,12 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
+				return nil, err
+			}
+
+			err = cs.cdb.addGenesisBlock(genesisBlock)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return nil, err
 			}
 			logger.Info().Msg("genesis block is generated")
