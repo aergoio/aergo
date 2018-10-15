@@ -24,8 +24,8 @@
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 
 #define is_usable_lval(exp)                                                    \
-    (!is_const_meta(&(exp)->meta) && !is_untyped_meta(&(exp)->meta) &&         \
-     (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
+    ((exp)->id != NULL && !is_const_id((exp)->id) &&                           \
+     !is_untyped_meta(&(exp)->id->meta))
 
 #define exp_add_first               array_add_first
 #define exp_add_last                array_add_last
@@ -49,7 +49,7 @@ typedef struct exp_val_s {
 typedef struct exp_type_s {
     type_t type;
     char *name;
-    bool is_public;
+    modifier_t mod;
     ast_exp_t *k_exp;
     ast_exp_t *v_exp;
 } exp_type_t;

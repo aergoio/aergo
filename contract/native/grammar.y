@@ -241,7 +241,8 @@ contract_decl:
     {
         ast_blk_t *blk = blk_new_anon(&@3);
 
-        id_add_last(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
+        /* add default constructor */
+        id_add_last(&blk->ids, id_new_ctor($2, &@2));
 
         $$ = id_new_contract($2, blk, &@$);
     }
@@ -263,7 +264,8 @@ contract_decl:
         }
 
         if (!exist_ctor)
-            id_add_last(&$4->ids, id_new_ctor($2, NULL, NULL, &@2));
+            /* add default constructor */
+            id_add_last(&$4->ids, id_new_ctor($2, &@2));
 
         $$ = id_new_contract($2, $4, &@$);
     }
@@ -306,10 +308,9 @@ var_decl:
         for (i = 0; i < array_size($2); i++) {
             ast_id_t *id = array_item($2, i, ast_id_t);
 
-            ASSERT1(is_var_id(id), id->kind);
+            id->mod = $1->u_type.mod;
             id->u_var.type_exp = $1;
         }
-
         $$ = $2;
     }
 ;
@@ -326,13 +327,11 @@ var_init_decl:
             for (i = 0; i < array_size($2); i++) {
                 ast_id_t *id = array_item($2, i, ast_id_t);
 
-                ASSERT1(is_var_id(id), id->kind);
-
+                id->mod = $1->u_type.mod;
                 id->u_var.type_exp = $1;
                 id->u_var.init_exp = array_item($4, i, ast_exp_t);
             }
         }
-
         $$ = $2;
     }
 ;
@@ -342,14 +341,12 @@ var_type:
 |   K_CONST var_spec
     {
         $$ = $2;
-        $$->meta.is_const = true;
+        flag_set($$->u_type.mod, MOD_CONST);
     }
 |   K_PUBLIC var_type
     {
-        ASSERT1(is_type_exp($2), $2->kind);
-
         $$ = $2;
-        $$->u_type.is_public = true;
+        flag_set($$->u_type.mod, MOD_PUBLIC);
     }
 ;
 
@@ -361,11 +358,13 @@ var_spec:
 |   identifier
     {
         $$ = exp_new_type(TYPE_STRUCT, &@$);
+
         $$->u_type.name = $1;
     }
 |   K_MAP '(' var_spec ',' var_spec ')'
     {
         $$ = exp_new_type(TYPE_MAP, &@$);
+
         $$->u_type.k_exp = $3;
         $$->u_type.v_exp = $5;
     }
@@ -406,7 +405,7 @@ var_name_list:
 declarator:
     identifier
     {
-        $$ = id_new_var($1, &@1);
+        $$ = id_new_var($1, MOD_PRIVATE, &@1);
     }
 |   declarator '[' add_exp ']'
     {
@@ -536,11 +535,11 @@ enum_list:
 enumerator:
     identifier
     {
-        $$ = id_new_var($1, &@1);
+        $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
     }
 |   identifier '=' ternary_exp
     {
-        $$ = id_new_var($1, &@1);
+        $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
         $$->u_var.init_exp = $3;
     }
 ;
@@ -548,7 +547,7 @@ enumerator:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_new_ctor($1, $3, $5, &@$);
+        $$ = id_new_func($1, MOD_PUBLIC | MOD_CTOR, $3, NULL, $5, &@$);
     }
 ;
 

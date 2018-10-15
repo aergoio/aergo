@@ -69,9 +69,6 @@ id_check_var(check_t *check, ast_id_t *id)
 
     CHECK(exp_check(check, type_exp));
 
-    if (type_exp->u_type.is_public)
-        flag_set(id->mod, MOD_PUBLIC);
-
     meta_copy(&id->meta, type_meta);
 
     if (id->u_var.size_exps != NULL)
@@ -237,19 +234,20 @@ id_check_func(check_t *check, ast_id_t *id)
 
         meta_set_tuple(&id->meta, ret_exps);
     }
-    else if (id->mod == MOD_CTOR) {
+    else if (is_ctor_id(id)) {
         meta_set_ref(&id->meta);
     }
     else {
         meta_set_void(&id->meta);
     }
 
-    check->fn_id = id;
+    if (id->u_func.blk != NULL) {
+        check->fn_id = id;
 
-    if (id->u_func.blk != NULL)
         blk_check(check, id->u_func.blk);
 
-    check->fn_id = NULL;
+        check->fn_id = NULL;
+    }
 
     return NO_ERROR;
 }

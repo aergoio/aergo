@@ -249,8 +249,10 @@ main(int argc, char **argv)
     closedir(dir);
 
     printf("%s\n", delim);
-    printf("* Finished %s %s\n", FILENAME(argv[0]),
-           is_failed ? "with error(s)" : "successfully");
+    if (is_failed)
+        printf("* Failed %s with error(s)\n", FILENAME(argv[0]));
+    else
+        printf("* Finished %s successfully\n", FILENAME(argv[0]));
     printf("%s\n", delim);
 
     return EXIT_SUCCESS;

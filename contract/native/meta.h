@@ -27,7 +27,6 @@
 #define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_const_meta(meta)         (meta)->is_const
 #define is_untyped_meta(meta)       (meta)->is_untyped
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
 
@@ -75,9 +74,7 @@ typedef struct meta_map_s {
 struct meta_s {
     type_t type;
 
-    bool is_const;          /* "const" qualifier */
     bool is_untyped;        /* integer or float literal, new map() */
-
     int arr_dim;            /* dimension of array */
     int *arr_size;          /* array size of each dimension */
 
@@ -153,10 +150,7 @@ meta_copy(meta_t *dest, meta_t *src)
     ASSERT(src != NULL);
 
     dest->type = src->type;
-
-    dest->is_const = src->is_const;
     dest->is_untyped = src->is_untyped;
-
     dest->arr_dim = src->arr_dim;
     dest->arr_size = src->arr_size;
 

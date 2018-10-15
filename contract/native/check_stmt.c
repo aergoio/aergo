@@ -122,7 +122,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt, char *begin_label,
     /* make "int i = 0" */
     snprintf(name, sizeof(name), "array_loop_idx_%d", blk->num);
 
-    id = id_new_var(xstrdup(name), pos);
+    id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
 
     id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     id->u_var.size_exps = NULL;

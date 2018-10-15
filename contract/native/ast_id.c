@@ -29,9 +29,9 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_var(char *name, src_pos_t *pos)
+id_new_var(char *name, modifier_t mod, src_pos_t *pos)
 {
-    return ast_id_new(ID_VAR, MOD_PRIVATE, name, pos);
+    return ast_id_new(ID_VAR, mod, name, pos);
 }
 
 ast_id_t *
