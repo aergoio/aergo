@@ -12,7 +12,8 @@ import (
 // MerkleProof generates a Merke proof of inclusion for a given trie root
 // The proof of non inclusion is not explicit : it is a proof that
 // a leaf node is on the path of the non included key.
-// returns the audit path, true (key included), key, value on the path if false (non inclusion), error
+// returns the audit path, true (key included), key, value (unless key is not included
+// and there is no shortcut on the path), error
 func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -45,7 +46,8 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 // merkleProof generates a Merke proof of inclusion for a given trie root
 // The proof of non inclusion is not explicit : it is a proof that
 // a leaf node is on the path of the non included key.
-// returns the audit path, true (key included), key, value on the path if false (non inclusion), error
+// returns the audit path, true (key included), key, value (unless key is not included
+// and there is no shortcut on the path), error
 func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint64) ([][]byte, bool, []byte, []byte, error) {
 	if len(root) == 0 {
 		rest := make([][]byte, height)
@@ -53,16 +55,12 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint
 		copy(rest, s.defaultHashes[:height])
 		return rest, false, nil, nil, nil
 	}
-	if height == 0 {
-		return nil, true, nil, nil, nil
-	}
 	// Fetch the children of the node
 	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
 	if err != nil {
 		return nil, false, nil, nil, err
 	}
-	if isShortcut {
-		// append all default hashes down the tree
+	if isShortcut || height == 0 {
 		if bytes.Equal(lnode, key) {
 			// return the key-value so a call to trie.Get() is not needed.
 			return nil, true, lnode[:HashLength], rnode[:HashLength], nil

@@ -514,9 +514,12 @@ func TestHeight0LeafShortcut(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	bitmap, ap, length, _, _, _, err := smt.MerkleProofCompressed(key1)
+	bitmap, ap, length, _, k, v, err := smt.MerkleProofCompressed(key1)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
 	}
 	if length != smt.TrieHeight {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
@@ -542,9 +545,12 @@ func TestHeight0LeafShortcut(t *testing.T) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
 
-	_, _, length, _, _, _, _ = smt.MerkleProofCompressed(key1)
+	_, _, length, _, k, v, _ = smt.MerkleProofCompressed(key1)
 	if length != 0 {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
 	}
 }
 
