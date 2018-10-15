@@ -241,13 +241,14 @@ func (pls *pLibStatus) rebuildConfirms(decCounts map[uint64]uint16) {
 			c := cInfo(e)
 			if dec, exist := decCounts[c.BlockNo]; exist {
 				if c.confirmsLeft < dec {
-					errMsg := "the restored confirm info is inconsistent"
-					logger.Debug().
-						Uint16("confirm left", c.confirmsLeft).Uint16("", dec).
-						Msg(errMsg)
-					panic(errMsg)
+					logger.Debug().Uint64("block no", c.BlockNo).
+						Uint16("confirm left", c.confirmsLeft).Uint16("dec count", dec).
+						Msg("dec count higher than confirm left")
+					c.confirmsLeft = 0
+				} else {
+					c.confirmsLeft = c.confirmsLeft - dec
 				}
-				c.confirmsLeft = c.confirmsLeft - dec
+
 				if c.confirmsLeft == 0 {
 					lastUndoElem = e
 				}
@@ -258,7 +259,7 @@ func (pls *pLibStatus) rebuildConfirms(decCounts map[uint64]uint16) {
 	if lastUndoElem != nil {
 		forEachUntil(pls.confirms, lastUndoElem,
 			func(e *list.Element) {
-				pls.moveToUndo(e)
+				pls.moveToUndoBack(e)
 			},
 		)
 	}
@@ -296,6 +297,15 @@ func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
 				Msg("rollback pre-LIB entry")
 		}
 	}
+}
+
+func (pls *pLibStatus) moveToUndoBack(e *list.Element) {
+	moveElemBack(e, pls.confirms, pls.undo)
+}
+
+func moveElemBack(e *list.Element, src *list.List, dst *list.List) {
+	src.Remove(e)
+	dst.PushBack(e.Value)
 }
 
 func (pls *pLibStatus) moveToUndo(e *list.Element) {
