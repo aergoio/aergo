@@ -530,7 +530,7 @@ func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
 	}
 }
 
-// reco restores the last LIB status by using the informations loaded from the
+// init restores the last LIB status by using the informations loaded from the
 // DB.
 func (s *Status) init() {
 	if s.initialized {
@@ -546,6 +546,12 @@ func (s *Status) init() {
 	}
 
 	s.pls.addConfirmInfo(s.bestBlock)
+
+	s.lib = bootState.lib
+
+	if len(bootState.plib) != 0 {
+		s.pls.plib = bootState.plib
+	}
 
 	s.initialized = true
 }
