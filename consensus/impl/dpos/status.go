@@ -363,7 +363,13 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 
 	libInfos := make([]*blockInfo, 0, len(pls.plib))
 	for _, l := range pls.plib {
-		libInfos = append(libInfos, l[len(l)-1])
+		if len(l) != 0 {
+			libInfos = append(libInfos, l[len(l)-1])
+		}
+	}
+
+	if len(libInfos) == 0 {
+		return nil
 	}
 
 	sort.Slice(libInfos, func(i, j int) bool {
