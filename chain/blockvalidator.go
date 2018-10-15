@@ -94,3 +94,22 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 
 	return nil
 }
+
+func (bv *BlockValidator) ValidatePost(sdbRoot []byte, block *types.Block) error {
+	hdrRoot := block.GetHeader().GetBlocksRootHash()
+
+	if !bytes.Equal(hdrRoot, sdbRoot) {
+		logger.Error().Str("block", block.ID()).
+			Str("hdrroot", enc.ToString(hdrRoot)).
+			Str("sdbroot", enc.ToString(sdbRoot)).
+			Msg("block root hash validation failed")
+		return ErrorBlockVerifySign
+	}
+
+	logger.Debug().Str("block", block.ID()).
+		Str("hdrroot", enc.ToString(hdrRoot)).
+		Str("sdbroot", enc.ToString(sdbRoot)).
+		Msg("block root hash validation succeed")
+
+	return nil
+}

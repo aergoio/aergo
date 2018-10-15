@@ -310,13 +310,15 @@ func (cs *ChainService) CountTxsInChain() int {
 }
 
 type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
+type ValidatePostFn func() error
 
 type blockExecutor struct {
 	*state.BlockState
-	sdb        *state.ChainStateDB
-	execTx     TxExecFn
-	txs        []*types.Tx
-	commitOnly bool
+	sdb          *state.ChainStateDB
+	execTx       TxExecFn
+	txs          []*types.Tx
+	validatePost ValidatePostFn
+	commitOnly   bool
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
@@ -353,6 +355,9 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		sdb:        cs.sdb,
 		execTx:     exec,
 		txs:        txs,
+		validatePost: func() error {
+			return cs.validator.ValidatePost(bState.GetRoot(), block)
+		},
 		commitOnly: commitOnly,
 	}, nil
 }
@@ -390,6 +395,10 @@ func (e *blockExecutor) execute() error {
 		if err := e.Update(); err != nil {
 			return err
 		}
+	}
+
+	if err := e.validatePost(); err != nil {
+		return err
 	}
 
 	err := contract.SaveRecoveryPoint(e.BlockState)
