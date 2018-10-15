@@ -292,8 +292,7 @@ func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
 			pls.plib[c.BPID] = newEntry
 
 			logger.Debug().
-				Str("BPID", c.BPID).Uint64("block no", newEntry[len(newEntry)-1].BlockNo).
-				Int("old len", oldLen).Int("new len", purgeBeg).
+				Str("BPID", c.BPID).Int("old len", oldLen).Int("new len", purgeBeg).
 				Msg("rollback pre-LIB entry")
 		}
 	}
