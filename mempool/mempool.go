@@ -40,13 +40,14 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	//curBestBlockNo uint32
-	curBestBlockNo types.BlockNo
+	//curBestBlockHash
+	sdb         *state.ChainStateDB
+	bestBlockID types.BlockID
+	stateDB     *state.StateDB
 
 	orphan   int
 	cache    map[types.TxID]*types.Tx
 	pool     map[types.AccountID]*TxList
-	sdb      *state.ChainStateDB
 	dumpPath string
 	status   int32
 	// misc configs
@@ -72,7 +73,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
-		mp.curBestBlockNo = getCurrentBestBlockNoMock()
+		mp.bestBlockID = getCurrentBestBlockNoMock()
 	}
 	//else {
 	//p.BaseComponent.Start(mp)
@@ -95,14 +96,22 @@ func (mp *MemPool) BeforeStart() {
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
-func (mp *MemPool) AfterStart() {}
+func (mp *MemPool) AfterStart() {
+	rsp, err := mp.RequestToFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second*2).Result()
+	if err != nil {
+		mp.Error().Err(err).Msg("failed to get best block")
+		panic("Mempool AfterStart Failed")
+	}
+	bestblock := rsp.(message.GetBestBlockRsp).Block
+	mp.setStateDB(bestblock)
+}
 
 // Stop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {
 	mp.dumpTxsToFile()
 }
 
-func (mp *MemPool) SetStateDb(sdb *state.ChainStateDB) {
+func (mp *MemPool) SetChainStateDB(sdb *state.ChainStateDB) {
 	mp.sdb = sdb
 }
 
@@ -182,7 +191,12 @@ func (mp *MemPool) put(tx *types.Tx) error {
 		return message.ErrTxAlreadyInMempool
 	}
 
-	err := mp.validate(tx)
+	err := mp.verifyTx(tx)
+	if err != nil {
+		return err
+	}
+
+	err = mp.validateTx(tx)
 	if err != nil {
 		return err
 	}
@@ -191,14 +205,17 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Debug().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
+
 	mp.orphan -= diff
 	mp.cache[id] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
+
 	if !mp.testConfig {
 		mp.notifyNewTx(*tx)
 	}
@@ -212,6 +229,27 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 	return errs
 }
 
+func (mp *MemPool) setStateDB(block *types.Block) {
+	if mp.testConfig {
+		return
+	}
+
+	newBlockID := types.ToBlockID(block.GetHash())
+
+	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
+		mp.bestBlockID = newBlockID
+		stateRoot, err := mp.sdb.GetStateRoot(block.GetHash())
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to get state root")
+			panic("fix to use state root in block")
+		}
+		mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+		mp.Debug().Str("Hash", newBlockID.String()).
+			Str("StateRoot", types.ToHashID(stateRoot).String()).
+			Msg("new StateDB opened")
+	}
+}
+
 // input tx based ? or pool based?
 // concurrency consideration,
 func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
@@ -223,8 +261,9 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	// if eviction on statedb cached is occured, it should be improved
 	// to avoid disk access
 	//FIXME after block has state root hash, use it
-	for _, v := range mp.pool {
+	mp.setStateDB(block)
 
+	for _, v := range mp.pool {
 		acc := v.GetAccount()
 		ns, err := mp.getAccountState(acc, true)
 		if err != nil {
@@ -248,11 +287,8 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 }
 
-// check tx sanity
-// TODO sender's signiture
-// check if sender has enough balance
-// check tx account is lower than known value
-func (mp *MemPool) validate(tx *types.Tx) error {
+// signiture verification
+func (mp *MemPool) verifyTx(tx *types.Tx) error {
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return message.ErrTxFormatInvalid
@@ -260,11 +296,18 @@ func (mp *MemPool) validate(tx *types.Tx) error {
 	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
 		return message.ErrTxHasInvalidHash
 	}
-
 	err := key.VerifyTx(tx)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// check tx sanity
+// check if sender has enough balance
+// check tx account is lower than known value
+func (mp *MemPool) validateTx(tx *types.Tx) error {
+	account := tx.GetBody().GetAccount()
 	ns, err := mp.getAccountState(account, false)
 	if err != nil {
 		return err

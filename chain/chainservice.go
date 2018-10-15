@@ -57,7 +57,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 
 	actor.validator = NewBlockValidator(actor.sdb)
 	if pool != nil {
-		pool.SetStateDb(actor.sdb)
+		pool.SetChainStateDB(actor.sdb)
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 

@@ -89,6 +89,6 @@ func getBalanceByAccMock(acc string) uint64 {
 	return balance[acc]
 }
 
-func getCurrentBestBlockNoMock() types.BlockNo {
-	return bestBlockNo
+func getCurrentBestBlockNoMock() types.BlockID {
+	return types.ToBlockID(nil)
 }
