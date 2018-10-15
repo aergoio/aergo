@@ -11,6 +11,6 @@
 #include "ast_blk.h"
 #include "check.h"
 
-void check_blk(check_t *check, ast_blk_t *blk);
+void blk_check(check_t *check, ast_blk_t *blk);
 
 #endif /* ! _CHECK_BLK_H */

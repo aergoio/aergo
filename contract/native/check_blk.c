@@ -35,7 +35,7 @@ check_unused_ids(array_t *ids)
 }
 
 void
-check_blk(check_t *check, ast_blk_t *blk)
+blk_check(check_t *check, ast_blk_t *blk)
 {
     int i;
 
@@ -45,11 +45,11 @@ check_blk(check_t *check, ast_blk_t *blk)
     check->blk = blk;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        check_id(check, array_item(&blk->ids, i, ast_id_t));
+        id_check(check, array_item(&blk->ids, i, ast_id_t));
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        check_stmt(check, array_item(&blk->stmts, i, ast_stmt_t));
+        stmt_check(check, array_item(&blk->stmts, i, ast_stmt_t));
     }
 
     check_unused_ids(&blk->ids);

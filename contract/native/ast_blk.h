@@ -27,9 +27,9 @@ struct ast_blk_s {
     ast_blk_t *up;
 };
 
-ast_blk_t *blk_anon_new(src_pos_t *pos);
-ast_blk_t *blk_root_new(src_pos_t *pos);
-ast_blk_t *blk_loop_new(src_pos_t *pos);
+ast_blk_t *blk_new_anon(src_pos_t *pos);
+ast_blk_t *blk_new_root(src_pos_t *pos);
+ast_blk_t *blk_new_loop(src_pos_t *pos);
 
 ast_blk_t *blk_search_loop(ast_blk_t *blk);
 

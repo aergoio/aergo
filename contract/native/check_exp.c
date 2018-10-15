@@ -145,7 +145,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
     id_exp = exp->u_arr.id_exp;
     id_meta = &id_exp->meta;
 
-    CHECK(check_exp(check, id_exp));
+    CHECK(exp_check(check, id_exp));
 
     if (!is_array_meta(id_meta) && !is_map_meta(id_meta))
         RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
@@ -155,7 +155,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
     idx_exp = exp->u_arr.idx_exp;
     idx_meta = &idx_exp->meta;
 
-    CHECK(check_exp(check, idx_exp));
+    CHECK(exp_check(check, idx_exp));
 
     /* TODO: multi-dimensional array */
     if (is_map_meta(id_meta)) {
@@ -214,7 +214,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     if (op == OP_ADD) {
         if (!is_numeric_meta(l_meta) && !is_string_meta(l_meta))
@@ -231,7 +231,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    CHECK(check_exp(check, r_exp));
+    CHECK(exp_check(check, r_exp));
 
     if (!meta_equals(l_meta, r_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &exp->pos, META_NAME(l_meta),
@@ -257,7 +257,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     if (!is_integer_meta(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
@@ -265,7 +265,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    CHECK(check_exp(check, r_exp));
+    CHECK(exp_check(check, r_exp));
 
     if (!is_integer_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
@@ -290,12 +290,12 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    CHECK(check_exp(check, r_exp));
+    CHECK(exp_check(check, r_exp));
 
     /* XXX: comparable check */
     if (!meta_equals(l_meta, r_meta))
@@ -322,7 +322,7 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     switch (exp->u_op.kind) {
     case OP_INC:
@@ -376,7 +376,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     if (!is_bool_meta(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, META_NAME(l_meta));
@@ -384,7 +384,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    CHECK(check_exp(check, r_exp));
+    CHECK(exp_check(check, r_exp));
 
     if (!is_bool_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, META_NAME(r_meta));
@@ -408,12 +408,12 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
     l_exp = exp->u_op.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(check_exp(check, l_exp));
+    CHECK(exp_check(check, l_exp));
 
     r_exp = exp->u_op.r_exp;
     r_meta = &r_exp->meta;
 
-    CHECK(check_exp(check, r_exp));
+    CHECK(exp_check(check, r_exp));
 
     if (is_tuple_exp(l_exp)) {
         int i;
@@ -518,7 +518,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
     id_exp = exp->u_acc.id_exp;
     id_meta = &id_exp->meta;
 
-    CHECK(check_exp(check, id_exp));
+    CHECK(exp_check(check, id_exp));
 
     id = id_exp->id;
     if (id == NULL || is_tuple_meta(id_meta))
@@ -543,7 +543,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
 
     check->aq_id = id;
 
-    if (check_exp(check, fld_exp) == NO_ERROR) {
+    if (exp_check(check, fld_exp) == NO_ERROR) {
         exp->id = fld_exp->id;
         exp->meta = *fld_meta;
     }
@@ -574,7 +574,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
             ASSERT1(array_size(param_exps) == 1, array_size(param_exps));
             param_exp = array_item(param_exps, 0, ast_exp_t);
 
-            CHECK(check_exp(check, param_exp));
+            CHECK(exp_check(check, param_exp));
             ASSERT1(is_integer_meta(&param_exp->meta), param_exp->meta.type);
         }
 
@@ -583,7 +583,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
         return NO_ERROR;
     }
 
-    CHECK(check_exp(check, id_exp));
+    CHECK(exp_check(check, id_exp));
 
     func_id = id_exp->id;
     if (func_id == NULL || !is_func_id(func_id))
@@ -599,7 +599,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
         ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
         ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
 
-        CHECK(check_exp(check, param_exp));
+        CHECK(exp_check(check, param_exp));
 
         if (!meta_equals(&param_id->meta, &param_exp->meta))
             RETURN(ERROR_MISMATCHED_TYPE, &param_exp->pos,
@@ -650,7 +650,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     pre_exp = exp->u_tern.pre_exp;
     pre_meta = &pre_exp->meta;
 
-    CHECK(check_exp(check, pre_exp));
+    CHECK(exp_check(check, pre_exp));
 
     if (!is_bool_meta(pre_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &pre_exp->pos, META_NAME(pre_meta));
@@ -658,12 +658,12 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
     in_exp = exp->u_tern.in_exp;
     in_meta = &in_exp->meta;
 
-    CHECK(check_exp(check, in_exp));
+    CHECK(exp_check(check, in_exp));
 
     post_exp = exp->u_tern.post_exp;
     post_meta = &post_exp->meta;
 
-    CHECK(check_exp(check, post_exp));
+    CHECK(exp_check(check, post_exp));
 
     if (!meta_equals(in_meta, post_meta))
         RETURN(ERROR_MISMATCHED_TYPE, &post_exp->pos,
@@ -686,7 +686,7 @@ exp_tuple_check(check_t *check, ast_exp_t *exp)
     for (i = 0; i < array_size(exps); i++) {
         ast_exp_t *item = array_item(exps, i, ast_exp_t);
 
-        CHECK(check_exp(check, item));
+        CHECK(exp_check(check, item));
     }
 
     meta_set_tuple(&exp->meta, exps);
@@ -695,7 +695,7 @@ exp_tuple_check(check_t *check, ast_exp_t *exp)
 }
 
 int
-check_exp(check_t *check, ast_exp_t *exp)
+exp_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT(exp != NULL);
 

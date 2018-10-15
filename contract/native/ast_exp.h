@@ -125,21 +125,21 @@ struct ast_exp_s {
     meta_t meta;
 };
 
-ast_exp_t *exp_null_new(src_pos_t *pos);
-ast_exp_t *exp_val_new(src_pos_t *pos);
-ast_exp_t *exp_type_new(type_t type, src_pos_t *pos);
-ast_exp_t *exp_id_new(char *name, src_pos_t *pos);
-ast_exp_t *exp_array_new(ast_exp_t *id_exp, ast_exp_t *idx_exp,
+ast_exp_t *exp_new_null(src_pos_t *pos);
+ast_exp_t *exp_new_val(src_pos_t *pos);
+ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
+ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
+ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp,
                          src_pos_t *pos);
-ast_exp_t *exp_call_new(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
-ast_exp_t *exp_access_new(ast_exp_t *id_exp, ast_exp_t *fld_exp,
+ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
+ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp,
                           src_pos_t *pos);
-ast_exp_t *exp_op_new(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
+ast_exp_t *exp_new_op(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                       src_pos_t *pos);
-ast_exp_t *exp_ternary_new(ast_exp_t *pre_exp, ast_exp_t *in_exp,
+ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp,
                            ast_exp_t *post_exp, src_pos_t *pos);
-ast_exp_t *exp_sql_new(sql_kind_t kind, char *sql, src_pos_t *pos);
-ast_exp_t *exp_tuple_new(array_t *exps, src_pos_t *pos);
+ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
+ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
 
 void ast_exp_dump(ast_exp_t *exp, int indent);
 

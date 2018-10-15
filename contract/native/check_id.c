@@ -24,7 +24,7 @@ id_var_check_array(check_t *check, ast_id_t *id, bool is_param)
     for (i = 0; i < array_size(size_exps); i++) {
         ast_exp_t *size_exp = array_item(size_exps, i, ast_exp_t);
 
-        CHECK(check_exp(check, size_exp));
+        CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
             if (!is_param && id->u_var.init_exp == NULL)
@@ -67,7 +67,7 @@ id_var_check(check_t *check, ast_id_t *id)
 
     ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
-    CHECK(check_exp(check, type_exp));
+    CHECK(exp_check(check, type_exp));
 
     if (type_exp->u_type.is_public)
         flag_set(id->mod, MOD_PUBLIC);
@@ -82,7 +82,7 @@ id_var_check(check_t *check, ast_id_t *id)
         ast_exp_t *init_exp = id->u_var.init_exp;
         meta_t *init_meta = &init_exp->meta;
 
-        CHECK(check_exp(check, init_exp));
+        CHECK(exp_check(check, init_exp));
 
         if (id->u_var.size_exps == NULL) {
             if (is_tuple_meta(init_meta) &&
@@ -144,7 +144,7 @@ id_param_check(check_t *check, ast_id_t *id)
     type_exp = id->u_var.type_exp;
     ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
-    CHECK(check_exp(check, type_exp));
+    CHECK(exp_check(check, type_exp));
 
     id->meta = type_exp->meta;
 
@@ -179,7 +179,7 @@ id_func_check(check_t *check, ast_id_t *id)
 
             ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
-            check_exp(check, type_exp);
+            exp_check(check, type_exp);
         }
 
         meta_set_tuple(&id->meta, ret_exps);
@@ -194,7 +194,7 @@ id_func_check(check_t *check, ast_id_t *id)
     check->fn_id = id;
 
     if (id->u_func.blk != NULL)
-        check_blk(check, id->u_func.blk);
+        blk_check(check, id->u_func.blk);
 
     check->fn_id = NULL;
 
@@ -207,7 +207,7 @@ id_contract_check(check_t *check, ast_id_t *id)
     ASSERT1(is_contract_id(id), id->kind);
 
     if (id->u_cont.blk != NULL)
-        check_blk(check, id->u_cont.blk);
+        blk_check(check, id->u_cont.blk);
 
     meta_set_ref(&id->meta);
 
@@ -215,7 +215,7 @@ id_contract_check(check_t *check, ast_id_t *id)
 }
 
 void
-check_id(check_t *check, ast_id_t *id)
+id_check(check_t *check, ast_id_t *id)
 {
     ASSERT(id->name != NULL);
 

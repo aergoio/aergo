@@ -23,8 +23,8 @@
 #define is_readonly_id(id)          flag_on((id)->mod, MOD_READONLY)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
-#define id_ctor_new(name, params, blk, pos)                                    \
-    id_func_new((name), MOD_CTOR, (params), NULL, (blk), (pos))
+#define id_new_ctor(name, params, blk, pos)                                    \
+    id_new_func((name), MOD_CTOR, (params), NULL, (blk), (pos))
 
 #define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
 #define id_add_last(ids, new_id)    id_add((ids), (ids)->cnt, (new_id))
@@ -82,11 +82,11 @@ struct ast_id_s {
     meta_t meta;
 };
 
-ast_id_t *id_var_new(char *name, src_pos_t *pos);
-ast_id_t *id_struct_new(char *name, array_t *fld_ids, src_pos_t *pos);
-ast_id_t *id_func_new(char *name, modifier_t mod, array_t *param_ids,
+ast_id_t *id_new_var(char *name, src_pos_t *pos);
+ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
+ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, src_pos_t *pos);
-ast_id_t *id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 
 ast_id_t *id_search_name(ast_blk_t *blk, int num, char *name);
 ast_id_t *id_search_fld(ast_id_t *id, char *name);

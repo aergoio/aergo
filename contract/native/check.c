@@ -43,7 +43,7 @@ check(ast_t *ast, flag_t flag)
     check_init(&check, ast, flag);
 
     for (i = 0; i < array_size(&check.root->ids); i++) {
-        check_id(&check, array_item(&check.root->ids, i, ast_id_t));
+        id_check(&check, array_item(&check.root->ids, i, ast_id_t));
     }
 }
 

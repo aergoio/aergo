@@ -29,13 +29,13 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 }
 
 ast_id_t *
-id_var_new(char *name, src_pos_t *pos)
+id_new_var(char *name, src_pos_t *pos)
 {
     return ast_id_new(ID_VAR, MOD_PRIVATE, name, pos);
 }
 
 ast_id_t *
-id_struct_new(char *name, array_t *fld_ids, src_pos_t *pos)
+id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_STRUCT, MOD_PRIVATE, name, pos);
 
@@ -47,7 +47,7 @@ id_struct_new(char *name, array_t *fld_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
+id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
             ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FUNC, mod, name, pos);
@@ -60,7 +60,7 @@ id_func_new(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps,
 }
 
 ast_id_t *
-id_contract_new(char *name, ast_blk_t *blk, src_pos_t *pos)
+id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_PUBLIC, name, pos);
 

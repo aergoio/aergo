@@ -23,13 +23,13 @@ ast_stmt_new(stmt_kind_t kind, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_null_new(src_pos_t *pos)
+stmt_new_null(src_pos_t *pos)
 {
     return ast_stmt_new(STMT_NULL, pos);
 }
 
 ast_stmt_t *
-stmt_exp_new(ast_exp_t *exp, src_pos_t *pos)
+stmt_new_exp(ast_exp_t *exp, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_EXP, pos);
 
@@ -39,7 +39,7 @@ stmt_exp_new(ast_exp_t *exp, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
+stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_IF, pos);
 
@@ -52,7 +52,7 @@ stmt_if_new(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_loop_new(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
+stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
               ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_LOOP, pos);
@@ -69,7 +69,7 @@ stmt_loop_new(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
 }
 
 ast_stmt_t *
-stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t *pos)
+stmt_new_switch(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_SWITCH, pos);
 
@@ -80,7 +80,7 @@ stmt_switch_new(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_case_new(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos)
+stmt_new_case(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_CASE, pos);
 
@@ -91,7 +91,7 @@ stmt_case_new(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_return_new(ast_exp_t *arg_exp, src_pos_t *pos)
+stmt_new_return(ast_exp_t *arg_exp, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_RETURN, pos);
 
@@ -101,7 +101,7 @@ stmt_return_new(ast_exp_t *arg_exp, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_goto_new(char *label, src_pos_t *pos)
+stmt_new_goto(char *label, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_GOTO, pos);
 
@@ -111,13 +111,13 @@ stmt_goto_new(char *label, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_jump_new(stmt_kind_t kind, src_pos_t *pos)
+stmt_new_jump(stmt_kind_t kind, src_pos_t *pos)
 {
     return ast_stmt_new(kind, pos);
 }
 
 ast_stmt_t *
-stmt_ddl_new(char *ddl, src_pos_t *pos)
+stmt_new_ddl(char *ddl, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_DDL, pos);
 
@@ -127,7 +127,7 @@ stmt_ddl_new(char *ddl, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_blk_new(ast_blk_t *blk, src_pos_t *pos)
+stmt_new_blk(ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_BLK, pos);
 
