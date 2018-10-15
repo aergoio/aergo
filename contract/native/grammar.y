@@ -698,12 +698,12 @@ loop_stmt:
     }
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_EACH, NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
         $$->u_loop.init_exp = $3;
     }
 |   K_FOR '(' var_decl K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_EACH, NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
     }
 |   K_FOR error '}'

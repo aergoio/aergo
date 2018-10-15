@@ -11,7 +11,7 @@
 #include "check_exp.h"
 
 static int
-exp_id_check(check_t *check, ast_exp_t *exp)
+exp_check_id(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
 
@@ -44,7 +44,7 @@ exp_id_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_val_check(check_t *check, ast_exp_t *exp)
+exp_check_val(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_val_exp(exp), exp->kind);
 
@@ -72,7 +72,7 @@ exp_val_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_type_check(check_t *check, ast_exp_t *exp)
+exp_check_type(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_type_exp(exp), exp->kind);
 
@@ -107,7 +107,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         k_exp = exp->u_type.k_exp;
         k_meta = &k_exp->meta;
 
-        CHECK(exp_type_check(check, k_exp));
+        CHECK(exp_check_type(check, k_exp));
 
         if (!is_comparable_meta(k_meta))
             RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, meta_to_str(k_meta));
@@ -115,7 +115,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
         v_exp = exp->u_type.v_exp;
         v_meta = &v_exp->meta;
 
-        CHECK(exp_type_check(check, v_exp));
+        CHECK(exp_check_type(check, v_exp));
 
         ASSERT(!is_tuple_meta(v_meta));
         meta_set_map(&exp->meta, k_meta, v_meta);
@@ -132,7 +132,7 @@ exp_type_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_array_check(check_t *check, ast_exp_t *exp)
+exp_check_array(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
     meta_t *id_meta;
@@ -198,7 +198,7 @@ exp_op_eval_const(ast_exp_t *exp, type_t type)
 }
 
 static int
-exp_op_check_arith(check_t *check, ast_exp_t *exp)
+exp_check_op_arith(check_t *check, ast_exp_t *exp)
 {
     op_kind_t op = exp->u_op.kind;
     ast_exp_t *l_exp, *r_exp;
@@ -242,7 +242,7 @@ exp_op_check_arith(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_bit(check_t *check, ast_exp_t *exp)
+exp_check_op_bit(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
@@ -275,7 +275,7 @@ exp_op_check_bit(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_cmp(check_t *check, ast_exp_t *exp)
+exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
@@ -307,7 +307,7 @@ exp_op_check_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_unary(check_t *check, ast_exp_t *exp)
+exp_check_op_unary(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp;
     meta_t *l_meta;
@@ -361,7 +361,7 @@ exp_op_check_unary(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
+exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
@@ -391,7 +391,7 @@ exp_op_check_bool_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check_assign(check_t *check, ast_exp_t *exp)
+exp_check_op_assign(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp;
     meta_t *l_meta;
@@ -455,7 +455,7 @@ exp_op_check_assign(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_check(check_t *check, ast_exp_t *exp)
+exp_check_op(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_op_exp(exp), exp->kind);
 
@@ -465,14 +465,14 @@ exp_op_check(check_t *check, ast_exp_t *exp)
     case OP_MUL:
     case OP_DIV:
     case OP_MOD:
-        return exp_op_check_arith(check, exp);
+        return exp_check_op_arith(check, exp);
 
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
     case OP_RSHIFT:
     case OP_LSHIFT:
-        return exp_op_check_bit(check, exp);
+        return exp_check_op_bit(check, exp);
 
     case OP_EQ:
     case OP_NE:
@@ -480,20 +480,20 @@ exp_op_check(check_t *check, ast_exp_t *exp)
     case OP_GT:
     case OP_LE:
     case OP_GE:
-        return exp_op_check_cmp(check, exp);
+        return exp_check_op_cmp(check, exp);
 
     case OP_INC:
     case OP_DEC:
     case OP_NOT:
     case OP_NEG:
-        return exp_op_check_unary(check, exp);
+        return exp_check_op_unary(check, exp);
 
     case OP_AND:
     case OP_OR:
-        return exp_op_check_bool_cmp(check, exp);
+        return exp_check_op_bool_cmp(check, exp);
 
     case OP_ASSIGN:
-        return exp_op_check_assign(check, exp);
+        return exp_check_op_assign(check, exp);
 
     default:
         ASSERT1(!"invalid operator", exp->u_op.kind);
@@ -503,7 +503,7 @@ exp_op_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_access_check(check_t *check, ast_exp_t *exp)
+exp_check_access(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
     meta_t *id_meta, *fld_meta;
@@ -550,7 +550,7 @@ exp_access_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_call_check(check_t *check, ast_exp_t *exp)
+exp_check_call(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
@@ -609,7 +609,7 @@ exp_call_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_sql_check(check_t *check, ast_exp_t *exp)
+exp_check_sql(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_sql_exp(exp), exp->kind);
     ASSERT(exp->u_sql.sql != NULL);
@@ -633,7 +633,7 @@ exp_sql_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_ternary_check(check_t *check, ast_exp_t *exp)
+exp_check_ternary(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *pre_exp, *in_exp, *post_exp;
     meta_t *pre_meta, *in_meta, *post_meta;
@@ -671,7 +671,7 @@ exp_ternary_check(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_tuple_check(check_t *check, ast_exp_t *exp)
+exp_check_tuple(check_t *check, ast_exp_t *exp)
 {
     int i;
     array_t *exps = exp->u_tup.exps;
@@ -700,34 +700,34 @@ exp_check(check_t *check, ast_exp_t *exp)
         return NO_ERROR;
 
     case EXP_ID:
-        return exp_id_check(check, exp);
+        return exp_check_id(check, exp);
 
     case EXP_VAL:
-        return exp_val_check(check, exp);
+        return exp_check_val(check, exp);
 
     case EXP_TYPE:
-        return exp_type_check(check, exp);
+        return exp_check_type(check, exp);
 
     case EXP_ARRAY:
-        return exp_array_check(check, exp);
+        return exp_check_array(check, exp);
 
     case EXP_OP:
-        return exp_op_check(check, exp);
+        return exp_check_op(check, exp);
 
     case EXP_ACCESS:
-        return exp_access_check(check, exp);
+        return exp_check_access(check, exp);
 
     case EXP_CALL:
-        return exp_call_check(check, exp);
+        return exp_check_call(check, exp);
 
     case EXP_SQL:
-        return exp_sql_check(check, exp);
+        return exp_check_sql(check, exp);
 
     case EXP_TERNARY:
-        return exp_ternary_check(check, exp);
+        return exp_check_ternary(check, exp);
 
     case EXP_TUPLE:
-        return exp_tuple_check(check, exp);
+        return exp_check_tuple(check, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

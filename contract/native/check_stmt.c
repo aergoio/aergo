@@ -12,7 +12,7 @@
 #include "check_stmt.h"
 
 static int
-stmt_if_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_if(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     ast_exp_t *cond_exp;
@@ -46,7 +46,7 @@ stmt_if_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
+stmt_check_for_loop(check_t *check, ast_stmt_t *stmt, char *begin_label,
                     char *end_label)
 {
     ast_blk_t *blk = stmt->u_loop.blk;
@@ -103,7 +103,7 @@ stmt_loop_check_for(check_t *check, ast_stmt_t *stmt, char *begin_label,
 }
 
 static int
-stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
+stmt_check_array_loop(check_t *check, ast_stmt_t *stmt, char *begin_label,
                      char *end_label)
 {
     char name[128];
@@ -120,7 +120,7 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
     ASSERT(loop_exp != NULL);
 
     /* make "int i = 0" */
-    snprintf(name, sizeof(name), "each_loop_idx_%d", blk->num);
+    snprintf(name, sizeof(name), "array_loop_idx_%d", blk->num);
 
     id = id_new_var(xstrdup(name), pos);
 
@@ -177,7 +177,7 @@ stmt_loop_check_each(check_t *check, ast_stmt_t *stmt, char *begin_label,
 }
 
 static int
-stmt_loop_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 {
     char begin_label[128];
     char end_label[128];
@@ -197,11 +197,11 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
 
     switch (stmt->u_loop.kind) {
     case LOOP_FOR:
-        stmt_loop_check_for(check, stmt, begin_label, end_label);
+        stmt_check_for_loop(check, stmt, begin_label, end_label);
         break;
 
-    case LOOP_EACH:
-        stmt_loop_check_each(check, stmt, begin_label, end_label);
+    case LOOP_ARRAY:
+        stmt_check_array_loop(check, stmt, begin_label, end_label);
         break;
 
     default:
@@ -222,7 +222,7 @@ stmt_loop_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
+stmt_check_case(check_t *check, ast_stmt_t *stmt, meta_t *meta)
 {
     int i;
     ast_exp_t *val_exp;
@@ -258,7 +258,7 @@ stmt_case_check(check_t *check, ast_stmt_t *stmt, meta_t *meta)
 }
 
 static int
-stmt_switch_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     ast_exp_t *cond_exp;
@@ -282,7 +282,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
     case_stmts = stmt->u_sw.case_stmts;
 
     for (i = 0; i < array_size(case_stmts); i++) {
-        stmt_case_check(check, array_item(case_stmts, i, ast_stmt_t),
+        stmt_check_case(check, array_item(case_stmts, i, ast_stmt_t),
                         cond_meta);
     }
 
@@ -290,7 +290,7 @@ stmt_switch_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_return_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_return(check_t *check, ast_stmt_t *stmt)
 {
     ast_id_t *fn_id;
     meta_t *fn_meta;
@@ -357,7 +357,7 @@ stmt_return_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_goto_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_goto(check_t *check, ast_stmt_t *stmt)
 {
     int i;
     int stmt_cnt;
@@ -389,7 +389,7 @@ stmt_goto_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_ddl_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_ddl(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_ddl_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_ddl.ddl != NULL);
@@ -398,7 +398,7 @@ stmt_ddl_check(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_blk_check(check_t *check, ast_stmt_t *stmt)
+stmt_check_blk(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_blk_stmt(stmt), stmt->kind);
 
@@ -422,31 +422,31 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
         break;
 
     case STMT_IF:
-        stmt_if_check(check, stmt);
+        stmt_check_if(check, stmt);
         break;
 
     case STMT_LOOP:
-        stmt_loop_check(check, stmt);
+        stmt_check_loop(check, stmt);
         break;
 
     case STMT_SWITCH:
-        stmt_switch_check(check, stmt);
+        stmt_check_switch(check, stmt);
         break;
 
     case STMT_RETURN:
-        stmt_return_check(check, stmt);
+        stmt_check_return(check, stmt);
         break;
 
     case STMT_GOTO:
-        stmt_goto_check(check, stmt);
+        stmt_check_goto(check, stmt);
         break;
 
     case STMT_DDL:
-        stmt_ddl_check(check, stmt);
+        stmt_check_ddl(check, stmt);
         break;
 
     case STMT_BLK:
-        stmt_blk_check(check, stmt);
+        stmt_check_blk(check, stmt);
         break;
 
     default:

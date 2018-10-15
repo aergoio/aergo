@@ -14,7 +14,7 @@
 #include "check_id.h"
 
 static int
-id_var_check_array(check_t *check, ast_id_t *id, bool is_param)
+id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
 {
     int i;
     array_t *size_exps = id->u_var.size_exps;
@@ -54,7 +54,7 @@ id_var_check_array(check_t *check, ast_id_t *id, bool is_param)
 }
 
 static int
-id_var_check(check_t *check, ast_id_t *id)
+id_check_var(check_t *check, ast_id_t *id)
 {
     ast_exp_t *type_exp;
     meta_t *type_meta;
@@ -75,7 +75,7 @@ id_var_check(check_t *check, ast_id_t *id)
     meta_copy(&id->meta, type_meta);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_var_check_array(check, id, false));
+        CHECK(id_check_var_array(check, id, false));
 
     if (id->u_var.init_exp != NULL) {
         /* TODO: named initializer */
@@ -100,7 +100,7 @@ id_var_check(check_t *check, ast_id_t *id)
 }
 
 static int
-id_struct_check(check_t *check, ast_id_t *id)
+id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *fld_ids;
@@ -113,7 +113,7 @@ id_struct_check(check_t *check, ast_id_t *id)
     for (i = 0; i < array_size(fld_ids); i++) {
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
-        CHECK(id_var_check(check, fld_id));
+        CHECK(id_check_var(check, fld_id));
     }
 
     meta_set_struct(&id->meta, id->name, fld_ids);
@@ -122,7 +122,7 @@ id_struct_check(check_t *check, ast_id_t *id)
 }
 
 static int
-id_param_check(check_t *check, ast_id_t *id)
+id_check_param(check_t *check, ast_id_t *id)
 {
     ast_exp_t *type_exp;
 
@@ -138,13 +138,13 @@ id_param_check(check_t *check, ast_id_t *id)
     meta_copy(&id->meta, &type_exp->meta);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_var_check_array(check, id, true));
+        CHECK(id_check_var_array(check, id, true));
 
     return NO_ERROR;
 }
 
 static int
-id_func_check(check_t *check, ast_id_t *id)
+id_check_func(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *param_ids;
@@ -157,7 +157,7 @@ id_func_check(check_t *check, ast_id_t *id)
     for (i = 0; i < array_size(param_ids); i++) {
         ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
 
-        id_param_check(check, param_id);
+        id_check_param(check, param_id);
     }
 
     ret_exps = id->u_func.ret_exps;
@@ -191,7 +191,7 @@ id_func_check(check_t *check, ast_id_t *id)
 }
 
 static int
-id_contract_check(check_t *check, ast_id_t *id)
+id_check_contract(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_contract_id(id), id->kind);
 
@@ -210,19 +210,19 @@ id_check(check_t *check, ast_id_t *id)
 
     switch (id->kind) {
     case ID_VAR:
-        id_var_check(check, id);
+        id_check_var(check, id);
         break;
 
     case ID_STRUCT:
-        id_struct_check(check, id);
+        id_check_struct(check, id);
         break;
 
     case ID_FUNC:
-        id_func_check(check, id);
+        id_check_func(check, id);
         break;
 
     case ID_CONTRACT:
-        id_contract_check(check, id);
+        id_check_contract(check, id);
         break;
 
     default:

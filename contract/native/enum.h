@@ -165,7 +165,7 @@ typedef enum sql_kind_e {
 
 typedef enum loop_kind_e {
     LOOP_FOR        = 0,
-    LOOP_EACH,
+    LOOP_ARRAY,
     LOOP_MAX
 } loop_kind_t;
 

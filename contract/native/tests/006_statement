@@ -279,7 +279,7 @@ contract test {
     }
 }
 
-@test(foreach_loop)
+@test(array_loop)
 contract test {
     string v1[10];
 
