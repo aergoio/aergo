@@ -245,9 +245,12 @@ func TestTrieMerkleProof(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		ap, _, _, _, _ := smt.MerkleProof(key)
+		ap, _, k, v, _ := smt.MerkleProof(key)
 		if !smt.VerifyMerkleProof(ap, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
@@ -268,9 +271,12 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key)
+		bitmap, ap, length, _, k, v, _ := smt.MerkleProofCompressed(key)
 		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
@@ -508,9 +514,12 @@ func TestHeight0LeafShortcut(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	bitmap, ap, length, _, _, _, err := smt.MerkleProofCompressed(key1)
+	bitmap, ap, length, _, k, v, err := smt.MerkleProofCompressed(key1)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
 	}
 	if length != smt.TrieHeight {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
@@ -536,9 +545,12 @@ func TestHeight0LeafShortcut(t *testing.T) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
 
-	_, _, length, _, _, _, _ = smt.MerkleProofCompressed(key1)
+	_, _, length, _, k, v, _ = smt.MerkleProofCompressed(key1)
 	if length != 0 {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
+	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
 	}
 }
 
