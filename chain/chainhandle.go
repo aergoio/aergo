@@ -45,15 +45,7 @@ func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error
 }
 
 func (cs *ChainService) getBlock(blockHash []byte) (*types.Block, error) {
-	block, err := cs.cdb.getBlock(blockHash)
-	if err != nil {
-		return nil, err
-	}
-	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
-	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
-		return block, errors.New("block is not in the main chain")
-	}
-	return block, nil
+	return cs.cdb.getBlock(blockHash)
 }
 
 func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
@@ -67,14 +59,11 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, err
 	}
 	block, err := cs.cdb.getBlock(txidx.BlockHash)
-	if err != nil {
-		return nil, nil, err
-	}
 	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return tx, nil, errors.New("tx is not in the main chain")
 	}
-	return tx, txidx, nil
+	return tx, txidx, err
 }
 
 type chainProcessor struct {
