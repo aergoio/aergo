@@ -99,7 +99,7 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 
 // Init has nothing to do since the simple BP don't use any consensus
 // status information.
-func (s *SimpleBlockFactory) Init(bestBlock *types.Block, getBestStatus func([]byte) []byte,
+func (s *SimpleBlockFactory) Init(genesis, best *types.Block, getBestStatus func([]byte) []byte,
 	getBlock func(types.BlockNo) *types.Block) {
 }
 

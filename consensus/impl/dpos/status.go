@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -20,8 +19,7 @@ type preLIB = map[string][]*blockInfo
 var (
 	statusKeyLIB    = []byte("dposStatus.LIB")
 	statusKeyPreLIB = []byte("dposStatus.PreLIB")
-	initialPLIB     = make(preLIB)
-	initialLIB      = &blockInfo{}
+	bootState       *bootingStatus
 )
 
 type errLibUpdate struct {
@@ -39,9 +37,17 @@ func (e errLibUpdate) Error() string {
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
-	bestBlock *types.Block
-	pls       *pLibStatus
-	lib       *blockInfo
+	bestBlock   *types.Block
+	pls         *pLibStatus
+	lib         *blockInfo
+	initialized bool
+}
+
+type bootingStatus struct {
+	plib    preLIB
+	lib     *blockInfo
+	best    *types.Block
+	genesis *types.Block
 }
 
 // NewStatus returns a newly allocated Status.
@@ -73,6 +79,11 @@ func (pls *pLibStatus) init() {
 }
 
 func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
+	// Genesis block must not be added.
+	if block.BlockNo() == 0 {
+		return
+	}
+
 	ci := newConfirmInfo(block, pls.confirmsRequired)
 	pls.confirms.PushBack(ci)
 
@@ -88,7 +99,7 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 		Msg("new confirm info added")
 }
 
-func (pls *pLibStatus) updateStatus() *blockInfo {
+func (pls *pLibStatus) update() *blockInfo {
 	if bpID, bi := pls.getPreLIB(); bi != nil {
 		pls.updatePreLIB(bpID, bi)
 
@@ -475,13 +486,20 @@ func newBlockInfo(block *types.Block) *blockInfo {
 
 // Init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) Init(bestBlock *types.Block, get func([]byte) []byte,
+func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) *types.Block) {
 
-	loadLIB(get)
+	bootState = &bootingStatus{
+		plib:    make(preLIB),
+		lib:     &blockInfo{},
+		best:    best,
+		genesis: genesis,
+	}
+
+	bootState.loadLIB(get)
 }
 
-func loadLIB(get func([]byte) []byte) {
+func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
 	decodeStatus := func(key []byte, dst interface{}) error {
 		value := get(key)
 		if len(value) == 0 {
@@ -497,14 +515,14 @@ func loadLIB(get func([]byte) []byte) {
 		return nil
 	}
 
-	if err := decodeStatus(statusKeyLIB, initialLIB); err == nil {
-		logger.Debug().Uint64("block no", initialLIB.BlockNo).
-			Str("block hash", initialLIB.BlockHash).Msg("LIB loaded from DB")
+	if err := decodeStatus(statusKeyLIB, bs.lib); err == nil {
+		logger.Debug().Uint64("block no", bs.lib.BlockNo).
+			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
 	}
 
-	if err := decodeStatus(statusKeyPreLIB, &initialPLIB); err == nil {
-		logger.Debug().Int("len", len(initialPLIB)).Msg("pre-LIB loaded from DB")
-		for id, p := range initialPLIB {
+	if err := decodeStatus(statusKeyPreLIB, &bs.plib); err == nil {
+		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
+		for id, p := range bs.plib {
 			logger.Debug().
 				Str("BPID", id).Str("block hash", p[len(p)-1].BlockHash).
 				Msg("pre-LIB entry")
@@ -512,32 +530,32 @@ func loadLIB(get func([]byte) []byte) {
 	}
 }
 
+// reco restores the last LIB status by using the informations loaded from the
+// DB.
+func (s *Status) init() {
+	if s.initialized {
+		return
+	}
+
+	s.bestBlock = bootState.bestBlock()
+
+	genesisBlock := bootState.genesisBlock()
+	s.pls.genesisInfo = &blockInfo{
+		BlockHash: genesisBlock.ID(),
+		BlockNo:   genesisBlock.BlockNo(),
+	}
+
+	s.pls.addConfirmInfo(s.bestBlock)
+
+	s.initialized = true
+}
+
 // Update updates the last irreversible block (LIB).
 func (s *Status) Update(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
-	var genesisBlock *types.Block
-
-	if s.pls.genesisInfo == nil {
-		if genesisBlock = chain.GetGenesisBlock(); genesisBlock != nil {
-			s.pls.genesisInfo = &blockInfo{
-				BlockHash: genesisBlock.ID(),
-				BlockNo:   genesisBlock.BlockNo(),
-			}
-		}
-	}
-
-	if s.bestBlock == nil {
-		if initBlock := chain.GetInitialBestBlock(); initBlock != nil {
-			s.bestBlock = initBlock
-			// Add manually the initial block info to avoid error. TODO: This must
-			// be replaced by a correct LIB status recovery process.
-			s.pls.addConfirmInfo(s.bestBlock)
-		} else {
-			s.bestBlock = genesisBlock
-		}
-	}
+	s.init()
 
 	curBestID := s.bestBlock.ID()
 	if curBestID == block.PrevID() {
@@ -549,7 +567,7 @@ func (s *Status) Update(block *types.Block) {
 			Msg("update LIB status")
 
 		// Block connected
-		if lib := s.pls.updateStatus(); lib != nil {
+		if lib := s.pls.update(); lib != nil {
 			s.updateLIB(lib)
 		}
 	} else {
@@ -566,6 +584,14 @@ func (s *Status) Update(block *types.Block) {
 	}
 
 	s.bestBlock = block
+}
+
+func (bs *bootingStatus) bestBlock() *types.Block {
+	return bs.best
+}
+
+func (bs *bootingStatus) genesisBlock() *types.Block {
+	return bs.genesis
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {

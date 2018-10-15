@@ -70,7 +70,7 @@ type ChainConsensus interface {
 	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	Init(bestBlock *types.Block, get func([]byte) []byte, getBlock func(types.BlockNo) *types.Block)
+	Init(genesis, best *types.Block, get func([]byte) []byte, getBlock func(types.BlockNo) *types.Block)
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool
