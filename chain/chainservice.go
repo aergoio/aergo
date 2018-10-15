@@ -36,9 +36,7 @@ type ChainService struct {
 }
 
 var (
-	logger           = log.NewLogger("chain")
-	genesisBlock     *types.Block
-	initialBestBlock *types.Block
+	logger = log.NewLogger("chain")
 )
 
 // NewChainService create instance of ChainService
@@ -46,7 +44,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
-		cdb:            NewChainDB(),
+		cdb:            NewChainDB(cc),
 		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
@@ -62,21 +60,6 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
-}
-
-// GetGenesisBlock returns the genesis block of the chain, which is initialized
-// by chainservice at booting.
-func GetGenesisBlock() *types.Block {
-	return genesisBlock
-}
-
-func setInitialBestBlock(block *types.Block) {
-	initialBestBlock = block
-}
-
-// GetInitialBestBlock returns the best block loaded at boot time.
-func GetInitialBestBlock() *types.Block {
-	return initialBestBlock
 }
 
 func (cs *ChainService) initDB(dataDir string) error {
@@ -101,16 +84,29 @@ func (cs *ChainService) initDB(dataDir string) error {
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary
 func (cs *ChainService) BeforeStart() {
+	var err error
 
-	if err := cs.initDB(cs.cfg.DataDir); err != nil {
+	if err = cs.initDB(cs.cfg.DataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
+	var genesisBlock *types.Block
+
 	// init genesis block
-	if err := cs.initGenesis(nil); err != nil {
+	if genesisBlock, err = cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
+	getBestBlock := func() *types.Block {
+		block := cs.cdb.bestBlock.Load().(*types.Block)
+		if block != nil {
+			return block
+		}
+		return genesisBlock
+	}
+
+	cs.ChainConsensus.Init(genesisBlock, getBestBlock(), cs.cdb.store.Get,
+		cs.cdb.getBlockByNo)
 }
 
 // AfterStart ... do nothing
@@ -124,7 +120,7 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		return err
 	}
-	err := cs.initGenesis(gb)
+	_, err := cs.initGenesis(gb)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
@@ -132,7 +128,7 @@ func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) erro
 	return nil
 }
 
-func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
+func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
 		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
@@ -143,26 +139,26 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 			err := cs.cdb.addGenesisBlock(types.GenesisToBlock(genesis))
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return err
+				return nil, err
 			}
 			err = InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set bp identifications")
-				return err
+				return nil, err
 			}
 			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
-				return err
+				return nil, err
 			}
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
-	genesisBlock, _ = cs.cdb.getBlockByNo(0)
+	genesisBlock, _ := cs.cdb.getBlockByNo(0)
 
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).Msg("chain initialized")
 
-	return nil
+	return genesisBlock, nil
 }
 
 // ChainSync synchronize with peer

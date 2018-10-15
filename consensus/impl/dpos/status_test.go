@@ -1,10 +1,7 @@
 package dpos
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -100,16 +97,4 @@ func addBlockInfo(pLib map[string]*blockInfo, block *types.Block) {
 
 func newPlibMap() map[string]*blockInfo {
 	return make(map[string]*blockInfo)
-}
-
-func encode(e interface{}) (bytes.Buffer, error) {
-	var buf bytes.Buffer
-	err := gob.NewEncoder(&buf).Encode(e)
-
-	return buf, err
-}
-
-func decode(r io.Reader, e interface{}) error {
-	dec := gob.NewDecoder(r)
-	return dec.Decode(e)
 }

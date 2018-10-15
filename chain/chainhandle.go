@@ -436,7 +436,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		Block: block,
 	})
 
-	cs.UpdateStatus(block)
+	cs.Update(block)
 
 	return nil
 }

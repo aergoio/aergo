@@ -3,6 +3,7 @@ package sbp
 import (
 	"time"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
@@ -96,8 +97,19 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// UpdateStatus has nothging to do.
-func (s *SimpleBlockFactory) UpdateStatus(block *types.Block) {
+// Init has nothing to do since the simple BP don't use any consensus
+// status information.
+func (s *SimpleBlockFactory) Init(genesis, best *types.Block, getBestStatus func([]byte) []byte,
+	getBlock func(types.BlockNo) (*types.Block, error)) {
+}
+
+// Update has nothging to do.
+func (s *SimpleBlockFactory) Update(block *types.Block) {
+}
+
+// Save has nothging to do.
+func (s *SimpleBlockFactory) Save(tx db.Transaction) error {
+	return nil
 }
 
 // BlockFactory returns s itself.

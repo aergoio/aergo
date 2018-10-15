@@ -54,7 +54,7 @@ func (e ErrNoBlock) Error() string {
 }
 
 type ChainDB struct {
-	consensus.ChainConsensus
+	cc consensus.ChainConsensus
 
 	latest    types.BlockNo
 	bestBlock atomic.Value // *types.Block
@@ -62,9 +62,10 @@ type ChainDB struct {
 	store db.DB
 }
 
-func NewChainDB() *ChainDB {
+func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
 	// logger.SetLevel("debug")
 	cdb := &ChainDB{
+		cc: cc,
 		//blocks: []*types.Block{},
 		latest: types.BlockNo(0),
 	}
@@ -137,7 +138,7 @@ func (cdb *ChainDB) loadChainData() error {
 	if err != nil {
 		return ErrorLoadBestBlock
 	}
-	cdb.initBestBlock(latestBlock)
+	cdb.setLatest(latestBlock)
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
@@ -151,11 +152,6 @@ func (cdb *ChainDB) loadChainData() error {
 	// 	//logger.Info("- loaded:", i, ToJSON(v))
 	// }
 	return nil
-}
-
-func (cdb *ChainDB) initBestBlock(block *types.Block) {
-	cdb.setLatest(block)
-	setInitialBestBlock(block)
 }
 
 func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
@@ -203,6 +199,11 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 	(*dbtx).Set(latestKey, blockIdx)
 	(*dbtx).Set(blockIdx, block.BlockHash())
 
+	// Save the last consensus status.
+	if cdb.cc != nil {
+		cdb.cc.Save(*dbtx)
+	}
+
 	oldLatest = cdb.setLatest(block)
 
 	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
@@ -233,6 +234,9 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 		tx.Set(blockIdx, block.BlockHash())
 	}
 	tx.Set(latestKey, blockIdx)
+
+	// Save the last consensus status.
+	cdb.cc.Save(tx)
 
 	tx.Commit()
 

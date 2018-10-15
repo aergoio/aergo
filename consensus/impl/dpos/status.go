@@ -1,14 +1,25 @@
 package dpos
 
 import (
+	"bytes"
 	"container/list"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"sort"
 	"sync"
 
-	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
+)
+
+type preLIB = map[string][]*blockInfo
+
+var (
+	statusKeyLIB    = []byte("dposStatus.LIB")
+	statusKeyPreLIB = []byte("dposStatus.PreLIB")
+	bootState       *bootingStatus
 )
 
 type errLibUpdate struct {
@@ -26,9 +37,19 @@ func (e errLibUpdate) Error() string {
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
-	bestBlock *types.Block
-	pls       *pLibStatus
-	lib       *blockInfo
+	bestBlock   *types.Block
+	pls         *pLibStatus
+	lib         *blockInfo
+	initialized bool
+}
+
+type bootingStatus struct {
+	plib     preLIB
+	lib      *blockInfo
+	best     *types.Block
+	genesis  *types.Block
+	confirms *list.List
+	undo     *list.List
 }
 
 // NewStatus returns a newly allocated Status.
@@ -43,7 +64,7 @@ type pLibStatus struct {
 	confirmsRequired uint16
 	confirms         *list.List
 	undo             *list.List
-	plib             map[string][]*blockInfo // BP-wise proposed LIB map
+	plib             preLIB // BP-wise proposed LIB map
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
@@ -51,7 +72,7 @@ func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
 		undo:             list.New(),
-		plib:             make(map[string][]*blockInfo),
+		plib:             make(preLIB),
 	}
 }
 
@@ -60,6 +81,11 @@ func (pls *pLibStatus) init() {
 }
 
 func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
+	// Genesis block must not be added.
+	if block.BlockNo() == 0 {
+		return
+	}
+
 	ci := newConfirmInfo(block, pls.confirmsRequired)
 	pls.confirms.PushBack(ci)
 
@@ -75,7 +101,7 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 		Msg("new confirm info added")
 }
 
-func (pls *pLibStatus) updateStatus() *blockInfo {
+func (pls *pLibStatus) update() *blockInfo {
 	if bpID, bi := pls.getPreLIB(); bi != nil {
 		pls.updatePreLIB(bpID, bi)
 
@@ -460,32 +486,146 @@ func newBlockInfo(block *types.Block) *blockInfo {
 	}
 }
 
-// UpdateStatus updates the last irreversible block (LIB).
-func (s *Status) UpdateStatus(block *types.Block) {
+// Init recovers the last DPoS status including pre-LIB map and confirms
+// list between LIB and the best block.
+func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
+	getBlock func(types.BlockNo) (*types.Block, error)) {
+
+	bootState = &bootingStatus{
+		plib:    make(preLIB),
+		lib:     &blockInfo{},
+		best:    best,
+		genesis: genesis,
+	}
+
+	bootState.loadLIB(get)
+	bootState.replay(getBlock)
+}
+
+func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
+	decodeStatus := func(key []byte, dst interface{}) error {
+		value := get(key)
+		if len(value) == 0 {
+			return fmt.Errorf("LIB status not found: key = %v", string(key))
+		}
+
+		err := decode(bytes.NewBuffer(value), dst)
+		if err != nil {
+			logger.Debug().Err(err).Str("key", string(key)).
+				Msg("failed to decode DPoS status")
+			panic(err)
+		}
+		return nil
+	}
+
+	if err := decodeStatus(statusKeyLIB, bs.lib); err == nil {
+		logger.Debug().Uint64("block no", bs.lib.BlockNo).
+			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
+	}
+
+	if err := decodeStatus(statusKeyPreLIB, &bs.plib); err == nil {
+		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
+		for id, p := range bs.plib {
+			logger.Debug().
+				Str("BPID", id).Str("block hash", p[len(p)-1].BlockHash).
+				Msg("pre-LIB entry")
+		}
+	}
+}
+
+type errInvalidLIB struct {
+	bestHash string
+	bestNo   uint64
+	libHash  string
+	libNo    uint64
+}
+
+func (e errInvalidLIB) Error() string {
+	return fmt.Sprintf("The LIB (%v, %v) is inconsistent with the best block (%v, %v)",
+		e.libNo, e.libHash, e.bestNo, e.bestHash)
+}
+
+func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, error)) {
+	if bs.lib == nil {
+		return
+	}
+
+	curBest := bs.best
+	libNo := bs.lib.BlockNo
+	bestNo := curBest.BlockNo()
+
+	if libNo == bestNo {
+		// Nothing to replay
+		return
+	} else if libNo > bestNo {
+		panic(errInvalidLIB{
+			bestHash: curBest.ID(),
+			bestNo:   bestNo,
+			libHash:  bs.lib.BlockHash,
+			libNo:    bs.lib.BlockNo,
+		})
+	}
+
+	pls := newPlibStatus(bpConsensusCount)
+	pls.genesisInfo = newBlockInfo(bs.genesis)
+
+	for i := libNo + 1; i <= bestNo; i++ {
+		block, err := getBlock(i)
+		if err != nil {
+			panic(err)
+		}
+		pls.addConfirmInfo(block)
+		pls.update()
+	}
+
+	if pls.confirms.Len() > 0 {
+		bs.confirms = pls.confirms
+	}
+	if pls.undo.Len() > 0 {
+		bs.undo = pls.undo
+	}
+}
+
+// init restores the last LIB status by using the informations loaded from the
+// DB.
+func (s *Status) init() {
+	if s.initialized {
+		return
+	}
+
+	s.bestBlock = bootState.bestBlock()
+
+	genesisBlock := bootState.genesisBlock()
+	s.pls.genesisInfo = &blockInfo{
+		BlockHash: genesisBlock.ID(),
+		BlockNo:   genesisBlock.BlockNo(),
+	}
+
+	//s.pls.addConfirmInfo(s.bestBlock)
+
+	s.lib = bootState.lib
+
+	if len(bootState.plib) != 0 {
+		s.pls.plib = bootState.plib
+	}
+
+	if bootState.confirms != nil {
+		s.pls.confirms = bootState.confirms
+		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
+	}
+	if bootState.undo != nil {
+		s.pls.undo = bootState.undo
+		//dumpConfirmInfo("XXX UNDO XXX", s.pls.undo)
+	}
+	s.initialized = true
+}
+
+// Update updates the last irreversible block (LIB).
+func (s *Status) Update(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
-	var genesisBlock *types.Block
-
-	if s.pls.genesisInfo == nil {
-		if genesisBlock = chain.GetGenesisBlock(); genesisBlock != nil {
-			s.pls.genesisInfo = &blockInfo{
-				BlockHash: genesisBlock.ID(),
-				BlockNo:   genesisBlock.BlockNo(),
-			}
-		}
-	}
-
-	if s.bestBlock == nil {
-		if initBlock := chain.GetInitialBestBlock(); initBlock != nil {
-			s.bestBlock = initBlock
-			// Add manually the initial block info to avoid error. TODO: This must
-			// be replaced by a correct LIB status recovery process.
-			s.pls.addConfirmInfo(s.bestBlock)
-		} else {
-			s.bestBlock = genesisBlock
-		}
-	}
+	s.init()
 
 	curBestID := s.bestBlock.ID()
 	if curBestID == block.PrevID() {
@@ -497,9 +637,10 @@ func (s *Status) UpdateStatus(block *types.Block) {
 			Msg("update LIB status")
 
 		// Block connected
-		if lib := s.pls.updateStatus(); lib != nil {
+		if lib := s.pls.update(); lib != nil {
 			s.updateLIB(lib)
 		}
+
 	} else {
 		logger.Debug().
 			Str("block hash", block.ID()).
@@ -516,6 +657,14 @@ func (s *Status) UpdateStatus(block *types.Block) {
 	s.bestBlock = block
 }
 
+func (bs *bootingStatus) bestBlock() *types.Block {
+	return bs.best
+}
+
+func (bs *bootingStatus) genesisBlock() *types.Block {
+	return bs.genesis
+}
+
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.lib = lib
 	s.pls.gcUndo(lib)
@@ -525,6 +674,43 @@ func (s *Status) updateLIB(lib *blockInfo) {
 		Uint64("block no", s.lib.BlockNo).
 		Int("undo len", s.pls.undo.Len()).
 		Msg("last irreversible block (BFT) updated")
+}
+
+// Save saves the consensus status information for the later recovery.
+func (s *Status) Save(tx db.Transaction) error {
+	if len(s.pls.plib) != 0 {
+		buf, err := encode(s.pls.plib)
+		if err != nil {
+			return err
+		}
+		plib := buf.Bytes()
+
+		tx.Set(statusKeyPreLIB, plib)
+	}
+
+	if s.lib != nil {
+		buf, err := encode(s.lib)
+		if err != nil {
+			return err
+		}
+		lib := buf.Bytes()
+
+		tx.Set(statusKeyLIB, lib)
+	}
+
+	return nil
+}
+
+func encode(e interface{}) (bytes.Buffer, error) {
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(e)
+
+	return buf, err
+}
+
+func decode(r io.Reader, e interface{}) error {
+	dec := gob.NewDecoder(r)
+	return dec.Decode(e)
 }
 
 // NeedReorganization reports whether reorganization is needed or not.
