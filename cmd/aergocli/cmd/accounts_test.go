@@ -40,3 +40,27 @@ func TestNewAccount(t *testing.T) {
 	}
 	os.RemoveAll(testDir)
 }
+
+func TestAccountWithPath(t *testing.T) {
+	const testDir = "test"
+	outputNew, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	re := regexp.MustCompile(`\r?\n`)
+	outputNew = re.ReplaceAllString(outputNew, "")
+
+	addr, err := types.DecodeAddress(outputNew)
+	if len(addr) != types.AddressLength {
+		t.Errorf("Unexpected output: %v", outputNew)
+	}
+	outputList, err := executeCommand(rootCmd, "account", "list", "--path", testDir)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	outputList = re.ReplaceAllString(outputList, "")
+	if len(outputList) != len(outputNew)+2 {
+		t.Errorf("Unexpected output: %v", outputList)
+	}
+	os.RemoveAll(testDir)
+}
