@@ -334,8 +334,10 @@ func (p *remotePeerImpl) trySendTxNotices() {
 				break
 			}
 		}
-		mo := p.mf.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes:hashes})
-		p.sendMessage(mo)
+		if idx > 0 {
+			mo := p.mf.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes:hashes})
+			p.sendMessage(mo)
+		}
 	}
 }
 

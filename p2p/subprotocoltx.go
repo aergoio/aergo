@@ -115,7 +115,10 @@ func (th *newTxNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.M
 	peerID := th.peer.ID()
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
-	debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.TxHashes))
+	//debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, len(data.TxHashes))
+	if th.logger.IsDebugEnabled() {
+		debugLogReceiveMsg(th.logger, th.protocol, msgHeader.GetId(), peerID, bytesArrToString(data.TxHashes))
+	}
 
 	if len(data.TxHashes) == 0 {
 		return

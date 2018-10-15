@@ -6,10 +6,12 @@
 package p2p
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
@@ -103,26 +105,33 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 		name string
 		put []TxHash
 		verify func(tt *testing.T, actor *MockActorService)
+		expected []TxHash
 	}{
 		// 1. Succ : valid tx hashes and not exist in local cache
-		{"TSucc", nil,
+		{"TSuccAllNew", nil,
 			func(tt *testing.T, actor *MockActorService) {
 				actor.AssertCalled(tt,"SendRequest",message.P2PSvc, mock.MatchedBy(func(arg *message.GetTransactions) bool {
+					for i,hash := range arg.Hashes {
+						assert.True(tt, bytes.Equal(hash, txHashes[i][:]))
+					}
 					return len(arg.Hashes) == len(txHashes)
 				}))
-			}},
+			} , sampleTxHashes},
 		// 2. Succ : valid tx hashes and partially exist in local cache
-		{"TSuccExistPart", txHashes[1:2],
+		{"TSuccExistPart", txHashes[2:],
 			func(tt *testing.T, actor *MockActorService) {
 				actor.AssertCalled(tt,"SendRequest",message.P2PSvc, mock.MatchedBy(func(arg *message.GetTransactions) bool {
+					for i,hash := range arg.Hashes {
+						assert.True(tt, bytes.Equal(hash, txHashes[i][:]))
+					}
 					return len(arg.Hashes) == len(txHashes) - 1
 				}))
-			}},
+			}, sampleTxHashes[:len(sampleTxHashes)-1]},
 		// 3. Succ : valid tx hashes and all exist in local cache
 		{"TSuccExistAll", txHashes,
 			func(tt *testing.T, actor *MockActorService) {
 				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.AnythingOfType("*message.GetTransactions"))
-			}},
+			}, sampleTxHashes[:0]},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

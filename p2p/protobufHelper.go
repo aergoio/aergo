@@ -129,8 +129,10 @@ func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) bool {
 		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID()).Err(err).Msg("fail to SendTo")
 		return false
 	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID()).Int("hash_cnt", len(pr.txHashes)).Msg("Sent tx notice")
+	if p.logger.IsDebugEnabled() {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID()).Int("hash_cnt", len(pr.txHashes)).Str("hashes",bytesArrToString(pr.txHashes)).Msg("Sent tx notice")
+	}
 	return true
 }
 

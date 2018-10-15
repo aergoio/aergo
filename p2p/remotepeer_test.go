@@ -449,3 +449,33 @@ func generateHash(i uint64) TxHash {
 	binary.LittleEndian.PutUint64(bs[:], i)
 	return bs
 }
+
+func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
+	tests := []struct {
+		name string
+		hashes []TxHash
+		inCache []TxHash
+		expected []TxHash
+	}{
+		{"TAllNew", sampleTxHashes, sampleTxHashes[:0],sampleTxHashes},
+		{"TPartial", sampleTxHashes, sampleTxHashes[2:],sampleTxHashes[:2]},
+		{"TAllExist", sampleTxHashes, sampleTxHashes,make([]TxHash,0)},
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			for _, hash := range test.inCache {
+				target.txHashCache.Add(hash, true)
+			}
+			actual := target.updateTxCache(test.hashes)
+
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}

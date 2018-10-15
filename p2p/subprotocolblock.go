@@ -268,9 +268,9 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetMissingRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string {
-		return bytesArrToString(data.Hashes)
-	}))
+	if bh.logger.IsDebugEnabled() {
+		debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, bytesArrToString(data.Hashes))
+	}
 
 	// send to ChainSvc
 	// find block info from chainservice

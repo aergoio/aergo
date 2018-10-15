@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"bytes"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -80,6 +81,8 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlockHash, 
 func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, data *types.NewTransactionsNotice) {
 	peerID := peer.ID()
 
+	sm.logger.Debug().Str("hashes", P2PTxHashArrToString(hashArrs)).Msg("inputs")
+
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {
@@ -92,12 +95,43 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 			// this notice is already sent to chainservice
 			continue
 		}
-		toGet = append(toGet, message.TXHash(hashArr[:]))
+		hash := make([]byte, txhashLen)
+		copy(hash, hashArr[:])
+		toGet = append(toGet, hash)
 	}
 	if len(toGet) == 0 {
 		// sm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
 	}
+	sm.logger.Debug().Str("hashes", txHashArrToString(toGet)).Msg("toGet is")
 	// create message data
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
+}
+
+// bytesArrToString converts array of byte array to json array of b58 encoded string.
+func txHashArrToString(bbarray []message.TXHash) string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for _, hash := range bbarray {
+		buf.WriteByte('"')
+		buf.WriteString(enc.ToString([]byte(hash)))
+		buf.WriteByte('"')
+		buf.WriteByte(',')
+	}
+	buf.WriteByte(']')
+	return buf.String()
+}
+
+// bytesArrToString converts array of byte array to json array of b58 encoded string.
+func P2PTxHashArrToString(bbarray []TxHash) string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for _, hash := range bbarray {
+		buf.WriteByte('"')
+		buf.WriteString(enc.ToString(hash[:]))
+		buf.WriteByte('"')
+		buf.WriteByte(',')
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
