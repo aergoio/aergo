@@ -187,6 +187,10 @@ func TxConvBase58Addr(tx *types.Tx) string {
 	return toString(ConvTx(tx))
 }
 
+func TxBodyConvBase58Addr(tx *types.Tx) string {
+	return toString(ConvTx(tx).Body)
+}
+
 func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {
 	return toString(ConvTxInBlock(txInBlock))
 }

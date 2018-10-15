@@ -211,7 +211,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		},
 	}
 	if toJson {
-		fmt.Println(util.TxConvBase58Addr(tx))
+		fmt.Println(util.TxBodyConvBase58Addr(tx))
 		return
 	}
 	sign, err := client.SignTX(context.Background(), tx)
