@@ -87,11 +87,19 @@ void vm_remove_construct(lua_State *L, const char *construct_name)
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
 }
 
+void count_hook(lua_State *L, lua_Debug *ar)
+{
+    lua_pushstring(L, "exceeded the maximum instruction count");
+    lua_error(L);
+}
+
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
 	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
+
+    lua_sethook (L, count_hook, LUA_MASKCOUNT, 10000000);
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
