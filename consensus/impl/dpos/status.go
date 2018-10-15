@@ -44,10 +44,12 @@ type Status struct {
 }
 
 type bootingStatus struct {
-	plib    preLIB
-	lib     *blockInfo
-	best    *types.Block
-	genesis *types.Block
+	plib     preLIB
+	lib      *blockInfo
+	best     *types.Block
+	genesis  *types.Block
+	confirms *list.List
+	undo     *list.List
 }
 
 // NewStatus returns a newly allocated Status.
@@ -575,6 +577,13 @@ func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, erro
 		pls.addConfirmInfo(block)
 		pls.update()
 	}
+
+	if pls.confirms.Len() > 0 {
+		bs.confirms = pls.confirms
+	}
+	if pls.undo.Len() > 0 {
+		bs.undo = pls.undo
+	}
 }
 
 // init restores the last LIB status by using the informations loaded from the
@@ -600,6 +609,14 @@ func (s *Status) init() {
 		s.pls.plib = bootState.plib
 	}
 
+	if bootState.confirms != nil {
+		s.pls.confirms = bootState.confirms
+		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
+	}
+	if bootState.undo != nil {
+		s.pls.undo = bootState.undo
+		//dumpConfirmInfo("XXX UNDO XXX", s.pls.undo)
+	}
 	s.initialized = true
 }
 
