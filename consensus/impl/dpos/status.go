@@ -78,9 +78,10 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 func (pls *pLibStatus) updateStatus() *blockInfo {
 	if bpID, bi := pls.getPreLIB(); bi != nil {
 		pls.updatePreLIB(bpID, bi)
-	}
 
-	return pls.calcLIB()
+		return pls.calcLIB()
+	}
+	return nil
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
@@ -274,6 +275,10 @@ func (pls *pLibStatus) rollbackPreLIBs() {
 func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
 	if pLib, exist := pls.plib[c.BPID]; exist {
 		purgeBeg := len(pLib)
+		if purgeBeg == 0 {
+			return
+		}
+
 		for i, l := range pLib {
 			if l.BlockNo >= c.BlockNo {
 				purgeBeg = i
@@ -352,6 +357,10 @@ func cInfo(e *list.Element) *confirmInfo {
 }
 
 func (pls *pLibStatus) calcLIB() *blockInfo {
+	if len(pls.plib) == 0 {
+		return nil
+	}
+
 	libInfos := make([]*blockInfo, 0, len(pls.plib))
 	for _, l := range pls.plib {
 		libInfos = append(libInfos, l[len(l)-1])
@@ -363,16 +372,6 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 
 	// TODO: check the correctness of the formula.
 	lib := libInfos[(len(libInfos)-1)/3]
-	// Comment out until it proves to be necessary. TODO: check whether the
-	// cleanup below is correct.
-	//
-	// if lib != nil {
-	// 	for _, l := range pls.plib {
-	// 		if l.blockNo < lib.blockNo {
-	// 			delete(pls.plib, l.blockHash)
-	// 		}
-	// 	}
-	// }
 
 	return lib
 }
