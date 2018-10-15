@@ -166,6 +166,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      compound
 %type <id>      struct
 %type <array>   field_list
+%type <array>   field
 %type <id>      constructor
 %type <array>   param_list_opt
 %type <array>   param_list
@@ -304,6 +305,7 @@ var_decl:
             ASSERT1(is_var_id(id), id->kind);
             id->u_var.type_exp = $1;
         }
+
         $$ = $2;
     }
 ;
@@ -326,6 +328,7 @@ var_init_decl:
                 id->u_var.init_exp = array_item($4, i, ast_exp_t);
             }
         }
+
         $$ = $2;
     }
 ;
@@ -474,11 +477,29 @@ struct:
 ;
 
 field_list:
-    variable
-|   field_list variable
+    field
+|   field_list field
     {
         $$ = $1;
         id_join_last($$, $2);
+    }
+;
+
+field:
+    var_spec var_name_list ';'
+    {
+        int i;
+
+        for (i = 0; i < array_size($2); i++) {
+            ast_id_t *id = array_item($2, i, ast_id_t);
+
+            ASSERT1(is_var_id(id), id->kind);
+
+            id->mod = MOD_PUBLIC;
+            id->u_var.type_exp = $1;
+        }
+
+        $$ = $2;
     }
 ;
 

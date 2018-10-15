@@ -162,7 +162,7 @@ exp_array_check(check_t *check, ast_exp_t *exp)
         if (is_array_meta(id_meta))
             RETURN(ERROR_NOT_SUPPORTED, &exp->pos);
 
-        CHECK(meta_cmp(id_meta->u_map.k_meta, idx_meta));
+        CHECK(meta_check(id_meta->u_map.k_meta, idx_meta));
 
         exp->meta = *id_meta->u_map.v_meta;
     }
