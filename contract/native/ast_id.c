@@ -41,7 +41,19 @@ id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos)
 
     ASSERT(fld_ids != NULL);
 
-    id->u_st.fld_ids = fld_ids;
+    id->u_struc.fld_ids = fld_ids;
+
+    return id;
+}
+
+ast_id_t *
+id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_ENUM, MOD_PRIVATE, name, pos);
+
+    ASSERT(elem_ids != NULL);
+
+    id->u_enum.elem_ids = elem_ids;
 
     return id;
 }
@@ -102,7 +114,7 @@ id_search_fld(ast_id_t *id, char *name)
     ASSERT(name != NULL);
 
     if (is_struct_id(id))
-        fld_ids = id->u_st.fld_ids;
+        fld_ids = id->u_struc.fld_ids;
     else if (is_contract_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
     else

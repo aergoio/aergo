@@ -141,6 +141,42 @@ contract test {
     }
 }
 
+@test(enum_type)
+contract test {
+    enum e1 {
+        a,
+        b,
+    }
+    enum e2 {
+        a = 0,
+        b = 1 + 1,
+        c = 4,
+        d = 2 * 2 + 1
+    }
+}
+
+@test(duplicated_enumerator)
+@error(ERROR_DUPLICATED_ENUM_VAL)
+contract test {
+    enum e1 {
+        a,
+        b,
+        c = 1,
+        d
+    }
+}
+
+@test(non_constant_enumerator)
+@error(ERROR_INVALID_ENUM_VAL)
+contract test {
+    enum e1 {
+        a,
+        b,
+        c = "3",
+        d
+    }
+}
+
 @test(map_type)
 contract test {
     map(int, int) m1;

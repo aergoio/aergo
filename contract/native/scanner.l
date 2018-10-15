@@ -218,6 +218,7 @@ id                          {L}({L}|{D})*
 "default"                   yy_return(K_DEFAULT);
 "double"                    yy_return(K_DOUBLE);
 "else"                      yy_return(K_ELSE);
+"enum"                      yy_return(K_ENUM);
 "false"                     yy_return(K_FALSE);
 "float"                     yy_return(K_FLOAT);
 "for"                       yy_return(K_FOR);

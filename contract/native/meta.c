@@ -92,8 +92,6 @@ meta_set_tuple(meta_t *meta, array_t *exps)
 bool
 meta_equals(meta_t *x, meta_t *y)
 {
-    int i;
-
     if (is_untyped_meta(x) || is_untyped_meta(y)) {
         if (x->type == y->type ||
             (is_integer_meta(x) && is_integer_meta(y)) ||
@@ -115,6 +113,7 @@ meta_equals(meta_t *x, meta_t *y)
 
     if (is_struct_meta(x) || is_struct_meta(y) ||
         is_tuple_meta(x) || is_tuple_meta(y)) {
+        int i;
         array_t *x_metas = x->u_tup.metas;
         array_t *y_metas = y->u_tup.metas;
 
@@ -154,7 +153,8 @@ meta_check_map(meta_t *x, meta_t *y)
             array_t *kv_metas = kv_elem->u_tup.metas;
 
             if (!is_tuple_meta(kv_elem))
-                RETURN(ERROR_MISMATCHED_TYPE, y->pos, "map", meta_to_str(kv_elem));
+                RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), 
+                       meta_to_str(kv_elem));
 
             if (array_size(kv_metas) != 2)
                 RETURN(ERROR_MISMATCHED_ELEM_CNT, y->pos, 2, array_size(kv_metas));

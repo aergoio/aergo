@@ -13,6 +13,7 @@
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
+#define is_enum_id(id)              ((id)->kind == ID_ENUM)
 #define is_func_id(id)              ((id)->kind == ID_FUNC)
 #define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
 
@@ -52,6 +53,10 @@ typedef struct id_struct_s {
     array_t *fld_ids;
 } id_struct_t;
 
+typedef struct id_enum_s {
+    array_t *elem_ids;
+} id_enum_t;
+
 typedef struct id_func_s {
     array_t *param_ids;
     array_t *ret_exps;
@@ -72,7 +77,8 @@ struct ast_id_s {
 
     union {
         id_var_t u_var;
-        id_struct_t u_st;
+        id_struct_t u_struc;
+        id_enum_t u_enum;
         id_func_t u_func;
         id_cont_t u_cont;
     };
@@ -84,6 +90,7 @@ struct ast_id_s {
 
 ast_id_t *id_new_var(char *name, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
+ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
 ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids,
                       array_t *ret_exps, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);

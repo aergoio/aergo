@@ -71,6 +71,7 @@ typedef enum type_e {
 typedef enum id_kind_e {
     ID_VAR          = 0,
     ID_STRUCT,
+    ID_ENUM,
     ID_FUNC,
     ID_CONTRACT,
     ID_MAX

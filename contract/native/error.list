@@ -33,7 +33,6 @@ error(ERROR_SYNTAX,                 "%s")
 /******************************************************************************
  * semantic checker
  *****************************************************************************/
-/* general */
 error(ERROR_UNDEFINED_TYPE,         "undefined type %s")
 error(ERROR_UNDEFINED_ID,           "undefined identifier '%s'")
 error(ERROR_UNDEFINED_LABEL,        "undefined label '%s'")
@@ -47,12 +46,12 @@ error(ERROR_NOT_ALLOWED_TYPE,       "not allowed non-integer type %s")
 error(ERROR_MISMATCHED_TYPE,        "mismatched type (expected %s, but %s)")
 error(ERROR_MISMATCHED_COUNT,       "mismatched count (expected %d, but %d)")
 error(ERROR_INVALID_LVALUE,         "expression or constant cannot be an lvalue")
+
 error(ERROR_INVALID_OP_TYPE,        "operand(s) has invalid type %s")
 error(ERROR_INVALID_COND_TYPE,      "condition(s) has non-boolean type %s")
 error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
 error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 
-/* array */
 error(ERROR_INVALID_SIZE_TYPE,      "array size has non-integer type %s")
 error(ERROR_INVALID_SIZE_VAL,       "array size has non-constant value")
 error(ERROR_INVALID_SUBSCRIPT,      "subscripted value is neither array nor map")
@@ -62,9 +61,11 @@ error(ERROR_MISSING_ARR_INIT,       "array initializer is missing")
 error(ERROR_MISSING_ARR_SIZE,       "array size is missing")
 error(ERROR_NOT_ALLOWED_INIT,       "not allowed array initializer")
 
-/* map */
 error(ERROR_MISMATCHED_KEY_TYPE,    "mismatched key type (expected %s, but %s)")
-error(ERROR_MISMATCHED_VAL_TYPE,    "mismatched value type of map")
+error(ERROR_MISMATCHED_VAL_TYPE,    "mismatched value type (expected %s, but %s)")
 error(ERROR_INVALID_KEY_TYPE,       "key of map has incomparable type %s")
+
+error(ERROR_INVALID_ENUM_VAL,       "enumerator value must be an integer constant")
+error(ERROR_DUPLICATED_ENUM_VAL,    "duplicated enumerator value")
 
 /* vim:set filetype=c: */

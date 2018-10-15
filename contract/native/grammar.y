@@ -84,6 +84,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_DOUBLE        "double"
         K_DROP          "drop"
         K_ELSE          "else"
+        K_ENUM          "enum"
         K_FALSE         "false"
         K_FLOAT         "float"
         K_FOR           "for"
@@ -167,6 +168,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      struct
 %type <array>   field_list
 %type <array>   field
+%type <id>      enumeration
+%type <array>   enum_list
+%type <id>      enumerator
 %type <id>      constructor
 %type <array>   param_list_opt
 %type <array>   param_list
@@ -464,6 +468,7 @@ elem_list:
 
 compound:
     struct
+|   enumeration
 |   constructor
 |   function
 ;
@@ -494,12 +499,49 @@ field:
             ast_id_t *id = array_item($2, i, ast_id_t);
 
             ASSERT1(is_var_id(id), id->kind);
+            ASSERT1(is_type_exp($1), $1->kind);
 
-            id->mod = MOD_PUBLIC;
             id->u_var.type_exp = $1;
         }
 
         $$ = $2;
+    }
+;
+
+enumeration:
+    K_ENUM  identifier '{' enum_list '}'
+    {
+        $$ = id_new_enum($2, $4, &@$);
+    }
+|   K_ENUM  identifier '{' enum_list ',' '}'
+    {
+        $$ = id_new_enum($2, $4, &@$);
+    }
+|   K_ENUM error ')'            { $$ = NULL; }
+;
+
+enum_list:
+    enumerator
+    {
+        $$ = array_new();
+        id_add_last($$, $1);
+    }
+|   enum_list ',' enumerator
+    {
+        $$ = $1;
+        id_add_last($$, $3);
+    }
+;
+
+enumerator:
+    identifier
+    {
+        $$ = id_new_var($1, &@1);
+    }
+|   identifier '=' ternary_exp
+    {
+        $$ = id_new_var($1, &@1);
+        $$->u_var.init_exp = $3;
     }
 ;
 

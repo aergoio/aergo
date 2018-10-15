@@ -107,16 +107,80 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     ASSERT1(is_struct_id(id), id->kind);
 
-    fld_ids = id->u_st.fld_ids;
+    fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
 
     for (i = 0; i < array_size(fld_ids); i++) {
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
         CHECK(id_check_var(check, fld_id));
+
+        flag_set(fld_id->mod, MOD_PUBLIC);
     }
 
     meta_set_struct(&id->meta, id->name, fld_ids);
+
+    return NO_ERROR;
+}
+
+static int
+id_check_enum(check_t *check, ast_id_t *id)
+{
+    int i, j;
+    int enum_val = 0;
+    array_t *elem_ids;
+
+    ASSERT1(is_enum_id(id), id->kind);
+
+    elem_ids = id->u_enum.elem_ids;
+    ASSERT(elem_ids != NULL);
+
+    for (i = 0; i < array_size(elem_ids); i++) {
+        ast_id_t *elem_id = array_item(elem_ids, i, ast_id_t);
+        ast_exp_t *init_exp = elem_id->u_var.init_exp;
+
+        if (elem_id->u_var.init_exp == NULL) {
+            ast_exp_t *val_exp = exp_new_val(&elem_id->pos);
+
+            value_set_int(&val_exp->u_val.val, enum_val);
+
+            elem_id->u_var.init_exp = val_exp;
+        }
+        else {
+            meta_t *init_meta = &init_exp->meta;
+            value_t *init_val;
+
+            CHECK(exp_check(check, init_exp));
+
+            if (!is_untyped_meta(init_meta) || !is_integer_meta(init_meta))
+                RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
+
+            ASSERT1(is_val_exp(init_exp), init_exp->kind);
+
+            init_val = &init_exp->u_val.val;
+            ASSERT1(is_int_val(init_val), init_val->kind);
+
+            for (j = 0; j < i; j++) {
+                ast_id_t *prev_id = array_item(elem_ids, j, ast_id_t);
+
+                if (prev_id->u_var.init_exp != NULL) {
+                    value_t *prev_val = &prev_id->u_var.init_exp->u_val.val;
+
+                    if (value_cmp(init_val, prev_val) == 0)
+                        RETURN(ERROR_DUPLICATED_ENUM_VAL, &init_exp->pos);
+                }
+            }
+
+            enum_val = init_val->iv;
+        }
+
+        meta_set_int32(&elem_id->meta);
+
+        flag_set(elem_id->mod, MOD_PUBLIC);
+        enum_val++;
+    }
+
+    meta_set_int32(&id->meta);
 
     return NO_ERROR;
 }
@@ -215,6 +279,10 @@ id_check(check_t *check, ast_id_t *id)
 
     case ID_STRUCT:
         id_check_struct(check, id);
+        break;
+
+    case ID_ENUM:
+        id_check_enum(check, id);
         break;
 
     case ID_FUNC:

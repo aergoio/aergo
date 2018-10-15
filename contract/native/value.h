@@ -49,6 +49,8 @@ struct value_s {
 
 extern eval_fn_t eval_fntab_[OP_CF_MAX];
 
+int value_cmp(value_t *x, value_t *y);
+
 static inline void
 value_init(value_t *val)
 {
