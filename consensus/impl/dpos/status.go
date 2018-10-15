@@ -573,6 +573,7 @@ func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, erro
 			panic(err)
 		}
 		pls.addConfirmInfo(block)
+		pls.update()
 	}
 }
 
