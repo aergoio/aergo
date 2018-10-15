@@ -6,7 +6,6 @@
 package state
 
 import (
-	"bytes"
 	"errors"
 	"sync"
 
@@ -271,7 +270,6 @@ func (states *StateDB) Commit() error {
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	latest *BlockInfo
 	states *StateDB
 	store  db.DB
 }
@@ -294,7 +292,7 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 }
 
 // Init initialize database and load statedb of latest block
-func (sdb *ChainStateDB) Init(dataDir string) error {
+func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -304,15 +302,14 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 		sdb.store = db.NewDB(db.BadgerImpl, dbPath)
 	}
 
-	// load latest data from db
-	err := sdb.loadStateLatest()
-	if err != nil {
-		return err
-	}
-
 	// init trie
 	if sdb.states == nil {
-		sdb.states = NewStateDB(&sdb.store, sdb.latest.GetStateRoot())
+		var sroot []byte
+		if bestBlock != nil {
+			sroot = bestBlock.GetHeader().GetBlocksRootHash()
+		}
+
+		sdb.states = NewStateDB(&sdb.store, sroot)
 	}
 	return nil
 }
@@ -321,12 +318,6 @@ func (sdb *ChainStateDB) Init(dataDir string) error {
 func (sdb *ChainStateDB) Close() error {
 	sdb.Lock()
 	defer sdb.Unlock()
-
-	// save data to db
-	err := sdb.saveStateLatest()
-	if err != nil {
-		return err
-	}
 
 	// close db
 	if sdb.store != nil {
@@ -345,25 +336,11 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 	return NewStateDB(&sdb.store, root)
 }
 
-// GetStateRoot returns state root hash
-func (sdb *ChainStateDB) GetStateRoot(blockID []byte) ([]byte, error) {
-	target, err := sdb.loadBlockInfo(types.ToBlockID(blockID))
-	if err != nil {
-		return nil, err
-	}
-	return target.StateRoot.Bytes(), nil
-}
-
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	block := genesisBlock.Block
-	gbInfo := &BlockInfo{
-		BlockHash: types.ToBlockID(block.BlockHash()),
-	}
-	sdb.latest = gbInfo
 
 	// create state of genesis block
-	gbState := NewBlockState(gbInfo.BlockHash,
-		sdb.OpenNewStateDB(sdb.GetRoot()), nil)
+	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()), nil)
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
@@ -457,19 +434,6 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 // 	return sdb.states.Commit()
 // }
 
-func (sdb *ChainStateDB) revertStateDB(prevBlockStateRoot types.HashID) error {
-	if sdb.states.trie.Root == nil && prevBlockStateRoot.Equal(emptyHashID) {
-		// nil and empty bytes, do nothing
-		return nil
-	}
-	if bytes.Equal(sdb.states.trie.Root, prevBlockStateRoot[:]) {
-		// same root, do nothing
-		return nil
-	}
-	// revert state db
-	return sdb.states.Revert(prevBlockStateRoot)
-}
-
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	return sdb.apply(bstate)
 }
@@ -512,29 +476,18 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 		return err
 	}
 
-	// save latest
-	sdb.latest = bstate.GetBlockInfo()
-	return sdb.saveStateLatest()
+	return nil
 }
 
-func (sdb *ChainStateDB) Rollback(targetBlockID types.BlockID) error {
+func (sdb *ChainStateDB) Rollback(targetBlockRoot []byte) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	target, err := sdb.loadBlockInfo(targetBlockID)
-	if err != nil {
-		return err
-	}
-	logger.Debug().Str("before", sdb.latest.StateRoot.String()).
-		Str("target", target.StateRoot.String()).Msg("rollback state")
+	logger.Debug().Str("before", enc.ToString(sdb.states.GetRoot())).
+		Str("target", enc.ToString(targetBlockRoot)).Msg("rollback state")
 
-	err = sdb.revertStateDB(target.StateRoot)
-	if err != nil {
-		return err
-	}
-
-	sdb.latest = target
-	return sdb.saveStateLatest()
+	sdb.states.SetRoot(targetBlockRoot)
+	return nil
 }
 
 // GetRoot returns state root hash

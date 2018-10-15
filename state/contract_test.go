@@ -13,7 +13,7 @@ var stateDB *StateDB
 
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
-	_ = chainStateDB.Init("test")
+	_ = chainStateDB.Init("test", nil)
 	stateDB = chainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 

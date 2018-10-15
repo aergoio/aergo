@@ -65,41 +65,6 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	return err
 }
 
-func (sdb *ChainStateDB) saveStateLatest() error {
-	return saveData(&sdb.store, []byte(stateLatest), sdb.latest)
-}
-
-func (sdb *ChainStateDB) loadStateLatest() error {
-	return loadData(&sdb.store, []byte(stateLatest), &sdb.latest)
-}
-
-func (sdb *ChainStateDB) saveBlockInfo(data *BlockInfo) error {
-	return sdb.states.saveBlockInfo(data)
-}
-
-func (sdb *ChainStateDB) loadBlockInfo(bid types.BlockID) (*BlockInfo, error) {
-	return sdb.states.loadBlockInfo(bid)
-}
-
-func (states *StateDB) saveBlockInfo(data *BlockInfo) error {
-	bid := data.BlockHash
-	if bid == emptyBlockID {
-		return errSaveBlockInfo
-	}
-	return saveData(states.store, bid[:], data)
-}
-
-func (states *StateDB) loadBlockInfo(bid types.BlockID) (*BlockInfo, error) {
-	if bid == emptyBlockID {
-		return nil, errLoadBlockInfo
-	}
-	data := &BlockInfo{}
-	if err := loadData(states.store, bid[:], data); err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
 func (states *StateDB) loadStateData(key []byte) (*types.State, error) {
 	if len(key) == 0 {
 		return nil, errLoadStateData

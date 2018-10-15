@@ -32,11 +32,14 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
-	block := cs.cdb.bestBlock.Load().(*types.Block)
+	var block *types.Block
 
-	if block == nil {
-		return nil, errors.New("best block is null")
+	aopv := cs.cdb.bestBlock.Load()
+
+	if aopv != nil {
+		block = aopv.(*types.Block)
 	}
+
 	return block, nil
 }
 
@@ -331,7 +334,6 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			block.BlockID(),
 			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			contract.TempReceiptDb.NewTx(),
 		)

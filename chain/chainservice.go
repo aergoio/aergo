@@ -72,7 +72,11 @@ func (cs *ChainService) initDB(dataDir string) error {
 	}
 
 	// init statedb
-	if err := cs.sdb.Init(dataDir); err != nil {
+	bestBlock, err := cs.GetBestBlock()
+	if err != nil {
+		return err
+	}
+	if err := cs.sdb.Init(dataDir, bestBlock); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}

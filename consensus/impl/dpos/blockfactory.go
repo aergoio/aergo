@@ -184,16 +184,15 @@ func (bf *BlockFactory) worker() {
 
 func (bf *BlockFactory) newBlockState(bestBlock *types.Block) (*state.BlockState, error) {
 	sdb := bf.sdb
+	var root []byte
 
-	root, err := sdb.GetStateRoot(bestBlock.GetHash())
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to make new tx executor")
-		return nil, err
+	if bestBlock != nil {
+		root = bestBlock.GetHeader().GetBlocksRootHash()
 	}
-	logger.Debug().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).Str("root", enc.ToString(root)).Msg("get state root")
+	logger.Debug().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).
+		Str("root", enc.ToString(root)).Msg("newBlockState")
 
-	bState := state.NewBlockState(types.BlockID{},
-		sdb.OpenNewStateDB(root), contract.TempReceiptDb.NewTx())
+	bState := state.NewBlockState(sdb.OpenNewStateDB(root), contract.TempReceiptDb.NewTx())
 
 	return bState, nil
 }
