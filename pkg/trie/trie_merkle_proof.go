@@ -29,7 +29,7 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 	if err != nil {
 		return nil, nil, 0, true, nil, nil, err
 	}
-	// the height of the whortcut in the tree will be needed for the proof verification
+	// the height of the shortcut in the tree will be needed for the proof verification
 	length := uint64(len(mpFull))
 	var mp [][]byte
 	bitmap := make([]byte, len(mpFull)/8+1)
@@ -64,7 +64,8 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint
 	if isShortcut {
 		// append all default hashes down the tree
 		if bytes.Equal(lnode, key) {
-			return nil, true, nil, nil, nil
+			// return the key-value so a call to trie.Get() is not needed.
+			return nil, true, lnode[:HashLength], rnode[:HashLength], nil
 		}
 		// Return the proof of the leaf key that is on the path of the non included key
 		return nil, false, lnode[:HashLength], rnode[:HashLength], nil

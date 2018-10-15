@@ -245,9 +245,12 @@ func TestTrieMerkleProof(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		ap, _, _, _, _ := smt.MerkleProof(key)
+		ap, _, k, v, _ := smt.MerkleProof(key)
 		if !smt.VerifyMerkleProof(ap, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
@@ -268,9 +271,12 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key)
+		bitmap, ap, length, _, k, v, _ := smt.MerkleProofCompressed(key)
 		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
