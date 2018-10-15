@@ -115,6 +115,8 @@ id_search_fld(ast_id_t *id, char *name)
 
     if (is_struct_id(id))
         fld_ids = id->u_struc.fld_ids;
+    else if (is_enum_id(id))
+        fld_ids = id->u_enum.elem_ids;
     else if (is_contract_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
     else

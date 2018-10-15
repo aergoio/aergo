@@ -136,6 +136,30 @@ contract test {
     }
 }
 
+@test(enum_access)
+contract test {
+    enum e {
+        a
+    }
+    test() {
+        int8 i1 = e.a;
+        int16 i2 = e.a + 1;
+        int32 i3 = e.a + 2;
+        int64 i4 = e.a + 3;
+    }
+}
+
+@test(using_enum_as_lvalue)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    enum e {
+        a
+    }
+    test() {
+        e.a = 3;
+    }
+}
+
 @test(if_else)
 contract test {
     int v1 = 1;

@@ -61,13 +61,13 @@ contract test {
     int v8[2][2] = { { 1, 1 }, { 2, 2 } };
 }
 
-@test(invalid_size_type)
-@error(ERROR_INVALID_SIZE_TYPE)
+@test(non_integer_size_type)
+@error(ERROR_INVALID_SIZE_VAL)
 contract test {
     int i["1"];
 }
 
-@test(invalid_size_value)
+@test(non_constant_size_value)
 @error(ERROR_INVALID_SIZE_VAL)
 contract test {
     int i = 1;

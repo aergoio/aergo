@@ -36,11 +36,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             value_t *size_val = &size_exp->u_val.val;
             meta_t *size_meta = &size_exp->meta;
 
-            if (!is_integer_meta(size_meta))
-                RETURN(ERROR_INVALID_SIZE_TYPE, &size_exp->pos,
-                       meta_to_str(size_meta));
-
-            if (!is_untyped_meta(size_meta))
+            if (!is_integer_meta(size_meta) || !is_untyped_meta(size_meta))
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
             ASSERT1(is_val_exp(size_exp), size_exp->kind);

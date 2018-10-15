@@ -35,7 +35,6 @@ meta_to_str(meta_t *x)
 
         return strbuf_str(&buf);
     }
-    /* keep for later
     else if (is_tuple_meta(x)) {
         int i;
         array_t *elems = x->u_tup.metas;
@@ -52,7 +51,6 @@ meta_to_str(meta_t *x)
 
         return strbuf_str(&buf);
     }
-    */
 
     return TYPE_NAME(x->type);
 }

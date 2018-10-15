@@ -164,6 +164,10 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     }
     else {
         // TODO: check index value if possible
+        if (!is_integer_meta(idx_meta))
+            RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos,
+                   meta_to_str(idx_meta));
+
         meta_copy(&exp->meta, id_meta);
     }
 
@@ -266,10 +270,10 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     if (!is_integer_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
+    meta_copy(&exp->meta, l_meta);
+
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
         exp_op_eval_const(exp, l_meta->type);
-    else
-        meta_copy(&exp->meta, l_meta);
 
     return NO_ERROR;
 }
@@ -298,10 +302,10 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos,
                meta_to_str(l_meta), meta_to_str(r_meta));
 
+    meta_set_bool(&exp->meta);
+
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
         exp_op_eval_const(exp, TYPE_BOOL);
-    else
-        meta_set_bool(&exp->meta);
 
     return NO_ERROR;
 }
@@ -445,11 +449,11 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
                    meta_to_str(l_meta), meta_to_str(r_meta));
     }
 
+    meta_merge(&exp->meta, l_meta, r_meta);
+
     if (is_val_exp(r_exp) &&
         !value_check_range(&r_exp->u_val.val, l_meta->type))
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
-
-    meta_merge(&exp->meta, l_meta, r_meta);
 
     return NO_ERROR;
 }
