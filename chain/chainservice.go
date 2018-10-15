@@ -105,7 +105,8 @@ func (cs *ChainService) BeforeStart() {
 		return genesisBlock
 	}
 
-	cs.ChainConsensus.Init(genesisBlock, getBestBlock(), cs.cdb.store.Get, nil)
+	cs.ChainConsensus.Init(genesisBlock, getBestBlock(), cs.cdb.store.Get,
+		cs.cdb.getBlockByNo)
 }
 
 // AfterStart ... do nothing

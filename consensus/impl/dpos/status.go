@@ -487,7 +487,7 @@ func newBlockInfo(block *types.Block) *blockInfo {
 // Init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
 func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
-	getBlock func(types.BlockNo) *types.Block) {
+	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	bootState = &bootingStatus{
 		plib:    make(preLIB),
@@ -497,6 +497,7 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	}
 
 	bootState.loadLIB(get)
+	bootState.replay(getBlock)
 }
 
 func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
@@ -530,6 +531,51 @@ func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
 	}
 }
 
+type errInvalidLIB struct {
+	bestHash string
+	bestNo   uint64
+	libHash  string
+	libNo    uint64
+}
+
+func (e errInvalidLIB) Error() string {
+	return fmt.Sprintf("The LIB (%v, %v) is inconsistent with the best block (%v, %v)",
+		e.libNo, e.libHash, e.bestNo, e.bestHash)
+}
+
+func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, error)) {
+	if bs.lib == nil {
+		return
+	}
+
+	curBest := bs.best
+	libNo := bs.lib.BlockNo
+	bestNo := curBest.BlockNo()
+
+	if libNo == bestNo {
+		// Nothing to replay
+		return
+	} else if libNo > bestNo {
+		panic(errInvalidLIB{
+			bestHash: curBest.ID(),
+			bestNo:   bestNo,
+			libHash:  bs.lib.BlockHash,
+			libNo:    bs.lib.BlockNo,
+		})
+	}
+
+	pls := newPlibStatus(bpConsensusCount)
+	pls.genesisInfo = newBlockInfo(bs.genesis)
+
+	for i := libNo + 1; i <= bestNo; i++ {
+		block, err := getBlock(i)
+		if err != nil {
+			panic(err)
+		}
+		pls.addConfirmInfo(block)
+	}
+}
+
 // init restores the last LIB status by using the informations loaded from the
 // DB.
 func (s *Status) init() {
@@ -545,7 +591,7 @@ func (s *Status) init() {
 		BlockNo:   genesisBlock.BlockNo(),
 	}
 
-	s.pls.addConfirmInfo(s.bestBlock)
+	//s.pls.addConfirmInfo(s.bestBlock)
 
 	s.lib = bootState.lib
 
@@ -576,6 +622,7 @@ func (s *Status) Update(block *types.Block) {
 		if lib := s.pls.update(); lib != nil {
 			s.updateLIB(lib)
 		}
+
 	} else {
 		logger.Debug().
 			Str("block hash", block.ID()).
