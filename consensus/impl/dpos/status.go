@@ -175,7 +175,8 @@ func (pls *pLibStatus) getPreLIB() (bpID string, bi *blockInfo) {
 		// restored later as needed for rollback, while others will be removed
 		// if LIB is determined.
 		if toUndo {
-			pls.moveToUndo(e)
+			pls.confirms.Remove(e)
+			pls.addToUndo(e)
 		}
 
 		e = prev
@@ -185,10 +186,13 @@ func (pls *pLibStatus) getPreLIB() (bpID string, bi *blockInfo) {
 }
 
 func (pls *pLibStatus) restoreConfirms(confirmLow uint64) {
-	forEach(pls.undo,
+	// Elements of pls.undo are in asceding of its block no. The confirms list
+	// elements must be also in ascending order. This is why confirms list is
+	// reversely traversed and each removed element is pushed into the front.
+	forEachReverse(pls.undo,
 		func(e *list.Element) {
 			if cInfo(e).BlockNo >= confirmLow {
-				moveElem(e, pls.undo, pls.confirms)
+				moveElemToFront(e, pls.undo, pls.confirms)
 			}
 		},
 	)
@@ -259,7 +263,8 @@ func (pls *pLibStatus) rebuildConfirms(decCounts map[uint64]uint16) {
 	if lastUndoElem != nil {
 		forEachUntil(pls.confirms, lastUndoElem,
 			func(e *list.Element) {
-				pls.moveToUndoBack(e)
+				pls.confirms.Remove(e)
+				pls.addToUndo(e)
 			},
 		)
 	}
@@ -299,20 +304,43 @@ func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
 	}
 }
 
-func (pls *pLibStatus) moveToUndoBack(e *list.Element) {
-	moveElemBack(e, pls.confirms, pls.undo)
+func (pls *pLibStatus) addToUndo(newElem *list.Element) {
+	var mark *list.Element
+	ci := cInfo(newElem)
+
+	// Maintain elements in ascending order of block no.
+	for e := pls.undo.Front(); e != nil; e = e.Next() {
+		if ci.BlockNo < cInfo(e).BlockNo {
+			mark = e
+			break
+
+		}
+	}
+
+	if mark != nil {
+		pls.undo.InsertBefore(newElem.Value, mark)
+	} else {
+		pls.undo.PushBack(newElem.Value)
+	}
+
+	/*
+		if mark != nil {
+			dumpConfirmInfo(
+				fmt.Sprintf("XXX elem: %v, mark: %v XXX (len=%v)",
+					cInfo(newElem).BlockNo,
+					cInfo(mark).BlockNo,
+					pls.undo.Len(),
+				), pls.undo)
+		} else {
+			dumpConfirmInfo(
+				fmt.Sprintf("XXX elem to tail: %v (len=%v)",
+					cInfo(newElem).BlockNo, pls.undo.Len()),
+				pls.undo)
+		}
+	*/
 }
 
-func moveElemBack(e *list.Element, src *list.List, dst *list.List) {
-	src.Remove(e)
-	dst.PushBack(e.Value)
-}
-
-func (pls *pLibStatus) moveToUndo(e *list.Element) {
-	moveElem(e, pls.confirms, pls.undo)
-}
-
-func moveElem(e *list.Element, src *list.List, dst *list.List) {
+func moveElemToFront(e *list.Element, src *list.List, dst *list.List) {
 	src.Remove(e)
 	dst.PushFront(e.Value)
 }
@@ -342,6 +370,15 @@ func forEach(l *list.List, f func(e *list.Element)) {
 		next := e.Next()
 		f(e)
 		e = next
+	}
+}
+
+func forEachReverse(l *list.List, f func(e *list.Element)) {
+	e := l.Back()
+	for e != nil {
+		prev := e.Prev()
+		f(e)
+		e = prev
 	}
 }
 
