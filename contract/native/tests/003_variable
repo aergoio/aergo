@@ -212,7 +212,7 @@ contract test {
 }
 
 @test(invalid_key_type)
-@error(ERROR_INVALID_KEY_TYPE)
+@error(ERROR_NOT_COMPARABLE_TYPE)
 contract test {
     map(map(int, int), string) m1;
 }

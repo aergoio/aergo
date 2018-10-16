@@ -347,14 +347,15 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
     if (arg_exp != NULL) {
         if (is_void_meta(fn_meta))
-            RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, 0, meta_size(&arg_exp->meta));
+            RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "argument", 0,
+                   meta_size(&arg_exp->meta));
 
         exp_check(check, arg_exp);
 
         return meta_check(fn_meta, &arg_exp->meta);
     }
     else if (!is_void_meta(fn_meta)) {
-        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, meta_size(fn_meta), 0);
+        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument", meta_size(fn_meta), 0);
     }
 
     return NO_ERROR;
@@ -369,7 +370,7 @@ stmt_check_jump(check_t *check, ast_stmt_t *stmt)
 
     blk = blk_search_loop(check->blk);
     if (blk == NULL)
-        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_TYPE(stmt));
+        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
 
     stmt->kind = STMT_GOTO;
 

@@ -10,7 +10,8 @@
 
 #define TYPE_NAME(type)         type_names_[(type)]
 
-#define STMT_TYPE(stmt)         stmt_names_[(stmt)->kind]
+#define ID_KIND(id)             id_kinds_[(id)->kind]
+#define STMT_KIND(stmt)         stmt_kinds_[(stmt)->kind]
 
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
@@ -183,6 +184,8 @@ typedef enum val_kind_e {
 } val_kind_t;
 
 extern char *type_names_[TYPE_MAX];
-extern char *stmt_names_[STMT_MAX];
+
+extern char *id_kinds_[ID_MAX];
+extern char *stmt_kinds_[STMT_MAX];
 
 #endif /* ! _ENUM_H */

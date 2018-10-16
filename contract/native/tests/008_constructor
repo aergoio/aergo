@@ -46,6 +46,16 @@ contract test {
     }
 }
 
+@test(with_initializer)
+@error(ERROR_NOT_ALLOWED_INIT)
+contract callee { int a; }
+
+contract test {
+    test() {
+        callee c = { 1 };
+    }
+}
+
 @test(neighbor_reference)
 contract neighbor {
     public int v;

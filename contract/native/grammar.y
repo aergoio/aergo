@@ -256,8 +256,8 @@ contract_decl:
 
             if (is_ctor_id(id)) {
                 if (strcmp($2, id->name) != 0)
-                    ERROR(ERROR_SYNTAX, &@1, "syntax error, unexpected "
-                          "identifier, expecting 'func'");
+                    ERROR(ERROR_SYNTAX, &id->pos, "syntax error, unexpected "
+                          "identifier, expecting func");
                 else
                     exist_ctor = true;
             }
@@ -321,7 +321,8 @@ var_init_decl:
         int i;
 
         if (array_size($2) != array_size($4)) {
-            ERROR(ERROR_MISMATCHED_INIT_CNT, &@4, array_size($2), array_size($4));
+            ERROR(ERROR_MISMATCHED_COUNT, &@4, "assignment", array_size($2),
+                  array_size($4));
         }
         else {
             for (i = 0; i < array_size($2); i++) {
@@ -632,6 +633,10 @@ modifier_opt:
     }
 |   modifier_opt K_PAYABLE
     {
+        if (flag_on($1, MOD_PAYABLE))
+            ERROR(ERROR_SYNTAX, &@2, "syntax error, unexpected payable, "
+                  "expecting func or readonly");
+
         $$ = $1;
         flag_set($$, MOD_PAYABLE);
     }

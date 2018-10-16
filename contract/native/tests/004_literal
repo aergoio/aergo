@@ -99,13 +99,13 @@ contract test {
 }
 
 @test(excess_element_count)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_COUNT)
 contract test {
     int i[1] = { 1, 2 };
 }
 
 @test(shortage_element_count)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_COUNT)
 contract test {
     int i[2] = { 1 };
 }
@@ -139,7 +139,7 @@ contract test {
 }
 
 @test(excess_field_count)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_COUNT)
 contract test {
     struct s1 {
         int a;
@@ -149,7 +149,7 @@ contract test {
 }
 
 @test(shortage_field_count)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_COUNT)
 contract test {
     struct s1 {
         int a;

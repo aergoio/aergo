@@ -110,7 +110,7 @@ exp_check_type(check_t *check, ast_exp_t *exp)
         CHECK(exp_check_type(check, k_exp));
 
         if (!is_comparable_meta(k_meta))
-            RETURN(ERROR_INVALID_KEY_TYPE, &k_exp->pos, meta_to_str(k_meta));
+            RETURN(ERROR_NOT_COMPARABLE_TYPE, &k_exp->pos, meta_to_str(k_meta));
 
         v_exp = exp->u_type.v_exp;
         v_meta = &v_exp->meta;
@@ -508,7 +508,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     id = id_exp->id;
     if (id == NULL || is_tuple_meta(id_meta))
-        RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
+        RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     if (is_var_id(id)) {
         id = id->u_var.type_exp->id;
@@ -518,7 +518,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         ast_exp_t *type_exp;
 
         if (!is_struct_meta(id_meta) && !is_ref_meta(id_meta))
-            RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
+            RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
         ret_exps = id->u_func.ret_exps;
         ASSERT(ret_exps != NULL);
@@ -532,7 +532,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     if (id == NULL ||
         (!is_struct_id(id) && !is_enum_id(id) && !is_contract_id(id)))
-        RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
+        RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
@@ -588,7 +588,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     param_ids = id->u_func.param_ids;
 
     if (array_size(param_ids) != array_size(param_exps))
-        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, array_size(param_ids),
+        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", array_size(param_ids),
                array_size(param_exps));
 
     for (i = 0; i < array_size(param_exps); i++) {

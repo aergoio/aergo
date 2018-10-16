@@ -62,7 +62,7 @@ contract test {
 }
 
 @test(mismatched_array_size)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_COUNT)
 contract test {
     test() {
         int i[2];

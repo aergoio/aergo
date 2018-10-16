@@ -30,7 +30,15 @@ char *type_names_[TYPE_MAX] = {
     "tuple"
 };
 
-char *stmt_names_[STMT_MAX] = {
+char *id_kinds_[ID_MAX] = {
+    "variable",
+    "struct",
+    "enumeration",
+    "function",
+    "contract"
+};
+
+char *stmt_kinds_[STMT_MAX] = {
     "null",
     "exp",
     "if",
