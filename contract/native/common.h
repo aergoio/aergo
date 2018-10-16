@@ -17,13 +17,13 @@
 #include <errno.h>
 #include <ctype.h>
 
-#define ANSI_NONE               "\x1b[0m"
-#define ANSI_RED                "\x1b[31m"
-#define ANSI_GREEN              "\x1b[32m"
-#define ANSI_YELLOW             "\x1b[33m"
-#define ANSI_BLUE               "\x1b[34m"
-#define ANSI_PURPLE             "\x1b[35m"
-#define ANSI_WHITE              "\x1b[37m"
+#define ANSI_NONE           "\x1b[0m"
+#define ANSI_RED            "\x1b[31m"
+#define ANSI_GREEN          "\x1b[32m"
+#define ANSI_YELLOW         "\x1b[33m"
+#define ANSI_BLUE           "\x1b[34m"
+#define ANSI_PURPLE         "\x1b[35m"
+#define ANSI_WHITE          "\x1b[37m"
 
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
@@ -47,17 +47,17 @@ typedef unsigned char bool;
 #include "src_pos.h"
 #include "error.h"
 
-#define CHECK(stmt)                                                            \
-    do {                                                                       \
-        ec_t ec = (stmt);                                                      \
-        if (ec != NO_ERROR)                                                    \
-            return ec;                                                         \
+#define CHECK(stmt)                                                                      \
+    do {                                                                                 \
+        ec_t ec = (stmt);                                                                \
+        if (ec != NO_ERROR)                                                              \
+            return ec;                                                                   \
     } while (0)
 
-#define RETURN(ec, pos, ...)                                                   \
-    do {                                                                       \
-        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                    \
-        return (ec);                                                           \
+#define RETURN(ec, pos, ...)                                                             \
+    do {                                                                                 \
+        error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                              \
+        return (ec);                                                                     \
     } while (0)
 
 #endif /* ! _COMMON_H */

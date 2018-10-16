@@ -17,7 +17,7 @@
 #define stack_last(stack)       ((stack)->tail)
 #define stack_top(stack)        stack_last(stack)
 
-#define stack_foreach(node, stack)                                             \
+#define stack_foreach(node, stack)                                                       \
     for ((node) = (stack)->head; (node) != NULL; (node) = (node)->next)
 
 typedef struct stack_node_s {
@@ -34,8 +34,7 @@ typedef struct stack_s {
 void stack_push(stack_t *stack, void *item);
 void *stack_pop(stack_t *stack);
 
-array_t *stack_to_array(stack_t *stack, 
-                        int (*cmp_fn)(const void *, const void *));
+array_t *stack_to_array(stack_t *stack, int (*cmp_fn)(const void *, const void *));
 
 static inline void
 stack_init(stack_t *stack)

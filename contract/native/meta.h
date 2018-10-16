@@ -12,11 +12,11 @@
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 
-#define is_integer_meta(meta)                                                  \
+#define is_integer_meta(meta)                                                            \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
-#define is_float_meta(meta)                                                    \
+#define is_float_meta(meta)                                                              \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
-#define is_numeric_meta(meta)                                                  \
+#define is_numeric_meta(meta)                                                            \
     ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_DOUBLE)
 
 #define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
@@ -51,9 +51,9 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_size(meta)                                                        \
-    (is_void_meta(meta) ? 0 :                                                  \
-     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                          \
+#define meta_size(meta)                                                                  \
+    (is_void_meta(meta) ? 0 :                                                            \
+     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                                    \
       array_size((meta)->u_tup.metas) : 1))
 
 #ifndef _META_T

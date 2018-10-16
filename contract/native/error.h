@@ -14,14 +14,10 @@
 
 #define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
 
-#define ERROR(ec, pos, ...)                                                    \
-    error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__)
-#define INFO(ec, pos, ...)                                                     \
-    error_push((ec), LVL_INFO, (pos), ## __VA_ARGS__)
-#define WARN(ec, pos, ...)                                                     \
-    error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
-#define DEBUG(ec, pos, ...)                                                    \
-    error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
+#define ERROR(ec, pos, ...)     error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__)
+#define INFO(ec, pos, ...)      error_push((ec), LVL_INFO, (pos), ## __VA_ARGS__)
+#define WARN(ec, pos, ...)      error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
+#define DEBUG(ec, pos, ...)     error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
 
 #define is_no_error()           (error_count() == 0)
 

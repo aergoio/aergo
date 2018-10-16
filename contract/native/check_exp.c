@@ -165,8 +165,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     else {
         // TODO: check index value if possible
         if (!is_integer_meta(idx_meta))
-            RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos,
-                   meta_to_str(idx_meta));
+            RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
 
         meta_copy(&exp->meta, id_meta);
     }
@@ -299,8 +298,8 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 
     /* XXX: comparable check */
     if (!meta_equals(l_meta, r_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos,
-               meta_to_str(l_meta), meta_to_str(r_meta));
+        RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos, meta_to_str(l_meta),
+               meta_to_str(r_meta));
 
     meta_set_bool(&exp->meta);
 
@@ -421,12 +420,11 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
         array_t *val_exps = r_exp->u_tup.exps;
 
         if (!is_tuple_exp(r_exp))
-            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos,
-                   array_size(var_exps), 1);
+            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos, array_size(var_exps), 1);
 
         if (array_size(var_exps) != array_size(val_exps))
-            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos,
-                   array_size(var_exps), array_size(val_exps));
+            RETURN(ERROR_MISMATCHED_ELEM_CNT, &r_exp->pos, array_size(var_exps),
+                   array_size(val_exps));
 
         for (i = 0; i < array_size(var_exps); i++) {
             ast_exp_t *var_exp = array_item(var_exps, i, ast_exp_t);
@@ -436,8 +434,8 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
                 RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
 
             if (!meta_equals(&var_exp->meta, &val_exp->meta))
-                RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos,
-                       meta_to_str(&var_exp->meta), meta_to_str(&val_exp->meta));
+                RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos, meta_to_str(&var_exp->meta),
+                       meta_to_str(&val_exp->meta));
         }
     }
     else {
@@ -445,8 +443,8 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
 
         if (!meta_equals(l_meta, r_meta))
-            RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos,
-                   meta_to_str(l_meta), meta_to_str(r_meta));
+            RETURN(ERROR_MISMATCHED_TYPE, &r_exp->pos, meta_to_str(l_meta), 
+                   meta_to_str(r_meta));
     }
 
     meta_merge(&exp->meta, l_meta, r_meta);
@@ -527,14 +525,12 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     if (is_var_id(id)) {
         ast_id_t *type_id = id->u_var.type_exp->id;
 
-        if (type_id == NULL ||
-            (!is_struct_id(type_id) && !is_contract_id(type_id)))
+        if (type_id == NULL || (!is_struct_id(type_id) && !is_contract_id(type_id)))
             RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
 
         id = type_id;
     }
-    else if (is_func_id(id) &&
-             !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
+    else if (is_func_id(id) && !is_struct_meta(id_meta) && !is_ref_meta(id_meta)) {
         RETURN(ERROR_NOT_ACCESSIBLE_EXP, &id_exp->pos);
     }
 
@@ -592,8 +588,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     param_ids = id->u_func.param_ids;
 
     if (array_size(param_ids) != array_size(param_exps))
-        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos,
-               array_size(param_ids), array_size(param_exps));
+        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, array_size(param_ids), 
+               array_size(param_exps));
 
     for (i = 0; i < array_size(param_exps); i++) {
         ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
@@ -602,8 +598,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(exp_check(check, param_exp));
 
         if (!meta_equals(&param_id->meta, &param_exp->meta))
-            RETURN(ERROR_MISMATCHED_TYPE, &param_exp->pos,
-                   meta_to_str(&param_id->meta), meta_to_str(&param_exp->meta));
+            RETURN(ERROR_MISMATCHED_TYPE, &param_exp->pos, meta_to_str(&param_id->meta), 
+                   meta_to_str(&param_exp->meta));
     }
 
     exp->id = id;
@@ -666,8 +662,8 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, post_exp));
 
     if (!meta_equals(in_meta, post_meta))
-        RETURN(ERROR_MISMATCHED_TYPE, &post_exp->pos,
-               meta_to_str(in_meta), meta_to_str(post_meta));
+        RETURN(ERROR_MISMATCHED_TYPE, &post_exp->pos, meta_to_str(in_meta), 
+               meta_to_str(post_meta));
 
     meta_copy(&exp->meta, in_meta);
 

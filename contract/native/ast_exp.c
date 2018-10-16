@@ -9,51 +9,6 @@
 
 #include "ast_exp.h"
 
-char *exp_kinds_[EXP_MAX] = {
-    "ID",
-    "LIT",
-    "TYPE",
-    "ARRAY",
-    "OP",
-    "ACCESS",
-    "CALL",
-    "SQL",
-    "COND",
-    "TUPLE"
-};
-
-char *op_strs_[OP_MAX] = {
-    "ASSIGN",
-    "ADD",
-    "SUB",
-    "MUL",
-    "DIV",
-    "MOD",
-    "AND",
-    "OR",
-    "BIT_AND",
-    "BIT_OR",
-    "BIT_XOR",
-    "EQ",
-    "NE",
-    "LT",
-    "GT",
-    "LE",
-    "GE",
-    "RSHIFT",
-    "LSHIFT",
-    "INC",
-    "DEC",
-    "NOT"
-};
-
-char *sql_strs_[SQL_MAX] = {
-    "QUERY",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-};
-
 static ast_exp_t *
 ast_exp_new(exp_kind_t kind, src_pos_t *pos)
 {

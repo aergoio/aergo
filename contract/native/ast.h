@@ -11,14 +11,14 @@
 #include "array.h"
 #include "meta.h"
 
-#define AST_NODE_DECL                                                          \
-    int num;                                                                   \
+#define AST_NODE_DECL                                                                    \
+    int num;                                                                             \
     src_pos_t pos
 
-#define ast_node_init(node, pos)                                               \
-    do {                                                                       \
-        (node)->num = node_num_++;                                             \
-        (node)->pos = *(pos);                                                  \
+#define ast_node_init(node, pos)                                                         \
+    do {                                                                                 \
+        (node)->num = node_num_++;                                                       \
+        (node)->pos = *(pos);                                                            \
     } while (0)
 
 #ifndef _AST_BLK_T

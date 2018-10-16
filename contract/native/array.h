@@ -10,7 +10,7 @@
 
 #define ARRAY_INIT_SIZE                 4
 
-#define is_empty_array(array)                                                  \
+#define is_empty_array(array)                                                            \
     ((array) == NULL ? true : (array)->cnt == 0)
 
 #define array_size(array)               ((array) == NULL ? 0 : (array)->cnt)
@@ -83,8 +83,7 @@ array_add(array_t *array, int idx, void *item)
         array->items[array->cnt++] = item;
     }
     else {
-        memmove(&array->items[idx + 1], &array->items[idx], 
-                sizeof(void *) * array->cnt);
+        memmove(&array->items[idx + 1], &array->items[idx], sizeof(void *) * array->cnt);
 
         array->items[idx] = item;
         array->cnt++;

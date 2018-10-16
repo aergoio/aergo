@@ -172,8 +172,7 @@ put_import(scan_t *scan, stack_t *imp)
                     if (add_file(scan, path, imp)) {
                         mark_file(path, 1, 0, scan->out);
                         substitue(path, scan->work_dir, imp, scan->out);
-                        mark_file(scan->path, YY_LINE + 1, YY_OFFSET, 
-                                  scan->out);
+                        mark_file(scan->path, YY_LINE + 1, YY_OFFSET, scan->out);
                         del_file(scan, scan->path, imp);
                     }
                     offset = 0;

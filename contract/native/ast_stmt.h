@@ -116,10 +116,9 @@ struct ast_stmt_s {
 ast_stmt_t *stmt_new_null(src_pos_t *pos);
 ast_stmt_t *stmt_new_exp(ast_exp_t *exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos);
-ast_stmt_t *stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, 
-                          ast_exp_t *loop_exp, ast_blk_t *blk, src_pos_t *pos);
-ast_stmt_t *stmt_new_switch(ast_exp_t *cond_exp, array_t *case_stmts,
-                            src_pos_t *pos);
+ast_stmt_t *stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp, 
+                          ast_blk_t *blk, src_pos_t *pos);
+ast_stmt_t *stmt_new_switch(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t *pos);
 ast_stmt_t *stmt_new_case(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos);
 ast_stmt_t *stmt_new_return(ast_exp_t *arg_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_goto(char *label, src_pos_t *pos);

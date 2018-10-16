@@ -148,8 +148,8 @@ error_dump(void)
     for (i = 0; i < array_size(array); i++) {
         error_t *e = array_item(array, i, error_t);
 
-        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level],
-                e->path, e->line, e->desc);
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", 
+                err_lvls_[e->level], e->path, e->line, e->desc);
     }
 
     array_clear(array);

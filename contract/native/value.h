@@ -14,14 +14,13 @@
 #define is_fp_val(val)              ((val)->kind == VAL_FP)
 #define is_str_val(val)             ((val)->kind == VAL_STR)
 
-#define is_zero_val(val)                                                       \
-    (is_int_val(val) ? (val)->iv == 0 :                                        \
-     (is_fp_val(val) ? (val)->dv == 0.0f : false))
+#define is_zero_val(val)                                                                 \
+    (is_int_val(val) ? (val)->iv == 0 : (is_fp_val(val) ? (val)->dv == 0.0f : false))
 
-#define value_eval(op, val, x, y)                                              \
-    do {                                                                       \
-        ASSERT1((op) >= OP_ADD && (op) < OP_CF_MAX, (op));                     \
-        eval_fntab_[(op)]((val), (x), (y));                                    \
+#define value_eval(op, val, x, y)                                                        \
+    do {                                                                                 \
+        ASSERT1((op) >= OP_ADD && (op) < OP_CF_MAX, (op));                               \
+        eval_fntab_[(op)]((val), (x), (y));                                              \
     } while (0)
 
 #ifndef _VALUE_T

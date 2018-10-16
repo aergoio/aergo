@@ -142,10 +142,7 @@ contract test {
         a
     }
     test() {
-        int8 i1 = e.a;
-        int16 i2 = e.a + 1;
-        int32 i3 = e.a + 2;
-        int64 i4 = e.a + 3;
+        int32 i3 = e.a;
     }
 }
 
@@ -201,7 +198,7 @@ contract test {
     }
 }
 
-@test(invalid_if_condition)
+@test(non_boolean_if_condition)
 @error(ERROR_INVALID_COND_TYPE)
 contract test {
     test() {

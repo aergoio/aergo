@@ -23,9 +23,8 @@
 #define is_ternary_exp(exp)         ((exp)->kind == EXP_TERNARY)
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 
-#define is_usable_lval(exp)                                                    \
-    ((exp)->id != NULL && !is_const_id((exp)->id) &&                           \
-     !is_untyped_meta(&(exp)->id->meta))
+#define is_usable_lval(exp)                                                              \
+    ((exp)->id != NULL && !is_const_id((exp)->id) && !is_untyped_meta(&(exp)->id->meta))
 
 #define exp_add_first               array_add_first
 #define exp_add_last                array_add_last

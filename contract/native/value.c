@@ -9,48 +9,48 @@
 
 #include "value.h"
 
-#define value_eval_arith(op, val, x, y)                                        \
-    do {                                                                       \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                 \
-                                                                               \
-        if (is_int_val(x))                                                     \
-            value_set_int(val, (x)->iv op (y)->iv);                            \
-        else if (is_fp_val(x))                                                 \
-            value_set_double(val, (x)->dv op (y)->dv);                         \
-        else                                                                   \
-            ASSERT1(!"invalid value", (val)->kind);                            \
+#define value_eval_arith(op, val, x, y)                                                  \
+    do {                                                                                 \
+        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+                                                                                         \
+        if (is_int_val(x))                                                               \
+            value_set_int(val, (x)->iv op (y)->iv);                                      \
+        else if (is_fp_val(x))                                                           \
+            value_set_double(val, (x)->dv op (y)->dv);                                   \
+        else                                                                             \
+            ASSERT1(!"invalid value", (val)->kind);                                      \
     } while (0)
 
-#define value_eval_cmp(op, val, x, y)                                          \
-    do {                                                                       \
-        bool res = false;                                                      \
-                                                                               \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                 \
-                                                                               \
-        if (is_null_val(x))                                                    \
-            res = NULL op NULL;                                                \
-        else if (is_bool_val(x))                                               \
-            res = (x)->bv op (y)->bv;                                          \
-        else if (is_int_val(x))                                                \
-            res = (x)->iv op (y)->iv;                                          \
-        else if (is_fp_val(x))                                                 \
-            res = (x)->iv op (y)->iv;                                          \
-        else if (is_str_val(x))                                                \
-            res = strcmp((x)->sv, (y)->sv) op 0;                               \
-        else                                                                   \
-            ASSERT1(!"invalid value", (val)->kind);                            \
-                                                                               \
-        value_set_bool((val), res);                                            \
+#define value_eval_cmp(op, val, x, y)                                                    \
+    do {                                                                                 \
+        bool res = false;                                                                \
+                                                                                         \
+        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+                                                                                         \
+        if (is_null_val(x))                                                              \
+            res = NULL op NULL;                                                          \
+        else if (is_bool_val(x))                                                         \
+            res = (x)->bv op (y)->bv;                                                    \
+        else if (is_int_val(x))                                                          \
+            res = (x)->iv op (y)->iv;                                                    \
+        else if (is_fp_val(x))                                                           \
+            res = (x)->iv op (y)->iv;                                                    \
+        else if (is_str_val(x))                                                          \
+            res = strcmp((x)->sv, (y)->sv) op 0;                                         \
+        else                                                                             \
+            ASSERT1(!"invalid value", (val)->kind);                                      \
+                                                                                         \
+        value_set_bool((val), res);                                                      \
     } while (0)
 
-#define value_eval_bit(op, val, x, y)                                          \
-    do {                                                                       \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                 \
-                                                                               \
-        if (is_int_val(x))                                                     \
-            value_set_int((val), (x)->iv op (y)->iv);                          \
-        else                                                                   \
-            ASSERT1(!"invalid value", (val)->kind);                            \
+#define value_eval_bit(op, val, x, y)                                                    \
+    do {                                                                                 \
+        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+                                                                                         \
+        if (is_int_val(x))                                                               \
+            value_set_int((val), (x)->iv op (y)->iv);                                    \
+        else                                                                             \
+            ASSERT1(!"invalid value", (val)->kind);                                      \
     } while (0)
 
 static void

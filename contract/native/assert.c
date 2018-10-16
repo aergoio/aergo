@@ -14,8 +14,8 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
     va_list vargs;
     char errdesc[DESC_MAX_LEN];
 
-    snprintf(errdesc, sizeof(errdesc), 
-             "%s:%d: internal error with condition '%s'", file, line, cond);
+    snprintf(errdesc, sizeof(errdesc), "%s:%d: internal error with condition '%s'", 
+             file, line, cond);
 
     fprintf(stderr, ANSI_RED"fatal"ANSI_RED": "ANSI_NONE"%s\n", errdesc);
 

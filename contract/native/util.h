@@ -16,11 +16,11 @@ typedef struct strbuf_s strbuf_t;
 #define MAX(x, y)           ((x) > (y) ? (x) : (y))
 #define MIN(x, y)           ((x) > (y) ? (y) : (x))
 
-#define SWAP(x, y)                                                             \
-    do {                                                                       \
-        void *tmp = (x);                                                       \
-        (x) = (y);                                                             \
-        (y) = tmp;                                                             \
+#define SWAP(x, y)                                                                       \
+    do {                                                                                 \
+        void *tmp = (x);                                                                 \
+        (x) = (y);                                                                       \
+        (y) = tmp;                                                                       \
     } while (0)
 
 #define STR_ARG(v)          ((v) == NULL ? "" : (v))
