@@ -179,13 +179,25 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func bytesArrToString(bbarray [][]byte) string {
+	return bytesArrToStringWithLimit(bbarray, 10)
+}
+
+func bytesArrToStringWithLimit(bbarray [][]byte, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for _, hash := range bbarray {
+	var arrSize = len(bbarray)
+	if limit > arrSize {
+		limit = arrSize
+	}
+	for i :=0; i < limit; i++ {
+		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString(hash))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
+	}
+	if arrSize > limit {
+		buf.WriteString(fmt.Sprintf(" (and %d more), ",  arrSize - limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()

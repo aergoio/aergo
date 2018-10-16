@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -81,8 +82,6 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlockHash, 
 func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, data *types.NewTransactionsNotice) {
 	peerID := peer.ID()
 
-	sm.logger.Debug().Str("hashes", P2PTxHashArrToString(hashArrs)).Msg("inputs")
-
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
 	for _, hashArr := range hashArrs {
@@ -103,20 +102,32 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 		// sm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
 	}
-	sm.logger.Debug().Str("hashes", txHashArrToString(toGet)).Msg("toGet is")
+	sm.logger.Debug().Str("hashes", txHashArrToString(toGet)).Msg("syncmanager request back unknown tx hashes")
 	// create message data
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func txHashArrToString(bbarray []message.TXHash) string {
+	return txHashArrToStringWithLimit(bbarray, 10)
+}
+
+func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int ) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for _, hash := range bbarray {
+	var arrSize = len(bbarray)
+	if limit > arrSize {
+		limit = arrSize
+	}
+	for i :=0; i < limit; i++ {
+		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString([]byte(hash)))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
+	}
+	if arrSize > limit {
+		buf.WriteString(fmt.Sprintf(" (and %d more), ",  arrSize - limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()
@@ -124,13 +135,24 @@ func txHashArrToString(bbarray []message.TXHash) string {
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func P2PTxHashArrToString(bbarray []TxHash) string {
+	return P2PTxHashArrToStringWithLimit(bbarray, 10)
+}
+func P2PTxHashArrToStringWithLimit (bbarray []TxHash, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for _, hash := range bbarray {
+	var arrSize = len(bbarray)
+	if limit > arrSize {
+		limit = arrSize
+	}
+	for i :=0; i < limit; i++ {
+		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString(hash[:]))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
+	}
+	if arrSize > limit {
+		buf.WriteString(fmt.Sprintf(" (and %d more), ",  arrSize - limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()

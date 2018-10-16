@@ -128,9 +128,6 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 		}
 		hashes[i] = ([]byte)(hash)
 	}
-	if p2ps.IsDebugEnabled() {
-		p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogTxHash, bytesArrToString(hashes)).Msg("Sending GetTransactions request")
-	}
 	// create message data
 	req := &types.GetTransactionsRequest{Hashes: hashes}
 
