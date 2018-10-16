@@ -28,7 +28,7 @@ type BaseConfig struct {
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
-	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`  
+	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
 }
 
 // RPCConfig defines configurations for rpc service
@@ -63,7 +63,9 @@ type P2PConfig struct {
 
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
-	MaxBlockSize uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	CoinbaseFee     int64  `mapstructure:"coinbasefee" description:"fixed amount fee for Bp"`
+	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -129,6 +131,8 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 [blockchain]
 # blockchain configurations
 maxblocksize = {{.Blockchain.MaxBlockSize}}
+coinbasefee = {{.Blockchain.CoinbaseFee}}
+coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

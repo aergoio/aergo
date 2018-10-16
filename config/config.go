@@ -84,7 +84,11 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 }
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
-	return &BlockchainConfig{MaxBlockSize: types.DefaultMaxBlockSize}
+	return &BlockchainConfig{
+		MaxBlockSize:    types.DefaultMaxBlockSize,
+		CoinbaseFee:     types.DefaultCoinbaseFee,
+		CoinbaseAccount: "",
+	}
 }
 
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
