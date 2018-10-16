@@ -53,10 +53,6 @@ func (s *Status) load() {
 		s.pls.confirms = bootState.confirms
 		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
 	}
-	if bootState.undo != nil {
-		s.pls.undo = bootState.undo
-		//dumpConfirmInfo("XXX UNDO XXX", s.pls.undo)
-	}
 	s.done = true
 }
 
@@ -88,7 +84,7 @@ func (s *Status) Update(block *types.Block) {
 			Msg("rollback LIB status")
 
 		// Block reorganized. TODO: update consensus status, correctly.
-		if err := s.pls.rollbackStatusTo(block); err != nil {
+		if err := s.pls.rollbackStatusTo(block, s.lib); err != nil {
 			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
 			panic(err)
 		}
@@ -99,12 +95,12 @@ func (s *Status) Update(block *types.Block) {
 
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.lib = lib
-	s.pls.gcUndo(lib)
+	s.pls.gc(lib)
 
 	logger.Debug().
 		Str("block hash", s.lib.BlockHash).
 		Uint64("block no", s.lib.BlockNo).
-		Int("undo len", s.pls.undo.Len()).
+		Int("confirms len", s.pls.confirms.Len()).
 		Msg("last irreversible block (BFT) updated")
 }
 
@@ -187,5 +183,5 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	}
 
 	bootState.load()
-	bootState.replay()
+	bootState.loadConfirms()
 }
