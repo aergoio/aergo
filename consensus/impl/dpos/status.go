@@ -34,6 +34,18 @@ func (e errLibUpdate) Error() string {
 		e.current, e.parent, e.oldBest)
 }
 
+type errInvalidLIB struct {
+	bestHash string
+	bestNo   uint64
+	libHash  string
+	libNo    uint64
+}
+
+func (e errInvalidLIB) Error() string {
+	return fmt.Sprintf("The LIB (%v, %v) is inconsistent with the best block (%v, %v)",
+		e.libNo, e.libHash, e.bestNo, e.bestHash)
+}
+
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
@@ -50,6 +62,9 @@ type bootingStatus struct {
 	genesis  *types.Block
 	confirms *list.List
 	undo     *list.List
+
+	get      func([]byte) []byte
+	getBlock func(types.BlockNo) (*types.Block, error)
 }
 
 // NewStatus returns a newly allocated Status.
@@ -492,38 +507,25 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	bootState = &bootingStatus{
-		plib:    make(preLIB),
-		lib:     &blockInfo{},
-		best:    best,
-		genesis: genesis,
+		plib:     make(preLIB),
+		lib:      &blockInfo{},
+		best:     best,
+		genesis:  genesis,
+		get:      get,
+		getBlock: getBlock,
 	}
 
-	bootState.loadLIB(get)
-	bootState.replay(getBlock)
+	bootState.load()
+	bootState.replay()
 }
 
-func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
-	decodeStatus := func(key []byte, dst interface{}) error {
-		value := get(key)
-		if len(value) == 0 {
-			return fmt.Errorf("LIB status not found: key = %v", string(key))
-		}
-
-		err := decode(bytes.NewBuffer(value), dst)
-		if err != nil {
-			logger.Debug().Err(err).Str("key", string(key)).
-				Msg("failed to decode DPoS status")
-			panic(err)
-		}
-		return nil
-	}
-
-	if err := decodeStatus(statusKeyLIB, bs.lib); err == nil {
+func (bs *bootingStatus) load() {
+	if err := bs.loadLIB(bs.lib); err != nil {
 		logger.Debug().Uint64("block no", bs.lib.BlockNo).
 			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
 	}
 
-	if err := decodeStatus(statusKeyPreLIB, &bs.plib); err == nil {
+	if err := bs.loadPLIB(&bs.plib); err == nil {
 		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
 		for id, p := range bs.plib {
 			logger.Debug().
@@ -533,19 +535,30 @@ func (bs *bootingStatus) loadLIB(get func([]byte) []byte) {
 	}
 }
 
-type errInvalidLIB struct {
-	bestHash string
-	bestNo   uint64
-	libHash  string
-	libNo    uint64
+func (bs *bootingStatus) loadLIB(bi *blockInfo) error {
+	return bs.decodeStatus(statusKeyLIB, bi)
 }
 
-func (e errInvalidLIB) Error() string {
-	return fmt.Sprintf("The LIB (%v, %v) is inconsistent with the best block (%v, %v)",
-		e.libNo, e.libHash, e.bestNo, e.bestHash)
+func (bs *bootingStatus) loadPLIB(plib *preLIB) error {
+	return bs.decodeStatus(statusKeyPreLIB, plib)
 }
 
-func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, error)) {
+func (bs *bootingStatus) decodeStatus(key []byte, dst interface{}) error {
+	value := bs.get(key)
+	if len(value) == 0 {
+		return fmt.Errorf("LIB status not found: key = %v", string(key))
+	}
+
+	err := decode(bytes.NewBuffer(value), dst)
+	if err != nil {
+		logger.Debug().Err(err).Str("key", string(key)).
+			Msg("failed to decode DPoS status")
+		panic(err)
+	}
+	return nil
+}
+
+func (bs *bootingStatus) replay() {
 	if bs.lib == nil {
 		return
 	}
@@ -570,7 +583,7 @@ func (bs *bootingStatus) replay(getBlock func(types.BlockNo) (*types.Block, erro
 	pls.genesisInfo = newBlockInfo(bs.genesis)
 
 	for i := libNo + 1; i <= bestNo; i++ {
-		block, err := getBlock(i)
+		block, err := bs.getBlock(i)
 		if err != nil {
 			panic(err)
 		}
