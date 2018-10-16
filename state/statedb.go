@@ -172,8 +172,6 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 // getState gets state of account id from trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
-	states.lock.RLock()
-	defer states.lock.RUnlock()
 	key, err := states.trie.Get(id[:])
 	if err != nil {
 		return nil, err
