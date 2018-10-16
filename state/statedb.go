@@ -180,12 +180,6 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 		return nil, nil
 	}
 	return states.loadStateData(key)
-	// st := types.State{}
-	// err = loadData(states.store, key, st)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &st, nil
 }
 
 // GetStateAndProof gets the state and associated proof of an account
@@ -365,74 +359,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	return nil
 }
 
-// func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
-// 	state, err := sdb.states.GetAccountState(aid)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return state, nil
-// }
-// func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
-// 	state, err := sdb.states.GetAccountState(aid)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	res := types.State(*state)
-// 	return &res, nil
-// }
-
-// func (sdb *ChainStateDB) getBlockAccount(bs *BlockState, aid types.AccountID) (*types.State, error) {
-// 	if aid == emptyAccountID {
-// 		return nil, fmt.Errorf("Failed to get block account: invalid account id")
-// 	}
-
-// 	if prev, ok := bs.GetAccountState(aid); ok {
-// 		return prev, nil
-// 	}
-// 	return sdb.states.GetAccountState(aid)
-// }
-// func (sdb *ChainStateDB) GetBlockAccountClone(bs *BlockState, aid types.AccountID) (*types.State, error) {
-// 	state, err := sdb.getBlockAccount(bs, aid)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	res := types.State(*state)
-// 	return &res, nil
-// }
-
-// func (sdb *ChainStateDB) updateStateDB(bstate *BlockState) error {
-// 	accounts := bstate.GetAccountStates()
-// 	if len(accounts) <= 0 {
-// 		// do nothing
-// 		return nil
-// 	}
-
-// 	var err error
-// 	// put states to buffer
-// 	for k, v := range accounts {
-// 		err = sdb.states.PutState(k, v)
-// 		if err != nil {
-// 			err2 := sdb.states.Rollback(0)
-// 			if err2 != nil {
-// 				return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-// 			}
-// 			return err
-// 		}
-// 	}
-// 	// update state db
-// 	err = bstate.Update()
-// 	if err != nil {
-// 		// rollback to latest
-// 		err2 := sdb.states.Revert(sdb.latest.StateRoot)
-// 		if err2 != nil {
-// 			return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-// 		}
-// 		return err
-// 	}
-// 	// commit state db
-// 	return sdb.states.Commit()
-// }
-
+// Apply specific blockstate to statedb of main chain
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
