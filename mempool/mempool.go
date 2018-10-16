@@ -238,11 +238,8 @@ func (mp *MemPool) setStateDB(block *types.Block) {
 
 	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
 		mp.bestBlockID = newBlockID
-		stateRoot, err := mp.sdb.GetStateRoot(block.GetHash())
-		if err != nil {
-			mp.Error().Err(err).Msg("failed to get state root")
-			panic("fix to use state root in block")
-		}
+
+		stateRoot := block.GetHeader().GetBlocksRootHash()
 		mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
 		mp.Debug().Str("Hash", newBlockID.String()).
 			Str("StateRoot", types.ToHashID(stateRoot).String()).

@@ -21,7 +21,7 @@ var sdb *state.ChainStateDB
 
 func initTest(t *testing.T) {
 	sdb = state.NewChainStateDB()
-	sdb.Init("test")
+	sdb.Init("test", nil)
 	genesis := types.GetTestGenesis()
 
 	err := sdb.SetGenesis(genesis)

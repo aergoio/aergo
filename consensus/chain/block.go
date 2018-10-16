@@ -69,8 +69,7 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 		return nil, err
 	}
 
-	block := types.NewBlock(prevBlock, txs, ts)
-
+	block := types.NewBlock(prevBlock, bState.GetRoot(), txs, ts)
 	if len(txs) != 0 {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
@@ -85,8 +84,6 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
-	blockState.SetBlockHash(block.BlockID())
-
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
 		time.Second, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {

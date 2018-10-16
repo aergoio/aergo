@@ -32,11 +32,14 @@ func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 }
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
-	block := cs.cdb.bestBlock.Load().(*types.Block)
+	var block *types.Block
 
-	if block == nil {
-		return nil, errors.New("best block is null")
+	aopv := cs.cdb.bestBlock.Load()
+
+	if aopv != nil {
+		block = aopv.(*types.Block)
 	}
+
 	return block, nil
 }
 
@@ -307,13 +310,15 @@ func (cs *ChainService) CountTxsInChain() int {
 }
 
 type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
+type ValidatePostFn func() error
 
 type blockExecutor struct {
 	*state.BlockState
-	sdb        *state.ChainStateDB
-	execTx     TxExecFn
-	txs        []*types.Tx
-	commitOnly bool
+	sdb          *state.ChainStateDB
+	execTx       TxExecFn
+	txs          []*types.Tx
+	validatePost ValidatePostFn
+	commitOnly   bool
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
@@ -331,7 +336,6 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			block.BlockID(),
 			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			contract.TempReceiptDb.NewTx(),
 		)
@@ -351,6 +355,9 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		sdb:        cs.sdb,
 		execTx:     exec,
 		txs:        txs,
+		validatePost: func() error {
+			return cs.validator.ValidatePost(bState.GetRoot(), block)
+		},
 		commitOnly: commitOnly,
 	}, nil
 }
@@ -388,6 +395,10 @@ func (e *blockExecutor) execute() error {
 		if err := e.Update(); err != nil {
 			return err
 		}
+	}
+
+	if err := e.validatePost(); err != nil {
+		return err
 	}
 
 	err := contract.SaveRecoveryPoint(e.BlockState)

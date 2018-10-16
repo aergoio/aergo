@@ -1324,6 +1324,7 @@ type blockChain struct {
 	bestBlockId types.BlockID
 	rTx         db.Transaction
 	blockIds    []types.BlockID
+	blocks      []*types.Block
 }
 
 func loadBlockChain(t *testing.T) *blockChain {
@@ -1332,7 +1333,7 @@ func loadBlockChain(t *testing.T) *blockChain {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
-	err = bc.sdb.Init(dataPath)
+	err = bc.sdb.Init(dataPath, nil)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -1341,6 +1342,7 @@ func loadBlockChain(t *testing.T) *blockChain {
 	bc.bestBlockNo = genesis.Block.BlockNo()
 	bc.bestBlockId = genesis.Block.BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
+	bc.blocks = append(bc.blocks, genesis.Block)
 
 	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath)
@@ -1357,7 +1359,7 @@ func (bc *blockChain) newBState() *state.BlockState {
 	}
 	bc.cBlock = &b
 	// blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
-	return state.NewBlockState(b.BlockID(), bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()), TempReceiptDb.NewTx())
+	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()), TempReceiptDb.NewTx())
 }
 
 func (bc *blockChain) getABI(contract string) (*types.ABI, error) {
@@ -1647,9 +1649,13 @@ func (bc *blockChain) connectBlock(txs ...luaTx) error {
 	if err != nil {
 		return err
 	}
+	//FIXME newblock must be created after sdb.apply()
+	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
 	bc.bestBlockNo = bc.bestBlockNo + 1
-	bc.bestBlockId = blockState.GetBlockHash()
+	bc.bestBlockId = types.ToBlockID(bc.cBlock.GetHash())
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
+	bc.blocks = append(bc.blocks, bc.cBlock)
+
 	return nil
 }
 
@@ -1659,8 +1665,16 @@ func (bc *blockChain) disconnectBlock() error {
 	}
 	bc.bestBlockNo--
 	bc.blockIds = bc.blockIds[0 : len(bc.blockIds)-1]
+	bc.blocks = bc.blocks[0 : len(bc.blocks)-1]
 	bc.bestBlockId = bc.blockIds[len(bc.blockIds)-1]
-	return bc.sdb.Rollback(bc.bestBlockId)
+
+	bestBlock := bc.blocks[len(bc.blocks)-1]
+
+	var sroot []byte
+	if bestBlock != nil {
+		sroot = bestBlock.GetHeader().GetBlocksRootHash()
+	}
+	return bc.sdb.Rollback(sroot)
 }
 
 func (bc *blockChain) query(contract, queryInfo string, expectedErr, expectedRv string) error {

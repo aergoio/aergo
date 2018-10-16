@@ -1,0 +1,3 @@
+# aergo cli TOML Configuration File (https://github.com/toml-lang/toml)
+host = "localhost"
+port = "7845"

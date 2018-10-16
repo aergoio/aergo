@@ -14,7 +14,6 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	blockHash types.BlockID
 	receiptTx db.Transaction
 }
 
@@ -35,10 +34,9 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(blockHash types.BlockID, states *StateDB, rTx db.Transaction) *BlockState {
+func NewBlockState(states *StateDB, rTx db.Transaction) *BlockState {
 	return &BlockState{
 		StateDB:   *states,
-		blockHash: blockHash,
 		receiptTx: rTx,
 	}
 }
@@ -71,33 +69,8 @@ func (bs *BlockState) CommitReceipt() {
 // 	bs.accounts[aid] = stateChanged
 // }
 
-// SetBlockHash stores blockHash
-func (bs *BlockState) SetBlockHash(blockHash types.BlockID) {
-	if bs == nil {
-		return
-	}
-	bs.blockHash = blockHash
-}
-
-// GetBlockHash returns blockHash
-func (bs *BlockState) GetBlockHash() types.BlockID {
-	return bs.blockHash
-}
-
-// GetBlockInfo returnes BlockInfo contain block hash and state root hash
-func (bs *BlockState) GetBlockInfo() *BlockInfo {
-	return &BlockInfo{
-		BlockHash: bs.blockHash,
-		StateRoot: types.ToHashID(bs.GetRoot()),
-	}
-}
-
 // Commit writes statedb and mapping information about block hash and state root
 func (bs *BlockState) Commit() error {
-	blockInfo := bs.GetBlockInfo()
-	if err := bs.saveBlockInfo(blockInfo); err != nil {
-		return err
-	}
 	if err := bs.StateDB.Commit(); err != nil {
 		return err
 	}
