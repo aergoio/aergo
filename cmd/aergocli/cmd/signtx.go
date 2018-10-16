@@ -66,6 +66,11 @@ var signCmd = &cobra.Command{
 			}
 			hash := key.CalculateHashWithoutSign(param)
 
+			if cmd.Flags().Changed("address") == false {
+				cmd.Print("Error: required flag(s) \"address\" not set")
+				return
+			}
+
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
 			defer ks.CloseStore()
