@@ -194,7 +194,7 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 // GetStateAndProof gets the state and associated proof of an account
 // in the last produced block. If the account doesnt exist, a proof of
 // non existence is returned.
-func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.State, *types.StateProof, error) {
+func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.StateProof, error) {
 	var state *types.State
 	states.lock.RLock()
 	defer states.lock.RUnlock()
@@ -203,21 +203,22 @@ func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.State, *type
 	// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
 	ap, isIncluded, proofKey, proofVal, err := states.trie.MerkleProof(id[:])
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if isIncluded {
 		state, err = states.loadStateData(proofVal)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	stateProof := &types.StateProof{
+		State:     state,
 		Inclusion: isIncluded,
 		ProofKey:  proofKey,
 		ProofVal:  proofVal,
 		AuditPath: ap,
 	}
-	return state, stateProof, nil
+	return stateProof, nil
 }
 
 // Snapshot represents revision number of statedb
