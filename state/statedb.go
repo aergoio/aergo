@@ -356,7 +356,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	}
 	// save state of genesis block
 	// FIXME don't use chainstate API
-	if err := sdb.apply(gbState); err != nil {
+	if err := sdb.Apply(gbState); err != nil {
 		return err
 	}
 
@@ -434,10 +434,6 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 // }
 
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
-	return sdb.apply(bstate)
-}
-
-func (sdb *ChainStateDB) apply(bstate *BlockState) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
