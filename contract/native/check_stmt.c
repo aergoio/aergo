@@ -157,6 +157,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
      *      ;
      */
 
+    /* TODO: we need to know array.size */
     RETURN(ERROR_NOT_SUPPORTED, &stmt->pos);
 #if 0
     loop_exp = stmt->u_loop.loop_exp;
@@ -283,9 +284,8 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt, meta_t *meta)
             if (!is_bool_meta(val_meta))
                 RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
         }
-        else if (!meta_equals(meta, val_meta)) {
-            RETURN(ERROR_MISMATCHED_TYPE, &val_exp->pos, meta_to_str(meta),
-                   meta_to_str(val_meta));
+        else {
+            meta_check(meta, val_meta);
         }
     }
 
@@ -346,45 +346,12 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     arg_exp = stmt->u_ret.arg_exp;
 
     if (arg_exp != NULL) {
-        ASSERT1(is_tuple_meta(fn_meta), fn_meta->type);
-
         if (is_void_meta(fn_meta))
             RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, 0, meta_size(&arg_exp->meta));
 
         exp_check(check, arg_exp);
 
-        if (is_tuple_meta(&arg_exp->meta)) {
-            int i;
-            array_t *arg_metas = arg_exp->meta.u_tup.metas;
-            array_t *ret_metas = fn_meta->u_tup.metas;
-
-            if (array_size(arg_metas) != array_size(ret_metas))
-                RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, array_size(ret_metas),
-                       array_size(arg_metas));
-
-            for (i = 0; i < array_size(arg_metas); i++) {
-                meta_t *arg_meta = array_item(arg_metas, i, meta_t);
-                meta_t *ret_meta = array_item(ret_metas, i, meta_t);
-
-                if (!meta_equals(ret_meta, arg_meta))
-                    RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos, meta_to_str(ret_meta),
-                           meta_to_str(arg_meta));
-            }
-        }
-        else {
-            meta_t *arg_meta = &arg_exp->meta;
-            array_t *ret_metas = fn_meta->u_tup.metas;
-            meta_t *ret_meta;
-
-            if (array_size(ret_metas) != 1)
-                RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, array_size(ret_metas), 1);
-
-            ret_meta = array_item(fn_meta->u_tup.metas, 0, meta_t);
-
-            if (!meta_equals(arg_meta, ret_meta))
-                RETURN(ERROR_MISMATCHED_TYPE, &arg_exp->pos, meta_to_str(ret_meta),
-                       meta_to_str(arg_meta));
-        }
+        return meta_check(fn_meta, &arg_exp->meta);
     }
     else if (!is_void_meta(fn_meta)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, meta_size(fn_meta), 0);

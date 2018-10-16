@@ -77,17 +77,17 @@ id_check_var(check_t *check, ast_id_t *id)
 
         CHECK(exp_check(check, init_exp));
 
-        if (id->u_var.size_exps == NULL && is_tuple_meta(init_meta) &&
-            !is_map_meta(type_meta) && !is_struct_meta(type_meta))
-            /* not allowed static initializer except map or struct */
-            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-        else if (is_tuple_meta(init_meta) && type_exp->id != NULL &&
-                 !is_struct_meta(type_meta) && !is_map_meta(type_meta))
-            /* in case of contract type */
-            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+		if (id->u_var.size_exps == NULL && is_tuple_meta(init_meta) &&
+			!is_map_meta(type_meta) && !is_struct_meta(type_meta))
+			/* not allowed static initializer except map or struct */
+			RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+		else if (is_tuple_meta(init_meta) &&
+				 type_exp->id != NULL && is_contract_id(type_exp->id))
+			/* in case of contract type */
+			RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-        return meta_check(&id->meta, init_meta);
-    }
+		return meta_check(&id->meta, init_meta);
+	}
 
     return NO_ERROR;
 }
@@ -220,15 +220,24 @@ id_check_func(check_t *check, ast_id_t *id)
     ret_exps = id->u_func.ret_exps;
 
     if (ret_exps != NULL) {
-        for (i = 0; i < array_size(ret_exps); i++) {
-            ast_exp_t *type_exp = array_item(ret_exps, i, ast_exp_t);
+        ast_exp_t *type_exp;
 
+        if (array_size(ret_exps) == 1) {
+            type_exp = array_item(ret_exps, 0, ast_exp_t);
             ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
             exp_check(check, type_exp);
+            meta_copy(&id->meta, &type_exp->meta);
         }
+        else {
+            for (i = 0; i < array_size(ret_exps); i++) {
+                type_exp = array_item(ret_exps, i, ast_exp_t);
+                ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
-        meta_set_tuple(&id->meta, ret_exps);
+                exp_check(check, type_exp);
+            }
+            meta_set_tuple(&id->meta, ret_exps);
+        }
     }
     else if (is_ctor_id(id)) {
         meta_set_ref(&id->meta);

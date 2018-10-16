@@ -33,6 +33,8 @@
 #define is_builtin_meta(meta)       ((meta)->type <= TYPE_BUILTIN)
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
+#define is_composite_meta(meta)                                                          \
+    (is_struct_meta(meta) || is_map_meta(meta) || is_tuple_meta(meta))
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -91,7 +93,6 @@ char *meta_to_str(meta_t *x);
 void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
 
-bool meta_equals(meta_t *x, meta_t *y);
 int meta_check(meta_t *x, meta_t *y);
 
 void meta_dump(meta_t *meta, int indent);

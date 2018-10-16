@@ -28,10 +28,11 @@ typedef struct env_s {
     char title[PATH_MAX_LEN];
     ec_t ec;
 
+    int total_cnt;
+    int failed_cnt;
+
     stack_t exp;
 } env_t;
-
-bool is_failed = false;
 
 static void
 env_init(env_t *env)
@@ -70,6 +71,8 @@ run_test(env_t *env, char *path)
         return;
     }
 
+    env->total_cnt++;
+
     printf("  + %-67s ", env->title);
     fflush(stdout);
 
@@ -93,7 +96,7 @@ run_test(env_t *env, char *path)
         printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                error_to_str(env->ec), error_to_str(ac));
 
-        is_failed = true;
+        env->failed_cnt++;
     }
 
     error_clear();
@@ -139,8 +142,7 @@ read_test(env_t *env, char *path)
             ASSERT(env->ec == NO_ERROR);
 
             offset += strlen(buf);
-            env->ec = 
-                error_to_code(strtrim(buf + strlen(TAG_ERROR), "() \t\n\r"));
+            env->ec = error_to_code(strtrim(buf + strlen(TAG_ERROR), "() \t\n\r"));
         }
         else if (strncasecmp(buf, TAG_EXPORT, strlen(TAG_EXPORT)) == 0) {
             char *exp_file;
@@ -205,10 +207,12 @@ get_opt(env_t *env, int argc, char **argv)
 int
 main(int argc, char **argv)
 {
+#define LINE_MAX_SIZE   80
     int i;
     int file_cnt = 0;
     char files[FILE_MAX_CNT][PATH_MAX_LEN];
-    char delim[81];
+    char delim[LINE_MAX_SIZE + 1];
+    char buf[LINE_MAX_SIZE + 1];
     DIR *dir;
     struct dirent *entry;
     struct stat st;
@@ -221,7 +225,7 @@ main(int argc, char **argv)
     env_init(&env);
     get_opt(&env, argc, argv);
 
-    strset(delim, '*', 80);
+    strset(delim, '*', sizeof(delim) - 1);
 
     printf("%s\n", delim);
     printf("* Starting %s...\n", FILENAME(argv[0]));
@@ -239,8 +243,7 @@ main(int argc, char **argv)
         strcpy(files[file_cnt++], entry->d_name);
     }
 
-    qsort(files, file_cnt, PATH_MAX_LEN,
-          (int (*)(const void *, const void *))&strcmp);
+    qsort(files, file_cnt, PATH_MAX_LEN, (int (*)(const void *, const void *))&strcmp);
 
     for (i = 0; i < file_cnt; i++) {
         read_test(&env, files[i]);
@@ -249,10 +252,16 @@ main(int argc, char **argv)
     closedir(dir);
 
     printf("%s\n", delim);
-    if (is_failed)
-        printf("* Failed %s with error(s)\n", FILENAME(argv[0]));
-    else
-        printf("* Finished %s successfully\n", FILENAME(argv[0]));
+    if (env.failed_cnt > 0) {
+        sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE"/"ANSI_RED"%d"ANSI_NONE" ]", 
+                env.total_cnt - env.failed_cnt, env.total_cnt);
+        printf("%-68s %29s\n", "* Some tests failed with errors!!!", buf);
+    }
+    else {
+        sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE"/"ANSI_GREEN"%d"ANSI_NONE" ]", 
+                env.total_cnt - env.failed_cnt, env.total_cnt);
+        printf("%-68s %29s\n", "* All tests passed!!!", buf);
+    }
     printf("%s\n", delim);
 
     return EXIT_SUCCESS;

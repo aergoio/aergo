@@ -21,18 +21,14 @@ contract test {
 @test(literal_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {
-    test() {
-        1 = 1;
-    }
+    test() { 1 = 1; }
 }
 
 @test(constant_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {
     const int i = 0;
-    test() {
-        i = 1;
-    }
+    test() { i = 1; }
 }
 
 @test(array_assignment)
@@ -49,6 +45,54 @@ contract test {
 
         i[idx + 1] = i[0] + i[idx];
         i[idx + 2] = 7;
+
+        int j[10];
+        j = i;
+    }
+}
+
+@test(mismatched_array_dimension)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    test() {
+        int i[2][2];
+        int j[2];
+        j = i;
+    }
+}
+
+@test(mismatched_array_size)
+@error(ERROR_MISMATCHED_ELEM_CNT)
+contract test {
+    test() {
+        int i[2];
+        int j[1];
+        j = i;
+    }
+}
+
+@test(struct_assignment)
+contract test {
+    struct s1 { int a, b; }
+    test() {
+        s1 v1, v2;
+        v1 = v2;
+        v2 = v1;
+    }
+}
+
+@test(struct_array_assignment)
+contract test {
+    struct s1 { int a, b; }
+    test() {
+        s1 v1[2][2];
+        s1 v2[2][2];
+        s1 v3[2];
+
+        v1 = v2;
+        v1[0] = v3;
+        v1[1] = v3;
+        v3[0] = v1[0][0];
     }
 }
 
@@ -58,6 +102,8 @@ contract test {
         map(int, string) m1;
         m1[1] = "1";
         m1[2] = "2";
+
+        map(int, string) m2 = m1;
 
         struct s {
             int a;
@@ -76,16 +122,26 @@ contract test {
     }
 }
 
+@test(map_array_assignment)
+contract test {
+    test() {
+        map(int, string) m1[2];
+        map(int, string) m2[2];
+        map(int, string) m3;
+
+        m1 = m2;
+        m1[0] = m3;
+        m1[1] = m3;
+        m3 = m2[0];
+    }
+}
+
 @test(mismatched_map_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
     test() {
-        struct s1 {
-            int a;
-        }
-        struct s2 {
-            string a;
-        }
+        struct s1 { int a; }
+        struct s2 { string a; }
         s2 v = { "2" };
 
         map(int, s1) m;
@@ -109,7 +165,7 @@ contract test {
 }
 
 @test(mismatched_tuple_count)
-@error(ERROR_MISMATCHED_ELEM_CNT)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
     test() {
         int i, j;
@@ -138,9 +194,7 @@ contract test {
 
 @test(enum_access)
 contract test {
-    enum e {
-        a
-    }
+    enum e { a }
     test() {
         int32 i3 = e.a;
     }
@@ -149,9 +203,7 @@ contract test {
 @test(using_enum_as_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {
-    enum e {
-        a
-    }
+    enum e { a }
     test() {
         e.a = 3;
     }
@@ -185,25 +237,19 @@ contract test {
 @test(missing_if_parenthesis)
 @error(ERROR_SYNTAX)
 contract test {
-    test() {
-        if 1 == 1 { }
-    }
+    test() { if 1 == 1 { } }
 }
 
 @test(missing_if_brace)
 @error(ERROR_SYNTAX)
 contract test {
-    test() {
-        if (1 == 1);
-    }
+    test() { if (1 == 1); }
 }
 
 @test(non_boolean_if_condition)
 @error(ERROR_INVALID_COND_TYPE)
 contract test {
-    test() {
-        if (1) { }
-    }
+    test() { if (1) { } }
 }
 
 @test(switch_case)
@@ -213,14 +259,9 @@ contract test {
 
     test() {
         switch (i) {
-        case 1:
-            s = "case 1";
-            break;
-        case 2:
-            { s = "case 2"; }
-            break;
-        default:
-            break;
+        case 1: s = "case 1"; break;
+        case 2: { s = "case 2"; } break;
+        default: break;
         }
     }
 }
@@ -245,10 +286,8 @@ contract test {
 
     test() {
         switch {
-        case i == 1: { }
-            break;
-        case s == "second":
-            break;
+        case i == 1: { } break;
+        case s == "second": break;
         }
     }
 }
@@ -270,9 +309,7 @@ contract test {
 
     test() {
         int i;
-        for (i = 0; i < 10; i++) {
-            v1 += i;
-        }
+        for (i = 0; i < 10; i++) { v1 += i; }
         for (i = 0; i < 10; ) { }
         for (i = 0; ; ) { }
         for ( ; i < 10; ) { }
@@ -317,37 +354,26 @@ contract test {
 @test(loop_jump)
 contract test {
     test() {
-        for {
-            break;
-        }
-        for (int i = 0; i < 10; i++) {
-            continue;
-        }
+        for { break; }
+        for (int i = 0; i < 10; i++) { continue; }
     }
 }
 
 @test(jump_outside_loop)
 @error(ERROR_INVALID_JUMP_STMT)
 contract test {
-    test() {
-        continue;
-    }
+    test() { continue; }
 }
 
 @test(goto_label)
 contract test {
-    test() {
-here:
-        goto here;
-    }
+    test() { here: goto here; }
 }
 
 @test(undefined_label)
 @error(ERROR_UNDEFINED_LABEL)
 contract test {
-    test() {
-        goto nowhere;
-    }
+    test() { goto nowhere; }
 }
 
 @test(inline_ddl)
