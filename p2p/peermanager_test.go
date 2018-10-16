@@ -89,7 +89,7 @@ func FailTestGetPeers(t *testing.T) {
 	<-waitChan
 }
 
-func TestGetPeers(t *testing.T) {
+func TestPeerManager_GetPeers(t *testing.T) {
 	mockActorServ := &MockActorService{}
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)

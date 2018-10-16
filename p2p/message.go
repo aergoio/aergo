@@ -11,8 +11,9 @@ const (
 	MAGICMain uint32 = 0x47416841
 	MAGICTest uint32 = 0x2e415429
 
+	P2PVersion030 uint32 = 0x00000300
 
-	MacLength = 32
+	SigLength = 16
 	IDLength = 16
 
 	MaxPayloadLength = 1 << 23  // 8MB
