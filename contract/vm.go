@@ -323,7 +323,7 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("invalid deploy code(%d:%d)", codeLen, len(code))
+		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
 		return err
 	}

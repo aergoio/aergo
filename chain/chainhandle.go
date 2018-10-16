@@ -519,6 +519,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			}
 			if err != nil { // vm error is not propagated
+				logger.Warn().Err(err).Msg("tx failed due to vm error")
 				return sqlTx.RollbackToSavepoint()
 			}
 			err = bs.CommitContractState(contractState)
