@@ -59,11 +59,11 @@ func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
-func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
 	// find block info from chainservice
 	idx := 0
@@ -87,7 +87,7 @@ func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.
 		Status: status,
 		Blocks: blockInfos}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
@@ -100,14 +100,14 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 	return unmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Blocks))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Blocks))
 
 	// locate request data and remove it if found
-	remotePeer.consumeRequest(msgHeader.GetId())
+	remotePeer.consumeRequest(msg.ID())
 
 	// got block
 	bh.logger.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
@@ -127,11 +127,11 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, data)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
 
 	// find block info from chainservice
 	maxFetchSize := min(1000, data.Size)
@@ -175,7 +175,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlockHeadersResponse, resp))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -192,14 +192,14 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
 	// send block headers to blockchain service
-	remotePeer.consumeRequest(msgHeader.GetId())
+	remotePeer.consumeRequest(msg.ID())
 
 	// TODO: it's not used yet, but used in RPC and can be used in future performance tuning
 }
@@ -214,11 +214,11 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
 	// remove to verbose log
-	// debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
+	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
 
 	// lru cache can accept hashable key
 	var hash BlockHash
@@ -264,12 +264,12 @@ func (bh *getMissingRequestHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.GetMissingRequest{})
 }
 
-func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *getMissingRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetMissingRequest)
 	if bh.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, bytesArrToString(data.Hashes))
+		debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, bytesArrToString(data.Hashes))
 	}
 
 	// send to ChainSvc
@@ -285,9 +285,9 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 	missing := (*message.GetMissingRsp)(&v)
 
 	// generate response message
-	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending GetMssingRequest response")
+	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Msg("Sending GetMssingRequest response")
 
-	bh.sendMissingResp(remotePeer, msgHeader.GetId(), missing.Hashes)
+	bh.sendMissingResp(remotePeer, msg.ID(), missing.Hashes)
 	/*
 		for i := 0; i < len(missing.Hashes); i++ {
 			bh.notifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
@@ -296,7 +296,7 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 }
 
 // replying chain tree
-func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, requestID string, missing []message.BlockHash) {
+func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, requestID MsgID, missing []message.BlockHash) {
 	// find block info from chainservice
 	blockInfos := make([]*types.Block, 0, len(missing))
 	for _, hash := range missing {

@@ -11,7 +11,7 @@ type MockRemotePeer struct {
 }
 
 // consumeRequest provides a mock function with given fields: msgID
-func (_m *MockRemotePeer) consumeRequest(msgID string) {
+func (_m *MockRemotePeer) consumeRequest(msgID MsgID) {
 	_m.Called(msgID)
 }
 

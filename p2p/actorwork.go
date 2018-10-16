@@ -82,7 +82,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 			skipped++
 		}
 	}
-	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
 	return true
 }
 
