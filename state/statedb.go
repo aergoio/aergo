@@ -193,16 +193,33 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 // GetStateAndProof gets the state and associated proof of an account
 // in the last produced block. If the account doesnt exist, a proof of
 // non existence is returned.
-func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.StateProof, error) {
+func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types.StateProof, error) {
 	var state *types.State
+	var ap [][]byte
+	var proofKey, proofVal []byte
+	var isIncluded bool
+	var err error
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	// Get the state and proof of the account
-	// The wallet should check that state hashes to proofVal and verify the audit path,
-	// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
-	ap, isIncluded, proofKey, proofVal, err := states.trie.MerkleProof(id[:])
-	if err != nil {
-		return nil, err
+
+	if len(root) != 0 {
+		dbval := (*states.store).Get(root)
+		if len(dbval) != 0 {
+			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errLoadRoot
+		}
+	} else {
+		// Get the state and proof of the account
+		// The wallet should check that state hashes to proofVal and verify the audit path,
+		// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id[:])
+		if err != nil {
+			return nil, err
+		}
 	}
 	if isIncluded {
 		state, err = states.loadStateData(proofVal)

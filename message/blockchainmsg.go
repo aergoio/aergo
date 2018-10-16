@@ -61,6 +61,7 @@ type GetStateRsp struct {
 }
 type GetStateAndProof struct {
 	Account []byte
+	Root    []byte
 }
 type GetStateAndProofRsp struct {
 	StateProof *types.StateProof
