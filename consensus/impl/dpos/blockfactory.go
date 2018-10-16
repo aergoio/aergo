@@ -182,28 +182,10 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) newBlockState(bestBlock *types.Block) (*state.BlockState, error) {
-	sdb := bf.sdb
-	var root []byte
-
-	if bestBlock != nil {
-		root = bestBlock.GetHeader().GetBlocksRootHash()
-	}
-	logger.Debug().Uint64("no", bestBlock.GetHeader().GetBlockNo()).Str("best", bestBlock.ID()).
-		Str("root", enc.ToString(root)).Msg("newBlockState")
-
-	bState := state.NewBlockState(sdb.OpenNewStateDB(root), contract.TempReceiptDb.NewTx())
-
-	return bState, nil
-}
-
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
 	ts := bpi.slot.UnixNano()
 
-	blockState, err := bf.newBlockState(bpi.bestBlock)
-	if err != nil {
-		return nil, nil, err
-	}
+	blockState := bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash(), contract.TempReceiptDb.NewTx())
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,

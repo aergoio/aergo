@@ -8,6 +8,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -33,6 +34,7 @@ type SimpleBlockFactory struct {
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
+	sdb              *state.ChainStateDB
 	ca               types.ChainAccessor
 }
 
@@ -77,6 +79,7 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 // SetStateDB do nothing in the simple block factory, which do not execute
 // transactions at all.
 func (s *SimpleBlockFactory) SetStateDB(sdb *state.ChainStateDB) {
+	s.sdb = sdb
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -134,7 +137,10 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, err := chain.GenerateBlock(s, prevBlock, nil, s.txOp, time.Now().UnixNano())
+				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash(),
+					contract.TempReceiptDb.NewTx())
+
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, s.txOp, time.Now().UnixNano())
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

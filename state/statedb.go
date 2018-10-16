@@ -500,3 +500,9 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	//TODO : StateRootValidation
 	return false
 }
+
+func (sdb *ChainStateDB) NewBlockState(root []byte, recpTx db.Transaction) *BlockState {
+	bState := NewBlockState(sdb.OpenNewStateDB(root), recpTx)
+
+	return bState
+}
