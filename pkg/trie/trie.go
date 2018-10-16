@@ -81,10 +81,8 @@ func (s *Trie) loadDefaultHashes() []byte {
 }
 
 // Update adds and deletes a sorted list of keys and their values to the trie
-// Adding and deleting can be simultaneous as long as keys are sorted.
+// Adding and deleting can be simultaneous.
 // To delete, set the value to DefaultLeaf.
-// Make sure you don't delete keys that don't exist,
-// the root hash would become invalid.
 // If Update is called multiple times, only the state after the last update
 // is commited.
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
@@ -147,11 +145,9 @@ type mresult struct {
 }
 
 // update adds and deletes a sorted list of keys and their values to the trie.
-// Adding and deleting can be simultaneous as long as keys are sorted.
+// Adding and deleting can be simultaneous.
 // To delete, set the value to DefaultLeaf.
 // It returns the root of the updated tree.
-// A DefaultLeaf shouldn't be updated to a DefaultLeaf as shortcut nodes
-// could be moved down the tree resulting in an invalid root
 func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
 	if height == 0 {
 		if bytes.Equal(DefaultLeaf, values[0]) {
