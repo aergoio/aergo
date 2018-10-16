@@ -174,7 +174,7 @@ contract test {
 
         if (v1 == 1) {
             v2 = "first";
-        } else if (v1 == 2) {
+        } else if (v1 == 2 || v1 == 3) {
             v2 = "second";
         } else {
             v2 = "don't care";
@@ -305,10 +305,32 @@ contract test {
     string v1[10];
 
     test() {
-        for (string e1 in v1) { }
+        /*
+        for (string s1 in v1) { }
 
-        string e2;
-        for (e2 in v1) { }
+        string s2;
+        for (s2 in v1) { }
+        */
+    }
+}
+
+@test(loop_jump)
+contract test {
+    test() {
+        for {
+            break;
+        }
+        for (int i = 0; i < 10; i++) {
+            continue;
+        }
+    }
+}
+
+@test(jump_outside_loop)
+@error(ERROR_INVALID_JUMP_STMT)
+contract test {
+    test() {
+        continue;
     }
 }
 
@@ -320,10 +342,16 @@ here:
     }
 }
 
+@test(undefined_label)
+@error(ERROR_UNDEFINED_LABEL)
+contract test {
+    test() {
+        goto nowhere;
+    }
+}
+
 @test(inline_ddl)
 contract test {
-    int v1;
-    string v2;
     test() {
         create table t (c1 number);
         create table t (
@@ -338,7 +366,6 @@ contract test {
 @test(invalid_ddl_object)
 @error(ERROR_SYNTAX)
 contract test {
-    int v1;
     test() {
         create view v as select * from t;
     }
@@ -346,16 +373,12 @@ contract test {
 
 @test(inline_dml)
 contract test {
-    int v1;
-    string v2;
     test() {
         insert into emp values (10, 'Sam');
-        int cnt = insert into
-            emp values (20, 'Bill');
+        int cnt = insert into emp values (20, 'Bill');
 
         delete from emp where id = 10;
-        cnt = delete from emp
-            where name = 'Bill';
+        cnt = delete from emp where name = 'Bill';
 
         update emp set name = 'Tom' where c1 = 10;
     }
@@ -366,7 +389,7 @@ contract test {
     int v1;
     string v2;
     test() {
-        /*
+        /* 
         v1 = select id from emp;
         v1, v2 =
             select id,

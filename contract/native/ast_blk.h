@@ -10,6 +10,8 @@
 
 #include "ast.h"
 
+#define LABEL_MAX_SIZE              128
+
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;
@@ -25,6 +27,10 @@ struct ast_blk_s {
 
     /* results of semantic checker */
     ast_blk_t *up;
+
+    char loop_label[LABEL_MAX_SIZE + 1];
+    char cont_label[LABEL_MAX_SIZE + 1];
+    char exit_label[LABEL_MAX_SIZE + 1];
 };
 
 ast_blk_t *blk_new_anon(src_pos_t *pos);

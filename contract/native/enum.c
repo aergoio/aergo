@@ -30,4 +30,19 @@ char *type_names_[TYPE_MAX] = {
     "tuple"
 };
 
+char *stmt_names_[STMT_MAX] = {
+    "null",
+    "exp",
+    "if",
+    "loop",
+    "switch",
+    "case",
+    "continue",
+    "break",
+    "return",
+    "goto",
+    "sql",
+    "block"
+};
+
 /* end of enum.c */
