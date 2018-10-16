@@ -5,6 +5,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
+	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
@@ -22,6 +23,22 @@ var logger *log.Logger
 
 func init() {
 	logger = log.NewLogger("sbp")
+}
+
+type txExec struct {
+	execTx bc.TxExecFn
+}
+
+func newTxExec(blockNo types.BlockNo, ts int64) chain.TxOp {
+	// Block hash not determined yet
+	return &txExec{
+		execTx: bc.NewTxExecutor(blockNo, ts),
+	}
+}
+
+func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+	err := te.execTx(bState, tx)
+	return err
 }
 
 // SimpleBlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
@@ -140,7 +157,14 @@ func (s *SimpleBlockFactory) Start() {
 				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash(),
 					contract.TempReceiptDb.NewTx())
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, s.txOp, time.Now().UnixNano())
+				ts := time.Now().UnixNano()
+
+				txOp := chain.NewCompTxOp(
+					s.txOp,
+					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts),
+				)
+
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
@@ -150,7 +174,7 @@ func (s *SimpleBlockFactory) Start() {
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, nil)
+				chain.ConnectBlock(s, block, blockState)
 			}
 		case <-s.quit:
 			return
