@@ -307,6 +307,8 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 		err = ce.err
 		if err == nil {
 			err = ce.commitCalledContract()
+		} else {
+			ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
 		}
 	}
 	var receipt types.Receipt
@@ -321,6 +323,11 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 
 func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
 	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
+	if len(code) <= 4 {
+		err := fmt.Errorf("code length is short %d", len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return err
+	}
 	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
 		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
@@ -349,10 +356,12 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	}
 	var errMsg string
 	if err != nil {
+		logger.Warn().Err(err).Msg("constructor's argument is invalid")
 		errMsg = err.Error()
 	}
 	ce.constructCall(&ci)
 	if ce.err != nil {
+		logger.Warn().Err(err).Msg("constructor is failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
 	receipt := types.NewReceipt(contractAddress, "CREATED", "{\""+errMsg+"\"}")
@@ -409,14 +418,18 @@ func getContract(contractState *state.ContractState, contractAddress []byte, cod
 			return nil
 		}
 	}
-	if len(val) > 0 {
-		l := binary.LittleEndian.Uint32(val[0:])
-		return &Contract{
-			code:    val[4 : 4+l],
-			address: contractAddress[:],
-		}
+	valLen := len(val)
+	if valLen <= 4 {
+		return nil
 	}
-	return nil
+	l := codeLength(val[0:])
+	if 4+l > uint32(valLen) {
+		return nil
+	}
+	return &Contract{
+		code:    val[4 : 4+l],
+		address: contractAddress[:],
+	}
 }
 
 func GetReceipt(txHash []byte) (*types.Receipt, error) {
@@ -432,10 +445,17 @@ func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(val) == 0 {
+	valLen := len(val)
+	if valLen == 0 {
 		return nil, errors.New("cannot find contract")
 	}
+	if valLen <= 4 {
+		return nil, errors.New("cannot find abi")
+	}
 	l := codeLength(val)
+	if 4+l >= uint32(len(val)) {
+		return nil, errors.New("cannot find abi")
+	}
 	abi := new(types.ABI)
 	if err := json.Unmarshal(val[4+l:], abi); err != nil {
 		return nil, err
