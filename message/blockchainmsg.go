@@ -59,6 +59,13 @@ type GetStateRsp struct {
 	State *types.State
 	Err   error
 }
+type GetStateAndProof struct {
+	Account []byte
+}
+type GetStateAndProofRsp struct {
+	StateProof *types.StateProof
+	Err        error
+}
 type GetTx struct {
 	TxHash []byte
 }
