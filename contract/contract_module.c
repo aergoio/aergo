@@ -160,6 +160,9 @@ static int moduleSend(lua_State *L)
     if (exec == NULL) {
         luaL_error(L, "cannot find execution context");
     }
+    if (exec->isQuery)
+        luaL_error(L, "not permitted set in query");
+
     contract = (char *)luaL_checkstring(L, 1);
     amount = luaL_checkinteger(L, 2);
     if ((ret = LuaSendAmount(L, exec, contract, amount)) < 0) {

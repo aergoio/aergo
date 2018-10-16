@@ -210,13 +210,14 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Payload:   payload,
 		},
 	}
-	if toJson {
-		fmt.Println(util.TxBodyConvBase58Addr(tx))
-		return
-	}
 	sign, err := client.SignTX(context.Background(), tx)
 	if err != nil || sign == nil {
 		log.Fatal(err)
+	}
+
+	if toJson {
+		fmt.Println(util.TxConvBase58Addr(sign))
+		return
 	}
 	txs := []*types.Tx{sign}
 	commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
