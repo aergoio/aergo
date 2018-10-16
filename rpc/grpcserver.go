@@ -374,6 +374,20 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 	return rsp.State, rsp.Err
 }
 
+// GetStateAndProof handle rpc request getstateproof
+func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.SingleBytes) (*types.StateProof, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetStateAndProof{Account: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetStateAndProofRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.StateProof, rsp.Err
+}
+
 // CreateAccount handle rpc request newaccount
 func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
 	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
