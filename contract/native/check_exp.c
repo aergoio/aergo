@@ -50,7 +50,7 @@ exp_check_val(check_t *check, ast_exp_t *exp)
 
     switch (exp->u_val.val.kind) {
     case VAL_NULL:
-        meta_set_ref(&exp->meta);
+        meta_set_object(&exp->meta);
         break;
     case VAL_BOOL:
         meta_set_bool(&exp->meta);
@@ -302,7 +302,11 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, r_exp));
 
-    /* XXX: comparable check */
+    if (is_tuple_meta(l_meta))
+        RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
+    else if (is_tuple_meta(r_meta))
+        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
+
     CHECK(meta_check(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
@@ -517,7 +521,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         array_t *ret_exps;
         ast_exp_t *type_exp;
 
-        if (!is_struct_meta(id_meta) && !is_ref_meta(id_meta))
+        if (!is_struct_meta(id_meta) && !is_object_meta(id_meta))
             RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
         ret_exps = id->u_func.ret_exps;

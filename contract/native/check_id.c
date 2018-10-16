@@ -240,7 +240,7 @@ id_check_func(check_t *check, ast_id_t *id)
         }
     }
     else if (is_ctor_id(id)) {
-        meta_set_ref(&id->meta);
+        meta_set_object(&id->meta);
     }
     else {
         meta_set_void(&id->meta);
@@ -265,7 +265,7 @@ id_check_contract(check_t *check, ast_id_t *id)
     if (id->u_cont.blk != NULL)
         blk_check(check, id->u_cont.blk);
 
-    meta_set_ref(&id->meta);
+    meta_set_object(&id->meta);
 
     return NO_ERROR;
 }

@@ -94,7 +94,7 @@ meta_check_map(meta_t *x, meta_t *y)
     meta_t *k_meta = x->u_map.k_meta;
     meta_t *v_meta = x->u_map.v_meta;
 
-    if (is_ref_meta(y))
+    if (is_object_meta(y))
         return NO_ERROR;
 
     if (is_map_meta(y)) {
@@ -114,7 +114,7 @@ meta_check_map(meta_t *x, meta_t *y)
                        meta_to_str(kv_elem));
 
             if (array_size(kv_metas) != 2)
-                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "key-value pair", 2,
+                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "key-value", 2,
                        array_size(kv_metas));
 
             CHECK(meta_check(k_meta, array_item(kv_metas, 0, meta_t)));

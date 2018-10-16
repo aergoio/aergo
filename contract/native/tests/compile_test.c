@@ -253,14 +253,14 @@ main(int argc, char **argv)
 
     printf("%s\n", delim);
     if (env.failed_cnt > 0) {
-        sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE"/"ANSI_RED"%d"ANSI_NONE" ]", 
+        sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE" / "ANSI_RED"%d"ANSI_NONE" ]", 
                 env.total_cnt - env.failed_cnt, env.total_cnt);
-        printf("%-68s %29s\n", "* Some tests failed with errors!!!", buf);
+        printf("%-66s %31s\n", "* Some tests failed with errors!!!", buf);
     }
     else {
-        sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE"/"ANSI_GREEN"%d"ANSI_NONE" ]", 
+        sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE" / "ANSI_GREEN"%d"ANSI_NONE" ]", 
                 env.total_cnt - env.failed_cnt, env.total_cnt);
-        printf("%-68s %29s\n", "* All tests passed!!!", buf);
+        printf("%-66s %31s\n", "* All tests passed!!!", buf);
     }
     printf("%s\n", delim);
 

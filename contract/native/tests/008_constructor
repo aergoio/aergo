@@ -46,13 +46,23 @@ contract test {
     }
 }
 
-@test(with_initializer)
+@test(not_allowed_initializer)
 @error(ERROR_NOT_ALLOWED_INIT)
 contract callee { int a; }
 
 contract test {
     test() {
         callee c = { 1 };
+    }
+}
+
+@test(compare_with_instance)
+contract callee { }
+
+contract test {
+    test() {
+        callee c;
+        if (c == null) { }
     }
 }
 

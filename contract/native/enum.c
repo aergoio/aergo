@@ -23,9 +23,9 @@ char *type_names_[TYPE_MAX] = {
     "double",
     "string",
     "struct",
-    "reference",
     "account",
     "map",
+    "object",
     "void",
     "tuple"
 };

@@ -83,6 +83,19 @@ contract test {
     bool b = 1 == 1.0;
 }
 
+@test(comparison_with_map)
+contract test {
+    map(int, string) m;
+    bool b1 = m == null;
+}
+
+@test(comparison_with_tuple)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    int i, j, k, l = 1, 1, 1, 1;
+    bool b1 = (i, j) == (k, l);
+}
+
 @test(logical_operator)
 contract test {
     bool b1 = true && false;

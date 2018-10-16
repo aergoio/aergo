@@ -23,7 +23,7 @@
 
 #define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
 #define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
-#define is_ref_meta(meta)           ((meta)->type == TYPE_REF)
+#define is_object_meta(meta)        ((meta)->type == TYPE_OBJECT)
 #define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
@@ -33,8 +33,6 @@
 #define is_builtin_meta(meta)       ((meta)->type <= TYPE_BUILTIN)
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
 #define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
-#define is_composite_meta(meta)                                                          \
-    (is_struct_meta(meta) || is_map_meta(meta) || is_tuple_meta(meta))
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -49,7 +47,7 @@
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)
-#define meta_set_ref(meta)          meta_set((meta), TYPE_REF)
+#define meta_set_object(meta)          meta_set((meta), TYPE_OBJECT)
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 

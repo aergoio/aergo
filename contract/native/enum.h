@@ -59,12 +59,12 @@ typedef enum type_e {
     TYPE_BUILTIN    = TYPE_STRING,
 
     TYPE_STRUCT,
-    TYPE_REF,
     TYPE_ACCOUNT,
     TYPE_COMPARABLE = TYPE_ACCOUNT,
 
     TYPE_MAP,
-    TYPE_PRIMITIVE  = TYPE_MAP,
+    TYPE_OBJECT,                    /* contract or null */
+    TYPE_PRIMITIVE  = TYPE_OBJECT,
 
     TYPE_VOID,                      /* for return type of function */
     TYPE_TUPLE,                     /* for tuple expression */
