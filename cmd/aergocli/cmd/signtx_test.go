@@ -46,9 +46,7 @@ func TestSignWithKey(t *testing.T) {
 }
 
 func TestSignWithPath(t *testing.T) {
-	const testDir = "test"
-	const testAddr = "AmNBjtxomk1uaFrwj8rEKVxYEJ1nzy73dsGrNZzkqs88q8Mkv8GN"
-	const signLength = 70
+	const testDir = "signwithpathtest"
 
 	addr, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
 	if err != nil {
@@ -65,21 +63,12 @@ func TestSignWithPath(t *testing.T) {
 		t.Errorf("Unexpected output: %v", addr)
 	}
 
-	output, err := executeCommand(rootCmd, "signtx", "--path", testDir, "--jsontx", "{}", "--password", "1", "--address", addr)
+	_, err = executeCommand(rootCmd, "signtx", "--path", testDir, "--jsontx", "{}", "--password", "1", "--address", addr)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	var tx util.InOutTx
-	err = json.Unmarshal([]byte(output), &tx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	}
-	sign, err := base58.Decode(tx.Body.Sign)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(sign) != signLength {
-		t.Errorf("invalid sign length: %s", tx.Body.Sign)
 	}
 	os.RemoveAll(testDir)
 }

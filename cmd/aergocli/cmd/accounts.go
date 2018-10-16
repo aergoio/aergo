@@ -291,5 +291,7 @@ func getPasswd(cmd *cobra.Command) (string, error) {
 func preConnectAergo(cmd *cobra.Command, args []string) {
 	if cmd.Flags().Changed("path") == false {
 		connectAergo(cmd, args)
+	} else {
+		client = nil
 	}
 }
