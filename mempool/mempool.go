@@ -239,10 +239,16 @@ func (mp *MemPool) setStateDB(block *types.Block) {
 		mp.bestBlockID = newBlockID
 
 		stateRoot := block.GetHeader().GetBlocksRootHash()
-		mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
-		mp.Debug().Str("Hash", newBlockID.String()).
-			Str("StateRoot", types.ToHashID(stateRoot).String()).
-			Msg("new StateDB opened")
+		if mp.stateDB == nil {
+			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+			mp.Debug().Str("Hash", newBlockID.String()).
+				Str("StateRoot", types.ToHashID(stateRoot).String()).
+				Msg("new StateDB opened")
+		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
+			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
+				mp.Error().Err(err).Msg("failed to set root of StateDB")
+			}
+		}
 	}
 }
 
@@ -365,7 +371,7 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
-	state, err := mp.sdb.GetStateDB().GetAccountState(types.ToAccountID(acc))
+	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
 		//FIXME PANIC?
