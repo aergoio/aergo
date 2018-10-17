@@ -1,5 +1,5 @@
 hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-10-01T21:09:25.091223+09:00
+updated: 2018-10-17T14:58:08.814349+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -9,6 +9,7 @@ imports:
   - internal/queue/goring
   - internal/queue/mpsc
   - mailbox
+  - router
 - name: github.com/aergoio/aergo-lib
   version: cd68a0a48fd82882e9367a0c9bcb47fd0e3c2b72
   subpackages:
@@ -227,6 +228,8 @@ imports:
   version: ac3f59a8924f35d6403210da5287096dfde75bd2
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
+  subpackages:
+  - assert
 - name: github.com/mattn/go-colorable
   version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
 - name: github.com/mattn/go-isatty
@@ -277,6 +280,8 @@ imports:
   - internal/json
 - name: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+- name: github.com/serialx/hashring
+  version: 49a4782e9908fe098c907022a1bd7519c79803d6
 - name: github.com/soheilhy/cmux
   version: e09e9389d85d8492d313d73d1469c029e710623f
 - name: github.com/spaolacci/murmur3
@@ -292,7 +297,7 @@ imports:
 - name: github.com/spf13/jwalterweatherman
   version: 4a4406e478ca629068e7768fc33f3f044173c0a6
 - name: github.com/spf13/pflag
-  version: 9a97c102cda95a86cec2345a6f09f55a939babf5
+  version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
   version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
 - name: github.com/syndtr/goleveldb
