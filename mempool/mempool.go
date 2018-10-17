@@ -46,11 +46,13 @@ type MemPool struct {
 	bestBlockID types.BlockID
 	stateDB     *state.StateDB
 	verifier    *actor.PID
-	orphan      int
-	cache       map[types.TxID]*types.Tx
-	pool        map[types.AccountID]*TxList
-	dumpPath    string
-	status      int32
+	//FIXME use fixed fee from config for now
+	txFee    uint64
+	orphan   int
+	cache    map[types.TxID]*types.Tx
+	pool     map[types.AccountID]*TxList
+	dumpPath string
+	status   int32
 	// misc configs
 	testConfig bool
 }
@@ -64,6 +66,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
+		txFee:    cfg.Blockchain.CoinbaseFee,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -308,7 +311,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 	if tx.GetBody().GetNonce() <= ns.Nonce {
 		return message.ErrTxNonceTooLow
 	}
-	if tx.GetBody().GetAmount() > ns.Balance {
+	if tx.GetBody().GetAmount()+mp.txFee > ns.Balance {
 		if !mp.cfg.EnableTestmode {
 			// Skip balance validation in test mode
 			return message.ErrInsufficientBalance
