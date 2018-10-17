@@ -139,6 +139,7 @@ ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
 
 int exp_eval_const(ast_exp_t *exp, meta_t *meta);
+int exp_eval_op_const(ast_exp_t *exp);
 
 void ast_exp_dump(ast_exp_t *exp, int indent);
 

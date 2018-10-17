@@ -144,33 +144,41 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
 int
 exp_eval_const(ast_exp_t *exp, meta_t *meta)
 {
-    if (is_val_exp(exp)) {
-        if (!value_check_range(&exp->u_val.val, meta->type))
-            RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(meta));
-    }
-    else {
-        op_kind_t op = exp->u_op.kind;
-        ast_exp_t *l_exp = exp->u_op.l_exp;
+    if (is_val_exp(exp) && !value_check_range(&exp->u_val.val, meta->type))
+        RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(meta));
+
+    return NO_ERROR;
+}
+
+int
+exp_eval_op_const(ast_exp_t *exp)
+{
+    op_kind_t op = exp->u_op.kind;
+    ast_exp_t *l_exp = exp->u_op.l_exp;
+    value_t *r_val = NULL;
+
+    if (!is_op_exp(exp) || !is_untyped_meta(&l_exp->meta))
+        return NO_ERROR;
+
+    ASSERT1(is_val_exp(l_exp), l_exp->kind);
+
+    if (exp->u_op.r_exp != NULL) {
         ast_exp_t *r_exp = exp->u_op.r_exp;
-        value_t *l_val = &l_exp->u_val.val;
-        value_t *r_val = NULL;
 
-        ASSERT1(is_op_exp(exp), exp->kind);
-        ASSERT1(is_val_exp(l_exp), l_exp->kind);
+        if (!is_untyped_meta(&r_exp->meta))
+            return NO_ERROR;
 
-        if (r_exp != NULL) {
-            ASSERT1(is_val_exp(r_exp), r_exp->kind);
-            r_val = &r_exp->u_val.val;
+        ASSERT1(is_val_exp(r_exp), r_exp->kind);
+        r_val = &r_exp->u_val.val;
 
-            if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
-                RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
-        }
-
-        value_eval(op, &exp->u_val.val, l_val, r_val);
-
-        exp->kind = EXP_VAL;
-        meta_set_untyped(&exp->meta, type);
+        if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
+            RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
     }
+
+    value_eval(op, &exp->u_val.val, &l_exp->u_val.val, r_val);
+
+    exp->kind = EXP_VAL;
+    meta_set_untyped(&exp->meta);
 
     return NO_ERROR;
 }

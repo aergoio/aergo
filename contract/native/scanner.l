@@ -131,8 +131,8 @@ L                           [a-zA-Z\x80-\xFF_]
 H                           [a-fA-F0-9]
 E                           ([eE][+-]?{D}+)
 
-integer                     ([+-]?{D}+)
-float                       ([+-]?(({D}+{E})|({D}*"."{D}+|{D}+"."{D}*){E}?))
+integer                     ({D}+)
+float                       (({D}+{E})|({D}*"."{D}+|{D}+"."{D}*){E}?)
 hexa                        (0[xX]{H}+)
 
 id                          {L}({L}|{D})*

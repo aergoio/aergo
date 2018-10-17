@@ -56,10 +56,12 @@ exp_check_val(check_t *check, ast_exp_t *exp)
         meta_set_bool(&exp->meta);
         break;
     case VAL_INT:
-        meta_set_untyped(&exp->meta, TYPE_INT64);
+        meta_set_int64(&exp->meta);
+        meta_set_untyped(&exp->meta);
         break;
     case VAL_FP:
-        meta_set_untyped(&exp->meta, TYPE_DOUBLE);
+        meta_set_double(&exp->meta);
+        meta_set_untyped(&exp->meta);
         break;
     case VAL_STR:
         meta_set_string(&exp->meta);
@@ -192,33 +194,6 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_eval_const(ast_exp_t *exp, type_t type)
-{
-    op_kind_t op = exp->u_op.kind;
-    ast_exp_t *l_exp = exp->u_op.l_exp;
-    ast_exp_t *r_exp = exp->u_op.r_exp;
-    value_t *r_val = NULL;
-
-    ASSERT1(is_val_exp(l_exp), l_exp->kind);
-
-    if (r_exp != NULL) {
-        ASSERT1(is_val_exp(r_exp), r_exp->kind);
-
-        r_val = &r_exp->u_val.val;
-
-        if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
-            RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
-    }
-
-    value_eval(op, &exp->u_val.val, &l_exp->u_val.val, r_val);
-
-    exp->kind = EXP_VAL;
-    meta_set_untyped(&exp->meta, type);
-
-    return NO_ERROR;
-}
-
-static int
 exp_check_op_arith(check_t *check, ast_exp_t *exp)
 {
     op_kind_t op = exp->u_op.kind;
@@ -249,13 +224,10 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
-
     CHECK(meta_check(l_meta, r_meta));
 
     meta_merge(&exp->meta, l_meta, r_meta);
-
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_eval_const(exp, MAX(l_meta->type, r_meta->type));
+    exp_eval_op_const(exp);
 
     return NO_ERROR;
 }
@@ -286,9 +258,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
     meta_copy(&exp->meta, l_meta);
-
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_eval_const(exp, l_meta->type);
+    exp_eval_op_const(exp);
 
     return NO_ERROR;
 }
@@ -320,9 +290,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     CHECK(meta_check(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
-
-    if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_eval_const(exp, TYPE_BOOL);
+    exp_eval_op_const(exp);
 
     return NO_ERROR;
 }
@@ -359,9 +327,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-
-        if (is_untyped_meta(l_meta))
-            exp_eval_const(exp, l_meta->type);
+        exp_eval_op_const(exp);
         break;
 
     case OP_NOT:
@@ -369,9 +335,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-
-        if (is_untyped_meta(l_meta))
-            exp_eval_const(exp, TYPE_BOOL);
+        exp_eval_op_const(exp);
         break;
 
     default:
@@ -588,7 +552,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             ASSERT1(is_integer_meta(&param_exp->meta), param_exp->meta.type);
         }
 
-        meta_set_untyped(&exp->meta, TYPE_MAP);
+        meta_set_map(&exp->meta, NULL, NULL);
+        meta_set_untyped(&exp->meta);
 
         return NO_ERROR;
     }
@@ -610,8 +575,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
 
         CHECK(exp_check(check, param_exp));
-
         CHECK(meta_check(&param_id->meta, &param_exp->meta));
+
+        exp_eval_const(param_exp, &param_id->meta);
     }
 
     exp->id = id;
@@ -672,7 +638,6 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     post_meta = &post_exp->meta;
 
     CHECK(exp_check(check, post_exp));
-
     CHECK(meta_check(in_meta, post_meta));
 
     meta_copy(&exp->meta, in_meta);

@@ -115,7 +115,7 @@ value_check_range(value_t *val, type_t type)
     if (type == TYPE_UINT32 && (val->iv < 0 || val->iv > UINT32_MAX))
         return false;
 
-    if (type == TYPE_FLOAT && (val->dv < FLT_MIN || val->dv > FLT_MAX))
+    if (type == TYPE_FLOAT && (val->dv < -FLT_MAX || val->dv > FLT_MAX))
         return false;
 
     return true;

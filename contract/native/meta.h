@@ -51,6 +51,8 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
+#define meta_copy(dest, src)        *(dest) = *(src)
+
 #define meta_elem_size(meta)                                                             \
     (is_void_meta(meta) ? 0 :                                                            \
      ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                                    \
@@ -109,7 +111,6 @@ meta_init(meta_t *meta, src_pos_t *pos)
 static inline void
 meta_set(meta_t *meta, type_t type)
 {
-    ASSERT(meta != NULL);
     ASSERT1(type > TYPE_NONE && type < TYPE_MAX, type);
 
     meta->type = type;
@@ -118,7 +119,6 @@ meta_set(meta_t *meta, type_t type)
 static inline void
 meta_set_array(meta_t *meta, int arr_dim)
 {
-    ASSERT(meta != NULL);
     ASSERT(arr_dim >= 0);
 
     meta->arr_dim = arr_dim;
@@ -126,10 +126,8 @@ meta_set_array(meta_t *meta, int arr_dim)
 }
 
 static inline void
-meta_set_untyped(meta_t *meta, type_t type)
+meta_set_untyped(meta_t *meta)
 {
-    meta_set(meta, type);
-
     meta->is_untyped = true;
 }
 
@@ -143,27 +141,6 @@ meta_set_map(meta_t *meta, meta_t *k_meta, meta_t *v_meta)
 }
 
 static inline void
-meta_copy(meta_t *dest, meta_t *src)
-{
-    ASSERT(dest != NULL);
-    ASSERT(src != NULL);
-
-    dest->type = src->type;
-    dest->is_untyped = src->is_untyped;
-    dest->arr_dim = src->arr_dim;
-    dest->arr_size = src->arr_size;
-
-    if (is_struct_meta(src) || is_tuple_meta(src)) {
-        dest->u_tup.name = src->u_tup.name;
-        dest->u_tup.metas = src->u_tup.metas;
-    }
-    else if (is_map_meta(src)) {
-        dest->u_map.k_meta = src->u_map.k_meta;
-        dest->u_map.v_meta = src->u_map.v_meta;
-    }
-}
-
-static inline void
 meta_merge(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
@@ -172,7 +149,8 @@ meta_merge(meta_t *meta, meta_t *x, meta_t *y)
         ASSERT1(is_primitive_meta(x), x->type);
         ASSERT1(is_primitive_meta(y), y->type);
 
-        meta_set_untyped(meta, MAX(x->type, y->type));
+        meta_set(meta, MAX(x->type, y->type));
+        meta_set_untyped(meta);
     }
     else if (is_untyped_meta(x)) {
         meta_copy(meta, y);
