@@ -628,6 +628,10 @@ modifier_opt:
 |   K_PUBLIC                    { $$ = MOD_PUBLIC; }
 |   modifier_opt K_READONLY
     {
+        if (flag_on($1, MOD_READONLY))
+            ERROR(ERROR_SYNTAX, &@2, "syntax error, unexpected readonly, "
+                  "expecting func or payable");
+
         $$ = $1;
         flag_set($$, MOD_READONLY);
     }

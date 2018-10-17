@@ -71,6 +71,15 @@ contract test {
     }
 }
 
+@test(index_out_of_range)
+@error(ERROR_INVALID_ARR_IDX)
+contract test {
+    test() {
+        int i[2];
+        i[1 + 1] = 1;
+    }
+}
+
 @test(struct_assignment)
 contract test {
     struct s1 { int a, b; }
@@ -188,7 +197,7 @@ contract test {
         v.b += "2";
         v.a, v.b = 2, "2";
         v.c[1] = false;
-        v.d[2] = -v.d[1];
+        v.d[1] = -v.d[0];
     }
 }
 

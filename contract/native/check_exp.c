@@ -157,13 +157,22 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->arr_size != NULL);
 
-        // TODO: check index value if possible
         if (!is_integer_meta(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
 
         meta_copy(&exp->meta, id_meta);
 
+        if (is_untyped_meta(idx_meta)) {
+            ASSERT1(is_val_exp(idx_exp), idx_exp->kind);
+            ASSERT(id_meta->arr_size != NULL);
+
+            if (idx_exp->u_val.val.iv >= id_meta->arr_size[0])
+                RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
+        }
+
         exp->meta.arr_dim--;
+        ASSERT(exp->meta.arr_dim >= 0);
+
         if (exp->meta.arr_dim == 0)
             exp->meta.arr_size = NULL;
         else
