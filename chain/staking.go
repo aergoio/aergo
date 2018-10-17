@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -10,6 +11,8 @@ import (
 var stakingkey = []byte("staking")
 
 const stakingDelay = 5
+
+var ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
 
 func staking(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
@@ -34,6 +37,9 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 	if err != nil {
 		return err
 	}
+	if staked == 0 {
+		return ErrMustStakeBeforeUnstake
+	}
 	if when+stakingDelay > blockNo {
 		return ErrLessTimeHasPassed
 	}
@@ -51,7 +57,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		}
 	}
 	err = voting(txBody, scs, blockNo)
-	if err != nil && err != ErrMustStakeBeforeVote {
+	if err != nil && err != ErrLessTimeHasPassed {
 		return err
 	}
 	senderState.Balance = senderState.Balance + amount

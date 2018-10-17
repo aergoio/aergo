@@ -112,8 +112,12 @@ type GetElected struct {
 	N int
 }
 
+type GetVote struct {
+	Addr []byte
+}
+
 // GetElectedRsp is return to get voting result
-type GetElectedRsp struct {
+type GetVoteRsp struct {
 	Top *types.VoteList
 	Err error
 }

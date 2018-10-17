@@ -535,17 +535,23 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 //GetVotes handle rpc request getvotes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
 	var number int
+	var err error
+	var result interface{}
+
 	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	} else if len(in.Value) == types.AddressLength {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
 	} else {
 		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}
-	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
 	if err != nil {
 		return nil, err
 	}
-	rsp, ok := result.(*message.GetElectedRsp)
+	rsp, ok := result.(*message.GetVoteRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}

@@ -533,8 +533,11 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 		}
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(&bs.StateDB, txBody, &senderChange, &receiverChange, blockNo)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
+		}
 	default:
-		logger.Warn().Str("tx", tx.String()).Msg("unknown type of transaction")
+		logger.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("unknown type of transaction")
 	}
 
 	senderChange.Nonce = txBody.Nonce
