@@ -59,6 +59,10 @@ func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
+const (
+	EmptyGetBlockResponseSize = 12 // roughly estimated maximum size if element is full
+)
+
 func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
@@ -67,21 +71,38 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 
 	// find block info from chainservice
 	idx := 0
-	blockInfos := make([]*types.Block, 0, len(data.Hashes))
+	status := types.ResultStatus_OK
+	blockInfos := make([]*types.Block, 0, 10)
+	// TODO consider to make async if deadlock with remote peer can occurs
+	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
+	payloadSize := EmptyGetBlockResponseSize
+	var blockSize, fieldSize int
 	for _, hash := range data.Hashes {
 		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 			&message.GetBlock{BlockHash: hash}))
 		if err != nil || foundBlock == nil {
 			continue
 		}
+		blockSize = proto.Size(foundBlock)
+		fieldSize = blockSize + calculateFieldDescSize(blockSize)
+		if (payloadSize + fieldSize)  > MaxPayloadLength {
+			// send partial list
+			resp := &types.GetBlockResponse{
+				Status: status,
+				Blocks: blockInfos}
+			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
+			// reset list
+			blockInfos = make([]*types.Block, 0, 10)
+			payloadSize = EmptyGetBlockResponseSize
+		}
 		blockInfos = append(blockInfos, foundBlock)
+		payloadSize += fieldSize
 		idx++
 	}
-	status := types.ResultStatus_OK
-	if 0 == len(blockInfos) {
+	// send remained blocks
+	if 0 == idx {
 		status = types.ResultStatus_NOT_FOUND
 	}
-
 	// generate response message
 	resp := &types.GetBlockResponse{
 		Status: status,
@@ -117,8 +138,8 @@ func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 
 }
 
-// newListBlockReqHandler creates handler for GetBlockHeadersRequest
-func newListBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
+// newListBlockHeadersReqHandler creates handler for GetBlockHeadersRequest
+func newListBlockHeadersReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
 	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
@@ -134,7 +155,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Mess
 	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
 
 	// find block info from chainservice
-	maxFetchSize := min(1000, data.Size)
+	maxFetchSize := min(MaxBlockHeaderFetchSize, data.Size)
 	idx := uint32(0)
 	hashes := make([][]byte, 0, data.Size)
 	headers := make([]*types.BlockHeader, 0, data.Size)
@@ -206,7 +227,7 @@ func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Mes
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 

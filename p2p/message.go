@@ -5,20 +5,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// constants of p2p protocol v0.3
-const (
-	// this magic number is useful only in handshaking
-	MAGICMain uint32 = 0x47416841
-	MAGICTest uint32 = 0x2e415429
-
-	P2PVersion030 uint32 = 0x00000300
-
-	SigLength = 16
-	IDLength = 16
-
-	MaxPayloadLength = 1 << 23  // 8MB
-)
-
 // MsgID is
 type MsgID [IDLength]byte
 

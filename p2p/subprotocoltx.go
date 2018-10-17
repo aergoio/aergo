@@ -48,28 +48,53 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetTransactionsRequest)
 	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
+	// TODO consider to make async if deadlock with remote peer can occurs
+	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
 	// find transactions from chainservice
-	status := types.ResultStatus_OK
 	idx := 0
-	hashes := make([][]byte, 0, len(data.Hashes))
-	txInfos := make([]*types.Tx, 0, len(data.Hashes))
+	status := types.ResultStatus_OK
+	hashes := make([][]byte, 0, 100)
+	txInfos := make([]*types.Tx, 0, 100)
+	payloadSize := EmptyGetBlockResponseSize
+	var txSize, fieldSize int
 	for _, hash := range data.Hashes {
 		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequest(message.MemPoolSvc,
 			&message.MemPoolExist{Hash: hash}))
 		if err != nil {
 			// response error to peer
-			status = types.ResultStatus_INTERNAL
-			break
+			resp := &types.GetTransactionsResponse{Status: types.ResultStatus_INTERNAL}
+			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+			return
 		}
 		if tx == nil {
 			// ignore not existing hash
 			continue
 		}
+		txSize = proto.Size(tx)
+		fieldSize = txSize + calculateFieldDescSize(txSize)
+		fieldSize += len(hash)+calculateFieldDescSize(len(hash))
+		if (payloadSize + fieldSize)  > MaxPayloadLength {
+			// send partial list
+			resp := &types.GetTransactionsResponse{
+				Status: status,
+				Hashes: hashes,
+				Txs:    txInfos}
+			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+			// reset list
+			hashes = make([][]byte, 0, 100)
+			txInfos = make([]*types.Tx, 0, 100)
+			payloadSize = EmptyGetBlockResponseSize
+		}
 		hashes = append(hashes, hash)
 		txInfos = append(txInfos, tx)
+		payloadSize += fieldSize
 		idx++
 	}
 
+	// send remained blocks
+	if 0 == idx {
+		status = types.ResultStatus_NOT_FOUND
+	}
 	// generate response message
 	resp := &types.GetTransactionsResponse{
 		Status: status,

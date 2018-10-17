@@ -208,7 +208,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	// BlockHandlers
 	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm,  peer, logger, p2ps)
 	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockReqHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm,  peer, logger, p2ps)
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
 	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm,  peer, logger, p2ps)
 	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm,  peer, logger, p2ps, p2ps.sm)
