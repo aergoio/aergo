@@ -126,11 +126,13 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %left   CMP_AND
 %right  '!'
 %left   '|'
+%left   '^'
 %left   '&'
 %left   CMP_EQ CMP_NE
 %left   CMP_LE CMP_GE '<' '>'
-%left   '+' '-' '%'
-%left   '*' '/'
+%left   SHIFT_L SHIFT_R
+%left   '+' '-'
+%left   '*' '/' '%'
 %left   '(' ')' '.'
 %right  UNARY_INC UNARY_DEC
 
