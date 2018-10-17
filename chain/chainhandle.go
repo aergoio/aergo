@@ -391,7 +391,9 @@ func (e *blockExecutor) execute() error {
 				return err
 			}
 		}
-
+		if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
+			return err
+		}
 		if err := e.Update(); err != nil {
 			return err
 		}
@@ -401,16 +403,9 @@ func (e *blockExecutor) execute() error {
 		return err
 	}
 
-	err := contract.SaveRecoveryPoint(e.BlockState)
-	if err != nil {
-		return err
-	}
-
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
-	// sdb.Apply() succeeds
-	err = e.commit()
 
-	return err
+	return e.commit()
 }
 
 func (e *blockExecutor) commit() error {
