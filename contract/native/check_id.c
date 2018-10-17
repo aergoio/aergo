@@ -77,17 +77,24 @@ id_check_var(check_t *check, ast_id_t *id)
 
         CHECK(exp_check(check, init_exp));
 
-		if (id->u_var.size_exps == NULL && is_tuple_meta(init_meta) &&
-			!is_map_meta(type_meta) && !is_struct_meta(type_meta))
-			/* not allowed static initializer except map or struct */
-			RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-		else if (is_tuple_meta(init_meta) &&
-				 type_exp->id != NULL && is_contract_id(type_exp->id))
-			/* in case of contract type */
-			RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+        /* This might be a redundant check, but is done to show 
+         * more specific error not just mismatch error. */
+        if (is_tuple_meta(init_meta)) {
+			if (!is_array_meta(&id->meta) &&
+                !is_map_meta(type_meta) && !is_struct_meta(type_meta))
+                /* not allowed static initializer except map or struct */
+                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+
+            if (type_exp->id != NULL && is_contract_id(type_exp->id))
+                /* contract object */
+                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+        }
 
 		return meta_check(&id->meta, init_meta);
 	}
+    else if (is_const_id(id)) {
+        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+    }
 
     return NO_ERROR;
 }

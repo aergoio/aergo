@@ -32,14 +32,20 @@ contract test {
 
 @test(constant_qualifier)
 contract test {
-    const int v1;
-    const string v2;
+    const int v1 = 0;
+    const string v2 = "";
 }
 
 @test(invalid_qualifier_position)
 @error(ERROR_SYNTAX)
 contract test {
-    int const v;
+    int const v = 0;
+}
+
+@test(missing_constant_value)
+@error(ERROR_MISSING_CONST_VAL)
+contract test {
+    const int v;
 }
 
 @test(type_modifier)
