@@ -19,7 +19,10 @@
 #define WARN(ec, pos, ...)      error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
 #define DEBUG(ec, pos, ...)     error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
 
-#define is_no_error()           (error_count() == 0)
+#define error_first()           error_item(0)
+#define error_last()            error_item(error_size())
+
+#define is_no_error()           (error_size() == 0)
 
 typedef struct error_s {
     ec_t code;
@@ -33,8 +36,8 @@ typedef struct error_s {
 char *error_to_str(ec_t ec);
 ec_t error_to_code(char *str);
 
-int error_count(void);
-ec_t error_first(void);
+int error_size(void);
+ec_t error_item(int idx);
 
 void error_push(ec_t ec, errlvl_t lvl, src_pos_t *pos, ...);
 error_t *error_pop(void);

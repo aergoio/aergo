@@ -26,6 +26,7 @@ typedef struct env_s {
     flag_t flag;
 
     char title[PATH_MAX_LEN];
+    int ec_cnt;
     ec_t ec;
 
     int total_cnt;
@@ -59,9 +60,53 @@ env_reset(env_t *env)
 }
 
 static void
+print_results(env_t *env)
+{
+    int i;
+    int ac_cnt = error_size();
+
+    if (env->ec_cnt != ac_cnt) {
+        printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+
+        if (ac_cnt > 0)
+            error_dump();
+
+        printf("Expected: <%d errors>\n"
+               "Actually: <"ANSI_YELLOW"%d errors"ANSI_NONE">\n",
+               env->ec_cnt, ac_cnt);
+
+        env->failed_cnt++;
+        return;
+    }
+
+    for (i = 0; i < env->ec_cnt; i++) {
+        ec_t ac = error_item(i);
+
+        if (ac != env->ec) {
+            printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+
+            if (ac != NO_ERROR)
+                error_dump();
+
+            printf("Expected: <%s>\n"
+                   "Actually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
+                   error_to_str(env->ec), error_to_str(ac));
+
+            env->failed_cnt++;
+            return;
+        }
+    }
+
+    printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
+
+    if (flag_on(env->flag, FLAG_VERBOSE))
+        error_dump();
+}
+
+static void
 run_test(env_t *env, char *path)
 {
-    ec_t ac;
+    int i = 0;
 
     if (env->needle != NULL &&
         strstr(env->path, env->needle) == NULL &&
@@ -78,29 +123,11 @@ run_test(env_t *env, char *path)
 
     compile(path, env->flag);
 
-    ac = error_first();
-    if (ac == env->ec) {
-        printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
-
-        if (flag_on(env->flag, FLAG_VERBOSE))
-            error_dump();
-
-        unlink(path);
-    }
-    else {
-        printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
-
-        if (ac != NO_ERROR)
-            error_dump();
-
-        printf("Expected: <%s>\nActually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
-               error_to_str(env->ec), error_to_str(ac));
-
-        env->failed_cnt++;
-    }
+    print_results(env);
 
     error_clear();
 
+    unlink(path);
     env_reset(env);
 }
 
@@ -137,12 +164,23 @@ read_test(env_t *env, char *path)
             out_fp = open_file(out_file, "w");
         }
         else if (strncasecmp(buf, TAG_ERROR, strlen(TAG_ERROR)) == 0) {
+            char *args;
+
             ASSERT(exp_fp == NULL);
             ASSERT(env->title[0] != '\0');
             ASSERT(env->ec == NO_ERROR);
 
             offset += strlen(buf);
-            env->ec = error_to_code(strtrim(buf + strlen(TAG_ERROR), "() \t\n\r"));
+            args = strtrim(buf + strlen(TAG_ERROR), "() \t\n\r");
+
+            if (strchr(args, ',') != NULL) {
+                env->ec = error_to_code(strtok(args, ","));
+                env->ec_cnt = atoi(strtok(NULL, ","));
+            }
+            else {
+                env->ec = error_to_code(args);
+                env->ec_cnt = 1;
+            }
         }
         else if (strncasecmp(buf, TAG_EXPORT, strlen(TAG_EXPORT)) == 0) {
             char *exp_file;

@@ -47,7 +47,7 @@ contract test {
 }
 
 @test(numeric_overflow)
-@error(ERROR_NUMERIC_OVERFLOW)
+@error(ERROR_NUMERIC_OVERFLOW,16)
 contract test {
     byte b1 = -1;
     byte b2 = 257;
@@ -63,8 +63,8 @@ contract test {
     int32 i6 = 2147483648;
     uint32 ui5 = -1;
     uint32 ui6 = 4294967296;
-    float f1 = -340282346638528859811704183484516925440.000001;
-    float f2 = 340282346638528859811704183484516925440.000001;
+    float f1 = -340282346638528959811704183484516925441.000000;
+    float f2 = 340282346638528959811704183484516925441.000000;
 }
 
 @test(byte_max_overflow)

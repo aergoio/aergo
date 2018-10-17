@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "array.h"
 #include "stack.h"
 #include "util.h"
 
@@ -56,7 +57,7 @@ error_to_code(char *str)
 }
 
 int
-error_count(void)
+error_size(void)
 {
     int errcnt = 0;
     stack_node_t *n;
@@ -70,14 +71,15 @@ error_count(void)
 }
 
 ec_t
-error_first(void)
+error_item(int idx)
 {
+    int i = 0;
     stack_node_t *n;
 
     stack_foreach(n, &errstack_) {
         error_t *e = (error_t *)n->item;
 
-        if (e->level <= LVL_INFO)
+        if (e->level <= LVL_INFO && i++ == idx)
             return e->code;
     }
 
@@ -148,7 +150,7 @@ error_dump(void)
     for (i = 0; i < array_size(array); i++) {
         error_t *e = array_item(array, i, error_t);
 
-        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", 
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n",
                 err_lvls_[e->level], e->path, e->line, e->desc);
     }
 
