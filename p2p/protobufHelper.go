@@ -17,7 +17,7 @@ import (
 
 // ClientVersion is the version of p2p protocol to which this codes are built
 // FIXME version should be defined in more general ways
-const ClientVersion = "0.1.0"
+const ClientVersion = "0.2.0"
 
 type pbMessage interface {
 	proto.Message
@@ -34,7 +34,10 @@ type pbMessageOrder struct {
 	message Message
 }
 
-var _ msgOrder = (*pbMessageOrder)(nil)
+var _ msgOrder = (*pbRequestOrder)(nil)
+var _ msgOrder = (*pbResponseOrder)(nil)
+var _ msgOrder = (*pbBlkNoticeOrder)(nil)
+var _ msgOrder = (*pbTxNoticeOrder)(nil)
 
 
 func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
@@ -71,28 +74,49 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 	return pr.protocolID
 }
 
-func (pr *pbMessageOrder) SendTo(p *remotePeerImpl) bool {
-	err := p.rw.WriteMsg(pr.message)
-	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
-		return false
-	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send message")
-
-	return true
-}
+//func (pr *pbMessageOrder) SendTo(p *remotePeerImpl) bool {
+//	err := p.rw.WriteMsg(pr.message)
+//	if err != nil {
+//		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+//		return false
+//	}
+//	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+//		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send message")
+//
+//	return true
+//}
 
 type pbRequestOrder struct {
 	pbMessageOrder
 }
 
 func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) bool {
-	if pr.pbMessageOrder.SendTo(p) {
-		p.requests[pr.message.ID()] = pr
-		return true
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		return false
 	}
-	return false
+	p.requests[pr.message.ID()] = pr
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
+
+	return true
+}
+
+type pbResponseOrder struct {
+	pbMessageOrder
+}
+
+func (pr *pbResponseOrder) SendTo(p *remotePeerImpl) bool {
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		return false
+	}
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID().String()).Str("req_id", pr.message.OriginalID().String()).Msg("Send response message")
+
+	return true
 }
 
 type pbBlkNoticeOrder struct {
@@ -159,22 +183,6 @@ func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, erro
 	return msgData, proto.Unmarshal(data, msgData)
 }
 
-func newP2PMessage(msgID string, gossip bool, protocolID SubProtocol, message pbMessage) Message {
-	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
-
-	bytes, err := marshalMessage(message)
-	if err != nil {
-		return nil
-	}
-	p2pmsg.Data = bytes
-	if len(msgID) == 0 {
-		msgID = uuid.Must(uuid.NewV4()).String()
-	}
-	setupMessageData(p2pmsg.Header, msgID, gossip, ClientVersion, time.Now().Unix())
-	p2pmsg.Header.Subprotocol = protocolID.Uint32()
-	return NewV020Wrapper(p2pmsg, "")
-}
-
 
 type pbMOFactory struct {
 	signer msgSigner
@@ -190,9 +198,9 @@ func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubPr
 }
 
 func (mf *pbMOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
-	rmo := &pbMessageOrder{}
+	rmo := &pbResponseOrder{}
 	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(rmo, msgID, reqID.String(), false, false, protocolID, message, mf.signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, reqID.String(), false, false, protocolID, message, mf.signer) {
 		return rmo
 	}
 	return nil

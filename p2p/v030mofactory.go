@@ -26,9 +26,9 @@ func (mf *v030MOFactory) newMsgRequestOrder(expecteResponse bool, protocolID Sub
 }
 
 func (mf *v030MOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
-	rmo := &pbMessageOrder{}
+	rmo := &pbResponseOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(rmo, msgID, uuid.FromBytesOrNil(reqID[:]), false, false, protocolID, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.FromBytesOrNil(reqID[:]), false, false, protocolID, message) {
 		return rmo
 	}
 	return nil

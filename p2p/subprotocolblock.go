@@ -90,6 +90,7 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 			resp := &types.GetBlockResponse{
 				Status: status,
 				Blocks: blockInfos}
+			bh.logger.Debug().Int("blk_cnt", len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 			// reset list
 			blockInfos = make([]*types.Block, 0, 10)
@@ -108,6 +109,7 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 		Status: status,
 		Blocks: blockInfos}
 
+	bh.logger.Debug().Int("blk_cnt", len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 }
 
@@ -306,7 +308,7 @@ func (bh *getMissingRequestHandler) handle(msg Message, msgBody proto.Message) {
 	missing := (*message.GetMissingRsp)(&v)
 
 	// generate response message
-	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Msg("Sending GetMssingRequest response")
+	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Msg("Sending GetMissingRequest response")
 
 	bh.sendMissingResp(remotePeer, msg.ID(), missing.Hashes)
 	/*

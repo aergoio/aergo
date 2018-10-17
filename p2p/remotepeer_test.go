@@ -231,9 +231,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
-			p.requests[mid1] = &pbMessageOrder{message: &V030Message{id:mid1, timestamp:time.Now().Add(time.Minute * -61).Unix()}}
-			p.requests[mid2] = &pbMessageOrder{message: &V030Message{id:mid2, timestamp:time.Now().Add(time.Minute*-60 - time.Second).Unix()}}
-			p.requests[midn] = &pbMessageOrder{message: &V030Message{id:midn, timestamp:time.Now().Add(time.Minute * -60).Unix()}}
+			p.requests[mid1] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid1, timestamp:time.Now().Add(time.Minute * -61).Unix()}}}
+			p.requests[mid2] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid2, timestamp:time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
+			p.requests[midn] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:midn, timestamp:time.Now().Add(time.Minute * -60).Unix()}}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))

@@ -79,6 +79,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 				Status: status,
 				Hashes: hashes,
 				Txs:    txInfos}
+			th.logger.Debug().Int("tx_cnt", len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
 			// reset list
 			hashes = make([][]byte, 0, 100)
@@ -95,6 +96,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	if 0 == idx {
 		status = types.ResultStatus_NOT_FOUND
 	}
+	th.logger.Debug().Int("tx_cnt", len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
 	// generate response message
 	resp := &types.GetTransactionsResponse{
 		Status: status,
