@@ -518,8 +518,9 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 			} else {
 				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
 			}
-			if err != nil { // vm error is not propagated
-				return sqlTx.RollbackToSavepoint()
+			if err != nil { // TODO vm error is not propagated
+				_ = sqlTx.RollbackToSavepoint()
+				return err
 			}
 			err = bs.CommitContractState(contractState)
 			if err != nil {
