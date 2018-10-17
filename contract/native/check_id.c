@@ -90,7 +90,7 @@ id_check_var(check_t *check, ast_id_t *id)
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
         }
 
-		return meta_check(&id->meta, init_meta);
+		CHECK(meta_check(&id->meta, &init_exp->meta));
 	}
     else if (is_const_id(id)) {
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);

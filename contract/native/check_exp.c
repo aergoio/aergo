@@ -192,7 +192,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_op_eval_const(ast_exp_t *exp, type_t type)
+exp_eval_const(ast_exp_t *exp, type_t type)
 {
     op_kind_t op = exp->u_op.kind;
     ast_exp_t *l_exp = exp->u_op.l_exp;
@@ -255,7 +255,7 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     meta_merge(&exp->meta, l_meta, r_meta);
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_op_eval_const(exp, MAX(l_meta->type, r_meta->type));
+        exp_eval_const(exp, MAX(l_meta->type, r_meta->type));
 
     return NO_ERROR;
 }
@@ -288,7 +288,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, l_meta);
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_op_eval_const(exp, l_meta->type);
+        exp_eval_const(exp, l_meta->type);
 
     return NO_ERROR;
 }
@@ -322,7 +322,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     meta_set_bool(&exp->meta);
 
     if (is_untyped_meta(l_meta) && is_untyped_meta(r_meta))
-        exp_op_eval_const(exp, TYPE_BOOL);
+        exp_eval_const(exp, TYPE_BOOL);
 
     return NO_ERROR;
 }
@@ -361,7 +361,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, l_meta);
 
         if (is_untyped_meta(l_meta))
-            exp_op_eval_const(exp, l_meta->type);
+            exp_eval_const(exp, l_meta->type);
         break;
 
     case OP_NOT:
@@ -371,7 +371,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, l_meta);
 
         if (is_untyped_meta(l_meta))
-            exp_op_eval_const(exp, TYPE_BOOL);
+            exp_eval_const(exp, TYPE_BOOL);
         break;
 
     default:

@@ -1,5 +1,9 @@
 @test(numeric_value)
 contract test {
+    byte b1 = 0;
+    byte b2 = 1;
+    byte b3 = 0xff;
+
     int i1 = 1;
     int i2 = +12;
     int i3 = -123;

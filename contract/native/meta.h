@@ -11,13 +11,13 @@
 #include "array.h"
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
+#define is_byte_meta(meta)          ((meta)->type == TYPE_BYTE)
 
 #define is_integer_meta(meta)                                                            \
-    ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64)
+    (is_byte_meta(meta) || ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64))
 #define is_float_meta(meta)                                                              \
     ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
-#define is_numeric_meta(meta)                                                            \
-    ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_DOUBLE)
+#define is_numeric_meta(meta)       (is_integer_meta(meta) || is_float_meta(meta))
 
 #define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
 
@@ -47,11 +47,11 @@
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)
-#define meta_set_object(meta)          meta_set((meta), TYPE_OBJECT)
+#define meta_set_object(meta)       meta_set((meta), TYPE_OBJECT)
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_size(meta)                                                                  \
+#define meta_elem_size(meta)                                                             \
     (is_void_meta(meta) ? 0 :                                                            \
      ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                                    \
       array_size((meta)->u_tup.metas) : 1))

@@ -64,7 +64,7 @@ contract test {
 @error(ERROR_UNDEFINED_ID)
 contract test {
     int i = j;
-    int j = 1;
+    int j;
 }
 
 @test(self_reference)
