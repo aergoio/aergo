@@ -166,7 +166,8 @@ exp_check_array(check_t *check, ast_exp_t *exp)
             ASSERT1(is_val_exp(idx_exp), idx_exp->kind);
             ASSERT(id_meta->arr_size != NULL);
 
-            if (idx_exp->u_val.val.iv >= id_meta->arr_size[0])
+            if (id_meta->arr_size[0] > 0 && 
+                idx_exp->u_val.val.iv >= id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
