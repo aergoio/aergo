@@ -26,8 +26,8 @@ typedef struct env_s {
     flag_t flag;
 
     char title[PATH_MAX_LEN];
-    int ec_cnt;
     ec_t ec;
+    int ec_cnt;
 
     int total_cnt;
     int failed_cnt;
@@ -41,6 +41,7 @@ env_init(env_t *env)
     memset(env, 0x00, sizeof(env_t));
 
     env->flag = FLAG_TEST;
+    env->ec_cnt = 0;
     stack_init(&env->exp);
 }
 
@@ -49,6 +50,7 @@ env_reset(env_t *env)
 {
     env->title[0] = '\0';
     env->ec = NO_ERROR;
+    env->ec_cnt = 0;
 
     if (flag_off(env->flag, FLAG_VERBOSE)) {
         char *item;
@@ -63,9 +65,9 @@ static void
 print_results(env_t *env)
 {
     int i;
-    int ac_cnt = error_size();
+    int ac_cnt = env->ec_cnt > 0 ? error_size() : 1;
 
-    if (env->ec_cnt != ac_cnt) {
+    if (env->ec_cnt > 0 && env->ec_cnt != ac_cnt) {
         printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
 
         if (ac_cnt > 0)
@@ -79,7 +81,7 @@ print_results(env_t *env)
         return;
     }
 
-    for (i = 0; i < env->ec_cnt; i++) {
+    for (i = 0; i < ac_cnt; i++) {
         ec_t ac = error_item(i);
 
         if (ac != env->ec) {
@@ -179,7 +181,6 @@ read_test(env_t *env, char *path)
             }
             else {
                 env->ec = error_to_code(args);
-                env->ec_cnt = 1;
             }
         }
         else if (strncasecmp(buf, TAG_EXPORT, strlen(TAG_EXPORT)) == 0) {

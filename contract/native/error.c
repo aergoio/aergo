@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "array.h"
 #include "stack.h"
 #include "util.h"
 
