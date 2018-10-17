@@ -29,10 +29,6 @@ contract test {
 
 @test(character_value)
 contract test {
-    // byte b1 = 1;
-    // byte b2 = 0x02;
-    // byte b3 = "a";
-
     string v1 = "";
     string v2 = "literal";
     string v3 = "literal \"include quotation\"";

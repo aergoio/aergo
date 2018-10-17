@@ -128,17 +128,17 @@ ast_exp_t *exp_new_null(src_pos_t *pos);
 ast_exp_t *exp_new_val(src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
-ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp,
-                         src_pos_t *pos);
+ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
-ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp,
-                          src_pos_t *pos);
+ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_op(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                       src_pos_t *pos);
-ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp,
-                           ast_exp_t *post_exp, src_pos_t *pos);
+ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp, 
+                           src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
+
+int exp_eval_const(ast_exp_t *exp, meta_t *meta);
 
 void ast_exp_dump(ast_exp_t *exp, int indent);
 
