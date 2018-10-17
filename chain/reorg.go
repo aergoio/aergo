@@ -187,17 +187,19 @@ func (reorg *reorganizer) swapTxMapping() error {
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
 	if count > 0 {
-		txs := make([]*types.Tx, 0, count)
+		//txs := make([]*types.Tx, 0, count)
 		logger.Debug().Int("tx count", count).Msg("tx add to mempool")
 
 		for _, tx := range oldTxs {
 			//			logger.Debug().Str("txID", txID.String()).Msg("tx added")
-			txs = append(txs, tx)
+			//			txs = append(txs, tx)
+			cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
+				Tx: tx,
+			})
 		}
-
-		cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
-			Txs: txs,
-		})
+		//	cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
+		//		Txs: txs,
+		//	})
 	}
 
 	return nil

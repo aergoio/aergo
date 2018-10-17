@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
@@ -44,12 +45,12 @@ type MemPool struct {
 	sdb         *state.ChainStateDB
 	bestBlockID types.BlockID
 	stateDB     *state.StateDB
-
-	orphan   int
-	cache    map[types.TxID]*types.Tx
-	pool     map[types.AccountID]*TxList
-	dumpPath string
-	status   int32
+	verifier    *actor.PID
+	orphan      int
+	cache       map[types.TxID]*types.Tx
+	pool        map[types.AccountID]*TxList
+	dumpPath    string
+	status      int32
 	// misc configs
 	testConfig bool
 }
@@ -62,6 +63,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		pool:     map[types.AccountID]*TxList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
+		verifier: nil,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -75,17 +77,6 @@ func (mp *MemPool) BeforeStart() {
 		initStubData()
 		mp.bestBlockID = getCurrentBestBlockNoMock()
 	}
-	//else {
-	//p.BaseComponent.Start(mp)
-
-	/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
-	if err != nil {
-		mp.Error("get best block failed", err)
-	}
-	rsp := result.(message.GetBestBlockNoRsp)
-	mp.curBestBlockNo = rsp.BlockNo*/
-	//}
-	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
 			for range time.Tick(1e9) {
@@ -97,6 +88,11 @@ func (mp *MemPool) BeforeStart() {
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
 func (mp *MemPool) AfterStart() {
+
+	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
+	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
+		WithInstance(NewTxVerifier(mp)))
+
 	rsp, err := mp.RequestToFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second*2).Result()
 	if err != nil {
 		mp.Error().Err(err).Msg("failed to get best block")
@@ -108,6 +104,9 @@ func (mp *MemPool) AfterStart() {
 
 // Stop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {
+	if mp.verifier != nil {
+		mp.verifier.GracefulStop()
+	}
 	mp.dumpTxsToFile()
 }
 
@@ -128,10 +127,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
-		errs := mp.puts(msg.Txs...)
-		context.Respond(&message.MemPoolPutRsp{
-			Err: errs,
-		})
+		mp.verifier.Request(msg.Tx, context.Sender())
 	case *message.MemPoolGet:
 		txs, err := mp.get()
 		context.Respond(&message.MemPoolGetRsp{
@@ -190,13 +186,13 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if _, found := mp.cache[id]; found {
 		return message.ErrTxAlreadyInMempool
 	}
-
-	err := mp.verifyTx(tx)
-	if err != nil {
-		return err
-	}
-
-	err = mp.validateTx(tx)
+	/*
+		err := mp.verifyTx(tx)
+		if err != nil {
+			return err
+		}
+	*/
+	err := mp.validateTx(tx)
 	if err != nil {
 		return err
 	}
@@ -373,7 +369,13 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		//mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err
 	}
+	/*
+		if state.Balance == 0 {
+			strAcc := types.EncodeAddress(acc)
+			mp.Info().Str("address", strAcc).Msg("w t f")
 
+		}
+	*/
 	return state, nil
 }
 

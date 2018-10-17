@@ -70,8 +70,9 @@ type BlockchainConfig struct {
 
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics  bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
-	DumpFilePath string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
+	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
 
 // ConsensusConfig defines configurations for consensus service
@@ -136,6 +137,7 @@ coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
+verifiers= {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
 
 [consensus]

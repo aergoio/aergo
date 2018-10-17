@@ -39,12 +39,12 @@ const MemPoolSvc = "MemPoolSvc"
 
 // MemPoolPut is interface of MemPool service for inserting transactions
 type MemPoolPut struct {
-	Txs []*types.Tx
+	Tx *types.Tx
 }
 
 // MemPoolPutRsp defines struct of result for MemPoolPut
 type MemPoolPutRsp struct {
-	Err []error
+	Err error
 }
 
 // MemPoolGet is interface of MemPool service for retrieving transactions

@@ -55,7 +55,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	txInfos := make([]*types.Tx, 0, len(data.Hashes))
 	for _, hash := range data.Hashes {
 		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequest(message.MemPoolSvc,
-			&message.MemPoolExist{Hash:hash}))
+			&message.MemPoolExist{Hash: hash}))
 		if err != nil {
 			// response error to peer
 			status = types.ResultStatus_INTERNAL
@@ -97,13 +97,16 @@ func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
 		th.logger.Debug().Int("tx_cnt", len(data.Txs)).Msg("Request mempool to add txs")
-		th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
+		//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
+		for _, tx := range data.Txs {
+			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
+		}
 	}
 }
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
 func newNewTxNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewTxNotice, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewTxNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
