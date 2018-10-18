@@ -33,9 +33,9 @@ func (s *Status) load() {
 		return
 	}
 
-	s.bestBlock = bootState.bestBlock()
+	s.bestBlock = libLoader.bestBlock()
 
-	genesisBlock := bootState.genesisBlock()
+	genesisBlock := libLoader.genesisBlock()
 	s.pls.genesisInfo = &blockInfo{
 		BlockHash: genesisBlock.ID(),
 		BlockNo:   genesisBlock.BlockNo(),
@@ -43,14 +43,14 @@ func (s *Status) load() {
 
 	//s.pls.addConfirmInfo(s.bestBlock)
 
-	s.lib = bootState.lib
+	s.lib = libLoader.lib
 
-	if len(bootState.plib) != 0 {
-		s.pls.plib = bootState.plib
+	if len(libLoader.plib) != 0 {
+		s.pls.plib = libLoader.plib
 	}
 
-	if bootState.confirms != nil {
-		s.pls.confirms = bootState.confirms
+	if libLoader.confirms != nil {
+		s.pls.confirms = libLoader.confirms
 		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
 	}
 	s.done = true
@@ -106,24 +106,12 @@ func (s *Status) updateLIB(lib *blockInfo) {
 
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
-	if len(s.pls.plib) != 0 {
-		buf, err := encode(s.pls.plib)
-		if err != nil {
-			return err
-		}
-		plib := buf.Bytes()
-
-		tx.Set(statusKeyPreLIB, plib)
+	if err := s.pls.save(tx); err != nil {
+		return err
 	}
 
-	if s.lib != nil {
-		buf, err := encode(s.lib)
-		if err != nil {
-			return err
-		}
-		lib := buf.Bytes()
-
-		tx.Set(statusKeyLIB, lib)
+	if err := s.lib.save(tx); err != nil {
+		return err
 	}
 
 	return nil
@@ -173,7 +161,7 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
-	bootState = &bootingStatus{
+	libLoader = &bootLoader{
 		plib:     make(preLIB),
 		lib:      &blockInfo{},
 		best:     best,
@@ -182,6 +170,6 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 		getBlock: getBlock,
 	}
 
-	bootState.load()
-	bootState.loadConfirms()
+	libLoader.load()
+	libLoader.loadConfirms()
 }

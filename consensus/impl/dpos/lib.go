@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -13,7 +14,7 @@ import (
 var (
 	statusKeyLIB    = []byte("dposStatus.LIB")
 	statusKeyPreLIB = []byte("dposStatus.PreLIB")
-	bootState       *bootingStatus
+	libLoader       *bootLoader
 )
 
 type errLibUpdate struct {
@@ -131,8 +132,16 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) erro
 		Uint64("target no", targetBlockNo).Int("confirms len", pls.confirms.Len()).
 		Msg("start LIB status rollback")
 
+	pls.load(lib, block)
+
+	return nil
+}
+
+func (pls *pLibStatus) load(lib *blockInfo, block *types.Block) {
 	// Remove all the previous confirmation info.
-	pls.confirms.Init()
+	if pls.confirms.Len() > 0 {
+		pls.confirms.Init()
+	}
 
 	// Rebuild confirms info from LIB + 1 and block.
 	if confirms := loadConfirms(lib, block); confirms != nil {
@@ -143,29 +152,19 @@ func (pls *pLibStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) erro
 		// map entries may be rollback to the previous one.
 		pls.rollbackPreLIBs()
 	}
-
-	return nil
 }
 
-func (pls *pLibStatus) getDecCounts() map[uint64]uint16 {
-	decCounts := make(map[uint64]uint16)
+func (pls *pLibStatus) save(tx db.Transaction) error {
+	if len(pls.plib) != 0 {
+		buf, err := encode(pls.plib)
+		if err != nil {
+			return err
+		}
+		plib := buf.Bytes()
 
-	forEach(pls.confirms,
-		func(e *list.Element) {
-			c := cInfo(e)
-			c.confirmsLeft = pls.confirmsRequired - 1
-
-			for i := c.min(); i < c.BlockNo; i++ {
-				if dec, exist := decCounts[i]; exist {
-					decCounts[i] = dec + 1
-				} else {
-					decCounts[i] = 1
-				}
-			}
-		},
-	)
-
-	return decCounts
+		tx.Set(statusKeyPreLIB, plib)
+	}
+	return nil
 }
 
 func (pls *pLibStatus) rollbackPreLIBs() {
@@ -276,10 +275,6 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	}
 }
 
-func (c confirmInfo) min() uint64 {
-	return c.BlockNo - c.ConfirmRange + 1
-}
-
 type blockInfo struct {
 	BlockHash    string
 	BlockNo      uint64
@@ -294,19 +289,31 @@ func newBlockInfo(block *types.Block) *blockInfo {
 	}
 }
 
-type bootingStatus struct {
+func (bi *blockInfo) save(tx db.Transaction) error {
+	if bi != nil {
+		buf, err := encode(bi)
+		if err != nil {
+			return err
+		}
+		bi := buf.Bytes()
+
+		tx.Set(statusKeyLIB, bi)
+	}
+	return nil
+}
+
+type bootLoader struct {
 	plib     preLIB
 	lib      *blockInfo
 	best     *types.Block
 	genesis  *types.Block
 	confirms *list.List
-	undo     *list.List
 
 	get      func([]byte) []byte
 	getBlock func(types.BlockNo) (*types.Block, error)
 }
 
-func (bs *bootingStatus) load() {
+func (bs *bootLoader) load() {
 	if err := bs.loadLIB(bs.lib); err != nil {
 		logger.Debug().Uint64("block no", bs.lib.BlockNo).
 			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
@@ -322,15 +329,15 @@ func (bs *bootingStatus) load() {
 	}
 }
 
-func (bs *bootingStatus) loadLIB(bi *blockInfo) error {
+func (bs *bootLoader) loadLIB(bi *blockInfo) error {
 	return bs.decodeStatus(statusKeyLIB, bi)
 }
 
-func (bs *bootingStatus) loadPLIB(plib *preLIB) error {
+func (bs *bootLoader) loadPLIB(plib *preLIB) error {
 	return bs.decodeStatus(statusKeyPreLIB, plib)
 }
 
-func (bs *bootingStatus) decodeStatus(key []byte, dst interface{}) error {
+func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 	value := bs.get(key)
 	if len(value) == 0 {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
@@ -345,7 +352,7 @@ func (bs *bootingStatus) decodeStatus(key []byte, dst interface{}) error {
 	return nil
 }
 
-func (bs *bootingStatus) loadConfirms() {
+func (bs *bootLoader) loadConfirms() {
 	if confirms := loadConfirms(bs.lib, bs.best); confirms != nil {
 		bs.confirms = confirms
 	}
@@ -365,11 +372,11 @@ func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
 	}
 
 	pls := newPlibStatus(bpConsensusCount)
-	pls.genesisInfo = newBlockInfo(bootState.genesis)
+	pls.genesisInfo = newBlockInfo(libLoader.genesis)
 
 	beg := lib.BlockNo + 1
 	for i := beg; i <= end; i++ {
-		block, err := bootState.getBlock(i)
+		block, err := libLoader.getBlock(i)
 		if err != nil {
 			panic(err)
 		}
@@ -384,11 +391,11 @@ func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
 	return nil
 }
 
-func (bs *bootingStatus) bestBlock() *types.Block {
+func (bs *bootLoader) bestBlock() *types.Block {
 	return bs.best
 }
 
-func (bs *bootingStatus) genesisBlock() *types.Block {
+func (bs *bootLoader) genesisBlock() *types.Block {
 	return bs.genesis
 }
 
