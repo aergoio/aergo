@@ -86,3 +86,66 @@ func TestVoteData(t *testing.T) {
 		assert.Equal(t, []byte(to), candidates, "invalid candidates")
 	}
 }
+
+func TestBasicStakingVotingUnstaking(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+
+	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	assert.NoError(t, err, "could not open contract state")
+
+	account, err := types.DecodeAddress(testSender)
+	assert.NoError(t, err, "could not decode test address")
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account: account,
+			Amount:  5000,
+		},
+	}
+	senderState := &types.State{Balance: 10000}
+	tx.Body.Payload = buildStakingPayload(true)
+	err = staking(tx.Body, senderState, scs, 0)
+	assert.Equal(t, err, nil, "staking failed")
+	assert.Equal(t, senderState.GetBalance(), uint64(5000), "sender balance should be reduced after staking")
+
+	tx.Body.Payload = buildVotingPayload(1)
+	err = voting(tx.Body, scs, votingDelay-1)
+	assert.EqualError(t, err, ErrLessTimeHasPassed.Error(), "voting failed")
+
+	err = voting(tx.Body, scs, votingDelay)
+	assert.NoError(t, err, "voting failed")
+
+	result, err := getVoteResult(scs, 1)
+	assert.NoError(t, err, "voting failed")
+	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
+	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
+	assert.EqualValues(t, 5000, result.GetVotes()[0].Amount, "invalid amount in voting result")
+
+	tx.Body.Payload = buildStakingPayload(false)
+	err = unstaking(tx.Body, senderState, scs, votingDelay)
+	assert.EqualError(t, err, ErrLessTimeHasPassed.Error(), "unstaking failed")
+
+	err = unstaking(tx.Body, senderState, scs, votingDelay+stakingDelay)
+	assert.NoError(t, err, "unstaking failed")
+}
+
+func buildVotingPayload(count int) []byte {
+	payload := make([]byte, 1+peerIDLength*count)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	payload[0] = 'v'
+	return payload
+}
+
+func buildStakingPayload(isStaking bool) []byte {
+	payload := make([]byte, 1)
+	if isStaking {
+		payload[0] = 's'
+	} else {
+		payload[0] = 'u'
+	}
+	return payload
+}

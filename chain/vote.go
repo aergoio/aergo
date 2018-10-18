@@ -29,7 +29,7 @@ var ErrLessTimeHasPassed = errors.New("less time has passed")
 var ErrTooSmallAmount = errors.New("too small amount to influence")
 
 const peerIDLength = 39
-const votingDelay = 10
+const votingDelay = 5
 
 func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockNo) error {
 	old, when, candidates, err := getVote(scs, txBody.Account)
@@ -40,15 +40,23 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
 		return ErrLessTimeHasPassed
 	}
+	staked, when, err := getStaking(scs, txBody.Account)
+	if err != nil {
+		return err
+	}
+	if when+votingDelay > blockNo {
+		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
+		return ErrLessTimeHasPassed
+	}
+	err = setStaking(scs, txBody.Account, staked, blockNo)
+	if err != nil {
+		return err
+	}
+
 	voteResult, err := loadVoteResult(scs)
 	for offset := 0; offset < len(candidates); offset += peerIDLength {
 		key := candidates[offset : offset+peerIDLength]
 		(*voteResult)[base58.Encode(key)] -= old
-	}
-
-	staked, _, err := getStaking(scs, txBody.Account)
-	if err != nil {
-		return err
 	}
 
 	if txBody.Payload[0] != 'v' { //called from unstaking

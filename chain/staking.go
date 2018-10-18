@@ -10,7 +10,7 @@ import (
 
 var stakingkey = []byte("staking")
 
-const stakingDelay = 5
+const stakingDelay = 10
 
 var ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
 
