@@ -206,6 +206,24 @@ func (pls *pLibStatus) gc(lib *blockInfo) {
 		func(e *list.Element) bool {
 			return cInfo(e).BlockNo <= lib.BlockNo
 		})
+
+	for bpID, pl := range pls.plib {
+		var beg int
+		for i, l := range pl {
+			if l.BlockNo > lib.BlockNo {
+				beg = i
+				break
+			}
+		}
+		oldLen := len(pl)
+		newPl := pl[beg:]
+		pls.plib[bpID] = newPl
+
+		logger.Debug().
+			Str("BPID", bpID).Int("old len", oldLen).Int("new len", len(newPl)).
+			Msg("collect garbage pre-LIB entry")
+
+	}
 }
 
 func removeIf(l *list.List, p func(e *list.Element) bool) {
