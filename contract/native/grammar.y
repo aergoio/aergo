@@ -11,7 +11,7 @@
 #include "error.h"
 #include "parse.h"
 
-#define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
+#define YYLLOC_DEFAULT(Current, Rhs, N)                                                  \
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
 #define AST             (*parse->ast)
@@ -209,12 +209,17 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     bit_xor_exp
 %type <exp>     bit_and_exp
 %type <exp>     eq_exp
+%type <op>      eq_op
 %type <exp>     cmp_exp
 %type <op>      cmp_op
 %type <exp>     shift_exp
+%type <op>      shift_op
 %type <exp>     add_exp
+%type <op>      add_op
 %type <exp>     mul_exp
+%type <op>      mul_op
 %type <exp>     unary_exp
+%type <op>      unary_op
 %type <exp>     post_exp
 %type <exp>     prim_exp
 %type <exp>     new_exp
@@ -999,14 +1004,15 @@ bit_and_exp:
 
 eq_exp:
     cmp_exp
-|   eq_exp CMP_EQ cmp_exp
+|   eq_exp eq_op cmp_exp
     {
-        $$ = exp_new_op(OP_EQ, $1, $3, &@2);
+        $$ = exp_new_op($2, $1, $3, &@2);
     }
-|   eq_exp CMP_NE cmp_exp
-    {
-        $$ = exp_new_op(OP_NE, $1, $3, &@2);
-    }
+;
+
+eq_op:
+    CMP_EQ          { $$ = OP_EQ; }
+|   CMP_NE          { $$ = OP_NE; }
 ;
 
 cmp_exp:
@@ -1026,66 +1032,61 @@ cmp_op:
 
 shift_exp:
     add_exp
-|   shift_exp SHIFT_R add_exp
+|   shift_exp shift_op add_exp
     {
-        $$ = exp_new_op(OP_RSHIFT, $1, $3, &@2);
+        $$ = exp_new_op($2, $1, $3, &@2);
     }
-|   shift_exp SHIFT_L add_exp
-    {
-        $$ = exp_new_op(OP_LSHIFT, $1, $3, &@2);
-    }
+;
+
+shift_op:
+    SHIFT_R         { $$ = OP_RSHIFT; }
+|   SHIFT_L         { $$ = OP_LSHIFT; }
 ;
 
 add_exp:
     mul_exp
-|   add_exp '+' mul_exp
+|   add_exp add_op mul_exp
     {
-        $$ = exp_new_op(OP_ADD, $1, $3, &@2);
+        $$ = exp_new_op($2, $1, $3, &@2);
     }
-|   add_exp '-' mul_exp
-    {
-        $$ = exp_new_op(OP_SUB, $1, $3, &@2);
-    }
+;
+
+add_op:
+    '+'             { $$ = OP_ADD; }
+|   '-'             { $$ = OP_SUB; }
 ;
 
 mul_exp:
     unary_exp
-|   mul_exp '*' unary_exp
+|   mul_exp mul_op unary_exp
     {
-        $$ = exp_new_op(OP_MUL, $1, $3, &@2);
+        $$ = exp_new_op($2, $1, $3, &@2);
     }
-|   mul_exp '/' unary_exp
-    {
-        $$ = exp_new_op(OP_DIV, $1, $3, &@2);
-    }
-|   mul_exp '%' unary_exp
-    {
-        $$ = exp_new_op(OP_MOD, $1, $3, &@2);
-    }
+;
+
+mul_op:
+    '*'             { $$ = OP_MUL; }
+|   '/'             { $$ = OP_DIV; }
+|   '%'             { $$ = OP_MOD; }
 ;
 
 unary_exp:
     post_exp
-|   UNARY_INC unary_exp
+|   unary_op unary_exp
     {
-        $$ = exp_new_op(OP_INC, $2, NULL, &@$);
-    }
-|   UNARY_DEC unary_exp
-    {
-        $$ = exp_new_op(OP_DEC, $2, NULL, &@$);
+        $$ = exp_new_op($1, $2, NULL, &@$);
     }
 |   '+' unary_exp
     {
         $$ = $2;
     }
-|   '-' unary_exp
-    {
-        $$ = exp_new_op(OP_NEG, $2, NULL, &@$);
-    }
-|   '!' unary_exp
-    {
-        $$ = exp_new_op(OP_NOT, $2, NULL, &@$);
-    }
+;
+
+unary_op:
+    UNARY_INC       { $$ = OP_INC; }
+|   UNARY_DEC       { $$ = OP_DEC; }
+|   '-'             { $$ = OP_NEG; }
+|   '!'             { $$ = OP_NOT; }
 ;
 
 post_exp:
