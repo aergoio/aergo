@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
@@ -25,42 +26,22 @@ func executeCommandC(root *cobra.Command, args ...string) (c *cobra.Command, out
 	return c, buf.String(), err
 }
 
-func TestNewAccount(t *testing.T) {
-	const testDir = "test"
-	output, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
-	re := regexp.MustCompile(`\r?\n`)
-	output = re.ReplaceAllString(output, "")
-
-	addr, err := types.DecodeAddress(output)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(addr) != types.AddressLength {
-		t.Errorf("Unexpected output: %v", output)
-	}
-	os.RemoveAll(testDir)
-}
-
 func TestAccountWithPath(t *testing.T) {
 	const testDir = "test"
 	outputNew, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
 	re := regexp.MustCompile(`\r?\n`)
 	outputNew = re.ReplaceAllString(outputNew, "")
 
 	addr, err := types.DecodeAddress(outputNew)
-	if len(addr) != types.AddressLength {
-		t.Errorf("Unexpected output: %v", outputNew)
-	}
+	assert.NoError(t, err, "should be success")
+	assert.Equalf(t, types.AddressLength, len(addr), "wrong address length value = %s", outputNew)
+
 	outputList, err := executeCommand(rootCmd, "account", "list", "--path", testDir)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
+
 	outputList = re.ReplaceAllString(outputList, "")
-	if len(outputList) != len(outputNew)+2 {
-		t.Errorf("Unexpected output: %v", outputList)
-	}
+	assert.Equalf(t, len(outputNew)+2, len(outputList), "wrong address list length value = %s", outputList)
+
 	os.RemoveAll(testDir)
 }

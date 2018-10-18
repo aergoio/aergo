@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/mr-tron/base58/base58"
 
@@ -18,57 +20,39 @@ func TestSignWithKey(t *testing.T) {
 	const testAddr = "AmNBjtxomk1uaFrwj8rEKVxYEJ1nzy73dsGrNZzkqs88q8Mkv8GN"
 	const signLength = 70
 	output, err := executeCommand(rootCmd, "signtx", "--key", "12345678", "--jsontx", "{}")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
+
 	outputline := strings.Split(output, "\n")
 
 	addr, err := types.DecodeAddress(outputline[0])
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(addr) != types.AddressLength {
-		t.Errorf("Unexpected output: %v", output)
-	}
+	assert.NoError(t, err, "should be success")
+	assert.Equalf(t, types.AddressLength, len(addr), "wrong address length value = %s", output)
+
 	ouputjson := strings.Join(outputline[1:], "")
 	var tx util.InOutTx
 	err = json.Unmarshal([]byte(ouputjson), &tx)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
+
 	sign, err := base58.Decode(tx.Body.Sign)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(sign) != signLength {
-		t.Errorf("invalid sign length: %s", tx.Body.Sign)
-	}
+	assert.NoError(t, err, "should be success")
+	assert.Equalf(t, len(sign), signLength, "wrong sign length value = %s", tx.Body.Sign)
 }
 
 func TestSignWithPath(t *testing.T) {
 	const testDir = "signwithpathtest"
 
 	addr, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
+
 	re := regexp.MustCompile(`\r?\n`)
 	addr = re.ReplaceAllString(addr, "")
 
 	rawaddr, err := types.DecodeAddress(addr)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if len(rawaddr) != types.AddressLength {
-		t.Errorf("Unexpected output: %v", addr)
-	}
+	assert.NoError(t, err, "should be success")
+	assert.Equalf(t, types.AddressLength, len(rawaddr), "wrong address length from %s", addr)
 
 	_, err = executeCommand(rootCmd, "signtx", "--path", testDir, "--jsontx", "{}", "--password", "1", "--address", addr)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	assert.NoError(t, err, "should be success")
+
 	os.RemoveAll(testDir)
 }
