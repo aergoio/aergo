@@ -73,7 +73,7 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint
 		return nil, false, nil, nil, err
 	}
 	if isShortcut || height == 0 {
-		if bytes.Equal(lnode, key) {
+		if bytes.Equal(lnode[:HashLength], key) {
 			// return the key-value so a call to trie.Get() is not needed.
 			return nil, true, lnode[:HashLength], rnode[:HashLength], nil
 		}
