@@ -32,8 +32,11 @@ type GetMissing struct {
 	StopHash []byte
 }
 type GetMissingRsp struct {
-	Hashes   []BlockHash
-	Blocknos []types.BlockNo
+	TopMatched BlockHash
+	TopNumber types.BlockNo
+	StopNumber types.BlockNo
+	//Hashes   []BlockHash
+	//Blocknos []types.BlockNo
 }
 
 type GetBlockByNo struct {

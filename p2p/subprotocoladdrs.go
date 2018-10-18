@@ -96,7 +96,7 @@ func (ph *addressesResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, len(data.GetPeers()))
+	debugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.GetPeers()))
 
 	remotePeer.consumeRequest(msg.ID())
 	if len(data.GetPeers()) > 0 {

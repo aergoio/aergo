@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 
 	sha256 "github.com/minio/sha256-simd"
@@ -616,7 +617,10 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 	return cs.op.addOrphan(block)
 }
 
-func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]message.BlockHash, []types.BlockNo) {
+// TODO adhoc flag refactor it
+const HashNumberUnknown = math.MaxUint64
+//
+func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
 	logger.Debug().Str("hash", enc.ToString(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
 	var stopBlock *types.Block
@@ -627,7 +631,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 		stopBlock, err = cs.cdb.getBlock(stopHash)
 	}
 	if err != nil {
-		return nil, nil
+		return nil, HashNumberUnknown, HashNumberUnknown
 	}
 
 	var mainhash []byte
@@ -655,26 +659,10 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) ([]messa
 	// TODO: handle the case that can't find the hash in main chain
 	if mainblock == nil {
 		logger.Debug().Msg("Can't search same ancestor")
-		return nil, nil
+		return nil, HashNumberUnknown, HashNumberUnknown
 	}
 
-	// 3. collect missing parts and reply them
-	mainBlockNo := mainblock.GetHeader().GetBlockNo()
-	var loop = stopBlock.GetHeader().GetBlockNo() - mainBlockNo
-	logger.Debug().Uint64("mainBlockNo", mainBlockNo).Str("mainHash", enc.ToString(mainhash)).
-		Uint64("stopBlockNo", stopBlock.GetHeader().GetBlockNo()).Str("stopHash", enc.ToString(stopBlock.Hash)).
-		Msg("Get hashes of missing part")
-	rhashes := make([]message.BlockHash, 0, loop)
-	rnos := make([]types.BlockNo, 0, loop)
-	for i := uint64(0); i < loop; i++ {
-		tBlock, _ := cs.getBlockByNo(types.BlockNo(mainBlockNo + i))
-		rhashes = append(rhashes, message.BlockHash(tBlock.Hash))
-		rnos = append(rnos, types.BlockNo(tBlock.GetHeader().GetBlockNo()))
-		logger.Debug().Uint64("blockNo", tBlock.GetHeader().GetBlockNo()).Str("hash", enc.ToString(tBlock.Hash)).
-			Msg("append block for replying missing tree")
-	}
-
-	return rhashes, rnos
+	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, bestHeight uint64, bestHash []byte) {

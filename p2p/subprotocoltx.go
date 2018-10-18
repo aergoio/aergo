@@ -119,7 +119,7 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(data.Txs))
+	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {

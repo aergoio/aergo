@@ -18,7 +18,9 @@ const (
 
 	MaxPayloadLength = 1 << 23  // 8MB
 
-	MaxBlockHeaderFetchSize = 10000
+	MaxBlockHeaderResponseCount = 10000
+	MaxBlockResponseCount       = 2000
+	MaxResponseSplitCount = 5
 )
 
 

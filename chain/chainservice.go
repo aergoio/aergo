@@ -300,10 +300,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.GetMissing:
 		stopHash := msg.StopHash
 		hashes := msg.Hashes
-		mhashes, mnos := cs.handleMissing(stopHash, hashes)
+		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
 		context.Respond(message.GetMissingRsp{
-			Hashes:   mhashes,
-			Blocknos: mnos,
+			TopMatched:   topHash,
+			TopNumber: topNo,
+			StopNumber: stopNo,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
