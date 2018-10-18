@@ -82,13 +82,13 @@ func verifyTx(tx *types.Tx) error {
 		return nil
 	}
 
+	if tx.GetBody().Type == types.TxType_COINBASE {
+		return verifyHash()
+	}
+
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return ErrTxFormatInvalid
-	}
-
-	if tx.GetBody().Type == types.TxType_COINBASE {
-		return verifyHash()
 	}
 
 	err := key.VerifyTx(tx)

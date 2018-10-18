@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/aergoio/aergo/contract"
 )
 
 var logger = log.NewLogger("consensus")
@@ -133,11 +133,6 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	if err := contract.SaveRecoveryPoint(bState); err != nil {
 		return nil, err
-	}
-	if bState != nil {
-		if err := bState.Update(); err != nil {
-			return nil, err
-		}
 	}
 
 	return txRes, nil

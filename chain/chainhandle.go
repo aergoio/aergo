@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	ErrNoCoinbaseTx = errors.New("first tx of block is not coinbase tx")
+	ErrNoCoinbaseTx         = errors.New("first tx of block is not coinbase tx")
 	ErrTxInvalidNonce       = errors.New("invalid nonce")
 	ErrTxInsuffienctBalance = errors.New("insufficient balance")
 	ErrTxInvalidType        = errors.New("Invalid type")
@@ -402,22 +402,24 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
-		coinbaseTx := e.txs[0]
-		if coinbaseTx.Body.Type != types.TxType_COINBASE {
-			return ErrNoCoinbaseTx
-		}
+		if len(e.txs) > 0 {
+			coinbaseTx := e.txs[0]
+			if coinbaseTx.Body.Type != types.TxType_COINBASE {
+				return ErrNoCoinbaseTx
+			}
 
-		txs := e.txs[1:]
-		for _, tx := range txs {
-			if err := e.execTx(e.BlockState, tx); err != nil {
-				//FIXME maybe system error. restart or panic
-				// all txs have executed successfully in BP node
+			txs := e.txs[1:]
+			for _, tx := range txs {
+				if err := e.execTx(e.BlockState, tx); err != nil {
+					//FIXME maybe system error. restart or panic
+					// all txs have executed successfully in BP node
+					return err
+				}
+			}
+
+			if err := e.execTx(e.BlockState, coinbaseTx); err != nil {
 				return err
 			}
-		}
-
-		if err := e.execTx(e.BlockState, coinbaseTx); err != nil {
-			return err
 		}
 
 		if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
@@ -434,7 +436,12 @@ func (e *blockExecutor) execute() error {
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 
-	return e.commit()
+	if err := e.commit(); err != nil {
+		return err
+	}
+
+	logger.Debug().Msg("executed block")
+	return nil
 }
 
 func (e *blockExecutor) commit() error {
@@ -475,7 +482,6 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	return nil
 }
-
 
 func validateTx(tx *types.Tx, senderState *types.State, receiverState *types.State, txFee uint64,
 	bs *state.BlockState) error {
