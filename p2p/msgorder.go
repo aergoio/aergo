@@ -14,10 +14,7 @@ type msgOrder interface {
 	// Timestamp is unit time value
 	Timestamp() int64
 	IsRequest() bool
-	IsGossip() bool
 	IsNeedSign() bool
-	// ResponseExpected means that remote peer is expected to send response to this request.
-	ResponseExpected() bool
 	GetProtocolID() SubProtocol
 
 	// send message to remote peer

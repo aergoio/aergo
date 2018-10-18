@@ -19,7 +19,7 @@ type v030MOFactory struct {
 func (mf *v030MOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, expecteResponse, false, protocolID, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
 		return rmo
 	}
 	return nil
@@ -28,7 +28,7 @@ func (mf *v030MOFactory) newMsgRequestOrder(expecteResponse bool, protocolID Sub
 func (mf *v030MOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
 	rmo := &pbResponseOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.FromBytesOrNil(reqID[:]), false, false, protocolID, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.FromBytesOrNil(reqID[:]), protocolID, message) {
 		return rmo
 	}
 	return nil
@@ -37,7 +37,7 @@ func (mf *v030MOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol
 func (mf *v030MOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder {
 	rmo := &pbBlkNoticeOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, false, true, NewBlockNotice, noticeMsg) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, NewBlockNotice, noticeMsg) {
 		rmo.blkHash = noticeMsg.BlockHash
 		return rmo
 	}
@@ -47,7 +47,7 @@ func (mf *v030MOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice
 func (mf *v030MOFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder {
 	rmo := &pbTxNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, false, true, NewTxNotice, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, NewTxNotice, message) {
 		rmo.txHashes = message.TxHashes
 		return rmo
 	}
@@ -58,7 +58,7 @@ func (mf *v030MOFactory) newHandshakeMessage(protocolID SubProtocol, message pbM
 	// TODO define handshake specific datatype
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, false, false, protocolID, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
 		return rmo.message
 	}
 	return nil
@@ -66,7 +66,7 @@ func (mf *v030MOFactory) newHandshakeMessage(protocolID SubProtocol, message pbM
 
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage) bool {
+func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID SubProtocol, message pbMessage) bool {
 	bytes, err := marshalMessage(message)
 	if err != nil {
 		return false
@@ -78,8 +78,6 @@ func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, expecteResponse
 
 	msg := &V030Message{id: id, originalID:originalid,timestamp:time.Now().Unix(), subProtocol:protocolID,payload:bytes,length:uint32(len(bytes))}
 	mo.protocolID = protocolID
-	mo.expecteResponse = expecteResponse
-	mo.gossip = gossip
 	mo.needSign = true
 	mo.message = msg
 

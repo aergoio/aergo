@@ -26,8 +26,6 @@ type pbMessage interface {
 type pbMessageOrder struct {
 	// reqID means that this message is response of the request of ID. Set empty if the messge is request.
 	request         bool
-	expecteResponse bool
-	gossip          bool
 	needSign        bool
 	protocolID      SubProtocol // protocolName and msg struct type MUST be matched.
 
@@ -40,9 +38,9 @@ var _ msgOrder = (*pbBlkNoticeOrder)(nil)
 var _ msgOrder = (*pbTxNoticeOrder)(nil)
 
 
-func setupMessageData(md *types.MsgHeader, reqID string, gossip bool, version string, ts int64) {
+func setupMessageData(md *types.MsgHeader, reqID string, version string, ts int64) {
 	md.Id = reqID
-	md.Gossip = gossip
+	md.Gossip = false
 	md.ClientVersion = version
 	md.Timestamp = ts
 }
@@ -57,13 +55,6 @@ func (pr *pbMessageOrder) Timestamp() int64 {
 
 func (pr *pbMessageOrder) IsRequest() bool {
 	return pr.request
-}
-func (pr *pbMessageOrder) ResponseExpected() bool {
-	return pr.expecteResponse
-}
-
-func (pr *pbMessageOrder) IsGossip() bool {
-	return pr.gossip
 }
 
 func (pr *pbMessageOrder) IsNeedSign() bool {
@@ -191,7 +182,7 @@ type pbMOFactory struct {
 func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", expecteResponse, false, protocolID, message, mf.signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", protocolID, message, mf.signer) {
 		return rmo
 	}
 	return nil
@@ -200,7 +191,7 @@ func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubPr
 func (mf *pbMOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
 	rmo := &pbResponseOrder{}
 	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, reqID.String(), false, false, protocolID, message, mf.signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, reqID.String(), protocolID, message, mf.signer) {
 		return rmo
 	}
 	return nil
@@ -209,7 +200,7 @@ func (mf *pbMOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, 
 func (mf *pbMOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder {
 	rmo := &pbBlkNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", false, true, NewBlockNotice, noticeMsg, mf.signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", NewBlockNotice, noticeMsg, mf.signer) {
 		rmo.blkHash = noticeMsg.BlockHash
 		return rmo
 	}
@@ -219,7 +210,7 @@ func (mf *pbMOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) 
 func (mf *pbMOFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder {
 	rmo := &pbTxNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", false, true, NewTxNotice, message, mf.signer) {
+	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", NewTxNotice, message, mf.signer) {
 		rmo.txHashes = message.TxHashes
 		return rmo
 	}
@@ -230,7 +221,7 @@ func (mf *pbMOFactory) newHandshakeMessage(protocolID SubProtocol, message pbMes
 	// TODO define handshake specific datatype
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, false, false, protocolID, message) {
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
 		return rmo.message
 	}
 	return nil
@@ -238,7 +229,7 @@ func (mf *pbMOFactory) newHandshakeMessage(protocolID SubProtocol, message pbMes
 
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, expecteResponse bool, gossip bool, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
+func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
 	bytes, err := marshalMessage(message)
 	if err != nil {
 		return false
@@ -247,14 +238,10 @@ func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, expecteRespon
 	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
 	p2pmsg.Data = bytes
 	request := false
-	setupMessageData(p2pmsg.Header, reqID, gossip, ClientVersion, time.Now().Unix())
+	setupMessageData(p2pmsg.Header, reqID, ClientVersion, time.Now().Unix())
 	p2pmsg.Header.Length = uint32(len(bytes))
 	p2pmsg.Header.Subprotocol = protocolID.Uint32()
 	// pubKey and peerID will be set soon before signing process
-	// expecteResponse is only applied when message is request and not a gossip.
-	if request == false || gossip {
-		expecteResponse = false
-	}
 	err = signer.signMsg(p2pmsg)
 	if err != nil {
 		panic("Failed to sign data " + err.Error())
@@ -263,8 +250,6 @@ func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, expecteRespon
 
 	mo.request = request
 	mo.protocolID = protocolID
-	mo.expecteResponse = expecteResponse
-	mo.gossip = gossip
 	mo.needSign = true
 	mo.message = NewV020Wrapper(p2pmsg, orgID)
 
