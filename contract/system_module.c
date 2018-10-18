@@ -23,7 +23,7 @@ static int setItem(lua_State *L)
 	}
 
 	if (exec->isQuery) {
-	    luaL_error(L, "not permitted set in query");
+	    luaL_error(L, "set not permitted in query");
 	}
 
 	luaL_checkany(L, 2);

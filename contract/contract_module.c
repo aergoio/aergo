@@ -85,7 +85,7 @@ static int moduleCall(lua_State *L)
     else
         gas = luaL_checkinteger(L, -1);
     if (amount > 0 && exec->isQuery)
-        luaL_error(L, "not permitted set in query");
+        luaL_error(L, "set not permitted in query");
 
     lua_pop(L, 2);
     contract = (char *)luaL_checkstring(L, 2);
@@ -161,7 +161,7 @@ static int moduleSend(lua_State *L)
         luaL_error(L, "cannot find execution context");
     }
     if (exec->isQuery)
-        luaL_error(L, "not permitted set in query");
+        luaL_error(L, "set not permitted in query");
 
     contract = (char *)luaL_checkstring(L, 1);
     amount = luaL_checkinteger(L, 2);

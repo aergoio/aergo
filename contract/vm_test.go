@@ -168,7 +168,7 @@ func TestContractQuery(t *testing.T) {
 		t.Error(query.Balance)
 	}
 
-	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "not permitted set in query", "")
+	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
 	if err != nil {
 		t.Error(err)
 	}
