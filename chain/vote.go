@@ -7,7 +7,6 @@ package chain
 
 import (
 	"encoding/binary"
-	"errors"
 	"sort"
 
 	"github.com/aergoio/aergo/state"
@@ -19,15 +18,6 @@ var votingkey = []byte("voting")
 var totalkey = []byte("totalvote")
 var sortedlistkey = []byte("sortedlist")
 
-//ErrStakeBeforeVote
-var ErrMustStakeBeforeVote = errors.New("must stake before vote")
-
-//ErrLessTimeHasPassed
-var ErrLessTimeHasPassed = errors.New("less time has passed")
-
-//ErrTooSmallAmount
-var ErrTooSmallAmount = errors.New("too small amount to influence")
-
 const peerIDLength = 39
 const votingDelay = 5
 
@@ -38,7 +28,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 	}
 	if when+votingDelay > blockNo {
 		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
-		return ErrLessTimeHasPassed
+		return types.ErrLessTimeHasPassed
 	}
 	staked, when, err := getStaking(scs, txBody.Account)
 	if err != nil {
@@ -46,7 +36,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 	}
 	if when+votingDelay > blockNo {
 		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
-		return ErrLessTimeHasPassed
+		return types.ErrLessTimeHasPassed
 	}
 	err = setStaking(scs, txBody.Account, staked, blockNo)
 	if err != nil {
@@ -70,7 +60,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		}
 	} else {
 		if staked == 0 {
-			return ErrMustStakeBeforeVote
+			return types.ErrMustStakeBeforeVote
 		}
 		err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
 		if err != nil {
@@ -209,7 +199,7 @@ func cleanupVoting(scs *state.ContractState, who []byte, amount uint64,
 		return err
 	}
 	if blockNo < when+votingDelay {
-		return ErrLessTimeHasPassed
+		return types.ErrLessTimeHasPassed
 	}
 	if !remainStaking {
 		err = setVote(scs, who, nil, 0, blockNo)

@@ -187,7 +187,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	mp.Lock()
 	defer mp.Unlock()
 	if _, found := mp.cache[id]; found {
-		return message.ErrTxAlreadyInMempool
+		return types.ErrTxAlreadyInMempool
 	}
 	/*
 		err := mp.verifyTx(tx)
@@ -291,14 +291,11 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 // signiture verification
 func (mp *MemPool) verifyTx(tx *types.Tx) error {
-	account := tx.GetBody().GetAccount()
-	if account == nil {
-		return message.ErrTxFormatInvalid
+	err := tx.Validate()
+	if err != nil {
+		return err
 	}
-	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
-		return message.ErrTxHasInvalidHash
-	}
-	err := key.VerifyTx(tx)
+	err = key.VerifyTx(tx)
 	if err != nil {
 		return err
 	}
@@ -315,12 +312,12 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		return err
 	}
 	if tx.GetBody().GetNonce() <= ns.Nonce {
-		return message.ErrTxNonceTooLow
+		return types.ErrTxNonceTooLow
 	}
 	if tx.GetBody().GetAmount()+mp.txFee > ns.Balance {
 		if !mp.cfg.EnableTestmode {
 			// Skip balance validation in test mode
-			return message.ErrInsufficientBalance
+			return types.ErrInsufficientBalance
 		}
 	}
 	return nil

@@ -6,32 +6,7 @@
 package message
 
 import (
-	"errors"
-
 	"github.com/aergoio/aergo/types"
-)
-
-var (
-	//ErrTxNotFound is returned by MemPool Service if transaction does not exists
-	ErrTxNotFound = errors.New("tx not found in mempool")
-
-	//ErrTxHasInvalidHash is returned by MemPool Service if transaction does have invalid hash
-	ErrTxHasInvalidHash = errors.New("tx has invalid hash")
-
-	//ErrTxAlreadyInMempool is returned by MemPool Service if transaction which already exists
-	ErrTxAlreadyInMempool = errors.New("tx already in mempool")
-
-	//ErrTxFormatInvalid is returned by MemPool Service if transaction does not exists
-	ErrTxFormatInvalid = errors.New("tx invalid format")
-
-	//ErrInsufficientBalance is returned by MemPool Service if account has not enough balance
-	ErrInsufficientBalance = errors.New("not enough balance")
-
-	//ErrTxNonceTooLow is returned by MemPool Service if transaction's nonce is already existed in block
-	ErrTxNonceTooLow = errors.New("nonce is too low")
-
-	//ErrTxNonceToohigh is for internal use only
-	ErrTxNonceToohigh = errors.New("nonce is too high")
 )
 
 // MemPoolSvc is exported name for MemPool service

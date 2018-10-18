@@ -112,7 +112,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildVotingPayload(1)
 	err = voting(tx.Body, scs, votingDelay-1)
-	assert.EqualError(t, err, ErrLessTimeHasPassed.Error(), "voting failed")
+	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "voting failed")
 
 	err = voting(tx.Body, scs, votingDelay)
 	assert.NoError(t, err, "voting failed")
@@ -125,7 +125,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildStakingPayload(false)
 	err = unstaking(tx.Body, senderState, scs, votingDelay)
-	assert.EqualError(t, err, ErrLessTimeHasPassed.Error(), "unstaking failed")
+	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
 	err = unstaking(tx.Body, senderState, scs, votingDelay+stakingDelay)
 	assert.NoError(t, err, "unstaking failed")

@@ -340,6 +340,28 @@ func (tx *Tx) CalculateTxHash() []byte {
 	return digest.Sum(nil)
 }
 
+func (tx *Tx) Validate() error {
+	account := tx.GetBody().GetAccount()
+	if account == nil {
+		return ErrTxFormatInvalid
+	}
+	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
+		return ErrTxHasInvalidHash
+	}
+	switch tx.Body.Type {
+	//case TxType_NORMAL:
+	//case TxType_COINBASE:
+	case TxType_GOVERNANCE:
+		if len(tx.Body.Payload) <= 0 {
+			return ErrTxFormatInvalid
+		}
+		if tx.Body.Amount < StakingMinimum {
+			return ErrTooSmallAmount
+		}
+	}
+	return nil
+}
+
 func (tx *Tx) Clone() *Tx {
 	if tx == nil {
 		return nil

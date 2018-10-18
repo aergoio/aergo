@@ -45,8 +45,8 @@ func sendStaking(cmd *cobra.Command, s bool) {
 	} else {
 		payload[0] = 'u'
 	}
-	if amount < types.Minimum {
-		cmd.Printf("Failed: minimum staking value is %d\n", types.Minimum)
+	if amount < types.StakingMinimum {
+		cmd.Printf("Failed: minimum staking value is %d\n", types.StakingMinimum)
 		return
 	}
 

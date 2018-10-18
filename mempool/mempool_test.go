@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -128,7 +127,7 @@ func TestInvalidTransaction(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
-	if err != message.ErrInsufficientBalance {
+	if err != types.ErrInsufficientBalance {
 		t.Errorf("check valid failed, err != ErrInsufficientBalance, but %s", err)
 	}
 
@@ -137,13 +136,13 @@ func TestInvalidTransaction(t *testing.T) {
 		t.Errorf("tx should be accepted, err:%s", err)
 	}
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != message.ErrTxAlreadyInMempool {
+	if err != types.ErrTxAlreadyInMempool {
 		t.Errorf("tx should be denied /w ErrTxAlreadyInMempool, err:%s", err)
 	}
 	txs := []*types.Tx{genTx(0, 1, 1, 1)}
 	simulateBlockGen(txs...)
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != message.ErrTxNonceTooLow {
+	if err != types.ErrTxNonceTooLow {
 		t.Errorf("tx should be denied /w ErrTxNonceTooLow, err:%s", err)
 	}
 }

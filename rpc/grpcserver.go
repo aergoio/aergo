@@ -497,7 +497,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	ret := &types.VerifyResult{Tx: rsp.Tx}
-	if rsp.Err == message.ErrSignNotMatch {
+	if rsp.Err == types.ErrSignNotMatch {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_SIGN_NOT_MATCH
 	} else {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_OK

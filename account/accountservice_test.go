@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -108,8 +107,8 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 		if err == nil || account != nil {
 			t.Errorf("should not unlock the account[%d]:%s", i, err)
 		}
-		if err != message.ErrWrongAddressOrPassWord {
-			t.Errorf("should return proper error code expect = %s, return = %s", message.ErrWrongAddressOrPassWord, err)
+		if err != types.ErrWrongAddressOrPassWord {
+			t.Errorf("should return proper error code expect = %s, return = %s", types.ErrWrongAddressOrPassWord, err)
 		}
 	}
 }
@@ -158,7 +157,7 @@ func TestVerfiyFail(t *testing.T) {
 	//edit tx after sign
 	tx.Body.Amount = 0xff
 	err = as.ks.VerifyTx(tx)
-	assert.Error(t, err, message.ErrSignNotMatch, "failed to verfiy")
+	assert.Error(t, err, types.ErrSignNotMatch, "failed to verfiy")
 }
 
 func TestBase58CheckEncoding(t *testing.T) {

@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -40,7 +39,7 @@ func TestListPutErrors(t *testing.T) {
 	defer deinitTest()
 	mpl := NewTxList(nil, uint64(10))
 	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
-	if added != 0 || err != message.ErrTxNonceTooLow {
+	if added != 0 || err != types.ErrTxNonceTooLow {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
 	}
 
@@ -50,7 +49,7 @@ func TestListPutErrors(t *testing.T) {
 	}
 
 	added, err = mpl.Put(genTx(0, 0, uint64(10), 0))
-	if added != 0 || err != message.ErrTxAlreadyInMempool {
+	if added != 0 || err != types.ErrTxAlreadyInMempool {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
 	}
 

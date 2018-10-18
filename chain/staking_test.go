@@ -37,7 +37,7 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
 
 	err = unstaking(tx.Body, senderState, scs, stakingDelay-1)
-	assert.Equal(t, err, ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
+	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
 
 	err = unstaking(tx.Body, senderState, scs, stakingDelay)
@@ -68,7 +68,7 @@ func TestStaking1000Unstaking9000(t *testing.T) {
 
 	tx.Body.Amount = 9000
 	err = unstaking(tx.Body, senderState, scs, stakingDelay-1)
-	assert.Equal(t, err, ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
+	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
 
 	err = unstaking(tx.Body, senderState, scs, stakingDelay)

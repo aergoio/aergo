@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
 
 	"github.com/aergoio/aergo/types"
@@ -35,7 +34,7 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderStat
 				err = states.CommitContractState(scs)
 			}
 		} else {
-			err = message.ErrTxFormatInvalid
+			err = types.ErrTxFormatInvalid
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
