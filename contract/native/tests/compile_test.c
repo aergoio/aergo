@@ -176,8 +176,8 @@ read_test(env_t *env, char *path)
             args = strtrim(buf + strlen(TAG_ERROR), "() \t\n\r");
 
             if (strchr(args, ',') != NULL) {
-                env->ec = error_to_code(strtok(args, ","));
-                env->ec_cnt = atoi(strtok(NULL, ","));
+                env->ec = error_to_code(strtrim(strtok(args, ","), " \t\n\r"));
+                env->ec_cnt = atoi(strtrim(strtok(NULL, ","), " \t\n\r"));
             }
             else {
                 env->ec = error_to_code(args);
