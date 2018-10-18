@@ -121,13 +121,14 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 
 	dbTx.Commit()
 
-	logger.Debug().Bool("isMainChain", cp.isMain()).
-		Uint64("latest", cp.cdb.latest).
-		Uint64("blockNo", blk.BlockNo()).
-		Str("hash", blk.ID()).
-		Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
-		Msg("block added to the block indices")
-
+	if logger.IsDebugEnabled() {
+		logger.Debug().Bool("isMainChain", cp.isMain()).
+			Uint64("latest", cp.cdb.latest).
+			Uint64("blockNo", blk.BlockNo()).
+			Str("hash", blk.ID()).
+			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
+			Msg("block added to the block indices")
+	}
 	cp.lastBlock = blk
 
 	return nil
@@ -194,13 +195,14 @@ func (cp *chainProcessor) execute() error {
 
 		cp.notifyBlock(block)
 
-		logger.Debug().
-			Uint64("old latest", oldLatest).
-			Uint64("new latest", blockNo).
-			Str("hash", block.ID()).
-			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
-			Msg("block executed")
-
+		if logger.IsDebugEnabled() {
+			logger.Debug().
+				Uint64("old latest", oldLatest).
+				Uint64("new latest", blockNo).
+				Str("hash", block.ID()).
+				Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
+				Msg("block executed")
+		}
 	}
 
 	return nil

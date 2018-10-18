@@ -82,7 +82,9 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		nCand      int
 	)
 
-	logger.Debug().Msg("start gathering tx")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Msg("start gathering tx")
+	}
 
 	txIn := FetchTXs(hs)
 	nCand = len(txIn)
@@ -91,12 +93,14 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	}
 	txRes := make([]*types.Tx, 0, nCand)
 
-	defer func() {
-		logger.Debug().
-			Int("candidates", nCand).
-			Int("collected", nCollected).
-			Msg("transactions collected")
-	}()
+	if logger.IsDebugEnabled() {
+		defer func() {
+			logger.Debug().
+				Int("candidates", nCand).
+				Int("collected", nCollected).
+				Msg("transactions collected")
+		}()
+	}
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 
@@ -105,11 +109,15 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 		//don't include tx that error is occured
 		if e, ok := err.(ErrTimeout); ok {
-			logger.Debug().Msg("stop gathering tx due to time limit")
+			if logger.IsDebugEnabled() {
+				logger.Debug().Msg("stop gathering tx due to time limit")
+			}
 			err = e
 			break
 		} else if err == errBlockSizeLimit {
-			logger.Debug().Msg("stop gathering tx due to size limit")
+			if logger.IsDebugEnabled() {
+				logger.Debug().Msg("stop gathering tx due to size limit")
+			}
 			break
 		} else if err != nil {
 			//FIXME handling system error (panic?)
