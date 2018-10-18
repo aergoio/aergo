@@ -110,25 +110,6 @@ contract test {
     int v10[] = { 7 };
 }
 
-@test(non_integer_size_type)
-@error(ERROR_INVALID_SIZE_VAL)
-contract test {
-    int i["1"];
-}
-
-@test(non_constant_size_value)
-@error(ERROR_INVALID_SIZE_VAL)
-contract test {
-    int i = 1;
-    int j[i];
-}
-
-@test(missing_array_size)
-@error(ERROR_MISSING_ARR_SIZE)
-contract test {
-    int i[];
-}
-
 @test(empty_initializer)
 @error(ERROR_SYNTAX)
 contract test {

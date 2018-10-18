@@ -60,7 +60,7 @@ contract test {
     int public v1;
 }
 
-@test(out_of_scope_identifier)
+@test(out_of_scope_variable)
 @error(ERROR_UNDEFINED_ID)
 contract test {
     int i = j;
@@ -70,6 +70,12 @@ contract test {
 @test(self_reference)
 contract test {
     int i = i;
+}
+
+@test(case_sensitive_variable)
+contract test {
+    int i;
+    int I;
 }
 
 @test(primitive_array)
@@ -85,6 +91,31 @@ contract test {
 
     byte b1[2][2];
     byte b2, b3[2][2];
+}
+
+@test(non_integer_size_type)
+@error(ERROR_INVALID_SIZE_VAL)
+contract test {
+    int i["1"];
+}
+
+@test(constant_size_variable)
+contract test {
+    const int i = 1;
+    int j[i];
+}
+
+@test(non_constant_size_variable)
+@error(ERROR_INVALID_SIZE_VAL)
+contract test {
+    int i;
+    int j[i];
+}
+
+@test(missing_array_size)
+@error(ERROR_MISSING_ARR_SIZE)
+contract test {
+    int i[];
 }
 
 @test(invalid_brace_position)

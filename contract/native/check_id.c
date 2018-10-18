@@ -33,13 +33,23 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             id->meta.arr_size[i] = -1;
         }
         else {
-            value_t *size_val = &size_exp->u_val.val;
+            ast_id_t *size_id = size_exp->id;
             meta_t *size_meta = &size_exp->meta;
+            value_t *size_val;
 
-            if (!is_integer_meta(size_meta) || !is_untyped_meta(size_meta))
+            if (size_id != NULL && size_id->val != NULL) {
+                /* constant variable */
+                size_val = size_id->val;
+            }
+            else if (is_integer_meta(size_meta) && is_untyped_meta(size_meta)) {
+                /* integer literal */
+                ASSERT1(is_val_exp(size_exp), size_exp->kind);
+                size_val = &size_exp->u_val.val;
+            }
+            else {
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
+            }
 
-            ASSERT1(is_val_exp(size_exp), size_exp->kind);
             ASSERT1(is_int_val(size_val), size_val->kind);
 
             id->meta.arr_size[i] = size_val->iv;
@@ -92,7 +102,7 @@ id_check_var(check_t *check, ast_id_t *id)
 
 		CHECK(meta_check(&id->meta, &init_exp->meta));
 
-        exp_eval_const(init_exp, type_meta);
+        id_eval_const(id, init_exp);
 	}
     else if (is_const_id(id)) {
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);

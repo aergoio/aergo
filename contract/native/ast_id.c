@@ -7,6 +7,7 @@
 
 #include "util.h"
 #include "ast_blk.h"
+#include "ast_exp.h"
 
 #include "ast_id.h"
 
@@ -184,6 +185,19 @@ id_join(array_t *ids, int idx, array_t *new_ids)
     for (i = 0; i < array_size(new_ids); i++) {
         id_add(ids, idx + i, array_item(new_ids, i, ast_id_t));
     }
+}
+
+int
+id_eval_const(ast_id_t *id, ast_exp_t *exp)
+{
+    if (is_val_exp(exp)) {
+        if (!value_check_range(&exp->u_val.val, id->meta.type))
+            RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(&id->meta));
+
+        id->val = &exp->u_val.val;
+    }
+
+    return NO_ERROR;
 }
 
 void

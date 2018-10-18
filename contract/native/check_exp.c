@@ -227,7 +227,7 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(meta_check(l_meta, r_meta));
 
     meta_merge(&exp->meta, l_meta, r_meta);
-    exp_eval_op_const(exp);
+    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -258,7 +258,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
     meta_copy(&exp->meta, l_meta);
-    exp_eval_op_const(exp);
+    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -290,7 +290,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     CHECK(meta_check(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
-    exp_eval_op_const(exp);
+    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -327,7 +327,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-        exp_eval_op_const(exp);
+        exp_eval_const(exp);
         break;
 
     case OP_NOT:
@@ -335,7 +335,7 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-        exp_eval_op_const(exp);
+        exp_eval_const(exp);
         break;
 
     default:
@@ -577,7 +577,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(exp_check(check, param_exp));
         CHECK(meta_check(&param_id->meta, &param_exp->meta));
 
-        exp_eval_const(param_exp, &param_id->meta);
+        id_eval_const(param_id, param_exp);
     }
 
     exp->id = id;

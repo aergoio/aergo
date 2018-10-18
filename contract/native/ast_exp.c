@@ -142,16 +142,7 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
 }
 
 int
-exp_eval_const(ast_exp_t *exp, meta_t *meta)
-{
-    if (is_val_exp(exp) && !value_check_range(&exp->u_val.val, meta->type))
-        RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(meta));
-
-    return NO_ERROR;
-}
-
-int
-exp_eval_op_const(ast_exp_t *exp)
+exp_eval_const(ast_exp_t *exp)
 {
     op_kind_t op = exp->u_op.kind;
     ast_exp_t *l_exp = exp->u_op.l_exp;

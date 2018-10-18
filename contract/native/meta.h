@@ -104,7 +104,6 @@ meta_init(meta_t *meta, src_pos_t *pos)
     ASSERT(pos != NULL);
 
     memset(meta, 0x00, sizeof(meta_t));
-
     meta->pos = pos;
 }
 
@@ -117,18 +116,18 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
+meta_set_untyped(meta_t *meta)
+{
+    meta->is_untyped = true;
+}
+
+static inline void
 meta_set_array(meta_t *meta, int arr_dim)
 {
     ASSERT(arr_dim >= 0);
 
     meta->arr_dim = arr_dim;
     meta->arr_size = xcalloc(sizeof(int) * arr_dim);
-}
-
-static inline void
-meta_set_untyped(meta_t *meta)
-{
-    meta->is_untyped = true;
 }
 
 static inline void

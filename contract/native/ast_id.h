@@ -10,6 +10,7 @@
 
 #include "ast.h"
 #include "enum.h"
+#include "value.h"
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
@@ -83,8 +84,9 @@ struct ast_id_s {
     };
 
     // results of semantic checker
-    bool is_used;
-    meta_t meta;
+    bool is_used;           /* whether is referenced */
+    meta_t meta;            /* identifier metadata */
+    value_t *val;           /* constant value */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
@@ -100,6 +102,8 @@ ast_id_t *id_search_param(ast_id_t *id, char *name);
 
 void id_add(array_t *ids, int idx, ast_id_t *new_id);
 void id_join(array_t *ids, int idx, array_t *new_ids);
+
+int id_eval_const(ast_id_t *id, ast_exp_t *exp);
 
 void ast_id_dump(ast_id_t *id, int indent);
 
