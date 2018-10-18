@@ -71,6 +71,17 @@ exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
+exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_CAST, pos);
+
+    exp->u_cast.type = type;
+    exp->u_cast.val_exp = val_exp;
+
+    return exp;
+}
+
+ast_exp_t *
 exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);

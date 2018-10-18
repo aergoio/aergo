@@ -30,9 +30,14 @@
 #define is_untyped_meta(meta)       (meta)->is_untyped
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
 
-#define is_builtin_meta(meta)       ((meta)->type <= TYPE_BUILTIN)
-#define is_primitive_meta(meta)     ((meta)->type <= TYPE_PRIMITIVE)
-#define is_comparable_meta(meta)    ((meta)->type <= TYPE_COMPARABLE)
+#define is_primitive_meta(meta)                                                          \
+    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
+#define is_builtin_meta(meta)                                                            \
+    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
+#define is_comparable_meta(meta)                                                         \
+    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
+
+#define is_compatible_meta(x, y)    (is_primitive_meta(x) && is_primitive_meta(y))
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -110,7 +115,7 @@ meta_init(meta_t *meta, src_pos_t *pos)
 static inline void
 meta_set(meta_t *meta, type_t type)
 {
-    ASSERT1(type > TYPE_NONE && type < TYPE_MAX, type);
+    ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
 }
@@ -145,8 +150,8 @@ meta_merge(meta_t *meta, meta_t *x, meta_t *y)
     ASSERT(meta != NULL);
 
     if (is_untyped_meta(x) && is_untyped_meta(y)) {
-        ASSERT1(is_primitive_meta(x), x->type);
-        ASSERT1(is_primitive_meta(y), y->type);
+        ASSERT1(is_builtin_meta(x), x->type);
+        ASSERT1(is_builtin_meta(y), y->type);
 
         meta_set(meta, MAX(x->type, y->type));
         meta_set_untyped(meta);

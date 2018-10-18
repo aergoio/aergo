@@ -8,11 +8,6 @@
 
 #include "common.h"
 
-#define TYPE_NAME(type)         type_names_[(type)]
-
-#define ID_KIND(id)             id_kinds_[(id)->kind]
-#define STMT_KIND(stmt)         stmt_kinds_[(stmt)->kind]
-
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
     FLAG_VERBOSE    = 0x01,
@@ -41,35 +36,41 @@ typedef enum errlvl_e {
     LVL_MAX
 } errlvl_t;
 
+#define TYPE_NAME(type)         type_names_[(type)]
+
+#define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
+
 typedef enum type_e {
     TYPE_NONE       = 0,
-    TYPE_BOOL,
-    TYPE_BYTE,
-    TYPE_INT8,
-    TYPE_UINT8,
-    TYPE_INT16,
-    TYPE_UINT16,
-    TYPE_INT32,
-    TYPE_UINT32,
-    TYPE_INT64,
-    TYPE_UINT64,
-    TYPE_FLOAT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_BUILTIN    = TYPE_STRING,
+    TYPE_BOOL       = 1,
+    TYPE_BYTE       = 2,
+    TYPE_INT8       = 3,
+    TYPE_UINT8      = 4,
+    TYPE_INT16      = 5,
+    TYPE_UINT16     = 6,
+    TYPE_INT32      = 7,
+    TYPE_UINT32     = 8,
+    TYPE_INT64      = 9,
+    TYPE_UINT64     = 10,
+    TYPE_FLOAT      = 11,
+    TYPE_DOUBLE     = 12,
+    TYPE_STRING     = 13,
+    TYPE_PRIMITIVE  = TYPE_STRING,
 
-    TYPE_STRUCT,
-    TYPE_ACCOUNT,
-    TYPE_COMPARABLE = TYPE_ACCOUNT,
+    TYPE_ACCOUNT    = 14,
+    TYPE_STRUCT     = 15,
+    TYPE_COMPARABLE = TYPE_STRUCT,
 
-    TYPE_MAP,
-    TYPE_OBJECT,                    /* contract or null */
-    TYPE_PRIMITIVE  = TYPE_OBJECT,
+    TYPE_MAP        = 16,
+    TYPE_OBJECT     = 17,           /* contract or null */
+    TYPE_BUILTIN    = TYPE_OBJECT,
 
-    TYPE_VOID,                      /* for return type of function */
-    TYPE_TUPLE,                     /* for tuple expression */
+    TYPE_VOID       = 18,           /* for return type of function */
+    TYPE_TUPLE      = 19,           /* for tuple expression */
     TYPE_MAX
 } type_t;
+
+#define ID_KIND(id)             id_kinds_[(id)->kind]
 
 typedef enum id_kind_e {
     ID_VAR          = 0,
@@ -86,6 +87,7 @@ typedef enum exp_kind_e {
     EXP_TYPE,
     EXP_ID,
     EXP_ARRAY,
+    EXP_CAST,
     EXP_OP,
     EXP_ACCESS,
     EXP_CALL,
@@ -94,6 +96,8 @@ typedef enum exp_kind_e {
     EXP_TUPLE,
     EXP_MAX
 } exp_kind_t;
+
+#define STMT_KIND(stmt)         stmt_kinds_[(stmt)->kind]
 
 typedef enum stmt_kind_e {
     STMT_NULL       = 0,

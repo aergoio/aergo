@@ -218,6 +218,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <op>      add_op
 %type <exp>     mul_exp
 %type <op>      mul_op
+%type <exp>     cast_exp
 %type <exp>     unary_exp
 %type <op>      unary_op
 %type <exp>     post_exp
@@ -1057,8 +1058,8 @@ add_op:
 ;
 
 mul_exp:
-    unary_exp
-|   mul_exp mul_op unary_exp
+    cast_exp
+|   mul_exp mul_op cast_exp
     {
         $$ = exp_new_op($2, $1, $3, &@2);
     }
@@ -1068,6 +1069,14 @@ mul_op:
     '*'             { $$ = OP_MUL; }
 |   '/'             { $$ = OP_DIV; }
 |   '%'             { $$ = OP_MOD; }
+;
+
+cast_exp:
+    unary_exp
+|   '(' prim_type ')' unary_exp
+    {
+        $$ = exp_new_cast($2, $4, &@2);
+    }
 ;
 
 unary_exp:
@@ -1122,6 +1131,7 @@ prim_exp:
 |   K_NULL
     {
         $$ = exp_new_val(&@$);
+        value_set_null(&$$->u_val.val);
     }
 |   K_TRUE
     {
@@ -1136,6 +1146,7 @@ prim_exp:
 |   L_INT
     {
         int64_t v;
+
         $$ = exp_new_val(&@$);
         sscanf($1, "%"SCNd64, &v);
         value_set_int(&$$->u_val.val, v);
@@ -1143,6 +1154,7 @@ prim_exp:
 |   L_FLOAT
     {
         double v;
+
         $$ = exp_new_val(&@$);
         sscanf($1, "%lf", &v);
         value_set_double(&$$->u_val.val, v);
@@ -1150,6 +1162,7 @@ prim_exp:
 |   L_HEXA
     {
         int64_t v;
+
         $$ = exp_new_val(&@$);
         sscanf($1, "%"SCNd64, &v);
         value_set_int(&$$->u_val.val, v);

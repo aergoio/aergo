@@ -16,6 +16,7 @@
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
+#define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_op_exp(exp)              ((exp)->kind == EXP_OP)
 #define is_access_exp(exp)          ((exp)->kind == EXP_ACCESS)
 #define is_call_exp(exp)            ((exp)->kind == EXP_CALL)
@@ -39,12 +40,12 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
-// null, true, false, 1, 1.0, 0x1, "..."
+/* null, true, false, 1, 1.0, 0x1, "..." */
 typedef struct exp_val_s {
     value_t val;
 } exp_val_t;
 
-// primitive, struct, map
+/* primitive, struct, map */
 typedef struct exp_type_s {
     type_t type;
     char *name;
@@ -53,50 +54,56 @@ typedef struct exp_type_s {
     ast_exp_t *v_exp;
 } exp_type_t;
 
-// name
+/* name */
 typedef struct exp_id_s {
     char *name;
 } exp_id_t;
 
-// id[idx]
+/* id[idx] */
 typedef struct exp_array_s {
     ast_exp_t *id_exp;
     ast_exp_t *idx_exp;
 } exp_array_t;
 
-// id(param, ...)
+/* (type)val */
+typedef struct exp_cast_s {
+    type_t type;
+    ast_exp_t *val_exp;
+} exp_cast_t;
+
+/* id(param, ...) */
 typedef struct exp_call_s {
     ast_exp_t *id_exp;
     array_t *param_exps;
 } exp_call_t;
 
-// id.fld
+/* id.fld */
 typedef struct exp_access_s {
     ast_exp_t *id_exp;
     ast_exp_t *fld_exp;
 } exp_access_t;
 
-// l kind r
+/* l kind r */
 typedef struct exp_op_s {
     op_kind_t kind;
     ast_exp_t *l_exp;
     ast_exp_t *r_exp;
 } exp_op_t;
 
-// prefix ? infix : postfix
+/* prefix ? infix : postfix */
 typedef struct exp_ternary_s {
     ast_exp_t *pre_exp;
     ast_exp_t *in_exp;
     ast_exp_t *post_exp;
 } exp_ternary_t;
 
-// dml, query
+/* dml, query */
 typedef struct exp_sql_s {
     sql_kind_t kind;
     char *sql;
 } exp_sql_t;
 
-// (exp, exp, exp, ...)
+/* (exp, exp, exp, ...) */
 typedef struct exp_tuple_s {
     array_t *exps;
 } exp_tuple_t;
@@ -111,6 +118,7 @@ struct ast_exp_s {
         exp_type_t u_type;
         exp_id_t u_id;
         exp_array_t u_arr;
+        exp_cast_t u_cast;
         exp_call_t u_call;
         exp_access_t u_acc;
         exp_op_t u_op;
@@ -129,6 +137,7 @@ ast_exp_t *exp_new_val(src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
+ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_op(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,

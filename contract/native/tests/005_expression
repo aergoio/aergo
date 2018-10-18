@@ -154,3 +154,7 @@ contract test {
 contract test {
     string s = 1 == 1 ? "true" : false;
 }
+
+@test(type_cast)
+contract test {
+}

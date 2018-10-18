@@ -168,7 +168,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
             ASSERT1(is_val_exp(idx_exp), idx_exp->kind);
             ASSERT(id_meta->arr_size != NULL);
 
-            if (id_meta->arr_size[0] > 0 && 
+            if (id_meta->arr_size[0] > 0 &&
                 idx_exp->u_val.val.iv >= id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
@@ -189,6 +189,36 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
         meta_copy(&exp->meta, id_meta->u_map.v_meta);
     }
+
+    return NO_ERROR;
+}
+
+static int
+exp_check_cast(check_t *check, ast_exp_t *exp)
+{
+    ast_exp_t *val_exp;
+    meta_t *val_meta;
+
+    ASSERT1(is_cast_exp(exp), exp->kind);
+    ASSERT1(is_valid_type(exp->u_cast.type), exp->u_cast.type);
+    ASSERT(exp->u_cast.val_exp != NULL);
+
+    val_exp = exp->u_cast.val_exp;
+    val_meta = &val_exp->meta;
+
+    CHECK(exp_check(check, val_exp));
+
+    meta_set(&exp->meta, exp->u_cast.type);
+
+    if (is_array_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
+        RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
+               meta_to_str(&exp->meta));
+
+    /*
+     * value_cast(&exp->val, val_meta->type, exp->u_cast.type);
+     */
+
+    //exp_eval_range(exp);
 
     return NO_ERROR;
 }
@@ -486,7 +516,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     id = id_exp->id;
     if (id == NULL || is_tuple_meta(id_meta))
-        RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
+        RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     if (is_var_id(id)) {
         id = id->u_var.type_exp->id;
@@ -496,7 +526,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         ast_exp_t *type_exp;
 
         if (!is_struct_meta(id_meta) && !is_object_meta(id_meta))
-            RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
+            RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
         ret_exps = id->u_func.ret_exps;
         ASSERT(ret_exps != NULL);
@@ -510,7 +540,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     if (id == NULL ||
         (!is_struct_id(id) && !is_enum_id(id) && !is_contract_id(id)))
-        RETURN(ERROR_NOT_ACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
+        RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
@@ -685,6 +715,9 @@ exp_check(check_t *check, ast_exp_t *exp)
 
     case EXP_ARRAY:
         return exp_check_array(check, exp);
+
+    case EXP_CAST:
+        return exp_check_cast(check, exp);
 
     case EXP_OP:
         return exp_check_op(check, exp);
