@@ -25,6 +25,23 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+var (
+	ErrNoCoinbaseTx = errors.New("first tx of block is not coinbase tx")
+	ErrTxInvalidNonce       = errors.New("invalid nonce")
+	ErrTxInsuffienctBalance = errors.New("insufficient balance")
+	ErrTxInvalidType        = errors.New("Invalid type")
+	ErrInvalidCoinbase      = errors.New("invalid coinbase tx")
+)
+
+type ErrTx struct {
+	err error
+	tx  *types.Tx
+}
+
+func (ec *ErrTx) Error() string {
+	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), enc.ToString(ec.tx.GetHash()))
+}
+
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
 	return cs.cdb.getBestBlockNo()
 }
@@ -122,14 +139,13 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 
 	dbTx.Commit()
 
-	if logger.IsDebugEnabled() {
-		logger.Debug().Bool("isMainChain", cp.isMain()).
-			Uint64("latest", cp.cdb.latest).
-			Uint64("blockNo", blk.BlockNo()).
-			Str("hash", blk.ID()).
-			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
-			Msg("block added to the block indices")
-	}
+	logger.Debug().Bool("isMainChain", cp.isMain()).
+		Uint64("latest", cp.cdb.latest).
+		Uint64("blockNo", blk.BlockNo()).
+		Str("hash", blk.ID()).
+		Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
+		Msg("block added to the block indices")
+
 	cp.lastBlock = blk
 
 	return nil
@@ -196,14 +212,13 @@ func (cp *chainProcessor) execute() error {
 
 		cp.notifyBlock(block)
 
-		if logger.IsDebugEnabled() {
-			logger.Debug().
-				Uint64("old latest", oldLatest).
-				Uint64("new latest", blockNo).
-				Str("hash", block.ID()).
-				Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
-				Msg("block executed")
-		}
+		logger.Debug().
+			Uint64("old latest", oldLatest).
+			Uint64("new latest", blockNo).
+			Str("hash", block.ID()).
+			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
+			Msg("block executed")
+
 	}
 
 	return nil
@@ -376,7 +391,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 
 		err := executeTx(bState, tx, blockNo, ts)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
+			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
 			return err
 		}
@@ -387,13 +402,24 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
-		for _, tx := range e.txs {
+		coinbaseTx := e.txs[0]
+		if coinbaseTx.Body.Type != types.TxType_COINBASE {
+			return ErrNoCoinbaseTx
+		}
+
+		txs := e.txs[1:]
+		for _, tx := range txs {
 			if err := e.execTx(e.BlockState, tx); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
 		}
+
+		if err := e.execTx(e.BlockState, coinbaseTx); err != nil {
+			return err
+		}
+
 		if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
 			return err
 		}
@@ -450,13 +476,59 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
+
+func validateTx(tx *types.Tx, senderState *types.State, receiverState *types.State, txFee uint64,
+	bs *state.BlockState) error {
+	//nonce error check
+	txBody := tx.GetBody()
+
+	switch txBody.Type {
+	case types.TxType_NORMAL:
+		if (senderState.Nonce + 1) != txBody.Nonce {
+			//return &ErrTx{ErrTxInvalidNonce, tx}
+			return fmt.Errorf("invalid nonce acc=%d,tx=%d", senderState.Nonce, txBody.Nonce)
+		}
+
+		if senderState.GetBalance() < txBody.Amount+txFee {
+			return &ErrTx{ErrTxInsuffienctBalance, tx}
+		}
+	case types.TxType_COINBASE:
+		if senderState != nil || receiverState == nil || bs.BpReward != txBody.Amount {
+			return &ErrTx{ErrInvalidCoinbase, tx}
+		}
+	case types.TxType_GOVERNANCE:
+	default:
+		return &ErrTx{ErrTxInvalidType, tx}
+	}
+
+	return nil
+}
+
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
-	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := bs.GetAccountState(senderID)
-	if err != nil {
-		return err
+	var err error
+	var senderID types.AccountID
+	var senderState *types.State
+	var senderChange types.State
+
+	isCoinbase := tx.GetBody().GetType() == types.TxType_COINBASE
+	if isCoinbase {
+		logger.Debug().Str("account", enc.ToString(tx.Body.Recipient)).
+			Uint64("amount", tx.Body.Amount).Msg("exec coinbase tx")
+		if txBody.Recipient == nil {
+			logger.Debug().Uint64("amount", tx.Body.Amount).Msg("skip coinbase tx. recipent is not set")
+			return nil
+		}
+	} else {
+		senderID = types.ToAccountID(txBody.Account)
+		senderState, err = bs.GetAccountState(senderID)
+
+		if err != nil {
+			return err
+		}
+		senderChange = types.State(*senderState)
 	}
+
 	recipient := txBody.Recipient
 	var receiverID types.AccountID
 	var createContract bool
@@ -476,12 +548,17 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	if err != nil {
 		return err
 	}
-
-	senderChange := types.State(*senderState)
 	receiverChange := types.State(*receiverState)
 
+	txFee := CoinbaseFee
+	if err := validateTx(tx, senderState, receiverState, txFee, bs); err != nil {
+		return err
+	}
 	switch txBody.Type {
 	case types.TxType_NORMAL:
+		senderChange.Balance -= txFee
+		bs.BpReward += txFee
+
 		if senderID != receiverID {
 			if senderChange.Balance < txBody.Amount {
 				senderChange.Balance = 0 // FIXME: reject insufficient tx.
@@ -532,6 +609,8 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 		}
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(&bs.StateDB, txBody, &senderChange, &receiverChange, blockNo)
+	case types.TxType_COINBASE:
+		receiverChange.Balance = receiverChange.Balance + txBody.Amount
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}
@@ -539,11 +618,16 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 		logger.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("unknown type of transaction")
 	}
 
-	senderChange.Nonce = txBody.Nonce
-	err = bs.PutState(senderID, &senderChange)
-	if err != nil {
-		return err
+	if !isCoinbase {
+		senderChange.Nonce = txBody.Nonce
+		err = bs.PutState(senderID, &senderChange)
+		if err != nil {
+			return err
+		}
+		logger.Debug().Uint64("accnonce", senderChange.Nonce).Str("tx", enc.ToString(tx.GetHash())).
+			Msg("exec tx")
 	}
+
 	if senderID != receiverID {
 		err = bs.PutState(receiverID, &receiverChange)
 		if err != nil {

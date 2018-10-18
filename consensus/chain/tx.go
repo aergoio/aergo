@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/contract"
 )
 
 var logger = log.NewLogger("consensus")
@@ -104,7 +104,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 
-	for _, tx := range txIn {
+	for i, tx := range txIn {
 		err := op.Apply(bState, tx)
 
 		//don't include tx that error is occured
@@ -122,7 +122,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		} else if err != nil {
 			//FIXME handling system error (panic?)
 			// ex) gas error/nonce error skip, but other system error panic
-			logger.Debug().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+			logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
 			continue
 		}
 

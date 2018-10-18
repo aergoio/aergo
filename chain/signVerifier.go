@@ -7,6 +7,7 @@ import (
 	"errors"
 	"runtime"
 
+	"bytes"
 	"github.com/aergoio/aergo/internal/enc"
 )
 
@@ -28,6 +29,7 @@ type VerifyResult struct {
 
 var (
 	ErrTxFormatInvalid = errors.New("tx invalid format")
+	ErrTxInvalidHash   = errors.New("invalid tx hash")
 
 	DefaultVerifierCnt = runtime.NumCPU()
 
@@ -73,9 +75,20 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 }
 
 func verifyTx(tx *types.Tx) error {
+	verifyHash := func() error {
+		if !bytes.Equal(tx.GetHash(), tx.CalculateTxHash()) {
+			return ErrTxInvalidHash
+		}
+		return nil
+	}
+
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return ErrTxFormatInvalid
+	}
+
+	if tx.GetBody().Type == types.TxType_COINBASE {
+		return verifyHash()
 	}
 
 	err := key.VerifyTx(tx)
