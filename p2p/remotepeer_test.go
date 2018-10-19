@@ -91,7 +91,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			dummyRW := new(MockMsgReadWriter)
 			mockOrder.On("IsNeedSign").Return(true)
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
-			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.remotePeerImpl")).Return(tt.args.sendErr == nil)
+			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.remotePeerImpl")).Return(tt.args.sendErr)
 			mockOrder.On("GetProtocolID").Return(PingRequest)
 			mockOrder.On("GetMsgID").Return(sampleMsgID)
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)

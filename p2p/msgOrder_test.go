@@ -125,28 +125,19 @@ func (_m *MockMsgOrder) Skippable() bool {
 }
 
 // SendTo provides a mock function with given fields: p
-func (_m *MockMsgOrder) SendTo(p *remotePeerImpl) bool {
+func (_m *MockMsgOrder) SendTo(p *remotePeerImpl) error {
 	ret := _m.Called(p)
 
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(*remotePeerImpl) bool); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*remotePeerImpl) error); ok {
 		r0 = rf(p)
 	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// SendOver provides a mock function with given fields: s
-func (_m *MockMsgOrder) SendOver(s MsgWriter) error {
-	ret := _m.Called(s)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(MsgWriter) error); ok {
-		r0 = rf(s)
-	} else {
-		r0 = ret.Error(0)
+		nillable := ret.Get(0)
+		if nillable != nil {
+			r0 = nillable.(error)
+		} else {
+			r0 = nil
+		}
 	}
 
 	return r0

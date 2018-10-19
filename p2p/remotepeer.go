@@ -308,7 +308,10 @@ func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
 }
 
 func (p *remotePeerImpl) writeToPeer(m msgOrder) {
-	m.SendTo(p)
+	if err := m.SendTo(p) ; err != nil {
+		// write fail
+		p.pm.RemovePeer(p.ID())
+	}
 }
 
 func (p *remotePeerImpl) trySendTxNotices() {
