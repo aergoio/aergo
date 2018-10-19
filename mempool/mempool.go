@@ -53,7 +53,7 @@ type MemPool struct {
 	pool     map[types.AccountID]*TxList
 	dumpPath string
 	status   int32
-	// misc configs
+	// followings are for test
 	testConfig bool
 }
 
@@ -181,7 +181,7 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // validate
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
-	id := types.ToTxID(tx.Hash)
+	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
 
 	mp.Lock()
@@ -204,7 +204,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-
+	defer mp.releaseMemPoolList(list)
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Debug().Err(err).Msg("fail to put at a mempool list")
@@ -276,19 +276,32 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		}
 		list, err := mp.acquireMemPoolList(acc)
 		if err == nil {
+			defer mp.releaseMemPoolList(list)
 			diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
 			mp.orphan -= diff
-			if list.Empty() {
-				mp.delMemPoolList(acc)
-			}
 			for _, tx := range delTxs {
-				h := types.ToTxID(tx.Hash)
+				h := types.ToTxID(tx.GetHash())
 				delete(mp.cache, h) // need lock
 			}
 		}
 	}
-	return nil
 
+	//TODO
+	for _, tx := range block.GetBody().GetTxs() {
+		hid := types.ToTxID(tx.GetHash())
+		if _, ok := mp.cache[hid]; !ok {
+			continue
+		}
+		ns, err := mp.getAccountState(tx.GetBody().GetAccount(), true)
+		if err != nil {
+			mp.Error().Err(err).Msg("getting Account status failed")
+			continue
+		}
+		mp.Warn().Uint64("nonce on tx", tx.GetBody().GetNonce()).
+			Uint64("nonce on state", ns.Nonce).
+			Msg("mismatch ditected")
+	}
+	return nil
 }
 
 // signiture verification
@@ -350,14 +363,16 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 	return mp.pool[id], nil
 }
 
+func (mp *MemPool) releaseMemPoolList(list *TxList) {
+	if list.Empty() {
+		id := types.ToAccountID(list.account)
+		delete(mp.pool, id)
+	}
+}
+
 func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	id := types.ToAccountID(acc)
 	return mp.pool[id]
-}
-
-func (mp *MemPool) delMemPoolList(acc []byte) {
-	id := types.ToAccountID(acc)
-	delete(mp.pool, id)
 }
 
 func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, error) {
