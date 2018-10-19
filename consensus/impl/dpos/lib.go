@@ -237,7 +237,7 @@ func (pls *pLibStatus) gc(lib *blockInfo) {
 				break
 			}
 		}
-		pls.plm.trunc(bpID, beg, len(pl))
+		pls.plm.trunc(bpID, beg-1, len(pl))
 	}
 }
 
