@@ -37,7 +37,7 @@ type IComponent interface {
 // In a Receive func, component's actions is described
 // For each type of message, developer can define a behavior
 // If there is component specific statics or debug info are exists,
-// than developers can get those by defining it in Statics func
+// than developers can get those by defining it in Statistics func
 type IActor interface {
 	BeforeStart()
 	AfterStart()
@@ -45,5 +45,5 @@ type IActor interface {
 
 	Receive(actor.Context)
 
-	Statics() *map[string]interface{}
+	Statistics() *map[string]interface{}
 }

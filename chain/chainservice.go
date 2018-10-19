@@ -310,8 +310,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		hashes := msg.Hashes
 		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
 		context.Respond(message.GetMissingRsp{
-			TopMatched:   topHash,
-			TopNumber: topNo,
+			TopMatched: topHash,
+			TopNumber:  topNo,
 			StopNumber: stopNo,
 		})
 	case *message.GetTx:
@@ -376,7 +376,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	}
 }
 
-func (cs *ChainService) Statics() *map[string]interface{} {
+func (cs *ChainService) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"orphan": cs.op.curCnt,
 	}

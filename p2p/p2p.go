@@ -131,8 +131,8 @@ func (p2ps *P2P) BeforeStop() {
 	}
 }
 
-// Statics show statistic information of p2p module. NOTE: It it not implemented yet
-func (p2ps *P2P) Statics() *map[string]interface{} {
+// Statistics show statistic information of p2p module. NOTE: It it not implemented yet
+func (p2ps *P2P) Statistics() *map[string]interface{} {
 	return nil
 }
 
@@ -197,24 +197,24 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error)
 
 func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	logger := p2ps.Logger
-	
+
 	// PingHandlers
-	peer.handlers[PingRequest] = newPingReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[PingResponse] = newPingRespHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GoAway] = newGoAwayHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[AddressesRequest] = newAddressesReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[AddressesResponse] = newAddressesRespHandler(p2ps.pm,  peer, logger, p2ps)
+	peer.handlers[PingRequest] = newPingReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[PingResponse] = newPingRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GoAway] = newGoAwayHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// BlockHandlers
-	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm,  peer, logger, p2ps, p2ps.sm)
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 
 	// TxHandlers
-	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm,  peer, logger, p2ps)
-	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm,  peer, logger, p2ps, p2ps.sm)
+	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 }

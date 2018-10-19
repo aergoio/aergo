@@ -53,7 +53,7 @@ func (as *AccountService) BeforeStop() {
 	as.accounts = nil
 }
 
-func (as *AccountService) Statics() *map[string]interface{} {
+func (as *AccountService) Statistics() *map[string]interface{} {
 	return nil
 }
 

@@ -28,7 +28,7 @@ func (ts *TestServer) BeforeStop() {
 	// add stop logics for this service
 }
 
-func (ts *TestServer) Statics() *map[string]interface{} {
+func (ts *TestServer) Statistics() *map[string]interface{} {
 	return nil
 }
 
