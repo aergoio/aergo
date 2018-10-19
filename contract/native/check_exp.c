@@ -169,7 +169,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
             ASSERT(id_meta->arr_size != NULL);
 
             if (id_meta->arr_size[0] > 0 &&
-                idx_exp->u_val.val.iv >= id_meta->arr_size[0])
+                int_val(&idx_exp->u_val.val) >= id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -445,8 +445,7 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
 
     meta_merge(&exp->meta, l_meta, r_meta);
 
-    if (is_val_exp(r_exp) &&
-        !value_check_range(&r_exp->u_val.val, l_meta->type))
+    if (is_val_exp(r_exp) && !value_check(&r_exp->u_val.val, l_meta))
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
 
     return NO_ERROR;

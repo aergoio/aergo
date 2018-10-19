@@ -1145,10 +1145,10 @@ prim_exp:
     }
 |   L_INT
     {
-        int64_t v;
+        uint64_t v;
 
         $$ = exp_new_val(&@$);
-        sscanf($1, "%"SCNd64, &v);
+        sscanf($1, "%"SCNu64, &v);
         value_set_int(&$$->u_val.val, v);
     }
 |   L_FLOAT
@@ -1161,10 +1161,10 @@ prim_exp:
     }
 |   L_HEXA
     {
-        int64_t v;
+        uint64_t v;
 
         $$ = exp_new_val(&@$);
-        sscanf($1, "%"SCNd64, &v);
+        sscanf($1, "%"SCNx64, &v);
         value_set_int(&$$->u_val.val, v);
     }
 |   L_STR

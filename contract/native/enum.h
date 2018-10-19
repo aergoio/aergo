@@ -179,7 +179,8 @@ typedef enum loop_kind_e {
 } loop_kind_t;
 
 typedef enum val_kind_e {
-    VAL_NULL        = 0,
+    VAL_NONE        = 0,
+    VAL_NULL,
     VAL_BOOL,
     VAL_INT,
     VAL_FP,

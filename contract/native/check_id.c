@@ -103,7 +103,7 @@ id_check_var(check_t *check, ast_id_t *id)
 		CHECK(meta_check(&id->meta, &init_exp->meta));
 
         id_eval_const(id, init_exp);
-	}
+    }
     else if (is_const_id(id)) {
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
     }

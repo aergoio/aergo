@@ -191,7 +191,7 @@ int
 id_eval_const(ast_id_t *id, ast_exp_t *exp)
 {
     if (is_val_exp(exp)) {
-        if (!value_check_range(&exp->u_val.val, id->meta.type))
+        if (!value_check(&exp->u_val.val, &id->meta))
             RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(&id->meta));
 
         id->val = &exp->u_val.val;

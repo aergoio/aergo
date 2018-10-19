@@ -9,14 +9,22 @@
 
 #include "value.h"
 
+#define value_check_int(val, max)                                                        \
+    (((val)->is_neg && (val)->iv > (uint64_t)(max) + 1) ||                               \
+     (!(val)->is_neg && (val)->iv > (uint64_t)(max)))
+#define value_check_uint(val, max)                                                       \
+    ((val)->is_neg || (val)->iv > (max))
+
 #define value_eval_arith(op, val, x, y)                                                  \
     do {                                                                                 \
         ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
                                                                                          \
         if (is_int_val(x))                                                               \
-            value_set_int(val, (x)->iv op (y)->iv);                                      \
+            value_set_int(val, int_val(x) op int_val(y));                                \
         else if (is_fp_val(x))                                                           \
-            value_set_double(val, (x)->dv op (y)->dv);                                   \
+            value_set_double(val, fp_val(x) op fp_val(y));                               \
+        else if (is_str_val(x))                                                          \
+            value_set_str((val), xstrcat(str_val(x), str_val(y)));                       \
         else                                                                             \
             ASSERT1(!"invalid value", (val)->kind);                                      \
     } while (0)
@@ -30,13 +38,13 @@
         if (is_null_val(x))                                                              \
             res = NULL op NULL;                                                          \
         else if (is_bool_val(x))                                                         \
-            res = (x)->bv op (y)->bv;                                                    \
+            res = bool_val(x) op bool_val(y);                                            \
         else if (is_int_val(x))                                                          \
-            res = (x)->iv op (y)->iv;                                                    \
+            res = int_val(x) op int_val(y);                                              \
         else if (is_fp_val(x))                                                           \
-            res = (x)->iv op (y)->iv;                                                    \
+            res = fp_val(x) op fp_val(y);                                                \
         else if (is_str_val(x))                                                          \
-            res = strcmp((x)->sv, (y)->sv) op 0;                                         \
+            res = strcmp(str_val(x), str_val(y)) op 0;                                   \
         else                                                                             \
             ASSERT1(!"invalid value", (val)->kind);                                      \
                                                                                          \
@@ -48,18 +56,58 @@
         ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
                                                                                          \
         if (is_int_val(x))                                                               \
-            value_set_int((val), (x)->iv op (y)->iv);                                    \
+            value_set_int((val), int_val(x) op int_val(y));                              \
         else                                                                             \
             ASSERT1(!"invalid value", (val)->kind);                                      \
     } while (0)
 
+bool
+value_check(value_t *val, meta_t *meta)
+{
+    switch (val->kind) {
+    case VAL_NULL:
+        ASSERT1(is_map_meta(meta) || is_object_meta(meta), meta->type);
+        break;
+
+    case VAL_BOOL:
+        ASSERT1(is_bool_meta(meta), meta->type);
+        break;
+
+    case VAL_INT:
+        ASSERT1(is_integer_meta(meta), meta->type);
+        if ((meta->type == TYPE_BYTE && value_check_uint(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT8 && value_check_int(val, INT8_MAX)) ||
+            (meta->type == TYPE_UINT8 && value_check_uint(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT16 && value_check_int(val, INT16_MAX)) ||
+            (meta->type == TYPE_UINT16 && value_check_uint(val, UINT16_MAX)) ||
+            (meta->type == TYPE_INT32 && value_check_int(val, INT32_MAX)) ||
+            (meta->type == TYPE_UINT32 && value_check_uint(val, UINT32_MAX)) ||
+            (meta->type == TYPE_INT64 && value_check_int(val, INT64_MAX)) ||
+            (meta->type == TYPE_UINT64 && val->is_neg))
+            return false;
+        break;
+    
+    case VAL_FP:
+        ASSERT1(is_float_meta(meta), meta->type);
+        if (meta->type == TYPE_FLOAT && val->dv > FLT_MAX)
+            return false;
+        break;
+
+    case VAL_STR:
+        ASSERT1(is_string_meta(meta), meta->type);
+        break;
+
+    default:
+        ASSERT1(!"invalid value", val->kind);
+    }
+
+    return true;
+}
+
 static void
 value_add(value_t *val, value_t *x, value_t *y)
 {
-    if (is_str_val(x))
-        value_set_str(val, xstrcat(x->sv, y->sv));
-    else
-        value_eval_arith(+, val, x, y);
+    value_eval_arith(+, val, x, y);
 }
 
 static void
@@ -168,11 +216,13 @@ static void
 value_neg(value_t *val, value_t *x, value_t *y)
 {
     if (is_int_val(x))
-        value_set_int(val, -x->iv);
+        value_set_int(val, int_val(x));
     else if (is_fp_val(x))
-        value_set_double(val, -x->dv);
+        value_set_double(val, fp_val(x));
     else
         ASSERT1(!"invalid value", val->kind);
+
+    value_set_neg(val, !x->is_neg);
 }
 
 static void
@@ -212,16 +262,16 @@ value_cmp(value_t *x, value_t *y)
 
     switch (x->kind) {
     case VAL_BOOL:
-        return x->bv == y->bv ? 0 : (x->bv > y->bv ? 1 : -1);
+        return bool_val(x) == bool_val(y) ? 0 : (bool_val(x) > bool_val(y) ? 1 : -1);
 
     case VAL_INT:
-        return x->iv == y->iv ? 0 : (x->iv > y->iv ? 1 : -1);
+        return int_val(x) == int_val(y) ? 0 : (int_val(x) > int_val(y) ? 1 : -1);
 
     case VAL_FP:
-        return x->dv == y->dv ? 0 : (x->dv > y->dv ? 1 : -1);
+        return fp_val(x) == fp_val(y) ? 0 : (fp_val(x) > fp_val(y) ? 1 : -1);
 
     case VAL_STR:
-        return strcmp(x->sv, y->sv);
+        return strcmp(str_val(x), str_val(y));
 
     default:
         ASSERT1(!"invalid value", x->kind);

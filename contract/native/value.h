@@ -8,11 +8,17 @@
 
 #include "common.h"
 
+#define is_none_val(val)            ((val)->kind == VAL_NONE)
 #define is_null_val(val)            ((val)->kind == VAL_NULL)
 #define is_bool_val(val)            ((val)->kind == VAL_BOOL)
 #define is_int_val(val)             ((val)->kind == VAL_INT)
 #define is_fp_val(val)              ((val)->kind == VAL_FP)
 #define is_str_val(val)             ((val)->kind == VAL_STR)
+
+#define bool_val(val)               ((val)->bv)
+#define int_val(val)                ((val)->is_neg ? -(val)->iv : (val)->iv)
+#define fp_val(val)                 ((val)->is_neg ? -(val)->dv : (val)->dv)
+#define str_val(val)                ((val)->sv)
 
 #define is_zero_val(val)                                                                 \
     (is_int_val(val) ? (val)->iv == 0 : (is_fp_val(val) ? (val)->dv == 0.0f : false))
@@ -38,15 +44,19 @@ typedef void (*eval_fn_t)(value_t *, value_t *, value_t *) ;
 struct value_s {
     val_kind_t kind;
 
+    bool is_neg;
+
     union {
         bool bv;
-        int64_t iv;
+        uint64_t iv;
         double dv;
         char *sv;
     };
 };
 
 extern eval_fn_t eval_fntab_[OP_CF_MAX];
+
+bool value_check(value_t *val, meta_t *meta);
 
 int value_cmp(value_t *x, value_t *y);
 
@@ -71,7 +81,7 @@ value_set_bool(value_t *val, bool bv)
 }
 
 static inline void
-value_set_int(value_t *val, int64_t iv)
+value_set_int(value_t *val, uint64_t iv)
 {
     val->kind = VAL_INT;
     val->iv = iv;
@@ -91,34 +101,10 @@ value_set_str(value_t *val, char *str)
     val->sv = str;
 }
 
-static inline bool
-value_check_range(value_t *val, type_t type)
+static inline void
+value_set_neg(value_t *val, bool is_neg)
 {
-    if (type == TYPE_BYTE && (val->iv < 0 || val->iv > UINT8_MAX))
-        return false;
-
-    if (type == TYPE_INT8 && (val->iv < INT8_MIN || val->iv > INT8_MAX))
-        return false;
-
-    if (type == TYPE_UINT8 && (val->iv < 0 || val->iv > UINT8_MAX))
-        return false;
-
-    if (type == TYPE_INT16 && (val->iv < INT16_MIN || val->iv > INT16_MAX))
-        return false;
-
-    if (type == TYPE_UINT16 && (val->iv < 0 || val->iv > UINT16_MAX))
-        return false;
-
-    if (type == TYPE_INT32 && (val->iv < INT32_MIN || val->iv > INT32_MAX))
-        return false;
-
-    if (type == TYPE_UINT32 && (val->iv < 0 || val->iv > UINT32_MAX))
-        return false;
-
-    if (type == TYPE_FLOAT && (val->dv < -FLT_MAX || val->dv > FLT_MAX))
-        return false;
-
-    return true;
+    val->is_neg = is_neg;
 }
 
 #endif /* ! _VALUE_H */
