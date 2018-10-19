@@ -50,14 +50,7 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
-	if err := Init(cfg.Blockchain.MaxBlockSize,
-		cfg.Blockchain.CoinbaseAccount,
-		cfg.Blockchain.CoinbaseFee,
-		cfg.Consensus.EnableBp); err != nil {
-		logger.Error().Err(err).Msg("failed to init chainservice")
-		panic("invalid config: blockchain")
-	}
-
+	Init(cfg.Blockchain.MaxBlockSize)
 	if cc != nil {
 		cc.SetStateDB(actor.sdb)
 	}
@@ -172,8 +165,7 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 	}
 	genesisBlock, _ := cs.cdb.getBlockByNo(0)
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
-		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).Msg("chain initialized")
 
 	return genesisBlock, nil
 }

@@ -141,10 +141,6 @@ func (reorg *reorganizer) swapTxMapping() error {
 
 	for _, oldBlock := range reorg.oldBlocks {
 		for _, tx := range oldBlock.GetBody().GetTxs() {
-			if tx.GetBody().GetType() == types.TxType_COINBASE {
-				continue
-			}
-
 			oldTxs[types.ToTxID(tx.GetHash())] = tx
 		}
 	}

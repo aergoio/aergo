@@ -104,7 +104,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 
-	for i, tx := range txIn {
+	for _, tx := range txIn {
 		err := op.Apply(bState, tx)
 
 		//don't include tx that error is occured
@@ -122,7 +122,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		} else if err != nil {
 			//FIXME handling system error (panic?)
 			// ex) gas error/nonce error skip, but other system error panic
-			logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+			logger.Debug().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
 			continue
 		}
 
@@ -133,6 +133,11 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	if err := contract.SaveRecoveryPoint(bState); err != nil {
 		return nil, err
+	}
+	if bState != nil {
+		if err := bState.Update(); err != nil {
+			return nil, err
+		}
 	}
 
 	return txRes, nil
