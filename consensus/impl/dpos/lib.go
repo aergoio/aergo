@@ -332,7 +332,7 @@ type bootLoader struct {
 }
 
 func (bs *bootLoader) load() {
-	if err := bs.loadLIB(bs.lib); err != nil {
+	if err := bs.loadLIB(bs.lib); err == nil {
 		logger.Debug().Uint64("block no", bs.lib.BlockNo).
 			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
 	}
