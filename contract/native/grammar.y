@@ -666,12 +666,12 @@ return_opt:
 ;
 
 return_list:
-    var_type
+    var_spec
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   return_list ',' var_type
+|   return_list ',' var_spec
     {
         $$ = $1;
         exp_add_last($$, $3);

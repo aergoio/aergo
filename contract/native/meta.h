@@ -28,7 +28,7 @@
 #define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_untyped_meta(meta)       (meta)->is_untyped
+#define is_const_meta(meta)         (meta)->is_const
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
 
 #define is_primitive_meta(meta)                                                          \
@@ -82,9 +82,10 @@ typedef struct meta_map_s {
 struct meta_s {
     type_t type;
 
-    bool is_untyped;        /* integer or float literal, new map() */
     int arr_dim;            /* dimension of array */
     int *arr_size;          /* array size of each dimension */
+
+    bool is_const;          /* integer or float literal, new map() */
 
     union {
         meta_map_t u_map;
@@ -122,9 +123,9 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_untyped(meta_t *meta)
+meta_set_const(meta_t *meta)
 {
-    meta->is_untyped = true;
+    meta->is_const = true;
 }
 
 static inline void
@@ -150,14 +151,14 @@ meta_merge(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
-    if (is_untyped_meta(x) && is_untyped_meta(y)) {
+    if (is_const_meta(x) && is_const_meta(y)) {
         ASSERT1(is_builtin_meta(x), x->type);
         ASSERT1(is_builtin_meta(y), y->type);
 
         meta_set(meta, MAX(x->type, y->type));
-        meta_set_untyped(meta);
+        meta_set_const(meta);
     }
-    else if (is_untyped_meta(x)) {
+    else if (is_const_meta(x)) {
         meta_copy(meta, y);
     }
     else {

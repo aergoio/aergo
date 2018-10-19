@@ -175,7 +175,7 @@ meta_check_struct(meta_t *x, meta_t *y)
 static int
 meta_check_type(meta_t *x, meta_t *y)
 {
-    if (is_untyped_meta(x) || is_untyped_meta(y)) {
+    if (is_const_meta(x) || is_const_meta(y)) {
         if (x->type == y->type ||
             (is_integer_meta(x) && is_integer_meta(y)) ||
             (is_float_meta(x) && is_float_meta(y)))
