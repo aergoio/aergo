@@ -140,5 +140,6 @@ static const luaL_Reg sys_lib[] = {
 int luaopen_system(lua_State *L)
 {
 	luaL_register(L, "system", sys_lib);
+	lua_pop(L, 1);
 	return 1;
 }

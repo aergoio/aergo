@@ -107,7 +107,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 	}
 }
 
-func newLState() *LState {
+func NewLState() *LState {
 	return C.vm_newstate()
 }
 
@@ -120,7 +120,7 @@ func (L *LState) Close() {
 func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	ce := &Executor{
 		contract:      contract,
-		L:             newLState(),
+		L:             GetLState(),
 		blockchainCtx: bcCtx,
 	}
 	if ce.L == nil {
@@ -271,7 +271,7 @@ func (ce *Executor) commitCalledContract() error {
 
 func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
-		ce.L.Close()
+		FreeLState(ce.L)
 		if ce.blockchainCtx != nil && bcCtxFree {
 			context := ce.blockchainCtx
 			contractMap.unregister(C.GoString(context.stateKey))

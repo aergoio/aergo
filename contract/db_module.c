@@ -470,5 +470,6 @@ int luaopen_db(lua_State *L)
     luaL_register(L, NULL, pstmt_methods);
 
 	luaL_register(L, "db", db_lib);
+	lua_pop(L, 3);
 	return 1;
 }
