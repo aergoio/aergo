@@ -205,6 +205,7 @@ func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types
 	if len(root) != 0 {
 		dbval := (*states.store).Get(root)
 		if len(dbval) != 0 {
+			// Get the state and proof of the account for a past state
 			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
 			if err != nil {
 				return nil, err
@@ -234,6 +235,7 @@ func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types
 		ProofVal:  proofVal,
 		AuditPath: ap,
 	}
+	logger.Info().Str("state", enc.ToString(states.trie.Root)).Msg("!!!!!!!!!!!!!!!")
 	return stateProof, nil
 }
 
