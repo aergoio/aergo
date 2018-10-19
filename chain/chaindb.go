@@ -201,7 +201,9 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 
 	// Save the last consensus status.
 	if cdb.cc != nil {
-		cdb.cc.Save(*dbtx)
+		if err := cdb.cc.Save(*dbtx); err != nil {
+			logger.Error().Err(err).Msg("failed to save DPoS status")
+		}
 	}
 
 	oldLatest = cdb.setLatest(block)

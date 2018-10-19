@@ -41,21 +41,54 @@ func (e errInvalidLIB) Error() string {
 		e.libNo, e.libHash, e.lastNo, e.lastHash)
 }
 
-type preLIB = map[string][]*blockInfo
+type bpPlm map[string][]*plInfo
+
+func (plm bpPlm) trunc(bpID string, beg, end int) {
+	var (
+		entry = plm[bpID]
+		max   = len(entry)
+	)
+
+	if beg < 0 {
+		beg = 0
+	}
+	if end > max {
+		end = max
+	}
+	if beg == 0 && end == max {
+		// nothing to trucate
+		return
+	}
+
+	plm[bpID] = entry[beg:end]
+	logger.Debug().
+		Str("BPID", bpID).Int("old len", max).Int("new len", len(plm[bpID])).
+		Msg("PLM truncated")
+}
+
+func (plm bpPlm) add(bpID string, pl *plInfo) {
+	v := plm[bpID]
+	old := len(v)
+	plm[bpID] = append(v, pl)
+	logger.Debug().Str("BP", bpID).
+		Int("old len", old).Int("new len", len(plm[bpID])).
+		Str("hash", pl.Plib.BlockHash).Uint64("no", pl.Plib.BlockNo).
+		Str("hash", pl.PlibBy.BlockHash).Uint64("no", pl.PlibBy.BlockNo).
+		Msg("proposed LIB map updated")
+}
 
 type pLibStatus struct {
 	genesisInfo      *blockInfo
 	confirmsRequired uint16
 	confirms         *list.List
-	plib             preLIB        // BP-wise proposed LIB map
-	hplMark          *list.Element // high pre-LIB mark
+	plm              bpPlm // BP-wise proposed LIB map
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
 	return &pLibStatus{
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
-		plib:             make(preLIB),
+		plm:              make(bpPlm),
 	}
 }
 
@@ -71,8 +104,13 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 	bi := ci.blockInfo
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
-	if _, exist := pls.plib[ci.BPID]; !exist {
-		pls.updatePreLIB(ci.BPID, pls.genesisInfo)
+	if _, exist := pls.plm[ci.BPID]; !exist {
+		pls.updatePreLIB(ci.BPID,
+			&plInfo{
+				Plib:   pls.genesisInfo,
+				PlibBy: pls.genesisInfo,
+			},
+		)
 	}
 
 	logger.Debug().Str("BP", ci.BPID).
@@ -81,28 +119,27 @@ func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
 }
 
 func (pls *pLibStatus) update() *blockInfo {
-	if bpID, bi := pls.getPreLIB(); bi != nil {
-		pls.updatePreLIB(bpID, bi)
+	if bpID, pl := pls.getPreLIB(); pl != nil {
+		pls.updatePreLIB(bpID, pl)
 
 		return pls.calcLIB()
 	}
 	return nil
 }
 
-func (pls *pLibStatus) updatePreLIB(bpID string, bi *blockInfo) {
-	pls.plib[bpID] = append(pls.plib[bpID], bi)
-	logger.Debug().Str("BP", bpID).
-		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
-		Msg("proposed LIB map updated")
+func (pls *pLibStatus) updatePreLIB(bpID string, pl *plInfo) {
+	pls.plm.add(bpID, pl)
 }
 
-func (pls *pLibStatus) getPreLIB() (bpID string, bi *blockInfo) {
+func (pls *pLibStatus) getPreLIB() (bpID string, pl *plInfo) {
 	var (
-		prev *list.Element
-		e    = pls.confirms.Back()
-		cr   = cInfo(e).ConfirmRange
+		confirmed *blockInfo
+		prev      *list.Element
+		e         = pls.confirms.Back()
+		cr        = cInfo(e).ConfirmRange
 	)
 	bpID = cInfo(e).BPID
+	confirmedBy := cInfo(e).blockInfo
 
 	for e != nil && cr > 0 {
 		prev = e.Prev()
@@ -111,13 +148,16 @@ func (pls *pLibStatus) getPreLIB() (bpID string, bi *blockInfo) {
 		c := cInfo(e)
 		c.confirmsLeft--
 		if c.confirmsLeft == 0 {
-			pls.hplMark = e
 			// proposed LIB info to return
-			bi = c.bInfo()
+			confirmed = c.bInfo()
 			break
 		}
 
 		e = prev
+	}
+
+	if confirmed != nil {
+		pl = &plInfo{Plib: confirmed, PlibBy: confirmedBy}
 	}
 
 	return
@@ -155,8 +195,8 @@ func (pls *pLibStatus) load(lib *blockInfo, block *types.Block) {
 }
 
 func (pls *pLibStatus) save(tx db.Transaction) error {
-	if len(pls.plib) != 0 {
-		buf, err := encode(pls.plib)
+	if len(pls.plm) != 0 {
+		buf, err := encode(pls.plm)
 		if err != nil {
 			return err
 		}
@@ -176,28 +216,19 @@ func (pls *pLibStatus) rollbackPreLIBs() {
 }
 
 func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
-	if pLib, exist := pls.plib[c.BPID]; exist {
+	if pLib, exist := pls.plm[c.BPID]; exist {
 		purgeBeg := len(pLib)
 		if purgeBeg == 0 {
 			return
 		}
 
 		for i, l := range pLib {
-			if l.BlockNo >= c.BlockNo {
+			if l.Plib.BlockNo >= c.BlockNo {
 				purgeBeg = i
 				break
 			}
 		}
-		if purgeBeg < len(pLib) {
-			oldLen := len(pLib)
-			newEntry := pLib[0:purgeBeg]
-
-			pls.plib[c.BPID] = newEntry
-
-			logger.Debug().
-				Str("BPID", c.BPID).Int("old len", oldLen).Int("new len", purgeBeg).
-				Msg("rollback pre-LIB entry")
-		}
+		pls.plm.trunc(c.BPID, 0, purgeBeg)
 	}
 }
 
@@ -207,22 +238,17 @@ func (pls *pLibStatus) gc(lib *blockInfo) {
 			return cInfo(e).BlockNo <= lib.BlockNo
 		})
 
-	for bpID, pl := range pls.plib {
+	for bpID, pl := range pls.plm {
 		var beg int
 		for i, l := range pl {
-			if l.BlockNo > lib.BlockNo {
+			if l.Plib.BlockNo > lib.BlockNo {
 				beg = i
 				break
 			}
 		}
-		oldLen := len(pl)
-		newPl := pl[beg:]
-		pls.plib[bpID] = newPl
-
-		logger.Debug().
-			Str("BPID", bpID).Int("old len", oldLen).Int("new len", len(newPl)).
-			Msg("collect garbage pre-LIB entry")
-
+		// We can delete all the elements before <LIB - 1> since the current
+		// LIB cannot be discarded by a reorganization.
+		pls.plm.trunc(bpID, beg-1, len(pl))
 	}
 }
 
@@ -254,12 +280,12 @@ func cInfo(e *list.Element) *confirmInfo {
 }
 
 func (pls *pLibStatus) calcLIB() *blockInfo {
-	if len(pls.plib) == 0 {
+	if len(pls.plm) == 0 {
 		return nil
 	}
 
-	libInfos := make([]*blockInfo, 0, len(pls.plib))
-	for _, l := range pls.plib {
+	libInfos := make([]*plInfo, 0, len(pls.plm))
+	for _, l := range pls.plm {
 		if len(l) != 0 {
 			libInfos = append(libInfos, l[len(l)-1])
 		}
@@ -270,27 +296,13 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 	}
 
 	sort.Slice(libInfos, func(i, j int) bool {
-		return libInfos[i].BlockNo < libInfos[j].BlockNo
+		return libInfos[i].Plib.BlockNo < libInfos[j].Plib.BlockNo
 	})
 
 	// TODO: check the correctness of the formula.
 	lib := libInfos[(len(libInfos)-1)/3]
 
-	return lib
-}
-
-type confirmInfo struct {
-	*blockInfo
-	BPID         string
-	confirmsLeft uint16
-}
-
-func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
-	return &confirmInfo{
-		BPID:         block.BPID2Str(),
-		blockInfo:    newBlockInfo(block),
-		confirmsLeft: confirmsRequired,
-	}
+	return lib.Plib
 }
 
 type blockInfo struct {
@@ -320,8 +332,27 @@ func (bi *blockInfo) save(tx db.Transaction) error {
 	return nil
 }
 
+type plInfo struct {
+	PlibBy *blockInfo // the block info by which a block becomes pre-LIB.
+	Plib   *blockInfo // pre-LIB
+}
+
+type confirmInfo struct {
+	*blockInfo
+	BPID         string
+	confirmsLeft uint16
+}
+
+func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
+	return &confirmInfo{
+		BPID:         block.BPID2Str(),
+		blockInfo:    newBlockInfo(block),
+		confirmsLeft: confirmsRequired,
+	}
+}
+
 type bootLoader struct {
-	plib     preLIB
+	plib     bpPlm
 	lib      *blockInfo
 	best     *types.Block
 	genesis  *types.Block
@@ -343,18 +374,21 @@ func (bs *bootLoader) load() {
 			if len(p) == 0 {
 				continue
 			}
-			logger.Debug().
-				Str("BPID", id).Str("block hash", p[len(p)-1].BlockHash).
+			logger.Debug().Str("BPID", id).
+				Str("confirmed hash", p[len(p)-1].Plib.BlockHash).
+				Str("confirmedBy hash", p[len(p)-1].PlibBy.BlockHash).
 				Msg("pre-LIB entry")
 		}
 	}
+
+	libLoader.loadConfirms()
 }
 
 func (bs *bootLoader) loadLIB(bi *blockInfo) error {
 	return bs.decodeStatus(statusKeyLIB, bi)
 }
 
-func (bs *bootLoader) loadPLIB(plib *preLIB) error {
+func (bs *bootLoader) loadPLIB(plib *bpPlm) error {
 	return bs.decodeStatus(statusKeyPreLIB, plib)
 }
 
@@ -392,14 +426,20 @@ func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
 		})
 	}
 
-	pls := newPlibStatus(bpConsensusCount)
+	pls := newPlibStatus(defaultConsensusCount)
 	pls.genesisInfo = newBlockInfo(libLoader.genesis)
 
-	beg := lib.BlockNo + 1
-	for i := beg; i <= end; i++ {
+	beginBlockNo := func() uint64 {
+		if beg := lib.BlockNo - 2*consensusBlockCount(); beg > 0 {
+			return beg
+		}
+		return 1
+	}
+
+	for i := beginBlockNo(); i <= end; i++ {
 		block, err := libLoader.getBlock(i)
 		if err != nil {
-			panic(err)
+			logger.Error().Err(err).Msg("failed to read block")
 		}
 		pls.addConfirmInfo(block)
 		pls.update()
