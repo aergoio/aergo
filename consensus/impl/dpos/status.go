@@ -46,7 +46,7 @@ func (s *Status) load() {
 	s.lib = libLoader.lib
 
 	if len(libLoader.plib) != 0 {
-		s.pls.plib = libLoader.plib
+		s.pls.plm = libLoader.plib
 	}
 
 	if libLoader.confirms != nil {
@@ -162,7 +162,7 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	libLoader = &bootLoader{
-		plib:     make(preLIB),
+		plib:     make(bpPlm),
 		lib:      &blockInfo{},
 		best:     best,
 		genesis:  genesis,
@@ -171,5 +171,4 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	}
 
 	libLoader.load()
-	libLoader.loadConfirms()
 }
