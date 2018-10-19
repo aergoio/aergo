@@ -340,6 +340,9 @@ func (bs *bootLoader) load() {
 	if err := bs.loadPLIB(&bs.plib); err == nil {
 		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
 		for id, p := range bs.plib {
+			if len(p) == 0 {
+				continue
+			}
 			logger.Debug().
 				Str("BPID", id).Str("block hash", p[len(p)-1].BlockHash).
 				Msg("pre-LIB entry")
