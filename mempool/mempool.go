@@ -55,6 +55,7 @@ type MemPool struct {
 	status   int32
 	// followings are for test
 	testConfig bool
+	deadtx     int
 }
 
 // NewMemPoolService create and return new MemPool
@@ -159,6 +160,7 @@ func (mp *MemPool) Statics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"cache_len": len(mp.cache),
 		"orphan":    mp.orphan,
+		"dead":      mp.deadtx,
 	}
 }
 
@@ -300,6 +302,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		mp.Warn().Uint64("nonce on tx", tx.GetBody().GetNonce()).
 			Uint64("nonce on state", ns.Nonce).
 			Msg("mismatch ditected")
+		mp.deadtx++
 	}
 	return nil
 }
