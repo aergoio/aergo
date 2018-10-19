@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
 	"reflect"
+	"time"
 )
 
 type SyncManager interface {
@@ -28,6 +29,12 @@ type syncManager struct {
 
 	blkCache *lru.Cache
 	txCache  *lru.Cache
+
+	syncing bool
+}
+
+func checkSyncStatus() {
+
 }
 
 func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) SyncManager {
@@ -156,4 +163,10 @@ func P2PTxHashArrToStringWithLimit (bbarray []TxHash, limit int) string {
 	}
 	buf.WriteByte(']')
 	return buf.String()
+}
+
+
+type longSyncer struct {
+	sm *syncManager
+	timer *time.Timer
 }
