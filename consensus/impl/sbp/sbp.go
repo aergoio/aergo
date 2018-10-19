@@ -159,12 +159,7 @@ func (s *SimpleBlockFactory) Start() {
 
 				ts := time.Now().UnixNano()
 
-				txOp := chain.NewCompTxOp(
-					s.txOp,
-					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts),
-				)
-
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, s.txOp, ts)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
+	bc "github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -18,6 +19,22 @@ var (
 	ErrQuit           = errors.New("shutdown initiated")
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
+
+type txExec struct {
+	execTx bc.TxExecFn
+}
+
+func newTxExec(blockNo types.BlockNo, ts int64) TxOp {
+	// Block hash not determined yet
+	return &txExec{
+		execTx: bc.NewTxExecutor(blockNo, ts),
+	}
+}
+
+func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+	err := te.execTx(bState, tx)
+	return err
+}
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
 type ErrTimeout struct {
@@ -59,12 +76,56 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 //
 // TODO: This is not an exact size. Let's make it exact!
 func MaxBlockBodySize() uint32 {
-	return chain.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
+	return bc.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
+}
+
+// make coinbase tx for bp reward
+func NewCoinBaseTx(bpAccount []byte, amount uint64) *types.Tx {
+	cbtx := types.Tx{Body: &types.TxBody{Recipient: bpAccount, Amount: amount, Type: types.TxType_COINBASE}}
+
+	cbtx.Hash = cbtx.CalculateTxHash()
+
+	return &cbtx
+}
+
+func AddCoinBaseTx(bState *state.BlockState, txs []*types.Tx, coinbaseTxOp TxOp) ([]*types.Tx, error) {
+	if txs == nil || len(txs) == 0 {
+		return txs, nil
+	}
+
+	coinbaseTx := NewCoinBaseTx(bc.CoinbaseAccount, bState.BpReward)
+
+	logger.Debug().Str("account", enc.ToString(bc.CoinbaseAccount)).
+		Uint64("reward", bState.BpReward).Int("txCount", len(txs)).Msg("add coinbase tx")
+
+	if err := coinbaseTxOp.Apply(bState, coinbaseTx); err != nil {
+		return nil, err
+	}
+
+	//final update blockState
+	if err := bState.Update(); err != nil {
+		return nil, err
+	}
+
+	//add coinbase tx at the front of txlist
+	res := make([]*types.Tx, 0, len(txs)+1)
+	res = append(res, coinbaseTx)
+	res = append(res, txs...)
+
+	return res, nil
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64) (*types.Block, error) {
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, bpTxOp TxOp, ts int64) (*types.Block, error) {
+	execOp := newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts)
+	txOp := NewCompTxOp(bpTxOp, execOp)
+
 	txs, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
+	if err != nil {
+		return nil, err
+	}
+
+	txs, err = AddCoinBaseTx(bState, txs, execOp)
 	if err != nil {
 		return nil, err
 	}
