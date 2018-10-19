@@ -35,6 +35,7 @@ set(SRCS
     assert.c
     error.c
     strbuf.c
+    array.c
     stack.c
     src_pos.c
     enum.c

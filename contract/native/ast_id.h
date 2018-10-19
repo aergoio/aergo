@@ -25,14 +25,14 @@
 #define is_const_id(id)             flag_on((id)->mod, MOD_CONST)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
-#define id_new_ctor(name, pos)                                                 \
+#define id_new_ctor(name, pos)                                                           \
     id_new_func((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
 
 #define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
-#define id_add_last(ids, new_id)    id_add((ids), (ids)->cnt, (new_id))
+#define id_add_last(ids, new_id)    id_add((ids), array_size(ids), (new_id))
 
 #define id_join_first(ids, new_ids) id_join((ids), 0, (new_ids))
-#define id_join_last(ids, new_ids)  id_join((ids), (ids)->cnt, (new_ids))
+#define id_join_last(ids, new_ids)  id_join((ids), array_size(ids), (new_ids))
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
