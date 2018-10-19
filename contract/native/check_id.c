@@ -51,8 +51,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             }
 
             ASSERT1(is_int_val(size_val), size_val->kind);
-
-            id->meta.arr_size[i] = size_val->iv;
+            id->meta.arr_size[i] = int_val(size_val);
         }
     }
 
@@ -102,7 +101,12 @@ id_check_var(check_t *check, ast_id_t *id)
 
 		CHECK(meta_check(&id->meta, &init_exp->meta));
 
-        id_eval_const(id, init_exp);
+        if (is_val_exp(init_exp)) {
+            if (!value_check(&init_exp->u_val.val, &id->meta))
+                RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
+
+            id->val = &init_exp->u_val.val;
+        }
     }
     else if (is_const_id(id)) {
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);

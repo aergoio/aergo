@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "array.h"
+#include "value.h"
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 #define is_byte_meta(meta)          ((meta)->type == TYPE_BYTE)

@@ -56,10 +56,10 @@ contract test {
 
 @test(array_as_parameter)
 contract test {
-    func f1(int p1[]) { 
+    func f1(int p1[]) {
         p1[0] = 1;
     }
-    func f2(int p1[2]) { 
+    func f2(int p1[2]) {
         p1[0] = 1;
         p1[1] = 2;
     }

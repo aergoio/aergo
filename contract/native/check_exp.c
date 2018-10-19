@@ -56,7 +56,7 @@ exp_check_val(check_t *check, ast_exp_t *exp)
         meta_set_bool(&exp->meta);
         break;
     case VAL_INT:
-        meta_set_int64(&exp->meta);
+        meta_set_uint64(&exp->meta);
         meta_set_untyped(&exp->meta);
         break;
     case VAL_FP:
@@ -606,7 +606,10 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(exp_check(check, param_exp));
         CHECK(meta_check(&param_id->meta, &param_exp->meta));
 
-        id_eval_const(param_id, param_exp);
+        if (is_val_exp(param_exp) &&
+            !value_check(&param_exp->u_val.val, &param_id->meta))
+            RETURN(ERROR_NUMERIC_OVERFLOW, &param_exp->pos,
+                   meta_to_str(&param_id->meta));
     }
 
     exp->id = id;

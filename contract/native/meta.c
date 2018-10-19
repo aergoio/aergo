@@ -129,6 +129,30 @@ meta_check_map(meta_t *x, meta_t *y)
 }
 
 static int
+meta_check_tuple(meta_t *x, meta_t *y)
+{
+    int i;
+    array_t *x_elems = x->u_tup.metas;
+    array_t *y_elems = y->u_tup.metas;
+
+    if (!is_tuple_meta(y))
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+
+    if (array_size(x_elems) != array_size(y_elems))
+        RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", array_size(x_elems),
+               array_size(y_elems));
+
+    for (i = 0; i < array_size(x_elems); i++) {
+        meta_t *x_elem = array_item(x_elems, i, meta_t);
+        meta_t *y_elem = array_item(y_elems, i, meta_t);
+
+        CHECK(meta_check(x_elem, y_elem));
+    }
+
+    return NO_ERROR;
+}
+
+static int
 meta_check_struct(meta_t *x, meta_t *y)
 {
     if (is_struct_meta(y)) {
@@ -139,20 +163,7 @@ meta_check_struct(meta_t *x, meta_t *y)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
     else if (is_tuple_meta(y)) {
-        int i;
-        array_t *x_elems = x->u_tup.metas;
-        array_t *y_elems = y->u_tup.metas;
-
-        if (array_size(x_elems) != array_size(y_elems))
-            RETURN(ERROR_MISMATCHED_COUNT, y->pos, "field", array_size(x_elems),
-                   array_size(y_elems));
-
-        for (i = 0; i < array_size(x_elems); i++) {
-            meta_t *x_elem = array_item(x_elems, i, meta_t);
-            meta_t *y_elem = array_item(y_elems, i, meta_t);
-
-            CHECK(meta_check(x_elem, y_elem));
-        }
+        return meta_check_tuple(x, y);
     }
     else {
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
@@ -175,6 +186,9 @@ meta_check_type(meta_t *x, meta_t *y)
 
     if (is_map_meta(x))
         return meta_check_map(x, y);
+
+    if (is_tuple_meta(x))
+        return meta_check_tuple(x, y);
 
     if (is_struct_meta(x))
         return meta_check_struct(x, y);

@@ -103,8 +103,6 @@ ast_id_t *id_search_param(ast_id_t *id, char *name);
 void id_add(array_t *ids, int idx, ast_id_t *new_id);
 void id_join(array_t *ids, int idx, array_t *new_ids);
 
-int id_eval_const(ast_id_t *id, ast_exp_t *exp);
-
 void ast_id_dump(ast_id_t *id, int indent);
 
 #endif /* ! _AST_ID_H */

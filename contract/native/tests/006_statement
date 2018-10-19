@@ -3,6 +3,9 @@ contract test {
     int i1, i2;
 
     test() {
+        i1 = 1;
+        i1, i2 = 1, 2;
+
         i1 += 1;
         i1 -= 1;
         i1 *= 1 + 1;
@@ -15,6 +18,8 @@ contract test {
 
         string s = "first";
         s += ", second";
+
+        i1, s = 1, "first";
     }
 }
 
@@ -29,6 +34,16 @@ contract test {
 contract test {
     const int i = 0;
     test() { i = 1; }
+}
+
+@test(mismatched_tuple_type)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int i;
+    string s;
+    test() {
+        i, s = 1, 2;
+    }
 }
 
 @test(array_assignment)
@@ -424,7 +439,7 @@ contract test {
     int v1;
     string v2;
     test() {
-        /* 
+        /*
         v1 = select id from emp;
         v1, v2 =
             select id,

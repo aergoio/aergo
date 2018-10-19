@@ -187,19 +187,6 @@ id_join(array_t *ids, int idx, array_t *new_ids)
     }
 }
 
-int
-id_eval_const(ast_id_t *id, ast_exp_t *exp)
-{
-    if (is_val_exp(exp)) {
-        if (!value_check(&exp->u_val.val, &id->meta))
-            RETURN(ERROR_NUMERIC_OVERFLOW, &exp->pos, meta_to_str(&id->meta));
-
-        id->val = &exp->u_val.val;
-    }
-
-    return NO_ERROR;
-}
-
 void
 ast_id_dump(ast_id_t *id, int indent)
 {

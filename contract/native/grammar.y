@@ -159,6 +159,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   var_decl
 %type <array>   var_init_decl
 %type <exp>     var_type
+%type <exp>     var_qual
 %type <exp>     var_spec
 %type <type>    prim_type
 %type <array>   var_name_list
@@ -346,16 +347,20 @@ var_init_decl:
 ;
 
 var_type:
+    var_qual
+|   K_PUBLIC var_type
+    {
+        $$ = $2;
+        flag_set($$->u_type.mod, MOD_PUBLIC);
+    }
+;
+
+var_qual:
     var_spec
 |   K_CONST var_spec
     {
         $$ = $2;
         flag_set($$->u_type.mod, MOD_CONST);
-    }
-|   K_PUBLIC var_type
-    {
-        $$ = $2;
-        flag_set($$->u_type.mod, MOD_PUBLIC);
     }
 ;
 
@@ -579,7 +584,7 @@ param_list:
 ;
 
 param_decl:
-    var_type declarator
+    var_qual declarator
     {
         $$ = $2;
         $$->u_var.type_exp = $1;

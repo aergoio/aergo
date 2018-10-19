@@ -10,17 +10,17 @@
 #include "util.h"
 #include "parse.h"
 
-#define YY_DECL                                                                \
+#define YY_DECL                                                                          \
     int yyscan(YYSTYPE *yylval, YYLTYPE *yylloc, yyscan_t yyscanner)
 
 #undef  YY_INPUT
-#define YY_INPUT(buf, result, max)                                             \
-    do {                                                                       \
-        (result) = MIN((max), yyextra->len - yyextra->pos);                    \
-        if ((result) > 0) {                                                    \
-            memcpy(buf, yyextra->src + yyextra->pos, (result));                \
-            yyextra->pos += (result);                                          \
-        }                                                                      \
+#define YY_INPUT(buf, result, max)                                                       \
+    do {                                                                                 \
+        (result) = MIN((max), yyextra->len - yyextra->pos);                              \
+        if ((result) > 0) {                                                              \
+            memcpy(buf, yyextra->src + yyextra->pos, (result));                          \
+            yyextra->pos += (result);                                                    \
+        }                                                                                \
     } while (0)
 
 #define YY_EXTRA_TYPE           parse_t *
@@ -28,88 +28,88 @@
 
 #define yy_error(ec)            ERROR(ec, yylloc)
 
-#define yy_recover()                                                           \
-    do {                                                                       \
-        register int c;                                                        \
-        for ( ; ; ) {                                                          \
-            c = input(yyscanner);                                              \
-            if (c == '\r' || c == '\n') {                                      \
-                unput(c);                                                      \
-                break;                                                         \
-            }                                                                  \
-            else if (c == '\0') {                                              \
-                yyterminate();                                                 \
-            }                                                                  \
-            src_pos_update_col(yylloc, 1);                                     \
-        }                                                                      \
+#define yy_recover()                                                                     \
+    do {                                                                                 \
+        register int c;                                                                  \
+        for ( ; ; ) {                                                                    \
+            c = input(yyscanner);                                                        \
+            if (c == '\r' || c == '\n') {                                                \
+                unput(c);                                                                \
+                break;                                                                   \
+            }                                                                            \
+            else if (c == '\0') {                                                        \
+                yyterminate();                                                           \
+            }                                                                            \
+            src_pos_update_col(yylloc, 1);                                               \
+        }                                                                                \
     } while (0)
 
-#define yy_scan_comment()                                                      \
-    do {                                                                       \
-        char c, prev = '\0';                                                   \
-        while ((c = input(yyscanner)) != '\0') {                               \
-            if (c == '/' && prev == '*') {                                     \
-                src_pos_update_col(yylloc, 1);                                 \
-                break;                                                         \
-            }                                                                  \
-            if (c == '\n')                                                     \
-                src_pos_update_line(yylloc);                                   \
-            else                                                               \
-                src_pos_update_col(yylloc, 1);                                 \
-            prev = c;                                                          \
-        }                                                                      \
-        if (c == '\0') {                                                       \
-            yy_error(ERROR_UNTERMINATED_COMMENT);                              \
-            yyterminate();                                                     \
-        }                                                                      \
+#define yy_scan_comment()                                                                \
+    do {                                                                                 \
+        char c, prev = '\0';                                                             \
+        while ((c = input(yyscanner)) != '\0') {                                         \
+            if (c == '/' && prev == '*') {                                               \
+                src_pos_update_col(yylloc, 1);                                           \
+                break;                                                                   \
+            }                                                                            \
+            if (c == '\n')                                                               \
+                src_pos_update_line(yylloc);                                             \
+            else                                                                         \
+                src_pos_update_col(yylloc, 1);                                           \
+            prev = c;                                                                    \
+        }                                                                                \
+        if (c == '\0') {                                                                 \
+            yy_error(ERROR_UNTERMINATED_COMMENT);                                        \
+            yyterminate();                                                               \
+        }                                                                                \
     } while (0)
 
-#define yy_scan_literal()                                                      \
-    do {                                                                       \
-        char c, prev = '\0';                                                   \
-        while ((c = input(yyscanner)) != '\0') {                               \
-            if (c == '"' && prev != '\\') {                                    \
-                src_pos_update_col(yylloc, 1);                                 \
-                break;                                                         \
-            }                                                                  \
-            if (c == '\n') {                                                   \
-                strbuf_reset(YY_BUF);                                          \
-                unput(c);                                                      \
-                yy_error(ERROR_UNTERMINATED_STRING);                           \
-                break;                                                         \
-            }                                                                  \
-            else {                                                             \
-                src_pos_update_col(yylloc, 1);                                 \
-                strbuf_ncat(YY_BUF, &c, 1);                                    \
-            }                                                                  \
-            prev = c;                                                          \
-        }                                                                      \
-        if (c == '\0') {                                                       \
-            yy_error(ERROR_UNTERMINATED_STRING);                               \
-            yyterminate();                                                     \
-        }                                                                      \
+#define yy_scan_literal()                                                                \
+    do {                                                                                 \
+        char c, prev = '\0';                                                             \
+        while ((c = input(yyscanner)) != '\0') {                                         \
+            if (c == '"' && prev != '\\') {                                              \
+                src_pos_update_col(yylloc, 1);                                           \
+                break;                                                                   \
+            }                                                                            \
+            if (c == '\n') {                                                             \
+                strbuf_reset(YY_BUF);                                                    \
+                unput(c);                                                                \
+                yy_error(ERROR_UNTERMINATED_STRING);                                     \
+                break;                                                                   \
+            }                                                                            \
+            else {                                                                       \
+                src_pos_update_col(yylloc, 1);                                           \
+                strbuf_ncat(YY_BUF, &c, 1);                                              \
+            }                                                                            \
+            prev = c;                                                                    \
+        }                                                                                \
+        if (c == '\0') {                                                                 \
+            yy_error(ERROR_UNTERMINATED_STRING);                                         \
+            yyterminate();                                                               \
+        }                                                                                \
     } while (0)
 
-#define yy_return_strbuf(tok)                                                  \
-    do {                                                                       \
-        yylval->str = xstrndup(strbuf_str(YY_BUF), strbuf_size(YY_BUF));       \
-        strbuf_reset(YY_BUF);                                                  \
-        return (tok);                                                          \
+#define yy_return_strbuf(tok)                                                            \
+    do {                                                                                 \
+        yylval->str = xstrndup(strbuf_str(YY_BUF), strbuf_size(YY_BUF));                 \
+        strbuf_reset(YY_BUF);                                                            \
+        return (tok);                                                                    \
     } while (0)
 
-#define yy_return_text(tok)                                                    \
-    do {                                                                       \
-        src_pos_update_first(yylloc);                                          \
-        src_pos_update_col(yylloc, yyleng);                                    \
-        yylval->str = xstrndup(yytext, yyleng);                                \
-        return (tok);                                                          \
+#define yy_return_text(tok)                                                              \
+    do {                                                                                 \
+        src_pos_update_first(yylloc);                                                    \
+        src_pos_update_col(yylloc, yyleng);                                              \
+        yylval->str = xstrndup(yytext, yyleng);                                          \
+        return (tok);                                                                    \
     } while (0)
 
-#define yy_return(tok)                                                         \
-    do {                                                                       \
-        src_pos_update_first(yylloc);                                          \
-        src_pos_update_col(yylloc, yyleng);                                    \
-        return (tok);                                                          \
+#define yy_return(tok)                                                                   \
+    do {                                                                                 \
+        src_pos_update_first(yylloc);                                                    \
+        src_pos_update_col(yylloc, yyleng);                                              \
+        return (tok);                                                                    \
     } while (0)
 
 %}
