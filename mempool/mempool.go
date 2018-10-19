@@ -247,8 +247,6 @@ func (mp *MemPool) setStateDB(block *types.Block) {
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
 				Msg("new StateDB opened")
 		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
-			mp.Debug().Str("sroot", enc.ToString(stateRoot)).Msg("failed to set root of StateDB")
-
 			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}

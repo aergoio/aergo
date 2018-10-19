@@ -83,7 +83,7 @@ func genKeyPair(assert *assert.Assertions) (crypto.PrivKey, crypto.PubKey) {
 }
 
 func newSignedBlock(a *assert.Assertions, prev *types.Block) *types.Block {
-	block := types.NewBlock(prev, nil, make([]*types.Tx, 0), 10)
+	block := types.NewBlock(prev, nil, make([]*types.Tx, 0), nil, 10)
 	priv, _ := genKeyPair(a)
 	err := block.Sign(priv)
 	a.Nil(err)

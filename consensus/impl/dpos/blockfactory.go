@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
@@ -23,6 +24,22 @@ import (
 const (
 	slotQueueMax = 100
 )
+
+type txExec struct {
+	execTx bc.TxExecFn
+}
+
+func newTxExec(blockNo types.BlockNo, ts int64) chain.TxOp {
+	// Block hash not determined yet
+	return &txExec{
+		execTx: bc.NewTxExecutor(blockNo, ts),
+	}
+}
+
+func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+	err := te.execTx(bState, tx)
+	return err
+}
 
 // BlockFactory is the main data structure for DPoS block factory.
 type BlockFactory struct {
@@ -170,7 +187,12 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.
 
 	blockState := bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash(), contract.TempReceiptDb.NewTx())
 
-	block, err := chain.GenerateBlock(bf, bpi.bestBlock, blockState, bf.txOp, ts)
+	txOp := chain.NewCompTxOp(
+		bf.txOp,
+		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts),
+	)
+
+	block, err := chain.GenerateBlock(bf, bpi.bestBlock, blockState, txOp, ts)
 	if err != nil {
 		return nil, nil, err
 	}

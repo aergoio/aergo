@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -131,7 +132,15 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	nCollected = len(txRes)
 
+	if err := chain.SendRewardCoinbase(bState, chain.CoinbaseAccount); err != nil {
+		return nil, err
+	}
+
 	if err := contract.SaveRecoveryPoint(bState); err != nil {
+		return nil, err
+	}
+
+	if err := bState.Update(); err != nil {
 		return nil, err
 	}
 

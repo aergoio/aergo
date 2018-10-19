@@ -15,7 +15,7 @@ func GetDefaultGenesis() *Genesis {
 
 // GenesisToBlock returns *types.Block created based on Genesis Information
 func GenesisToBlock(gb *Genesis) *Block {
-	genesisBlock := NewBlock(nil, nil, nil, 0)
+	genesisBlock := NewBlock(nil, nil, nil, nil, 0)
 	genesisBlock.Header.Timestamp = gb.Timestamp
 	gb.Block = genesisBlock
 	return genesisBlock
