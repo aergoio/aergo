@@ -81,7 +81,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var prevBlockHash []byte
 	var blockNo BlockNo
 
@@ -94,10 +94,11 @@ func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, ts int64) *Block {
 		Txs: txs,
 	}
 	header := BlockHeader{
-		PrevBlockHash:  prevBlockHash,
-		BlockNo:        blockNo,
-		Timestamp:      ts,
-		BlocksRootHash: blockRoot,
+		PrevBlockHash:   prevBlockHash,
+		BlockNo:         blockNo,
+		Timestamp:       ts,
+		BlocksRootHash:  blockRoot,
+		CoinbaseAccount: coinbaseAcc,
 	}
 	block := Block{
 		Header: &header,

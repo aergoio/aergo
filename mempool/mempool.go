@@ -389,6 +389,8 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
+		mp.Fatal().Err(err).Str("sroot", enc.ToString(mp.stateDB.GetRoot())).Msg("failed to get state")
+
 		//FIXME PANIC?
 		//mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err

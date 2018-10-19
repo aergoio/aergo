@@ -25,6 +25,21 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+var (
+	ErrTxInvalidNonce       = errors.New("invalid nonce")
+	ErrTxInsuffienctBalance = errors.New("insufficient balance")
+	ErrTxInvalidType        = errors.New("Invalid type")
+)
+
+type ErrTx struct {
+	err error
+	tx  *types.Tx
+}
+
+func (ec *ErrTx) Error() string {
+	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), enc.ToString(ec.tx.GetHash()))
+}
+
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
 	return cs.cdb.getBestBlockNo()
 }
@@ -317,11 +332,12 @@ type ValidatePostFn func() error
 
 type blockExecutor struct {
 	*state.BlockState
-	sdb          *state.ChainStateDB
-	execTx       TxExecFn
-	txs          []*types.Tx
-	validatePost ValidatePostFn
-	commitOnly   bool
+	sdb              *state.ChainStateDB
+	execTx           TxExecFn
+	txs              []*types.Tx
+	validatePost     ValidatePostFn
+	coinbaseAcccount []byte
+	commitOnly       bool
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
@@ -354,10 +370,11 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	txs := block.GetBody().GetTxs()
 
 	return &blockExecutor{
-		BlockState: bState,
-		sdb:        cs.sdb,
-		execTx:     exec,
-		txs:        txs,
+		BlockState:       bState,
+		sdb:              cs.sdb,
+		execTx:           exec,
+		txs:              txs,
+		coinbaseAcccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
 			return cs.validator.ValidatePost(bState.GetRoot(), block)
 		},
@@ -376,7 +393,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 
 		err := executeTx(bState, tx, blockNo, ts)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
+			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
 			return err
 		}
@@ -394,9 +411,15 @@ func (e *blockExecutor) execute() error {
 				return err
 			}
 		}
+
+		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
+			return err
+		}
+
 		if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
 			return err
 		}
+
 		if err := e.Update(); err != nil {
 			return err
 		}
@@ -408,7 +431,12 @@ func (e *blockExecutor) execute() error {
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 
-	return e.commit()
+	if err := e.commit(); err != nil {
+		return err
+	}
+
+	logger.Debug().Msg("executed block")
+	return nil
 }
 
 func (e *blockExecutor) commit() error {
@@ -450,6 +478,29 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
+func validateTx(tx *types.Tx, senderState *types.State, receiverState *types.State, txFee uint64,
+	bs *state.BlockState) error {
+	//nonce error check
+	txBody := tx.GetBody()
+
+	switch txBody.Type {
+	case types.TxType_NORMAL:
+		if (senderState.Nonce + 1) != txBody.Nonce {
+			//return &ErrTx{ErrTxInvalidNonce, tx}
+			return fmt.Errorf("invalid nonce acc=%d,tx=%d", senderState.Nonce, txBody.Nonce)
+		}
+
+		if senderState.GetBalance() < txBody.Amount+txFee {
+			return &ErrTx{ErrTxInsuffienctBalance, tx}
+		}
+	case types.TxType_GOVERNANCE:
+	default:
+		return &ErrTx{ErrTxInvalidType, tx}
+	}
+
+	return nil
+}
+
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
 	senderID := types.ToAccountID(txBody.Account)
@@ -480,8 +531,15 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	senderChange := types.State(*senderState)
 	receiverChange := types.State(*receiverState)
 
+	txFee := CoinbaseFee
+	if err := validateTx(tx, senderState, receiverState, txFee, bs); err != nil {
+		return err
+	}
 	switch txBody.Type {
 	case types.TxType_NORMAL:
+		senderChange.Balance -= txFee
+		bs.BpReward += txFee
+
 		if senderID != receiverID {
 			if senderChange.Balance < txBody.Amount {
 				senderChange.Balance = 0 // FIXME: reject insufficient tx.
@@ -554,6 +612,32 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	return err
 }
 
+func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
+	if bState.BpReward <= 0 || coinbaseAccount == nil {
+		logger.Debug().Uint64("reward", bState.BpReward).Msg("coinbase is skipped")
+		return nil
+	}
+
+	receiverID := types.ToAccountID(coinbaseAccount)
+	receiverState, err := bState.GetAccountState(receiverID)
+	if err != nil {
+		return err
+	}
+
+	receiverChange := types.State(*receiverState)
+	receiverChange.Balance = receiverChange.Balance + bState.BpReward
+
+	err = bState.PutState(receiverID, &receiverChange)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().Uint64("reward", bState.BpReward).
+		Uint64("newbalance", receiverChange.Balance).Msg("send reward to coinbase account")
+
+	return nil
+}
+
 // find an orphan block which is the child of the added block
 func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) {
 	hash := block.BlockHash()
@@ -619,6 +703,7 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 
 // TODO adhoc flag refactor it
 const HashNumberUnknown = math.MaxUint64
+
 //
 func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
