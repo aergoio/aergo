@@ -32,6 +32,9 @@ var (
 
 	ErrWrongAddressOrPassWord = errors.New("address or password is incorrect")
 
+	//ErrInvalidRecipient
+	ErrInvalidRecipient = errors.New("invalid recipient")
+
 	//ErrStakeBeforeVote
 	ErrMustStakeBeforeVote = errors.New("must stake before vote")
 

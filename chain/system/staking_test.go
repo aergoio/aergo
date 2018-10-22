@@ -3,14 +3,13 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package chain
+package system
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBasicStakingUnstaking(t *testing.T) {
@@ -28,6 +27,7 @@ func TestBasicStakingUnstaking(t *testing.T) {
 		Body: &types.TxBody{
 			Account: account,
 			Amount:  1000,
+			Payload: []byte{'s'},
 		},
 	}
 	senderState := &types.State{Balance: 1000}
@@ -36,6 +36,7 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	assert.Equal(t, err, nil, "staking failed")
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
 
+	tx.Body.Payload = []byte{'u'}
 	err = unstaking(tx.Body, senderState, scs, stakingDelay-1)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
@@ -59,6 +60,7 @@ func TestStaking1000Unstaking9000(t *testing.T) {
 		Body: &types.TxBody{
 			Account: account,
 			Amount:  1000,
+			Payload: []byte{'s'},
 		},
 	}
 	senderState := &types.State{Balance: 1000}
@@ -67,6 +69,7 @@ func TestStaking1000Unstaking9000(t *testing.T) {
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
 
 	tx.Body.Amount = 9000
+	tx.Body.Payload = []byte{'u'}
 	err = unstaking(tx.Body, senderState, scs, stakingDelay-1)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")

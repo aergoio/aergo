@@ -12,10 +12,9 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
-
-	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +32,7 @@ var voteCmd = &cobra.Command{
 	Run:   execVote,
 }
 
-const peerIDLength = 39
+const PeerIDLength = 39
 
 func execVote(cmd *cobra.Command, args []string) {
 	account, err := types.DecodeAddress(address)
@@ -57,7 +56,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	payload := make([]byte, (len(candidates)*peerIDLength)+1)
+	payload := make([]byte, (len(candidates)*PeerIDLength)+1)
 	payload[0] = 'v'
 	for i, v := range candidates {
 		candidate, err := base58.Decode(v)
@@ -70,7 +69,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		copy(payload[1+(i*peerIDLength):], candidate)
+		copy(payload[1+(i*PeerIDLength):], candidate)
 	}
 
 	txs := make([]*types.Tx, 1)

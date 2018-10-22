@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain/system"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -384,4 +385,34 @@ func (cs *ChainService) Statistics() *map[string]interface{} {
 
 func (cs *ChainService) GetChainTree() ([]byte, error) {
 	return cs.cdb.GetChainTree()
+}
+
+func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	return system.GetVoteResult(scs, n)
+}
+
+func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	var voteList types.VoteList
+	var tmp []*types.Vote
+	voteList.Votes = tmp
+	amount, _, to, err := system.GetVote(scs, addr)
+	if err != nil {
+		return nil, err
+	}
+	for offset := 0; offset < len(to); offset += system.PeerIDLength {
+		vote := &types.Vote{
+			Candidate: to[offset : offset+system.PeerIDLength],
+			Amount:    amount,
+		}
+		voteList.Votes = append(voteList.Votes, vote)
+	}
+	return &voteList, nil
 }

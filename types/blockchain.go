@@ -11,12 +11,11 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/minio/sha256-simd"
-
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
+	"github.com/minio/sha256-simd"
 )
 
 const (

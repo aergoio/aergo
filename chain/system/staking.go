@@ -1,4 +1,4 @@
-package chain
+package system
 
 import (
 	"encoding/binary"
@@ -14,9 +14,6 @@ const stakingDelay = 10
 func staking(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
 
-	if txBody.Amount < types.StakingMinimum {
-		return types.ErrTooSmallAmount
-	}
 	staked, _, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return err
@@ -29,8 +26,7 @@ func staking(txBody *types.TxBody, senderState *types.State,
 	return nil
 }
 
-func unstaking(txBody *types.TxBody, senderState *types.State,
-	scs *state.ContractState, blockNo types.BlockNo) error {
+func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
 	staked, when, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return err
@@ -42,23 +38,25 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		return types.ErrLessTimeHasPassed
 	}
 	amount := txBody.Amount
-	if staked < txBody.Amount {
-		amount = staked
-		err = setStaking(scs, txBody.Account, 0, blockNo)
-		if err != nil {
-			return err
-		}
+	var backToBalance uint64
+	if staked < amount {
+		amount = 0
+		backToBalance = staked
 	} else {
-		err = setStaking(scs, txBody.Account, staked-txBody.Amount, blockNo)
-		if err != nil {
-			return err
-		}
+		amount = staked - txBody.Amount
+		backToBalance = txBody.Amount
 	}
-	err = voting(txBody, scs, blockNo)
-	if err != nil && err != types.ErrLessTimeHasPassed {
+	err = setStaking(scs, txBody.Account, amount, 0)
+	//blockNo will be updated in voting
+	if err != nil {
 		return err
 	}
-	senderState.Balance = senderState.Balance + amount
+	err = voting(txBody, scs, blockNo)
+	if err != nil {
+		return err
+	}
+
+	senderState.Balance = senderState.Balance + backToBalance
 	return nil
 }
 

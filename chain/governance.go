@@ -6,8 +6,8 @@
 package chain
 
 import (
+	"github.com/aergoio/aergo/chain/system"
 	"github.com/aergoio/aergo/state"
-
 	"github.com/aergoio/aergo/types"
 )
 
@@ -21,43 +21,15 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderStat
 	}
 	switch governance {
 	case types.AergoSystem:
-		/*
-			TODO: need validate?
-			peerID, err := peer.IDFromBytes(to)
-			if err != nil {
-				return err
-			}
-		*/
-		if len(txBody.Payload) > 0 {
-			err = executeSystemTx(txBody, senderState, scs, blockNo)
-			if err == nil {
-				err = states.CommitContractState(scs)
-			}
-		} else {
-			err = types.ErrTxFormatInvalid
+		err = system.ExecuteSystemTx(txBody, senderState, scs, blockNo)
+		if err == nil {
+			err = states.CommitContractState(scs)
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
+		err = types.ErrInvalidRecipient
 	}
 	return err
-}
-
-func executeSystemTx(txBody *types.TxBody, senderState *types.State,
-	scs *state.ContractState, blockNo types.BlockNo) error {
-	systemCmd := txBody.GetPayload()[0]
-	var err error
-	switch systemCmd {
-	case 's':
-		err = staking(txBody, senderState, scs, blockNo)
-	case 'v':
-		err = voting(txBody, scs, blockNo)
-	case 'u':
-		err = unstaking(txBody, senderState, scs, blockNo)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // InitGenesisBPs opens system contract and put initial voting result
@@ -77,7 +49,7 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	for _, v := range genesis.BPIds {
 		voteResult[v] = uint64(0)
 	}
-	if err = syncVoteResult(scs, &voteResult); err != nil {
+	if err = system.InitVoteResult(scs, &voteResult); err != nil {
 		return err
 	}
 	if err = states.CommitContractState(scs); err != nil {

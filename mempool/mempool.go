@@ -19,6 +19,7 @@ import (
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/chain/system"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -334,6 +335,24 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		if !mp.cfg.EnableTestmode {
 			// Skip balance validation in test mode
 			return types.ErrInsufficientBalance
+		}
+	}
+	if tx.GetBody().GetType() == types.TxType_GOVERNANCE {
+		if string(tx.GetBody().GetRecipient()) != types.AergoSystem {
+			aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient(), false)
+			if err != nil {
+				return err
+			}
+			scs, err := mp.stateDB.OpenContractState(aergoSystemState)
+			if err != nil {
+				return err
+			}
+			err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
+			if err != nil {
+				return err
+			}
+		} else {
+			return types.ErrInvalidRecipient
 		}
 	}
 	return nil
