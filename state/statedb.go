@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
@@ -182,7 +183,7 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 }
 
 // GetStateAndProof gets the state and associated proof of an account
-// in the last produced block. If the account doesnt exist, a proof of
+// in the given trie root. If the account doesnt exist, a proof of
 // non existence is returned.
 func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types.StateProof, error) {
 	var state *types.State
@@ -194,15 +195,10 @@ func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types
 	defer states.lock.RUnlock()
 
 	if len(root) != 0 {
-		dbval := (*states.store).Get(root)
-		if len(dbval) != 0 {
-			// Get the state and proof of the account for a past state
-			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, errLoadRoot
+		// Get the state and proof of the account for a past state
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		// Get the state and proof of the account
@@ -226,7 +222,7 @@ func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types
 		ProofVal:  proofVal,
 		AuditPath: ap,
 	}
-	logger.Info().Str("state", enc.ToString(states.trie.Root)).Msg("!!!!!!!!!!!!!!!")
+	logger.Debug().Str("state root : ", enc.ToString(states.trie.Root)).Msg("Get State and Proof")
 	return stateProof, nil
 }
 
