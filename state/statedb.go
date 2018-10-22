@@ -7,6 +7,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -150,6 +151,98 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 		return &types.State{}, nil
 	}
 	return st, nil
+}
+
+type V struct {
+	sdb    *StateDB
+	id     []byte
+	aid    types.AccountID
+	oldV   *types.State
+	newV   *types.State
+	newOne bool
+}
+
+func (v *V) ID() []byte {
+	return v.id
+}
+
+func (v *V) AccountID() types.AccountID {
+	return v.aid
+}
+
+func (v *V) State() *types.State {
+	return v.newV
+}
+
+func (v *V) SetNonce(nonce uint64) {
+	v.newV.Nonce = nonce
+}
+
+func (v *V) Balance() uint64 {
+	return v.newV.Balance
+}
+
+func (v *V) AddBalance(amount uint64) {
+	v.newV.Balance += amount
+}
+
+func (v *V) SubBalance(amount uint64) {
+	v.newV.Balance -= amount
+}
+
+func (v *V) RP() uint64 {
+	return v.newV.SqlRecoveryPoint
+}
+
+func (v *V) IsNew() bool {
+	return v.newOne
+}
+
+func (v *V) Reset() {
+	*v.newV = types.State(*v.oldV)
+}
+
+func (v *V) PutState() error {
+	return v.sdb.PutState(v.aid, v.newV)
+}
+
+func (states *StateDB) CreateAccountStateV(id []byte) (*V, error) {
+	v, err := states.GetAccountStateV(id)
+	if err != nil {
+		return nil, err
+	}
+	if !v.newOne {
+		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
+	}
+	v.newV.SqlRecoveryPoint = 1
+	return v, nil
+}
+
+func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
+	aid := types.ToAccountID(id)
+	st, err := states.GetState(aid)
+	if err != nil {
+		return nil, err
+	}
+	if st == nil {
+		return &V{
+			sdb: states,
+			id: id,
+			aid: aid,
+			oldV: &types.State{},
+			newV: &types.State{},
+			newOne: true,
+		}, nil
+	}
+	newV := new(types.State)
+	*newV = types.State(*st)
+	return &V {
+		sdb: states,
+		id: id,
+		aid: aid,
+		oldV: st,
+		newV: newV,
+	}, nil
 }
 
 // GetState gets state of account id from state buffer and trie.

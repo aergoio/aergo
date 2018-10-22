@@ -8,13 +8,9 @@ package chain
 import (
 	"bytes"
 	"container/list"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
-
-	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -26,9 +22,9 @@ import (
 )
 
 var (
-	ErrTxInvalidNonce       = errors.New("invalid nonce")
-	ErrTxInsuffienctBalance = errors.New("insufficient balance")
-	ErrTxInvalidType        = errors.New("Invalid type")
+	ErrTxInvalidNonce        = errors.New("invalid nonce")
+	ErrTxInsufficientBalance = errors.New("insufficient balance")
+	ErrTxInvalidType         = errors.New("invalid type")
 )
 
 type ErrTx struct {
@@ -43,9 +39,11 @@ func (ec *ErrTx) Error() string {
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
 	return cs.cdb.getBestBlockNo()
 }
+
 func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 	return cs.getBestBlock()
 }
+
 func (cs *ChainService) getBestBlock() (*types.Block, error) {
 	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
 	var block *types.Block
@@ -72,7 +70,6 @@ func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 }
 
 func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
-
 	tx, txidx, err := cs.cdb.getTx(txHash)
 	if err != nil {
 		return nil, nil, err
@@ -83,6 +80,21 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return tx, nil, errors.New("tx is not in the main chain")
 	}
 	return tx, txidx, err
+}
+
+func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
+	_, i, err := cs.cdb.getTx(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := cs.cdb.getBlock(i.BlockHash)
+	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return nil, errors.New("cannot find a receipt")
+	}
+
+	return cs.cdb.getReceipt(block.GetHash(), block.GetHeader().BlockNo, i.Idx)
 }
 
 type chainProcessor struct {
@@ -173,13 +185,6 @@ func (cp *chainProcessor) isMain() bool {
 	return cp.mainChain != nil
 }
 
-func (cp *chainProcessor) executeBlock(block *types.Block) error {
-	err := cp.ChainService.executeBlock(cp.state, block)
-	cp.state = nil
-
-	return err
-}
-
 func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
@@ -189,28 +194,27 @@ func (cp *chainProcessor) execute() error {
 	var err error
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
 		block := e.Value.(*types.Block)
+		var oldLatest types.BlockNo
 
-		if err = cp.executeBlock(block); err != nil {
+		err = cp.ChainService.executeBlock(cp.state, block)
+		if err == nil {
+			//SyncWithConsensus :ga
+			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+			// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+			//	In this case, messages of mempool is synchronized in actor message queue.
+			if oldLatest, err = cp.connectToChain(block); err != nil {
+				return err
+			}
+			cp.notifyBlock(block)
+			cp.state = nil
+		} else {
 			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
 				Msg("failed to execute block")
 
 			return err
-		}
 
+		}
 		blockNo := block.BlockNo()
-
-		var oldLatest types.BlockNo
-
-		//SyncWithConsensus :ga
-		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
-		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
-		//	In this case, messages of mempool is synchronized in actor message queue.
-		if oldLatest, err = cp.connectToChain(block); err != nil {
-			return err
-		}
-
-		cp.notifyBlock(block)
-
 		if logger.IsDebugEnabled() {
 			logger.Debug().
 				Uint64("old latest", oldLatest).
@@ -233,6 +237,7 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
 	}
+	cp.cdb.writeReceipts(&dbTx, block.BlockHash(), block.BlockNo(), cp.state.Receipts())
 
 	dbTx.Commit()
 
@@ -354,10 +359,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			return nil, err
 		}
 
-		bState = state.NewBlockState(
-			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
-			contract.TempReceiptDb.NewTx(),
-		)
+		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
 		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp())
 	} else {
@@ -367,16 +369,14 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		commitOnly = true
 	}
 
-	txs := block.GetBody().GetTxs()
-
 	return &blockExecutor{
 		BlockState:       bState,
 		sdb:              cs.sdb,
 		execTx:           exec,
-		txs:              txs,
+		txs:              block.GetBody().GetTxs(),
 		coinbaseAcccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
-			return cs.validator.ValidatePost(bState.GetRoot(), block)
+			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
 		commitOnly: commitOnly,
 	}, nil
@@ -440,8 +440,6 @@ func (e *blockExecutor) execute() error {
 }
 
 func (e *blockExecutor) commit() error {
-	e.CommitReceipt()
-
 	if err := e.BlockState.Commit(); err != nil {
 		return err
 	}
@@ -478,138 +476,97 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func validateTx(tx *types.Tx, senderState *types.State, receiverState *types.State, txFee uint64,
-	bs *state.BlockState) error {
-	//nonce error check
+func validateTx(tx *types.Tx, senderState *types.State, txFee uint64) error {
 	txBody := tx.GetBody()
 
 	switch txBody.Type {
 	case types.TxType_NORMAL:
 		if (senderState.Nonce + 1) != txBody.Nonce {
-			//return &ErrTx{ErrTxInvalidNonce, tx}
 			return fmt.Errorf("invalid nonce acc=%d,tx=%d", senderState.Nonce, txBody.Nonce)
 		}
-
 		if senderState.GetBalance() < txBody.Amount+txFee {
-			return &ErrTx{ErrTxInsuffienctBalance, tx}
+			return &ErrTx{ErrTxInsufficientBalance, tx}
 		}
 	case types.TxType_GOVERNANCE:
 	default:
 		return &ErrTx{ErrTxInvalidType, tx}
 	}
-
 	return nil
 }
 
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	txBody := tx.GetBody()
-	senderID := types.ToAccountID(txBody.Account)
-	senderState, err := bs.GetAccountState(senderID)
+
+	sender, err := bs.GetAccountStateV(txBody.Account)
 	if err != nil {
 		return err
 	}
+
 	recipient := txBody.Recipient
-	var receiverID types.AccountID
-	var createContract bool
+	var receiver *state.V
 	if len(recipient) > 0 {
-		receiverID = types.ToAccountID(recipient)
+		receiver, err = bs.GetAccountStateV(recipient)
 	} else {
-		createContract = true
-		// Determine new contract address
-		h := sha256.New()
-		h.Write(txBody.Account)
-		h.Write([]byte(strconv.FormatUint(txBody.Nonce, 10)))
-		recipientHash := h.Sum(nil)                        // byte array with length 32
-		recipient = append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
-		receiverID = types.ToAccountID(recipient)
+		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
 	}
-	receiverState, err := bs.GetAccountState(receiverID)
 	if err != nil {
 		return err
 	}
 
-	senderChange := types.State(*senderState)
-	receiverChange := types.State(*receiverState)
-
-	txFee := CoinbaseFee
-	if err := validateTx(tx, senderState, receiverState, txFee, bs); err != nil {
+	err = validateTx(tx, sender.State(), CoinbaseFee)
+	if err != nil {
 		return err
 	}
+
+	var txFee uint64
+	var rv string
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		senderChange.Balance -= txFee
-		bs.BpReward += txFee
-
-		if senderID != receiverID {
-			if senderChange.Balance < txBody.Amount {
-				senderChange.Balance = 0 // FIXME: reject insufficient tx.
-			} else {
-				senderChange.Balance = senderState.Balance - txBody.Amount
-			}
-			receiverChange.Balance = receiverChange.Balance + txBody.Amount
-		}
-		if txBody.Payload != nil {
-			contractState, err := bs.OpenContractState(&receiverChange)
-			if err != nil {
-				return err
-			}
-			if createContract {
-				receiverChange.SqlRecoveryPoint = 1
-			}
-			sqlTx, err := contract.BeginTx(receiverID, receiverChange.SqlRecoveryPoint)
-			if err != nil {
-				return err
-			}
-			err = sqlTx.Savepoint()
-			if err != nil {
-				return err
-			}
-
-			bcCtx := contract.NewContext(bs, &senderChange, contractState, types.EncodeAddress(txBody.GetAccount()),
-				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(recipient), 0, nil, sqlTx.GetHandle())
-
-			if createContract {
-				err = contract.Create(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
-			} else {
-				err = contract.Call(contractState, txBody.Payload, recipient, tx.Hash, bcCtx, bs.ReceiptTx())
-			}
-			if err != nil { // TODO vm error is not propagated
-				_ = sqlTx.RollbackToSavepoint()
-				return err
-			}
-			err = bs.CommitContractState(contractState)
-			if err != nil {
-				_ = sqlTx.RollbackToSavepoint()
-				return err
-			}
-			err = sqlTx.Release()
-			if err != nil {
-				return err
-			}
-		}
+		txFee = CoinbaseFee
+		sender.SubBalance(txFee)
+		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver)
 	case types.TxType_GOVERNANCE:
-		err = executeGovernanceTx(&bs.StateDB, txBody, &senderChange, &receiverChange, blockNo)
+		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}
-	default:
-		logger.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("unknown type of transaction")
 	}
 
-	senderChange.Nonce = txBody.Nonce
-	err = bs.PutState(senderID, &senderChange)
+	if err != nil {
+		if _, ok := err.(contract.VmError); ok {
+			sender.Reset()
+			sender.SetNonce(txBody.Nonce)
+			sErr := sender.PutState()
+			if sErr != nil {
+				return sErr
+			}
+			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
+			return nil
+		}
+		return err
+	}
+
+	sender.SetNonce(txBody.Nonce)
+	err = sender.PutState()
 	if err != nil {
 		return err
 	}
-	if senderID != receiverID {
-		err = bs.PutState(receiverID, &receiverChange)
+	if sender.AccountID() != receiver.AccountID() {
+		err = receiver.PutState()
 		if err != nil {
 			return err
 		}
 	}
 
-	return err
+	bs.BpReward += txFee
+
+	if receiver.IsNew() {
+		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
+		return nil
+
+	}
+	bs.AddReceipt(types.NewReceipt(receiver.ID(), "SUCCESS", rv))
+	return nil
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {

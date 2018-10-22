@@ -6,40 +6,42 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/state"
+	"errors"
 
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
+func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) error {
-	governance := string(txBody.GetRecipient())
 
-	scs, err := states.OpenContractState(receiverState)
+	if len(txBody.Payload) > 0 {
+		return types.ErrTxFormatInvalid
+	}
+
+	governance := string(txBody.Recipient)
+	if governance != types.AergoSystem {
+		return errors.New("receive unknown recipient")
+	}
+
+	scs, err := states.OpenContractState(receiver.State())
 	if err != nil {
 		return err
 	}
-	switch governance {
-	case types.AergoSystem:
-		/*
-			TODO: need validate?
-			peerID, err := peer.IDFromBytes(to)
-			if err != nil {
-				return err
-			}
-		*/
-		if len(txBody.Payload) > 0 {
-			err = executeSystemTx(txBody, senderState, scs, blockNo)
-			if err == nil {
-				err = states.CommitContractState(scs)
-			}
-		} else {
-			err = types.ErrTxFormatInvalid
+
+	/*
+		TODO: need validate?
+		peerID, err := peer.IDFromBytes(to)
+		if err != nil {
+			return err
 		}
-	default:
-		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
+	*/
+	err = executeSystemTx(txBody, sender.State(), scs, blockNo)
+	if err != nil {
+		return err
 	}
-	return err
+
+	return states.CommitContractState(scs)
 }
 
 func executeSystemTx(txBody *types.TxBody, senderState *types.State,

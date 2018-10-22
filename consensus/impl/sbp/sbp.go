@@ -9,7 +9,6 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -154,8 +153,7 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash(),
-					contract.TempReceiptDb.NewTx())
+				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
 
 				ts := time.Now().UnixNano()
 

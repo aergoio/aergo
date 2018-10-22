@@ -1411,14 +1411,14 @@ func TestContractCall(t *testing.T) {
 // helper functions
 
 type blockChain struct {
-	sdb         *state.ChainStateDB
-	bestBlock   *types.Block
-	cBlock      *types.Block
-	bestBlockNo types.BlockNo
-	bestBlockId types.BlockID
-	rTx         db.Transaction
-	blockIds    []types.BlockID
-	blocks      []*types.Block
+	sdb           *state.ChainStateDB
+	bestBlock     *types.Block
+	cBlock        *types.Block
+	bestBlockNo   types.BlockNo
+	bestBlockId   types.BlockID
+	blockIds      []types.BlockID
+	blocks        []*types.Block
+	testReceiptDB db.DB
 }
 
 func loadBlockChain(t *testing.T) *blockChain {
@@ -1437,9 +1437,8 @@ func loadBlockChain(t *testing.T) *blockChain {
 	bc.bestBlockId = genesis.Block.BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block)
-
-	TempReceiptDb = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadDatabase(dataPath)
+	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
+	LoadDatabase(dataPath) // sql database
 	return bc
 }
 
@@ -1453,7 +1452,11 @@ func (bc *blockChain) newBState() *state.BlockState {
 	}
 	bc.cBlock = &b
 	// blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
-	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()), TempReceiptDb.NewTx())
+	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()))
+}
+
+func (bc *blockChain) BeginReceiptTx() db.Transaction {
+	return bc.testReceiptDB.NewTx()
 }
 
 func (bc *blockChain) getABI(contract string) (*types.ABI, error) {
@@ -1465,7 +1468,9 @@ func (bc *blockChain) getABI(contract string) (*types.ABI, error) {
 }
 
 func (bc *blockChain) getReceipt(txHash []byte) *types.Receipt {
-	return types.NewReceiptFromBytes(TempReceiptDb.Get(txHash))
+	r := new(types.Receipt)
+	r.UnmarshalBinary(bc.testReceiptDB.Get(txHash))
+	return r
 }
 
 func (bc *blockChain) getAccountState(name string) (*types.State, error) {
@@ -1473,7 +1478,7 @@ func (bc *blockChain) getAccountState(name string) (*types.State, error) {
 }
 
 type luaTx interface {
-	run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error
+	run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error
 }
 
 type luaTxAccount struct {
@@ -1488,7 +1493,9 @@ func newLuaTxAccount(name string, balance uint64) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
+func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64,
+	receiptTx db.Transaction) error {
+
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
 	if err != nil {
@@ -1605,7 +1612,6 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 
 	err = run(creatorState, &uContractState, contractId, eContractState)
-
 	if err != nil {
 		return err
 	}
@@ -1619,7 +1625,10 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	return nil
 
 }
-func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
+
+func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
+	receiptTx db.Transaction) error {
+
 	return contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
 			uContractState.SqlRecoveryPoint = 1
@@ -1637,7 +1646,7 @@ func (l *luaTxDef) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo ui
 				"", 1, types.EncodeAddress(l.contract),
 				0, nil, sqlTx.GetHandle())
 
-			err = Create(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+			_, err = Create(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err
@@ -1686,7 +1695,8 @@ func (l *luaTxCall) fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo uint64, ts int64) error {
+func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error {
+
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
 			sqlTx, err := BeginTx(contractId, uContractState.SqlRecoveryPoint)
@@ -1700,13 +1710,16 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 				"", 1, types.EncodeAddress(l.contract),
 				0, nil, sqlTx.GetHandle())
 
-			err = Call(eContractState, l.code, l.contract, l.hash(), bcCtx, bs.ReceiptTx())
+			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = bs.CommitContractState(eContractState)
 			if err != nil {
+				r := types.NewReceipt(l.contract, err.Error(), "")
+				b, _ := r.MarshalBinary()
+				receiptTx.Set(l.hash(), b)
 				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
@@ -1714,6 +1727,11 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 			if err != nil {
 				return err
 			}
+
+			r := types.NewReceipt(l.contract, "SUCCESS", rv)
+			b, _ := r.MarshalBinary()
+			receiptTx.Set(l.hash(), b)
+
 			return nil
 		},
 	)
@@ -1728,10 +1746,11 @@ func (l *luaTxCall) run(sdb *state.ChainStateDB, bs *state.BlockState, blockNo u
 
 func (bc *blockChain) connectBlock(txs ...luaTx) error {
 	blockState := bc.newBState()
-	defer blockState.CommitReceipt()
+	tx := bc.BeginReceiptTx()
+	defer tx.Commit()
 
 	for _, x := range txs {
-		if err := x.run(bc.sdb, blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp); err != nil {
+		if err := x.run(blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp, tx); err != nil {
 			return err
 		}
 	}

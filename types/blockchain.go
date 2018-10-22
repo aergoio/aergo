@@ -81,7 +81,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var prevBlockHash []byte
 	var blockNo BlockNo
 
@@ -106,6 +106,7 @@ func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, coinbaseAcc []byte,
 	}
 
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
+	block.Header.ReceiptsRootHash = receipts.MerkleRoot()
 
 	return &block
 }
@@ -146,6 +147,7 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.Timestamp,
 		bh.BlocksRootHash,
 		bh.TxsRootHash,
+		bh.ReceiptsRootHash,
 		bh.Confirms,
 		bh.PubKey,
 		bh.Sign,
@@ -309,11 +311,10 @@ func (block *Block) SetBlocksRootHash(blockRootHash []byte) {
 
 // CalculateTxsRootHash generates merkle tree of transactions and returns root hash.
 func CalculateTxsRootHash(txs []*Tx) []byte {
-	var mes []merkle.MerkleEntry = make([]merkle.MerkleEntry, len(txs))
+	mes := make([]merkle.MerkleEntry, len(txs))
 	for i, tx := range txs {
 		mes[i] = tx
 	}
-
 	return merkle.CalculateMerkleRoot(mes)
 }
 
