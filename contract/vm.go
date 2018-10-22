@@ -345,6 +345,8 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 		ctrLog.Warn().AnErr("err", err)
 		return err
 	}
+	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
+
 	var ce *Executor
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
