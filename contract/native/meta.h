@@ -13,20 +13,33 @@
 
 #define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
 #define is_byte_meta(meta)          ((meta)->type == TYPE_BYTE)
-
-#define is_integer_meta(meta)                                                            \
-    (is_byte_meta(meta) || ((meta)->type >= TYPE_INT8 && (meta)->type <= TYPE_UINT64))
-#define is_float_meta(meta)                                                              \
-    ((meta)->type == TYPE_FLOAT || (meta)->type == TYPE_DOUBLE)
-#define is_numeric_meta(meta)       (is_integer_meta(meta) || is_float_meta(meta))
-
+#define is_int8_meta(meta)          ((meta)->type == TYPE_INT8)
+#define is_uint8_meta(meta)         ((meta)->type == TYPE_UINT8)
+#define is_int16_meta(meta)         ((meta)->type == TYPE_INT16)
+#define is_uint16_meta(meta)        ((meta)->type == TYPE_UINT16)
+#define is_int32_meta(meta)         ((meta)->type == TYPE_INT32)
+#define is_uint32_meta(meta)        ((meta)->type == TYPE_UINT32)
+#define is_int64_meta(meta)         ((meta)->type == TYPE_INT64)
+#define is_uint64_meta(meta)        ((meta)->type == TYPE_UINT64)
+#define is_float_meta(meta)         ((meta)->type == TYPE_FLOAT)
+#define is_double_meta(meta)        ((meta)->type == TYPE_DOUBLE)
 #define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
-
+#define is_account_meta(meta)       ((meta)->type == TYPE_ACCOUNT)
 #define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
 #define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
 #define is_object_meta(meta)        ((meta)->type == TYPE_OBJECT)
 #define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
+
+#define is_int_meta(meta)                                                                \
+    (is_byte_meta(meta) ||                                                               \
+     is_int8_meta(meta) || is_uint8_meta(meta) ||                                        \
+     is_int16_meta(meta) || is_uint16_meta(meta) ||                                      \
+     is_int32_meta(meta) || is_uint32_meta(meta) ||                                      \
+     is_int64_meta(meta) || is_uint64_meta(meta))
+
+#define is_fp_meta(meta)            (is_float_meta(meta) || is_double_meta(meta))
+#define is_num_meta(meta)           (is_int_meta(meta) || is_fp_meta(meta))
 
 #define is_const_meta(meta)         (meta)->is_const
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
@@ -61,42 +74,33 @@
 
 #define meta_elem_size(meta)                                                             \
     (is_void_meta(meta) ? 0 :                                                            \
-     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?                                    \
-      array_size((meta)->u_tup.metas) : 1))
+     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?  (meta)->elem_cnt : 1))
 
 #ifndef _META_T
 #define _META_T
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
-typedef struct meta_tuple_s {
-    char *name;             /* name of struct */
-    array_t *metas;
-} meta_tuple_t;
-
-typedef struct meta_map_s {
-    meta_t *k_meta;         /* key */
-    meta_t *v_meta;         /* value */
-} meta_map_t;
-
 struct meta_s {
     type_t type;
 
+    char *name;             /* name of struct */
+
     int arr_dim;            /* dimension of array */
-    int *arr_size;          /* array size of each dimension */
+    int *arr_size;          /* size of each dimension */
 
-    bool is_const;          /* integer or float literal, new map() */
+    bool is_const;          /* whether it is constant */
 
-    union {
-        meta_map_t u_map;
-        meta_tuple_t u_tup;
-    };
+    /* structured meta (array, map, struct initializer or tuple) */
+    int elem_cnt;           /* count of elements */
+    meta_t **elems;         /* metas of elements */
 
     src_pos_t *pos;
 };
 
 char *meta_to_str(meta_t *x);
 
+void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
 void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
 
@@ -135,15 +139,6 @@ meta_set_array(meta_t *meta, int arr_dim)
 
     meta->arr_dim = arr_dim;
     meta->arr_size = xcalloc(sizeof(int) * arr_dim);
-}
-
-static inline void
-meta_set_map(meta_t *meta, meta_t *k_meta, meta_t *v_meta)
-{
-    meta_set(meta, TYPE_MAP);
-
-    meta->u_map.k_meta = k_meta;
-    meta->u_map.v_meta = v_meta;
 }
 
 static inline void

@@ -41,7 +41,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
                 /* constant variable */
                 size_val = size_id->val;
             }
-            else if (is_integer_meta(size_meta) && is_const_meta(size_meta)) {
+            else if (is_int_meta(size_meta) && is_const_meta(size_meta)) {
                 /* integer literal */
                 ASSERT1(is_val_exp(size_exp), size_exp->kind);
                 size_val = &size_exp->u_val.val;
@@ -168,7 +168,7 @@ id_check_enum(check_t *check, ast_id_t *id)
 
             CHECK(exp_check(check, init_exp));
 
-            if (!is_const_meta(init_meta) || !is_integer_meta(init_meta))
+            if (!is_const_meta(init_meta) || !is_int_meta(init_meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
 
             ASSERT1(is_val_exp(init_exp), init_exp->kind);
