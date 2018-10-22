@@ -9,19 +9,20 @@
 #include "common.h"
 
 #define is_none_val(val)            ((val)->kind == VAL_NONE)
-#define is_null_val(val)            ((val)->kind == VAL_NULL)
 #define is_bool_val(val)            ((val)->kind == VAL_BOOL)
 #define is_int_val(val)             ((val)->kind == VAL_INT)
 #define is_fp_val(val)              ((val)->kind == VAL_FP)
 #define is_str_val(val)             ((val)->kind == VAL_STR)
+#define is_obj_val(val)             ((val)->kind == VAL_OBJ)
 
-#define bool_val(val)               ((val)->bv)
-#define int_val(val)                ((val)->is_neg ? -(val)->iv : (val)->iv)
-#define fp_val(val)                 ((val)->is_neg ? -(val)->dv : (val)->dv)
-#define str_val(val)                ((val)->sv)
+#define bool_val(val)               ((val)->b)
+#define int_val(val)                ((val)->is_neg ? -(val)->i : (val)->i)
+#define fp_val(val)                 ((val)->is_neg ? -(val)->d : (val)->d)
+#define str_val(val)                ((val)->s)
+#define obj_val(val)                ((val)->p)
 
 #define is_zero_val(val)                                                                 \
-    (is_int_val(val) ? (val)->iv == 0 : (is_fp_val(val) ? (val)->dv == 0.0f : false))
+    (is_int_val(val) ? (val)->i == 0 : (is_fp_val(val) ? (val)->d == 0.0f : false))
 
 #define value_eval(op, val, x, y)                                                        \
     do {                                                                                 \
@@ -47,10 +48,11 @@ struct value_s {
     bool is_neg;
 
     union {
-        bool bv;
-        uint64_t iv;
-        double dv;
-        char *sv;
+        bool b;
+        uint64_t i;
+        double d;
+        char *s;
+        void *p;
     };
 };
 
@@ -68,43 +70,44 @@ value_init(value_t *val)
 }
 
 static inline void
-value_set_null(value_t *val)
-{
-    val->kind = VAL_NULL;
-}
-
-static inline void
-value_set_bool(value_t *val, bool bv)
-{
-    val->kind = VAL_BOOL;
-    val->bv = bv;
-}
-
-static inline void
-value_set_int(value_t *val, uint64_t iv)
-{
-    val->kind = VAL_INT;
-    val->iv = iv;
-}
-
-static inline void
-value_set_double(value_t *val, double dv)
-{
-    val->kind = VAL_FP;
-    val->dv = dv;
-}
-
-static inline void
-value_set_str(value_t *val, char *str)
-{
-    val->kind = VAL_STR;
-    val->sv = str;
-}
-
-static inline void
 value_set_neg(value_t *val, bool is_neg)
 {
     val->is_neg = is_neg;
+}
+
+static inline void
+value_set_bool(value_t *val, bool b)
+{
+    val->kind = VAL_BOOL;
+    val->b = b;
+}
+
+static inline void
+value_set_int(value_t *val, uint64_t i)
+{
+    val->kind = VAL_INT;
+    val->i = i;
+}
+
+static inline void
+value_set_fp(value_t *val, double d)
+{
+    val->kind = VAL_FP;
+    val->d = d;
+}
+
+static inline void
+value_set_str(value_t *val, char *s)
+{
+    val->kind = VAL_STR;
+    val->s = s;
+}
+
+static inline void
+value_set_obj(value_t *val, void *p)
+{
+    val->kind = VAL_OBJ;
+    val->p = p;
 }
 
 #endif /* ! _VALUE_H */

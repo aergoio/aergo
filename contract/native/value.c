@@ -10,10 +10,10 @@
 #include "value.h"
 
 #define value_check_int(val, max)                                                        \
-    (((val)->is_neg && (val)->iv > (uint64_t)(max) + 1) ||                               \
-     (!(val)->is_neg && (val)->iv > (uint64_t)(max)))
-#define value_check_uint(val, max)                                                       \
-    ((val)->is_neg || (val)->iv > (max))
+    (((val)->is_neg && (val)->i > (uint64_t)(max) + 1) ||                                \
+     (!(val)->is_neg && (val)->i > (uint64_t)(max)))
+
+#define value_check_uint(val, max)      ((val)->is_neg || (val)->i > (max))
 
 #define value_eval_arith(op, val, x, y)                                                  \
     do {                                                                                 \
@@ -22,7 +22,7 @@
         if (is_int_val(x))                                                               \
             value_set_int(val, int_val(x) op int_val(y));                                \
         else if (is_fp_val(x))                                                           \
-            value_set_double(val, fp_val(x) op fp_val(y));                               \
+            value_set_fp(val, fp_val(x) op fp_val(y));                               \
         else if (is_str_val(x))                                                          \
             value_set_str((val), xstrcat(str_val(x), str_val(y)));                       \
         else                                                                             \
@@ -35,9 +35,7 @@
                                                                                          \
         ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
                                                                                          \
-        if (is_null_val(x))                                                              \
-            res = NULL op NULL;                                                          \
-        else if (is_bool_val(x))                                                         \
+        if (is_bool_val(x))                                                              \
             res = bool_val(x) op bool_val(y);                                            \
         else if (is_int_val(x))                                                          \
             res = int_val(x) op int_val(y);                                              \
@@ -45,6 +43,8 @@
             res = fp_val(x) op fp_val(y);                                                \
         else if (is_str_val(x))                                                          \
             res = strcmp(str_val(x), str_val(y)) op 0;                                   \
+        else if (is_obj_val(x))                                                          \
+            res = obj_val(x) op obj_val(y);                                              \
         else                                                                             \
             ASSERT1(!"invalid value", (val)->kind);                                      \
                                                                                          \
@@ -65,10 +65,6 @@ bool
 value_check(value_t *val, meta_t *meta)
 {
     switch (val->kind) {
-    case VAL_NULL:
-        ASSERT1(is_map_meta(meta) || is_object_meta(meta), meta->type);
-        break;
-
     case VAL_BOOL:
         ASSERT1(is_bool_meta(meta), meta->type);
         break;
@@ -89,12 +85,16 @@ value_check(value_t *val, meta_t *meta)
     
     case VAL_FP:
         ASSERT1(is_fp_meta(meta), meta->type);
-        if (meta->type == TYPE_FLOAT && val->dv > FLT_MAX)
+        if (meta->type == TYPE_FLOAT && val->d > FLT_MAX)
             return false;
         break;
 
     case VAL_STR:
         ASSERT1(is_string_meta(meta), meta->type);
+        break;
+
+    case VAL_OBJ:
+        ASSERT1(is_map_meta(meta) || is_object_meta(meta), meta->type);
         break;
 
     default:
@@ -126,9 +126,9 @@ static void
 value_div(value_t *val, value_t *x, value_t *y)
 {
     if (is_int_val(x))
-        ASSERT(y->iv != 0);
+        ASSERT(y->i != 0);
     else if (is_fp_val(x))
-        ASSERT(y->dv != 0.0f);
+        ASSERT(y->d != 0.0f);
 
     value_eval_arith(/, val, x, y);
 }
@@ -137,8 +137,8 @@ static void
 value_mod(value_t *val, value_t *x, value_t *y)
 {
     if (is_int_val(x)) {
-        ASSERT(y->iv != 0);
-        value_set_int(val, x->iv % y->iv);
+        ASSERT(y->i != 0);
+        value_set_int(val, x->i % y->i);
     }
     else {
         ASSERT1(!"invalid value", val->kind);
@@ -218,7 +218,7 @@ value_neg(value_t *val, value_t *x, value_t *y)
     if (is_int_val(x))
         value_set_int(val, int_val(x));
     else if (is_fp_val(x))
-        value_set_double(val, fp_val(x));
+        value_set_fp(val, fp_val(x));
     else
         ASSERT1(!"invalid value", val->kind);
 
@@ -229,7 +229,7 @@ static void
 value_not(value_t *val, value_t *x, value_t *y)
 {
     if (is_bool_val(x))
-        value_set_bool(val, !x->bv);
+        value_set_bool(val, !x->b);
     else
         ASSERT1(!"invalid value", val->kind);
 }

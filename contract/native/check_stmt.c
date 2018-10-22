@@ -285,7 +285,7 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt, meta_t *meta)
                 RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
         }
         else {
-            meta_check(meta, val_meta);
+            meta_cmp(meta, val_meta);
         }
     }
 
@@ -352,7 +352,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
         exp_check(check, arg_exp);
 
-        return meta_check(fn_meta, &arg_exp->meta);
+        return meta_cmp(fn_meta, &arg_exp->meta);
     }
     else if (!is_void_meta(fn_meta)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument", 

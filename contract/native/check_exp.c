@@ -49,9 +49,6 @@ exp_check_val(check_t *check, ast_exp_t *exp)
     ASSERT1(is_val_exp(exp), exp->kind);
 
     switch (exp->u_val.val.kind) {
-    case VAL_NULL:
-        meta_set_object(&exp->meta);
-        break;
     case VAL_BOOL:
         meta_set_bool(&exp->meta);
         break;
@@ -65,6 +62,9 @@ exp_check_val(check_t *check, ast_exp_t *exp)
         break;
     case VAL_STR:
         meta_set_string(&exp->meta);
+        break;
+    case VAL_OBJ:
+        meta_set_object(&exp->meta);
         break;
     default:
         ASSERT1(!"invalid value", exp->u_val.val.kind);
@@ -185,7 +185,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (!is_map_meta(id_meta))
             RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
 
-        CHECK(meta_check(id_meta->elems[0], idx_meta));
+        CHECK(meta_cmp(id_meta->elems[0], idx_meta));
 
         meta_copy(&exp->meta, id_meta->elems[1]);
     }
@@ -254,9 +254,9 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
-    CHECK(meta_check(l_meta, r_meta));
+    CHECK(meta_cmp(l_meta, r_meta));
 
-    meta_merge(&exp->meta, l_meta, r_meta);
+    meta_eval(&exp->meta, l_meta, r_meta);
     exp_eval_const(exp);
 
     return NO_ERROR;
@@ -317,7 +317,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     else if (is_tuple_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
-    CHECK(meta_check(l_meta, r_meta));
+    CHECK(meta_cmp(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
     exp_eval_const(exp);
@@ -441,9 +441,9 @@ exp_check_op_assign(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
     }
 
-    CHECK(meta_check(l_meta, r_meta));
+    CHECK(meta_cmp(l_meta, r_meta));
 
-    meta_merge(&exp->meta, l_meta, r_meta);
+    meta_eval(&exp->meta, l_meta, r_meta);
 
     if (is_val_exp(r_exp) && !value_check(&r_exp->u_val.val, l_meta))
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
@@ -604,7 +604,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
 
         CHECK(exp_check(check, param_exp));
-        CHECK(meta_check(&param_id->meta, &param_exp->meta));
+        CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
 
         if (is_val_exp(param_exp) &&
             !value_check(&param_exp->u_val.val, &param_id->meta))
@@ -670,7 +670,7 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     post_meta = &post_exp->meta;
 
     CHECK(exp_check(check, post_exp));
-    CHECK(meta_check(in_meta, post_meta));
+    CHECK(meta_cmp(in_meta, post_meta));
 
     meta_copy(&exp->meta, in_meta);
 

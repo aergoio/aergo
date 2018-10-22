@@ -1136,7 +1136,7 @@ prim_exp:
 |   K_NULL
     {
         $$ = exp_new_val(&@$);
-        value_set_null(&$$->u_val.val);
+        value_set_obj(&$$->u_val.val, NULL);
     }
 |   K_TRUE
     {
@@ -1162,7 +1162,7 @@ prim_exp:
 
         $$ = exp_new_val(&@$);
         sscanf($1, "%lf", &v);
-        value_set_double(&$$->u_val.val, v);
+        value_set_fp(&$$->u_val.val, v);
     }
 |   L_HEXA
     {

@@ -99,7 +99,7 @@ id_check_var(check_t *check, ast_id_t *id)
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
         }
 
-		CHECK(meta_check(&id->meta, &init_exp->meta));
+		CHECK(meta_cmp(&id->meta, &init_exp->meta));
 
         if (is_val_exp(init_exp)) {
             if (!value_check(&init_exp->u_val.val, &id->meta))
@@ -187,7 +187,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 }
             }
 
-            enum_val = init_val->iv;
+            enum_val = int_val(init_val);
         }
 
         meta_set_int32(&elem_id->meta);
