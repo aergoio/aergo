@@ -9,7 +9,7 @@ import (
 	"bytes"
 )
 
-// MerkleProof generates a Merke proof of inclusion for a given trie root
+// MerkleProof generates a Merke proof of inclusion for the current trie root
 // The proof of non inclusion is not explicit : it is a proof that
 // a leaf node is on the path of the non included key.
 // returns the audit path, true (key included), key, value (unless key is not included
@@ -19,6 +19,18 @@ func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
 	defer s.lock.RUnlock()
 	s.atomicUpdate = false // so loadChildren doesnt return a copy
 	return s.merkleProof(s.Root, key, nil, s.TrieHeight, 0)
+}
+
+// MerkleProofPast generates a Merke proof of inclusion for a given past trie root
+// The proof of non inclusion is not explicit : it is a proof that
+// a leaf node is on the path of the non included key.
+// returns the audit path, true (key included), key, value (unless key is not included
+// and there is no shortcut on the path), error
+func (s *Trie) MerkleProofPast(key []byte, root []byte) ([][]byte, bool, []byte, []byte, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false // so loadChildren doesnt return a copy
+	return s.merkleProof(root, key, nil, s.TrieHeight, 0)
 }
 
 // MerkleProofCompressed returns a compressed merkle proof
@@ -61,7 +73,7 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint
 		return nil, false, nil, nil, err
 	}
 	if isShortcut || height == 0 {
-		if bytes.Equal(lnode, key) {
+		if bytes.Equal(lnode[:HashLength], key) {
 			// return the key-value so a call to trie.Get() is not needed.
 			return nil, true, lnode[:HashLength], rnode[:HashLength], nil
 		}
