@@ -27,14 +27,17 @@ const (
 	LogProtoID = "protocol_id"
 	LogMsgID   = "msg_id"
 	LogBlkHash = "blk_hash"
+	LogBlkCount = "blk_cnt"
 	LogTxHash = "tx_hash"
-
+	LogTxCount = "tx_cnt"
 )
 
 // ActorService is collection of helper methods to use actor
 // FIXME move to more general package. it used in p2p and rpc
 type ActorService interface {
-	// SendRequest send actor request, which does not need to get return value, and forget it.
+	// TellRequest send actor request, which does not need to get return value, and forget it.
+	TellRequest(actor string, msg interface{})
+	// SendRequest send actor request, and the response is expected to go back asynchronously.
 	SendRequest(actor string, msg interface{})
 	// CallReqeust send actor request and wait the handling of that message to finished,
 	// and get return value.

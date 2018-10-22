@@ -36,11 +36,11 @@ func (_m *MockRemotePeer) stop() {
 }
 
 // updateBlkCache provides a mock function with given fields: hash
-func (_m *MockRemotePeer) updateBlkCache(hash BlockHash) bool {
+func (_m *MockRemotePeer) updateBlkCache(hash BlkHash) bool {
 	ret := _m.Called(hash)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(BlockHash) bool); ok {
+	if rf, ok := ret.Get(0).(func(BlkHash) bool); ok {
 		r0 = rf(hash)
 	} else {
 		r0 = ret.Get(0).(bool)

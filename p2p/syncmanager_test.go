@@ -21,17 +21,17 @@ import (
 func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash:dummyBlockHash}
-	var blkHash BlockHash
+	var blkHash BlkHash
 	// test if new block notice comes
 	tests := []struct {
 		name string
-		put *BlockHash
-		setup func(tt *testing.T, actor *MockActorService) (BlockHash,*types.NewBlockNotice)
+		put *BlkHash
+		setup func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice)
 		verify func(tt *testing.T, actor *MockActorService)
 	}{
 		// 1. Succ : valid block hash and not exist in local
 		{"TSucc", nil,
-		func(tt *testing.T, actor *MockActorService) (BlockHash,*types.NewBlockNotice) {
+		func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
 			actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Err:fmt.Errorf("not found")}, nil)
 			copy(blkHash[:], dummyBlockHash)
 			return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -42,7 +42,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 		}},
 		// 1-1. Succ : valid block hash and exist in chainsvc, but not in cache
 		{"TSuccExistChain", nil,
-			func(tt *testing.T, actor *MockActorService) (BlockHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
 				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Block:sampleBlock}, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -53,7 +53,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			}},
 		// 2. SuccCachehit : valid block hash but already exist in local cache
 		{"TSuccExistCache", &blkHash,
-			func(tt *testing.T, actor *MockActorService) (BlockHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
 				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Block:sampleBlock}, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -64,7 +64,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			}},
 		// 3. chainService failed
 		{"TActorFail", nil,
-			func(tt *testing.T, actor *MockActorService) (BlockHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
 				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).After(time.Millisecond*100).Return(nil, fmt.Errorf("actor timeout"))
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -151,6 +151,89 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 			}
 			target.HandleNewTxNotice(mockPeer, txHashes, data )
 			test.verify(t,mockActor)
+		})
+	}
+}
+
+func TestSyncManager_DoSync(t *testing.T) {
+	hashes := make([]message.BlockHash, len(sampleTxs))
+	for i, hash := range sampleTxs {
+		hashes[i] = message.BlockHash(hash)
+	}
+	stopHash := message.BlockHash(dummyBlockHash)
+
+	mockPM := new(MockPeerManager)
+	mockActor := new(MockActorService)
+	mockActor.On("TellRequest", message.P2PSvc, mock.AnythingOfType("*message.GetMissingRequest"))
+	mockMF := new(MockMoFactory)
+	mockMF.On("newMsgRequestOrder",mock.Anything,mock.Anything,mock.Anything).Return(new(MockMsgOrder))
+	mockPeer := new(MockRemotePeer)
+	mockPeer.On("Meta").Return(sampleMeta)
+	mockPeer.On("ID").Return(sampleMeta.ID)
+	mockPeer.On("MF").Return(mockMF)
+	mockPeer.On("sendMessage", mock.Anything)
+
+	target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
+	dummySW := &syncWorker{}
+	// assume first sync was done
+	target.sw = dummySW
+
+	// second do sync should be failed
+	target.DoSync(mockPeer, hashes, stopHash)
+	assert.NotNil(t, target.sw)
+	assert.ObjectsAreEqual(dummySW, target.sw)
+
+	mockActor.AssertNumberOfCalls(t,"TellRequest", 0)
+	mockMF.AssertNumberOfCalls(t,"newMsgRequestOrder", 0)
+
+}
+
+func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
+	sampleBlocks := make([]*types.Block, len(sampleTxs))
+	for i, hash := range sampleTxs {
+		sampleBlocks[i] = &types.Block{Hash:hash}
+	}
+	tests := []struct {
+		name         string
+		sw           *syncWorker
+		chainCallCnt int
+	}{
+		// 1. worker is exist, pass to worker
+		{"TExist", &syncWorker{finish: make(chan interface{},1)}, len(sampleTxs)},
+		// 1. worker is not and directly call chainservice
+		{"TNotExist", nil, len(sampleTxs)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockActor := new(MockActorService)
+			mockActor.On("TellRequest", message.P2PSvc, mock.AnythingOfType("*message.GetMissingRequest"))
+			mockActor.On("TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockMF := new(MockMoFactory)
+			mockMF.On("newMsgRequestOrder",mock.Anything,mock.Anything,mock.Anything).Return(new(MockMsgOrder))
+			mockPeer := new(MockRemotePeer)
+			mockPeer.On("Meta").Return(sampleMeta)
+			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("MF").Return(mockMF)
+			mockPeer.On("sendMessage", mock.Anything)
+
+			dummyMsgID := NewMsgID()
+			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
+			target.sw = test.sw
+			if test.sw != nil {
+				target.sw.sm = target
+				target.syncing = true
+				target.sw.requestMsgID = dummyMsgID
+				target.sw.cancel = make(chan interface{},10)
+				target.sw.retain = make(chan interface{},10)
+				target.sw.finish = make(chan interface{},10)
+			}
+
+			msg := &V030Message{originalID:dummyMsgID}
+			resp := &types.GetBlockResponse{Blocks:sampleBlocks}
+			target.HandleGetBlockResponse(mockPeer, msg, resp)
+
+			mockActor.AssertNumberOfCalls(t, "TellRequest", test.chainCallCnt)
 		})
 	}
 }

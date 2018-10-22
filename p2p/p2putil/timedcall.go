@@ -18,6 +18,7 @@ type Callable interface {
 	Cancel()
 }
 
+// InvokeWithTimer call DoCall method of m and return if m is finished or return error if timer fires.
 func InvokeWithTimer(m Callable, timer *time.Timer) (interface{}, error) {
 	done := make(chan interface{}, 1)
 	go m.DoCall(done)

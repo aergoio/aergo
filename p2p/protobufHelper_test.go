@@ -127,7 +127,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			peer.requests[msgID] = &pbRequestOrder{}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
-				var hashKey BlockHash
+				var hashKey BlkHash
 				copy(hashKey[:], dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}

@@ -104,7 +104,7 @@ type pbBlkNoticeOrder struct {
 }
 
 func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
-	var blkhash BlockHash
+	var blkhash BlkHash
 	copy(blkhash[:], pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it

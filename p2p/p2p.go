@@ -181,6 +181,12 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	}
 }
 
+
+// TellRequest implement interface method of ActorService
+func (p2ps *P2P) TellRequest(actor string, msg interface{}) {
+	p2ps.TellTo(actor, msg)
+}
+
 // SendRequest implement interface method of ActorService
 func (p2ps *P2P) SendRequest(actor string, msg interface{}) {
 	p2ps.RequestTo(actor, msg)
@@ -210,7 +216,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 
 	// BlockHandlers
 	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)

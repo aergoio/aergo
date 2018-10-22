@@ -37,7 +37,7 @@ type RemotePeer interface {
 	consumeRequest(msgID MsgID)
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
-	updateBlkCache(hash BlockHash) bool
+	updateBlkCache(hash BlkHash) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	updateTxCache(hashes []TxHash) []TxHash
 
@@ -377,7 +377,7 @@ func (p *remotePeerImpl) sendPing() {
 	//}
 	// create message data
 	pingMsg := &types.Ping{
-		//BestBlockHash: bestBlock.BlockHash(),
+		//BestBlockHash: bestBlock.BlkHash(),
 		//BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
@@ -429,7 +429,7 @@ func (p *remotePeerImpl) pruneRequests() {
 
 }
 
-func (p *remotePeerImpl) updateBlkCache(hash BlockHash) bool {
+func (p *remotePeerImpl) updateBlkCache(hash BlkHash) bool {
 	// lru cache can accept hashable key
 	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
 	return found
