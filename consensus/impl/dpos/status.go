@@ -35,24 +35,18 @@ func (s *Status) load() {
 
 	s.bestBlock = libLoader.bestBlock()
 
+	s.lib = libLoader.lib
+
+	if libLoader.pls != nil {
+		s.pls = libLoader.pls
+	}
+
 	genesisBlock := libLoader.genesisBlock()
 	s.pls.genesisInfo = &blockInfo{
 		BlockHash: genesisBlock.ID(),
 		BlockNo:   genesisBlock.BlockNo(),
 	}
 
-	//s.pls.addConfirmInfo(s.bestBlock)
-
-	s.lib = libLoader.lib
-
-	if len(libLoader.plib) != 0 {
-		s.pls.plm = libLoader.plib
-	}
-
-	if libLoader.confirms != nil {
-		s.pls.confirms = libLoader.confirms
-		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
-	}
 	s.done = true
 }
 
@@ -158,7 +152,7 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	libLoader = &bootLoader{
-		plib:     make(bpPlm),
+		pls:      newPlibStatus(defaultConsensusCount),
 		lib:      &blockInfo{},
 		best:     best,
 		genesis:  genesis,

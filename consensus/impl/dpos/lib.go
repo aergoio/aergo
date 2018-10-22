@@ -41,37 +41,11 @@ func (e errInvalidLIB) Error() string {
 		e.libNo, e.libHash, e.lastNo, e.lastHash)
 }
 
-type bpPlm map[string][]*plInfo
+type bpPlm map[string]*plInfo
 
-func (plm bpPlm) trunc(bpID string, beg, end int) {
-	var (
-		entry = plm[bpID]
-		max   = len(entry)
-	)
-
-	if beg < 0 {
-		beg = 0
-	}
-	if end > max {
-		end = max
-	}
-	if beg == 0 && end == max {
-		// nothing to trucate
-		return
-	}
-
-	plm[bpID] = entry[beg:end]
-	logger.Debug().
-		Str("BPID", bpID).Int("old len", max).Int("new len", len(plm[bpID])).
-		Msg("PLM truncated")
-}
-
-func (plm bpPlm) add(bpID string, pl *plInfo) {
-	v := plm[bpID]
-	old := len(v)
-	plm[bpID] = append(v, pl)
+func (plm bpPlm) set(bpID string, pl *plInfo) {
+	plm[bpID] = pl
 	logger.Debug().Str("BP", bpID).
-		Int("old len", old).Int("new len", len(plm[bpID])).
 		Str("hash", pl.Plib.BlockHash).Uint64("no", pl.Plib.BlockNo).
 		Str("hash", pl.PlibBy.BlockHash).Uint64("no", pl.PlibBy.BlockNo).
 		Msg("proposed LIB map updated")
@@ -85,11 +59,13 @@ type pLibStatus struct {
 }
 
 func newPlibStatus(confirmsRequired uint16) *pLibStatus {
-	return &pLibStatus{
+	pls := &pLibStatus{
 		confirmsRequired: confirmsRequired,
 		confirms:         list.New(),
 		plm:              make(bpPlm),
 	}
+
+	return pls
 }
 
 func (pls *pLibStatus) addConfirmInfo(block *types.Block) {
@@ -128,7 +104,7 @@ func (pls *pLibStatus) update() *blockInfo {
 }
 
 func (pls *pLibStatus) updatePreLIB(bpID string, pl *plInfo) {
-	pls.plm.add(bpID, pl)
+	pls.plm.set(bpID, pl)
 }
 
 func (pls *pLibStatus) getPreLIB() (bpID string, pl *plInfo) {
@@ -183,14 +159,17 @@ func (pls *pLibStatus) load(lib *blockInfo, block *types.Block) {
 		pls.confirms.Init()
 	}
 
-	// Rebuild confirms info from LIB + 1 and block.
-	if confirms := loadConfirms(lib, block); confirms != nil {
-		pls.confirms = confirms
-
-		// Rollback the pre-LIB map based on the new confirms list. -- During
-		// rollback, no new pre-LIBs are created. Only some of the existing pre-LIB
-		// map entries may be rollback to the previous one.
-		pls.rollbackPreLIBs()
+	// Rebuild confirms info & pre-LIB map from LIB + 1 and block based on
+	// the blocks.
+	if tmp := loadPlibStatus(lib, block); tmp != nil {
+		if tmp.confirms.Len() > 0 {
+			pls.confirms = tmp.confirms
+		}
+		for bpID, v := range tmp.plm {
+			if v != nil && v.Plib.BlockNo > 0 {
+				pls.plm[bpID] = v
+			}
+		}
 	}
 }
 
@@ -207,49 +186,11 @@ func (pls *pLibStatus) save(tx db.Transaction) error {
 	return nil
 }
 
-func (pls *pLibStatus) rollbackPreLIBs() {
-	forEach(pls.confirms,
-		func(e *list.Element) {
-			pls.rollbackPreLIB(cInfo(e))
-		},
-	)
-}
-
-func (pls *pLibStatus) rollbackPreLIB(c *confirmInfo) {
-	if pLib, exist := pls.plm[c.BPID]; exist {
-		purgeBeg := len(pLib)
-		if purgeBeg == 0 {
-			return
-		}
-
-		for i, l := range pLib {
-			if l.Plib.BlockNo >= c.BlockNo {
-				purgeBeg = i
-				break
-			}
-		}
-		pls.plm.trunc(c.BPID, 0, purgeBeg)
-	}
-}
-
 func (pls *pLibStatus) gc(lib *blockInfo) {
 	removeIf(pls.confirms,
 		func(e *list.Element) bool {
 			return cInfo(e).BlockNo <= lib.BlockNo
 		})
-
-	for bpID, pl := range pls.plm {
-		var beg int
-		for i, l := range pl {
-			if l.Plib.BlockNo > lib.BlockNo {
-				beg = i
-				break
-			}
-		}
-		// We can delete all the elements before <LIB - 1> since the current
-		// LIB cannot be discarded by a reorganization.
-		pls.plm.trunc(bpID, beg-1, len(pl))
-	}
 }
 
 func removeIf(l *list.List, p func(e *list.Element) bool) {
@@ -286,8 +227,8 @@ func (pls *pLibStatus) calcLIB() *blockInfo {
 
 	libInfos := make([]*plInfo, 0, len(pls.plm))
 	for _, l := range pls.plm {
-		if len(l) != 0 {
-			libInfos = append(libInfos, l[len(l)-1])
+		if l != nil {
+			libInfos = append(libInfos, l)
 		}
 	}
 
@@ -359,7 +300,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 }
 
 type bootLoader struct {
-	plib     bpPlm
+	pls      *pLibStatus
 	lib      *blockInfo
 	best     *types.Block
 	genesis  *types.Block
@@ -375,28 +316,35 @@ func (bs *bootLoader) load() {
 			Str("block hash", bs.lib.BlockHash).Msg("LIB loaded from DB")
 	}
 
-	if err := bs.loadPLIB(&bs.plib); err == nil {
-		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
-		for id, p := range bs.plib {
-			if len(p) == 0 || p[len(p)-1] == nil {
+	if plm := bs.loadPLM(); plm != nil {
+		bs.pls.plm = plm
+		logger.Debug().Int("len", len(plm)).Msg("pre-LIB loaded from DB")
+		for id, p := range plm {
+			if p == nil {
 				continue
 			}
 			logger.Debug().Str("BPID", id).
-				Str("confirmed hash", p[len(p)-1].Plib.Hash()).
-				Str("confirmedBy hash", p[len(p)-1].PlibBy.Hash()).
+				Str("confirmed hash", p.Plib.Hash()).
+				Str("confirmedBy hash", p.PlibBy.Hash()).
 				Msg("pre-LIB entry")
 		}
+
 	}
 
-	libLoader.loadConfirms()
+	bs.pls.load(bs.lib, bs.best)
 }
 
 func (bs *bootLoader) loadLIB(bi *blockInfo) error {
 	return bs.decodeStatus(statusKeyLIB, bi)
 }
 
-func (bs *bootLoader) loadPLIB(plib *bpPlm) error {
-	return bs.decodeStatus(statusKeyPreLIB, plib)
+func (bs *bootLoader) loadPLM() bpPlm {
+	plm := make(bpPlm)
+	if err := bs.decodeStatus(statusKeyPreLIB, &plm); err != nil {
+		return nil
+	}
+
+	return plm
 }
 
 func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
@@ -414,13 +362,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 	return nil
 }
 
-func (bs *bootLoader) loadConfirms() {
-	if confirms := loadConfirms(bs.lib, bs.best); confirms != nil {
-		bs.confirms = confirms
-	}
-}
-
-func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
+func loadPlibStatus(lib *blockInfo, blockEnd *types.Block) *pLibStatus {
 	end := blockEnd.BlockNo()
 	if lib.BlockNo == end {
 		return nil
@@ -437,6 +379,8 @@ func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
 	pls.genesisInfo = newBlockInfo(libLoader.genesis)
 
 	beginBlockNo := func() uint64 {
+		// For the case where no pre-LIB map are correctly restored at a boot
+		// time.
 		if beg := lib.BlockNo - 2*consensusBlockCount(); beg > 0 {
 			return beg
 		}
@@ -446,17 +390,15 @@ func loadConfirms(lib *blockInfo, blockEnd *types.Block) *list.List {
 	for i := beginBlockNo(); i <= end; i++ {
 		block, err := libLoader.getBlock(i)
 		if err != nil {
+			// XXX Better error handling?!
 			logger.Error().Err(err).Msg("failed to read block")
+			return nil
 		}
 		pls.addConfirmInfo(block)
 		pls.update()
 	}
 
-	if pls.confirms.Len() > 0 {
-		return pls.confirms
-	}
-
-	return nil
+	return pls
 }
 
 func (bs *bootLoader) bestBlock() *types.Block {
