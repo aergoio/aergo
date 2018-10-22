@@ -11,7 +11,6 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -115,7 +114,7 @@ func (ks *Store) getKey(address []byte, pass string) ([]byte, error) {
 	encryptkey := hashBytes(address, []byte(pass))
 	key := ks.storage.Get(hashBytes(address, encryptkey))
 	if cap(key) == 0 {
-		return nil, message.ErrWrongAddressOrPassWord
+		return nil, types.ErrWrongAddressOrPassWord
 	}
 	return decrypt(address, encryptkey, key)
 }

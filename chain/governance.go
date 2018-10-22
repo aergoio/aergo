@@ -28,9 +28,13 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderStat
 				return err
 			}
 		*/
-		err = executeSystemTx(txBody, senderState, scs, blockNo)
-		if err == nil {
-			err = states.CommitContractState(scs)
+		if len(txBody.Payload) > 0 {
+			err = executeSystemTx(txBody, senderState, scs, blockNo)
+			if err == nil {
+				err = states.CommitContractState(scs)
+			}
+		} else {
+			err = types.ErrTxFormatInvalid
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")

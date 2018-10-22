@@ -59,8 +59,8 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		grpcServer,
 		grpcweb.WithWebsockets(true),
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
-		return true
-	}))
+			return true
+		}))
 
 	rpcsvc := &RPC{
 		conf: cfg,
@@ -98,7 +98,7 @@ func (ns *RPC) BeforeStop() {
 	ns.grpcServer.Stop()
 }
 
-func (ns *RPC) Statics() *map[string]interface{} {
+func (ns *RPC) Statistics() *map[string]interface{} {
 	return nil
 }
 
@@ -193,15 +193,15 @@ func convertError(err error) types.CommitStatus {
 	switch err {
 	case nil:
 		return types.CommitStatus_TX_OK
-	case message.ErrTxNonceTooLow:
+	case types.ErrTxNonceTooLow:
 		return types.CommitStatus_TX_NONCE_TOO_LOW
-	case message.ErrTxAlreadyInMempool:
+	case types.ErrTxAlreadyInMempool:
 		return types.CommitStatus_TX_ALREADY_EXISTS
-	case message.ErrTxHasInvalidHash:
+	case types.ErrTxHasInvalidHash:
 		return types.CommitStatus_TX_INVALID_HASH
-	case message.ErrTxFormatInvalid:
+	case types.ErrTxFormatInvalid:
 		return types.CommitStatus_TX_INVALID_FORMAT
-	case message.ErrInsufficientBalance:
+	case types.ErrInsufficientBalance:
 		return types.CommitStatus_TX_INSUFFICIENT_BALANCE
 	default:
 		//logger.Info().Str("hash", err.Error()).Msg("RPC encountered unconvertable error")

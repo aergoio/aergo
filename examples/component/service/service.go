@@ -42,7 +42,7 @@ func (es *ExampleService) BeforeStop() {
 	// add stop logics for this service
 }
 
-func (es *ExampleService) Statics() *map[string]interface{} {
+func (es *ExampleService) Statistics() *map[string]interface{} {
 	return nil
 }
 

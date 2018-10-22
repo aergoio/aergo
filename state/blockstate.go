@@ -15,6 +15,8 @@ type BlockInfo struct {
 type BlockState struct {
 	StateDB
 	receiptTx db.Transaction
+
+	BpReward uint64 //final bp reward, increment when tx executes
 }
 
 // NewBlockInfo create new blockInfo contains blockNo, blockHash and blockHash of previous block

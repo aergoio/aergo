@@ -5,7 +5,6 @@ import (
 
 	"encoding/binary"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -40,7 +39,7 @@ func (ks *Store) SignTx(tx *types.Tx) error {
 	addr := tx.Body.Account
 	key, exist := ks.unlocked[types.EncodeAddress(addr)]
 	if !exist {
-		return message.ErrShouldUnlockAccount
+		return types.ErrShouldUnlockAccount
 	}
 	return SignTx(tx, key)
 }
@@ -59,7 +58,7 @@ func VerifyTx(tx *types.Tx) error {
 		return err
 	}
 	if !sign.Verify(hash, pubkey) {
-		return message.ErrSignNotMatch
+		return types.ErrSignNotMatch
 	}
 	return nil
 }

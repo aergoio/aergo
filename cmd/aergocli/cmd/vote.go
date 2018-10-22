@@ -23,6 +23,7 @@ var revert bool
 
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
+	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
 	voteStatCmd.Flags().Uint64Var(&number, "count", 1, "the number of elected")
 }
 
@@ -120,11 +121,26 @@ var voteStatCmd = &cobra.Command{
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {
-	var voteQuery []byte
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(number))
-	voteQuery = b
-	msg, err := client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
+	var rawAddr []byte
+	var err error
+	if address != "" {
+		rawAddr, err = types.DecodeAddress(address)
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+	}
+
+	var msg *types.VoteList
+	if rawAddr != nil {
+		msg, err = client.GetVotes(context.Background(), &types.SingleBytes{Value: rawAddr})
+	} else {
+		var voteQuery []byte
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(number))
+		voteQuery = b
+		msg, err = client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
+	}
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return

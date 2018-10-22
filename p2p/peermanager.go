@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
@@ -337,12 +336,11 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		pm.logger.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
-	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-	remoteStatus, err := h.handshakeOutboundPeerTimeout(rw, defaultHandshakeTTL)
+	rw, remoteStatus, err := h.handshakeOutboundPeerTimeout(s, s, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		pm.sendGoAway(rw, "Failed to handshake")
+		//pm.sendGoAway(rw, "Failed to handshake")
 		s.Close()
 		return false
 	}
@@ -481,13 +479,10 @@ func (pm *peerManager) startListener() {
 
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	rw := newBufMsgReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-
-	statusMsg, err := h.handshakeInboundPeer(rw)
+	rw, statusMsg, err := h.handshakeInboundPeer(s, s)
 	if err != nil {
 		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
-		pm.sendGoAway(rw, "failed to handshake")
 		s.Close()
 		return
 	}

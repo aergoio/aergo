@@ -50,7 +50,14 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
-	Init(cfg.Blockchain.MaxBlockSize)
+	if err := Init(cfg.Blockchain.MaxBlockSize,
+		cfg.Blockchain.CoinbaseAccount,
+		cfg.Blockchain.CoinbaseFee,
+		cfg.Consensus.EnableBp); err != nil {
+		logger.Error().Err(err).Msg("failed to init chainservice")
+		panic("invalid config: blockchain")
+	}
+
 	if cc != nil {
 		cc.SetStateDB(actor.sdb)
 	}
@@ -165,7 +172,8 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 	}
 	genesisBlock, _ := cs.cdb.getBlockByNo(0)
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
+		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
 	return genesisBlock, nil
 }
@@ -300,10 +308,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.GetMissing:
 		stopHash := msg.StopHash
 		hashes := msg.Hashes
-		mhashes, mnos := cs.handleMissing(stopHash, hashes)
+		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
 		context.Respond(message.GetMissingRsp{
-			Hashes:   mhashes,
-			Blocknos: mnos,
+			TopMatched: topHash,
+			TopNumber:  topNo,
+			StopNumber: stopNo,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
@@ -333,20 +342,26 @@ func (cs *ChainService) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
-
-		state, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			ret, err := contract.Query(msg.Contract, state, msg.Queryinfo)
+			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()), nil)
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
 		top, err := cs.getVotes(msg.N)
-		context.Respond(&message.GetElectedRsp{
+		context.Respond(&message.GetVoteRsp{
+			Top: top,
+			Err: err,
+		})
+	case *message.GetVote:
+		top, err := cs.getVote(msg.Addr)
+		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,
 		})
@@ -361,7 +376,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	}
 }
 
-func (cs *ChainService) Statics() *map[string]interface{} {
+func (cs *ChainService) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"orphan": cs.op.curCnt,
 	}

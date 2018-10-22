@@ -3,6 +3,8 @@ package p2p
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -55,7 +57,9 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 }
 
 func TestRemotePeer_writeToPeer(t *testing.T) {
-
+	rand := uuid.Must(uuid.NewRandom())
+	var sampleMsgID MsgID
+	copy(sampleMsgID[:], rand[:])
 	type args struct {
 		StreamResult error
 		signErr      error
@@ -89,7 +93,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
 			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.remotePeerImpl")).Return(tt.args.sendErr == nil)
 			mockOrder.On("GetProtocolID").Return(PingRequest)
-			mockOrder.On("GetMsgID").Return("test_req")
+			mockOrder.On("GetMsgID").Return(sampleMsgID)
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, dummyRW)
@@ -226,9 +230,10 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		mockPeerManager := new(MockPeerManager)
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
 		t.Run(tt.name, func(t *testing.T) {
-			p.requests["r1"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r1", Timestamp: time.Now().Add(time.Minute * -61).Unix()}}}
-			p.requests["r2"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "r2", Timestamp: time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
-			p.requests["rn"] = &pbMessageOrder{message: &types.P2PMessage{Header: &types.MsgHeader{Id: "rn", Timestamp: time.Now().Add(time.Minute * -60).Unix()}}}
+			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
+			p.requests[mid1] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid1, timestamp:time.Now().Add(time.Minute * -61).Unix()}}}
+			p.requests[mid2] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid2, timestamp:time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
+			p.requests[midn] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:midn, timestamp:time.Now().Add(time.Minute * -60).Unix()}}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -273,7 +278,7 @@ func TestRemotePeer_tryGetStream(t *testing.T) {
 func TestRemotePeer_sendMessage(t *testing.T) {
 
 	type args struct {
-		msgID    string
+		msgID    MsgID
 		protocol protocol.ID
 		timeout  time.Duration
 	}
@@ -282,8 +287,8 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 		args    args
 		timeout bool
 	}{
-		{"TSucc", args{"m1", "p1", time.Millisecond * 100}, false},
-		{"TTimeout", args{"mtimeout", "p1", time.Millisecond * 100}, true},
+		{"TSucc", args{NewMsgID(), "p1", time.Millisecond * 100}, false},
+		{"TTimeout", args{NewMsgID(), "p1", time.Millisecond * 100}, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -313,7 +318,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 						case mo := <-p.write.Out():
 							p.logger.Info().Msgf("Got order from chan %v", mo)
 							msg := mo.(msgOrder)
-							p.logger.Info().Str(LogMsgID, msg.GetMsgID()).Msg("Got order")
+							p.logger.Info().Str(LogMsgID, msg.GetMsgID().String()).Msg("Got order")
 							atomic.AddInt32(&writeCnt, 1)
 							p.write.Done() <- msg
 							wg2.Done()
@@ -338,9 +343,10 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 }
 
 func TestRemotePeer_handleMsg(t *testing.T) {
-	mockMsg := new(MockMsgOrder)
-	mockMsg.On("GetMsgID").Return("m1")
-	mockMsg.On("GetProtocolID").Return(NewBlockNotice)
+	sampleMsgID := NewMsgID()
+	mockMO := new(MockMsgOrder)
+	mockMO.On("GetMsgID").Return(sampleMsgID)
+	mockMO.On("Subprotocol").Return(PingRequest)
 
 	type args struct {
 		nohandler bool
@@ -367,15 +373,20 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		mockSigner := new (mockMsgSigner)
 		mockMF := new(MockMoFactory)
 		t.Run(tt.name, func(t *testing.T) {
-			msg := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: PingRequest.Uint32()}}
+			msg := new(MockMessage)
 			if tt.args.nohandler {
-				msg.Header.Subprotocol = 3999999999
+				msg.On("Subprotocol").Return(SubProtocol(3999999999))
+			} else {
+				msg.On("Subprotocol").Return(PingRequest)
 			}
 			bodyStub := &types.Ping{}
+			bytes, _ := proto.Marshal(bodyStub)
+			msg.On("ID").Return(sampleMsgID)
+			msg.On("Payload").Return(bytes)
 			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)
-			mockMsgHandler.On("checkAuth", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(tt.args.autherr)
-			mockMsgHandler.On("handle", mock.AnythingOfType("*types.MsgHeader"), mock.Anything)
-			mockSigner.On("verifyMsg", mock.AnythingOfType("*types.P2PMessage"), mock.Anything).Return(nil)
+			mockMsgHandler.On("checkAuth", mock.Anything, mock.Anything).Return(tt.args.autherr)
+			mockMsgHandler.On("handle", mock.Anything, mock.Anything)
+			mockSigner.On("verifyMsg", mock.Anything, mock.Anything).Return(nil)
 
 			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
 			target.handlers[PingRequest] = mockMsgHandler
@@ -396,7 +407,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			if tt.args.nohandler || tt.args.parerr != nil || tt.args.autherr != nil {
 				mockMsgHandler.AssertNotCalled(t, "handle", mock.Anything, mock.Anything)
 			} else {
-				mockMsgHandler.AssertCalled(t, "handle", msg.Header, bodyStub)
+				mockMsgHandler.AssertCalled(t, "handle", msg, bodyStub)
 			}
 		})
 	}
@@ -429,7 +440,7 @@ func TestRemotePeer_trySendTxNotices(t *testing.T) {
 			mockOrder.On("IsNeedSign").Return(true)
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
 			mockOrder.On("GetProtocolID").Return(NewTxNotice)
-			mockOrder.On("GetMsgID").Return("test_req")
+			mockOrder.On("GetMsgID").Return(NewMsgID())
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
 

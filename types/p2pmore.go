@@ -9,7 +9,7 @@ import (
 	"net"
 	"strconv"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // AddressesToStringMap make map of string for logging or json encoding

@@ -9,12 +9,13 @@ import (
 
 var stakingkey = []byte("staking")
 
-const stakingDelay = 5
+const stakingDelay = 10
 
 func staking(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
-	if txBody.Amount < types.Minimum {
-		return ErrTooSmallAmount
+
+	if txBody.Amount < types.StakingMinimum {
+		return types.ErrTooSmallAmount
 	}
 	staked, _, err := getStaking(scs, txBody.Account)
 	if err != nil {
@@ -34,8 +35,11 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 	if err != nil {
 		return err
 	}
+	if staked == 0 {
+		return types.ErrMustStakeBeforeUnstake
+	}
 	if when+stakingDelay > blockNo {
-		return ErrLessTimeHasPassed
+		return types.ErrLessTimeHasPassed
 	}
 	amount := txBody.Amount
 	if staked < txBody.Amount {
@@ -51,7 +55,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State,
 		}
 	}
 	err = voting(txBody, scs, blockNo)
-	if err != nil && err != ErrMustStakeBeforeVote {
+	if err != nil && err != types.ErrLessTimeHasPassed {
 		return err
 	}
 	senderState.Balance = senderState.Balance + amount

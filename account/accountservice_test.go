@@ -1,14 +1,13 @@
 package account
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"testing"
 
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -42,9 +41,9 @@ func TestNewAccountAndGet(t *testing.T) {
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
-		if err != nil {
-			t.Errorf("failed to create account:%s", err)
-		}
+		assert.NoError(t, err, "failed to create account")
+		assert.Equalf(t, types.AddressLength, len(account.Address), "wrong address length : %s", account.Address)
+
 		testaccounts = append(testaccounts, account)
 	}
 	getlist := as.getAccounts()
@@ -57,9 +56,7 @@ func TestNewAccountAndGet(t *testing.T) {
 			}
 		}
 	}
-	if len(resultlist) != len(testaccounts) {
-		t.Error("failed to get account")
-	}
+	assert.Len(t, resultlist, len(testaccounts), "failed to get account")
 }
 
 func TestNewAccountAndUnlockLock(t *testing.T) {
@@ -70,12 +67,9 @@ func TestNewAccountAndUnlockLock(t *testing.T) {
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
-		if err != nil {
-			t.Errorf("failed to create account:%s", err)
-		}
-		if len(account.Address) != types.AddressLength {
-			t.Errorf("invalid account len:%d", len(account.Address))
-		}
+		assert.NoError(t, err, "failed to create account")
+		assert.Equalf(t, types.AddressLength, len(account.Address), "wrong address length : %s", account.Address)
+
 		testaccounts = append(testaccounts, account)
 	}
 	for i := 0; i < testsize; i++ {
@@ -102,12 +96,9 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
-		if err != nil {
-			t.Errorf("failed to create account:%s", err)
-		}
-		if len(account.Address) != types.AddressLength {
-			t.Errorf("invalid account len:%d", len(account.Address))
-		}
+		assert.NoError(t, err, "failed to create account")
+		assert.Equalf(t, types.AddressLength, len(account.Address), "wrong address length : %s", account.Address)
+
 		testaccounts = append(testaccounts, account)
 	}
 	for i := 0; i < testsize; i++ {
@@ -116,19 +107,20 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 		if err == nil || account != nil {
 			t.Errorf("should not unlock the account[%d]:%s", i, err)
 		}
-		if err != message.ErrWrongAddressOrPassWord {
-			t.Errorf("should return proper error code expect = %s, return = %s", message.ErrWrongAddressOrPassWord, err)
+		if err != types.ErrWrongAddressOrPassWord {
+			t.Errorf("should return proper error code expect = %s, return = %s", types.ErrWrongAddressOrPassWord, err)
 		}
 	}
 }
+
 func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	passphrase := "test"
 	account, err := as.createAccount(passphrase)
-	if err != nil {
-		t.Errorf("failed to create account:%s", err)
-	}
+	assert.NoError(t, err, "failed to create account")
+	assert.Equalf(t, types.AddressLength, len(account.Address), "wrong address length : %s", account.Address)
+
 	unlockedAccount, err := as.unlockAccount(account.Address, passphrase)
 	if err != nil || unlockedAccount == nil {
 		t.Errorf("failed to unlock account:%s", err)
@@ -136,16 +128,11 @@ func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
 	err = as.ks.SignTx(tx)
-	if err != nil {
-		t.Fatalf("failed to sign: %s", err)
-	}
-	if tx.Body.Sign == nil {
-		t.Fatalf("failed to sign: %s", err)
-	}
+	assert.NoError(t, err, "failed to sign")
+	assert.NotNil(t, tx.Body.Sign, "failed to sign")
+
 	err = as.ks.VerifyTx(tx)
-	if err != nil {
-		t.Fatalf("failed to verify: %s", err)
-	}
+	assert.NoError(t, err, "failed to verify")
 }
 
 func TestVerfiyFail(t *testing.T) {
@@ -153,31 +140,24 @@ func TestVerfiyFail(t *testing.T) {
 	defer deinitTest()
 	passphrase := "test"
 	account, err := as.createAccount(passphrase)
-	if err != nil {
-		t.Errorf("failed to create account:%s", err)
-	}
+	assert.NoError(t, err, "failed to create account")
+	assert.Equalf(t, types.AddressLength, len(account.Address), "wrong address length : %s", account.Address)
+
 	unlockedAccount, err := as.unlockAccount(account.Address, passphrase)
 	if err != nil || unlockedAccount == nil {
 		t.Errorf("failed to unlock account:%s", err)
 		t.FailNow()
 	}
+
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
 	err = as.ks.SignTx(tx)
-	if err != nil {
-		t.Fatalf("failed to sign: %s", err)
-	}
-	if tx.Body.Sign == nil {
-		t.Fatalf("failed to sign: %s", err)
-	}
+	assert.NoError(t, err, "failed to sign")
+	assert.NotNil(t, tx.Body.Sign, "failed to sign")
+
 	//edit tx after sign
 	tx.Body.Amount = 0xff
 	err = as.ks.VerifyTx(tx)
-	if err != message.ErrSignNotMatch {
-		t.Errorf("should return :%s", message.ErrSignNotMatch)
-	}
-	if err == nil {
-		t.Fatal("should not success to verify")
-	}
+	assert.Error(t, err, types.ErrSignNotMatch, "failed to verfiy")
 }
 
 func TestBase58CheckEncoding(t *testing.T) {
@@ -187,17 +167,11 @@ func TestBase58CheckEncoding(t *testing.T) {
 
 	encoded := types.EncodeAddress(addr)
 	expected := "AmJaNDXoPbBRn9XHh9onKbDKuAzj88n5Bzt7KniYA78qUEc5EwBd"
-	if encoded != expected {
-		t.Fatalf("incorrectly encoded address: %s should be %s", encoded, expected)
-	}
+	assert.Equal(t, expected, encoded, "incorrectly encoded address")
 
 	decoded, _ := types.DecodeAddress(encoded)
-	if !bytes.Equal(decoded, addr) {
-		t.Fatalf("incorrectly decoded address: %x should be %x", decoded, addr)
-	}
+	assert.Equal(t, addr, decoded, "incorrectly decoded address")
 
 	_, err := types.DecodeAddress("AmJaNDXoPbBRn9XHh9onKbDKuAzj88n5Bzt7KniYA78qUEc5EwBA")
-	if err == nil {
-		t.Fatalf("decoding address with wrong checksum should error")
-	}
+	assert.NotEmpty(t, err, "decoding address with wrong checksum")
 }

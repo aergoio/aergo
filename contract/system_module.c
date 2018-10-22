@@ -23,7 +23,7 @@ static int setItem(lua_State *L)
 	}
 
 	if (exec->isQuery) {
-	    luaL_error(L, "not permitted set in query");
+	    luaL_error(L, "set not permitted in query");
 	}
 
 	luaL_checkany(L, 2);
@@ -124,12 +124,31 @@ static int getContractID(lua_State *L)
 	return 1;
 }
 
+static int getCreator(lua_State *L)
+{
+	const bc_ctx_t *exec = getLuaExecContext(L);
+	char *value;
+	int ret;
+
+	if (exec == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	ret = LuaGetDB(L, exec->stateKey, "Creator");
+	if (ret < 0) {
+		lua_error(L);
+	}
+	if (ret == 0)
+		return 0;
+	value = (char *)luaL_checkstring(L, -1);
+	return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
 	{"getItem", getItem},
 	{"getSender", getSender},
-	{"getCreator", getContractID},
+	{"getCreator", getCreator},
 	{"getTxhash", getTxhash},
 	{"getBlockheight", getBlockHeight},
 	{"getTimestamp", getTimestamp},
@@ -140,5 +159,6 @@ static const luaL_Reg sys_lib[] = {
 int luaopen_system(lua_State *L)
 {
 	luaL_register(L, "system", sys_lib);
+	lua_pop(L, 1);
 	return 1;
 }

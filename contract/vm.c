@@ -51,14 +51,14 @@ lua_State *vm_newstate()
 	return L;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx)
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, bc_ctx_t *bc_ctx)
 {
 	int err;
 	const char *errMsg = NULL;
 
 	setLuaExecContext(L, bc_ctx);
 
-	err = luaL_loadbuffer(L, code, sz, name);
+	err = luaL_loadbuffer(L, code, sz, bc_ctx->contractId);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;

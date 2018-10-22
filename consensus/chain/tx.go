@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -81,7 +83,9 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		nCand      int
 	)
 
-	logger.Debug().Msg("start gathering tx")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Msg("start gathering tx")
+	}
 
 	txIn := FetchTXs(hs)
 	nCand = len(txIn)
@@ -90,30 +94,36 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	}
 	txRes := make([]*types.Tx, 0, nCand)
 
-	defer func() {
-		logger.Debug().
-			Int("candidates", nCand).
-			Int("collected", nCollected).
-			Msg("transactions collected")
-	}()
+	if logger.IsDebugEnabled() {
+		defer func() {
+			logger.Debug().
+				Int("candidates", nCand).
+				Int("collected", nCollected).
+				Msg("transactions collected")
+		}()
+	}
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 
-	for _, tx := range txIn {
+	for i, tx := range txIn {
 		err := op.Apply(bState, tx)
 
 		//don't include tx that error is occured
 		if e, ok := err.(ErrTimeout); ok {
-			logger.Debug().Msg("stop gathering tx due to time limit")
+			if logger.IsDebugEnabled() {
+				logger.Debug().Msg("stop gathering tx due to time limit")
+			}
 			err = e
 			break
 		} else if err == errBlockSizeLimit {
-			logger.Debug().Msg("stop gathering tx due to size limit")
+			if logger.IsDebugEnabled() {
+				logger.Debug().Msg("stop gathering tx due to size limit")
+			}
 			break
 		} else if err != nil {
 			//FIXME handling system error (panic?)
 			// ex) gas error/nonce error skip, but other system error panic
-			logger.Debug().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+			logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
 			continue
 		}
 
@@ -122,10 +132,16 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	nCollected = len(txRes)
 
-	if bState != nil {
-		if err := bState.Update(); err != nil {
-			return nil, err
-		}
+	if err := chain.SendRewardCoinbase(bState, chain.CoinbaseAccount); err != nil {
+		return nil, err
+	}
+
+	if err := contract.SaveRecoveryPoint(bState); err != nil {
+		return nil, err
+	}
+
+	if err := bState.Update(); err != nil {
+		return nil, err
 	}
 
 	return txRes, nil

@@ -1,19 +1,20 @@
-package p2p
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
 
-import (
-	"github.com/aergoio/aergo/types"
-)
+package p2p
 
 // MsgReader read stream and return message object
 type MsgReader interface {
 	// ReadMsg return types.MsgHeader as header, proto.Message as data
 	// The header and/or data can be nil if error is not nil
-	ReadMsg() (*types.P2PMessage, error)
+	ReadMsg() (Message, error)
 }
 
 // MsgWriter write message to stream
 type MsgWriter interface {
-	WriteMsg(header *types.P2PMessage) error
+	WriteMsg(msg Message) error
 }
 
 type MsgReadWriter interface {

@@ -23,7 +23,7 @@ lua_State *vm_newstate();
 int vm_isnil(lua_State *L, int idx);
 void vm_getfield(lua_State *L, const char *name);
 void vm_remove_construct(lua_State *L, const char *constructName);
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx);
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, bc_ctx_t *bc_ctx);
 const char *vm_pcall(lua_State *L, int argc, int* nresult);
 const char *vm_get_json_ret(lua_State *L, int nresult);
 const char *vm_tostring(lua_State *L, int idx);

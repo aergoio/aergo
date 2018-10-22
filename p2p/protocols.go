@@ -5,7 +5,26 @@
 
 package p2p
 
-// SubProtocol indentify the type of p2p message
+// constants of p2p protocol since v0.3
+const (
+	// this magic number is useful only in handshaking
+	MAGICMain uint32 = 0x47416841
+	MAGICTest uint32 = 0x2e415429
+
+	P2PVersion030 uint32 = 0x00000300
+
+	SigLength = 16
+	IDLength = 16
+
+	MaxPayloadLength = 1 << 23  // 8MB
+
+	MaxBlockHeaderResponseCount = 10000
+	MaxBlockResponseCount       = 2000
+	MaxResponseSplitCount = 5
+)
+
+
+// SubProtocol identifies the type of p2p message
 type SubProtocol uint32
 
 //

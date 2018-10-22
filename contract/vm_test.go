@@ -168,7 +168,7 @@ func TestContractQuery(t *testing.T) {
 		t.Error(query.Balance)
 	}
 
-	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "not permitted set in query", "")
+	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1312,6 +1312,100 @@ abi.register(r)`
 	}
 }
 
+func TestContractCall(t *testing.T) {
+	definition1 := `
+	function constructor(init)
+		system.setItem("count", init)
+	end
+	function inc()
+		count = system.getItem("count")
+		system.setItem("count", count + 1)
+		return count
+	end
+
+	function get()
+		return system.getItem("count")
+	end
+
+	function set(val)
+		system.setItem("count", val)
+	end
+	abi.register(inc,get,set)
+	`
+
+	bc := loadBlockChain(t)
+
+	bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "counter", 10, definition1).constructor("[1]"),
+		newLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
+	)
+
+	err := bc.query("counter", `{"Name":"get", "Args":[]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+
+	definition2 := `
+	function constructor(addr)
+		system.setItem("count", 99)
+		system.setItem("addr", addr)
+	end
+	function add(amount)
+		return contract.call.value(amount)(system.getItem("addr"), "inc")
+	end
+	function dadd()
+		return contract.delegatecall(system.getItem("addr"), "inc")
+	end
+	function get()
+		addr = system.getItem("addr")
+		a = contract.call(addr, "get")
+		return a
+	end
+	function dget()
+		addr = system.getItem("addr")
+		a = contract.delegatecall(addr, "get")
+		return a
+	end
+	function set(val)
+		contract.call(system.getItem("addr"), "set", val)
+	end
+	function dset(val)
+		contract.delegatecall(system.getItem("addr"), "set", val)
+	end
+	abi.register(add,dadd, get, dget, set, dset)
+	`
+	bc.connectBlock(
+		newLuaTxDef("ktlee", "caller", 10, definition2).
+			constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+		newLuaTxCall("ktlee", "caller", 10, `{"Name":"add", "Args":[]}`),
+	)
+	err = bc.query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("caller", `{"Name":"dget", "Args":[]}`, "", "99")
+	if err != nil {
+		t.Error(err)
+	}
+	tx := newLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
+	bc.connectBlock(tx)
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `99` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	tx = newLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
+	bc.connectBlock(tx)
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `100` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
 
 // helper functions
@@ -1682,7 +1776,7 @@ func (bc *blockChain) query(contract, queryInfo string, expectedErr, expectedRv 
 	if err != nil {
 		return err
 	}
-	rv, err := Query(strHash(contract), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil || !strings.Contains(err.Error(), expectedErr) {
 			return err

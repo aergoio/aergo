@@ -107,7 +107,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 	}
 }
 
-func newLState() *LState {
+func NewLState() *LState {
 	return C.vm_newstate()
 }
 
@@ -118,12 +118,9 @@ func (L *LState) Close() {
 }
 
 func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
-	address := C.CString(types.EncodeAddress(contract.address))
-	defer C.free(unsafe.Pointer(address))
-
 	ce := &Executor{
 		contract:      contract,
-		L:             newLState(),
+		L:             GetLState(),
 		blockchainCtx: bcCtx,
 	}
 	if ce.L == nil {
@@ -135,7 +132,6 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract.code[0])),
 		C.size_t(len(contract.code)),
-		address,
 		bcCtx,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
@@ -247,7 +243,6 @@ func (ce *Executor) commitCalledContract() error {
 		return nil
 	}
 
-	// sdb := stateSet.sdb
 	bs := stateSet.bs
 
 	var err error
@@ -276,7 +271,7 @@ func (ce *Executor) commitCalledContract() error {
 
 func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
-		ce.L.Close()
+		FreeLState(ce.L)
 		if ce.blockchainCtx != nil && bcCtxFree {
 			context := ce.blockchainCtx
 			contractMap.unregister(C.GoString(context.stateKey))
@@ -300,13 +295,17 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 	}
 	var ce *Executor
 	if err == nil {
-		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		if ctrLog.IsDebugEnabled() {
+			ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		}
 		ce = newExecutor(contract, bcCtx)
 		defer ce.close(true)
 		ce.call(&ci, nil)
 		err = ce.err
 		if err == nil {
 			err = ce.commitCalledContract()
+		} else {
+			ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
 		}
 	}
 	var receipt types.Receipt
@@ -320,10 +319,17 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 }
 
 func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
-	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
+	}
+	if len(code) <= 4 {
+		err := fmt.Errorf("code length is short %d", len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return err
+	}
 	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("invalid deploy code(%d:%d)", codeLen, len(code))
+		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
 		return err
 	}
@@ -339,6 +345,8 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 		ctrLog.Warn().AnErr("err", err)
 		return err
 	}
+	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
+
 	var ce *Executor
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
@@ -349,10 +357,12 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	}
 	var errMsg string
 	if err != nil {
+		logger.Warn().Err(err).Msg("constructor's argument is invalid")
 		errMsg = err.Error()
 	}
 	ce.constructCall(&ci)
 	if ce.err != nil {
+		logger.Warn().Err(err).Msg("constructor is failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
 	receipt := types.NewReceipt(contractAddress, "CREATED", "{\""+errMsg+"\"}")
@@ -361,7 +371,7 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	return nil
 }
 
-func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
+func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
 	var ci types.CallInfo
 	var err error
 	contract := getContract(contractState, contractAddress, nil)
@@ -385,11 +395,13 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	defer tx.Rollback()
 
-	bcCtx := NewContext(nil, nil, contractState, "", "",
+	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
 		1, nil, tx.GetHandle())
 
-	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
 	ce.call(&ci, nil)
@@ -409,14 +421,18 @@ func getContract(contractState *state.ContractState, contractAddress []byte, cod
 			return nil
 		}
 	}
-	if len(val) > 0 {
-		l := binary.LittleEndian.Uint32(val[0:])
-		return &Contract{
-			code:    val[4 : 4+l],
-			address: contractAddress[:],
-		}
+	valLen := len(val)
+	if valLen <= 4 {
+		return nil
 	}
-	return nil
+	l := codeLength(val[0:])
+	if 4+l > uint32(valLen) {
+		return nil
+	}
+	return &Contract{
+		code:    val[4 : 4+l],
+		address: contractAddress[:],
+	}
 }
 
 func GetReceipt(txHash []byte) (*types.Receipt, error) {
@@ -432,10 +448,17 @@ func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(val) == 0 {
+	valLen := len(val)
+	if valLen == 0 {
 		return nil, errors.New("cannot find contract")
 	}
+	if valLen <= 4 {
+		return nil, errors.New("cannot find abi")
+	}
 	l := codeLength(val)
+	if 4+l >= uint32(len(val)) {
+		return nil, errors.New("cannot find abi")
+	}
 	abi := new(types.ABI)
 	if err := json.Unmarshal(val[4+l:], abi); err != nil {
 		return nil, err
@@ -560,7 +583,6 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		// sdb := rootState.sdb
 		bs := rootState.bs
 
 		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
@@ -648,7 +670,6 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 		luaPushStr(L, "[System.LuaCallContract]not found contract state")
 		return -1
 	}
-	// sdb := stateSet.rootState.sdb
 	bs := stateSet.rootState.bs
 	contractState, err := bs.OpenContractStateAccount(types.ToAccountID(cid))
 	contract := getContract(contractState, cid, nil)
@@ -699,7 +720,6 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		// sdb := rootState.sdb
 		bs := rootState.bs
 
 		prevState, err := bs.GetAccountState(types.ToAccountID(cid))

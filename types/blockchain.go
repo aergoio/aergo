@@ -22,8 +22,8 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-
-	lastFieldOfBH = "Sign"
+	DefaultCoinbaseFee  = 1
+	lastFieldOfBH       = "Sign"
 )
 
 var lastIndexOfBH int
@@ -81,7 +81,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var prevBlockHash []byte
 	var blockNo BlockNo
 
@@ -94,10 +94,11 @@ func NewBlock(prevBlock *Block, blockRoot []byte, txs []*Tx, ts int64) *Block {
 		Txs: txs,
 	}
 	header := BlockHeader{
-		PrevBlockHash:  prevBlockHash,
-		BlockNo:        blockNo,
-		Timestamp:      ts,
-		BlocksRootHash: blockRoot,
+		PrevBlockHash:   prevBlockHash,
+		BlockNo:         blockNo,
+		Timestamp:       ts,
+		BlocksRootHash:  blockRoot,
+		CoinbaseAccount: coinbaseAcc,
 	}
 	block := Block{
 		Header: &header,
@@ -338,6 +339,28 @@ func (tx *Tx) CalculateTxHash() []byte {
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
+}
+
+func (tx *Tx) Validate() error {
+	account := tx.GetBody().GetAccount()
+	if account == nil {
+		return ErrTxFormatInvalid
+	}
+	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
+		return ErrTxHasInvalidHash
+	}
+	switch tx.Body.Type {
+	//case TxType_NORMAL:
+	//case TxType_COINBASE:
+	case TxType_GOVERNANCE:
+		if len(tx.Body.Payload) <= 0 {
+			return ErrTxFormatInvalid
+		}
+		if tx.Body.Amount < StakingMinimum {
+			return ErrTooSmallAmount
+		}
+	}
+	return nil
 }
 
 func (tx *Tx) Clone() *Tx {

@@ -153,6 +153,17 @@ func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, 
 	}
 }
 
+func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peerID peer.ID,
+	additional interface{}) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+			Msg("Received a response message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).
+			Msg("Received a response message")
+	}
+}
+
 // ComparePeerID do byte-wise compare of two peerIDs,
 func ComparePeerID(pid1, pid2 peer.ID) int {
 	p1 := []byte(string(pid1))

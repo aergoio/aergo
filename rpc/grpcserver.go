@@ -290,13 +290,13 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	}
 	tx = signTxRsp.Tx
 	memPoolPutResult, err := rpc.hub.RequestFuture(message.MemPoolSvc,
-		&message.MemPoolPut{Txs: []*types.Tx{tx}},
+		&message.MemPoolPut{Tx: tx},
 		defaultActorTimeout, "rpc.(*AergoRPCService).SendTX").Result()
 	memPoolPutRsp, ok := memPoolPutResult.(*message.MemPoolPutRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(memPoolPutResult))
 	}
-	resultErr := memPoolPutRsp.Err[0]
+	resultErr := memPoolPutRsp.Err
 	if resultErr != nil {
 		return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr), Detail: resultErr.Error()}, err
 	}
@@ -313,11 +313,10 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 	rs := make([]*types.CommitResult, len(in.Txs))
+	futures := make([]*actor.Future, len(in.Txs))
 	results := &types.CommitResultList{Results: rs}
 	//results := &types.CommitResultList{}
-	start := 0
 	cnt := 0
-	chunk := 100
 
 	for i, tx := range in.Txs {
 		hash := tx.Hash
@@ -332,29 +331,27 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		results.Results[i] = &r
 		cnt++
 
-		if (i > 0 && i%chunk == 0) || i == len(in.Txs)-1 {
-			//send tx message to mempool
-			result, err := rpc.hub.RequestFuture(message.MemPoolSvc,
-				&message.MemPoolPut{Txs: in.Txs[start : start+cnt]},
-				defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX").Result()
-			if err != nil {
-				return nil, err
-			}
-			rsp, ok := result.(*message.MemPoolPutRsp)
-			if !ok {
-				return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-			}
-
-			for j, err := range rsp.Err {
-				results.Results[start+j].Error = convertError(err)
-				if err != nil {
-					results.Results[start+j].Detail = err.Error()
-				}
-			}
-			start += cnt
-			cnt = 0
+		//send tx message to mempool
+		f := rpc.hub.RequestFuture(message.MemPoolSvc,
+			&message.MemPoolPut{Tx: tx},
+			defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX")
+		futures[i] = f
+	}
+	for i, future := range futures {
+		result, err := future.Result()
+		if err != nil {
+			return nil, err
 		}
-
+		rsp, ok := result.(*message.MemPoolPutRsp)
+		if !ok {
+			err = status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		} else {
+			err = rsp.Err
+		}
+		results.Results[i].Error = convertError(err)
+		if err != nil {
+			results.Results[i].Detail = err.Error()
+		}
 	}
 
 	return results, nil
@@ -500,7 +497,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	ret := &types.VerifyResult{Tx: rsp.Tx}
-	if rsp.Err == message.ErrSignNotMatch {
+	if rsp.Err == types.ErrSignNotMatch {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_SIGN_NOT_MATCH
 	} else {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_OK
@@ -538,17 +535,23 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 //GetVotes handle rpc request getvotes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
 	var number int
+	var err error
+	var result interface{}
+
 	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	} else if len(in.Value) == types.AddressLength {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
 	} else {
 		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}
-	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
 	if err != nil {
 		return nil, err
 	}
-	rsp, ok := result.(*message.GetElectedRsp)
+	rsp, ok := result.(*message.GetVoteRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}

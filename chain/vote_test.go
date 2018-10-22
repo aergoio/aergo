@@ -6,13 +6,13 @@
 package chain
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"os"
 	"testing"
 
 	"github.com/aergoio/aergo/state"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -40,30 +40,22 @@ func TestVoteResult(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
-	if err != nil {
-		t.Error("could not open contract state")
-	}
+	assert.NoError(t, err, "could not open contract state")
+
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
 		err := updateVoteResult(scs, []byte(to), (uint64)(i*i), true)
-		if err != nil {
-			t.Errorf("failed to updateVoteResult: %s", err.Error())
-		}
+		assert.NoError(t, err, "failed to updateVoteResult")
 	}
 	const getTestSize = 23
 	result, err := getVoteResult(scs, getTestSize)
-	if err != nil {
-		t.Errorf("could not get vote result : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not get vote result")
+
 	oldAmount := (uint64)(math.MaxUint64)
 	for i, v := range result.Votes {
 		oldi := testSize - (i + 1)
-		if v.Amount > oldAmount {
-			t.Errorf("failed to sort result old:%d, %d:%d", oldAmount, i, v.Amount)
-		}
-		if v.Amount != (uint64)(oldi*oldi) {
-			t.Errorf("not match amount value old:%d, %d:%d", oldi*oldi, i, v.Amount)
-		}
+		assert.Falsef(t, v.Amount > oldAmount, "failed to sort result old:%d, %d:%d", oldAmount, i, v.Amount)
+		assert.Equalf(t, uint64(oldi*oldi), v.Amount, "not match amount value", oldAmount, i, v.Amount)
 		oldAmount = v.Amount
 	}
 }
@@ -73,42 +65,87 @@ func TestVoteData(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
-	if err != nil {
-		t.Error("could not open contract state")
-	}
+	assert.NoError(t, err, "could not open contract state")
+
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
 		to := fmt.Sprintf("%39d", i)
 		amount, updateBlockNo, candidates, err := getVote(scs, []byte(from))
-		if err != nil {
-			t.Errorf("failed to getVote : %s", err.Error())
-		}
-		if amount != 0 {
-			t.Errorf("new amount value is already set : %d", amount)
-		}
-		if updateBlockNo != 0 {
-			t.Errorf("new updateBlockNo value is already set : %d", updateBlockNo)
-		}
-		if candidates != nil {
-			t.Errorf("new candidates value is already set : %s", candidates)
-		}
-		err = setVote(scs, []byte(from), []byte(to), (uint64)(math.MaxInt64+i), (uint64)(i))
-		if err != nil {
-			t.Errorf("failed to setVote : %s", err.Error())
-		}
-		amount, updateBlockNo, candidates, err = getVote(scs, []byte(from))
-		if err != nil {
-			t.Errorf("failed to getVote after set : %s", err.Error())
-		}
-		if amount != (uint64)(math.MaxInt64+i) {
-			t.Errorf("invalid amount : %d =/= %d", (uint64)(math.MaxInt64+i), amount)
-		}
-		if updateBlockNo != (uint64)(i) {
-			t.Errorf("invalid block number: %d =/= %d", (uint64)(math.MaxInt64+i), updateBlockNo)
-		}
-		if !bytes.Equal(candidates, []byte(to)) {
-			t.Errorf("invalid candidates : %s =/= %s", string(candidates), to)
-		}
-	}
+		assert.NoError(t, err, "failed to getVote")
+		assert.Zero(t, amount, "new amount value is already set")
+		assert.Zero(t, updateBlockNo, "new updateBlockNo value is already set")
+		assert.Nil(t, candidates, "new candidates value is already set")
 
+		err = setVote(scs, []byte(from), []byte(to), (uint64)(math.MaxInt64+i), (uint64)(i))
+		assert.NoError(t, err, "failed to setVote")
+
+		amount, updateBlockNo, candidates, err = getVote(scs, []byte(from))
+		assert.NoError(t, err, "failed to getVote after set")
+		assert.Equal(t, uint64(math.MaxInt64+i), amount, "invalid amount")
+		assert.Equal(t, uint64(i), updateBlockNo, "invalid block number")
+		assert.Equal(t, []byte(to), candidates, "invalid candidates")
+	}
+}
+
+func TestBasicStakingVotingUnstaking(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+
+	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	assert.NoError(t, err, "could not open contract state")
+
+	account, err := types.DecodeAddress(testSender)
+	assert.NoError(t, err, "could not decode test address")
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account: account,
+			Amount:  5000,
+		},
+	}
+	senderState := &types.State{Balance: 10000}
+	tx.Body.Payload = buildStakingPayload(true)
+	err = staking(tx.Body, senderState, scs, 0)
+	assert.Equal(t, err, nil, "staking failed")
+	assert.Equal(t, senderState.GetBalance(), uint64(5000), "sender balance should be reduced after staking")
+
+	tx.Body.Payload = buildVotingPayload(1)
+	err = voting(tx.Body, scs, votingDelay-1)
+	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "voting failed")
+
+	err = voting(tx.Body, scs, votingDelay)
+	assert.NoError(t, err, "voting failed")
+
+	result, err := getVoteResult(scs, 1)
+	assert.NoError(t, err, "voting failed")
+	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
+	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
+	assert.EqualValues(t, 5000, result.GetVotes()[0].Amount, "invalid amount in voting result")
+
+	tx.Body.Payload = buildStakingPayload(false)
+	err = unstaking(tx.Body, senderState, scs, votingDelay)
+	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
+
+	err = unstaking(tx.Body, senderState, scs, votingDelay+stakingDelay)
+	assert.NoError(t, err, "unstaking failed")
+}
+
+func buildVotingPayload(count int) []byte {
+	payload := make([]byte, 1+peerIDLength*count)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	payload[0] = 'v'
+	return payload
+}
+
+func buildStakingPayload(isStaking bool) []byte {
+	payload := make([]byte, 1)
+	if isStaking {
+		payload[0] = 's'
+	} else {
+		payload[0] = 'u'
+	}
+	return payload
 }

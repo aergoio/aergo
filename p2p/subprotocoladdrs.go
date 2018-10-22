@@ -35,11 +35,11 @@ func (ph *addressesRequestHandler) parsePayload(rawbytes []byte) (proto.Message,
 	return unmarshalAndReturn(rawbytes, &types.AddressesRequest{})
 }
 
-func (ph *addressesRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, nil)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, nil)
 
 	// check sender
 	maxPeers := data.MaxSize
@@ -63,7 +63,7 @@ func (ph *addressesRequestHandler) handle(msgHeader *types.MsgHeader, msgBody pr
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.Id, AddressesResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), AddressesResponse, resp))
 }
 
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
@@ -92,13 +92,13 @@ func (ph *addressesResponseHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.AddressesResponse{})
 }
 
-func (ph *addressesResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (ph *addressesResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msgHeader.GetId(), peerID, len(data.GetPeers()))
+	debugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.GetPeers()))
 
-	remotePeer.consumeRequest(msgHeader.GetId())
+	remotePeer.consumeRequest(msg.ID())
 	if len(data.GetPeers()) > 0 {
 		ph.checkAndAddPeerAddresses(data.GetPeers())
 	}

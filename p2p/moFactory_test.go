@@ -42,11 +42,11 @@ func (_m *MockMoFactory) newMsgRequestOrder(expecteResponse bool, protocolID Sub
 }
 
 // newMsgResponseOrder provides a mock function with given fields: reqID, protocolID, message
-func (_m *MockMoFactory) newMsgResponseOrder(reqID string, protocolID SubProtocol, message pbMessage) msgOrder {
+func (_m *MockMoFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
 	ret := _m.Called(reqID, protocolID, message)
 
 	var r0 msgOrder
-	if rf, ok := ret.Get(0).(func(string, SubProtocol, pbMessage) msgOrder); ok {
+	if rf, ok := ret.Get(0).(func(MsgID, SubProtocol, pbMessage) msgOrder); ok {
 		r0 = rf(reqID, protocolID, message)
 	} else {
 		if ret.Get(0) != nil {

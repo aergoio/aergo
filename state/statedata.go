@@ -43,9 +43,6 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errLoadData
 	}
-	if !(*store).Exist(key) {
-		return nil
-	}
 	raw := (*store).Get(key)
 
 	if len(raw) == 0 {

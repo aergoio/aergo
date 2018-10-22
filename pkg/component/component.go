@@ -206,6 +206,6 @@ func (base *BaseComponent) statics(req *CompStatReq) *CompStatRsp {
 		AccProcessedMsg:   base.accProcessedMsg,
 		MsgQueueLen:       uint64(base.pid.MsgNum()),
 		MsgProcessLatency: thisMsgLatency.String(),
-		Actor:             base.IActor.Statics(),
+		Actor:             base.IActor.Statistics(),
 	}
 }

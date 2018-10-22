@@ -69,8 +69,8 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 		return nil, err
 	}
 
-	block := types.NewBlock(prevBlock, bState.GetRoot(), txs, ts)
-	if len(txs) != 0 {
+	block := types.NewBlock(prevBlock, bState.GetRoot(), txs, chain.CoinbaseAccount, ts)
+	if len(txs) != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).

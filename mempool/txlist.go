@@ -8,7 +8,6 @@ package mempool
 import (
 	"sync"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -58,10 +57,10 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	defer tl.Unlock()
 	nonce := tx.GetBody().GetNonce()
 	if nonce < tl.min {
-		return 0, message.ErrTxNonceTooLow
+		return 0, types.ErrTxNonceTooLow
 	}
 	if nonce < uint64(tl.len())+tl.min {
-		return 0, message.ErrTxAlreadyInMempool
+		return 0, types.ErrTxAlreadyInMempool
 	}
 	if uint64(tl.len())+tl.min != nonce {
 		tl.putOrphan(tx)
