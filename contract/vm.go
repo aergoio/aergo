@@ -23,7 +23,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -34,7 +33,6 @@ const constructorName = "constructor"
 
 var (
 	ctrLog        *log.Logger
-	TempReceiptDb db.DB
 	contractMap   stateMap
 )
 
@@ -189,7 +187,11 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
-		ce.err = errors.New(errMsg)
+		if ce.blockchainCtx.transferFailed == C.int(1) {
+			ce.err = ErrInsufficientBalance
+		} else {
+			ce.err = errors.New(errMsg)
+		}
 		return 0
 	}
 
@@ -225,7 +227,11 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.contract.address))
-		ce.err = errors.New(errMsg)
+		if ce.blockchainCtx.transferFailed == C.int(1) {
+			ce.err = ErrInsufficientBalance
+		} else {
+			ce.err = errors.New(errMsg)
+		}
 		return
 	}
 
@@ -280,7 +286,9 @@ func (ce *Executor) close(bcCtxFree bool) {
 	}
 }
 
-func Call(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
+func Call(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (string, error) {
+
 	var err error
 	var ci types.CallInfo
 	contract := getContract(contractState, contractAddress, nil)
@@ -308,42 +316,37 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 			ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
 		}
 	}
-	var receipt types.Receipt
-	if err == nil {
-		receipt = types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
-	} else {
-		receipt = types.NewReceipt(contractAddress, err.Error(), "")
-	}
-	dbTx.Set(txHash, receipt.Bytes())
-	return err
+	return ce.jsonRet, err
 }
 
-func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
+func Create(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (string, error) {
+
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
 	if len(code) <= 4 {
 		err := fmt.Errorf("code length is short %d", len(code))
 		ctrLog.Warn().AnErr("err", err)
-		return err
+		return "", err
 	}
 	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
 		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
-		return err
+		return "", err
 	}
 	sCode := code[4:codeLen]
 
 	err := contractState.SetCode(sCode)
 	if err != nil {
-		return err
+		return "", err
 	}
 	contract := getContract(contractState, contractAddress, sCode)
 	if contract == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
-		return err
+		return "", err
 	}
 	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
 
@@ -365,10 +368,8 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 		logger.Warn().Err(err).Msg("constructor is failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
-	receipt := types.NewReceipt(contractAddress, "CREATED", "{\""+errMsg+"\"}")
-	dbTx.Set(txHash, receipt.Bytes())
 
-	return nil
+	return `{""` + errMsg + `"}`, nil
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
@@ -433,14 +434,6 @@ func getContract(contractState *state.ContractState, contractAddress []byte, cod
 		code:    val[4 : 4+l],
 		address: contractAddress[:],
 	}
-}
-
-func GetReceipt(txHash []byte) (*types.Receipt, error) {
-	val := TempReceiptDb.Get(txHash)
-	if len(val) == 0 {
-		return nil, errors.New("cannot find a receipt")
-	}
-	return types.NewReceiptFromBytes(val), nil
 }
 
 func GetABI(contractState *state.ContractState) (*types.ABI, error) {
@@ -609,6 +602,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		}
 	}
 	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
+		bcCtx.transferFailed = 1
 		return -1
 	}
 	callee := getContract(callState.ctrState, cid, nil)
@@ -734,6 +728,7 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 		rootState.callState[contractIdStr] = callState
 	}
 	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
+		bcCtx.transferFailed = 1
 		return -1
 	}
 	return 0

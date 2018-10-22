@@ -82,7 +82,7 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 	block := genesisBlock.Block
 
 	// create state of genesis block
-	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()), nil)
+	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()))
 	for address, balance := range genesisBlock.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
@@ -171,8 +171,8 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(root []byte, recpTx db.Transaction) *BlockState {
-	bState := NewBlockState(sdb.OpenNewStateDB(root), recpTx)
+func (sdb *ChainStateDB) NewBlockState(root []byte) *BlockState {
+	bState := NewBlockState(sdb.OpenNewStateDB(root))
 
 	return bState
 }

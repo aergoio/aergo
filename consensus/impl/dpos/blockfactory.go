@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
@@ -185,7 +184,7 @@ func (bf *BlockFactory) worker() {
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
 	ts := bpi.slot.UnixNano()
 
-	blockState := bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash(), contract.TempReceiptDb.NewTx())
+	blockState := bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,

@@ -7,10 +7,11 @@ package chain
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/gob"
 	"encoding/json"
-	"fmt"
-
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -24,7 +25,7 @@ import (
 const (
 	chainDBName = "chain"
 
-	TxBatchMax = 10000
+	TxBatchMax  = 10000
 )
 
 var (
@@ -33,6 +34,7 @@ var (
 	ErrorLoadBestBlock = errors.New("failed to load latest block from DB")
 
 	latestKey = []byte(chainDBName + ".latest")
+	receiptsPrefix = []byte("r")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -387,6 +389,23 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return tx, txIdx, nil
 }
 
+func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int32) (*types.Receipt, error) {
+	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
+	if len(data) == 0 {
+		return nil, errors.New("cannot find a receipt")
+	}
+	var b bytes.Buffer
+	b.Write(data)
+	var receipts types.Receipts
+	gob := gob.NewDecoder(&b)
+	gob.Decode(&receipts)
+
+	if idx < 0 || idx > int32(len(receipts)) {
+		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
+	}
+	return receipts[idx], nil
+}
+
 type ChainTree struct {
 	Tree []ChainInfo
 }
@@ -411,4 +430,22 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		logger.Info().Msg("GetChainTree failed")
 	}
 	return jsonBytes, nil
+}
+
+func (cdb *ChainDB) writeReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo, receipts types.Receipts) {
+	var val bytes.Buffer
+	gob := gob.NewEncoder(&val)
+	gob.Encode(receipts)
+
+	(*dbTx).Set(receiptsKey(blockHash, blockNo), val.Bytes())
+}
+
+func receiptsKey(blockHash[]byte, blockNo types.BlockNo) []byte {
+	var key bytes.Buffer
+	key.Write(receiptsPrefix)
+	key.Write(blockHash)
+	l := make([]byte, 8)
+	binary.LittleEndian.PutUint64(l[:], blockNo)
+	key.Write(l)
+	return key.Bytes()
 }

@@ -7,12 +7,10 @@ package chain
 
 import (
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
@@ -88,8 +86,6 @@ func (cs *ChainService) initDB(dataDir string) error {
 		return err
 	}
 
-	receiptDbPath := common.PathMkdirAll(dataDir, contract.DbName)
-	contract.TempReceiptDb = db.NewDB(db.BadgerImpl, receiptDbPath)
 	contract.LoadDatabase(dataDir)
 
 	return nil
@@ -206,9 +202,6 @@ func (cs *ChainService) CloseDB() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-	if contract.TempReceiptDb != nil {
-		contract.TempReceiptDb.Close()
-	}
 	contract.CloseDatabase()
 }
 
@@ -322,7 +315,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetReceipt:
-		receipt, err := contract.GetReceipt(msg.TxHash)
+		receipt, err := cs.getReceipt(msg.TxHash)
 		context.Respond(message.GetReceiptRsp{
 			Receipt: receipt,
 			Err:     err,
@@ -347,7 +340,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()), nil)
+			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
