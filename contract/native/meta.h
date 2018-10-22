@@ -11,47 +11,47 @@
 #include "array.h"
 #include "value.h"
 
-#define is_bool_meta(meta)          ((meta)->type == TYPE_BOOL)
-#define is_byte_meta(meta)          ((meta)->type == TYPE_BYTE)
-#define is_int8_meta(meta)          ((meta)->type == TYPE_INT8)
-#define is_uint8_meta(meta)         ((meta)->type == TYPE_UINT8)
-#define is_int16_meta(meta)         ((meta)->type == TYPE_INT16)
-#define is_uint16_meta(meta)        ((meta)->type == TYPE_UINT16)
-#define is_int32_meta(meta)         ((meta)->type == TYPE_INT32)
-#define is_uint32_meta(meta)        ((meta)->type == TYPE_UINT32)
-#define is_int64_meta(meta)         ((meta)->type == TYPE_INT64)
-#define is_uint64_meta(meta)        ((meta)->type == TYPE_UINT64)
-#define is_float_meta(meta)         ((meta)->type == TYPE_FLOAT)
-#define is_double_meta(meta)        ((meta)->type == TYPE_DOUBLE)
-#define is_string_meta(meta)        ((meta)->type == TYPE_STRING)
-#define is_account_meta(meta)       ((meta)->type == TYPE_ACCOUNT)
-#define is_struct_meta(meta)        ((meta)->type == TYPE_STRUCT)
-#define is_map_meta(meta)           ((meta)->type == TYPE_MAP)
-#define is_object_meta(meta)        ((meta)->type == TYPE_OBJECT)
-#define is_void_meta(meta)          ((meta)->type == TYPE_VOID)
-#define is_tuple_meta(meta)         ((meta)->type == TYPE_TUPLE)
+#define is_bool_type(meta)          ((meta)->type == TYPE_BOOL)
+#define is_byte_type(meta)          ((meta)->type == TYPE_BYTE)
+#define is_int8_type(meta)          ((meta)->type == TYPE_INT8)
+#define is_uint8_type(meta)         ((meta)->type == TYPE_UINT8)
+#define is_int16_type(meta)         ((meta)->type == TYPE_INT16)
+#define is_uint16_type(meta)        ((meta)->type == TYPE_UINT16)
+#define is_int32_type(meta)         ((meta)->type == TYPE_INT32)
+#define is_uint32_type(meta)        ((meta)->type == TYPE_UINT32)
+#define is_int64_type(meta)         ((meta)->type == TYPE_INT64)
+#define is_uint64_type(meta)        ((meta)->type == TYPE_UINT64)
+#define is_float_type(meta)         ((meta)->type == TYPE_FLOAT)
+#define is_double_type(meta)        ((meta)->type == TYPE_DOUBLE)
+#define is_string_type(meta)        ((meta)->type == TYPE_STRING)
+#define is_account_type(meta)       ((meta)->type == TYPE_ACCOUNT)
+#define is_struct_type(meta)        ((meta)->type == TYPE_STRUCT)
+#define is_map_type(meta)           ((meta)->type == TYPE_MAP)
+#define is_object_type(meta)        ((meta)->type == TYPE_OBJECT)
+#define is_void_type(meta)          ((meta)->type == TYPE_VOID)
+#define is_tuple_type(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_int_meta(meta)                                                                \
-    (is_byte_meta(meta) ||                                                               \
-     is_int8_meta(meta) || is_uint8_meta(meta) ||                                        \
-     is_int16_meta(meta) || is_uint16_meta(meta) ||                                      \
-     is_int32_meta(meta) || is_uint32_meta(meta) ||                                      \
-     is_int64_meta(meta) || is_uint64_meta(meta))
+#define is_int_type(meta)                                                                \
+    (is_byte_type(meta) ||                                                               \
+     is_int8_type(meta) || is_uint8_type(meta) ||                                        \
+     is_int16_type(meta) || is_uint16_type(meta) ||                                      \
+     is_int32_type(meta) || is_uint32_type(meta) ||                                      \
+     is_int64_type(meta) || is_uint64_type(meta))
 
-#define is_fp_meta(meta)            (is_float_meta(meta) || is_double_meta(meta))
-#define is_num_meta(meta)           (is_int_meta(meta) || is_fp_meta(meta))
+#define is_fp_type(meta)            (is_float_type(meta) || is_double_type(meta))
+#define is_num_type(meta)           (is_int_type(meta) || is_fp_type(meta))
 
-#define is_const_meta(meta)         (meta)->is_const
-#define is_array_meta(meta)         ((meta)->arr_dim > 0)
-
-#define is_primitive_meta(meta)                                                          \
+#define is_primitive_type(meta)                                                          \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
-#define is_builtin_meta(meta)                                                            \
+#define is_builtin_type(meta)                                                            \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
-#define is_comparable_meta(meta)                                                         \
+#define is_comparable_type(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
 
-#define is_compatible_meta(x, y)    (is_primitive_meta(x) && is_primitive_meta(y))
+#define is_compatible_type(x, y)    (is_primitive_type(x) && is_primitive_type(y))
+
+#define is_const_type(meta)         (meta)->is_const
+#define is_array_type(meta)         ((meta)->arr_dim > 0)
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -73,8 +73,8 @@
 #define meta_copy(dest, src)        *(dest) = *(src)
 
 #define meta_elem_size(meta)                                                             \
-    (is_void_meta(meta) ? 0 :                                                            \
-     ((is_tuple_meta(meta) || is_struct_meta(meta)) ?  (meta)->elem_cnt : 1))
+    (is_void_type(meta) ? 0 :                                                            \
+     ((is_tuple_type(meta) || is_struct_type(meta)) ?  (meta)->elem_cnt : 1))
 
 #ifndef _META_T
 #define _META_T
@@ -91,7 +91,7 @@ struct meta_s {
 
     bool is_const;          /* whether it is constant */
 
-    /* structured meta (array, map, struct initializer or tuple) */
+    /* structured meta (map, struct or tuple) */
     int elem_cnt;           /* count of elements */
     meta_t **elems;         /* metas of elements */
 
@@ -146,14 +146,14 @@ meta_eval(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
-    if (is_const_meta(x) && is_const_meta(y)) {
-        ASSERT1(is_builtin_meta(x), x->type);
-        ASSERT1(is_builtin_meta(y), y->type);
+    if (is_const_type(x) && is_const_type(y)) {
+        ASSERT1(is_builtin_type(x), x->type);
+        ASSERT1(is_builtin_type(y), y->type);
 
         meta_set(meta, MAX(x->type, y->type));
         meta_set_const(meta);
     }
-    else if (is_const_meta(x)) {
+    else if (is_const_type(x)) {
         meta_copy(meta, y);
     }
     else {

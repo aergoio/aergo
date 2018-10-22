@@ -19,13 +19,13 @@ meta_to_str(meta_t *meta)
 
     strbuf_init(&buf);
 
-    if (is_struct_meta(meta)) {
+    if (is_struct_type(meta)) {
         ASSERT(meta->name != NULL);
 
         strbuf_cat(&buf, "struct ");
         strbuf_cat(&buf, meta->name);
     }
-    else if (is_map_meta(meta)) {
+    else if (is_map_type(meta)) {
         ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 
         strbuf_cat(&buf, "map(");
@@ -34,7 +34,7 @@ meta_to_str(meta_t *meta)
         strbuf_cat(&buf, meta_to_str(meta->elems[1]));
         strbuf_cat(&buf, ")");
     }
-    else if (is_tuple_meta(meta)) {
+    else if (is_tuple_type(meta)) {
         int i;
 
         strbuf_cat(&buf, "{");
@@ -106,7 +106,7 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
 {
     int i;
 
-    if (!is_tuple_meta(y))
+    if (!is_tuple_type(y))
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
     if (x->elem_cnt != y->elem_cnt)
@@ -124,15 +124,15 @@ meta_cmp_map(meta_t *x, meta_t *y)
 {
     ASSERT1(x->elem_cnt == 2, x->elem_cnt);
 
-    if (is_object_meta(y))
+    if (is_object_type(y))
         /* TODO: null value check */
         return NO_ERROR;
 
-    if (is_map_meta(y)) {
+    if (is_map_type(y)) {
         CHECK(meta_cmp(x->elems[0], y->elems[0]));
         CHECK(meta_cmp(x->elems[1], y->elems[1]));
     }
-    else if (is_tuple_meta(y)) {
+    else if (is_tuple_type(y)) {
         int i;
 
         /* y is a tuple of key-value pairs */
@@ -150,14 +150,14 @@ meta_cmp_map(meta_t *x, meta_t *y)
 static int
 meta_cmp_struct(meta_t *x, meta_t *y)
 {
-    if (is_struct_meta(y)) {
+    if (is_struct_type(y)) {
         ASSERT(x->name != NULL);
         ASSERT(y->name != NULL);
 
         if (strcmp(x->name, y->name) != 0)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
-    else if (is_tuple_meta(y)) {
+    else if (is_tuple_type(y)) {
         return meta_cmp_tuple(x, y, "field");
     }
     else {
@@ -170,14 +170,14 @@ meta_cmp_struct(meta_t *x, meta_t *y)
 static int
 meta_cmp_type(meta_t *x, meta_t *y)
 {
-    if (is_const_meta(x) || is_const_meta(y)) {
+    if (is_const_type(x) || is_const_type(y)) {
         if (x->type == y->type ||
-            (is_int_meta(x) && is_int_meta(y)) ||
-            (is_fp_meta(x) && is_fp_meta(y))) {
+            (is_int_type(x) && is_int_type(y)) ||
+            (is_fp_type(x) && is_fp_type(y))) {
             /*
-            if (!is_const_meta(x) && is_const_meta(y))
+            if (!is_const_type(x) && is_const_type(y))
                 value_check(y, x->type);
-            else if (is_const_meta(x) && !is_const_meta(y))
+            else if (is_const_type(x) && !is_const_type(y))
                 value_check(x, y->type);
                 */
 
@@ -187,22 +187,22 @@ meta_cmp_type(meta_t *x, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
-    if (is_map_meta(x))
+    if (is_map_type(x))
         return meta_cmp_map(x, y);
 
-    if (is_tuple_meta(x))
+    if (is_tuple_type(x))
         return meta_cmp_tuple(x, y, "element");
 
-    if (is_struct_meta(x))
+    if (is_struct_type(x))
         return meta_cmp_struct(x, y);
 
     if (x->type != y->type)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
     /*
-    if (!is_const_meta(x) && is_const_meta(y))
+    if (!is_const_type(x) && is_const_type(y))
         value_check(y, x->type);
-    else if (is_const_meta(x) && !is_const_meta(y))
+    else if (is_const_type(x) && !is_const_type(y))
         value_check(x, y->type);
         */
 
@@ -214,7 +214,7 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
 {
     int i;
 
-    if (is_array_meta(y)) {
+    if (is_array_type(y)) {
         CHECK(meta_cmp_type(x, y));
 
         if (x->arr_dim != y->arr_dim)
@@ -226,7 +226,7 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
                        y->arr_size[i]);
         }
     }
-    else if (is_tuple_meta(y)) {
+    else if (is_tuple_type(y)) {
         if (x->arr_size[idx] == -1)
             x->arr_size[idx] = y->elem_cnt;
         else if (x->arr_size[idx] != y->elem_cnt)
@@ -250,7 +250,7 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
 int
 meta_cmp(meta_t *x, meta_t *y)
 {
-    if (is_array_meta(x))
+    if (is_array_type(x))
         return meta_cmp_array(x, 0, y);
 
     return meta_cmp_type(x, y);

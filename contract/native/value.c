@@ -66,11 +66,11 @@ value_check(value_t *val, meta_t *meta)
 {
     switch (val->kind) {
     case VAL_BOOL:
-        ASSERT1(is_bool_meta(meta), meta->type);
+        ASSERT1(is_bool_type(meta), meta->type);
         break;
 
     case VAL_INT:
-        ASSERT1(is_int_meta(meta), meta->type);
+        ASSERT1(is_int_type(meta), meta->type);
         if ((meta->type == TYPE_BYTE && value_check_uint(val, UINT8_MAX)) ||
             (meta->type == TYPE_INT8 && value_check_int(val, INT8_MAX)) ||
             (meta->type == TYPE_UINT8 && value_check_uint(val, UINT8_MAX)) ||
@@ -84,17 +84,17 @@ value_check(value_t *val, meta_t *meta)
         break;
     
     case VAL_FP:
-        ASSERT1(is_fp_meta(meta), meta->type);
+        ASSERT1(is_fp_type(meta), meta->type);
         if (meta->type == TYPE_FLOAT && val->d > FLT_MAX)
             return false;
         break;
 
     case VAL_STR:
-        ASSERT1(is_string_meta(meta), meta->type);
+        ASSERT1(is_string_type(meta), meta->type);
         break;
 
     case VAL_OBJ:
-        ASSERT1(is_map_meta(meta) || is_object_meta(meta), meta->type);
+        ASSERT1(is_map_type(meta) || is_object_type(meta), meta->type);
         break;
 
     default:

@@ -41,7 +41,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
                 /* constant variable */
                 size_val = size_id->val;
             }
-            else if (is_int_meta(size_meta) && is_const_meta(size_meta)) {
+            else if (is_int_type(size_meta) && is_const_type(size_meta)) {
                 /* integer literal */
                 ASSERT1(is_val_exp(size_exp), size_exp->kind);
                 size_val = &size_exp->u_val.val;
@@ -88,9 +88,9 @@ id_check_var(check_t *check, ast_id_t *id)
 
         /* This might be a redundant check, but is done to show 
          * more specific error not just mismatch error. */
-        if (is_tuple_meta(init_meta)) {
-			if (!is_array_meta(&id->meta) &&
-                !is_map_meta(type_meta) && !is_struct_meta(type_meta))
+        if (is_tuple_type(init_meta)) {
+			if (!is_array_type(&id->meta) &&
+                !is_map_type(type_meta) && !is_struct_type(type_meta))
                 /* not allowed static initializer except map or struct */
                 RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
@@ -168,7 +168,7 @@ id_check_enum(check_t *check, ast_id_t *id)
 
             CHECK(exp_check(check, init_exp));
 
-            if (!is_const_meta(init_meta) || !is_int_meta(init_meta))
+            if (!is_const_type(init_meta) || !is_int_type(init_meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
 
             ASSERT1(is_val_exp(init_exp), init_exp->kind);

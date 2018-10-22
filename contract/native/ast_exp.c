@@ -159,7 +159,7 @@ exp_eval_const(ast_exp_t *exp)
     ast_exp_t *l_exp = exp->u_op.l_exp;
     value_t *r_val = NULL;
 
-    if (!is_op_exp(exp) || !is_const_meta(&l_exp->meta))
+    if (!is_op_exp(exp) || !is_const_type(&l_exp->meta))
         return NO_ERROR;
 
     ASSERT1(is_val_exp(l_exp), l_exp->kind);
@@ -167,7 +167,7 @@ exp_eval_const(ast_exp_t *exp)
     if (exp->u_op.r_exp != NULL) {
         ast_exp_t *r_exp = exp->u_op.r_exp;
 
-        if (!is_const_meta(&r_exp->meta))
+        if (!is_const_type(&r_exp->meta))
             return NO_ERROR;
 
         ASSERT1(is_val_exp(r_exp), r_exp->kind);
