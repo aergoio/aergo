@@ -342,13 +342,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
-
-		state, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			ret, err := contract.Query(msg.Contract, state, msg.Queryinfo)
+			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()), nil)
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.SyncBlockState:

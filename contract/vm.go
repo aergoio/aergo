@@ -371,7 +371,7 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	return nil
 }
 
-func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
+func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
 	var ci types.CallInfo
 	var err error
 	contract := getContract(contractState, contractAddress, nil)
@@ -395,7 +395,7 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	defer tx.Rollback()
 
-	bcCtx := NewContext(nil, nil, contractState, "", "",
+	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
 		1, nil, tx.GetHandle())
 
