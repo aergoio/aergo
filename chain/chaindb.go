@@ -432,12 +432,17 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (cdb *ChainDB) writeReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo, receipts types.Receipts) {
+func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts types.Receipts) {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
 	var val bytes.Buffer
 	gob := gob.NewEncoder(&val)
 	gob.Encode(receipts)
 
-	(*dbTx).Set(receiptsKey(blockHash, blockNo), val.Bytes())
+	dbTx.Set(receiptsKey(blockHash, blockNo), val.Bytes())
+
+	dbTx.Commit()
 }
 
 func receiptsKey(blockHash[]byte, blockNo types.BlockNo) []byte {
