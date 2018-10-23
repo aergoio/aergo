@@ -185,6 +185,13 @@ func (cp *chainProcessor) isMain() bool {
 	return cp.mainChain != nil
 }
 
+func (cp *chainProcessor) executeBlock(block *types.Block) error {
+	var err error
+	cp.state, err = cp.ChainService.executeBlock(cp.state, block)
+
+	return err
+}
+
 func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
@@ -196,7 +203,7 @@ func (cp *chainProcessor) execute() error {
 		block := e.Value.(*types.Block)
 		var oldLatest types.BlockNo
 
-		err = cp.ChainService.executeBlock(cp.state, block)
+		cp.executeBlock(block)
 		if err == nil {
 			//SyncWithConsensus :ga
 			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
@@ -453,10 +460,10 @@ func (e *blockExecutor) commit() error {
 }
 
 //TODO Refactoring: batch
-func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
+func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) (*state.BlockState, error) {
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// contract & state DB update is done during execution.
@@ -464,7 +471,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		// FIXME: is that enough?
 		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to execute block")
 
-		return err
+		return nil, err
 	}
 
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
@@ -473,7 +480,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	cs.Update(block)
 
-	return nil
+	return ex.BlockState, nil
 }
 
 func validateTx(tx *types.Tx, senderState *types.State, txFee uint64) error {
