@@ -40,7 +40,7 @@ type innerHandshaker interface {
 }
 
 type hsResult struct {
-	rw MsgReadWriter
+	rw        MsgReadWriter
 	statusMsg *types.Status
 	err       error
 }
@@ -52,7 +52,7 @@ func newHandshaker(pm PeerManager, actor ActorService, log *log.Logger, peerID p
 func (h *PeerHandshaker) handshakeOutboundPeerTimeout(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
 	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
 		rw, statusMsg, err := h.handshakeOutboundPeer(r, w)
-		doneChan <- &hsResult{rw:rw, statusMsg: statusMsg, err: err}
+		doneChan <- &hsResult{rw: rw, statusMsg: statusMsg, err: err}
 	}, ttl)
 	if err != nil {
 		return nil, nil, err
@@ -63,12 +63,12 @@ func (h *PeerHandshaker) handshakeOutboundPeerTimeout(r io.Reader, w io.Writer, 
 func (h *PeerHandshaker) handshakeInboundPeerTimeout(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
 	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
 		rw, statusMsg, err := h.handshakeInboundPeer(r, w)
-		doneChan <- &hsResult{rw:rw, statusMsg: statusMsg, err: err}
+		doneChan <- &hsResult{rw: rw, statusMsg: statusMsg, err: err}
 	}, ttl)
 	if err != nil {
 		return nil, nil, err
 	}
-	return  ret.(*hsResult).rw, ret.(*hsResult).statusMsg, ret.(*hsResult).err
+	return ret.(*hsResult).rw, ret.(*hsResult).statusMsg, ret.(*hsResult).err
 }
 
 type targetFunc func(chan<- interface{})
@@ -86,18 +86,18 @@ func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
 }
 
 func (h *PeerHandshaker) handshakeOutboundPeer(r io.Reader, w io.Writer) (MsgReadWriter, *types.Status, error) {
-	bufReader , bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
+	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// send initial hsmessage
-	hsHeader := HSHeader{Magic:MAGICTest, Version:P2PVersion030}
+	hsHeader := HSHeader{Magic: MAGICTest, Version: P2PVersion030}
 	sent, err := bufWriter.Write(hsHeader.Marshal())
 	if err != nil {
 		return nil, nil, err
 	}
 	if sent != len(hsHeader.Marshal()) {
-		return nil, nil,fmt.Errorf("transport error")
+		return nil, nil, fmt.Errorf("transport error")
 	}
 	// continue to handshake with innerHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader , bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader, bufWriter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -108,20 +108,20 @@ func (h *PeerHandshaker) handshakeOutboundPeer(r io.Reader, w io.Writer) (MsgRea
 
 func (h *PeerHandshaker) handshakeInboundPeer(r io.Reader, w io.Writer) (MsgReadWriter, *types.Status, error) {
 	var hsHeader HSHeader
-	bufReader , bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
+	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// wait initial hsmessage
 	headBuf := make([]byte, 8)
 	read, err := h.readToLen(bufReader, headBuf, 8)
 	if err != nil {
 		return nil, nil, err
 	}
-	if read!= 8 {
-		return nil, nil,fmt.Errorf("transport error")
+	if read != 8 {
+		return nil, nil, fmt.Errorf("transport error")
 	}
 	hsHeader.Unmarshal(headBuf)
 
 	// continue to handshake with innerHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader , bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader, bufWriter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -131,10 +131,10 @@ func (h *PeerHandshaker) handshakeInboundPeer(r io.Reader, w io.Writer) (MsgRead
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *PeerHandshaker)readToLen(rd io.Reader, bf []byte, max int ) (int, error) {
+func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error) {
 	remain := max
 	offset := 0
-	for remain>0 {
+	for remain > 0 {
 		read, err := rd.Read(bf[offset:])
 		if err != nil {
 			return offset, err
@@ -157,7 +157,7 @@ func (h *PeerHandshaker) doInitialSync() {
 
 func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, error) {
 	// find my best block
-	bestBlock, err := extractBlockFromRequest(actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
+	bestBlock, err := actorServ.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, err
 
 func (h *PeerHandshaker) selectProtocolVersion(head HSHeader, r *bufio.Reader, w *bufio.Writer) (innerHandshaker, error) {
 	switch head.Version {
-	case P2PVersion030 :
+	case P2PVersion030:
 		v030 := newV030StateHS(h.pm, h.actorServ, h.logger, h.peerID, r, w)
 		return v030, nil
 	default:
@@ -188,7 +188,7 @@ func (h *PeerHandshaker) checkProtocolVersion(versionStr string) error {
 }
 
 type HSHeader struct {
-	Magic uint32
+	Magic   uint32
 	Version uint32
 }
 
@@ -199,7 +199,7 @@ func (h HSHeader) Marshal() []byte {
 	return b
 }
 
-func (h *HSHeader)Unmarshal(b []byte) {
+func (h *HSHeader) Unmarshal(b []byte) {
 	h.Magic = binary.BigEndian.Uint32(b)
 	h.Version = binary.BigEndian.Uint32(b[4:])
 }

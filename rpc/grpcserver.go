@@ -36,8 +36,6 @@ type AergoRPCService struct {
 	hub         *component.ComponentHub
 	actorHelper p2p.ActorService
 	msgHelper   message.Helper
-
-	ca types.ChainAccessor
 }
 
 // FIXME remove redundant constants
@@ -64,7 +62,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		}
 		last := rsp.Block
 	*/
-	last, err := rpc.ca.GetBestBlock()
+	last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +146,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
 	var prev *types.Block
 	for {
-		last, err := rpc.ca.GetBestBlock()
+		last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
 		if err != nil {
 			break
 		}

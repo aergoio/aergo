@@ -7,14 +7,12 @@ package p2p
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
-	"time"
 )
 
 
@@ -26,51 +24,40 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	tests := []struct {
 		name string
 		put *BlkHash
-		setup func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice)
+		setup func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice)
 		verify func(tt *testing.T, actor *MockActorService)
 	}{
 		// 1. Succ : valid block hash and not exist in local
 		{"TSucc", nil,
-		func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
-			actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Err:fmt.Errorf("not found")}, nil)
+		func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+			ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(nil, nil)
 			copy(blkHash[:], dummyBlockHash)
 			return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 		},
 		func(tt *testing.T, actor *MockActorService) {
-			actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
+			//actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
 			actor.AssertCalled(tt,"SendRequest",message.P2PSvc, mock.AnythingOfType("*message.GetBlockInfos"))
 		}},
 		// 1-1. Succ : valid block hash and exist in chainsvc, but not in cache
 		{"TSuccExistChain", nil,
-			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
-				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Block:sampleBlock}, nil)
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 			},
 			func(tt *testing.T, actor *MockActorService) {
-				actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
+				//actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
 				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.AnythingOfType("*message.GetBlockInfos"))
 			}},
 		// 2. SuccCachehit : valid block hash but already exist in local cache
 		{"TSuccExistCache", &blkHash,
-			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
-				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).Return(message.GetBlockRsp{Block:sampleBlock}, nil)
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 			},
 			func(tt *testing.T, actor *MockActorService) {
-				actor.AssertNotCalled(tt,"CallRequest",message.ChainSvc, mock.Anything)
-				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.Anything)
-			}},
-		// 3. chainService failed
-		{"TActorFail", nil,
-			func(tt *testing.T, actor *MockActorService) (BlkHash,*types.NewBlockNotice) {
-				actor.On("CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock")).After(time.Millisecond*100).Return(nil, fmt.Errorf("actor timeout"))
-				copy(blkHash[:], dummyBlockHash)
-				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
-			},
-			func(tt *testing.T, actor *MockActorService) {
-				actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
+				//actor.AssertNotCalled(tt,"CallRequest",message.ChainSvc, mock.Anything)
 				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.Anything)
 			}},
 	}
@@ -78,12 +65,14 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
+			mockCA := new(MockChainAccessor)
+			mockActor.On("GetChainAccessor").Return(mockCA)
 			mockActor.On("SendRequest", mock.Anything, mock.AnythingOfType("*message.GetBlockInfos"))
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
 			mockPeer.On("ID").Return(sampleMeta.ID)
 
-			hash, data := test.setup(t, mockActor)
+			hash, data := test.setup(t, mockActor, mockCA)
 			target := newSyncManager(mockActor, mockPM, logger)
 			if test.put != nil  {
 				target.(*syncManager).blkCache.Add(*test.put, true)

@@ -62,6 +62,7 @@ type Genesis struct {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetBestBlock() (*Block, error)
+	GetBlock(blockHash []byte) (*Block, error)
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).

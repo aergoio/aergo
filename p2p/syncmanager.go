@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-peer"
-	"reflect"
 	"sync"
 )
 
@@ -99,23 +98,13 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, da
 	}
 
 	// request block info if selfnode does not have block already
-	rawResp, err := sm.actor.CallRequest(message.ChainSvc, &message.GetBlock{BlockHash: message.BlockHash(data.BlockHash)})
-	if err != nil {
-		sm.logger.Warn().Err(err).Msg("actor return error on getblock")
-		return
-	}
-	resp, ok := rawResp.(message.GetBlockRsp)
-	if !ok {
-		sm.logger.Warn().Str("expected", "message.GetBlockRsp").Str("actual", reflect.TypeOf(rawResp).Name()).Msg("chainservice returned unexpected type")
-		return
-	}
-	if resp.Err != nil {
+	foundBlock, _ := sm.actor.GetChainAccessor().GetBlock(data.BlockHash)
+	if foundBlock == nil {
 		//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
 		sm.actor.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
 }
-
 // HandleGetBlockResponse handle when remote peer send a block information.
 func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse) {
 	blocks := resp.Blocks

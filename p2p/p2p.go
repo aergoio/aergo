@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -37,6 +38,7 @@ type P2P struct {
 	rm     ReconnectManager
 	mf     moFactory
 	signer msgSigner
+	ca     types.ChainAccessor
 }
 
 type HandlerFactory interface {
@@ -137,6 +139,8 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 }
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
+	p2ps.ca = chainsvc
+
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
@@ -202,6 +206,11 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error)
 	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
 
 	return future.Result()
+}
+
+// GetChainAccessor implment interface method of ActorService
+func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
+	return p2ps.ca
 }
 
 func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {

@@ -125,6 +125,7 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 		lastBlock := blocks[len(blocks)-1]
 		copy(sw.currentParent[:], lastBlock.GetHash())
 	} else {
+		sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Msg("last response came. finishing worker")
 		sw.finish <- struct{}{}
 	}
 
