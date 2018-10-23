@@ -172,10 +172,19 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
 		p2ps.NotifyNewTX(*msg)
+	case message.AddBlockRsp:
+		// do nothing for now. just for prevent deadletter
+
 	case *message.GetPeers:
 		peers, states := p2ps.pm.GetPeerAddresses()
 		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
 	}
+}
+
+
+// TellRequest implement interface method of ActorService
+func (p2ps *P2P) TellRequest(actor string, msg interface{}) {
+	p2ps.TellTo(actor, msg)
 }
 
 // SendRequest implement interface method of ActorService
@@ -207,7 +216,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 
 	// BlockHandlers
 	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)

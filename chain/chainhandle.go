@@ -185,6 +185,12 @@ func (cp *chainProcessor) isMain() bool {
 	return cp.mainChain != nil
 }
 
+func (cp *chainProcessor) executeBlock(block *types.Block) error {
+     err := cp.ChainService.executeBlock(cp.state, block)
+     cp.state = nil
+     return err
+}
+
 func (cp *chainProcessor) execute() error {
 	if !cp.isMain() {
 		return nil
@@ -194,26 +200,22 @@ func (cp *chainProcessor) execute() error {
 	var err error
 	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
 		block := e.Value.(*types.Block)
-		var oldLatest types.BlockNo
 
-		err = cp.ChainService.executeBlock(cp.state, block)
-		if err == nil {
-			//SyncWithConsensus :ga
-			// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
-			// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
-			//	In this case, messages of mempool is synchronized in actor message queue.
-			if oldLatest, err = cp.connectToChain(block); err != nil {
-				return err
-			}
-			cp.notifyBlock(block)
-			cp.state = nil
-		} else {
+		err = cp.executeBlock(block)
+		if err != nil {
 			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
 				Msg("failed to execute block")
-
 			return err
-
 		}
+		//SyncWithConsensus :ga
+		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+		//	In this case, messages of mempool is synchronized in actor message queue.
+		var oldLatest types.BlockNo
+		if oldLatest, err = cp.connectToChain(block); err != nil {
+			return err
+		}
+		cp.notifyBlock(block)
 		blockNo := block.BlockNo()
 		if logger.IsDebugEnabled() {
 			logger.Debug().
@@ -237,7 +239,6 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
 	}
-	cp.cdb.writeReceipts(&dbTx, block.BlockHash(), block.BlockNo(), cp.state.Receipts())
 
 	dbTx.Commit()
 
@@ -466,6 +467,8 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 		return err
 	}
+
+	cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
 
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		Block: block,

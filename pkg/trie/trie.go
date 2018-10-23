@@ -88,7 +88,6 @@ func (s *Trie) loadDefaultHashes() []byte {
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.prevRoot = s.Root
 	s.atomicUpdate = false
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
@@ -112,7 +111,6 @@ func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 func (s *Trie) AtomicUpdate(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.prevRoot = s.Root
 	s.atomicUpdate = true
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0

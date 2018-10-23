@@ -17,8 +17,8 @@ type msgOrder interface {
 	IsNeedSign() bool
 	GetProtocolID() SubProtocol
 
-	// send message to remote peer
-	SendTo(p *remotePeerImpl) bool
+	// SendTo send message to remote peer. it return err if write fails, or nil if write is successful or ignored.
+	SendTo(p *remotePeerImpl) error
 }
 
 // mf is interface of factory which create mo object

@@ -56,3 +56,9 @@ func (_m *MockActorService) FutureRequest(_a0 string, msg interface{}) *actor.Fu
 func (_m *MockActorService) SendRequest(_a0 string, msg interface{}) {
 	_m.Called(_a0, msg)
 }
+
+
+// SendRequest provides a mock function with given fields: _a0, msg
+func (_m *MockActorService) TellRequest(_a0 string, msg interface{}) {
+	_m.Called(_a0, msg)
+}

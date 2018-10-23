@@ -554,7 +554,7 @@ func TestHeight0LeafShortcut(t *testing.T) {
 	}
 }
 
-func TestRollback(t *testing.T) {
+func TestStash(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -567,8 +567,32 @@ func TestRollback(t *testing.T) {
 	root, _ := smt.Update(keys, values)
 	cacheSize := len(smt.db.liveCache)
 	smt.Commit()
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
+	}
 	values = getFreshData(20, 32)
 	smt.Update(keys, values)
+	smt.Stash(true)
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
+	}
+	if !bytes.Equal(smt.Root, root) {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.updatedNodes) != 0 {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.liveCache) != cacheSize {
+		t.Fatal("Trie not rolled back")
+	}
+	keys = getFreshData(20, 32)
+	values = getFreshData(20, 32)
+	smt.AtomicUpdate(keys, values)
+	values = getFreshData(20, 32)
+	smt.AtomicUpdate(keys, values)
+	if len(smt.pastTries) != 3 {
+		t.Fatal("Past tries not updated after commit")
+	}
 	smt.Stash(true)
 	if !bytes.Equal(smt.Root, root) {
 		t.Fatal("Trie not rolled back")
@@ -578,6 +602,9 @@ func TestRollback(t *testing.T) {
 	}
 	if len(smt.db.liveCache) != cacheSize {
 		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
 	}
 	st.Close()
 	os.RemoveAll(".aergo")

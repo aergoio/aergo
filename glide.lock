@@ -1,5 +1,5 @@
 hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-10-22T21:42:44.6924753+09:00
+updated: 2018-10-23T15:17:28.9171821+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -11,7 +11,7 @@ imports:
   - mailbox
   - router
 - name: github.com/aergoio/aergo-lib
-  version: 8740469875ad7e73e2f5abc24738b7c49442076a
+  version: c664d5a2566abc7cd2eaa36c56c70e7768ba172e
   subpackages:
   - config
   - db
@@ -330,7 +330,7 @@ imports:
 - name: github.com/whyrusleeping/multiaddr-filter
   version: e903e4adabd70b78bc9293b6ee4f359afb3f9f59
 - name: github.com/whyrusleeping/yamux
-  version: 3ff91e06c049d69eb6d48f7b92b04e53465d51ad
+  version: cd464a9e02b9a1710f2c6bfd6e12c9a31fe17c8a
 - name: github.com/Workiva/go-datastructures
   version: f07cbe3f82ca2fd6e5ab94afce65fe43319f675f
   subpackages:
@@ -356,7 +356,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 8b8824e799c8fc8e6d900615cc6c761ce6c26c67
+  version: 8a28ead16f52c8aaeffbf79239b251dfdf6c4f96
   subpackages:
   - cpu
   - unix

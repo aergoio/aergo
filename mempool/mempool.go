@@ -68,7 +68,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
-		txFee:    cfg.Blockchain.CoinbaseFee,
+		txFee:    types.DefaultCoinbaseFee,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))

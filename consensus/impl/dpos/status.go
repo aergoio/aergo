@@ -14,15 +14,14 @@ import (
 type Status struct {
 	sync.RWMutex
 	bestBlock *types.Block
-	pls       *pLibStatus
-	lib       *blockInfo
+	libState  *libStatus
 	done      bool
 }
 
 // NewStatus returns a newly allocated Status.
 func NewStatus(confirmsRequired uint16) *Status {
 	return &Status{
-		pls: newPlibStatus(confirmsRequired),
+		libState: newPlibStatus(confirmsRequired),
 	}
 }
 
@@ -35,24 +34,18 @@ func (s *Status) load() {
 
 	s.bestBlock = libLoader.bestBlock()
 
+	s.libState.lib = libLoader.lib
+
+	if libLoader.pls != nil {
+		s.libState = libLoader.pls
+	}
+
 	genesisBlock := libLoader.genesisBlock()
-	s.pls.genesisInfo = &blockInfo{
+	s.libState.genesisInfo = &blockInfo{
 		BlockHash: genesisBlock.ID(),
 		BlockNo:   genesisBlock.BlockNo(),
 	}
 
-	//s.pls.addConfirmInfo(s.bestBlock)
-
-	s.lib = libLoader.lib
-
-	if len(libLoader.plib) != 0 {
-		s.pls.plm = libLoader.plib
-	}
-
-	if libLoader.confirms != nil {
-		s.pls.confirms = libLoader.confirms
-		//dumpConfirmInfo("XXX CONFIRMS XXX", s.pls.confirms)
-	}
 	s.done = true
 }
 
@@ -65,7 +58,7 @@ func (s *Status) Update(block *types.Block) {
 
 	curBestID := s.bestBlock.ID()
 	if curBestID == block.PrevID() {
-		s.pls.addConfirmInfo(block)
+		s.libState.addConfirmInfo(block)
 
 		logger.Debug().
 			Str("block hash", block.ID()).
@@ -73,7 +66,7 @@ func (s *Status) Update(block *types.Block) {
 			Msg("update LIB status")
 
 		// Block connected
-		if lib := s.pls.update(); lib != nil {
+		if lib := s.libState.update(); lib != nil {
 			s.updateLIB(lib)
 		}
 
@@ -84,7 +77,7 @@ func (s *Status) Update(block *types.Block) {
 			Msg("rollback LIB status")
 
 		// Block reorganized. TODO: update consensus status, correctly.
-		if err := s.pls.rollbackStatusTo(block, s.lib); err != nil {
+		if err := s.libState.rollbackStatusTo(block, s.libState.lib); err != nil {
 			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
 			panic(err)
 		}
@@ -94,23 +87,23 @@ func (s *Status) Update(block *types.Block) {
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
-	s.lib = lib
-	s.pls.gc(lib)
+	s.libState.lib = lib
+	s.libState.gc(lib)
 
 	logger.Debug().
-		Str("block hash", s.lib.BlockHash).
-		Uint64("block no", s.lib.BlockNo).
-		Int("confirms len", s.pls.confirms.Len()).
+		Str("block hash", s.libState.lib.BlockHash).
+		Uint64("block no", s.libState.lib.BlockNo).
+		Int("confirms len", s.libState.confirms.Len()).
 		Msg("last irreversible block (BFT) updated")
 }
 
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
-	if err := s.pls.save(tx); err != nil {
+	if err := s.libState.save(tx); err != nil {
 		return err
 	}
 
-	if err := s.lib.save(tx); err != nil {
+	if err := s.libState.lib.save(tx); err != nil {
 		return err
 	}
 
@@ -134,12 +127,12 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	s.RLock()
 	defer s.RUnlock()
 
-	if s.lib == nil {
+	if s.libState.lib == nil {
 		logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
 		return true
 	}
 
-	libNo := s.lib.BlockNo
+	libNo := s.libState.lib.BlockNo
 
 	reorganizable := rootNo >= libNo
 	if !reorganizable {
@@ -158,7 +151,7 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	libLoader = &bootLoader{
-		plib:     make(bpPlm),
+		pls:      newPlibStatus(defaultConsensusCount),
 		lib:      &blockInfo{},
 		best:     best,
 		genesis:  genesis,

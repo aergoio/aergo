@@ -13,26 +13,35 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
+	"github.com/libp2p/go-libp2p-peer"
 	"reflect"
+	"sync"
 )
 
 type SyncManager interface {
-	HandleNewBlockNotice(peer RemotePeer, hash BlockHash, data *types.NewBlockNotice)
+	HandleNewBlockNotice(peer RemotePeer, hash BlkHash, data *types.NewBlockNotice)
+	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
 	HandleNewTxNotice(peer RemotePeer, hashes []TxHash, data *types.NewTransactionsNotice)
+
+	DoSync(peer RemotePeer, hashes []message.BlockHash, stopHash message.BlockHash)
 }
 
 type syncManager struct {
 	logger *log.Logger
-	actor ActorService
-	pm PeerManager
+	actor  ActorService
+	pm     PeerManager
 
 	blkCache *lru.Cache
 	txCache  *lru.Cache
+
+	syncLock *sync.Mutex
+	syncing  bool
+	sw       *syncWorker
 }
 
 func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) SyncManager {
 	var err error
-	sm := &syncManager{actor:actor, pm:pm, logger:logger}
+	sm := &syncManager{actor: actor, pm: pm, logger: logger, syncLock: &sync.Mutex{}}
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
@@ -46,15 +55,44 @@ func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) Sync
 	return sm
 }
 
-func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlockHash, data *types.NewBlockNotice) {
+func (sm *syncManager) checkWorkToken() bool {
+	sm.syncLock.Lock()
+	defer sm.syncLock.Unlock()
+	return !sm.syncing
+}
+
+func (sm *syncManager) getWorker(peerID peer.ID) (*syncWorker, bool) {
+	sm.syncLock.Lock()
+	defer sm.syncLock.Unlock()
+	if !sm.syncing {
+		return nil, false
+	}
+
+	sm.syncing = true
+	return sm.sw, true
+}
+
+func (sm *syncManager) removeWorker() {
+	sm.syncLock.Lock()
+	defer sm.syncLock.Unlock()
+	sm.syncing = false
+	sm.sw = nil
+}
+
+func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, data *types.NewBlockNotice) {
 	peerID := peer.ID()
+	if !sm.checkWorkToken() {
+		// just ignore it
+		sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
+		return
+	}
 
 	// TODO check if evicted return value is needed.
 	ok, _ := sm.blkCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 	if ok {
 		// Kickout duplicated notice log.
 		// if sm.logger.IsDebugEnabled() {
-		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlkHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
 		// }
 		// this notice is already sent to chainservice
 		return
@@ -76,7 +114,22 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlockHash, 
 		sm.actor.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
+}
 
+// HandleGetBlockResponse handle when remote peer send a block information.
+func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse) {
+	blocks := resp.Blocks
+	peerID := peer.ID()
+	worker, found := sm.getWorker(peerID)
+	if found {
+		worker.putAddBlock(msg, blocks, resp.HasNext)
+	} else {
+		// send to chainservice if no actor is found.
+		for _, block := range blocks {
+			sm.actor.TellRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
+		}
+		sm.logger.Debug().Int(LogBlkCount, len(blocks)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring data from no-token peer.")
+	}
 }
 
 func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, data *types.NewTransactionsNotice) {
@@ -107,12 +160,24 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }
 
-// bytesArrToString converts array of byte array to json array of b58 encoded string.
-func txHashArrToString(bbarray []message.TXHash) string {
-	return txHashArrToStringWithLimit(bbarray, 10)
+func (sm *syncManager) DoSync(peer RemotePeer, hashes []message.BlockHash, stopHash message.BlockHash) {
+	sm.syncLock.Lock()
+	if sm.sw != nil {
+		sm.syncLock.Unlock()
+		sm.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Msg("ignore sync work")
+		return
+	}
+	sm.sw = newSyncWorker(sm, peer, hashes, stopHash)
+	sm.syncLock.Unlock()
+	sm.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Str("my_hashes",blockHashArrToStringWithLimit(hashes, len(hashes))).Str("stop_hash", enc.ToString(stopHash)).Msg("Starting sync work to ")
+	go sm.sw.runWorker()
 }
 
-func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int ) string {
+func blockHashArrToString(bbarray []message.BlockHash) string {
+	return blockHashArrToStringWithLimit(bbarray, 10)
+}
+
+func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int ) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	var arrSize = len(bbarray)
@@ -133,18 +198,45 @@ func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int ) string {
 	return buf.String()
 }
 
+
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
-func P2PTxHashArrToString(bbarray []TxHash) string {
-	return P2PTxHashArrToStringWithLimit(bbarray, 10)
+func txHashArrToString(bbarray []message.TXHash) string {
+	return txHashArrToStringWithLimit(bbarray, 10)
 }
-func P2PTxHashArrToStringWithLimit (bbarray []TxHash, limit int) string {
+
+func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	var arrSize = len(bbarray)
 	if limit > arrSize {
 		limit = arrSize
 	}
-	for i :=0; i < limit; i++ {
+	for i := 0; i < limit; i++ {
+		hash := bbarray[i]
+		buf.WriteByte('"')
+		buf.WriteString(enc.ToString([]byte(hash)))
+		buf.WriteByte('"')
+		buf.WriteByte(',')
+	}
+	if arrSize > limit {
+		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
+	}
+	buf.WriteByte(']')
+	return buf.String()
+}
+
+// bytesArrToString converts array of byte array to json array of b58 encoded string.
+func P2PTxHashArrToString(bbarray []TxHash) string {
+	return P2PTxHashArrToStringWithLimit(bbarray, 10)
+}
+func P2PTxHashArrToStringWithLimit(bbarray []TxHash, limit int) string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	var arrSize = len(bbarray)
+	if limit > arrSize {
+		limit = arrSize
+	}
+	for i := 0; i < limit; i++ {
 		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString(hash[:]))
@@ -152,7 +244,7 @@ func P2PTxHashArrToStringWithLimit (bbarray []TxHash, limit int) string {
 		buf.WriteByte(',')
 	}
 	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ",  arrSize - limit))
+		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()
