@@ -16,6 +16,7 @@ typedef struct blockchain_ctx {
     char *node;
     int confirmed;
     int isQuery;
+    int transferFailed;
     sqlite3 *db;
 } bc_ctx_t;
 

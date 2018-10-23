@@ -131,29 +131,25 @@ func decode(r io.Reader, e interface{}) error {
 
 // NeedReorganization reports whether reorganization is needed or not.
 func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
-	return true
+	s.RLock()
+	defer s.RUnlock()
 
-	/*
-			s.RLock()
-			defer s.RUnlock()
+	if s.lib == nil {
+		logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
+		return true
+	}
 
-			if s.lib == nil {
-				logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
-				return true
-			}
+	libNo := s.lib.BlockNo
 
-			libNo := s.lib.BlockNo
+	reorganizable := rootNo >= libNo
+	if !reorganizable {
+		logger.Info().
+			Uint64("LIB", libNo).
+			Uint64("branch root no", rootNo).
+			Msg("reorganization beyond LIB is not allowed")
+	}
 
-			reorganizable := rootNo >= libNo
-			if reorganizable {
-				logger.Info().
-					Uint64("LIB", libNo).
-					Uint64("branch root no", rootNo).
-					Msg("not reorganizable - the current main branch has a LIB.")
-			}
-
-		return reorganizable
-	*/
+	return reorganizable
 }
 
 // Init recovers the last DPoS status including pre-LIB map and confirms

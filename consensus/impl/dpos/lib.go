@@ -332,6 +332,13 @@ func (bi *blockInfo) save(tx db.Transaction) error {
 	return nil
 }
 
+func (bi *blockInfo) Hash() string {
+	if bi == nil {
+		return "(nil)"
+	}
+	return bi.BlockHash
+}
+
 type plInfo struct {
 	PlibBy *blockInfo // the block info by which a block becomes pre-LIB.
 	Plib   *blockInfo // pre-LIB
@@ -371,12 +378,12 @@ func (bs *bootLoader) load() {
 	if err := bs.loadPLIB(&bs.plib); err == nil {
 		logger.Debug().Int("len", len(bs.plib)).Msg("pre-LIB loaded from DB")
 		for id, p := range bs.plib {
-			if len(p) == 0 {
+			if len(p) == 0 || p[len(p)-1] == nil {
 				continue
 			}
 			logger.Debug().Str("BPID", id).
-				Str("confirmed hash", p[len(p)-1].Plib.BlockHash).
-				Str("confirmedBy hash", p[len(p)-1].PlibBy.BlockHash).
+				Str("confirmed hash", p[len(p)-1].Plib.Hash()).
+				Str("confirmedBy hash", p[len(p)-1].PlibBy.Hash()).
 				Msg("pre-LIB entry")
 		}
 	}

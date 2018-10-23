@@ -7,11 +7,13 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 )
@@ -151,6 +153,98 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 	return st, nil
 }
 
+type V struct {
+	sdb    *StateDB
+	id     []byte
+	aid    types.AccountID
+	oldV   *types.State
+	newV   *types.State
+	newOne bool
+}
+
+func (v *V) ID() []byte {
+	return v.id
+}
+
+func (v *V) AccountID() types.AccountID {
+	return v.aid
+}
+
+func (v *V) State() *types.State {
+	return v.newV
+}
+
+func (v *V) SetNonce(nonce uint64) {
+	v.newV.Nonce = nonce
+}
+
+func (v *V) Balance() uint64 {
+	return v.newV.Balance
+}
+
+func (v *V) AddBalance(amount uint64) {
+	v.newV.Balance += amount
+}
+
+func (v *V) SubBalance(amount uint64) {
+	v.newV.Balance -= amount
+}
+
+func (v *V) RP() uint64 {
+	return v.newV.SqlRecoveryPoint
+}
+
+func (v *V) IsNew() bool {
+	return v.newOne
+}
+
+func (v *V) Reset() {
+	*v.newV = types.State(*v.oldV)
+}
+
+func (v *V) PutState() error {
+	return v.sdb.PutState(v.aid, v.newV)
+}
+
+func (states *StateDB) CreateAccountStateV(id []byte) (*V, error) {
+	v, err := states.GetAccountStateV(id)
+	if err != nil {
+		return nil, err
+	}
+	if !v.newOne {
+		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
+	}
+	v.newV.SqlRecoveryPoint = 1
+	return v, nil
+}
+
+func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
+	aid := types.ToAccountID(id)
+	st, err := states.GetState(aid)
+	if err != nil {
+		return nil, err
+	}
+	if st == nil {
+		return &V{
+			sdb: states,
+			id: id,
+			aid: aid,
+			oldV: &types.State{},
+			newV: &types.State{},
+			newOne: true,
+		}, nil
+	}
+	newV := new(types.State)
+	*newV = types.State(*st)
+	return &V {
+		sdb: states,
+		id: id,
+		aid: aid,
+		oldV: st,
+		newV: newV,
+	}, nil
+}
+
 // GetState gets state of account id from state buffer and trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
@@ -182,18 +276,31 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 }
 
 // GetStateAndProof gets the state and associated proof of an account
-// in the last produced block. If the account doesnt exist, a proof of
+// in the given trie root. If the account doesnt exist, a proof of
 // non existence is returned.
-func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.StateProof, error) {
+func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types.StateProof, error) {
 	var state *types.State
+	var ap [][]byte
+	var proofKey, proofVal []byte
+	var isIncluded bool
+	var err error
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	// Get the state and proof of the account
-	// The wallet should check that state hashes to proofVal and verify the audit path,
-	// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
-	ap, isIncluded, proofKey, proofVal, err := states.trie.MerkleProof(id[:])
-	if err != nil {
-		return nil, err
+
+	if len(root) != 0 {
+		// Get the state and proof of the account for a past state
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Get the state and proof of the account
+		// The wallet should check that state hashes to proofVal and verify the audit path,
+		// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id[:])
+		if err != nil {
+			return nil, err
+		}
 	}
 	if isIncluded {
 		state, err = states.loadStateData(proofVal)
@@ -208,6 +315,7 @@ func (states *StateDB) GetStateAndProof(id types.AccountID) (*types.StateProof, 
 		ProofVal:  proofVal,
 		AuditPath: ap,
 	}
+	logger.Debug().Str("state root : ", enc.ToString(states.trie.Root)).Msg("Get State and Proof")
 	return stateProof, nil
 }
 

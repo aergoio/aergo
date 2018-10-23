@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -14,9 +13,8 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	receiptTx db.Transaction
-
 	BpReward uint64 //final bp reward, increment when tx executes
+	receipts types.Receipts
 }
 
 // NewBlockInfo create new blockInfo contains blockNo, blockHash and blockHash of previous block
@@ -36,23 +34,18 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(states *StateDB, rTx db.Transaction) *BlockState {
+func NewBlockState(states *StateDB) *BlockState {
 	return &BlockState{
 		StateDB:   *states,
-		receiptTx: rTx,
 	}
 }
 
-// ReceiptTx return bs.receiptTx.
-func (bs *BlockState) ReceiptTx() db.Transaction {
-	return bs.receiptTx
+func (bs *BlockState) AddReceipt(r *types.Receipt) {
+	bs.receipts = append(bs.receipts, r)
 }
 
-// CommitReceipt commit bs.receiptTx.
-func (bs *BlockState) CommitReceipt() {
-	if bs.receiptTx != nil {
-		bs.receiptTx.Commit()
-	}
+func (bs *BlockState) Receipts() types.Receipts {
+	return bs.receipts
 }
 
 // // GetAccount gets account state from blockState

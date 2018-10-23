@@ -6,22 +6,32 @@
 package chain
 
 import (
+	"errors"
+
 	"github.com/aergoio/aergo/chain/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
+func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) error {
-	governance := string(txBody.GetRecipient())
 
-	scs, err := states.OpenContractState(receiverState)
+	if len(txBody.Payload) > 0 {
+		return types.ErrTxFormatInvalid
+	}
+
+	governance := string(txBody.Recipient)
+	if governance != types.AergoSystem {
+		return errors.New("receive unknown recipient")
+	}
+
+	scs, err := states.OpenContractState(receiver.State())
 	if err != nil {
 		return err
 	}
 	switch governance {
 	case types.AergoSystem:
-		err = system.ExecuteSystemTx(txBody, senderState, scs, blockNo)
+		err = system.ExecuteSystemTx(txBody, sender.State(), scs, blockNo)
 		if err == nil {
 			err = states.CommitContractState(scs)
 		}
@@ -29,7 +39,8 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, senderStat
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrInvalidRecipient
 	}
-	return err
+
+	return states.CommitContractState(scs)
 }
 
 // InitGenesisBPs opens system contract and put initial voting result
