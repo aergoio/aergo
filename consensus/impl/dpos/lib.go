@@ -318,7 +318,7 @@ func (bs *bootLoader) load() {
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
 	pls := newLibStatus(defaultConsensusCount)
-	if err := bs.decodeStatus(libStatusKey, bs.ls); err != nil {
+	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
 		return nil
 	}
 	return pls
