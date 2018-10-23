@@ -74,7 +74,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	svrlog.Info().Msg("AERGO SVR STARTED")
 
 	if cfg.EnableProfile {
-		svrlog.Info().Msgf("Enable Profiling on localhost:", cfg.ProfilePort)
+		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
 		go func() {
 			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
 			svrlog.Info().Err(err).Msg("Run Profile Server")
