@@ -199,7 +199,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 		}
 	*/
 	err := mp.validateTx(tx)
-	if err != nil {
+	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
 
@@ -328,31 +328,24 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	if tx.GetBody().GetNonce() <= ns.Nonce {
-		return types.ErrTxNonceTooLow
+	err = tx.ValidateWithSenderState(ns)
+	if err != nil {
+		return err
 	}
-	if tx.GetBody().GetAmount()+mp.txFee > ns.Balance {
-		if !mp.cfg.EnableTestmode {
-			// Skip balance validation in test mode
-			return types.ErrInsufficientBalance
+	switch tx.GetBody().GetType() {
+	//case types.TxType_NORMAL:
+	case types.TxType_GOVERNANCE:
+		aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient(), false)
+		if err != nil {
+			return err
 		}
-	}
-	if tx.GetBody().GetType() == types.TxType_GOVERNANCE {
-		if string(tx.GetBody().GetRecipient()) != types.AergoSystem {
-			aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient(), false)
-			if err != nil {
-				return err
-			}
-			scs, err := mp.stateDB.OpenContractState(aergoSystemState)
-			if err != nil {
-				return err
-			}
-			err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
-			if err != nil {
-				return err
-			}
-		} else {
-			return types.ErrInvalidRecipient
+		scs, err := mp.stateDB.OpenContractState(aergoSystemState)
+		if err != nil {
+			return err
+		}
+		err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

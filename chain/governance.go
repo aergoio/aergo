@@ -16,7 +16,7 @@ import (
 func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) error {
 
-	if len(txBody.Payload) > 0 {
+	if len(txBody.Payload) <= 0 {
 		return types.ErrTxFormatInvalid
 	}
 
@@ -37,10 +37,10 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
-		err = types.ErrInvalidRecipient
+		err = types.ErrTxInvalidRecipient
 	}
 
-	return states.CommitContractState(scs)
+	return err
 }
 
 // InitGenesisBPs opens system contract and put initial voting result

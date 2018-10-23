@@ -163,6 +163,9 @@ type V struct {
 }
 
 func (v *V) ID() []byte {
+	if len(v.id) != 33 {
+		v.id = append(v.id, make([]byte, 33-len(v.id))...)
+	}
 	return v.id
 }
 
@@ -226,20 +229,20 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 	}
 	if st == nil {
 		return &V{
-			sdb: states,
-			id: id,
-			aid: aid,
-			oldV: &types.State{},
-			newV: &types.State{},
+			sdb:    states,
+			id:     id,
+			aid:    aid,
+			oldV:   &types.State{},
+			newV:   &types.State{},
 			newOne: true,
 		}, nil
 	}
 	newV := new(types.State)
 	*newV = types.State(*st)
-	return &V {
-		sdb: states,
-		id: id,
-		aid: aid,
+	return &V{
+		sdb:  states,
+		id:   id,
+		aid:  aid,
 		oldV: st,
 		newV: newV,
 	}, nil

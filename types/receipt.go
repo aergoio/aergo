@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"strings"
+
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
-	"strings"
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
@@ -32,7 +33,7 @@ func (r Receipt) MarshalBinary() ([]byte, error) {
 func (r *Receipt) UnmarshalBinary(data []byte) error {
 	r.ContractAddress = data[:33]
 	l := binary.LittleEndian.Uint16(data[33:])
-	r.Status = string(data[35:35+l])
+	r.Status = string(data[35 : 35+l])
 	r.Ret = string(data[35+l:])
 	return nil
 }
@@ -69,4 +70,3 @@ func (rs Receipts) MerkleRoot() []byte {
 	}
 	return merkle.CalculateMerkleRoot(mes)
 }
-

@@ -350,16 +350,50 @@ func (tx *Tx) Validate() error {
 		return ErrTxHasInvalidHash
 	}
 	switch tx.Body.Type {
-	//case TxType_NORMAL:
-	//case TxType_COINBASE:
+	case TxType_NORMAL:
 	case TxType_GOVERNANCE:
 		if len(tx.Body.Payload) <= 0 {
 			return ErrTxFormatInvalid
 		}
-		if tx.Body.Amount < StakingMinimum {
+		if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
+			tx.GetBody().GetAmount() < StakingMinimum {
 			return ErrTooSmallAmount
 		}
+	default:
+		return ErrTxInvalidType
 	}
+	return nil
+}
+
+func (tx *Tx) ValidateWithSenderState(senderState *State) error {
+	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
+		return ErrTxNonceToohigh
+	} else if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
+		return ErrTxNonceTooLow
+	}
+	switch tx.GetBody().GetType() {
+	case TxType_NORMAL:
+		if tx.GetBody().GetAmount()+DefaultCoinbaseFee > senderState.GetBalance() {
+			return ErrInsufficientBalance
+		}
+	case TxType_GOVERNANCE:
+		if string(tx.GetBody().GetRecipient()) == AergoSystem {
+			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
+				tx.GetBody().GetAmount() > senderState.GetBalance() {
+				if tx.GetBody().GetAmount() > senderState.GetBalance() {
+					return ErrInsufficientBalance
+				}
+			}
+		} else {
+			return ErrTxInvalidRecipient
+		}
+	}
+	return nil
+}
+
+//TODO : refoctor after ContractState move to types
+func (tx *Tx) ValidateWithContractState(contractState *State) error {
+	//in system.ValidateSystemTx
 	return nil
 }
 

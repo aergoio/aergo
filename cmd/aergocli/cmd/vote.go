@@ -108,7 +108,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	}
 
 	for _, r := range msg.Results {
-		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error)
+		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error, r.Detail)
 		return
 	}
 }

@@ -24,6 +24,11 @@ var (
 	//ErrTxNonceToohigh is for internal use only
 	ErrTxNonceToohigh = errors.New("nonce is too high")
 
+	ErrTxInvalidType = errors.New("tx invalid type")
+
+	//ErrInvalidRecipient
+	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
+
 	ErrSignNotMatch = errors.New("signature not matched")
 
 	ErrCouldNotRecoverPubKey = errors.New("could not recover pubkey from sign")
@@ -31,9 +36,6 @@ var (
 	ErrShouldUnlockAccount = errors.New("should unlock account first")
 
 	ErrWrongAddressOrPassWord = errors.New("address or password is incorrect")
-
-	//ErrInvalidRecipient
-	ErrInvalidRecipient = errors.New("invalid recipient")
 
 	//ErrStakeBeforeVote
 	ErrMustStakeBeforeVote = errors.New("must stake before vote")
