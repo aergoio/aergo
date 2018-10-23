@@ -110,7 +110,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, da
 		return
 	}
 	if resp.Err != nil {
-		sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
+		//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("chainservice responded that block not found. request back to notifier")
 		sm.actor.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
@@ -128,7 +128,6 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 		for _, block := range blocks {
 			sm.actor.TellRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 		}
-		sm.logger.Debug().Int(LogBlkCount, len(blocks)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring data from no-token peer.")
 	}
 }
 
