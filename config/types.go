@@ -64,7 +64,6 @@ type P2PConfig struct {
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
-	CoinbaseFee     uint64 `mapstructure:"coinbasefee" description:"fixed amount fee for Bp"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 }
 
@@ -132,7 +131,6 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 [blockchain]
 # blockchain configurations
 maxblocksize = {{.Blockchain.MaxBlockSize}}
-coinbasefee = {{.Blockchain.CoinbaseFee}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 
 [mempool]
