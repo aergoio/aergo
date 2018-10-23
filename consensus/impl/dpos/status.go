@@ -21,7 +21,7 @@ type Status struct {
 // NewStatus returns a newly allocated Status.
 func NewStatus(confirmsRequired uint16) *Status {
 	return &Status{
-		libState: newPlibStatus(confirmsRequired),
+		libState: newLibStatus(confirmsRequired),
 	}
 }
 
@@ -34,10 +34,10 @@ func (s *Status) load() {
 
 	s.bestBlock = libLoader.bestBlock()
 
-	s.libState.lib = libLoader.lib
+	s.libState = libLoader.ls
 
-	if libLoader.pls != nil {
-		s.libState = libLoader.pls
+	if libLoader.ls != nil {
+		s.libState = libLoader.ls
 	}
 
 	genesisBlock := libLoader.genesisBlock()
@@ -77,7 +77,7 @@ func (s *Status) Update(block *types.Block) {
 			Msg("rollback LIB status")
 
 		// Block reorganized. TODO: update consensus status, correctly.
-		if err := s.libState.rollbackStatusTo(block, s.libState.lib); err != nil {
+		if err := s.libState.rollbackStatusTo(block, s.libState.Lib); err != nil {
 			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
 			panic(err)
 		}
@@ -87,12 +87,12 @@ func (s *Status) Update(block *types.Block) {
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
-	s.libState.lib = lib
+	s.libState.Lib = lib
 	s.libState.gc(lib)
 
 	logger.Debug().
-		Str("block hash", s.libState.lib.BlockHash).
-		Uint64("block no", s.libState.lib.BlockNo).
+		Str("block hash", s.libState.Lib.BlockHash).
+		Uint64("block no", s.libState.Lib.BlockNo).
 		Int("confirms len", s.libState.confirms.Len()).
 		Msg("last irreversible block (BFT) updated")
 }
@@ -100,10 +100,6 @@ func (s *Status) updateLIB(lib *blockInfo) {
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
 	if err := s.libState.save(tx); err != nil {
-		return err
-	}
-
-	if err := s.libState.lib.save(tx); err != nil {
 		return err
 	}
 
@@ -127,12 +123,12 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	s.RLock()
 	defer s.RUnlock()
 
-	if s.libState.lib == nil {
+	if s.libState.Lib == nil {
 		logger.Debug().Uint64("branch root no", rootNo).Msg("no LIB")
 		return true
 	}
 
-	libNo := s.libState.lib.BlockNo
+	libNo := s.libState.Lib.BlockNo
 
 	reorganizable := rootNo >= libNo
 	if !reorganizable {
@@ -151,8 +147,7 @@ func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
 	getBlock func(types.BlockNo) (*types.Block, error)) {
 
 	libLoader = &bootLoader{
-		pls:      newPlibStatus(defaultConsensusCount),
-		lib:      &blockInfo{},
+		ls:       newLibStatus(defaultConsensusCount),
 		best:     best,
 		genesis:  genesis,
 		get:      get,
