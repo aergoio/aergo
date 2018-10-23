@@ -307,8 +307,7 @@ func (reorg *reorganizer) rollforwardChain() error {
 		logger.Debug().Str("hash", enc.ToString(newBlock.Hash)).Uint64("blockNo", newBlockNo).
 			Msg("rollforward block")
 
-		if state, err := cs.executeBlock(nil, newBlock); err != nil {
-			_ = state
+		if err := cs.executeBlock(nil, newBlock); err != nil {
 			return err
 		}
 	}
