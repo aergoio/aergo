@@ -161,6 +161,11 @@ func (pls *libStatus) load(lib *blockInfo, block *types.Block) {
 		pls.confirms.Init()
 	}
 
+	// Nothing left for the genesis block.
+	if block.BlockNo() == 0 {
+		return
+	}
+
 	// Rebuild confirms info & pre-LIB map from LIB + 1 and block based on
 	// the blocks.
 	if tmp := loadPlibStatus(lib, block); tmp != nil {
