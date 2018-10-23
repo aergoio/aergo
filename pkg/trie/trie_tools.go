@@ -144,6 +144,7 @@ func (s *Trie) Commit() error {
 	}
 	s.db.commit()
 	s.db.updatedNodes = make(map[Hash][][]byte)
+	s.prevRoot = s.Root
 	return nil
 }
 
@@ -167,5 +168,14 @@ func (s *Trie) Stash(rollbackCache bool) error {
 		s.db.liveCache = make(map[Hash][][]byte)
 	}
 	s.db.updatedNodes = make(map[Hash][][]byte)
+	// also stash past tries created by Atomic update
+	for i := len(s.pastTries) - 1; i >= 0; i-- {
+		if bytes.Equal(s.pastTries[i], s.Root) {
+			break
+		} else {
+			// remove from past tries
+			s.pastTries = s.pastTries[:len(s.pastTries)-1]
+		}
+	}
 	return nil
 }
