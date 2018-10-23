@@ -12,7 +12,7 @@ import (
 
 var (
 	// Trie default value : hash of 0x0
-	DefaultLeaf = Hasher([]byte{0x0})
+	DefaultLeaf = []byte{0}
 )
 
 const (
