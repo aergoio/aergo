@@ -43,14 +43,8 @@ const (
 	defaultTTL          = time.Second * 4
 	defaultHandshakeTTL = time.Second * 20
 
-	txhashLen  = 32
-	blkhashLen = 32
-
 	cachePlaceHolder = true
 )
-
-type BlockHash [blkhashLen]byte
-type TxHash [txhashLen]byte
 
 // PeerManager is internal service that provide peer management
 type PeerManager interface {

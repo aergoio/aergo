@@ -78,8 +78,8 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 			resp := &types.GetTransactionsResponse{
 				Status: status,
 				Hashes: hashes,
-				Txs:    txInfos}
-			th.logger.Debug().Int("tx_cnt", len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
+				Txs:    txInfos, HasNext:true}
+			th.logger.Debug().Int(LogTxCount, len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
 			// reset list
 			hashes = make([][]byte, 0, 100)
@@ -96,12 +96,12 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	if 0 == idx {
 		status = types.ResultStatus_NOT_FOUND
 	}
-	th.logger.Debug().Int("tx_cnt", len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
+	th.logger.Debug().Int(LogTxCount, len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
 	// generate response message
 	resp := &types.GetTransactionsResponse{
 		Status: status,
 		Hashes: hashes,
-		Txs:    txInfos}
+		Txs:    txInfos, HasNext:false}
 
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
 }
@@ -123,7 +123,7 @@ func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
-		th.logger.Debug().Int("tx_cnt", len(data.Txs)).Msg("Request mempool to add txs")
+		th.logger.Debug().Int(LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
 		//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 		for _, tx := range data.Txs {
 			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})

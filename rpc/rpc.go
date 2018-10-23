@@ -172,6 +172,12 @@ func (ns *RPC) serve() {
 
 const defaultTTL = time.Second * 4
 
+
+// TellRequest implement interface method of ActorService
+func (ns *RPC) TellRequest(actor string, msg interface{}) {
+	ns.TellTo(actor, msg)
+}
+
 // SendRequest implement interface method of ActorService
 func (ns *RPC) SendRequest(actor string, msg interface{}) {
 	ns.RequestTo(actor, msg)
