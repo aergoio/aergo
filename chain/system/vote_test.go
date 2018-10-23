@@ -126,7 +126,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	err = unstaking(tx.Body, senderState, scs, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	err = unstaking(tx.Body, senderState, scs, VotingDelay+stakingDelay)
+	err = unstaking(tx.Body, senderState, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := GetVoteResult(scs, 1)

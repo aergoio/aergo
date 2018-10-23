@@ -1,3 +1,7 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
 package system
 
 import (
@@ -9,33 +13,34 @@ import (
 
 var stakingkey = []byte("staking")
 
-const stakingDelay = 10
+const StakingDelay = 10
 
 func staking(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
+
+	err := validateForStaking(txBody, scs, blockNo)
+	if err != nil {
+		return err
+	}
 
 	staked, _, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return err
 	}
+
 	err = setStaking(scs, txBody.Account, staked+txBody.Amount, blockNo)
 	if err != nil {
 		return err
 	}
+
 	senderState.Balance = senderState.Balance - txBody.Amount
 	return nil
 }
 
 func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
-	staked, when, err := getStaking(scs, txBody.Account)
+	staked, _, err := validateForUnstaking(txBody, scs, blockNo)
 	if err != nil {
 		return err
-	}
-	if staked == 0 {
-		return types.ErrMustStakeBeforeUnstake
-	}
-	if when+stakingDelay > blockNo {
-		return types.ErrLessTimeHasPassed
 	}
 	amount := txBody.Amount
 	var backToBalance uint64

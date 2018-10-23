@@ -1,3 +1,7 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
 package system
 
 import (
@@ -5,6 +9,7 @@ import (
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const FutureBlockNo = math.MaxUint64
@@ -12,13 +17,7 @@ const FutureBlockNo = math.MaxUint64
 func ExecuteSystemTx(txBody *types.TxBody, senderState *types.State,
 	scs *state.ContractState, blockNo types.BlockNo) error {
 
-	systemCmd := txBody.GetPayload()[0]
-	var err error
-
-	err = ValidateSystemTx(txBody, scs, blockNo)
-	if err != nil {
-		return err
-	}
+	systemCmd, err := getSystemCmd(txBody.GetPayload())
 
 	switch systemCmd {
 	case 's':
@@ -35,35 +34,21 @@ func ExecuteSystemTx(txBody *types.TxBody, senderState *types.State,
 	return nil
 }
 
-type OldVotingState struct {
-	staking    uint64
-	voting     uint64
-	candidates []byte
-	when       uint64
-}
-
 func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
-	if txBody.GetAmount() < types.StakingMinimum {
-		return types.ErrTooSmallAmount
-	}
-	if len(txBody.Payload) <= 0 {
-		return types.ErrTxFormatInvalid
-	}
-	systemCmd := txBody.GetPayload()[0]
-	var err error
+	systemCmd, err := getSystemCmd(txBody.GetPayload())
 	switch systemCmd {
 	case 's':
-		if txBody.Amount < types.StakingMinimum {
-			return types.ErrTooSmallAmount
-		}
+		err = validateForStaking(txBody, scs, blockNo)
 	case 'v':
-		/*
-			TODO: need validate?
-			peerID, err := peer.IDFromBytes(to)
+		if len(txBody.Payload[1:])%PeerIDLength != 0 {
+			return types.ErrTxFormatInvalid
+		}
+		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
+			_, err := peer.IDFromBytes(txBody.Payload[offset+1 : offset+PeerIDLength+1])
 			if err != nil {
 				return err
 			}
-		*/
+		}
 		_, when, _, err := getVote(scs, txBody.Account)
 		if err != nil {
 			return err
@@ -84,22 +69,41 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 			return types.ErrLessTimeHasPassed
 		}
 	case 'u':
-		if txBody.Amount < types.StakingMinimum {
-			return types.ErrTooSmallAmount
-		}
-		staked, when, err := getStaking(scs, txBody.Account)
-		if err != nil {
-			return err
-		}
-		if staked == 0 {
-			return types.ErrMustStakeBeforeUnstake
-		}
-		if when+stakingDelay > blockNo {
-			return types.ErrLessTimeHasPassed
-		}
+		_, _, err = validateForUnstaking(txBody, scs, blockNo)
 	}
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func validateForStaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
+	if txBody.Amount < types.StakingMinimum {
+		return types.ErrTooSmallAmount
+	}
+	return nil
+}
+
+func validateForUnstaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (uint64, uint64, error) {
+	if txBody.Amount < types.StakingMinimum {
+		return 0, 0, types.ErrTooSmallAmount
+	}
+	staked, when, err := getStaking(scs, txBody.Account)
+	if err != nil {
+		return 0, 0, err
+	}
+	if staked == 0 {
+		return 0, 0, types.ErrMustStakeBeforeUnstake
+	}
+	if when+StakingDelay > blockNo {
+		return 0, 0, types.ErrLessTimeHasPassed
+	}
+	return staked, when, nil
+}
+
+func getSystemCmd(payload []byte) (byte, error) {
+	if len(payload) <= 0 {
+		return 0, types.ErrTxFormatInvalid
+	}
+	return payload[0], nil
 }
