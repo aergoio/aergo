@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -295,9 +296,7 @@ type bootLoader struct {
 	ls      *libStatus
 	best    *types.Block
 	genesis *types.Block
-
-	get      func([]byte) []byte
-	getBlock func(types.BlockNo) (*types.Block, error)
+	cdb     consensus.ChainDbReader
 }
 
 func (bs *bootLoader) load() {
@@ -325,7 +324,7 @@ func (bs *bootLoader) loadLibStatus() *libStatus {
 }
 
 func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
-	value := bs.get(key)
+	value := bs.cdb.Get(key)
 	if len(value) == 0 {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
 	}
@@ -365,7 +364,7 @@ func loadPlibStatus(lib *blockInfo, blockEnd *types.Block) *libStatus {
 	}
 
 	for i := beginBlockNo(); i <= end; i++ {
-		block, err := libLoader.getBlock(i)
+		block, err := libLoader.cdb.GetBlockByNo(i)
 		if err != nil {
 			// XXX Better error handling?!
 			logger.Error().Err(err).Msg("failed to read block")

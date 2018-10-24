@@ -65,12 +65,19 @@ type Consensus interface {
 	SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
+// ChainDbReader is a reader interface for the ChainDB.
+type ChainDbReader interface {
+	GetBestBlock() (*types.Block, error)
+	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	Get(key []byte) []byte
+}
+
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
 	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	Init(genesis, best *types.Block, get func([]byte) []byte, getBlock func(types.BlockNo) (*types.Block, error))
+	Init(cdb ChainDbReader)
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool

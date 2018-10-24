@@ -225,7 +225,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 	for {
 		if brBlockNo <= curBestNo {
-			mainBlock, err := cdb.getBlockByNo(brBlockNo)
+			mainBlock, err := cdb.GetBlockByNo(brBlockNo)
 			// One must be able to look up any main chain block by its block
 			// no from the chain DB.
 			if err != nil {

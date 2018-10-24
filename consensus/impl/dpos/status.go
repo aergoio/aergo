@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -143,15 +144,22 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 
 // Init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) Init(genesis, best *types.Block, get func([]byte) []byte,
-	getBlock func(types.BlockNo) (*types.Block, error)) {
+func (s *Status) Init(cdb consensus.ChainDbReader) {
+	genesis, err := cdb.GetBlockByNo(0)
+	if err != nil {
+		panic(err)
+	}
+
+	best, err := cdb.GetBestBlock()
+	if err != nil {
+		best = genesis
+	}
 
 	libLoader = &bootLoader{
-		ls:       newLibStatus(defaultConsensusCount),
-		best:     best,
-		genesis:  genesis,
-		get:      get,
-		getBlock: getBlock,
+		ls:      newLibStatus(defaultConsensusCount),
+		best:    best,
+		genesis: genesis,
+		cdb:     cdb,
 	}
 
 	libLoader.load()
