@@ -100,23 +100,12 @@ func (cs *ChainService) BeforeStart() {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
-	var genesisBlock *types.Block
-
 	// init genesis block
-	if genesisBlock, err = cs.initGenesis(nil); err != nil {
+	if _, err := cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
-	getBestBlock := func() *types.Block {
-		block := cs.cdb.bestBlock.Load().(*types.Block)
-		if block != nil {
-			return block
-		}
-		return genesisBlock
-	}
-
-	cs.ChainConsensus.Init(genesisBlock, getBestBlock(), cs.cdb.store.Get,
-		cs.cdb.getBlockByNo)
+	cs.ChainConsensus.Init(cs.cdb)
 }
 
 // AfterStart ... do nothing
@@ -167,7 +156,7 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
-	genesisBlock, _ := cs.cdb.getBlockByNo(0)
+	genesisBlock, _ := cs.cdb.GetBlockByNo(0)
 
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
@@ -224,7 +213,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			BlockNo: cs.getBestBlockNo(),
 		})
 	case *message.GetBestBlock:
-		block, err := cs.getBestBlock()
+		block, err := cs.GetBestBlock()
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get best block")
 		}

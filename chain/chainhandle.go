@@ -41,24 +41,11 @@ func (cs *ChainService) getBestBlockNo() types.BlockNo {
 }
 
 func (cs *ChainService) GetBestBlock() (*types.Block, error) {
-	return cs.getBestBlock()
-}
-
-func (cs *ChainService) getBestBlock() (*types.Block, error) {
-	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
-	var block *types.Block
-
-	aopv := cs.cdb.bestBlock.Load()
-
-	if aopv != nil {
-		block = aopv.(*types.Block)
-	}
-
-	return block, nil
+	return cs.cdb.GetBestBlock()
 }
 
 func (cs *ChainService) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
-	return cs.cdb.getBlockByNo(blockNo)
+	return cs.cdb.GetBlockByNo(blockNo)
 }
 
 func (cs *ChainService) GetBlock(blockHash []byte) (*types.Block, error) {
@@ -79,7 +66,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, err
 	}
 	block, err := cs.cdb.getBlock(txidx.BlockHash)
-	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
+	blockInMainChain, err := cs.cdb.GetBlockByNo(block.Header.BlockNo)
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return tx, nil, errors.New("tx is not in the main chain")
 	}
@@ -93,7 +80,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 	}
 
 	block, err := cs.cdb.getBlock(i.BlockHash)
-	blockInMainChain, err := cs.cdb.getBlockByNo(block.Header.BlockNo)
+	blockInMainChain, err := cs.cdb.GetBlockByNo(block.Header.BlockNo)
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return nil, errors.New("cannot find a receipt")
 	}
@@ -190,9 +177,9 @@ func (cp *chainProcessor) isMain() bool {
 }
 
 func (cp *chainProcessor) executeBlock(block *types.Block) error {
-     err := cp.ChainService.executeBlock(cp.state, block)
-     cp.state = nil
-     return err
+	err := cp.ChainService.executeBlock(cp.state, block)
+	cp.state = nil
+	return err
 }
 
 func (cp *chainProcessor) execute() error {
@@ -271,7 +258,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	var bestBlock *types.Block
 	var err error
 
-	if bestBlock, err = cs.getBestBlock(); err != nil {
+	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
 		return err
 	}
 
@@ -313,7 +300,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 func (cs *ChainService) CountTxsInChain() int {
 	var txCount int
 
-	blk, err := cs.getBestBlock()
+	blk, err := cs.GetBestBlock()
 	if err != nil {
 		return -1
 	}
@@ -679,7 +666,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 	var stopBlock *types.Block
 	var err error
 	if stopHash == nil {
-		stopBlock, err = cs.getBestBlock()
+		stopBlock, err = cs.GetBestBlock()
 	} else {
 		stopBlock, err = cs.cdb.getBlock(stopHash)
 	}
@@ -719,7 +706,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {
-	myBestBlock, err := cs.getBestBlock()
+	myBestBlock, err := cs.GetBestBlock()
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to get best block")
 		return

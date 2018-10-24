@@ -25,7 +25,7 @@ import (
 const (
 	chainDBName = "chain"
 
-	TxBatchMax  = 10000
+	TxBatchMax = 10000
 )
 
 var (
@@ -33,7 +33,7 @@ var (
 	ErrNoChainDB       = fmt.Errorf("chaindb not prepared")
 	ErrorLoadBestBlock = errors.New("failed to load latest block from DB")
 
-	latestKey = []byte(chainDBName + ".latest")
+	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 )
 
@@ -102,6 +102,24 @@ func (cdb *ChainDB) Close() {
 	return
 }
 
+// Get returns the value corresponding to key from the chain DB.
+func (cdb *ChainDB) Get(key []byte) []byte {
+	return cdb.store.Get(key)
+}
+
+func (cdb *ChainDB) GetBestBlock() (*types.Block, error) {
+	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+	var block *types.Block
+
+	aopv := cdb.bestBlock.Load()
+
+	if aopv != nil {
+		block = aopv.(*types.Block)
+	}
+
+	return block, nil
+}
+
 func (cdb *ChainDB) loadChainData() error {
 	latestBytes := cdb.store.Get(latestKey)
 	if latestBytes == nil || len(latestBytes) == 0 {
@@ -136,7 +154,7 @@ func (cdb *ChainDB) loadChainData() error {
 		cdb.blocks[i] = &buf
 	}
 	*/
-	latestBlock, err := cdb.getBlockByNo(latestNo)
+	latestBlock, err := cdb.GetBlockByNo(latestNo)
 	if err != nil {
 		return ErrorLoadBestBlock
 	}
@@ -336,7 +354,8 @@ func (cdb *ChainDB) getBestBlockNo() types.BlockNo {
 	return cdb.latest
 }
 
-func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+// GetBlockByNo returns the block with its block number as blockNo.
+func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {
 		return nil, err
@@ -344,6 +363,7 @@ func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, enc.ToString(blockHash))
 	return cdb.getBlock(blockHash)
 }
+
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	if blockHash == nil {
 		return nil, fmt.Errorf("block hash invalid(nil)")
@@ -357,6 +377,7 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	//logger.Debugf("getblockbyHash Hash=%v", enc.ToString(blockHash))
 	return &buf, nil
 }
+
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	blockIdx := types.BlockNoToBytes(blockNo)
 	if cdb.store == nil {
@@ -368,6 +389,7 @@ func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	}
 	return blockHash, nil
 }
+
 func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	txIdx := &types.TxIdx{}
 
@@ -445,7 +467,7 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx.Commit()
 }
 
-func receiptsKey(blockHash[]byte, blockNo types.BlockNo) []byte {
+func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
 	var key bytes.Buffer
 	key.Write(receiptsPrefix)
 	key.Write(blockHash)
