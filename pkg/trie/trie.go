@@ -110,12 +110,7 @@ func (s *Trie) AtomicUpdate(keys, values [][]byte) ([]byte, error) {
 	} else {
 		s.Root = nil
 	}
-	if len(s.pastTries) >= maxPastTries {
-		copy(s.pastTries, s.pastTries[1:])
-		s.pastTries[len(s.pastTries)-1] = s.Root
-	} else {
-		s.pastTries = append(s.pastTries, s.Root)
-	}
+	s.updatePastTries()
 	return s.Root, nil
 }
 
@@ -576,4 +571,13 @@ func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch,
 		s.storeNode(batch, h, oldRoot, height)
 	}
 	return h
+}
+
+func (s *Trie) updatePastTries() {
+	if len(s.pastTries) >= maxPastTries {
+		copy(s.pastTries, s.pastTries[1:])
+		s.pastTries[len(s.pastTries)-1] = s.Root
+	} else {
+		s.pastTries = append(s.pastTries, s.Root)
+	}
 }
