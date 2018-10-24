@@ -416,7 +416,6 @@ func TestTrieRaisesError(t *testing.T) {
 	smt.Update(keys, values)
 	smt.db.liveCache = make(map[Hash][][]byte)
 	smt.db.updatedNodes = make(map[Hash][][]byte)
-	smt.loadDefaultHashes()
 
 	// Check errors are raised is a keys is not in cache nore db
 	for _, key := range keys {
@@ -695,46 +694,3 @@ func getFreshData(size, length int) [][]byte {
 	sort.Sort(DataArray(data))
 	return data
 }
-
-/*
-// Not available with batching, keys must be same size as hash
-func TestTrieDifferentKeySize(t *testing.T) {
-	keySize := 20
-	smt := NewTrie(uint64(keySize), hash, nil)
-	// Add data to empty trie
-	keys := getFreshData(10, keySize)
-	values := getFreshData(10, 32)
-	smt.Update(keys, values)
-
-	// Check all keys have been stored
-	for i, key := range keys {
-		value, _ := smt.Get(key)
-		if !bytes.Equal(values[i], value) {
-			t.Fatal("trie not updated")
-		}
-	}
-	newValues := getFreshData(10, 32)
-	smt.Update(keys, newValues)
-	// Check all keys have been modified
-	for i, key := range keys {
-		value, _ := smt.Get(key)
-		if !bytes.Equal(newValues[i], value) {
-			t.Fatal("trie not updated")
-		}
-	}
-	smt.Update(keys[0:1], [][]byte{DefaultLeaf})
-	newValue, _ := smt.Get(keys[0])
-	if len(newValue) != 0 {
-		t.Fatal("Failed to delete from trie")
-	}
-	newValue, _ = smt.Get(make([]byte, keySize))
-	if len(newValue) != 0 {
-		t.Fatal("Failed to delete from trie")
-	}
-	ap, _, _, _, _ := smt.MerkleProof(keys[8])
-	if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
-		t.Fatalf("failed to verify inclusion proof")
-	}
-}
-
-*/

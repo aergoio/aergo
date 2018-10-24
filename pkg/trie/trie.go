@@ -29,8 +29,6 @@ type Trie struct {
 	hash func(data ...[]byte) []byte
 	// TrieHeight is the number if bits in a key
 	TrieHeight uint64
-	// defaultHashes are the default values of empty trees
-	defaultHashes [][]byte
 	// LoadDbCounter counts the nb of db reads in on update
 	LoadDbCounter uint64
 	// loadDbMux is a lock for LoadDbCounter
@@ -64,20 +62,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	// don't store any cache by default (contracts state don't use cache)
 	s.CacheHeightLimit = s.TrieHeight + 1
 	s.Root = root
-	s.loadDefaultHashes()
 	return s
-}
-
-// loadDefaultHashes creates the default hashes and stores them in cache
-func (s *Trie) loadDefaultHashes() []byte {
-	s.defaultHashes = make([][]byte, s.TrieHeight+1)
-	s.defaultHashes[0] = DefaultLeaf
-	var h []byte
-	for i := 1; i <= int(s.TrieHeight); i++ {
-		h = s.hash(s.defaultHashes[i-1], s.defaultHashes[i-1])
-		s.defaultHashes[i] = h
-	}
-	return h
 }
 
 // Update adds and deletes a sorted list of keys and their values to the trie
@@ -321,7 +306,6 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 			batch[2*iBatch+1] = nil
 			batch[2*iBatch+2] = nil
 		}
-		//ch <- mresult{s.defaultHashes[height], false, nil}
 		ch <- mresult{nil, true, nil}
 		return true
 	} else if len(left) == 0 {
@@ -576,7 +560,7 @@ func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height uint64) {
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
 func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height uint64) []byte {
 	var h []byte
-	// left and right cannot both be default. It is  handled by moveUpShortcut()
+	// left and right cannot both be default. It is handled by moveUpShortcut()
 	if len(left) == 0 {
 		h = s.hash(DefaultLeaf, right[:HashLength])
 	} else if len(right) == 0 {

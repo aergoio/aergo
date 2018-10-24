@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	// Trie default value : hash of 0x0
+	// Trie default value : [byte(0)]
 	DefaultLeaf = []byte{0}
 )
 

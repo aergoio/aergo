@@ -54,7 +54,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch 
 		}
 	}
 	if iBatch != 0 && batch[iBatch][HashLength] == 1 {
-		// Check if node is default
+		// Check if node is a leaf node
 		ch <- nil
 	} else {
 		// Load subtree
@@ -117,11 +117,6 @@ func (s *Trie) TrieRootExists(root []byte) bool {
 		return true
 	}
 	return false
-}
-
-// DefaultHash is a getter for the defaultHashes array
-func (s *Trie) DefaultHash(height uint64) []byte {
-	return s.defaultHashes[height]
 }
 
 // Commit stores the updated nodes to disk.

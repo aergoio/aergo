@@ -56,7 +56,6 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 
 	s.pastTries = s.pastTries[:toIndex+1]
 	s.Root = toOldRoot
-	// load default hashes in live cache
 	s.db.liveCache = make(map[Hash][][]byte)
 	s.db.updatedNodes = make(map[Hash][][]byte)
 	if isShortcut {
