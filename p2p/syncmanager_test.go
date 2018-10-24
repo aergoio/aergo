@@ -105,7 +105,7 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 	// test if new block notice comes
 	tests := []struct {
 		name string
-		put []TxHash
+		inCache []TxHash
 		verify func(tt *testing.T, actor *MockActorService)
 		expected []TxHash
 	}{
@@ -147,8 +147,8 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 			data := &types.NewTransactionsNotice{TxHashes:rawHashes}
 
 			target := newSyncManager(mockActor, mockPM, logger)
-			if test.put != nil  {
-				for _, hash := range test.put {
+			if test.inCache != nil  {
+				for _, hash := range test.inCache {
 					target.(*syncManager).txCache.Add(hash, true)
 				}
 			}
@@ -192,26 +192,36 @@ func TestSyncManager_DoSync(t *testing.T) {
 }
 
 func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
-	sampleBlocks := make([]*types.Block, len(sampleTxs))
+	totalBlkCnt := len(sampleTxs)
+	sampleBlocks := make([]*types.Block, totalBlkCnt)
 	for i, hash := range sampleTxs {
 		sampleBlocks[i] = &types.Block{Hash:hash}
 	}
 	tests := []struct {
 		name         string
 		sw           *syncWorker
+		// call count directly to chainservice
 		chainCallCnt int
+		// call SendRequest count indirectly to chainservice vial syncWorker
+		swSendCnt int
+		// call CallRequest count indirectly to chainservice vial syncWorker
+		swCallCnt int
+
 	}{
 		// 1. worker is exist, pass to worker
-		{"TExist", &syncWorker{finish: make(chan interface{},1)}, len(sampleTxs)},
+		{"TExist", &syncWorker{finish: make(chan interface{},1)}, 0, totalBlkCnt-1, 1},
 		// 1. worker is not and directly call chainservice
-		{"TNotExist", nil, len(sampleTxs)},
+		{"TNotExist", nil,totalBlkCnt, 0, 0},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			dummyRsp := message.AddBlockRsp{BlockNo:1, Err:nil}
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
 			mockActor.On("TellRequest", message.P2PSvc, mock.AnythingOfType("*message.GetMissingRequest"))
-			mockActor.On("TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockActor.On("CallRequestDefaultTimeout", message.ChainSvc, mock.AnythingOfType("*message.AddBlock")).Return(dummyRsp, nil)
+			mockActor.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"), mock.AnythingOfType("time.Duration")).Return(dummyRsp, nil)
 			mockMF := new(MockMoFactory)
 			mockMF.On("newMsgRequestOrder",mock.Anything,mock.Anything,mock.Anything).Return(new(MockMsgOrder))
 			mockPeer := new(MockRemotePeer)
@@ -236,7 +246,9 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 			resp := &types.GetBlockResponse{Blocks:sampleBlocks}
 			target.HandleGetBlockResponse(mockPeer, msg, resp)
 
-			mockActor.AssertNumberOfCalls(t, "TellRequest", test.chainCallCnt)
+			mockActor.AssertNumberOfCalls(t, "CallRequestDefaultTimeout", test.chainCallCnt)
+			mockActor.AssertNumberOfCalls(t, "SendRequest", test.swSendCnt)
+			mockActor.AssertNumberOfCalls(t, "CallRequest", test.swCallCnt)
 		})
 	}
 }

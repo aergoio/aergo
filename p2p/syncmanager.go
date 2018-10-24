@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-peer"
+	"reflect"
 	"sync"
 )
 
@@ -113,9 +114,29 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 	if found {
 		worker.putAddBlock(msg, blocks, resp.HasNext)
 	} else {
-		// send to chainservice if no actor is found.
+		// send to chainservice directly if no actor is found.
+		// and only continue to append if added block is not orphan
 		for _, block := range blocks {
-			sm.actor.TellRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
+			// cancel worker if failed to add any block.
+			rsp, err := sm.actor.CallRequestDefaultTimeout(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
+			if err != nil {
+				sm.logger.Info().Err(err).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Error while adding single block")
+				break
+			}
+			if rsp == nil {
+				sm.logger.Info().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Nil returned while adding single block")
+				break
+			}
+			addblockRsp, ok := rsp.(message.AddBlockRsp)
+			if ok == false {
+				sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
+				break
+			}
+			// TODO: more fine checking?
+			if addblockRsp.BlockNo < 0 {
+				sm.logger.Error().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Should not come here")
+				break
+			}
 		}
 	}
 }
@@ -143,7 +164,7 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 		// sm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
 	}
-	sm.logger.Debug().Str("hashes", txHashArrToString(toGet)).Msg("syncmanager request back unknown tx hashes")
+	sm.logger.Debug().Str("hashes", txHashArrToString(toGet)).Msg("syncManager request back unknown tx hashes")
 	// create message data
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }

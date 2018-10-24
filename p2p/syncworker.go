@@ -7,9 +7,11 @@ package p2p
 
 import (
 	"bytes"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"reflect"
 	"time"
 )
 
@@ -115,9 +117,39 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 			return
 		}
 	}
+
 	// send to chainservice if no actor is found.
-	for _, block := range blocks {
-		sw.sm.actor.TellRequest(message.ChainSvc, &message.AddBlock{PeerID: sw.peerID, Block: block, Bstate: nil})
+	lastIdx := len(blocks)-1
+	checkpoint := AddBlockCheckpoint-1
+	for i, block := range blocks {
+		if i % AddBlockCheckpoint == checkpoint || i == lastIdx {
+			// cancel worker if failed to add any block.
+			rsp, err := sw.sm.actor.CallRequest(message.ChainSvc, &message.AddBlock{PeerID: sw.peerID, Block: block, Bstate: nil}, AddBlockWaitTime)
+			if err != nil {
+				sw.sm.logger.Info().Err(err).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("syncworker error on checkpoint")
+				sw.Cancel()
+				return
+			}
+			if rsp == nil {
+				sw.sm.logger.Info().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Nil returned while adding single block")
+				sw.Cancel()
+				return
+			}
+			addblockRsp, ok := rsp.(message.AddBlockRsp)
+			if ok == false {
+				sw.sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
+				sw.Cancel()
+				return
+			}
+			// TODO: more fine checking?
+			if addblockRsp.BlockNo < 0 {
+				sw.sm.logger.Error().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Should not come here")
+				sw.Cancel()
+				return
+			}
+		} else {
+			sw.sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: sw.peerID, Block: block, Bstate: nil})
+		}
 	}
 
 

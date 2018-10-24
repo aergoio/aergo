@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"errors"
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain/system"
@@ -38,6 +39,8 @@ var (
 	logger           = log.NewLogger("chain")
 	genesisBlock     *types.Block
 	initialBestBlock *types.Block
+
+	ErrBlockExist = errors.New("error! block already exist")
 )
 
 // NewChainService create instance of ChainService
@@ -242,13 +245,14 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.AddBlock:
 		bid := msg.Block.BlockID()
+		block := msg.Block
 		logger.Debug().Str("hash", msg.Block.ID()).
 			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
+			err = ErrBlockExist
 		} else {
-			block := msg.Block
 			var bstate *state.BlockState
 			if msg.Bstate != nil {
 				bstate = msg.Bstate.(*state.BlockState)
@@ -257,12 +261,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
-			context.Respond(message.AddBlockRsp{
-				BlockNo:   block.GetHeader().GetBlockNo(),
-				BlockHash: block.BlockHash(),
-				Err:       err,
-			})
 		}
+
+		context.Respond(message.AddBlockRsp{
+			BlockNo:   block.GetHeader().GetBlockNo(),
+			BlockHash: block.BlockHash(),
+			Err:       err,
+		})
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
