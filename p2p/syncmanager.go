@@ -82,7 +82,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, da
 	peerID := peer.ID()
 	if !sm.checkWorkToken() {
 		// just ignore it
-		sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
+		//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
 		return
 	}
 
@@ -152,11 +152,13 @@ func (sm *syncManager) DoSync(peer RemotePeer, hashes []message.BlockHash, stopH
 	sm.syncLock.Lock()
 	if sm.sw != nil {
 		sm.syncLock.Unlock()
-		sm.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Msg("ignore sync work")
+		sm.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Msg("Ignore new sync since other sync work")
 		return
 	}
 	sm.sw = newSyncWorker(sm, peer, hashes, stopHash)
+	sm.syncing = true
 	sm.syncLock.Unlock()
+
 	sm.logger.Debug().Str(LogPeerID, peer.ID().Pretty()).Str("my_hashes",blockHashArrToStringWithLimit(hashes, len(hashes))).Str("stop_hash", enc.ToString(stopHash)).Msg("Starting sync work to ")
 	go sm.sw.runWorker()
 }

@@ -24,40 +24,52 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	tests := []struct {
 		name string
 		put *BlkHash
+		syncing bool
 		setup func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice)
-		verify func(tt *testing.T, actor *MockActorService)
+		verify func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor)
 	}{
 		// 1. Succ : valid block hash and not exist in local
-		{"TSucc", nil,
+		{"TSucc", nil, false,
 		func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
 			ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(nil, nil)
 			copy(blkHash[:], dummyBlockHash)
 			return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 		},
-		func(tt *testing.T, actor *MockActorService) {
-			//actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
+		func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) {
+			ca.AssertCalled(tt,"GetBlock", mock.AnythingOfType("[]uint8"))
 			actor.AssertCalled(tt,"SendRequest",message.P2PSvc, mock.AnythingOfType("*message.GetBlockInfos"))
 		}},
 		// 1-1. Succ : valid block hash and exist in chainsvc, but not in cache
-		{"TSuccExistChain", nil,
+		{"TSuccExistChain", nil,false,
 			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
 				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 			},
-			func(tt *testing.T, actor *MockActorService) {
-				//actor.AssertCalled(tt,"CallRequest",message.ChainSvc, mock.AnythingOfType("*message.GetBlock"))
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) {
+				ca.AssertCalled(tt,"GetBlock", mock.AnythingOfType("[]uint8"))
 				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.AnythingOfType("*message.GetBlockInfos"))
 			}},
 		// 2. SuccCachehit : valid block hash but already exist in local cache
-		{"TSuccExistCache", &blkHash,
+		{"TSuccExistCache", &blkHash,false,
 			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
 				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
 			},
-			func(tt *testing.T, actor *MockActorService) {
-				//actor.AssertNotCalled(tt,"CallRequest",message.ChainSvc, mock.Anything)
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) {
+				ca.AssertNotCalled(tt,"GetBlock", mock.AnythingOfType("[]uint8"))
+				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.Anything)
+			}},
+		// 2. Busy : other sync worker is working
+		{"TBusy", &blkHash,true,
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
+				copy(blkHash[:], dummyBlockHash)
+				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
+			},
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) {
+				actor.AssertNotCalled(tt,"GetChainAccessor")
 				actor.AssertNotCalled(tt,"SendRequest",message.P2PSvc, mock.Anything)
 			}},
 	}
@@ -73,12 +85,13 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			mockPeer.On("ID").Return(sampleMeta.ID)
 
 			hash, data := test.setup(t, mockActor, mockCA)
-			target := newSyncManager(mockActor, mockPM, logger)
+			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
+			target.syncing = test.syncing
 			if test.put != nil  {
-				target.(*syncManager).blkCache.Add(*test.put, true)
+				target.blkCache.Add(*test.put, true)
 			}
 			target.HandleNewBlockNotice(mockPeer, hash, data )
-			test.verify(t,mockActor)
+			test.verify(t,mockActor,mockCA)
 		})
 	}
 }

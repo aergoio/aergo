@@ -675,7 +675,7 @@ const HashNumberUnknown = math.MaxUint64
 //
 func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo) {
 	// 1. check endpoint is on main chain (or, return nil)
-	logger.Debug().Str("hash", enc.ToString(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
+	logger.Debug().Str("stop_hash", enc.ToString(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
 	var stopBlock *types.Block
 	var err error
 	if stopHash == nil {
@@ -718,19 +718,19 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
 }
 
-func (cs *ChainService) checkBlockHandshake(peerID peer.ID, bestHeight uint64, bestHash []byte) {
+func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {
 	myBestBlock, err := cs.getBestBlock()
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to get best block")
 		return
 	}
-	sameBestHash := bytes.Equal(myBestBlock.Hash, bestHash)
+	sameBestHash := bytes.Equal(myBestBlock.Hash, remoteBestHash)
 	if sameBestHash {
 		// two node has exact best block.
-		// TODO: myBestBlock.GetHeader().BlockNo == bestHeight
+		// TODO: myBestBlock.GetHeader().BlockNo == remoteBestHeight
 		logger.Debug().Str("peer", peerID.Pretty()).Msg("peer is in sync status")
-	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < bestHeight {
-		cs.ChainSync(peerID)
+	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < remoteBestHeight {
+		cs.ChainSync(peerID, remoteBestHash)
 	}
 
 	return

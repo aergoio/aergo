@@ -1,11 +1,12 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -126,7 +127,7 @@ func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Blocks))
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Blocks),data.HasNext) )
 
 	// locate request data and remove it if found
 	remotePeer.consumeRequest(msg.ID())
@@ -355,7 +356,7 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 			resp := &types.GetBlockResponse{
 				Status: status,
 				Blocks: blockInfos,
-				HasNext:true}
+				HasNext:msgSentCount<MaxResponseSplitCount} // always have nextItem ( see foundBlock) but msg count limit will affect
 			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getMissing response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
 			msgSentCount++

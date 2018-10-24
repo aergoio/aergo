@@ -109,9 +109,9 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 	if sw.currentParent != notDefinedYet {
 		// if response is not expected blocks, cancel sync.
 		parentHash := blocks[0].Header.PrevBlockHash
-		if !bytes.Equal(parentHash, sw.currentBest[:]) {
+		if !bytes.Equal(parentHash, sw.currentParent[:]) {
 			// TODO cancel sync
-			sw.cancel <- struct{}{}
+			sw.Cancel()
 			return
 		}
 	}
@@ -119,6 +119,7 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 	for _, block := range blocks {
 		sw.sm.actor.TellRequest(message.ChainSvc, &message.AddBlock{PeerID: sw.peerID, Block: block, Bstate: nil})
 	}
+
 
 	if hasNext {
 		sw.retain <- struct{}{}

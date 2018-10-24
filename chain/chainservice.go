@@ -176,10 +176,10 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 }
 
 // ChainSync synchronize with peer
-func (cs *ChainService) ChainSync(peerID peer.ID) {
+func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
 	// handlt it like normal block (orphan)
 	logger.Debug().Msg("Best Block Request")
-	anchors := cs.getAnchorsFromHash(nil)
+	anchors := cs.getAnchorsFromHash(remoteBestHash)
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))

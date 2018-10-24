@@ -1,7 +1,13 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -90,8 +96,32 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 	}
 }
 
+func Test_Encode(t *testing.T) {
+	tests := []struct {
+		name string
+		in []byte
+		out string
+	}{
+		{"TEmpty",[]byte(""), ""},
+		{"TNil",nil, ""},
+		{"TOnlyone",[]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, "11111111111111111111111111111111"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := enc.ToString(test.in)
+			assert.Equal(t, test.out, got)
+			if len(test.out) > 0 {
+				gotBytes, err := enc.ToBytes(test.out)
+				assert.Nil(t, err)
+				assert.Equal(t, test.in, gotBytes)
+			}
+		})
+	}
+}
+
 // experiment, and manually checked it
-func ExperimentTimerBehavior(t *testing.T) {
+func TestExperiment_TimerBehavior(t *testing.T) {
+	t.Skip(" experiment, do manual check")
 	counter := int32(0)
 	ticked := make(chan int32)
 	duration := time.Millisecond * 50
@@ -110,7 +140,8 @@ func ExperimentTimerBehavior(t *testing.T) {
 	}
 }
 
-func FailTestNormalMapInConcurrent(t *testing.T) {
+func TestFailNormalMapInConcurrent(t *testing.T) {
+	t.Skip(" experiment, do manual check")
 	iterSize := 10000
 	target := make(map[string]string)
 	wg := sync.WaitGroup{}
@@ -172,9 +203,6 @@ func TestSyncMap(t *testing.T) {
 		//		fmt.Println(keys)
 		return len(keys)
 	}(&target))
-}
-
-type MockLogger struct {
 }
 
 func TestComparePeerID(t *testing.T) {
