@@ -578,9 +578,9 @@ func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch,
 	var h []byte
 	// left and right cannot both be default. It is  handled by moveUpShortcut()
 	if len(left) == 0 {
-		h = s.hash(append(DefaultLeaf, right[:HashLength]...))
+		h = s.hash(DefaultLeaf, right[:HashLength])
 	} else if len(right) == 0 {
-		h = s.hash(append(left[:HashLength], DefaultLeaf...))
+		h = s.hash(left[:HashLength], DefaultLeaf)
 	} else {
 		h = s.hash(left[:HashLength], right[:HashLength])
 	}

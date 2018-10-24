@@ -246,7 +246,7 @@ func TestTrieMerkleProof(t *testing.T) {
 
 	for i, key := range keys {
 		ap, _, k, v, _ := smt.MerkleProof(key)
-		if !smt.VerifyMerkleProof(ap, key, values[i]) {
+		if !smt.VerifyInclusion(ap, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
 		}
 		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
@@ -258,7 +258,7 @@ func TestTrieMerkleProof(t *testing.T) {
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
-	if !smt.VerifyMerkleProofEmpty(ap, emptyKey, proofKey, proofValue) {
+	if !smt.VerifyNonInclusion(ap, emptyKey, proofValue, proofKey) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
@@ -272,7 +272,7 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 
 	for i, key := range keys {
 		bitmap, ap, length, _, k, v, _ := smt.MerkleProofCompressed(key)
-		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
+		if !smt.VerifyInclusionC(bitmap, key, values[i], ap, length) {
 			t.Fatalf("failed to verify inclusion proof")
 		}
 		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
@@ -284,7 +284,7 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
-	if !smt.VerifyMerkleProofCompressedEmpty(bitmap, ap, length, emptyKey, proofKey, proofValue) {
+	if !smt.VerifyNonInclusionC(ap, length, bitmap, emptyKey, proofValue, proofKey) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
@@ -524,7 +524,7 @@ func TestHeight0LeafShortcut(t *testing.T) {
 	if length != smt.TrieHeight {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
 	}
-	if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key1, values[1]) {
+	if !smt.VerifyInclusionC(bitmap, key1, values[1], ap, length) {
 		t.Fatal("failed to verify inclusion proof")
 	}
 
