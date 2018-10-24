@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package chain
+package system
 
 import (
 	"fmt"
@@ -12,9 +12,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/state"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var sdb *state.ChainStateDB
@@ -48,7 +47,7 @@ func TestVoteResult(t *testing.T) {
 		assert.NoError(t, err, "failed to updateVoteResult")
 	}
 	const getTestSize = 23
-	result, err := getVoteResult(scs, getTestSize)
+	result, err := GetVoteResult(scs, getTestSize)
 	assert.NoError(t, err, "could not get vote result")
 
 	oldAmount := (uint64)(math.MaxUint64)
@@ -70,7 +69,7 @@ func TestVoteData(t *testing.T) {
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
 		to := fmt.Sprintf("%39d", i)
-		amount, updateBlockNo, candidates, err := getVote(scs, []byte(from))
+		amount, updateBlockNo, candidates, err := GetVote(scs, []byte(from))
 		assert.NoError(t, err, "failed to getVote")
 		assert.Zero(t, amount, "new amount value is already set")
 		assert.Zero(t, updateBlockNo, "new updateBlockNo value is already set")
@@ -111,28 +110,34 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, senderState.GetBalance(), uint64(5000), "sender balance should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	err = voting(tx.Body, scs, votingDelay-1)
+	err = voting(tx.Body, scs, VotingDelay-1)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "voting failed")
 
-	err = voting(tx.Body, scs, votingDelay)
+	err = voting(tx.Body, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 
-	result, err := getVoteResult(scs, 1)
+	result, err := GetVoteResult(scs, 1)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
 	assert.EqualValues(t, 5000, result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	err = unstaking(tx.Body, senderState, scs, votingDelay)
+	err = unstaking(tx.Body, senderState, scs, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	err = unstaking(tx.Body, senderState, scs, votingDelay+stakingDelay)
+	err = unstaking(tx.Body, senderState, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
+
+	result2, err := GetVoteResult(scs, 1)
+	assert.NoError(t, err, "voting failed")
+	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
+	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
+	assert.EqualValues(t, 0, result2.GetVotes()[0].Amount, "invalid amount in voting result")
 }
 
 func buildVotingPayload(count int) []byte {
-	payload := make([]byte, 1+peerIDLength*count)
+	payload := make([]byte, 1+PeerIDLength*count)
 	for i := range payload {
 		payload[i] = byte(i)
 	}

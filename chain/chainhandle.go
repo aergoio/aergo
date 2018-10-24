@@ -502,9 +502,18 @@ func validateTx(tx *types.Tx, senderState *types.State, txFee uint64) error {
 }
 
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+	err := tx.Validate()
+	if err != nil {
+		return err
+	}
 	txBody := tx.GetBody()
 
 	sender, err := bs.GetAccountStateV(txBody.Account)
+	if err != nil {
+		return err
+	}
+
+	err = tx.ValidateWithSenderState(sender.State())
 	if err != nil {
 		return err
 	}
@@ -516,11 +525,6 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	} else {
 		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
 	}
-	if err != nil {
-		return err
-	}
-
-	err = validateTx(tx, sender.State(), CoinbaseFee)
 	if err != nil {
 		return err
 	}
