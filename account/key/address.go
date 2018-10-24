@@ -14,6 +14,9 @@ type Address = []byte
 var addresses = []byte("ADDRESSES")
 
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
+	if pubkey == nil {
+		return nil
+	}
 	addr := new(bytes.Buffer)
 	// Compressed pubkey
 	binary.Write(addr, binary.LittleEndian, uint8(0x2+pubkey.Y.Bit(0))) // 0x2 for even, 0x3 for odd Y
