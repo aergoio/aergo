@@ -36,7 +36,7 @@ func (s *Trie) MerkleProofPast(key []byte, root []byte) ([][]byte, bool, []byte,
 }
 
 // MerkleProofCompressed returns a compressed merkle proof
-func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool, []byte, []byte, error) {
+func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, int, bool, []byte, []byte, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	// create a regular merkle proof and then compress it
@@ -45,12 +45,12 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 		return nil, nil, 0, true, nil, nil, err
 	}
 	// the height of the shortcut in the tree will be needed for the proof verification
-	height := uint64(len(mpFull))
+	height := len(mpFull)
 	var mp [][]byte
 	bitmap := make([]byte, len(mpFull)/8+1)
 	for i, node := range mpFull {
 		if !bytes.Equal(node, DefaultLeaf) {
-			bitSet(bitmap, uint64(i))
+			bitSet(bitmap, i)
 			mp = append(mp, node)
 		}
 	}
@@ -63,7 +63,7 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 // (key,value) can be 1- (nil, value), value of the included key, 2- the kv of a LeafNode
 // on the path of the non-included key, 3- (nil, nil) for a non-included key
 // with a DefaultLeaf on the path
-func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint64) ([][]byte, bool, []byte, []byte, error) {
+func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch int) ([][]byte, bool, []byte, []byte, error) {
 	if len(root) == 0 {
 		// proove that an empty subtree is on the path of the key
 		return nil, false, nil, nil, nil
@@ -108,19 +108,19 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch uint
 
 // VerifyInclusion verifies that key/value is included in the trie with latest root
 func (s *Trie) VerifyInclusion(ap [][]byte, key, value []byte) bool {
-	leafHash := s.hash(key, value, []byte{byte(int(s.TrieHeight) - len(ap))})
+	leafHash := s.hash(key, value, []byte{byte(s.TrieHeight - len(ap))})
 	return bytes.Equal(s.Root, s.verifyInclusion(ap, 0, key, leafHash))
 }
 
 // verifyInclusion returns the merkle root by hashing the merkle proof items
-func (s *Trie) verifyInclusion(ap [][]byte, keyIndex uint64, key, leafHash []byte) []byte {
-	if keyIndex == uint64(len(ap)) {
+func (s *Trie) verifyInclusion(ap [][]byte, keyIndex int, key, leafHash []byte) []byte {
+	if keyIndex == len(ap) {
 		return leafHash
 	}
 	if bitIsSet(key, keyIndex) {
-		return s.hash(ap[uint64(len(ap))-keyIndex-1], s.verifyInclusion(ap, keyIndex+1, key, leafHash))
+		return s.hash(ap[len(ap)-keyIndex-1], s.verifyInclusion(ap, keyIndex+1, key, leafHash))
 	}
-	return s.hash(s.verifyInclusion(ap, keyIndex+1, key, leafHash), ap[uint64(len(ap))-keyIndex-1])
+	return s.hash(s.verifyInclusion(ap, keyIndex+1, key, leafHash), ap[len(ap)-keyIndex-1])
 }
 
 // VerifyNonInclusion verifies a proof of non inclusion,
@@ -138,8 +138,8 @@ func (s *Trie) VerifyNonInclusion(ap [][]byte, key, value, proofKey []byte) bool
 		return false
 	}
 	// 2- Check the proof leaf is on the key path
-	var b uint64
-	for b = 0; b < uint64(len(ap)); b++ {
+	var b int
+	for b = 0; b < len(ap); b++ {
 		if bitIsSet(key, b) != bitIsSet(proofKey, b) {
 			// the proofKey leaf node is not on the path of the key
 			return false
@@ -150,32 +150,32 @@ func (s *Trie) VerifyNonInclusion(ap [][]byte, key, value, proofKey []byte) bool
 }
 
 // VerifyInclusionC verifies that key/value is included in the trie with latest root
-func (s *Trie) VerifyInclusionC(bitmap, key, value []byte, ap [][]byte, length uint64) bool {
+func (s *Trie) VerifyInclusionC(bitmap, key, value []byte, ap [][]byte, length int) bool {
 	leafHash := s.hash(key, value, []byte{byte(s.TrieHeight - length)})
 	return bytes.Equal(s.Root, s.verifyInclusionC(bitmap, key, leafHash, ap, length, 0, 0))
 }
 
 // verifyInclusionC returns the merkle root by hashing the merkle proof items
-func (s *Trie) verifyInclusionC(bitmap, key, leafHash []byte, ap [][]byte, length, keyIndex, apIndex uint64) []byte {
+func (s *Trie) verifyInclusionC(bitmap, key, leafHash []byte, ap [][]byte, length, keyIndex, apIndex int) []byte {
 	if keyIndex == length {
 		return leafHash
 	}
 	if bitIsSet(key, keyIndex) {
 		if bitIsSet(bitmap, length-keyIndex-1) {
-			return s.hash(ap[uint64(len(ap))-apIndex-1], s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex+1))
+			return s.hash(ap[len(ap)-apIndex-1], s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex+1))
 		}
 		return s.hash(DefaultLeaf, s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex))
 
 	}
 	if bitIsSet(bitmap, length-keyIndex-1) {
-		return s.hash(s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex+1), ap[uint64(len(ap))-apIndex-1])
+		return s.hash(s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex+1), ap[len(ap)-apIndex-1])
 	}
 	return s.hash(s.verifyInclusionC(bitmap, key, leafHash, ap, length, keyIndex+1, apIndex), DefaultLeaf)
 }
 
 // VerifyNonInclusionC verifies a proof of non inclusion,
 // Returns true if the non-inclusion is verified
-func (s *Trie) VerifyNonInclusionC(ap [][]byte, length uint64, bitmap, key, value, proofKey []byte) bool {
+func (s *Trie) VerifyNonInclusionC(ap [][]byte, length int, bitmap, key, value, proofKey []byte) bool {
 	// Check if an empty subtree is on the key path
 	if len(proofKey) == 0 {
 		// return true if a DefaultLeaf in the key path is included in the trie
@@ -188,7 +188,7 @@ func (s *Trie) VerifyNonInclusionC(ap [][]byte, length uint64, bitmap, key, valu
 		return false
 	}
 	// 2- Check the proof leaf is on the key path
-	var b uint64
+	var b int
 	for b = 0; b < length; b++ {
 		if bitIsSet(key, b) != bitIsSet(proofKey, b) {
 			// the proofKey leaf node is not on the path of the key

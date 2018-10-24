@@ -56,7 +56,7 @@ func (db *CacheDB) serializeBatch(batch [][]byte) []byte {
 	}
 	for i := 1; i < 31; i++ {
 		if len(batch[i]) != 0 {
-			bitSet(serialized, uint64(i-1))
+			bitSet(serialized, i-1)
 			serialized = append(serialized, batch[i]...)
 		}
 	}

@@ -495,7 +495,7 @@ func TestTrieLoadCache(t *testing.T) {
 }
 
 func TestHeight0LeafShortcut(t *testing.T) {
-	keySize := uint64(32)
+	keySize := 32
 	smt := NewTrie(nil, Hasher, nil)
 	// Add 2 sibling keys that will be stored at height 0
 	key0 := make([]byte, keySize, keySize)

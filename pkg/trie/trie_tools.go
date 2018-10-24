@@ -25,7 +25,7 @@ func (s *Trie) LoadCache(root []byte) error {
 }
 
 // loadCache loads the first layers of the merkle tree given a root
-func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch chan<- (error)) {
+func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height int, ch chan<- (error)) {
 	if height < s.CacheHeightLimit || len(root) == 0 {
 		ch <- nil
 		return
@@ -85,7 +85,7 @@ func (s *Trie) Get(key []byte) ([]byte, error) {
 }
 
 // get fetches the value of a key given a trie root
-func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height uint64) ([]byte, error) {
+func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte, error) {
 	if len(root) == 0 {
 		// the trie does not contain the key
 		return nil, nil
