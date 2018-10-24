@@ -16,7 +16,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
 		if sender.Balance() < txBody.Amount {
-			return "", ErrInsufficientBalance
+			return "", types.ErrInsufficientBalance
 		}
 		sender.SubBalance(txBody.Amount)
 		receiver.AddBalance(txBody.Amount)
@@ -53,7 +53,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		if rErr := sqlTx.RollbackToSavepoint(); rErr != nil {
 			return "", rErr
 		}
-		if err == ErrInsufficientBalance {
+		if err == types.ErrInsufficientBalance {
 			return "", err
 		}
 		return "", VmError(err)

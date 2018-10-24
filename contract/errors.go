@@ -5,13 +5,5 @@
 
 package contract
 
-import (
-	"errors"
-)
-
-var (
-	ErrInsufficientBalance = errors.New("insufficient balance for transfer")
-)
-
 type VmError error
 

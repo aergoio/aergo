@@ -188,7 +188,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
 		if ce.blockchainCtx.transferFailed == C.int(1) {
-			ce.err = ErrInsufficientBalance
+			ce.err = types.ErrInsufficientBalance
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -228,7 +228,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.contract.address))
 		if ce.blockchainCtx.transferFailed == C.int(1) {
-			ce.err = ErrInsufficientBalance
+			ce.err = types.ErrInsufficientBalance
 		} else {
 			ce.err = errors.New(errMsg)
 		}
