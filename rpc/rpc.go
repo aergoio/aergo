@@ -185,14 +185,24 @@ func (ns *RPC) SendRequest(actor string, msg interface{}) {
 }
 
 // FutureRequest implement interface method of ActorService
-func (ns *RPC) FutureRequest(actor string, msg interface{}) *actor.Future {
+func (ns *RPC) FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future {
+	return ns.RequestToFuture(actor, msg, timeout)
+}
+
+// FutureRequestDefaultTimeout implement interface method of ActorService
+func (ns *RPC) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
 	return ns.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (ns *RPC) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.RequestToFuture(actor, msg, defaultTTL)
+func (ns *RPC) CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error) {
+	future := ns.RequestToFuture(actor, msg, timeout)
+	return future.Result()
+}
 
+// CallRequest implement interface method of ActorService
+func (ns *RPC) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
+	future := ns.RequestToFuture(actor, msg, defaultTTL)
 	return future.Result()
 }
 

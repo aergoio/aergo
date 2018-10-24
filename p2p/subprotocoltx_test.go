@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 package p2p
 
@@ -45,7 +45,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 		// 1. success case (single tx)
 		{"TSucc1",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (Message,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
 			msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs[:1]
 			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
@@ -56,14 +56,14 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			}).Return(mockMo)
 			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
-			actor.AssertNumberOfCalls(tt,"CallRequest",1)
+			actor.AssertNumberOfCalls(tt,"CallRequestDefaultTimeout",1)
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",1)
 			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
 		// 1-1 success case2 (multiple tx)
 		{"TSucc2",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (Message,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
 			msgHelper.On("ExtractTxFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs
 			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
@@ -74,7 +74,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			}).Return(mockMo)
 			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
-			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
+			actor.AssertNumberOfCalls(tt,"CallRequestDefaultTimeout",len(sampleTxs))
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
 			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
@@ -82,13 +82,13 @@ func TestTxRequestHandler_handle(t *testing.T) {
 		{"TPartialExist",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (Message,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
 			// emulate second tx is not exists.
-			actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
 				if bytes.Equal(m.Hash,sampleTxs[1]) {
 					return false
 				}
 				return true
 			})).Return(&message.MemPoolExistRsp{Tx:dummyTx}, nil)
-			actor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.MatchedBy(func(m *message.MemPoolExist) bool {
 				if bytes.Equal(m.Hash,sampleTxs[1]) {
 					return true
 				}
@@ -114,7 +114,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				}).Return(mockMo)
 			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
-			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
+			actor.AssertNumberOfCalls(tt,"CallRequestDefaultTimeout",len(sampleTxs))
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
 			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
@@ -122,7 +122,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 		{"TNoExist",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (Message,*types.GetTransactionsRequest){
 			dummyTx := &types.Tx{Hash:nil}
 			// emulate second tx is not exists.
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(&message.MemPoolExistRsp{}, nil)
 			msgHelper.On("ExtractTxFromResponseAndError", mock.MatchedBy(func(m *message.MemPoolExistRsp) bool {
 				if m.Tx == nil {
 					return false
@@ -143,14 +143,14 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			}).Return(mockMo)
 			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
-			actor.AssertNumberOfCalls(tt,"CallRequest",len(sampleTxs))
+			actor.AssertNumberOfCalls(tt,"CallRequestDefaultTimeout",len(sampleTxs))
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",len(sampleTxs))
 			mockMF.AssertNumberOfCalls(tt, "newMsgResponseOrder", 1)
 		}},
 		// 4. actor failure
 		{"TActorError",func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) (Message,*types.GetTransactionsRequest){
 			//dummyTx := &types.Tx{Hash:nil}
-			actor.On("CallRequest",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(nil, fmt.Errorf("timeout"))
+			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExist")).Return(nil, fmt.Errorf("timeout"))
 			//msgHelper.On("ExtractTxFromResponseAndError", nil, mock.AnythingOfType("error")).Return(nil, fmt.Errorf("error"))
 			msgHelper.On("ExtractTxFromResponseAndError",  nil, mock.MatchedBy(func(err error) bool {
 				if err != nil {
@@ -166,7 +166,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			return sampleHeader, &types.GetTransactionsRequest{Hashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager, actor *MockActorService, msgHelper *mocks.Helper, mockMF *MockMoFactory, mockRW *MockMsgReadWriter) {
 			// break at first eval
-			actor.AssertNumberOfCalls(tt,"CallRequest",1)
+			actor.AssertNumberOfCalls(tt,"CallRequestDefaultTimeout",1)
 			msgHelper.AssertNumberOfCalls(tt,"ExtractTxFromResponseAndError",1)
 			// TODO need check that error response was sent
 		}},
@@ -223,14 +223,14 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.On("sendMessage", mock.Anything)
 			callReqCount :=0
-			mockActor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(arg *message.MemPoolExist) bool{
+			mockActor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.MatchedBy(func(arg *message.MemPoolExist) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return true
 				}
 				return false
 			})).Return(validBigMempoolRsp, nil)
-			mockActor.On("CallRequest",message.MemPoolSvc, mock.MatchedBy(func(arg *message.MemPoolExist) bool{
+			mockActor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.MatchedBy(func(arg *message.MemPoolExist) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return false

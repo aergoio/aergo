@@ -179,7 +179,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Mess
 			end = types.BlockNo(data.Height - uint64(maxFetchSize-1))
 		}
 		for i := types.BlockNo(data.Height); i >= end; i-- {
-			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
+			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequestDefaultTimeout(message.ChainSvc,
 				&message.GetBlockByNo{BlockNo: i}))
 			if err != nil || foundBlock == nil {
 				break
@@ -293,7 +293,7 @@ func (bh *getMissingRequestHandler) handle(msg Message, msgBody proto.Message) {
 
 	// send to ChainSvc
 	// find block info from chainservice
-	rawResponse, err := bh.actor.CallRequest(
+	rawResponse, err := bh.actor.CallRequestDefaultTimeout(
 		message.ChainSvc, &message.GetMissing{Hashes: data.Hashes, StopHash: data.Stophash})
 	if err != nil {
 		bh.logger.Warn().Err(err).Msg("failed to get missing")
@@ -342,7 +342,7 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 	payloadSize := EmptyGetBlockResponseSize
 	var blockSize, fieldSize int
 	for i := missing.TopNumber + 1; i <= missing.StopNumber; i++ {
-		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
+		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequestDefaultTimeout(message.ChainSvc,
 			&message.GetBlockByNo{BlockNo: i}))
 		if err != nil || foundBlock == nil {
 			// the block get from getMissing must exists. this error is fatal.
@@ -352,6 +352,7 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 		blockSize = proto.Size(foundBlock)
 		fieldSize = blockSize + calculateFieldDescSize(blockSize)
 		if len(blockInfos) >= sliceCap || (payloadSize+fieldSize) > MaxPayloadLength {
+			msgSentCount++
 			// send partial list
 			resp := &types.GetBlockResponse{
 				Status: status,
@@ -359,7 +360,6 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 				HasNext:msgSentCount<MaxResponseSplitCount} // always have nextItem ( see foundBlock) but msg count limit will affect
 			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getMissing response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
-			msgSentCount++
 			if msgSentCount >= MaxResponseSplitCount {
 				return
 			}

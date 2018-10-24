@@ -122,11 +122,12 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 		// 2. Succ : valid tx hashes and partially exist in local cache
 		{"TSuccExistPart", txHashes[2:],
 			func(tt *testing.T, actor *MockActorService) {
+				// only hashes not in cache are sent to method, which is first 2 hashes
 				actor.AssertCalled(tt,"SendRequest",message.P2PSvc, mock.MatchedBy(func(arg *message.GetTransactions) bool {
 					for i,hash := range arg.Hashes {
 						assert.True(tt, bytes.Equal(hash, txHashes[i][:]))
 					}
-					return len(arg.Hashes) == len(txHashes) - 1
+					return len(arg.Hashes) == 2
 				}))
 			}, sampleTxHashes[:len(sampleTxHashes)-1]},
 		// 3. Succ : valid tx hashes and all exist in local cache

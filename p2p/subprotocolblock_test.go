@@ -104,14 +104,14 @@ func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 			mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.On("sendMessage", mock.Anything)
 			callReqCount :=0
-			mockActor.On("CallRequest",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlockByNo) bool{
+			mockActor.On("CallRequestDefaultTimeout",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlockByNo) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return true
 				}
 				return false
 			})).Return(validBigBlockRsp, nil)
-			mockActor.On("CallRequest",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlockByNo) bool{
+			mockActor.On("CallRequestDefaultTimeout",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlockByNo) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return false

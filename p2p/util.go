@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"net"
 	"reflect"
+	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -39,11 +40,16 @@ type ActorService interface {
 	TellRequest(actor string, msg interface{})
 	// SendRequest send actor request, and the response is expected to go back asynchronously.
 	SendRequest(actor string, msg interface{})
-	// CallReqeust send actor request and wait the handling of that message to finished,
+	// CallRequest send actor request and wait the handling of that message to finished,
 	// and get return value.
-	CallRequest(actor string, msg interface{}) (interface{}, error)
+	CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error)
+	// CallRequestDefaultTimeout is CallRequest with default timeout
+	CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error)
+
 	// FutureRequest send actor reqeust and get the Future object to get the state and return value of message
-	FutureRequest(actor string, msg interface{}) *actor.Future
+	FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future
+	// FutureRequestDefaultTimeout is FutureRequest with default timeout
+	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future
 
 	GetChainAccessor() types.ChainAccessor
 }

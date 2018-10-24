@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -58,7 +58,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	payloadSize := EmptyGetBlockResponseSize
 	var txSize, fieldSize int
 	for _, hash := range data.Hashes {
-		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequest(message.MemPoolSvc,
+		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
 			&message.MemPoolExist{Hash: hash}))
 		if err != nil {
 			// response error to peer

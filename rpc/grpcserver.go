@@ -225,7 +225,7 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 
 // GetTX handle rpc request gettx
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
-	result, err := rpc.actorHelper.CallRequest(message.MemPoolSvc,
+	result, err := rpc.actorHelper.CallRequestDefaultTimeout(message.MemPoolSvc,
 		&message.MemPoolExist{Hash: in.Value})
 	if err != nil {
 		return nil, err

@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -28,7 +28,9 @@ const (
 	MaxBlockResponseCount       = 2000
 	MaxResponseSplitCount = 5
 
-	SyncWorkTTL = time.Second * 20
+	SyncWorkTTL = time.Second * 30
+	AddBlockCheckpoint = 100
+	AddBlockWaitTime = time.Second * 10
 )
 
 

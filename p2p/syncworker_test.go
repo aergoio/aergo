@@ -93,7 +93,7 @@ func TestSyncWorker_runWorker(t *testing.T) {
 func TestSyncWorker_putAddBlock(t *testing.T) {
 	dummyMsgID := NewMsgID()
 	dummyMsg := &V030Message{id:dummyMsgID}
-	dummyBlocks := make([]*types.Block, 3)
+	dummyBlocks := make([]*types.Block, len(sampleTxs))
 	hashes := make([]message.BlockHash, len(sampleTxs))
 
 	parentHash := dummyBlockHash

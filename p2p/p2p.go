@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"io/ioutil"
+	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -197,14 +198,24 @@ func (p2ps *P2P) SendRequest(actor string, msg interface{}) {
 }
 
 // FutureRequest implement interface method of ActorService
-func (p2ps *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
+func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future {
+	return p2ps.RequestToFuture(actor, msg, timeout)
+}
+
+// FutureRequestDefaultTimeout implement interface method of ActorService
+func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
 	return p2ps.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
+func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, timeout)
+	return future.Result()
+}
 
+// CallRequest implement interface method of ActorService
+func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
 	return future.Result()
 }
 
