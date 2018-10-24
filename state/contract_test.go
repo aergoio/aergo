@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -13,7 +14,7 @@ var stateDB *StateDB
 
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
-	_ = chainStateDB.Init("test", nil, false)
+	_ = chainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
 	stateDB = chainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 

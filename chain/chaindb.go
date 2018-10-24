@@ -75,10 +75,10 @@ func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
 	return cdb
 }
 
-func (cdb *ChainDB) Init(dataDir string) error {
+func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)
-		cdb.store = db.NewDB(db.BadgerImpl, dbPath)
+		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
 	// load data

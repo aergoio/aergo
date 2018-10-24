@@ -25,6 +25,7 @@ type Config struct {
 // BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
+	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
@@ -100,6 +101,7 @@ map = does not support
 const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
+dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enablerest = {{.BaseConfig.EnableRest}}

@@ -1478,7 +1478,7 @@ func loadBlockChain(t *testing.T) *blockChain {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
-	err = bc.sdb.Init(dataPath, nil, false)
+	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}

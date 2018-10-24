@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain/system"
@@ -73,9 +74,9 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	return actor
 }
 
-func (cs *ChainService) initDB(dataDir string) error {
+func (cs *ChainService) initDB(dbType string, dataDir string) error {
 	// init chaindb
-	if err := cs.cdb.Init(dataDir); err != nil {
+	if err := cs.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
@@ -85,7 +86,7 @@ func (cs *ChainService) initDB(dataDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := cs.sdb.Init(dataDir, bestBlock, cs.cfg.EnableTestmode); err != nil {
+	if err := cs.sdb.Init(dbType, dataDir, bestBlock, cs.cfg.EnableTestmode); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
@@ -99,7 +100,7 @@ func (cs *ChainService) initDB(dataDir string) error {
 func (cs *ChainService) BeforeStart() {
 	var err error
 
-	if err = cs.initDB(cs.cfg.DataDir); err != nil {
+	if err = cs.initDB(cs.cfg.DbType, cs.cfg.DataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
@@ -116,9 +117,9 @@ func (cs *ChainService) AfterStart() {
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
+func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dbType string, dataDir string) error {
 
-	if err := cs.initDB(dataDir); err != nil {
+	if err := cs.initDB(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		return err
 	}

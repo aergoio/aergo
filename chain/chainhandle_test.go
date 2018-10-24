@@ -5,9 +5,11 @@
 package chain
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -19,8 +21,9 @@ var keystore *key.Store
 
 func initTest(t *testing.T) {
 	sdb = state.NewChainStateDB()
-	keystore = key.NewStore("test")
-	sdb.Init("test", nil, false)
+	tmpdir, _ := ioutil.TempDir("", "test")
+	keystore = key.NewStore(tmpdir)
+	sdb.Init(string(db.BadgerImpl), tmpdir, nil, false)
 	genesis := types.GetTestGenesis()
 
 	err := sdb.SetGenesis(genesis)

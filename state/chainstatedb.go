@@ -35,7 +35,7 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 }
 
 // Init initialize database and load statedb of latest block
-func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block, test bool) error {
+func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Block, test bool) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -43,7 +43,7 @@ func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block, test bool)
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
-		sdb.store = db.NewDB(db.BadgerImpl, dbPath)
+		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
 	// init trie

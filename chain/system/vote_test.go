@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ var sdb *state.ChainStateDB
 
 func initTest(t *testing.T) {
 	sdb = state.NewChainStateDB()
-	sdb.Init("test", nil, false)
+	sdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
 
 	err := sdb.SetGenesis(genesis)

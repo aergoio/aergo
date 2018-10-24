@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
-	"os"
 	"path"
 
 	sha256 "github.com/minio/sha256-simd"
@@ -27,13 +26,10 @@ type Store struct {
 func NewStore(storePath string) *Store {
 	const dbName = "account"
 	dbPath := path.Join(storePath, dbName)
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		_ = os.MkdirAll(dbPath, 0711)
-	}
 
 	return &Store{
 		unlocked: map[string]*aergokey{},
-		storage:  db.NewDB(db.BadgerImpl, dbPath),
+		storage:  db.NewDB(db.LevelImpl, dbPath),
 	}
 }
 func (ks *Store) CloseStore() {

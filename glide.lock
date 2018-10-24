@@ -1,5 +1,5 @@
 hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-10-23T15:17:28.9171821+09:00
+updated: 2018-10-24T20:39:34.2007661+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -11,7 +11,7 @@ imports:
   - mailbox
   - router
 - name: github.com/aergoio/aergo-lib
-  version: c664d5a2566abc7cd2eaa36c56c70e7768ba172e
+  version: 931cc3c61ce3288d570dfe7c3a4c7af6513baa96
   subpackages:
   - config
   - db
@@ -260,7 +260,7 @@ imports:
 - name: github.com/pelletier/go-toml
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
-  version: d58f94251046e7f70ac45aceea6cf6f61415ccca
+  version: 059132a15dd08d6704c67711dae0cf35ab991756
 - name: github.com/rcrowley/go-metrics
   version: 3113b8401b8a98917cde58f8bbd42a1b1c03b1fd
 - name: github.com/rs/cors
@@ -330,7 +330,7 @@ imports:
 - name: github.com/whyrusleeping/multiaddr-filter
   version: e903e4adabd70b78bc9293b6ee4f359afb3f9f59
 - name: github.com/whyrusleeping/yamux
-  version: cd464a9e02b9a1710f2c6bfd6e12c9a31fe17c8a
+  version: d41888a2ec0c654307287841c32ad71f9cf877ba
 - name: github.com/Workiva/go-datastructures
   version: f07cbe3f82ca2fd6e5ab94afce65fe43319f675f
   subpackages:
@@ -343,7 +343,7 @@ imports:
   - sha3
   - ssh/terminal
 - name: golang.org/x/net
-  version: 04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e
+  version: 9b4f9f5ad5197c79fd623a3638e70d8b26cef344
   subpackages:
   - context
   - html
@@ -356,7 +356,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 8a28ead16f52c8aaeffbf79239b251dfdf6c4f96
+  version: 44b849a8bc13eb42e95e6c6c5e360481b73ec710
   subpackages:
   - cpu
   - unix
