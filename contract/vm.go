@@ -749,3 +749,8 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount u
 
 	return true
 }
+
+//export LuaPrint
+func LuaPrint(contractId *C.char, args *C.char) {
+	logger.Info().Str("Contract SystemPrint", C.GoString(contractId)).Msg(C.GoString(args))
+}

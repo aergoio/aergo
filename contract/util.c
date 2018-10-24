@@ -309,8 +309,8 @@ char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 char *lua_util_get_db_key(const bc_ctx_t *bc_ctx, const char *key)
 {
 
-	char *dbKey = malloc(sizeof(char) * (strlen(key) + strlen(bc_ctx->contractId) + 2));
-	sprintf(dbKey, "%s_%s", bc_ctx->contractId, key);
+	char *dbKey = malloc(sizeof(char) * (strlen(key) + 2));
+	sprintf(dbKey, "_%s", key);
 
 	return dbKey;
 }
