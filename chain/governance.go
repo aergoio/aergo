@@ -8,7 +8,7 @@ package chain
 import (
 	"errors"
 
-	"github.com/aergoio/aergo/chain/system"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
