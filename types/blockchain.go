@@ -23,6 +23,7 @@ const (
 	DefaultMaxBlockSize = 1 << 20
 	DefaultCoinbaseFee  = 1
 	lastFieldOfBH       = "Sign"
+	MaxAER              = 5000000000000000000 //500000000 AERGO
 )
 
 var lastIndexOfBH int
@@ -347,11 +348,29 @@ func (tx *Tx) Validate() error {
 	if account == nil {
 		return ErrTxFormatInvalid
 	}
+
 	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
+
+	if tx.GetBody().GetAmount() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
+	if tx.GetBody().GetLimit() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
+	if tx.GetBody().GetPrice() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
 	switch tx.Body.Type {
 	case TxType_NORMAL:
+		if tx.GetBody().GetRecipient() == nil && len(tx.GetBody().GetPayload()) == 0 {
+			//contract deploy
+			return ErrTxInvalidRecipient
+		}
 	case TxType_GOVERNANCE:
 		if len(tx.Body.Payload) <= 0 {
 			return ErrTxFormatInvalid

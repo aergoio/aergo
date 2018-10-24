@@ -470,24 +470,6 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func validateTx(tx *types.Tx, senderState *types.State, txFee uint64) error {
-	txBody := tx.GetBody()
-
-	switch txBody.Type {
-	case types.TxType_NORMAL:
-		if (senderState.Nonce + 1) != txBody.Nonce {
-			return fmt.Errorf("invalid nonce acc=%d,tx=%d", senderState.Nonce, txBody.Nonce)
-		}
-		if senderState.GetBalance() < txBody.Amount+txFee {
-			return &ErrTx{ErrTxInsufficientBalance, tx}
-		}
-	case types.TxType_GOVERNANCE:
-	default:
-		return &ErrTx{ErrTxInvalidType, tx}
-	}
-	return nil
-}
-
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
 	err := tx.Validate()
 	if err != nil {
