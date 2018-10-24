@@ -15,7 +15,7 @@ This improvement in performance comes with one limitation : Merkle proofs of non
 
 ## Standard Sparse Merkle Tree
 
-![smt](smt.png)
+![smt](pictures/smt.png)
 
 *Figure 1. An example sparse Merkle tree of height=4 (4-bit keys) containing 3 keys. The 3 keys are shown in red and blue. Default nodes are shown in green. Non-default nodes are shown in purple.*
 
@@ -27,7 +27,7 @@ Implementation of the standard SMT : [https://github.com/aergoio/SMT](https://gi
 ### Modification of the Sparse Merkle Tree
 To reduce the number of hashing operations necessary to update a key in a tree, we created leaf nodes. A leaf node is stored at the highest subtree that contains only 1 non-default key. So, the hashing of the tree starts from the height of leaf nodes instead of height 0. If the tree contains N random keys, then on average, leaf nodes will be created around height = log(N).
 
-![mod](mod.png)
+![mod](pictures/mod.png)
 *Figure 2. H3 was the highest subtree containing only one key: the red one. So, Value will take its place in the modified sparse Merkle tree.*
 
 ### Merkle Proofs
@@ -46,7 +46,7 @@ When a leaf is removed from the tree, special care is taken by the Update() func
 
 So, when a key is deleted, Update() checks if it’s sibling is also a leaf node and moves it up until the highest subtree root containing only that non-default key.
 
-![deleted](deleted.png)
+![deleted](pictures/deleted.png)
 *Figure 3. The same tree after deleting a blue key : LeafNode1 moves up to the highest subtree containing one key*
 
 ### Node batching
@@ -64,7 +64,7 @@ For example, to get the children of node 3–0 at index id=1 in the array, we ca
 
 To each node, we append a byte flag to recognize the leaf nodes. Since the nature of Root is not know ahead of time, the byte flag is stored at the first index of the nodes array.
 
-![batch](batch.png)
+![batch](pictures/batch.png)
 *Figure 4. A visual representation of node batching. The first batch is blue, and all 16 leaves of a batch are roots to other batches (green). A batch contains 30 nodes.*
 
 Node batching has two benefits : reduced number of database reads and concurrent update of the height 4 subtree without the need for a lock.
