@@ -12,8 +12,9 @@ import (
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states *StateDB
-	store  db.DB
+	states   *StateDB
+	store    db.DB
+	testmode bool
 }
 
 // NewChainStateDB creates instance of ChainStateDB
@@ -34,10 +35,11 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 }
 
 // Init initialize database and load statedb of latest block
-func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block) error {
+func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block, test bool) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
+	sdb.testmode = test
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
@@ -51,7 +53,7 @@ func (sdb *ChainStateDB) Init(dataDir string, bestBlock *types.Block) error {
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		sdb.states = NewStateDB(&sdb.store, sroot)
+		sdb.states = NewStateDB(&sdb.store, sroot, sdb.testmode)
 	}
 	return nil
 }
@@ -75,7 +77,7 @@ func (sdb *ChainStateDB) GetStateDB() *StateDB {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(&sdb.store, root)
+	return NewStateDB(&sdb.store, root, sdb.testmode)
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {

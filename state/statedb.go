@@ -53,18 +53,20 @@ var (
 
 // StateDB manages trie of states
 type StateDB struct {
-	lock   sync.RWMutex
-	buffer *stateBuffer
-	trie   *trie.Trie
-	store  *db.DB
+	lock     sync.RWMutex
+	buffer   *stateBuffer
+	trie     *trie.Trie
+	store    *db.DB
+	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore *db.DB, root []byte) *StateDB {
+func NewStateDB(dbstore *db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
-		buffer: newStateBuffer(),
-		trie:   trie.NewTrie(root, common.Hasher, *dbstore),
-		store:  dbstore,
+		buffer:   newStateBuffer(),
+		trie:     trie.NewTrie(root, common.Hasher, *dbstore),
+		store:    dbstore,
+		testmode: test,
 	}
 	return &sdb
 }
@@ -74,7 +76,7 @@ func (states *StateDB) Clone() *StateDB {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
 
-	return NewStateDB(states.store, states.GetRoot())
+	return NewStateDB(states.store, states.GetRoot(), states.testmode)
 }
 
 // GetRoot returns root hash of trie
@@ -148,6 +150,9 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 		return nil, err
 	}
 	if st == nil {
+		if states.testmode {
+			return &types.State{Balance: 100000000}, nil
+		}
 		return &types.State{}, nil
 	}
 	return st, nil
@@ -228,6 +233,16 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 		return nil, err
 	}
 	if st == nil {
+		if states.testmode {
+			return &V{
+				sdb:    states,
+				id:     id,
+				aid:    aid,
+				oldV:   &types.State{},
+				newV:   &types.State{Balance: 100000000},
+				newOne: true,
+			}, nil
+		}
 		return &V{
 			sdb:    states,
 			id:     id,
