@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	// Trie default value : hash of 0x0
-	DefaultLeaf = Hasher([]byte{0x0})
+	// Trie default value : [byte(0)]
+	DefaultLeaf = []byte{0}
 )
 
 const (
@@ -22,13 +22,13 @@ const (
 
 type Hash [HashLength]byte
 
-func bitIsSet(bits []byte, i uint64) bool {
+func bitIsSet(bits []byte, i int) bool {
 	return bits[i/8]&(1<<uint(7-i%8)) != 0
 }
-func bitSet(bits []byte, i uint64) {
+func bitSet(bits []byte, i int) {
 	bits[i/8] |= 1 << uint(7-i%8)
 }
-func bitSplit(bits []byte, i uint64) (split []byte) {
+func bitSplit(bits []byte, i int) (split []byte) {
 	split = make([]byte, len(bits))
 	copy(split, bits)
 	bitSet(split, i)

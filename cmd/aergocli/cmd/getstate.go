@@ -67,8 +67,8 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, nonce:%d, balance:%d, merkle proof length:%d}\n",
-			address, msg.GetState().GetNonce(), msg.GetState().GetBalance(), len(msg.GetAuditPath()))
+		cmd.Printf("{account:%s, nonce:%d, balance:%d, included:%t, merkle proof length:%d}\n",
+			address, msg.GetState().GetNonce(), msg.GetState().GetBalance(), msg.GetInclusion(), len(msg.GetAuditPath()))
 	}
 
 }
