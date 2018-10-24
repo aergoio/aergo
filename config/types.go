@@ -135,7 +135,7 @@ coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
-verifiers= {{.Mempool.VerifierNumber}}
+verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
 
 [consensus]

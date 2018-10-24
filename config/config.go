@@ -6,6 +6,8 @@
 package config
 
 import (
+	"runtime"
+
 	"github.com/aergoio/aergo-lib/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
@@ -93,7 +95,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
 		ShowMetrics:    false,
-		VerifierNumber: 1,
+		VerifierNumber: runtime.NumCPU(),
 		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}
 }
