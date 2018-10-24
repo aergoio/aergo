@@ -54,11 +54,9 @@ exp_check_val(check_t *check, ast_exp_t *exp)
         break;
     case VAL_INT:
         meta_set_uint64(&exp->meta);
-        meta_set_const(&exp->meta);
         break;
     case VAL_FP:
         meta_set_double(&exp->meta);
-        meta_set_const(&exp->meta);
         break;
     case VAL_STR:
         meta_set_string(&exp->meta);
@@ -69,6 +67,8 @@ exp_check_val(check_t *check, ast_exp_t *exp)
     default:
         ASSERT1(!"invalid value", exp->u_val.val.kind);
     }
+
+    meta_set_const(&exp->meta);
 
     return NO_ERROR;
 }

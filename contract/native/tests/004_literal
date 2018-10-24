@@ -98,8 +98,10 @@ contract test {
 
 @test(predefined_constant)
 contract test {
+    /*
     bool v1 = true;
     bool v2 = false;
+    */
     map(int, string) m = null;
 }
 
