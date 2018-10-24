@@ -313,6 +313,32 @@ func TestTrieCommit(t *testing.T) {
 	os.RemoveAll(".aergo")
 }
 
+func TestTrieStageUpdates(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewTrie(nil, Hasher, st)
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+	txn := st.NewTx()
+	smt.StageUpdates(&txn)
+	txn.Commit()
+	// liveCache is deleted so the key is fetched in badger db
+	smt.db.liveCache = make(map[Hash][][]byte)
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(value, values[i]) {
+			t.Fatal("failed to get value in committed db")
+		}
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
 func TestTrieRevert(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -335,10 +361,10 @@ func TestTrieRevert(t *testing.T) {
 	root2, _ := smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
 	smt.Revert(root)
-	if len(smt.db.store.Get(root)) == 0 {
+	if len(smt.db.Store.Get(root)) == 0 {
 		t.Fatal("shortcut node shouldnt be deleted by revert")
 	}
-	if len(smt.db.store.Get(root2)) != 0 {
+	if len(smt.db.Store.Get(root2)) != 0 {
 		t.Fatal("reverted root should have been deleted")
 	}
 	key1 = make([]byte, 32, 32)
@@ -347,7 +373,7 @@ func TestTrieRevert(t *testing.T) {
 	smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
 	smt.Revert(root)
-	if len(smt.db.store.Get(root)) == 0 {
+	if len(smt.db.Store.Get(root)) == 0 {
 		t.Fatal("shortcut node shouldnt be deleted by revert")
 	}
 
@@ -389,12 +415,12 @@ func TestTrieRevert(t *testing.T) {
 	}
 	// Check all reverted nodes have been deleted
 	for node, _ := range updatedNodes2 {
-		if len(smt.db.store.Get(node[:])) != 0 {
+		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
 	}
 	for node, _ := range updatedNodes1 {
-		if len(smt.db.store.Get(node[:])) != 0 {
+		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
 	}

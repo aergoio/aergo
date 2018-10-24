@@ -57,7 +57,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
-		store:        store,
+		Store:        store,
 	}
 	// don't store any cache by default (contracts state don't use cache)
 	s.CacheHeightLimit = s.TrieHeight + 1
@@ -472,7 +472,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		return val, nil
 	}
 	//Fetch node in disk database
-	if s.db.store == nil {
+	if s.db.Store == nil {
 		return nil, fmt.Errorf("DB not connected to trie")
 	}
 	if s.counterOn {
@@ -481,7 +481,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		s.loadDbMux.Unlock()
 	}
 	s.db.lock.Lock()
-	dbval := s.db.store.Get(root[:HashLength])
+	dbval := s.db.Store.Get(root[:HashLength])
 	s.db.lock.Unlock()
 	nodeSize := len(dbval)
 	if nodeSize != 0 {
