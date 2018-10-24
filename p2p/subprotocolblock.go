@@ -78,14 +78,13 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	payloadSize := EmptyGetBlockResponseSize
 	var blockSize, fieldSize int
 	for _, hash := range data.Hashes {
-		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
-			&message.GetBlock{BlockHash: hash}))
+		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil || foundBlock == nil {
 			continue
 		}
 		blockSize = proto.Size(foundBlock)
 		fieldSize = blockSize + calculateFieldDescSize(blockSize)
-		if (payloadSize + fieldSize)  > MaxPayloadLength {
+		if (payloadSize + fieldSize) > MaxPayloadLength {
 			// send partial list
 			resp := &types.GetBlockResponse{
 				Status: status,
@@ -161,8 +160,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Mess
 	if len(data.Hash) > 0 {
 		hash := data.Hash
 		for idx < maxFetchSize {
-			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
-				&message.GetBlock{BlockHash: hash}))
+			foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 			if err != nil || foundBlock == nil {
 				break
 			}
@@ -243,7 +241,7 @@ func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	// lru cache can accept hashable key
 	var hash BlkHash
 	copy(hash[:], data.BlockHash)
-	if ! remotePeer.updateBlkCache(hash) {
+	if !remotePeer.updateBlkCache(hash) {
 		bh.sm.HandleNewBlockNotice(remotePeer, hash, data)
 	}
 }
@@ -310,7 +308,7 @@ func (bh *getMissingRequestHandler) handle(msg Message, msgBody proto.Message) {
 		return
 	}
 	// generate response message
-	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Uint64("from_no",missingInfo.TopNumber).Uint64("to_no",missingInfo.StopNumber).Msg("Sending GetMissingRequest response")
+	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Uint64("from_no", missingInfo.TopNumber).Uint64("to_no", missingInfo.StopNumber).Msg("Sending GetMissingRequest response")
 
 	bh.sendMissingResp(remotePeer, msg.ID(), missingInfo)
 	/*
@@ -342,17 +340,17 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 	blockInfos := make([]*types.Block, 0, sliceCap)
 	payloadSize := EmptyGetBlockResponseSize
 	var blockSize, fieldSize int
-	for i:=missing.TopNumber+1; i <= missing.StopNumber; i++ {
+	for i := missing.TopNumber + 1; i <= missing.StopNumber; i++ {
 		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
 			&message.GetBlockByNo{BlockNo: i}))
 		if err != nil || foundBlock == nil {
 			// the block get from getMissing must exists. this error is fatal.
-			bh.logger.Warn().Err(err).Uint64("blk_number", i).Str("req_id",requestID.String()).Msg("failed to get block while processing getMissing")
+			bh.logger.Warn().Err(err).Uint64("blk_number", i).Str("req_id", requestID.String()).Msg("failed to get block while processing getMissing")
 			return
 		}
 		blockSize = proto.Size(foundBlock)
 		fieldSize = blockSize + calculateFieldDescSize(blockSize)
-		if len(blockInfos) >= sliceCap || (payloadSize + fieldSize)  > MaxPayloadLength {
+		if len(blockInfos) >= sliceCap || (payloadSize+fieldSize) > MaxPayloadLength {
 			// send partial list
 			resp := &types.GetBlockResponse{
 				Status: status,

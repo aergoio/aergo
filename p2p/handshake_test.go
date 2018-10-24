@@ -59,13 +59,15 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
 	mockPM := new(MockPeerManager)
-
+	mockCA := new(MockChainAccessor)
+	dummyBestBlock := &types.Block{Header:&types.BlockHeader{}}
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
 	mockActor.On("CallRequest", mock.Anything, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBlkRsp, nil)
-
+	mockActor.On("GetChainAccessor").Return(mockCA)
+	mockCA.On("GetBestBlock").Return(dummyBestBlock, nil)
 	// dummyStatusMsg := &types.Status{}
 	tests := []struct {
 		name    string

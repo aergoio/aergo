@@ -52,6 +52,7 @@ type SimpleBlockFactory struct {
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	ca               types.ChainAccessor
+	prevBlock        *types.Block
 }
 
 // New returns a SimpleBlockFactory.
@@ -88,6 +89,11 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b, _ := s.ca.GetBestBlock(); b != nil {
+		if s.prevBlock != nil && s.prevBlock.BlockNo() == b.BlockNo() {
+			logger.Debug().Msg("previous block not connected. skip to generate block")
+			return
+		}
+		s.prevBlock = b
 		jq <- b
 	}
 }

@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"time"
 )
 
@@ -110,6 +111,10 @@ func MustParseBlkHash(bSlice []byte) BlkHash {
 	return hash
 }
 
+func (h BlkHash) String() string {
+	return enc.ToString(h[:])
+}
+
 func (h BlkHash) Slice() []byte {
 	return h[:]
 }
@@ -131,6 +136,10 @@ func MustParseTxHash(bSlice []byte) TxHash {
 		panic(err)
 	}
 	return hash
+}
+
+func (h TxHash) String() string {
+	return enc.ToString(h[:])
 }
 
 func (h TxHash) Slice() []byte {

@@ -17,8 +17,9 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 	bigHash := make([]byte,6*1024*1024)
 	logger := log.NewLogger("test")
 	//validSmallBlockRsp := &message.GetBlockRsp{Block:&types.Block{Hash:make([]byte,40)},Err:nil}
-	validBigBlockRsp := message.GetBlockRsp{Block:&types.Block{Hash:bigHash},Err:nil}
-	notExistBlockRsp := message.GetBlockRsp{Block:nil,Err:nil}
+	validBlock:= &types.Block{Hash:bigHash}
+	//validBigBlockRsp := message.GetBlockRsp{Block:validBlock,Err:nil}
+	//notExistBlockRsp := message.GetBlockRsp{Block:nil,Err:nil}
 	//dummyMO := new(MockMsgOrder)
 	tests := []struct {
 		name string
@@ -43,20 +44,22 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.On("sendMessage", mock.Anything)
 			callReqCount :=0
-			mockActor.On("CallRequest",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlock) bool{
+			mockCA := new(MockChainAccessor)
+			mockActor.On("GetChainAccessor").Return(mockCA)
+			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return true
 				}
 				return false
-			})).Return(validBigBlockRsp, nil)
-			mockActor.On("CallRequest",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlock) bool{
+			})).Return(validBlock, nil)
+			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool{
 				callReqCount++
 				if callReqCount <= test.validCallCount {
 					return false
 				}
 				return true
-			})).Return(notExistBlockRsp, nil)
+			})).Return(nil, nil)
 
 			h:=newBlockReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg := &V030Message{id:NewMsgID()}

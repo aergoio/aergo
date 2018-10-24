@@ -8,7 +8,6 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/mock"
 	"reflect"
@@ -18,13 +17,14 @@ import (
 func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
+	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
-	mockActor.On("CallRequest", mock.Anything, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBlkRsp, nil)
+	mockActor.On("GetChainAccessor").Return(mockCA)
+	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
 	dummyStatusMsg := &types.Status{}
 	statusBytes, _ := marshalMessage(dummyStatusMsg)
@@ -74,13 +74,15 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	// t.SkipNow()
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
+	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
 	dummyMeta := PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
-	mockActor.On("CallRequest", mock.Anything, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBlkRsp, nil)
+	//dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
+	mockActor.On("GetChainAccessor").Return(mockCA)
+	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
 	dummyStatusMsg := &types.Status{}
 	statusBytes, _ := marshalMessage(dummyStatusMsg)
