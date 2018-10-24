@@ -84,7 +84,6 @@ func consensusBlockCount() uint64 {
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
 	return time.NewTicker(consensus.BlockInterval / 100)
-
 }
 
 // QueueJob send a block triggering information to jq.

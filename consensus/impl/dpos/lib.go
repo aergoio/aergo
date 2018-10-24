@@ -75,9 +75,18 @@ func (ls *libStatus) addConfirmInfo(block *types.Block) {
 	}
 
 	ci := newConfirmInfo(block, ls.confirmsRequired)
-	ls.confirms.PushBack(ci)
 
 	bi := ci.blockInfo
+
+	if e := ls.confirms.PushBack(ci); e.Prev() != nil {
+		prevBi := cInfo(e.Prev()).blockInfo
+		if bi.BlockNo != prevBi.BlockNo+1 {
+			logger.Error().
+				Uint64("prev no", prevBi.BlockNo).Uint64("current no", bi.BlockNo).
+				Msg("inconsistent confirm info found")
+		}
+
+	}
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
 	if _, exist := ls.Prpsd[ci.BPID]; !exist {
@@ -109,30 +118,28 @@ func (ls *libStatus) updatePreLIB(bpID string, pl *plInfo) {
 
 func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 	var (
-		confirmed *blockInfo
-		prev      *list.Element
-		e         = ls.confirms.Back()
-		cr        = cInfo(e).ConfirmRange
+		confirmed   *blockInfo
+		last        = ls.confirms.Back()
+		lastCi      = cInfo(last)
+		confirmedBy = lastCi.blockInfo
 	)
-	bpID = cInfo(e).BPID
-	confirmedBy := cInfo(e).blockInfo
 
-	for e != nil && cr > 0 {
-		prev = e.Prev()
-		cr--
-
+	min := lastCi.BlockNo - lastCi.ConfirmRange + 1
+	max := lastCi.BlockNo
+	for e := last; e != nil; e = e.Prev() {
 		c := cInfo(e)
-		c.confirmsLeft--
+		if c.BlockNo >= min && c.BlockNo <= max {
+			c.confirmsLeft--
+		}
+
 		if c.confirmsLeft == 0 {
-			// proposed LIB info to return
 			confirmed = c.bInfo()
 			break
 		}
-
-		e = prev
 	}
 
 	if confirmed != nil {
+		bpID = lastCi.BPID
 		pl = &plInfo{Plib: confirmed, PlibBy: confirmedBy}
 	}
 
