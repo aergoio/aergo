@@ -70,18 +70,6 @@ typedef enum type_e {
     TYPE_MAX
 } type_t;
 
-#define TYPE_FAMILY(type)       type_families_[(type)]
-
-typedef enum family_e {
-    FAM_NONE        = 0,
-    FAM_BOOL,
-    FAM_INT,
-    FAM_FP,
-    FAM_STR,
-    FAM_OBJ,
-    FAM_MAX
-} family_t;
-
 #define ID_KIND(id)             id_kinds_[(id)->kind]
 
 typedef enum id_kind_e {
@@ -201,7 +189,6 @@ typedef enum val_kind_e {
 } val_kind_t;
 
 extern char *type_names_[TYPE_MAX];
-extern family_t type_families_[TYPE_MAX];
 
 extern char *id_kinds_[ID_MAX];
 extern char *stmt_kinds_[STMT_MAX];

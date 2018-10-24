@@ -30,29 +30,6 @@ char *type_names_[TYPE_MAX] = {
     "tuple"
 };
 
-family_t type_families_[TYPE_MAX] = {
-    FAM_NONE,
-    FAM_BOOL,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_INT,
-    FAM_FP,
-    FAM_FP,
-    FAM_STR,
-    FAM_NONE,
-    FAM_NONE,
-    FAM_OBJ,
-    FAM_OBJ,
-    FAM_NONE,
-    FAM_NONE
-};
-
 char *id_kinds_[ID_MAX] = {
     "variable",
     "struct",
