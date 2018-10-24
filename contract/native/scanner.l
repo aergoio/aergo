@@ -131,9 +131,10 @@ L                           [a-zA-Z\x80-\xFF_]
 H                           [a-fA-F0-9]
 E                           ([eE][+-]?{D}+)
 
-integer                     ({D}+)
-float                       (({D}+{E})|({D}*"."{D}+|{D}+"."{D}*){E}?)
+integer                     ([1-9]{D}*)
+octal                       (0[0-7]*)
 hexa                        (0[xX]{H}+)
+float                       (({D}+{E})|({D}*"."{D}+|{D}+"."{D}*){E}?)
 
 id                          {L}({L}|{D})*
 
@@ -158,8 +159,9 @@ id                          {L}({L}|{D})*
 }
 
 {integer}                   yy_return_text(L_INT);
+{octal}                     yy_return_text(L_OCTAL);
+{hexa}                      yy_return_text(L_HEX);
 {float}                     yy_return_text(L_FLOAT);
-{hexa}                      yy_return_text(L_HEXA);
 
 "+="                        yy_return(ASSIGN_ADD);
 "-="                        yy_return(ASSIGN_SUB);

@@ -43,8 +43,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 /* literal */
 %token  <str>
         L_FLOAT         "floating-point"
-        L_HEXA          "hexadecimal"
+        L_HEX           "hexadecimal"
         L_INT           "integer"
+        L_OCTAL         "octal"
         L_STR           "characters"
 
 /* operator */
@@ -1156,6 +1157,22 @@ prim_exp:
         sscanf($1, "%"SCNu64, &v);
         value_set_int(&$$->u_val.val, v);
     }
+|   L_OCTAL
+    {
+        uint64_t v;
+
+        $$ = exp_new_val(&@$);
+        sscanf($1, "%"SCNo64, &v);
+        value_set_int(&$$->u_val.val, v);
+    }
+|   L_HEX
+    {
+        uint64_t v;
+
+        $$ = exp_new_val(&@$);
+        sscanf($1, "%"SCNx64, &v);
+        value_set_int(&$$->u_val.val, v);
+    }
 |   L_FLOAT
     {
         double v;
@@ -1163,14 +1180,6 @@ prim_exp:
         $$ = exp_new_val(&@$);
         sscanf($1, "%lf", &v);
         value_set_fp(&$$->u_val.val, v);
-    }
-|   L_HEXA
-    {
-        uint64_t v;
-
-        $$ = exp_new_val(&@$);
-        sscanf($1, "%"SCNx64, &v);
-        value_set_int(&$$->u_val.val, v);
     }
 |   L_STR
     {
