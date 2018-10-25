@@ -302,7 +302,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
