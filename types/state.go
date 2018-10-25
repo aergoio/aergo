@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/common"
@@ -24,6 +23,11 @@ type TxID HashID
 // ImplHashID is a object has HashID
 type ImplHashID interface {
 	HashID() HashID
+}
+
+// ImplMarshal is a object has marshal interface
+type ImplMarshal interface {
+	Marshal() ([]byte, error)
 }
 
 var (

@@ -1897,7 +1897,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 
 	uContractState := types.State(*contractState)
-	eContractState, err := bs.OpenContractState(&uContractState)
+	eContractState, err := bs.OpenContractState(contractId, &uContractState)
 	if err != nil {
 		return err
 	}
@@ -1936,7 +1936,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 			if err != nil {
 				return err
 			}
-			err = bs.CommitContractState(eContractState)
+			err = bs.StageContractState(eContractState)
 			if err != nil {
 				return err
 			}
@@ -1986,7 +1986,7 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptT
 			if err != nil {
 				return err
 			}
-			err = bs.CommitContractState(eContractState)
+			err = bs.StageContractState(eContractState)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				b, _ := r.MarshalBinary()

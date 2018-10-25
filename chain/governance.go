@@ -25,7 +25,7 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 		return errors.New("receive unknown recipient")
 	}
 
-	scs, err := states.OpenContractState(receiver.State())
+	scs, err := states.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 	case types.AergoSystem:
 		err = system.ExecuteSystemTx(txBody, sender.State(), scs, blockNo)
 		if err == nil {
-			err = states.CommitContractState(scs)
+			err = states.StageContractState(scs)
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
@@ -63,7 +63,7 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	if err = system.InitVoteResult(scs, &voteResult); err != nil {
 		return err
 	}
-	if err = states.CommitContractState(scs); err != nil {
+	if err = states.StageContractState(scs); err != nil {
 		return err
 	}
 	genesis.VoteState = scs.State

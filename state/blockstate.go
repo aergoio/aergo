@@ -36,7 +36,7 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 // NewBlockState create new blockState contains blockInfo, account states and undo states
 func NewBlockState(states *StateDB) *BlockState {
 	return &BlockState{
-		StateDB:   *states,
+		StateDB: *states,
 	}
 }
 
@@ -64,10 +64,10 @@ func (bs *BlockState) Receipts() types.Receipts {
 // 	bs.accounts[aid] = stateChanged
 // }
 
-// Commit writes statedb and mapping information about block hash and state root
-func (bs *BlockState) Commit() error {
-	if err := bs.StateDB.Commit(); err != nil {
-		return err
-	}
-	return nil
-}
+// // Commit writes statedb and mapping information about block hash and state root
+// func (bs *BlockState) Commit() error {
+// 	if err := bs.StateDB.Commit(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }

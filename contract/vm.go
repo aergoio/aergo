@@ -296,7 +296,7 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = bs.CommitContractState(v.ctrState)
+			err = bs.StageContractState(v.ctrState)
 			if err != nil {
 				return DbSystemError(err)
 			}
@@ -724,6 +724,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
 		return -1
 	}
+	aid := types.ToAccountID(cid)
 
 	stateSet := contractMap.lookup(stateKeyStr)
 	if stateSet == nil {
@@ -736,14 +737,14 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	if callState == nil {
 		bs := rootState.bs
 
-		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
+		prevState, err := bs.GetAccountState(aid)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
 			return -1
 		}
 
 		curState := types.Clone(*prevState).(types.State)
-		contractState, err := bs.OpenContractState(&curState)
+		contractState, err := bs.OpenContractState(aid, &curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
@@ -753,7 +754,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		rootState.callState[contractIdStr] = callState
 	}
 	if callState.ctrState == nil {
-		callState.ctrState, err = rootState.bs.OpenContractState(callState.curState)
+		callState.ctrState, err = rootState.bs.OpenContractState(aid, callState.curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
