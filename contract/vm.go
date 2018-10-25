@@ -32,8 +32,8 @@ const DbName = "contracts.db"
 const constructorName = "constructor"
 
 var (
-	ctrLog        *log.Logger
-	contractMap   stateMap
+	ctrLog      *log.Logger
+	contractMap stateMap
 )
 
 type Contract struct {
@@ -301,20 +301,21 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
-	var ce *Executor
+	if err != nil {
+		return "", nil
+	}
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
+
+	ce := newExecutor(contract, bcCtx)
+	defer ce.close(true)
+	ce.call(&ci, nil)
+	err = ce.err
 	if err == nil {
-		if ctrLog.IsDebugEnabled() {
-			ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		}
-		ce = newExecutor(contract, bcCtx)
-		defer ce.close(true)
-		ce.call(&ci, nil)
-		err = ce.err
-		if err == nil {
-			err = ce.commitCalledContract()
-		} else {
-			ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
-		}
+		err = ce.commitCalledContract()
+	} else {
+		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
 	}
 	return ce.jsonRet, err
 }
