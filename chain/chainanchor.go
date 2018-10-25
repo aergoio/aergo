@@ -12,6 +12,38 @@ import (
 
 type ChainAnchor []([]byte)
 
+const (
+	MaxAnchors = 32
+	Skip       = 8
+)
+
+// returns anchor blocks of chain
+// use config
+func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
+	//from top : 8 * 32 = 256
+	anchors := make(ChainAnchor, 0, MaxAnchors)
+	cnt := MaxAnchors / Skip
+
+	blkNo := cs.getBestBlockNo()
+	for i := 0; i < cnt; i++ {
+		blockHash, err := cs.getHashByNo(blkNo)
+		if err != nil {
+			logger.Info().Msg("assertion - hash get failed")
+			// assertion!
+			return nil, err
+		}
+
+		anchors = append(anchors, blockHash)
+
+		if blkNo < Skip {
+			break
+		}
+		blkNo -= Skip
+	}
+
+	return anchors, nil
+}
+
 // returns anchor blocks of chain
 // use config
 func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {

@@ -58,7 +58,8 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		cfg.Blockchain.CoinbaseAccount,
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
-		cfg.Blockchain.MaxAnchorCount); err != nil {
+		cfg.Blockchain.MaxAnchorCount,
+		cfg.Blockchain.UseFastSyncer); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
@@ -273,7 +274,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 			BlockHash: block.BlockHash(),
 			Err:       err,
 		})
-		cs.Hub().Tell(message.RPCSvc, block)
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
@@ -307,6 +307,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 			TopMatched: topHash,
 			TopNumber:  topNo,
 			StopNumber: stopNo,
+		})
+	case *message.GetAnchors:
+		anchor, err := cs.getAnchorsNew()
+		context.Respond(message.GetAnchorsRsp{
+			anchor,
+			err,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)

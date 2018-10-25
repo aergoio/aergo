@@ -93,6 +93,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		MaxBlockSize:    types.DefaultMaxBlockSize,
 		CoinbaseAccount: "",
 		MaxAnchorCount:  20,
+		UseFastSyncer:   false,
 	}
 }
 

@@ -33,7 +33,7 @@ type GetMissing struct {
 }
 type GetMissingRsp struct {
 	TopMatched BlockHash
-	TopNumber  types.BlockNo
+	TopNumber types.BlockNo
 	StopNumber types.BlockNo
 	//Hashes   []BlockHash
 	//Blocknos []types.BlockNo
@@ -134,4 +134,10 @@ type GetStaking struct {
 type GetStakingRsp struct {
 	Staking *types.Staking
 	Err     error
+}
+
+type GetAnchors struct{}
+type GetAnchorsRsp struct {
+	Hashes [][]byte
+	Err    error
 }

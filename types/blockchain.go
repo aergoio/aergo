@@ -54,6 +54,24 @@ type ChainAccessor interface {
 	GetBlock(blockHash []byte) (*Block, error)
 }
 
+type SyncContext struct {
+	PeerID peer.ID
+
+	BestNo   BlockNo
+	TargetNo BlockNo //sync target blockno
+
+	CommonAncestor *BlockInfo
+
+	TotalCnt  uint64
+	RemainCnt uint64
+}
+
+// NodeInfo is used for actor message to send block info
+type BlockInfo struct {
+	Hash []byte
+	No   BlockNo
+}
+
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 

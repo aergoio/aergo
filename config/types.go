@@ -69,6 +69,7 @@ type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
+	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -140,7 +141,7 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
-
+usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
