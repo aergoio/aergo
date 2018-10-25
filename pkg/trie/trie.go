@@ -573,6 +573,7 @@ func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch,
 	return h
 }
 
+// updatePastTries appends the current Root to the list of past tries
 func (s *Trie) updatePastTries() {
 	if len(s.pastTries) >= maxPastTries {
 		copy(s.pastTries, s.pastTries[1:])

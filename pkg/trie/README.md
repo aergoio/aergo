@@ -9,8 +9,7 @@
 * Simultaneous update of multiple keys with goroutines
 
 Aergo Trie is a modified version of a Sparse Merkle Tree which stores values at the highest subtree containing only one key.
-The benefit achieved from this is that, on average, in a tree containing N random keys, just log(N) hashes are required to update a key in the tree.
-This improvement in performance comes with one limitation : Merkle proofs of non-inclusion are not explicit like in the standard SMT: it is a proof that a leaf node is on the path of a non-included key or that the value is default at height 0.
+The benefit achieved from this is that, on average, in a tree containing N random keys, just log(N) hashes are required to update a key in the tree. Therefore the trie height is on average log(N), making inclusion and non-inclusion proofs shorter.
 
 
 ## Standard Sparse Merkle Tree
@@ -27,6 +26,8 @@ Implementation of the standard SMT : [https://github.com/aergoio/SMT](https://gi
 ### Modification of the Sparse Merkle Tree
 To reduce the number of hashing operations necessary to update a key in a tree, we created leaf nodes. A leaf node is stored at the highest subtree that contains only 1 non-default key. So, the hashing of the tree starts from the height of leaf nodes instead of height 0. If the tree contains N random keys, then on average, leaf nodes will be created around height = log(N).
 
+Another benefit of the Aergo Trie is that Default Hashes are no longer necessary. We add the following property to the hash function : H(0,0) = 0. Looking at the example below, **D1 = Hash(D0,D0) = Hash(byte(0),byte(0)) = byte(0) = D2 =...= D256**.
+
 ![mod](pictures/mod.png)
 *Figure 2. H3 was the highest subtree containing only one key: the red one. So, Value will take its place in the modified sparse Merkle tree.*
 
@@ -36,10 +37,14 @@ On the diagram above, the Merkle proof of the red key is composed of the node wi
 In case of the standard SMT that proof would have been [D0, D1, D2, h3]
 
 ### Compressed Merkle proofs
-Like in the standard sparse Merkle tree, Merkle proofs can also be compressed. Since most of the nodes in the Merkle proof are default, we can use a bitmap and set a bit for every index that is not default in the proof. The proof that the blue LeafNode1 is included in the tree is: [LeafNode2, D1, D2, LeafNode]. This proof can be compressed to 1001[LeafNode2, LeafNode]. The verifier of the compressed Merkle proof should know to use D1 to compute h2 because the second index of the bitmap is 0, and D2 for the third proof element, etc.
+Like in the standard sparse Merkle tree, Merkle proofs can also be compressed. We can use a bitmap and set a bit for every index that is not default in the proof. The proof that the blue LeafNode1 is included in the tree is: [LeafNode2, D1, D2, LeafNode]. This proof can be compressed to 1001[LeafNode2, LeafNode]. The verifier of the compressed Merkle proof should know to use D1 to compute h2 because the second index of the bitmap is 0, and D2 for the third proof element, etc.
 
 ### Proofs of non-inclusion
-A limitation of the modified sparse Merkle tree is that the proofs of non-inclusion are not explicit: the proof that a key is not included in the tree is a proof that a leaf node is on the path of a non-included key or that the value is default at height 0. For example, a proof that key=0000 is not included in the tree is a proof that LeafNode is on the path of key and is included in the tree. A proof that key=1111 is not included in the tree is a proof that the value is default at height 0 (same as the standard sparse Merkle tree).
+There are 2 ways to prove that a key is not included in the tree :
+- prove that the Leaf node of another key is included in the tree and is on the path of the non-included key.
+- prove that a default node (byte(0)) is included in the tree and is on the path of the non-included key.
+
+For example, a proof that key=0000 is not included in the tree is a proof that LeafNode is on the path of key and is included in the tree. A proof that key=1111 is not included in the tree is a proof that D2 is on the path of the key and is included in the tree.
 
 ### Deleting from the tree
 When a leaf is removed from the tree, special care is taken by the Update() function to keep leaf nodes at the highest subtree containing only 1 key. Otherwise, if a node has a different position in the tree, the resulting trie root would be different even though keys and values are the same.
@@ -67,6 +72,20 @@ To each node, we append a byte flag to recognize the leaf nodes. Since the natur
 ![batch](pictures/batch.png)
 *Figure 4. A visual representation of node batching. The first batch is blue, and all 16 leaves of a batch are roots to other batches (green). A batch contains 30 nodes.*
 
+The example from figure 2 will be encoded as follows :
+```
+{Root : [ [byte(0)], LeafNodeHash, h3, LeafNodeKey, LeafNodeValue, h2, D2=nil, nil, nil, nil, nil, h1, D1=nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, LeafNode1Hash, LeafNode2Hash, nil, nil, nil, nil, nil, nil ]}
+```
+Where LeafNodeHash = Hash(key, value, height)
+
+To store the batch in the database, it is serialized with a bitmap which allows us to store only the non default nodes.
+The bitmap is 4 bytes = 32 bits. The first 30 bits are for the batch nodes, the 31st bit is the flag to make a shortcut batch (a batch that only contains a key and a value at 3-0 and 3-1), the 32nd bit is not used.
+
+The figure 2 example after serialization:
+```
+11111000001000000000001100000010 [LeafNodeHash][h3][LeafNodeKey][LeafNodeValue][h2][h1][LeafNode1Hash][LeafNode2Hash]
+```
+
 Node batching has two benefits : reduced number of database reads and concurrent update of the height 4 subtree without the need for a lock.
 
 ## Usage
@@ -79,13 +98,6 @@ func NewTrie(root []byte, hash func(data …[]byte) []byte, store db.DB) *Trie {
 
 When creating an empty tree, set root to nil. A nil root means that it is equal to the default value of its height. Use a custom hash function or use the Hasher in utils and specify a database if you plan to commit nodes.
 
-- DefaultHash
-
-```go
-func (s *Trie) DefaultHash(height uint64) []byte {
-```
-
-Returns the default node of the specified height
 
 - Update
 
@@ -123,13 +135,20 @@ func (s *Trie) Commit() error {
 
 Commit the updated nodes to the database. When update is called, the new nodes are stored in smt.db.updatedNodes. Commit then stores to disk.
 
+- StageUpdates
+
+```go
+func (s *Trie) StageUpdates(txn *db.Transaction) {
+```
+StageUpdates loads the updated nodes into the given database transaction. It enables the commit of the trie with an external database transaction.
+
 - Stash
 
 ```go
 func (s *Trie) Stash(rollbackCache bool) error {
 ```
 
-Use the Stash function to revert the update without committing (if a block verification is invalid for example)
+Use the Stash function to revert the update without committing.
 
 - Revert
 
@@ -149,6 +168,14 @@ MerkleProof creates a Merkle proof of inclusion/non-inclusion of the key. The Me
 
 If the key is not included, MerkleProof will return false along with the proof leaf on the path of the key.
 
+- MerkleProofPast
+
+```go
+func (s *Trie) MerkleProofPast(key []byte, root []byte) ([][]byte, bool, []byte, []byte, error) {
+```
+
+MerkleProofPast creates a Merkle proof of inclusion/non-inclusion of the key at a given trie root. This is used to query state at a different block than the last one.
+
 - MerkleProofCompressed
 
 ```go
@@ -157,37 +184,37 @@ func (s *Trie) MerkleProofCompressed(key []byte) ([]byte, [][]byte, uint64, bool
 
 MerkleProofCompressed creates the same Merkle proof as MerkleProof but compressed using a bitmap
 
-- VerifyMerkleProof
+- VerifyInclusion
 
 ```go
-func (s *Trie) VerifyMerkleProof(ap [][]byte, key, value []byte) bool {
+func (s *Trie) VerifyInclusion(ap [][]byte, key, value []byte) bool {
 ```
 
 Verifies that the key-value pair is included in the tree at the current Root.
 
-- VerifyMerkleProofEmpty
+- VerifyNonInclusion
 
 ```go
-func (s *Trie) VerifyMerkleProofEmpty(ap [][]byte, key, proofKey, proofValue []byte) bool {
+func (s *Trie) VerifyNonInclusion(ap [][]byte, key, value, proofKey []byte) bool {
 ```
 
-Verify a proof of non-inclusion. Verifies that a leaf(proofKey, proofValue) is on the path of the non-included key, or that the audit path ap is for a default value at height 0.
+Verify a proof of non-inclusion. Verifies that a leaf(proofKey, proofValue, height) of empty subtree is on the path of the non-included key.
 
-- VerifyMerkleProofCompressed
+- VerifyInclusionC
 
 ```go
-func (s *Trie) VerifyMerkleProofCompressed(bitmap []byte, ap [][]byte, length uint64, key, value []byte) bool {
+func (s *Trie) VerifyInclusionC(bitmap, key, value []byte, ap [][]byte, length int) bool {
 ```
 
-Verifies that the key-value pair is included in the tree at the current Root. ‘length’ is the height of the leaf key-value being verified.
+Verifies a compressed proof of inclusion. ‘length’ is the height of the leaf key-value being verified.
 
-- VerifyMerkleProofCompressedEmpty
+- VerifyNonInclusionC
 
 ```go
-func (s *Trie) VerifyMerkleProofCompressedEmpty(bitmap []byte, ap [][]byte, length uint64, key, proofKey, proofValue []byte) bool {
+func (s *Trie) VerifyNonInclusionC(ap [][]byte, length int, bitmap, key, value, proofKey []byte) bool {
 ```
 
-Verify a compressed proof of non-inclusion. Verifies that a leaf (proofKey, proofValue) is on the path of the non-included key, or that the audit path ‘ap’ is for a non-default value at height 0.
+Verify a compressed proof of non-inclusion. Verifies that a leaf (proofKey, proofValue, height) of empty subtree is on the path of the non-included key.
 
 
 For more information about the Aergo StateTrie : [https://medium.com/aergo/releasing-statetrie-a-hash-tree-built-for-high-performance-interoperability-6ce0406b12ae](https://medium.com/aergo/releasing-statetrie-a-hash-tree-built-for-high-performance-interoperability-6ce0406b12ae)
