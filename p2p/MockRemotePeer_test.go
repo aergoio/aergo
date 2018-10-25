@@ -36,12 +36,12 @@ func (_m *MockRemotePeer) stop() {
 }
 
 // updateBlkCache provides a mock function with given fields: hash
-func (_m *MockRemotePeer) updateBlkCache(hash BlkHash) bool {
-	ret := _m.Called(hash)
+func (_m *MockRemotePeer) updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool {
+	ret := _m.Called(hash, blkNotice)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(BlkHash) bool); ok {
-		r0 = rf(hash)
+	if rf, ok := ret.Get(0).(func(BlkHash, *types.NewBlockNotice) bool); ok {
+		r0 = rf(hash, blkNotice)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
@@ -118,6 +118,21 @@ func (_m *MockRemotePeer) State() types.PeerState {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(types.PeerState)
+	}
+
+	return r0
+}
+
+
+// LastNotice provides a mock function with given fields:
+func (_m *MockRemotePeer) LastNotice() *types.NewBlockNotice {
+	ret := _m.Called()
+
+	var r0 *types.NewBlockNotice
+	if rf, ok := ret.Get(0).(func() *types.NewBlockNotice); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(*types.NewBlockNotice)
 	}
 
 	return r0

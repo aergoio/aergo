@@ -1,6 +1,12 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -459,6 +465,41 @@ func generateHash(i uint64) TxHash {
 	bs := TxHash{}
 	binary.LittleEndian.PutUint64(bs[:], i)
 	return bs
+}
+
+
+func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
+
+	tests := []struct {
+		name string
+		hash BlkHash
+		inCache []BlkHash
+		prevLastBlk BlkHash
+		expected bool
+	}{
+		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
+		{"TAllExist", sampleBlksHashes[0], sampleBlksHashes, sampleBlksHashes[1],true},
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			for _, hash := range test.inCache {
+				target.blkHashCache.Add(hash, true)
+			}
+			target.lastNotice = &types.NewBlockNotice{BlockHash:test.prevLastBlk[:]}
+
+			notice := &types.NewBlockNotice{BlockHash:test.hash[:]}
+			actual := target.updateBlkCache(test.hash, notice)
+			assert.Equal(t, test.expected, actual)
+			assert.True(t, bytes.Equal(test.hash[:], target.LastNotice().BlockHash) )
+		})
+	}
 }
 
 func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {

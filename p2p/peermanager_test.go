@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 package p2p
 
@@ -135,4 +135,30 @@ func TestPeerManager_GetPeers(t *testing.T) {
 
 	wgAll.Wait()
 	assert.True(t, iterSize == len(target.GetPeers()))
+}
+
+func TestPeerManager_GetPeerAddresses(t *testing.T) {
+	peersLen := 3
+	samplePeers := make([]*remotePeerImpl, peersLen)
+	samplePeers[0] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID}}
+	samplePeers[1] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID2}}
+	samplePeers[2] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID3}}
+	tests := []struct {
+		name string
+	}{
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			pm := &peerManager{remotePeers:make(map[peer.ID]*remotePeerImpl)}
+			for _, peer := range samplePeers {
+				pm.remotePeers[peer.ID()] = peer
+			}
+
+			actPeers, actBklNotices, actStates := pm.GetPeerAddresses()
+			assert.Equal(t, peersLen, len(actPeers))
+			assert.Equal(t, peersLen, len(actBklNotices))
+			assert.Equal(t, peersLen, len(actStates))
+		})
+	}
 }

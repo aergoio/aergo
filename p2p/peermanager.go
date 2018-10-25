@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -66,7 +66,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
-	GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState)
+	GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState)
 }
 
 /**
@@ -629,15 +629,17 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
-func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState) {
+func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState) {
 	peers := make([]*types.PeerAddress, 0, len(pm.remotePeers))
+	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
 	states := make([]types.PeerState, 0, len(pm.remotePeers))
 	for _, aPeer := range pm.remotePeers {
 		addr := aPeer.meta.ToPeerAddress()
 		peers = append(peers, &addr)
+		blks = append(blks, aPeer.lastNotice)
 		states = append(states, aPeer.state)
 	}
-	return peers, states
+	return peers, blks, states
 }
 
 // this method should be called inside pm.mutex

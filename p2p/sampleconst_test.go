@@ -77,6 +77,18 @@ var sampleTxsB58 = []string{
 
 var sampleTxs [][]byte
 var sampleTxHashes []TxHash
+
+var sampleBlksB58 = []string{
+	"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
+	"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
+	"AtzTZ2CZS45F1276RpTdLfYu2DLgRcd9HL3aLqDT1qte",
+	"2n9QWNDoUvML756X7xdHWCFLZrM4CQEtnVH2RzG5FYAw",
+	"6cy7U7XKYtDTMnF3jNkcJvJN5Rn85771NSKjc5Tfo2DM",
+	"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
+}
+var sampleBlks [][]byte
+var sampleBlksHashes []BlkHash
+
 func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	sampleTxHashes = make([]TxHash, len(sampleTxsB58))
@@ -84,5 +96,13 @@ func init() {
 		hash, _ := enc.ToBytes(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxHashes[i][:], hash)
+	}
+
+	sampleBlks=make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make ([]BlkHash, len(sampleBlksB58))
+	for i, hashb58 := range sampleTxsB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleBlks[i] = hash
+		copy(sampleBlksHashes[i][:], hash)
 	}
 }

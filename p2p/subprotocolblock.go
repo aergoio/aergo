@@ -242,7 +242,7 @@ func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	// lru cache can accept hashable key
 	var hash BlkHash
 	copy(hash[:], data.BlockHash)
-	if !remotePeer.updateBlkCache(hash) {
+	if !remotePeer.updateBlkCache(hash, data) {
 		bh.sm.HandleNewBlockNotice(remotePeer, hash, data)
 	}
 }

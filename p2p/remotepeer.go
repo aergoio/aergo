@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -28,6 +28,7 @@ type RemotePeer interface {
 	ID() peer.ID
 	Meta() PeerMeta
 	State() types.PeerState
+	LastNotice() *types.NewBlockNotice
 
 	runPeer()
 	stop()
@@ -37,7 +38,7 @@ type RemotePeer interface {
 	consumeRequest(msgID MsgID)
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
-	updateBlkCache(hash BlkHash) bool
+	updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	updateTxCache(hashes []TxHash) []TxHash
 
@@ -72,6 +73,7 @@ type remotePeerImpl struct {
 
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
+	lastNotice   *types.NewBlockNotice
 
 	txQueueLock *sync.Mutex
 	txNoticeQueue *p2putil.PressableQueue
@@ -139,6 +141,7 @@ func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
+
 func (p *remotePeerImpl) checkState() error {
 	switch p.State() {
 	case types.HANDSHAKING:
@@ -148,6 +151,11 @@ func (p *remotePeerImpl) checkState() error {
 	default:
 		return nil
 	}
+}
+
+
+func (p *remotePeerImpl) LastNotice() *types.NewBlockNotice {
+	return p.lastNotice
 }
 
 // runPeer should be called by go routine
@@ -429,7 +437,8 @@ func (p *remotePeerImpl) pruneRequests() {
 
 }
 
-func (p *remotePeerImpl) updateBlkCache(hash BlkHash) bool {
+func (p *remotePeerImpl) updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool {
+	p.lastNotice = blkNotice
 	// lru cache can accept hashable key
 	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
 	return found
