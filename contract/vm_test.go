@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os/exec"
 	"path"
 	"strconv"
@@ -673,6 +672,95 @@ abi.register(r)`
 	}
 }
 
+func TestKvstore(t *testing.T) {
+	definition := `
+	state.var{
+		counts = state.map(),
+		name = state.value()
+	}
+
+	function inc(key)
+		if counts[key] == nil then
+			counts[key] = 0
+		end
+		counts[key] = counts[key] + 1
+	end
+
+	function get(key)
+		return counts[key]
+	end
+
+	function set(key,val)
+		counts[key] = val
+	end
+
+	function setname(n)
+		name:set(n)
+	end
+
+	function getname()
+		return name:get()
+	end
+
+	abi.register(inc,get,set,setname,getname)`
+
+	bc := loadBlockChain(t)
+
+	err := bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "map", 1, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
+		newLuaTxCall("ktlee", "map", 1, `{"Name":"setname", "Args":["eve2adam"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock()
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("map", `{"Name":"get", "Args":["htwo"]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
+		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["htwo"]}`),
+		newLuaTxCall("ktlee", "map", 1, `{"Name":"set", "Args":["wook", 100]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("map", `{"Name":"get", "Args":["htwo"]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("map", `{"Name":"get", "Args":["wook"]}`, "", "100")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("map", `{"Name":"getname"}`, "", `"eve2adam"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
 
 // helper functions
@@ -784,13 +872,14 @@ type luaTxCommon struct {
 
 type luaTxDef struct {
 	luaTxCommon
+	cErr error
 }
 
 func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
 	luac := exec.Command("../bin/aergoluac", "--payload")
 	stdin, err := luac.StdinPipe()
 	if err != nil {
-		log.Fatal(err)
+		return &luaTxDef{cErr: err}
 	}
 	go func() {
 		defer stdin.Close()
@@ -798,23 +887,25 @@ func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 	}()
 	out, err := luac.Output()
 	if err != nil {
-		log.Fatal(err)
+		eErr, _ := err.(*exec.ExitError)
+		return &luaTxDef{cErr: errors.New(strings.TrimSpace(string(eErr.Stderr)))}
 	}
 	b, err := util.DecodeCode(string(out))
 	if err != nil {
-		log.Fatal(err)
+		return &luaTxDef{cErr: err}
 	}
 	codeWithInit := make([]byte, 4+len(b))
 	binary.LittleEndian.PutUint32(codeWithInit, uint32(4+len(b)))
 	copy(codeWithInit[4:], b)
 	return &luaTxDef{
-		luaTxCommon{
+		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
 			code:     codeWithInit,
 			amount:   amount,
 			id:       newTxId(),
 		},
+		cErr: nil,
 	}
 }
 
@@ -895,6 +986,10 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 
 func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 	receiptTx db.Transaction) error {
+
+	if l.cErr != nil {
+		return l.cErr
+	}
 
 	return contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {

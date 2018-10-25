@@ -4,6 +4,7 @@
 #include "system_module.h"
 #include "contract_module.h"
 #include "db_module.h"
+#include "state_module.h"
 #include "util.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -12,6 +13,7 @@ static void preloadModules(lua_State *L)
 {
 	luaopen_system(L);
 	luaopen_contract(L);
+    luaopen_state(L);
 }
 
 static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)

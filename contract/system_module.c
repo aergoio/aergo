@@ -19,7 +19,7 @@ static int systemPrint(lua_State *L)
 	return 0;
 }
 
-static int setItem(lua_State *L)
+int setItem(lua_State *L)
 {
 	const char *key;
 	char *jsonValue;
@@ -54,7 +54,7 @@ static int setItem(lua_State *L)
 	return 0;
 }
 
-static int getItem(lua_State *L)
+int getItem(lua_State *L)
 {
 	const char *key;
 	char *dbKey;
