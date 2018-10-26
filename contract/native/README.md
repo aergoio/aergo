@@ -1,4 +1,4 @@
-Aergo Contract Language Reference (draft)
+Aergo Smart Contract Language Reference (draft)
 =======================================
 
 ## Introduction
@@ -38,6 +38,8 @@ ASCL로 작성된 프로그램은 다음 사항을 준수해야 한다.
 
 * [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 형식으로 작성해야 한다.
 * 대소문자를 구분한다.
+
+> **TODO** hardware 혹은 OS 설명 필요
 
 ## Lexical elements
 
