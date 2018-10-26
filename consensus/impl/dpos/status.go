@@ -16,6 +16,7 @@ type Status struct {
 	sync.RWMutex
 	bestBlock *types.Block
 	libState  *libStatus
+	bpid      string // self BP ID
 	done      bool
 }
 
@@ -70,7 +71,6 @@ func (s *Status) Update(block *types.Block) {
 		if lib := s.libState.update(); lib != nil {
 			s.updateLIB(lib)
 		}
-
 	} else {
 		logger.Debug().
 			Str("block hash", block.ID()).

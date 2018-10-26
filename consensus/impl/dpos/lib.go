@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -54,8 +55,10 @@ func (pm proposed) set(bpID string, pl *plInfo) {
 type libStatus struct {
 	Prpsd            proposed // BP-wise proposed LIB map
 	Lib              *blockInfo
+	LpbNo            types.BlockNo
 	confirms         *list.List
 	genesisInfo      *blockInfo
+	bpid             string
 	confirmsRequired uint16
 }
 
@@ -64,8 +67,13 @@ func newLibStatus(confirmsRequired uint16) *libStatus {
 		Prpsd:            make(proposed),
 		Lib:              &blockInfo{},
 		confirms:         list.New(),
+		bpid:             p2p.NodeSID(),
 		confirmsRequired: confirmsRequired,
 	}
+}
+
+func (ls libStatus) lpbNo() types.BlockNo {
+	return ls.LpbNo
 }
 
 func (ls *libStatus) addConfirmInfo(block *types.Block) {
@@ -89,8 +97,8 @@ func (ls *libStatus) addConfirmInfo(block *types.Block) {
 	}
 
 	// Initialize an empty pre-LIB map entry with genesis block info.
-	if _, exist := ls.Prpsd[ci.BPID]; !exist {
-		ls.updatePreLIB(ci.BPID,
+	if _, exist := ls.Prpsd[ci.bpid]; !exist {
+		ls.updatePreLIB(ci.bpid,
 			&plInfo{
 				Plib:   ls.genesisInfo,
 				PlibBy: ls.genesisInfo,
@@ -98,7 +106,11 @@ func (ls *libStatus) addConfirmInfo(block *types.Block) {
 		)
 	}
 
-	logger.Debug().Str("BP", ci.BPID).
+	if ci.bpid == ls.bpid {
+		ls.LpbNo = block.BlockNo()
+	}
+
+	logger.Debug().Str("BP", ci.bpid).
 		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
 		Msg("new confirm info added")
 }
@@ -139,7 +151,7 @@ func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 	}
 
 	if confirmed != nil {
-		bpID = lastCi.BPID
+		bpID = lastCi.bpid
 		pl = &plInfo{Plib: confirmed, PlibBy: confirmedBy}
 	}
 
@@ -287,13 +299,13 @@ type plInfo struct {
 
 type confirmInfo struct {
 	*blockInfo
-	BPID         string
+	bpid         string
 	confirmsLeft uint16
 }
 
 func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	return &confirmInfo{
-		BPID:         block.BPID2Str(),
+		bpid:         block.BPID2Str(),
 		blockInfo:    newBlockInfo(block),
 		confirmsLeft: confirmsRequired,
 	}
@@ -304,6 +316,13 @@ type bootLoader struct {
 	best    *types.Block
 	genesis *types.Block
 	cdb     consensus.ChainDbReader
+}
+
+func chainDbReader() consensus.ChainDbReader {
+	if libLoader == nil {
+		panic("no LIB status loader")
+	}
+	return libLoader.cdb
 }
 
 func (bs *bootLoader) load() {
@@ -390,6 +409,10 @@ func (bs *bootLoader) bestBlock() *types.Block {
 
 func (bs *bootLoader) genesisBlock() *types.Block {
 	return bs.genesis
+}
+
+func (bs *bootLoader) lpbNo() types.BlockNo {
+	return bs.ls.lpbNo()
 }
 
 func dumpConfirmInfo(name string, l *list.List) {

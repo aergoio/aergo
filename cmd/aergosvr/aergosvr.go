@@ -119,6 +119,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 	compMng.Start()
 
 	if cfg.Consensus.EnableBp {
+		// Warning!!!: The consensus service must start after all the other
+		// services.
 		consensus.Start(consensusSvc)
 	}
 

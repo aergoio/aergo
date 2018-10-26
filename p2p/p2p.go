@@ -95,6 +95,9 @@ func NodeID() peer.ID {
 
 // NodeSID returns the string representation of the node id.
 func NodeSID() string {
+	if ni == nil {
+		return ""
+	}
 	return ni.sid
 }
 
@@ -185,7 +188,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks:lastBlks, States: states})
 	}
 }
-
 
 // TellRequest implement interface method of ActorService
 func (p2ps *P2P) TellRequest(actor string, msg interface{}) {

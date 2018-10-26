@@ -153,9 +153,11 @@ func (bf *BlockFactory) controller() {
 }
 
 func (bf *BlockFactory) worker() {
-	defer shutdownMsg("block factory worker")
+	defer shutdownMsg("the block factory worker")
 
-	lpbNo := types.BlockNo(0)
+	lpbNo := libLoader.lpbNo()
+	logger.Info().Uint64("lastly produced block", lpbNo).
+		Msg("start the block factory worker")
 
 	for {
 		select {
