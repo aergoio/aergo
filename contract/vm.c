@@ -51,14 +51,14 @@ lua_State *vm_newstate()
 	return L;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, const char *name, bc_ctx_t *bc_ctx)
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, bc_ctx_t *bc_ctx)
 {
 	int err;
 	const char *errMsg = NULL;
 
 	setLuaExecContext(L, bc_ctx);
 
-	err = luaL_loadbuffer(L, code, sz, name);
+	err = luaL_loadbuffer(L, code, sz, bc_ctx->contractId);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
@@ -87,11 +87,19 @@ void vm_remove_construct(lua_State *L, const char *construct_name)
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
 }
 
+void count_hook(lua_State *L, lua_Debug *ar)
+{
+    lua_pushstring(L, "exceeded the maximum instruction count");
+    lua_error(L);
+}
+
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
 	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
+
+    lua_sethook (L, count_hook, LUA_MASKCOUNT, 500000);
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
@@ -105,7 +113,10 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 const char *vm_get_json_ret(lua_State *L, int nresult)
 {
 	int top = lua_gettop(L);
-	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top);
+	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
+
+    if (json_ret == NULL)
+        return lua_tostring(L, -1);
 
 	lua_pushstring(L, json_ret);
 	free(json_ret);
@@ -118,18 +129,19 @@ const char *vm_tostring(lua_State *L, int idx)
     return lua_tolstring(L, idx, NULL);
 }
 
-void vm_copy_result(lua_State *L, lua_State *target, int cnt)
+const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
 	int i;
-	int top;
-	sbuff_t sbuf;
-	lua_util_sbuf_init(&sbuf, 64);
-	top = lua_gettop(L);
+	int top = lua_gettop(L);
+	char *json;
 
 	for (i = top - cnt + 1; i <= top; ++i) {
-		lua_util_dump_json (L, i, &sbuf);
-		lua_util_json_to_lua(target, sbuf.buf);
-		sbuf.idx  = 0;
+		json = lua_util_get_json (L, i, false);
+		if (json == NULL)
+		    return lua_tostring(L, -1);
+
+		lua_util_json_to_lua(target, json);
+		free (json);
 	}
-	free(sbuf.buf);
+	return NULL;
 }

@@ -95,7 +95,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
-	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo(), cs.getBestBlockNo()) {
+	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo()) {
 		return consensus.ErrorConsensus{Msg: "reorganization rejected by consensus"}
 	}
 
@@ -187,17 +187,19 @@ func (reorg *reorganizer) swapTxMapping() error {
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
 	if count > 0 {
-		txs := make([]*types.Tx, 0, count)
+		//txs := make([]*types.Tx, 0, count)
 		logger.Debug().Int("tx count", count).Msg("tx add to mempool")
 
 		for _, tx := range oldTxs {
 			//			logger.Debug().Str("txID", txID.String()).Msg("tx added")
-			txs = append(txs, tx)
+			//			txs = append(txs, tx)
+			cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
+				Tx: tx,
+			})
 		}
-
-		cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
-			Txs: txs,
-		})
+		//	cs.RequestTo(message.MemPoolSvc, &message.MemPoolPut{
+		//		Txs: txs,
+		//	})
 	}
 
 	return nil
@@ -223,7 +225,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 	for {
 		if brBlockNo <= curBestNo {
-			mainBlock, err := cdb.getBlockByNo(brBlockNo)
+			mainBlock, err := cdb.GetBlockByNo(brBlockNo)
 			// One must be able to look up any main chain block by its block
 			// no from the chain DB.
 			if err != nil {
@@ -280,12 +282,12 @@ func (reorg *reorganizer) rollbackChain() error {
 	brStartBlock := reorg.brStartBlock
 	brStartBlockNo := brStartBlock.GetHeader().GetBlockNo()
 
-	if err := reorg.cs.sdb.Rollback(types.ToBlockID(brStartBlock.GetHash())); err != nil {
+	if err := reorg.cs.sdb.Rollback(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brStartBlockNo,
 			brStartBlock.ID())
 	}
 
-	reorg.cs.UpdateStatus(brStartBlock)
+	reorg.cs.Update(brStartBlock)
 
 	return nil
 }

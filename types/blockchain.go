@@ -11,19 +11,19 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/minio/sha256-simd"
-
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
+	"github.com/minio/sha256-simd"
 )
 
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-
-	lastFieldOfBH = "Sign"
+	DefaultCoinbaseFee  = 1
+	lastFieldOfBH       = "Sign"
+	MaxAER              = 5000000000000000000 //500000000 AERGO
 )
 
 var lastIndexOfBH int
@@ -62,6 +62,7 @@ type Genesis struct {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetBestBlock() (*Block, error)
+	GetBlock(blockHash []byte) (*Block, error)
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).
@@ -81,7 +82,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var prevBlockHash []byte
 	var blockNo BlockNo
 
@@ -94,11 +95,11 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 		Txs: txs,
 	}
 	header := BlockHeader{
-		PrevBlockHash: prevBlockHash,
-		BlockNo:       blockNo,
-		Timestamp:     ts,
-		//BlockRootHash: nil,
-		//StateRootHash: nil,
+		PrevBlockHash:   prevBlockHash,
+		BlockNo:         blockNo,
+		Timestamp:       ts,
+		BlocksRootHash:  blockRoot,
+		CoinbaseAccount: coinbaseAcc,
 	}
 	block := Block{
 		Header: &header,
@@ -106,6 +107,7 @@ func NewBlock(prevBlock *Block, txs []*Tx, ts int64) *Block {
 	}
 
 	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
+	block.Header.ReceiptsRootHash = receipts.MerkleRoot()
 
 	return &block
 }
@@ -144,7 +146,9 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.PrevBlockHash,
 		bh.BlockNo,
 		bh.Timestamp,
+		bh.BlocksRootHash,
 		bh.TxsRootHash,
+		bh.ReceiptsRootHash,
 		bh.Confirms,
 		bh.PubKey,
 		bh.Sign,
@@ -302,18 +306,16 @@ func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	return nil
 }
 
-// CalculateBlocksRootHash generates merkle tree of block headers and returns root hash.
-func CalculateBlocksRootHash(blocks []*Block) []byte {
-	return nil
+func (block *Block) SetBlocksRootHash(blockRootHash []byte) {
+	block.GetHeader().BlocksRootHash = blockRootHash
 }
 
 // CalculateTxsRootHash generates merkle tree of transactions and returns root hash.
 func CalculateTxsRootHash(txs []*Tx) []byte {
-	var mes []merkle.MerkleEntry = make([]merkle.MerkleEntry, len(txs))
+	mes := make([]merkle.MerkleEntry, len(txs))
 	for i, tx := range txs {
 		mes[i] = tx
 	}
-
 	return merkle.CalculateMerkleRoot(mes)
 }
 
@@ -339,6 +341,80 @@ func (tx *Tx) CalculateTxHash() []byte {
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
+}
+
+func (tx *Tx) Validate() error {
+	account := tx.GetBody().GetAccount()
+	if account == nil {
+		return ErrTxFormatInvalid
+	}
+
+	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
+		return ErrTxHasInvalidHash
+	}
+
+	if tx.GetBody().GetAmount() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
+	if tx.GetBody().GetLimit() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
+	if tx.GetBody().GetPrice() > MaxAER {
+		return ErrInsufficientBalance
+	}
+
+	switch tx.Body.Type {
+	case TxType_NORMAL:
+		if tx.GetBody().GetRecipient() == nil && len(tx.GetBody().GetPayload()) == 0 {
+			//contract deploy
+			return ErrTxInvalidRecipient
+		}
+	case TxType_GOVERNANCE:
+		if len(tx.Body.Payload) <= 0 {
+			return ErrTxFormatInvalid
+		}
+		if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
+			tx.GetBody().GetAmount() < StakingMinimum {
+			return ErrTooSmallAmount
+		}
+	default:
+		return ErrTxInvalidType
+	}
+	return nil
+}
+
+func (tx *Tx) ValidateWithSenderState(senderState *State) error {
+	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
+		return ErrTxNonceToohigh
+	} else if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
+		return ErrTxNonceTooLow
+	}
+	switch tx.GetBody().GetType() {
+	case TxType_NORMAL:
+		if tx.GetBody().GetAmount()+DefaultCoinbaseFee > senderState.GetBalance() {
+			return ErrInsufficientBalance
+		}
+	case TxType_GOVERNANCE:
+		if string(tx.GetBody().GetRecipient()) == AergoSystem {
+			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
+				tx.GetBody().GetAmount() > senderState.GetBalance() {
+				if tx.GetBody().GetAmount() > senderState.GetBalance() {
+					return ErrInsufficientBalance
+				}
+			}
+		} else {
+			return ErrTxInvalidRecipient
+		}
+	}
+	return nil
+}
+
+//TODO : refoctor after ContractState move to types
+func (tx *Tx) ValidateWithContractState(contractState *State) error {
+	//in system.ValidateSystemTx
+	return nil
 }
 
 func (tx *Tx) Clone() *Tx {

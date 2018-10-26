@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"io/ioutil"
+	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -15,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -33,9 +35,15 @@ type P2P struct {
 	hub *component.ComponentHub
 
 	pm     PeerManager
+	sm     SyncManager
 	rm     ReconnectManager
 	mf     moFactory
 	signer msgSigner
+	ca     types.ChainAccessor
+}
+
+type HandlerFactory interface {
+	insertHandlers(peer *remotePeerImpl)
 }
 
 var (
@@ -87,6 +95,9 @@ func NodeID() peer.ID {
 
 // NodeSID returns the string representation of the node id.
 func NodeSID() string {
+	if ni == nil {
+		return ""
+	}
 	return ni.sid
 }
 
@@ -126,22 +137,27 @@ func (p2ps *P2P) BeforeStop() {
 	}
 }
 
-// Statics show statistic information of p2p module. NOTE: It it not implemented yet
-func (p2ps *P2P) Statics() *map[string]interface{} {
+// Statistics show statistic information of p2p module. NOTE: It it not implemented yet
+func (p2ps *P2P) Statistics() *map[string]interface{} {
 	return nil
 }
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
+	p2ps.ca = chainsvc
+
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
-	peerMan := NewPeerManager(p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
+	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
+
 	// connect managers each other
 	reconMan.pm = peerMan
 
 	p2ps.signer = signer
 	p2ps.mf = mf
 	p2ps.pm = peerMan
+	p2ps.sm = syncMan
 	p2ps.rm = reconMan
 }
 
@@ -164,10 +180,18 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
 		p2ps.NotifyNewTX(*msg)
+	case message.AddBlockRsp:
+		// do nothing for now. just for prevent deadletter
+
 	case *message.GetPeers:
-		peers, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, States: states})
+		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks:lastBlks, States: states})
 	}
+}
+
+// TellRequest implement interface method of ActorService
+func (p2ps *P2P) TellRequest(actor string, msg interface{}) {
+	p2ps.TellTo(actor, msg)
 }
 
 // SendRequest implement interface method of ActorService
@@ -176,13 +200,52 @@ func (p2ps *P2P) SendRequest(actor string, msg interface{}) {
 }
 
 // FutureRequest implement interface method of ActorService
-func (p2ps *P2P) FutureRequest(actor string, msg interface{}) *actor.Future {
+func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future {
+	return p2ps.RequestToFuture(actor, msg, timeout)
+}
+
+// FutureRequestDefaultTimeout implement interface method of ActorService
+func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
 	return p2ps.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (p2ps *P2P) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
-
+func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, timeout)
 	return future.Result()
+}
+
+// CallRequest implement interface method of ActorService
+func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
+	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
+	return future.Result()
+}
+
+// GetChainAccessor implment interface method of ActorService
+func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
+	return p2ps.ca
+}
+
+func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
+	logger := p2ps.Logger
+
+	// PingHandlers
+	peer.handlers[PingRequest] = newPingReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[PingResponse] = newPingRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GoAway] = newGoAwayHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[AddressesRequest] = newAddressesReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[AddressesResponse] = newAddressesRespHandler(p2ps.pm, peer, logger, p2ps)
+
+	// BlockHandlers
+	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+
+	// TxHandlers
+	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 }

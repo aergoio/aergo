@@ -11,19 +11,19 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func (sdb *ChainStateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
-	st, err := sdb.GetAccountStateClone(aid)
+func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
+	st, err := states.GetAccountState(aid)
 	if err != nil {
 		return nil, err
 	}
-	return sdb.OpenContractState(st)
+	return states.OpenContractState(st)
 }
-func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, error) {
+func (states *StateDB) OpenContractState(st *types.State) (*ContractState, error) {
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, common.Hasher, sdb.store),
+		storage: trie.NewTrie(nil, common.Hasher, *states.store),
 		buffer:  newStateBuffer(),
-		store:   &sdb.store,
+		store:   states.store,
 	}
 	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
 		res.storage.Root = st.StorageRoot
@@ -31,7 +31,7 @@ func (sdb *ChainStateDB) OpenContractState(st *types.State) (*ContractState, err
 	return res, nil
 }
 
-func (sdb *ChainStateDB) CommitContractState(st *ContractState) error {
+func (states *StateDB) CommitContractState(st *ContractState) error {
 	defer func() {
 		if bytes.Compare(st.State.StorageRoot, st.storage.Root) != 0 {
 			st.State.StorageRoot = st.storage.Root

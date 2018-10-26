@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -21,7 +20,7 @@ var stakingCmd = &cobra.Command{
 }
 
 func execStaking(cmd *cobra.Command, args []string) {
-	sendStaking(true)
+	sendStaking(cmd, true)
 }
 
 var unstakingCmd = &cobra.Command{
@@ -31,13 +30,13 @@ var unstakingCmd = &cobra.Command{
 }
 
 func execUnstaking(cmd *cobra.Command, args []string) {
-	sendStaking(false)
+	sendStaking(cmd, false)
 }
 
-func sendStaking(s bool) {
+func sendStaking(cmd *cobra.Command, s bool) {
 	account, err := types.DecodeAddress(address)
 	if err != nil {
-		fmt.Printf("Failed: (%s) %s\n", address, err.Error())
+		cmd.Printf("Failed: (%s) %s\n", address, err.Error())
 		return
 	}
 	payload := make([]byte, 1)
@@ -46,8 +45,8 @@ func sendStaking(s bool) {
 	} else {
 		payload[0] = 'u'
 	}
-	if amount < types.Minimum {
-		fmt.Printf("Failed: minimum staking value is %d\n", types.Minimum)
+	if amount < types.StakingMinimum {
+		cmd.Printf("Failed: minimum staking value is %d\n", types.StakingMinimum)
 		return
 	}
 
@@ -64,8 +63,8 @@ func sendStaking(s bool) {
 	}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	fmt.Println(base58.Encode(msg.Hash), msg.Error)
+	cmd.Println(base58.Encode(msg.Hash), msg.Error)
 }

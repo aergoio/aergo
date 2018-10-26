@@ -37,6 +37,8 @@ type RPC struct {
 	grpcWebServer *grpcweb.WrappedGrpcServer
 	actualServer  aergorpc.AergoRPCServiceServer
 	httpServer    *http.Server
+
+	ca types.ChainAccessor
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -46,8 +48,6 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 	actualServer := &AergoRPCService{
 		hub:       hub,
 		msgHelper: message.GetHelper(),
-
-		ca: chainAccessor,
 	}
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
@@ -59,8 +59,8 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		grpcServer,
 		grpcweb.WithWebsockets(true),
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
-		return true
-	}))
+			return true
+		}))
 
 	rpcsvc := &RPC{
 		conf: cfg,
@@ -69,6 +69,7 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		grpcServer:    grpcServer,
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
+		ca:chainAccessor,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent("rpc", rpcsvc, logger)
 	actualServer.actorHelper = rpcsvc
@@ -98,7 +99,7 @@ func (ns *RPC) BeforeStop() {
 	ns.grpcServer.Stop()
 }
 
-func (ns *RPC) Statics() *map[string]interface{} {
+func (ns *RPC) Statistics() *map[string]interface{} {
 	return nil
 }
 
@@ -172,36 +173,57 @@ func (ns *RPC) serve() {
 
 const defaultTTL = time.Second * 4
 
+
+// TellRequest implement interface method of ActorService
+func (ns *RPC) TellRequest(actor string, msg interface{}) {
+	ns.TellTo(actor, msg)
+}
+
 // SendRequest implement interface method of ActorService
 func (ns *RPC) SendRequest(actor string, msg interface{}) {
 	ns.RequestTo(actor, msg)
 }
 
 // FutureRequest implement interface method of ActorService
-func (ns *RPC) FutureRequest(actor string, msg interface{}) *actor.Future {
+func (ns *RPC) FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future {
+	return ns.RequestToFuture(actor, msg, timeout)
+}
+
+// FutureRequestDefaultTimeout implement interface method of ActorService
+func (ns *RPC) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
 	return ns.RequestToFuture(actor, msg, defaultTTL)
 }
 
 // CallRequest implement interface method of ActorService
-func (ns *RPC) CallRequest(actor string, msg interface{}) (interface{}, error) {
-	future := ns.RequestToFuture(actor, msg, defaultTTL)
-
+func (ns *RPC) CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error) {
+	future := ns.RequestToFuture(actor, msg, timeout)
 	return future.Result()
+}
+
+// CallRequest implement interface method of ActorService
+func (ns *RPC) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
+	future := ns.RequestToFuture(actor, msg, defaultTTL)
+	return future.Result()
+}
+
+// GetChainAccessor implment interface method of ActorService
+func (ns *RPC) GetChainAccessor() types.ChainAccessor {
+	return ns.ca
 }
 
 func convertError(err error) types.CommitStatus {
 	switch err {
 	case nil:
 		return types.CommitStatus_TX_OK
-	case message.ErrTxNonceTooLow:
+	case types.ErrTxNonceTooLow:
 		return types.CommitStatus_TX_NONCE_TOO_LOW
-	case message.ErrTxAlreadyInMempool:
+	case types.ErrTxAlreadyInMempool:
 		return types.CommitStatus_TX_ALREADY_EXISTS
-	case message.ErrTxHasInvalidHash:
+	case types.ErrTxHasInvalidHash:
 		return types.CommitStatus_TX_INVALID_HASH
-	case message.ErrTxFormatInvalid:
+	case types.ErrTxFormatInvalid:
 		return types.CommitStatus_TX_INVALID_FORMAT
-	case message.ErrInsufficientBalance:
+	case types.ErrInsufficientBalance:
 		return types.CommitStatus_TX_INSUFFICIENT_BALANCE
 	default:
 		//logger.Info().Str("hash", err.Error()).Msg("RPC encountered unconvertable error")

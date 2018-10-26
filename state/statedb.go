@@ -6,7 +6,6 @@
 package state
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sync"
@@ -35,12 +34,12 @@ var (
 )
 
 var (
-	errSaveData       = errors.New("Failed to save data: invalid key")
-	errLoadData       = errors.New("Failed to load data: invalid key")
-	errSaveBlockState = errors.New("Failed to save blockState: invalid BlockID")
-	errLoadBlockState = errors.New("Failed to load blockState: invalid BlockID")
-	errSaveStateData  = errors.New("Failed to save StateData: invalid HashID")
-	errLoadStateData  = errors.New("Failed to load StateData: invalid HashID")
+	errSaveData      = errors.New("Failed to save data: invalid key")
+	errLoadData      = errors.New("Failed to load data: invalid key")
+	errSaveBlockInfo = errors.New("Failed to save blockInfo: invalid BlockID")
+	errLoadBlockInfo = errors.New("Failed to load blockInfo: invalid BlockID")
+	errSaveStateData = errors.New("Failed to save StateData: invalid HashID")
+	errLoadStateData = errors.New("Failed to load StateData: invalid HashID")
 )
 
 var (
@@ -54,20 +53,30 @@ var (
 
 // StateDB manages trie of states
 type StateDB struct {
-	lock   sync.RWMutex
-	buffer *stateBuffer
-	trie   *trie.Trie
-	store  *db.DB
+	lock     sync.RWMutex
+	buffer   *stateBuffer
+	trie     *trie.Trie
+	store    *db.DB
+	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore *db.DB, root []byte) *StateDB {
+func NewStateDB(dbstore *db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
-		buffer: newStateBuffer(),
-		trie:   trie.NewTrie(root, common.Hasher, *dbstore),
-		store:  dbstore,
+		buffer:   newStateBuffer(),
+		trie:     trie.NewTrie(root, common.Hasher, *dbstore),
+		store:    dbstore,
+		testmode: test,
 	}
 	return &sdb
+}
+
+// Clone returns a new StateDB which has same store and Root
+func (states *StateDB) Clone() *StateDB {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
+
+	return NewStateDB(states.store, states.GetRoot(), states.testmode)
 }
 
 // GetRoot returns root hash of trie
@@ -78,10 +87,13 @@ func (states *StateDB) GetRoot() []byte {
 }
 
 // SetRoot updates root node of trie as a given root hash
-func (states *StateDB) SetRoot(root []byte) {
+func (states *StateDB) SetRoot(root []byte) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
+	// update root node
 	states.trie.Root = root
+	// reset buffer
+	return states.buffer.reset()
 }
 
 // LoadCache reads first layer of trie given root hash
@@ -89,7 +101,13 @@ func (states *StateDB) SetRoot(root []byte) {
 func (states *StateDB) LoadCache(root []byte) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	return states.trie.LoadCache(root)
+	// update root node and load cache
+	err := states.trie.LoadCache(root)
+	if err != nil {
+		return err
+	}
+	// reset buffer
+	return states.buffer.reset()
 }
 
 // Revert rollbacks trie to previous root hash
@@ -124,6 +142,127 @@ func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
 	return states.buffer.put(types.HashID(id), state)
 }
 
+// GetAccountState gets state of account id from statedb.
+// empty state is returned when there is no state corresponding to account id.
+func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error) {
+	st, err := states.GetState(id)
+	if err != nil {
+		return nil, err
+	}
+	if st == nil {
+		if states.testmode {
+			return &types.State{Balance: 100000000}, nil
+		}
+		return &types.State{}, nil
+	}
+	return st, nil
+}
+
+type V struct {
+	sdb    *StateDB
+	id     []byte
+	aid    types.AccountID
+	oldV   *types.State
+	newV   *types.State
+	newOne bool
+}
+
+func (v *V) ID() []byte {
+	if len(v.id) != 33 {
+		v.id = append(v.id, make([]byte, 33-len(v.id))...)
+	}
+	return v.id
+}
+
+func (v *V) AccountID() types.AccountID {
+	return v.aid
+}
+
+func (v *V) State() *types.State {
+	return v.newV
+}
+
+func (v *V) SetNonce(nonce uint64) {
+	v.newV.Nonce = nonce
+}
+
+func (v *V) Balance() uint64 {
+	return v.newV.Balance
+}
+
+func (v *V) AddBalance(amount uint64) {
+	v.newV.Balance += amount
+}
+
+func (v *V) SubBalance(amount uint64) {
+	v.newV.Balance -= amount
+}
+
+func (v *V) RP() uint64 {
+	return v.newV.SqlRecoveryPoint
+}
+
+func (v *V) IsNew() bool {
+	return v.newOne
+}
+
+func (v *V) Reset() {
+	*v.newV = types.State(*v.oldV)
+}
+
+func (v *V) PutState() error {
+	return v.sdb.PutState(v.aid, v.newV)
+}
+
+func (states *StateDB) CreateAccountStateV(id []byte) (*V, error) {
+	v, err := states.GetAccountStateV(id)
+	if err != nil {
+		return nil, err
+	}
+	if !v.newOne {
+		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
+	}
+	v.newV.SqlRecoveryPoint = 1
+	return v, nil
+}
+
+func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
+	aid := types.ToAccountID(id)
+	st, err := states.GetState(aid)
+	if err != nil {
+		return nil, err
+	}
+	if st == nil {
+		if states.testmode {
+			return &V{
+				sdb:    states,
+				id:     id,
+				aid:    aid,
+				oldV:   &types.State{},
+				newV:   &types.State{Balance: 100000000},
+				newOne: true,
+			}, nil
+		}
+		return &V{
+			sdb:    states,
+			id:     id,
+			aid:    aid,
+			oldV:   &types.State{},
+			newV:   &types.State{},
+			newOne: true,
+		}, nil
+	}
+	newV := new(types.State)
+	*newV = types.State(*st)
+	return &V{
+		sdb:  states,
+		id:   id,
+		aid:  aid,
+		oldV: st,
+		newV: newV,
+	}, nil
+}
+
 // GetState gets state of account id from state buffer and trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
@@ -144,8 +283,6 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 // getState gets state of account id from trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
-	states.lock.RLock()
-	defer states.lock.RUnlock()
 	key, err := states.trie.Get(id[:])
 	if err != nil {
 		return nil, err
@@ -154,26 +291,67 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 		return nil, nil
 	}
 	return states.loadStateData(key)
-	// st := types.State{}
-	// err = loadData(states.store, key, st)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &st, nil
 }
 
-// Snapshot returns revision number of state buffer
-func (states *StateDB) Snapshot() int {
+// GetStateAndProof gets the state and associated proof of an account
+// in the given trie root. If the account doesnt exist, a proof of
+// non existence is returned.
+func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types.StateProof, error) {
+	var state *types.State
+	var ap [][]byte
+	var proofKey, proofVal []byte
+	var isIncluded bool
+	var err error
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	return states.buffer.snapshot()
+
+	if len(root) != 0 {
+		// Get the state and proof of the account for a past state
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Get the state and proof of the account
+		// The wallet should check that state hashes to proofVal and verify the audit path,
+		// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
+		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id[:])
+		if err != nil {
+			return nil, err
+		}
+	}
+	if isIncluded {
+		state, err = states.loadStateData(proofVal)
+		if err != nil {
+			return nil, err
+		}
+	}
+	stateProof := &types.StateProof{
+		State:     state,
+		Inclusion: isIncluded,
+		ProofKey:  proofKey,
+		ProofVal:  proofVal,
+		AuditPath: ap,
+	}
+	logger.Debug().Str("state root : ", enc.ToString(states.trie.Root)).Msg("Get State and Proof")
+	return stateProof, nil
+}
+
+// Snapshot represents revision number of statedb
+type Snapshot int
+
+// Snapshot returns revision number of state buffer
+func (states *StateDB) Snapshot() Snapshot {
+	states.lock.RLock()
+	defer states.lock.RUnlock()
+	return Snapshot(states.buffer.snapshot())
 }
 
 // Rollback discards changes of state buffer to revision number
-func (states *StateDB) Rollback(snapshot int) error {
+func (states *StateDB) Rollback(revision Snapshot) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	return states.buffer.rollback(snapshot)
+	return states.buffer.rollback(int(revision))
 }
 
 // Update applies changes of state buffer to trie
@@ -181,6 +359,10 @@ func (states *StateDB) Update() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 	keys, vals := states.buffer.export()
+	if len(keys) == 0 || len(vals) == 0 {
+		// nothing to update
+		return nil
+	}
 	_, err := states.trie.Update(keys, vals)
 	if err != nil {
 		return err
@@ -201,257 +383,4 @@ func (states *StateDB) Commit() error {
 		return err
 	}
 	return states.buffer.reset()
-}
-
-// ChainStateDB manages statedb and additional informations about blocks like a state root hash
-type ChainStateDB struct {
-	sync.RWMutex
-	latest *types.BlockInfo
-	states *StateDB
-	store  db.DB
-}
-
-// NewChainStateDB creates instance of ChainStateDB
-func NewChainStateDB() *ChainStateDB {
-	return &ChainStateDB{}
-}
-
-// Init initialize database and load statedb of latest block
-func (sdb *ChainStateDB) Init(dataDir string) error {
-	sdb.Lock()
-	defer sdb.Unlock()
-
-	// init db
-	if sdb.store == nil {
-		dbPath := common.PathMkdirAll(dataDir, stateName)
-		sdb.store = db.NewDB(db.BadgerImpl, dbPath)
-	}
-
-	// load latest data from db
-	err := sdb.loadStateLatest()
-	if err != nil {
-		return err
-	}
-
-	// init trie
-	if sdb.states == nil {
-		sdb.states = NewStateDB(&sdb.store, sdb.latest.GetStateRoot())
-	}
-	return nil
-}
-
-// Close saves latest block information of the chain
-func (sdb *ChainStateDB) Close() error {
-	sdb.Lock()
-	defer sdb.Unlock()
-
-	// save data to db
-	err := sdb.saveStateLatest()
-	if err != nil {
-		return err
-	}
-
-	// close db
-	if sdb.store != nil {
-		sdb.store.Close()
-	}
-	return nil
-}
-
-// OpenNewStateDB returns new instance of statedb given state root hash
-func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(&sdb.store, root)
-}
-
-// GetStateRoot returns state root hash
-func (sdb *ChainStateDB) GetStateRoot(blockID []byte) ([]byte, error) {
-	bstate, err := sdb.loadBlockState(types.ToBlockID(blockID))
-	if err != nil {
-		return nil, err
-	}
-	return bstate.StateRoot.Bytes(), nil
-}
-
-func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
-	block := genesisBlock.Block
-	gbInfo := &types.BlockInfo{
-		BlockNo:   0,
-		BlockHash: types.ToBlockID(block.BlockHash()),
-	}
-	sdb.latest = gbInfo
-
-	// create state of genesis block
-	gbState := types.NewBlockState(gbInfo, nil)
-	for address, balance := range genesisBlock.Balance {
-		bytes := types.ToAddress(address)
-		id := types.ToAccountID(bytes)
-		gbState.PutAccount(id, &types.State{}, balance)
-	}
-
-	if genesisBlock.VoteState != nil {
-		aid := types.ToAccountID([]byte(types.AergoSystem))
-		gbState.PutAccount(aid, &types.State{}, genesisBlock.VoteState)
-	}
-	// save state of genesis block
-	if err := sdb.apply(gbState); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sdb *ChainStateDB) getAccountState(aid types.AccountID) (*types.State, error) {
-	state, err := sdb.states.getState(aid)
-	if err != nil {
-		return nil, err
-	}
-	if state == nil {
-		return &types.State{}, nil
-	}
-	return state, nil
-}
-func (sdb *ChainStateDB) GetAccountStateClone(aid types.AccountID) (*types.State, error) {
-	state, err := sdb.getAccountState(aid)
-	if err != nil {
-		return nil, err
-	}
-	res := types.State(*state)
-	return &res, nil
-}
-func (sdb *ChainStateDB) getBlockAccount(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
-	if aid == emptyAccountID {
-		return nil, fmt.Errorf("Failed to get block account: invalid account id")
-	}
-
-	if prev, ok := bs.GetAccount(aid); ok {
-		return prev, nil
-	}
-	return sdb.getAccountState(aid)
-}
-func (sdb *ChainStateDB) GetBlockAccountClone(bs *types.BlockState, aid types.AccountID) (*types.State, error) {
-	state, err := sdb.getBlockAccount(bs, aid)
-	if err != nil {
-		return nil, err
-	}
-	res := types.State(*state)
-	return &res, nil
-}
-
-func (sdb *ChainStateDB) updateStateDB(bstate *types.BlockState) error {
-	accounts := bstate.GetAccountStates()
-	if len(accounts) <= 0 {
-		// do nothing
-		return nil
-	}
-
-	var err error
-	// put states to buffer
-	for k, v := range accounts {
-		err = sdb.states.PutState(k, v)
-		if err != nil {
-			err2 := sdb.states.Rollback(0)
-			if err2 != nil {
-				return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-			}
-			return err
-		}
-	}
-	// update state db
-	err = sdb.states.Update()
-	if err != nil {
-		// rollback to latest
-		err2 := sdb.states.Revert(sdb.latest.StateRoot)
-		if err2 != nil {
-			return fmt.Errorf("%v + %v", err.Error(), err2.Error())
-		}
-		return err
-	}
-	// commit state db
-	return sdb.states.Commit()
-}
-
-func (sdb *ChainStateDB) revertStateDB(prevBlockStateRoot types.HashID) error {
-	if sdb.states.trie.Root == nil && prevBlockStateRoot.Equal(emptyHashID) {
-		// nil and empty bytes, do nothing
-		return nil
-	}
-	if bytes.Equal(sdb.states.trie.Root, prevBlockStateRoot[:]) {
-		// same root, do nothing
-		return nil
-	}
-	// revert state db
-	return sdb.states.Revert(prevBlockStateRoot)
-}
-
-func (sdb *ChainStateDB) Apply(bstate *types.BlockState) error {
-	if sdb.latest.BlockNo+1 != bstate.BlockNo {
-		return fmt.Errorf("Failed to apply: invalid block no - latest=%v, this=%v", sdb.latest.BlockNo, bstate.BlockNo)
-	}
-	if sdb.latest.BlockHash != bstate.PrevHash {
-		return fmt.Errorf("Failed to apply: invalid previous block latest=%v, bstate=%v",
-			sdb.latest.BlockHash, bstate.PrevHash)
-	}
-	return sdb.apply(bstate)
-}
-
-func (sdb *ChainStateDB) apply(bstate *types.BlockState) error {
-	sdb.Lock()
-	defer sdb.Unlock()
-
-	// rollback and revert trie requires state root before apply
-	if bstate.Undo.StateRoot == emptyHashID {
-		bstate.Undo.StateRoot = types.ToHashID(sdb.states.trie.Root)
-	}
-
-	// apply blockState to trie
-	err := sdb.updateStateDB(bstate)
-	if err != nil {
-		return err
-	}
-
-	// check state root
-	if bstate.BlockInfo.StateRoot != types.ToHashID(sdb.GetRoot()) {
-		// TODO: if validation failed, than revert statedb.
-		bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetRoot())
-	}
-	logger.Debug().Str("stateRoot", enc.ToString(sdb.GetRoot())).Msg("apply block state")
-
-	// save blockState
-	err = sdb.saveBlockState(bstate)
-	if err != nil {
-		return err
-	}
-
-	sdb.latest = &bstate.BlockInfo
-	err = sdb.saveStateLatest()
-	return err
-}
-
-func (sdb *ChainStateDB) Rollback(targetBlockID types.BlockID) error {
-	sdb.Lock()
-	defer sdb.Unlock()
-
-	target, err := sdb.loadBlockState(targetBlockID)
-	if err != nil {
-		return err
-	}
-	logger.Debug().Str("before", sdb.latest.StateRoot.String()).
-		Str("target", target.StateRoot.String()).Msg("rollback state")
-
-	err = sdb.revertStateDB(target.StateRoot)
-	if err != nil {
-		return err
-	}
-
-	sdb.latest = &target.BlockInfo
-	return sdb.saveStateLatest()
-}
-
-// GetRoot returns state root hash
-func (sdb *ChainStateDB) GetRoot() []byte {
-	return sdb.states.GetRoot()
-}
-
-func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
-	//TODO : StateRootValidation
-	return false
 }

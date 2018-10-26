@@ -6,13 +6,14 @@
 package chain
 
 import (
+	"errors"
+
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
@@ -36,7 +37,11 @@ type ChainService struct {
 }
 
 var (
-	logger = log.NewLogger("chain")
+	logger           = log.NewLogger("chain")
+	genesisBlock     *types.Block
+	initialBestBlock *types.Block
+
+	ErrBlockExist = errors.New("error! block already exist")
 )
 
 // NewChainService create instance of ChainService
@@ -44,39 +49,49 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
-		cdb:            NewChainDB(),
+		cdb:            NewChainDB(cc),
 		sdb:            state.NewChainStateDB(),
 		op:             NewOrphanPool(),
 	}
-	Init(cfg.Blockchain.MaxBlockSize)
+	if err := Init(cfg.Blockchain.MaxBlockSize,
+		cfg.Blockchain.CoinbaseAccount,
+		types.DefaultCoinbaseFee,
+		cfg.Consensus.EnableBp,
+		cfg.Blockchain.MaxAnchorCount); err != nil {
+		logger.Error().Err(err).Msg("failed to init chainservice")
+		panic("invalid config: blockchain")
+	}
+
 	if cc != nil {
 		cc.SetStateDB(actor.sdb)
 	}
 
 	actor.validator = NewBlockValidator(actor.sdb)
 	if pool != nil {
-		pool.SetStateDb(actor.sdb)
+		pool.SetChainStateDB(actor.sdb)
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
 }
 
-func (cs *ChainService) initDB(dataDir string) error {
+func (cs *ChainService) initDB(dbType string, dataDir string) error {
 	// init chaindb
-	if err := cs.cdb.Init(dataDir); err != nil {
+	if err := cs.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
 
 	// init statedb
-	if err := cs.sdb.Init(dataDir); err != nil {
+	bestBlock, err := cs.GetBestBlock()
+	if err != nil {
+		return err
+	}
+	if err := cs.sdb.Init(dbType, dataDir, bestBlock, cs.cfg.EnableTestmode); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
 
-	receiptDbPath := common.PathMkdirAll(dataDir, contract.DbName)
-	contract.TempReceiptDb = db.NewDB(db.BadgerImpl, receiptDbPath)
 	contract.LoadDatabase(dataDir)
 
 	return nil
@@ -84,16 +99,18 @@ func (cs *ChainService) initDB(dataDir string) error {
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary
 func (cs *ChainService) BeforeStart() {
+	var err error
 
-	if err := cs.initDB(cs.cfg.DataDir); err != nil {
+	if err = cs.initDB(cs.cfg.DbType, cs.cfg.DataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 	}
 
 	// init genesis block
-	if err := cs.initGenesis(nil); err != nil {
+	if _, err := cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to genesis block")
 	}
 
+	cs.ChainConsensus.Init(cs.cdb)
 }
 
 // AfterStart ... do nothing
@@ -101,20 +118,21 @@ func (cs *ChainService) AfterStart() {
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dataDir string) error {
+func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dbType string, dataDir string) error {
 
-	if err := cs.initDB(dataDir); err != nil {
+	if err := cs.initDB(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		return err
 	}
-	err := cs.initGenesis(gb)
+	_, err := cs.initGenesis(gb)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
 	}
 	return nil
 }
-func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
+
+func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := cs.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
 		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
@@ -122,35 +140,40 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) error {
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
-			err := cs.cdb.addGenesisBlock(types.GenesisToBlock(genesis))
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return err
-			}
-			err = InitGenesisBPs(cs.sdb, genesis)
+			genesisBlock := types.GenesisToBlock(genesis)
+
+			err := InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set bp identifications")
-				return err
+				return nil, err
 			}
 			err = cs.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
-				return err
+				return nil, err
+			}
+
+			err = cs.cdb.addGenesisBlock(genesisBlock)
+			if err != nil {
+				logger.Fatal().Err(err).Msg("cannot add genesisblock")
+				return nil, err
 			}
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
-	gb, _ := cs.cdb.getBlockByNo(0)
-	logger.Info().Str("genesis", enc.ToString(gb.Hash)).Msg("chain initialized")
+	genesisBlock, _ := cs.cdb.GetBlockByNo(0)
 
-	return nil
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
+		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
+
+	return genesisBlock, nil
 }
 
 // ChainSync synchronize with peer
-func (cs *ChainService) ChainSync(peerID peer.ID) {
+func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
 	// handlt it like normal block (orphan)
 	logger.Debug().Msg("Best Block Request")
-	anchors := cs.getAnchorsFromHash(nil)
+	anchors := cs.getAnchorsFromHash(remoteBestHash)
 	hashes := make([]message.BlockHash, 0)
 	for _, a := range anchors {
 		hashes = append(hashes, message.BlockHash(a))
@@ -174,9 +197,6 @@ func (cs *ChainService) CloseDB() {
 	if cs.cdb != nil {
 		cs.cdb.Close()
 	}
-	if contract.TempReceiptDb != nil {
-		contract.TempReceiptDb.Close()
-	}
 	contract.CloseDatabase()
 }
 
@@ -198,7 +218,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			BlockNo: cs.getBestBlockNo(),
 		})
 	case *message.GetBestBlock:
-		block, err := cs.getBestBlock()
+		block, err := cs.GetBestBlock()
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get best block")
 		}
@@ -227,23 +247,29 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.AddBlock:
 		bid := msg.Block.BlockID()
+		block := msg.Block
 		logger.Debug().Str("hash", msg.Block.ID()).
 			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
+			err = ErrBlockExist
 		} else {
-			block := msg.Block
-			err := cs.addBlock(block, msg.Bstate, msg.PeerID)
+			var bstate *state.BlockState
+			if msg.Bstate != nil {
+				bstate = msg.Bstate.(*state.BlockState)
+			}
+			err := cs.addBlock(block, bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
-			context.Respond(message.AddBlockRsp{
-				BlockNo:   block.GetHeader().GetBlockNo(),
-				BlockHash: block.BlockHash(),
-				Err:       err,
-			})
 		}
+
+		context.Respond(message.AddBlockRsp{
+			BlockNo:   block.GetHeader().GetBlockNo(),
+			BlockHash: block.BlockHash(),
+			Err:       err,
+		})
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
@@ -251,7 +277,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		}
 	case *message.GetState:
 		id := types.ToAccountID(msg.Account)
-		state, err := cs.sdb.GetAccountStateClone(id)
+		state, err := cs.sdb.GetStateDB().GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
@@ -259,13 +285,24 @@ func (cs *ChainService) Receive(context actor.Context) {
 			State: state,
 			Err:   err,
 		})
+	case *message.GetStateAndProof:
+		id := types.ToAccountID(msg.Account)
+		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id, msg.Root)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+		}
+		context.Respond(message.GetStateAndProofRsp{
+			StateProof: stateProof,
+			Err:        err,
+		})
 	case *message.GetMissing:
 		stopHash := msg.StopHash
 		hashes := msg.Hashes
-		mhashes, mnos := cs.handleMissing(stopHash, hashes)
+		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
 		context.Respond(message.GetMissingRsp{
-			Hashes:   mhashes,
-			Blocknos: mnos,
+			TopMatched: topHash,
+			TopNumber:  topNo,
+			StopNumber: stopNo,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
@@ -275,15 +312,15 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetReceipt:
-		receipt, err := contract.GetReceipt(msg.TxHash)
+		receipt, err := cs.getReceipt(msg.TxHash)
 		context.Respond(message.GetReceiptRsp{
 			Receipt: receipt,
 			Err:     err,
 		})
 	case *message.GetABI:
-		contractState, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		contractState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err == nil {
-			abi, err := contract.GetABI(contractState, msg.Contract)
+			abi, err := contract.GetABI(contractState)
 			context.Respond(message.GetABIRsp{
 				ABI: abi,
 				Err: err,
@@ -295,20 +332,26 @@ func (cs *ChainService) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
-
-		state, err := cs.sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			ret, err := contract.Query(msg.Contract, state, msg.Queryinfo)
+			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
 		top, err := cs.getVotes(msg.N)
-		context.Respond(&message.GetElectedRsp{
+		context.Respond(&message.GetVoteRsp{
+			Top: top,
+			Err: err,
+		})
+	case *message.GetVote:
+		top, err := cs.getVote(msg.Addr)
+		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,
 		})
@@ -323,7 +366,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	}
 }
 
-func (cs *ChainService) Statics() *map[string]interface{} {
+func (cs *ChainService) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"orphan": cs.op.curCnt,
 	}
@@ -331,4 +374,34 @@ func (cs *ChainService) Statics() *map[string]interface{} {
 
 func (cs *ChainService) GetChainTree() ([]byte, error) {
 	return cs.cdb.GetChainTree()
+}
+
+func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	return system.GetVoteResult(scs, n)
+}
+
+func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	var voteList types.VoteList
+	var tmp []*types.Vote
+	voteList.Votes = tmp
+	amount, _, to, err := system.GetVote(scs, addr)
+	if err != nil {
+		return nil, err
+	}
+	for offset := 0; offset < len(to); offset += system.PeerIDLength {
+		vote := &types.Vote{
+			Candidate: to[offset : offset+system.PeerIDLength],
+			Amount:    amount,
+		}
+		voteList.Votes = append(voteList.Votes, vote)
+	}
+	return &voteList, nil
 }

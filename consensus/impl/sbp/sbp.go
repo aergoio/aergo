@@ -3,7 +3,9 @@ package sbp
 import (
 	"time"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
+	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
@@ -22,6 +24,22 @@ func init() {
 	logger = log.NewLogger("sbp")
 }
 
+type txExec struct {
+	execTx bc.TxExecFn
+}
+
+func newTxExec(blockNo types.BlockNo, ts int64) chain.TxOp {
+	// Block hash not determined yet
+	return &txExec{
+		execTx: bc.NewTxExecutor(blockNo, ts),
+	}
+}
+
+func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+	err := te.execTx(bState, tx)
+	return err
+}
+
 // SimpleBlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
 //
 // This can be used for testing purpose.
@@ -32,7 +50,9 @@ type SimpleBlockFactory struct {
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
+	sdb              *state.ChainStateDB
 	ca               types.ChainAccessor
+	prevBlock        *types.Block
 }
 
 // New returns a SimpleBlockFactory.
@@ -48,12 +68,12 @@ func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, 
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(txIn *types.Tx) (*types.BlockState, error) {
+		chain.TxOpFn(func(bState *state.BlockState, txIn *types.Tx) error {
 			select {
 			case <-s.quit:
-				return nil, chain.ErrQuit
+				return chain.ErrQuit
 			default:
-				return nil, nil
+				return nil
 			}
 		}),
 	)
@@ -69,6 +89,11 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b, _ := s.ca.GetBestBlock(); b != nil {
+		if s.prevBlock != nil && s.prevBlock.BlockNo() == b.BlockNo() {
+			logger.Debug().Msg("previous block not connected. skip to generate block")
+			return
+		}
+		s.prevBlock = b
 		jq <- b
 	}
 }
@@ -76,6 +101,7 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 // SetStateDB do nothing in the simple block factory, which do not execute
 // transactions at all.
 func (s *SimpleBlockFactory) SetStateDB(sdb *state.ChainStateDB) {
+	s.sdb = sdb
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -96,8 +122,18 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// UpdateStatus has nothging to do.
-func (s *SimpleBlockFactory) UpdateStatus(block *types.Block) {
+// Init has nothing to do since the simple BP don't use any consensus
+// status information.
+func (s *SimpleBlockFactory) Init(cdb consensus.ChainDbReader) {
+}
+
+// Update has nothging to do.
+func (s *SimpleBlockFactory) Update(block *types.Block) {
+}
+
+// Save has nothging to do.
+func (s *SimpleBlockFactory) Save(tx db.Transaction) error {
+	return nil
 }
 
 // BlockFactory returns s itself.
@@ -110,7 +146,7 @@ func (s *SimpleBlockFactory) SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
 // NeedReorganization has nothing to do.
-func (s *SimpleBlockFactory) NeedReorganization(rootNo, bestNo types.BlockNo) bool {
+func (s *SimpleBlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
 
@@ -122,7 +158,16 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				block, _, err := chain.GenerateBlock(s, prevBlock, s.txOp, time.Now().UnixNano())
+				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
+
+				ts := time.Now().UnixNano()
+
+				txOp := chain.NewCompTxOp(
+					s.txOp,
+					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts),
+				)
+
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
@@ -132,7 +177,7 @@ func (s *SimpleBlockFactory) Start() {
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, nil)
+				chain.ConnectBlock(s, block, blockState)
 			}
 		case <-s.quit:
 			return

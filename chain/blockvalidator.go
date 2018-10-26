@@ -94,3 +94,36 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 
 	return nil
 }
+
+func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts types.Receipts, block *types.Block) error {
+	hdrRoot := block.GetHeader().GetBlocksRootHash()
+
+	if !bytes.Equal(hdrRoot, sdbRoot) {
+		logger.Error().Str("block", block.ID()).
+			Str("hdrroot", enc.ToString(hdrRoot)).
+			Str("sdbroot", enc.ToString(sdbRoot)).
+			Msg("block root hash validation failed")
+		return ErrorBlockVerifySign
+	}
+
+	logger.Debug().Str("block", block.ID()).
+		Str("hdrroot", enc.ToString(hdrRoot)).
+		Str("sdbroot", enc.ToString(sdbRoot)).
+		Msg("block root hash validation succeed")
+
+	hdrRoot = block.GetHeader().ReceiptsRootHash
+	receiptsRoot := receipts.MerkleRoot()
+	if !bytes.Equal(hdrRoot, receiptsRoot) {
+		logger.Error().Str("block", block.ID()).
+			Str("hdrroot", enc.ToString(hdrRoot)).
+			Str("receipts_root", enc.ToString(receiptsRoot)).
+			Msg("receipts root hash validation failed")
+		return ErrorBlockVerifySign
+	}
+	logger.Debug().Str("block", block.ID()).
+		Str("hdrroot", enc.ToString(hdrRoot)).
+		Str("receipts_root", enc.ToString(receiptsRoot)).
+		Msg("receipt root hash validation succeed")
+
+	return nil
+}

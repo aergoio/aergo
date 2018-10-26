@@ -1,11 +1,12 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -51,6 +52,7 @@ var _ MessageHandler = (*getMissingRequestHandler)(nil)
 // newBlockReqHandler creates handler for GetBlockRequest
 func newBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockRequestHandler {
 	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+
 	return bh
 }
 
@@ -58,40 +60,62 @@ func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
-func (bh *blockRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+const (
+	EmptyGetBlockResponseSize = 12 // roughly estimated maximum size if element is full
+)
+
+func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
 	// find block info from chainservice
 	idx := 0
-	blockInfos := make([]*types.Block, 0, len(data.Hashes))
+	status := types.ResultStatus_OK
+	blockInfos := make([]*types.Block, 0, 10)
+	// TODO consider to make async if deadlock with remote peer can occurs
+	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
+	payloadSize := EmptyGetBlockResponseSize
+	var blockSize, fieldSize int
 	for _, hash := range data.Hashes {
-		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
-			&message.GetBlock{BlockHash: hash}))
+		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil || foundBlock == nil {
 			continue
 		}
+		blockSize = proto.Size(foundBlock)
+		fieldSize = blockSize + calculateFieldDescSize(blockSize)
+		if (payloadSize + fieldSize) > MaxPayloadLength {
+			// send partial list
+			resp := &types.GetBlockResponse{
+				Status: status,
+				Blocks: blockInfos, HasNext:true}
+			bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
+			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
+			// reset list
+			blockInfos = make([]*types.Block, 0, 10)
+			payloadSize = EmptyGetBlockResponseSize
+		}
 		blockInfos = append(blockInfos, foundBlock)
+		payloadSize += fieldSize
 		idx++
 	}
-	status := types.ResultStatus_OK
-	if 0 == len(blockInfos) {
+	// send remained blocks
+	if 0 == idx {
 		status = types.ResultStatus_NOT_FOUND
 	}
-
 	// generate response message
 	resp := &types.GetBlockResponse{
 		Status: status,
-		Blocks: blockInfos}
+		Blocks: blockInfos,HasNext:false}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlocksResponse, resp))
+	bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
-func newBlockRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+func newBlockRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *blockResponseHandler {
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -99,25 +123,22 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 	return unmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Blocks))
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Blocks),data.HasNext) )
 
 	// locate request data and remove it if found
-	remotePeer.consumeRequest(msgHeader.GetId())
-
-	// got block
-	bh.logger.Debug().Int("block_cnt", len(data.Blocks)).Msg("Request chainservice to add blocks")
-	for _, block := range data.Blocks {
-		bh.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
+	remotePeer.consumeRequest(msg.ID())
+	if data.Status != types.ResultStatus_OK || len(data.Blocks) == 0 {
+		return
 	}
-
+	bh.sm.HandleGetBlockResponse(remotePeer, msg, data)
 }
 
-// newListBlockReqHandler creates handler for GetBlockHeadersRequest
-func newListBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
+// newListBlockHeadersReqHandler creates handler for GetBlockHeadersRequest
+func newListBlockHeadersReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
 	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
@@ -126,22 +147,21 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, data)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
 
 	// find block info from chainservice
-	maxFetchSize := min(1000, data.Size)
+	maxFetchSize := min(MaxBlockHeaderResponseCount, data.Size)
 	idx := uint32(0)
 	hashes := make([][]byte, 0, data.Size)
 	headers := make([]*types.BlockHeader, 0, data.Size)
 	if len(data.Hash) > 0 {
 		hash := data.Hash
 		for idx < maxFetchSize {
-			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
-				&message.GetBlock{BlockHash: hash}))
+			foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 			if err != nil || foundBlock == nil {
 				break
 			}
@@ -159,7 +179,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 			end = types.BlockNo(data.Height - uint64(maxFetchSize-1))
 		}
 		for i := types.BlockNo(data.Height); i >= end; i-- {
-			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
+			foundBlock, err := extractBlockFromRequest(bh.actor.CallRequestDefaultTimeout(message.ChainSvc,
 				&message.GetBlockByNo{BlockNo: i}))
 			if err != nil || foundBlock == nil {
 				break
@@ -174,7 +194,7 @@ func (bh *listBlockHeadersRequestHandler) handle(msgHeader *types.MsgHeader, msg
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msgHeader.GetId(), GetBlockHeadersResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlockHeadersResponse, resp))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -191,21 +211,21 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
 
 	// send block headers to blockchain service
-	remotePeer.consumeRequest(msgHeader.GetId())
+	remotePeer.consumeRequest(msg.ID())
 
 	// TODO: it's not used yet, but used in RPC and can be used in future performance tuning
 }
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
-func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, peer: peer, actor: actor, logger: logger}}
+func newNewBlockNoticeHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *newBlockNoticeHandler {
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -213,13 +233,18 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
 	// remove to verbose log
-	// debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlockHash) }))
+	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlkHash) }))
 
-	remotePeer.handleNewBlockNotice(data)
+	// lru cache can accept hashable key
+	var hash BlkHash
+	copy(hash[:], data.BlockHash)
+	if !remotePeer.updateBlkCache(hash, data) {
+		bh.sm.HandleNewBlockNotice(remotePeer, hash, data)
+	}
 }
 
 func max(a, b uint32) uint32 {
@@ -258,17 +283,17 @@ func (bh *getMissingRequestHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.GetMissingRequest{})
 }
 
-func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody proto.Message) {
+func (bh *getMissingRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetMissingRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msgHeader.GetId(), peerID, log.DoLazyEval(func() string {
-		return bytesArrToString(data.Hashes)
-	}))
+	if bh.logger.IsDebugEnabled() {
+		debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, bytesArrToString(data.Hashes))
+	}
 
 	// send to ChainSvc
 	// find block info from chainservice
-	rawResponse, err := bh.actor.CallRequest(
+	rawResponse, err := bh.actor.CallRequestDefaultTimeout(
 		message.ChainSvc, &message.GetMissing{Hashes: data.Hashes, StopHash: data.Stophash})
 	if err != nil {
 		bh.logger.Warn().Err(err).Msg("failed to get missing")
@@ -276,12 +301,17 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 		return
 	}
 	v := rawResponse.(message.GetMissingRsp)
-	missing := (*message.GetMissingRsp)(&v)
+	missingInfo := (*message.GetMissingRsp)(&v)
 
+	if missingInfo.TopMatched == nil {
+		// TODO process that internal error or remote is different chain, not just ignore
+
+		return
+	}
 	// generate response message
-	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msgHeader.GetId()).Msg("Sending GetMssingRequest response")
+	bh.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Uint64("from_no", missingInfo.TopNumber).Uint64("to_no", missingInfo.StopNumber).Msg("Sending GetMissingRequest response")
 
-	bh.sendMissingResp(remotePeer, msgHeader.GetId(), missing.Hashes)
+	bh.sendMissingResp(remotePeer, msg.ID(), missingInfo)
 	/*
 		for i := 0; i < len(missing.Hashes); i++ {
 			bh.notifyBranchBlock(remotePeer, missing.Hashes[i], missing.Blocknos[i])
@@ -290,27 +320,67 @@ func (bh *getMissingRequestHandler) handle(msgHeader *types.MsgHeader, msgBody p
 }
 
 // replying chain tree
-func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, requestID string, missing []message.BlockHash) {
-	// find block info from chainservice
-	blockInfos := make([]*types.Block, 0, len(missing))
-	for _, hash := range missing {
-		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequest(message.ChainSvc,
-			&message.GetBlock{BlockHash: hash}))
-		if err != nil || foundBlock == nil {
-			continue
-		}
-		blockInfos = append(blockInfos, foundBlock)
+func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, requestID MsgID, missing *message.GetMissingRsp) {
+	// To get around load issues. Split message by byte size and block count. and limit 10 messages at a single missing handling
+	if missing.StopNumber <= missing.TopNumber {
+		return
 	}
-	status := types.ResultStatus_OK
-	if 0 == len(blockInfos) {
-		status = types.ResultStatus_NOT_FOUND
+	totalCount := missing.StopNumber - missing.TopNumber
+
+	// limit block count in single message
+	sliceCap := MaxBlockResponseCount
+	if totalCount < uint64(sliceCap) {
+		sliceCap = int(totalCount)
 	}
 
+	// TODO very similar with blockRequestHandler.handle() consider refactoring
+	// find block info from chainservice
+	idx := 0
+	msgSentCount := 0
+	status := types.ResultStatus_OK
+	blockInfos := make([]*types.Block, 0, sliceCap)
+	payloadSize := EmptyGetBlockResponseSize
+	var blockSize, fieldSize int
+	for i := missing.TopNumber + 1; i <= missing.StopNumber; i++ {
+		foundBlock, err := extractBlockFromRequest(bh.actor.CallRequestDefaultTimeout(message.ChainSvc,
+			&message.GetBlockByNo{BlockNo: i}))
+		if err != nil || foundBlock == nil {
+			// the block get from getMissing must exists. this error is fatal.
+			bh.logger.Warn().Err(err).Uint64("blk_number", i).Str("req_id", requestID.String()).Msg("failed to get block while processing getMissing")
+			return
+		}
+		blockSize = proto.Size(foundBlock)
+		fieldSize = blockSize + calculateFieldDescSize(blockSize)
+		if len(blockInfos) >= sliceCap || (payloadSize+fieldSize) > MaxPayloadLength {
+			msgSentCount++
+			// send partial list
+			resp := &types.GetBlockResponse{
+				Status: status,
+				Blocks: blockInfos,
+				HasNext:msgSentCount<MaxResponseSplitCount} // always have nextItem ( see foundBlock) but msg count limit will affect
+			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getMissing response")
+			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
+			if msgSentCount >= MaxResponseSplitCount {
+				return
+			}
+			// reset list
+			blockInfos = make([]*types.Block, 0, sliceCap)
+			payloadSize = EmptyGetBlockResponseSize
+		}
+		blockInfos = append(blockInfos, foundBlock)
+		payloadSize += fieldSize
+		idx++
+	}
+
+	if idx == 0 { // have nothing to send
+		return
+	}
 	// generate response message
 	resp := &types.GetBlockResponse{
 		Status: status,
-		Blocks: blockInfos}
+		Blocks: blockInfos,HasNext:false}
 
 	// ???: have to check arguments
+	bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending last part of getMissing response")
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
 }

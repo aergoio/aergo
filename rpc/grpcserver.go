@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
 
@@ -35,8 +36,6 @@ type AergoRPCService struct {
 	hub         *component.ComponentHub
 	actorHelper p2p.ActorService
 	msgHelper   message.Helper
-
-	ca types.ChainAccessor
 }
 
 // FIXME remove redundant constants
@@ -63,7 +62,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		}
 		last := rsp.Block
 	*/
-	last, err := rpc.ca.GetBestBlock()
+	last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +84,7 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 	idx := uint32(0)
 	hashes := make([][]byte, 0, maxFetchSize)
 	headers := make([]*types.Block, 0, maxFetchSize)
+	var err error
 	if len(in.Hash) > 0 {
 		hash := in.Hash
 		for idx < maxFetchSize {
@@ -102,33 +102,51 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 				break
 			}
 		}
+		if in.Asc || in.Offset != 0 {
+			err = errors.New("Has unsupported param")
+		}
 	} else {
 		end := types.BlockNo(0)
-		if types.BlockNo(in.Height) >= types.BlockNo(maxFetchSize) {
-			end = types.BlockNo(in.Height) - types.BlockNo(maxFetchSize-1)
+		start := types.BlockNo(in.Height) - types.BlockNo(in.Offset)
+		if start >= types.BlockNo(maxFetchSize) {
+			end = start - types.BlockNo(maxFetchSize-1)
 		}
-		for i := types.BlockNo(in.Height); i >= end; i-- {
-			foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
-				&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
-			if !ok || nil == foundBlock {
-				break
+		if in.Asc {
+			for i := end; i <= start; i++ {
+				foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
+					&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
+				if !ok || nil == foundBlock {
+					break
+				}
+				hashes = append(hashes, foundBlock.BlockHash())
+				foundBlock.Body = nil
+				headers = append(headers, foundBlock)
+				idx++
 			}
-			hashes = append(hashes, foundBlock.BlockHash())
-			foundBlock.Body = nil
-			headers = append(headers, foundBlock)
-			idx++
+		} else {
+			for i := start; i >= end; i-- {
+				foundBlock, ok := extractBlockFromFuture(rpc.hub.RequestFuture(message.ChainSvc,
+					&message.GetBlockByNo{BlockNo: i}, defaultActorTimeout, "rpc.(*AergoRPCService).ListBlockHeaders#2"))
+				if !ok || nil == foundBlock {
+					break
+				}
+				hashes = append(hashes, foundBlock.BlockHash())
+				foundBlock.Body = nil
+				headers = append(headers, foundBlock)
+				idx++
+			}
 		}
 	}
 
-	return &types.BlockHeaderList{Blocks: headers}, nil
+	return &types.BlockHeaderList{Blocks: headers}, err
 
 }
 
 // real-time streaming most recent block header
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
-	var prev *types.Block;
+	var prev *types.Block
 	for {
-		last, err := rpc.ca.GetBestBlock()
+		last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
 		if err != nil {
 			break
 		}
@@ -207,7 +225,7 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 
 // GetTX handle rpc request gettx
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
-	result, err := rpc.actorHelper.CallRequest(message.MemPoolSvc,
+	result, err := rpc.actorHelper.CallRequestDefaultTimeout(message.MemPoolSvc,
 		&message.MemPoolExist{Hash: in.Value})
 	if err != nil {
 		return nil, err
@@ -270,13 +288,13 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	}
 	tx = signTxRsp.Tx
 	memPoolPutResult, err := rpc.hub.RequestFuture(message.MemPoolSvc,
-		&message.MemPoolPut{Txs: []*types.Tx{tx}},
+		&message.MemPoolPut{Tx: tx},
 		defaultActorTimeout, "rpc.(*AergoRPCService).SendTX").Result()
 	memPoolPutRsp, ok := memPoolPutResult.(*message.MemPoolPutRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(memPoolPutResult))
 	}
-	resultErr := memPoolPutRsp.Err[0]
+	resultErr := memPoolPutRsp.Err
 	if resultErr != nil {
 		return &types.CommitResult{Hash: tx.Hash, Error: convertError(resultErr), Detail: resultErr.Error()}, err
 	}
@@ -293,11 +311,10 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 	rs := make([]*types.CommitResult, len(in.Txs))
+	futures := make([]*actor.Future, len(in.Txs))
 	results := &types.CommitResultList{Results: rs}
 	//results := &types.CommitResultList{}
-	start := 0
 	cnt := 0
-	chunk := 100
 
 	for i, tx := range in.Txs {
 		hash := tx.Hash
@@ -312,29 +329,27 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		results.Results[i] = &r
 		cnt++
 
-		if (i > 0 && i%chunk == 0) || i == len(in.Txs)-1 {
-			//send tx message to mempool
-			result, err := rpc.hub.RequestFuture(message.MemPoolSvc,
-				&message.MemPoolPut{Txs: in.Txs[start : start+cnt]},
-				defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX").Result()
-			if err != nil {
-				return nil, err
-			}
-			rsp, ok := result.(*message.MemPoolPutRsp)
-			if !ok {
-				return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-			}
-
-			for j, err := range rsp.Err {
-				results.Results[start+j].Error = convertError(err)
-				if err != nil {
-					results.Results[start+j].Detail = err.Error()
-				}
-			}
-			start += cnt
-			cnt = 0
+		//send tx message to mempool
+		f := rpc.hub.RequestFuture(message.MemPoolSvc,
+			&message.MemPoolPut{Tx: tx},
+			defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX")
+		futures[i] = f
+	}
+	for i, future := range futures {
+		result, err := future.Result()
+		if err != nil {
+			return nil, err
 		}
-
+		rsp, ok := result.(*message.MemPoolPutRsp)
+		if !ok {
+			err = status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		} else {
+			err = rsp.Err
+		}
+		results.Results[i].Error = convertError(err)
+		if err != nil {
+			results.Results[i].Detail = err.Error()
+		}
 	}
 
 	return results, nil
@@ -352,6 +367,20 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.State, rsp.Err
+}
+
+// GetStateAndProof handle rpc request getstateproof
+func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.StateProof, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetStateAndProof{Account: in.Account, Root: in.Root}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetStateAndProofRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.StateProof, rsp.Err
 }
 
 // CreateAccount handle rpc request newaccount
@@ -466,7 +495,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	ret := &types.VerifyResult{Tx: rsp.Tx}
-	if rsp.Err == message.ErrSignNotMatch {
+	if rsp.Err == types.ErrSignNotMatch {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_SIGN_NOT_MATCH
 	} else {
 		ret.Error = types.VerifyStatus_VERIFY_STATUS_OK
@@ -503,17 +532,24 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes
 
 //GetVotes handle rpc request getvotes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
-	const addresslength = 32
 	var number int
-	if len(in.Value) < addresslength {
+	var err error
+	var result interface{}
+
+	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	} else if len(in.Value) == types.AddressLength {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}
-	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
 	if err != nil {
 		return nil, err
 	}
-	rsp, ok := result.(*message.GetElectedRsp)
+	rsp, ok := result.(*message.GetVoteRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}

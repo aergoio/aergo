@@ -8,6 +8,7 @@ import (
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -62,30 +63,27 @@ func MaxBlockBodySize() uint32 {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, txOp TxOp, ts int64) (*types.Block, *types.BlockState, error) {
-	txs, blockState, err := GatherTXs(hs, txOp, MaxBlockBodySize())
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64) (*types.Block, error) {
+	txs, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	block := types.NewBlock(prevBlock, txs, ts)
-
-	if len(txs) != 0 {
+	block := types.NewBlock(prevBlock, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
+	if len(txs) != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
 			Msg("BF: tx root hash")
 	}
 
-	return block, blockState, nil
+	return block, nil
 }
 
 // ConnectBlock send an AddBlock request to the chain service.
-func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *types.BlockState) error {
+func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
-	blockState.SetBlockHash(block.BlockID())
-
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
 		time.Second, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {

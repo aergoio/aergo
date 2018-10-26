@@ -7,10 +7,11 @@ package chain
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/gob"
 	"encoding/json"
-	"fmt"
-
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -32,7 +33,8 @@ var (
 	ErrNoChainDB       = fmt.Errorf("chaindb not prepared")
 	ErrorLoadBestBlock = errors.New("failed to load latest block from DB")
 
-	latestKey = []byte(chainDBName + ".latest")
+	latestKey      = []byte(chainDBName + ".latest")
+	receiptsPrefix = []byte("r")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -54,7 +56,7 @@ func (e ErrNoBlock) Error() string {
 }
 
 type ChainDB struct {
-	consensus.ChainConsensus
+	cc consensus.ChainConsensus
 
 	latest    types.BlockNo
 	bestBlock atomic.Value // *types.Block
@@ -62,9 +64,10 @@ type ChainDB struct {
 	store db.DB
 }
 
-func NewChainDB() *ChainDB {
+func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
 	// logger.SetLevel("debug")
 	cdb := &ChainDB{
+		cc: cc,
 		//blocks: []*types.Block{},
 		latest: types.BlockNo(0),
 	}
@@ -72,10 +75,10 @@ func NewChainDB() *ChainDB {
 	return cdb
 }
 
-func (cdb *ChainDB) Init(dataDir string) error {
+func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)
-		cdb.store = db.NewDB(db.BadgerImpl, dbPath)
+		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
 	// load data
@@ -97,6 +100,24 @@ func (cdb *ChainDB) Close() {
 		cdb.store.Close()
 	}
 	return
+}
+
+// Get returns the value corresponding to key from the chain DB.
+func (cdb *ChainDB) Get(key []byte) []byte {
+	return cdb.store.Get(key)
+}
+
+func (cdb *ChainDB) GetBestBlock() (*types.Block, error) {
+	//logger.Debug().Uint64("blockno", blockNo).Msg("get best block")
+	var block *types.Block
+
+	aopv := cdb.bestBlock.Load()
+
+	if aopv != nil {
+		block = aopv.(*types.Block)
+	}
+
+	return block, nil
 }
 
 func (cdb *ChainDB) loadChainData() error {
@@ -133,7 +154,7 @@ func (cdb *ChainDB) loadChainData() error {
 		cdb.blocks[i] = &buf
 	}
 	*/
-	latestBlock, err := cdb.getBlockByNo(latestNo)
+	latestBlock, err := cdb.GetBlockByNo(latestNo)
 	if err != nil {
 		return ErrorLoadBestBlock
 	}
@@ -152,6 +173,7 @@ func (cdb *ChainDB) loadChainData() error {
 	// }
 	return nil
 }
+
 func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	buf := cdb.store.Get(key)
 	if buf == nil || len(buf) == 0 {
@@ -197,6 +219,13 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 	(*dbtx).Set(latestKey, blockIdx)
 	(*dbtx).Set(blockIdx, block.BlockHash())
 
+	// Save the last consensus status.
+	if cdb.cc != nil {
+		if err := cdb.cc.Save(*dbtx); err != nil {
+			logger.Error().Err(err).Msg("failed to save DPoS status")
+		}
+	}
+
 	oldLatest = cdb.setLatest(block)
 
 	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
@@ -227,6 +256,9 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 		tx.Set(blockIdx, block.BlockHash())
 	}
 	tx.Set(latestKey, blockIdx)
+
+	// Save the last consensus status.
+	cdb.cc.Save(tx)
 
 	tx.Commit()
 
@@ -322,7 +354,8 @@ func (cdb *ChainDB) getBestBlockNo() types.BlockNo {
 	return cdb.latest
 }
 
-func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+// GetBlockByNo returns the block with its block number as blockNo.
+func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {
 		return nil, err
@@ -330,6 +363,7 @@ func (cdb *ChainDB) getBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, enc.ToString(blockHash))
 	return cdb.getBlock(blockHash)
 }
+
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	if blockHash == nil {
 		return nil, fmt.Errorf("block hash invalid(nil)")
@@ -343,6 +377,7 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	//logger.Debugf("getblockbyHash Hash=%v", enc.ToString(blockHash))
 	return &buf, nil
 }
+
 func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	blockIdx := types.BlockNoToBytes(blockNo)
 	if cdb.store == nil {
@@ -354,6 +389,7 @@ func (cdb *ChainDB) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	}
 	return blockHash, nil
 }
+
 func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	txIdx := &types.TxIdx{}
 
@@ -373,6 +409,23 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	logger.Debug().Str("hash", enc.ToString(txHash)).Msg("getTx")
 
 	return tx, txIdx, nil
+}
+
+func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int32) (*types.Receipt, error) {
+	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
+	if len(data) == 0 {
+		return nil, errors.New("cannot find a receipt")
+	}
+	var b bytes.Buffer
+	b.Write(data)
+	var receipts types.Receipts
+	gob := gob.NewDecoder(&b)
+	gob.Decode(&receipts)
+
+	if idx < 0 || idx > int32(len(receipts)) {
+		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
+	}
+	return receipts[idx], nil
 }
 
 type ChainTree struct {
@@ -399,4 +452,27 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		logger.Info().Msg("GetChainTree failed")
 	}
 	return jsonBytes, nil
+}
+
+func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts types.Receipts) {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	var val bytes.Buffer
+	gob := gob.NewEncoder(&val)
+	gob.Encode(receipts)
+
+	dbTx.Set(receiptsKey(blockHash, blockNo), val.Bytes())
+
+	dbTx.Commit()
+}
+
+func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
+	var key bytes.Buffer
+	key.Write(receiptsPrefix)
+	key.Write(blockHash)
+	l := make([]byte, 8)
+	binary.LittleEndian.PutUint64(l[:], blockNo)
+	key.Write(l)
+	return key.Bytes()
 }

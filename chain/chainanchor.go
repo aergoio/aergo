@@ -38,9 +38,10 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 		latestNo--
 	}
 
+	count := MaxAnchorCount
 	// collect exponential
 	var dec types.BlockNo = 1
-	for i := 0; i < 10; i++ {
+	for i := 0; i < count; i++ {
 		blockHash, err := cs.getHashByNo(latestNo)
 		if err != nil {
 			// assertion!

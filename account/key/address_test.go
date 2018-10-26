@@ -1,26 +1,20 @@
 package key
 
 import (
-	"bytes"
 	"testing"
 
+	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateAddress(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		key, err := btcec.NewPrivateKey(btcec.S256())
-		if err != nil {
-			t.Fatal("could not create private key")
-		}
-		address := GenerateAddress(&key.PublicKey)
-		if len(address) != addressLength {
-			t.Errorf("wrong address length : %d", len(address))
-		}
+		assert.NoError(t, err, "could not create private key")
 
-		if !bytes.Equal(key.PubKey().SerializeCompressed(), address) {
-			t.Errorf("wrong address contents : %v, %v",
-				key.PubKey().SerializeCompressed(), address)
-		}
+		address := GenerateAddress(&key.PublicKey)
+		assert.Equalf(t, types.AddressLength, len(address), "wrong address length : %s", address)
+		assert.Equal(t, key.PubKey().SerializeCompressed(), address, "wrong address contents")
 	}
 }

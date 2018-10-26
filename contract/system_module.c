@@ -8,8 +8,15 @@ extern const bc_ctx_t *getLuaExecContext(lua_State *L);
 
 static int systemPrint(lua_State *L)
 {
-	printf ("systemPrinted");
-	return 1;
+    char *jsonValue;
+	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+
+    jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
+    if (jsonValue == NULL) {
+		luaL_error(L, "getItem error : can't convert");
+	}
+    LuaPrint(exec->contractId, jsonValue);
+	return 0;
 }
 
 static int setItem(lua_State *L)
@@ -24,15 +31,18 @@ static int setItem(lua_State *L)
 	}
 
 	if (exec->isQuery) {
-	    luaL_error(L, "not permitted set in query");
+	    luaL_error(L, "set not permitted in query");
 	}
 
 	luaL_checkany(L, 2);
 	key = luaL_checkstring(L, 1);
 
-	jsonValue = lua_util_get_json (L, -1);
-	dbKey = lua_util_get_db_key(exec, key);
+	jsonValue = lua_util_get_json (L, -1, false);
+	if (jsonValue == NULL) {
+		luaL_error(L, "getItem error : can't convert", jsonValue);
+	}
 
+	dbKey = lua_util_get_db_key(exec, key);
 	if (LuaSetDB(L, exec->stateKey, dbKey, jsonValue) != 0) {
 		free(jsonValue);
 		free(dbKey);
@@ -125,12 +135,31 @@ static int getContractID(lua_State *L)
 	return 1;
 }
 
+static int getCreator(lua_State *L)
+{
+	const bc_ctx_t *exec = getLuaExecContext(L);
+	char *value;
+	int ret;
+
+	if (exec == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	ret = LuaGetDB(L, exec->stateKey, "Creator");
+	if (ret < 0) {
+		lua_error(L);
+	}
+	if (ret == 0)
+		return 0;
+	value = (char *)luaL_checkstring(L, -1);
+	return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
 	{"getItem", getItem},
 	{"getSender", getSender},
-	{"getCreator", getContractID},
+	{"getCreator", getCreator},
 	{"getTxhash", getTxhash},
 	{"getBlockheight", getBlockHeight},
 	{"getTimestamp", getTimestamp},
@@ -141,5 +170,6 @@ static const luaL_Reg sys_lib[] = {
 int luaopen_system(lua_State *L)
 {
 	luaL_register(L, "system", sys_lib);
+	lua_pop(L, 1);
 	return 1;
 }

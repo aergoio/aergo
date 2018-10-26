@@ -97,7 +97,12 @@ func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 	var inputlist []InOutTx
 	err := json.Unmarshal([]byte(jsonTx), &inputlist)
 	if err != nil {
-		return nil, err
+		var input InOutTx
+		err = json.Unmarshal([]byte(jsonTx), &input)
+		if err != nil {
+			return nil, err
+		}
+		inputlist = append(inputlist, input)
 	}
 	txs := make([]*types.Tx, len(inputlist))
 	for i, in := range inputlist {

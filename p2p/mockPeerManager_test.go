@@ -1,3 +1,8 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
@@ -249,7 +254,7 @@ func (_m *MockPeerManager) GetPeers() []RemotePeer {
 }
 
 // GetPeerAddresses provides a mock function with given fields:
-func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.PeerState) {
+func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState) {
 	ret := _m.Called()
 
 	var r0 []*types.PeerAddress
@@ -261,14 +266,21 @@ func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []types.Pee
 		}
 	}
 
-	var r1 []types.PeerState
-	if rf, ok := ret.Get(1).(func() []types.PeerState); ok {
+	var r1 []*types.NewBlockNotice
+	if rf, ok := ret.Get(1).(func() []*types.NewBlockNotice); ok {
 		r1 = rf()
 	} else {
-		r1 = ret.Get(1).([]types.PeerState)
+		r1 = ret.Get(1).([]*types.NewBlockNotice)
 	}
 
-	return r0, r1
+	var r2 []types.PeerState
+	if rf, ok := ret.Get(1).(func() []types.PeerState); ok {
+		r2 = rf()
+	} else {
+		r2 = ret.Get(1).([]types.PeerState)
+	}
+
+	return r0, r1, r2
 }
 
 // GetStatus provides a mock function with given fields:
@@ -520,7 +532,7 @@ func (_m *MockPeerManager) Stop() error {
 }
 
 // NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, hash BlockHash, data *types.NewBlockNotice) {
+func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, hash BlkHash, data *types.NewBlockNotice) {
 	_m.Called(peerID, hash, data)
 }
 

@@ -2,35 +2,40 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
-	"github.com/gogo/protobuf/jsonpb"
 	"strings"
+
+	"github.com/aergoio/aergo/internal/merkle"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/minio/sha256-simd"
 )
 
-func NewReceipt(contractAddress []byte, status string, jsonRet string) Receipt {
-	return Receipt{
-		ContractAddress: contractAddress,
+func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
+	return &Receipt{
+		ContractAddress: contractAddress[:33],
 		Status:          status,
 		Ret:             jsonRet,
 	}
 }
 
-func NewReceiptFromBytes(b []byte) *Receipt {
-	r := new(Receipt)
-	r.ContractAddress = b[:33]
-	endIdx := bytes.IndexByte(b[33:], 0x00) + 33
-	r.Status = string(b[33:endIdx])
-	r.Ret = string(b[endIdx+1:])
-	return r
+func (r Receipt) MarshalBinary() ([]byte, error) {
+	var b bytes.Buffer
+	l := make([]byte, 2)
+	b.Write(r.ContractAddress)
+	binary.LittleEndian.PutUint16(l[:], uint16(len(r.Status)))
+	b.Write(l)
+	b.WriteString(r.Status)
+	b.WriteString(r.Ret)
+	return b.Bytes(), nil
 }
 
-func (r Receipt) Bytes() []byte {
-	var b bytes.Buffer
-	b.Write(r.ContractAddress)
-	b.WriteString(r.Status)
-	b.WriteByte(0x00)
-	b.WriteString(r.Ret)
-	return b.Bytes()
+func (r *Receipt) UnmarshalBinary(data []byte) error {
+	r.ContractAddress = data[:33]
+	l := binary.LittleEndian.Uint16(data[33:])
+	r.Status = string(data[35 : 35+l])
+	r.Ret = string(data[35+l:])
+	return nil
 }
 
 func (r Receipt) MarshalJSONPB(*jsonpb.Marshaler) ([]byte, error) {
@@ -47,4 +52,21 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(strings.Replace(r.Ret, "\"", "'", -1))
 	b.WriteString(`"}`)
 	return b.Bytes(), nil
+}
+
+func (r Receipt) GetHash() []byte {
+	h := sha256.New()
+	b, _ := r.MarshalBinary()
+	h.Write(b)
+	return h.Sum(nil)
+}
+
+type Receipts []*Receipt
+
+func (rs Receipts) MerkleRoot() []byte {
+	mes := make([]merkle.MerkleEntry, len(rs))
+	for i, r := range rs {
+		mes[i] = r
+	}
+	return merkle.CalculateMerkleRoot(mes)
 }

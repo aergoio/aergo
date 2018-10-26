@@ -28,21 +28,19 @@ type Trie struct {
 	// hash is the hash function used in the trie
 	hash func(data ...[]byte) []byte
 	// TrieHeight is the number if bits in a key
-	TrieHeight uint64
-	// defaultHashes are the default values of empty trees
-	defaultHashes [][]byte
+	TrieHeight int
 	// LoadDbCounter counts the nb of db reads in on update
-	LoadDbCounter uint64
+	LoadDbCounter int
 	// loadDbMux is a lock for LoadDbCounter
 	loadDbMux sync.RWMutex
 	// LoadCacheCounter counts the nb of cache reads in on update
-	LoadCacheCounter uint64
+	LoadCacheCounter int
 	// liveCountMux is a lock fo LoadCacheCounter
 	liveCountMux sync.RWMutex
 	// counterOn is used to enable/diseable for efficiency
 	counterOn bool
 	// CacheHeightLimit is the number of tree levels we want to store in cache
-	CacheHeightLimit uint64
+	CacheHeightLimit int
 	// pastTries stores the past maxPastTries trie roots to revert
 	pastTries [][]byte
 	// atomicUpdate, commit all the changes made by intermediate update calls
@@ -53,44 +51,28 @@ type Trie struct {
 func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	s := &Trie{
 		hash:       hash,
-		TrieHeight: uint64(len(hash([]byte("height"))) * 8), // hash any string to get output length
+		TrieHeight: len(hash([]byte("height"))) * 8, // hash any string to get output length
 		counterOn:  false,
 	}
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
-		store:        store,
+		Store:        store,
 	}
 	// don't store any cache by default (contracts state don't use cache)
 	s.CacheHeightLimit = s.TrieHeight + 1
 	s.Root = root
-	s.loadDefaultHashes()
 	return s
 }
 
-// loadDefaultHashes creates the default hashes and stores them in cache
-func (s *Trie) loadDefaultHashes() []byte {
-	s.defaultHashes = make([][]byte, s.TrieHeight+1)
-	s.defaultHashes[0] = DefaultLeaf
-	var h []byte
-	for i := 1; i <= int(s.TrieHeight); i++ {
-		h = s.hash(s.defaultHashes[i-1], s.defaultHashes[i-1])
-		s.defaultHashes[i] = h
-	}
-	return h
-}
-
 // Update adds and deletes a sorted list of keys and their values to the trie
-// Adding and deleting can be simultaneous as long as keys are sorted.
+// Adding and deleting can be simultaneous.
 // To delete, set the value to DefaultLeaf.
-// Make sure you don't delete keys that don't exist,
-// the root hash would become invalid.
 // If Update is called multiple times, only the state after the last update
 // is commited.
 func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.prevRoot = s.Root
 	s.atomicUpdate = false
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
@@ -114,7 +96,6 @@ func (s *Trie) Update(keys, values [][]byte) ([]byte, error) {
 func (s *Trie) AtomicUpdate(keys, values [][]byte) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.prevRoot = s.Root
 	s.atomicUpdate = true
 	s.LoadDbCounter = 0
 	s.LoadCacheCounter = 0
@@ -129,12 +110,7 @@ func (s *Trie) AtomicUpdate(keys, values [][]byte) ([]byte, error) {
 	} else {
 		s.Root = nil
 	}
-	if len(s.pastTries) >= maxPastTries {
-		copy(s.pastTries, s.pastTries[1:])
-		s.pastTries[len(s.pastTries)-1] = s.Root
-	} else {
-		s.pastTries = append(s.pastTries, s.Root)
-	}
+	s.updatePastTries()
 	return s.Root, nil
 }
 
@@ -147,12 +123,10 @@ type mresult struct {
 }
 
 // update adds and deletes a sorted list of keys and their values to the trie.
-// Adding and deleting can be simultaneous as long as keys are sorted.
+// Adding and deleting can be simultaneous.
 // To delete, set the value to DefaultLeaf.
 // It returns the root of the updated tree.
-// A DefaultLeaf shouldn't be updated to a DefaultLeaf as shortcut nodes
-// could be moved down the tree resulting in an invalid root
-func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
+func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height int, ch chan<- (mresult)) {
 	if height == 0 {
 		if bytes.Equal(DefaultLeaf, values[0]) {
 			// Delete the key-value from the trie if it is being set to DefaultLeaf
@@ -222,7 +196,7 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height 
 }
 
 // updateRight updates the right side of the tree
-func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height int, ch chan<- (mresult)) {
 	// all the keys go in the right subtree
 	newch := make(chan mresult, 1)
 	s.update(rnode, keys, values, batch, 2*iBatch+2, height-1, newch)
@@ -242,7 +216,7 @@ func (s *Trie) updateRight(lnode, rnode, root []byte, keys, values, batch [][]by
 }
 
 // updateLeft updates the left side of the tree
-func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byte, iBatch, height int, ch chan<- (mresult)) {
 	// all the keys go in the left subtree
 	newch := make(chan mresult, 1)
 	s.update(lnode, keys, values, batch, 2*iBatch+1, height-1, newch)
@@ -262,7 +236,7 @@ func (s *Trie) updateLeft(lnode, rnode, root []byte, keys, values, batch [][]byt
 }
 
 // updateParallel updates both sides of the trie simultaneously
-func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) {
+func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, rvalues, batch [][]byte, iBatch, height int, ch chan<- (mresult)) {
 	lch := make(chan mresult, 1)
 	rch := make(chan mresult, 1)
 	go s.update(lnode, lkeys, lvalues, batch, 2*iBatch+1, height-1, lch)
@@ -289,7 +263,7 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 }
 
 // deleteOldNode deletes an old node that has been updated
-func (s *Trie) deleteOldNode(root []byte, height uint64, movingUp bool) {
+func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 	var node Hash
 	copy(node[:], root)
 	if !s.atomicUpdate || movingUp {
@@ -307,7 +281,7 @@ func (s *Trie) deleteOldNode(root []byte, height uint64, movingUp bool) {
 }
 
 // splitKeys devides the array of keys into 2 so they can update left and right branches in parallel
-func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
+func (s *Trie) splitKeys(keys [][]byte, height int) ([][]byte, [][]byte) {
 	for i, key := range keys {
 		if bitIsSet(key, height) {
 			return keys[:i], keys[i:]
@@ -317,7 +291,7 @@ func (s *Trie) splitKeys(keys [][]byte, height uint64) ([][]byte, [][]byte) {
 }
 
 // maybeMoveUpShortcut moves up a shortcut if it's sibling node is default
-func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBatch, height uint64, ch chan<- (mresult)) bool {
+func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBatch, height int, ch chan<- (mresult)) bool {
 	if len(left) == 0 && len(right) == 0 {
 		// Both update and sibling are deleted subtrees
 		if iBatch == 0 {
@@ -327,7 +301,6 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 			batch[2*iBatch+1] = nil
 			batch[2*iBatch+2] = nil
 		}
-		//ch <- mresult{s.defaultHashes[height], false, nil}
 		ch <- mresult{nil, true, nil}
 		return true
 	} else if len(left) == 0 {
@@ -344,7 +317,7 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 	return false
 }
 
-func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut, height uint64, ch chan<- (mresult)) bool {
+func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut, height int, ch chan<- (mresult)) bool {
 	// it doesn't matter if atomic update is true or false since the batch is node modified
 	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, iShortcut, batch)
 	if err != nil {
@@ -434,7 +407,7 @@ func (s *Trie) maybeAddShortcutToKV(keys, values [][]byte, shortcutKey, shortcut
 
 // loadChildren looks for the children of a node.
 // if the node is not stored in cache, it will be loaded from db.
-func (s *Trie) loadChildren(root []byte, height, iBatch uint64, batch [][]byte) ([][]byte, uint64, []byte, []byte, bool, error) {
+func (s *Trie) loadChildren(root []byte, height, iBatch int, batch [][]byte) ([][]byte, int, []byte, []byte, bool, error) {
 	isShortcut := false
 	if height%4 == 0 {
 		if len(root) == 0 {
@@ -499,7 +472,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		return val, nil
 	}
 	//Fetch node in disk database
-	if s.db.store == nil {
+	if s.db.Store == nil {
 		return nil, fmt.Errorf("DB not connected to trie")
 	}
 	if s.counterOn {
@@ -508,7 +481,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		s.loadDbMux.Unlock()
 	}
 	s.db.lock.Lock()
-	dbval := s.db.store.Get(root[:HashLength])
+	dbval := s.db.Store.Get(root[:HashLength])
 	s.db.lock.Unlock()
 	nodeSize := len(dbval)
 	if nodeSize != 0 {
@@ -530,7 +503,7 @@ func (s *Trie) parseBatch(val []byte) [][]byte {
 		batch[0] = []byte{0}
 		j := 0
 		for i := 1; i <= 30; i++ {
-			if bitIsSet(bitmap, uint64(i-1)) {
+			if bitIsSet(bitmap, i-1) {
 				batch[i] = val[4+33*j : 4+33*(j+1)]
 				j++
 			}
@@ -541,7 +514,7 @@ func (s *Trie) parseBatch(val []byte) [][]byte {
 
 // leafHash returns the hash of key_value_byte(height) concatenated, stores it in the updatedNodes and maybe in liveCache.
 // leafHash is never called for a default value. Default value should not be stored.
-func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, height uint64) []byte {
+func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, height int) []byte {
 	// byte(height) is here for 2 reasons.
 	// 1- to prevent potential problems with merkle proofs where if an account
 	// has the same address as a node, it would be possible to prove a
@@ -561,7 +534,7 @@ func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, heig
 }
 
 // storeNode stores a batch and deletes the old node from cache
-func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height uint64) {
+func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
 	if !bytes.Equal(h, oldRoot) {
 		var node Hash
 		copy(node[:], h)
@@ -580,13 +553,13 @@ func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height uint64) {
 }
 
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
-func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height uint64) []byte {
+func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height int) []byte {
 	var h []byte
-	// left and right cannot both be default. It is  handled by moveUpShortcut()
+	// left and right cannot both be default. It is handled by moveUpShortcut()
 	if len(left) == 0 {
-		h = s.hash(s.defaultHashes[height-1], right[:HashLength])
+		h = s.hash(DefaultLeaf, right[:HashLength])
 	} else if len(right) == 0 {
-		h = s.hash(left[:HashLength], s.defaultHashes[height-1])
+		h = s.hash(left[:HashLength], DefaultLeaf)
 	} else {
 		h = s.hash(left[:HashLength], right[:HashLength])
 	}
@@ -598,4 +571,14 @@ func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch,
 		s.storeNode(batch, h, oldRoot, height)
 	}
 	return h
+}
+
+// updatePastTries appends the current Root to the list of past tries
+func (s *Trie) updatePastTries() {
+	if len(s.pastTries) >= maxPastTries {
+		copy(s.pastTries, s.pastTries[1:])
+		s.pastTries[len(s.pastTries)-1] = s.Root
+	} else {
+		s.pastTries = append(s.pastTries, s.Root)
+	}
 }

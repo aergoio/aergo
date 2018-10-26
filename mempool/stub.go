@@ -6,14 +6,12 @@
 package mempool
 
 import (
-	"math/rand"
 	"sync"
-	"time"
 
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
 
+/*
 func (mp *MemPool) generateInfiniteTx() {
 	SAMPLES := [][]byte{
 		{0x01, 0x00, 0x00, 0x00},
@@ -54,7 +52,7 @@ func (mp *MemPool) generateInfiniteTx() {
 		//mp.Debugf("create temp tx : %s %s", err, tx.GetBody().String())
 	}
 }
-
+*/
 const defaultBalance = uint64(10000000)
 
 var (
@@ -91,6 +89,6 @@ func getBalanceByAccMock(acc string) uint64 {
 	return balance[acc]
 }
 
-func getCurrentBestBlockNoMock() types.BlockNo {
-	return bestBlockNo
+func getCurrentBestBlockNoMock() types.BlockID {
+	return types.ToBlockID(nil)
 }

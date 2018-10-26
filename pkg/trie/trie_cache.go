@@ -27,28 +27,21 @@ type CacheDB struct {
 	// lock for CacheDB
 	lock sync.RWMutex
 	// store is the interface to disk db
-	store db.DB
+	Store db.DB
 }
 
-// commit stores the updated nodes to disk.
-func (db *CacheDB) commit() {
-	db.updatedMux.Lock()
-	defer db.updatedMux.Unlock()
-	txn := db.store.NewTx()
-	// NOTE The tx interface doesnt handle ErrTxnTooBig
-	// NOTE DB transaction couldn't have been used in Update
-	// because serialize and rollback are necessary
-	for key, batch := range db.updatedNodes {
-		//node := key
+// commit adds updatedNodes to the given database transaction.
+func (c *CacheDB) commit(txn *db.Transaction) {
+	c.updatedMux.Lock()
+	defer c.updatedMux.Unlock()
+	for key, batch := range c.updatedNodes {
 		var node []byte
-		txn.Set(append(node, key[:]...), db.serializeBatch(batch))
-		//txn.Set(node[:], db.serializeBatch(batch))
+		(*txn).Set(append(node, key[:]...), c.serializeBatch(batch))
 	}
-	txn.Commit()
 }
 
 // serializeBatch serialises the 2D [][]byte into a []byte for db
-func (db *CacheDB) serializeBatch(batch [][]byte) []byte {
+func (c *CacheDB) serializeBatch(batch [][]byte) []byte {
 	serialized := make([]byte, 4) //, 30*33)
 	if batch[0][0] == 1 {
 		// the batch node is a shortcut
@@ -56,7 +49,7 @@ func (db *CacheDB) serializeBatch(batch [][]byte) []byte {
 	}
 	for i := 1; i < 31; i++ {
 		if len(batch[i]) != 0 {
-			bitSet(serialized, uint64(i-1))
+			bitSet(serialized, i-1)
 			serialized = append(serialized, batch[i]...)
 		}
 	}

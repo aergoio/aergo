@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>
 #include <sqlite3-binding.h>
 #include "vm.h"
 #include "sqlcheck.h"
@@ -32,7 +33,7 @@ typedef struct {
     int closed;
     int nc;
     int ref;
-    int *is_boolean;
+    char **decltypes;
 } db_rs_t;
 
 static void db_pstmt_close(lua_State *L, int ref);
@@ -57,25 +58,34 @@ static int db_rs_tostr(lua_State *L)
     return 1;
 }
 
-static int is_booleantype(const char *tname)
+static char *dup_decltype(const char *decltype)
 {
-    if (tname == NULL || strlen(tname) != 7)
-        return 0;
-    if (tname[0] != 'B' && tname[0] != 'b')
-        return 0;
-    if (tname[1] != 'O' && tname[0] != 'o')
-        return 0;
-    if (tname[2] != 'O' && tname[2] != 'o')
-        return 0;
-    if (tname[3] != 'L' && tname[3] != 'l')
-        return 0;
-    if (tname[4] != 'E' && tname[4] != 'e')
-        return 0;
-    if (tname[5] != 'A' && tname[5] != 'a')
-        return 0;
-    if (tname[6] != 'N' && tname[6] != 'n')
-        return 0;
-    return 1;
+    int n;
+    char *p;
+    char *c;
+
+    if (decltype == NULL) {
+        return NULL;
+    }
+
+    p = c = malloc(strlen(decltype));
+    while ((*c++ = tolower(*decltype++))) ;
+
+    if (strcmp(p, "date") == 0 || strcmp(p, "datetime") == 0 || strcmp(p, "timestamp") == 0 ||
+        strcmp(p, "boolean") == 0)
+        return p;
+    return NULL;
+}
+
+static void free_decltypes(db_rs_t *rs)
+{
+    int i;
+    for (i = 0; i < rs->nc; i++) {
+        if (rs->decltypes[i] != NULL)
+            free(rs->decltypes[i]);
+    }
+    free(rs->decltypes);
+    rs->decltypes = NULL;
 }
 
 static int db_rs_get(lua_State *L)
@@ -87,21 +97,25 @@ static int db_rs_get(lua_State *L)
     int n;
     const unsigned char *s;
 
-    if (rs->is_boolean == NULL) {
+    if (rs->decltypes == NULL) {
         luaL_error(L, "`get' called without calling `next'");
     }
     for (i = 0; i < rs->nc; i++) {
         switch (sqlite3_column_type(rs->s, i)) {
         case SQLITE_INTEGER:
             d = sqlite3_column_int64(rs->s, i);
-            if (rs->is_boolean[i])  {
+            if (rs->decltypes[i] == NULL)  {
+                lua_pushinteger(L, d);
+            } else if (strcmp(rs->decltypes[i], "boolean") == 0) {
                 if (d != 0) {
                     lua_pushboolean(L, 1);
                 } else {
                     lua_pushboolean(L, 0);
                 }
-            } else {
-                lua_pushinteger(L, d);
+            } else { // date, datetime, timestamp
+                char buf[80];
+                strftime(buf, 80, "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&d));
+                lua_pushlstring(L, (const char *)buf, strlen(buf));
             }
             break;
         case SQLITE_FLOAT:
@@ -128,9 +142,8 @@ static void db_rs_close(lua_State *L, db_rs_t *rs)
         return;
     }
     rs->closed = 1;
-    if (rs->is_boolean) {
-        free(rs->is_boolean);
-        rs->is_boolean = NULL;
+    if (rs->decltypes) {
+        free_decltypes(rs);
     }
     if (rs->ref == -1) {
         sqlite3_finalize(rs->s);
@@ -160,11 +173,11 @@ static int db_rs_next(lua_State *L)
         db_rs_close(L, rs);
         lua_pushboolean(L, 0);
     } else {
-        if (rs->is_boolean == NULL) {
+        if (rs->decltypes == NULL) {
             int i;
-            rs->is_boolean = malloc(sizeof(int) * rs->nc);
+            rs->decltypes = malloc(sizeof(char *) * rs->nc);
             for (i = 0; i < rs->nc; i++) {
-                rs->is_boolean[i] = is_booleantype(sqlite3_column_decltype(rs->s, i));
+                rs->decltypes[i] = dup_decltype(sqlite3_column_decltype(rs->s, i));
             }
         }
         lua_pushboolean(L, 1);
@@ -180,9 +193,8 @@ static int db_rs_gc(lua_State *L)
         return 0;
     }
     rs->closed = 1;
-    if (rs->is_boolean) {
-        free(rs->is_boolean);
-        rs->is_boolean = NULL;
+    if (rs->decltypes) {
+        free_decltypes(rs);
     }
     if (rs->ref == -1) {
         sqlite3_finalize(rs->s);
@@ -233,18 +245,18 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
         int t, b, n = i + 1;
         const char *s;
         size_t l;
-        lua_Number d;
 
         luaL_checkany(L, n);
         t = lua_type(L, n);
 
         switch (t) {
         case LUA_TNUMBER:
-            d = lua_tonumber(L, n);
-            if ((double)d == (double)((lua_Integer)d)) {
+            if (luaL_isinteger(L, n)) {
+                lua_Integer d = lua_tointeger(L, n);
                 rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
             } else {
-                rc = sqlite3_bind_double(pstmt->s, i, (sqlite3_int64)d);
+                lua_Number d = lua_tonumber(L, n);
+                rc = sqlite3_bind_double(pstmt->s, i, (double)d);
             }
             break;
         case LUA_TSTRING:
@@ -318,7 +330,7 @@ static int db_pstmt_query(lua_State *L)
     rs->closed = 0;
     rs->nc = sqlite3_column_count(pstmt->s);
     rs->ref = pstmt->ref;
-    rs->is_boolean = NULL;
+    rs->decltypes = NULL;
     pstmt->refcnt++;
     return 1;
 }
@@ -387,7 +399,7 @@ static int db_query(lua_State *L)
     rs->closed = 0;
     rs->nc = sqlite3_column_count(s);
     rs->ref = -1;
-    rs->is_boolean = NULL;
+    rs->decltypes = NULL;
     return 1;
 }
 
@@ -458,5 +470,6 @@ int luaopen_db(lua_State *L)
     luaL_register(L, NULL, pstmt_methods);
 
 	luaL_register(L, "db", db_lib);
+	lua_pop(L, 3);
 	return 1;
 }

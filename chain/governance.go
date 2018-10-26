@@ -6,65 +6,52 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/state"
+	"errors"
 
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(sdb *state.ChainStateDB, txBody *types.TxBody, senderState *types.State, receiverState *types.State,
+func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) error {
-	governance := string(txBody.GetRecipient())
 
-	scs, err := sdb.OpenContractState(receiverState)
+	if len(txBody.Payload) <= 0 {
+		return types.ErrTxFormatInvalid
+	}
+
+	governance := string(txBody.Recipient)
+	if governance != types.AergoSystem {
+		return errors.New("receive unknown recipient")
+	}
+
+	scs, err := states.OpenContractState(receiver.State())
 	if err != nil {
 		return err
 	}
 	switch governance {
 	case types.AergoSystem:
-		/*
-			TODO: need validate?
-			peerID, err := peer.IDFromBytes(to)
-			if err != nil {
-				return err
-			}
-		*/
-		err = executeSystemTx(txBody, senderState, scs, blockNo)
+		err = system.ExecuteSystemTx(txBody, sender.State(), scs, blockNo)
 		if err == nil {
-			err = sdb.CommitContractState(scs)
+			err = states.CommitContractState(scs)
 		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
+		err = types.ErrTxInvalidRecipient
 	}
-	return err
-}
 
-func executeSystemTx(txBody *types.TxBody, senderState *types.State,
-	scs *state.ContractState, blockNo types.BlockNo) error {
-	systemCmd := txBody.GetPayload()[0]
-	var err error
-	switch systemCmd {
-	case 's':
-		err = staking(txBody, senderState, scs, blockNo)
-	case 'v':
-		err = voting(txBody, scs, blockNo)
-	case 'u':
-		err = unstaking(txBody, senderState, scs, blockNo)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
-func InitGenesisBPs(sdb *state.ChainStateDB, genesis *types.Genesis) error {
+func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 
 	if len(genesis.BPIds) == 0 {
 		return nil
 	}
 	aid := types.ToAccountID([]byte(types.AergoSystem))
-	scs, err := sdb.OpenContractStateAccount(aid)
+	scs, err := states.OpenContractStateAccount(aid)
 	if err != nil {
 		return err
 	}
@@ -73,10 +60,10 @@ func InitGenesisBPs(sdb *state.ChainStateDB, genesis *types.Genesis) error {
 	for _, v := range genesis.BPIds {
 		voteResult[v] = uint64(0)
 	}
-	if err = syncVoteResult(scs, &voteResult); err != nil {
+	if err = system.InitVoteResult(scs, &voteResult); err != nil {
 		return err
 	}
-	if err = sdb.CommitContractState(scs); err != nil {
+	if err = states.CommitContractState(scs); err != nil {
 		return err
 	}
 	genesis.VoteState = scs.State

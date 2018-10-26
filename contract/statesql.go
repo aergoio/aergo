@@ -96,7 +96,7 @@ func CloseDatabase() {
 	}
 }
 
-func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *types.BlockState) error {
+func SaveRecoveryPoint(bs *state.BlockState) error {
 	for id, db := range database.DBs {
 		if db.tx != nil {
 			err := db.tx.Commit()
@@ -109,14 +109,19 @@ func SaveRecoveryPoint(sdb *state.ChainStateDB, bs *types.BlockState) error {
 				return ErrFindRp
 			}
 			if rp > 0 {
-				logger.Debug().Str("db_name", id.String()).Uint64("commit_id", rp).Msg("save recovery point")
-				receiverState, err := sdb.GetBlockAccountClone(bs, id)
+				if logger.IsDebugEnabled() {
+					logger.Debug().Str("db_name", id.String()).Uint64("commit_id", rp).Msg("save recovery point")
+				}
+				receiverState, err := bs.GetAccountState(id)
 				if err != nil {
 					return err
 				}
-				receiverChange := types.Clone(*receiverState).(types.State)
+				receiverChange := types.State(*receiverState)
 				receiverChange.SqlRecoveryPoint = uint64(rp)
-				bs.PutAccount(id, receiverState, &receiverChange)
+				err = bs.PutState(id, &receiverChange)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -219,7 +224,9 @@ type DB struct {
 }
 
 func (db *DB) beginTx(rp uint64) (Tx, error) {
-	logger.Debug().Str("db_name", db.name.String()).Msg("begin transaction")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", db.name.String()).Msg("begin transaction")
+	}
 	if db.tx == nil {
 		err := db.restoreRecoveryPoint(rp)
 		if err != nil {
@@ -258,8 +265,10 @@ func (db *DB) recoveryPoint() uint64 {
 
 func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
 	lastRp := db.recoveryPoint()
-	logger.Debug().Str("db_name", db.name.String()).Uint64("state_rp", stateRp).
-		Uint64("last_rp", lastRp).Msgf("restore recovery point, %p", db.Conn)
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", db.name.String()).Uint64("state_rp", stateRp).
+			Uint64("last_rp", lastRp).Msgf("restore recovery point, %p", db.Conn)
+	}
 	if lastRp == 0 {
 		return ErrFindRp
 	}
@@ -272,9 +281,11 @@ func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
 	if err := db.rollbackToRecoveryPoint(stateRp); err != nil {
 		return err
 	}
-	logger.Debug().Str("db_name", db.name.String()).Uint64("commit_id", stateRp).Msg(
-		"restore recovery point",
-	)
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", db.name.String()).Uint64("commit_id", stateRp).Msg(
+			"restore recovery point",
+		)
+	}
 	return nil
 }
 
@@ -287,7 +298,9 @@ func (db *DB) rollbackToRecoveryPoint(rp uint64) error {
 }
 
 func (db *DB) snapshotView(rp uint64) error {
-	logger.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
+	if logger.IsDebugEnabled() {
+		logger.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
+	}
 	_, err := db.ExecContext(
 		context.Background(),
 		fmt.Sprintf("pragma branch=master.%d", rp),
@@ -327,29 +340,39 @@ type WritableTx struct {
 }
 
 func (tx *WritableTx) Commit() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("commit")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("commit")
+	}
 	return tx.Tx.Commit()
 }
 
 func (tx *WritableTx) Rollback() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("rollback")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("rollback")
+	}
 	return tx.Tx.Rollback()
 }
 
 func (tx *WritableTx) Savepoint() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("savepoint")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("savepoint")
+	}
 	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.db.name.String() + "\"")
 	return err
 }
 
 func (tx *WritableTx) Release() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("release")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("release")
+	}
 	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.db.name.String() + "\"")
 	return err
 }
 
 func (tx *WritableTx) RollbackToSavepoint() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("rollback to savepoint")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("rollback to savepoint")
+	}
 	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.db.name.String() + "\"")
 	return err
 }
@@ -373,7 +396,9 @@ func (tx *ReadOnlyTx) Commit() error {
 }
 
 func (tx *ReadOnlyTx) Rollback() error {
-	logger.Debug().Str("db_name", tx.db.name.String()).Msg("read-only tx is closed")
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", tx.db.name.String()).Msg("read-only tx is closed")
+	}
 	return tx.db.close()
 }
 

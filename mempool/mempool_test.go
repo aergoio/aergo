@@ -7,11 +7,12 @@ package mempool
 import (
 	"encoding/binary"
 	"math/rand"
+	"os"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -126,7 +127,7 @@ func TestInvalidTransaction(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
-	if err != message.ErrInsufficientBalance {
+	if err != types.ErrInsufficientBalance {
 		t.Errorf("check valid failed, err != ErrInsufficientBalance, but %s", err)
 	}
 
@@ -135,17 +136,18 @@ func TestInvalidTransaction(t *testing.T) {
 		t.Errorf("tx should be accepted, err:%s", err)
 	}
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != message.ErrTxAlreadyInMempool {
+	if err != types.ErrTxAlreadyInMempool {
 		t.Errorf("tx should be denied /w ErrTxAlreadyInMempool, err:%s", err)
 	}
 	txs := []*types.Tx{genTx(0, 1, 1, 1)}
 	simulateBlockGen(txs...)
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != message.ErrTxNonceTooLow {
+	if err != types.ErrTxNonceTooLow {
 		t.Errorf("tx should be denied /w ErrTxNonceTooLow, err:%s", err)
 	}
 }
 
+/*
 func TestInvalidTransactions(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -164,7 +166,7 @@ func TestInvalidTransactions(t *testing.T) {
 	if err == nil {
 		t.Errorf("put invalid tx should be failed")
 	}
-}
+}*/
 func TestOrphanTransaction(t *testing.T) {
 	//	t.Errorf("Sum was incorrect, ")
 
@@ -490,6 +492,73 @@ func TestSwitchingBestBlock(t *testing.T) {
 	if ready != 3 || orphan != 1 {
 		t.Errorf("size wrong:%d, %d", ready, orphan)
 	}
+}
+
+func TestDumpAndLoad(t *testing.T) {
+	initTest(t)
+	//set temporary path for test
+	pool.dumpPath = "./mempool_dump_test"
+	txs := make([]*types.Tx, 0)
+
+	if _, err := os.Stat(pool.dumpPath); os.IsExist(err) {
+		if os.Remove(pool.dumpPath) != nil {
+			t.Errorf("init test failed (rm %s failed)", pool.dumpPath)
+		}
+	}
+
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+		t.Errorf("err should be NotExist ,but %s", err)
+	}
+
+	if !atomic.CompareAndSwapInt32(&pool.status, initial, running) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+		t.Errorf("err should be NotExist ,but %s", err)
+	}
+
+	for i := 0; i < 100; i++ {
+		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
+		txs = append(txs, tmp)
+		if err := pool.put(tmp); err != nil {
+			t.Errorf("put should succeed, %s", err)
+		}
+	}
+
+	pool.dumpTxsToFile()
+	if _, err := os.Stat(pool.dumpPath); err != nil {
+		t.Errorf("dump file should be created but, %s", err)
+	}
+	deinitTest()
+
+	initTest(t)
+	pool.dumpPath = "./mempool_dump_test"
+	ready, orphan := pool.Size()
+	if ready != 0 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+	if !atomic.CompareAndSwapInt32(&pool.status, initial, running) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+	pool.loadTxs()
+	ready, orphan = pool.Size()
+	if ready != 0 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+
+	if !atomic.CompareAndSwapInt32(&pool.status, running, initial) {
+		t.Errorf("pool status should be initial, but %d", pool.status)
+	}
+
+	pool.loadTxs()
+	ready, orphan = pool.Size()
+	if ready != 100 || orphan != 0 {
+		t.Errorf("size wrong:%d, %d", ready, orphan)
+	}
+	deinitTest()
+	os.Remove(pool.dumpPath) // nolint: errcheck
 }
 
 /*

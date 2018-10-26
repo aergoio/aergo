@@ -74,7 +74,7 @@ func init() {
 func TestAergoRPCService_GetTX(t *testing.T) {
 	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: 4332, Recipient: dummyWalletAddress2, Payload: dummyPayload}
 	sampleTx := &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}
-	mockActorHelper.On("CallRequest", message.MemPoolSvc, mock.Anything).Return(message.MemPoolGetRsp{}, nil)
+	mockActorHelper.On("CallRequestDefaultTimeout", message.MemPoolSvc, mock.Anything).Return(message.MemPoolGetRsp{}, nil)
 	mockMsgHelper.On("ExtractTxFromResponse", mock.AnythingOfType("message.MemPoolGetRsp")).Return(sampleTx, nil)
 	type fields struct {
 		hub         *component.ComponentHub

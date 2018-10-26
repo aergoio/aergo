@@ -94,8 +94,8 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 
 	var jobMap map[string]*actor.Future
 	jobMap = make(map[string]*actor.Future)
-	var retCompStatics map[string]*CompStatRsp
-	retCompStatics = make(map[string]*CompStatRsp)
+	var retCompStatistics map[string]*CompStatRsp
+	retCompStatistics = make(map[string]*CompStatRsp)
 
 	for name, comp := range hub.components {
 		if compStatus[name] == StartedStatus {
@@ -106,7 +106,7 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 				"pkg/component/hub.Status")
 		} else {
 			// in the case of non-started components, just record its status
-			retCompStatics[name] = &CompStatRsp{
+			retCompStatistics[name] = &CompStatRsp{
 				Status: StatusToString(compStatus[name]),
 			}
 		}
@@ -119,18 +119,18 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 		if err != nil {
 			// when error is occurred, record it.
 			// the most frequently occurred error will be a timeout error
-			retCompStatics[name] = &CompStatRsp{
+			retCompStatistics[name] = &CompStatRsp{
 				Status:      StatusToString(compStatus[name]),
 				MsgQueueLen: uint64(hub.Get(name).MsgQueueLen()),
 				Error:       err.Error(),
 			}
 		} else {
 			// in normal case, success, record response
-			retCompStatics[name] = result.(*CompStatRsp)
+			retCompStatistics[name] = result.(*CompStatRsp)
 		}
 	}
 
-	return retCompStatics
+	return retCompStatistics
 }
 
 // Tell pass and forget a message to a component, which has a targetName

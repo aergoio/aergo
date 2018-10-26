@@ -16,9 +16,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -40,17 +42,21 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	//curBestBlockNo uint32
-	curBestBlockNo types.BlockNo
-
+	//curBestBlockHash
+	sdb         *state.ChainStateDB
+	bestBlockID types.BlockID
+	stateDB     *state.StateDB
+	verifier    *actor.PID
+	//FIXME use fixed fee from config for now
+	txFee    uint64
 	orphan   int
 	cache    map[types.TxID]*types.Tx
 	pool     map[types.AccountID]*TxList
-	sdb      *state.ChainStateDB
 	dumpPath string
 	status   int32
-	// misc configs
+	// followings are for test
 	testConfig bool
+	deadtx     int
 }
 
 // NewMemPoolService create and return new MemPool
@@ -61,6 +67,8 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		pool:     map[types.AccountID]*TxList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
+		verifier: nil,
+		txFee:    types.DefaultCoinbaseFee,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -72,19 +80,8 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
-		mp.curBestBlockNo = getCurrentBestBlockNoMock()
+		mp.bestBlockID = getCurrentBestBlockNoMock()
 	}
-	//else {
-	//p.BaseComponent.Start(mp)
-
-	/*result, err := mp.Hub().RequestFuture(message.ChainSvc, &message.GetBestBlockNo{}, time.Second).Result()
-	if err != nil {
-		mp.Error("get best block failed", err)
-	}
-	rsp := result.(message.GetBestBlockNoRsp)
-	mp.curBestBlockNo = rsp.BlockNo*/
-	//}
-	//go mp.generateInfiniteTx()
 	if mp.cfg.Mempool.ShowMetrics {
 		go func() {
 			for range time.Tick(1e9) {
@@ -95,14 +92,30 @@ func (mp *MemPool) BeforeStart() {
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
-func (mp *MemPool) AfterStart() {}
+func (mp *MemPool) AfterStart() {
+
+	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
+	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
+		WithInstance(NewTxVerifier(mp)))
+
+	rsp, err := mp.RequestToFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second*2).Result()
+	if err != nil {
+		mp.Error().Err(err).Msg("failed to get best block")
+		panic("Mempool AfterStart Failed")
+	}
+	bestblock := rsp.(message.GetBestBlockRsp).Block
+	mp.setStateDB(bestblock)
+}
 
 // Stop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {
+	if mp.verifier != nil {
+		mp.verifier.GracefulStop()
+	}
 	mp.dumpTxsToFile()
 }
 
-func (mp *MemPool) SetStateDb(sdb *state.ChainStateDB) {
+func (mp *MemPool) SetChainStateDB(sdb *state.ChainStateDB) {
 	mp.sdb = sdb
 }
 
@@ -119,10 +132,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
-		errs := mp.puts(msg.Txs...)
-		context.Respond(&message.MemPoolPutRsp{
-			Err: errs,
-		})
+		mp.verifier.Request(msg.Tx, context.Sender())
 	case *message.MemPoolGet:
 		txs, err := mp.get()
 		context.Respond(&message.MemPoolGetRsp{
@@ -147,10 +157,11 @@ func (mp *MemPool) Receive(context actor.Context) {
 	}
 }
 
-func (mp *MemPool) Statics() *map[string]interface{} {
+func (mp *MemPool) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"cache_len": len(mp.cache),
 		"orphan":    mp.orphan,
+		"dead":      mp.deadtx,
 	}
 }
 
@@ -173,17 +184,22 @@ func (mp *MemPool) get() ([]*types.Tx, error) {
 // validate
 // add pool if possible, else pendings
 func (mp *MemPool) put(tx *types.Tx) error {
-	id := types.ToTxID(tx.Hash)
+	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
 
 	mp.Lock()
 	defer mp.Unlock()
 	if _, found := mp.cache[id]; found {
-		return message.ErrTxAlreadyInMempool
+		return types.ErrTxAlreadyInMempool
 	}
-
-	err := mp.validate(tx)
-	if err != nil {
+	/*
+		err := mp.verifyTx(tx)
+		if err != nil {
+			return err
+		}
+	*/
+	err := mp.validateTx(tx)
+	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
 
@@ -191,14 +207,17 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
+	defer mp.releaseMemPoolList(list)
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Debug().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
+
 	mp.orphan -= diff
 	mp.cache[id] = tx
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
+
 	if !mp.testConfig {
 		mp.notifyNewTx(*tx)
 	}
@@ -212,6 +231,30 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 	return errs
 }
 
+func (mp *MemPool) setStateDB(block *types.Block) {
+	if mp.testConfig {
+		return
+	}
+
+	newBlockID := types.ToBlockID(block.GetHash())
+
+	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
+		mp.bestBlockID = newBlockID
+
+		stateRoot := block.GetHeader().GetBlocksRootHash()
+		if mp.stateDB == nil {
+			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+			mp.Debug().Str("Hash", newBlockID.String()).
+				Str("StateRoot", types.ToHashID(stateRoot).String()).
+				Msg("new StateDB opened")
+		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
+			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
+				mp.Error().Err(err).Msg("failed to set root of StateDB")
+			}
+		}
+	}
+}
+
 // input tx based ? or pool based?
 // concurrency consideration,
 func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
@@ -223,8 +266,9 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	// if eviction on statedb cached is occured, it should be improved
 	// to avoid disk access
 	//FIXME after block has state root hash, use it
-	for _, v := range mp.pool {
+	mp.setStateDB(block)
 
+	for _, v := range mp.pool {
 		acc := v.GetAccount()
 		ns, err := mp.getAccountState(acc, true)
 		if err != nil {
@@ -233,49 +277,75 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		}
 		list, err := mp.acquireMemPoolList(acc)
 		if err == nil {
+			defer mp.releaseMemPoolList(list)
 			diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
 			mp.orphan -= diff
-			if list.Empty() {
-				mp.delMemPoolList(acc)
-			}
 			for _, tx := range delTxs {
-				h := types.ToTxID(tx.Hash)
+				h := types.ToTxID(tx.GetHash())
 				delete(mp.cache, h) // need lock
 			}
 		}
 	}
-	return nil
 
+	//TODO
+	for _, tx := range block.GetBody().GetTxs() {
+		hid := types.ToTxID(tx.GetHash())
+		if _, ok := mp.cache[hid]; !ok {
+			continue
+		}
+		ns, err := mp.getAccountState(tx.GetBody().GetAccount(), true)
+		if err != nil {
+			mp.Error().Err(err).Msg("getting Account status failed")
+			continue
+		}
+		mp.Warn().Uint64("nonce on tx", tx.GetBody().GetNonce()).
+			Uint64("nonce on state", ns.Nonce).
+			Msg("mismatch ditected")
+		mp.deadtx++
+	}
+	return nil
 }
 
-// check tx sanity
-// TODO sender's signiture
-// check if sender has enough balance
-// check tx account is lower than known value
-func (mp *MemPool) validate(tx *types.Tx) error {
-	account := tx.GetBody().GetAccount()
-	if account == nil {
-		return message.ErrTxFormatInvalid
-	}
-	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
-		return message.ErrTxHasInvalidHash
-	}
-
-	err := key.VerifyTx(tx)
+// signiture verification
+func (mp *MemPool) verifyTx(tx *types.Tx) error {
+	err := tx.Validate()
 	if err != nil {
 		return err
 	}
+	err = key.VerifyTx(tx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// check tx sanity
+// check if sender has enough balance
+// check tx account is lower than known value
+func (mp *MemPool) validateTx(tx *types.Tx) error {
+	account := tx.GetBody().GetAccount()
 	ns, err := mp.getAccountState(account, false)
 	if err != nil {
 		return err
 	}
-	if tx.GetBody().GetNonce() <= ns.Nonce {
-		return message.ErrTxNonceTooLow
+	err = tx.ValidateWithSenderState(ns)
+	if err != nil {
+		return err
 	}
-	if tx.GetBody().GetAmount() > ns.Balance {
-		if !mp.cfg.EnableTestmode {
-			// Skip balance validation in test mode
-			return message.ErrInsufficientBalance
+	switch tx.GetBody().GetType() {
+	//case types.TxType_NORMAL:
+	case types.TxType_GOVERNANCE:
+		aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient(), false)
+		if err != nil {
+			return err
+		}
+		scs, err := mp.stateDB.OpenContractState(aergoSystemState)
+		if err != nil {
+			return err
+		}
+		err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -306,14 +376,16 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 	return mp.pool[id], nil
 }
 
+func (mp *MemPool) releaseMemPoolList(list *TxList) {
+	if list.Empty() {
+		id := types.ToAccountID(list.account)
+		delete(mp.pool, id)
+	}
+}
+
 func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	id := types.ToAccountID(acc)
 	return mp.pool[id]
-}
-
-func (mp *MemPool) delMemPoolList(acc []byte) {
-	id := types.ToAccountID(acc)
-	delete(mp.pool, id)
 }
 
 func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, error) {
@@ -326,14 +398,22 @@ func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, erro
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 
-	state, err := mp.sdb.GetAccountStateClone(types.ToAccountID(acc))
+	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
+		mp.Fatal().Err(err).Str("sroot", enc.ToString(mp.stateDB.GetRoot())).Msg("failed to get state")
+
 		//FIXME PANIC?
 		//mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err
 	}
+	/*
+		if state.Balance == 0 {
+			strAcc := types.EncodeAddress(acc)
+			mp.Info().Str("address", strAcc).Msg("w t f")
 
+		}
+	*/
 	return state, nil
 }
 

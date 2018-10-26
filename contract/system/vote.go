@@ -3,11 +3,10 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package chain
+package system
 
 import (
 	"encoding/binary"
-	"errors"
 	"sort"
 
 	"github.com/aergoio/aergo/state"
@@ -19,57 +18,56 @@ var votingkey = []byte("voting")
 var totalkey = []byte("totalvote")
 var sortedlistkey = []byte("sortedlist")
 
-//ErrStakeBeforeVote
-var ErrMustStakeBeforeVote = errors.New("must stake before vote")
-
-//ErrLessTimeHasPassed
-var ErrLessTimeHasPassed = errors.New("less time has passed")
-
-//ErrTooSmallAmount
-var ErrTooSmallAmount = errors.New("too small amount to influence")
-
-const peerIDLength = 39
-const votingDelay = 10
+const PeerIDLength = 39
+const VotingDelay = 5
 
 func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockNo) error {
 	old, when, candidates, err := getVote(scs, txBody.Account)
 	if err != nil {
 		return err
 	}
-	if when+stakingDelay > blockNo {
-		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
-		return ErrLessTimeHasPassed
+	if when+VotingDelay > blockNo {
+		//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
+		return types.ErrLessTimeHasPassed
 	}
-	voteResult, err := loadVoteResult(scs)
-	for offset := 0; offset < len(candidates); offset += peerIDLength {
-		key := candidates[offset : offset+peerIDLength]
-		(*voteResult)[base58.Encode(key)] -= old
-	}
-
 	staked, when, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return err
 	}
-	if staked == 0 {
-		return ErrMustStakeBeforeVote
+	if when+VotingDelay > blockNo {
+		//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
+		return types.ErrLessTimeHasPassed
 	}
-	if when > blockNo+votingDelay {
-		logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay from staking")
-		return ErrLessTimeHasPassed
-	}
-	err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
+	err = setStaking(scs, txBody.Account, staked, blockNo)
 	if err != nil {
 		return err
 	}
 
-	if txBody.Payload[0] != 'v' { //called from staking/unstaking
-		for offset := 0; offset < len(candidates); offset += peerIDLength {
-			key := candidates[offset : offset+peerIDLength]
+	voteResult, err := loadVoteResult(scs)
+	for offset := 0; offset < len(candidates); offset += PeerIDLength {
+		key := candidates[offset : offset+PeerIDLength]
+		(*voteResult)[base58.Encode(key)] -= old
+	}
+
+	if txBody.Payload[0] != 'v' { //called from unstaking
+		err = setVote(scs, txBody.Account, candidates, staked, blockNo)
+		if err != nil {
+			return err
+		}
+		for offset := 0; offset < len(candidates); offset += PeerIDLength {
+			key := candidates[offset : offset+PeerIDLength]
 			(*voteResult)[base58.Encode(key)] += staked
 		}
 	} else {
-		for offset := 0; offset < len(txBody.Payload[1:]); offset += peerIDLength {
-			key := txBody.Payload[offset+1 : offset+peerIDLength+1]
+		if staked == 0 {
+			return types.ErrMustStakeBeforeVote
+		}
+		err = setVote(scs, txBody.Account, txBody.Payload[1:], staked, blockNo)
+		if err != nil {
+			return err
+		}
+		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
+			key := txBody.Payload[offset+1 : offset+PeerIDLength+1]
 			(*voteResult)[base58.Encode(key)] += staked
 		}
 	}
@@ -79,6 +77,11 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		return err
 	}
 	return nil
+}
+
+//GetVote return amount, when, to, err
+func GetVote(scs *state.ContractState, voter []byte) (uint64, uint64, []byte, error) {
+	return getVote(scs, voter)
 }
 
 func getVote(scs *state.ContractState, voter []byte) (uint64, uint64, []byte, error) {
@@ -113,11 +116,15 @@ func loadVoteResult(scs *state.ContractState) (*map[string]uint64, error) {
 	if err != nil {
 		return nil, err
 	}
-	for offset := 0; offset < len(data); offset += (peerIDLength + 8) {
-		value := binary.LittleEndian.Uint64(data[offset+peerIDLength : offset+peerIDLength+8])
-		voteResult[base58.Encode(data[offset:offset+peerIDLength])] = value
+	for offset := 0; offset < len(data); offset += (PeerIDLength + 8) {
+		value := binary.LittleEndian.Uint64(data[offset+PeerIDLength : offset+PeerIDLength+8])
+		voteResult[base58.Encode(data[offset:offset+PeerIDLength])] = value
 	}
 	return &voteResult, nil
+}
+
+func InitVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
+	return syncVoteResult(scs, voteResult)
 }
 
 func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
@@ -146,8 +153,8 @@ func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) err
 func updateVoteResult(scs *state.ContractState, candidates []byte, amount uint64, plus bool) error {
 	voteResult, err := loadVoteResult(scs)
 	total := make([]byte, 8)
-	for offset := 0; offset < len(candidates); offset += peerIDLength {
-		key := candidates[offset : offset+peerIDLength]
+	for offset := 0; offset < len(candidates); offset += PeerIDLength {
+		key := candidates[offset : offset+PeerIDLength]
 		current := (*voteResult)[base58.Encode(key)]
 		if plus {
 			(*voteResult)[base58.Encode(key)] = current + amount
@@ -199,8 +206,8 @@ func cleanupVoting(scs *state.ContractState, who []byte, amount uint64,
 	if err != nil {
 		return err
 	}
-	if blockNo < when+votingDelay {
-		return ErrLessTimeHasPassed
+	if blockNo < when+VotingDelay {
+		return types.ErrLessTimeHasPassed
 	}
 	if !remainStaking {
 		err = setVote(scs, who, nil, 0, blockNo)
@@ -211,7 +218,7 @@ func cleanupVoting(scs *state.ContractState, who []byte, amount uint64,
 	return updateVoteResult(scs, candidates, amount, false)
 }
 
-func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
+func GetVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	var voteList types.VoteList
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
@@ -220,22 +227,14 @@ func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	var tmp []*types.Vote
 	voteList.Votes = tmp
 	i := 0
-	for offset := 0; offset < len(data) && i < n; offset += (39 + 8) {
+	for offset := 0; offset < len(data) && i < n; offset += (PeerIDLength + 8) {
 		vote := &types.Vote{
-			Candidate: data[offset : offset+39],
-			Amount:    binary.LittleEndian.Uint64(data[offset+39 : offset+39+8]),
+			Candidate: data[offset : offset+PeerIDLength],
+			Amount:    binary.LittleEndian.Uint64(data[offset+PeerIDLength : offset+PeerIDLength+8]),
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 		i++
 	}
 	//logger.Info().Msgf("VOTE get %v", voteList.Votes)
 	return &voteList, nil
-}
-
-func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	scs, err := cs.sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	if err != nil {
-		return nil, err
-	}
-	return getVoteResult(scs, n)
 }

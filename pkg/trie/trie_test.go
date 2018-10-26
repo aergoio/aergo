@@ -245,9 +245,12 @@ func TestTrieMerkleProof(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		ap, _, _, _, _ := smt.MerkleProof(key)
-		if !smt.VerifyMerkleProof(ap, key, values[i]) {
+		ap, _, k, v, _ := smt.MerkleProof(key)
+		if !smt.VerifyInclusion(ap, key, values[i]) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
@@ -255,7 +258,7 @@ func TestTrieMerkleProof(t *testing.T) {
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
-	if !smt.VerifyMerkleProofEmpty(ap, emptyKey, proofKey, proofValue) {
+	if !smt.VerifyNonInclusion(ap, emptyKey, proofValue, proofKey) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
@@ -268,9 +271,12 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 	smt.Update(keys, values)
 
 	for i, key := range keys {
-		bitmap, ap, length, _, _, _, _ := smt.MerkleProofCompressed(key)
-		if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key, values[i]) {
+		bitmap, ap, length, _, k, v, _ := smt.MerkleProofCompressed(key)
+		if !smt.VerifyInclusionC(bitmap, key, values[i], ap, length) {
 			t.Fatalf("failed to verify inclusion proof")
+		}
+		if !bytes.Equal(key, k) && !bytes.Equal(values[i], v) {
+			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
 	emptyKey := Hasher([]byte("non-member"))
@@ -278,7 +284,7 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
-	if !smt.VerifyMerkleProofCompressedEmpty(bitmap, ap, length, emptyKey, proofKey, proofValue) {
+	if !smt.VerifyNonInclusionC(ap, length, bitmap, emptyKey, proofValue, proofKey) {
 		t.Fatalf("failed to verify non inclusion proof")
 	}
 }
@@ -295,6 +301,32 @@ func TestTrieCommit(t *testing.T) {
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
 	smt.Commit()
+	// liveCache is deleted so the key is fetched in badger db
+	smt.db.liveCache = make(map[Hash][][]byte)
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(value, values[i]) {
+			t.Fatal("failed to get value in committed db")
+		}
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
+func TestTrieStageUpdates(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewTrie(nil, Hasher, st)
+	keys := getFreshData(10, 32)
+	values := getFreshData(10, 32)
+	smt.Update(keys, values)
+	txn := st.NewTx()
+	smt.StageUpdates(&txn)
+	txn.Commit()
 	// liveCache is deleted so the key is fetched in badger db
 	smt.db.liveCache = make(map[Hash][][]byte)
 	for i, key := range keys {
@@ -329,10 +361,10 @@ func TestTrieRevert(t *testing.T) {
 	root2, _ := smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
 	smt.Revert(root)
-	if len(smt.db.store.Get(root)) == 0 {
+	if len(smt.db.Store.Get(root)) == 0 {
 		t.Fatal("shortcut node shouldnt be deleted by revert")
 	}
-	if len(smt.db.store.Get(root2)) != 0 {
+	if len(smt.db.Store.Get(root2)) != 0 {
 		t.Fatal("reverted root should have been deleted")
 	}
 	key1 = make([]byte, 32, 32)
@@ -341,7 +373,7 @@ func TestTrieRevert(t *testing.T) {
 	smt.Update([][]byte{key1}, [][]byte{values[1]})
 	smt.Commit()
 	smt.Revert(root)
-	if len(smt.db.store.Get(root)) == 0 {
+	if len(smt.db.Store.Get(root)) == 0 {
 		t.Fatal("shortcut node shouldnt be deleted by revert")
 	}
 
@@ -383,12 +415,12 @@ func TestTrieRevert(t *testing.T) {
 	}
 	// Check all reverted nodes have been deleted
 	for node, _ := range updatedNodes2 {
-		if len(smt.db.store.Get(node[:])) != 0 {
+		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
 	}
 	for node, _ := range updatedNodes1 {
-		if len(smt.db.store.Get(node[:])) != 0 {
+		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
 	}
@@ -410,7 +442,6 @@ func TestTrieRaisesError(t *testing.T) {
 	smt.Update(keys, values)
 	smt.db.liveCache = make(map[Hash][][]byte)
 	smt.db.updatedNodes = make(map[Hash][][]byte)
-	smt.loadDefaultHashes()
 
 	// Check errors are raised is a keys is not in cache nore db
 	for _, key := range keys {
@@ -490,7 +521,7 @@ func TestTrieLoadCache(t *testing.T) {
 }
 
 func TestHeight0LeafShortcut(t *testing.T) {
-	keySize := uint64(32)
+	keySize := 32
 	smt := NewTrie(nil, Hasher, nil)
 	// Add 2 sibling keys that will be stored at height 0
 	key0 := make([]byte, keySize, keySize)
@@ -508,14 +539,17 @@ func TestHeight0LeafShortcut(t *testing.T) {
 			t.Fatal("trie not updated")
 		}
 	}
-	bitmap, ap, length, _, _, _, err := smt.MerkleProofCompressed(key1)
+	bitmap, ap, length, _, k, v, err := smt.MerkleProofCompressed(key1)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
 	}
 	if length != smt.TrieHeight {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
 	}
-	if !smt.VerifyMerkleProofCompressed(bitmap, ap, length, key1, values[1]) {
+	if !smt.VerifyInclusionC(bitmap, key1, values[1], ap, length) {
 		t.Fatal("failed to verify inclusion proof")
 	}
 
@@ -536,13 +570,16 @@ func TestHeight0LeafShortcut(t *testing.T) {
 		t.Fatal("leaf shortcut didn't move up to root")
 	}
 
-	_, _, length, _, _, _, _ = smt.MerkleProofCompressed(key1)
+	_, _, length, _, k, v, _ = smt.MerkleProofCompressed(key1)
 	if length != 0 {
 		t.Fatal("proof should have length equal to trie height for a leaf shortcut")
 	}
+	if !bytes.Equal(key1, k) && !bytes.Equal(values[1], v) {
+		t.Fatalf("merkle proof didnt return the correct key-value pair")
+	}
 }
 
-func TestRollback(t *testing.T) {
+func TestStash(t *testing.T) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(dbPath, 0711)
@@ -555,8 +592,32 @@ func TestRollback(t *testing.T) {
 	root, _ := smt.Update(keys, values)
 	cacheSize := len(smt.db.liveCache)
 	smt.Commit()
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
+	}
 	values = getFreshData(20, 32)
 	smt.Update(keys, values)
+	smt.Stash(true)
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
+	}
+	if !bytes.Equal(smt.Root, root) {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.updatedNodes) != 0 {
+		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.db.liveCache) != cacheSize {
+		t.Fatal("Trie not rolled back")
+	}
+	keys = getFreshData(20, 32)
+	values = getFreshData(20, 32)
+	smt.AtomicUpdate(keys, values)
+	values = getFreshData(20, 32)
+	smt.AtomicUpdate(keys, values)
+	if len(smt.pastTries) != 3 {
+		t.Fatal("Past tries not updated after commit")
+	}
 	smt.Stash(true)
 	if !bytes.Equal(smt.Root, root) {
 		t.Fatal("Trie not rolled back")
@@ -566,6 +627,9 @@ func TestRollback(t *testing.T) {
 	}
 	if len(smt.db.liveCache) != cacheSize {
 		t.Fatal("Trie not rolled back")
+	}
+	if len(smt.pastTries) != 1 {
+		t.Fatal("Past tries not updated after commit")
 	}
 	st.Close()
 	os.RemoveAll(".aergo")
@@ -656,46 +720,3 @@ func getFreshData(size, length int) [][]byte {
 	sort.Sort(DataArray(data))
 	return data
 }
-
-/*
-// Not available with batching, keys must be same size as hash
-func TestTrieDifferentKeySize(t *testing.T) {
-	keySize := 20
-	smt := NewTrie(uint64(keySize), hash, nil)
-	// Add data to empty trie
-	keys := getFreshData(10, keySize)
-	values := getFreshData(10, 32)
-	smt.Update(keys, values)
-
-	// Check all keys have been stored
-	for i, key := range keys {
-		value, _ := smt.Get(key)
-		if !bytes.Equal(values[i], value) {
-			t.Fatal("trie not updated")
-		}
-	}
-	newValues := getFreshData(10, 32)
-	smt.Update(keys, newValues)
-	// Check all keys have been modified
-	for i, key := range keys {
-		value, _ := smt.Get(key)
-		if !bytes.Equal(newValues[i], value) {
-			t.Fatal("trie not updated")
-		}
-	}
-	smt.Update(keys[0:1], [][]byte{DefaultLeaf})
-	newValue, _ := smt.Get(keys[0])
-	if len(newValue) != 0 {
-		t.Fatal("Failed to delete from trie")
-	}
-	newValue, _ = smt.Get(make([]byte, keySize))
-	if len(newValue) != 0 {
-		t.Fatal("Failed to delete from trie")
-	}
-	ap, _, _, _, _ := smt.MerkleProof(keys[8])
-	if !smt.VerifyMerkleProof(ap, keys[8], newValues[8]) {
-		t.Fatalf("failed to verify inclusion proof")
-	}
-}
-
-*/

@@ -5,13 +5,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
-	"os"
 	"path"
 
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -28,13 +26,10 @@ type Store struct {
 func NewStore(storePath string) *Store {
 	const dbName = "account"
 	dbPath := path.Join(storePath, dbName)
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		_ = os.MkdirAll(dbPath, 0711)
-	}
 
 	return &Store{
 		unlocked: map[string]*aergokey{},
-		storage:  db.NewDB(db.BadgerImpl, dbPath),
+		storage:  db.NewDB(db.LevelImpl, dbPath),
 	}
 }
 func (ks *Store) CloseStore() {
@@ -115,7 +110,7 @@ func (ks *Store) getKey(address []byte, pass string) ([]byte, error) {
 	encryptkey := hashBytes(address, []byte(pass))
 	key := ks.storage.Get(hashBytes(address, encryptkey))
 	if cap(key) == 0 {
-		return nil, message.ErrWrongAddressOrPassWord
+		return nil, types.ErrWrongAddressOrPassWord
 	}
 	return decrypt(address, encryptkey, key)
 }

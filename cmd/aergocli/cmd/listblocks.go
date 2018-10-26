@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/mr-tron/base58/base58"
 
@@ -34,22 +33,37 @@ func init() {
 	listblockheadersCmd.Flags().Int32Var(&gbhHeight, "height", int32(-1), "Block height")
 	listblockheadersCmd.Flags().IntVar(&gbhSize, "size", 20, "Max list size")
 	listblockheadersCmd.Flags().IntVar(&gbhOffset, "offset", 0, "Offset")
-	listblockheadersCmd.Flags().BoolVar(&gbhAsc, "asc", true, "Order by")
+	listblockheadersCmd.Flags().BoolVar(&gbhAsc, "asc", false, "Order by")
 
 }
 
 func execListBlockHeaders(cmd *cobra.Command, args []string) {
-	blockHash, err := base58.Decode(gbhHash)
-	if err != nil {
-		fmt.Printf("decode error: %s", err.Error())
+	var blockHash []byte
+	var err error
+
+	if cmd.Flags().Changed("hash") == true {
+		blockHash, err = base58.Decode(gbhHash)
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+	} else if cmd.Flags().Changed("height") == false {
+		cmd.Printf("Error: required flag(s) \"hash\" or \"height\"not set")
 		return
 	}
-	uparams := &types.ListParams{Hash: blockHash, Height: uint64(gbhHeight), Size: uint32(gbhSize)}
 
-	msg2, err := client.ListBlockHeaders(context.Background(), uparams)
-	if nil == err {
-		fmt.Println(util.JSON(msg2))
-	} else {
-		fmt.Printf("Failed: %s\n", err.Error())
+	uparams := &types.ListParams{
+		Hash:   blockHash,
+		Height: uint64(gbhHeight),
+		Size:   uint32(gbhSize),
+		Offset: uint32(gbhOffset),
+		Asc:    gbhAsc,
 	}
+
+	msg, err := client.ListBlockHeaders(context.Background(), uparams)
+	if err != nil {
+		cmd.Printf("Failed: %s", err.Error())
+		return
+	}
+	cmd.Println(util.JSON(msg))
 }

@@ -4,8 +4,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/anaskhan96/base58check"
 )
+
+const AddressLength = 33
 
 //NewAccount alloc new account object
 func NewAccount(addr []byte) *Account {
@@ -36,10 +39,11 @@ func NewAccountList(accounts []*Account) *AccountList {
 }
 
 type Address = []byte
+
 const AddressVersion = 0x42
 const PrivKeyVersion = 0xAA
 
-func EncodeAddress(addr Address) (string) {
+func EncodeAddress(addr Address) string {
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
 	return encoded
 }
@@ -61,7 +65,7 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	return decoded, nil
 }
 
-func EncodePrivKey(key []byte) (string) {
+func EncodePrivKey(key []byte) string {
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
 	return encoded
 }

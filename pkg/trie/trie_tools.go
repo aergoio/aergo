@@ -8,13 +8,15 @@ package trie
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/aergoio/aergo-lib/db"
 )
 
 // LoadCache loads the first layers of the merkle tree given a root
 // This is called after a node restarts so that it doesnt become slow with db reads
 // LoadCache also updates the Root with the given root.
 func (s *Trie) LoadCache(root []byte) error {
-	if s.db.store == nil {
+	if s.db.Store == nil {
 		return fmt.Errorf("DB not connected to trie")
 	}
 	s.db.liveCache = make(map[Hash][][]byte)
@@ -25,7 +27,7 @@ func (s *Trie) LoadCache(root []byte) error {
 }
 
 // loadCache loads the first layers of the merkle tree given a root
-func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch chan<- (error)) {
+func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height int, ch chan<- (error)) {
 	if height < s.CacheHeightLimit || len(root) == 0 {
 		ch <- nil
 		return
@@ -33,7 +35,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch 
 	if height%4 == 0 {
 		// Load the node from db
 		s.db.lock.Lock()
-		dbval := s.db.store.Get(root[:HashLength])
+		dbval := s.db.Store.Get(root[:HashLength])
 		s.db.lock.Unlock()
 		if len(dbval) == 0 {
 			ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
@@ -54,7 +56,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height uint64, ch 
 		}
 	}
 	if iBatch != 0 && batch[iBatch][HashLength] == 1 {
-		// Check if node is default
+		// Check if node is a leaf node
 		ch <- nil
 	} else {
 		// Load subtree
@@ -85,7 +87,7 @@ func (s *Trie) Get(key []byte) ([]byte, error) {
 }
 
 // get fetches the value of a key given a trie root
-func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height uint64) ([]byte, error) {
+func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte, error) {
 	if len(root) == 0 {
 		// the trie does not contain the key
 		return nil, nil
@@ -111,7 +113,7 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height uint64) ([]b
 // TrieRootExists returns true if the root exists in Database.
 func (s *Trie) TrieRootExists(root []byte) bool {
 	s.db.lock.RLock()
-	dbval := s.db.store.Get(root)
+	dbval := s.db.Store.Get(root)
 	s.db.lock.RUnlock()
 	if len(dbval) != 0 {
 		return true
@@ -119,32 +121,37 @@ func (s *Trie) TrieRootExists(root []byte) bool {
 	return false
 }
 
-// DefaultHash is a getter for the defaultHashes array
-func (s *Trie) DefaultHash(height uint64) []byte {
-	return s.defaultHashes[height]
-}
-
 // Commit stores the updated nodes to disk.
-// Commit should be called for every block otherwise past tries are not recorded and it is not possible to revert to them
+// Commit should be called for every block otherwise past tries
+// are not recorded and it is not possible to revert to them
+// (except if AtomicUpdate is used, which records every state).
 func (s *Trie) Commit() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if s.db.store == nil {
+	if s.db.Store == nil {
 		return fmt.Errorf("DB not connected to trie")
 	}
-	// Commit the new nodes to database, clear updatedNodes and store the Root in history for reverts.
+	// NOTE The tx interface doesnt handle ErrTxnTooBig
+	txn := s.db.Store.NewTx()
+	s.StageUpdates(&txn)
+	txn.Commit()
+	return nil
+}
+
+// StageUpdates requires a database transaction as input
+// Unlike Commit(), it doesnt commit the transaction
+// the database transaction MUST be commited otherwise the
+// state ROOT will not exist.
+func (s *Trie) StageUpdates(txn *db.Transaction) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	// Commit the new nodes to database, clear updatedNodes and store the Root in pastTries for reverts.
 	if !s.atomicUpdate {
 		// if previously AtomicUpdate was called, then past tries is already updated
-		if len(s.pastTries) >= maxPastTries {
-			copy(s.pastTries, s.pastTries[1:])
-			s.pastTries[len(s.pastTries)-1] = s.Root
-		} else {
-			s.pastTries = append(s.pastTries, s.Root)
-		}
+		s.updatePastTries()
 	}
-	s.db.commit()
+	s.db.commit(txn)
+
 	s.db.updatedNodes = make(map[Hash][][]byte)
-	return nil
+	s.prevRoot = s.Root
 }
 
 // Stash rolls back the changes made by previous updates
@@ -167,5 +174,14 @@ func (s *Trie) Stash(rollbackCache bool) error {
 		s.db.liveCache = make(map[Hash][][]byte)
 	}
 	s.db.updatedNodes = make(map[Hash][][]byte)
+	// also stash past tries created by Atomic update
+	for i := len(s.pastTries) - 1; i >= 0; i-- {
+		if bytes.Equal(s.pastTries[i], s.Root) {
+			break
+		} else {
+			// remove from past tries
+			s.pastTries = s.pastTries[:len(s.pastTries)-1]
+		}
+	}
 	return nil
 }

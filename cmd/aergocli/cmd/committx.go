@@ -10,7 +10,6 @@ import (
 
 	sha256 "github.com/minio/sha256-simd"
 
-	"fmt"
 	"io/ioutil"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -42,7 +41,7 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 	if jsonPath != "" {
 		b, readerr := ioutil.ReadFile(jsonPath)
 		if readerr != nil {
-			fmt.Printf("Failed: %s\n", readerr.Error())
+			cmd.Printf("Failed: %s\n", readerr.Error())
 			return
 		}
 		jsonTx = string(b)
@@ -51,17 +50,17 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 	if jsonTx != "" {
 		txlist, err := util.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err = client.CommitTX(context.Background(), &types.TxList{Txs: txlist})
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 	}
 	for i, r := range msg.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
+		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
 	}
 }
 

@@ -8,7 +8,6 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -31,8 +30,8 @@ func execNodeState(cmd *cobra.Command, args []string) {
 	binary.LittleEndian.PutUint64(b, uint64(number))
 	msg, err := client.NodeState(context.Background(), &types.SingleBytes{Value: b})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	fmt.Printf("%s\n", string(msg.Value))
+	cmd.Printf("%s\n", string(msg.Value))
 }

@@ -35,7 +35,7 @@ clean: libtool-clean
 LIBPATH := $(shell pwd)/libtool
 
 libtool: 
-	$(MAKE) -C $(LIBPATH) install
+	$(MAKE) -C $(LIBPATH) all install
 
 libtool-clean:
 	$(MAKE) -C $(LIBPATH) uninstall

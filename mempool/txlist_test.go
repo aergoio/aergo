@@ -7,9 +7,11 @@ package mempool
 import (
 	"math/rand"
 	"testing"
+
+	"github.com/aergoio/aergo/types"
 )
 
-func TestListBasic(t *testing.T) {
+func TestListPutBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	mpl := NewTxList(nil, uint64(1))
@@ -31,10 +33,42 @@ func TestListBasic(t *testing.T) {
 		t.Error("put failed", len(ret), count)
 	}
 }
+
+func TestListPutErrors(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := NewTxList(nil, uint64(10))
+	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
+	if added != 0 || err != types.ErrTxNonceTooLow {
+		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
+	}
+
+	added, err = mpl.Put(genTx(0, 0, uint64(10), 0))
+	if added != 0 || err != nil || len(mpl.list) != 1 {
+		t.Errorf("put should be not failed, but (%d)%s", added, err)
+	}
+
+	added, err = mpl.Put(genTx(0, 0, uint64(10), 0))
+	if added != 0 || err != types.ErrTxAlreadyInMempool {
+		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
+	}
+
+}
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	mpl := NewTxList(nil, uint64(1))
+
+	ret, txs := mpl.SetMinNonce(uint64(3))
+	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+
+	ret, txs = mpl.SetMinNonce(uint64(1))
+	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+
 	count := 100
 
 	//put 1~10 excpet 4 6 8
@@ -45,7 +79,12 @@ func TestListDel(t *testing.T) {
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
 	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
-	ret, txs := mpl.SetMinNonce(uint64(2))
+	ret, txs = mpl.SetMinNonce(uint64(1))
+	if ret != 0 || mpl.Len() != 3 || len(txs) != 0 {
+		t.Error(ret, mpl.Len(), len(txs))
+	}
+
+	ret, txs = mpl.SetMinNonce(uint64(2))
 	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -93,4 +132,29 @@ func TestListDelMiddle(t *testing.T) {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
+}
+
+func TestListPutRandom(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := NewTxList(nil, uint64(1))
+
+	count := 100
+	txs := make([]*types.Tx, count)
+	for i := 0; i < count; i++ {
+		txs[i] = genTx(0, 0, uint64(i+1), 0)
+	}
+	rand.Shuffle(count, func(i, j int) {
+		txs[i], txs[j] = txs[j], txs[i]
+	})
+	for i := 0; i < count; i++ {
+		mpl.Put(txs[i])
+		if !sameTxs(mpl.GetAll(), txs[:i+1]) {
+			t.Error("GetAll returns unproperly")
+		}
+	}
+	ret := mpl.Get()
+	if len(ret) != count {
+		t.Error("put failed", len(ret), count)
+	}
 }

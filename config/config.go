@@ -6,6 +6,8 @@
 package config
 
 import (
+	"runtime"
+
 	"github.com/aergoio/aergo-lib/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
@@ -49,6 +51,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 	return BaseConfig{
 		DataDir:        ctx.ExpandPathEnv("$HOME/data"),
+		DbType:         "badgerdb",
 		EnableProfile:  false,
 		ProfilePort:    6060,
 		EnableRest:     false,
@@ -84,13 +87,18 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 }
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
-	return &BlockchainConfig{MaxBlockSize: types.DefaultMaxBlockSize}
+	return &BlockchainConfig{
+		MaxBlockSize:    types.DefaultMaxBlockSize,
+		CoinbaseAccount: "",
+		MaxAnchorCount:  20,
+	}
 }
 
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
-		ShowMetrics:  false,
-		DumpFilePath: ctx.ExpandPathEnv("$HOME/mempool.dump"),
+		ShowMetrics:    false,
+		VerifierNumber: runtime.NumCPU(),
+		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}
 }
 

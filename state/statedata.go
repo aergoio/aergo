@@ -43,9 +43,6 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errLoadData
 	}
-	if !(*store).Exist(key) {
-		return nil
-	}
 	raw := (*store).Get(key)
 
 	if len(raw) == 0 {
@@ -65,42 +62,12 @@ func loadData(store *db.DB, key []byte, data interface{}) error {
 	return err
 }
 
-func (sdb *ChainStateDB) saveStateLatest() error {
-	return saveData(&sdb.store, []byte(stateLatest), sdb.latest)
-}
-
-func (sdb *ChainStateDB) loadStateLatest() error {
-	return loadData(&sdb.store, []byte(stateLatest), &sdb.latest)
-}
-
-func (sdb *ChainStateDB) saveBlockState(data *types.BlockState) error {
-	bid := data.BlockHash
-	if bid == emptyBlockID {
-		return errSaveBlockState
-	}
-
-	err := saveData(&sdb.store, bid[:], data)
-	return err
-}
-func (sdb *ChainStateDB) loadBlockState(bid types.BlockID) (*types.BlockState, error) {
-	if bid == emptyBlockID {
-		return nil, errLoadBlockState
-	}
-	data := &types.BlockState{}
-	err := loadData(&sdb.store, bid[:], data)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
 func (states *StateDB) loadStateData(key []byte) (*types.State, error) {
 	if len(key) == 0 {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}
-	err := loadData(states.store, key, data)
-	if err != nil {
+	if err := loadData(states.store, key, data); err != nil {
 		return nil, err
 	}
 	return data, nil

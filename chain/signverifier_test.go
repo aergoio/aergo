@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
@@ -105,7 +104,7 @@ func TestInvalidTransactions(t *testing.T) {
 		for i, error := range errors {
 			if error != nil {
 				assert.Equal(t, i, 0)
-				assert.Equal(t, error, message.ErrSignNotMatch)
+				assert.Equal(t, error, types.ErrSignNotMatch)
 			}
 		}
 	}

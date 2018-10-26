@@ -82,7 +82,7 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 			skipped++
 		}
 	}
-	p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
 	return true
 }
 
@@ -93,18 +93,19 @@ func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bo
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
 		return false
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
-
-	bhashes := make([][]byte, 0)
-	for _, a := range hashes {
-		bhashes = append(bhashes, a)
+	//p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
+	if len(hashes) == 0 {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
+		return false
 	}
-	// create message data
-	req := &types.GetMissingRequest{
-		Hashes:   bhashes[1:],
-		Stophash: bhashes[0]}
 
-	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(false, GetMissingRequest, req))
+	p2ps.sm.DoSync(remotePeer, hashes[1:], hashes[0])
+	//// create message data
+	//req := &types.GetMissingRequest{
+	//	Hashes:   bhashes[1:],
+	//	Stophash: bhashes[0]}
+	//
+	//remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(false, GetMissingRequest, req))
 	return true
 }
 
@@ -128,7 +129,6 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 		}
 		hashes[i] = ([]byte)(hash)
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogTxHash, bytesArrToString(hashes)).Msg("Sending GetTransactions request")
 	// create message data
 	req := &types.GetTransactionsRequest{Hashes: hashes}
 

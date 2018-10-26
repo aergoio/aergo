@@ -1,6 +1,6 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"net"
 	"reflect"
+	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -27,20 +28,30 @@ const (
 	LogProtoID = "protocol_id"
 	LogMsgID   = "msg_id"
 	LogBlkHash = "blk_hash"
-	LogTxHash = "tx_hash"
-
+	LogBlkCount = "blk_cnt"
+	LogTxHash  = "tx_hash"
+	LogTxCount = "tx_cnt"
 )
 
 // ActorService is collection of helper methods to use actor
 // FIXME move to more general package. it used in p2p and rpc
 type ActorService interface {
-	// SendRequest send actor request, which does not need to get return value, and forget it.
+	// TellRequest send actor request, which does not need to get return value, and forget it.
+	TellRequest(actor string, msg interface{})
+	// SendRequest send actor request, and the response is expected to go back asynchronously.
 	SendRequest(actor string, msg interface{})
-	// CallReqeust send actor request and wait the handling of that message to finished,
+	// CallRequest send actor request and wait the handling of that message to finished,
 	// and get return value.
-	CallRequest(actor string, msg interface{}) (interface{}, error)
+	CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error)
+	// CallRequestDefaultTimeout is CallRequest with default timeout
+	CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error)
+
 	// FutureRequest send actor reqeust and get the Future object to get the state and return value of message
-	FutureRequest(actor string, msg interface{}) *actor.Future
+	FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future
+	// FutureRequestDefaultTimeout is FutureRequest with default timeout
+	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future
+
+	GetChainAccessor() types.ChainAccessor
 }
 
 func extractBlockFromRequest(rawResponse interface{}, err error) (*types.Block, error) {
@@ -86,7 +97,7 @@ func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, err
 }
 
 func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, error) {
-	if from.Err != nil{
+	if from.Err != nil {
 		return nil, from.Err
 	}
 	return from.Txs, nil
@@ -153,6 +164,17 @@ func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, 
 	}
 }
 
+func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peerID peer.ID,
+	additional interface{}) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+			Msg("Received a response message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).
+			Msg("Received a response message")
+	}
+}
+
 // ComparePeerID do byte-wise compare of two peerIDs,
 func ComparePeerID(pid1, pid2 peer.ID) int {
 	p1 := []byte(string(pid1))
@@ -179,13 +201,25 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func bytesArrToString(bbarray [][]byte) string {
+	return bytesArrToStringWithLimit(bbarray, 10)
+}
+
+func bytesArrToStringWithLimit(bbarray [][]byte, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for _, hash := range bbarray {
+	var arrSize = len(bbarray)
+	if limit > arrSize {
+		limit = arrSize
+	}
+	for i := 0; i < limit; i++ {
+		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString(hash))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
+	}
+	if arrSize > limit {
+		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()

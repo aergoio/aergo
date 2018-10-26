@@ -20,6 +20,7 @@ var (
 	client *util.ConnClient
 	data   string
 	nonce  uint64
+	toJson bool
 )
 
 func init() {
@@ -43,6 +44,7 @@ func init() {
 		Run:   runCallCmd,
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 
 	contractCmd.AddCommand(
 		deployCmd,
@@ -149,7 +151,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
+		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -183,19 +185,21 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
-	if err != nil {
-		log.Fatal(err)
-	}
-	var found bool
-	for _, fn := range abi.Functions {
-		if fn.GetName() == args[2] {
-			found = true
-			break
+	if !toJson {
+		abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
+		if err != nil {
+			log.Fatal(err)
 		}
-	}
-	if !found {
-		log.Fatal(args[2], " function not found in contract :", args[1])
+		var found bool
+		for _, fn := range abi.Functions {
+			if fn.GetName() == args[2] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			log.Fatal(args[2], " function not found in contract :", args[1])
+		}
 	}
 
 	tx := &types.Tx{
@@ -206,10 +210,14 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Payload:   payload,
 		},
 	}
-
 	sign, err := client.SignTX(context.Background(), tx)
 	if err != nil || sign == nil {
 		log.Fatal(err)
+	}
+
+	if toJson {
+		fmt.Println(util.TxConvBase58Addr(sign))
+		return
 	}
 	txs := []*types.Tx{sign}
 	commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
@@ -218,7 +226,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i, r := range commit.Results {
-		fmt.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
+		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
 	}
 }
 
@@ -231,7 +239,7 @@ func runGetABICmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(util.JSON(abi))
+	cmd.Println(util.JSON(abi))
 }
 
 func runQueryCmd(cmd *cobra.Command, args []string) {
@@ -262,5 +270,5 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(ret)
+	cmd.Println(ret)
 }

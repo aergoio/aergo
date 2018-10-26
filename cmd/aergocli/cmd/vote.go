@@ -9,14 +9,12 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
-
-	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +22,7 @@ var revert bool
 
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
+	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
 	voteStatCmd.Flags().Uint64Var(&number, "count", 1, "the number of elected")
 }
 
@@ -33,19 +32,19 @@ var voteCmd = &cobra.Command{
 	Run:   execVote,
 }
 
-const peerIDLength = 39
+const PeerIDLength = 39
 
 func execVote(cmd *cobra.Command, args []string) {
 	account, err := types.DecodeAddress(address)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	_, err = os.Stat(to)
 	if err == nil {
 		b, readerr := ioutil.ReadFile(to)
 		if readerr != nil {
-			fmt.Printf("Failed: %s\n", readerr.Error())
+			cmd.Printf("Failed: %s\n", readerr.Error())
 			return
 		}
 		to = string(b)
@@ -53,24 +52,24 @@ func execVote(cmd *cobra.Command, args []string) {
 	var candidates []string
 	err = json.Unmarshal([]byte(to), &candidates)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
-	payload := make([]byte, (len(candidates)*peerIDLength)+1)
+	payload := make([]byte, (len(candidates)*PeerIDLength)+1)
 	payload[0] = 'v'
 	for i, v := range candidates {
 		candidate, err := base58.Decode(v)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		_, err = peer.IDFromBytes(candidate)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		copy(payload[1+(i*peerIDLength):], candidate)
+		copy(payload[1+(i*PeerIDLength):], candidate)
 	}
 
 	txs := make([]*types.Tx, 1)
@@ -78,7 +77,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	state, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: account})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
@@ -97,19 +96,19 @@ func execVote(cmd *cobra.Command, args []string) {
 	//TODO : support local
 	tx, err := client.SignTX(context.Background(), txs[0])
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	txs[0] = tx
 
 	msg, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
 	for _, r := range msg.Results {
-		fmt.Println("voting hash :", base58.Encode(r.Hash), r.Error)
+		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error, r.Detail)
 		return
 	}
 }
@@ -121,16 +120,31 @@ var voteStatCmd = &cobra.Command{
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {
-	var voteQuery []byte
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(number))
-	voteQuery = b
-	msg, err := client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
+	var rawAddr []byte
+	var err error
+	if address != "" {
+		rawAddr, err = types.DecodeAddress(address)
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+	}
+
+	var msg *types.VoteList
+	if rawAddr != nil {
+		msg, err = client.GetVotes(context.Background(), &types.SingleBytes{Value: rawAddr})
+	} else {
+		var voteQuery []byte
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(number))
+		voteQuery = b
+		msg, err = client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
+	}
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		fmt.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
 	}
 }

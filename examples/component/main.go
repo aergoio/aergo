@@ -48,7 +48,7 @@ func main() {
 	if data, err := json.MarshalIndent(statics, "", "\t"); err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("All Component's Statics: %s\n", data)
+		fmt.Printf("All Component's Statistics: %s\n", data)
 	}
 
 	time.Sleep(1 * time.Second)

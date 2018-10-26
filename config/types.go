@@ -25,10 +25,11 @@ type Config struct {
 // BaseConfig defines base configurations for aergo server
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
+	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
-	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`  
+	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
 }
 
 // RPCConfig defines configurations for rpc service
@@ -63,13 +64,16 @@ type P2PConfig struct {
 
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
-	MaxBlockSize uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
+	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 }
 
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics  bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
-	DumpFilePath string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
+	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
 
 // ConsensusConfig defines configurations for consensus service
@@ -98,6 +102,7 @@ map = does not support
 const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
+dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enablerest = {{.BaseConfig.EnableRest}}
@@ -129,9 +134,13 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 [blockchain]
 # blockchain configurations
 maxblocksize = {{.Blockchain.MaxBlockSize}}
+coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
+maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
+
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
+verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
 
 [consensus]

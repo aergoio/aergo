@@ -32,8 +32,11 @@ type GetMissing struct {
 	StopHash []byte
 }
 type GetMissingRsp struct {
-	Hashes   []BlockHash
-	Blocknos []types.BlockNo
+	TopMatched BlockHash
+	TopNumber types.BlockNo
+	StopNumber types.BlockNo
+	//Hashes   []BlockHash
+	//Blocknos []types.BlockNo
 }
 
 type GetBlockByNo struct {
@@ -44,7 +47,8 @@ type GetBlockByNoRsp GetBlockRsp
 type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
-	Bstate *types.BlockState
+	Bstate interface{}
+	// Bstate *types.BlockState
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo
@@ -57,6 +61,14 @@ type GetState struct {
 type GetStateRsp struct {
 	State *types.State
 	Err   error
+}
+type GetStateAndProof struct {
+	Account []byte
+	Root    []byte
+}
+type GetStateAndProofRsp struct {
+	StateProof *types.StateProof
+	Err        error
 }
 type GetTx struct {
 	TxHash []byte
@@ -104,8 +116,12 @@ type GetElected struct {
 	N int
 }
 
+type GetVote struct {
+	Addr []byte
+}
+
 // GetElectedRsp is return to get voting result
-type GetElectedRsp struct {
+type GetVoteRsp struct {
 	Top *types.VoteList
 	Err error
 }

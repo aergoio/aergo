@@ -72,9 +72,9 @@ var newCmd = &cobra.Command{
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd()
+			param.Passphrase, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed get password: %s\n", err.Error())
 				return
 			}
 		}
@@ -85,21 +85,22 @@ var newCmd = &cobra.Command{
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			addr, err = ks.CreateKey(param.Passphrase)
-			if nil != err {
-				fmt.Printf("Failed: %s\n", err.Error())
+			if err != nil {
+				cmd.Printf("Failed: %s\n", err.Error())
+				return
 			}
 			err = ks.SaveAddress(addr)
-			ks.CloseStore()
 		}
-		if nil != err {
-			fmt.Printf("Failed: %s\n", err.Error())
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		if msg != nil {
+			cmd.Println(types.EncodeAddress(msg.GetAddress()))
 		} else {
-			if msg != nil {
-				fmt.Println(types.EncodeAddress(msg.GetAddress()))
-			} else {
-				fmt.Println(types.EncodeAddress(addr))
-			}
+			cmd.Println(types.EncodeAddress(addr))
 		}
 	},
 }
@@ -116,30 +117,30 @@ var listCmd = &cobra.Command{
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			addrs, err = ks.GetAddresses()
-			ks.CloseStore()
 		}
-		if nil == err {
-			out := fmt.Sprintf("%s", "[")
-			if msg != nil {
-				addresslist := msg.GetAccounts()
-				for _, a := range addresslist {
-					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
-				}
-				if addresslist != nil {
-					out = out[:len(out)-2]
-				}
-			} else if addrs != nil {
-				for _, a := range addrs {
-					out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
-				}
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		out := fmt.Sprintf("%s", "[")
+		if msg != nil {
+			addresslist := msg.GetAccounts()
+			for _, a := range addresslist {
+				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
+			}
+			if addresslist != nil {
 				out = out[:len(out)-2]
 			}
-			out = fmt.Sprintf("%s%s", out, "]")
-			fmt.Println(out)
-		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+		} else if addrs != nil {
+			for _, a := range addrs {
+				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
+			}
+			out = out[:len(out)-2]
 		}
+		out = fmt.Sprintf("%s%s", out, "]")
+		cmd.Println(out)
 	},
 }
 
@@ -147,16 +148,17 @@ var lockCmd = &cobra.Command{
 	Use:   "lock [flags]",
 	Short: "Lock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.LockAccount(context.Background(), param)
-		if err == nil {
-			fmt.Println(types.EncodeAddress(msg.GetAddress()))
-		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
 		}
+		cmd.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -164,16 +166,17 @@ var unlockCmd = &cobra.Command{
 	Use:   "unlock [flags]",
 	Short: "Unlock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		msg, err := client.UnlockAccount(context.Background(), param)
-		if nil == err {
-			fmt.Println(types.EncodeAddress(msg.GetAddress()))
-		} else {
-			fmt.Printf("Failed: %s\n", err.Error())
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
 		}
+		cmd.Println(types.EncodeAddress(msg.GetAddress()))
 	},
 }
 
@@ -185,16 +188,16 @@ var importCmd = &cobra.Command{
 		var address []byte
 		importBuf, err := types.DecodePrivKey(importFormat)
 		if err != nil {
-			fmt.Printf("Failed to decode input: %s\n", err.Error())
+			cmd.Printf("Failed to decode input: %s\n", err.Error())
 			return
 		}
 		wif := &types.ImportFormat{Wif: &types.SingleBytes{Value: importBuf}}
 		if pw != "" {
 			wif.Oldpass = pw
 		} else {
-			wif.Oldpass, err = getPasswd()
+			wif.Oldpass, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 		}
@@ -207,23 +210,22 @@ var importCmd = &cobra.Command{
 
 		if cmd.Flags().Changed("path") == false {
 			msg, errRemote := client.ImportAccount(context.Background(), wif)
-			if nil == errRemote {
-				fmt.Println(types.EncodeAddress(msg.GetAddress()))
+			if errRemote != nil {
+				cmd.Printf("Failed: %s\n", errRemote.Error())
 				return
 			}
-			err = errRemote
+			address = msg.GetAddress()
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
-			if nil == err {
-				fmt.Println(types.EncodeAddress(address))
+			if err != nil {
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			ks.CloseStore()
 		}
-		fmt.Printf("Failed to import account: %s\n", err.Error())
-
+		cmd.Println(types.EncodeAddress(address))
 	},
 }
 
@@ -231,48 +233,47 @@ var exportCmd = &cobra.Command{
 	Use:   "export [flags]",
 	Short: "Export account",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam()
+		param, err := parsePersonalParam(cmd)
 		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		var result []byte
 		if cmd.Flags().Changed("path") == false {
 			msg, err := client.ExportAccount(context.Background(), param)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			result = msg.Value
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
 			ks := key.NewStore(dataEnvPath)
+			defer ks.CloseStore()
 			wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
+				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
 			result = wif
-			ks.CloseStore()
 		}
-		fmt.Println(types.EncodePrivKey(result))
+		cmd.Println(types.EncodePrivKey(result))
 	},
 }
 
-func parsePersonalParam() (*types.Personal, error) {
+func parsePersonalParam(cmd *cobra.Command) (*types.Personal, error) {
 	var err error
 	param := &types.Personal{Account: &types.Account{}}
 	if address != "" {
 		param.Account.Address, err = types.DecodeAddress(address)
 		if err != nil {
-			fmt.Printf("Failed: %s\n", err.Error())
 			return nil, err
 		}
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd()
+			param.Passphrase, err = getPasswd(cmd)
 			if err != nil {
-				fmt.Printf("Failed: %s\n", err.Error())
 				return nil, err
 			}
 		}
@@ -280,15 +281,17 @@ func parsePersonalParam() (*types.Personal, error) {
 	return param, nil
 }
 
-func getPasswd() (string, error) {
-	fmt.Print("Enter Password: ")
+func getPasswd(cmd *cobra.Command) (string, error) {
+	cmd.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println("")
+	cmd.Println("")
 	return string(bytePassword), err
 }
 
 func preConnectAergo(cmd *cobra.Command, args []string) {
 	if cmd.Flags().Changed("path") == false {
 		connectAergo(cmd, args)
+	} else {
+		client = nil
 	}
 }

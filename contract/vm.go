@@ -23,7 +23,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -33,9 +32,8 @@ const DbName = "contracts.db"
 const constructorName = "constructor"
 
 var (
-	ctrLog        *log.Logger
-	TempReceiptDb db.DB
-	contractMap   stateMap
+	ctrLog      *log.Logger
+	contractMap stateMap
 )
 
 type Contract struct {
@@ -51,8 +49,7 @@ type CallState struct {
 
 type StateSet struct {
 	contract  *state.ContractState
-	bs        *types.BlockState
-	sdb       *state.ChainStateDB
+	bs        *state.BlockState
 	callState map[string]*CallState
 	rootState *StateSet
 	refCnt    uint
@@ -79,13 +76,13 @@ func init() {
 	contractMap.init()
 }
 
-func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, senderState *types.State,
+func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
 	contractId string, query int, root *StateSet, dbHandle *C.sqlite3) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
-	stateSet := &StateSet{contract: contractState, bs: blockState, sdb: sdb, rootState: root}
+	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
 	if root == nil {
 		stateSet.callState = make(map[string]*CallState)
 		stateSet.callState[contractId] = &CallState{ctrState: contractState, curState: contractState.State}
@@ -108,7 +105,7 @@ func NewContext(sdb *state.ChainStateDB, blockState *types.BlockState, senderSta
 	}
 }
 
-func newLState() *LState {
+func NewLState() *LState {
 	return C.vm_newstate()
 }
 
@@ -119,12 +116,9 @@ func (L *LState) Close() {
 }
 
 func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
-	address := C.CString(types.EncodeAddress(contract.address))
-	defer C.free(unsafe.Pointer(address))
-
 	ce := &Executor{
 		contract:      contract,
-		L:             newLState(),
+		L:             GetLState(),
 		blockchainCtx: bcCtx,
 	}
 	if ce.L == nil {
@@ -136,7 +130,6 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract.code[0])),
 		C.size_t(len(contract.code)),
-		address,
 		bcCtx,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
@@ -194,14 +187,21 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
-		ce.err = errors.New(errMsg)
+		if ce.blockchainCtx.transferFailed == C.int(1) {
+			ce.err = types.ErrInsufficientBalance
+		} else {
+			ce.err = errors.New(errMsg)
+		}
 		return 0
 	}
 
 	if target == nil {
 		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
 	} else {
-		C.vm_copy_result(ce.L, target, nret)
+		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
+			errMsg := C.GoString(cErrMsg)
+			ce.err = errors.New(errMsg)
+		}
 	}
 	return nret
 }
@@ -227,7 +227,11 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.contract.address))
-		ce.err = errors.New(errMsg)
+		if ce.blockchainCtx.transferFailed == C.int(1) {
+			ce.err = types.ErrInsufficientBalance
+		} else {
+			ce.err = errors.New(errMsg)
+		}
 		return
 	}
 
@@ -245,7 +249,6 @@ func (ce *Executor) commitCalledContract() error {
 		return nil
 	}
 
-	sdb := stateSet.sdb
 	bs := stateSet.bs
 
 	var err error
@@ -254,7 +257,7 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = sdb.CommitContractState(v.ctrState)
+			err = bs.CommitContractState(v.ctrState)
 			if err != nil {
 				return err
 			}
@@ -264,14 +267,17 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		aid, _ := types.DecodeAddress(k)
-		bs.PutAccount(types.ToAccountID(aid), v.prevState, v.ctrState.State)
+		err = bs.PutState(types.ToAccountID(aid), v.ctrState.State)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
-		ce.L.Close()
+		FreeLState(ce.L)
 		if ce.blockchainCtx != nil && bcCtxFree {
 			context := ce.blockchainCtx
 			contractMap.unregister(C.GoString(context.stateKey))
@@ -280,7 +286,9 @@ func (ce *Executor) close(bcCtxFree bool) {
 	}
 }
 
-func Call(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
+func Call(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (string, error) {
+
 	var err error
 	var ci types.CallInfo
 	contract := getContract(contractState, contractAddress, nil)
@@ -293,47 +301,56 @@ func Call(contractState *state.ContractState, code, contractAddress, txHash []by
 		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
-	var ce *Executor
-	if err == nil {
+	if err != nil {
+		return "", err
+	}
+	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		ce = newExecutor(contract, bcCtx)
-		defer ce.close(true)
-		ce.call(&ci, nil)
-		err = ce.err
-		if err == nil {
-			err = ce.commitCalledContract()
-		}
 	}
-	var receipt types.Receipt
+
+	ce := newExecutor(contract, bcCtx)
+	defer ce.close(true)
+	ce.call(&ci, nil)
+	err = ce.err
 	if err == nil {
-		receipt = types.NewReceipt(contractAddress, "SUCCESS", ce.jsonRet)
+		err = ce.commitCalledContract()
 	} else {
-		receipt = types.NewReceipt(contractAddress, err.Error(), "")
+		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
 	}
-	dbTx.Set(txHash, receipt.Bytes())
-	return err
+	return ce.jsonRet, err
 }
 
-func Create(contractState *state.ContractState, code, contractAddress, txHash []byte, bcCtx *LBlockchainCtx, dbTx db.Transaction) error {
-	ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
-	codeLen := binary.LittleEndian.Uint32(code[0:])
-	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("invalid deploy code(%d:%d)", codeLen, len(code))
+func Create(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (string, error) {
+
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
+	}
+	if len(code) <= 4 {
+		err := fmt.Errorf("code length is short %d", len(code))
 		ctrLog.Warn().AnErr("err", err)
-		return err
+		return "", err
+	}
+	codeLen := codeLength(code[0:])
+	if uint32(len(code)) < codeLen {
+		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return "", err
 	}
 	sCode := code[4:codeLen]
 
 	err := contractState.SetCode(sCode)
 	if err != nil {
-		return err
+		return "", err
 	}
 	contract := getContract(contractState, contractAddress, sCode)
 	if contract == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
-		return err
+		return "", err
 	}
+	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
+
 	var ce *Executor
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
@@ -344,19 +361,19 @@ func Create(contractState *state.ContractState, code, contractAddress, txHash []
 	}
 	var errMsg string
 	if err != nil {
+		logger.Warn().Err(err).Msg("constructor's argument is invalid")
 		errMsg = err.Error()
 	}
 	ce.constructCall(&ci)
 	if ce.err != nil {
+		logger.Warn().Err(err).Msg("constructor is failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
-	receipt := types.NewReceipt(contractAddress, "CREATED", "{\""+errMsg+"\"}")
-	dbTx.Set(txHash, receipt.Bytes())
 
-	return nil
+	return `{""` + errMsg + `"}`, nil
 }
 
-func Query(contractAddress []byte, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
+func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
 	var ci types.CallInfo
 	var err error
 	contract := getContract(contractState, contractAddress, nil)
@@ -380,11 +397,13 @@ func Query(contractAddress []byte, contractState *state.ContractState, queryInfo
 	}
 	defer tx.Rollback()
 
-	bcCtx := NewContext(nil, nil, nil, contractState, "", "",
+	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
 		1, nil, tx.GetHandle())
 
-	ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
 	ce.call(&ci, nil)
@@ -404,38 +423,45 @@ func getContract(contractState *state.ContractState, contractAddress []byte, cod
 			return nil
 		}
 	}
-	if len(val) > 0 {
-		l := binary.LittleEndian.Uint32(val[0:])
-		return &Contract{
-			code:    val[4 : 4+l],
-			address: contractAddress[:],
-		}
+	valLen := len(val)
+	if valLen <= 4 {
+		return nil
 	}
-	return nil
+	l := codeLength(val[0:])
+	if 4+l > uint32(valLen) {
+		return nil
+	}
+	return &Contract{
+		code:    val[4 : 4+l],
+		address: contractAddress[:],
+	}
 }
 
-func GetReceipt(txHash []byte) (*types.Receipt, error) {
-	val := TempReceiptDb.Get(txHash)
-	if len(val) == 0 {
-		return nil, errors.New("cannot find a receipt")
-	}
-	return types.NewReceiptFromBytes(val), nil
-}
-
-func GetABI(contractState *state.ContractState, contractAddress []byte) (*types.ABI, error) {
+func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 	val, err := contractState.GetCode()
 	if err != nil {
 		return nil, err
 	}
-	if len(val) == 0 {
+	valLen := len(val)
+	if valLen == 0 {
 		return nil, errors.New("cannot find contract")
 	}
-	l := binary.LittleEndian.Uint32(val[0:])
+	if valLen <= 4 {
+		return nil, errors.New("cannot find abi")
+	}
+	l := codeLength(val)
+	if 4+l >= uint32(len(val)) {
+		return nil, errors.New("cannot find abi")
+	}
 	abi := new(types.ABI)
 	if err := json.Unmarshal(val[4+l:], abi); err != nil {
 		return nil, err
 	}
 	return abi, nil
+}
+
+func codeLength(val []byte) uint32 {
+	return binary.LittleEndian.Uint32(val[0:])
 }
 
 func (sm *stateMap) init() {
@@ -551,17 +577,16 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		sdb := rootState.sdb
 		bs := rootState.bs
 
-		prevState, err := sdb.GetBlockAccountClone(bs, types.ToAccountID(cid))
+		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
 			return -1
 		}
 
 		curState := types.Clone(*prevState).(types.State)
-		contractState, err := sdb.OpenContractState(&curState)
+		contractState, err := bs.OpenContractState(&curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
@@ -571,13 +596,14 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		rootState.callState[contractIdStr] = callState
 	}
 	if callState.ctrState == nil {
-		callState.ctrState, err = rootState.sdb.OpenContractState(callState.curState)
+		callState.ctrState, err = rootState.bs.OpenContractState(callState.curState)
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error"+err.Error())
 			return -1
 		}
 	}
 	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
+		bcCtx.transferFailed = 1
 		return -1
 	}
 	callee := getContract(callState.ctrState, cid, nil)
@@ -591,7 +617,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		return -1
 	}
 	sqlTx.Savepoint()
-	newBcCtx := NewContext(nil, nil, nil, callState.ctrState,
+	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
 		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle())
 	ce := newExecutor(callee, newBcCtx)
@@ -639,8 +665,8 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 		luaPushStr(L, "[System.LuaCallContract]not found contract state")
 		return -1
 	}
-	sdb := stateSet.rootState.sdb
-	contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(cid))
+	bs := stateSet.rootState.bs
+	contractState, err := bs.OpenContractStateAccount(types.ToAccountID(cid))
 	contract := getContract(contractState, cid, nil)
 	if contract == nil {
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
@@ -689,10 +715,9 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 	rootState := stateSet.rootState
 	callState := rootState.callState[contractIdStr]
 	if callState == nil {
-		sdb := rootState.sdb
 		bs := rootState.bs
 
-		prevState, err := sdb.GetBlockAccountClone(bs, types.ToAccountID(cid))
+		prevState, err := bs.GetAccountState(types.ToAccountID(cid))
 		if err != nil {
 			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
 			return -1
@@ -704,6 +729,7 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 		rootState.callState[contractIdStr] = callState
 	}
 	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
+		bcCtx.transferFailed = 1
 		return -1
 	}
 	return 0
@@ -723,4 +749,9 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount u
 	receiver.Balance = receiver.Balance + amount
 
 	return true
+}
+
+//export LuaPrint
+func LuaPrint(contractId *C.char, args *C.char) {
+	logger.Info().Str("Contract SystemPrint", C.GoString(contractId)).Msg(C.GoString(args))
 }

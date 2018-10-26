@@ -26,8 +26,8 @@ var (
 	logger = log.NewLogger("dpos")
 
 	// blockProducers is the number of block producers
-	blockProducers   uint16
-	bpConsensusCount uint16
+	blockProducers        uint16
+	defaultConsensusCount uint16
 
 	lastJob *slot.Slot
 )
@@ -60,7 +60,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(bpConsensusCount),
+		Status:       NewStatus(defaultConsensusCount),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -73,14 +73,17 @@ func Init(cfg *config.ConsensusConfig) {
 	consensus.InitBlockInterval(cfg.BlockInterval)
 
 	blockProducers = cfg.DposBpNumber
-	bpConsensusCount = blockProducers*2/3 + 1
+	defaultConsensusCount = blockProducers*2/3 + 1
 	slot.Init(cfg.BlockInterval, blockProducers)
+}
+
+func consensusBlockCount() uint64 {
+	return uint64(defaultConsensusCount)
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
 	return time.NewTicker(consensus.BlockInterval / 100)
-
 }
 
 // QueueJob send a block triggering information to jq.
@@ -97,6 +100,7 @@ func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
 }
 
+// SetChainAccessor sets dpost.ca to chainAccessor
 func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
 	dpos.ca = chainAccessor
 }
@@ -104,7 +108,7 @@ func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
 // SetStateDB sets sdb to the corresponding field of DPoS. This method is
 // called only once during the boot sequence.
 func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
-	dpos.bf.setStateDB(sdb)
+	dpos.bf.sdb = sdb
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction

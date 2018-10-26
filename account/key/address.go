@@ -5,21 +5,24 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
+
+	"github.com/aergoio/aergo/types"
 )
 
 type Address = []byte
 
-const addressLength = 33
-
 var addresses = []byte("ADDRESSES")
 
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
+	if pubkey == nil {
+		return nil
+	}
 	addr := new(bytes.Buffer)
 	// Compressed pubkey
 	binary.Write(addr, binary.LittleEndian, uint8(0x2+pubkey.Y.Bit(0))) // 0x2 for even, 0x3 for odd Y
 	keyLength := len(pubkey.X.Bytes())
 	if keyLength < 32 { //add padding
-		for i := 1; i < addressLength-keyLength; i++ {
+		for i := 1; i < types.AddressLength-keyLength; i++ {
 			binary.Write(addr, binary.LittleEndian, uint8(0))
 		}
 	}
@@ -28,7 +31,7 @@ func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 }
 
 func (ks *Store) SaveAddress(addr Address) error {
-	if len(addr) != addressLength {
+	if len(addr) != types.AddressLength {
 		return errors.New("invalid address length")
 	}
 	addrs := append(ks.storage.Get(addresses), addr...)
@@ -39,8 +42,8 @@ func (ks *Store) SaveAddress(addr Address) error {
 func (ks *Store) GetAddresses() ([]Address, error) {
 	b := ks.storage.Get(addresses)
 	var ret []Address
-	for i := 0; i < len(b); i += addressLength {
-		ret = append(ret, b[i:i+addressLength])
+	for i := 0; i < len(b); i += types.AddressLength {
+		ret = append(ret, b[i:i+types.AddressLength])
 	}
 	return ret, nil
 }

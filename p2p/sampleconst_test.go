@@ -1,3 +1,8 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2p
 
 import (
@@ -5,8 +10,8 @@ import (
 	"encoding/hex"
 	"github.com/aergoio/aergo/internal/enc"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // this file collect sample global constants used in unit test. I'm tired of creating less meaningfule variables in each tests.
@@ -58,4 +63,46 @@ func init() {
 	dummyPeerID = sampleKey1ID
 	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	dummyPeerID3, _ = peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+}
+
+const hashSize = 32
+var sampleTxsB58 = []string{
+	"4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45",
+	"6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",
+	"E8dbBGe9Hnuhk35cJoekPjL3VoL4xAxtnRuP47UoxzHd",
+	"HB7Hg5GUbHuxwe8Lp5PcYUoAaQ7EZjRNG6RuvS6DnDRf",
+	"BxKmDg9VbWHxrWnStEeTzJ2Ze7RF7YK4rpyjcsWSsnxs",
+	"DwmGqFU4WgADpYN36FXKsYxMjeppvh9Najg4KxJ8gtX3",
+}
+
+var sampleTxs [][]byte
+var sampleTxHashes []TxHash
+
+var sampleBlksB58 = []string{
+	"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
+	"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
+	"AtzTZ2CZS45F1276RpTdLfYu2DLgRcd9HL3aLqDT1qte",
+	"2n9QWNDoUvML756X7xdHWCFLZrM4CQEtnVH2RzG5FYAw",
+	"6cy7U7XKYtDTMnF3jNkcJvJN5Rn85771NSKjc5Tfo2DM",
+	"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
+}
+var sampleBlks [][]byte
+var sampleBlksHashes []BlkHash
+
+func init() {
+	sampleTxs = make([][]byte, len(sampleTxsB58))
+	sampleTxHashes = make([]TxHash, len(sampleTxsB58))
+	for i, hashb58 := range sampleTxsB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleTxs[i] = hash
+		copy(sampleTxHashes[i][:], hash)
+	}
+
+	sampleBlks=make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make ([]BlkHash, len(sampleBlksB58))
+	for i, hashb58 := range sampleTxsB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleBlks[i] = hash
+		copy(sampleBlksHashes[i][:], hash)
+	}
 }

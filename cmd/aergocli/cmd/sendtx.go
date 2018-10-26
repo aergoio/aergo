@@ -7,7 +7,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/mr-tron/base58/base58"
 
@@ -25,24 +24,29 @@ var sendtxCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(sendtxCmd)
 	sendtxCmd.Flags().StringVar(&from, "from", "", "")
+	sendtxCmd.MarkFlagRequired("from")
 	sendtxCmd.Flags().StringVar(&to, "to", "", "")
+	sendtxCmd.MarkFlagRequired("to")
 	sendtxCmd.Flags().Uint64Var(&amount, "amount", 0, "")
+	sendtxCmd.MarkFlagRequired("amount")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed decode: %s\n", err.Error())
+		return
 	}
 	recipient, err := types.DecodeAddress(to)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed decode: %s\n", err.Error())
+		return
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amount}}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	fmt.Println(base58.Encode(msg.Hash), msg.Error)
+	cmd.Println(base58.Encode(msg.Hash), msg.Error)
 }
