@@ -101,11 +101,7 @@ func (s *Status) updateLIB(lib *blockInfo) {
 
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
-	if err := s.libState.save(tx); err != nil {
-		return err
-	}
-
-	return nil
+	return s.libState.save(tx)
 }
 
 func encode(e interface{}) (bytes.Buffer, error) {
