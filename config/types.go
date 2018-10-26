@@ -66,6 +66,7 @@ type P2PConfig struct {
 type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
+	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -134,6 +135,8 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 # blockchain configurations
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
+maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
+
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
