@@ -84,12 +84,13 @@ func (s *Status) Update(block *types.Block) {
 		}
 	}
 
+	s.libState.gc()
+
 	s.bestBlock = block
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.libState.Lib = lib
-	s.libState.gc(lib)
 
 	logger.Debug().
 		Str("block hash", s.libState.Lib.BlockHash).

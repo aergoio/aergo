@@ -211,27 +211,44 @@ func (ls *libStatus) save(tx db.Transaction) error {
 	return nil
 }
 
-func (ls *libStatus) gc(lib *blockInfo) {
+func (ls *libStatus) gc() {
+	// GC based on the LIB no
 	removeIf(ls.confirms,
 		func(e *list.Element) bool {
-			return cInfo(e).BlockNo <= lib.BlockNo
-		})
+			return cInfo(e).BlockNo <= ls.Lib.BlockNo
+		},
+		func(e *list.Element) bool {
+			return cInfo(e).BlockNo > ls.Lib.BlockNo
+		},
+	)
+	// GC based on the element no
+	limitConfirms := int(ls.confirmsRequired * 3)
+	if ls.confirms.Len() > limitConfirms {
+		ls.confirms.Remove(ls.confirms.Front())
+		logger.Debug().Int("len", ls.confirms.Len()).
+			Int("limit", limitConfirms).
+			Msg("number-based GC done for confirms list")
+	}
 }
 
-func removeIf(l *list.List, p func(e *list.Element) bool) {
-	forEach(l,
+func removeIf(l *list.List, p func(e *list.Element) bool, bc func(e *list.Element) bool) {
+	forEachCond(l,
 		func(e *list.Element) {
 			if p(e) {
 				l.Remove(e)
 			}
 		},
+		bc,
 	)
 }
 
-func forEach(l *list.List, f func(e *list.Element)) {
+func forEachCond(l *list.List, f func(e *list.Element), bc func(e *list.Element) bool) {
 	e := l.Front()
 	for e != nil {
 		next := e.Next()
+		if bc(e) {
+			break
+		}
 		f(e)
 		e = next
 	}
@@ -421,4 +438,10 @@ func dumpConfirmInfo(name string, l *list.List) {
 			logger.Debug().Str("confirm info", spew.Sdump(cInfo(e))).Msg(name)
 		},
 	)
+}
+
+func forEach(l *list.List, f func(e *list.Element)) {
+	for e := l.Front(); e != nil; e = e.Next() {
+		f(e)
+	}
 }
