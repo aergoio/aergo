@@ -56,7 +56,8 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 	if err := Init(cfg.Blockchain.MaxBlockSize,
 		cfg.Blockchain.CoinbaseAccount,
 		types.DefaultCoinbaseFee,
-		cfg.Consensus.EnableBp); err != nil {
+		cfg.Consensus.EnableBp,
+		cfg.Blockchain.MaxAnchorCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
