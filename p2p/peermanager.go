@@ -321,6 +321,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 
 	// if peer exists in peerstore already, reuse that peer again.
 	if !pm.checkInPeerstore(peerID) {
+		pm.Peerstore().ClearAddrs(peerID)
 		pm.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 	}
 

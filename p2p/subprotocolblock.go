@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"time"
 )
 
 type blockRequestHandler struct {
@@ -333,6 +334,8 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 		sliceCap = int(totalCount)
 	}
 
+	defaultMsgTimeout := time.Second * 10
+
 	// TODO very similar with blockRequestHandler.handle() consider refactoring
 	// find block info from chainservice
 	idx := 0
@@ -357,12 +360,18 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 			resp := &types.GetBlockResponse{
 				Status: status,
 				Blocks: blockInfos,
-				HasNext:msgSentCount<MaxResponseSplitCount} // always have nextItem ( see foundBlock) but msg count limit will affect
+				HasNext:true,
+				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
+			}
 			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getMissing response")
-			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
-			if msgSentCount >= MaxResponseSplitCount {
+			err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+			if err != nil {
+				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
 				return
 			}
+			//if msgSentCount >= MaxResponseSplitCount {
+			//	return
+			//}
 			// reset list
 			blockInfos = make([]*types.Block, 0, sliceCap)
 			payloadSize = EmptyGetBlockResponseSize
@@ -382,5 +391,9 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 
 	// ???: have to check arguments
 	bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending last part of getMissing response")
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp))
+	err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+	if err != nil {
+		bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
+		return
+	}
 }
