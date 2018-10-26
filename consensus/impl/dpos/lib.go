@@ -213,22 +213,34 @@ func (ls *libStatus) save(tx db.Transaction) error {
 
 func (ls *libStatus) gc() {
 	// GC based on the LIB no
-	removeIf(ls.confirms,
-		func(e *list.Element) bool {
-			return cInfo(e).BlockNo <= ls.Lib.BlockNo
-		},
-		func(e *list.Element) bool {
-			return cInfo(e).BlockNo > ls.Lib.BlockNo
-		},
-	)
+	if ls.Lib != nil {
+		removeIf(ls.confirms,
+			func(e *list.Element) bool {
+				return cInfo(e).BlockNo <= ls.Lib.BlockNo
+			},
+			func(e *list.Element) bool {
+				return cInfo(e).BlockNo > ls.Lib.BlockNo
+			},
+		)
+	}
 	// GC based on the element no
-	limitConfirms := int(ls.confirmsRequired * 3)
-	if ls.confirms.Len() > limitConfirms {
+	limitConfirms := ls.gcNumLimit()
+	nRemoved := 0
+	for ls.confirms.Len() > limitConfirms {
 		ls.confirms.Remove(ls.confirms.Front())
+		nRemoved++
+	}
+
+	if nRemoved > 0 {
 		logger.Debug().Int("len", ls.confirms.Len()).
-			Int("limit", limitConfirms).
+			Int("limit", limitConfirms).Int("removed", nRemoved).
 			Msg("number-based GC done for confirms list")
 	}
+
+}
+
+func (ls libStatus) gcNumLimit() int {
+	return int(ls.confirmsRequired * 3)
 }
 
 func removeIf(l *list.List, p func(e *list.Element) bool, bc func(e *list.Element) bool) {

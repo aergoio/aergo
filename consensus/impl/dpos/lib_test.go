@@ -140,3 +140,47 @@ func TestEmbededMap(t *testing.T) {
 	a.Nil(err)
 	a.Equal(len(m.Prpsd), orgLen)
 }
+
+func TestNumLimitGC(t *testing.T) {
+	const (
+		clusterSize    = 23
+		consensusCount = clusterSize*2/3 + 1
+	)
+
+	a := assert.New(t)
+
+	ls := newLibStatus(consensusCount)
+
+	for i := 1; i <= clusterSize*3; i++ {
+		ls.confirms.PushBack(
+			&confirmInfo{
+				blockInfo: &blockInfo{BlockNo: types.BlockNo(i)},
+			})
+	}
+
+	ls.gc()
+	a.True(ls.confirms.Len() <= ls.gcNumLimit())
+}
+
+func TestLibGC(t *testing.T) {
+	const (
+		clusterSize    = 23
+		consensusCount = clusterSize*2/3 + 1
+		libNo          = 3
+	)
+
+	a := assert.New(t)
+
+	ls := newLibStatus(consensusCount)
+	ls.Lib = &blockInfo{BlockNo: libNo}
+
+	for i := 1; i <= clusterSize*3; i++ {
+		ls.confirms.PushBack(
+			&confirmInfo{
+				blockInfo: &blockInfo{BlockNo: types.BlockNo(i)},
+			})
+	}
+
+	ls.gc()
+	a.True(cInfo(ls.confirms.Front()).blockInfo.BlockNo > libNo)
+}
