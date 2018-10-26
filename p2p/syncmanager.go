@@ -81,11 +81,11 @@ func (sm *syncManager) removeWorker() {
 
 func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, data *types.NewBlockNotice) {
 	peerID := peer.ID()
-	if !sm.checkWorkToken() {
-		// just ignore it
-		//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
-		return
-	}
+	//if !sm.checkWorkToken() {
+	//	// just ignore it
+	//	//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
+	//	return
+	//}
 
 	// TODO check if evicted return value is needed.
 	ok, _ := sm.blkCache.ContainsOrAdd(hashArr, cachePlaceHolder)
