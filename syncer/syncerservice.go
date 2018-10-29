@@ -7,9 +7,12 @@ import (
 
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	"github.com/pkg/errors"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -19,8 +22,8 @@ type Syncer struct {
 	cfg   *cfg.Config
 	chain types.ChainAccessor
 
-	isRunning bool
-	ctx       *types.SyncContext
+	isstartning bool
+	ctx         *types.SyncContext
 
 	finder       *Finder
 	hashFetcher  *HashFetcher
@@ -32,11 +35,30 @@ var (
 	logger = log.NewLogger("syncer")
 )
 
-type Finder struct {
-	actor.Actor
-	*SubActor
+var (
+	ErrorNotFoundAncestor = errors.New("not found ancestor in remote server")
+)
 
-	ctx *types.SyncContext
+type Finder struct {
+	hub *component.ComponentHub //for communicate with other service
+
+	lScanCh chan *types.BlockInfo
+	fScanCh chan []byte
+
+	doneCh chan *FinderResult
+	quitCh chan interface{}
+
+	lastAnchor []byte //point last block during lightscan
+	ctx        types.SyncContext
+
+	dfltTimeout time.Duration
+
+	waitGroup *sync.WaitGroup
+}
+
+type FinderResult struct {
+	ancestor *types.BlockInfo
+	err      error
 }
 
 type HashFetcher struct {
@@ -69,12 +91,10 @@ func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor) *Syncer {
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
 
 	hub := syncer.BaseComponent.Hub()
-	syncer.finder = newFinder(1, hub)
+	syncer.hashFetcher = newHashFetcher(1, hub)
 	/*
-		syncer.hashFetcher = newHashFetcher(1, hub)
 		syncer.blockFetcher = newBlockFetcher(1, hub)
-		syncer.blockAdder = newBlockAdder(1, hub)
-	*/
+		syncer.blockAdder = newBlockAdder(1, hub)*/
 
 	syncer.chain = chain
 
@@ -89,20 +109,19 @@ func (syncer *Syncer) BeforeStart() {
 
 // AfterStart ... do nothing
 func (syncer *Syncer) AfterStart() {
-	syncer.finder.start()
+
 }
 
 func (syncer *Syncer) BeforeStop() {
-	syncer.finder.Stop()
-	/*
-		syncer.hashFetcher.Stop()
-		syncer.blockFetcher.Stop()
-		syncer.blockAdder.Stop()
-	*/
+	syncer.hashFetcher.Stop()
+	syncer.blockFetcher.Stop()
+	syncer.blockAdder.Stop()
 }
 
 func (syncer *Syncer) Reset() {
-	syncer.isRunning = false
+	syncer.finder.stop()
+	syncer.finder = nil
+	syncer.isstartning = false
 	syncer.ctx = nil
 }
 
@@ -110,18 +129,22 @@ func (syncer *Syncer) Reset() {
 func (syncer *Syncer) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
-	case message.SyncRequest:
-		err := syncer.handleSyncRequest(msg)
+	case *message.SyncStart:
+		err := syncer.handleSyncStart(msg)
 		if err != nil {
-			logger.Error().Err(err).Msg("SyncRequest failed")
+			logger.Error().Err(err).Msg("SyncStart failed")
 		}
-
-	case message.FindAncestorRsp:
-		err := syncer.handleFindAncestorRsp(msg)
+	case *message.GetSyncAncestorRsp:
+		err := syncer.handleAncestorRsp(msg)
+		if err != nil {
+			syncer.Reset()
+			logger.Error().Err(err).Msg("FindAncestorRsp failed")
+		}
+	case *message.FinderResult:
+		err := syncer.handleFinderResult(msg)
 		if err != nil {
 			logger.Error().Err(err).Msg("FindAncestorRsp failed")
 		}
-
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
@@ -134,12 +157,14 @@ func (syncer *Syncer) Receive(context actor.Context) {
 	}
 }
 
-func (syncer *Syncer) handleSyncRequest(msg message.SyncRequest) error {
+func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	if syncer.isRunning {
-		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("sync requested")
+
+	if syncer.isstartning {
+		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is startning")
 		return nil
 	}
 
@@ -152,7 +177,7 @@ func (syncer *Syncer) handleSyncRequest(msg message.SyncRequest) error {
 
 	bestBlockNo := bestBlock.GetHeader().BlockNo
 
-	if msg.TargetNo <= bestBlockNo+1 {
+	if msg.TargetNo <= bestBlockNo {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).
 			Msg("skipped syncer. requested no is too low")
 		return nil
@@ -162,14 +187,35 @@ func (syncer *Syncer) handleSyncRequest(msg message.SyncRequest) error {
 
 	//TODO BP stop
 	syncer.ctx = &types.SyncContext{PeerID: msg.PeerID, TargetNo: msg.TargetNo, BestNo: bestBlockNo}
-	syncer.isRunning = true
+	syncer.isstartning = true
 
-	syncer.finder.Tell(&message.FindAncestor{Ctx: syncer.ctx})
+	syncer.finder = newFinder(syncer.ctx, syncer.Hub())
+
+	return err
+}
+
+func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) error {
+	if msg.Ancestor == nil {
+		logger.Error().Msg("Find Ancestor failed")
+		return ErrorNotFoundAncestor
+	}
+
+	//set ancestor in types.SyncContext
+	ancestor := msg.Ancestor
+	syncer.ctx.CommonAncestor = ancestor
+	syncer.ctx.TotalCnt = (syncer.ctx.TargetNo - syncer.ctx.CommonAncestor.No)
+	syncer.ctx.RemainCnt = syncer.ctx.TotalCnt
+
+	logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("sync found ancestor")
+
+	syncer.hashFetcher.ctx = syncer.ctx
+	//request hash download
+	syncer.hashFetcher.Tell(&message.StartFetch{})
 
 	return nil
 }
 
-func (syncer *Syncer) handleFindAncestorRsp(msg message.FindAncestorRsp) error {
+func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	if msg.Err != nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")
 		syncer.Reset()
@@ -190,49 +236,43 @@ func (syncer *Syncer) handleFindAncestorRsp(msg message.FindAncestorRsp) error {
 
 func (syncer *Syncer) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
-		"running": syncer.isRunning,
-		"total":   syncer.ctx.TotalCnt,
-		"remain":  syncer.ctx.RemainCnt,
+		"startning": syncer.isstartning,
+		"total":     syncer.ctx.TotalCnt,
+		"remain":    syncer.ctx.RemainCnt,
 	}
 }
 
-func newFinder(cntWorker int, hub *component.ComponentHub) *Finder {
-	finder := &Finder{}
-	finder.SubActor = newSubActor(finder, FinderName, cntWorker, hub)
-
-	return finder
-}
-
-/*
-func newBlockAdder(cntWorker int, hub *component.ComponentHub) *BlockAdder {
-	blockAdder := &BlockAdder{}
-	blockAdder.SubActor = newSubActor(BlockAdderName, cntWorker, hub)
-	return blockAdder
-}
-
-
 func newHashFetcher(cntWorker int, hub *component.ComponentHub) *HashFetcher {
 	HashFetcher := &HashFetcher{}
-	HashFetcher.SubActor = newSubActor(HashFetcherName, cntWorker, hub)
+	HashFetcher.SubActor = newSubActor(HashFetcher, HashFetcherName, cntWorker, hub)
 
 	return HashFetcher
 }
 
 func newBlockFetcher(cntWorker int, hub *component.ComponentHub) *BlockFetcher {
 	BlockFetcher := &BlockFetcher{}
-	BlockFetcher.SubActor = newSubActor(BlockFetcherName, cntWorker, hub)
+	BlockFetcher.SubActor = newSubActor(BlockFetcher, BlockFetcherName, cntWorker, hub)
 
 	return BlockFetcher
 }
-*/
 
-func (finder *Finder) Receive(context actor.Context) {
+/*
+func newBlockAdder(cntWorker int, hub *component.ComponentHub) *BlockAdder {
+	blockAdder := &BlockAdder{}
+	blockAdder.SubActor = newSubActor(blockAdder, BlockAdderName, cntWorker, hub)
+	return blockAdder
+}*/
+
+func (hdl *HashFetcher) Receive(context actor.Context) {
+	logger.Debug().Msg("HashFetcher")
 	switch msg := context.Message().(type) {
-	case *message.FindAncestor:
-		finder.handleFindAncestor(msg, context)
-
+	case *message.StartFetch:
+		if hdl.ctx == nil {
+			panic("Hash downloader context is nil")
+		}
+		hdl.StartFetch(msg, context)
 	case actor.Started:
-		logger.Debug().Msg("actor[Common Ancestor Finder] started")
+		logger.Debug().Str("name", hdl.name).Msg("actor started")
 
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
@@ -241,78 +281,28 @@ func (finder *Finder) Receive(context actor.Context) {
 		logger.Debug().Msg(str)
 
 	default:
-		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
-		logger.Debug().Msg(str)
-	}
-}
-
-func (finder *Finder) handleFindAncestor(msg *message.FindAncestor, context actor.Context) {
-	var ancestor *types.BlockInfo
-	var err error
-
-	finder.ctx = msg.Ctx
-
-	//1. light sync
-	//   gather summary of my chain nodes, request searching ancestor to remote node
-	ancestor, err = finder.lightscan()
-
-	//2. heavy sync
-	//	 full binary search in my chain
-	if ancestor == nil && err == nil {
-		ancestor, err = finder.fullscan()
-	}
-
-	context.Respond(message.FindAncestorRsp{
-		Ancestor: ancestor,
-		Err:      err,
-	})
-}
-
-func (finder *Finder) lightscan() (*types.BlockInfo, error) {
-	result, err := finder.hub.RequestFuture(message.ChainSvc, message.GetAnchors{}, time.Second*100,
-		"syncer/finder/handleFindAncestor").Result()
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get anchors")
-		return nil, err
-	}
-
-	//	send remote Peer
-	result, err = finder.hub.RequestFuture(message.P2PSvc,
-		message.GetAncestor{ToWhom: finder.ctx.PeerID, Hashes: result.(message.GetAnchorsRsp).Hashes},
-		time.Second*300, "syncer/finder/handleFindAncestor").Result()
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get common ancestor")
-		return nil, err
-	}
-
-	ancestor := &types.BlockInfo{Hash: result.(message.GetAncestorRsp).Hash, No: result.(message.GetAncestorRsp).No}
-	return ancestor, nil
-
-}
-
-//FIXME XXX no commit
-func (finder *Finder) fullscan() (*types.BlockInfo, error) {
-	return nil, nil
-}
-
-func (hdl *HashFetcher) Receive(context actor.Context) {
-	logger.Debug().Msg("HashFetcher")
-	switch msg := context.Message().(type) {
-	case message.StartFetch:
-		if hdl.ctx == nil {
-			panic("Hash downloader context is nil")
-		}
-		//TODO
-	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", hdl.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
 	}
+}
+
+func (hdl *HashFetcher) StartFetch(msg *message.StartFetch, context actor.Context) {
+	panic("not implemented")
 }
 
 func (bdl *BlockFetcher) Receive(context actor.Context) {
 	logger.Debug().Msg("BlockFetcher")
 
 	switch msg := context.Message().(type) {
+	case actor.Started:
+		logger.Debug().Str("name", bdl.name).Msg("actor started")
+
+	case actor.SystemMessage,
+		actor.AutoReceiveMessage,
+		actor.NotInfluenceReceiveTimeout:
+		str := fmt.Sprintf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
+		logger.Debug().Msg(str)
+
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", bdl.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)

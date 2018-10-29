@@ -157,3 +157,23 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 
 	return true
 }
+
+// Syncer.finder request remote peer to find ancestor
+func (p2ps *P2P) GetSyncAncestor(peerID peer.ID, hashes [][]byte) bool {
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
+		return false
+	}
+	//p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
+	if len(hashes) == 0 {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
+		return false
+	}
+
+	// create message data
+	req := &types.GetAncestorRequest{Hashes: hashes}
+
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetAncestorRequest, req))
+	return true
+}

@@ -314,6 +314,14 @@ func (cs *ChainService) Receive(context actor.Context) {
 			anchor,
 			err,
 		})
+	case *message.GetAncestor:
+		hashes := msg.Hashes
+		ancestor, err := cs.findAncestor(hashes)
+
+		context.Respond(message.GetAncestorRsp{
+			Ancestor: ancestor,
+			Err:      err,
+		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
 		context.Respond(message.GetTxRsp{

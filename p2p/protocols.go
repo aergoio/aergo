@@ -54,6 +54,8 @@ const (
 	GetBlockHeadersResponse
 	GetMissingRequest
 	GetMissingResponse
+	GetAncestorRequest
+	GetAncestorResponse
 	NewBlockNotice
 )
 const (

@@ -62,8 +62,9 @@ type SyncContext struct {
 
 	CommonAncestor *BlockInfo
 
-	TotalCnt  uint64
-	RemainCnt uint64
+	TotalCnt   uint64
+	RemainCnt  uint64
+	LastAnchor []byte
 }
 
 // NodeInfo is used for actor message to send block info

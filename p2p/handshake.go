@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -148,8 +149,12 @@ func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error
 // doPostHandshake is additional work after peer is added.
 func (h *PeerHandshaker) doInitialSync() {
 
-	// sync block infos
-	h.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: h.peerID, BlockNo: h.remoteStatus.BestHeight, BlockHash: h.remoteStatus.BestBlockHash})
+	if chain.UseFastSyncer {
+		h.actorServ.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: h.peerID, TargetNo: h.remoteStatus.BestHeight})
+	} else {
+		// sync block infos
+		h.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: h.peerID, BlockNo: h.remoteStatus.BestHeight, BlockHash: h.remoteStatus.BestBlockHash})
+	}
 
 	// sync mempool tx infos
 	// TODO add tx handling

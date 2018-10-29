@@ -108,16 +108,13 @@ type GetPeersRsp struct {
 	States   []types.PeerState
 }
 
-// GetAncestor send types.GetAncestorRequest to dest peer. The receiving peer will send types.GetAncestorResponse
-// The actor returns true if sending is successful.
-type GetAncestor struct {
+// GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
+type GetSyncAncestor struct {
 	ToWhom peer.ID
 	Hashes [][]byte
 }
 
-// GetAncestorRsp is data from other peer, as a response of types.GetAncestorRequest
-// p2p module will send this to Syncer actor.
-type GetAncestorRsp struct {
-	Hash BlockHash
-	No   types.BlockNo
+// GetSyncAncestorRsp is data from other peer, as a response of types.GetAncestorRequest
+type GetSyncAncestorRsp struct {
+	Ancestor *types.BlockInfo
 }

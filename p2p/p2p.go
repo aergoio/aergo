@@ -186,6 +186,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetPeers:
 		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
 		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks:lastBlks, States: states})
+	case *message.GetSyncAncestor:
+		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
 	}
 }
 
@@ -243,6 +245,8 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[GetAncestorRequest] = newGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// TxHandlers
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)

@@ -141,3 +141,15 @@ type GetAnchorsRsp struct {
 	Hashes [][]byte
 	Err    error
 }
+
+// receive from p2p
+type GetAncestor struct {
+	Hashes   [][]byte
+	StopHash []byte
+}
+
+// response to p2p for GetAncestor message
+type GetAncestorRsp struct {
+	Ancestor *types.BlockInfo
+	Err      error
+}

@@ -25,7 +25,17 @@ var (
 	ErrTxInvalidNonce        = errors.New("invalid nonce")
 	ErrTxInsufficientBalance = errors.New("insufficient balance")
 	ErrTxInvalidType         = errors.New("invalid type")
+	ErrorNoAncestor          = errors.New("not found ancestor")
 )
+
+type ErrBlock struct {
+	err   error
+	block *types.BlockInfo
+}
+
+func (ec *ErrBlock) Error() string {
+	return fmt.Sprintf("Error:%s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+}
 
 type ErrTx struct {
 	err error
@@ -694,6 +704,42 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 	}
 
 	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
+}
+
+func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
+	// 1. check endpoint is on main chain (or, return nil)
+	logger.Debug().Int("len", len(Hashes)).Msg("find ancestor")
+
+	var mainhash []byte
+	var mainblock *types.Block
+	var err error
+	// 2. get the highest block of Hashes hash on main chain
+	for _, hash := range Hashes {
+		// need to be short
+		mainblock, err = cs.cdb.getBlock(hash)
+		if err != nil {
+			continue
+		}
+		// get main hash with same block height
+		mainhash, err = cs.cdb.getHashByNo(
+			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
+		if err != nil {
+			continue
+		}
+
+		if bytes.Equal(mainhash, mainblock.BlockHash()) {
+			break
+		}
+		mainblock = nil
+	}
+
+	// TODO: handle the case that can't find the hash in main chain
+	if mainblock == nil {
+		logger.Debug().Msg("Can't search same ancestor")
+		return nil, ErrorNoAncestor
+	}
+
+	return &types.BlockInfo{Hash: mainblock.GetHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {

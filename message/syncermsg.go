@@ -8,17 +8,12 @@ import (
 const SyncerSvc = "SyncerSvc"
 
 //Syncer
-type SyncRequest struct {
-	TargetNo types.BlockNo
+type SyncStart struct {
 	PeerID   peer.ID
+	TargetNo types.BlockNo
 }
 
-//Finder
-type FindAncestor struct {
-	Ctx *types.SyncContext
-}
-
-type FindAncestorRsp struct {
+type FinderResult struct {
 	Ancestor *types.BlockInfo
 	Err      error
 }
