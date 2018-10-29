@@ -112,6 +112,7 @@ func (ls *libStatus) addConfirmInfo(block *types.Block) {
 
 	logger.Debug().Str("BP", ci.bpid).
 		Str("hash", bi.BlockHash).Uint64("no", bi.BlockNo).
+		Uint64("range", ci.ConfirmRange).Uint16("confirms left", ci.confirmsLeft).
 		Msg("new confirm info added")
 }
 
