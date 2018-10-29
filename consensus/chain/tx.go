@@ -105,8 +105,15 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
 
+	var preLoadTx *types.Tx
 	for i, tx := range txIn {
+		if i != nCand-1 {
+			preLoadTx = txIn[i+1]
+			contract.PreLoadRequest(bState, preLoadTx, contract.BlockFactory)
+		}
+
 		err := op.Apply(bState, tx)
+		contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
 
 		//don't include tx that error is occured
 		if e, ok := err.(ErrTimeout); ok {

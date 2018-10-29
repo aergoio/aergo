@@ -66,6 +66,7 @@ type LBlockchainCtx = C.struct_blockchain_ctx
 type Executor struct {
 	L             *LState
 	contract      *Contract
+	args          *types.CallInfo
 	err           error
 	blockchainCtx *LBlockchainCtx
 	jsonRet       string
@@ -79,9 +80,9 @@ func init() {
 func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
-	contractId string, query int, root *StateSet, dbHandle *C.sqlite3) *LBlockchainCtx {
+	contractId string, query int, root *StateSet, dbHandle *C.sqlite3, service int) *LBlockchainCtx {
 
-	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
+	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
 	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
 	if root == nil {
 		stateSet.callState = make(map[string]*CallState)
@@ -102,6 +103,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		contractId:  C.CString(contractId),
 		isQuery:     C.int(query),
 		db:          dbHandle,
+		service:     C.int(service),
 	}
 }
 
@@ -320,6 +322,67 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	return ce.jsonRet, err
 }
 
+func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contractState *state.ContractState,
+	blockNo uint64, ts int64, dbHandle *C.sqlite3) (string, error) {
+	var err error
+
+	defer ce.close(true)
+
+	bcCtx := ce.blockchainCtx
+
+	contractId := C.GoString(bcCtx.contractId)
+	sender := C.GoString(bcCtx.sender)
+	stateKey := C.GoString(bcCtx.stateKey)
+
+	stateSet := contractMap.lookup(stateKey)
+	stateSet.contract = contractState
+	stateSet.bs = bs
+	stateSet.callState[contractId].ctrState = contractState
+	stateSet.callState[contractId].curState = contractState.State
+	stateSet.callState[sender].curState = senderState
+
+	bcCtx.blockHeight = C.ulonglong(blockNo)
+	bcCtx.timestamp = C.longlong(ts)
+	bcCtx.db = dbHandle
+
+	ce.call(ce.args, nil)
+	err = ce.err
+	if err == nil {
+		err = ce.commitCalledContract()
+	} else {
+		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
+	}
+	return ce.jsonRet, err
+}
+
+func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (*Executor, error) {
+
+	var err error
+	var ci types.CallInfo
+	contract := getContract(contractState, contractAddress, nil)
+	if contract != nil {
+		err = json.Unmarshal(code, &ci)
+		if err != nil {
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		}
+	} else {
+		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
+	ce := newExecutor(contract, bcCtx)
+	ce.args = &ci
+
+	return ce, nil
+
+}
+
 func Create(contractState *state.ContractState, code, contractAddress []byte,
 	bcCtx *LBlockchainCtx) (string, error) {
 
@@ -399,7 +462,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 
 	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
-		1, nil, tx.GetHandle())
+		1, nil, tx.GetHandle(), ChainService)
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -619,7 +682,8 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	sqlTx.Savepoint()
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle())
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle(),
+		int(bcCtx.service))
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
 

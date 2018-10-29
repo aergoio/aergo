@@ -18,6 +18,7 @@ typedef struct blockchain_ctx {
     int isQuery;
     int transferFailed;
     sqlite3 *db;
+    int service;
 } bc_ctx_t;
 
 lua_State *vm_newstate();

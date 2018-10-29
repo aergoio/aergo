@@ -1695,7 +1695,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle())
+				0, nil, sqlTx.GetHandle(), ChainService)
 
 			_, err = Create(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
@@ -1759,7 +1759,7 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptT
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle())
+				0, nil, sqlTx.GetHandle(), ChainService)
 
 			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
