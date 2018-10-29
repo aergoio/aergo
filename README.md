@@ -6,7 +6,7 @@
 [![LoC](https://tokei.rs/b1/github/aergoio/aergo)](https://github.com/aergoio/aergo)
 [![API Reference](https://godoc.org/github.com/aergoio/aergo?status.svg)](https://godoc.org/github.com/aergoio/aergo)
 
-# Aergo - The Most Practical Blockchain Platform for Blockchain Businesses
+# Aergo - Distributed Trust at Scale
 
 Official Chain Software of Aergo Protocol
 
@@ -29,10 +29,29 @@ We are developing the most practical and powerful platform for blockchain busine
 * Simple client API
 * Smart contract will not be released - you can see the prototype in [coinstack3sp2](https://github.com/coinstack/coinstackd)
 
-### 1st: Aergo Alpha (planned in Sep, 2018)
-* Simple dPOS
-* Aergo SQL smart contract (LLVM)
-* Basic client framework and development environment (other repositories)
+### 1st: Aergo Alpha (31, Oct, 2018)
+* Consensus - BFT-dPOS (election not integrated)
+** We provide BFT by solving various problems that may occur in dpos.
+* Aergo SQL smart contract (Lua-jit)
+** It is a powerful smart contract language providing DB function.
+* Client - Ship
+** Client framework and development environment
+** Provides a package management and testing environment similar to NPM.
+* Client SDK
+** heraj (java)
+** herajs (javascript)
+** herapy (python)
+* Browser Wallet (1~2 weeks later)
+** Chrome Extension provides a coin transfer wallet.
+* Sub Project
+** Litetree
+*** Improved SQLite is used to provide DB functionality in a block chain.
+*** Provides higher performance through LMDB.
+** Sparse Merkle Tree
+*** Provides fast, space-saving sparse merkle tree.
+** Pre-Testnet
+*** Launch the pre-testnet to monitor operation environment.
+*** We provide https://aergoscan.io.
 
 ### 2nd: Aergo Testnet (planned in Dec, 2018)
 * Advanced dPOS
