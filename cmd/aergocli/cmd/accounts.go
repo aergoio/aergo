@@ -205,7 +205,7 @@ var importCmd = &cobra.Command{
 		if to != "" {
 			wif.Newpass = to
 		} else {
-			wif.Newpass = pw
+			wif.Newpass = wif.Oldpass
 		}
 
 		if cmd.Flags().Changed("path") == false {
