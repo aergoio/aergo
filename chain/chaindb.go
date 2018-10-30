@@ -243,24 +243,42 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 		return ErrInvalidSwapChain
 	}
 
-	tx := cdb.store.NewTx()
-
-	defer tx.Discard()
-
 	var blockIdx []byte
+	var dbTx db.Transaction
+
+	txCnt := 0
+
+	dbTx = cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	//make newTx because of batchsize limit of DB
+	getNewTx := func (remainTxCnt int) {
+		if txCnt + remainTxCnt >= TxBatchMax {
+			dbTx.Commit()
+			dbTx = cdb.store.NewTx()
+			txCnt = 0
+		}
+	}
 
 	for i := len(newBlocks) - 1; i >= 0; i-- {
 		block := newBlocks[i]
 		blockIdx = types.BlockNoToBytes(block.GetHeader().GetBlockNo())
 
-		tx.Set(blockIdx, block.BlockHash())
+		dbTx.Set(blockIdx, block.BlockHash())
+
+		txCnt++
+
+		getNewTx(0)
 	}
-	tx.Set(latestKey, blockIdx)
+
+	getNewTx(5)
+
+	dbTx.Set(latestKey, blockIdx)
 
 	// Save the last consensus status.
-	cdb.cc.Save(tx)
+	cdb.cc.Save(dbTx)
 
-	tx.Commit()
+	dbTx.Commit()
 
 	cdb.setLatest(newBlocks[0])
 
