@@ -70,14 +70,6 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	if err != nil {
 		return "", err
 	}
-	sqlTx, err := BeginTx(receiver.AccountID(), receiver.RP())
-	if err != nil {
-		return "", err
-	}
-	err = sqlTx.Savepoint()
-	if err != nil {
-		return "", err
-	}
 
 	var rv string
 	var ex *Executor
@@ -96,11 +88,11 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		if err != nil {
 			return "", err
 		}
-		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, sqlTx.GetHandle())
+		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, sqlTx.GetHandle(), preLoadService)
+			types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 
 		if receiver.IsNew() {
 			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
@@ -109,9 +101,6 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if err != nil {
-		if rErr := sqlTx.RollbackToSavepoint(); rErr != nil {
-			return "", rErr
-		}
 		if err == types.ErrInsufficientBalance {
 			return "", err
 		}
@@ -120,11 +109,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	err = bs.CommitContractState(contractState)
 	if err != nil {
-		_ = sqlTx.RollbackToSavepoint()
 		return "", err
 	}
 
-	return rv, sqlTx.Release()
+	return rv, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {

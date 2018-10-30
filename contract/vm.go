@@ -454,15 +454,9 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	}
 	var ce *Executor
 
-	tx, err := BeginReadOnly(types.ToAccountID(contractAddress), contractState.SqlRecoveryPoint)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
-		1, nil, tx.GetHandle(), ChainService)
+		1, nil, nil, ChainService)
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -674,15 +668,9 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
 		return -1
 	}
-	sqlTx, err := BeginTx(types.ToAccountID(callee.address), callState.curState.SqlRecoveryPoint)
-	if err != nil {
-		luaPushStr(L, "[System.LuaGetContract] begin tx:"+err.Error())
-		return -1
-	}
-	sqlTx.Savepoint()
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle(),
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, nil,
 		int(bcCtx.service))
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
@@ -701,11 +689,9 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
-		sqlTx.RollbackToSavepoint()
 		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
 		return -1
 	}
-	sqlTx.Release()
 
 	return ret
 }

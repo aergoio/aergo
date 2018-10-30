@@ -12,7 +12,6 @@ static void preloadModules(lua_State *L)
 {
 	luaopen_system(L);
 	luaopen_contract(L);
-    luaopen_db(L);
 }
 
 static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)
