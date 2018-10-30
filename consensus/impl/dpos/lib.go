@@ -147,8 +147,10 @@ func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 	return
 }
 
-func beginRecoBlockNo(endBlockNo, libBlockNo types.BlockNo) types.BlockNo {
-	offset := 2 * consensusBlockCount()
+func (ls *libStatus) begRecoBlockNo(endBlockNo types.BlockNo) types.BlockNo {
+	offset := 3 * consensusBlockCount()
+
+	libBlockNo := ls.Lib.BlockNo
 
 	// To reduce IO operation
 	begNo := endBlockNo
@@ -172,12 +174,12 @@ func (ls *libStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) error 
 		Uint64("target no", targetBlockNo).Int("confirms len", ls.confirms.Len()).
 		Msg("start LIB status rollback")
 
-	ls.load(beginRecoBlockNo(targetBlockNo, ls.Lib.BlockNo), targetBlockNo)
+	ls.load(targetBlockNo)
 
 	return nil
 }
 
-func (ls *libStatus) load(begBlockNo, endBlockNo types.BlockNo) {
+func (ls *libStatus) load(endBlockNo types.BlockNo) {
 	// Remove all the previous confirmation info.
 	if ls.confirms.Len() > 0 {
 		ls.confirms.Init()
@@ -187,6 +189,8 @@ func (ls *libStatus) load(begBlockNo, endBlockNo types.BlockNo) {
 	if endBlockNo == 0 {
 		return
 	}
+
+	begBlockNo := ls.begRecoBlockNo(endBlockNo)
 
 	// Rebuild confirms info & pre-LIB map from LIB + 1 and block based on
 	// the blocks.
@@ -373,7 +377,7 @@ func (bs *bootLoader) loadLibStatus() *libStatus {
 	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
 		return nil
 	}
-	pls.load(beginRecoBlockNo(pls.Lib.BlockNo, pls.Lib.BlockNo), bs.best.BlockNo())
+	pls.load(bs.best.BlockNo())
 
 	return pls
 }
@@ -407,6 +411,8 @@ func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
 	pls := newLibStatus(defaultConsensusCount)
 	pls.genesisInfo = newBlockInfo(libLoader.genesis)
 
+	logger.Debug().Uint64("beginning", begBlockNo).Uint64("ending", endBlockNo).
+		Msg("restore pre-LIB status from blocks")
 	for i := begBlockNo; i <= endBlockNo; i++ {
 		block, err := libLoader.cdb.GetBlockByNo(i)
 		if err != nil {
