@@ -39,6 +39,17 @@ stmt_new_exp(ast_exp_t *exp, src_pos_t *pos)
 }
 
 ast_stmt_t *
+stmt_new_assign(ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos)
+{
+    ast_stmt_t *stmt = ast_stmt_new(STMT_ASSIGN, pos);
+
+    stmt->u_assign.l_exp = l_exp;
+    stmt->u_assign.r_exp = r_exp;
+
+    return stmt;
+}
+
+ast_stmt_t *
 stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_IF, pos);

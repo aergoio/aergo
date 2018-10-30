@@ -12,6 +12,7 @@
 
 #define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
 #define is_exp_stmt(stmt)           ((stmt)->kind == STMT_EXP)
+#define is_assign_stmt(stmt)        ((stmt)->kind == STMT_ASSIGN)
 #define is_if_stmt(stmt)            ((stmt)->kind == STMT_IF)
 #define is_loop_stmt(stmt)          ((stmt)->kind == STMT_LOOP)
 #define is_switch_stmt(stmt)        ((stmt)->kind == STMT_SWITCH)
@@ -50,6 +51,11 @@ typedef struct stmt_exp_s {
     ast_exp_t *exp;
 } stmt_exp_t;
 
+typedef struct stmt_assign_s {
+    ast_exp_t *l_exp;
+    ast_exp_t *r_exp;
+} stmt_assign_t;
+
 typedef struct stmt_if_s {
     ast_exp_t *cond_exp;
     ast_blk_t *if_blk;
@@ -61,7 +67,7 @@ typedef struct stmt_loop_s {
     loop_kind_t kind;
 
     array_t *init_ids;
-    ast_exp_t *init_exp;
+    ast_stmt_t *init_stmt;
     ast_exp_t *cond_exp;
     ast_exp_t *loop_exp;
 
@@ -102,6 +108,7 @@ struct ast_stmt_s {
 
     union {
         stmt_exp_t u_exp;
+        stmt_assign_t u_assign;
         stmt_if_t u_if;
         stmt_loop_t u_loop;
         stmt_switch_t u_sw;
@@ -115,6 +122,7 @@ struct ast_stmt_s {
 
 ast_stmt_t *stmt_new_null(src_pos_t *pos);
 ast_stmt_t *stmt_new_exp(ast_exp_t *exp, src_pos_t *pos);
+ast_stmt_t *stmt_new_assign(ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos);
 ast_stmt_t *stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp, 
                           ast_blk_t *blk, src_pos_t *pos);

@@ -426,52 +426,6 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_op_assign(check_t *check, ast_exp_t *exp)
-{
-    ast_exp_t *l_exp;
-    meta_t *l_meta;
-    ast_exp_t *r_exp;
-    meta_t *r_meta;
-
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp != NULL);
-
-    l_exp = exp->u_op.l_exp;
-    l_meta = &l_exp->meta;
-
-    CHECK(exp_check(check, l_exp));
-
-    r_exp = exp->u_op.r_exp;
-    r_meta = &r_exp->meta;
-
-    CHECK(exp_check(check, r_exp));
-
-    if (is_tuple_exp(l_exp)) {
-        int i;
-        array_t *var_exps = l_exp->u_tup.exps;
-
-        for (i = 0; i < array_size(var_exps); i++) {
-            ast_exp_t *var_exp = array_item(var_exps, i, ast_exp_t);
-
-            if (!is_usable_lval(var_exp))
-                RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
-        }
-    }
-    else if (!is_usable_lval(l_exp)) {
-        RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
-    }
-
-    CHECK(meta_cmp(l_meta, r_meta));
-
-    meta_copy(&exp->meta, l_meta);
-
-    if (is_val_exp(r_exp) && !value_check(&r_exp->u_val.val, l_meta))
-        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
-
-    return NO_ERROR;
-}
-
-static int
 exp_check_op(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_op_exp(exp), exp->kind);
@@ -508,9 +462,6 @@ exp_check_op(check_t *check, ast_exp_t *exp)
     case OP_AND:
     case OP_OR:
         return exp_check_op_bool_cmp(check, exp);
-
-    case OP_ASSIGN:
-        return exp_check_op_assign(check, exp);
 
     default:
         ASSERT1(!"invalid operator", exp->u_op.kind);

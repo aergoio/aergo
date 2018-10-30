@@ -12,6 +12,49 @@
 #include "check_stmt.h"
 
 static int
+stmt_check_assign(check_t *check, ast_stmt_t *stmt)
+{
+    ast_exp_t *l_exp, *r_exp;
+    meta_t *l_meta, *r_meta;
+
+    ASSERT1(is_assign_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_assign.l_exp != NULL);
+    ASSERT(stmt->u_assign.r_exp != NULL);
+
+    l_exp = stmt->u_assign.l_exp;
+    l_meta = &l_exp->meta;
+
+    CHECK(exp_check(check, l_exp));
+
+    r_exp = stmt->u_assign.r_exp;
+    r_meta = &r_exp->meta;
+
+    CHECK(exp_check(check, r_exp));
+
+    if (is_tuple_exp(l_exp)) {
+        int i;
+        array_t *var_exps = l_exp->u_tup.exps;
+
+        for (i = 0; i < array_size(var_exps); i++) {
+            ast_exp_t *var_exp = array_item(var_exps, i, ast_exp_t);
+
+            if (!is_usable_lval(var_exp))
+                RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
+        }
+    }
+    else if (!is_usable_lval(l_exp)) {
+        RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
+    }
+
+    CHECK(meta_cmp(l_meta, r_meta));
+
+    if (is_val_exp(r_exp) && !value_check(&r_exp->u_val.val, l_meta))
+        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
+
+    return NO_ERROR;
+}
+
+static int
 stmt_check_if(check_t *check, ast_stmt_t *stmt)
 {
     int i;
@@ -48,7 +91,6 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 {
-    ast_exp_t *init_exp = stmt->u_loop.init_exp;
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_exp_t *loop_exp = stmt->u_loop.loop_exp;
     ast_blk_t *blk = stmt->u_loop.blk;
@@ -99,11 +141,11 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
     }
 
     if (stmt->u_loop.init_ids != NULL) {
-        ASSERT(stmt->u_loop.init_exp == NULL);
+        ASSERT(stmt->u_loop.init_stmt == NULL);
         id_join_first(&blk->ids, stmt->u_loop.init_ids);
     }
-    else if (init_exp != NULL) {
-        array_add_first(&blk->stmts, stmt_new_exp(init_exp, &init_exp->pos));
+    else if (stmt->u_loop.init_stmt != NULL) {
+        array_add_first(&blk->stmts, stmt->u_loop.init_stmt);
     }
 
     if (loop_exp != NULL) {
@@ -443,6 +485,10 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
 
     case STMT_EXP:
         exp_check(check, stmt->u_exp.exp);
+        break;
+
+    case STMT_ASSIGN:
+        stmt_check_assign(check, stmt);
         break;
 
     case STMT_IF:

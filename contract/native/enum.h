@@ -102,6 +102,7 @@ typedef enum exp_kind_e {
 typedef enum stmt_kind_e {
     STMT_NULL       = 0,
     STMT_EXP,
+    STMT_ASSIGN,
     STMT_IF,
     STMT_LOOP,
     STMT_SWITCH,
@@ -160,7 +161,6 @@ typedef enum op_kind_e {
 
     OP_INC          = OP_SCE_MAX,
     OP_DEC,
-    OP_ASSIGN,
     OP_MAX
 } op_kind_t;
 

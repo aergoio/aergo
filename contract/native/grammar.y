@@ -123,6 +123,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %token  END 0           "EOF"
 
 /* precedences */
+%left   ','
 %left   CMP_OR
 %left   CMP_AND
 %right  '!'
@@ -186,11 +187,14 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   return_opt
 %type <array>   return_list
 %type <stmt>    statement
+%type <stmt>    empty_stmt
 %type <stmt>    exp_stmt
+%type <stmt>    assign_stmt
+%type <op>      assign_op
 %type <stmt>    label_stmt
 %type <stmt>    if_stmt
 %type <stmt>    loop_stmt
-%type <exp>     init_exp
+%type <stmt>    init_stmt
 %type <exp>     cond_exp
 %type <stmt>    switch_stmt
 %type <array>   case_list
@@ -200,8 +204,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    ddl_stmt
 %type <stmt>    blk_stmt
 %type <exp>     expression
-%type <op>      assign_op
-%type <exp>     tuple_exp
 %type <exp>     sql_exp
 %type <sql>     sql_prefix
 %type <exp>     ternary_exp
@@ -224,9 +226,10 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     unary_exp
 %type <op>      unary_op
 %type <exp>     post_exp
-%type <exp>     prim_exp
-%type <exp>     new_exp
 %type <array>   arg_list
+%type <exp>     prim_exp
+%type <exp>     simple_lit
+%type <exp>     new_exp
 %type <str>     non_reserved_token
 %type <str>     identifier
 
@@ -307,7 +310,7 @@ contract_body:
 variable:
     var_decl ';'
 |   var_init_decl ';'
-|   var_type error ';'          { $$ = NULL; }
+|   var_type error ';'  { $$ = NULL; }
 ;
 
 var_decl:
@@ -457,11 +460,11 @@ var_init_list:
 
 initializer:
     sql_exp
-|   '{' elem_list '}'
+|   identifier ':' sql_exp
     {
-        $$ = exp_new_tuple($2, &@$);
+        $$ = $3;
     }
-|   '{' elem_list ',' '}'
+|   '{' elem_list comma_opt '}'
     {
         $$ = exp_new_tuple($2, &@$);
     }
@@ -473,11 +476,16 @@ elem_list:
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   elem_list ',' initializer
+|   elem_list ',' initializer %prec ','
     {
         $$ = $1;
         exp_add_last($$, $3);
     }
+;
+
+comma_opt:
+    /* empty */
+|   ','
 ;
 
 compound:
@@ -492,7 +500,7 @@ struct:
     {
         $$ = id_new_struct($2, $4, &@$);
     }
-|   K_STRUCT error '}'          { $$ = NULL; }
+|   K_STRUCT error '}'  { $$ = NULL; }
 ;
 
 field_list:
@@ -531,7 +539,7 @@ enumeration:
     {
         $$ = id_new_enum($2, $4, &@$);
     }
-|   K_ENUM error ')'            { $$ = NULL; }
+|   K_ENUM error ')'    { $$ = NULL; }
 ;
 
 enum_list:
@@ -567,7 +575,7 @@ constructor:
 ;
 
 param_list_opt:
-    /* empty */             { $$ = NULL; }
+    /* empty */         { $$ = NULL; }
 |   param_list
 ;
 
@@ -593,8 +601,8 @@ param_decl:
 ;
 
 block:
-    '{' '}'                 { $$ = NULL; }
-|   '{' blk_decl '}'        { $$ = $2; }
+    '{' '}'             { $$ = NULL; }
+|   '{' blk_decl '}'    { $$ = $2; }
 ;
 
 blk_decl:
@@ -638,8 +646,8 @@ function:
 ;
 
 modifier_opt:
-    /* empty */                 { $$ = MOD_PRIVATE; }
-|   K_PUBLIC                    { $$ = MOD_PUBLIC; }
+    /* empty */             { $$ = MOD_PRIVATE; }
+|   K_PUBLIC                { $$ = MOD_PUBLIC; }
 |   modifier_opt K_READONLY
     {
         if (flag_on($1, MOD_READONLY))
@@ -661,8 +669,8 @@ modifier_opt:
 ;
 
 return_opt:
-    /* empty */                 { $$ = NULL; }
-|   '(' return_list ')'         { $$ = $2; }
+    /* empty */             { $$ = NULL; }
+|   '(' return_list ')'     { $$ = $2; }
 |   return_list
 ;
 
@@ -680,7 +688,9 @@ return_list:
 ;
 
 statement:
-    exp_stmt
+    empty_stmt
+|   exp_stmt
+|   assign_stmt
 |   label_stmt
 |   if_stmt
 |   loop_stmt
@@ -690,16 +700,43 @@ statement:
 |   blk_stmt
 ;
 
-exp_stmt:
+empty_stmt:
     ';'
     {
         $$ = stmt_new_null(&@$);
     }
-|   expression ';'
+;
+
+exp_stmt:
+    expression ';'
     {
         $$ = stmt_new_exp($1, &@$);
     }
-|   error ';'       { $$ = NULL; }
+|   error ';'           { $$ = NULL; }
+;
+
+assign_stmt:
+    expression '=' expression ';'
+    {
+        $$ = stmt_new_assign($1, $3, &@2);
+    }
+|   unary_exp assign_op expression ';'
+    {
+        $$ = stmt_new_assign($1, exp_new_op($2, $1, $3, &@2), &@2);
+    }
+;
+
+assign_op:
+    ASSIGN_ADD          { $$ = OP_ADD; }
+|   ASSIGN_SUB          { $$ = OP_SUB; }
+|   ASSIGN_MUL          { $$ = OP_MUL; }
+|   ASSIGN_DIV          { $$ = OP_DIV; }
+|   ASSIGN_MOD          { $$ = OP_MOD; }
+|   ASSIGN_AND          { $$ = OP_BIT_AND; }
+|   ASSIGN_XOR          { $$ = OP_BIT_XOR; }
+|   ASSIGN_OR           { $$ = OP_BIT_OR; }
+|   ASSIGN_RS           { $$ = OP_RSHIFT; }
+|   ASSIGN_LS           { $$ = OP_LSHIFT; }
 ;
 
 label_stmt:
@@ -740,15 +777,15 @@ loop_stmt:
     {
         $$ = stmt_new_loop(LOOP_FOR, $3, NULL, $5, &@$);
     }
-|   K_FOR '(' init_exp cond_exp ')' block
+|   K_FOR '(' init_stmt cond_exp ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $4, NULL, $6, &@$);
-        $$->u_loop.init_exp = $3;
+        $$->u_loop.init_stmt = $3;
     }
-|   K_FOR '(' init_exp cond_exp expression ')' block
+|   K_FOR '(' init_stmt cond_exp expression ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $4, $5, $7, &@$);
-        $$->u_loop.init_exp = $3;
+        $$->u_loop.init_stmt = $3;
     }
 |   K_FOR '(' variable cond_exp ')' block
     {
@@ -763,7 +800,7 @@ loop_stmt:
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
         $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
-        $$->u_loop.init_exp = $3;
+        $$->u_loop.init_stmt = stmt_new_exp($3, &@3);
     }
 |   K_FOR '(' var_decl K_IN post_exp ')' block
     {
@@ -776,14 +813,14 @@ loop_stmt:
     }
 ;
 
-init_exp:
-    ';'             { $$ = NULL; }
-|   expression ';'
+init_stmt:
+    empty_stmt
+|   assign_stmt
 ;
 
 cond_exp:
-    ';'             { $$ = NULL; }
-|   or_exp ';'
+    ';'                 { $$ = NULL; }
+|   expression ';'
 ;
 
 switch_stmt:
@@ -895,39 +932,14 @@ blk_stmt:
 ;
 
 expression:
-    tuple_exp
-|   tuple_exp '=' tuple_exp
-    {
-        $$ = exp_new_op(OP_ASSIGN, $1, $3, &@2);
-    }
-|   unary_exp assign_op sql_exp
-    {
-        $$ = exp_new_op(OP_ASSIGN, $1, exp_new_op($2, $1, $3, &@2), &@2);
-    }
-;
-
-assign_op:
-    ASSIGN_ADD          { $$ = OP_ADD; }
-|   ASSIGN_SUB          { $$ = OP_SUB; }
-|   ASSIGN_MUL          { $$ = OP_MUL; }
-|   ASSIGN_DIV          { $$ = OP_DIV; }
-|   ASSIGN_MOD          { $$ = OP_MOD; }
-|   ASSIGN_AND          { $$ = OP_BIT_AND; }
-|   ASSIGN_XOR          { $$ = OP_BIT_XOR; }
-|   ASSIGN_OR           { $$ = OP_BIT_OR; }
-|   ASSIGN_RS           { $$ = OP_RSHIFT; }
-|   ASSIGN_LS           { $$ = OP_LSHIFT; }
-;
-
-tuple_exp:
     sql_exp
-|   tuple_exp ',' sql_exp
+|   expression ',' sql_exp
     {
         if (is_tuple_exp($1)) {
             $$ = $1;
         }
         else {
-            $$ = exp_new_tuple(NULL, &@$);
+            $$ = exp_new_tuple(NULL, &@1);
             exp_add_last($$->u_tup.exps, $1);
         }
         exp_add_last($$->u_tup.exps, $3);
@@ -963,7 +975,7 @@ sql_prefix:
 
 ternary_exp:
     or_exp
-|   or_exp '?' sql_exp ':' ternary_exp
+|   or_exp '?' expression ':' ternary_exp
     {
         $$ = exp_new_ternary($1, $3, $5, &@$);
     }
@@ -1018,8 +1030,8 @@ eq_exp:
 ;
 
 eq_op:
-    CMP_EQ          { $$ = OP_EQ; }
-|   CMP_NE          { $$ = OP_NE; }
+    CMP_EQ              { $$ = OP_EQ; }
+|   CMP_NE              { $$ = OP_NE; }
 ;
 
 cmp_exp:
@@ -1031,10 +1043,10 @@ cmp_exp:
 ;
 
 cmp_op:
-    '<'             { $$ = OP_LT; }
-|   '>'             { $$ = OP_GT; }
-|   CMP_LE          { $$ = OP_LE; }
-|   CMP_GE          { $$ = OP_GE; }
+    '<'                 { $$ = OP_LT; }
+|   '>'                 { $$ = OP_GT; }
+|   CMP_LE              { $$ = OP_LE; }
+|   CMP_GE              { $$ = OP_GE; }
 ;
 
 shift_exp:
@@ -1046,8 +1058,8 @@ shift_exp:
 ;
 
 shift_op:
-    SHIFT_R         { $$ = OP_RSHIFT; }
-|   SHIFT_L         { $$ = OP_LSHIFT; }
+    SHIFT_R             { $$ = OP_RSHIFT; }
+|   SHIFT_L             { $$ = OP_LSHIFT; }
 ;
 
 add_exp:
@@ -1059,8 +1071,8 @@ add_exp:
 ;
 
 add_op:
-    '+'             { $$ = OP_ADD; }
-|   '-'             { $$ = OP_SUB; }
+    '+'                 { $$ = OP_ADD; }
+|   '-'                 { $$ = OP_SUB; }
 ;
 
 mul_exp:
@@ -1072,9 +1084,9 @@ mul_exp:
 ;
 
 mul_op:
-    '*'             { $$ = OP_MUL; }
-|   '/'             { $$ = OP_DIV; }
-|   '%'             { $$ = OP_MOD; }
+    '*'                 { $$ = OP_MUL; }
+|   '/'                 { $$ = OP_DIV; }
+|   '%'                 { $$ = OP_MOD; }
 ;
 
 cast_exp:
@@ -1098,10 +1110,10 @@ unary_exp:
 ;
 
 unary_op:
-    UNARY_INC       { $$ = OP_INC; }
-|   UNARY_DEC       { $$ = OP_DEC; }
-|   '-'             { $$ = OP_NEG; }
-|   '!'             { $$ = OP_NOT; }
+    UNARY_INC           { $$ = OP_INC; }
+|   UNARY_DEC           { $$ = OP_DEC; }
+|   '-'                 { $$ = OP_NEG; }
+|   '!'                 { $$ = OP_NOT; }
 ;
 
 post_exp:
@@ -1132,9 +1144,34 @@ post_exp:
     }
 ;
 
+arg_list:
+    ternary_exp
+    {
+        $$ = array_new();
+        exp_add_last($$, $1);
+    }
+|   arg_list ',' ternary_exp
+    {
+        $$ = $1;
+        exp_add_last($$, $3);
+    }
+;
+
 prim_exp:
     new_exp
-|   K_NULL
+|   simple_lit
+|   identifier
+    {
+        $$ = exp_new_id($1, &@$);
+    }
+|   '(' expression ')'
+    {
+        $$ = $2;
+    }
+;
+
+simple_lit:
+    K_NULL
     {
         $$ = exp_new_val(&@$);
         value_set_obj(&$$->u_val.val, NULL);
@@ -1185,27 +1222,6 @@ prim_exp:
     {
         $$ = exp_new_val(&@$);
         value_set_str(&$$->u_val.val, $1);
-    }
-|   identifier
-    {
-        $$ = exp_new_id($1, &@$);
-    }
-|   '(' expression ')'
-    {
-        $$ = $2;
-    }
-;
-
-arg_list:
-    ternary_exp
-    {
-        $$ = array_new();
-        exp_add_last($$, $1);
-    }
-|   arg_list ',' ternary_exp
-    {
-        $$ = $1;
-        exp_add_last($$, $3);
     }
 ;
 
