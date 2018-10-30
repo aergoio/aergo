@@ -498,6 +498,17 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	var receiver *state.V
 	if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
+		if receiver.IsNew() {
+			sender.SubBalance(CoinbaseFee)
+			sender.SetNonce(txBody.Nonce)
+			err = sender.PutState()
+			if err != nil {
+				return err
+			}
+			bs.BpReward += CoinbaseFee
+			bs.AddReceipt(types.NewReceipt(receiver.ID(), "account is not exists", ""))
+			return nil
+		}
 	} else {
 		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
 	}
@@ -522,11 +533,13 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	if err != nil {
 		if _, ok := err.(contract.VmError); ok {
 			sender.Reset()
+			sender.SubBalance(txFee)
 			sender.SetNonce(txBody.Nonce)
 			sErr := sender.PutState()
 			if sErr != nil {
 				return sErr
 			}
+			bs.BpReward += txFee
 			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
 			return nil
 		}

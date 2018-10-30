@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/hex"
+	"errors"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -59,6 +60,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	if txBody.Payload == nil {
 		return "", nil
+	}
+
+	if !receiver.IsNew() && len(receiver.State().CodeHash) == 0 {
+		return "", errors.New("account is not a contract")
 	}
 
 	contractState, err := bs.OpenContractState(receiver.State())
