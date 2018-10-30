@@ -83,7 +83,7 @@ id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_id_t *
-id_search_name(ast_blk_t *blk, int num, char *name)
+id_search_name(ast_blk_t *blk, char *name, int num)
 {
     int i;
 
@@ -106,7 +106,7 @@ id_search_name(ast_blk_t *blk, int num, char *name)
 }
 
 ast_id_t *
-id_search_fld(ast_id_t *id, char *name)
+id_search_fld(ast_id_t *id, char *name, bool is_self)
 {
     int i;
     array_t *fld_ids = NULL;
@@ -128,7 +128,7 @@ id_search_fld(ast_id_t *id, char *name)
     for (i = 0; i < array_size(fld_ids); i++) {
         ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
 
-        if (is_public_id(fld_id) && strcmp(fld_id->name, name) == 0)
+        if ((is_self || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 

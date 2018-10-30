@@ -96,8 +96,8 @@ ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *r
                       ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 
-ast_id_t *id_search_name(ast_blk_t *blk, int num, char *name);
-ast_id_t *id_search_fld(ast_id_t *id, char *name);
+ast_id_t *id_search_name(ast_blk_t *blk, char *name, int num);
+ast_id_t *id_search_fld(ast_id_t *id, char *name, bool is_self);
 ast_id_t *id_search_param(ast_id_t *id, char *name);
 
 void id_add(array_t *ids, int idx, ast_id_t *new_id);

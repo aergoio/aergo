@@ -331,17 +331,17 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_return(check_t *check, ast_stmt_t *stmt)
 {
-    ast_id_t *fn_id;
+    ast_id_t *func_id;
     meta_t *fn_meta;
     ast_exp_t *arg_exp;
 
     ASSERT1(is_return_stmt(stmt), stmt->kind);
-    ASSERT(check->fn_id != NULL);
+    ASSERT(check->func_id != NULL);
 
-    fn_id = check->fn_id;
-    fn_meta = &fn_id->meta;
+    func_id = check->func_id;
+    fn_meta = &func_id->meta;
 
-    ASSERT1(is_func_id(fn_id), fn_id->kind);
+    ASSERT1(is_func_id(func_id), func_id->kind);
 
     arg_exp = stmt->u_ret.arg_exp;
 

@@ -66,6 +66,14 @@ contract test {
     }
 }
 
+@test(contract_accessor)
+contract test {
+    string v;
+    test(int v) {
+        if (this.v == "") { }
+    }
+}
+
 @test(neighbor_reference)
 contract neighbor {
     public int v;

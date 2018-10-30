@@ -16,19 +16,24 @@ exp_check_id(check_t *check, ast_exp_t *exp)
     ast_id_t *id = NULL;
 
     ASSERT1(is_id_exp(exp), exp->kind);
+    ASSERT(exp->u_id.name != NULL);
 
-    if (check->aq_id != NULL) {
-        id = id_search_fld(check->aq_id, exp->u_id.name);
+    if (strcmp(exp->u_id.name, "this") == 0) {
+        id = check->cont_id;
+    }
+    else if (check->qual_id != NULL) {
+        id = id_search_fld(check->qual_id, exp->u_id.name,
+                           check->cont_id == check->qual_id);
     }
     else {
-        if (check->fn_id != NULL)
-            id = id_search_param(check->fn_id, exp->u_id.name);
+        if (check->func_id != NULL)
+            id = id_search_param(check->func_id, exp->u_id.name);
 
         if (id == NULL) {
-            id = id_search_name(check->blk, exp->num, exp->u_id.name);
+            id = id_search_name(check->blk, exp->u_id.name, exp->num);
 
             if (id != NULL && is_contract_id(id))
-                id = id_search_fld(id, exp->u_id.name);
+                id = id_search_name(id->u_cont.blk, exp->u_id.name, exp->num);
         }
     }
 
@@ -85,10 +90,11 @@ exp_check_type(check_t *check, ast_exp_t *exp)
         ASSERT(exp->u_type.k_exp == NULL);
         ASSERT(exp->u_type.v_exp == NULL);
 
-        if (check->aq_id != NULL)
-            id = id_search_fld(check->aq_id, exp->u_type.name);
+        if (check->qual_id != NULL)
+            id = id_search_fld(check->qual_id, exp->u_type.name,
+                               check->qual_id == check->cont_id);
         else
-            id = id_search_name(check->blk, exp->num, exp->u_type.name);
+            id = id_search_name(check->blk, exp->u_type.name, exp->num);
 
         if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
@@ -558,14 +564,14 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     fld_exp = exp->u_acc.fld_exp;
     fld_meta = &fld_exp->meta;
 
-    check->aq_id = id;
+    check->qual_id = id;
 
     if (exp_check(check, fld_exp) == NO_ERROR) {
         exp->id = fld_exp->id;
         meta_copy(&exp->meta, fld_meta);
     }
 
-    check->aq_id = NULL;
+    check->qual_id = NULL;
 
     return NO_ERROR;
 }

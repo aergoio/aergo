@@ -263,10 +263,10 @@ contract Testing {
 ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
-<a name="type">Type</a>        = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a>   = "account" | "bool" | "byte" | "int8" | "int16" | "int32" | "int64" | "uint8" |
-              "uint16" | "uint32" | "uint64" | "float" | "double" | "string" ;
-<a name="complex_type">ComplexType</a> = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
+<a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
+<a name="primitive_type">primitive_type</a> = "account" | "bool" | "byte" | "int8" | "int16" | "int32" | "int64" | "uint8" |
+                 "uint16" | "uint32" | "uint64" | "float" | "double" | "string" ;
+<a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
 
 #### Account type
@@ -703,7 +703,7 @@ double d = (double)i;
 string s = (string)i;
 ```
 
-하지만, <a href="#complex_type">complex type</a>에 대한 type conversion이나 implicit type conversion은 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
+<a href="#complex_type">complex type</a>에 대한 type conversion이나 implicit type conversion은 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
 
 ```
 map(int, string) m1;
@@ -990,12 +990,12 @@ a && b || c         // equals (a && b) || c
 위 precedence table에서 ++와 -- operator가 빠져있는데, 두 operator는 선언된 위치에 따라 동작이 달라지기 때문이다. 만약 prefix로 선언된 경우엔 가장 높은 precedence를 가지나, postfix로 선언된 경우엔 가장 낮은 precedence를 가진다.
 ```
 int i = 1;
-int j = 10 + ++i;   // first, execute i = i + 1
+int j = 10 + ++i;   /* first, execute i = i + 1
                        second, execute j = 10 + i
-                       so, j is 12 and i is 2
-int j = 10 + i++;   // first, execute j = 10 + i
+                       so, j is 12 and i is 2 */
+int j = 10 + i++;   /* first, execute j = 10 + i
                        second, execute i = i + 1
-                       so, j is 11 and i is 2
+                       so, j is 11 and i is 2 */
 ```
 
 ### Statements

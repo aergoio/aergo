@@ -270,11 +270,11 @@ id_check_func(check_t *check, ast_id_t *id)
     }
 
     if (id->u_func.blk != NULL) {
-        check->fn_id = id;
+        check->func_id = id;
 
         blk_check(check, id->u_func.blk);
 
-        check->fn_id = NULL;
+        check->func_id = NULL;
     }
 
     return NO_ERROR;
@@ -285,10 +285,14 @@ id_check_contract(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_contract_id(id), id->kind);
 
+    check->cont_id = id;
+
     if (id->u_cont.blk != NULL)
         blk_check(check, id->u_cont.blk);
 
     meta_set_object(&id->meta);
+
+    check->cont_id = NULL;
 
     return NO_ERROR;
 }
