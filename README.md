@@ -13,7 +13,7 @@ Official Chain Software of Aergo Protocol
 We are developing the most practical and powerful platform for blockchain businesses. This will be a huge challenge. There are 4 main ideologies regarding this project.
 
 1. Developer-friendly
-2. Guaranteed performance 
+2. Guaranteed performance
 3. Scalable architecture
 4. Connect with the world
 
@@ -31,27 +31,27 @@ We are developing the most practical and powerful platform for blockchain busine
 
 ### 1st: Aergo Alpha (31, Oct, 2018)
 * Consensus - BFT-dPOS (election not integrated)
-** We provide BFT by solving various problems that may occur in dpos.
+  * We provide BFT by solving various problems that may occur in dpos.
 * Aergo SQL smart contract (Lua-jit)
-** It is a powerful smart contract language providing DB function.
+  * It is a powerful smart contract language providing DB function.
 * Client - Ship
-** Client framework and development environment
-** Provides a package management and testing environment similar to NPM.
+  * Client framework and development environment
+  * Provides a package management and testing environment similar to NPM.
 * Client SDK
-** heraj (java)
-** herajs (javascript)
-** herapy (python)
+  * heraj (java)
+  * herajs (javascript)
+  * herapy (python)
 * Browser Wallet (1~2 weeks later)
-** Chrome Extension provides a coin transfer wallet.
+  * Chrome Extension provides a coin transfer wallet.
 * Sub Project
-** Litetree
-*** Improved SQLite is used to provide DB functionality in a block chain.
-*** Provides higher performance through LMDB.
-** Sparse Merkle Tree
-*** Provides fast, space-saving sparse merkle tree.
-** Pre-Testnet
-*** Launch the pre-testnet to monitor operation environment.
-*** We provide https://aergoscan.io.
+  * Litetree
+    * Improved SQLite is used to provide DB functionality in a block chain.
+    * Provides higher performance through LMDB.
+  * Sparse Merkle Tree
+    * Provides fast, space-saving sparse merkle tree.
+  * Pre-Testnet
+    * Launch the pre-testnet to monitor operation environment.
+    * We provide https://aergoscan.io.
 
 ### 2nd: Aergo Testnet (planned in Dec, 2018)
 * Advanced dPOS
@@ -65,7 +65,7 @@ We are developing the most practical and powerful platform for blockchain busine
 ### 4th: Aergo World Launch (planned in 4Q, 2019)
 * Orchestration with Aergo Horde
 * Service with Aergo Hub
-* Advanced performance features 
+* Advanced performance features
 
 ### 5th: Aergo Future
 * Will be updated
@@ -108,4 +108,3 @@ $ make
 ## License
 
 All code is licensed under the MIT License (https://opensource.org/licenses/MIT).
-
