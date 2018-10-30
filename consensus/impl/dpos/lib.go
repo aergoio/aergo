@@ -30,18 +30,6 @@ func (e errLibUpdate) Error() string {
 		e.current, e.parent, e.oldBest)
 }
 
-type errInvalidLIB struct {
-	lastHash string
-	lastNo   uint64
-	libHash  string
-	libNo    uint64
-}
-
-func (e errInvalidLIB) Error() string {
-	return fmt.Sprintf("The LIB (%v, %v) is inconsistent with the best block (%v, %v)",
-		e.libNo, e.libHash, e.lastNo, e.lastHash)
-}
-
 type proposed map[string]*plInfo
 
 func (pm proposed) set(bpID string, pl *plInfo) {
@@ -159,34 +147,50 @@ func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 	return
 }
 
+func beginRecoBlockNo(endBlockNo, libBlockNo types.BlockNo) types.BlockNo {
+	offset := 2 * consensusBlockCount()
+
+	// To reduce IO operation
+	begNo := endBlockNo
+	if begNo < libBlockNo {
+		begNo = libBlockNo
+	}
+
+	if begNo > offset {
+		begNo -= offset
+	} else {
+		begNo = 1
+	}
+
+	return begNo
+}
+
 func (ls *libStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) error {
-	var (
-		targetBlockNo = block.BlockNo()
-	)
+	targetBlockNo := block.BlockNo()
 
 	logger.Debug().
 		Uint64("target no", targetBlockNo).Int("confirms len", ls.confirms.Len()).
 		Msg("start LIB status rollback")
 
-	ls.load(lib, block)
+	ls.load(beginRecoBlockNo(targetBlockNo, ls.Lib.BlockNo), targetBlockNo)
 
 	return nil
 }
 
-func (ls *libStatus) load(lib *blockInfo, block *types.Block) {
+func (ls *libStatus) load(begBlockNo, endBlockNo types.BlockNo) {
 	// Remove all the previous confirmation info.
 	if ls.confirms.Len() > 0 {
 		ls.confirms.Init()
 	}
 
 	// Nothing left for the genesis block.
-	if block.BlockNo() == 0 {
+	if endBlockNo == 0 {
 		return
 	}
 
 	// Rebuild confirms info & pre-LIB map from LIB + 1 and block based on
 	// the blocks.
-	if tmp := loadPlibStatus(lib, block); tmp != nil {
+	if tmp := loadPlibStatus(begBlockNo, endBlockNo); tmp != nil {
 		if tmp.confirms.Len() > 0 {
 			ls.confirms = tmp.confirms
 		}
@@ -348,13 +352,6 @@ type bootLoader struct {
 	cdb     consensus.ChainDbReader
 }
 
-func chainDbReader() consensus.ChainDbReader {
-	if libLoader == nil {
-		panic("no LIB status loader")
-	}
-	return libLoader.cdb
-}
-
 func (bs *bootLoader) load() {
 	if ls := bs.loadLibStatus(); ls != nil {
 		bs.ls = ls
@@ -376,6 +373,8 @@ func (bs *bootLoader) loadLibStatus() *libStatus {
 	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
 		return nil
 	}
+	pls.load(beginRecoBlockNo(pls.Lib.BlockNo, pls.Lib.BlockNo), bs.best.BlockNo())
+
 	return pls
 }
 
@@ -394,32 +393,21 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 	return nil
 }
 
-func loadPlibStatus(lib *blockInfo, blockEnd *types.Block) *libStatus {
-	end := blockEnd.BlockNo()
-	if lib.BlockNo == end {
+func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
+	if begBlockNo == endBlockNo {
 		return nil
-	} else if lib.BlockNo > end {
-		panic(errInvalidLIB{
-			lastHash: blockEnd.ID(),
-			lastNo:   end,
-			libHash:  lib.BlockHash,
-			libNo:    lib.BlockNo,
-		})
+	} else if begBlockNo > endBlockNo {
+		logger.Info().Uint64("beg", begBlockNo).Uint64("end", endBlockNo).
+			Msg("skip pre-LIB status recovery due to the invalid block range")
+		return nil
+	} else if begBlockNo == 0 {
+		begBlockNo = 1
 	}
 
 	pls := newLibStatus(defaultConsensusCount)
 	pls.genesisInfo = newBlockInfo(libLoader.genesis)
 
-	beginBlockNo := func() uint64 {
-		// For the case where no pre-LIB map are correctly restored at a boot
-		// time.
-		if beg := lib.BlockNo - 2*consensusBlockCount(); beg > 0 {
-			return beg
-		}
-		return 1
-	}
-
-	for i := beginBlockNo(); i <= end; i++ {
+	for i := begBlockNo; i <= endBlockNo; i++ {
 		block, err := libLoader.cdb.GetBlockByNo(i)
 		if err != nil {
 			// XXX Better error handling?!
