@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"encoding/hex"
 	"errors"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"

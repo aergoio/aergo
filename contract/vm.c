@@ -13,6 +13,7 @@ static void preloadModules(lua_State *L)
 {
 	luaopen_system(L);
 	luaopen_contract(L);
+    luaopen_db(L);
 	luaopen_state(L);
 	luaopen_json(L);
 }
