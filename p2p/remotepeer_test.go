@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 	"sync"
@@ -419,7 +420,8 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 	}
 }
 
-func TestRemotePeer_trySendTxNotices(t *testing.T) {
+func TestRemotePeer_sendTxNotices(t *testing.T) {
+	t.Skip("meanningless after 20181030 refactoring")
 	sampleSize := DefaultPeerTxQueueSize<<1
 	sampleHashes := make([]TxHash, sampleSize)
 	maxTxHashSize := 100
@@ -434,7 +436,7 @@ func TestRemotePeer_trySendTxNotices(t *testing.T) {
 		{"TZero", 0, 0},
 		{"TSingle", 1, 1},
 		{"TSmall", 100, 1},
-		{"TBig", 1001, 11},
+		{"TBig", 1001, 1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -456,7 +458,7 @@ func TestRemotePeer_trySendTxNotices(t *testing.T) {
 			for i:=0; i<test.initCnt; i++ {
 				target.txNoticeQueue.Press(sampleHashes[i])
 			}
-			target.trySendTxNotices()
+			target.sendTxNotices()
 			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder",test.moCnt)
 		})
 	}
@@ -528,6 +530,53 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 			actual := target.updateTxCache(test.hashes)
 
 			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
+	sampleSize := 100
+	sampleHashes := make([]TxHash, sampleSize)
+	maxTxHashSize := 10
+	for i:=0; i<sampleSize ; i++ {
+		sampleHashes[i] = generateHash(uint64(i))
+	}
+	tests := []struct {
+		name string
+		in []TxHash
+		expectSend int
+	}{
+		// 1. single tx
+		{"TSingle",sampleHashes[:1],0},
+		// 2, multiple tx less than capacity
+		{"TSmall",sampleHashes[:maxTxHashSize],0},
+		// 3. multiple tx more than capacity. last one is not sent but just queued.
+		{"TLarge",sampleHashes[:maxTxHashSize*3+1],3},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+			mockMO := new(MockMsgOrder)
+			mockMO.On("IsNeedSign").Return(true)
+			mockMO.On("IsRequest", mockPeerManager).Return(true)
+			mockMO.On("GetProtocolID").Return(NewTxNotice)
+			mockMO.On("GetMsgID").Return(NewMsgID())
+
+			mockMF.On("newMsgTxBroadcastOrder",mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockMO)
+
+			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			target.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
+			target.maxTxNoticeHashSize = maxTxHashSize
+			//target.write.Open()
+
+			target.pushTxsNotice(test.in)
+
+			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder",test.expectSend)
+			//target.write.Close()
+
 		})
 	}
 }

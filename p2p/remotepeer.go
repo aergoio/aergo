@@ -90,7 +90,7 @@ var _ RemotePeer = (*remotePeerImpl)(nil)
 
 const (
 	cleanRequestInterval = time.Hour
-	txNoticeInterval     = time.Second * 3
+	txNoticeInterval     = time.Second * 1
 )
 
 // newRemotePeer create an object which represent a remote peer.
@@ -317,7 +317,15 @@ func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
 	for _,hash := range txHashes {
-		p.txNoticeQueue.Press(hash)
+		if !p.txNoticeQueue.Offer(hash) {
+			p.sendTxNotices()
+			// this Offer is always succeeded by invariant
+			p.txNoticeQueue.Offer(hash)
+			//if !p.txNoticeQueue.Offer(hash) {
+			//	// TODO: temporary check in developement. remove this condition after test successes
+			//	panic("Serious bug occured.")
+			//}
+		}
 	}
 }
 
@@ -345,6 +353,11 @@ func (p *remotePeerImpl) writeToPeer(m msgOrder) {
 func (p *remotePeerImpl) trySendTxNotices() {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
+	p.sendTxNotices()
+}
+
+// sendTxNotices must be called in txQueueLock
+func (p *remotePeerImpl) sendTxNotices() {
 	// make create multiple message if queue is too many hashes.
 	for {
 		// no need to send if queue is empty
@@ -361,9 +374,9 @@ func (p *remotePeerImpl) trySendTxNotices() {
 			hashes = append(hashes, hash[:])
 			idx++
 			p.txHashCache.Add(hash, cachePlaceHolder)
-			if idx >= p.maxTxNoticeHashSize {
-				break
-			}
+			//if idx >= p.maxTxNoticeHashSize {
+			//	break
+			//}
 		}
 		if idx > 0 {
 			mo := p.mf.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes:hashes})

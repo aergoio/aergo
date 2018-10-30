@@ -38,7 +38,7 @@ const (
 	DefaultGlobalTxCacheSize = 50000
 	DefaultPeerTxCacheSize   = 2000
 	// DefaultPeerTxQueueSize is maximum size of hashes in a single tx notice message
-	DefaultPeerTxQueueSize = 10000
+	DefaultPeerTxQueueSize = 40000
 
 	defaultTTL          = time.Second * 4
 	defaultHandshakeTTL = time.Second * 20
