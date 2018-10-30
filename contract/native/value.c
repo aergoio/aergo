@@ -70,7 +70,7 @@ value_check(value_t *val, meta_t *meta)
         break;
 
     case VAL_INT:
-        ASSERT1(is_int_type(meta), meta->type);
+        ASSERT1(is_dec_family(meta), meta->type);
         if ((meta->type == TYPE_BYTE && value_check_uint(val, UINT8_MAX)) ||
             (meta->type == TYPE_INT8 && value_check_int(val, INT8_MAX)) ||
             (meta->type == TYPE_UINT8 && value_check_uint(val, UINT8_MAX)) ||
@@ -84,7 +84,7 @@ value_check(value_t *val, meta_t *meta)
         break;
     
     case VAL_FP:
-        ASSERT1(is_fp_type(meta), meta->type);
+        ASSERT1(is_fp_family(meta), meta->type);
         if (meta->type == TYPE_FLOAT && val->d > FLT_MAX)
             return false;
         break;

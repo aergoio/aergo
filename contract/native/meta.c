@@ -172,8 +172,8 @@ meta_cmp_type(meta_t *x, meta_t *y)
 {
     if (is_const_type(x) || is_const_type(y)) {
         if (x->type == y->type ||
-            (is_int_type(x) && is_int_type(y)) ||
-            (is_fp_type(x) && is_fp_type(y)) ||
+            (is_dec_family(x) && is_dec_family(y)) ||
+            (is_fp_family(x) && is_fp_family(y)) ||
             (is_map_type(x) && is_object_type(y)) ||
             (is_object_type(x) && is_map_type(y))) {
             /*

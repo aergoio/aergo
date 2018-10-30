@@ -55,7 +55,7 @@ contract test {
     int i2 = 0xFF ^ 0x02;
     int i3 = i1 | i2 | 1;
 
-    int i4 = 1 + 1 << 1;
+    uint i4 = 1 + 1 << 1;
     int i5 = 0xff >> 1;
     int i6 = i5 >> i4;
 }

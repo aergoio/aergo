@@ -159,7 +159,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->arr_size != NULL);
 
-        if (!is_int_type(idx_meta))
+        if (!is_dec_family(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
 
         meta_copy(&exp->meta, id_meta);
@@ -238,14 +238,14 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, l_exp));
 
     if (op == OP_ADD) {
-        if (!is_num_type(l_meta) && !is_string_type(l_meta))
+        if (!is_num_family(l_meta) && !is_string_type(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
     else if (op == OP_MOD) {
-        if (!is_int_type(l_meta))
+        if (!is_dec_family(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
-    else if (!is_num_type(l_meta)) {
+    else if (!is_num_family(l_meta)) {
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
 
@@ -275,7 +275,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, l_exp));
 
-    if (!is_int_type(l_meta))
+    if (!is_dec_family(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
     r_exp = exp->u_op.r_exp;
@@ -283,8 +283,23 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, r_exp));
 
-    if (!is_int_type(r_meta))
-        RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
+    switch (exp->u_op.kind) {
+    case OP_BIT_AND:
+    case OP_BIT_OR:
+    case OP_BIT_XOR:
+        if (!is_dec_family(r_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
+        break;
+
+    case OP_RSHIFT:
+    case OP_LSHIFT:
+        if (!is_uint_family(r_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
+        break;
+
+    default:
+        ASSERT1(!"invalid operator", exp->u_op.kind);
+    }
 
     meta_copy(&exp->meta, l_meta);
     exp_eval_const(exp);
@@ -345,14 +360,14 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
         if (!is_usable_lval(l_exp))
             RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
 
-        if (!is_int_type(l_meta))
+        if (!is_dec_family(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
         break;
 
     case OP_NEG:
-        if (!is_num_type(l_meta))
+        if (!is_num_family(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
@@ -577,7 +592,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             param_exp = array_item(param_exps, 0, ast_exp_t);
 
             CHECK(exp_check(check, param_exp));
-            ASSERT1(is_int_type(&param_exp->meta), param_exp->meta.type);
+            ASSERT1(is_dec_family(&param_exp->meta), param_exp->meta.type);
         }
 
         meta_set_map(&exp->meta, NULL, NULL);

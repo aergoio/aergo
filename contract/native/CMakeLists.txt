@@ -54,8 +54,6 @@ set_target_properties(ascl PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib"
     COMPILE_FLAGS "-Wall")
 
-add_custom_target(realclean)
-add_custom_command(TARGET realclean 
-    COMMAND rm -rf `find . \\\( -name CMakeCache.txt -o -name CMakeFiles -o -name cmake_install.cmake \\\)`)
+add_custom_target(realclean rm -rf `find . \\\( -name CMakeCache.txt -o -name CMakeFiles -o -name cmake_install.cmake \\\)`)
 
 add_subdirectory(tests)
