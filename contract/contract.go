@@ -73,7 +73,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	var rv string
 	var ex *Executor
-	if !receiver.IsNew() && preLoadInfos[preLoadService].requestedTx == tx {
+	if !receiver.IsCreate() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
 			preload := <-replyCh
@@ -88,13 +88,21 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		if err != nil {
 			return "", err
 		}
-		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
+		if ex != nil {
+			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
+		} else {
+			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
+				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+				types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
+
+			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
+		}
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
 			types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 
-		if receiver.IsNew() {
+		if receiver.IsCreate() {
 			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
 		} else {
 			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
@@ -139,11 +147,24 @@ func preLoadWorker() {
 			txBody.Payload == nil {
 			continue
 		}
-
 		receiver, err := bs.GetAccountStateV(recipient)
+		if err != nil {
+			replyCh <- &loadedReply{tx, nil, err}
+			continue
+		}
+		/* When deploy and call in same block and not deployed yet*/
+		if receiver.IsNew() {
+			replyCh <- &loadedReply{tx, nil, nil}
+			continue
+		}
+		if len(receiver.State().CodeHash) == 0 {
+			replyCh <- &loadedReply{tx, nil, errors.New("account is not a contract")}
+			continue
+		}
 		contractState, err := bs.OpenContractState(receiver.State())
 		if err != nil {
 			replyCh <- &loadedReply{tx, nil, err}
+			continue
 		}
 		bcCtx := NewContext(bs, nil, contractState, types.EncodeAddress(txBody.GetAccount()),
 			hex.EncodeToString(tx.GetHash()), 0, 0, "", 0,
