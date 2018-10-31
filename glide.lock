@@ -1,5 +1,5 @@
 hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-10-30T18:42:18.3898248+09:00
+updated: 2018-10-31T11:00:02.8442456+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -11,7 +11,7 @@ imports:
   - mailbox
   - router
 - name: github.com/aergoio/aergo-lib
-  version: 525197b11b898589a102eefe541006e879cbabd9
+  version: b690952120640d97a7996275e10fcbe1dcb09e33
   subpackages:
   - config
   - db
@@ -77,7 +77,7 @@ imports:
 - name: github.com/google/uuid
   version: 9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8
 - name: github.com/gorilla/websocket
-  version: 76e4896901ef89d253d69b528d3701dd146fe2ae
+  version: 483fb8d7c32fcb4b5636cd293a92e3935932e2f4
 - name: github.com/gxed/eventfd
   version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
 - name: github.com/gxed/GoEndian
@@ -118,7 +118,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/ipfs/go-log
-  version: 5e6883f800a4ca39748c54d467126a22f92f3523
+  version: 4b03637869a4514744dab660adc1fd021c9d122d
   subpackages:
   - tracer
   - tracer/wire
@@ -215,7 +215,7 @@ imports:
 - name: github.com/libp2p/go-stream-muxer
   version: 9c6bd93eecbbab56630bb2688bb435d9fd1dfeb1
 - name: github.com/libp2p/go-tcp-transport
-  version: 7e41190ec0687ca01f984fc0aa2f0f2352f5295f
+  version: 4a25127ad66b71ae4c91f1f42205b2ce679dd926
 - name: github.com/libp2p/go-ws-transport
   version: 246ec4b8bd9a5a539827eca50a6e6d4ce50bb056
 - name: github.com/magiconair/properties
@@ -336,7 +336,7 @@ imports:
   subpackages:
   - queue
 - name: golang.org/x/crypto
-  version: bc7917b19d8f099105de72dc62898400be07c984
+  version: 4d3f4d9ffa16a13f451c3b2999e9c49e9750bf06
   subpackages:
   - blake2s
   - blowfish
@@ -356,13 +356,13 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: d69651ed3497faee15a5363a89578e9991f6d5e2
+  version: 7e31e0c00fa05cb5fbf4347b585621d6709e19a4
   subpackages:
   - cpu
   - unix
   - windows
 - name: golang.org/x/text
-  version: 462c4771caf3e8fb48d40f4cb96ecdca705e68fa
+  version: 6f44c5a2ea40ee3593d98cdcc905cc1fdaa660e2
   subpackages:
   - encoding
   - encoding/charmap
