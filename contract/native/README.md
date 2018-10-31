@@ -643,16 +643,16 @@ map(int, string) keystore = {
 expression은 operator와 operands의 결합으로 이뤄진다.
 
 <pre>
-<a name="exp">Expression</a>     = <a href="#unary_exp">UnaryExp</a> | <a href="#bin_exp">BinaryExp</a> | <a href="#tern_exp">TernaryExp</a> | <a href="#sql_exp">SqlExp</a> ;
+<a name="exp">Expression</a> = <a href="#unary_exp">UnaryExp</a> | <a href="#bin_exp">BinaryExp</a> | <a href="#tern_exp">TernaryExp</a> | <a href="#tuple_exp">TupleExp</a> | <a href="#sql_exp">SqlExp</a> ;
 
-<a name="unary_exp">UnaryExp</a>       = <a href="#primary_exp">PrimaryExp</a> | <a href="#unary_op">unary_op</a> <a href="#unary_exp">UnaryExp</a> ;
+<a name="unary_exp">UnaryExp</a>   = <a href="#primary_exp">PrimaryExp</a> | <a href="#unary_op">unary_op</a> <a href="#unary_exp">UnaryExp</a> ;
 
-<a name="bin_exp">BinaryExp</a>      = <a href="#exp">Expression</a> <a href="#bin_op">binary_op</a> <a href="#exp">Expression</a> ;
-<a name="bin_op">binary_op</a>      = <a href="#assign_op">assign_op</a> | <a href="#arith_op">arith_op</a> | <a href="#logical_op">logical_op</a> | <a href="#comparable_op">comp_op</a> | <a href="#bit_op">bitwise_op</a> ;
+<a name="bin_exp">BinaryExp</a>  = <a href="#exp">Expression</a> <a href="#bin_op">binary_op</a> <a href="#exp">Expression</a> ;
+<a name="bin_op">binary_op</a>  = <a href="#arith_op">arith_op</a> | <a href="#logical_op">logical_op</a> | <a href="#comparable_op">comp_op</a> | <a href="#bit_op">bitwise_op</a> ;
 
-<a name="tern_exp">TernaryExp</a>     = <a href="#exp">Expression</a> "?" <a href="#exp">Expression</a> ":" <a href="#exp">Expression</a> ;
+<a name="tern_exp">TernaryExp</a> = <a href="#exp">Expression</a> "?" <a href="#exp">Expression</a> ":" <a href="#exp">Expression</a> ;
 
-<a name="exp_list">ExpressionList</a> = <a href="#exp">Expression</a> { "," <a href="#exp">Expression</a> } ;
+<a name="tuple_exp">TupleExp</a>   = <a href="#exp">Expression</a> { "," <a href="#exp">Expression</a> } ;
 </pre>
 
 #### Primary expressions
@@ -746,7 +746,7 @@ call expression은 <a href="#ctor_decl">constructor</a>나 <a href="#func_decl">
 
 <pre>
 <a name="call_exp">CallExp</a>      = <a href="#primary_exp">PrimaryExp</a> "(" [ <a href="#arg_list">ArgumentList</a> ] ")" ;
-<a name="arg_list">ArgumentList</a> = <a href="#exp_list">ExpressionList</a> ;
+<a name="arg_list">ArgumentList</a> = <a href="#exp">Expression</a> { "," <a href="#exp">Expression</a> } ;
 </pre>
 
 argument list는 0개 이상의 expression으로 구성되며, 각 argument들은 function의 specification과 정확히 같은 타입을 가져야 하고, 그렇지 않을 경우엔 에러가 발생한다.
@@ -927,43 +927,6 @@ if (condition) {
 (text == "first" ? 1 : (text == "second" ? 2 : 3)
 ```
 
-##### Assignement operators
-
-assignment operator는 binary operator로 right operand의 값을 left operand에 저장한다.
-
-<pre>
-<a name="assign_op">assign_op</a> = "=" | "+=" | "-=" | "*=" | "/=" | "&=" | "|=" | "^=" | ">>=" | "<<=" ;
-</pre>
-
-```
-Operator  Description                 Applicable types
---------  --------------------------  -------------------------
-=         assign                      any types
-+=        add and assign              integers, floats, strings
--=        subtract and assign         integers, floats
-*=        multiply and assign         integers, floats
-/=        divide and assign           integers, floats
-&=        bitwise AND and assign      integers
-|=        bitwise OR and assign       integers
-^=        bitwise XOR and assign      integers
-```
-
-* = operator는 각 operand에 <a href="#exp_list">ExpressionList</a>를 사용할 수 있다.
-
-```
-i = 0;
-x, y = 1, 10.78;
-id, name = getUserInfo();
-```
-
-* composite operator들은 단일 expression만 허용한다.
-
-```
-x, y += 1, 1;       // raise error
-```
-
-* composite operator들은 <a href="#arith_op">arithmetic operator</a>와 <a href="#bit_op">bitwise operator</a> 규칙을 따른다.
-
 ##### Operator precedence
 
 각 operator 사이엔 우선순위가 있으며, 아래에 나열한 순서대로 우선순위가 결정된다. 우선순위가 높을수록 강한 결합력을 가지므로 우선순위가 낮은 operator보다 먼저 적용된다.
@@ -1003,8 +966,8 @@ int j = 10 + i++;   /* first, execute j = 10 + i
 statement는 variable과 constant, expression등의 조합으로 이뤄지며, 일종의 atomic 객체로 취급하여 개별 expression 수행중에 에러가 발생하는 경우엔 즉시 수행이 중지된다.
 
 <pre>
-<a name="stmt">Statement</a> = <a href="#exp_stmt">ExpressionStmt</a> | <a href="#label_stmt">LabelStmt</a> | <a href="#if_stmt">IfStmt</a> | <a href="#loop_stmt">LoopStmt</a> | <a href="#switch_stmt">SwitchStmt</a> |
-            <a href="#exp_stmt">JumpStmt</a> | <a href="#exp_stmt">DdlStmt</a> | <a href="#exp_stmt">BlockStmt</a> ;
+<a name="stmt">Statement</a> = <a href="#exp_stmt">ExpressionStmt</a> | <a href="#assign_stmt">AssignStmt</a> | <a href="#label_stmt">LabelStmt</a> | <a href="#if_stmt">IfStmt</a> | <a href="#loop_stmt">LoopStmt</a> | 
+            <a href="#switch_stmt">SwitchStmt</a> | <a href="#exp_stmt">JumpStmt</a> | <a href="#exp_stmt">DdlStmt</a> | <a href="#exp_stmt">BlockStmt</a> ;
 </pre>
 
 #### Expression statements
@@ -1019,6 +982,44 @@ expression statement는 expression으로만 이뤄지며, ; 만 있는 경우엔
 ;
 gift = "KinderJoy";
 ```
+
+#### Assignement statements
+
+assignment statement는 right operand의 값을 left operand에 저장한다.
+
+<pre>
+<a name="assign_stmt">AssignStmt</a> = <a href="#exp">Expression</a> <a href="#assign_op">assign_op</a> <a href="#exp">Expression</a> ";" ;
+<a name="assign_op">assign_op</a>  = "=" | "+=" | "-=" | "*=" | "/=" | "&=" | "|=" | "^=" | ">>=" | "<<=" ;
+</pre>
+
+```
+Operator  Description                 Applicable types
+--------  --------------------------  -------------------------
+=         assign                      any types
++=        add and assign              integers, floats, strings
+-=        subtract and assign         integers, floats
+*=        multiply and assign         integers, floats
+/=        divide and assign           integers, floats
+&=        bitwise AND and assign      integers
+|=        bitwise OR and assign       integers
+^=        bitwise XOR and assign      integers
+```
+
+* = operator는 각 operand에 <a href="#tuple_exp">TupleExp</a>를 사용할 수 있다.
+
+```
+i = 0;
+x, y = 1, 10.78;
+id, name = getUserInfo();
+```
+
+* composite operator들은 단일 expression만 허용한다.
+
+```
+x, y += 1, 1;       // raise error
+```
+
+* composite operator들은 <a href="#arith_op">arithmetic operator</a>와 <a href="#bit_op">bitwise operator</a> 규칙을 따른다.
 
 #### Label statements
 
