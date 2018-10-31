@@ -390,13 +390,13 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
 	if len(code) <= 4 {
-		err := fmt.Errorf("code length is short %d", len(code))
+		err := fmt.Errorf("invalid code (%d bytes is too short)", len(code))
 		ctrLog.Warn().AnErr("err", err)
 		return "", err
 	}
 	codeLen := codeLength(code[0:])
 	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
+		err := fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", codeLen, len(code))
 		ctrLog.Warn().AnErr("err", err)
 		return "", err
 	}
@@ -424,12 +424,12 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 	var errMsg string
 	if err != nil {
-		logger.Warn().Err(err).Msg("constructor's argument is invalid")
+		logger.Warn().Err(err).Msg("invalid constructor argument")
 		errMsg = err.Error()
 	}
 	ce.constructCall(&ci)
 	if ce.err != nil {
-		logger.Warn().Err(err).Msg("constructor is failed")
+		logger.Warn().Err(err).Msg("constructor failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
 
