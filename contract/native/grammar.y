@@ -165,6 +165,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <type>    prim_type
 %type <array>   var_name_list
 %type <id>      declarator
+%type <exp>     size_opt
 %type <array>   var_init_list
 %type <exp>     initializer
 %type <array>   elem_list
@@ -425,7 +426,7 @@ declarator:
     {
         $$ = id_new_var($1, MOD_PRIVATE, &@1);
     }
-|   declarator '[' add_exp ']'
+|   declarator '[' size_opt ']'
     {
         $$ = $1;
 
@@ -434,15 +435,11 @@ declarator:
 
         exp_add_last($$->u_var.size_exps, $3);
     }
-|   declarator '[' ']'
-    {
-        $$ = $1;
+;
 
-        if ($$->u_var.size_exps == NULL)
-            $$->u_var.size_exps = array_new();
-
-        exp_add_last($$->u_var.size_exps, exp_new_null(&@2));
-    }
+size_opt:
+    /* empty */         { $$ = exp_new_null(&@$); }
+|   add_exp
 ;
 
 var_init_list:
