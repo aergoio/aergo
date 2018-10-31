@@ -73,7 +73,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	var rv string
 	var ex *Executor
-	if preLoadInfos[preLoadService].requestedTx == tx {
+	if !receiver.IsNew() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
 			preload := <-replyCh
