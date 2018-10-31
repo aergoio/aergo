@@ -4,12 +4,14 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
+#include "state_module.h"
 #include "_cgo_export.h"
 
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
+	luaopen_state(L);
 	return L;
 }
 
