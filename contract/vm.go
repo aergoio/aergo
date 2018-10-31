@@ -107,6 +107,14 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 	}
 }
 
+func (bcCtx *LBlockchainCtx) Close() {
+	if bcCtx == nil {
+		return
+	}
+	contractMap.unregister(C.GoString(bcCtx.stateKey))
+	C.bc_ctx_delete(bcCtx)
+}
+
 func NewLState() *LState {
 	return C.vm_newstate()
 }
@@ -280,10 +288,8 @@ func (ce *Executor) commitCalledContract() error {
 func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
 		FreeLState(ce.L)
-		if ce.blockchainCtx != nil && bcCtxFree {
-			context := ce.blockchainCtx
-			contractMap.unregister(C.GoString(context.stateKey))
-			C.bc_ctx_delete(context)
+		if bcCtxFree {
+			ce.blockchainCtx.Close()
 		}
 	}
 }
@@ -304,6 +310,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
+		bcCtx.Close()
 		return "", err
 	}
 	if ctrLog.IsDebugEnabled() {
@@ -371,6 +378,7 @@ func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
+		bcCtx.Close()
 		return nil, err
 	}
 	if ctrLog.IsDebugEnabled() {
@@ -383,33 +391,43 @@ func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
 
 }
 
+func setContract(contractState *state.ContractState, code, contractAddress []byte) (*Contract, uint32, error) {
+	if len(code) <= 4 {
+		err := fmt.Errorf("invalid code (%d bytes is too short)", len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+	codeLen := codeLength(code[0:])
+	if uint32(len(code)) < codeLen {
+		err := fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", codeLen, len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+	sCode := code[4:codeLen]
+
+	err := contractState.SetCode(sCode)
+	if err != nil {
+		return nil, 0, err
+	}
+	contract := getContract(contractState, contractAddress, sCode)
+	if contract == nil {
+		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+
+	return contract, codeLen, nil
+}
+
 func Create(contractState *state.ContractState, code, contractAddress []byte,
 	bcCtx *LBlockchainCtx) (string, error) {
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
-	if len(code) <= 4 {
-		err := fmt.Errorf("invalid code (%d bytes is too short)", len(code))
-		ctrLog.Warn().AnErr("err", err)
-		return "", err
-	}
-	codeLen := codeLength(code[0:])
-	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", codeLen, len(code))
-		ctrLog.Warn().AnErr("err", err)
-		return "", err
-	}
-	sCode := code[4:codeLen]
-
-	err := contractState.SetCode(sCode)
+	contract, codeLen, err := setContract(contractState, code, contractAddress)
 	if err != nil {
-		return "", err
-	}
-	contract := getContract(contractState, contractAddress, sCode)
-	if contract == nil {
-		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
-		ctrLog.Warn().AnErr("err", err)
+		bcCtx.Close()
 		return "", err
 	}
 	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))

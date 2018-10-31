@@ -13,9 +13,10 @@ static int systemPrint(lua_State *L)
 
     jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
     if (jsonValue == NULL) {
-		luaL_error(L, "getItem error : can't convert");
+		lua_error(L);
 	}
     LuaPrint(exec->contractId, jsonValue);
+    free(jsonValue);
 	return 0;
 }
 
@@ -39,7 +40,7 @@ int setItem(lua_State *L)
 
 	jsonValue = lua_util_get_json (L, -1, false);
 	if (jsonValue == NULL) {
-		luaL_error(L, "getItem error : can't convert", jsonValue);
+		lua_error(L);
 	}
 
 	dbKey = lua_util_get_db_key(exec, key);
