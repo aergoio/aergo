@@ -123,7 +123,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %token  END 0           "EOF"
 
 /* precedences */
-%left   ','
 %left   CMP_OR
 %left   CMP_AND
 %right  '!'
@@ -476,7 +475,7 @@ elem_list:
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   elem_list ',' initializer %prec ','
+|   elem_list ',' initializer
     {
         $$ = $1;
         exp_add_last($$, $3);
