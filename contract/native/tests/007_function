@@ -123,3 +123,13 @@ contract test {
         int c = f().f();
     }
 }
+
+@test(function_as_lvalue)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    func f() int { return 1; }
+
+    test() {
+        f() = 2;
+    }
+}

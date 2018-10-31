@@ -168,6 +168,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   var_init_list
 %type <exp>     initializer
 %type <array>   elem_list
+%type <exp>     init_elem
 %type <id>      compound
 %type <id>      struct
 %type <array>   field_list
@@ -333,7 +334,7 @@ var_init_decl:
         int i;
 
         if (array_size($2) != array_size($4)) {
-            ERROR(ERROR_MISMATCHED_COUNT, &@4, "assignment", array_size($2),
+            ERROR(ERROR_MISMATCHED_COUNT, &@4, "declaration", array_size($2),
                   array_size($4));
         }
         else {
@@ -459,10 +460,6 @@ var_init_list:
 
 initializer:
     sql_exp
-|   identifier ':' sql_exp
-    {
-        $$ = $3;
-    }
 |   '{' elem_list comma_opt '}'
     {
         $$ = exp_new_tuple($2, &@$);
@@ -470,15 +467,23 @@ initializer:
 ;
 
 elem_list:
-    initializer
+    init_elem
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   elem_list ',' initializer
+|   elem_list ',' init_elem
     {
         $$ = $1;
         exp_add_last($$, $3);
+    }
+;
+
+init_elem:
+    initializer
+|   identifier ':' initializer
+    {
+        $$ = $3;
     }
 ;
 

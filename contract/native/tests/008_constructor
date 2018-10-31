@@ -70,7 +70,9 @@ contract test {
 contract test {
     string v;
     test(int v) {
-        if (this.v == "") { }
+        if (this.v == "") {
+            this.v = "self";
+        }
     }
 }
 

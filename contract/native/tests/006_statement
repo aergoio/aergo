@@ -23,17 +23,17 @@ contract test {
     }
 }
 
-@test(literal_lvalue)
-@error(ERROR_INVALID_LVALUE)
-contract test {
-    test() { 1 = 1; }
-}
-
-@test(constant_lvalue)
-@error(ERROR_INVALID_LVALUE)
+@test(invalid_lvalue)
+@error(ERROR_INVALID_LVALUE,4)
 contract test {
     const int i = 0;
-    test() { i = 1; }
+    int j, k;
+    test() {
+        1 = 1;
+        i = 1;
+        j + 1 = 1;
+        i == 0 ? j : k = 1;
+    }
 }
 
 @test(mismatched_tuple_type)
