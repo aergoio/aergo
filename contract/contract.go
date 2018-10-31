@@ -72,31 +72,34 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	}
 
 	var rv string
-	var ex *Executor
-	if preLoadInfos[preLoadService].requestedTx == tx {
-		replyCh := preLoadInfos[preLoadService].replyCh
-		for {
-			preload := <-replyCh
-			if preload.tx != tx {
-				preload.ex.close(true)
-				continue
-			}
-			ex = preload.ex
-			err = preload.err
-			break
-		}
-		if err != nil {
-			return "", err
-		}
-		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
-	} else {
+	if receiver.IsNew() {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
 			types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 
-		if receiver.IsNew() {
-			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
+		rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
+	} else {
+		if preLoadInfos[preLoadService].requestedTx == tx {
+			var ex *Executor
+			replyCh := preLoadInfos[preLoadService].replyCh
+			for {
+				preload := <-replyCh
+				if preload.tx != tx {
+					preload.ex.close(true)
+					continue
+				}
+				ex = preload.ex
+				err = preload.err
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
 		} else {
+			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
+				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+				types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
 		}
 	}
@@ -141,6 +144,16 @@ func preLoadWorker() {
 		}
 
 		receiver, err := bs.GetAccountStateV(recipient)
+		if err != nil {
+			replyCh <- &loadedReply{tx, nil, err}
+		}
+		if receiver.IsNew() {
+			continue
+		}
+		if len(receiver.State().CodeHash) == 0 {
+			replyCh <- &loadedReply{tx, nil, errors.New("account is not a contract")}
+		}
+
 		contractState, err := bs.OpenContractState(receiver.State())
 		if err != nil {
 			replyCh <- &loadedReply{tx, nil, err}
