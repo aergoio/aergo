@@ -1,16 +1,17 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func init() {
@@ -72,7 +73,7 @@ var newCmd = &cobra.Command{
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd(cmd)
+			param.Passphrase, err = getPasswd(cmd, true)
 			if err != nil {
 				cmd.Printf("Failed get password: %s\n", err.Error())
 				return
@@ -195,7 +196,7 @@ var importCmd = &cobra.Command{
 		if pw != "" {
 			wif.Oldpass = pw
 		} else {
-			wif.Oldpass, err = getPasswd(cmd)
+			wif.Oldpass, err = getPasswd(cmd, false)
 			if err != nil {
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
@@ -272,7 +273,7 @@ func parsePersonalParam(cmd *cobra.Command) (*types.Personal, error) {
 		if pw != "" {
 			param.Passphrase = pw
 		} else {
-			param.Passphrase, err = getPasswd(cmd)
+			param.Passphrase, err = getPasswd(cmd, false)
 			if err != nil {
 				return nil, err
 			}
@@ -281,11 +282,25 @@ func parsePersonalParam(cmd *cobra.Command) (*types.Personal, error) {
 	return param, nil
 }
 
-func getPasswd(cmd *cobra.Command) (string, error) {
+func getPasswd(cmd *cobra.Command, isNew bool) (string, error) {
 	cmd.Print("Enter Password: ")
-	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	password, err := terminal.ReadPassword(int(syscall.Stdin))
 	cmd.Println("")
-	return string(bytePassword), err
+	if err != nil {
+		return "", err
+	}
+	if isNew {
+		cmd.Print("Repeat Password: ")
+		repeat, err := terminal.ReadPassword(int(syscall.Stdin))
+		cmd.Println("")
+		if err != nil {
+			return "", err
+		}
+		if !bytes.Equal(password, repeat) {
+			return "", errors.New("Password not matched")
+		}
+	}
+	return string(password), err
 }
 
 func preConnectAergo(cmd *cobra.Command, args []string) {
