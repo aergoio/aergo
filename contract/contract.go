@@ -1,8 +1,8 @@
 package contract
 
 import (
-	"encoding/hex"
 	"errors"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -92,14 +92,14 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
 		} else {
 			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
-				hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+				enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
 				types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 
 			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
 		}
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
-			hex.EncodeToString(tx.GetHash()), blockNo, ts, "", 0,
+			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
 			types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
 
 		if receiver.IsCreate() {
@@ -167,7 +167,7 @@ func preLoadWorker() {
 			continue
 		}
 		bcCtx := NewContext(bs, nil, contractState, types.EncodeAddress(txBody.GetAccount()),
-			hex.EncodeToString(tx.GetHash()), 0, 0, "", 0,
+			enc.ToString(tx.GetHash()), 0, 0, "", 0,
 			types.EncodeAddress(receiver.ID()), 0, nil, nil, reqInfo.preLoadService)
 
 		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)
