@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/anaskhan96/base58check"
+	"net"
+	"strconv"
 
 	"github.com/aergoio/aergo/types"
+	"github.com/anaskhan96/base58check"
 	"github.com/mr-tron/base58/base58"
 )
 
@@ -33,6 +34,7 @@ type InOutTxIdx struct {
 	BlockHash string
 	Idx       int32
 }
+
 type InOutTxInBlock struct {
 	TxIdx *InOutTxIdx
 	Tx    *InOutTx
@@ -57,6 +59,23 @@ type InOutBlock struct {
 	Hash   string
 	Header InOutBlockHeader
 	Body   InOutBlockBody
+}
+
+type InOutBlockIdx struct {
+	BlockHash string
+	BlockNo   uint64
+}
+
+type InOutPeerAddress struct {
+	Address string
+	Port    string
+	PeerId  string
+}
+
+type InOutPeer struct {
+	Address   InOutPeerAddress
+	BestBlock InOutBlockIdx
+	State     string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -183,6 +202,17 @@ func ConvBlock(b *types.Block) *InOutBlock {
 	return out
 }
 
+func ConvPeer(p *types.Peer) *InOutPeer {
+	out := &InOutPeer{}
+	out.Address.Address = net.IP(p.GetAddress().GetAddress()).String()
+	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
+	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
+	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
+	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
+	out.State = types.PeerState(p.State).String()
+	return out
+}
+
 func TxConvBase58Addr(tx *types.Tx) string {
 	return toString(ConvTx(tx))
 }
@@ -194,6 +224,15 @@ func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {
 func BlockConvBase58Addr(b *types.Block) string {
 	return toString(ConvBlock(b))
 }
+
+func PeerListToString(p *types.PeerList) string {
+	peers := []*InOutPeer{}
+	for _, peer := range p.GetPeers() {
+		peers = append(peers, ConvPeer(peer))
+	}
+	return toString(peers)
+}
+
 func toString(out interface{}) string {
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {

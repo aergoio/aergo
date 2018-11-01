@@ -7,13 +7,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"net"
-	"os"
-	"strconv"
 
-	"github.com/mr-tron/base58/base58"
-
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
@@ -35,19 +30,7 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 		return
 	}
 	// address and peerid should be encoded, respectively
-	resultView := make([]map[string]string, 0, len(msg.Peers))
-	for i, peer := range msg.Peers {
-		peerData := make(map[string]string)
-		peerState := types.PeerState(msg.States[i]).String()
-		peerData["Address"] = net.IP(peer.Address).String()
-		peerData["Port"] = strconv.Itoa(int(peer.Port))
-		peerData["PeerID"] = base58.Encode(peer.PeerID)
-		peerData["State"] = peerState
-		resultView = append(resultView, peerData)
-	}
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "\t")
-	encoder.Encode(resultView)
+	cmd.Println(util.PeerListToString(msg))
 }
 
 func Must(a0 string, a1 error) string {

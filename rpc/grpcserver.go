@@ -529,13 +529,18 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 	if err != nil {
 		return nil, err
 	}
-	rsp := result.(*message.GetPeersRsp)
-	states := make([]int32, len(rsp.States))
-	for i, state := range rsp.States {
-		states[i] = int32(state)
+	rsp, ok := result.(*message.GetPeersRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 
-	return &types.PeerList{Peers: rsp.Peers, States: states}, nil
+	ret := &types.PeerList{Peers: []*types.Peer{}}
+	for i, state := range rsp.States {
+		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i]}
+		ret.Peers = append(ret.Peers, peer)
+	}
+
+	return ret, nil
 }
 
 // NodeState handle rpc request nodestate
