@@ -6,11 +6,21 @@
 package message
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"time"
 )
 
 const P2PSvc = "p2pSvc"
+
+
+// errors which async responses of p2p actor, such as GetBlockChunksRsp, can contains,
+var (
+	RemotePeerFailError = fmt.Errorf("remote peer return err")
+	MissingHashError = fmt.Errorf("some block hash not found")
+	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
+)
 
 // PingMsg send types.Ping to each peer.
 // The actor returns true if sending is successful.
@@ -81,6 +91,11 @@ type GetBlockInfos struct {
 	Hashes []BlockHash
 }
 
+type GetBlockChunks struct {
+	GetBlockInfos
+	TTL time.Duration
+}
+
 // GetMissingBlocks send types.GetMissingRequest to dest peer.
 // The actor returns true if sending is successful.
 // Not used (need to be async operation)
@@ -94,6 +109,12 @@ type GetMissingBlocks struct {
 type BlockInfosResponse struct {
 	FromWhom peer.ID
 	Blocks   []*types.Block
+}
+
+type GetBlockChunksRsp struct {
+	ToWhom peer.ID
+	Blocks []*types.Block
+	Err error
 }
 
 // GetPeers requests p2p actor to get remote peers that is connected.

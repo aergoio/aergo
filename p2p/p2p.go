@@ -170,6 +170,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetAddresses(msg.ToWhom, msg.Size)
 	case *message.GetBlockHeaders:
 		p2ps.GetBlockHeaders(msg)
+	case *message.GetBlockChunks:
+		p2ps.GetBlocksChunk(context, msg)
 	case *message.GetBlockInfos:
 		p2ps.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewBlock:

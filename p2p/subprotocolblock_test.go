@@ -42,7 +42,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			//mockMF.On("newMsgResponseOrder", mock.Anything, GetBlocksResponse, mock.AnythingOfType("*types.GetBlockResponse")).Return(dummyMO)
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("sendMessage", mock.Anything)
+			mockPeer.On("sendAndWaitMessage", mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
 			callReqCount :=0
 			mockCA := new(MockChainAccessor)
 			mockActor.On("GetChainAccessor").Return(mockCA)
@@ -66,7 +66,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			msgBody := &types.GetBlockRequest{Hashes:make([][]byte, test.hashCnt)}
 			h.handle(dummyMsg, msgBody)
 
-			mockPeer.AssertNumberOfCalls(t, "sendMessage", test.expectedSendCount)
+			mockPeer.AssertNumberOfCalls(t, "sendAndWaitMessage", test.expectedSendCount)
 		})
 	}
 }
@@ -126,13 +126,3 @@ func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 		})
 	}
 }
-
-type dummyError struct {
-
-}
-
-func (dummyError) Error() string {
-	return "dummyError"
-}
-
-

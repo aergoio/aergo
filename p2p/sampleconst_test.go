@@ -66,6 +66,7 @@ func init() {
 }
 
 const hashSize = 32
+
 var sampleTxsB58 = []string{
 	"4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45",
 	"6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",
@@ -98,11 +99,21 @@ func init() {
 		copy(sampleTxHashes[i][:], hash)
 	}
 
-	sampleBlks=make([][]byte, len(sampleBlksB58))
-	sampleBlksHashes = make ([]BlkHash, len(sampleBlksB58))
+	sampleBlks = make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make([]BlkHash, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
 		hash, _ := enc.ToBytes(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
+}
+
+var dummyMo *MockMsgOrder
+
+func init() {
+	dummyMo = new(MockMsgOrder)
+	dummyMo.On("IsNeedSign").Return(true)
+	dummyMo.On("IsRequest").Return(true)
+	dummyMo.On("GetProtocolID").Return(NewTxNotice)
+	dummyMo.On("GetMsgID").Return(NewMsgID())
 }

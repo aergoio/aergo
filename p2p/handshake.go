@@ -73,7 +73,6 @@ func (h *PeerHandshaker) handshakeInboundPeerTimeout(r io.Reader, w io.Writer, t
 }
 
 type targetFunc func(chan<- interface{})
-type timeoutErr error
 
 func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
 	done := make(chan interface{})
@@ -82,7 +81,7 @@ func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
 	case hsResult := <-done:
 		return hsResult, nil
 	case <-time.NewTimer(ttl).C:
-		return nil, fmt.Errorf("timeout").(timeoutErr)
+		return nil, TimeoutError
 	}
 }
 
