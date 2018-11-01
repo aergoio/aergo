@@ -635,20 +635,25 @@ func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block,
 
 		return err
 	}
-	// request missing
-	orphanNo := block.GetHeader().GetBlockNo()
-	bestNo := bestBlock.GetHeader().GetBlockNo()
-	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
-		logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
-			Msg("skip sync with too old block")
-		return nil
+
+	if cs.cfg.Blockchain.UseFastSyncer {
+		cs.RequestTo(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: block.GetHeader().GetBlockNo()})
+	} else {
+		// request missing
+		orphanNo := block.GetHeader().GetBlockNo()
+		bestNo := bestBlock.GetHeader().GetBlockNo()
+		if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
+			logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
+				Msg("skip sync with too old block")
+			return nil
+		}
+		anchors := cs.getAnchorsFromHash(block.BlockHash())
+		hashes := make([]message.BlockHash, 0)
+		for _, a := range anchors {
+			hashes = append(hashes, message.BlockHash(a))
+		}
+		cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 	}
-	anchors := cs.getAnchorsFromHash(block.BlockHash())
-	hashes := make([]message.BlockHash, 0)
-	for _, a := range anchors {
-		hashes = append(hashes, message.BlockHash(a))
-	}
-	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 
 	return nil
 }

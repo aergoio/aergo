@@ -5,8 +5,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-		"time"
 	"sync"
+	"time"
 )
 
 var (
@@ -58,7 +58,7 @@ func (finder *Finder) start() {
 	go func() {
 		defer finder.waitGroup.Done()
 
-		timer := time.NewTimer(finder.dfltTimeout)
+		timer := time.NewTimer(finder.dfltTimeout * 10)
 
 		for {
 			select {
@@ -103,8 +103,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.hub.RequestFuture(message.ChainSvc, message.GetAnchors{}, finder.dfltTimeout,
-		"syncer/finder/lightscan").Result()
+	result, err := finder.hub.RequestFuture(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Syncer/Finder/getAnchors").Result()
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -120,7 +119,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
-	finder.hub.Tell(message.P2PSvc, message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
+	finder.hub.Tell(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	// recieve Ancestor response
 	for {

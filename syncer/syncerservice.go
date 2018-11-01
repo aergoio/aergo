@@ -7,6 +7,7 @@ import (
 
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
@@ -40,10 +41,10 @@ var (
 )
 
 type Finder struct {
-	hub *component.ComponentHub //for communicate with other service
-
-	lScanCh chan *types.BlockInfo
-	fScanCh chan []byte
+	hub      *component.ComponentHub //for communicate with other service
+	anchorCh chan chain.ChainAnchor
+	lScanCh  chan *types.BlockInfo
+	fScanCh  chan []byte
 
 	doneCh chan *FinderResult
 	quitCh chan interface{}
@@ -90,8 +91,8 @@ func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor) *Syncer {
 
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
 
-	hub := syncer.BaseComponent.Hub()
-	syncer.hashFetcher = newHashFetcher(1, hub)
+	//hub := syncer.BaseComponent.Hub()
+	//syncer.hashFetcher = newHashFetcher(1, hub)
 	/*
 		syncer.blockFetcher = newBlockFetcher(1, hub)
 		syncer.blockAdder = newBlockAdder(1, hub)*/
@@ -164,7 +165,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("sync requested")
 
 	if syncer.isstartning {
-		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is startning")
+		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
 		return nil
 	}
 

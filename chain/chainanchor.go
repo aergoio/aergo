@@ -23,6 +23,7 @@ func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
 	//from top : 8 * 32 = 256
 	anchors := make(ChainAnchor, 0, MaxAnchors)
 	cnt := MaxAnchors
+	logger.Debug().Msg("get anchors")
 
 	blkNo := cs.getBestBlockNo()
 	for i := 0; i < cnt; i++ {
@@ -38,6 +39,7 @@ func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
 		logger.Debug().Uint64("no", blkNo).Msg("anchor added")
 
 		if blkNo < Skip {
+			blkNo = 0
 			break
 		}
 		blkNo -= Skip

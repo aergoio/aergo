@@ -103,8 +103,8 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 			// send partial list
 			resp := &types.GetBlockResponse{
 				Status: status,
-				Blocks: blockInfos, HasNext:true}
-			bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
+				Blocks: blockInfos, HasNext: true}
+			bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id", msg.ID().String()).Msg("Sending partial response")
 			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 			// reset list
 			blockInfos = make([]*types.Block, 0, 10)
@@ -121,15 +121,15 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	// generate response message
 	resp := &types.GetBlockResponse{
 		Status: status,
-		Blocks: blockInfos,HasNext:false}
+		Blocks: blockInfos, HasNext: false}
 
-	bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
+	bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id", msg.ID().String()).Msg("Sending last part response")
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetBlocksResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetBlockResponse
 func newBlockRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService, sm SyncManager) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -141,7 +141,7 @@ func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Blocks),data.HasNext) )
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t", len(data.Blocks), data.HasNext))
 
 	// locate request data and remove it if found
 	remotePeer.consumeRequest(msg.ID())
@@ -371,15 +371,15 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 			msgSentCount++
 			// send partial list
 			resp := &types.GetBlockResponse{
-				Status: status,
-				Blocks: blockInfos,
-				HasNext:true,
+				Status:  status,
+				Blocks:  blockInfos,
+				HasNext: true,
 				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
 			}
-			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getMissing response")
+			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending partial getMissing response")
 			err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
 			if err != nil {
-				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
+				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending failed")
 				return
 			}
 			//if msgSentCount >= MaxResponseSplitCount {
@@ -400,13 +400,13 @@ func (bh *getMissingRequestHandler) sendMissingResp(remotePeer RemotePeer, reque
 	// generate response message
 	resp := &types.GetBlockResponse{
 		Status: status,
-		Blocks: blockInfos,HasNext:false}
+		Blocks: blockInfos, HasNext: false}
 
 	// ???: have to check arguments
-	bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending last part of getMissing response")
+	bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending last part of getMissing response")
 	err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
 	if err != nil {
-		bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
+		bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending failed")
 		return
 	}
 }
@@ -434,6 +434,7 @@ func (bh *getAncestorRequestHandler) handle(msg Message, msgBody proto.Message) 
 	// find ancestor from chainservice
 	ancestor := &types.BlockInfo{}
 
+	//TODO split rsp handler
 	rawResponse, err := bh.actor.CallRequestDefaultTimeout(
 		message.ChainSvc, &message.GetAncestor{Hashes: data.Hashes})
 	if err != nil {
