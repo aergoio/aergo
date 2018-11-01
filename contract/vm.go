@@ -306,7 +306,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		}
 	} else {
-		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
+		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
@@ -374,7 +374,7 @@ func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
 			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		}
 	} else {
-		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
+		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
