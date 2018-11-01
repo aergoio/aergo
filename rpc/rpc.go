@@ -231,6 +231,8 @@ func convertError(err error) types.CommitStatus {
 		return types.CommitStatus_TX_INVALID_FORMAT
 	case types.ErrInsufficientBalance:
 		return types.CommitStatus_TX_INSUFFICIENT_BALANCE
+	case types.ErrSameNonceAlreadyInMempool:
+		return types.CommitStatus_TX_HAS_SAME_NONCE
 	default:
 		//logger.Info().Str("hash", err.Error()).Msg("RPC encountered unconvertable error")
 		return types.CommitStatus_TX_INTERNAL_ERROR
