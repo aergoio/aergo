@@ -761,6 +761,108 @@ func TestKvstore(t *testing.T) {
 	}
 }
 
+func TestJson(t *testing.T) {
+	definition := `
+	state.var{
+		table = state.value()
+	}
+
+	function set(val)
+		table:set(json.decode(val))
+	end
+
+	function get()
+		return table:get()
+	end
+
+	function getenc()
+		return json.encode(table:get())
+	end
+	function getAmount()
+		return system.getAmount()
+	end
+
+	abi.register(set, get, getAmount, getenc)`
+
+	bc := loadBlockChain(t)
+
+	err := bc.connectBlock(
+		newLuaTxAccount("ktlee", 100),
+		newLuaTxDef("ktlee", "json", 1, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[1,2,3]"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", "[1,2,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"[1,2,3]"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1,
+			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"run\", \"key2\":5, [4,5,6]}"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"1":"run","2":[4,5,6],"key1":[1,2,3],"key2":5}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{"1":"run","2":[4,5,6],"key1":[1,2,3],"key2":5}"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1,
+			`{"Name":"set", "Args":["{\"key1\":{\"arg1\": 1,\"arg2\":{}, \"arg3\":[]}, \"key2\":[5,4,3]}"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1,
+			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":5}`)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := newLuaTxCall("ktlee", "json", 100, `{"Name":"getAmount"}`)
+	err = bc.connectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `100` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1,
+			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).fail("not proper json format"),
+	)
+}
+
 // end of test-cases
 
 // helper functions
@@ -1006,7 +1108,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle(), ChainService)
+				0, nil, sqlTx.GetHandle(), ChainService, l.luaTxCommon.amount)
 
 			_, err = Create(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
@@ -1070,7 +1172,7 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptT
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle(), ChainService)
+				0, nil, sqlTx.GetHandle(), ChainService, l.luaTxCommon.amount)
 
 			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {

@@ -80,7 +80,7 @@ int getItem(lua_State *L)
 	jsonValue = (char *)luaL_checkstring(L, -1);
 	lua_pop(L, 1);
 
-	if (lua_util_json_to_lua(L, jsonValue) != 0) {
+	if (lua_util_json_to_lua(L, jsonValue, false) != 0) {
 		luaL_error(L, "getItem error : can't convert %s", jsonValue);
 	}
 	return 1;
@@ -155,6 +155,19 @@ static int getCreator(lua_State *L)
 	return 1;
 }
 
+static int getAmount(lua_State *L)
+{
+	const bc_ctx_t *exec = getLuaExecContext(L);
+	char *value;
+	int ret;
+
+	if (exec == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	lua_pushinteger(L, exec->amount);
+	return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
@@ -165,6 +178,7 @@ static const luaL_Reg sys_lib[] = {
 	{"getBlockheight", getBlockHeight},
 	{"getTimestamp", getTimestamp},
 	{"getContractID", getContractID},
+	{"getAmount", getAmount},
 	{NULL, NULL}
 };
 

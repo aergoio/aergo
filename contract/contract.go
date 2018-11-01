@@ -93,14 +93,16 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		} else {
 			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 				enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
+				types.EncodeAddress(receiver.ID()), 0, nil, nil,
+				preLoadService, txBody.GetAmount())
 
 			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
 		}
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, nil, preLoadService)
+			types.EncodeAddress(receiver.ID()), 0, nil, nil,
+			preLoadService, txBody.GetAmount())
 
 		if receiver.IsCreate() {
 			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
@@ -168,7 +170,8 @@ func preLoadWorker() {
 		}
 		bcCtx := NewContext(bs, nil, contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), 0, 0, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, nil, reqInfo.preLoadService)
+			types.EncodeAddress(receiver.ID()), 0, nil, nil,
+			reqInfo.preLoadService, txBody.GetAmount())
 
 		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)
 		replyCh <- &loadedReply{tx, ex, err}

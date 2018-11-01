@@ -80,7 +80,8 @@ func init() {
 func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
-	contractId string, query int, root *StateSet, dbHandle *C.sqlite3, service int) *LBlockchainCtx {
+	contractId string, query int, root *StateSet, dbHandle *C.sqlite3,
+	service int, amount uint64) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
 	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
@@ -104,6 +105,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		isQuery:     C.int(query),
 		db:          dbHandle,
 		service:     C.int(service),
+		amount:      C.ulonglong(amount),
 	}
 }
 
@@ -167,8 +169,9 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 				b = 1
 			}
 			C.lua_pushboolean(ce.L, C.int(b))
+		case nil:
+			C.lua_pushnil(ce.L)
 		default:
-			fmt.Println("unsupported type:" + reflect.TypeOf(v).Name())
 			ce.err = errors.New("unsupported type:" + reflect.TypeOf(v).Name())
 			return
 		}
@@ -474,7 +477,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 
 	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
-		1, nil, nil, ChainService)
+		1, nil, nil, ChainService, 0)
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -689,7 +692,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
 		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, nil,
-		int(bcCtx.service))
+		int(bcCtx.service), amount)
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
 

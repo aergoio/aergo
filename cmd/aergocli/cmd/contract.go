@@ -36,6 +36,7 @@ func init() {
 		Run:   runDeployCmd,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
+	deployCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract name [args]",
@@ -44,6 +45,7 @@ func init() {
 		Run:   runCallCmd,
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+	callCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 
 	contractCmd.AddCommand(
@@ -137,6 +139,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			Nonce:   state.GetNonce() + 1,
 			Account: creator,
 			Payload: payload,
+			Amount:  amount,
 		},
 	}
 
@@ -208,6 +211,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Account:   caller,
 			Recipient: contract,
 			Payload:   payload,
+			Amount:    amount,
 		},
 	}
 	sign, err := client.SignTX(context.Background(), tx)
