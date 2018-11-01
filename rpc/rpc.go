@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -108,7 +109,7 @@ func (ns *RPC) Receive(context actor.Context) {
 		server, _ := ns.actualServer.(*AergoRPCService)
 		server.BroadcastToListBlockStream(msg)
 	default:
-		ns.Warn().Msgf("unknown msg received in rpc %v", msg)
+		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
 	}
 }
 

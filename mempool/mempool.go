@@ -47,13 +47,11 @@ type MemPool struct {
 	bestBlockID types.BlockID
 	stateDB     *state.StateDB
 	verifier    *actor.PID
-	//FIXME use fixed fee from config for now
-	txFee    uint64
-	orphan   int
-	cache    map[types.TxID]*types.Tx
-	pool     map[types.AccountID]*TxList
-	dumpPath string
-	status   int32
+	orphan      int
+	cache       map[types.TxID]*types.Tx
+	pool        map[types.AccountID]*TxList
+	dumpPath    string
+	status      int32
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -68,7 +66,6 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
-		txFee:    types.DefaultCoinbaseFee,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -261,16 +258,11 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	mp.Lock()
 	defer mp.Unlock()
 
-	//FIXME improvement
-	// it is fine because all account's state is cached for now.
-	// if eviction on statedb cached is occured, it should be improved
-	// to avoid disk access
-	//FIXME after block has state root hash, use it
 	mp.setStateDB(block)
 
 	for _, v := range mp.pool {
 		acc := v.GetAccount()
-		ns, err := mp.getAccountState(acc, true)
+		ns, err := mp.getAccountState(acc)
 		if err != nil {
 			mp.Error().Err(err).Msg("getting Account status failed")
 			// TODO : ????
@@ -278,7 +270,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		list, err := mp.acquireMemPoolList(acc)
 		if err == nil {
 			defer mp.releaseMemPoolList(list)
-			diff, delTxs := list.SetMinNonce(ns.Nonce + 1)
+			diff, delTxs := list.FilterByState(ns)
 			mp.orphan -= diff
 			for _, tx := range delTxs {
 				h := types.ToTxID(tx.GetHash())
@@ -293,7 +285,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		if _, ok := mp.cache[hid]; !ok {
 			continue
 		}
-		ns, err := mp.getAccountState(tx.GetBody().GetAccount(), true)
+		ns, err := mp.getAccountState(tx.GetBody().GetAccount())
 		if err != nil {
 			mp.Error().Err(err).Msg("getting Account status failed")
 			continue
@@ -324,7 +316,7 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx *types.Tx) error {
 	account := tx.GetBody().GetAccount()
-	ns, err := mp.getAccountState(account, false)
+	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
 	}
@@ -335,7 +327,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 	switch tx.GetBody().GetType() {
 	//case types.TxType_NORMAL:
 	case types.TxType_GOVERNANCE:
-		aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient(), false)
+		aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient())
 		if err != nil {
 			return err
 		}
@@ -366,13 +358,13 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return list, nil
 	}
 	var nonce uint64
-	ns, err := mp.getAccountState(acc, false)
+	ns, err := mp.getAccountState(acc)
 	if err != nil {
 		return nil, err
 	}
 	nonce = ns.Nonce
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(acc, nonce+1)
+	mp.pool[id] = NewTxList(acc, nonce)
 	return mp.pool[id], nil
 }
 
@@ -388,13 +380,13 @@ func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
 	return mp.pool[id]
 }
 
-func (mp *MemPool) getAccountState(acc []byte, refresh bool) (*types.State, error) {
+func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 	if mp.testConfig {
 		aid := types.ToAccountID(acc)
 		strAcc := aid.String()
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
-		mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
+		//mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
 		return &types.State{Balance: bal, Nonce: nonce}, nil
 	}
 

@@ -14,9 +14,9 @@ import (
 func TestListPutBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(1))
+	mpl := NewTxList(nil, uint64(0))
 
-	count := 1000
+	count := 100
 	nonce := make([]int, count)
 	for i := 0; i < count; i++ {
 		nonce[i] = i + 1
@@ -34,10 +34,35 @@ func TestListPutBasic(t *testing.T) {
 	}
 }
 
+func TestListPutBasicOrphan(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := NewTxList(nil, uint64(0))
+
+	count := 20
+	nonce := make([]int, count)
+	for i := 0; i < count; i++ {
+		nonce[i] = i + 1
+	}
+	rand.Shuffle(count, func(i, j int) {
+		nonce[i], nonce[j] = nonce[j], nonce[i]
+	})
+	nonce = nonce[count/2:]
+
+	for i := 0; i < len(nonce); i++ {
+		mpl.Put(genTx(0, 0, uint64(nonce[i]), 0))
+	}
+
+	ret := mpl.GetAll()
+	if len(ret) != len(nonce) {
+		t.Error("put failed", len(ret), len(nonce))
+	}
+}
+
 func TestListPutErrors(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(10))
+	mpl := NewTxList(nil, uint64(9))
 	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
 	if added != 0 || err != types.ErrTxNonceTooLow {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
@@ -49,22 +74,22 @@ func TestListPutErrors(t *testing.T) {
 	}
 
 	added, err = mpl.Put(genTx(0, 0, uint64(10), 0))
-	if added != 0 || err != types.ErrTxAlreadyInMempool {
-		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
+	if added != 0 || err != types.ErrSameNonceAlreadyInMempool {
+		t.Errorf("put should be failed with ErrSameNonceAlreadyInMempool, but %s", err)
 	}
 
 }
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(1))
+	mpl := NewTxList(nil, uint64(0))
 
-	ret, txs := mpl.SetMinNonce(uint64(3))
+	ret, txs := mpl.FilterByState(&types.State{Nonce: uint64(2), Balance: uint64(100)})
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.SetMinNonce(uint64(1))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(0), Balance: uint64(100)})
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -79,27 +104,27 @@ func TestListDel(t *testing.T) {
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
 	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
-	ret, txs = mpl.SetMinNonce(uint64(1))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(0), Balance: uint64(100)})
 	if ret != 0 || mpl.Len() != 3 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.SetMinNonce(uint64(2))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(1), Balance: uint64(100)})
 	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.SetMinNonce(uint64(4))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(3), Balance: uint64(100)})
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.SetMinNonce(uint64(8))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(7), Balance: uint64(100)})
 	if ret != 2 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.SetMinNonce(uint64(15))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(14), Balance: uint64(100)})
 	if ret != 92 || mpl.Len() != count-14 || len(txs) != 6 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -114,7 +139,7 @@ func TestListDel(t *testing.T) {
 func TestListDelMiddle(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(4))
+	mpl := NewTxList(nil, uint64(3))
 
 	mpl.Put(genTx(0, 0, uint64(4), 0))
 	mpl.Put(genTx(0, 0, uint64(5), 0))
@@ -123,11 +148,11 @@ func TestListDelMiddle(t *testing.T) {
 	if mpl.Len() != 3 {
 		t.Error("should be 3 not ", len(mpl.list))
 	}
-	ret, txs := mpl.SetMinNonce(uint64(3))
+	ret, txs := mpl.FilterByState(&types.State{Nonce: uint64(1), Balance: uint64(100)})
 	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
-	ret, txs = mpl.SetMinNonce(uint64(5))
+	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(4), Balance: uint64(100)})
 	if ret != 3 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -137,7 +162,7 @@ func TestListDelMiddle(t *testing.T) {
 func TestListPutRandom(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(1))
+	mpl := NewTxList(nil, uint64(0))
 
 	count := 100
 	txs := make([]*types.Tx, count)
