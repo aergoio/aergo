@@ -6,6 +6,7 @@
 package mempool
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/aergoio/aergo/types"
@@ -16,9 +17,8 @@ type TxList struct {
 	sync.RWMutex
 	min     uint64
 	account []byte
-	list    []*types.Tx
-	deps    map[uint64][]*types.Tx // <empty key, aggregated slice>
-	parent  map[uint64]uint64      //<lastkey, empty key>
+	ready   int
+	list    []*types.Tx // nonce-ordered tx list
 }
 
 // NewTxList creates new TxList with given nonce as min
@@ -26,8 +26,6 @@ func NewTxList(acc []byte, nonce uint64) *TxList {
 	return &TxList{
 		min:     nonce,
 		account: acc,
-		deps:    map[uint64][]*types.Tx{},
-		parent:  map[uint64]uint64{},
 	}
 }
 
@@ -39,14 +37,45 @@ func (tl *TxList) GetAccount() []byte {
 func (tl *TxList) Len() int {
 	tl.RLock()
 	defer tl.RUnlock()
-	return tl.len()
+	return tl.ready
 }
 
 // Empty check TxList is empty including orphan
 func (tl *TxList) Empty() bool {
 	tl.RLock()
 	defer tl.RUnlock()
-	return tl.len() == 0 && len(tl.deps) == 0
+	return len(tl.list) == 0
+}
+
+func (tl *TxList) search(tx *types.Tx) (int, bool) {
+	key := tx.GetBody().GetNonce()
+	ind := sort.Search(len(tl.list), func(i int) bool {
+		comp := tl.list[i].GetBody().GetNonce()
+		return comp >= key
+	})
+	if ind < len(tl.list) && tl.compare(tx, ind) {
+		return ind, true
+	}
+	return ind, false
+}
+func (tl *TxList) compare(tx *types.Tx, index int) bool {
+	if tx.GetBody().GetNonce() == tl.list[index].GetBody().GetNonce() {
+		return true
+	}
+	return false
+}
+
+func (tl *TxList) continuous(index int) bool {
+	l := tl.min
+	r := tl.list[index].GetBody().GetNonce()
+	if tl.ready > 0 {
+		l = tl.list[tl.ready-1].GetBody().GetNonce()
+	}
+
+	if l+1 == r {
+		return true
+	}
+	return false
 }
 
 // Put inserts transaction into TxList
@@ -55,77 +84,66 @@ func (tl *TxList) Empty() bool {
 func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	tl.Lock()
 	defer tl.Unlock()
+
 	nonce := tx.GetBody().GetNonce()
-	if nonce < tl.min {
+	if nonce <= tl.min {
 		return 0, types.ErrTxNonceTooLow
 	}
-	if nonce < uint64(tl.len())+tl.min {
-		return 0, types.ErrTxAlreadyInMempool
-	}
-	if uint64(tl.len())+tl.min != nonce {
-		tl.putOrphan(tx)
-		return -1, nil
+
+	index, found := tl.search(tx)
+	if found == true { // exact match
+		return 0, types.ErrSameNonceAlreadyInMempool
 	}
 
-	tl.list = append(tl.list, tx)
-	tmp := tl.getOrphans(nonce)
-	tl.list = append(tl.list, tmp...)
+	oldCnt := len(tl.list) - tl.ready
 
-	return len(tmp), nil
+	if index < len(tl.list) {
+		tl.list = append(tl.list[:index], append([]*types.Tx{tx},
+			tl.list[index:]...)...)
+	} else {
+		tl.list = append(tl.list, tx)
+	}
+
+	for ; index < len(tl.list); index++ {
+		if !tl.continuous(index) {
+			break
+		}
+		tl.ready++
+	}
+	newCnt := len(tl.list) - tl.ready
+
+	return oldCnt - newCnt, nil
 }
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) SetMinNonce(n uint64) (int, []*types.Tx) {
+func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 
-	defer func() { tl.min = n }()
-	if tl.min == n {
-		return 0, nil
-	}
+	oldCnt := len(tl.list) - tl.ready
 
-	if tl.min > n {
-		neworphan := len(tl.list)
-		if neworphan == 0 {
-			return 0, nil
-		}
-		key := tl.list[0].GetBody().GetNonce() - 1
-		l := tl.list[neworphan-1].GetBody().GetNonce()
-		tl.deps[key] = tl.list
-		tl.parent[l] = key
-		tl.list = nil
-		return -neworphan, nil
-	}
-	delOrphan := 0
-	var delTxs []*types.Tx
-	processed := n - tl.min
-	if processed < uint64(tl.len()) {
-		delTxs = tl.list[0:processed]
-		tl.list = tl.list[processed:]
-		return delOrphan, delTxs
-	}
-
-	delTxs = append(delTxs, tl.list...)
-	tl.list = nil
-
-	for k, v := range tl.deps {
-		l := v[len(v)-1].GetBody().GetNonce()
-		if l < n {
-			delete(tl.deps, k)
-			delete(tl.parent, l)
-			delOrphan += len(v)
-			delTxs = append(delTxs, v...)
-		}
-		if k < n && n <= l {
-			delete(tl.deps, k)
-			delete(tl.parent, l)
-			tl.list = v[n-k-1:]
-			delTxs = append(delTxs, v[0:n-k-1]...)
-			delOrphan += len(v)
+	tl.min = st.Nonce
+	var left []*types.Tx
+	removed := tl.list[:0]
+	for _, x := range tl.list {
+		if err := x.ValidateWithSenderState(st); err == nil || err == types.ErrTxNonceToohigh {
+			left = append(left, x)
+		} else {
+			removed = append(removed, x)
 		}
 	}
-	return delOrphan, delTxs
+	tl.list = left
+	tl.ready = 0
+	for i := 0; i < len(tl.list); i++ {
+		if !tl.continuous(i) {
+			break
+		}
+		tl.ready++
+	}
+	newCnt := len(tl.list) - tl.ready
+
+	return oldCnt - newCnt, removed
 }
 
 // FilterByPrice will evict transactions that needs more amount than balance
@@ -141,64 +159,19 @@ func (tl *TxList) FilterByPrice(balance uint64) error {
 func (tl *TxList) Get() []*types.Tx {
 	tl.RLock()
 	defer tl.RUnlock()
-	return tl.list
+	return tl.list[:tl.ready]
 }
 
 // GetAll returns all transactions including orphans
 func (tl *TxList) GetAll() []*types.Tx {
 	tl.Lock()
 	defer tl.Unlock()
-	var all []*types.Tx
-	all = append(all, tl.list...)
-	for _, v := range tl.deps {
-		all = append(all, v...)
-	}
-	return all
+	return tl.list
 
 }
 
 func (tl *TxList) len() int {
 	return len(tl.list)
-}
-
-func (tl *TxList) putOrphan(tx *types.Tx) {
-	n := tx.GetBody().GetNonce()
-	lastN := n
-	var tmp []*types.Tx
-	tmp = append(tmp, tx)
-	v, ok := tl.deps[n]
-	if ok {
-		delete(tl.deps, n)
-		tmp = append(tmp, v...)
-		lastN = tmp[len(tmp)-1].GetBody().GetNonce()
-	}
-
-	parent, dok := tl.parent[n-1]
-	if !dok {
-		tl.deps[n-1] = tmp
-		tl.parent[lastN] = n - 1
-		return
-	}
-
-	pList := tl.deps[parent]
-	oldlast := pList[len(pList)-1].GetBody().GetNonce()
-
-	tl.deps[parent] = append(pList, tmp...)
-	delete(tl.parent, oldlast)
-	tl.parent[lastN] = parent
-}
-
-func (tl *TxList) getOrphans(nonce uint64) []*types.Tx {
-
-	v, ok := tl.deps[nonce]
-	if !ok {
-		return nil
-	}
-	lastN := v[len(v)-1].GetBody().GetNonce()
-
-	delete(tl.deps, nonce)
-	delete(tl.parent, lastN)
-	return v
 }
 
 /*
@@ -213,8 +186,16 @@ func (tl *TxList) checkSanity() bool {
 	}
 	return true
 }
-*/
-/*
+func (tl *TxList) printList() {
+	fmt.Printf("\t\t")
+	for i := 0; i < len(tl.list); i++ {
+		cur := tl.list[i].GetBody().GetNonce()
+		fmt.Printf("%d, ", cur)
+	}
+	fmt.Printf("done ready:%d min:%d\n", tl.ready, tl.min)
+
+}
+
 func (tl *TxList) printList() {
 
 	var f, l, before uint64

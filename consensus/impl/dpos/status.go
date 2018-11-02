@@ -16,7 +16,6 @@ type Status struct {
 	sync.RWMutex
 	bestBlock *types.Block
 	libState  *libStatus
-	bpid      string // self BP ID
 	done      bool
 }
 

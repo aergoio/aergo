@@ -4,139 +4,163 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBlockInfo(t *testing.T) {
-	var bi *blockInfo
-	a := assert.New(t)
-	a.Equal("(nil)", bi.Hash())
+type testChain struct {
+	chain  []*types.Block
+	status *Status
+	bestNo types.BlockNo
+
+	bpid          string
+	lpb           map[string]types.BlockNo
+	bpKey         []crypto.PrivKey
+	bpClusterSize uint16
 }
 
-func TestPlibCodec(t *testing.T) {
-	a := assert.New(t)
+func newTestChain(clusterSize uint16) (*testChain, error) {
+	consensusCount := clusterSize*2/3 + 1
 
-	pl1, dpl1 := newSimplePlib(a)
-	pl2, dpl2 := newPlibUndo(a)
-
-	tests := []struct {
-		name string
-		src  interface{}
-		dst  interface{}
-	}{
-		{name: "BP to *blockInfo", src: pl1, dst: dpl1},
-		{name: "BP to []*blockInfo", src: pl2, dst: dpl2},
+	bpKey := make([]crypto.PrivKey, int(clusterSize))
+	for i := 0; i < int(clusterSize); i++ {
+		var err error
+		bpKey[i], _, err = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	for i, test := range tests {
-		fmt.Printf("*** test[%v]: %v ***\n", i, test.name)
-
-		// Encode
-		buf, err := encode(test.src)
-		a.Nil(err)
-		fmt.Println("gob size =", len(buf.Bytes()))
-
-		// Decode
-		err = decode(&buf, test.dst)
-		a.Nil(err)
-		fmt.Println(spew.Sdump(test.dst))
+	b, err := bpKey[0].GetPublic().Bytes()
+	if err != nil {
+		return nil, err
 	}
-}
 
-func newSimplePlib(a *assert.Assertions) (interface{}, interface{}) {
-	block1 := newSignedBlock(a, nil)
-	block2 := newSignedBlock(a, block1)
-
-	pl := newPlibMap()
-	addBlockInfo(pl, block1)
-	addBlockInfo(pl, block2)
-
-	dpl := newPlibMap()
-
-	return &pl, &dpl
-}
-
-type pLibUndo map[string][]*blockInfo
-
-func newPlibUndo(a *assert.Assertions) (interface{}, interface{}) {
-	block := newSignedBlock(a, nil)
-	pu := make(pLibUndo)
-	addBlockInfoAsUndo(pu, block)
-
-	dpu := make(pLibUndo)
-
-	return &pu, &dpu
-}
-
-func addBlockInfoAsUndo(p pLibUndo, block *types.Block) {
-	bpID := block.BPID2Str()
-	if _, exist := p[bpID]; !exist {
-		p[bpID] = make([]*blockInfo, 0)
+	tc := &testChain{
+		chain:         make([]*types.Block, 0),
+		status:        NewStatus(consensusCount),
+		bpid:          enc.ToString(b),
+		lpb:           make(map[string]types.BlockNo),
+		bpKey:         bpKey,
+		bpClusterSize: clusterSize,
 	}
-	p[bpID] = append(p[bpID], newBlockInfo(block))
-	p[bpID] = append(p[bpID], newBlockInfo(block))
-	p[bpID] = append(p[bpID], newBlockInfo(block))
+	tc.setGenesis(types.NewBlock(nil, nil, nil, nil, nil, 0))
+
+	// Prevent DB access
+	tc.status.done = true
+
+	return tc, nil
 }
 
-func genKeyPair(assert *assert.Assertions) (crypto.PrivKey, crypto.PubKey) {
-	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	assert.Nil(err)
-
-	return privKey, pubKey
-}
-
-func newSignedBlock(a *assert.Assertions, prev *types.Block) *types.Block {
-	block := types.NewBlock(prev, nil, make([]*types.Receipt, 0), make([]*types.Tx, 0), nil, 10)
-	priv, _ := genKeyPair(a)
-	err := block.Sign(priv)
-	a.Nil(err)
-
-	return block
-}
-
-func addBlockInfo(pLib map[string]*blockInfo, block *types.Block) {
-	pLib[block.BPID2Str()] = newBlockInfo(block)
-}
-
-func newPlibMap() map[string]*blockInfo {
-	return make(map[string]*blockInfo)
-}
-
-func TestEmbededMap(t *testing.T) {
-	type X struct {
-		M map[string]int
-		V int
+func (tc *testChain) setGenesis(block *types.Block) {
+	if block.BlockNo() != 0 {
+		panic("invalid genesis block: non-zero block no")
 	}
+	tc.status.libState.genesisInfo = &blockInfo{BlockHash: block.ID(), BlockNo: 0}
+	tc.status.bestBlock = block
+	tc.chain = append(tc.chain, block)
+}
+
+func (tc *testChain) addBlock(i types.BlockNo) error {
+	pk := tc.getBpKey(i % types.BlockNo(tc.bpClusterSize))
+	b, err := pk.Bytes()
+	if err != nil {
+		return err
+	}
+	spk := enc.ToString(b)
+
+	prevBlock := tc.chain[len(tc.chain)-1]
+	block := types.NewBlock(prevBlock, nil, nil, nil, nil, 0)
+
+	confirmNo := func(no types.BlockNo) (confirms types.BlockNo) {
+		lpb := types.BlockNo(0)
+		if v, exist := tc.lpb[spk]; exist {
+			lpb = v
+		}
+		confirms = no - lpb
+
+		return
+	}
+	block.SetConfirms(confirmNo(block.BlockNo()))
+
+	if err = block.Sign(pk); err != nil {
+		return err
+	}
+
+	tc.lpb[spk] = block.BlockNo()
+
+	tc.chain = append(tc.chain, block)
+	tc.bestNo = types.BlockNo(len(tc.chain) - 1)
+	tc.status.Update(block)
+
+	return nil
+}
+
+func (tc *testChain) getBpKey(i types.BlockNo) crypto.PrivKey {
+	return tc.bpKey[i%types.BlockNo(tc.bpClusterSize)]
+}
+
+func TestTestChain(t *testing.T) {
+	const (
+		clusterSize = 3
+		maxBlockNo  = types.BlockNo(clusterSize) * 20
+	)
 
 	a := assert.New(t)
-	x := &X{M: make(map[string]int), V: 10}
-	x.M["a"] = 1
-	x.M["b"] = 2
-	x.M["c"] = 3
-
-	orgLen := len(x.M)
-	buf, err := encode(x)
+	tc, err := newTestChain(clusterSize)
 	a.Nil(err)
 
-	y := &X{M: make(map[string]int), V: 10}
-	err = decode(&buf, y)
-	a.Nil(err)
-	a.Equal(orgLen, len(y.M))
-	fmt.Println(len(y.M))
+	for i := types.BlockNo(1); i <= maxBlockNo; i++ {
+		a.Nil(tc.addBlock(i))
+		fmt.Println("LIB:", tc.status.libState.Lib.BlockNo)
+	}
 
-	l := newLibStatus(defaultConsensusCount)
-	l.Prpsd["a"] = &plInfo{&blockInfo{}, &blockInfo{}}
-	l.Prpsd["b"] = &plInfo{&blockInfo{}, &blockInfo{}}
-	l.Prpsd["c"] = &plInfo{&blockInfo{}, &blockInfo{}}
-	buf, err = encode(l)
-	a.Nil(err)
-	orgLen = len(l.Prpsd)
+	a.Equal(tc.bestNo, maxBlockNo)
+	a.Equal(tc.status.libState.Lib.BlockNo, maxBlockNo-clusterSize-1)
+}
 
-	m := newLibStatus(defaultConsensusCount)
-	err = decode(&buf, m)
-	a.Nil(err)
-	a.Equal(len(m.Prpsd), orgLen)
+func TestNumLimitGC(t *testing.T) {
+	const (
+		clusterSize    = 23
+		consensusCount = clusterSize*2/3 + 1
+	)
+
+	a := assert.New(t)
+
+	ls := newLibStatus(consensusCount)
+
+	for i := 1; i <= clusterSize*3; i++ {
+		ls.confirms.PushBack(
+			&confirmInfo{
+				blockInfo: &blockInfo{BlockNo: types.BlockNo(i)},
+			})
+	}
+
+	ls.gc()
+	a.True(ls.confirms.Len() <= ls.gcNumLimit())
+}
+
+func TestLibGC(t *testing.T) {
+	const (
+		clusterSize    = 23
+		consensusCount = clusterSize*2/3 + 1
+		libNo          = 3
+	)
+
+	a := assert.New(t)
+
+	ls := newLibStatus(consensusCount)
+	ls.Lib = &blockInfo{BlockNo: libNo}
+
+	for i := 1; i <= clusterSize*3; i++ {
+		ls.confirms.PushBack(
+			&confirmInfo{
+				blockInfo: &blockInfo{BlockNo: types.BlockNo(i)},
+			})
+	}
+
+	ls.gc()
+	a.True(cInfo(ls.confirms.Front()).blockInfo.BlockNo > libNo)
 }

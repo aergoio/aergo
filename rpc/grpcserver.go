@@ -12,16 +12,15 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -36,6 +35,9 @@ type AergoRPCService struct {
 	hub         *component.ComponentHub
 	actorHelper p2p.ActorService
 	msgHelper   message.Helper
+
+	streamLock  sync.RWMutex
+	blockstream []types.AergoRPCService_ListBlockStreamServer
 }
 
 // FIXME remove redundant constants
@@ -141,29 +143,46 @@ func (rpc *AergoRPCService) ListBlockHeaders(ctx context.Context, in *types.List
 	return &types.BlockHeaderList{Blocks: headers}, err
 
 }
+func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) error {
+	var err error
+	rpc.streamLock.RLock()
+	for _, stream := range rpc.blockstream {
+		if stream != nil {
+			err = stream.Send(block)
+		}
+	}
+	rpc.streamLock.RUnlock()
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // real-time streaming most recent block header
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
-	var prev *types.Block
+	rpc.streamLock.Lock()
+	streamId := len(rpc.blockstream)
+	rpc.blockstream = append(rpc.blockstream, stream)
+	rpc.streamLock.Unlock()
+
 	for {
-		last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
-		if err != nil {
-			break
+		select {
+		case <-stream.Context().Done():
+			rpc.streamLock.Lock()
+			rpc.blockstream[streamId] = nil
+			if len(rpc.blockstream) > 1024 {
+				for i := 0; i < len(rpc.blockstream); i++ {
+					if rpc.blockstream[i] == nil {
+						rpc.blockstream = append(rpc.blockstream[:i], rpc.blockstream[i+1:]...)
+						i--
+						break
+					}
+				}
+			}
+			rpc.streamLock.Unlock()
+			return nil
 		}
-
-		if prev == last {
-			time.Sleep(time.Millisecond * 100)
-			continue
-		}
-		prev = last
-
-		if err = stream.Send(last); err != nil {
-			break
-		}
-
-		time.Sleep(time.Millisecond * 500)
 	}
-	return nil
 }
 
 func extractBlockFromFuture(future *actor.Future) (*types.Block, bool) {
@@ -510,13 +529,18 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 	if err != nil {
 		return nil, err
 	}
-	rsp := result.(*message.GetPeersRsp)
-	states := make([]int32, len(rsp.States))
-	for i, state := range rsp.States {
-		states[i] = int32(state)
+	rsp, ok := result.(*message.GetPeersRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 
-	return &types.PeerList{Peers: rsp.Peers, States: states}, nil
+	ret := &types.PeerList{Peers: []*types.Peer{}}
+	for i, state := range rsp.States {
+		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i]}
+		ret.Peers = append(ret.Peers, peer)
+	}
+
+	return ret, nil
 }
 
 // NodeState handle rpc request nodestate

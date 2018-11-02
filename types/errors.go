@@ -9,8 +9,11 @@ var (
 	//ErrTxHasInvalidHash is returned by MemPool Service if transaction does have invalid hash
 	ErrTxHasInvalidHash = errors.New("tx has invalid hash")
 
-	//ErrTxAlreadyInMempool is returned by MemPool Service if transaction which already exists
-	ErrTxAlreadyInMempool = errors.New("tx already in mempool")
+	//ErrTxAlreadyInMempool is returned by MemPool Service if exact same transaction is already exists
+	ErrTxAlreadyInMempool = errors.New("tx is already in mempool")
+
+	//ErrSameNonceInMempool is returned by MemPool Service if transaction which has same nonce is already exists
+	ErrSameNonceAlreadyInMempool = errors.New("tx with same nonce is already in mempool")
 
 	//ErrTxFormatInvalid is returned by MemPool Service if transaction does not exists ErrTxFormatInvalid = errors.New("tx invalid format")
 	ErrTxFormatInvalid = errors.New("tx invalid format")

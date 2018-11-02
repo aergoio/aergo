@@ -165,6 +165,7 @@ type V struct {
 	oldV   *types.State
 	newV   *types.State
 	newOne bool
+	create bool
 }
 
 func (v *V) ID() []byte {
@@ -206,6 +207,10 @@ func (v *V) IsNew() bool {
 	return v.newOne
 }
 
+func (v *V) IsCreate() bool {
+	return v.create
+}
+
 func (v *V) Reset() {
 	*v.newV = types.State(*v.oldV)
 }
@@ -223,6 +228,7 @@ func (states *StateDB) CreateAccountStateV(id []byte) (*V, error) {
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
 	}
 	v.newV.SqlRecoveryPoint = 1
+	v.create = true
 	return v, nil
 }
 

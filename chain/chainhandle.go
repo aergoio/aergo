@@ -353,7 +353,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
-		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp())
+		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), contract.ChainService)
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
@@ -375,7 +375,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
+func NewTxExecutor(blockNo types.BlockNo, ts int64, preLoadService int) TxExecFn {
 	return func(bState *state.BlockState, tx *types.Tx) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -383,7 +383,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(bState, tx, blockNo, ts)
+		err := executeTx(bState, tx, blockNo, ts, preLoadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -396,12 +396,19 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64) TxExecFn {
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
-		for _, tx := range e.txs {
+		var preLoadTx *types.Tx
+		nCand := len(e.txs)
+		for i, tx := range e.txs {
+			if i != nCand-1 {
+				preLoadTx = e.txs[i+1]
+				contract.PreLoadRequest(e.BlockState, preLoadTx, contract.ChainService)
+			}
 			if err := e.execTx(e.BlockState, tx); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
+			contract.SetPreloadTx(preLoadTx, contract.ChainService)
 		}
 
 		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
@@ -470,7 +477,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) error {
+func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, preLoadService int) error {
 	err := tx.Validate()
 	if err != nil {
 		return err
@@ -504,7 +511,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	case types.TxType_NORMAL:
 		txFee = CoinbaseFee
 		sender.SubBalance(txFee)
-		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver)
+		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
 		if err != nil {
@@ -515,11 +522,13 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64) err
 	if err != nil {
 		if _, ok := err.(contract.VmError); ok {
 			sender.Reset()
+			sender.SubBalance(txFee)
 			sender.SetNonce(txBody.Nonce)
 			sErr := sender.PutState()
 			if sErr != nil {
 				return sErr
 			}
+			bs.BpReward += txFee
 			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
 			return nil
 		}

@@ -7,17 +7,19 @@
 #include "sqlite3-binding.h"
 
 typedef struct blockchain_ctx {
-    char *stateKey;
-    char *sender;
-    char *contractId;
-    char *txHash;
-    unsigned long long blockHeight;
-    long long timestamp;
-    char *node;
-    int confirmed;
-    int isQuery;
-    int transferFailed;
-    sqlite3 *db;
+	char *stateKey;
+	char *sender;
+	char *contractId;
+	char *txHash;
+	unsigned long long blockHeight;
+	long long timestamp;
+	char *node;
+	int confirmed;
+	int isQuery;
+	int transferFailed;
+	sqlite3 *db;
+	int service;
+	unsigned long long amount;
 } bc_ctx_t;
 
 lua_State *vm_newstate();

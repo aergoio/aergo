@@ -66,6 +66,7 @@ type LBlockchainCtx = C.struct_blockchain_ctx
 type Executor struct {
 	L             *LState
 	contract      *Contract
+	args          *types.CallInfo
 	err           error
 	blockchainCtx *LBlockchainCtx
 	jsonRet       string
@@ -79,9 +80,10 @@ func init() {
 func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
-	contractId string, query int, root *StateSet, dbHandle *C.sqlite3) *LBlockchainCtx {
+	contractId string, query int, root *StateSet, dbHandle *C.sqlite3,
+	service int, amount uint64) *LBlockchainCtx {
 
-	stateKey := fmt.Sprintf("%s%s", contractId, txHash)
+	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
 	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
 	if root == nil {
 		stateSet.callState = make(map[string]*CallState)
@@ -102,7 +104,17 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		contractId:  C.CString(contractId),
 		isQuery:     C.int(query),
 		db:          dbHandle,
+		service:     C.int(service),
+		amount:      C.ulonglong(amount),
 	}
+}
+
+func (bcCtx *LBlockchainCtx) Close() {
+	if bcCtx == nil {
+		return
+	}
+	contractMap.unregister(C.GoString(bcCtx.stateKey))
+	C.bc_ctx_delete(bcCtx)
 }
 
 func NewLState() *LState {
@@ -157,8 +169,9 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 				b = 1
 			}
 			C.lua_pushboolean(ce.L, C.int(b))
+		case nil:
+			C.lua_pushnil(ce.L)
 		default:
-			fmt.Println("unsupported type:" + reflect.TypeOf(v).Name())
 			ce.err = errors.New("unsupported type:" + reflect.TypeOf(v).Name())
 			return
 		}
@@ -278,10 +291,8 @@ func (ce *Executor) commitCalledContract() error {
 func (ce *Executor) close(bcCtxFree bool) {
 	if ce != nil {
 		FreeLState(ce.L)
-		if ce.blockchainCtx != nil && bcCtxFree {
-			context := ce.blockchainCtx
-			contractMap.unregister(C.GoString(context.stateKey))
-			C.bc_ctx_delete(context)
+		if bcCtxFree {
+			ce.blockchainCtx.Close()
 		}
 	}
 }
@@ -298,10 +309,11 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
 		}
 	} else {
-		err = fmt.Errorf("cannot find contract %s", string(contractAddress))
+		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
+		bcCtx.Close()
 		return "", err
 	}
 	if ctrLog.IsDebugEnabled() {
@@ -320,33 +332,105 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	return ce.jsonRet, err
 }
 
+func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contractState *state.ContractState,
+	blockNo uint64, ts int64, dbHandle *C.sqlite3) (string, error) {
+	var err error
+
+	defer ce.close(true)
+
+	bcCtx := ce.blockchainCtx
+
+	contractId := C.GoString(bcCtx.contractId)
+	sender := C.GoString(bcCtx.sender)
+	stateKey := C.GoString(bcCtx.stateKey)
+
+	stateSet := contractMap.lookup(stateKey)
+	stateSet.contract = contractState
+	stateSet.bs = bs
+	stateSet.callState[contractId].ctrState = contractState
+	stateSet.callState[contractId].curState = contractState.State
+	stateSet.callState[sender].curState = senderState
+
+	bcCtx.blockHeight = C.ulonglong(blockNo)
+	bcCtx.timestamp = C.longlong(ts)
+	bcCtx.db = dbHandle
+
+	ce.call(ce.args, nil)
+	err = ce.err
+	if err == nil {
+		err = ce.commitCalledContract()
+	} else {
+		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
+	}
+	return ce.jsonRet, err
+}
+
+func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
+	bcCtx *LBlockchainCtx) (*Executor, error) {
+
+	var err error
+	var ci types.CallInfo
+	contract := getContract(contractState, contractAddress, nil)
+	if contract != nil {
+		err = json.Unmarshal(code, &ci)
+		if err != nil {
+			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		}
+	} else {
+		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+	}
+	if err != nil {
+		bcCtx.Close()
+		return nil, err
+	}
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
+	ce := newExecutor(contract, bcCtx)
+	ce.args = &ci
+
+	return ce, nil
+
+}
+
+func setContract(contractState *state.ContractState, code, contractAddress []byte) (*Contract, uint32, error) {
+	if len(code) <= 4 {
+		err := fmt.Errorf("invalid code (%d bytes is too short)", len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+	codeLen := codeLength(code[0:])
+	if uint32(len(code)) < codeLen {
+		err := fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", codeLen, len(code))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+	sCode := code[4:codeLen]
+
+	err := contractState.SetCode(sCode)
+	if err != nil {
+		return nil, 0, err
+	}
+	contract := getContract(contractState, contractAddress, sCode)
+	if contract == nil {
+		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
+		ctrLog.Warn().AnErr("err", err)
+		return nil, 0, err
+	}
+
+	return contract, codeLen, nil
+}
+
 func Create(contractState *state.ContractState, code, contractAddress []byte,
 	bcCtx *LBlockchainCtx) (string, error) {
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
-	if len(code) <= 4 {
-		err := fmt.Errorf("code length is short %d", len(code))
-		ctrLog.Warn().AnErr("err", err)
-		return "", err
-	}
-	codeLen := codeLength(code[0:])
-	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("code length does not match (%d > %d)", codeLen, len(code))
-		ctrLog.Warn().AnErr("err", err)
-		return "", err
-	}
-	sCode := code[4:codeLen]
-
-	err := contractState.SetCode(sCode)
+	contract, codeLen, err := setContract(contractState, code, contractAddress)
 	if err != nil {
-		return "", err
-	}
-	contract := getContract(contractState, contractAddress, sCode)
-	if contract == nil {
-		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
-		ctrLog.Warn().AnErr("err", err)
+		bcCtx.Close()
 		return "", err
 	}
 	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
@@ -361,12 +445,12 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 	var errMsg string
 	if err != nil {
-		logger.Warn().Err(err).Msg("constructor's argument is invalid")
+		logger.Warn().Err(err).Msg("invalid constructor argument")
 		errMsg = err.Error()
 	}
 	ce.constructCall(&ci)
 	if ce.err != nil {
-		logger.Warn().Err(err).Msg("constructor is failed")
+		logger.Warn().Err(err).Msg("constructor failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
 	}
 
@@ -391,15 +475,9 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	}
 	var ce *Executor
 
-	tx, err := BeginReadOnly(types.ToAccountID(contractAddress), contractState.SqlRecoveryPoint)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
-		1, nil, tx.GetHandle())
+		1, nil, nil, ChainService, 0)
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -611,15 +689,10 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
 		return -1
 	}
-	sqlTx, err := BeginTx(types.ToAccountID(callee.address), callState.curState.SqlRecoveryPoint)
-	if err != nil {
-		luaPushStr(L, "[System.LuaGetContract] begin tx:"+err.Error())
-		return -1
-	}
-	sqlTx.Savepoint()
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, sqlTx.GetHandle())
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, nil,
+		int(bcCtx.service), amount)
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
 
@@ -637,11 +710,9 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
-		sqlTx.RollbackToSavepoint()
 		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
 		return -1
 	}
-	sqlTx.Release()
 
 	return ret
 }

@@ -34,6 +34,8 @@ type RemotePeer interface {
 	stop()
 
 	sendMessage(msg msgOrder)
+	sendAndWaitMessage(msg msgOrder, ttl time.Duration) error
+
 	pushTxsNotice(txHashes []TxHash)
 	consumeRequest(msgID MsgID)
 
@@ -61,6 +63,8 @@ type remotePeerImpl struct {
 	stopChan chan struct{}
 
 	write      p2putil.ChannelPipe
+	// direct write channel
+	dWrite     chan msgOrder
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
@@ -86,7 +90,7 @@ var _ RemotePeer = (*remotePeerImpl)(nil)
 
 const (
 	cleanRequestInterval = time.Hour
-	txNoticeInterval     = time.Second * 3
+	txNoticeInterval     = time.Second * 1
 )
 
 // newRemotePeer create an object which represent a remote peer.
@@ -109,6 +113,7 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 	}
 	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
+	peer.dWrite = make(chan msgOrder)
 
 	var err error
 	peer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -204,6 +209,8 @@ func (p *remotePeerImpl) runWrite() {
 WRITELOOP:
 	for {
 		select {
+		case m := <-p.dWrite:
+			p.writeToPeer(m)
 		case m := <-p.write.Out():
 			p.writeToPeer(m.(msgOrder))
 			p.write.Done() <- m
@@ -292,12 +299,33 @@ func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 	p.write.In() <- msg
 }
 
+func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration) error {
+	if p.state.Get() != types.RUNNING {
+		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
+			Str(LogMsgID, msg.GetMsgID().String()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+		return fmt.Errorf("not running")
+	}
+	select {
+		case p.dWrite <- msg :
+			return nil
+		case <- time.NewTimer(timeout).C :
+			return fmt.Errorf("timeout")
+	}
+}
 
 func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
 	for _,hash := range txHashes {
-		p.txNoticeQueue.Press(hash)
+		if !p.txNoticeQueue.Offer(hash) {
+			p.sendTxNotices()
+			// this Offer is always succeeded by invariant
+			p.txNoticeQueue.Offer(hash)
+			//if !p.txNoticeQueue.Offer(hash) {
+			//	// TODO: temporary check in developement. remove this condition after test successes
+			//	panic("Serious bug occured.")
+			//}
+		}
 	}
 }
 
@@ -325,6 +353,11 @@ func (p *remotePeerImpl) writeToPeer(m msgOrder) {
 func (p *remotePeerImpl) trySendTxNotices() {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
+	p.sendTxNotices()
+}
+
+// sendTxNotices must be called in txQueueLock
+func (p *remotePeerImpl) sendTxNotices() {
 	// make create multiple message if queue is too many hashes.
 	for {
 		// no need to send if queue is empty
@@ -341,9 +374,9 @@ func (p *remotePeerImpl) trySendTxNotices() {
 			hashes = append(hashes, hash[:])
 			idx++
 			p.txHashCache.Add(hash, cachePlaceHolder)
-			if idx >= p.maxTxNoticeHashSize {
-				break
-			}
+			//if idx >= p.maxTxNoticeHashSize {
+			//	break
+			//}
 		}
 		if idx > 0 {
 			mo := p.mf.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes:hashes})
@@ -434,7 +467,6 @@ func (p *remotePeerImpl) pruneRequests() {
 	if debugLog {
 		p.logger.Debug().Msg(strings.Join(deletedReqs[:], ","))
 	}
-
 }
 
 func (p *remotePeerImpl) updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool {
@@ -474,15 +506,17 @@ func (l *hangResolver) OnIn(element interface{}) {
 }
 
 func (l *hangResolver) OnDrop(element interface{}) {
-	mo := element.(msgOrder)
-	now := time.Now().Unix()
-	// if last send hang too long. drop this peer
-	if l.consecutiveDrops > 20 || (now-mo.Timestamp()) > 60 {
-		l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
-		l.p.pm.RemovePeer(l.p.ID())
-	} else {
-		l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID().String()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
-	}
+	l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
+	l.p.pm.RemovePeer(l.p.ID())
+	//mo := element.(msgOrder)
+	//now := time.Now().Unix()
+	//// if last send hang too long. drop this peer
+	//if l.consecutiveDrops > 20 || (now-mo.Timestamp()) > 60 {
+	//	l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
+	//	l.p.pm.RemovePeer(l.p.ID())
+	//} else {
+	//	l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID().String()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
+	//}
 }
 
 func (l *hangResolver) OnOut(element interface{}) {

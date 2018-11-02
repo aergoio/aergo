@@ -386,9 +386,7 @@ func (tx *Tx) Validate() error {
 }
 
 func (tx *Tx) ValidateWithSenderState(senderState *State) error {
-	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
-		return ErrTxNonceToohigh
-	} else if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
+	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
 	switch tx.GetBody().GetType() {
@@ -407,6 +405,9 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 		} else {
 			return ErrTxInvalidRecipient
 		}
+	}
+	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
+		return ErrTxNonceToohigh
 	}
 	return nil
 }

@@ -9,20 +9,19 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
-
-	"github.com/aergoio/aergo/types"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
-	"google.golang.org/grpc"
-
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/soheilhy/cmux"
+	"google.golang.org/grpc"
 )
 
 // RPC is actor for providing rpc service
@@ -46,8 +45,9 @@ type RPC struct {
 // NewRPC create an rpc service
 func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
-		hub:       hub,
-		msgHelper: message.GetHelper(),
+		hub:         hub,
+		msgHelper:   message.GetHelper(),
+		blockstream: []types.AergoRPCService_ListBlockStreamServer{},
 	}
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
@@ -69,9 +69,9 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		grpcServer:    grpcServer,
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
-		ca:chainAccessor,
+		ca:            chainAccessor,
 	}
-	rpcsvc.BaseComponent = component.NewBaseComponent("rpc", rpcsvc, logger)
+	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
 	actualServer.actorHelper = rpcsvc
 
 	rpcsvc.httpServer = &http.Server{
@@ -104,6 +104,13 @@ func (ns *RPC) Statistics() *map[string]interface{} {
 }
 
 func (ns *RPC) Receive(context actor.Context) {
+	switch msg := context.Message().(type) {
+	case *types.Block:
+		server, _ := ns.actualServer.(*AergoRPCService)
+		server.BroadcastToListBlockStream(msg)
+	default:
+		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
+	}
 }
 
 // Create HTTP handler that redirects matching requests to the grpc-web wrapper.
@@ -173,7 +180,6 @@ func (ns *RPC) serve() {
 
 const defaultTTL = time.Second * 4
 
-
 // TellRequest implement interface method of ActorService
 func (ns *RPC) TellRequest(actor string, msg interface{}) {
 	ns.TellTo(actor, msg)
@@ -225,6 +231,8 @@ func convertError(err error) types.CommitStatus {
 		return types.CommitStatus_TX_INVALID_FORMAT
 	case types.ErrInsufficientBalance:
 		return types.CommitStatus_TX_INSUFFICIENT_BALANCE
+	case types.ErrSameNonceAlreadyInMempool:
+		return types.CommitStatus_TX_HAS_SAME_NONCE
 	default:
 		//logger.Info().Str("hash", err.Error()).Msg("RPC encountered unconvertable error")
 		return types.CommitStatus_TX_INTERNAL_ERROR

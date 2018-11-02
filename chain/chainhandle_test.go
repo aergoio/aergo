@@ -5,6 +5,7 @@
 package chain
 
 import (
+	"github.com/aergoio/aergo/contract"
 	"io/ioutil"
 	"math"
 	"os"
@@ -57,31 +58,31 @@ func TestErrorInExecuteTx(t *testing.T) {
 
 	tx := &types.Tx{}
 
-	err := executeTx(bs, tx, 0, 0)
+	err := executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx")
 
 	tx.Body = &types.TxBody{}
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx body")
 
 	tx.Body.Account = makeTestAddress(t)
 	tx.Body.Recipient = makeTestAddress(t)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxHasInvalidHash.Error(), "execute tx body with account")
 
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxNonceTooLow.Error(), "execute tx body with account")
 
 	tx.Body.Nonce = 1
 	tx.Body.Amount = math.MaxUint64
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
 
 	tx.Body.Amount = types.MaxAER
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
 }
 
@@ -96,13 +97,13 @@ func TestBasicExecuteTx(t *testing.T) {
 	tx.Body.Recipient = makeTestAddress(t)
 	tx.Body.Nonce = 1
 	signTestAddress(t, tx)
-	err := executeTx(bs, tx, 0, 0)
+	err := executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.NoError(t, err, "execute amount 0")
 
 	tx.Body.Nonce = 2
 	tx.Body.Amount = 1000
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.NoError(t, err, "execute amount 1000")
 
 	tx.Body.Nonce = 3
@@ -111,7 +112,7 @@ func TestBasicExecuteTx(t *testing.T) {
 	tx.Body.Type = types.TxType_GOVERNANCE
 	tx.Body.Payload = []byte{'s'}
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0)
+	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.NoError(t, err, "execute governance type")
 
 }

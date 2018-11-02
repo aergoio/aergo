@@ -91,6 +91,9 @@ static int moduleCall(lua_State *L)
     contract = (char *)luaL_checkstring(L, 2);
     fname = (char *)luaL_checkstring(L, 3);
     json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
+    if (json_args == NULL) {
+        lua_error(L);
+    }
     if ((ret = LuaCallContract(L, exec, contract, fname, json_args, amount, gas)) < 0) {
         free(json_args);
         lua_error(L);
@@ -140,6 +143,9 @@ static int moduleDelegateCall(lua_State *L)
     contract = (char *)luaL_checkstring(L, 2);
     fname = (char *)luaL_checkstring(L, 3);
     json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
+    if (json_args == NULL) {
+        lua_error(L);
+    }
     if ((ret = LuaDelegateCallContract(L, exec, contract, fname, json_args, gas)) < 0) {
         free(json_args);
         lua_error(L);

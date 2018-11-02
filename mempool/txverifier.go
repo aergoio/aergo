@@ -18,9 +18,14 @@ func NewTxVerifier(p *MemPool) *TxVerifier {
 func (s *TxVerifier) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *types.Tx:
-		err := s.mp.verifyTx(msg)
-		if err == nil {
-			err = s.mp.put(msg)
+		var err error
+		if s.mp.exists(msg.GetHash()) != nil {
+			err = types.ErrTxAlreadyInMempool
+		} else {
+			err = s.mp.verifyTx(msg)
+			if err == nil {
+				err = s.mp.put(msg)
+			}
 		}
 		context.Respond(&message.MemPoolPutRsp{Err: err})
 	}

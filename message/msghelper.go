@@ -7,6 +7,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const RPCSvc = "RPCSvc"
+
 // Helper is helper interface for extracting tx or block from actor response
 type Helper interface {
 	// ExtractBlockFromResponseAndError get rawResponse and error and return pointer of Block
@@ -55,7 +57,7 @@ func extractBlock(from *GetBlockRsp) (*types.Block, error) {
 	return from.Block, nil
 }
 
-func (h baseHelper)ExtractTxFromResponseAndError(rawResponse interface{}, err error) (*types.Tx, error) {
+func (h baseHelper) ExtractTxFromResponseAndError(rawResponse interface{}, err error) (*types.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +74,7 @@ func (h baseHelper) ExtractTxFromResponse(rawResponse interface{}) (*types.Tx, e
 	}
 }
 
-
-func (h baseHelper)ExtractTxsFromResponseAndError(rawResponse interface{}, err error) ([]*types.Tx, error) {
+func (h baseHelper) ExtractTxsFromResponseAndError(rawResponse interface{}, err error) ([]*types.Tx, error) {
 	if err != nil {
 		return nil, err
 	}

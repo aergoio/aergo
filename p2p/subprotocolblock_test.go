@@ -71,7 +71,6 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 	}
 }
 
-
 func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 	bigHash := make([]byte, 2*1024*1024)
 	logger := log.NewLogger("test")
@@ -90,7 +89,7 @@ func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 		{"TActorError", 10, 0, 0},
 		// max message size is clipped
 		{"TFound10", 10, 10, 4},
-		{"TFoundAll", 20, 20, MaxResponseSplitCount},
+		{"TFoundAll", 20, 20, 7},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -102,7 +101,7 @@ func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 			//mockMF.On("newMsgResponseOrder", mock.Anything, GetBlocksResponse, mock.AnythingOfType("*types.GetBlockResponse")).Return(dummyMO)
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("sendMessage", mock.Anything)
+			mockPeer.On("sendAndWaitMessage", mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
 			callReqCount :=0
 			mockActor.On("CallRequestDefaultTimeout",message.ChainSvc, mock.MatchedBy(func(arg *message.GetBlockByNo) bool{
 				callReqCount++
@@ -123,8 +122,17 @@ func TestGetMissingHandler_sendMissingResp(t *testing.T) {
 			input := &message.GetMissingRsp{dummyTxHash, uint64(10), uint64(10+test.hashCnt)}
 			h.sendMissingResp(mockPeer, NewMsgID(), input)
 			//mockActor.AssertNumberOfCalls(t, "CallRequest", test.hashCnt)
-			mockPeer.AssertNumberOfCalls(t, "sendMessage", test.expectedSendCount)
+			mockPeer.AssertNumberOfCalls(t, "sendAndWaitMessage", test.expectedSendCount)
 		})
 	}
 }
+
+type dummyError struct {
+
+}
+
+func (dummyError) Error() string {
+	return "dummyError"
+}
+
 

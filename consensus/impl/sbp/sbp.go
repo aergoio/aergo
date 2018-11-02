@@ -1,6 +1,7 @@
 package sbp
 
 import (
+	"github.com/aergoio/aergo/contract"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -31,7 +32,7 @@ type txExec struct {
 func newTxExec(blockNo types.BlockNo, ts int64) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts),
+		execTx: bc.NewTxExecutor(blockNo, ts, contract.BlockFactory),
 	}
 }
 
