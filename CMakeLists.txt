@@ -31,3 +31,4 @@ add_custom_target(protoc
 add_custom_target(protoclean rm -f types/*.pb.go)
 
 add_subdirectory(libtool)
+add_subdirectory(contract/native)
