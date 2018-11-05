@@ -16,9 +16,9 @@ endif()
 
 add_custom_target(libtool DEPENDS libluajit liblmdb)
 
-add_custom_target(libluajit make PREFIX=${LIB_DIR} all install
+add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
-add_custom_target(liblmdb make prefix=${LIB_DIR} all install
+add_custom_target(liblmdb $(MAKE) prefix=${LIB_DIR} all install
 	WORKING_DIRECTORY ${LMDB_BUILD_DIR})
 
 add_custom_target(libtool-clean 
@@ -28,5 +28,5 @@ add_custom_target(libtool-clean
     COMMAND rm -rf ${LIB_DIR}/share/*
     DEPENDS libluajit-clean liblmdb-clean)
 
-add_custom_target(libluajit-clean make clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
-add_custom_target(liblmdb-clean make clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
+add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
+add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})

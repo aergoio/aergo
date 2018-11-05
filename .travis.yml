@@ -6,13 +6,14 @@ go:
 before_install:
   - go get -t github.com/Masterminds/glide
   - go get -t github.com/codeclimate/test-reporter
+  - cmake .
   - make
   
 before_script:
   - test-reporter before-build
 
 script:
-  - make cover-test
+  - make cover-check
 
 after_script:
   - test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
