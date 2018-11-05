@@ -92,14 +92,14 @@ We are developing the most practical and powerful platform for blockchain busine
 * Go1.10 or higher - https://golang.org/dl
 * Glide - https://github.com/Masterminds/glide
 * Proto Buffers - https://github.com/google/protobuf
+* CMake 3.0.0 or higher - https://cmake.org
 
 ### Build
 
 ```
 $ go get -d github.com/aergoio/aergo/account
 $ cd ${GOPATH}/src/github.com/aergoio/aergo
-$ git submodule init && git submodule update
-$ make deps
+$ cmake .
 $ make
 ```
 
