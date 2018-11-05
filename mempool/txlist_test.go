@@ -11,10 +11,13 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+func NewState(nonce uint64, bal uint64) *types.State {
+	return &types.State{Nonce: nonce, Balance: bal}
+}
 func TestListPutBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(0))
+	mpl := NewTxList(nil, NewState(0, 0))
 
 	count := 100
 	nonce := make([]int, count)
@@ -37,7 +40,7 @@ func TestListPutBasic(t *testing.T) {
 func TestListPutBasicOrphan(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(0))
+	mpl := NewTxList(nil, NewState(0, 0))
 
 	count := 20
 	nonce := make([]int, count)
@@ -62,7 +65,7 @@ func TestListPutBasicOrphan(t *testing.T) {
 func TestListPutErrors(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(9))
+	mpl := NewTxList(nil, NewState(9, 0))
 	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
 	if added != 0 || err != types.ErrTxNonceTooLow {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
@@ -82,14 +85,14 @@ func TestListPutErrors(t *testing.T) {
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(0))
+	mpl := NewTxList(nil, NewState(0, 0))
 
-	ret, txs := mpl.FilterByState(&types.State{Nonce: uint64(2), Balance: uint64(100)})
+	ret, txs := mpl.FilterByState(NewState(2, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(0), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(0, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -104,27 +107,27 @@ func TestListDel(t *testing.T) {
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
 	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(0), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(0, 100))
 	if ret != 0 || mpl.Len() != 3 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(1), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(1, 100))
 	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(3), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(3, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(7), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(7, 100))
 	if ret != 2 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(14), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(14, 100))
 	if ret != 92 || mpl.Len() != count-14 || len(txs) != 6 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -139,7 +142,7 @@ func TestListDel(t *testing.T) {
 func TestListDelMiddle(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(3))
+	mpl := NewTxList(nil, NewState(3, 0))
 
 	mpl.Put(genTx(0, 0, uint64(4), 0))
 	mpl.Put(genTx(0, 0, uint64(5), 0))
@@ -148,11 +151,11 @@ func TestListDelMiddle(t *testing.T) {
 	if mpl.Len() != 3 {
 		t.Error("should be 3 not ", len(mpl.list))
 	}
-	ret, txs := mpl.FilterByState(&types.State{Nonce: uint64(1), Balance: uint64(100)})
+	ret, txs := mpl.FilterByState(NewState(1, 100))
 	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
-	ret, txs = mpl.FilterByState(&types.State{Nonce: uint64(4), Balance: uint64(100)})
+	ret, txs = mpl.FilterByState(NewState(4, 100))
 	if ret != 3 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -162,7 +165,7 @@ func TestListDelMiddle(t *testing.T) {
 func TestListPutRandom(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, uint64(0))
+	mpl := NewTxList(nil, NewState(0, 0))
 
 	count := 100
 	txs := make([]*types.Tx, count)
