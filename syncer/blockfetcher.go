@@ -348,7 +348,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
-	bf.hub.Tell(message.P2PSvc, &message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes})
+	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos:message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes},TTL:fetchTimeOut})
 }
 
 func (bf *BlockFetcher) stop() {

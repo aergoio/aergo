@@ -90,6 +90,12 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			syncer.Reset()
 			logger.Error().Err(err).Msg("GetHashes failed")
 		}
+	case *message.GetBlockChunksRsp:
+		err := fmt.Errorf("to imple")
+		if err != nil {
+			syncer.Reset()
+			logger.Error().Err(err).Msg("GetHashes failed")
+		}
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
