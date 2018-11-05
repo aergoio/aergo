@@ -6,6 +6,7 @@
 #include "db_module.h"
 #include "state_module.h"
 #include "util.h"
+#include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
 
@@ -147,4 +148,19 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 		free (json);
 	}
 	return NULL;
+}
+
+sqlite3 *vm_get_db(lua_State *L)
+{
+    bc_ctx_t *ctx;
+    sqlite3 *db;
+
+    ctx = (bc_ctx_t *)getLuaExecContext(L);
+    db = LuaGetDbHandle(ctx->stateKey, ctx->contractId, ctx->rp, ctx->isQuery);
+    if (db == NULL) {
+        ctx->dbSystemError = 1;
+        lua_pushstring(L, "can't open a database connection");
+        lua_error(L);
+    }
+    return db;
 }

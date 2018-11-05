@@ -1,13 +1,13 @@
 package contract
 
 import (
-	"encoding/hex"
 	"errors"
+	"strconv"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
-	"strconv"
 )
 
 type loadedReply struct {
@@ -90,11 +90,11 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 			return "", err
 		}
 		if ex != nil {
-			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, nil)
+			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
 		} else {
 			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 				enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(receiver.ID()), 0, nil, nil,
+				types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
 				preLoadService, txBody.GetAmount())
 
 			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
@@ -102,7 +102,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, nil,
+			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
 			preLoadService, txBody.GetAmount())
 
 		if receiver.IsCreate() {
@@ -113,6 +113,8 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	}
 	if err != nil {
 		if err == types.ErrInsufficientBalance {
+			return "", err
+		} else if _, ok := err.(DbSystemError); ok {
 			return "", err
 		}
 		return "", VmError(err)
@@ -171,7 +173,7 @@ func preLoadWorker() {
 		}
 		bcCtx := NewContext(bs, nil, contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), 0, 0, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, nil,
+			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
 			reqInfo.preLoadService, txBody.GetAmount())
 
 		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)

@@ -17,7 +17,8 @@ typedef struct blockchain_ctx {
 	int confirmed;
 	int isQuery;
 	int transferFailed;
-	sqlite3 *db;
+	int dbSystemError;
+	unsigned long long rp;
 	int service;
 	unsigned long long amount;
 } bc_ctx_t;
@@ -32,5 +33,6 @@ const char *vm_get_json_ret(lua_State *L, int nresult);
 const char *vm_tostring(lua_State *L, int idx);
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt);
 void bc_ctx_delete(bc_ctx_t *bcctx);
+sqlite3 *vm_get_db(lua_State *L);
 
 #endif /* _VM_H */

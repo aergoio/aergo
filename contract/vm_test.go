@@ -928,16 +928,22 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	bc.query("customer", `{"Name":"count"}`, "", "[2]")
+	err := bc.query("customer", `{"Name":"count"}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
 
 	bc.disconnectBlock()
 
-	bc.query(
+	err = bc.query(
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
-		`[{"birth":"20180524","id":"id2","mobile":"010-1234-5678","name":"name2","passwd":"passwd2"}]`,
+		`[{"passwd":"passwd2","id":"id2","birth":"20180524","name":"name2","mobile":"010-1234-5678"}]`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	bc.connectBlock(
 		newLuaTxCall(
@@ -948,12 +954,15 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	bc.query(
+	err = bc.query(
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
 		`{}`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmDataType(t *testing.T) {
@@ -1054,19 +1063,25 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 		),
 	)
 
-	bc.query(
+	err := bc.query(
 		"datatype",
 		`{"Name":"queryOrderByDesc"}`,
 		"",
-		`[{"blockheight1":0,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":0,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":0,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":0,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"}]`,
+		`[{"blockheight1":3,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":2,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":2,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"},{"blockheight1":2,"char1":"fgh","float1":3.14,"int1":1,"var1":"ABCD"}]`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
-	bc.query(
+	err = bc.query(
 		"datatype",
 		`{"Name":"queryGroupByBlockheight1"}`,
 		"",
-		`[{"avg_float1":3.14,"blockheight1":0,"count1":4,"sum_int1":4}]`,
+		`[{"avg_float1":3.14,"blockheight1":2,"count1":3,"sum_int1":3},{"avg_float1":3.14,"blockheight1":3,"count1":1,"sum_int1":1}]`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmFunction(t *testing.T) {
@@ -1123,13 +1138,22 @@ abi.register(sql_func, abs_func, typeof_func)`
 		newLuaTxDef("ktlee", "fns", 1, definition),
 	)
 
-	bc.query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
+	err := bc.query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
+	if err != nil {
+		t.Error(err)
+	}
 
-	bc.query("fns", `{"Name":"abs_func"}`, "", `[1,0,1]`)
+	err = bc.query("fns", `{"Name":"abs_func"}`, "", `[1,0,1]`)
+	if err != nil {
+		t.Error(err)
+	}
 
-	bc.query("fns", `{"Name":"typeof_func"}`,
+	err = bc.query("fns", `{"Name":"typeof_func"}`,
 		"", `["integer","text","real","null"]`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmBook(t *testing.T) {
@@ -1221,19 +1245,15 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 		),
 	)
 
-	bc.query(
+	err := bc.query(
 		"book",
 		`{"Name":"viewCopyBook"}`,
 		"",
 		`[100,"value=1"]`,
 	)
-
-	bc.query(
-		"book",
-		`{"Name":"viewCopyBook"}`,
-		"",
-		`[10,10,"value=100"]`,
-	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmDateformat(t *testing.T) {
@@ -1276,12 +1296,15 @@ abi.register(init, get)`
 		newLuaTxCall("ktlee", "data_format", 1, `{"Name":"init"}`),
 	)
 
-	bc.query(
+	err := bc.query(
 		"data_format",
 		`{"Name":"get"}`,
 		"",
-		`[["2004-10-24T00:00:00Z","2004-10-24T11:11:11Z","20041024111111"],["2018-05-28T00:00:00Z","2018-05-28T10:45:38Z","20180528104538"]]`,
+		`[["2004-10-24","2004-10-24 11:11:11","20041024111111"],["2018-05-28","2018-05-28 10:45:38","20180528104538"]]`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmRecursiveData(t *testing.T) {
@@ -1880,31 +1903,16 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 	return contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
 			uContractState.SqlRecoveryPoint = 1
-			sqlTx, err := BeginTx(contractId, uContractState.SqlRecoveryPoint)
-			if err != nil {
-				return err
-			}
-			err = sqlTx.Savepoint()
-			if err != nil {
-				return err
-			}
-
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle(), ChainService, l.luaTxCommon.amount)
+				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
-			_, err = Create(eContractState, l.code, l.contract, bcCtx)
+			_, err := Create(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
-				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = bs.CommitContractState(eContractState)
-			if err != nil {
-				_ = sqlTx.RollbackToSavepoint()
-				return err
-			}
-			err = sqlTx.Release()
 			if err != nil {
 				return err
 			}
@@ -1944,23 +1952,14 @@ func (l *luaTxCall) fail(expectedErr string) *luaTxCall {
 }
 
 func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error {
-
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
-			sqlTx, err := BeginTx(contractId, uContractState.SqlRecoveryPoint)
-			if err != nil {
-				return err
-			}
-			sqlTx.Savepoint()
-
 			bcCtx := NewContext(bs, senderState, eContractState,
 				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
 				"", 1, types.EncodeAddress(l.contract),
-				0, nil, sqlTx.GetHandle(), ChainService, l.luaTxCommon.amount)
-
+				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {
-				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
 			err = bs.CommitContractState(eContractState)
@@ -1968,18 +1967,11 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptT
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				b, _ := r.MarshalBinary()
 				receiptTx.Set(l.hash(), b)
-				_ = sqlTx.RollbackToSavepoint()
 				return err
 			}
-			err = sqlTx.Release()
-			if err != nil {
-				return err
-			}
-
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
-
 			return nil
 		},
 	)
