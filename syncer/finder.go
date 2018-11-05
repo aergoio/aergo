@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -8,6 +9,28 @@ import (
 	"sync"
 	"time"
 )
+
+type Finder struct {
+	hub      *component.ComponentHub //for communicate with other service
+	anchorCh chan chain.ChainAnchor
+	lScanCh  chan *types.BlockInfo
+	fScanCh  chan []byte
+
+	doneCh chan *FinderResult
+	quitCh chan interface{}
+
+	lastAnchor []byte //point last block during lightscan
+	ctx        types.SyncContext
+
+	dfltTimeout time.Duration
+
+	waitGroup *sync.WaitGroup
+}
+
+type FinderResult struct {
+	ancestor *types.BlockInfo
+	err      error
+}
 
 var (
 	ErrorFinderClosed = errors.New("sync finder closed")
@@ -41,7 +64,7 @@ func (finder *Finder) start() {
 		logger.Debug().Msg("start to find common ancestor")
 
 		//1. light sync
-		//   gather summary of my chain nodes, request searching ancestor to remote node
+		//   gather summary of my chain nodes, runTask searching ancestor to remote node
 		ancestor, err = finder.lightscan()
 
 		//2. heavy sync
@@ -67,6 +90,7 @@ func (finder *Finder) start() {
 			case <-timer.C:
 				close(finder.quitCh)
 			case <-finder.quitCh:
+				logger.Info().Msg("Finder exited")
 				return
 			}
 		}
@@ -99,11 +123,14 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 
 	ancestor, err = finder.getAncestor(anchors)
 
+	if ancestor == nil {
+		logger.Debug().Msg("Syncer: not found ancestor in lightscan")
+	}
 	return ancestor, err
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.hub.RequestFuture(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Syncer/Finder/getAnchors").Result()
+	result, err := finder.hub.RequestFuture(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors").Result()
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -134,6 +161,8 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 
 //TODO binary search scan
 func (finder *Finder) fullscan() (*types.BlockInfo, error) {
+	logger.Debug().Msg("Finder fullscan")
+
 	panic("not implemented")
 	return nil, nil
 }

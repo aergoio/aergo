@@ -92,7 +92,8 @@ type GetMissingBlocks struct {
 // BlockInfosResponse is data from other peer, as a response of types.GetBlockRequest
 // p2p module will send this to chainservice actor.
 type BlockInfosResponse struct {
-	Blocks []*types.Block
+	FromWhom peer.ID
+	Blocks   []*types.Block
 }
 
 // GetPeers requests p2p actor to get remote peers that is connected.
@@ -102,7 +103,7 @@ type GetPeers struct {
 
 // GetPeersRsp contains peer meta information and current states.
 type GetPeersRsp struct {
-	Peers  []*types.PeerAddress
+	Peers []*types.PeerAddress
 	// last received block notice
 	LastBlks []*types.NewBlockNotice
 	States   []types.PeerState
@@ -117,4 +118,16 @@ type GetSyncAncestor struct {
 // GetSyncAncestorRsp is data from other peer, as a response of types.GetAncestorRequest
 type GetSyncAncestorRsp struct {
 	Ancestor *types.BlockInfo
+}
+
+type GetHashes struct {
+	ToWhom   peer.ID
+	PrevInfo *types.BlockInfo
+	Count    uint64
+}
+
+type GetHashesRsp struct {
+	PrevInfo *types.BlockInfo
+	Hashes   []BlockHash
+	Count    uint64
 }

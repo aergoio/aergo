@@ -73,6 +73,14 @@ type BlockInfo struct {
 	No   BlockNo
 }
 
+func (bi *BlockInfo) Equal(target *BlockInfo) bool {
+	if bi.No == target.No && bytes.Equal(bi.Hash, target.Hash) {
+		return true
+	} else {
+		return false
+	}
+}
+
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
