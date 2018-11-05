@@ -1585,11 +1585,17 @@ func TestJson(t *testing.T) {
 	function getenc()
 		return json.encode(table:get())
 	end
+	
+	function getlen()
+		a = table:get()
+		return a[1], string.len(a[1])
+	end
+
 	function getAmount()
 		return system.getAmount()
 	end
 
-	abi.register(set, get, getAmount, getenc)`
+	abi.register(set, get, getAmount, getenc, getlen)`
 
 	bc := loadBlockChain(t)
 
@@ -1625,7 +1631,7 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{"1":"run","2":[4,5,6],"key1":[1,2,3],"key2":5}"`)
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"1\":\"run\",\"2\":[4,5,6],\"key1\":[1,2,3],\"key2\":5}"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1640,7 +1646,7 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}"`)
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg2\":{},\"arg3\":{},\"arg1\":1},\"key2\":[5,4,3]}"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1652,6 +1658,24 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":5}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.connectBlock(
+		newLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[\"\\\"hh\\t\",\"2\",3]"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\t","2",3]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\t",4]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\t\",\"2\",3]"`)
 	if err != nil {
 		t.Error(err)
 	}

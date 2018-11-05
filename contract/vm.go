@@ -490,26 +490,26 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return "", err
 	}
 	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
-
-	var ce *Executor
-	ce = newExecutor(contract, bcCtx)
-	defer ce.close(true)
-
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
 		err = json.Unmarshal(code[codeLen:], &ci.Args)
 	}
-	var errMsg string
 	if err != nil {
+		bcCtx.Close()
 		logger.Warn().Err(err).Msg("invalid constructor argument")
-		errMsg = err.Error()
+		return `{"` + err.Error() + `"}`, nil
 	}
+
+	var ce *Executor
+	ce = newExecutor(contract, bcCtx)
+	defer ce.close(true)
 
 	// create a sql database for the contract
 	db := LuaGetDbHandle(bcCtx.stateKey, bcCtx.contractId, bcCtx.rp, bcCtx.isQuery)
 	if db == nil {
 		return "", newDbSystemError("can't open a database connection")
 	}
+	var errMsg string
 
 	ce.constructCall(&ci)
 	err = ce.err
@@ -527,8 +527,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 			return "", dbErr
 		}
 	}
-
-	return `{""` + errMsg + `"}`, nil
+	return ce.jsonRet, nil
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
