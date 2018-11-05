@@ -6,12 +6,13 @@
 package dpos
 
 import (
-	"github.com/aergoio/aergo/contract"
+	"runtime"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
@@ -155,6 +156,8 @@ func (bf *BlockFactory) controller() {
 
 func (bf *BlockFactory) worker() {
 	defer shutdownMsg("the block factory worker")
+
+	runtime.LockOSThread()
 
 	lpbNo := libLoader.lpbNo()
 	logger.Info().Uint64("lastly produced block", lpbNo).

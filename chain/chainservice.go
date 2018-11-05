@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+	"runtime"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -246,6 +247,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		bid := msg.Block.BlockID()
 		block := msg.Block
 		logger.Debug().Str("hash", msg.Block.ID()).

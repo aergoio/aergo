@@ -1,7 +1,7 @@
 package sbp
 
 import (
-	"github.com/aergoio/aergo/contract"
+	"runtime"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -154,6 +155,8 @@ func (s *SimpleBlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start() {
 	defer logger.Info().Msg("shutdown initiated. stop the service")
+
+	runtime.LockOSThread()
 
 	for {
 		select {

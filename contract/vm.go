@@ -45,6 +45,7 @@ type CallState struct {
 	ctrState  *state.ContractState
 	prevState *types.State
 	curState  *types.State
+	tx        Tx
 }
 
 type StateSet struct {
@@ -80,8 +81,7 @@ func init() {
 func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
-	contractId string, query int, root *StateSet, dbHandle *C.sqlite3,
-	service int, amount uint64) *LBlockchainCtx {
+	contractId string, query int, root *StateSet, rp uint64, service int, amount uint64) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
 	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
@@ -103,7 +103,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		confirmed:   C.int(confirmed),
 		contractId:  C.CString(contractId),
 		isQuery:     C.int(query),
-		db:          dbHandle,
+		rp:          C.ulonglong(rp),
 		service:     C.int(service),
 		amount:      C.ulonglong(amount),
 	}
@@ -202,6 +202,8 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.contract.address))
 		if ce.blockchainCtx.transferFailed == C.int(1) {
 			ce.err = types.ErrInsufficientBalance
+		} else if ce.blockchainCtx.dbSystemError == C.int(1) {
+			ce.err = newDbSystemError(errMsg)
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -242,6 +244,8 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.contract.address))
 		if ce.blockchainCtx.transferFailed == C.int(1) {
 			ce.err = types.ErrInsufficientBalance
+		} else if ce.blockchainCtx.dbSystemError == C.int(1) {
+			ce.err = newDbSystemError(errMsg)
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -266,13 +270,19 @@ func (ce *Executor) commitCalledContract() error {
 
 	var err error
 	for k, v := range stateSet.callState {
+		if v.tx != nil {
+			err = v.tx.Release()
+			if err != nil {
+				return DbSystemError(err)
+			}
+		}
 		if v.ctrState == stateSet.contract {
 			continue
 		}
 		if v.ctrState != nil {
 			err = bs.CommitContractState(v.ctrState)
 			if err != nil {
-				return err
+				return DbSystemError(err)
 			}
 		}
 		/* For Sender */
@@ -282,7 +292,31 @@ func (ce *Executor) commitCalledContract() error {
 		aid, _ := types.DecodeAddress(k)
 		err = bs.PutState(types.ToAccountID(aid), v.ctrState.State)
 		if err != nil {
-			return err
+			return DbSystemError(err)
+		}
+	}
+	return nil
+}
+
+func (ce *Executor) rollbackToSavepoint() error {
+	if ce.blockchainCtx == nil {
+		return nil
+	}
+	stateKey := C.GoString(ce.blockchainCtx.stateKey)
+	stateSet := contractMap.lookup(stateKey)
+
+	if stateSet == nil || stateSet.callState == nil {
+		return nil
+	}
+
+	var err error
+	for _, v := range stateSet.callState {
+		if v.tx == nil {
+			continue
+		}
+		err = v.tx.RollbackToSavepoint()
+		if err != nil {
+			return DbSystemError(err)
 		}
 	}
 	return nil
@@ -326,14 +360,21 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	err = ce.err
 	if err == nil {
 		err = ce.commitCalledContract()
+		if err != nil {
+			logger.Error().Err(err).Msg("contract call is failed")
+		}
 	} else {
-		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
+		ctrLog.Warn().Err(err).Msg("contract call is failed")
+		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+			ctrLog.Error().Err(dbErr).Msg("contract call is failed")
+			err = dbErr
+		}
 	}
 	return ce.jsonRet, err
 }
 
 func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contractState *state.ContractState,
-	blockNo uint64, ts int64, dbHandle *C.sqlite3) (string, error) {
+	blockNo uint64, ts int64, rp uint64) (string, error) {
 	var err error
 
 	defer ce.close(true)
@@ -353,14 +394,21 @@ func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contr
 
 	bcCtx.blockHeight = C.ulonglong(blockNo)
 	bcCtx.timestamp = C.longlong(ts)
-	bcCtx.db = dbHandle
+	bcCtx.rp = C.ulonglong(rp)
 
 	ce.call(ce.args, nil)
 	err = ce.err
 	if err == nil {
 		err = ce.commitCalledContract()
+		if err != nil {
+			ctrLog.Error().Err(err).Msg("contract call is failed")
+		}
 	} else {
-		ctrLog.Warn().AnErr("err", err).Msgf("contract call is failed")
+		ctrLog.Warn().Err(err).Msg("contract call is failed")
+		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+			ctrLog.Error().Err(dbErr).Msg("contract call is failed")
+			err = dbErr
+		}
 	}
 	return ce.jsonRet, err
 }
@@ -448,18 +496,35 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Warn().Err(err).Msg("invalid constructor argument")
 		errMsg = err.Error()
 	}
+
+	// create a sql database for the contract
+	db := LuaGetDbHandle(bcCtx.stateKey, bcCtx.contractId, bcCtx.rp, bcCtx.isQuery)
+	if db == nil {
+		return "", newDbSystemError("can't open a database connection")
+	}
+
 	ce.constructCall(&ci)
-	if ce.err != nil {
-		logger.Warn().Err(err).Msg("constructor failed")
+	err = ce.err
+	if err == nil {
+		err = ce.commitCalledContract()
+		if err != nil {
+			logger.Error().Err(err).Msg("constructor is failed")
+			return "", err
+		}
+	} else {
+		logger.Warn().Err(err).Msg("constructor is failed")
 		errMsg += "\", \"constructor call error:" + ce.err.Error()
+		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+			logger.Error().Err(dbErr).Msg("constructor is failed")
+			return "", dbErr
+		}
 	}
 
 	return `{""` + errMsg + `"}`, nil
 }
 
-func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) ([]byte, error) {
+func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
-	var err error
 	contract := getContract(contractState, contractAddress, nil)
 	if contract != nil {
 		err = json.Unmarshal(queryInfo, &ci)
@@ -471,23 +536,27 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
-		return nil, err
+		return
 	}
+
 	var ce *Executor
 
 	bcCtx := NewContext(bs, nil, contractState, "", "",
 		0, 0, "", 0, types.EncodeAddress(contractAddress),
-		1, nil, nil, ChainService, 0)
+		1, nil, contractState.SqlRecoveryPoint, ChainService, 0)
 
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
 	ce = newExecutor(contract, bcCtx)
 	defer ce.close(true)
+	defer func() {
+		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+			err = dbErr
+		}
+	}()
 	ce.call(&ci, nil)
-	err = ce.err
-
-	return []byte(ce.jsonRet), err
+	return []byte(ce.jsonRet), ce.err
 }
 
 func getContract(contractState *state.ContractState, contractAddress []byte, code []byte) *Contract {
@@ -691,7 +760,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	}
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, nil,
+		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, callState.curState.SqlRecoveryPoint,
 		int(bcCtx.service), amount)
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
@@ -825,4 +894,33 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount u
 //export LuaPrint
 func LuaPrint(contractId *C.char, args *C.char) {
 	logger.Info().Str("Contract SystemPrint", C.GoString(contractId)).Msg(C.GoString(args))
+}
+
+//export LuaGetDbHandle
+func LuaGetDbHandle(ctxKey *C.char, contract *C.char, rp C.ulonglong, readOnly C.int) *C.sqlite3 {
+	ctx := contractMap.lookup(C.GoString(ctxKey))
+	callState := ctx.rootState.callState[C.GoString(contract)]
+	if callState.tx != nil {
+		return callState.tx.GetHandle()
+	}
+	var tx Tx
+	var err error
+	if int(readOnly) == 1 {
+		tx, err = BeginReadOnly(C.GoString(contract), uint64(rp))
+	} else {
+		tx, err = BeginTx(C.GoString(contract), uint64(rp))
+	}
+	if err != nil {
+		logger.Error().Err(err).Msg("Begin SQL Transaction")
+		return nil
+	}
+	if int(readOnly) != 1 {
+		err = tx.Savepoint()
+		if err != nil {
+			logger.Error().Err(err).Msg("Begin SQL Transaction")
+			return nil
+		}
+	}
+	callState.tx = tx
+	return callState.tx.GetHandle()
 }
