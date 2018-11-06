@@ -497,7 +497,8 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		bcCtx.Close()
 		logger.Warn().Err(err).Msg("invalid constructor argument")
-		return `{"` + err.Error() + `"}`, nil
+		errMsg, _ := json.Marshal("constructor call error:" + err.Error())
+		return string(errMsg), nil
 	}
 
 	var ce *Executor
@@ -509,25 +510,27 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if db == nil {
 		return "", newDbSystemError("can't open a database connection")
 	}
-	var errMsg string
 
 	ce.constructCall(&ci)
 	err = ce.err
-	if err == nil {
-		err = ce.commitCalledContract()
-		if err != nil {
-			logger.Error().Err(err).Msg("constructor is failed")
-			return "", err
-		}
-	} else {
+
+	if err != nil {
 		logger.Warn().Err(err).Msg("constructor is failed")
-		errMsg += "\", \"constructor call error:" + ce.err.Error()
+		ret, _ := json.Marshal("constructor call error:" + err.Error())
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
-			return "", dbErr
+			return string(ret), dbErr
 		}
+		return string(ret), nil
+	}
+	err = ce.commitCalledContract()
+	if err != nil {
+		ret, _ := json.Marshal("constructor call error:" + err.Error())
+		logger.Error().Err(err).Msg("constructor is failed")
+		return string(ret), err
 	}
 	return ce.jsonRet, nil
+
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
