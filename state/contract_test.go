@@ -7,6 +7,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var chainStateDB *ChainStateDB
@@ -121,4 +122,44 @@ func TestContractStateReOpenData(t *testing.T) {
 	if !bytes.Equal(res2, testBytes) {
 		t.Errorf("different data detected : %s =/= %s", testBytes, string(res2))
 	}
+}
+
+func TestContractStateRollback(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	testAddress := []byte("test_address")
+	testKey := []byte("test_key")
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	if err != nil {
+		t.Errorf("counld not open contract state : %s", err.Error())
+	}
+
+	// test data
+	_ = contractState.SetData(testKey, []byte("1")) // rev 1
+	_ = contractState.SetData(testKey, []byte("2")) // rev 2
+	res, _ := contractState.GetData(testKey)
+	assert.Equal(t, []byte("2"), res)
+
+	// snapshot: rev 2
+	revision := contractState.Snapshot()
+	t.Log("revision", revision)
+	assert.Equal(t, 2, int(revision))
+
+	// test data
+	_ = contractState.SetData(testKey, []byte("3")) // rev 3
+	_ = contractState.SetData(testKey, []byte("4")) // rev 4
+	_ = contractState.SetData(testKey, []byte("5")) // rev 5
+	res, _ = contractState.GetData(testKey)
+	assert.Equal(t, []byte("5"), res)
+
+	// rollback: rev 2
+	contractState.Rollback(revision)
+	res, _ = contractState.GetData(testKey)
+	assert.Equal(t, []byte("2"), res)
+
+	// rollback to empty: rev 0
+	contractState.Rollback(Snapshot(0))
+	res, _ = contractState.GetData(testKey)
+	assert.Nil(t, res)
 }

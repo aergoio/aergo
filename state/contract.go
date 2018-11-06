@@ -38,11 +38,10 @@ func (states *StateDB) StageContractState(st *ContractState) error {
 
 type ContractState struct {
 	*types.State
-	account  types.AccountID
-	code     []byte
-	revision int
-	storage  *bufferedStorage
-	store    *db.DB
+	account types.AccountID
+	code    []byte
+	storage *bufferedStorage
+	store   *db.DB
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
@@ -107,6 +106,16 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+// Snapshot returns revision number of storage buffer
+func (st *ContractState) Snapshot() Snapshot {
+	return Snapshot(st.storage.buffer.snapshot())
+}
+
+// Rollback discards changes of storage buffer to revision number
+func (st *ContractState) Rollback(revision Snapshot) error {
+	return st.storage.buffer.rollback(int(revision))
 }
 
 // HashID implements types.ImplHashID
