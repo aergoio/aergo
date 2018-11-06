@@ -78,22 +78,29 @@ func init() {
 	contractMap.init()
 }
 
+func registerMap(bcCtx *LBlockchainCtx, blockState *state.BlockState, senderState *types.State,
+	contractState *state.ContractState, root *StateSet) {
+	contractId := C.GoString(bcCtx.contractId)
+	sender := C.GoString(bcCtx.sender)
+	stateKey := C.GoString(bcCtx.stateKey)
+	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
+	if root == nil {
+		stateSet.callState = make(map[string]*CallState)
+		stateSet.callState[contractId] = &CallState{ctrState: contractState, curState: contractState.State}
+		stateSet.callState[sender] = &CallState{curState: senderState}
+		stateSet.rootState = stateSet
+	}
+	contractMap.register(stateKey, stateSet)
+}
+
 func NewContext(blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, Sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
 	contractId string, query int, root *StateSet, rp uint64, service int, amount uint64) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
-	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
-	if root == nil {
-		stateSet.callState = make(map[string]*CallState)
-		stateSet.callState[contractId] = &CallState{ctrState: contractState, curState: contractState.State}
-		stateSet.callState[Sender] = &CallState{curState: senderState}
-		stateSet.rootState = stateSet
-	}
-	contractMap.register(stateKey, stateSet)
 
-	return &LBlockchainCtx{
+	bcCtx := &LBlockchainCtx{
 		stateKey:    C.CString(stateKey),
 		sender:      C.CString(Sender),
 		txHash:      C.CString(txHash),
@@ -107,13 +114,22 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		service:     C.int(service),
 		amount:      C.ulonglong(amount),
 	}
+	registerMap(bcCtx, blockState, senderState, contractState, root)
+
+	return bcCtx
 }
 
 func (bcCtx *LBlockchainCtx) Close() {
 	if bcCtx == nil {
 		return
 	}
-	contractMap.unregister(C.GoString(bcCtx.stateKey))
+	if bcCtx.stateKey != nil {
+		contractMap.unregister(C.GoString(bcCtx.stateKey))
+	}
+	C.bc_ctx_delete(bcCtx)
+}
+
+func (bcCtx *LBlockchainCtx) Del() {
 	C.bc_ctx_delete(bcCtx)
 }
 
@@ -381,17 +397,10 @@ func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contr
 
 	bcCtx := ce.blockchainCtx
 
-	contractId := C.GoString(bcCtx.contractId)
-	sender := C.GoString(bcCtx.sender)
-	stateKey := C.GoString(bcCtx.stateKey)
-
-	stateSet := contractMap.lookup(stateKey)
-	stateSet.contract = contractState
-	stateSet.bs = bs
-	stateSet.callState[contractId].ctrState = contractState
-	stateSet.callState[contractId].curState = contractState.State
-	stateSet.callState[sender].curState = senderState
-
+	stateKey := fmt.Sprintf("%d%s%s", C.int(bcCtx.service),
+		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash))
+	bcCtx.stateKey = C.CString(stateKey)
+	registerMap(bcCtx, bs, senderState, contractState, nil)
 	bcCtx.blockHeight = C.ulonglong(blockNo)
 	bcCtx.timestamp = C.longlong(ts)
 	bcCtx.rp = C.ulonglong(rp)
@@ -429,7 +438,6 @@ func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
-		bcCtx.Close()
 		return nil, err
 	}
 	if ctrLog.IsDebugEnabled() {

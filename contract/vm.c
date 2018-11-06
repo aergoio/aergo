@@ -38,7 +38,8 @@ const bc_ctx_t *getLuaExecContext(lua_State *L)
 void bc_ctx_delete(bc_ctx_t *bc_ctx) {
 	if (bc_ctx == NULL)
 		return;
-	free(bc_ctx->stateKey);
+	if (bc_ctx->stateKey)
+	    free(bc_ctx->stateKey);
 	free(bc_ctx->sender);
 	free(bc_ctx->txHash);
 	free(bc_ctx->contractId);

@@ -1,5 +1,6 @@
 package contract
 
+import "C"
 import (
 	"errors"
 	"strconv"
@@ -89,16 +90,9 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		if err != nil {
 			return "", err
 		}
-		if ex != nil {
-			rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
-		} else {
-			bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
-				enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-				types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
-				preLoadService, txBody.GetAmount())
-
-			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
-		}
+	}
+	if ex != nil {
+		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
 	} else {
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
@@ -171,12 +165,25 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		bcCtx := NewContext(bs, nil, contractState, types.EncodeAddress(txBody.GetAccount()),
-			enc.ToString(tx.GetHash()), 0, 0, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
-			reqInfo.preLoadService, txBody.GetAmount())
+		txHash := enc.ToString(tx.GetHash())
+		sender := types.EncodeAddress(txBody.GetAccount())
+		contractId := types.EncodeAddress(receiver.ID())
+
+		bcCtx := &LBlockchainCtx{
+			sender:     C.CString(sender),
+			txHash:     C.CString(txHash),
+			contractId: C.CString(contractId),
+			service:    C.int(reqInfo.preLoadService),
+			amount:     C.ulonglong(txBody.GetAmount()),
+			isQuery:    C.int(0),
+			confirmed:  C.int(0),
+			node:       C.CString(""),
+		}
 
 		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)
+		if err != nil {
+			bcCtx.Del()
+		}
 		replyCh <- &loadedReply{tx, ex, err}
 	}
 }
