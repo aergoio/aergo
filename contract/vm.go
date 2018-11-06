@@ -490,20 +490,20 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return "", err
 	}
 	contractState.SetData([]byte("Creator"), []byte(C.GoString(bcCtx.sender)))
-
-	var ce *Executor
-	ce = newExecutor(contract, bcCtx)
-	defer ce.close(true)
-
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
 		err = json.Unmarshal(code[codeLen:], &ci.Args)
 	}
-	var errMsg string
 	if err != nil {
+		bcCtx.Close()
 		logger.Warn().Err(err).Msg("invalid constructor argument")
-		errMsg = err.Error()
+		errMsg, _ := json.Marshal("constructor call error:" + err.Error())
+		return string(errMsg), nil
 	}
+
+	var ce *Executor
+	ce = newExecutor(contract, bcCtx)
+	defer ce.close(true)
 
 	// create a sql database for the contract
 	db := LuaGetDbHandle(bcCtx.stateKey, bcCtx.contractId, bcCtx.rp, bcCtx.isQuery)
@@ -513,22 +513,24 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 
 	ce.constructCall(&ci)
 	err = ce.err
-	if err == nil {
-		err = ce.commitCalledContract()
-		if err != nil {
-			logger.Error().Err(err).Msg("constructor is failed")
-			return "", err
-		}
-	} else {
+
+	if err != nil {
 		logger.Warn().Err(err).Msg("constructor is failed")
-		errMsg += "\", \"constructor call error:" + ce.err.Error()
+		ret, _ := json.Marshal("constructor call error:" + err.Error())
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
-			return "", dbErr
+			return string(ret), dbErr
 		}
+		return string(ret), nil
 	}
+	err = ce.commitCalledContract()
+	if err != nil {
+		ret, _ := json.Marshal("constructor call error:" + err.Error())
+		logger.Error().Err(err).Msg("constructor is failed")
+		return string(ret), err
+	}
+	return ce.jsonRet, nil
 
-	return `{""` + errMsg + `"}`, nil
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
