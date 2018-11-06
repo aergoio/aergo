@@ -33,6 +33,8 @@ type BlockFetcher struct {
 	nextTask *FetchTask
 
 	blockProcessor *BlockProcessor
+
+	name string
 }
 
 type SyncPeer struct {
@@ -110,24 +112,21 @@ var (
 	MaxPeerFailCount = 1
 )
 
-type ErrSyncMsg struct {
-	msg interface{}
-	str string
-}
-
-func (ec *ErrSyncMsg) Error() string {
-	return fmt.Sprintf("Error sync message: type=%T, desc=%s", ec.msg, ec.str)
-}
-
 func newBlockFetcher(ctx *types.SyncContext, hub *component.ComponentHub) *BlockFetcher {
-	bf := &BlockFetcher{ctx: ctx, hub: hub}
+	bf := &BlockFetcher{ctx: ctx, hub: hub, name: "BlockFetcher"}
 
 	bf.quitCh = make(chan interface{})
 	bf.hfCh = make(chan *HashSet)
 
 	bf.peers = newPeerSet()
 
-	bf.blockProcessor = &BlockProcessor{hub: hub, blockFetcher: bf, prevBlock: &types.Block{Hash: ctx.CommonAncestor.Hash}}
+	bf.blockProcessor = &BlockProcessor{
+		hub:           hub,
+		blockFetcher:  bf,
+		prevBlock:     &types.Block{Hash: ctx.CommonAncestor.Hash},
+		targetBlockNo: ctx.TargetNo,
+		name:          "BlockProducer",
+	}
 	bf.blockProcessor.pendingConnect = make([]*ConnectRequest, 0, 16)
 	return bf
 }
@@ -137,6 +136,7 @@ func (bf *BlockFetcher) Start() {
 
 	run := func() {
 		if err := bf.init(); err != nil {
+			stopSyncer(bf.hub, bf.name, err)
 			return
 		}
 
@@ -149,7 +149,7 @@ func (bf *BlockFetcher) Start() {
 				err := bf.blockProcessor.run(msg)
 				if err != nil {
 					logger.Error().Err(err).Msg("invalid block response message")
-					bf.stop()
+					stopSyncer(bf.hub, bf.name, err)
 					return
 				}
 
@@ -160,7 +160,7 @@ func (bf *BlockFetcher) Start() {
 
 			if err := bf.schedule(); err != nil {
 				logger.Error().Msg("BlockFetcher schedule failed & stopped")
-				bf.stop()
+				stopSyncer(bf.hub, bf.name, err)
 				return
 			}
 		}
@@ -348,11 +348,21 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
-	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos:message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes},TTL:fetchTimeOut})
+	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
 }
 
 func (bf *BlockFetcher) stop() {
-	close(bf.quitCh)
+	if bf == nil {
+		return
+	}
+
+	if bf.quitCh != nil {
+		close(bf.quitCh)
+		bf.quitCh = nil
+
+		close(bf.hfCh)
+		bf.hfCh = nil
+	}
 }
 
 func newPeerSet() *PeerSet {
@@ -445,4 +455,58 @@ func (bf *BlockFetcher) findFinished(msg *message.BlockInfosResponse) (*FetchTas
 	}
 
 	return nil, &ErrSyncMsg{msg: msg}
+}
+
+func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
+	if err := bf.isValidResponse(msg); err != nil {
+		return err
+	}
+
+	bf.responseCh <- msg
+	return nil
+}
+
+func (bf *BlockFetcher) isValidResponse(msg interface{}) error {
+	validateBlockChunksRsp := func(msg *message.GetBlockChunksRsp) error {
+		var prev []byte
+		blocks := msg.Blocks
+
+		if blocks == nil || len(blocks) == 0 {
+			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
+		}
+
+		for _, block := range blocks {
+			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
+				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
+			}
+
+			prev = block.GetHash()
+		}
+		return nil
+	}
+
+	validateAddBlockRsp := func(msg *message.AddBlockRsp) error {
+		if msg.BlockHash == nil {
+			return &ErrSyncMsg{msg: msg, str: "invalid add block resonse"}
+		}
+
+		return nil
+	}
+
+	switch msg.(type) {
+	case *message.GetBlockChunksRsp:
+		if err := validateBlockChunksRsp(msg.(*message.GetBlockChunksRsp)); err != nil {
+			return err
+		}
+
+	case *message.AddBlockRsp:
+		if err := validateAddBlockRsp(msg.(*message.AddBlockRsp)); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("invalid msg type:%T", msg)
+	}
+
+	return nil
 }

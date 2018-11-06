@@ -20,3 +20,8 @@ type FinderResult struct {
 
 //HashDownloader
 type StartFetch struct{}
+
+type SyncStop struct {
+	FromWho string
+	Err     error
+}

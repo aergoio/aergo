@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
+	"github.com/pkg/errors"
 	"reflect"
 )
 
@@ -29,6 +30,19 @@ type Syncer struct {
 var (
 	logger = log.NewLogger("syncer")
 )
+
+var (
+	ErrFinderInternal = errors.New("error finder internal")
+)
+
+type ErrSyncMsg struct {
+	msg interface{}
+	str string
+}
+
+func (ec *ErrSyncMsg) Error() string {
+	return fmt.Sprintf("Error sync message: type=%T, desc=%s", ec.msg, ec.str)
+}
 
 func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor) *Syncer {
 	syncer := &Syncer{cfg: cfg}
@@ -57,6 +71,7 @@ func (syncer *Syncer) BeforeStop() {
 func (syncer *Syncer) Reset() {
 	syncer.finder.stop()
 	syncer.hashFetcher.stop()
+	syncer.blockFetcher.stop()
 
 	syncer.finder = nil
 	syncer.isstartning = false
@@ -73,11 +88,8 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			logger.Error().Err(err).Msg("SyncStart failed")
 		}
 	case *message.GetSyncAncestorRsp:
-		err := syncer.handleAncestorRsp(msg)
-		if err != nil {
-			syncer.Reset()
-			logger.Error().Err(err).Msg("FindAncestorRsp failed")
-		}
+		syncer.handleAncestorRsp(msg)
+
 	case *message.FinderResult:
 		err := syncer.handleFinderResult(msg)
 		if err != nil {
@@ -85,17 +97,28 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			logger.Error().Err(err).Msg("FinderResult failed")
 		}
 	case *message.GetHashesRsp:
-		err := syncer.hashFetcher.setResult(msg)
-		if err != nil {
-			syncer.Reset()
-			logger.Error().Err(err).Msg("GetHashes failed")
-		}
+		syncer.hashFetcher.handleGetHahsesRsp(msg)
+
 	case *message.GetBlockChunksRsp:
-		err := fmt.Errorf("to imple")
+		err := syncer.blockFetcher.handleBlockRsp(msg)
 		if err != nil {
 			syncer.Reset()
-			logger.Error().Err(err).Msg("GetHashes failed")
+			logger.Error().Err(err).Msg("GetBlockChunksRsp failed")
 		}
+	case *message.AddBlockRsp:
+		err := syncer.blockFetcher.handleBlockRsp(msg)
+		if err != nil {
+			syncer.Reset()
+			logger.Error().Err(err).Msg("AddBlockRsp failed")
+		}
+	case *message.SyncStop:
+		if msg.Err == nil {
+			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer succeed")
+		} else {
+			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer stopped by error")
+		}
+		syncer.Reset()
+
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
@@ -145,26 +168,26 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	return err
 }
 
-func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) error {
+func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
 	logger.Info().Msg("syncer received ancestor response")
 
 	//set ancestor in types.SyncContext
 	syncer.finder.lScanCh <- msg.Ancestor
-
-	return nil
 }
 
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	if msg.Err != nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")
-		syncer.Reset()
-		return nil
+		return ErrFinderInternal
 	}
 
 	//set ancestor in types.SyncContext
 	syncer.ctx.CommonAncestor = msg.Ancestor
 	syncer.ctx.TotalCnt = (syncer.ctx.TargetNo - syncer.ctx.CommonAncestor.No)
 	syncer.ctx.RemainCnt = syncer.ctx.TotalCnt
+
+	syncer.finder.stop()
+	syncer.finder = nil
 
 	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub())
 	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh)
@@ -178,4 +201,8 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 		"total":     syncer.ctx.TotalCnt,
 		"remain":    syncer.ctx.RemainCnt,
 	}
+}
+
+func stopSyncer(hub *component.ComponentHub, who string, err error) {
+	hub.Tell(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
 }

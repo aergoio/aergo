@@ -33,13 +33,15 @@ type FinderResult struct {
 }
 
 var (
-	ErrorFinderClosed = errors.New("sync finder closed")
+	ErrorFinderClosed           = errors.New("sync finder closed")
+	ErrorGetSyncAncestorTimeout = errors.New("timeout for GetSyncAncestor")
+	dfltTimeOut                 = time.Second * 180
 )
 
 func newFinder(ctx *types.SyncContext, hub *component.ComponentHub) *Finder {
 	finder := &Finder{ctx: *ctx, hub: hub}
 
-	finder.dfltTimeout = time.Second * 100
+	finder.dfltTimeout = dfltTimeOut
 	finder.quitCh = make(chan interface{})
 	finder.doneCh = make(chan *FinderResult)
 	finder.lScanCh = make(chan *types.BlockInfo)
@@ -74,21 +76,19 @@ func (finder *Finder) start() {
 		}
 
 		finder.doneCh <- &FinderResult{ancestor, err}
+		logger.Debug().Msg("stop to find common ancestor")
 	}
 
 	go scanFn()
 
 	go func() {
 		defer finder.waitGroup.Done()
-
-		timer := time.NewTimer(finder.dfltTimeout * 10)
-
 		for {
 			select {
 			case result := <-finder.doneCh:
 				finder.hub.Tell(message.SyncerSvc, &message.FinderResult{result.ancestor, result.err})
-			case <-timer.C:
-				close(finder.quitCh)
+				logger.Info().Msg("Finder finished")
+				return
 			case <-finder.quitCh:
 				logger.Info().Msg("Finder exited")
 				return
@@ -98,10 +98,11 @@ func (finder *Finder) start() {
 }
 
 func (finder *Finder) stop() {
-	logger.Info().Msg("finder stopped")
 	if finder == nil {
 		return
 	}
+
+	logger.Info().Msg("finder stop#1")
 
 	if finder.quitCh != nil {
 		logger.Debug().Msg("finder closed quitChannel")
@@ -111,6 +112,8 @@ func (finder *Finder) stop() {
 	}
 
 	finder.waitGroup.Wait()
+
+	logger.Info().Msg("finder stop#2")
 }
 
 func (finder *Finder) lightscan() (*types.BlockInfo, error) {
@@ -148,11 +151,15 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
 	finder.hub.Tell(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
+	timer := time.NewTimer(finder.dfltTimeout)
+
 	// recieve Ancestor response
 	for {
 		select {
 		case result := <-finder.lScanCh:
 			return result, nil
+		case <-timer.C:
+			return nil, ErrorGetSyncAncestorTimeout
 		case <-finder.quitCh:
 			return nil, ErrorFinderClosed
 		}

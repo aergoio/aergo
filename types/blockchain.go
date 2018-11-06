@@ -74,6 +74,10 @@ type BlockInfo struct {
 }
 
 func (bi *BlockInfo) Equal(target *BlockInfo) bool {
+	if target == nil {
+		return false
+	}
+
 	if bi.No == target.No && bytes.Equal(bi.Hash, target.Hash) {
 		return true
 	} else {

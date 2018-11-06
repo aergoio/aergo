@@ -22,6 +22,9 @@ type BlockProcessor struct {
 
 	prevBlock *types.Block
 	curBlock  *types.Block
+
+	targetBlockNo types.BlockNo
+	name          string
 }
 
 type ConnectRequest struct {
@@ -34,11 +37,11 @@ type ConnectRequest struct {
 func (bproc *BlockProcessor) run(msg interface{}) error {
 	switch msg.(type) {
 	case *message.BlockInfosResponse:
-		bproc.BlockInfoResponse(msg.(*message.BlockInfosResponse))
-
+		if err := bproc.BlockInfoResponse(msg.(*message.BlockInfosResponse)); err != nil {
+			return err
+		}
 	case *message.AddBlockRsp:
-		err := bproc.AddBlockResponse(msg.(*message.AddBlockRsp))
-		if err != nil {
+		if err := bproc.AddBlockResponse(msg.(*message.AddBlockRsp)); err != nil {
 			return err
 		}
 
@@ -51,27 +54,6 @@ func (bproc *BlockProcessor) run(msg interface{}) error {
 
 func (bproc *BlockProcessor) BlockInfoResponse(msg *message.BlockInfosResponse) error {
 	bf := bproc.blockFetcher
-
-	validateBlockInfos := func(blocks []*types.Block) error {
-		var prev []byte
-
-		if blocks == nil || len(blocks) == 0 {
-			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
-		}
-
-		for _, block := range blocks {
-			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
-				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
-			}
-
-			prev = block.GetHash()
-		}
-		return nil
-	}
-
-	if err := validateBlockInfos(msg.Blocks); err != nil {
-		return err
-	}
 
 	task, err := bf.findFinished(msg)
 	if err != nil {
@@ -105,7 +87,11 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 		logger.Error().Uint64("curNo", curNo).Uint64("msgNo", msg.BlockNo).
 			Str("curHash", enc.ToString(curHash)).Str("msgHash", enc.ToString(msg.BlockHash)).
 			Msg("error! unmatched add response")
-		return &ErrSyncMsg{msg: msg, str: "unmatched add response"}
+		return &ErrSyncMsg{msg: msg, str: "drop unknown add response"}
+	}
+
+	if curBlock.BlockNo() == bproc.targetBlockNo {
+		stopSyncer(bproc.hub, bproc.name, nil)
 	}
 
 	bproc.prevBlock = curBlock
