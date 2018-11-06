@@ -6,12 +6,86 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 )
+
+
+func TestBlockRequestHandler_handle(t *testing.T) {
+	bigHash := make([]byte,2*1024*1024)
+	logger := log.NewLogger("test")
+	//validSmallBlockRsp := &message.GetBlockRsp{Block:&types.Block{Hash:make([]byte,40)},Err:nil}
+	validBlock:= &types.Block{Hash:bigHash}
+	//validBigBlockRsp := message.GetBlockRsp{Block:validBlock,Err:nil}
+	//notExistBlockRsp := message.GetBlockRsp{Block:nil,Err:nil}
+	//dummyMO := new(MockMsgOrder)
+	tests := []struct {
+		name string
+		hashCnt int
+		validCallCount int
+		expectedSendCount int
+		succResult bool
+	}{
+		{"TSingle", 1, 1, 1, true},
+		// not found return err result (ResultStatus_NOT_FOUND)
+		{"TNotFounds", 10, 0, 1, false},
+		{"TFound10", 100, 10, 4, false},
+		{"TFoundAll", 20, 100, 7, true},
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockPeer := new(MockRemotePeer)
+			mockActor := new(MockActorService)
+			// mockery Mock can't handle big byte slice sell. it takes to much time to do. so use dummy stub instead and give up verify code.
+			mockMF := &testDoubleFactory{}
+			mockPeer.On("MF").Return(mockMF)
+			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("sendAndWaitMessage", mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
+
+			callReqCount :=0
+			mockCA := new(MockChainAccessor)
+			mockActor.On("GetChainAccessor").Return(mockCA)
+			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool{
+				callReqCount++
+				if callReqCount <= test.validCallCount {
+					return true
+				}
+				return false
+			})).Return(validBlock, nil)
+			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool{
+				callReqCount++
+				if callReqCount <= test.validCallCount {
+					return false
+				}
+				return true
+			})).Return(nil, nil)
+
+			h:=newBlockReqHandler(mockPM, mockPeer, logger, mockActor)
+			dummyMsg := &V030Message{id:NewMsgID()}
+			msgBody := &types.GetBlockRequest{Hashes:make([][]byte, test.hashCnt)}
+			h.handle(dummyMsg, msgBody)
+
+			mockPeer.AssertNumberOfCalls(t, "sendAndWaitMessage", test.expectedSendCount)
+			assert.Equal(t, test.succResult, mockMF.lastStatus == types.ResultStatus_OK )
+		})
+	}
+}
+
+type testDoubleFactory struct {
+	v030MOFactory
+	lastStatus types.ResultStatus
+}
+func (f *testDoubleFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
+	f.lastStatus = message.(*types.GetBlockResponse).Status
+	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
+}
 
 func TestBlockResponseHandler_handle(t *testing.T) {
 	blkNo  := uint64(100)

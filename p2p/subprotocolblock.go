@@ -15,12 +15,6 @@ import (
 	"time"
 )
 
-type blockRequestHandler struct {
-	BaseMsgHandler
-}
-
-var _ MessageHandler = (*blockRequestHandler)(nil)
-
 type listBlockHeadersRequestHandler struct {
 	BaseMsgHandler
 }
@@ -57,89 +51,6 @@ type getAncestorResponseHandler struct {
 
 var _ MessageHandler = (*getAncestorResponseHandler)(nil)
 
-// newBlockReqHandler creates handler for GetBlockRequest
-func newBlockReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
-
-	return bh
-}
-
-func (bh *blockRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
-	return unmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
-}
-
-const (
-	EmptyGetBlockResponseSize = 12 // roughly estimated maximum size if element is full
-)
-
-func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
-	remotePeer := bh.peer
-	data := msgBody.(*types.GetBlockRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
-
-	requestID := msg.ID()
-	sliceCap := MaxBlockResponseCount
-	if len(data.Hashes) < sliceCap {
-		sliceCap = len(data.Hashes)
-	}
-
-	defaultMsgTimeout := time.Second * 30
-	// find block info from chainservice
-	idx := 0
-	msgSentCount := 0
-	status := types.ResultStatus_OK
-	blockInfos := make([]*types.Block, 0, sliceCap)
-	payloadSize := EmptyGetBlockResponseSize
-	var blockSize, fieldSize int
-	for  _, hash := range data.Hashes {
-		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
-		if err != nil || foundBlock == nil {
-			// the block get from getMissing must exists. this error is fatal.
-			bh.logger.Warn().Err(err).Str(LogBlkHash, enc.ToString(hash)).Str("req_id", requestID.String()).Msg("failed to get block while processing getBlock")
-			continue
-		}
-		blockSize = proto.Size(foundBlock)
-		fieldSize = blockSize + calculateFieldDescSize(blockSize)
-		if len(blockInfos) >= sliceCap || (payloadSize+fieldSize) > MaxPayloadLength {
-			msgSentCount++
-			// send partial list
-			resp := &types.GetBlockResponse{
-				Status: status,
-				Blocks: blockInfos,
-				HasNext:true,
-				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
-			}
-			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending partial getBlock response")
-			err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
-			if err != nil {
-				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
-				return
-			}
-			blockInfos = make([]*types.Block, 0, sliceCap)
-			payloadSize = EmptyGetBlockResponseSize
-		}
-		blockInfos = append(blockInfos, foundBlock)
-		payloadSize += fieldSize
-		idx++
-	}
-
-	if 0 == idx {
-		status = types.ResultStatus_NOT_FOUND
-	}
-	// generate response message
-	resp := &types.GetBlockResponse{
-		Status: status,
-		Blocks: blockInfos, HasNext: false}
-
-	// ???: have to check arguments
-	bh.logger.Debug().Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending last part of getBlock response")
-	err := remotePeer.sendAndWaitMessage(remotePeer.MF().newMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
-	if err != nil {
-		bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(LogBlkCount, len(blockInfos)).Str("req_id",requestID.String()).Msg("Sending failed")
-		return
-	}
-}
 
 // newListBlockHeadersReqHandler creates handler for GetBlockHeadersRequest
 func newListBlockHeadersReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *listBlockHeadersRequestHandler {
