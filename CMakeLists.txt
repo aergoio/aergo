@@ -5,8 +5,11 @@ project(aergo NONE)
 set(BIN_DIR ${CMAKE_CURRENT_LIST_DIR}/bin)
 set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
-add_custom_target(build ALL GOBIN=${BIN_DIR} go install ./cmd/...
+add_custom_target(build ALL GOBIN=${BIN_DIR} go install -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git rev-parse HEAD`\" ./cmd/...
     DEPENDS vendor libtool)
+
+add_custom_target(aergocli GOBIN=${BIN_DIR} go install -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git rev-parse HEAD`\" ./cmd/aergocli/...
+  DEPENDS vendor libtool)
 
 add_custom_command(OUTPUT vendor
     COMMAND glide install
