@@ -66,6 +66,10 @@ func (cs *ChainService) getBlock(blockHash []byte) (*types.Block, error) {
 	return cs.cdb.getBlock(blockHash)
 }
 
+func (cs *ChainService) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	return cs.getHashByNo(blockNo)
+}
+
 func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	return cs.cdb.getHashByNo(blockNo)
 }

@@ -16,7 +16,8 @@ const P2PSvc = "p2pSvc"
 
 // errors which async responses of p2p actor, such as GetBlockChunksRsp, can contains,
 var (
-	RemotePeerFailError  = fmt.Errorf("remote peer return err")
+	RemotePeerFailError = fmt.Errorf("remote peer return error")
+	PeerNotFoundError = fmt.Errorf("remote peer was not found")
 	MissingHashError     = fmt.Errorf("some block hash not found")
 	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
 )

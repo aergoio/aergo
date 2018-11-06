@@ -59,3 +59,26 @@ func (_m *MockChainAccessor) GetBlock(blockHash []byte) (*types.Block, error) {
 
 	return r0, r1
 }
+
+// GetBlock provides a mock function with given fields: blockHash
+func (_m *MockChainAccessor)GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	ret := _m.Called(blockNo)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(types.BlockNo) []byte); ok {
+		r0 = rf(blockNo)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(types.BlockNo) error); ok {
+		r1 = rf(blockNo)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

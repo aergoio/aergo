@@ -51,7 +51,10 @@ func getLastIndexOfBH() (lastIndex int) {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetBestBlock() (*Block, error)
+	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)
+	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
+	GetHashByNo(blockNo BlockNo) ([]byte, error)
 }
 
 type SyncContext struct {
