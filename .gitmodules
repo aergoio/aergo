@@ -4,3 +4,6 @@
 [submodule "aergo-protobuf"]
 	path = aergo-protobuf
 	url = https://github.com/aergoio/aergo-protobuf.git
+[submodule "libtool/src/binaryen"]
+	path = libtool/src/binaryen
+	url = https://github.com/aergoio/binaryen.git
