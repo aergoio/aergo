@@ -1,5 +1,5 @@
 /**
- * @file    compile_test.c
+ * @file    ascl_test.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
@@ -306,4 +306,4 @@ main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-/* end of compile_test.c */
+/* end of ascl_test.c */

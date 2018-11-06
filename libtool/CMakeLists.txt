@@ -3,7 +3,8 @@ set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(LUAJIT_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/luajit/src)
 set(LUAJIT_BUILD_DIR ${LUAJIT_SRC_DIR}/..)
 
-if(NOT EXISTS ${LUAJIT_SRC_DIR})
+if(NOT EXISTS ${LUAJIT_SRC_DIR} OR 
+   NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/binaryen/src)
     execute_process(COMMAND git submodule update --init --force)
 endif()
 
@@ -30,3 +31,5 @@ add_custom_target(libtool-clean
 
 add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
+
+add_subdirectory(src/binaryen)

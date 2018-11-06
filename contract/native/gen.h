@@ -9,6 +9,15 @@
 #include "common.h"
 
 #include "ast.h"
+#include "binaryen-c.h"
+
+typedef struct gen_s {
+    flag_t flag;
+
+    ast_blk_t *root;
+
+    BinaryenModuleRef module;
+} gen_t;
 
 void gen(ast_t *ast, flag_t flag);
 
