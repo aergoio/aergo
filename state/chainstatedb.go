@@ -81,7 +81,7 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
-	block := genesisBlock.Block
+	block := genesisBlock.GetBlock()
 
 	// create state of genesis block
 	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()))

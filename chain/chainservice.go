@@ -141,7 +141,6 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
-			genesisBlock := types.GenesisToBlock(genesis)
 
 			err := InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
@@ -154,11 +153,12 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 				return nil, err
 			}
 
-			err = cs.cdb.addGenesisBlock(genesisBlock)
+			err = cs.cdb.addGenesisBlock(genesis.GetBlock())
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return nil, err
 			}
+
 			logger.Info().Msg("genesis block is generated")
 		}
 	}

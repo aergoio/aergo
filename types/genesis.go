@@ -5,6 +5,25 @@ const (
 	DefaultSeed = 1530838800
 )
 
+// Genesis represents genesis block
+type Genesis struct {
+	Timestamp int64             `json:"timestamp,omitempty"`
+	Balance   map[string]*State `json:"alloc"`
+	BPIds     []string          `json:"bpids"`
+
+	// followings are for internal use only
+	Block     *Block `json:"-"`
+	VoteState *State `json:"-"`
+}
+
+// GetBlock returns Block corresponding to g.
+func (g *Genesis) GetBlock() *Block {
+	if g.Block == nil {
+		g.Block = NewBlock(nil, nil, nil, nil, nil, g.Timestamp)
+	}
+	return g.Block
+}
+
 // GetDefaultGenesis returns default genesis structure
 func GetDefaultGenesis() *Genesis {
 	return &Genesis{
@@ -13,18 +32,10 @@ func GetDefaultGenesis() *Genesis {
 	} //TODO embed MAINNET genesis block
 }
 
-// GenesisToBlock returns *types.Block created based on Genesis Information
-func GenesisToBlock(gb *Genesis) *Block {
-	genesisBlock := NewBlock(nil, nil, nil, nil, nil, 0)
-	genesisBlock.Header.Timestamp = gb.Timestamp
-	gb.Block = genesisBlock
-	return genesisBlock
-}
-
 // GetTestGenesis returns Gensis object for a unit test.
 func GetTestGenesis() *Genesis {
 	genesis := GetDefaultGenesis()
-	GenesisToBlock(genesis)
+	genesis.GetBlock()
 
 	return genesis
 }
