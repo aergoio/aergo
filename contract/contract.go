@@ -68,7 +68,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		return "", errors.New("account is not a contract")
 	}
 
-	contractState, err := bs.OpenContractState(receiver.State())
+	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +114,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		return "", VmError(err)
 	}
 
-	err = bs.CommitContractState(contractState)
+	err = bs.StageContractState(contractState)
 	if err != nil {
 		return "", err
 	}
@@ -160,7 +160,7 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, errors.New("account is not a contract")}
 			continue
 		}
-		contractState, err := bs.OpenContractState(receiver.State())
+		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue

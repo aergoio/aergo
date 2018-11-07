@@ -327,7 +327,8 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		if err != nil {
 			return err
 		}
-		scs, err := mp.stateDB.OpenContractState(aergoSystemState)
+		aid := types.ToAccountID(tx.GetBody().GetRecipient())
+		scs, err := mp.stateDB.OpenContractState(aid, aergoSystemState)
 		if err != nil {
 			return err
 		}
