@@ -370,7 +370,7 @@ func (states *StateDB) Rollback(revision Snapshot) error {
 
 func (states *StateDB) updateStorage(dbtx *db.Transaction) error {
 	before := states.buffer.snapshot()
-	for id, storage := range *states.cache {
+	for id, storage := range states.cache.storages {
 		// update storage
 		if err := storage.update(); err != nil {
 			states.buffer.rollback(before)

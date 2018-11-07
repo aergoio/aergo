@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
@@ -14,20 +15,29 @@ var (
 	checkpointKey = types.ToHashID([]byte("checkpoint"))
 )
 
-type storageCache map[types.AccountID]*bufferedStorage
+type storageCache struct {
+	lock     sync.RWMutex
+	storages map[types.AccountID]*bufferedStorage
+}
 
 func newStorageCache() *storageCache {
-	return &storageCache{}
+	return &storageCache{
+		storages: map[types.AccountID]*bufferedStorage{},
+	}
 }
 
 func (cache *storageCache) get(key types.AccountID) *bufferedStorage {
-	if storage, ok := (*cache)[key]; ok && storage != nil {
+	cache.lock.RLock()
+	defer cache.lock.RUnlock()
+	if storage, ok := cache.storages[key]; ok && storage != nil {
 		return storage
 	}
 	return nil
 }
 func (cache *storageCache) put(key types.AccountID, storage *bufferedStorage) {
-	(*cache)[key] = storage
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+	cache.storages[key] = storage
 }
 
 type bufferedStorage struct {
