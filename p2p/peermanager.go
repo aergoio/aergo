@@ -454,8 +454,6 @@ func (pm *peerManager) startListener() {
 		panic("Can't estabilish listening address: " + err.Error())
 	}
 	listens = append(listens, listen)
-	listen, _ = ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", pm.selfMeta.Port))
-	listens = append(listens, listen)
 
 	peerStore := pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())
 
@@ -465,7 +463,7 @@ func (pm *peerManager) startListener() {
 		panic(err.Error())
 	}
 
-	pm.logger.Info().Str("pid", pm.SelfNodeID().Pretty()).Str("addr[0]", listens[0].String()).Str("addr[1]", listens[1].String()).
+	pm.logger.Info().Str("pid", pm.SelfNodeID().Pretty()).Str("addr[0]", listens[0].String()).
 		Msg("Set self node's pid, and listening for connections")
 	pm.Host = newHost
 
