@@ -48,15 +48,6 @@ type TaskQueue struct {
 	list.List
 }
 
-func (tq *TaskQueue) Pop() *FetchTask {
-	elem := tq.Front()
-	if elem == nil {
-		return nil
-	}
-
-	return elem.Value.(*FetchTask)
-}
-
 type FetchTask struct {
 	count  int
 	hashes []message.BlockHash
@@ -64,46 +55,6 @@ type FetchTask struct {
 	syncPeer *SyncPeer
 
 	started time.Time
-}
-
-func (task *FetchTask) isTimeOut(now time.Time) bool {
-	if now.Sub(task.started) > fetchTimeOut {
-		logger.Info().Str("peer", task.syncPeer.ID.String()).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Msg("FetchTask peer timeouted")
-		return true
-	}
-
-	return false
-}
-
-func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count int) bool {
-	startHash, endHash := blocks[0].GetHash(), blocks[len(blocks)-1].GetHash()
-
-	if task.count != count ||
-		task.syncPeer.ID != peerID ||
-		bytes.Compare(task.hashes[0], startHash) != 0 ||
-		bytes.Compare(task.hashes[len(task.hashes)-1], endHash) != 0 {
-		return false
-	}
-
-	for i, block := range blocks {
-		if bytes.Compare(task.hashes[i], block.GetHash()) != 0 {
-			logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Int("idx", i).Msg("task hash mismatch")
-			return false
-		}
-	}
-
-	logger.Info().Msg("task matched")
-
-	return true
-}
-
-func (task *FetchTask) isPeerMatched(peerID peer.ID) bool {
-	if task.syncPeer.ID == peerID {
-		logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Msg("task peer only matched")
-		return true
-	}
-
-	return false
 }
 
 type PeerSet struct {
@@ -119,7 +70,11 @@ var (
 	schedTick        = time.Millisecond * 100
 	fetchTimeOut     = time.Second * 100
 	MaxFetchTask     = 16
-	MaxPeerFailCount = 1
+	MaxPeerFailCount = 3
+)
+
+var (
+	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
 )
 
 func newBlockFetcher(ctx *types.SyncContext, hub *component.ComponentHub) *BlockFetcher {
@@ -168,6 +123,7 @@ func (bf *BlockFetcher) Start() {
 				return
 			}
 
+			//TODO scheduler stop if all tasks have done
 			if err := bf.schedule(); err != nil {
 				logger.Error().Msg("BlockFetcher schedule failed & stopped")
 				stopSyncer(bf.hub, bf.name, err)
@@ -202,6 +158,7 @@ func (bf *BlockFetcher) init() error {
 	}
 
 	if err := setPeers(); err != nil {
+		logger.Error().Err(err).Msg("failed to set peers")
 		return err
 	}
 
@@ -215,6 +172,7 @@ func (bf *BlockFetcher) schedule() error {
 		return err
 	}
 	if task == nil {
+		logger.Debug().Msg("no task to schedule")
 		return nil
 	}
 
@@ -224,6 +182,7 @@ func (bf *BlockFetcher) schedule() error {
 		return err
 	}
 	if freePeer == nil {
+		logger.Debug().Msg("no freepeer to schedule")
 		return nil
 	}
 
@@ -231,10 +190,6 @@ func (bf *BlockFetcher) schedule() error {
 
 	return nil
 }
-
-var (
-	ErrQuit = errors.New("BlockFetcher: stopped by Quit runTask")
-)
 
 func (bf *BlockFetcher) checkTaskTimeout() {
 	now := time.Now()
@@ -252,12 +207,14 @@ func (bf *BlockFetcher) checkTaskTimeout() {
 
 		bf.processFailedTask(task, false)
 
-		logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
+		logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Int("runqueue", bf.runningQueue.Len()).Int("pendingqueue", bf.pendingQueue.Len()).
 			Msg("timeouted task pushed to pending queue")
 	}
 }
 
 func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
+	logger.Error().Str("peer", string(task.syncPeer.ID)).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
+
 	failPeer := task.syncPeer
 	bf.peers.processPeerFail(failPeer, isErr)
 
@@ -266,32 +223,30 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
 }
 
 func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
-	getNewHashSet := func() (*HashSet, error) {
-		if bf.curHashSet == nil {
+	getNewHashSet := func() *HashSet {
+		if bf.curHashSet == nil { //blocking
 			logger.Info().Msg("BlockFetcher waiting first hashset")
 
 			select {
 			case hashSet := <-bf.hfCh:
-				return hashSet, nil
+				return hashSet
 			case <-bf.quitCh:
-				return nil, ErrQuit
+				return nil
 			}
 		} else {
-			select {
+			select { //nonblocking
 			case hashSet := <-bf.hfCh:
-				logger.Debug().Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).
-					Msg("BlockFetcher got hashset")
-
-				return hashSet, nil
+				return hashSet
 			case <-bf.quitCh:
-				return nil, ErrQuit
+				return nil
 			default:
-				return nil, nil
+				logger.Debug().Msg("BlockFetcher has no input HashSet")
+				return nil
 			}
 		}
 	}
 
-	addNewTasks := func(hashSet *HashSet) {
+	addNewFetchTasks := func(hashSet *HashSet) {
 		start, end := 0, 0
 		count := hashSet.Count
 
@@ -311,6 +266,7 @@ func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
 
 			start = end
 		}
+		logger.Debug().Int("pendingqueue", bf.pendingQueue.Len()).Msg("addNewTasks end")
 	}
 
 	if bf.nextTask != nil {
@@ -318,30 +274,29 @@ func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
 	}
 
 	if bf.pendingQueue.Len() == 0 {
-		hashSet, err := getNewHashSet()
-		if err != nil {
-			return nil, err
-		}
+		logger.Debug().Msg("pendingqueue is empty")
 
+		hashSet := getNewHashSet()
 		if hashSet == nil {
 			logger.Debug().Msg("BlockFetcher no hashSet")
 			return nil, nil
 		}
 
+		logger.Debug().Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
+
 		bf.curHashSet = hashSet
-		addNewTasks(hashSet)
+		addNewFetchTasks(hashSet)
 	}
 
 	//newTask = nil or task
 	newTask := bf.pendingQueue.Pop()
 
 	bf.nextTask = newTask
+
+	logger.Debug().Str("start", enc.ToString(newTask.hashes[0])).Str("end", enc.ToString(newTask.hashes[newTask.count-1])).Int("task pending", bf.pendingQueue.Len()).Msg("set new fetchtask")
+
 	return newTask, nil
 }
-
-var (
-	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
-)
 
 func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
 	freePeer, err := bf.peers.popFree()
@@ -351,11 +306,14 @@ func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
 
 	bf.nextTask.syncPeer = freePeer
 
+	logger.Debug().Str("peer", string(freePeer.ID)).Int("free", bf.peers.free).Msg("popped free peer")
 	return freePeer, nil
 }
 
 func (bf *BlockFetcher) pushFreePeer(syncPeer *SyncPeer) {
 	bf.peers.pushFree(syncPeer)
+
+	logger.Debug().Str("peer", string(syncPeer.ID)).Int("free", bf.peers.free).Msg("pushed free peer")
 }
 
 func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
@@ -363,10 +321,49 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
+	logger.Debug().Str("peer", string(task.syncPeer.ID)).Int("count", task.count).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
+
 	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
 }
 
+//TODO refactoring matchFunc
+func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask, error) {
+	count := len(msg.Blocks)
+
+	var next *list.Element
+	for e := bf.runningQueue.Front(); e != nil; e = next {
+		// do something with e.Value
+		task := e.Value.(*FetchTask)
+		next = e.Next()
+
+		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
+			bf.runningQueue.Remove(e)
+
+			logger.Debug().Str("peer", string(msg.ToWhom)).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+			return task, nil
+		}
+
+		if task.isMatched(msg.ToWhom, msg.Blocks, count) {
+			bf.runningQueue.Remove(e)
+
+			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).
+				Msg("task finished")
+
+			return task, nil
+		}
+	}
+
+	return nil, &ErrSyncMsg{msg: msg}
+}
+
+func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
+	bf.responseCh <- msg
+	return nil
+}
+
 func (bf *BlockFetcher) stop() {
+	logger.Info().Msg("BlockFetcher stopped")
+
 	if bf == nil {
 		return
 	}
@@ -413,6 +410,7 @@ func (ps *PeerSet) pushFree(freePeer *SyncPeer) {
 
 func (ps *PeerSet) popFree() (*SyncPeer, error) {
 	if ps.isAllBad() {
+		logger.Error().Msg("all peers are bad")
 		return nil, ErrAllPeerBad
 	}
 
@@ -437,6 +435,9 @@ func (ps *PeerSet) processPeerFail(failPeer *SyncPeer, isErr bool) {
 	//TODO handle connection closed
 	failPeer.FailCnt++
 	failPeer.IsErr = isErr
+
+	logger.Error().Str("peer", string(failPeer.ID)).Int("failcnt", failPeer.FailCnt).Bool("iserr", failPeer.IsErr).Msg("peer failed")
+
 	if isErr || failPeer.FailCnt > MaxPeerFailCount {
 		ps.badPeers.PushBack(failPeer)
 		ps.bad++
@@ -444,41 +445,54 @@ func (ps *PeerSet) processPeerFail(failPeer *SyncPeer, isErr bool) {
 		if ps.badPeers.Len() != ps.bad {
 			panic(fmt.Sprintf("bad peer len mismatch %d,%d", ps.badPeers.Len(), ps.bad))
 		}
+
+		logger.Error().Str("peer", string(failPeer.ID)).Int("total", ps.total).Int("badqueue", ps.bad).Msg("peer move to bad")
 	}
 }
 
-//TODO refactoring matchFunc
-func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask, error) {
-	count := len(msg.Blocks)
+func (tq *TaskQueue) Pop() *FetchTask {
+	elem := tq.Front()
+	if elem == nil {
+		return nil
+	}
 
-	var next *list.Element
-	for e := bf.runningQueue.Front(); e != nil; e = next {
-		// do something with e.Value
-		task := e.Value.(*FetchTask)
-		next = e.Next()
+	tq.Remove(elem)
+	return elem.Value.(*FetchTask)
+}
 
-		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
-			bf.runningQueue.Remove(e)
+func (task *FetchTask) isTimeOut(now time.Time) bool {
+	if now.Sub(task.started) > fetchTimeOut {
+		logger.Info().Str("peer", task.syncPeer.ID.String()).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Msg("FetchTask peer timeouted")
+		return true
+	}
 
-			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
-				Msg("error occurred task finished")
-			return task, nil
-		}
+	return false
+}
 
-		if task.isMatched(msg.ToWhom, msg.Blocks, count) {
-			bf.runningQueue.Remove(e)
+func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count int) bool {
+	startHash, endHash := blocks[0].GetHash(), blocks[len(blocks)-1].GetHash()
 
-			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
-				Msg("task finished")
+	if task.count != count ||
+		task.syncPeer.ID != peerID ||
+		bytes.Compare(task.hashes[0], startHash) != 0 ||
+		bytes.Compare(task.hashes[len(task.hashes)-1], endHash) != 0 {
+		return false
+	}
 
-			return task, nil
+	for i, block := range blocks {
+		if bytes.Compare(task.hashes[i], block.GetHash()) != 0 {
+			logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Int("idx", i).Msg("task hash mismatch")
+			return false
 		}
 	}
 
-	return nil, &ErrSyncMsg{msg: msg}
+	return true
 }
 
-func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
-	bf.responseCh <- msg
-	return nil
+func (task *FetchTask) isPeerMatched(peerID peer.ID) bool {
+	if task.syncPeer.ID == peerID {
+		return true
+	}
+
+	return false
 }

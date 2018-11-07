@@ -111,6 +111,8 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	bf := bproc.blockFetcher
 
+	logger.Debug().Str("peer", string(msg.ToWhom)).Err(msg.Err).Msg("received GetBlockCHunkRsp")
+
 	task, err := bf.findFinished(msg)
 	if err != nil {
 		//TODO invalid peer
@@ -131,6 +133,8 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRsp) error {
 	bf := bproc.blockFetcher
+
+	logger.Error().Str("peer", msg.ToWhom.String()).Msg("receive GetBlockChunksRsp with error message")
 
 	task, err := bf.findFinished(msg)
 	if err != nil {
@@ -161,6 +165,7 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	}
 
 	if curBlock.BlockNo() == bproc.targetBlockNo {
+		logger.Info().Msg("connected last block, stop syncer")
 		stopSyncer(bproc.hub, bproc.name, nil)
 	}
 
@@ -177,6 +182,8 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 }
 
 func (bproc *BlockProcessor) addNewRequest(msg *message.GetBlockChunksRsp) {
+	logger.Debug().Msg("add connect request to pending queue")
+
 	req := &ConnectRequest{FromPeer: msg.ToWhom, Blocks: msg.Blocks, firstNo: msg.Blocks[0].GetHeader().BlockNo, cur: 0}
 
 	bproc.pushToPending(req)
@@ -195,6 +202,7 @@ func (bproc *BlockProcessor) getNextBlock() *types.Block {
 		req.cur++
 
 		if req.cur >= len(req.Blocks) {
+			logger.Debug().Msg("current connrequest is finished")
 			bproc.curConnRequest = nil
 		}
 	}

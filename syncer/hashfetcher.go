@@ -15,8 +15,9 @@ type HashFetcher struct {
 	ctx *types.SyncContext
 
 	responseCh chan *HashSet //HashSet response channel (<- Syncer)
-	quitCh     chan interface{}
 	resultCh   chan *HashSet //BlockFetcher input channel (-> BlockFetcher)
+	//HashFetcher can wait in resultCh
+	quitCh chan interface{}
 
 	lastBlockInfo *types.BlockInfo
 	reqCount      uint64
@@ -30,12 +31,13 @@ type HashSet struct {
 }
 
 var (
-	dfltTimeout = time.Second * 180
-	HashSetSize = uint64(128)
+	dfltTimeout    = time.Second * 180
+	MaxHashSetSize = uint64(128)
 )
 
 var (
-	ErrInvalidHashSet = errors.New("Invalid Hash set reply")
+	ErrInvalidHashSet    = errors.New("Invalid hash set reply")
+	ErrGetHashesRspError = errors.New("GetHashesRsp error received")
 )
 
 func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh chan *HashSet) *HashFetcher {
@@ -84,12 +86,14 @@ func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
 }
 
 func (hf *HashFetcher) requestHashSet() {
-	count := HashSetSize
-	if hf.ctx.TargetNo < hf.lastBlockInfo.No+HashSetSize {
+	count := MaxHashSetSize
+	if hf.ctx.TargetNo < hf.lastBlockInfo.No+MaxHashSetSize {
 		count = hf.ctx.TargetNo - hf.lastBlockInfo.No
 	}
 
 	hf.reqCount = count
+
+	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
 	hf.hub.Tell(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
 }
@@ -100,17 +104,21 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 	lastHashNo := hf.lastBlockInfo.No + uint64(hashSet.Count)
 
 	if lastHashNo > hf.ctx.TargetNo {
-		logger.Error().Uint64("target", hf.ctx.TargetNo).Uint64("last", lastHashNo).Msg("invalid HashSet reponse")
+		logger.Error().Uint64("target", hf.ctx.TargetNo).Uint64("last", lastHashNo).Msg("invalid hashset reponse")
 		return ErrInvalidHashSet
 	}
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: lastHash, No: lastHashNo}
 	hf.resultCh <- hashSet
 
+	logger.Debug().Uint64("target", hf.ctx.TargetNo).Uint64("last", lastHashNo).Int("count", len(hashSet.Hashes)).Msg("push hashset to BlockFetcher")
+
 	return nil
 }
 
 func (hf *HashFetcher) stop() {
+	logger.Info().Msg("HashFetcher stopped")
+
 	if hf == nil {
 		return
 	}
@@ -126,19 +134,25 @@ func (hf *HashFetcher) stop() {
 
 func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
 	if !hf.lastBlockInfo.Equal(msg.PrevInfo) || hf.reqCount != msg.Count {
-		logger.Error().Str("req prev", enc.ToString(hf.lastBlockInfo.Hash)).
-			Str("msg prev", enc.ToString(msg.PrevInfo.Hash)).
-			Uint64("req count", hf.reqCount).
-			Uint64("msg count", msg.Count).
-			Msg("invalid GetHashesRsp in HashFetcher")
 		return false
 	}
 
 	return true
 }
 
-func (hf *HashFetcher) handleGetHahsesRsp(msg *message.GetHashesRsp) {
+func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {
 	if !hf.isValidResponse(msg) {
+		logger.Error().Str("req prev", enc.ToString(hf.lastBlockInfo.Hash)).
+			Str("msg prev", enc.ToString(msg.PrevInfo.Hash)).
+			Uint64("req count", hf.reqCount).
+			Uint64("msg count", msg.Count).
+			Msg("invalid GetHashesRsp")
+		return
+	}
+
+	if msg.Err != nil {
+		logger.Error().Err(msg.Err).Msg("receive GetHashesRsp with error")
+		stopSyncer(hf.hub, hf.name, ErrGetHashesRspError)
 		return
 	}
 

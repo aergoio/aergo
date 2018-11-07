@@ -14,11 +14,10 @@ import (
 
 const P2PSvc = "p2pSvc"
 
-
 // errors which async responses of p2p actor, such as GetBlockChunksRsp, can contains,
 var (
-	RemotePeerFailError = fmt.Errorf("remote peer return err")
-	MissingHashError = fmt.Errorf("some block hash not found")
+	RemotePeerFailError  = fmt.Errorf("remote peer return err")
+	MissingHashError     = fmt.Errorf("some block hash not found")
 	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
 )
 
@@ -114,7 +113,7 @@ type BlockInfosResponse struct {
 type GetBlockChunksRsp struct {
 	ToWhom peer.ID
 	Blocks []*types.Block
-	Err error
+	Err    error
 }
 
 // GetPeers requests p2p actor to get remote peers that is connected.
@@ -151,4 +150,5 @@ type GetHashesRsp struct {
 	PrevInfo *types.BlockInfo
 	Hashes   []BlockHash
 	Count    uint64
+	Err      error
 }

@@ -97,7 +97,7 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			logger.Error().Err(err).Msg("FinderResult failed")
 		}
 	case *message.GetHashesRsp:
-		syncer.hashFetcher.handleGetHahsesRsp(msg)
+		syncer.hashFetcher.GetHahsesRsp(msg)
 
 	case *message.GetBlockChunksRsp:
 		err := syncer.blockFetcher.handleBlockRsp(msg)
@@ -169,13 +169,15 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 }
 
 func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
-	logger.Info().Msg("syncer received ancestor response")
+	logger.Debug().Msg("syncer received ancestor response")
 
 	//set ancestor in types.SyncContext
 	syncer.finder.lScanCh <- msg.Ancestor
 }
 
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
+	logger.Debug().Msg("syncer received finder result message")
+
 	if msg.Err != nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")
 		return ErrFinderInternal

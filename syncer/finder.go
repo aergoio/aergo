@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -127,8 +128,11 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 	ancestor, err = finder.getAncestor(anchors)
 
 	if ancestor == nil {
-		logger.Debug().Msg("Syncer: not found ancestor in lightscan")
+		logger.Debug().Msg("not found ancestor in lightscan")
+	} else {
+		logger.Debug().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("receive ancestor in lightscan")
 	}
+
 	return ancestor, err
 }
 
@@ -143,6 +147,8 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 	if len(anchors) > 0 {
 		finder.ctx.LastAnchor = anchors[len(anchors)-1]
 	}
+
+	logger.Debug().Str("start", enc.ToString(anchors[0])).Int("count", len(anchors)).Msg("get anchors from chain")
 
 	return anchors, nil
 }
