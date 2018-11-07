@@ -15,7 +15,7 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-add_custom_target(libtool DEPENDS libluajit liblmdb)
+add_custom_target(libtool DEPENDS libluajit liblmdb binaryen)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
