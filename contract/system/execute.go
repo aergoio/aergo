@@ -49,27 +49,19 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 				return err
 			}
 		}
-		_, when, _, err := getVote(scs, txBody.Account)
+		staked, err := getStaking(scs, txBody.Account)
 		if err != nil {
 			return err
 		}
-		if when+VotingDelay > blockNo {
-			//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
-			return types.ErrLessTimeHasPassed
-		}
-		staked, when, err := getStaking(scs, txBody.Account)
-		if err != nil {
-			return err
-		}
-		if staked == 0 {
+		if staked.GetAmount() == 0 {
 			return types.ErrMustStakeBeforeVote
 		}
-		if when+VotingDelay > blockNo {
+		if staked.GetWhen()+VotingDelay > blockNo {
 			//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
 			return types.ErrLessTimeHasPassed
 		}
 	case 'u':
-		_, _, err = validateForUnstaking(txBody, scs, blockNo)
+		_, err = validateForUnstaking(txBody, scs, blockNo)
 	}
 	if err != nil {
 		return err
@@ -84,21 +76,21 @@ func validateForStaking(txBody *types.TxBody, scs *state.ContractState, blockNo 
 	return nil
 }
 
-func validateForUnstaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (uint64, uint64, error) {
+func validateForUnstaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
 	if txBody.Amount < types.StakingMinimum {
-		return 0, 0, types.ErrTooSmallAmount
+		return nil, types.ErrTooSmallAmount
 	}
-	staked, when, err := getStaking(scs, txBody.Account)
+	staked, err := getStaking(scs, txBody.Account)
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
-	if staked == 0 {
-		return 0, 0, types.ErrMustStakeBeforeUnstake
+	if staked.GetAmount() == 0 {
+		return nil, types.ErrMustStakeBeforeUnstake
 	}
-	if when+StakingDelay > blockNo {
-		return 0, 0, types.ErrLessTimeHasPassed
+	if staked.GetWhen()+StakingDelay > blockNo {
+		return nil, types.ErrLessTimeHasPassed
 	}
-	return staked, when, nil
+	return staked, nil
 }
 
 func getSystemCmd(payload []byte) (byte, error) {

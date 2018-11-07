@@ -398,14 +398,15 @@ func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
 	var voteList types.VoteList
 	var tmp []*types.Vote
 	voteList.Votes = tmp
-	amount, _, to, err := system.GetVote(scs, addr)
+	vote, err := system.GetVote(scs, addr)
 	if err != nil {
 		return nil, err
 	}
+	to := vote.GetCandidate()
 	for offset := 0; offset < len(to); offset += system.PeerIDLength {
 		vote := &types.Vote{
 			Candidate: to[offset : offset+system.PeerIDLength],
-			Amount:    amount,
+			Amount:    vote.GetAmount(),
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
