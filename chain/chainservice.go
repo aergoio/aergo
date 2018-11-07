@@ -361,6 +361,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Top: top,
 			Err: err,
 		})
+	case *message.GetStaking:
+		staking, err := cs.getStaking(msg.Addr)
+		context.Respond(&message.GetStakingRsp{
+			Staking: staking,
+			Err:     err,
+		})
 
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
@@ -411,4 +417,16 @@ func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
 		voteList.Votes = append(voteList.Votes, vote)
 	}
 	return &voteList, nil
+}
+
+func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	staking, err := system.GetStaking(scs, addr)
+	if err != nil {
+		return nil, err
+	}
+	return staking, nil
 }

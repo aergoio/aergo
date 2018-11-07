@@ -7,6 +7,7 @@ package system
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -96,4 +97,11 @@ func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
 		}
 	}
 	return &staking, nil
+}
+
+func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error) {
+	if address != nil {
+		return getStaking(scs, address)
+	}
+	return nil, errors.New("invalid argument : address should not nil")
 }

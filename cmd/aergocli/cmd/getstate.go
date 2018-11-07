@@ -22,12 +22,14 @@ var getstateCmd = &cobra.Command{
 var address string
 var stateroot string
 var proof bool
+var staking bool
 
 func init() {
 	getstateCmd.Flags().StringVar(&address, "address", "", "Get state from the address")
 	getstateCmd.MarkFlagRequired("address")
 	getstateCmd.Flags().StringVar(&stateroot, "root", "", "Get the state at a specified state root")
 	getstateCmd.Flags().BoolVar(&proof, "proof", false, "Get the proof for the state")
+	getstateCmd.Flags().BoolVar(&staking, "staking", false, "Get the staking info from the address")
 	rootCmd.AddCommand(getstateCmd)
 }
 
@@ -44,6 +46,18 @@ func execGetState(cmd *cobra.Command, args []string) {
 	addr, err := types.DecodeAddress(address)
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
+		return
+	}
+	if staking {
+		msg, err := client.GetStaking(context.Background(),
+			&types.SingleBytes{Value: addr})
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+		cmd.Printf("{account:%s, staked:%d, when:%d}\n",
+			address, msg.GetAmount(), msg.GetWhen())
+
 		return
 	}
 
