@@ -7,7 +7,7 @@ package main
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../contract/native
-#cgo LDFLAGS: ${SRCDIR}/../../contract/native/lib/libascl.a -lm
+#cgo LDFLAGS: ${SRCDIR}/../../contract/native/lib/libascl.a ${SRCDIR}/../../libtool/src/binaryen/lib/libbinaryen.a -lstdc++ -lm
 
 #include "compile.h"
 #include "version.h"

@@ -32,6 +32,8 @@ gen(ast_t *ast, flag_t flag)
     for (i = 0; i < array_size(&gen.root->ids); i++) {
         id_gen(&gen, array_item(&gen.root->ids, i, ast_id_t));
     }
+
+    BinaryenModuleDispose(gen.module);
 }
 
 /* end of gen.c */
