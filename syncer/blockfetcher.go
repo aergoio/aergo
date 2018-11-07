@@ -41,6 +41,7 @@ type SyncPeer struct {
 	No      int
 	ID      peer.ID
 	FailCnt int
+	IsErr   bool
 }
 
 type TaskQueue struct {
@@ -86,7 +87,7 @@ func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count in
 
 	for i, block := range blocks {
 		if bytes.Compare(task.hashes[i], block.GetHash()) != 0 {
-			logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Int("idx", i).Msg("task mismatch")
+			logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Int("idx", i).Msg("task hash mismatch")
 			return false
 		}
 	}
@@ -94,6 +95,15 @@ func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count in
 	logger.Info().Msg("task matched")
 
 	return true
+}
+
+func (task *FetchTask) isPeerMatched(peerID peer.ID) bool {
+	if task.syncPeer.ID == peerID {
+		logger.Info().Str("peer", task.syncPeer.ID.String()).Str("hash", enc.ToString(task.hashes[0])).Msg("task peer only matched")
+		return true
+	}
+
+	return false
 }
 
 type PeerSet struct {
@@ -240,14 +250,19 @@ func (bf *BlockFetcher) checkTaskTimeout() {
 
 		bf.runningQueue.Remove(e)
 
-		failPeer := task.syncPeer
-		bf.peers.processPeerFail(failPeer)
+		bf.processFailedTask(task, false)
 
-		task.syncPeer = nil
-		bf.pendingQueue.PushFront(task)
 		logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
 			Msg("timeouted task pushed to pending queue")
 	}
+}
+
+func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
+	failPeer := task.syncPeer
+	bf.peers.processPeerFail(failPeer, isErr)
+
+	task.syncPeer = nil
+	bf.pendingQueue.PushFront(task)
 }
 
 func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
@@ -418,10 +433,11 @@ func (ps *PeerSet) popFree() (*SyncPeer, error) {
 	return freePeer, nil
 }
 
-func (ps *PeerSet) processPeerFail(failPeer *SyncPeer) {
+func (ps *PeerSet) processPeerFail(failPeer *SyncPeer, isErr bool) {
 	//TODO handle connection closed
 	failPeer.FailCnt++
-	if failPeer.FailCnt > MaxPeerFailCount {
+	failPeer.IsErr = isErr
+	if isErr || failPeer.FailCnt > MaxPeerFailCount {
 		ps.badPeers.PushBack(failPeer)
 		ps.bad++
 
@@ -431,12 +447,9 @@ func (ps *PeerSet) processPeerFail(failPeer *SyncPeer) {
 	}
 }
 
-func (bf *BlockFetcher) findFinished(msg *message.BlockInfosResponse) (*FetchTask, error) {
+//TODO refactoring matchFunc
+func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask, error) {
 	count := len(msg.Blocks)
-
-	if count == 0 || msg.FromWhom == "" {
-		return nil, &ErrSyncMsg{msg: msg}
-	}
 
 	var next *list.Element
 	for e := bf.runningQueue.Front(); e != nil; e = next {
@@ -444,11 +457,19 @@ func (bf *BlockFetcher) findFinished(msg *message.BlockInfosResponse) (*FetchTas
 		task := e.Value.(*FetchTask)
 		next = e.Next()
 
-		if task.isMatched(msg.FromWhom, msg.Blocks, count) {
+		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
 			bf.runningQueue.Remove(e)
 
 			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
-				Msg("timeouted task pushed to pending queue")
+				Msg("error occurred task finished")
+			return task, nil
+		}
+
+		if task.isMatched(msg.ToWhom, msg.Blocks, count) {
+			bf.runningQueue.Remove(e)
+
+			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).
+				Msg("task finished")
 
 			return task, nil
 		}
@@ -458,55 +479,6 @@ func (bf *BlockFetcher) findFinished(msg *message.BlockInfosResponse) (*FetchTas
 }
 
 func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
-	if err := bf.isValidResponse(msg); err != nil {
-		return err
-	}
-
 	bf.responseCh <- msg
-	return nil
-}
-
-func (bf *BlockFetcher) isValidResponse(msg interface{}) error {
-	validateBlockChunksRsp := func(msg *message.GetBlockChunksRsp) error {
-		var prev []byte
-		blocks := msg.Blocks
-
-		if blocks == nil || len(blocks) == 0 {
-			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
-		}
-
-		for _, block := range blocks {
-			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
-				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
-			}
-
-			prev = block.GetHash()
-		}
-		return nil
-	}
-
-	validateAddBlockRsp := func(msg *message.AddBlockRsp) error {
-		if msg.BlockHash == nil {
-			return &ErrSyncMsg{msg: msg, str: "invalid add block resonse"}
-		}
-
-		return nil
-	}
-
-	switch msg.(type) {
-	case *message.GetBlockChunksRsp:
-		if err := validateBlockChunksRsp(msg.(*message.GetBlockChunksRsp)); err != nil {
-			return err
-		}
-
-	case *message.AddBlockRsp:
-		if err := validateAddBlockRsp(msg.(*message.AddBlockRsp)); err != nil {
-			return err
-		}
-
-	default:
-		return fmt.Errorf("invalid msg type:%T", msg)
-	}
-
 	return nil
 }

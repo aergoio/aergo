@@ -35,9 +35,16 @@ type ConnectRequest struct {
 }
 
 func (bproc *BlockProcessor) run(msg interface{}) error {
+	//TODO in test mode, if syncer receives invalid messages, syncer stop with panic()
+
+	if err := bproc.isValidResponse(msg); err != nil {
+		logger.Error().Err(err).Msg("dropped invalid block message")
+		return nil
+	}
+
 	switch msg.(type) {
-	case *message.BlockInfosResponse:
-		if err := bproc.BlockInfoResponse(msg.(*message.BlockInfosResponse)); err != nil {
+	case *message.GetBlockChunksRsp:
+		if err := bproc.GetBlockChunkRsp(msg.(*message.GetBlockChunksRsp)); err != nil {
 			return err
 		}
 	case *message.AddBlockRsp:
@@ -52,24 +59,87 @@ func (bproc *BlockProcessor) run(msg interface{}) error {
 	return nil
 }
 
-func (bproc *BlockProcessor) BlockInfoResponse(msg *message.BlockInfosResponse) error {
+func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
+	validateBlockChunksRsp := func(msg *message.GetBlockChunksRsp) error {
+		var prev []byte
+		blocks := msg.Blocks
+
+		if msg.Err != nil && (blocks == nil || len(blocks) == 0) {
+			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
+		}
+
+		for _, block := range blocks {
+			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
+				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
+			}
+
+			prev = block.GetHash()
+		}
+		return nil
+	}
+
+	validateAddBlockRsp := func(msg *message.AddBlockRsp) error {
+		if msg.BlockHash == nil {
+			return &ErrSyncMsg{msg: msg, str: "invalid add block resonse"}
+		}
+
+		return nil
+	}
+
+	switch msg.(type) {
+	case *message.GetBlockChunksRsp:
+		if err := validateBlockChunksRsp(msg.(*message.GetBlockChunksRsp)); err != nil {
+			return err
+		}
+
+	case *message.AddBlockRsp:
+		if err := validateAddBlockRsp(msg.(*message.AddBlockRsp)); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("invalid msg type:%T", msg)
+	}
+
+	return nil
+}
+
+func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) error {
+	if msg.Err != nil {
+		return bproc.GetBlockChunkRspError(msg)
+	}
+
 	bf := bproc.blockFetcher
 
 	task, err := bf.findFinished(msg)
 	if err != nil {
 		//TODO invalid peer
-		logger.Info().Str("peer",
-			msg.FromWhom.String()).Int("count", len(msg.Blocks)).
+		logger.Error().Str("peer", msg.ToWhom.String()).
+			Int("count", len(msg.Blocks)).
 			Str("from", enc.ToString(msg.Blocks[0].GetHash())).
 			Str("to", enc.ToString(msg.Blocks[len(msg.Blocks)-1].GetHash())).
 			Msg("dropped unknown block message")
-		return err
+		return nil
 	}
 
 	bf.pushFreePeer(task.syncPeer)
 
 	bproc.addNewRequest(msg)
 
+	return nil
+}
+
+func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRsp) error {
+	bf := bproc.blockFetcher
+
+	task, err := bf.findFinished(msg)
+	if err != nil {
+		//TODO invalid peer
+		logger.Error().Str("peer", msg.ToWhom.String()).Msg("dropped unknown block error message")
+		return nil
+	}
+
+	bf.processFailedTask(task, true)
 	return nil
 }
 
@@ -106,8 +176,8 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	return nil
 }
 
-func (bproc *BlockProcessor) addNewRequest(msg *message.BlockInfosResponse) {
-	req := &ConnectRequest{FromPeer: msg.FromWhom, Blocks: msg.Blocks, firstNo: msg.Blocks[0].GetHeader().BlockNo, cur: 0}
+func (bproc *BlockProcessor) addNewRequest(msg *message.GetBlockChunksRsp) {
+	req := &ConnectRequest{FromPeer: msg.ToWhom, Blocks: msg.Blocks, firstNo: msg.Blocks[0].GetHeader().BlockNo, cur: 0}
 
 	bproc.pushToPending(req)
 
