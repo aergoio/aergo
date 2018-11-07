@@ -103,31 +103,6 @@ func (buffer *stateBuffer) get(key types.HashID) entry {
 	return nil
 }
 
-func (buffer *stateBuffer) lookup(key types.HashID, match func(et entry) bool) entry {
-	it := buffer.indexes[key].iter()
-	for rev := it(); rev >= 0; rev = it() {
-		et := buffer.entries[rev]
-		if match(et) {
-			return et
-		}
-	}
-	return nil
-}
-
-func (buffer *stateBuffer) lookupCache(key types.HashID) *stateBuffer {
-	res := buffer.lookup(key, func(et entry) bool {
-		switch et.Value().(type) {
-		case cached:
-			return true
-		}
-		return false
-	})
-	if res != nil {
-		return res.Value().(cached).cache()
-	}
-	return nil
-}
-
 func (buffer *stateBuffer) put(et entry) {
 	snapshot := buffer.snapshot()
 	buffer.entries = append(buffer.entries, et)
@@ -197,28 +172,6 @@ func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
 	}
 	return nil
 }
-
-// func (buffer *stateBuffer) stageUpdates(tr *trie.Trie, batchtx *db.Transaction) error {
-// 	// keys, vals := buffer.export()
-// 	// if len(keys) == 0 || len(vals) == 0 {
-// 	// 	// nothing to update
-// 	// 	return nil
-// 	// }
-// 	// if _, err := tr.Update(keys, vals); err != nil {
-// 	// 	return err
-// 	// }
-// 	if err := buffer.updateTrie(tr); err != nil {
-// 		return err
-// 	}
-// 	tr.StageUpdates(batchtx)
-// 	if err := buffer.stage(batchtx); err != nil {
-// 		return err
-// 	}
-// 	if err := buffer.reset(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
 
 func (buffer *stateBuffer) stage(dbtx *db.Transaction) error {
 	for _, v := range buffer.indexes {
