@@ -405,8 +405,8 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 			free(sbuf.buf);
 			return NULL;
 		}
-		callinfo_del(callinfo);
 	}
+    callinfo_del(callinfo);
 	if (sbuf.idx != start_idx)
 		sbuf.idx--;
 	if (!json_form || start < end) {

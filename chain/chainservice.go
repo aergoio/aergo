@@ -336,6 +336,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")

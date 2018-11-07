@@ -66,12 +66,14 @@ static char *dup_decltype(const char *decltype)
         return NULL;
     }
 
-    p = c = malloc(strlen(decltype));
+    p = c = malloc(strlen(decltype)+1);
     while ((*c++ = tolower(*decltype++))) ;
 
     if (strcmp(p, "date") == 0 || strcmp(p, "datetime") == 0 || strcmp(p, "timestamp") == 0 ||
-        strcmp(p, "boolean") == 0)
+        strcmp(p, "boolean") == 0) {
         return p;
+    }
+    free(p);
     return NULL;
 }
 
