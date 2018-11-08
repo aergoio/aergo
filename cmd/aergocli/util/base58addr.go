@@ -80,6 +80,9 @@ type InOutPeer struct {
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	var err error
+	if source == nil {
+		return errors.New("tx body is empty")
+	}
 	target.Nonce = source.Nonce
 	if source.Account != "" {
 		target.Account, err = types.DecodeAddress(source.Account)
