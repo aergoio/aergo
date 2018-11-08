@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
 
