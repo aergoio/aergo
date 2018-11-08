@@ -13,7 +13,7 @@ import (
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/mr-tron/base58"
 )
 
 var votingkey = []byte("voting")
@@ -147,7 +147,7 @@ func InitVoteResult(scs *state.ContractState, voteResult *map[string]uint64) err
 func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
 	var voteList types.VoteList
 	for k, v := range *voteResult {
-		c := base58.Decode(k)
+		c, _ := base58.Decode(k)
 		vote := &types.Vote{
 			Candidate: c,
 			Amount:    v,
