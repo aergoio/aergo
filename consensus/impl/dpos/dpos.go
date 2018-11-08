@@ -149,7 +149,8 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	// corresponding BP index is consistent with the block timestamp.
 	if !ok || !s.IsFor(idx) {
 		return &consensus.ErrorConsensus{
-			Msg: fmt.Sprintf("BP %v is not permitted for the time slot %v", block.ID(), time.Unix(0, ns)),
+			Msg: fmt.Sprintf("BP %v (idx: %v) is not permitted for the time slot %v (%v)",
+				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex()),
 		}
 	}
 

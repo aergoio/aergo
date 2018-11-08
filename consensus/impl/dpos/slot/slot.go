@@ -96,7 +96,7 @@ func IsNextTo(s1, s2 *Slot) bool {
 
 // IsFor reports whether s correponds to myBpIdx (block producer index).
 func (s *Slot) IsFor(bpIdx uint16) bool {
-	return s.nextBpIndex() == int64(bpIdx)
+	return s.NextBpIndex() == int64(bpIdx)
 }
 
 // GetBpTimeout returns the time available for block production.
@@ -121,7 +121,8 @@ func (s Slot) TimesUp() bool {
 	return s.RemainingTimeMS() <= bpMinTimeLimitMs
 }
 
-func (s *Slot) nextBpIndex() int64 {
+// NextBpIndex returns BP index for s.nextIndex.
+func (s *Slot) NextBpIndex() int64 {
 	return absToBpIndex(s.nextIndex)
 }
 

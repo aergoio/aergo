@@ -24,7 +24,7 @@ func TestSlotRotation(t *testing.T) {
 	slots := make(map[int64]interface{}, nSlots)
 	i := 0
 	for now := range ticker.C {
-		idx := Time(now).nextBpIndex()
+		idx := Time(now).NextBpIndex()
 		slots[idx] = struct{}{}
 		fmt.Printf("[%v]", idx)
 		if i > nSlots {
