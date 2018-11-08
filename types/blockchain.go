@@ -70,6 +70,16 @@ type SyncContext struct {
 	LastAnchor []byte
 }
 
+func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
+	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo}
+}
+
+func (ctx *SyncContext) SetAncestor(ancestor *BlockInfo) {
+	ctx.CommonAncestor = ancestor
+	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.No
+	ctx.RemainCnt = ctx.TotalCnt
+}
+
 // NodeInfo is used for actor message to send block info
 type BlockInfo struct {
 	Hash []byte

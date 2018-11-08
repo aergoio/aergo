@@ -21,13 +21,20 @@ type HashFetcher struct {
 
 	lastBlockInfo *types.BlockInfo
 	reqCount      uint64
+	reqTime       time.Time
 
-	name string
+	maxReqSize uint64
+	name       string
 }
 
 type HashSet struct {
 	Count  int
 	Hashes []message.BlockHash
+}
+
+type HashRequest struct {
+	prevInfo *types.BlockInfo
+	count    uint64
 }
 
 var (
@@ -36,11 +43,12 @@ var (
 )
 
 var (
-	ErrInvalidHashSet    = errors.New("Invalid hash set reply")
-	ErrGetHashesRspError = errors.New("GetHashesRsp error received")
+	ErrInvalidHashSet     = errors.New("Invalid hash set reply")
+	ErrGetHashesRspError  = errors.New("GetHashesRsp error received")
+	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
 
-func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh chan *HashSet) *HashFetcher {
+func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh chan *HashSet, maxReqSize uint64) *HashFetcher {
 	hf := &HashFetcher{ctx: ctx, hub: hub, name: "HashFetcher"}
 
 	hf.quitCh = make(chan interface{})
@@ -49,16 +57,23 @@ func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh ch
 	hf.resultCh = bfCh
 
 	hf.lastBlockInfo = ctx.CommonAncestor
+
+	hf.maxReqSize = maxReqSize
+
 	return hf
 }
 
 func (hf *HashFetcher) Start() {
 	run := func() {
+		timer := time.NewTimer(dfltTimeout)
+
 		hf.requestHashSet()
 
 		for {
 			select {
 			case HashSet := <-hf.responseCh:
+				timer.Stop()
+
 				if err := hf.processHashSet(HashSet); err != nil {
 					//TODO send errmsg to syncer & stop sync
 					logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
@@ -71,6 +86,15 @@ func (hf *HashFetcher) Start() {
 					return
 				}
 				hf.requestHashSet()
+
+				//timer restart
+				timer.Reset(dfltTimeout)
+			case <-timer.C:
+				if hf.requestTimeout() {
+					logger.Error().Msg("HashFetcher response timeout.")
+					stopSyncer(hf.hub, hf.name, ErrHashFetcherTimeout)
+				}
+
 			case <-hf.quitCh:
 				logger.Info().Msg("HashFetcher exited")
 				return
@@ -85,6 +109,10 @@ func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
 	return (hf.lastBlockInfo.No == hf.ctx.TargetNo)
 }
 
+func (hf *HashFetcher) requestTimeout() bool {
+	return time.Now().Sub(hf.reqTime) > dfltTimeout
+}
+
 func (hf *HashFetcher) requestHashSet() {
 	count := MaxHashSetSize
 	if hf.ctx.TargetNo < hf.lastBlockInfo.No+MaxHashSetSize {
@@ -92,6 +120,7 @@ func (hf *HashFetcher) requestHashSet() {
 	}
 
 	hf.reqCount = count
+	hf.reqTime = time.Now()
 
 	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 

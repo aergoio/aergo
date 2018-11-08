@@ -160,7 +160,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("sync started")
 
 	//TODO BP stop
-	syncer.ctx = &types.SyncContext{PeerID: msg.PeerID, TargetNo: msg.TargetNo, BestNo: bestBlockNo}
+	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isstartning = true
 
 	syncer.finder = newFinder(syncer.ctx, syncer.Hub())
@@ -184,15 +184,13 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	}
 
 	//set ancestor in types.SyncContext
-	syncer.ctx.CommonAncestor = msg.Ancestor
-	syncer.ctx.TotalCnt = (syncer.ctx.TargetNo - syncer.ctx.CommonAncestor.No)
-	syncer.ctx.RemainCnt = syncer.ctx.TotalCnt
+	syncer.ctx.SetAncestor(msg.Ancestor)
 
 	syncer.finder.stop()
 	syncer.finder = nil
 
 	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub())
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashSetSize)
 
 	return nil
 }
