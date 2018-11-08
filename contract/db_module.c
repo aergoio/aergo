@@ -6,8 +6,6 @@
 #include "vm.h"
 #include "sqlcheck.h"
 
-extern const bc_ctx_t *getLuaExecContext(lua_State *L);
-
 #define LAST_ERROR(L,db,rc)                         \
     do {                                            \
         if ((rc) != SQLITE_OK) {                    \
@@ -68,12 +66,14 @@ static char *dup_decltype(const char *decltype)
         return NULL;
     }
 
-    p = c = malloc(strlen(decltype));
+    p = c = malloc(strlen(decltype)+1);
     while ((*c++ = tolower(*decltype++))) ;
 
     if (strcmp(p, "date") == 0 || strcmp(p, "datetime") == 0 || strcmp(p, "timestamp") == 0 ||
-        strcmp(p, "boolean") == 0)
+        strcmp(p, "boolean") == 0) {
         return p;
+    }
+    free(p);
     return NULL;
 }
 
@@ -359,42 +359,42 @@ static int db_pstmt_gc(lua_State *L)
 
 static int db_exec(lua_State *L)
 {
-    const bc_ctx_t *ctx;
     const char *cmd;
+    sqlite3 *db;
     int rc, n;
 
-    ctx = getLuaExecContext(L);
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
         luaL_error(L, "invalid sql command");
     }
-    rc = sqlite3_exec(ctx->db, cmd, 0, 0, 0);
-    LAST_ERROR(L, ctx->db, rc);
-    n = sqlite3_changes(ctx->db);
+    db = vm_get_db(L);
+    rc = sqlite3_exec(db, cmd, 0, 0, 0);
+    LAST_ERROR(L, db, rc);
+    n = sqlite3_changes(db);
     lua_pushinteger(L, n);
     return 1;
 }
 
 static int db_query(lua_State *L)
 {
-    const bc_ctx_t *ctx;
     const char *query;
     int rc;
+    sqlite3 *db;
     sqlite3_stmt *s;
     db_rs_t *rs;
 
-    ctx = getLuaExecContext(L);
     query = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(query)) {
         luaL_error(L, "invalid sql command");
     }
-    rc = sqlite3_prepare_v2(ctx->db, query, -1, &s, NULL);
-    LAST_ERROR(L, ctx->db, rc);
+    db = vm_get_db(L);
+    rc = sqlite3_prepare_v2(db, query, -1, &s, NULL);
+    LAST_ERROR(L, db, rc);
 
     rs = (db_rs_t *)lua_newuserdata(L, sizeof(db_rs_t));
     luaL_getmetatable(L, DB_RS_ID);
     lua_setmetatable(L, -2);
-    rs->db = ctx->db;
+    rs->db = db;
     rs->s = s;
     rs->closed = 0;
     rs->nc = sqlite3_column_count(s);
@@ -405,27 +405,27 @@ static int db_query(lua_State *L)
 
 static int db_prepare(lua_State *L)
 {
-    const bc_ctx_t *ctx;
     const char *sql;
     int rc;
     int ref;
+    sqlite3 *db;
     sqlite3_stmt *s;
     db_pstmt_t *pstmt;
 
-    ctx = getLuaExecContext(L);
     sql = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(sql)) {
         luaL_error(L, "invalid sql command");
     }
-    rc = sqlite3_prepare_v2(ctx->db, sql, -1, &s, NULL);
-    LAST_ERROR(L, ctx->db, rc);
+    db = vm_get_db(L);
+    rc = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
+    LAST_ERROR(L, db, rc);
 
     pstmt = (db_pstmt_t *)lua_newuserdata(L, sizeof(db_pstmt_t));
     luaL_getmetatable(L, DB_PSTMT_ID);
     lua_setmetatable(L, -2);
     lua_pushvalue(L, -1);
     ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    pstmt->db = ctx->db;
+    pstmt->db = db;
     pstmt->s = s;
     pstmt->closed = 0;
     pstmt->refcnt = 0;

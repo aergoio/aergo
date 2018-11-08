@@ -234,7 +234,7 @@ func TestBasics2(t *testing.T) {
 	txs := make([]*types.Tx, 0)
 
 	accCount := 100
-	txCount := 10000
+	txCount := 1000
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)

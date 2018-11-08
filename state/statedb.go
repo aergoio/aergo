@@ -34,29 +34,29 @@ var (
 )
 
 var (
-	errSaveData      = errors.New("Failed to save data: invalid key")
-	errLoadData      = errors.New("Failed to load data: invalid key")
-	errSaveBlockInfo = errors.New("Failed to save blockInfo: invalid BlockID")
-	errLoadBlockInfo = errors.New("Failed to load blockInfo: invalid BlockID")
-	errSaveStateData = errors.New("Failed to save StateData: invalid HashID")
-	errLoadStateData = errors.New("Failed to load StateData: invalid HashID")
-)
+	errSaveData = errors.New("Failed to save data: invalid key")
+	errLoadData = errors.New("Failed to load data: invalid key")
 
-var (
-	errInvalidArgs = errors.New("invalid arguments")
-	errInvalidRoot = errors.New("invalid root")
-	errSetRoot     = errors.New("Failed to set root: invalid root")
-	errLoadRoot    = errors.New("Failed to load root: invalid root")
-	errGetState    = errors.New("Failed to get state: invalid account id")
-	errPutState    = errors.New("Failed to put state: invalid account id")
+	errLoadStateData = errors.New("Failed to load StateData: invalid HashID")
+	// errSaveStateData = errors.New("Failed to save StateData: invalid HashID")
+
+	// errInvalidArgs = errors.New("invalid arguments")
+	// errInvalidRoot = errors.New("invalid root")
+	// errSetRoot     = errors.New("Failed to set root: invalid root")
+	// errLoadRoot    = errors.New("Failed to load root: invalid root")
+
+	errGetState = errors.New("Failed to get state: invalid account id")
+	errPutState = errors.New("Failed to put state: invalid account id")
 )
 
 // StateDB manages trie of states
 type StateDB struct {
 	lock     sync.RWMutex
 	buffer   *stateBuffer
+	cache    *storageCache
 	trie     *trie.Trie
 	store    *db.DB
+	batchtx  db.Transaction
 	testmode bool
 }
 
@@ -64,6 +64,7 @@ type StateDB struct {
 func NewStateDB(dbstore *db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
 		buffer:   newStateBuffer(),
+		cache:    newStorageCache(),
 		trie:     trie.NewTrie(root, common.Hasher, *dbstore),
 		store:    dbstore,
 		testmode: test,
@@ -139,7 +140,8 @@ func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
 	if id == emptyAccountID {
 		return errPutState
 	}
-	return states.buffer.put(types.HashID(id), state)
+	states.buffer.put(newValueEntry(types.HashID(id), state))
+	return nil
 }
 
 // GetAccountState gets state of account id from statedb.
@@ -166,6 +168,7 @@ type V struct {
 	newV   *types.State
 	newOne bool
 	create bool
+	buffer *stateBuffer
 }
 
 func (v *V) ID() []byte {
@@ -277,18 +280,23 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 	if id == emptyAccountID {
 		return nil, errGetState
 	}
-	// get state from buffer
-	entry := states.buffer.get(types.HashID(id))
-	if entry != nil {
-		return entry.getData().(*types.State), nil
-	}
-	// get state from trie
 	return states.getState(id)
 }
 
-// getState gets state of account id from trie.
+// getState returns state of account id from buffer and trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
+	// get state from buffer
+	if entry := states.buffer.get(types.HashID(id)); entry != nil {
+		return entry.Value().(*types.State), nil
+	}
+	// get state from trie
+	return states.getTrieState(id)
+}
+
+// getTrieState gets state of account id from trie.
+// nil value is returned when there is no state corresponding to account id.
+func (states *StateDB) getTrieState(id types.AccountID) (*types.State, error) {
 	key, err := states.trie.Get(id[:])
 	if err != nil {
 		return nil, err
@@ -360,17 +368,58 @@ func (states *StateDB) Rollback(revision Snapshot) error {
 	return states.buffer.rollback(int(revision))
 }
 
+func (states *StateDB) updateStorage(dbtx *db.Transaction) error {
+	before := states.buffer.snapshot()
+	for id, storage := range states.cache.storages {
+		// update storage
+		if err := storage.update(); err != nil {
+			states.buffer.rollback(before)
+			return err
+		}
+		// update state if storage root changed
+		if storage.isDirty() {
+			st, err := states.getState(id)
+			if err != nil {
+				states.buffer.rollback(before)
+				return err
+			}
+			if st == nil {
+				st = &types.State{}
+			}
+			// put state with storage root
+			st.StorageRoot = storage.trie.Root
+			states.buffer.put(newValueEntry(types.HashID(id), st))
+		}
+		// stage changes
+		if err := storage.stage(dbtx); err != nil {
+			states.buffer.rollback(before)
+			return err
+		}
+	}
+	return nil
+}
+
 // Update applies changes of state buffer to trie
 func (states *StateDB) Update() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	keys, vals := states.buffer.export()
-	if len(keys) == 0 || len(vals) == 0 {
-		// nothing to update
-		return nil
+
+	dbtx := (*states.store).NewTx()
+	if err := states.update(&dbtx); err != nil {
+		dbtx.Discard()
+		return err
 	}
-	_, err := states.trie.Update(keys, vals)
-	if err != nil {
+	dbtx.Commit()
+	return nil
+}
+
+func (states *StateDB) update(dbtx *db.Transaction) error {
+	// update storage and put state with changed storage root
+	if err := states.updateStorage(dbtx); err != nil {
+		return err
+	}
+	// export buffer and update to trie
+	if err := states.buffer.updateTrie(states.trie); err != nil {
 		return err
 	}
 	return nil
@@ -380,13 +429,25 @@ func (states *StateDB) Update() error {
 func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	err := states.trie.Commit()
-	if err != nil {
+
+	dbtx := (*states.store).NewTx()
+	if err := states.stage(&dbtx); err != nil {
+		dbtx.Discard()
 		return err
 	}
-	err = states.buffer.commit(states.store)
-	if err != nil {
+	dbtx.Commit()
+	return nil
+}
+
+func (states *StateDB) stage(dbtx *db.Transaction) error {
+	// stage trie and buffer
+	states.trie.StageUpdates(dbtx)
+	if err := states.buffer.stage(dbtx); err != nil {
 		return err
 	}
-	return states.buffer.reset()
+	// reset buffer
+	if err := states.buffer.reset(); err != nil {
+		return err
+	}
+	return nil
 }

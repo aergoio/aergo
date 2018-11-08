@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+	"runtime"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -140,7 +141,6 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
-			genesisBlock := types.GenesisToBlock(genesis)
 
 			err := InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
 			if err != nil {
@@ -153,11 +153,12 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 				return nil, err
 			}
 
-			err = cs.cdb.addGenesisBlock(genesisBlock)
+			err = cs.cdb.addGenesisBlock(genesis.GetBlock())
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return nil, err
 			}
+
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
@@ -246,6 +247,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		bid := msg.Block.BlockID()
 		block := msg.Block
 		logger.Debug().Str("hash", msg.Block.ID()).
@@ -333,6 +336,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")

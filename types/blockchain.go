@@ -48,17 +48,6 @@ func getLastIndexOfBH() (lastIndex int) {
 	return i
 }
 
-// Genesis represents genesis block
-type Genesis struct {
-	Timestamp int64             `json:"timestamp,omitempty"`
-	Balance   map[string]*State `json:"alloc"`
-	BPIds     []string          `json:"bpids"`
-
-	// followings are for internal use only
-	Block     *Block `json:"-"`
-	VoteState *State `json:"-"`
-}
-
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetBestBlock() (*Block, error)

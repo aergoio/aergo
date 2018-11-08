@@ -260,23 +260,19 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 	mp.setStateDB(block)
 
-	for _, v := range mp.pool {
-		acc := v.GetAccount()
-		ns, err := mp.getAccountState(acc)
+	for _, list := range mp.pool {
+		ns, err := mp.getAccountState(list.GetAccount())
 		if err != nil {
-			mp.Error().Err(err).Msg("getting Account status failed")
+			mp.Error().Err(err).Msg("getting Account status failed during removal")
 			// TODO : ????
+			continue
 		}
-		list, err := mp.acquireMemPoolList(acc)
-		if err == nil {
-			defer mp.releaseMemPoolList(list)
-			diff, delTxs := list.FilterByState(ns)
-			mp.orphan -= diff
-			for _, tx := range delTxs {
-				h := types.ToTxID(tx.GetHash())
-				delete(mp.cache, h) // need lock
-			}
+		diff, delTxs := list.FilterByState(ns)
+		mp.orphan -= diff
+		for _, tx := range delTxs {
+			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
 		}
+		mp.releaseMemPoolList(list)
 	}
 
 	//TODO
@@ -331,7 +327,8 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		if err != nil {
 			return err
 		}
-		scs, err := mp.stateDB.OpenContractState(aergoSystemState)
+		aid := types.ToAccountID(tx.GetBody().GetRecipient())
+		scs, err := mp.stateDB.OpenContractState(aid, aergoSystemState)
 		if err != nil {
 			return err
 		}
@@ -357,14 +354,12 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 	if list != nil {
 		return list, nil
 	}
-	var nonce uint64
 	ns, err := mp.getAccountState(acc)
 	if err != nil {
 		return nil, err
 	}
-	nonce = ns.Nonce
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(acc, nonce)
+	mp.pool[id] = NewTxList(acc, ns)
 	return mp.pool[id], nil
 }
 

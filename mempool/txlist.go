@@ -15,16 +15,16 @@ import (
 // TxList is internal struct for transactions per account
 type TxList struct {
 	sync.RWMutex
-	min     uint64
+	base    *types.State
 	account []byte
 	ready   int
 	list    []*types.Tx // nonce-ordered tx list
 }
 
-// NewTxList creates new TxList with given nonce as min
-func NewTxList(acc []byte, nonce uint64) *TxList {
+// NewTxList creates new TxList with given State
+func NewTxList(acc []byte, st *types.State) *TxList {
 	return &TxList{
-		min:     nonce,
+		base:    st,
 		account: acc,
 	}
 }
@@ -66,7 +66,7 @@ func (tl *TxList) compare(tx *types.Tx, index int) bool {
 }
 
 func (tl *TxList) continuous(index int) bool {
-	l := tl.min
+	l := tl.base.Nonce
 	r := tl.list[index].GetBody().GetNonce()
 	if tl.ready > 0 {
 		l = tl.list[tl.ready-1].GetBody().GetNonce()
@@ -86,7 +86,7 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	defer tl.Unlock()
 
 	nonce := tx.GetBody().GetNonce()
-	if nonce <= tl.min {
+	if nonce <= tl.base.Nonce {
 		return 0, types.ErrTxNonceTooLow
 	}
 
@@ -121,18 +121,34 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 
-	oldCnt := len(tl.list) - tl.ready
+	var balCheck bool
 
-	tl.min = st.Nonce
+	if tl.base.Nonce == st.Nonce {
+		tl.base = st
+		return 0, nil
+	}
+
+	if tl.base.Balance > st.Balance {
+		balCheck = true
+	}
+	tl.base = st
+
+	oldCnt := len(tl.list) - tl.ready
 	var left []*types.Tx
 	removed := tl.list[:0]
-	for _, x := range tl.list {
-		if err := x.ValidateWithSenderState(st); err == nil || err == types.ErrTxNonceToohigh {
+	for i, x := range tl.list {
+		err := x.ValidateWithSenderState(st)
+		if err == nil || err == types.ErrTxNonceToohigh {
+			if err != nil && !balCheck {
+				left = append(left, tl.list[i:]...)
+				break
+			}
 			left = append(left, x)
 		} else {
 			removed = append(removed, x)
 		}
 	}
+
 	tl.list = left
 	tl.ready = 0
 	for i := 0; i < len(tl.list); i++ {
@@ -175,6 +191,17 @@ func (tl *TxList) len() int {
 }
 
 /*
+
+func (tl *TxList) printList() {
+	fmt.Printf("\t\t")
+	for i := 0; i < len(tl.list); i++ {
+		cur := tl.list[i].GetBody().GetNonce()
+		fmt.Printf("%d, ", cur)
+	}
+	fmt.Printf("done ready:%d n:%d, b:%d\n", tl.ready, tl.base.Nonce, tl.base.Balance)
+
+}
+
 func (tl *TxList) checkSanity() bool {
 	prev := uint64(0)
 	for _, v := range tl.list {
@@ -186,16 +213,6 @@ func (tl *TxList) checkSanity() bool {
 	}
 	return true
 }
-func (tl *TxList) printList() {
-	fmt.Printf("\t\t")
-	for i := 0; i < len(tl.list); i++ {
-		cur := tl.list[i].GetBody().GetNonce()
-		fmt.Printf("%d, ", cur)
-	}
-	fmt.Printf("done ready:%d min:%d\n", tl.ready, tl.min)
-
-}
-
 func (tl *TxList) printList() {
 
 	var f, l, before uint64

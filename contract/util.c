@@ -32,6 +32,52 @@ static void copy_to_buffer(char *src, int len, sbuff_t *sbuf)
 	sbuf->idx += len;
 }
 
+static void add_escape (sbuff_t *sbuf, char ch)
+{
+	if (sbuf->idx + 2 >= sbuf->buf_len) {
+		sbuf->buf_len *= 2;
+		sbuf->buf = realloc (sbuf->buf, sbuf->buf_len);
+	}
+	sbuf->buf[sbuf->idx++] = '\\';
+	sbuf->buf[sbuf->idx++] = ch;
+}
+
+static void copy_str_to_buffer(char *src, int len, sbuff_t *sbuf)
+{
+    int i;
+
+    char *end = src + len;
+
+	for (; src < end; ++src) {
+	    switch(*src) {
+	    case '"':
+	    case '\\':
+	        add_escape(sbuf, *src);
+	        break;
+	    case '\t':
+	        add_escape(sbuf, 't');
+	        break;
+	    case '\n':
+	        add_escape(sbuf, 'n');
+	        break;
+	    case '\b':
+	        add_escape(sbuf, 'b');
+	        break;
+		case '\f':
+	        add_escape(sbuf, 'f');
+	        break;
+	    case '\r':
+	    	add_escape(sbuf, 'r');
+	        break;
+	    default:
+	    	if (sbuf->idx + 1 >= sbuf->buf_len) {
+		        sbuf->buf_len *= 2;
+		        sbuf->buf = realloc (sbuf->buf, sbuf->buf_len);
+	        }
+	        sbuf->buf[sbuf->idx++] = *src;
+	    }
+	}
+}
 static callinfo_t *callinfo_new()
 {
 	callinfo_t *callinfo = malloc(sizeof(callinfo_t));
@@ -111,7 +157,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	case LUA_TSTRING: {
 		src_val = (char *)lua_tostring(L, idx);
 		copy_to_buffer ("\"", 1, sbuf);
-		copy_to_buffer (src_val, strlen (src_val), sbuf);
+		copy_str_to_buffer (src_val, strlen (src_val), sbuf);
 		src_val = "\",";
 		break;
 	}
@@ -209,196 +255,137 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	return true;
 
 }
-
-static int json_to_lua_table(lua_State *L, char **start, bool check);
+static int json_to_lua (lua_State *L, char **start, bool check);
 
 static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
-	char *token_end;
-	bool end = false;
-	char *json = *start;
+	char *json = (*start) + 1;
 	int index = 1;
 
-	if (*json != '[')
-		return -1;
-
 	lua_newtable(L);
-	json++;
-	while(*json != ']' && !end) {
-		while(isspace(*json)) ++json;
+	while(*json != ']') {
 		lua_pushnumber(L, index++);
-		if (*json == '{') {
-			if(json_to_lua_table(L, &json, check) != 0)
-				return -1;
-			while(isspace(*json)) ++json;
-			if (*json == ',')
-				++json;
-			else if (*json != ']')
-				return -1;
-		}
-		else if (*json == '[') {
-			if(json_array_to_lua_table(L, &json, check) != 0)
-				return -1;
-			while(isspace(*json)) ++json;
-			if (*json == ',')
-				++json;
-			else if (*json != ']')
-				return -1;
-		}
-		else {
-			token_end = json;
-			while(*token_end != ',' && *token_end != ']' && *token_end != '\0') ++token_end;
-			if (*token_end == '\0')
-				return -1;
-			if (*token_end == ']')
-				end = true;
-			*token_end = '\0';
-			if (lua_util_json_to_lua (L, json, check) != 0)
-				return -1;
-			json = token_end + 1;
-		}
+		if (json_to_lua (L, &json, check) != 0)
+		    return -1;
+		if (*json == ',')
+		    ++json;
+		else if(*json != ']')
+		    return -1;
 		lua_rawset(L, -3);
 	}
-	if (!end)
-		++json;
-	*start = json;
+	*start = json + 1;
 	return 0;
 }
 
 static int json_to_lua_table(lua_State *L, char **start, bool check) {
-	char *token_end;
-	bool end = false;
-	char *json = *start;
+	char *json = (*start) + 1;
 	int index = 1;
-	int offset;
-	bool is_array = false;
-
-	if (*json != '{')
-		return -1;
 
 	lua_newtable(L);
-	json++;
-	while(isspace(*json)) ++json;
-	while(*json != '}' && !end) {
-		while(isspace(*json)) ++json;
-		token_end = json;
-		if (*json != '{' && *json !='[') {
-			while(*token_end != ':' && *token_end != ','
-				 && *token_end != '}' && *token_end != '\0')
-				 token_end++;
-			if (*token_end == ':') {
-				*token_end = '\0';
-				if (lua_util_json_to_lua (L, json, check) != 0)
-					return -1;
-				json = token_end + 1;
-				while(isspace(*json)) ++json;
-			}
-			else {
-				lua_pushnumber(L, index++);
-			}
+	while(*json != '}') {
+		lua_pushnumber(L, index++);
+		if (json_to_lua (L, &json, check) != 0)
+		    return -1;
+		if (*json == ':') {
+		    lua_remove(L, -2);
+		    --index;
+		    if (check && !lua_isstring(L, -1)) {
+		        return -1;
+		    }
+		    ++json;
+			if (json_to_lua (L, &json, check) != 0)
+			    return -1;
 		}
-		else {
-			lua_pushnumber(L, index++);
-		}
-		if (*json == '{') {
-			if(json_to_lua_table(L, &json, check) != 0)
-				return -1;
-			while(isspace(*json)) ++json;
-			if (*json == ',')
-				++json;
-			else if (*json != '}')
-				return -1;
-		}
-		else if (*json == '[') {
-			if(json_array_to_lua_table(L, &json, check) != 0)
-				return -1;
-			while(isspace(*json)) ++json;
-			if (*json == ',')
-				++json;
-			else if (*json != '}')
-				return -1;
-		}
-		else {
-			token_end = json;
-			while(*token_end != ',' && *token_end != '}' && *token_end != '\0') ++token_end;
-			if (*token_end == '\0')
-				return -1;
-			if (*token_end == '}')
-				end = true;
-			*token_end = '\0';
-			if (lua_util_json_to_lua (L, json, check) != 0)
-				return -1;
-
-			json = token_end + 1;
-		}
+		if (*json == ',')
+		    ++json;
+		else if (*json != '}')
+		    return -1;
 		lua_rawset(L, -3);
 	}
-	if (!end)
-		++json;
+	*start = json + 1;
+	return 0;
+}
+
+static int json_to_lua (lua_State *L, char **start, bool check) {
+    char *json = *start;
+
+	while(isspace(*json)) ++json;
+	if (*json == '"') {
+	    char *end = json + 1;
+	    char *target = end;
+	    while ((*end) != '"') {
+            if ((*end) == '\\') {
+                end++;
+                switch(*end) {
+                case 't':
+                    *target = '\t';
+	                break;
+	            case 'n':
+                    *target = '\n';
+	                break;
+		        case 'b':
+                    *target = '\b';
+	                break;
+        		case 'f':
+                    *target = '\f';
+	                break;
+        		case 'r':
+                    *target = '\r';
+	                break;
+	            default :
+	                *target = *end;
+	            }
+            }
+            else if (end != target)
+                *target = *end;
+            end++;
+            target++;
+        }
+		*target = '\0';
+		lua_pushstring(L, json + 1);
+		json = end + 1;
+	} else if (isdigit(*json) || *json == '-' || *json == '+') {
+		double d;
+	    char *end = json + 1;
+		while(*end != '\0') {
+			if (!isdigit(*end) && *end != '-' && *end != '.' &&
+				*end != 'e' && *end != 'E' && *end != '+') {
+				break;
+			}
+			++end;
+		}
+		sscanf(json, "%lf", &d);
+		lua_pushnumber(L, d);
+		json = end;
+	} else if (*json == '{') {
+		if (json_to_lua_table(L, &json, check) != 0)
+			return -1;
+	} else if (*json == '[') {
+		if (json_array_to_lua_table(L, &json, check) != 0)
+			return -1;
+	} else if (strncasecmp(json, "true", 4) == 0) {
+		lua_pushboolean(L, 1);
+		json = json + 4;
+	} else if (strncasecmp(json, "false", 5) == 0) {
+		lua_pushboolean(L, 0);
+		json = json + 5;
+	} else if (strncasecmp(json, "null", 4) == 0) {
+		lua_pushnil(L);
+		json = json + 4;
+	} else {
+		return -1;
+	}
+	while(isspace(*json)) ++json;
 	*start = json;
 	return 0;
 }
 
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)
 {
-	while(isspace(*json)) ++json;
-	if (*json == '"') {
-		char *end = strchr(json + 1, '"');
-		if (end == NULL)
-			return -1;
-		*end = '\0';
-		++end;
-		if (check) {
-			while(*end != '\0') {
-				if (!isspace(*end))
-					return -1;
-				++end;
-			}
-		}
-		lua_pushstring(L, json + 1);
-	} else if (isdigit(*json)) {
-		double d;
-		if (check) {
-			char *end = json;
-			while(*end != '\0') {
-				if (isspace(*end)) {
-					while(isspace(*end)) end++;
-					if (*end != '\0')
-						return -1;
-					break;
-				}
-				if (!isdigit(*end))
-					return -1;
-				++end;
-			}
-		}
-		sscanf(json, "%lf", &d);
-		lua_pushnumber(L, d);
-	} else if (*json == '{') {
-		if (json_to_lua_table(L, &json, check) != 0)
-			return -1;
-		if (check) {
-			while(isspace(*json)) ++json;
-			if (*json != '\0')
-				return -1;
-		}
-	} else if (*json == '[') {
-		if (json_array_to_lua_table(L, &json, check) != 0)
-			return -1;
-		if (check) {
-			while(isspace(*json)) ++json;
-			if (*json != '\0')
-				return -1;
-		}
-	} else if (strcmp(json, "true") == 0) {
-		lua_pushboolean(L, 1);
-	} else if (strcmp(json, "false") == 0) {
-		lua_pushboolean(L, 0);
-	} else if ((check && strlen(json) == 0) || strcmp(json, "null") == 0) {
-		lua_pushnil(L);
-	} else {
-		return -1;
-	}
-	return 0;
+    if (json_to_lua (L, &json, check) != 0)
+        return -1;
+    if (check && *json != '\0')
+        return -1;
+    return 0;
 }
 
 char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_form)
@@ -418,8 +405,8 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 			free(sbuf.buf);
 			return NULL;
 		}
-		callinfo_del(callinfo);
 	}
+    callinfo_del(callinfo);
 	if (sbuf.idx != start_idx)
 		sbuf.idx--;
 	if (!json_form || start < end) {

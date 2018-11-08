@@ -8,68 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBufferStack(t *testing.T) {
-	stk := newStack()
-	assert.Equal(t, -1, stk.peek())
-	t.Log("stk", stk)
-
-	stk.push(1)
-	assert.Equal(t, 1, stk.peek())
-	t.Log("stk", stk)
-
-	stk.push(2).push(3).push(4)
-	stk.push(5)
-	t.Log("stk", stk)
-
-	assert.Equal(t, 5, stk.peek())
-	t.Log("stk", stk)
-
-	assert.Equal(t, 5, stk.pop())
-	assert.Equal(t, 4, stk.peek())
-	t.Log("stk", stk)
-
-	stk.push(6)
-	t.Log("stk", stk)
-
-	assert.Equal(t, 6, stk.peek())
-	assert.Equal(t, 6, stk.pop())
-	assert.Equal(t, 4, stk.pop())
-	assert.Equal(t, 3, stk.pop())
-	t.Log("stk", stk)
-
-	assert.Equal(t, 2, stk.peek())
-	assert.Equal(t, 2, stk.pop())
-	assert.Equal(t, 1, stk.pop())
-	t.Log("stk", stk)
-
-	assert.Equal(t, -1, stk.peek())
-	assert.Equal(t, -1, stk.pop())
-	assert.Equal(t, -1, stk.pop())
-	t.Log("stk", stk)
-
-	stk.push(7).push(8, 9, 10)
-	t.Log("stk", stk)
-
-	assert.Equal(t, 10, stk.peek())
-	assert.Equal(t, 10, stk.pop())
-	assert.Equal(t, 9, stk.pop())
-	assert.Equal(t, 8, stk.pop())
-	t.Log("stk", stk)
-}
-
-// func printBufferIndex(t *testing.T, kset []types.HashID, idxs bufferIndex) {
-// 	for i, v := range kset {
-// 		t.Logf("(%d)[%v]%v", i, hex.EncodeToString(v[:]), idxs[v])
-// 	}
-// }
-
-func TestBufferIndexStack(t *testing.T) {
-	kset := []types.HashID{
+var (
+	kset = []types.HashID{
 		types.ToHashID([]byte{0x01}),
 		types.ToHashID([]byte{0x02}),
 	}
-	k0, k1 := kset[0], kset[1]
+	k0, k1 = kset[0], kset[1]
+)
 
+func TestBufferIndexStack(t *testing.T) {
 	idxs := bufferIndex{}
 
 	idxs.push(k0, 0)
@@ -105,12 +52,6 @@ func TestBufferIndexStack(t *testing.T) {
 	assert.Equal(t, 11, idxs[k1].peek())
 }
 func TestBufferIndexRollback(t *testing.T) {
-	kset := []types.HashID{
-		types.ToHashID([]byte{0x01}),
-		types.ToHashID([]byte{0x02}),
-	}
-	k0, k1 := kset[0], kset[1]
-
 	idxs := bufferIndex{}
 
 	idxs.push(k0, 0, 1, 3, 4, 6, 7, 8)
@@ -137,4 +78,57 @@ func TestBufferIndexRollback(t *testing.T) {
 
 	assert.Equal(t, -1, idxs[k0].peek())
 	assert.Equal(t, -1, idxs[k1].peek())
+}
+
+func TestBufferRollback(t *testing.T) {
+	stb := newStateBuffer()
+
+	assert.Equal(t, 0, stb.snapshot())
+	stb.put(newValueEntry(k0, []byte{1})) // rev 1: k0=1
+	stb.put(newValueEntry(k0, []byte{2})) // rev 2: k0=2
+	stb.put(newValueEntry(k0, []byte{3})) // rev 3: k0=3
+	stb.put(newValueEntry(k0, []byte{4})) // rev 4: k0=4
+	stb.put(newValueEntry(k1, []byte{1})) // rev 5: k0=4, k1=1
+	stb.put(newValueEntry(k1, []byte{2})) // rev 6: k0=4, k1=2
+	stb.put(newValueEntry(k1, []byte{3})) // rev 7: k0=4, k1=3
+
+	// snapshot revision 7
+	revision := stb.snapshot() // 7
+	assert.Equal(t, 7, stb.snapshot())
+
+	stb.put(newValueEntry(k0, []byte{5})) // rev 8: k0=5, k1=3
+	stb.put(newValueEntry(k0, []byte{6})) // rev 9: k0=6, k1=3
+	assert.Equal(t, []byte{6}, stb.get(k0).Value())
+	assert.Equal(t, []byte{3}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
+
+	// rollback to revision 7
+	stb.rollback(revision)
+	assert.Equal(t, 7, stb.snapshot())
+
+	assert.Equal(t, []byte{4}, stb.get(k0).Value())
+	assert.Equal(t, []byte{3}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
+
+	stb.put(newValueEntry(k1, []byte{4})) // rev 8: k0=4, k1=4
+	stb.put(newValueEntry(k1, []byte{5})) // rev 9: k0=4, k1=5
+	stb.put(newValueEntry(k0, []byte{7})) // rev 10: k0=7, k1=5
+
+	// snapshot revision 10
+	revision = stb.snapshot() // 10
+	assert.Equal(t, 10, stb.snapshot())
+
+	stb.put(newValueEntry(k0, []byte{8})) // rev 11: k0=8, k1=5
+	stb.put(newValueEntry(k1, []byte{6})) // rev 12: k0=8, k1=6
+	assert.Equal(t, []byte{8}, stb.get(k0).Value())
+	assert.Equal(t, []byte{6}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
+
+	// rollback to revision 10
+	stb.rollback(revision) // 10
+	assert.Equal(t, 10, stb.snapshot())
+
+	assert.Equal(t, []byte{7}, stb.get(k0).Value())
+	assert.Equal(t, []byte{5}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 }

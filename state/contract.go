@@ -1,14 +1,11 @@
 package state
 
 import (
-	"bytes"
-
-	sha256 "github.com/minio/sha256-simd"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
@@ -16,53 +13,34 @@ func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractS
 	if err != nil {
 		return nil, err
 	}
-	return states.OpenContractState(st)
+	return states.OpenContractState(aid, st)
 }
-func (states *StateDB) OpenContractState(st *types.State) (*ContractState, error) {
+func (states *StateDB) OpenContractState(aid types.AccountID, st *types.State) (*ContractState, error) {
+	storage := states.cache.get(aid)
+	if storage == nil {
+		root := common.Compactz(st.StorageRoot)
+		storage = newBufferedStorage(root, *states.store)
+	}
 	res := &ContractState{
 		State:   st,
-		storage: trie.NewTrie(nil, common.Hasher, *states.store),
-		buffer:  newStateBuffer(),
+		account: aid,
+		storage: storage,
 		store:   states.store,
-	}
-	if st.StorageRoot != nil && !emptyHashID.Equal(types.ToHashID(st.StorageRoot)) {
-		res.storage.Root = st.StorageRoot
 	}
 	return res, nil
 }
 
-func (states *StateDB) CommitContractState(st *ContractState) error {
-	defer func() {
-		if bytes.Compare(st.State.StorageRoot, st.storage.Root) != 0 {
-			st.State.StorageRoot = st.storage.Root
-		}
-		st.storage = nil
-	}()
-
-	if st.buffer.isEmpty() {
-		// do nothing
-		return nil
-	}
-
-	keys, vals := st.buffer.export()
-	_, err := st.storage.Update(keys, vals)
-	if err != nil {
-		return err
-	}
-	st.buffer.commit(st.store)
-
-	err = st.storage.Commit()
-	if err != nil {
-		return err
-	}
-	return st.buffer.reset()
+func (states *StateDB) StageContractState(st *ContractState) error {
+	states.cache.put(st.account, st.storage)
+	st.storage = nil
+	return nil
 }
 
 type ContractState struct {
 	*types.State
+	account types.AccountID
 	code    []byte
-	storage *trie.Trie
-	buffer  *stateBuffer
+	storage *bufferedStorage
 	store   *db.DB
 }
 
@@ -107,16 +85,16 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	return st.buffer.put(types.GetHashID(key), value)
+	st.storage.put(newValueEntry(types.GetHashID(key), value))
+	return nil
 }
 
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	entry := st.buffer.get(id)
-	if entry != nil {
-		return entry.data.([]byte), nil
+	if entry := st.storage.get(id); entry != nil {
+		return entry.Value().([]byte), nil
 	}
-	dkey, err := st.storage.Get(id[:])
+	dkey, err := st.storage.trie.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +102,32 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 		return nil, nil
 	}
 	value := []byte{}
-	err = loadData(st.store, dkey, &value)
-	if err != nil {
+	if err := loadData(st.store, dkey, &value); err != nil {
 		return nil, err
 	}
 	return value, nil
+}
+
+// Snapshot returns revision number of storage buffer
+func (st *ContractState) Snapshot() Snapshot {
+	return Snapshot(st.storage.buffer.snapshot())
+}
+
+// Rollback discards changes of storage buffer to revision number
+func (st *ContractState) Rollback(revision Snapshot) error {
+	return st.storage.buffer.rollback(int(revision))
+}
+
+// HashID implements types.ImplHashID
+func (st *ContractState) HashID() types.HashID {
+	return getHash(st.State)
+}
+
+// Marshal implements types.ImplMarshal
+func (st *ContractState) Marshal() ([]byte, error) {
+	return proto.Marshal(st.State)
+}
+
+func (st *ContractState) cache() *stateBuffer {
+	return st.storage.buffer
 }

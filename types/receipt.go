@@ -48,9 +48,13 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(EncodeAddress(r.ContractAddress))
 	b.WriteString(`","status":"`)
 	b.WriteString(strings.Replace(r.Status, "\"", "'", -1))
-	b.WriteString(`","ret":"`)
-	b.WriteString(strings.Replace(r.Ret, "\"", "'", -1))
-	b.WriteString(`"}`)
+	if len(r.Ret) == 0 {
+		b.WriteString(`","ret": {}}`)
+	} else {
+		b.WriteString(`","ret": `)
+		b.WriteString(r.Ret)
+		b.WriteString(`}`)
+	}
 	return b.Bytes(), nil
 }
 
