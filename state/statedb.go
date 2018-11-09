@@ -310,26 +310,35 @@ func (states *StateDB) getTrieState(id types.AccountID) (*types.State, error) {
 // GetStateAndProof gets the state and associated proof of an account
 // in the given trie root. If the account doesnt exist, a proof of
 // non existence is returned.
-func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types.StateProof, error) {
+func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte, compressed bool) (*types.StateProof, error) {
 	var state *types.State
 	var ap [][]byte
-	var proofKey, proofVal []byte
+	var proofKey, proofVal, bitmap []byte
 	var isIncluded bool
 	var err error
+	var height int
 	states.lock.RLock()
 	defer states.lock.RUnlock()
 
 	if len(root) != 0 {
-		// Get the state and proof of the account for a past state
-		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+		if compressed {
+			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressedPast(id[:], root)
+		} else {
+			// Get the state and proof of the account for a past state
+			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofPast(id[:], root)
+		}
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Get the state and proof of the account
+		// Get the state and proof of the account at the latest trie
 		// The wallet should check that state hashes to proofVal and verify the audit path,
 		// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
-		ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id[:])
+		if compressed {
+			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressed(id[:])
+		} else {
+			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id[:])
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -345,6 +354,8 @@ func (states *StateDB) GetStateAndProof(id types.AccountID, root []byte) (*types
 		Inclusion: isIncluded,
 		ProofKey:  proofKey,
 		ProofVal:  proofVal,
+		Bitmap:    bitmap,
+		Height:    uint32(height),
 		AuditPath: ap,
 	}
 	logger.Debug().Str("state root : ", enc.ToString(states.trie.Root)).Msg("Get State and Proof")

@@ -291,7 +291,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
-		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id, msg.Root)
+		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id, msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}

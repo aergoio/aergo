@@ -63,8 +63,9 @@ type GetStateRsp struct {
 	Err   error
 }
 type GetStateAndProof struct {
-	Account []byte
-	Root    []byte
+	Account    []byte
+	Root       []byte
+	Compressed bool
 }
 type GetStateAndProofRsp struct {
 	StateProof *types.StateProof

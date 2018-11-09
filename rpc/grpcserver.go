@@ -391,7 +391,7 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 // GetStateAndProof handle rpc request getstateproof
 func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.StateProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetStateAndProof{Account: in.Account, Root: in.Root}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
+		&message.GetStateAndProof{Account: in.Account, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
 	if err != nil {
 		return nil, err
 	}
