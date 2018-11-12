@@ -25,3 +25,7 @@ type SyncStop struct {
 	FromWho string
 	Err     error
 }
+
+type CloseFetcher struct {
+	FromWho string
+}

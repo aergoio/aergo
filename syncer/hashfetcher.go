@@ -10,12 +10,12 @@ import (
 )
 
 type HashFetcher struct {
-	hub *component.ComponentHub //for communicate with other service
+	hub component.ICompRequester //for communicate with other service
 
 	ctx *types.SyncContext
 
-	responseCh chan *HashSet //HashSet response channel (<- Syncer)
-	resultCh   chan *HashSet //BlockFetcher input channel (-> BlockFetcher)
+	responseCh chan *message.GetHashesRsp //HashSet response channel (<- Syncer)
+	resultCh   chan *HashSet              //BlockFetcher input channel (-> BlockFetcher)
 	//HashFetcher can wait in resultCh
 	quitCh chan interface{}
 
@@ -25,6 +25,11 @@ type HashFetcher struct {
 
 	maxReqSize uint64
 	name       string
+
+	timeout time.Duration
+	debug   bool
+
+	finished bool
 }
 
 type HashSet struct {
@@ -48,11 +53,11 @@ var (
 	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
 
-func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh chan *HashSet, maxReqSize uint64) *HashFetcher {
-	hf := &HashFetcher{ctx: ctx, hub: hub, name: "HashFetcher"}
+func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh chan *HashSet, maxReqSize uint64) *HashFetcher {
+	hf := &HashFetcher{ctx: ctx, hub: hub, name: NameHashFetcher}
 
 	hf.quitCh = make(chan interface{})
-	hf.responseCh = make(chan *HashSet)
+	hf.responseCh = make(chan *message.GetHashesRsp)
 
 	hf.resultCh = bfCh
 
@@ -60,19 +65,33 @@ func newHashFetcher(ctx *types.SyncContext, hub *component.ComponentHub, bfCh ch
 
 	hf.maxReqSize = maxReqSize
 
+	hf.timeout = dfltTimeout
+
 	return hf
+}
+
+func (hf *HashFetcher) setTimeout(timeout time.Duration) {
+	hf.timeout = timeout
 }
 
 func (hf *HashFetcher) Start() {
 	run := func() {
-		timer := time.NewTimer(dfltTimeout)
+		timer := time.NewTimer(hf.timeout)
 
 		hf.requestHashSet()
 
 		for {
+		NEXT:
 			select {
-			case HashSet := <-hf.responseCh:
+			case msg := <-hf.responseCh:
+				logger.Debug().Msg("process GetHashesRsp")
+
 				timer.Stop()
+				if !hf.isValidResponse(msg) {
+					goto NEXT
+				}
+
+				HashSet := &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes}
 
 				if err := hf.processHashSet(HashSet); err != nil {
 					//TODO send errmsg to syncer & stop sync
@@ -82,13 +101,15 @@ func (hf *HashFetcher) Start() {
 				}
 
 				if hf.isFinished(HashSet) {
+					hf.finished = true
+					closeFetcher(hf.hub, hf.name)
 					logger.Info().Msg("HashFetcher finished")
 					return
 				}
 				hf.requestHashSet()
 
 				//timer restart
-				timer.Reset(dfltTimeout)
+				timer.Reset(hf.timeout)
 			case <-timer.C:
 				if hf.requestTimeout() {
 					logger.Error().Msg("HashFetcher response timeout.")
@@ -110,12 +131,12 @@ func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
 }
 
 func (hf *HashFetcher) requestTimeout() bool {
-	return time.Now().Sub(hf.reqTime) > dfltTimeout
+	return time.Now().Sub(hf.reqTime) > hf.timeout
 }
 
 func (hf *HashFetcher) requestHashSet() {
-	count := MaxHashSetSize
-	if hf.ctx.TargetNo < hf.lastBlockInfo.No+MaxHashSetSize {
+	count := hf.maxReqSize
+	if hf.ctx.TargetNo < hf.lastBlockInfo.No+hf.maxReqSize {
 		count = hf.ctx.TargetNo - hf.lastBlockInfo.No
 	}
 
@@ -146,7 +167,7 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 }
 
 func (hf *HashFetcher) stop() {
-	logger.Info().Msg("HashFetcher stopped")
+	logger.Info().Msg("HashFetcher finished")
 
 	if hf == nil {
 		return
@@ -162,34 +183,35 @@ func (hf *HashFetcher) stop() {
 }
 
 func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
+	isValid := true
+
+	if msg.Err != nil {
+		logger.Error().Err(msg.Err).Msg("receive GetHashesRsp with error")
+		stopSyncer(hf.hub, hf.name, ErrGetHashesRspError)
+		isValid = false
+	}
+
 	if !hf.lastBlockInfo.Equal(msg.PrevInfo) || hf.reqCount != msg.Count {
-		return false
+		isValid = false
+	}
+
+	if !isValid {
+		logger.Error().Str("req prev", enc.ToString(hf.lastBlockInfo.Hash)).
+			Str("msg prev", enc.ToString(msg.PrevInfo.Hash)).
+			Uint64("req count", hf.reqCount).
+			Uint64("msg count", msg.Count).
+			Msg("invalid GetHashesRsp")
 	}
 
 	return true
 }
 
 func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {
-	if !hf.isValidResponse(msg) {
-		logger.Error().Str("req prev", enc.ToString(hf.lastBlockInfo.Hash)).
-			Str("msg prev", enc.ToString(msg.PrevInfo.Hash)).
-			Uint64("req count", hf.reqCount).
-			Uint64("msg count", msg.Count).
-			Msg("invalid GetHashesRsp")
-		return
-	}
-
-	if msg.Err != nil {
-		logger.Error().Err(msg.Err).Msg("receive GetHashesRsp with error")
-		stopSyncer(hf.hub, hf.name, ErrGetHashesRspError)
-		return
-	}
-
 	count := len(msg.Hashes)
 	logger.Debug().Int("count", count).
 		Str("start", enc.ToString(msg.Hashes[0])).
 		Str("end", enc.ToString(msg.Hashes[count-1])).Msg("receive GetHashesRsp")
 
-	hf.responseCh <- &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes}
+	hf.responseCh <- msg
 	return
 }

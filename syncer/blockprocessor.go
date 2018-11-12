@@ -12,7 +12,7 @@ import (
 )
 
 type BlockProcessor struct {
-	hub *component.ComponentHub //for communicate with other service
+	hub component.ICompRequester //for communicate with other service
 
 	blockFetcher *BlockFetcher
 

@@ -14,7 +14,7 @@ import (
 )
 
 type BlockFetcher struct {
-	hub *component.ComponentHub //for communicate with other service
+	hub component.ICompRequester //for communicate with other service
 
 	ctx *types.SyncContext
 
@@ -35,6 +35,8 @@ type BlockFetcher struct {
 	blockProcessor *BlockProcessor
 
 	name string
+
+	debug bool
 }
 
 type SyncPeer struct {
@@ -77,8 +79,8 @@ var (
 	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
 )
 
-func newBlockFetcher(ctx *types.SyncContext, hub *component.ComponentHub) *BlockFetcher {
-	bf := &BlockFetcher{ctx: ctx, hub: hub, name: "BlockFetcher"}
+func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester) *BlockFetcher {
+	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher}
 
 	bf.quitCh = make(chan interface{})
 	bf.hfCh = make(chan *HashSet)
@@ -125,7 +127,7 @@ func (bf *BlockFetcher) Start() {
 
 			//TODO scheduler stop if all tasks have done
 			if err := bf.schedule(); err != nil {
-				logger.Error().Msg("BlockFetcher schedule failed & stopped")
+				logger.Error().Msg("BlockFetcher schedule failed & finished")
 				stopSyncer(bf.hub, bf.name, err)
 				return
 			}
@@ -137,7 +139,7 @@ func (bf *BlockFetcher) Start() {
 
 func (bf *BlockFetcher) init() error {
 	setPeers := func() error {
-		result, err := bf.hub.RequestFuture(message.P2PSvc, &message.GetPeers{}, dfltTimeout, "BlockFetcher init").Result()
+		result, err := bf.hub.RequestFutureResult(message.P2PSvc, &message.GetPeers{}, dfltTimeout, "BlockFetcher init")
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get peers information")
 			return err
@@ -362,7 +364,7 @@ func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
 }
 
 func (bf *BlockFetcher) stop() {
-	logger.Info().Msg("BlockFetcher stopped")
+	logger.Info().Msg("BlockFetcher finished")
 
 	if bf == nil {
 		return

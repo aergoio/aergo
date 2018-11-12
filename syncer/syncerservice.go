@@ -28,7 +28,9 @@ type Syncer struct {
 }
 
 var (
-	logger = log.NewLogger("syncer")
+	logger           = log.NewLogger("syncer")
+	NameHashFetcher  = "HashFetcher"
+	NameBlockFetcher = "BlockFetcher"
 )
 
 var (
@@ -115,10 +117,17 @@ func (syncer *Syncer) Receive(context actor.Context) {
 		if msg.Err == nil {
 			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer succeed")
 		} else {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer stopped by error")
+			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished by error")
 		}
 		syncer.Reset()
-
+	case *message.CloseFetcher:
+		if msg.FromWho == NameHashFetcher {
+			syncer.hashFetcher.stop()
+		} else if msg.FromWho == NameBlockFetcher {
+			syncer.blockFetcher.stop()
+		} else {
+			logger.Error().Msg("invalid closing module message to syncer")
+		}
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
@@ -203,6 +212,10 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 	}
 }
 
-func stopSyncer(hub *component.ComponentHub, who string, err error) {
+func stopSyncer(hub component.ICompRequester, who string, err error) {
 	hub.Tell(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
+}
+
+func closeFetcher(hub component.ICompRequester, who string) {
+	hub.Tell(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
 }

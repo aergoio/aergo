@@ -12,7 +12,7 @@ import (
 )
 
 type Finder struct {
-	hub      *component.ComponentHub //for communicate with other service
+	hub      component.ICompRequester //for communicate with other service
 	anchorCh chan chain.ChainAnchor
 	lScanCh  chan *types.BlockInfo
 	fScanCh  chan []byte
@@ -137,7 +137,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.hub.RequestFuture(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors").Result()
+	result, err := finder.hub.RequestFutureResult(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
