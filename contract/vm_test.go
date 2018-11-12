@@ -1,25 +1,11 @@
 package contract
 
 import (
-	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"os/exec"
-	"path"
-	"strconv"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/minio/sha256-simd"
 )
 
 const (
@@ -50,15 +36,18 @@ abi.register(testState)`
 )
 
 func TestReturn(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "return_num", 10, "function return_num() return 10 end abi.register(return_num)"),
-		newLuaTxCall("ktlee", "return_num", 10, `{"Name":"return_num", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "return_num", 10, "function return_num() return 10 end abi.register(return_num)"),
+		NewLuaTxCall("ktlee", "return_num", 10, `{"Name":"return_num", "Args":[]}`),
 	)
 
-	err := bc.query("return_num", `{"Name":"return_num", "Args":[]}`, "", "10")
+	err = bc.Query("return_num", `{"Name":"return_num", "Args":[]}`, "", "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,31 +60,34 @@ function foo2(bar)
 	end
 abi.register(foo,foo2)`
 
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "foo", 1, foo),
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "foo", 1, foo),
 	)
 
-	err = bc.query("foo", `{"Name":"foo", "Args":[]}`, "", "[1,2,3]")
+	err = bc.Query("foo", `{"Name":"foo", "Args":[]}`, "", "[1,2,3]")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("foo", `{"Name":"foo2", "Args":["foo314"]}`, "", `"foo314"`)
+	err = bc.Query("foo", `{"Name":"foo2", "Args":["foo314"]}`, "", `"foo314"`)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestContractHello(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "hello", 1, helloCode),
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "hello", 1, helloCode),
 	)
-	tx := newLuaTxCall("ktlee", "hello", 1, `{"Name":"hello", "Args":["World"]}`)
-	bc.connectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "hello", 1, `{"Name":"hello", "Args":["World"]}`)
+	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `"Hello World"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
@@ -103,16 +95,19 @@ func TestContractHello(t *testing.T) {
 }
 
 func TestContractSystem(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "system", 1, systemCode),
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "system", 1, systemCode),
 	)
-	tx := newLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
-	bc.connectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
+	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0c7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp)
 	if receipt.GetRet() != exRv {
@@ -121,14 +116,17 @@ func TestContractSystem(t *testing.T) {
 }
 
 func TestGetABI(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "hello", 1,
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "hello", 1,
 			`function hello(say) return "Hello " .. say end abi.register(hello)`),
 	)
-	abi, err := bc.getABI("hello")
+	abi, err := bc.GetABI("hello")
 	if err != nil {
 		t.Error(err)
 	}
@@ -142,24 +140,27 @@ func TestGetABI(t *testing.T) {
 }
 
 func TestContractQuery(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "query", 1, queryCode),
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "query", 1, queryCode),
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
-	ktlee, err := bc.getAccountState("ktlee")
+	ktlee, err := bc.GetAccountState("ktlee")
 	if err != nil {
 		t.Error(err)
 	}
 	if ktlee.Balance != uint64(98) {
 		t.Error(ktlee.Balance)
 	}
-	query, err := bc.getAccountState("query")
+	query, err := bc.GetAccountState("query")
 	if err != nil {
 		t.Error(err)
 	}
@@ -167,72 +168,78 @@ func TestContractQuery(t *testing.T) {
 		t.Error(query.Balance)
 	}
 
-	err = bc.query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
+	err = bc.Query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
+	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestRollback(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "query", 1, queryCode),
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "query", 1, queryCode),
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
-	err := bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "5")
+	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "5")
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.disconnectBlock()
+	err = bc.DisConnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "3")
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.disconnectBlock()
+	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "3")
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
+	err = bc.DisConnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
 	)
 
-	err = bc.query("query", `{"Name":"query", "Args":["key1"]}`, "", "2")
+	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "2")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestVote(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function constructor()
@@ -324,26 +331,26 @@ end
 
 abi.register(addCandidate, getCandidates, registerVoter, vote)`
 
-	bc.connectBlock(
-		newLuaTxAccount("owner", 100),
-		newLuaTxDef("owner", "vote", 1, definition),
-		newLuaTxAccount("user1", 100),
+	bc.ConnectBlock(
+		NewLuaTxAccount("owner", 100),
+		NewLuaTxDef("owner", "vote", 1, definition),
+		NewLuaTxAccount("user1", 100),
 	)
 
-	err := bc.connectBlock(
-		newLuaTxCall(
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			`{"Name":"addCandidate", "Args":["candidate1"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			`{"Name":"addCandidate", "Args":["candidate2"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
@@ -354,7 +361,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	err = bc.query(
+	err = bc.Query(
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
@@ -364,15 +371,15 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
 			`{"Name":"addCandidate", "Args":["candidate4"]}`,
 		),
 	)
-	err = bc.query(
+	err = bc.Query(
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
@@ -382,58 +389,58 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.connectBlock(
+	bc.ConnectBlock(
 		// register voter
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user11"))),
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"owner",
 			"vote",
 			1,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user1"))),
 		),
 		// vote
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
 			`{"Name":"vote", "Args":["user1"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
 			`{"Name":"vote", "Args":["user1"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
 			`{"Name":"vote", "Args":["user2"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
 			`{"Name":"vote", "Args":["user2"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user1",
 			"vote",
 			1,
@@ -441,7 +448,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		),
 	)
 
-	err = bc.query(
+	err = bc.Query(
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
@@ -451,14 +458,14 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"user11",
 			"vote",
 			1,
 			`{"Name":"vote", "Args":["candidate1"]}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"user10",
 			"vote",
 			1,
@@ -466,7 +473,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		),
 	)
 
-	err = bc.query(
+	err = bc.Query(
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
@@ -478,7 +485,10 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 }
 
 func TestInfiniteLoop(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function infiniteLoop()
@@ -490,10 +500,10 @@ function infiniteLoop()
 end
 abi.register(infiniteLoop)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "loop", 1, definition),
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "loop", 1, definition),
+		NewLuaTxCall(
 			"ktlee",
 			"loop",
 			1,
@@ -503,7 +513,10 @@ abi.register(infiniteLoop)`
 }
 
 func TestSqlVmSimple(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function createAndInsert()
@@ -553,14 +566,14 @@ end
 
 abi.register(createAndInsert, insertRollbackData, query, count, all)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "simple-query", 1, definition),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "simple-query", 1, definition),
 	)
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
 	)
-	err := bc.query(
+	err = bc.Query(
 		"simple-query",
 		`{"Name": "query", "Args":[]}`,
 		"",
@@ -569,7 +582,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query(
+	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
 		"",
@@ -579,10 +592,10 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
 	)
-	err = bc.query(
+	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
 		"",
@@ -592,9 +605,9 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 		t.Error(err)
 	}
 
-	bc.disconnectBlock()
+	bc.DisConnectBlock()
 
-	err = bc.query(
+	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
 		"",
@@ -604,17 +617,17 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 		t.Error(err)
 	}
 
-	err = bc.disconnectBlock()
+	err = bc.DisConnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.disconnectBlock()
+	err = bc.DisConnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
 
 	// there is only a genesis block
-	err = bc.query(
+	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
 		"cannot find contract",
@@ -626,7 +639,10 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 }
 
 func TestSqlVmFail(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function init()
@@ -652,45 +668,48 @@ function get()
 end
 abi.register(init, add, addFail, get)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "fail", 1, definition),
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"init"}`),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "fail", 1, definition),
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"init"}`),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[1]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[1]}`),
 	)
 
-	err := bc.connectBlock(
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
 			fail(`near "set": syntax error`),
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
 	)
 
-	err = bc.query("fail", `{"Name":"get"}`, "", "12")
+	err = bc.Query("fail", `{"Name":"get"}`, "", "12")
 	if err != nil {
 		t.Error(err)
 	}
 
-	bc.disconnectBlock()
+	bc.DisConnectBlock()
 
-	err = bc.query("fail", `{"Name":"get"}`, "", "7")
+	err = bc.Query("fail", `{"Name":"get"}`, "", "7")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestSqlVmDateTime(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 	definition := `
 function init()
     db.exec("create table if not exists dt_test (n datetime, b bool)")
@@ -716,21 +735,21 @@ function get()
 end
 abi.register(init, nowNull, localtimeNull, get)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "datetime", 1, definition),
-		newLuaTxCall("ktlee", "datetime", 1, `{"Name":"init"}`),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "datetime", 1, definition),
+		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"init"}`),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "datetime", 1, `{"Name":"nowNull"}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"nowNull"}`),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall("ktlee", "datetime", 1, `{"Name":"localtimeNull"}`),
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"localtimeNull"}`),
 	)
 
-	err := bc.query(
+	err = bc.Query(
 		"datetime",
 		`{"Name":"get"}`,
 		"",
@@ -742,7 +761,10 @@ abi.register(init, nowNull, localtimeNull, get)`
 }
 
 func TestSqlConstrains(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function init()
@@ -778,48 +800,48 @@ end
 
 abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 
-	err := bc.connectBlock(
-		newLuaTxAccount(
+	err = bc.ConnectBlock(
+		NewLuaTxAccount(
 			"ktlee",
 			100,
 		),
-		newLuaTxDef(
+		NewLuaTxDef(
 			"ktlee",
 			"constraint",
 			1,
 			definition,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
 			`{"Name":"init"}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
 			`{"Name":"pkFail"}`,
 		).fail("UNIQUE constraint failed: r.id"),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
 			`{"Name":"checkFail"}`,
 		).fail("CHECK constraint failed: r"),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
 			`{"Name":"fkFail"}`,
 		).fail("FOREIGN KEY constraint failed"),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
 			`{"Name":"notNullFail"}`,
 		).fail("NOT NULL constraint failed: r.nonull"),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			1,
@@ -832,7 +854,10 @@ abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 }
 
 func TestSqlVmCustomer(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function createTable()
@@ -890,10 +915,10 @@ end
 
 abi.register(createTable, query, insert, update, delete, count)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "customer", 1, definition),
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "customer", 1, definition),
+		NewLuaTxCall(
 			"ktlee",
 			"customer",
 			1,
@@ -901,8 +926,8 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"customer",
 			1,
@@ -910,8 +935,8 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"customer",
 			1,
@@ -919,8 +944,8 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"customer",
 			1,
@@ -928,14 +953,14 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	err := bc.query("customer", `{"Name":"count"}`, "", "2")
+	err = bc.Query("customer", `{"Name":"count"}`, "", "2")
 	if err != nil {
 		t.Error(err)
 	}
 
-	bc.disconnectBlock()
+	bc.DisConnectBlock()
 
-	err = bc.query(
+	err = bc.Query(
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
@@ -945,8 +970,8 @@ abi.register(createTable, query, insert, update, delete, count)`
 		t.Error(err)
 	}
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"customer",
 			1,
@@ -954,7 +979,7 @@ abi.register(createTable, query, insert, update, delete, count)`
 		),
 	)
 
-	err = bc.query(
+	err = bc.Query(
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
@@ -966,7 +991,10 @@ abi.register(createTable, query, insert, update, delete, count)`
 }
 
 func TestSqlVmDataType(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function createDataTypeTable()
@@ -1022,10 +1050,10 @@ end
 
 abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryOrderByDesc, queryGroupByBlockheight1)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "datatype", 1, definition),
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "datatype", 1, definition),
+		NewLuaTxCall(
 			"ktlee",
 			"datatype",
 			1,
@@ -1033,29 +1061,20 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"datatype",
 			1,
 			`{"Name":"insertDataTypeTable"}`,
 		),
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"datatype",
 			1,
 			`{"Name":"insertDataTypeTable"}`,
 		),
-		newLuaTxCall(
-			"ktlee",
-			"datatype",
-			1,
-			`{"Name":"insertDataTypeTable"}`,
-		),
-	)
-
-	bc.connectBlock(
-		newLuaTxCall(
+		NewLuaTxCall(
 			"ktlee",
 			"datatype",
 			1,
@@ -1063,7 +1082,16 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 		),
 	)
 
-	err := bc.query(
+	bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"datatype",
+			1,
+			`{"Name":"insertDataTypeTable"}`,
+		),
+	)
+
+	err = bc.Query(
 		"datatype",
 		`{"Name":"queryOrderByDesc"}`,
 		"",
@@ -1073,7 +1101,7 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 		t.Error(err)
 	}
 
-	err = bc.query(
+	err = bc.Query(
 		"datatype",
 		`{"Name":"queryGroupByBlockheight1"}`,
 		"",
@@ -1085,7 +1113,10 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 }
 
 func TestSqlVmFunction(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function sql_func()
@@ -1133,22 +1164,22 @@ end
 
 abi.register(sql_func, abs_func, typeof_func)`
 
-	bc.connectBlock(
-		newLuaTxAccount("name", 100),
-		newLuaTxDef("ktlee", "fns", 1, definition),
+	bc.ConnectBlock(
+		NewLuaTxAccount("name", 100),
+		NewLuaTxDef("ktlee", "fns", 1, definition),
 	)
 
-	err := bc.query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
+	err = bc.Query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("fns", `{"Name":"abs_func"}`, "", `[1,0,1]`)
+	err = bc.Query("fns", `{"Name":"abs_func"}`, "", `[1,0,1]`)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("fns", `{"Name":"typeof_func"}`,
+	err = bc.Query("fns", `{"Name":"typeof_func"}`,
 		"", `["integer","text","real","null"]`,
 	)
 	if err != nil {
@@ -1157,7 +1188,10 @@ abi.register(sql_func, abs_func, typeof_func)`
 }
 
 func TestSqlVmBook(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function createTable()
@@ -1216,10 +1250,10 @@ end
 
 abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "book", 1, definition),
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "book", 1, definition),
+		NewLuaTxCall(
 			"ktlee",
 			"book",
 			1,
@@ -1227,8 +1261,8 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"book",
 			1,
@@ -1236,8 +1270,8 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 		),
 	)
 
-	bc.connectBlock(
-		newLuaTxCall(
+	bc.ConnectBlock(
+		NewLuaTxCall(
 			"ktlee",
 			"book",
 			1,
@@ -1245,7 +1279,7 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 		),
 	)
 
-	err := bc.query(
+	err = bc.Query(
 		"book",
 		`{"Name":"viewCopyBook"}`,
 		"",
@@ -1257,7 +1291,10 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 }
 
 func TestSqlVmDateformat(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function init()
@@ -1285,18 +1322,18 @@ end
 
 abi.register(init, get)`
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef(
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef(
 			"ktlee",
 			"data_format",
 			1,
 			definition,
 		),
-		newLuaTxCall("ktlee", "data_format", 1, `{"Name":"init"}`),
+		NewLuaTxCall("ktlee", "data_format", 1, `{"Name":"init"}`),
 	)
 
-	err := bc.query(
+	err = bc.Query(
 		"data_format",
 		`{"Name":"get"}`,
 		"",
@@ -1308,7 +1345,10 @@ abi.register(init, get)`
 }
 
 func TestSqlVmRecursiveData(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function r()
@@ -1319,10 +1359,10 @@ function r()
 end
 abi.register(r)`
 
-	tx := newLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
-	err := bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "r", 1, definition),
+	tx := NewLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "r", 1, definition),
 		tx,
 	)
 	if err != nil {
@@ -1355,15 +1395,18 @@ func TestContractCall(t *testing.T) {
 	abi.register(inc,get,set)
 	`
 
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "counter", 10, definition1).constructor("[1]"),
-		newLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
+	bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "counter", 10, definition1).constructor("[1]"),
+		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
 	)
 
-	err := bc.query("counter", `{"Name":"get", "Args":[]}`, "", "2")
+	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1397,39 +1440,42 @@ func TestContractCall(t *testing.T) {
 	end
 	abi.register(add,dadd, get, dget, set, dset)
 	`
-	bc.connectBlock(
-		newLuaTxDef("ktlee", "caller", 10, definition2).
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "caller", 10, definition2).
 			constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
-		newLuaTxCall("ktlee", "caller", 10, `{"Name":"add", "Args":[]}`),
+		NewLuaTxCall("ktlee", "caller", 10, `{"Name":"add", "Args":[]}`),
 	)
-	err = bc.query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("caller", `{"Name":"dget", "Args":[]}`, "", "99")
+	err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "99")
 	if err != nil {
 		t.Error(err)
 	}
-	tx := newLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
-	bc.connectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
+	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `99` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	tx = newLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
-	bc.connectBlock(tx)
+	tx = NewLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
+	bc.ConnectBlock(tx)
 	receipt = bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `100` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	err = bc.query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestSparseTable(t *testing.T) {
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
 	definition := `
 function is_table_equal(t1,t2,ignore_mt)
@@ -1464,10 +1510,10 @@ function r()
 end
 abi.register(r)`
 
-	tx := newLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
-	err := bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "r", 1, definition),
+	tx := NewLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "r", 1, definition),
 		tx,
 	)
 	if err != nil {
@@ -1511,58 +1557,61 @@ func TestKvstore(t *testing.T) {
 
 	abi.register(inc,get,set,setname,getname)`
 
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	err := bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "map", 1, definition),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "map", 1, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
-		newLuaTxCall("ktlee", "map", 1, `{"Name":"setname", "Args":["eve2adam"]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
+		NewLuaTxCall("ktlee", "map", 1, `{"Name":"setname", "Args":["eve2adam"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock()
+	err = bc.ConnectBlock()
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "1")
+	err = bc.Query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "1")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("map", `{"Name":"get", "Args":["htwo"]}`, "", "{}")
+	err = bc.Query("map", `{"Name":"get", "Args":["htwo"]}`, "", "{}")
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
-		newLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["htwo"]}`),
-		newLuaTxCall("ktlee", "map", 1, `{"Name":"set", "Args":["wook", 100]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
+		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["htwo"]}`),
+		NewLuaTxCall("ktlee", "map", 1, `{"Name":"set", "Args":["wook", 100]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bc.query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "2")
+	err = bc.Query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "2")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("map", `{"Name":"get", "Args":["htwo"]}`, "", "1")
+	err = bc.Query("map", `{"Name":"get", "Args":["htwo"]}`, "", "1")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("map", `{"Name":"get", "Args":["wook"]}`, "", "100")
+	err = bc.Query("map", `{"Name":"get", "Args":["wook"]}`, "", "100")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("map", `{"Name":"getname"}`, "", `"eve2adam"`)
+	err = bc.Query("map", `{"Name":"getname"}`, "", `"eve2adam"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1597,90 +1646,93 @@ func TestJson(t *testing.T) {
 
 	abi.register(set, get, getAmount, getenc, getlen)`
 
-	bc := loadBlockChain(t)
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
 
-	err := bc.connectBlock(
-		newLuaTxAccount("ktlee", 100),
-		newLuaTxDef("ktlee", "json", 1, definition),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "json", 1, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[1,2,3]"]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[1,2,3]"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", "[1,2,3]")
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", "[1,2,3]")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"[1,2,3]"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[1,2,3]"`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1,
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1,
 			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"run\", \"key2\":5, [4,5,6]}"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"1":"run","2":[4,5,6],"key1":[1,2,3],"key2":5}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"1":"run","2":[4,5,6],"key1":[1,2,3],"key2":5}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"1\":\"run\",\"2\":[4,5,6],\"key1\":[1,2,3],\"key2\":5}"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"1\":\"run\",\"2\":[4,5,6],\"key1\":[1,2,3],\"key2\":5}"`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1,
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1,
 			`{"Name":"set", "Args":["{\"key1\":{\"arg1\": 1,\"arg2\":{}, \"arg3\":[]}, \"key2\":[5,4,3]}"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg2\":{},\"arg3\":{},\"arg1\":1},\"key2\":[5,4,3]}"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg2\":{},\"arg3\":{},\"arg1\":1},\"key2\":[5,4,3]}"`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1,
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1,
 			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":5}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":5}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[\"\\\"hh\\t\",\"2\",3]"]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[\"\\\"hh\\t\",\"2\",3]"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\t","2",3]`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\t","2",3]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\t",4]`)
+	err = bc.Query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\t",4]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\t\",\"2\",3]"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\t\",\"2\",3]"`)
 	if err != nil {
 		t.Error(err)
 	}
-	tx := newLuaTxCall("ktlee", "json", 100, `{"Name":"getAmount"}`)
-	err = bc.connectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "json", 100, `{"Name":"getAmount"}`)
+	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1688,390 +1740,10 @@ func TestJson(t *testing.T) {
 	if receipt.GetRet() != `100` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	err = bc.connectBlock(
-		newLuaTxCall("ktlee", "json", 1,
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "json", 1,
 			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).fail("not proper json format"),
 	)
 }
 
 // end of test-cases
-
-// helper functions
-
-type blockChain struct {
-	sdb           *state.ChainStateDB
-	bestBlock     *types.Block
-	cBlock        *types.Block
-	bestBlockNo   types.BlockNo
-	bestBlockId   types.BlockID
-	blockIds      []types.BlockID
-	blocks        []*types.Block
-	testReceiptDB db.DB
-}
-
-func loadBlockChain(t *testing.T) *blockChain {
-	bc := &blockChain{sdb: state.NewChainStateDB()}
-	dataPath, err := ioutil.TempDir("", "data")
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	genesis := types.GetTestGenesis()
-	bc.sdb.SetGenesis(genesis)
-	bc.bestBlockNo = genesis.Block.BlockNo()
-	bc.bestBlockId = genesis.Block.BlockID()
-	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
-	bc.blocks = append(bc.blocks, genesis.Block)
-	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadDatabase(dataPath) // sql database
-	return bc
-}
-
-func (bc *blockChain) newBState() *state.BlockState {
-	b := types.Block{
-		Header: &types.BlockHeader{
-			PrevBlockHash: []byte(bc.bestBlockId.String()),
-			BlockNo:       bc.bestBlockNo + 1,
-			Timestamp:     time.Now().Unix(),
-		},
-	}
-	bc.cBlock = &b
-	// blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
-	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()))
-}
-
-func (bc *blockChain) BeginReceiptTx() db.Transaction {
-	return bc.testReceiptDB.NewTx()
-}
-
-func (bc *blockChain) getABI(contract string) (*types.ABI, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
-	if err != nil {
-		return nil, err
-	}
-	return GetABI(cState)
-}
-
-func (bc *blockChain) getReceipt(txHash []byte) *types.Receipt {
-	r := new(types.Receipt)
-	r.UnmarshalBinary(bc.testReceiptDB.Get(txHash))
-	return r
-}
-
-func (bc *blockChain) getAccountState(name string) (*types.State, error) {
-	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(strHash(name)))
-}
-
-type luaTx interface {
-	run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error
-}
-
-type luaTxAccount struct {
-	name    []byte
-	balance uint64
-}
-
-func newLuaTxAccount(name string, balance uint64) *luaTxAccount {
-	return &luaTxAccount{
-		name:    strHash(name),
-		balance: balance,
-	}
-}
-
-func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64,
-	receiptTx db.Transaction) error {
-
-	id := types.ToAccountID(l.name)
-	accountState, err := bs.GetAccountState(id)
-	if err != nil {
-		return err
-	}
-	updatedAccountState := types.State(*accountState)
-	updatedAccountState.Balance = l.balance
-	bs.PutState(id, &updatedAccountState)
-	return nil
-}
-
-type luaTxCommon struct {
-	sender   []byte
-	contract []byte
-	amount   uint64
-	code     []byte
-	id       uint64
-}
-
-type luaTxDef struct {
-	luaTxCommon
-	cErr error
-}
-
-func newLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	luac := exec.Command("../bin/aergoluac", "--payload")
-	stdin, err := luac.StdinPipe()
-	if err != nil {
-		return &luaTxDef{cErr: err}
-	}
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, code)
-	}()
-	out, err := luac.Output()
-	if err != nil {
-		eErr, _ := err.(*exec.ExitError)
-		return &luaTxDef{cErr: errors.New(strings.TrimSpace(string(eErr.Stderr)))}
-	}
-	b, err := util.DecodeCode(string(out))
-	if err != nil {
-		return &luaTxDef{cErr: err}
-	}
-	codeWithInit := make([]byte, 4+len(b))
-	binary.LittleEndian.PutUint32(codeWithInit, uint32(4+len(b)))
-	copy(codeWithInit[4:], b)
-	return &luaTxDef{
-		luaTxCommon: luaTxCommon{
-			sender:   strHash(sender),
-			contract: strHash(contract),
-			code:     codeWithInit,
-			amount:   amount,
-			id:       newTxId(),
-		},
-		cErr: nil,
-	}
-}
-
-func strHash(d string) []byte {
-	h := sha256.New()
-	h.Write([]byte(d))
-	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
-	return b
-}
-
-var luaTxId uint64 = 0
-
-func newTxId() uint64 {
-	luaTxId++
-	return luaTxId
-}
-
-func (l *luaTxDef) hash() []byte {
-	h := sha256.New()
-	h.Write([]byte(strconv.FormatUint(l.id, 10)))
-	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
-	return b
-}
-
-func (l *luaTxDef) constructor(args string) *luaTxDef {
-	argsLen := len([]byte(args))
-	if argsLen == 0 {
-		return l
-	}
-
-	code := make([]byte, len(l.code)+argsLen)
-	codeLen := copy(code[0:], l.code)
-	binary.LittleEndian.PutUint32(code[0:], uint32(codeLen))
-	copy(code[codeLen:], []byte(args))
-
-	l.code = code
-
-	return l
-}
-
-func contractFrame(l *luaTxCommon, bs *state.BlockState,
-	run func(s, c *types.State, id types.AccountID, cs *state.ContractState) error) error {
-
-	creatorId := types.ToAccountID(l.sender)
-	creatorState, err := bs.GetAccountState(creatorId)
-	if err != nil {
-		return err
-	}
-
-	contractId := types.ToAccountID(l.contract)
-	contractState, err := bs.GetAccountState(contractId)
-	if err != nil {
-		return err
-	}
-
-	uContractState := types.State(*contractState)
-	eContractState, err := bs.OpenContractState(contractId, &uContractState)
-	if err != nil {
-		return err
-	}
-
-	err = run(creatorState, &uContractState, contractId, eContractState)
-	if err != nil {
-		return err
-	}
-
-	uCallerState := types.State(*creatorState)
-	uCallerState.Balance -= l.amount
-	uContractState.Balance += l.amount
-
-	bs.PutState(creatorId, &uCallerState)
-	bs.PutState(contractId, &uContractState)
-	return nil
-
-}
-
-func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
-	receiptTx db.Transaction) error {
-
-	if l.cErr != nil {
-		return l.cErr
-	}
-
-	return contractFrame(&l.luaTxCommon, bs,
-		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
-			uContractState.SqlRecoveryPoint = 1
-			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
-				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-
-			_, err := Create(eContractState, l.code, l.contract, bcCtx)
-			if err != nil {
-				return err
-			}
-			err = bs.StageContractState(eContractState)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-	)
-}
-
-type luaTxCall struct {
-	luaTxCommon
-	expectedErr string
-}
-
-func newLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
-	return &luaTxCall{
-		luaTxCommon: luaTxCommon{
-			sender:   strHash(sender),
-			contract: strHash(contract),
-			amount:   amount,
-			code:     []byte(code),
-			id:       newTxId(),
-		},
-	}
-}
-
-func (l *luaTxCall) hash() []byte {
-	h := sha256.New()
-	h.Write([]byte(strconv.FormatUint(l.id, 10)))
-	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
-	return b
-}
-
-func (l *luaTxCall) fail(expectedErr string) *luaTxCall {
-	l.expectedErr = expectedErr
-	return l
-}
-
-func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error {
-	err := contractFrame(&l.luaTxCommon, bs,
-		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
-			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
-				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
-			if err != nil {
-				return err
-			}
-			err = bs.StageContractState(eContractState)
-			if err != nil {
-				r := types.NewReceipt(l.contract, err.Error(), "")
-				b, _ := r.MarshalBinary()
-				receiptTx.Set(l.hash(), b)
-				return err
-			}
-			r := types.NewReceipt(l.contract, "SUCCESS", rv)
-			b, _ := r.MarshalBinary()
-			receiptTx.Set(l.hash(), b)
-			return nil
-		},
-	)
-	if l.expectedErr != "" {
-		if err == nil || !strings.Contains(err.Error(), l.expectedErr) {
-			return err
-		}
-		return nil
-	}
-	return err
-}
-
-func (bc *blockChain) connectBlock(txs ...luaTx) error {
-	blockState := bc.newBState()
-	tx := bc.BeginReceiptTx()
-	defer tx.Commit()
-
-	for _, x := range txs {
-		if err := x.run(blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp, tx); err != nil {
-			return err
-		}
-	}
-	err := SaveRecoveryPoint(blockState)
-	if err != nil {
-		return err
-	}
-	err = bc.sdb.Apply(blockState)
-	if err != nil {
-		return err
-	}
-	//FIXME newblock must be created after sdb.apply()
-	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
-	bc.bestBlockNo = bc.bestBlockNo + 1
-	bc.bestBlockId = types.ToBlockID(bc.cBlock.GetHash())
-	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
-	bc.blocks = append(bc.blocks, bc.cBlock)
-
-	return nil
-}
-
-func (bc *blockChain) disconnectBlock() error {
-	if len(bc.blockIds) == 1 {
-		return errors.New("genesis block")
-	}
-	bc.bestBlockNo--
-	bc.blockIds = bc.blockIds[0 : len(bc.blockIds)-1]
-	bc.blocks = bc.blocks[0 : len(bc.blocks)-1]
-	bc.bestBlockId = bc.blockIds[len(bc.blockIds)-1]
-
-	bestBlock := bc.blocks[len(bc.blocks)-1]
-
-	var sroot []byte
-	if bestBlock != nil {
-		sroot = bestBlock.GetHeader().GetBlocksRootHash()
-	}
-	return bc.sdb.Rollback(sroot)
-}
-
-func (bc *blockChain) query(contract, queryInfo string, expectedErr, expectedRv string) error {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
-	if err != nil {
-		return err
-	}
-	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
-	if expectedErr != "" {
-		if err == nil || !strings.Contains(err.Error(), expectedErr) {
-			return err
-		}
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	if expectedRv != string(rv) {
-		return fmt.Errorf("expected: %s, but got: %s", expectedRv, string(rv))
-	}
-	return nil
-}

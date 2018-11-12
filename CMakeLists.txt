@@ -10,7 +10,7 @@ project(aergo NONE)
 set(BIN_DIR ${CMAKE_CURRENT_LIST_DIR}/bin)
 set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
-add_custom_target(build ALL DEPENDS vendor libtool aergocli aergosvr aergoluac)
+add_custom_target(build ALL DEPENDS vendor libtool aergocli aergosvr aergoluac brick)
 
 add_custom_target(aergocli GOBIN=${BIN_DIR} go install -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git rev-parse HEAD`\" ./cmd/aergocli/...
   DEPENDS vendor libtool)
@@ -19,6 +19,9 @@ add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ./cmd/aergosvr/...
   DEPENDS vendor libtool)
 
 add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ./cmd/aergoluac/...
+  DEPENDS vendor libtool)
+
+add_custom_target(brick GOBIN=${BIN_DIR} go install -ldflags \"-X github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`\" ./cmd/brick/...
   DEPENDS vendor libtool)
 
 add_custom_command(OUTPUT vendor

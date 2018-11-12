@@ -1,0 +1,12 @@
+level = "error"         # set level high to turn off log from non-interesting modules
+formatter = "console"   # or console_no_color, json
+timefieldformat = " "   # remove time print
+
+[contract]
+level = "debug"
+
+[statesql]
+level = "debug"
+
+[brick]
+level = "debug"
