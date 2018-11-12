@@ -163,17 +163,18 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 }
 
 func (mp *MemPool) get() ([]*types.Tx, error) {
+	start := time.Now()
 	mp.RLock()
 	defer mp.RUnlock()
 	count := 0
 	txs := make([]*types.Tx, 0)
 	for _, list := range mp.pool {
-		for _, v := range list.Get() {
-			txs = append(txs, v)
-			count++
-		}
+		v := list.Get()
+		txs = append(txs, v...)
+		count += len(v)
 	}
-	mp.Debug().Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
+	elapsed := time.Since(start)
+	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
 
