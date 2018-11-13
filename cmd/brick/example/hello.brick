@@ -5,7 +5,7 @@ inject bj 100
 getstate bj
 
 # delpoy helloworld smart contract
-deploy bj 1 helloctr ../example/hello.lua
+deploy bj 1 helloctr ./example/hello.lua
 
 # query to contract, this will print "hello world"
 query helloctr hello `[]` `"hello world"`

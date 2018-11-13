@@ -38,7 +38,7 @@ func Reset() {
 
 func LivePrefix() (string, bool) {
 	height := strconv.FormatUint(CurrentCtx.chain.BestBlockNo(), 10)
-	ret := height + ">"
+	ret := height + "> "
 	return ret, true
 }
 

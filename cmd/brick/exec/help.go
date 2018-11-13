@@ -46,7 +46,7 @@ func (c *help) Run(args string) (string, error) {
 
 	if args == "" {
 		// print whole usage guide
-		result.WriteString(fmt.Sprintf("Aergo Brick, Playground for Developing Contracts, version %s\n", context.GitHash))
+		result.WriteString(fmt.Sprintf("Aergo Brick, Toy for Developing Contracts, version %s\n", context.GitHash))
 
 		result.WriteString(fmt.Sprintf("\n%-12s%s\n", "Command", "Usage"))
 		result.WriteString(fmt.Sprintf("=====================================================\n"))
