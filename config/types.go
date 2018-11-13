@@ -52,8 +52,10 @@ type RESTConfig struct {
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
-	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N ip address, used when machine has multiple network interface or is over the proxy"`
-	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N network protocol port"`
+	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
+	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
+	NPBindAddr      string   `mapstructure:"npbindaddr" description:"N2N bind address. If it was set, it only accept connection to this addresse only"`
+	NPBindPort      int      `mapstructure:"npbindport" description:"N2N bind port. It not set, bind port is same as netprotocolport. Set if server is configured with NAT and port is differ."`
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
@@ -122,6 +124,8 @@ restport = "{{.REST.RestPort}}"
 [p2p]
 netprotocoladdr = "{{.P2P.NetProtocolAddr}}"
 netprotocolport = {{.P2P.NetProtocolPort}}
+npbindaddr = "{{.P2P.NPBindAddr}}"
+npbindport = {{.P2P.NPBindPort}}
 nptls = {{.P2P.NPEnableTLS}}
 npcert = "{{.P2P.NPCert}}"
 npkey = "{{.P2P.NPKey}}"

@@ -75,8 +75,10 @@ func (ctx *ServerContext) GetDefaultRESTConfig() *RESTConfig {
 
 func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
-		NetProtocolAddr: "0.0.0.0",
+		NetProtocolAddr: "",
 		NetProtocolPort: 7846,
+		NPBindAddr:      "",
+		NPBindPort:      -1,
 		NPEnableTLS:     false,
 		NPCert:          "",
 		NPKey:           "",

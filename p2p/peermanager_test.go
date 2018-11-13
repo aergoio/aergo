@@ -162,3 +162,49 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 		})
 	}
 }
+
+func TestPeerManager_init(t *testing.T) {
+	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
+	defaultCfg := tConfig.P2P
+	InitNodeInfo(defaultCfg, logger)
+	localIP, _ := externalIP()
+
+	tests := []struct {
+		name string
+		inCfg *cfg.P2PConfig
+		expectProtoAddr string
+		expectProtoPort uint32
+		expectBindAddr string
+		expectBindPort uint32
+		expectPanic bool
+	}{
+		{"TDefault",defaultCfg, localIP.String(), uint32(defaultCfg.NetProtocolPort), localIP.String(), uint32(defaultCfg.NetProtocolPort), false},
+		// wrong ProtocolAddress 0.0.0.0
+		{"TUnspecifiedAddr",&cfg.P2PConfig{NetProtocolAddr:"0.0.0.0",NetProtocolPort:7846}, localIP.String(), 7846, localIP.String(), uint32(defaultCfg.NetProtocolPort), true},
+		// wrong ProtocolAddress
+		{"TWrongAddr",&cfg.P2PConfig{NetProtocolAddr:"24558.30.0.0",NetProtocolPort:7846}, localIP.String(), 7846, localIP.String(), 7846, true},
+		// bind all address
+		{"TBindAll",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"0.0.0.0"}, localIP.String(), 7846, "0.0.0.0", 7846, false},
+		// bind differnt address
+		{"TBindDifferAddr",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"172.21.1.2"}, localIP.String(), 7846, "172.21.1.2", 7846, false},
+		// bind different port
+		{"TDifferPort",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindPort:12345}, localIP.String(), 7846, localIP.String(), 12345, false},
+		// bind different address and port
+		{"TBindDiffer",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"172.21.1.2", NPBindPort:12345}, localIP.String(), 7846, "172.21.1.2", 12345, false},
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.expectPanic {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Println(test.name, " expected panic occurred ", r)
+					}
+				}()
+				pm := peerManager{conf:test.inCfg}
+
+				pm.init()
+			}
+		})
+	}
+}
