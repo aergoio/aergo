@@ -549,7 +549,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 
 	bs.BpReward += txFee
 
-	if receiver.IsNew() {
+	if receiver.IsNew() && txBody.Recipient == nil {
 		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
 		return nil
 
