@@ -3,11 +3,9 @@ package util
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseConvBase58Tx(t *testing.T) {
@@ -49,7 +47,10 @@ func TestBlockConvBase58(t *testing.T) {
 	const recipientBase58 = "AmMW2bVcfroiuV4Bvy56op5zzqn42xgrLCwSxMka23K75yTBmudz"
 	const payloadBase58 = "525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi"
 	testBlock := &types.Block{Body: &types.BlockBody{Txs: []*types.Tx{}}}
-	result := ConvBlock(testBlock)
+	result := ConvBlock(nil)
+	assert.Empty(t, result, "failed to convert nil")
+
+	result = ConvBlock(testBlock)
 	assert.Empty(t, result.Body.Txs, "failed to convert txs")
 
 	account, err := types.DecodeAddress(accountBase58)

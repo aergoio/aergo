@@ -191,16 +191,20 @@ func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
 
 func ConvBlock(b *types.Block) *InOutBlock {
 	out := &InOutBlock{}
-	out.Hash = base58.Encode(b.Hash)
-	out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
-	out.Header.BlockNo = b.GetHeader().GetBlockNo()
-	out.Header.Timestamp = b.GetHeader().GetTimestamp()
-	out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
-	out.Header.Confirms = b.GetHeader().GetConfirms()
-	out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
-	out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
-	for _, tx := range b.Body.Txs {
-		out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+	if b != nil {
+		out.Hash = base58.Encode(b.Hash)
+		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
+		out.Header.BlockNo = b.GetHeader().GetBlockNo()
+		out.Header.Timestamp = b.GetHeader().GetTimestamp()
+		out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
+		out.Header.Confirms = b.GetHeader().GetConfirms()
+		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
+		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
+		if b.Body != nil {
+			for _, tx := range b.Body.Txs {
+				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+			}
+		}
 	}
 	return out
 }
