@@ -1746,4 +1746,86 @@ func TestJson(t *testing.T) {
 	)
 }
 
+func TestArray(t *testing.T) {
+	definition := `
+	state.var{
+		counts = state.array(10)
+	}
+
+	function inc(key)
+		if counts[key] == nil then
+			counts[key] = 0
+		end
+		counts[key] = counts[key] + 1
+	end
+
+	function get(key)
+		return counts[key]
+	end
+
+	function set(key,val)
+		counts[key] = val
+	end
+
+	function len()
+		return #counts
+	end
+
+	function iter()
+		local rv = {}
+		for i, v in state.array_pairs(counts) do
+			if v == nil then
+				rv[i] = "nil"
+			else
+				rv[i] = v
+			end
+		end
+		return rv
+	end
+
+	abi.register(inc,get,set,len,iter)`
+
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "array", 1, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[0]}`).fail("index out of range"),
+		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 1, `{"Name":"set", "Args":[2,"ktlee"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"get", "Args":[11]}`, "index out of range", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"get", "Args":[1]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"get", "Args":[2]}`, "", `"ktlee"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"len"}`, "", `10`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
