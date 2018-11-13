@@ -187,7 +187,9 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
+func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
+	block := genesis.Block()
+
 	tx := cdb.store.NewTx()
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
@@ -252,8 +254,8 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 	defer dbTx.Discard()
 
 	//make newTx because of batchsize limit of DB
-	getNewTx := func (remainTxCnt int) {
-		if txCnt + remainTxCnt >= TxBatchMax {
+	getNewTx := func(remainTxCnt int) {
+		if txCnt+remainTxCnt >= TxBatchMax {
 			dbTx.Commit()
 			dbTx = cdb.store.NewTx()
 			txCnt = 0

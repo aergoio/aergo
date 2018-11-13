@@ -43,10 +43,10 @@ func LoadDummyChain() (*DummyChain, error) {
 	}
 	genesis := types.GetTestGenesis()
 	bc.sdb.SetGenesis(genesis)
-	bc.bestBlockNo = genesis.Block.BlockNo()
-	bc.bestBlockId = genesis.Block.BlockID()
+	bc.bestBlockNo = genesis.Block().BlockNo()
+	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
-	bc.blocks = append(bc.blocks, genesis.Block)
+	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath) // sql database
 

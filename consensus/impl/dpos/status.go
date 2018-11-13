@@ -1,9 +1,6 @@
 package dpos
 
 import (
-	"bytes"
-	"encoding/gob"
-	"io"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -101,18 +98,6 @@ func (s *Status) updateLIB(lib *blockInfo) {
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
 	return s.libState.save(tx)
-}
-
-func encode(e interface{}) (bytes.Buffer, error) {
-	var buf bytes.Buffer
-	err := gob.NewEncoder(&buf).Encode(e)
-
-	return buf, err
-}
-
-func decode(r io.Reader, e interface{}) error {
-	dec := gob.NewDecoder(r)
-	return dec.Decode(e)
 }
 
 // NeedReorganization reports whether reorganization is needed or not.

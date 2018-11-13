@@ -66,6 +66,6 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	if err = states.StageContractState(scs); err != nil {
 		return err
 	}
-	genesis.VoteState = scs.State
+	genesis.SetVoteState(scs.State)
 	return nil
 }

@@ -156,7 +156,7 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 				return nil, err
 			}
 
-			err = cs.cdb.addGenesisBlock(genesis.GetBlock())
+			err = cs.cdb.addGenesisBlock(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return nil, err

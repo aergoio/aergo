@@ -1,13 +1,13 @@
 package dpos
 
 import (
-	"bytes"
 	"container/list"
 	"fmt"
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
@@ -207,11 +207,10 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 }
 
 func (ls *libStatus) save(tx db.Transaction) error {
-	buf, err := encode(ls)
+	b, err := common.GobEncode(ls)
 	if err != nil {
 		return err
 	}
-	b := buf.Bytes()
 
 	tx.Set(libStatusKey, b)
 
@@ -388,7 +387,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
 	}
 
-	err := decode(bytes.NewBuffer(value), dst)
+	err := common.GobDecode(value, dst)
 	if err != nil {
 		logger.Debug().Err(err).Str("key", string(key)).
 			Msg("failed to decode DPoS status")
