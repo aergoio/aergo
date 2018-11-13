@@ -85,6 +85,7 @@ func (c *deployContract) Run(args string) (string, error) {
 	}
 
 	Index(context.ContractSymbol, contractName)
+	Index(context.AccountSymbol, contractName)
 
 	// read receipt and extract abi functions
 	abi, err := context.Get().GetABI(contractName)

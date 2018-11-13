@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/contract"
 )
 
 func init() {
@@ -57,5 +58,5 @@ func (c *getStateAccount) Run(args string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%d", state.GetBalance()), nil
+	return fmt.Sprintf("%s=%d", contract.StrToAddress(accountName), state.GetBalance()), nil
 }

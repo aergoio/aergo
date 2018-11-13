@@ -448,3 +448,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {
 
 	return string(rv), nil
 }
+
+func StrToAddress(name string) string {
+	return types.EncodeAddress(strHash(name))
+}

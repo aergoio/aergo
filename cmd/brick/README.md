@@ -48,11 +48,11 @@ creates an account and deposite aergo. `inject inject <account_name> <amount>`
 
 ### getstate
 
-get current balance of an account. `getstate getstate <account_name>`
+get current balance of an account. `getstate getstate <account_name>` This will returns in a form of `<internal_address>=<remaining_balance>`
 
 ``` lua
 1> getstate tester
-  INF 100 cmd=getstate module=brick
+  INF Amh8FdZavYGu9ABhZQF6Y7LnSMi2a714bGvpm6mQuMnRpmoYn11C=100 cmd=getstate module=brick
 ```
 
 ### send
