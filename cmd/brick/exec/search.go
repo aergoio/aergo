@@ -1,6 +1,9 @@
 package exec
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
@@ -42,15 +45,29 @@ func search(cmd, args, symbol string) map[string]string {
 					break
 				}
 				if symbol == context.ContractSymbol {
+					// compare with symbol in syntax and extract contract name
 					contractName = argsArray[i-1]
 				} else if symbol == context.FunctionSymbol {
+					// extract function name
 					funcName = argsArray[i-1]
 				}
 			}
+
 			if contractName != "" && funcName != "" {
+				// search abi using contract and function name
 				return searchAbiHint(contractName, funcName)
 			}
 		}
+	} else if symbol == context.PathSymbol {
+		// search in file path
+		argsArray := strings.Fields(args)
+		lastArg := "."
+		if len(argsArray) != 0 {
+			// get last word
+			lastArg = argsArray[len(argsArray)-1]
+		}
+
+		return searchInPath(lastArg)
 	}
 
 	return nil
@@ -80,6 +97,37 @@ func searchAbiHint(contractName, funcName string) map[string]string {
 	}
 
 	return nil
+}
+
+func searchInPath(currentPathStr string) map[string]string {
+
+	if strings.HasSuffix(currentPathStr, ".") {
+		// attach file sperator, to get files in this relative path
+		currentPathStr = fmt.Sprintf("%s%c", currentPathStr, filepath.Separator)
+	}
+	ret := make(map[string]string)
+
+	// extract parent directory path
+	dir := filepath.Dir(currentPathStr)
+
+	// navigate file list in the parent directory
+	fileInfo, err := ioutil.ReadDir(dir)
+	if err != nil {
+		ret[err.Error()] = ""
+		return ret
+	}
+
+	// detatch last base path
+	// other function internally use filepath.Clean() that remove text . or ..
+	// it makes prompt filter hard to match suggestions and the input
+	currentDir, _ := filepath.Split(currentPathStr)
+
+	for _, file := range fileInfo {
+		// generate suggestion text
+		ret[currentDir+file.Name()] = ""
+	}
+
+	return ret
 }
 
 func Index(symbol, text string) {

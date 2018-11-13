@@ -30,9 +30,9 @@ powered by [go-prompt](https://github.com/c-bata/go-prompt)
 ## Install
 
 1. git clone and build aergo, unix & mac: `cmake . && make`, windows + mingw64: `cmake -G "Unix Makefiles" -D CMAKE_MAKE_PROGRAM=mingw32-make.exe . && mingw32-make`
-2. create a `bin` directory, where you want (should be bin for now)
-3. copy binary (`aergoluac`, `brick`) and log config file(`cmd/brick/arglog.toml`) to the `bin`
-4. move to the `bin` patha 
+2. create a directory, where you want
+3. copy binary `brick` and log config file `cmd/brick/arglog.toml` to the directory
+4. move to the directory
 5. run `brick`
 
 ## Usage
@@ -131,7 +131,7 @@ clear all txs and reset the chain. `reset`
 ``` lua
 7> reset
   INF reset a dummy chain successfully cmd=reset module=brick
-0> 
+0>
 ```
 
 Number before cursor is a block height. Each block contains one tx. So after reset, number becames 0

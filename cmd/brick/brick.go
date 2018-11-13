@@ -45,10 +45,11 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 			// there exist a syntax
 			if len(syntaxSplit) != 1 {
 				// from the syntax, try to find a matched symbol of a current field
-				if len(syntaxSplit) > cusorWordSeq {
-					if strings.HasSuffix(d.TextBeforeCursor(), " ") {
+				if len(syntaxSplit) >= cusorWordSeq {
+					takeNextSymbol := strings.HasSuffix(d.TextBeforeCursor(), " ")
+					if takeNextSymbol && len(syntaxSplit) != cusorWordSeq {
 						symbol = syntaxSplit[cusorWordSeq]
-					} else {
+					} else if !takeNextSymbol {
 						symbol = syntaxSplit[cusorWordSeq-1]
 					}
 				}
@@ -66,7 +67,7 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 		return strings.Compare(s[i].Text, s[j].Text) < 0
 	})
 
-	return prompt.FilterFuzzy(s, d.GetWordBeforeCursor(), true)
+	return prompt.FilterHasPrefix(s, d.GetWordBeforeCursor(), true)
 }
 
 func main() {

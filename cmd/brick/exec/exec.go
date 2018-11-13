@@ -60,7 +60,7 @@ func Execute(cmd, args string) {
 	executor := GetExecutor(cmd)
 
 	if executor == nil {
-		logger.Info().Str("cmd", cmd).Msg("command not found")
+		logger.Warn().Str("cmd", cmd).Msg("command not found")
 		return
 	}
 
