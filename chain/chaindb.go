@@ -24,6 +24,7 @@ import (
 
 const (
 	chainDBName = "chain"
+	genesisKey  = chainDBName + ".genesisInfo"
 
 	TxBatchMax = 10000
 )
@@ -187,6 +188,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
+
 func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	block := genesis.Block()
 
@@ -196,10 +198,19 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	}
 
 	cdb.connectToChain(&tx, block)
+	tx.Set([]byte(genesisKey), genesis.Bytes())
 
 	tx.Commit()
 
 	logger.Info().Msg("Genesis Block Added")
+	return nil
+}
+
+// GetGenesisInfo returns Genesis info from cdb.
+func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
+	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
+		return types.GetGenesisFromBytes(b)
+	}
 	return nil
 }
 

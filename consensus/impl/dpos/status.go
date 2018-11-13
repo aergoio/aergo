@@ -8,6 +8,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+var bsLoader *bootLoader
+
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
@@ -30,15 +32,15 @@ func (s *Status) load() {
 		return
 	}
 
-	s.bestBlock = libLoader.bestBlock()
+	s.bestBlock = bsLoader.bestBlock()
 
-	s.libState = libLoader.ls
+	s.libState = bsLoader.ls
 
-	if libLoader.ls != nil {
-		s.libState = libLoader.ls
+	if bsLoader.ls != nil {
+		s.libState = bsLoader.ls
 	}
 
-	genesisBlock := libLoader.genesisBlock()
+	genesisBlock := bsLoader.genesisBlock()
 	s.libState.genesisInfo = &blockInfo{
 		BlockHash: genesisBlock.ID(),
 		BlockNo:   genesisBlock.BlockNo(),
@@ -136,12 +138,43 @@ func (s *Status) Init(cdb consensus.ChainDbReader) {
 		best = genesis
 	}
 
-	libLoader = &bootLoader{
+	bsLoader = &bootLoader{
 		ls:      newLibStatus(defaultConsensusCount),
 		best:    best,
 		genesis: genesis,
 		cdb:     cdb,
 	}
 
-	libLoader.load()
+	bsLoader.load()
+}
+
+type bootLoader struct {
+	ls      *libStatus
+	best    *types.Block
+	genesis *types.Block
+	bpIDs   []string
+	cdb     consensus.ChainDbReader
+}
+
+func (bs *bootLoader) load() {
+	if ls := bs.loadLibStatus(); ls != nil {
+		bs.ls = ls
+		logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status loaded from DB")
+		for id, p := range ls.Prpsd {
+			if p == nil {
+				continue
+			}
+			logger.Debug().Str("BPID", id).
+				Str("confirmed hash", p.Plib.Hash()).
+				Str("confirmedBy hash", p.PlibBy.Hash()).
+				Msg("pre-LIB entry")
+		}
+	}
+
+	if gi := bs.cdb.GetGenesisInfo(); gi != nil {
+		bs.bpIDs = gi.BPIds
+		for i, bp := range bs.bpIDs {
+			logger.Info().Int("index", i).Str("BPID", bp).Msg("initial BP")
+		}
+	}
 }

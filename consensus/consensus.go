@@ -69,6 +69,7 @@ type Consensus interface {
 type ChainDbReader interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 }
 

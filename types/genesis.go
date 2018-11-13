@@ -59,3 +59,12 @@ func GetTestGenesis() *Genesis {
 
 	return genesis
 }
+
+// GetGenesisFromBytes decodes & return Genesis from b.
+func GetGenesisFromBytes(b []byte) *Genesis {
+	g := &Genesis{}
+	if err := common.GobDecode(b, g); err == nil {
+		return g
+	}
+	return nil
+}
