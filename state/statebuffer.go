@@ -26,9 +26,10 @@ type valueEntry struct {
 }
 
 func newValueEntry(key types.HashID, value interface{}) entry {
+	hash := getHash(value)
 	return &valueEntry{
 		key:   key,
-		hash:  getHash(value),
+		hash:  types.GetHashID(key[:], hash[:]),
 		value: value,
 	}
 }

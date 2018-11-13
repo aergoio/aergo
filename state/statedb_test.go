@@ -11,7 +11,7 @@ import (
 
 var (
 	testAccount = types.ToAccountID([]byte("test_address"))
-	testRoot, _ = enc.ToBytes("5eGvHsNc5526JBqd8FhKFrtti2fT7xiCyB6rJXt9egFc")
+	testRoot, _ = enc.ToBytes("Fuep8wrfFDjV1tQRJThT5Ukdb3zgFiQdB2sVZnox232b")
 	testStates  = []types.State{
 		types.State{Nonce: 1, Balance: 100},
 		types.State{Nonce: 2, Balance: 200},
@@ -19,7 +19,7 @@ var (
 		types.State{Nonce: 4, Balance: 400},
 		types.State{Nonce: 5, Balance: 500},
 	}
-	testSecondRoot, _ = enc.ToBytes("GGKZy5XqNPU1VWYspHPwEtm8hnZX2yhcP236ztKf6Pif")
+	testSecondRoot, _ = enc.ToBytes("24yWBBoCZB9dmGX4fLSbQuHpQdNWPxoQRxgG14KEz8Du")
 	testSecondStates  = []types.State{
 		types.State{Nonce: 6, Balance: 600},
 		types.State{Nonce: 7, Balance: 700},

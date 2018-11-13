@@ -85,12 +85,12 @@ func (st *ContractState) GetCode() ([]byte, error) {
 }
 
 func (st *ContractState) SetData(key, value []byte) error {
-	st.storage.put(newValueEntry(types.GetHashID(key), value))
+	st.storage.put(newValueEntry(types.GetHashID(st.account[:], key), value))
 	return nil
 }
 
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
-	id := types.GetHashID(key)
+	id := types.GetHashID(st.account[:], key)
 	if entry := st.storage.get(id); entry != nil {
 		return entry.Value().([]byte), nil
 	}
