@@ -178,3 +178,9 @@ func (bs *bootLoader) load() {
 		}
 	}
 }
+
+// GetInitialBPs returns the initial BP IDs, which are loaded from Genesis
+// info in the chain DB.
+func GetInitialBPs() []string {
+	return bsLoader.bpIDs
+}
