@@ -54,11 +54,11 @@ func init() {
 					return nil
 				}
 				database.DBs[database.OpenDbName] = &DB{
-					Conn: nil,
-					db:   nil,
-					tx:   nil,
-					conn: conn,
-					name: database.OpenDbName,
+					Conn:      nil,
+					db:        nil,
+					tx:        nil,
+					conn:      conn,
+					name:      database.OpenDbName,
 					accountID: types.ToAccountID(b),
 				}
 			} else {
@@ -223,10 +223,10 @@ func openDB(dbName string) (*DB, error) {
 
 type DB struct {
 	*sql.Conn
-	db   *sql.DB
-	tx   Tx
-	conn *SQLiteConn
-	name string
+	db        *sql.DB
+	tx        Tx
+	conn      *SQLiteConn
+	name      string
 	accountID types.AccountID
 }
 
@@ -330,6 +330,9 @@ type Tx interface {
 	Savepoint() error
 	Release() error
 	RollbackToSavepoint() error
+	SubSavepoint(string) error
+	SubRelease(string) error
+	RollbackToSubSavepoint(string) error
 	GetHandle() *C.sqlite3
 }
 
@@ -368,6 +371,14 @@ func (tx *WritableTx) Savepoint() error {
 	return err
 }
 
+func (tx *WritableTx) SubSavepoint(name string) error {
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", name).Msg("savepoint")
+	}
+	_, err := tx.Tx.Exec("SAVEPOINT \"" + name + "\"")
+	return err
+}
+
 func (tx *WritableTx) Release() error {
 	if logger.IsDebugEnabled() {
 		logger.Debug().Str("db_name", tx.db.name).Msg("release")
@@ -376,11 +387,27 @@ func (tx *WritableTx) Release() error {
 	return err
 }
 
+func (tx *WritableTx) SubRelease(name string) error {
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("name", name).Msg("release")
+	}
+	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + name + "\"")
+	return err
+}
+
 func (tx *WritableTx) RollbackToSavepoint() error {
 	if logger.IsDebugEnabled() {
 		logger.Debug().Str("db_name", tx.db.name).Msg("rollback to savepoint")
 	}
 	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.db.name + "\"")
+	return err
+}
+
+func (tx *WritableTx) RollbackToSubSavepoint(name string) error {
+	if logger.IsDebugEnabled() {
+		logger.Debug().Str("db_name", name).Msg("rollback to savepoint")
+	}
+	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + name + "\"")
 	return err
 }
 
@@ -419,4 +446,16 @@ func (tx *ReadOnlyTx) Release() error {
 
 func (tx *ReadOnlyTx) RollbackToSavepoint() error {
 	return tx.Rollback()
+}
+
+func (tx *ReadOnlyTx) SubSavepoint(name string) error {
+	return nil
+}
+
+func (tx *ReadOnlyTx) SubRelease(name string) error {
+	return nil
+}
+
+func (tx *ReadOnlyTx) RollbackToSubSavepoint(name string) error {
+	return nil
 }

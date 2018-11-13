@@ -1828,4 +1828,130 @@ func TestArray(t *testing.T) {
 	}
 }
 
+func TestPcall(t *testing.T) {
+	definition1 := `
+	function constructor(init)
+		system.setItem("count", init)
+	end
+
+	function init()
+		db.exec([[create table if not exists r (
+	  id integer primary key
+	, n integer check(n >= 10)
+	, nonull text not null
+	, only integer unique)
+	]])
+		db.exec("insert into r values (1, 11, 'text', 1)")
+	end
+
+	function pkins1()
+		db.exec("insert into r values (3, 12, 'text', 2)")
+		db.exec("insert into r values (1, 12, 'text', 2)")
+	end
+
+	function pkins2()
+		db.exec("insert into r values (4, 12, 'text', 2)")
+	end
+
+	function pkget()
+		local rs = db.query("select count(*) from r")
+		if rs:next() then
+			local n = rs:get()
+			--rs:next()
+			return n
+		else
+			return "error in count()"
+		end
+	end
+
+	function inc()
+		count = system.getItem("count")
+		system.setItem("count", count + 1)
+		return count
+	end
+
+	function get()
+		return system.getItem("count")
+	end
+
+	function set(val)
+		system.setItem("count", val)
+	end
+	abi.register(inc,get,set, init, pkins1, pkins2, pkget)
+	`
+
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "counter", 10, definition1).constructor("[0]"),
+		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
+	)
+
+	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+
+	definition2 := `
+	function constructor(addr)
+		system.setItem("count", 99)
+		system.setItem("addr", addr)
+	end
+	function add(amount)
+		first = contract.call.value(amount)(system.getItem("addr"), "inc")
+		status, res = pcall(contract.call.value(1000000), system.getItem("addr"), "inc")
+		if status == false then
+			return first
+		end
+		return res
+	end
+	function dadd()
+		return contract.delegatecall(system.getItem("addr"), "inc")
+	end
+	function get()
+		addr = system.getItem("addr")
+		a = contract.call(addr, "get")
+		return a
+	end
+	function dget()
+		addr = system.getItem("addr")
+		a = contract.delegatecall(addr, "get")
+		return a
+	end
+	function send(addr, amount)
+		contract.send(addr, amount)
+		status, res = pcall(contract.call.value(1000000000)(system.getItem("addr"), "inc"))
+		return status
+	end
+	function sql()
+		contract.call(system.getItem("addr"), "init")
+		pcall(contract.call, system.getItem("addr"), "pkins1")
+		contract.call(system.getItem("addr"), "pkins2")
+	end
+
+	function sqlget()
+		return contract.call(system.getItem("addr"), "pkget")
+	end
+	abi.register(add, dadd, get, dget, send, sql, sqlget)
+	`
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "caller", 10, definition2).
+			constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`),
+		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"sql", "Args":[]}`),
+	)
+	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
