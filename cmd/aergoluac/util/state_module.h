@@ -8,6 +8,6 @@
 
 #include <lua.h>
 
-extern int luaopen_state(lua_State *L);
+extern int luac_open_state(lua_State *L);
 
 #endif /* _STATE_MODULE_H */

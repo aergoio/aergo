@@ -6,16 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
+	luac_util "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -184,21 +182,7 @@ type luaTxDef struct {
 }
 
 func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	luac := exec.Command("../bin/aergoluac", "--payload")
-	stdin, err := luac.StdinPipe()
-	if err != nil {
-		return &luaTxDef{cErr: err}
-	}
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, code)
-	}()
-	out, err := luac.Output()
-	if err != nil {
-		eErr, _ := err.(*exec.ExitError)
-		return &luaTxDef{cErr: errors.New(strings.TrimSpace(string(eErr.Stderr)))}
-	}
-	b, err := util.DecodeCode(string(out))
+	b, err := luac_util.Compile(code)
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}
