@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -22,12 +21,12 @@ func (c *deployContract) Command() string {
 }
 
 func (c *deployContract) Syntax() string {
-	return fmt.Sprintf("deploy %s %s %s %s", context.AccountSymbol, context.AmountSymbol,
+	return fmt.Sprintf("%s %s %s %s", context.AccountSymbol, context.AmountSymbol,
 		context.ContractSymbol, context.PathSymbol)
 }
 
 func (c *deployContract) Usage() string {
-	return fmt.Sprintf("deploy <sender_name> <amount> <contract_name> <definition_file_path>")
+	return fmt.Sprintf("deploy <sender_name> <amount> <contract_name> `<definition_file_path>`")
 }
 
 func (c *deployContract) Describe() string {
@@ -47,7 +46,7 @@ func (c *deployContract) Validate(args string) error {
 }
 
 func (c *deployContract) parse(args string) (string, uint64, string, string, error) {
-	splitArgs := strings.Fields(args)
+	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
 		return "", 0, "", "", fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
 	}

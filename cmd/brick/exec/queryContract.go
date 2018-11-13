@@ -2,7 +2,6 @@ package exec
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 )
@@ -18,12 +17,12 @@ func (c *queryContract) Command() string {
 }
 
 func (c *queryContract) Syntax() string {
-	return fmt.Sprintf("query %s %s %s %s", context.ContractSymbol, context.FunctionSymbol,
+	return fmt.Sprintf("%s %s %s %s", context.ContractSymbol, context.FunctionSymbol,
 		context.ContractArgsSymbol, context.ExpectedSymbol)
 }
 
 func (c *queryContract) Usage() string {
-	return fmt.Sprintf("query <contract_name> <func_name> <query_json_str> [expected_query_result]")
+	return fmt.Sprintf("query <contract_name> <func_name> `<query_json_str>` `[expected_query_result]`")
 }
 
 func (c *queryContract) Describe() string {
@@ -44,24 +43,21 @@ func (c *queryContract) Validate(args string) error {
 
 func (c *queryContract) parse(args string) (string, string, string, string, error) {
 
-	splitArgs := strings.Fields(args)
+	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 3 {
 		return "", "", "", "", fmt.Errorf("need at least 3 arguments. usage: %s", c.Usage())
 	}
 
-	queryCodeAndExpected := context.ParseAccentString(strings.Join(splitArgs[2:], " "))
-	if len(queryCodeAndExpected) != 1 && len(queryCodeAndExpected) != 2 {
-		return "", "", "", "", fmt.Errorf("invalid query code format: it must be `[\"str_arg\", num_arg, ...]`")
-	}
+	queryCodeAndExpected := splitArgs[2]
 
 	expectedResult := ""
-	if len(queryCodeAndExpected) == 2 {
-		expectedResult = queryCodeAndExpected[1]
+	if len(splitArgs) == 4 {
+		expectedResult = splitArgs[3]
 	}
 
 	return splitArgs[0], // contractName
 		splitArgs[1], //funcName
-		queryCodeAndExpected[0], //queryCode
+		queryCodeAndExpected, //queryCode
 		expectedResult, //expectedResult
 		nil
 }

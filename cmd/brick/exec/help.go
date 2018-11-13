@@ -18,7 +18,7 @@ func (c *help) Command() string {
 }
 
 func (c *help) Syntax() string {
-	return "help " + context.CommandSymbol
+	return context.CommandSymbol
 }
 
 func (c *help) Usage() string {

@@ -2,7 +2,6 @@ package exec
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -19,7 +18,7 @@ func (c *getStateAccount) Command() string {
 }
 
 func (c *getStateAccount) Syntax() string {
-	return fmt.Sprintf("getstate %s", context.AccountSymbol)
+	return fmt.Sprintf("%s", context.AccountSymbol)
 }
 
 func (c *getStateAccount) Usage() string {
@@ -41,7 +40,7 @@ func (c *getStateAccount) Validate(args string) error {
 }
 
 func (c *getStateAccount) parse(args string) (string, error) {
-	splitArgs := strings.Fields(args)
+	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 1 {
 		return "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
 	}

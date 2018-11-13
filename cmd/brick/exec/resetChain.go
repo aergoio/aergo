@@ -15,7 +15,7 @@ func (c *resetChain) Command() string {
 }
 
 func (c *resetChain) Syntax() string {
-	return "reset"
+	return ""
 }
 
 func (c *resetChain) Usage() string {

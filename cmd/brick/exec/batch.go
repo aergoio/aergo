@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 )
@@ -20,11 +19,11 @@ func (c *batch) Command() string {
 }
 
 func (c *batch) Syntax() string {
-	return fmt.Sprintf("batch %s", context.PathSymbol)
+	return fmt.Sprintf("%s", context.PathSymbol)
 }
 
 func (c *batch) Usage() string {
-	return fmt.Sprintf("batch <batch_file_path>")
+	return fmt.Sprintf("batch `<batch_file_path>`")
 }
 
 func (c *batch) Describe() string {
@@ -39,13 +38,14 @@ func (c *batch) Validate(args string) error {
 }
 
 func (c *batch) parse(args string) (string, error) {
-	splitArgs := strings.Fields(args)
-	if len(splitArgs) < 1 {
-		return "", fmt.Errorf("need an argument. usage: %s", c.Usage())
+	splitArgs := context.SplitSpaceAndAccent(args, false)
+	if len(splitArgs) != 1 {
+		return "", fmt.Errorf("invalid format. usage: %s", c.Usage())
 	}
 
 	batchFilePath := splitArgs[0]
-	if _, err := os.Stat(splitArgs[0]); os.IsNotExist(err) {
+
+	if _, err := os.Stat(batchFilePath); os.IsNotExist(err) {
 		return "", fmt.Errorf("fail to read a brick batch file %s: %s", batchFilePath, err.Error())
 	}
 

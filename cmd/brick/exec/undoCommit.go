@@ -17,7 +17,7 @@ func (c *undoCommit) Command() string {
 }
 
 func (c *undoCommit) Syntax() string {
-	return fmt.Sprintf("undo")
+	return fmt.Sprintf("")
 }
 
 func (c *undoCommit) Usage() string {

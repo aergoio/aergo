@@ -20,11 +20,11 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 	cmd, args := context.ParseFirstWord(d.Lines()[0])
 
 	// find number of word before a current cursor location
-	cusorWords := strings.Fields(d.TextBeforeCursor())
-	cusorWordSeq := len(cusorWords)
+	words := context.SplitSpaceAndAccent(args, true)
+	wordNum := len(words)
 
 	// if there is nothing typed text or it is a first word
-	if cusorWordSeq == 0 || (cusorWordSeq == 1 && !strings.HasSuffix(d.TextBeforeCursor(), " ")) {
+	if cmd == "" || (cmd != "" && wordNum == 0 && !strings.HasSuffix(d.TextBeforeCursor(), " ")) {
 		// suggest all commands avaialbe
 		for _, executor := range exec.AllExecutors() {
 			s = append(s, prompt.Suggest{Text: executor.Command(), Description: executor.Describe()})
@@ -40,22 +40,27 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 		} else {
 			syntax := executor.Syntax()
 			syntaxSplit := strings.Fields(syntax)
+			syntaxNum := len(syntaxSplit)
 			var symbol string
+			var current int
 
 			// there exist a syntax
-			if len(syntaxSplit) != 1 {
+			if syntaxNum != 0 {
 				// from the syntax, try to find a matched symbol of a current field
-				if len(syntaxSplit) >= cusorWordSeq {
+				if syntaxNum >= wordNum {
+					// when last char is a space, then skip to next symbol
 					takeNextSymbol := strings.HasSuffix(d.TextBeforeCursor(), " ")
-					if takeNextSymbol && len(syntaxSplit) != cusorWordSeq {
-						symbol = syntaxSplit[cusorWordSeq]
+					if takeNextSymbol && syntaxNum != wordNum {
+						current = wordNum
+						symbol = syntaxSplit[current]
 					} else if !takeNextSymbol {
-						symbol = syntaxSplit[cusorWordSeq-1]
+						current = wordNum - 1
+						symbol = syntaxSplit[current]
 					}
 				}
 
 				// search from index using symbol
-				for text, descr := range exec.Candidates(cmd, args, symbol) {
+				for text, descr := range exec.Candidates(cmd, words, current, symbol) {
 					s = append(s, prompt.Suggest{Text: text, Description: descr})
 				}
 			}

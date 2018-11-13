@@ -15,7 +15,7 @@ func (c *exit) Command() string {
 }
 
 func (c *exit) Syntax() string {
-	return "exit"
+	return ""
 }
 
 func (c *exit) Usage() string {

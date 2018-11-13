@@ -11,9 +11,8 @@ import (
 
 var index = make(map[string]map[string]string)
 
-func Candidates(cmd, args, symbol string) map[string]string {
-
-	if ret := search(cmd, args, symbol); ret != nil {
+func Candidates(cmd string, splitArgs []string, current int, symbol string) map[string]string {
+	if ret := search(cmd, splitArgs, current, symbol); ret != nil {
 		return ret
 	}
 
@@ -27,7 +26,7 @@ func Candidates(cmd, args, symbol string) map[string]string {
 	return ret
 }
 
-func search(cmd, args, symbol string) map[string]string {
+func search(cmd string, splitArgs []string, current int, symbol string) map[string]string {
 	if keywords, ok := index[symbol]; ok {
 		return keywords
 	}
@@ -36,20 +35,20 @@ func search(cmd, args, symbol string) map[string]string {
 	if symbol == context.ContractArgsSymbol {
 		executor := GetExecutor(cmd)
 		if executor != nil {
-			argsArray := strings.Fields(args)
+
 			symbols := strings.Fields(executor.Syntax())
 			var contractName string
 			var funcName string
 			for i, symbol := range symbols {
-				if len(argsArray) < i {
+				if len(splitArgs) < i {
 					break
 				}
 				if symbol == context.ContractSymbol {
 					// compare with symbol in syntax and extract contract name
-					contractName = argsArray[i-1]
+					contractName = splitArgs[i]
 				} else if symbol == context.FunctionSymbol {
 					// extract function name
-					funcName = argsArray[i-1]
+					funcName = splitArgs[i]
 				}
 			}
 
@@ -59,15 +58,10 @@ func search(cmd, args, symbol string) map[string]string {
 			}
 		}
 	} else if symbol == context.PathSymbol {
-		// search in file path
-		argsArray := strings.Fields(args)
-		lastArg := "."
-		if len(argsArray) != 0 {
-			// get last word
-			lastArg = argsArray[len(argsArray)-1]
+		if len(splitArgs) <= current { //there is no word yet
+			return searchInPath(".")
 		}
-
-		return searchInPath(lastArg)
+		return searchInPath(splitArgs[current])
 	}
 
 	return nil
@@ -101,6 +95,10 @@ func searchAbiHint(contractName, funcName string) map[string]string {
 
 func searchInPath(currentPathStr string) map[string]string {
 
+	if strings.HasPrefix(currentPathStr, "`") {
+		currentPathStr = currentPathStr[1:]
+	}
+
 	if strings.HasSuffix(currentPathStr, ".") {
 		// attach file sperator, to get files in this relative path
 		currentPathStr = fmt.Sprintf("%s%c", currentPathStr, filepath.Separator)
@@ -124,7 +122,7 @@ func searchInPath(currentPathStr string) map[string]string {
 
 	for _, file := range fileInfo {
 		// generate suggestion text
-		ret[currentDir+file.Name()] = ""
+		ret["`"+currentDir+file.Name()+"`"] = ""
 	}
 
 	return ret

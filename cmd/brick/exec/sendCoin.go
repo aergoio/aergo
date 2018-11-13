@@ -3,7 +3,6 @@ package exec
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -20,7 +19,7 @@ func (c *sendCoin) Command() string {
 }
 
 func (c *sendCoin) Syntax() string {
-	return fmt.Sprintf("send %s %s %s", context.AccountSymbol,
+	return fmt.Sprintf("%s %s %s", context.AccountSymbol,
 		context.AccountSymbol, context.AmountSymbol)
 }
 
@@ -45,8 +44,7 @@ func (c *sendCoin) Validate(args string) error {
 }
 
 func (c *sendCoin) parse(args string) (string, string, uint64, error) {
-
-	splitArgs := strings.Fields(args)
+	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 3 {
 		return "", "", 0, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}

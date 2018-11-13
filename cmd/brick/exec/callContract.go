@@ -3,7 +3,6 @@ package exec
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -20,13 +19,13 @@ func (c *callContract) Command() string {
 }
 
 func (c *callContract) Syntax() string {
-	return fmt.Sprintf("call %s %s %s %s %s", context.AccountSymbol,
+	return fmt.Sprintf("%s %s %s %s %s", context.AccountSymbol,
 		context.AmountSymbol, context.ContractSymbol,
 		context.FunctionSymbol, context.ContractArgsSymbol)
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> <call_json_str>")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `<call_json_str>`")
 }
 
 func (c *callContract) Describe() string {
@@ -46,7 +45,7 @@ func (c *callContract) Validate(args string) error {
 }
 
 func (c *callContract) parse(args string) (string, uint64, string, string, string, error) {
-	splitArgs := strings.Fields(args)
+	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 5 {
 		return "", 0, "", "", "", fmt.Errorf("need 5 arguments. usage: %s", c.Usage())
 	}
@@ -56,15 +55,12 @@ func (c *callContract) parse(args string) (string, uint64, string, string, strin
 		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1], err.Error())
 	}
 
-	callCode := context.ParseAccentString(strings.Join(splitArgs[4:], " "))
-	if len(callCode) != 1 {
-		return "", 0, "", "", "", fmt.Errorf("invalid call code format: it must be `[\"str_arg\", num_arg, ...]`")
-	}
+	callCode := splitArgs[4]
 	return splitArgs[0], //accountName
 		amount, //amount
 		splitArgs[2], //contractName
 		splitArgs[3], //funcName
-		callCode[0], //callCode
+		callCode, //callCode
 		nil
 }
 

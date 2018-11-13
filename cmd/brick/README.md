@@ -69,7 +69,7 @@ transfer aergo between two addresses. `send <sender_name> <receiver_name> <amoun
 deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <definition_file_path>`
 
 ``` lua
-2> deploy tester 1 helloContract ../example/hello.lua
+2> deploy tester 1 helloContract `../example/hello.lua`
   INF deploy a smart contract successfully cmd=deploy module=brick
 ```
 
@@ -105,7 +105,7 @@ query to a smart contract. `query <contract_name> <func_name> <query_json_str> [
 keeps commands in a text file and use at later. `batch <batch_file_path>`
 
 ``` lua
-5> batch ../cmd/brick/example/hello.brick
+5> batch `../cmd/brick/example/hello.brick`
   INF inject an account successfully cmd=inject module=brick
   INF 100 cmd=getstate module=brick
   INF deploy a smart contract successfully cmd=deploy module=brick
