@@ -83,7 +83,7 @@ func (p2ps *P2P) GetBlocksChunk(context actor.Context, msg *message.GetBlockChun
 		context.Respond(&message.GetBlockChunksRsp{ToWhom:peerID, Err:fmt.Errorf("invalid peer")})
 		return
 	}
-	receiver := NewBlockReceiver(context, remotePeer, blockHashes, msg.TTL)
+	receiver := NewBlockReceiver(p2ps, remotePeer, blockHashes, msg.TTL)
 	receiver.StartGet()
 }
 
@@ -98,7 +98,7 @@ func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 		context.Respond(&message.GetHashesRsp{Hashes:nil, PrevInfo:msg.PrevInfo, Count:0, Err:message.PeerNotFoundError})
 		return
 	}
-	receiver := NewBlockHashesReceiver(context, remotePeer, msg, fetchTimeOut)
+	receiver := NewBlockHashesReceiver(p2ps, remotePeer, msg, fetchTimeOut)
 	receiver.StartGet()
 }
 

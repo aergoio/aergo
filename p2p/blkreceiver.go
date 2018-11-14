@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -17,7 +16,6 @@ import (
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type BlocksChunkReceiver struct {
-	context actor.Context
 	requestID MsgID
 
 	peer RemotePeer
@@ -31,9 +29,9 @@ type BlocksChunkReceiver struct {
 	offset int
 }
 
-func NewBlockReceiver(context actor.Context, peer RemotePeer, blockHashes []message.BlockHash, ttl time.Duration) *BlocksChunkReceiver {
+func NewBlockReceiver(actor ActorService, peer RemotePeer, blockHashes []message.BlockHash, ttl time.Duration) *BlocksChunkReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlocksChunkReceiver{context: context, peer:peer, blockHashes:blockHashes, timeout:timeout, got:make([]*types.Block, len(blockHashes))}
+	return &BlocksChunkReceiver{actor: actor, peer:peer, blockHashes:blockHashes, timeout:timeout, got:make([]*types.Block, len(blockHashes))}
 }
 
 func (br *BlocksChunkReceiver) StartGet() {
@@ -54,7 +52,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 	// timeout
 	if br.finished || br.timeout.Before(time.Now()) {
 		// silently ignore already finished job
-		//br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
+		//br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)
 		return
@@ -62,7 +60,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 	// remote peer response failure
 	body :=  msgBody.(*types.GetBlockResponse)
 	if body.Status != types.ResultStatus_OK || len(body.Blocks) == 0 {
-		br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)
 		return
@@ -72,7 +70,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 	for _, block := range body.Blocks {
 		// unexpected block
 		if !bytes.Equal(br.blockHashes[br.offset], block.Hash) {
-			br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.UnexpectedBlockError})
+			br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.UnexpectedBlockError})
 			br.finished = true
 			br.peer.consumeRequest(br.requestID)
 			return
@@ -81,7 +79,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 		br.offset++
 		// check overflow
 		if br.offset >= len(br.got) {
-			br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Blocks:br.got, Err:nil})
+			br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Blocks:br.got, Err:nil})
 			br.finished = true
 			br.peer.consumeRequest(br.requestID)
 			return
@@ -90,10 +88,10 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 	// is it end?
 	if !body.HasNext {
 		if br.offset < len(br.got) {
-			br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.MissingHashError})
+			br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.MissingHashError})
 			// not all blocks were filled. this is error
 		} else {
-			br.context.Respond(&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Blocks:br.got, Err:nil})
+			br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Blocks:br.got, Err:nil})
 		}
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)
