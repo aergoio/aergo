@@ -33,6 +33,24 @@ func (_m *MockRemotePeer) sendMessage(msg msgOrder) {
 	_m.Called(msg)
 }
 
+func (_m *MockRemotePeer) GetReceiver(id MsgID) ResponseReceiver {
+	ret := _m.Called(id)
+
+	var r0 ResponseReceiver
+	if rf, ok := ret.Get(0).(func(id MsgID) ResponseReceiver); ok {
+		r0 = rf(id)
+	} else {
+		rr0 := ret.Get(0)
+		if rr0 == nil {
+			r0 = nil
+		} else {
+			r0 = rr0.(ResponseReceiver)
+		}
+	}
+
+	return r0
+}
+
 func (_m *MockRemotePeer) sendAndWaitMessage(msg msgOrder, ttl time.Duration) error {
 	ret := _m.Called(msg, ttl)
 

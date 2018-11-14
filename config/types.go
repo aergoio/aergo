@@ -69,6 +69,7 @@ type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
+	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -122,12 +123,15 @@ nsallowcors = {{.RPC.NSAllowCORS}}
 restport = "{{.REST.RestPort}}"
 
 [p2p]
+# Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
 netprotocoladdr = "{{.P2P.NetProtocolAddr}}"
 netprotocolport = {{.P2P.NetProtocolPort}}
 npbindaddr = "{{.P2P.NPBindAddr}}"
 npbindport = {{.P2P.NPBindPort}}
+# TLS and certificate is not applied in alpha release.
 nptls = {{.P2P.NPEnableTLS}}
 npcert = "{{.P2P.NPCert}}"
+# Set file path of key file
 npkey = "{{.P2P.NPKey}}"
 npaddpeers = [{{range .P2P.NPAddPeers}}
 "{{.}}", {{end}}
@@ -140,7 +144,7 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
-
+usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

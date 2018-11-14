@@ -6,11 +6,21 @@
 package message
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"time"
 )
 
 const P2PSvc = "p2pSvc"
+
+// errors which async responses of p2p actor, such as GetBlockChunksRsp, can contains,
+var (
+	RemotePeerFailError = fmt.Errorf("remote peer return error")
+	PeerNotFoundError = fmt.Errorf("remote peer was not found")
+	MissingHashError     = fmt.Errorf("some block hash not found")
+	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
+)
 
 // PingMsg send types.Ping to each peer.
 // The actor returns true if sending is successful.
@@ -81,6 +91,11 @@ type GetBlockInfos struct {
 	Hashes []BlockHash
 }
 
+type GetBlockChunks struct {
+	GetBlockInfos
+	TTL time.Duration
+}
+
 // GetMissingBlocks send types.GetMissingRequest to dest peer.
 // The actor returns true if sending is successful.
 // Not used (need to be async operation)
@@ -92,7 +107,14 @@ type GetMissingBlocks struct {
 // BlockInfosResponse is data from other peer, as a response of types.GetBlockRequest
 // p2p module will send this to chainservice actor.
 type BlockInfosResponse struct {
+	FromWhom peer.ID
+	Blocks   []*types.Block
+}
+
+type GetBlockChunksRsp struct {
+	ToWhom peer.ID
 	Blocks []*types.Block
+	Err    error
 }
 
 // GetPeers requests p2p actor to get remote peers that is connected.
@@ -102,8 +124,32 @@ type GetPeers struct {
 
 // GetPeersRsp contains peer meta information and current states.
 type GetPeersRsp struct {
-	Peers  []*types.PeerAddress
+	Peers []*types.PeerAddress
 	// last received block notice
 	LastBlks []*types.NewBlockNotice
 	States   []types.PeerState
+}
+
+// GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
+type GetSyncAncestor struct {
+	ToWhom peer.ID
+	Hashes [][]byte
+}
+
+// GetSyncAncestorRsp is data from other peer, as a response of types.GetAncestorRequest
+type GetSyncAncestorRsp struct {
+	Ancestor *types.BlockInfo
+}
+
+type GetHashes struct {
+	ToWhom   peer.ID
+	PrevInfo *types.BlockInfo
+	Count    uint64
+}
+
+type GetHashesRsp struct {
+	PrevInfo *types.BlockInfo
+	Hashes   []BlockHash
+	Count    uint64
+	Err      error
 }

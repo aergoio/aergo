@@ -6,12 +6,19 @@
 package p2p
 
 import (
+	"fmt"
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
+	"time"
 )
 
+const (
+	// fetchTimeOut was copied from syncer package. it can be problem if these value become different
+	fetchTimeOut     = time.Second * 100
+)
 // GetAddresses send getAddress request to other peer
 func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
@@ -52,7 +59,7 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int("block_cnt", len(blockHashes)).Msg("Sending Get block request")
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int(LogBlkCount, len(blockHashes)).Msg("Sending Get block request")
 
 	hashes := make([][]byte, len(blockHashes))
 	for i, hash := range blockHashes {
@@ -63,6 +70,36 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 
 	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetBlocksRequest, req))
 	return true
+}
+
+
+// GetBlocksChunk send request message to peer and
+func (p2ps *P2P) GetBlocksChunk(context actor.Context, msg *message.GetBlockChunks) {
+	peerID := msg.ToWhom
+	blockHashes := msg.Hashes
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetBlocksRequest.String()).Msg("Message to Unknown peer, check if a bug")
+		context.Respond(&message.GetBlockChunksRsp{ToWhom:peerID, Err:fmt.Errorf("invalid peer")})
+		return
+	}
+	receiver := NewBlockReceiver(context, remotePeer, blockHashes, msg.TTL)
+	receiver.StartGet()
+}
+
+
+// GetBlockHashes send request message to peer and make response message for block hashes
+func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
+	peerID := msg.ToWhom
+	// TODO
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetHashesRequest.String()).Msg("Invalid peerID")
+		context.Respond(&message.GetHashesRsp{Hashes:nil, PrevInfo:msg.PrevInfo, Count:0, Err:message.PeerNotFoundError})
+		return
+	}
+	receiver := NewBlockHashesReceiver(context, remotePeer, msg, fetchTimeOut)
+	receiver.StartGet()
 }
 
 // NotifyNewBlock send notice message of new block to a peer
@@ -155,5 +192,25 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	}
 	//p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Int("hash_cnt", len(hashes)).Msg("Notifying newTXs to peers")
 
+	return true
+}
+
+// Syncer.finder request remote peer to find ancestor
+func (p2ps *P2P) GetSyncAncestor(peerID peer.ID, hashes [][]byte) bool {
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
+		return false
+	}
+	//p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
+	if len(hashes) == 0 {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
+		return false
+	}
+
+	// create message data
+	req := &types.GetAncestorRequest{Hashes: hashes}
+
+	remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(true, GetAncestorRequest, req))
 	return true
 }

@@ -8,6 +8,8 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/message"
+	"github.com/golang/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +26,11 @@ import (
 
 const defaultPingInterval = time.Second * 60
 
+var TimeoutError error
+func init() {
+	TimeoutError = fmt.Errorf("timeout")
+}
+
 type RemotePeer interface {
 	ID() peer.ID
 	Meta() PeerMeta
@@ -37,15 +44,32 @@ type RemotePeer interface {
 	sendAndWaitMessage(msg msgOrder, ttl time.Duration) error
 
 	pushTxsNotice(txHashes []TxHash)
+	// utility method
+
 	consumeRequest(msgID MsgID)
+	GetReceiver(id MsgID) ResponseReceiver
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
 	updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	updateTxCache(hashes []TxHash) []TxHash
 
+
 	// TODO
 	MF() moFactory
+}
+
+type requestInfo struct {
+	cTime    time.Time
+	reqMO    msgOrder
+	receiver ResponseReceiver
+}
+// ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
+// NOTE: the return value is temporal works for old implementation and will be remove later.
+type ResponseReceiver func(msg Message, msgBody proto.Message) bool
+
+func dummyResponseReceiver(msg Message, msgBody proto.Message) bool {
+	return false
 }
 
 // remotePeerImpl represent remote peer to which is connected
@@ -68,8 +92,8 @@ type remotePeerImpl struct {
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
-	requests    map[MsgID]msgOrder
-	consumeChan chan MsgID
+	requests    map[MsgID]*requestInfo
+	reqMutex    *sync.Mutex
 
 	handlers map[SubProtocol]MessageHandler
 
@@ -103,8 +127,8 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		stopChan:   make(chan struct{}),
 		closeWrite: make(chan struct{}),
 
-		requests:    make(map[MsgID]msgOrder),
-		consumeChan: make(chan MsgID, 10),
+		requests:    make(map[MsgID]*requestInfo),
+		reqMutex: &sync.Mutex{},
 
 		handlers: make(map[SubProtocol]MessageHandler),
 
@@ -156,6 +180,24 @@ func (p *remotePeerImpl) checkState() error {
 	default:
 		return nil
 	}
+}
+
+
+func (p *remotePeerImpl) GetBlocks(hashes []message.BlockHash, ttl time.Duration) ([]*types.Block, error) {
+	//    remotePeer 객체가 상대 peer에 보내기 위한 메세지 생성.
+	hashesToGet := make([][]byte, len(hashes))
+	for i, hash := range hashes {
+		hashesToGet[i] = ([]byte)(hash)
+	}
+	// create message data
+	req := &types.GetBlockRequest{Hashes: hashesToGet}
+
+	p.sendMessage(p.mf.newMsgRequestOrder(true, GetBlocksRequest, req))
+	//p.mf.newMsgRequestOrder()
+	//    remotePeer 가 peer에 메세지 전송하고 메세지 아이디 저장.
+	//    상대 peer에서 보낸 메세지에 대한 응답대기
+	//    응답이 도착하면 응답을 리턴
+	panic("implement me")
 }
 
 
@@ -214,8 +256,6 @@ WRITELOOP:
 		case m := <-p.write.Out():
 			p.writeToPeer(m.(msgOrder))
 			p.write.Done() <- m
-		case rID := <-p.consumeChan:
-			delete(p.requests, rID)
 		case <-cleanupTicker.C:
 			p.pruneRequests()
 		case <-p.closeWrite:
@@ -309,7 +349,7 @@ func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration)
 		case p.dWrite <- msg :
 			return nil
 		case <- time.NewTimer(timeout).C :
-			return fmt.Errorf("timeout")
+			return TimeoutError
 	}
 }
 
@@ -332,8 +372,22 @@ func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
 
 
 // consumeRequest remove request from request history.
-func (p *remotePeerImpl) consumeRequest(requestID MsgID) {
-	p.consumeChan <- requestID
+func (p *remotePeerImpl) consumeRequest(originalID MsgID) {
+	p.reqMutex.Lock()
+	delete(p.requests, originalID)
+	p.reqMutex.Unlock()
+}
+
+func (p *remotePeerImpl) GetReceiver(originalID MsgID) ResponseReceiver {
+	p.reqMutex.Lock()
+	defer p.reqMutex.Unlock()
+	req, found := p.requests[originalID]
+	if !found || req.receiver == nil {
+		return func(msg Message, msgBody proto.Message) bool {
+			return false
+		}
+	}
+	return req.receiver
 }
 
 func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
@@ -450,19 +504,21 @@ func (p *remotePeerImpl) pruneRequests() {
 	debugLog := p.logger.IsDebugEnabled()
 	deletedCnt := 0
 	var deletedReqs []string
-	expireTime := time.Now().Add(-1 * time.Hour).Unix()
+	expireTime := time.Now().Add(-1 * time.Hour)
+	p.reqMutex.Lock()
+	defer p.reqMutex.Unlock()
 	for key, m := range p.requests {
-		if m.Timestamp() < expireTime {
+		if m.cTime.Before(expireTime) {
 			delete(p.requests, key)
 			if debugLog {
-				deletedReqs = append(deletedReqs, m.GetProtocolID().String()+"/"+key.String()+time.Unix(m.Timestamp(), 0).String())
+				deletedReqs = append(deletedReqs, m.reqMO.GetProtocolID().String()+"/"+key.String()+m.cTime.String())
 			}
 			deletedCnt++
 		}
 	}
 	//p.logger.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	p.logger.Info().Int("count", deletedCnt).Str(LogPeerID, p.meta.ID.Pretty()).
-		Time("until", time.Unix(expireTime, 0)).Msg("Pruned requests, but no response to peer")
+		Time("until", expireTime).Msg("Pruned requests, but no response to peer")
 	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {
 		p.logger.Debug().Msg(strings.Join(deletedReqs[:], ","))

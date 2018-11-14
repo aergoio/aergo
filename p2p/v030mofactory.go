@@ -16,10 +16,20 @@ import (
 type v030MOFactory struct {
 }
 
-func (mf *v030MOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
+func (mf *v030MOFactory) newMsgRequestOrder(expectResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
 	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
+		return rmo
+	}
+	return nil
+}
+
+func (mf *v030MOFactory) newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder {
+	rmo := &pbRequestOrder{}
+	msgID := uuid.Must(uuid.NewV4())
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
+		rmo.respReceiver = respReceiver
 		return rmo
 	}
 	return nil
