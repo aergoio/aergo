@@ -206,10 +206,18 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 }
 
 func (syncer *Syncer) Statistics() *map[string]interface{} {
-	return &map[string]interface{}{
-		"startning": syncer.isstartning,
-		"total":     syncer.ctx.TotalCnt,
-		"remain":    syncer.ctx.RemainCnt,
+	if syncer.ctx == nil {
+		return &map[string]interface{}{
+			"startning": syncer.isstartning,
+			"total":     0,
+			"remain":    0,
+		}
+	} else {
+		return &map[string]interface{}{
+			"startning": syncer.isstartning,
+			"total":     syncer.ctx.TotalCnt,
+			"remain":    syncer.ctx.RemainCnt,
+		}
 	}
 }
 
