@@ -48,6 +48,15 @@ func init() {
 	callCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 
+	stateQueryCmd := &cobra.Command{
+		Use:   "statequery [flags] contract varname varindex",
+		Short: "query the state of a contract with variable name and optional index",
+		Args:  cobra.MinimumNArgs(2),
+		Run:   runQueryStateCmd,
+	}
+	stateQueryCmd.Flags().StringVar(&stateroot, "root", "", "Query the state at a specified state root")
+	stateQueryCmd.Flags().BoolVar(&compressed, "compressed", false, "Get a compressed proof for the state")
+
 	contractCmd.AddCommand(
 		deployCmd,
 		callCmd,
@@ -63,6 +72,7 @@ func init() {
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
 		},
+		stateQueryCmd,
 	)
 	rootCmd.AddCommand(contractCmd)
 }
@@ -271,6 +281,36 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	}
 
 	ret, err := client.QueryContract(context.Background(), query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd.Println(ret)
+}
+
+func runQueryStateCmd(cmd *cobra.Command, args []string) {
+	var root []byte
+	var err error
+	contract, err := types.DecodeAddress(args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(stateroot) != 0 {
+		root, err = base58.Decode(stateroot)
+		if err != nil {
+			cmd.Printf("decode error: %s", err.Error())
+			return
+		}
+	}
+	stateQuery := &types.StateQuery{
+		ContractAddress: contract,
+		VarName:         args[1],
+		Root:            root,
+		Compressed:      compressed,
+	}
+	if len(args) > 2 {
+		stateQuery.VarIndex = args[2]
+	}
+	ret, err := client.QueryContractState(context.Background(), stateQuery)
 	if err != nil {
 		log.Fatal(err)
 	}
