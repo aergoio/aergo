@@ -26,36 +26,47 @@ func Candidates(cmd string, chunks []context.Chunk, current int, symbol string) 
 	return ret
 }
 
+// search contract args using get abi
+func extractContractAndFuncName(cmd string, chunks []context.Chunk) (string, string) {
+	var contractName string
+	var funcName string
+
+	executor := GetExecutor(cmd)
+	if executor != nil {
+		symbols := strings.Fields(executor.Syntax())
+
+		for i, symbol := range symbols {
+			if len(chunks) <= i {
+				break
+			}
+			if symbol == context.ContractSymbol {
+				// compare with symbol in syntax and extract contract name
+				contractName = chunks[i].Text
+			} else if symbol == context.FunctionSymbol {
+				// extract function name
+				funcName = chunks[i].Text
+			}
+		}
+	}
+
+	return contractName, funcName
+}
+
 func search(cmd string, chunks []context.Chunk, current int, symbol string) map[string]string {
 	if keywords, ok := index[symbol]; ok {
 		return keywords
 	}
 
-	// search contract args using get abi
-	if symbol == context.ContractArgsSymbol {
-		executor := GetExecutor(cmd)
-		if executor != nil {
-
-			symbols := strings.Fields(executor.Syntax())
-			var contractName string
-			var funcName string
-			for i, symbol := range symbols {
-				if len(chunks) < i {
-					break
-				}
-				if symbol == context.ContractSymbol {
-					// compare with symbol in syntax and extract contract name
-					contractName = chunks[i].Text
-				} else if symbol == context.FunctionSymbol {
-					// extract function name
-					funcName = chunks[i].Text
-				}
-			}
-
-			if contractName != "" && funcName != "" {
-				// search abi using contract and function name
-				return searchAbiHint(contractName, funcName)
-			}
+	if symbol == context.FunctionSymbol {
+		contractName, _ := extractContractAndFuncName(cmd, chunks)
+		if contractName != "" {
+			return searchFuncHint(contractName)
+		}
+	} else if symbol == context.ContractArgsSymbol {
+		contractName, funcName := extractContractAndFuncName(cmd, chunks)
+		if contractName != "" && funcName != "" {
+			// search abi using contract and function name
+			return searchAbiHint(contractName, funcName)
 		}
 	} else if symbol == context.PathSymbol {
 		if len(chunks) <= current { //there is no word yet
@@ -65,6 +76,23 @@ func search(cmd string, chunks []context.Chunk, current int, symbol string) map[
 	}
 
 	return nil
+}
+
+func searchFuncHint(contractName string) map[string]string {
+	// read receipt and extract abi functions
+	ret := make(map[string]string)
+
+	abi, err := context.Get().GetABI(contractName)
+	if err != nil {
+		ret["<error>"] = err.Error()
+		return ret
+	}
+	for _, contractFunc := range abi.Functions {
+		// gather functions
+		ret[contractFunc.Name] = ""
+	}
+
+	return ret
 }
 
 func searchAbiHint(contractName, funcName string) map[string]string {

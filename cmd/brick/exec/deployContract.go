@@ -91,15 +91,5 @@ func (c *deployContract) Run(args string) (string, error) {
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)
 
-	// read receipt and extract abi functions
-	abi, err := context.Get().GetABI(contractName)
-	if err != nil {
-		return "", err
-	}
-	for _, contractFunc := range abi.Functions {
-		// indexing functions
-		Index(context.FunctionSymbol, contractFunc.Name)
-	}
-
 	return "deploy a smart contract successfully", nil
 }
