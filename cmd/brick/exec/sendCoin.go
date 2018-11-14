@@ -49,13 +49,13 @@ func (c *sendCoin) parse(args string) (string, string, uint64, error) {
 		return "", "", 0, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[2], 10, 64)
+	amount, err := strconv.ParseUint(splitArgs[2].Text, 10, 64)
 	if err != nil {
-		return "", "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1], err.Error())
+		return "", "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
 
-	return splitArgs[0],
-		splitArgs[1],
+	return splitArgs[0].Text,
+		splitArgs[1].Text,
 		amount,
 		nil
 }

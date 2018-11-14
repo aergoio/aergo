@@ -2,11 +2,11 @@ package context
 
 var Comment = "#"
 var (
-	PathSymbol         = "`<path>`"
+	PathSymbol         = "<path>"
 	ContractSymbol     = "<contract>"
 	AccountSymbol      = "<account>"
 	AmountSymbol       = "<amount>"
-	ContractArgsSymbol = "`<contract_args>`"
+	ContractArgsSymbol = "<contract_args>"
 	ExpectedSymbol     = "<expected>"
 	FunctionSymbol     = "<function>"
 	CommandSymbol      = "[command]"

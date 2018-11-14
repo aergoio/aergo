@@ -48,12 +48,12 @@ func (c *injectAccount) parse(args string) (string, uint64, error) {
 		return "", 0, fmt.Errorf("need 2 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[1], 10, 64)
+	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
 	if err != nil {
-		return "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1], err.Error())
+		return "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
 
-	return splitArgs[0], amount, nil
+	return splitArgs[0].Text, amount, nil
 }
 
 func (c *injectAccount) Run(args string) (string, error) {

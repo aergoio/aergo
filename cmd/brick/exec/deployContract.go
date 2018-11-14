@@ -21,12 +21,12 @@ func (c *deployContract) Command() string {
 }
 
 func (c *deployContract) Syntax() string {
-	return fmt.Sprintf("%s %s %s %s", context.AccountSymbol, context.AmountSymbol,
-		context.ContractSymbol, context.PathSymbol)
+	return fmt.Sprintf("%s %s %s %s %s", context.AccountSymbol, context.AmountSymbol,
+		context.ContractSymbol, context.PathSymbol, context.ContractArgsSymbol)
 }
 
 func (c *deployContract) Usage() string {
-	return fmt.Sprintf("deploy <sender_name> <amount> <contract_name> `<definition_file_path>`")
+	return fmt.Sprintf("deploy <sender_name> <amount> <contract_name> `<definition_file_path>` `[contructor_json_arg]`")
 }
 
 func (c *deployContract) Describe() string {
@@ -40,43 +40,48 @@ func (c *deployContract) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, _, _, err := c.parse(args)
+	_, _, _, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *deployContract) parse(args string) (string, uint64, string, string, error) {
+func (c *deployContract) parse(args string) (string, uint64, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
-		return "", 0, "", "", fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
+		return "", 0, "", "", "", fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
 	}
-	amount, err := strconv.ParseUint(splitArgs[1], 10, 64)
+	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
 	if err != nil {
-		return "", 0, "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1], err.Error())
+		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
-	defPath := splitArgs[3]
-	if _, err := os.Stat(splitArgs[3]); os.IsNotExist(err) {
-		return "", 0, "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3], err.Error())
+	defPath := splitArgs[3].Text
+	if _, err := os.Stat(defPath); os.IsNotExist(err) {
+		return "", 0, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
 	}
-	return splitArgs[0], //accountName
+
+	constuctorArg := ""
+	if len(splitArgs) == 5 {
+		constuctorArg = splitArgs[4].Text
+	}
+
+	return splitArgs[0].Text, //accountName
 		amount, // amount
-		splitArgs[2], // contractName
+		splitArgs[2].Text, // contractName
 		defPath, // defPath
+		constuctorArg,
 		nil
 }
 
 func (c *deployContract) Run(args string) (string, error) {
-	accountName, amount, contractName, defPath, _ := c.parse(args)
+	accountName, amount, contractName, defPath, constuctorArg, _ := c.parse(args)
 
 	defByte, err := ioutil.ReadFile(defPath)
 	if err != nil {
 		return "", err
 	}
 
-	defTx := contract.NewLuaTxDef(accountName, contractName, amount, string(defByte))
-
 	err = context.Get().ConnectBlock(
-		defTx,
+		contract.NewLuaTxDef(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
 	)
 
 	if err != nil {

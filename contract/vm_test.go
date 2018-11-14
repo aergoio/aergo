@@ -1402,7 +1402,7 @@ func TestContractCall(t *testing.T) {
 
 	bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "counter", 10, definition1).constructor("[1]"),
+		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[1]"),
 		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
 	)
 

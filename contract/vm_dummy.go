@@ -224,7 +224,7 @@ func (l *luaTxDef) hash() []byte {
 	return b
 }
 
-func (l *luaTxDef) constructor(args string) *luaTxDef {
+func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	argsLen := len([]byte(args))
 	if argsLen == 0 {
 		return l

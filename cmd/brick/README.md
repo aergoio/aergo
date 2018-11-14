@@ -66,7 +66,7 @@ transfer aergo between two addresses. `send <sender_name> <receiver_name> <amoun
 
 ### deploy
 
-deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <definition_file_path>`
+deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <definition_file_path> [contructor_json_arg]`
 
 ``` lua
 2> deploy tester 1 helloContract `../example/hello.lua`

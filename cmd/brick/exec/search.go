@@ -11,8 +11,8 @@ import (
 
 var index = make(map[string]map[string]string)
 
-func Candidates(cmd string, splitArgs []string, current int, symbol string) map[string]string {
-	if ret := search(cmd, splitArgs, current, symbol); ret != nil {
+func Candidates(cmd string, chunks []context.Chunk, current int, symbol string) map[string]string {
+	if ret := search(cmd, chunks, current, symbol); ret != nil {
 		return ret
 	}
 
@@ -26,7 +26,7 @@ func Candidates(cmd string, splitArgs []string, current int, symbol string) map[
 	return ret
 }
 
-func search(cmd string, splitArgs []string, current int, symbol string) map[string]string {
+func search(cmd string, chunks []context.Chunk, current int, symbol string) map[string]string {
 	if keywords, ok := index[symbol]; ok {
 		return keywords
 	}
@@ -40,15 +40,15 @@ func search(cmd string, splitArgs []string, current int, symbol string) map[stri
 			var contractName string
 			var funcName string
 			for i, symbol := range symbols {
-				if len(splitArgs) < i {
+				if len(chunks) < i {
 					break
 				}
 				if symbol == context.ContractSymbol {
 					// compare with symbol in syntax and extract contract name
-					contractName = splitArgs[i]
+					contractName = chunks[i].Text
 				} else if symbol == context.FunctionSymbol {
 					// extract function name
-					funcName = splitArgs[i]
+					funcName = chunks[i].Text
 				}
 			}
 
@@ -58,10 +58,10 @@ func search(cmd string, splitArgs []string, current int, symbol string) map[stri
 			}
 		}
 	} else if symbol == context.PathSymbol {
-		if len(splitArgs) <= current { //there is no word yet
-			return searchInPath(".")
+		if len(chunks) <= current { //there is no word yet
+			return searchInPath(context.Chunk{Text: ".", Accent: false})
 		}
-		return searchInPath(splitArgs[current])
+		return searchInPath(chunks[current])
 	}
 
 	return nil
@@ -93,20 +93,16 @@ func searchAbiHint(contractName, funcName string) map[string]string {
 	return nil
 }
 
-func searchInPath(currentPathStr string) map[string]string {
+func searchInPath(chunk context.Chunk) map[string]string {
 
-	if strings.HasPrefix(currentPathStr, "`") {
-		currentPathStr = currentPathStr[1:]
-	}
-
-	if strings.HasSuffix(currentPathStr, ".") {
+	if strings.HasSuffix(chunk.Text, ".") {
 		// attach file sperator, to get files in this relative path
-		currentPathStr = fmt.Sprintf("%s%c", currentPathStr, filepath.Separator)
+		chunk.Text = fmt.Sprintf("%s%c", chunk.Text, filepath.Separator)
 	}
 	ret := make(map[string]string)
 
 	// extract parent directory path
-	dir := filepath.Dir(currentPathStr)
+	dir := filepath.Dir(chunk.Text)
 
 	// navigate file list in the parent directory
 	fileInfo, err := ioutil.ReadDir(dir)
@@ -118,11 +114,22 @@ func searchInPath(currentPathStr string) map[string]string {
 	// detatch last base path
 	// other function internally use filepath.Clean() that remove text . or ..
 	// it makes prompt filter hard to match suggestions and the input
-	currentDir, _ := filepath.Split(currentPathStr)
+
+	currentDir, _ := filepath.Split(chunk.Text)
 
 	for _, file := range fileInfo {
 		// generate suggestion text
-		ret["`"+currentDir+file.Name()+"`"] = ""
+		fullPath := currentDir + file.Name()
+		if chunk.Accent {
+			fullPath = "`" + fullPath // attach accent again
+		}
+		// if contains white space...
+		if wsIdx := strings.LastIndex(fullPath, " "); wsIdx != -1 {
+			// cut it because auto completer will switch text only after whitespace
+			fullPath = fullPath[wsIdx+1:]
+		}
+
+		ret[fullPath] = ""
 	}
 
 	return ret

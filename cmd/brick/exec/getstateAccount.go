@@ -45,7 +45,7 @@ func (c *getStateAccount) parse(args string) (string, error) {
 		return "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
 	}
 
-	return splitArgs[0], nil
+	return splitArgs[0].Text, nil
 }
 
 func (c *getStateAccount) Run(args string) (string, error) {

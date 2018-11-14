@@ -50,17 +50,16 @@ func (c *callContract) parse(args string) (string, uint64, string, string, strin
 		return "", 0, "", "", "", fmt.Errorf("need 5 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[1], 10, 64)
+	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
 	if err != nil {
-		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1], err.Error())
+		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
 
-	callCode := splitArgs[4]
-	return splitArgs[0], //accountName
+	return splitArgs[0].Text, //accountName
 		amount, //amount
-		splitArgs[2], //contractName
-		splitArgs[3], //funcName
-		callCode, //callCode
+		splitArgs[2].Text, //contractName
+		splitArgs[3].Text, //funcName
+		splitArgs[4].Text, //callCode
 		nil
 }
 

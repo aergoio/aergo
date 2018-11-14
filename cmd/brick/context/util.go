@@ -2,7 +2,6 @@ package context
 
 import (
 	"strings"
-	"unicode"
 )
 
 func ParseFirstWord(input string) (string, string) {
@@ -18,27 +17,14 @@ func ParseFirstWord(input string) (string, string) {
 	return strings.ToLower(splitedStr[0]), strings.Join(splitedStr[1:], " ")
 }
 
-func ParseAccentString(input string) []string {
-
-	var ret []string
-
-	for _, inputPiece := range strings.Split(input, "`") {
-		for _, character := range inputPiece {
-			// ignore inputPiece that has only whitespace
-			if unicode.IsSpace(character) == false {
-				ret = append(ret, inputPiece)
-
-				break
-			}
-		}
-	}
-
-	return ret
+type Chunk struct {
+	Accent bool
+	Text   string
 }
 
-func SplitSpaceAndAccent(input string, addLastInComplete bool) []string {
+func SplitSpaceAndAccent(input string, addLastInComplete bool) []Chunk {
 
-	var ret []string
+	var ret []Chunk
 
 	fieldSplit := strings.Fields(input)
 	startAccent := -1
@@ -48,19 +34,20 @@ func SplitSpaceAndAccent(input string, addLastInComplete bool) []string {
 			if strings.HasPrefix(chunk, "`") {
 				if strings.Count(chunk, "`") > 1 && strings.HasSuffix(chunk, "`") {
 					// for example `keyword`
-					ret = append(ret, chunk[1:len(chunk)-1])
+					ret = append(ret, Chunk{Accent: true, Text: chunk[1 : len(chunk)-1]})
 				} else {
 					// for example `white space`
 					startAccent = i
 				}
 			} else {
-				ret = append(ret, chunk) // just normal keyword
+				// just normal keyword
+				ret = append(ret, Chunk{Accent: false, Text: chunk})
 			}
 		} else if startAccent != -1 && strings.HasSuffix(chunk, "`") {
 
 			//end of statement
 			mergedStr := strings.Join(fieldSplit[startAccent:i+1], " ")
-			ret = append(ret, mergedStr[1:len(mergedStr)-1])
+			ret = append(ret, Chunk{Accent: true, Text: mergedStr[1 : len(mergedStr)-1]})
 
 			startAccent = -1 // reset
 		}
@@ -68,7 +55,7 @@ func SplitSpaceAndAccent(input string, addLastInComplete bool) []string {
 		// contain last incomplete word
 		if addLastInComplete && i+1 == len(fieldSplit) && -1 != startAccent {
 			mergedStr := strings.Join(fieldSplit[startAccent:], " ")
-			ret = append(ret, mergedStr[1:])
+			ret = append(ret, Chunk{Accent: true, Text: mergedStr[1:]})
 		}
 	}
 

@@ -45,11 +45,11 @@ func (c *batch) parse(args string) (string, error) {
 
 	batchFilePath := splitArgs[0]
 
-	if _, err := os.Stat(batchFilePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("fail to read a brick batch file %s: %s", batchFilePath, err.Error())
+	if _, err := os.Stat(batchFilePath.Text); os.IsNotExist(err) {
+		return "", fmt.Errorf("fail to read a brick batch file %s: %s", batchFilePath.Text, err.Error())
 	}
 
-	return batchFilePath, nil
+	return batchFilePath.Text, nil
 }
 
 func (c *batch) Run(args string) (string, error) {

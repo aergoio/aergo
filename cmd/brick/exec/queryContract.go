@@ -48,15 +48,15 @@ func (c *queryContract) parse(args string) (string, string, string, string, erro
 		return "", "", "", "", fmt.Errorf("need at least 3 arguments. usage: %s", c.Usage())
 	}
 
-	queryCodeAndExpected := splitArgs[2]
+	queryCodeAndExpected := splitArgs[2].Text
 
 	expectedResult := ""
 	if len(splitArgs) == 4 {
-		expectedResult = splitArgs[3]
+		expectedResult = splitArgs[3].Text
 	}
 
-	return splitArgs[0], // contractName
-		splitArgs[1], //funcName
+	return splitArgs[0].Text, // contractName
+		splitArgs[1].Text, //funcName
 		queryCodeAndExpected, //queryCode
 		expectedResult, //expectedResult
 		nil
