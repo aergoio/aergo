@@ -25,7 +25,7 @@ func (c *callContract) Syntax() string {
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `<call_json_str>`")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]`")
 }
 
 func (c *callContract) Describe() string {
@@ -46,8 +46,8 @@ func (c *callContract) Validate(args string) error {
 
 func (c *callContract) parse(args string) (string, uint64, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
-	if len(splitArgs) < 5 {
-		return "", 0, "", "", "", fmt.Errorf("need 5 arguments. usage: %s", c.Usage())
+	if len(splitArgs) < 4 {
+		return "", 0, "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
 	}
 
 	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
@@ -55,11 +55,16 @@ func (c *callContract) parse(args string) (string, uint64, string, string, strin
 		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
 
+	callCode := "[]"
+	if len(splitArgs) == 5 {
+		callCode = splitArgs[4].Text
+	}
+
 	return splitArgs[0].Text, //accountName
 		amount, //amount
 		splitArgs[2].Text, //contractName
 		splitArgs[3].Text, //funcName
-		splitArgs[4].Text, //callCode
+		callCode, //callCode
 		nil
 }
 

@@ -22,7 +22,7 @@ func (c *queryContract) Syntax() string {
 }
 
 func (c *queryContract) Usage() string {
-	return fmt.Sprintf("query <contract_name> <func_name> `<query_json_str>` `[expected_query_result]`")
+	return fmt.Sprintf("query <contract_name> <func_name> `[query_json_str]` `[expected_query_result]`")
 }
 
 func (c *queryContract) Describe() string {
@@ -44,11 +44,15 @@ func (c *queryContract) Validate(args string) error {
 func (c *queryContract) parse(args string) (string, string, string, string, error) {
 
 	splitArgs := context.SplitSpaceAndAccent(args, false)
-	if len(splitArgs) < 3 {
-		return "", "", "", "", fmt.Errorf("need at least 3 arguments. usage: %s", c.Usage())
+	if len(splitArgs) < 2 {
+		return "", "", "", "", fmt.Errorf("need at least 2 arguments. usage: %s", c.Usage())
 	}
 
-	queryCodeAndExpected := splitArgs[2].Text
+	queryCode := "[]"
+
+	if len(splitArgs) == 3 {
+		queryCode = splitArgs[2].Text
+	}
 
 	expectedResult := ""
 	if len(splitArgs) == 4 {
@@ -57,7 +61,7 @@ func (c *queryContract) parse(args string) (string, string, string, string, erro
 
 	return splitArgs[0].Text, // contractName
 		splitArgs[1].Text, //funcName
-		queryCodeAndExpected, //queryCode
+		queryCode, //queryCode
 		expectedResult, //expectedResult
 		nil
 }

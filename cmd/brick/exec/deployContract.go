@@ -59,7 +59,7 @@ func (c *deployContract) parse(args string) (string, uint64, string, string, str
 		return "", 0, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
 	}
 
-	constuctorArg := ""
+	constuctorArg := "[]"
 	if len(splitArgs) == 5 {
 		constuctorArg = splitArgs[4].Text
 	}
