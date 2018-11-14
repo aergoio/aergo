@@ -1442,7 +1442,7 @@ func TestContractCall(t *testing.T) {
 	`
 	bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
-			constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 10, `{"Name":"add", "Args":[]}`),
 	)
 	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
