@@ -112,10 +112,14 @@ func (bf *BlockFetcher) Start() {
 	schedTicker := time.NewTicker(schedTick)
 
 	run := func() {
+		logger.Debug().Msg("start block fetcher")
+
 		if err := bf.init(); err != nil {
 			stopSyncer(bf.hub, bf.name, err)
 			return
 		}
+
+		logger.Debug().Msg("block fetcher loop start")
 
 		for {
 			select {
@@ -170,6 +174,8 @@ func (bf *BlockFetcher) init() error {
 
 		return nil
 	}
+
+	logger.Debug().Msg("block fetcher init")
 
 	if err := setPeers(); err != nil {
 		logger.Error().Err(err).Msg("failed to set peers")

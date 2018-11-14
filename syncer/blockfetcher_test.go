@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+func testHandleAddBlock(t *testing.T, syncer *StubSyncer, blockNo uint64) {
+	//AddBlock
+	msg := syncer.testhub.recvMessage()
+	assert.IsTypef(t, &message.AddBlock{}, msg, "add block")
+	assert.Equal(t, blockNo, msg.(*message.AddBlock).Block.GetHeader().BlockNo, "check add blockno")
+
+	//AddBlockRsp
+	syncer.handleMessage(t, msg, nil)
+}
+
 // test blockfetcher
 // sync target : 1 ~ 5
 // GetBlockChunk : 1 ~ 2 (peer0), 3 (peer1), 4 ~ 5 (peer0)
@@ -77,15 +87,5 @@ func TestBlockFetcher_normal(t *testing.T) {
 	//stop
 	msg = syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
-	syncer.handleMessage(t, msg, nil)
-}
-
-func testHandleAddBlock(t *testing.T, syncer *StubSyncer, blockNo uint64) {
-	//AddBlock
-	msg := syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.AddBlock{}, msg, "add block")
-	assert.Equal(t, blockNo, msg.(*message.AddBlock).Block.GetHeader().BlockNo, "check add blockno")
-
-	//AddBlockRsp
 	syncer.handleMessage(t, msg, nil)
 }

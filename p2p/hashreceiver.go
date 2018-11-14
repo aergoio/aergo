@@ -16,29 +16,29 @@ import (
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type BlockHashesReceiver struct {
-	context actor.Context
+	context   actor.Context
 	requestID MsgID
 
-	peer RemotePeer
+	peer  RemotePeer
 	actor ActorService
 
 	prevBlock *types.BlockInfo
-	count int
-	timeout time.Time
-	finished bool
+	count     int
+	timeout   time.Time
+	finished  bool
 
-	got []message.BlockHash
+	got    []message.BlockHash
 	offset int
 }
 
 func NewBlockHashesReceiver(context actor.Context, peer RemotePeer, req *message.GetHashes, ttl time.Duration) *BlockHashesReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlockHashesReceiver{context: context, peer:peer, prevBlock: req.PrevInfo, count:int(req.Count), timeout:timeout, got:make([]message.BlockHash, 0, int(req.Count))}
+	return &BlockHashesReceiver{context: context, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, got: make([]message.BlockHash, 0, int(req.Count))}
 }
 
 func (br *BlockHashesReceiver) StartGet() {
 	// create message data
-	req := &types.GetHashesRequest{PrevHash: br.prevBlock.Hash , PrevNumber:br.prevBlock.No, Size:uint64(br.count)}
+	req := &types.GetHashesRequest{PrevHash: br.prevBlock.Hash, PrevNumber: br.prevBlock.No, Size: uint64(br.count)}
 	mo := br.peer.MF().newMsgBlockRequestOrder(br.ReceiveResp, GetHashesRequest, req)
 	br.peer.sendMessage(mo)
 	br.requestID = mo.GetMsgID()
@@ -56,9 +56,9 @@ func (br *BlockHashesReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 		return
 	}
 	// remote peer response failure
-	body :=  msgBody.(*types.GetHashesResponse)
+	body := msgBody.(*types.GetHashesResponse)
 	if body.Status != types.ResultStatus_OK || len(body.Hashes) == 0 {
-		br.context.Respond(&message.GetHashesRsp{Hashes:nil,PrevInfo:br.prevBlock, Count:0, Err:message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: nil, PrevInfo: br.prevBlock, Count: 0, Err: message.RemotePeerFailError})
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)
 		return
@@ -71,7 +71,7 @@ func (br *BlockHashesReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 		br.offset++
 		// check overflow
 		if br.offset >= int(br.count) {
-			br.context.Respond(&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:uint64(br.offset)})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(br.offset)})
 			br.finished = true
 			br.peer.consumeRequest(br.requestID)
 			return
@@ -80,10 +80,10 @@ func (br *BlockHashesReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 	// is it end?
 	if !body.HasNext {
 		if br.offset < br.count {
-			br.context.Respond(&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:0, Err:message.MissingHashError})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: 0, Err: message.MissingHashError})
 			// not all blocks were filled. this is error
 		} else {
-			br.context.Respond(&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:uint64(len(br.got))})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(len(br.got))})
 		}
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)

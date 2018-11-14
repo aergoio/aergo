@@ -22,6 +22,7 @@ type HashFetcher struct {
 	lastBlockInfo *types.BlockInfo
 	reqCount      uint64
 	reqTime       time.Time
+	isRequesting  bool
 
 	maxHashReq uint64
 	name       string
@@ -77,6 +78,8 @@ func (hf *HashFetcher) setTimeout(timeout time.Duration) {
 
 func (hf *HashFetcher) Start() {
 	run := func() {
+		logger.Debug().Msg("start hash fetcher")
+
 		timer := time.NewTimer(hf.timeout)
 
 		hf.requestHashSet()
@@ -132,7 +135,7 @@ func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
 }
 
 func (hf *HashFetcher) requestTimeout() bool {
-	return time.Now().Sub(hf.reqTime) > hf.timeout
+	return hf.isRequesting && time.Now().Sub(hf.reqTime) > hf.timeout
 }
 
 func (hf *HashFetcher) requestHashSet() {
@@ -143,6 +146,7 @@ func (hf *HashFetcher) requestHashSet() {
 
 	hf.reqCount = count
 	hf.reqTime = time.Now()
+	hf.isRequesting = true
 
 	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
@@ -161,6 +165,7 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: lastHash, No: lastHashNo}
 	hf.resultCh <- hashSet
+	hf.isRequesting = false
 
 	logger.Debug().Uint64("target", hf.ctx.TargetNo).Uint64("start", hashSet.StartNo).Uint64("last", lastHashNo).Int("count", len(hashSet.Hashes)).Msg("push hashset to BlockFetcher")
 

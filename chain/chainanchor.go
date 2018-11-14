@@ -22,11 +22,12 @@ const (
 // use config
 func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
 	//from top : 8 * 32 = 256
-	anchors := make(ChainAnchor, 0, MaxAnchors)
+	anchors := make(ChainAnchor, 0)
 	cnt := MaxAnchors
 	logger.Debug().Msg("get anchors")
 
 	blkNo := cs.getBestBlockNo()
+LOOP:
 	for i := 0; i < cnt; i++ {
 		blockHash, err := cs.getHashByNo(blkNo)
 		if err != nil {
@@ -39,11 +40,14 @@ func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
 
 		logger.Debug().Uint64("no", blkNo).Msg("anchor added")
 
-		if blkNo < Skip {
+		switch {
+		case blkNo == 0:
+			break LOOP
+		case blkNo < Skip:
 			blkNo = 0
-			break
+		default:
+			blkNo -= Skip
 		}
-		blkNo -= Skip
 	}
 
 	return anchors, nil

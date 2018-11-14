@@ -36,7 +36,7 @@ type FinderResult struct {
 var (
 	ErrorFinderClosed           = errors.New("sync finder closed")
 	ErrorGetSyncAncestorTimeout = errors.New("timeout for GetSyncAncestor")
-	dfltTimeOut                 = time.Second * 180
+	dfltTimeOut                 = time.Second * 60
 )
 
 func newFinder(ctx *types.SyncContext, hub *component.ComponentHub) *Finder {
@@ -88,10 +88,10 @@ func (finder *Finder) start() {
 			select {
 			case result := <-finder.doneCh:
 				finder.hub.Tell(message.SyncerSvc, &message.FinderResult{result.ancestor, result.err})
-				logger.Info().Msg("Finder finished")
+				logger.Info().Msg("finder finished")
 				return
 			case <-finder.quitCh:
-				logger.Info().Msg("Finder exited")
+				logger.Info().Msg("finder exited")
 				return
 			}
 		}
@@ -155,6 +155,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
+	logger.Debug().Msg("send GetAncestor message to peer")
 	finder.hub.Tell(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)
@@ -165,6 +166,7 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 		case result := <-finder.lScanCh:
 			return result, nil
 		case <-timer.C:
+			logger.Error().Float64("sec", finder.dfltTimeout.Seconds()).Msg("get ancestor response timeout")
 			return nil, ErrorGetSyncAncestorTimeout
 		case <-finder.quitCh:
 			return nil, ErrorFinderClosed
@@ -174,7 +176,7 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 
 //TODO binary search scan
 func (finder *Finder) fullscan() (*types.BlockInfo, error) {
-	logger.Debug().Msg("Finder fullscan")
+	logger.Debug().Msg("finder fullscan")
 
 	panic("not implemented")
 	return nil, nil

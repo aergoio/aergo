@@ -79,6 +79,8 @@ func (syncer *Syncer) Reset() {
 	syncer.finder = nil
 	syncer.isstartning = false
 	syncer.ctx = nil
+
+	logger.Info().Msg("syncer stopped")
 }
 
 // Receive actor message
@@ -201,6 +203,9 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 
 	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltMaxFetchTask, MaxBlockReq)
 	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashReq)
+
+	syncer.blockFetcher.Start()
+	syncer.hashFetcher.Start()
 
 	return nil
 }
