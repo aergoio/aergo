@@ -28,9 +28,10 @@ type Syncer struct {
 }
 
 var (
-	logger           = log.NewLogger("syncer")
-	NameHashFetcher  = "HashFetcher"
-	NameBlockFetcher = "BlockFetcher"
+	logger             = log.NewLogger("syncer")
+	NameHashFetcher    = "HashFetcher"
+	NameBlockFetcher   = "BlockFetcher"
+	NameBlockProcessor = "BlockProcessor"
 )
 
 var (
@@ -198,8 +199,8 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub())
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashSetSize)
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltMaxFetchTask, MaxBlockReq)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashReq)
 
 	return nil
 }

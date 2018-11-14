@@ -36,7 +36,17 @@ type BlockFetcher struct {
 
 	name string
 
+	maxFetchSize  int
+	maxFetchTasks int
+
 	debug bool
+
+	stat BlockFetcherStat
+}
+
+type BlockFetcherStat struct {
+	maxRspBlock  *types.Block
+	lastAddBlock *types.Block
 }
 
 type SyncPeer struct {
@@ -51,8 +61,9 @@ type TaskQueue struct {
 }
 
 type FetchTask struct {
-	count  int
-	hashes []message.BlockHash
+	count   int
+	hashes  []message.BlockHash
+	startNo types.BlockNo
 
 	syncPeer *SyncPeer
 
@@ -71,30 +82,29 @@ type PeerSet struct {
 var (
 	schedTick        = time.Millisecond * 100
 	fetchTimeOut     = time.Second * 100
-	MaxFetchTask     = 16
+	DfltMaxFetchTask = 16
 	MaxPeerFailCount = 3
+	MaxBlockReq      = 5
 )
 
 var (
 	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
 )
 
-func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester) *BlockFetcher {
+func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFetchSize int, maxRunningFetchTasks int) *BlockFetcher {
 	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher}
 
 	bf.quitCh = make(chan interface{})
 	bf.hfCh = make(chan *HashSet)
+	bf.responseCh = make(chan interface{}, maxRunningFetchTasks*2) //for safety. In normal situdation, it should use only one
 
 	bf.peers = newPeerSet()
+	bf.maxFetchSize = maxFetchSize
+	bf.maxFetchTasks = maxRunningFetchTasks
 
-	bf.blockProcessor = &BlockProcessor{
-		hub:           hub,
-		blockFetcher:  bf,
-		prevBlock:     &types.Block{Hash: ctx.CommonAncestor.Hash},
-		targetBlockNo: ctx.TargetNo,
-		name:          "BlockProducer",
-	}
-	bf.blockProcessor.pendingConnect = make([]*ConnectRequest, 0, 16)
+	bf.blockProcessor = NewBlockProcessor(hub, bf, &types.Block{Hash: ctx.CommonAncestor.Hash}, ctx.TargetNo)
+
+	bf.blockProcessor.connQueue = make([]*ConnectTask, 0, 16)
 	return bf
 }
 
@@ -145,8 +155,10 @@ func (bf *BlockFetcher) init() error {
 			return err
 		}
 
-		for i, peerElem := range result.(message.GetPeersRsp).Peers {
-			state := result.(message.GetPeersRsp).States[i]
+		msg := result.(*message.GetPeersRsp)
+
+		for i, peerElem := range msg.Peers {
+			state := msg.States[i]
 			if state.Get() == types.RUNNING {
 				bf.peers.addNew(peer.ID(peerElem.PeerID))
 			}
@@ -168,13 +180,19 @@ func (bf *BlockFetcher) init() error {
 }
 
 func (bf *BlockFetcher) schedule() error {
-	task, err := bf.setNextTask()
+	curRunning := bf.runningQueue.Len()
+	if curRunning >= bf.maxFetchTasks {
+		//logger.Debug().Int("runnig", curRunning).Int("pending", bf.pendingQueue.Len()).Msg("max running")
+		return nil
+	}
+
+	task, err := bf.getNextTask()
 	if err != nil {
 		logger.Error().Err(err).Msg("error to get next task")
 		return err
 	}
 	if task == nil {
-		logger.Debug().Msg("no task to schedule")
+		//logger.Debug().Msg("no task to schedule")
 		return nil
 	}
 
@@ -209,13 +227,13 @@ func (bf *BlockFetcher) checkTaskTimeout() {
 
 		bf.processFailedTask(task, false)
 
-		logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Int("runqueue", bf.runningQueue.Len()).Int("pendingqueue", bf.pendingQueue.Len()).
+		logger.Error().Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Int("runqueue", bf.runningQueue.Len()).Int("pendingqueue", bf.pendingQueue.Len()).
 			Msg("timeouted task pushed to pending queue")
 	}
 }
 
 func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
-	logger.Error().Str("peer", string(task.syncPeer.ID)).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
+	logger.Error().Str("peer", string(task.syncPeer.ID)).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
 
 	failPeer := task.syncPeer
 	bf.peers.processPeerFail(failPeer, isErr)
@@ -224,7 +242,7 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
 	bf.pendingQueue.PushFront(task)
 }
 
-func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
+func (bf *BlockFetcher) getNextTask() (*FetchTask, error) {
 	getNewHashSet := func() *HashSet {
 		if bf.curHashSet == nil { //blocking
 			logger.Info().Msg("BlockFetcher waiting first hashset")
@@ -252,17 +270,17 @@ func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
 		start, end := 0, 0
 		count := hashSet.Count
 
-		logger.Debug().Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("addNew fetchtasks from HashSet")
+		logger.Debug().Uint64("startno", hashSet.StartNo).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("add new fetchtasks from HashSet")
 
 		for start < count {
-			end = start + MaxFetchTask
+			end = start + bf.maxFetchSize
 			if end > count {
 				end = count
 			}
 
-			task := &FetchTask{count: end - start, hashes: hashSet.Hashes[start:end]}
+			task := &FetchTask{count: end - start, hashes: hashSet.Hashes[start:end], startNo: hashSet.StartNo + uint64(start)}
 
-			logger.Debug().Int("startNo", start).Int("end", end).Msg("addNew fetchtask")
+			logger.Debug().Uint64("StartNo", task.startNo).Int("count", task.count).Msg("add fetchtask")
 
 			bf.pendingQueue.PushBack(task)
 
@@ -284,7 +302,7 @@ func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
 			return nil, nil
 		}
 
-		logger.Debug().Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
+		logger.Debug().Uint64("startno", hashSet.StartNo).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
 
 		bf.curHashSet = hashSet
 		addNewFetchTasks(hashSet)
@@ -295,7 +313,8 @@ func (bf *BlockFetcher) setNextTask() (*FetchTask, error) {
 
 	bf.nextTask = newTask
 
-	logger.Debug().Str("start", enc.ToString(newTask.hashes[0])).Str("end", enc.ToString(newTask.hashes[newTask.count-1])).Int("task pending", bf.pendingQueue.Len()).Msg("set new fetchtask")
+	logger.Debug().Uint64("StartNo", newTask.startNo).Str("start", enc.ToString(newTask.hashes[0])).Str("end", enc.ToString(newTask.hashes[newTask.count-1])).Int("task pending", bf.pendingQueue.Len()).Msg("" +
+		"get new fetchtask")
 
 	return newTask, nil
 }
@@ -323,7 +342,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
-	logger.Debug().Str("peer", string(task.syncPeer.ID)).Int("count", task.count).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
+	logger.Debug().Str("peer", string(task.syncPeer.ID)).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
 
 	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
 }
@@ -338,6 +357,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask
 		task := e.Value.(*FetchTask)
 		next = e.Next()
 
+		//find failed peer
 		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
 			bf.runningQueue.Remove(e)
 
@@ -345,10 +365,11 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask
 			return task, nil
 		}
 
+		//find finished peer
 		if task.isMatched(msg.ToWhom, msg.Blocks, count) {
 			bf.runningQueue.Remove(e)
 
-			logger.Debug().Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).
+			logger.Debug().Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).
 				Msg("task finished")
 
 			return task, nil
@@ -377,6 +398,18 @@ func (bf *BlockFetcher) stop() {
 		close(bf.hfCh)
 		bf.hfCh = nil
 	}
+}
+
+func (stat *BlockFetcherStat) setMaxChunkRsp(lastBlock *types.Block) {
+	if stat.maxRspBlock == nil || stat.maxRspBlock.GetHeader().BlockNo < lastBlock.GetHeader().BlockNo {
+		stat.maxRspBlock = lastBlock
+		logger.Debug().Uint64("no", stat.maxRspBlock.GetHeader().BlockNo).Msg("last block chunk response")
+	}
+}
+
+func (stat *BlockFetcherStat) setLastAddBlock(block *types.Block) {
+	stat.lastAddBlock = block
+	logger.Debug().Uint64("no", stat.lastAddBlock.GetHeader().BlockNo).Msg("last block add response")
 }
 
 func newPeerSet() *PeerSet {
@@ -429,7 +462,7 @@ func (ps *PeerSet) popFree() (*SyncPeer, error) {
 	}
 
 	freePeer := elem.Value.(*SyncPeer)
-	logger.Debug().Str("peer", freePeer.ID.String()).Int("no", freePeer.No).Msg("pop free peer")
+	logger.Debug().Str("peer", string(freePeer.ID)).Int("no", freePeer.No).Msg("pop free peer")
 	return freePeer, nil
 }
 

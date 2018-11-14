@@ -16,9 +16,9 @@ type BlockProcessor struct {
 
 	blockFetcher *BlockFetcher
 
-	curConnRequest *ConnectRequest
+	curConnRequest *ConnectTask
 
-	pendingConnect []*ConnectRequest
+	connQueue []*ConnectTask
 
 	prevBlock *types.Block
 	curBlock  *types.Block
@@ -27,11 +27,22 @@ type BlockProcessor struct {
 	name          string
 }
 
-type ConnectRequest struct {
+type ConnectTask struct {
 	FromPeer peer.ID
 	Blocks   []*types.Block
 	firstNo  types.BlockNo
 	cur      int
+}
+
+func NewBlockProcessor(hub component.ICompRequester, blockFetcher *BlockFetcher, ancestor *types.Block,
+	targetNo types.BlockNo) *BlockProcessor {
+	return &BlockProcessor{
+		hub:           hub,
+		blockFetcher:  blockFetcher,
+		prevBlock:     ancestor,
+		targetBlockNo: targetNo,
+		name:          NameBlockProcessor,
+	}
 }
 
 func (bproc *BlockProcessor) run(msg interface{}) error {
@@ -111,7 +122,7 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	bf := bproc.blockFetcher
 
-	logger.Debug().Str("peer", string(msg.ToWhom)).Err(msg.Err).Msg("received GetBlockCHunkRsp")
+	logger.Debug().Str("peer", string(msg.ToWhom)).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockCHunkRsp")
 
 	task, err := bf.findFinished(msg)
 	if err != nil {
@@ -126,7 +137,9 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	bf.pushFreePeer(task.syncPeer)
 
-	bproc.addNewRequest(msg)
+	bf.stat.setMaxChunkRsp(msg.Blocks[len(msg.Blocks)-1])
+
+	bproc.addConnectTask(msg)
 
 	return nil
 }
@@ -160,9 +173,13 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	if curNo != msg.BlockNo || !bytes.Equal(curHash, msg.BlockHash) {
 		logger.Error().Uint64("curNo", curNo).Uint64("msgNo", msg.BlockNo).
 			Str("curHash", enc.ToString(curHash)).Str("msgHash", enc.ToString(msg.BlockHash)).
-			Msg("error! unmatched add response")
+			Msg("invalid add block response")
 		return &ErrSyncMsg{msg: msg, str: "drop unknown add response"}
 	}
+
+	logger.Info().Uint64("no", msg.BlockNo).Str("hash", enc.ToString(msg.BlockHash)).Msg("block connect succeed")
+
+	bproc.blockFetcher.stat.setLastAddBlock(curBlock)
 
 	if curBlock.BlockNo() == bproc.targetBlockNo {
 		logger.Info().Msg("connected last block, stop syncer")
@@ -170,9 +187,9 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	}
 
 	bproc.prevBlock = curBlock
+	bproc.curBlock = nil
 
-	block := bproc.getNextBlock()
-	bproc.curBlock = block
+	block := bproc.getNextBlockToConnect()
 
 	if block != nil {
 		bproc.connectBlock(block)
@@ -181,35 +198,40 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	return nil
 }
 
-func (bproc *BlockProcessor) addNewRequest(msg *message.GetBlockChunksRsp) {
-	logger.Debug().Msg("add connect request to pending queue")
+func (bproc *BlockProcessor) addConnectTask(msg *message.GetBlockChunksRsp) {
+	req := &ConnectTask{FromPeer: msg.ToWhom, Blocks: msg.Blocks, firstNo: msg.Blocks[0].GetHeader().BlockNo, cur: 0}
 
-	req := &ConnectRequest{FromPeer: msg.ToWhom, Blocks: msg.Blocks, firstNo: msg.Blocks[0].GetHeader().BlockNo, cur: 0}
+	logger.Debug().Uint64("firstno", req.firstNo).Int("count", len(req.Blocks)).Msg("add connect task to queue")
 
-	bproc.pushToPending(req)
+	bproc.pushToConnQueue(req)
 
-	block := bproc.getNextBlock()
+	block := bproc.getNextBlockToConnect()
 
 	if block != nil {
 		bproc.connectBlock(block)
 	}
 }
 
-func (bproc *BlockProcessor) getNextBlock() *types.Block {
+func (bproc *BlockProcessor) getNextBlockToConnect() *types.Block {
+	//already prev request is running, don't request any more
+	if bproc.curBlock != nil {
+		return nil
+	}
+
 	//request next block of current Request
 	if bproc.curConnRequest != nil {
 		req := bproc.curConnRequest
 		req.cur++
 
 		if req.cur >= len(req.Blocks) {
-			logger.Debug().Msg("current connrequest is finished")
+			logger.Debug().Msg("current connect task is finished")
 			bproc.curConnRequest = nil
 		}
 	}
 
 	//pop from pending request
 	if bproc.curConnRequest == nil {
-		nextReq := bproc.popFromPending()
+		nextReq := bproc.popFromConnQueue()
 		if nextReq == nil {
 			return nil
 		}
@@ -223,6 +245,8 @@ func (bproc *BlockProcessor) getNextBlock() *types.Block {
 	logger.Debug().Uint64("no", nextBlock.GetHeader().BlockNo).Str("hash", nextBlock.ID()).
 		Int("idx in req", next).Msg("next block to connect")
 
+	bproc.curBlock = nextBlock
+
 	return nextBlock
 }
 
@@ -233,39 +257,40 @@ func (bproc *BlockProcessor) connectBlock(block *types.Block) {
 
 	logger.Info().Uint64("no", block.GetHeader().BlockNo).
 		Str("hash", enc.ToString(block.GetHash())).
-		Msg("send connect request to chainsvc")
+		Msg("request connecting block to chainsvc")
 
-	bproc.curBlock = block
 	bproc.hub.Tell(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil})
 }
 
-func (bproc *BlockProcessor) pushToPending(newReq *ConnectRequest) {
-	sortedList := bproc.pendingConnect
+func (bproc *BlockProcessor) pushToConnQueue(newReq *ConnectTask) {
+	sortedList := bproc.connQueue
 
 	index := sort.Search(len(sortedList), func(i int) bool { return sortedList[i].firstNo > newReq.firstNo })
-	sortedList = append(sortedList, &ConnectRequest{})
+	sortedList = append(sortedList, &ConnectTask{})
 	copy(sortedList[index+1:], sortedList[index:])
 	sortedList[index] = newReq
 
-	logger.Info().Int("len", len(bproc.pendingConnect)).Uint64("firstno", newReq.firstNo).
+	bproc.connQueue = sortedList
+
+	logger.Info().Int("len", len(bproc.connQueue)).Uint64("firstno", newReq.firstNo).
 		Str("firstHash", enc.ToString(newReq.Blocks[0].GetHash())).
-		Msg("add new request to pending queue")
+		Msg("add new task to connect queue")
 }
 
-func (bproc *BlockProcessor) popFromPending() *ConnectRequest {
-	sortedList := bproc.pendingConnect
+func (bproc *BlockProcessor) popFromConnQueue() *ConnectTask {
+	sortedList := bproc.connQueue
 	if len(sortedList) == 0 {
-		logger.Info().Msg("pending queue is empty. so wait new connect request")
+		logger.Info().Msg("connect queue is empty. so wait new connect task")
 		return nil
 	}
 
 	newReq := sortedList[0]
 	sortedList = sortedList[1:]
-	bproc.pendingConnect = sortedList
+	bproc.connQueue = sortedList
 
 	logger.Info().Int("len", len(sortedList)).Uint64("firstno", newReq.firstNo).
 		Str("firstHash", enc.ToString(newReq.Blocks[0].GetHash())).
-		Msg("pop request from pending queue")
+		Msg("pop task from connect queue")
 
 	return newReq
 }
