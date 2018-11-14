@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	maxAccount   = 1000
-	maxRecipient = 1000
+	maxAccount       = 1000
+	maxRecipient     = 1000
+	maxBlockBodySize = 10485760
 )
 
 var (
@@ -243,7 +244,7 @@ func TestBasics2(t *testing.T) {
 		assert.NoError(t, err, "tx should be accepted")
 	}
 
-	txsMempool, err := pool.get()
+	txsMempool, err := pool.get(maxBlockBodySize * 10)
 	assert.NoError(t, err, "get failed")
 	assert.Equal(t, len(txsMempool), len(txs))
 }
@@ -278,7 +279,7 @@ func TestBasics(t *testing.T) {
 		assert.NoError(t, errs[i], "%dth tx failed", i)
 	}
 
-	txsMempool, err := pool.get()
+	txsMempool, err := pool.get(maxBlockBodySize)
 	assert.NoError(t, err, "get failed")
 	assert.Equal(t, len(txsMempool), len(txs))
 }
@@ -341,7 +342,7 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 		txs = txs[10:]
 	}
 
-	l, e := pool.get()
+	l, e := pool.get(maxBlockBodySize)
 	assert.NoError(t, e, "get should succeed")
 	assert.Equalf(t, len(l), 0, "leftover found")
 }

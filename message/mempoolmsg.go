@@ -24,6 +24,7 @@ type MemPoolPutRsp struct {
 
 // MemPoolGet is interface of MemPool service for retrieving transactions
 type MemPoolGet struct {
+	MaxBlockBodySize uint32
 }
 
 // MemPoolGetRsp defines struct of result for MemPoolGet

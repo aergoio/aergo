@@ -101,7 +101,7 @@ func (mp *MemPool) AfterStart() {
 		panic("Mempool AfterStart Failed")
 	}
 	bestblock := rsp.(message.GetBestBlockRsp).Block
-	mp.setStateDB(bestblock)
+	mp.setStateDB(bestblock) // nolint: errcheck
 }
 
 // Stop handles clean-up for mempool service
@@ -131,7 +131,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 	case *message.MemPoolPut:
 		mp.verifier.Request(msg.Tx, context.Sender())
 	case *message.MemPoolGet:
-		txs, err := mp.get()
+		txs, err := mp.get(msg.MaxBlockBodySize)
 		context.Respond(&message.MemPoolGetRsp{
 			Txs: txs,
 			Err: err,
@@ -162,18 +162,25 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 	}
 }
 
-func (mp *MemPool) get() ([]*types.Tx, error) {
+func (mp *MemPool) get(maxBlockBodySize uint32) ([]*types.Tx, error) {
 	start := time.Now()
 	mp.RLock()
 	defer mp.RUnlock()
 	count := 0
+	size := 0
 	txs := make([]*types.Tx, 0)
+Gather:
 	for _, list := range mp.pool {
-		v := list.Get()
-		txs = append(txs, v...)
-		count += len(v)
+		for _, tx := range list.Get() {
+			if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
+				break Gather
+			}
+			txs = append(txs, tx)
+			count++
+		}
 	}
 	elapsed := time.Since(start)
+	mp.Debug().Int("size", size).Uint32("max", maxBlockBodySize).Msg("chris2nd")
 	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
@@ -229,14 +236,19 @@ func (mp *MemPool) puts(txs ...*types.Tx) []error {
 	return errs
 }
 
-func (mp *MemPool) setStateDB(block *types.Block) {
+func (mp *MemPool) setStateDB(block *types.Block) bool {
 	if mp.testConfig {
-		return
+		return true
 	}
 
 	newBlockID := types.ToBlockID(block.GetHash())
+	parentBlockID := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
+	normal := true
 
 	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
+		if types.HashID(parentBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
+			normal = false
+		}
 		mp.bestBlockID = newBlockID
 
 		stateRoot := block.GetHeader().GetBlocksRootHash()
@@ -251,17 +263,34 @@ func (mp *MemPool) setStateDB(block *types.Block) {
 			}
 		}
 	}
+	return normal
 }
 
 // input tx based ? or pool based?
 // concurrency consideration,
 func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
+	start := time.Now()
 	mp.Lock()
 	defer mp.Unlock()
 
-	mp.setStateDB(block)
+	check := 0
+	all := false
+	dirty := map[types.AccountID]bool{}
 
-	for _, list := range mp.pool {
+	if !mp.setStateDB(block) {
+		all = true
+		mp.Debug().Int("cnt", len(mp.pool)).Msg("going to check all account's state")
+	} else {
+		for _, tx := range block.GetBody().GetTxs() {
+			dirty[types.ToAccountID(tx.GetBody().GetAccount())] = true
+			dirty[types.ToAccountID(tx.GetBody().GetRecipient())] = true
+		}
+	}
+
+	for acc, list := range mp.pool {
+		if !all && dirty[acc] == false {
+			continue
+		}
 		ns, err := mp.getAccountState(list.GetAccount())
 		if err != nil {
 			mp.Error().Err(err).Msg("getting Account status failed during removal")
@@ -274,24 +303,24 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
 		}
 		mp.releaseMemPoolList(list)
+		check++
 	}
 
-	//TODO
+	//FOR TEST
 	for _, tx := range block.GetBody().GetTxs() {
 		hid := types.ToTxID(tx.GetHash())
 		if _, ok := mp.cache[hid]; !ok {
 			continue
 		}
-		ns, err := mp.getAccountState(tx.GetBody().GetAccount())
-		if err != nil {
-			mp.Error().Err(err).Msg("getting Account status failed")
-			continue
-		}
 		mp.Warn().Uint64("nonce on tx", tx.GetBody().GetNonce()).
-			Uint64("nonce on state", ns.Nonce).
 			Msg("mismatch ditected")
 		mp.deadtx++
 	}
+	elapse := time.Since(start)
+	mp.Debug().Int("given", len(block.GetBody().GetTxs())).
+		Int("check", check).
+		Str("elapse", elapse.String()).
+		Msg("delete txs on block")
 	return nil
 }
 
