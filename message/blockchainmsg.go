@@ -104,6 +104,17 @@ type GetQueryRsp struct {
 	Result []byte
 	Err    error
 }
+type GetStateQuery struct {
+	ContractAddress []byte
+	VarName         string
+	VarIndex        string
+	Root            []byte
+	Compressed      bool
+}
+type GetStateQueryRsp struct {
+	Result *types.StateQueryProof
+	Err    error
+}
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.
 type SyncBlockState struct {
