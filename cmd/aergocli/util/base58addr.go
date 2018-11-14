@@ -164,6 +164,9 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 
 func ConvTx(tx *types.Tx) *InOutTx {
 	out := &InOutTx{Body: &InOutTxBody{}}
+	if tx == nil {
+		return out
+	}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
 	if tx.Body.Account != nil {

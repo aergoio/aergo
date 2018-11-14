@@ -57,7 +57,7 @@ func init() {
 	log.SetOutput(os.Stderr)
 	cobra.OnInitialize(initConfig)
 	rootCmd.SetOutput(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo home path")
+	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo cli home path")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is cliconfig.toml)")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")

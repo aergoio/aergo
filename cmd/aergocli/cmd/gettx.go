@@ -17,6 +17,7 @@ import (
 var gettxCmd = &cobra.Command{
 	Use:   "gettx",
 	Short: "Get transaction information",
+	Long:  "Get transaction information from aergosvr instance. \nIf transaction is in block, return transaction with index that represent where it's included",
 	Args:  cobra.MinimumNArgs(1),
 	Run:   execGetTX,
 }
@@ -36,14 +37,14 @@ func execGetTX(cmd *cobra.Command, args []string) {
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if err == nil {
-		cmd.Println("Pending: ", util.TxConvBase58Addr(msg))
+		cmd.Println(util.TxConvBase58Addr(msg))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Println("Confirm: ", util.TxInBlockConvBase58Addr(msgblock))
+		cmd.Println(util.TxInBlockConvBase58Addr(msgblock))
 	}
 
 }

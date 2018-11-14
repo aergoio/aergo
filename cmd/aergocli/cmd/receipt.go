@@ -9,24 +9,23 @@ import (
 	"context"
 	"log"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	receiptCmd := &cobra.Command{
 		Use:   "receipt [flags] subcommand",
-		Short: "receipt command",
+		Short: "Receipt command",
 	}
 	rootCmd.AddCommand(receiptCmd)
 
 	receiptCmd.AddCommand(
 		&cobra.Command{
 			Use:   "get [flags] tx_hash",
-			Short: "get a receipt",
+			Short: "Get a receipt",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
 				txHash, err := base58.Decode(args[0])

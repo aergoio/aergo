@@ -9,10 +9,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -26,12 +25,12 @@ var (
 func init() {
 	contractCmd := &cobra.Command{
 		Use:   "contract [flags] subcommand",
-		Short: "contract command",
+		Short: "Contract command",
 	}
 
 	deployCmd := &cobra.Command{
 		Use:   "deploy [flags] creator [bcfile] [abifile]",
-		Short: "deploy a contract",
+		Short: "Deploy a contract",
 		Args:  cobra.MinimumNArgs(1),
 		Run:   runDeployCmd,
 	}
@@ -40,7 +39,7 @@ func init() {
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract name [args]",
-		Short: "call a contract function",
+		Short: "Call a contract function",
 		Args:  cobra.MinimumNArgs(3),
 		Run:   runCallCmd,
 	}
@@ -62,13 +61,13 @@ func init() {
 		callCmd,
 		&cobra.Command{
 			Use:   "abi [flags] contract",
-			Short: "get ABI of the contract",
+			Short: "Get ABI of the contract",
 			Args:  cobra.MinimumNArgs(1),
 			Run:   runGetABICmd,
 		},
 		&cobra.Command{
 			Use:   "query [flags] contract fname [args]",
-			Short: "query contract by executing read-only function",
+			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
 		},
