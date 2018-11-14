@@ -35,8 +35,8 @@ var (
 )
 
 // GetHashID make a HashID from hash of bytes
-func GetHashID(bytes ...[]byte) HashID {
-	hash := common.Hasher(bytes...)
+func GetHashID(bytes []byte) HashID {
+	hash := common.Hasher(bytes)
 	return ToHashID(hash)
 }
 
