@@ -640,6 +640,20 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
 }
 
+// QueryContractState queries the state of a contract state variable without executing a contract function.
+func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.StateQuery) (*types.StateQueryProof, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetStateQuery{ContractAddress: in.ContractAddress, VarName: in.VarName, VarIndex: in.VarIndex, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetStateQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Result, rsp.Err
+}
+
 func toTimestamp(time time.Time) *timestamp.Timestamp {
 	return &timestamp.Timestamp{
 		Seconds: time.Unix(),

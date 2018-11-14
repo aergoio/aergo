@@ -32,6 +32,13 @@ var (
 	to     string
 	amount uint64
 
+	address    string
+	stateroot  string
+	proof      bool
+	compressed bool
+
+	staking bool
+
 	remote       bool
 	importFormat string
 

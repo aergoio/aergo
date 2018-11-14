@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"bytes"
 	"errors"
 	"runtime"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
@@ -291,7 +293,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
-		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id, msg.Root, msg.Compressed)
+		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
@@ -361,6 +363,34 @@ func (cs *ChainService) Receive(context actor.Context) {
 			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
+	case *message.GetStateQuery:
+		var varProof *types.ContractVarProof
+		var contractProof *types.StateProof
+		var err error
+
+		id := types.ToAccountID(msg.ContractAddress)
+		contractProof, err = cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
+		} else if contractProof.Inclusion {
+			contractTrieRoot := contractProof.State.StorageRoot
+			varId := bytes.NewBufferString("_")
+			varId.WriteString(msg.VarName)
+			varId.WriteString(msg.VarIndex)
+			varTrieKey := common.Hasher(varId.Bytes())
+			varProof, err = cs.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
+			if err != nil {
+				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+			}
+		}
+		stateQuery := &types.StateQueryProof{
+			ContractProof: contractProof,
+			VarProof:      varProof,
+		}
+		context.Respond(message.GetStateQueryRsp{
+			Result: stateQuery,
+			Err:    err,
+		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:

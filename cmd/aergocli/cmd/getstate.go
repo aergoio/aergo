@@ -19,12 +19,6 @@ var getstateCmd = &cobra.Command{
 	Run:   execGetState,
 }
 
-var address string
-var stateroot string
-var proof bool
-var compressed bool
-var staking bool
-
 func init() {
 	getstateCmd.Flags().StringVar(&address, "address", "", "Get state from the address")
 	getstateCmd.MarkFlagRequired("address")
