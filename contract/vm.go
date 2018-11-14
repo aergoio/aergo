@@ -6,7 +6,7 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0 -g -O0
+#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
 #cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
