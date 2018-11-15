@@ -1,5 +1,5 @@
-hash: 789e8daf7a7290d7b3b70ee50a594ee9681654f523e8dd152f7d33869b187472
-updated: 2018-11-12T14:15:09.2373562+09:00
+hash: 280e46be25b9bb66a25d8b9c9af3a53d05e73f4836cda1a75a339a8587662287
+updated: 2018-11-15T17:38:09.872981+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -66,6 +66,10 @@ imports:
   - protoc-gen-gogo/descriptor
   - sortkeys
   - types
+- name: github.com/golang/mock
+  version: c34cdb4725f4c3844d095133c6e40e448b86589b
+  subpackages:
+  - gomock
 - name: github.com/golang/protobuf
   version: b4deda0973fb4c70b50d226b1af49f3da59f5265
   subpackages:
@@ -271,12 +275,16 @@ imports:
   version: 93e6c91493094ff99a036fea0040802a1e0a4f69
   subpackages:
   - termios
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  subpackages:
+  - difflib
 - name: github.com/rcrowley/go-metrics
   version: 3113b8401b8a98917cde58f8bbd42a1b1c03b1fd
 - name: github.com/rs/cors
   version: a3460e445dd310dbefee993fe449f2ff9c08ae71
 - name: github.com/rs/zerolog
-  version: 8e30c7136954547e35720dbc2e5a50fd140f60af
+  version: 848482bc3dbeed6a47eb8f8cec0d4484795b1314
   subpackages:
   - internal/cbor
   - internal/json
@@ -302,6 +310,13 @@ imports:
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
   version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
+- name: github.com/stretchr/objx
+  version: ef50b0de28773081167c97fc27cf29a0bf8b8c71
+- name: github.com/stretchr/testify
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  subpackages:
+  - assert
+  - mock
 - name: github.com/sunpuyo/badger
   version: bb757672e2c7e90b0707ab643972dbfcf638aebf
   subpackages:
@@ -427,15 +442,4 @@ imports:
   - transport
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
-testImports:
-- name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
-  subpackages:
-  - difflib
-- name: github.com/stretchr/objx
-  version: ef50b0de28773081167c97fc27cf29a0bf8b8c71
-- name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
-  subpackages:
-  - assert
-  - mock
+testImports: []
