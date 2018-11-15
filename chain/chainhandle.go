@@ -26,6 +26,8 @@ var (
 	ErrTxInsufficientBalance = errors.New("insufficient balance")
 	ErrTxInvalidType         = errors.New("invalid type")
 	ErrorNoAncestor          = errors.New("not found ancestor")
+
+	InAddBlock = make(chan struct{}, 1)
 )
 
 type ErrBlock struct {
@@ -289,6 +291,13 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		return err
 	}
+
+	select {
+	case InAddBlock <- struct{}{}:
+	}
+	defer func() {
+		<-InAddBlock
+	}()
 
 	cp, err := newChainProcessor(newBlock, usedBstate, cs)
 	if err != nil {
