@@ -72,13 +72,17 @@ func (syncer *Syncer) BeforeStop() {
 }
 
 func (syncer *Syncer) Reset() {
-	syncer.finder.stop()
-	syncer.hashFetcher.stop()
-	syncer.blockFetcher.stop()
+	if syncer.isstartning {
+		syncer.finder.stop()
+		syncer.hashFetcher.stop()
+		syncer.blockFetcher.stop()
 
-	syncer.finder = nil
-	syncer.isstartning = false
-	syncer.ctx = nil
+		syncer.finder = nil
+		syncer.hashFetcher = nil
+		syncer.blockFetcher = nil
+		syncer.isstartning = false
+		syncer.ctx = nil
+	}
 
 	logger.Info().Msg("syncer stopped")
 }
@@ -227,6 +231,8 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 }
 
 func stopSyncer(hub component.ICompRequester, who string, err error) {
+	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
+
 	hub.Tell(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
 }
 

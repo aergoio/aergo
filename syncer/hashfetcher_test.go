@@ -41,7 +41,9 @@ func TestHashFetcher_normal(t *testing.T) {
 	msg = syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.CloseFetcher{}, msg, "need syncer close hashfetcher msg")
 	syncer.handleMessage(t, msg, nil)
-	assert.True(t, syncer.hf.finished, "hashfetcher finished")
+	assert.Nil(t, syncer.hf, "hashfetcher set nil")
+
+	syncer.stop(t)
 }
 
 func TestHashFetcher_ResponseError(t *testing.T) {

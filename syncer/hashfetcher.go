@@ -6,6 +6,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,8 @@ type HashFetcher struct {
 	debug   bool
 
 	finished bool
+
+	waitGroup *sync.WaitGroup
 }
 
 type HashSet struct {
@@ -77,7 +80,12 @@ func (hf *HashFetcher) setTimeout(timeout time.Duration) {
 }
 
 func (hf *HashFetcher) Start() {
+	hf.waitGroup = &sync.WaitGroup{}
+	hf.waitGroup.Add(1)
+
 	run := func() {
+		defer hf.waitGroup.Done()
+
 		logger.Debug().Msg("start hash fetcher")
 
 		timer := time.NewTimer(hf.timeout)
@@ -85,32 +93,36 @@ func (hf *HashFetcher) Start() {
 		hf.requestHashSet()
 
 		for {
-		NEXT:
 			select {
-			case msg := <-hf.responseCh:
+			case msg, ok := <-hf.responseCh:
+				if !ok {
+					logger.Error().Msg("HashFetcher responseCh is closed. Syncer is stopping now")
+					return
+				}
 				logger.Debug().Msg("process GetHashesRsp")
 
 				timer.Stop()
-				if !hf.isValidResponse(msg) {
-					goto NEXT
-				}
+				res, err := hf.isValidResponse(msg)
+				if res {
+					HashSet := &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes, StartNo: msg.PrevInfo.No + 1}
 
-				HashSet := &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes, StartNo: msg.PrevInfo.No + 1}
+					if err := hf.processHashSet(HashSet); err != nil {
+						//TODO send errmsg to syncer & stop sync
+						logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
+						stopSyncer(hf.hub, hf.name, err)
+						return
+					}
 
-				if err := hf.processHashSet(HashSet); err != nil {
-					//TODO send errmsg to syncer & stop sync
-					logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
+					if hf.isFinished(HashSet) {
+						hf.finished = true
+						closeFetcher(hf.hub, hf.name)
+						logger.Info().Msg("HashFetcher finished")
+						return
+					}
+					hf.requestHashSet()
+				} else if err != nil {
 					stopSyncer(hf.hub, hf.name, err)
-					return
 				}
-
-				if hf.isFinished(HashSet) {
-					hf.finished = true
-					closeFetcher(hf.hub, hf.name)
-					logger.Info().Msg("HashFetcher finished")
-					return
-				}
-				hf.requestHashSet()
 
 				//timer restart
 				timer.Reset(hf.timeout)
@@ -181,19 +193,28 @@ func (hf *HashFetcher) stop() {
 
 	if hf.quitCh != nil {
 		close(hf.quitCh)
-		hf.quitCh = nil
+		logger.Info().Msg("HashFetcher close quitCh")
+
+		//hf.quitCh = nil
 
 		close(hf.responseCh)
-		hf.responseCh = nil
+		//hf.responseCh = nil
+
+		hf.waitGroup.Wait()
 	}
 }
 
-func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
+func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) (bool, error) {
 	isValid := true
+	var err error
+
+	if msg == nil {
+		panic("nil message error")
+	}
 
 	if msg.Err != nil {
 		logger.Error().Err(msg.Err).Msg("receive GetHashesRsp with error")
-		stopSyncer(hf.hub, hf.name, ErrGetHashesRspError)
+		err = msg.Err
 		isValid = false
 	}
 
@@ -207,9 +228,10 @@ func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
 			Uint64("req count", hf.reqCount).
 			Uint64("msg count", msg.Count).
 			Msg("invalid GetHashesRsp")
+		return false, err
 	}
 
-	return true
+	return true, nil
 }
 
 func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {

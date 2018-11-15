@@ -163,10 +163,14 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 }
 
 func (syncer *StubSyncer) stop(t *testing.T) {
-	logger.Debug().Msg("stubsyncer stop")
-	syncer.hf.stop()
-	syncer.bf.stop()
-	syncer.isStop = true
+	if !syncer.isStop {
+		logger.Debug().Msg("stubsyncer stop")
+		syncer.hf.stop()
+		syncer.hf = nil
+		syncer.bf.stop()
+		syncer.bf = nil
+		syncer.isStop = true
+	}
 }
 
 func (syncer *StubSyncer) handleMessage(t *testing.T, inmsg interface{}, responseErr error) {
@@ -195,8 +199,10 @@ func (syncer *StubSyncer) handleMessage(t *testing.T, inmsg interface{}, respons
 	case *message.CloseFetcher:
 		if msg.FromWho == NameHashFetcher {
 			syncer.hf.stop()
+			syncer.hf = nil
 		} else if msg.FromWho == NameBlockFetcher {
 			syncer.bf.stop()
+			syncer.bf = nil
 		} else {
 			logger.Error().Msg("invalid closing module message to syncer")
 		}

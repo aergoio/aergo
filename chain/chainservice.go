@@ -265,17 +265,24 @@ func (cs *ChainService) Receive(context actor.Context) {
 			if msg.Bstate != nil {
 				bstate = msg.Bstate.(*state.BlockState)
 			}
-			err := cs.addBlock(block, bstate, msg.PeerID)
+			err = cs.addBlock(block, bstate, msg.PeerID)
 			if err != nil {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
 		}
 
-		context.Respond(message.AddBlockRsp{
+		rsp := &message.AddBlockRsp{
 			BlockNo:   block.GetHeader().GetBlockNo(),
 			BlockHash: block.BlockHash(),
 			Err:       err,
-		})
+		}
+
+		if msg.IsSync {
+			cs.RequestTo(message.SyncerSvc, rsp)
+		} else {
+			context.Respond(rsp)
+		}
+
 		cs.Hub().Tell(message.RPCSvc, block)
 	case *message.MemPoolDelRsp:
 		err := msg.Err

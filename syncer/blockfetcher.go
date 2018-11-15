@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,8 @@ type BlockFetcher struct {
 	debug bool
 
 	stat BlockFetcherStat
+
+	waitGroup *sync.WaitGroup
 }
 
 type BlockFetcherStat struct {
@@ -109,9 +112,14 @@ func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFe
 }
 
 func (bf *BlockFetcher) Start() {
+	bf.waitGroup = &sync.WaitGroup{}
+	bf.waitGroup.Add(1)
+
 	schedTicker := time.NewTicker(schedTick)
 
 	run := func() {
+		defer bf.waitGroup.Done()
+
 		logger.Debug().Msg("start block fetcher")
 
 		if err := bf.init(); err != nil {
@@ -126,7 +134,12 @@ func (bf *BlockFetcher) Start() {
 			case <-schedTicker.C:
 				bf.checkTaskTimeout()
 
-			case msg := <-bf.responseCh:
+			case msg, ok := <-bf.responseCh:
+				if !ok {
+					logger.Info().Msg("BlockFetcher responseCh is closed. Syncer is maybe stopping.")
+					return
+				}
+
 				err := bf.blockProcessor.run(msg)
 				if err != nil {
 					logger.Error().Err(err).Msg("invalid block response message")
@@ -239,7 +252,7 @@ func (bf *BlockFetcher) checkTaskTimeout() {
 }
 
 func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
-	logger.Error().Str("peer", task.syncPeer.ID.String()).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
+	logger.Error().Str("peer", task.syncPeer.ID.Pretty()).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
 
 	failPeer := task.syncPeer
 	bf.peers.processPeerFail(failPeer, isErr)
@@ -333,14 +346,14 @@ func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
 
 	bf.nextTask.syncPeer = freePeer
 
-	logger.Debug().Str("peer", freePeer.ID.String()).Int("free", bf.peers.free).Msg("popped free peer")
+	logger.Debug().Str("peer", freePeer.ID.Pretty()).Int("free", bf.peers.free).Msg("popped free peer")
 	return freePeer, nil
 }
 
 func (bf *BlockFetcher) pushFreePeer(syncPeer *SyncPeer) {
 	bf.peers.pushFree(syncPeer)
 
-	logger.Debug().Str("peer", syncPeer.ID.String()).Int("free", bf.peers.free).Msg("pushed free peer")
+	logger.Debug().Str("peer", syncPeer.ID.Pretty()).Int("free", bf.peers.free).Msg("pushed free peer")
 }
 
 func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
@@ -348,7 +361,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
-	logger.Debug().Str("peer", task.syncPeer.ID.String()).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
+	logger.Debug().Str("peer", task.syncPeer.ID.Pretty()).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
 
 	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
 }
@@ -367,7 +380,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask
 		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
 			bf.runningQueue.Remove(e)
 
-			logger.Debug().Str("peer", string(msg.ToWhom)).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+			logger.Debug().Str("peer", msg.ToWhom.Pretty()).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
 			return task, nil
 		}
 
@@ -403,6 +416,8 @@ func (bf *BlockFetcher) stop() {
 
 		close(bf.hfCh)
 		bf.hfCh = nil
+
+		bf.waitGroup.Wait()
 	}
 }
 
@@ -468,7 +483,7 @@ func (ps *PeerSet) popFree() (*SyncPeer, error) {
 	}
 
 	freePeer := elem.Value.(*SyncPeer)
-	logger.Debug().Str("peer", freePeer.ID.String()).Int("no", freePeer.No).Msg("pop free peer")
+	logger.Debug().Str("peer", freePeer.ID.Pretty()).Int("no", freePeer.No).Msg("pop free peer")
 	return freePeer, nil
 }
 
