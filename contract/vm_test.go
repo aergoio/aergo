@@ -1903,7 +1903,7 @@ func TestPcall(t *testing.T) {
 	end
 	function add(amount)
 		first = contract.call.value(amount)(system.getItem("addr"), "inc")
-		status, res = pcall(contract.call.value(1000000), system.getItem("addr"), "inc")
+		status, res = contract.pcall(contract.call.value(1000000), system.getItem("addr"), "inc")
 		if status == false then
 			return first
 		end
@@ -1924,12 +1924,12 @@ func TestPcall(t *testing.T) {
 	end
 	function send(addr, amount)
 		contract.send(addr, amount)
-		status, res = pcall(contract.call.value(1000000000)(system.getItem("addr"), "inc"))
+		status, res = contract.pcall(contract.call.value(1000000000)(system.getItem("addr"), "inc"))
 		return status
 	end
 	function sql()
 		contract.call(system.getItem("addr"), "init")
-		pcall(contract.call, system.getItem("addr"), "pkins1")
+		contract.pcall(contract.call, system.getItem("addr"), "pkins1")
 		contract.call(system.getItem("addr"), "pkins2")
 	end
 
@@ -1951,6 +1951,69 @@ func TestPcall(t *testing.T) {
 	err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
+	}
+
+	definition3 := `
+	function pass(addr)
+		contract.send(addr, 1)
+	end
+
+	function add(addr, a, b)
+		system.setItem("arg", a)
+		contract.pcall(pass, addr)
+		return a+b
+	end
+
+	function set(addr)
+		contract.send(addr, 1)
+		system.setItem("arg", 2)
+		status, ret  = contract.pcall(add, addr, 1, 2)
+	end
+
+	function set2(addr)
+		contract.send(addr, 1)
+		system.setItem("arg", 2)
+		status, ret  = contract.pcall(add, addar, 1)
+	end
+
+	function get()
+		return system.getItem("arg")
+	end
+	abi.register(set, set2, get)
+	`
+
+	bc, err = LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("bong", 0),
+		NewLuaTxDef("ktlee", "counter", 10, definition3),
+	)
+	tx := NewLuaTxCall("ktlee", "counter", 10,
+		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
+
+	bc.ConnectBlock(tx)
+	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	state, err := bc.GetAccountState("bong")
+	if state.GetBalance() != 2 {
+		t.Error("balance error")
+	}
+	tx = NewLuaTxCall("ktlee", "counter", 10,
+		fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
+	bc.ConnectBlock(tx)
+	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	state, err = bc.GetAccountState("bong")
+	if state.GetBalance() != 3 {
+		t.Error("balance error")
 	}
 }
 
