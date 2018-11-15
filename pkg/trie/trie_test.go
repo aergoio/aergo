@@ -19,19 +19,20 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/common"
 	//"github.com/dgraph-io/badger"
 	//"github.com/dgraph-io/badger/options"
 )
 
 func TestTrieEmpty(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	if len(smt.Root) != 0 {
 		t.Fatal("empty trie root hash not correct")
 	}
 }
 
 func TestTrieUpdateAndGet(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	smt.atomicUpdate = false
 
 	// Add data to empty trie
@@ -69,7 +70,7 @@ func TestTrieUpdateAndGet(t *testing.T) {
 }
 
 func TestTrieAtomicUpdate(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	smt.CacheHeightLimit = 0
 	keys := getFreshData(1, 32)
 	values := getFreshData(1, 32)
@@ -97,7 +98,7 @@ func TestTrieAtomicUpdate(t *testing.T) {
 }
 
 func TestTriePublicUpdateAndGet(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	smt.CacheHeightLimit = 0
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
@@ -136,7 +137,7 @@ func TestTriePublicUpdateAndGet(t *testing.T) {
 }
 
 func TestTrieDelete(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
 	values := getFreshData(20, 32)
@@ -161,7 +162,7 @@ func TestTrieDelete(t *testing.T) {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	smt2 := NewTrie(nil, Hasher, nil)
+	smt2 := NewTrie(nil, common.Hasher, nil)
 	ch = make(chan mresult, 1)
 	smt2.update(smt.Root, keys[1:], values[1:], nil, 0, smt.TrieHeight, ch)
 	result = <-ch
@@ -189,7 +190,7 @@ func TestTrieDelete(t *testing.T) {
 	}
 
 	// Test deleting an already empty key
-	smt = NewTrie(nil, Hasher, nil)
+	smt = NewTrie(nil, common.Hasher, nil)
 	keys = getFreshData(2, 32)
 	values = getFreshData(2, 32)
 	root, _ = smt.Update(keys, values)
@@ -203,7 +204,7 @@ func TestTrieDelete(t *testing.T) {
 
 // test updating and deleting at the same time
 func TestTrieUpdateAndDelete(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	smt.CacheHeightLimit = 0
 	key0 := make([]byte, 32, 32)
 	values := getFreshData(1, 32)
@@ -238,7 +239,7 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 }
 
 func TestTrieMerkleProof(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -253,7 +254,7 @@ func TestTrieMerkleProof(t *testing.T) {
 			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
-	emptyKey := Hasher([]byte("non-member"))
+	emptyKey := common.Hasher([]byte("non-member"))
 	ap, included, proofKey, proofValue, _ := smt.MerkleProof(emptyKey)
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
@@ -264,7 +265,7 @@ func TestTrieMerkleProof(t *testing.T) {
 }
 
 func TestTrieMerkleProofCompressed(t *testing.T) {
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -279,7 +280,7 @@ func TestTrieMerkleProofCompressed(t *testing.T) {
 			t.Fatalf("merkle proof didnt return the correct key-value pair")
 		}
 	}
-	emptyKey := Hasher([]byte("non-member"))
+	emptyKey := common.Hasher([]byte("non-member"))
 	bitmap, ap, length, included, proofKey, proofValue, _ := smt.MerkleProofCompressed(emptyKey)
 	if included {
 		t.Fatalf("failed to verify non inclusion proof")
@@ -296,7 +297,7 @@ func TestTrieCommit(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -320,7 +321,7 @@ func TestTrieStageUpdates(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -346,7 +347,7 @@ func TestTrieRevert(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 
 	// Edge case : Test that revert doesnt delete shortcut nodes
 	// when moved to a different position in tree
@@ -435,7 +436,7 @@ func TestTrieRaisesError(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -461,7 +462,7 @@ func TestTrieRaisesError(t *testing.T) {
 	st.Close()
 	os.RemoveAll(".aergo")
 
-	smt = NewTrie(nil, Hasher, nil)
+	smt = NewTrie(nil, common.Hasher, nil)
 	err = smt.Commit()
 	if err == nil {
 		t.Fatal("Error not created if database not connected")
@@ -485,7 +486,7 @@ func TestTrieLoadCache(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	// Test size of cache
 	smt.CacheHeightLimit = 0
 	key0 := make([]byte, 32, 32)
@@ -522,7 +523,7 @@ func TestTrieLoadCache(t *testing.T) {
 
 func TestHeight0LeafShortcut(t *testing.T) {
 	keySize := 32
-	smt := NewTrie(nil, Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil)
 	// Add 2 sibling keys that will be stored at height 0
 	key0 := make([]byte, keySize, keySize)
 	key1 := make([]byte, keySize, keySize)
@@ -585,7 +586,7 @@ func TestStash(t *testing.T) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
 	values := getFreshData(20, 32)
@@ -676,7 +677,7 @@ func BenchmarkCacheHeightLimit233(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	smt.CacheHeightLimit = 233
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
@@ -688,7 +689,7 @@ func BenchmarkCacheHeightLimit238(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	smt.CacheHeightLimit = 238
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
@@ -700,7 +701,7 @@ func BenchmarkCacheHeightLimit245(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st)
 	smt.CacheHeightLimit = 245
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
@@ -715,7 +716,7 @@ func getFreshData(size, length int) [][]byte {
 		if err != nil {
 			panic(err)
 		}
-		data = append(data, Hasher(key)[:length])
+		data = append(data, common.Hasher(key)[:length])
 	}
 	sort.Sort(DataArray(data))
 	return data
