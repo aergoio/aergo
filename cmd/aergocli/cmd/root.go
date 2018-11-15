@@ -18,6 +18,9 @@ import (
 const aergosystem = "aergo.system"
 
 var (
+	// Used for test.
+	test bool
+
 	// Used for flags.
 	home    string
 	cfgFile string
@@ -88,6 +91,10 @@ func GetServerAddress() string {
 }
 
 func connectAergo(cmd *cobra.Command, args []string) {
+	if test {
+		return
+	}
+
 	serverAddr := GetServerAddress()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	var ok bool
@@ -98,6 +105,10 @@ func connectAergo(cmd *cobra.Command, args []string) {
 }
 
 func disconnectAergo(cmd *cobra.Command, args []string) {
+	if test {
+		return
+	}
+
 	if client != nil {
 		client.Close()
 	}

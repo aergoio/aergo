@@ -223,6 +223,20 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	return out
 }
 
+func ConvBlockchainStatus(in *types.BlockchainStatus) string {
+	out := &InOutBlockchainStatus{}
+	if in == nil {
+		return ""
+	}
+	out.Hash = base58.Encode(in.BestBlockHash)
+	out.Height = in.BestHeight
+	jsonout, err := json.Marshal(out)
+	if err != nil {
+		return ""
+	}
+	return string(jsonout)
+}
+
 func TxConvBase58Addr(tx *types.Tx) string {
 	return toString(ConvTx(tx))
 }
