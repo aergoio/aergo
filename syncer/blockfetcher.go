@@ -45,6 +45,7 @@ type BlockFetcher struct {
 	stat BlockFetcherStat
 
 	waitGroup *sync.WaitGroup
+	isRunning bool
 }
 
 type BlockFetcherStat struct {
@@ -83,11 +84,12 @@ type PeerSet struct {
 }
 
 var (
-	schedTick        = time.Millisecond * 100
-	fetchTimeOut     = time.Second * 100
-	DfltMaxFetchTask = 16
-	MaxPeerFailCount = 3
-	MaxBlockReq      = 5
+	schedTick    = time.Millisecond * 100
+	fetchTimeOut = time.Second * 100
+	//DfltBlockFetchSize = 16
+	DfltBlockFetchSize  = 5
+	MaxPeerFailCount    = 3
+	DfltBlockFetchTasks = 5
 )
 
 var (
@@ -121,6 +123,8 @@ func (bf *BlockFetcher) Start() {
 		defer bf.waitGroup.Done()
 
 		logger.Debug().Msg("start block fetcher")
+
+		bf.isRunning = true
 
 		if err := bf.init(); err != nil {
 			stopSyncer(bf.hub, bf.name, err)
@@ -344,9 +348,13 @@ func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
 		return nil, err
 	}
 
-	bf.nextTask.syncPeer = freePeer
+	if freePeer != nil {
+		bf.nextTask.syncPeer = freePeer
+		logger.Debug().Str("peer", freePeer.ID.Pretty()).Int("free", bf.peers.free).Msg("popped free peer")
+	} else {
+		logger.Debug().Int("free", bf.peers.free).Msg("not exist free peer")
+	}
 
-	logger.Debug().Str("peer", freePeer.ID.Pretty()).Int("free", bf.peers.free).Msg("popped free peer")
 	return freePeer, nil
 }
 
@@ -410,7 +418,7 @@ func (bf *BlockFetcher) stop() {
 		return
 	}
 
-	if bf.quitCh != nil {
+	if bf.isRunning && bf.quitCh != nil {
 		close(bf.quitCh)
 		bf.quitCh = nil
 
@@ -418,6 +426,7 @@ func (bf *BlockFetcher) stop() {
 		bf.hfCh = nil
 
 		bf.waitGroup.Wait()
+		bf.isRunning = false
 	}
 }
 

@@ -31,7 +31,7 @@ type HashFetcher struct {
 	timeout time.Duration
 	debug   bool
 
-	finished bool
+	isRunning bool
 
 	waitGroup *sync.WaitGroup
 }
@@ -49,7 +49,8 @@ type HashRequest struct {
 
 var (
 	dfltTimeout = time.Second * 180
-	MaxHashReq  = uint64(128)
+	//DfltHashReqSize  = uint64(128)
+	DfltHashReqSize = uint64(10)
 )
 
 var (
@@ -88,6 +89,8 @@ func (hf *HashFetcher) Start() {
 
 		logger.Debug().Msg("start hash fetcher")
 
+		hf.isRunning = true
+
 		timer := time.NewTimer(hf.timeout)
 
 		hf.requestHashSet()
@@ -114,7 +117,6 @@ func (hf *HashFetcher) Start() {
 					}
 
 					if hf.isFinished(HashSet) {
-						hf.finished = true
 						closeFetcher(hf.hub, hf.name)
 						logger.Info().Msg("HashFetcher finished")
 						return
@@ -191,7 +193,7 @@ func (hf *HashFetcher) stop() {
 		return
 	}
 
-	if hf.quitCh != nil {
+	if hf.isRunning && hf.quitCh != nil {
 		close(hf.quitCh)
 		logger.Info().Msg("HashFetcher close quitCh")
 
@@ -201,6 +203,7 @@ func (hf *HashFetcher) stop() {
 		//hf.responseCh = nil
 
 		hf.waitGroup.Wait()
+		hf.isRunning = false
 	}
 }
 

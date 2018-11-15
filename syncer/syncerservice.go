@@ -89,6 +89,23 @@ func (syncer *Syncer) Reset() {
 
 // Receive actor message
 func (syncer *Syncer) Receive(context actor.Context) {
+	//drop garbage message
+	if !syncer.isstartning {
+		switch context.Message().(type) {
+		case *message.GetSyncAncestorRsp:
+			return
+		case *message.FinderResult:
+			return
+		case *message.GetHashesRsp:
+			return
+		case *message.GetBlockChunksRsp:
+			return
+		case *message.AddBlockRsp:
+			return
+		case *message.SyncStop:
+			return
+		}
+	}
 
 	switch msg := context.Message().(type) {
 	case *message.SyncStart:
@@ -205,8 +222,8 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltMaxFetchTask, MaxBlockReq)
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashReq)
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltBlockFetchSize, DfltBlockFetchTasks)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, DfltHashReqSize)
 
 	syncer.blockFetcher.Start()
 	syncer.hashFetcher.Start()

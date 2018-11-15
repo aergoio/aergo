@@ -3,6 +3,7 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -47,12 +48,6 @@ func NewBlockProcessor(hub component.ICompRequester, blockFetcher *BlockFetcher,
 
 func (bproc *BlockProcessor) run(msg interface{}) error {
 	//TODO in test mode, if syncer receives invalid messages, syncer stop with panic()
-
-	if err := bproc.isValidResponse(msg); err != nil {
-		logger.Error().Err(err).Msg("dropped invalid block message")
-		return nil
-	}
-
 	switch msg.(type) {
 	case *message.GetBlockChunksRsp:
 		if err := bproc.GetBlockChunkRsp(msg.(*message.GetBlockChunksRsp)); err != nil {
@@ -75,8 +70,9 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 		var prev []byte
 		blocks := msg.Blocks
 
-		if msg.Err != nil && (blocks == nil || len(blocks) == 0) {
-			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
+		if msg.Err != nil {
+			logger.Error().Err(msg.Err).Msg("GetBlockChunksRsp has error")
+			return msg.Err
 		}
 
 		for _, block := range blocks {
@@ -90,6 +86,20 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 	}
 
 	validateAddBlockRsp := func(msg *message.AddBlockRsp) error {
+		isAvailErr := func(err error) bool {
+			switch err {
+			case chain.ErrBlockExist:
+				return true
+			default:
+				return false
+			}
+		}
+
+		if msg.Err != nil && !isAvailErr(msg.Err) {
+			logger.Error().Err(msg.Err).Msg("connect block failed")
+			return msg.Err
+		}
+
 		if msg.BlockHash == nil {
 			return &ErrSyncMsg{msg: msg, str: "invalid add block resonse"}
 		}
@@ -116,8 +126,8 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 }
 
 func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) error {
-	if msg.Err != nil {
-		return bproc.GetBlockChunkRspError(msg)
+	if err := bproc.isValidResponse(msg); err != nil {
+		return bproc.GetBlockChunkRspError(msg, err)
 	}
 
 	bf := bproc.blockFetcher
@@ -144,10 +154,10 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 	return nil
 }
 
-func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRsp) error {
+func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRsp, err error) error {
 	bf := bproc.blockFetcher
 
-	logger.Error().Str("peer", msg.ToWhom.Pretty()).Msg("receive GetBlockChunksRsp with error message")
+	logger.Error().Err(err).Str("peer", msg.ToWhom.Pretty()).Msg("receive GetBlockChunksRsp with error message")
 
 	task, err := bf.findFinished(msg)
 	if err != nil {
@@ -161,9 +171,8 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 }
 
 func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
-	if msg.Err != nil {
-		logger.Error().Err(msg.Err).Msg("connect block failed")
-		return msg.Err
+	if err := bproc.isValidResponse(msg); err != nil {
+		return err
 	}
 
 	curBlock := bproc.curBlock
