@@ -173,7 +173,7 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 }
 
 func (hf *HashFetcher) stop() {
-	logger.Info().Msg("HashFetcher finished")
+	logger.Info().Msg("HashFetcher stop")
 
 	if hf == nil {
 		return

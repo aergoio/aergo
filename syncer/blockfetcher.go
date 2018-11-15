@@ -239,7 +239,7 @@ func (bf *BlockFetcher) checkTaskTimeout() {
 }
 
 func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) {
-	logger.Error().Str("peer", string(task.syncPeer.ID)).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
+	logger.Error().Str("peer", task.syncPeer.ID.String()).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail")
 
 	failPeer := task.syncPeer
 	bf.peers.processPeerFail(failPeer, isErr)
@@ -266,7 +266,7 @@ func (bf *BlockFetcher) getNextTask() (*FetchTask, error) {
 			case <-bf.quitCh:
 				return nil
 			default:
-				logger.Debug().Msg("BlockFetcher has no input HashSet")
+				//logger.Debug().Msg("BlockFetcher has no input HashSet")
 				return nil
 			}
 		}
@@ -333,14 +333,14 @@ func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
 
 	bf.nextTask.syncPeer = freePeer
 
-	logger.Debug().Str("peer", string(freePeer.ID)).Int("free", bf.peers.free).Msg("popped free peer")
+	logger.Debug().Str("peer", freePeer.ID.String()).Int("free", bf.peers.free).Msg("popped free peer")
 	return freePeer, nil
 }
 
 func (bf *BlockFetcher) pushFreePeer(syncPeer *SyncPeer) {
 	bf.peers.pushFree(syncPeer)
 
-	logger.Debug().Str("peer", string(syncPeer.ID)).Int("free", bf.peers.free).Msg("pushed free peer")
+	logger.Debug().Str("peer", syncPeer.ID.String()).Int("free", bf.peers.free).Msg("pushed free peer")
 }
 
 func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
@@ -348,7 +348,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.runningQueue.PushBack(task)
 	bf.nextTask = nil
 
-	logger.Debug().Str("peer", string(task.syncPeer.ID)).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
+	logger.Debug().Str("peer", task.syncPeer.ID.String()).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("run block fetch task")
 
 	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
 }
@@ -391,7 +391,7 @@ func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
 }
 
 func (bf *BlockFetcher) stop() {
-	logger.Info().Msg("BlockFetcher finished")
+	logger.Info().Msg("BlockFetcher stop")
 
 	if bf == nil {
 		return
@@ -468,7 +468,7 @@ func (ps *PeerSet) popFree() (*SyncPeer, error) {
 	}
 
 	freePeer := elem.Value.(*SyncPeer)
-	logger.Debug().Str("peer", string(freePeer.ID)).Int("no", freePeer.No).Msg("pop free peer")
+	logger.Debug().Str("peer", freePeer.ID.String()).Int("no", freePeer.No).Msg("pop free peer")
 	return freePeer, nil
 }
 
@@ -477,7 +477,7 @@ func (ps *PeerSet) processPeerFail(failPeer *SyncPeer, isErr bool) {
 	failPeer.FailCnt++
 	failPeer.IsErr = isErr
 
-	logger.Error().Str("peer", string(failPeer.ID)).Int("failcnt", failPeer.FailCnt).Bool("iserr", failPeer.IsErr).Msg("peer failed")
+	logger.Error().Str("peer", failPeer.ID.String()).Int("failcnt", failPeer.FailCnt).Bool("iserr", failPeer.IsErr).Msg("peer failed")
 
 	if isErr || failPeer.FailCnt > MaxPeerFailCount {
 		ps.badPeers.PushBack(failPeer)
@@ -487,7 +487,7 @@ func (ps *PeerSet) processPeerFail(failPeer *SyncPeer, isErr bool) {
 			panic(fmt.Sprintf("bad peer len mismatch %d,%d", ps.badPeers.Len(), ps.bad))
 		}
 
-		logger.Error().Str("peer", string(failPeer.ID)).Int("total", ps.total).Int("badqueue", ps.bad).Msg("peer move to bad")
+		logger.Error().Str("peer", failPeer.ID.String()).Int("total", ps.total).Int("badqueue", ps.bad).Msg("peer move to bad")
 	}
 }
 
