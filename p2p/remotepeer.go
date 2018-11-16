@@ -243,7 +243,7 @@ func (p *remotePeerImpl) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestInterval)
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Panic().Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
+			p.logger.Panic().Str(LogPeerID, p.ID().Pretty()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
 		}
 	}()
 
@@ -273,13 +273,13 @@ func (p *remotePeerImpl) runRead() {
 	for {
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
-			p.logger.Error().Err(err).Msg("Failed to read message")
+			p.logger.Error().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("Failed to read message")
 			p.pm.RemovePeer(p.ID())
 			return
 		}
 
 		if err = p.handleMsg(msg); err != nil {
-			p.logger.Error().Err(err).Msg("Failed to handle message")
+			p.logger.Error().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("Failed to handle message")
 			p.pm.RemovePeer(p.ID())
 			return
 		}

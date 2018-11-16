@@ -351,11 +351,19 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 	pm.mutex.Unlock()
 
-	// if peer exists in peerstore already, reuse that peer again.
-	if !pm.checkInPeerstore(peerID) {
-		pm.Peerstore().ClearAddrs(peerID)
-		pm.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
-	}
+	// if peer exists in peerstore already, clear previous (and possibly wrong) addresses.
+	// commented out clearing code, since there seems to be race condition, this code willed be deleted or reborn after
+	// more investigation.
+	//if pm.checkInPeerstore(peerID) {
+	//	addrs := pm.Peerstore().Addrs(peerID)
+	//	addrStrs := make([]string, len(addrs))
+	//	for i, addr := range addrs {
+	//		addrStrs[i] = addr.String()
+	//	}
+	//	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, peerID.Pretty()).Msg("clearing all prev address of peer before connect")
+	//	pm.Peerstore().ClearAddrs(peerID)
+	//}
+	pm.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
 
 	ctx := context.Background()
 	s, err := pm.NewStream(ctx, meta.ID, aergoP2PSub)
@@ -399,6 +407,13 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
 	pm.mutex.Unlock()
+
+	addrs := pm.Peerstore().Addrs(peerID)
+	addrStrs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		addrStrs[i] = addr.String()
+	}
+	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("addresses of peer")
 
 	// peer is ready
 	h.doInitialSync()
@@ -547,6 +562,13 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	go peer.runPeer()
 	pm.insertPeer(peerID, peer)
 	peerAddr := meta.ToPeerAddress()
+
+	addrs := pm.Peerstore().Addrs(peerID)
+	addrStrs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		addrStrs[i] = addr.String()
+	}
+	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, peer.meta.ID.Pretty()).Msg("addresses of peer")
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
 	return true
 }
