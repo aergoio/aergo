@@ -169,6 +169,6 @@ bpids = [{{range .Consensus.BpIds}}
 ]
 
 [monitor]
-serverurl = "{{.Monitor.ServerURL}}"
-
+protocol = "{{.Monitor.ServerProtocol}}"
+endpoint = "{{.Monitor.ServerEndpoint}}"
 `
