@@ -1887,7 +1887,7 @@ func TestPcall(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "counter", 10, definition1).constructor("[0]"),
+		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[0]"),
 		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
 	)
 
@@ -1940,7 +1940,7 @@ func TestPcall(t *testing.T) {
 	`
 	bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
-			constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`),
 		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"sql", "Args":[]}`),
 	)
