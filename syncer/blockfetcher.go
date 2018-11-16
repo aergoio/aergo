@@ -37,8 +37,9 @@ type BlockFetcher struct {
 
 	name string
 
-	maxFetchSize  int
-	maxFetchTasks int
+	maxFetchSize   int
+	maxFetchTasks  int
+	maxPendingConn int
 
 	debug bool
 
@@ -87,16 +88,17 @@ var (
 	schedTick    = time.Millisecond * 100
 	fetchTimeOut = time.Second * 100
 	//DfltBlockFetchSize = 16
-	DfltBlockFetchSize  = 5
-	MaxPeerFailCount    = 3
-	DfltBlockFetchTasks = 5
+	DfltBlockFetchSize   = 5
+	MaxPeerFailCount     = 3
+	DfltBlockFetchTasks  = 5
+	MaxBlockPendingTasks = 10
 )
 
 var (
 	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
 )
 
-func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFetchSize int, maxRunningFetchTasks int) *BlockFetcher {
+func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFetchSize int, maxRunningFetchTasks int, maxPendingConnTasks int) *BlockFetcher {
 	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher}
 
 	bf.quitCh = make(chan interface{})
@@ -106,6 +108,7 @@ func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFe
 	bf.peers = newPeerSet()
 	bf.maxFetchSize = maxFetchSize
 	bf.maxFetchTasks = maxRunningFetchTasks
+	bf.maxPendingConn = maxPendingConnTasks
 
 	bf.blockProcessor = NewBlockProcessor(hub, bf, &types.Block{Hash: ctx.CommonAncestor.Hash}, ctx.TargetNo)
 
@@ -206,6 +209,11 @@ func (bf *BlockFetcher) schedule() error {
 	curRunning := bf.runningQueue.Len()
 	if curRunning >= bf.maxFetchTasks {
 		//logger.Debug().Int("runnig", curRunning).Int("pending", bf.pendingQueue.Len()).Msg("max running")
+		return nil
+	}
+
+	curPendingConn := len(bf.blockProcessor.connQueue)
+	if curPendingConn >= bf.maxPendingConn {
 		return nil
 	}
 
@@ -375,7 +383,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 }
 
 //TODO refactoring matchFunc
-func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask, error) {
+func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch bool) (*FetchTask, error) {
 	count := len(msg.Blocks)
 
 	var next *list.Element
@@ -385,10 +393,10 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp) (*FetchTask
 		next = e.Next()
 
 		//find failed peer
-		if msg.Err != nil && task.isPeerMatched(msg.ToWhom) {
+		if peerMatch && task.isPeerMatched(msg.ToWhom) {
 			bf.runningQueue.Remove(e)
 
-			logger.Debug().Str("peer", msg.ToWhom.Pretty()).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+			logger.Debug().Str("peer", msg.ToWhom.Pretty()).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
 			return task, nil
 		}
 

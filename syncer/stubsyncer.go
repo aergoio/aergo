@@ -47,8 +47,9 @@ type StubPeer struct {
 }
 
 var (
-	TestMaxFetchSize = 2
-	TestMaxTasks     = 2
+	TestMaxFetchSize    = 2
+	TestMaxTasks        = 2
+	TestMaxPendingTasks = 10
 
 	TestMaxHashReq = uint64(3)
 
@@ -150,7 +151,7 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 	if useHashFetcher {
 		syncer.hf = newHashFetcher(ctx, syncer.testhub, syncer.bfInputCh, TestMaxHashReq)
 	} else if useBlockFetcher {
-		syncer.bf = newBlockFetcher(ctx, syncer.testhub, TestMaxFetchSize, TestMaxTasks)
+		syncer.bf = newBlockFetcher(ctx, syncer.testhub, TestMaxFetchSize, TestMaxTasks, TestMaxPendingTasks)
 
 		syncer.bfInputCh = syncer.bf.hfCh
 	}

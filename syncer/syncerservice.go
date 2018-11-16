@@ -222,7 +222,7 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltBlockFetchSize, DfltBlockFetchTasks)
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltBlockFetchSize, DfltBlockFetchTasks, MaxBlockPendingTasks)
 	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, DfltHashReqSize)
 
 	syncer.blockFetcher.Start()

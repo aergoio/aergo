@@ -75,6 +75,11 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 			return msg.Err
 		}
 
+		if blocks == nil || len(blocks) == 0 {
+			logger.Error().Err(msg.Err).Str("peer", msg.ToWhom.Pretty()).Msg("GetBlockChunksRsp is empty")
+			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
+		}
+
 		for _, block := range blocks {
 			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
 				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
@@ -134,7 +139,7 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	logger.Debug().Str("peer", msg.ToWhom.Pretty()).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockCHunkRsp")
 
-	task, err := bf.findFinished(msg)
+	task, err := bf.findFinished(msg, false)
 	if err != nil {
 		//TODO invalid peer
 		logger.Error().Str("peer", msg.ToWhom.Pretty()).
@@ -159,7 +164,7 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 
 	logger.Error().Err(err).Str("peer", msg.ToWhom.Pretty()).Msg("receive GetBlockChunksRsp with error message")
 
-	task, err := bf.findFinished(msg)
+	task, err := bf.findFinished(msg, true)
 	if err != nil {
 		//TODO invalid peer
 		logger.Error().Str("peer", msg.ToWhom.Pretty()).Msg("dropped unknown block error message")
@@ -289,7 +294,14 @@ func (bproc *BlockProcessor) pushToConnQueue(newReq *ConnectTask) {
 func (bproc *BlockProcessor) popFromConnQueue() *ConnectTask {
 	sortedList := bproc.connQueue
 	if len(sortedList) == 0 {
-		logger.Info().Msg("connect queue is empty. so wait new connect task")
+		logger.Debug().Msg("connect queue is empty. so wait new connect task")
+		return nil
+	}
+
+	//check if first task is next block
+	firstReq := sortedList[0]
+	if bproc.curBlock != nil && firstReq.firstNo != (bproc.curBlock.BlockNo()+1) {
+		logger.Debug().Uint64("first", firstReq.firstNo).Uint64("cur", bproc.curBlock.BlockNo()).Msg("next block is not fetched yet")
 		return nil
 	}
 
