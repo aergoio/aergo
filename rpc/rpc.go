@@ -109,7 +109,9 @@ func (ns *RPC) Receive(context actor.Context) {
 		server, _ := ns.actualServer.(*AergoRPCService)
 		server.BroadcastToListBlockStream(msg)
 	case *actor.Started:
-		// Ignore message
+	case *actor.Stopping:
+	case *actor.Stopped:
+		// Ignore actor lfiecycle messages
 	default:
 		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
 	}
@@ -166,6 +168,10 @@ func (ns *RPC) serve() {
 	httpL := tcpm.Match(cmux.HTTP1Fast())
 
 	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
+
+	if ns.conf.RPC.NSEnableTLS {
+		ns.Warn().Msg("TLS is enabled in configuration, but currently not supported")
+	}
 
 	// Server both servers
 	go ns.serveGRPC(grpcL, ns.grpcServer)
