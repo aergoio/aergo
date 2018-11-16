@@ -29,7 +29,7 @@ import (
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 }
 
