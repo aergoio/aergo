@@ -108,12 +108,14 @@ func (ns *RPC) Receive(context actor.Context) {
 	case *types.Block:
 		server, _ := ns.actualServer.(*AergoRPCService)
 		server.BroadcastToListBlockStream(msg)
+	case *actor.Started:
+		// Ignore message
 	default:
 		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
 	}
 }
 
-// Create HTTP handler that redirects matching requests to the grpc-web wrapper.
+// Create HTTP handler that redirects matching grpc-web requests to the grpc-web wrapper.
 func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
@@ -130,8 +132,7 @@ func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 	if err := server.Serve(l); err != nil {
 		switch err {
 		case cmux.ErrListenerClosed:
-			// sometimes this is occured when this is killed by signals
-			// but this is normal case, not bug. so skip
+			// Server killed, usually by ctrl-c signal
 		default:
 			panic(err)
 		}

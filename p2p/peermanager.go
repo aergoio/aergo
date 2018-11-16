@@ -215,18 +215,18 @@ func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int
 			panic("invalid NetProtocolAddr " + pm.conf.NetProtocolAddr)
 		}
 		if protocolAddr.IsUnspecified() {
-			panic("NetProtocolAddr should be specified ip address" )
+			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
 		}
 	} else {
 		extIP, err := externalIP()
 		if err != nil {
-			panic("error while finding ip address : "+err.Error())
+			panic("error while finding IP address: "+err.Error())
 		}
 		protocolAddr = extIP
 	}
 	protocolPort = pm.conf.NetProtocolPort
 	if protocolPort <= 0 {
-		panic("invalid NetProtocolPort" + strconv.Itoa(pm.conf.NetProtocolPort))
+		panic("invalid NetProtocolPort " + strconv.Itoa(pm.conf.NetProtocolPort))
 	}
 	return
 }
