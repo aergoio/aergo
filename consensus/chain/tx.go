@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -87,6 +88,15 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	if logger.IsDebugEnabled() {
 		logger.Debug().Msg("start gathering tx")
 	}
+
+	select {
+	case chain.InAddBlock <- struct{}{}:
+	default:
+		return nil, errors.New("best block changed in chainservice")
+	}
+	defer func() {
+		<-chain.InAddBlock
+	}()
 
 	txIn := FetchTXs(hs, maxBlockBodySize)
 	nCand = len(txIn)
