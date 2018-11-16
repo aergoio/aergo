@@ -1,5 +1,5 @@
-hash: 280e46be25b9bb66a25d8b9c9af3a53d05e73f4836cda1a75a339a8587662287
-updated: 2018-11-15T17:38:09.872981+09:00
+hash: 78db53e1f61004f4e3b33faa0789d9c2c2538cbfe4ddb331bfaf2424cf5cae8c
+updated: 2018-11-16T10:35:12.53870629+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -25,6 +25,10 @@ imports:
   version: fcff33ba49dde3181fa69fb346f45582e52a3815
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
+- name: github.com/apache/thrift
+  version: 24918abba929282d6e405fedbc2ef68c3e894136
+  subpackages:
+  - lib/go/thrift
 - name: github.com/btcsuite/btcd
   version: 67e573d211ace594f1366b4ce9d39726c4b19bd0
   subpackages:
@@ -35,6 +39,8 @@ imports:
   version: e214231b295a8ea9479f11b70b35d5acf3556d9b
   subpackages:
   - semver
+- name: github.com/DataDog/zstd
+  version: c7161f8c63c045cbc7ca051dcc969dd0e4054de2
 - name: github.com/davecgh/go-spew
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
@@ -43,6 +49,14 @@ imports:
   version: e608c2733dc704cd4a73f825f4acab8f3c3d4d15
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
+- name: github.com/eapache/go-resiliency
+  version: ea41b0fad31007accc7f806884dcdf3da98b79ce
+  subpackages:
+  - breaker
+- name: github.com/eapache/go-xerial-snappy
+  version: 776d5712da21bc4762676d614db1d8a64f4238b0
+- name: github.com/eapache/queue
+  version: 093482f3f8ce946c05bcba64badd2c82369e084d
 - name: github.com/emirpasic/gods
   version: 7c131f6714175bd4ce484da1f348260c79db3069
   subpackages:
@@ -56,6 +70,12 @@ imports:
   version: bad65a492f32121a87197f4a085905c35e2a367e
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
+- name: github.com/funkygao/golib
+  version: 90d4905c196196cce46e129063a1658fc20619de
+  subpackages:
+  - threadlocal
+- name: github.com/go-logfmt/logfmt
+  version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
 - name: github.com/gogo/protobuf
   version: 636bf0302bc95575d69441b25a2603156ffdddf1
   subpackages:
@@ -84,6 +104,10 @@ imports:
   version: 9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8
 - name: github.com/gorilla/websocket
   version: 483fb8d7c32fcb4b5636cd293a92e3935932e2f4
+- name: github.com/grpc-ecosystem/grpc-opentracing
+  version: 8e809c8a86450a29b90dcc9efbf062d0fe6d9746
+  subpackages:
+  - go/otgrpc
 - name: github.com/gxed/eventfd
   version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
 - name: github.com/gxed/GoEndian
@@ -141,6 +165,8 @@ imports:
   - context
   - periodic
   - ratelimit
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/libp2p/go-addr-util
   version: 6e2ee01c0ae21694bcc33aaa7d6ce214279134f6
 - name: github.com/libp2p/go-buffer-pool
@@ -260,15 +286,34 @@ imports:
   version: a91e75d03bf4dba801af7b159c8b2aa7b5f47ea8
 - name: github.com/multiformats/go-multistream
   version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
+- name: github.com/opentracing-contrib/go-observer
+  version: a52f2342449246d5bcc273e65cbdcfa5f7d6c63c
 - name: github.com/opentracing/opentracing-go
   version: be550b025b433cdfa2f11efb962afa2ea3c4d967
   subpackages:
   - ext
   - log
+- name: github.com/openzipkin-contrib/zipkin-go-opentracing
+  version: 26cf9707480e6b90e5eff22cf0bbf05319154232
+  subpackages:
+  - flag
+  - types
+- name: github.com/openzipkin/zipkin-go-opentracing
+  version: b85dc675b16b116a00c351d2c41305bf9ae71293
+  subpackages:
+  - flag
+  - thrift/gen-go/scribe
+  - thrift/gen-go/zipkincore
+  - types
+  - wire
 - name: github.com/orcaman/concurrent-map
   version: b28018939af9022337862b94a463abb18abb3e0e
 - name: github.com/pelletier/go-toml
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
+- name: github.com/pierrec/lz4
+  version: 623b5a2f4d2a41e411730dcdfbfdaeb5c0c4564e
+  subpackages:
+  - internal/xxh32
 - name: github.com/pkg/errors
   version: 059132a15dd08d6704c67711dae0cf35ab991756
 - name: github.com/pkg/term
@@ -292,6 +337,8 @@ imports:
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/serialx/hashring
   version: 49a4782e9908fe098c907022a1bd7519c79803d6
+- name: github.com/Shopify/sarama
+  version: f3f4f5f1acf1a26acb582cfb158c2433f37288b4
 - name: github.com/soheilhy/cmux
   version: e09e9389d85d8492d313d73d1469c029e710623f
 - name: github.com/spaolacci/murmur3

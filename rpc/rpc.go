@@ -7,6 +7,7 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"net"
 	"net/http"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
 )
@@ -49,8 +51,15 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		msgHelper:   message.GetHelper(),
 		blockstream: []types.AergoRPCService_ListBlockStreamServer{},
 	}
+
+	tracer := opentracing.GlobalTracer()
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
+	}
+
+	if cfg.RPC.NetServiceTrace {
+		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
+		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 	}
 
 	grpcServer := grpc.NewServer(opts...)

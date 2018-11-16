@@ -82,6 +82,14 @@ import:
   version: ~v1.1.1
   subpackages:
   - gomock
+- package: github.com/openzipkin-contrib/zipkin-go-opentracing
+  version: v0.3.4
+- package: github.com/grpc-ecosystem/grpc-opentracing
+  subpackages:
+  - go/otgrpc
+- package: github.com/funkygao/golib
+  subpackages:
+  - threadlocal
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

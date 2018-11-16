@@ -45,6 +45,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
+		Monitor:	ctx.GetDefaultMonitorConfig(),
 	}
 }
 
@@ -63,6 +64,7 @@ func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 	return &RPCConfig{
 		NetServiceAddr: "127.0.0.1",
 		NetServicePort: 7845,
+		NetServiceTrace: false,
 		NSKey:          "",
 	}
 }
@@ -112,4 +114,12 @@ func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 		DposBpNumber:  consensus.DefaultDposBpNumber,
 		BpIds:         nil,
 	}
+}
+
+func (ctx *ServerContext) GetDefaultMonitorConfig() *MonitorConfig {
+	return &MonitorConfig{
+		ServerProtocol: "",
+		ServerEndpoint: "",
+	}
+
 }

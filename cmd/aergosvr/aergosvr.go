@@ -9,6 +9,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -25,6 +27,9 @@ import (
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/spf13/cobra"
+
+	"github.com/opentracing/opentracing-go"
+	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 )
 
 func main() {
@@ -69,10 +74,41 @@ func initConfig() {
 	}
 }
 
+func configureZipkin() {
+	protocol := cfg.Monitor.ServerProtocol
+	endpoint := cfg.Monitor.ServerEndpoint
+	var collector zipkin.Collector
+	var err error
+	if "http" == protocol || "https" == protocol {
+		zipkinURL := fmt.Sprintf("%s://%s/api/v1/spans", protocol, endpoint)
+		collector, err = zipkin.NewHTTPCollector(zipkinURL)
+		if err != nil {
+			panic("Error connecting to zipkin server at " + zipkinURL + ". Error: " + err.Error())
+		}
+	} else if "kafka" == protocol {
+		endpoints := strings.Split(endpoint, ",")
+		collector, err = zipkin.NewKafkaCollector(endpoints)
+		if err != nil {
+			panic("Error connecting to kafka endpoints at " + endpoint + ". Error: " + err.Error())
+		}
+	}
+
+	if nil != collector {
+		myEndpoint := cfg.RPC.NetServiceAddr + ":" + strconv.Itoa(cfg.RPC.NetServicePort)
+		tracer, err := zipkin.NewTracer(zipkin.NewRecorder(collector, false, myEndpoint, "aergosvr"))
+		if err != nil {
+			panic("Error starting new zipkin tracer. Error: " + err.Error())
+		}
+		opentracing.InitGlobalTracer(tracer)
+	}
+}
+
 func rootRun(cmd *cobra.Command, args []string) {
 
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Msg("AERGO SVR STARTED")
+
+	configureZipkin()
 
 	if cfg.EnableProfile {
 		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
@@ -101,8 +137,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 	chainSvc := chain.NewChainService(cfg, consensusSvc, mpoolSvc)
 	compMng.Register(chainSvc)
 	consensusSvc.SetChainAccessor(chainSvc)
-	accountsvc := account.NewAccountService(cfg)
-	compMng.Register(accountsvc)
+	accountSvc := account.NewAccountService(cfg)
+	compMng.Register(accountSvc)
 	rpcSvc := rpc.NewRPC(compMng, cfg, chainSvc)
 	compMng.Register(rpcSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc)

@@ -20,6 +20,7 @@ type Config struct {
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
+	Monitor    *MonitorConfig	 `mapstructure:"monitor"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -35,8 +36,9 @@ type BaseConfig struct {
 // RPCConfig defines configurations for rpc service
 type RPCConfig struct {
 	// RPC and REST
-	NetServiceAddr string `mapstructure:"netserviceaddr" description:"RPC service address"`
-	NetServicePort int    `mapstructure:"netserviceport" description:"RPC service port"`
+	NetServiceAddr  string `mapstructure:"netserviceaddr" description:"RPC service address"`
+	NetServicePort  int    `mapstructure:"netserviceport" description:"RPC service port"`
+	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
@@ -88,6 +90,11 @@ type ConsensusConfig struct {
 	BpIds         []string `mapstructure:"bpids" description:"the IDs of the block producers"`
 }
 
+type MonitorConfig struct {
+	ServerProtocol string  `mapstructure:"protocol" description:"Protocol is one of next: http, https or kafka"`
+	ServerEndpoint string  `mapstructure:"endpoint" description:"Endpoint to send"`
+}
+
 /*
 How to write this template
 =======================================
@@ -114,6 +121,7 @@ enabletestmode = {{.BaseConfig.EnableTestmode}}
 [rpc]
 netserviceaddr = "{{.RPC.NetServiceAddr}}"
 netserviceport = {{.RPC.NetServicePort}}
+netservicetrace = {{.RPC.NetServiceTrace}}
 nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
@@ -159,4 +167,8 @@ dposbps = {{.Consensus.DposBpNumber}}
 bpids = [{{range .Consensus.BpIds}}
 "{{.}}", {{end}}
 ]
+
+[monitor]
+serverurl = "{{.Monitor.ServerURL}}"
+
 `
