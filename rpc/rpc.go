@@ -105,9 +105,9 @@ func (ns *RPC) Statistics() *map[string]interface{} {
 
 func (ns *RPC) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
-	case *types.Block:
+	case *message.NotifyNewBlock:
 		server, _ := ns.actualServer.(*AergoRPCService)
-		server.BroadcastToListBlockStream(msg)
+		server.BroadcastToListBlockStream(msg.Block)
 	case *actor.Started:
 	case *actor.Stopping:
 	case *actor.Stopped:

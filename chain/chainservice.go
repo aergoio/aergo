@@ -205,7 +205,7 @@ func (cs *ChainService) CloseDB() {
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {
-	cs.BaseComponent.RequestTo(message.P2PSvc,
+	cs.BaseComponent.RequestBroadcast(
 		&message.NotifyNewBlock{
 			BlockNo: block.Header.BlockNo,
 			Block:   block,

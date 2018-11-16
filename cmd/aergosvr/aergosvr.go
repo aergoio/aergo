@@ -25,6 +25,8 @@ import (
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/spf13/cobra"
+
+	"github.com/aergoio/aergo/plugin-es-indexer"
 )
 
 func main() {
@@ -109,6 +111,9 @@ func rootRun(cmd *cobra.Command, args []string) {
 	compMng.Register(syncSvc)
 	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
 	compMng.Register(p2pSvc)
+
+	esIndexerSvc := esindexer.NewEsIndexer(compMng, cfg, chainSvc)
+	compMng.Register(esIndexerSvc)
 
 	if cfg.EnableRest {
 		svrlog.Info().Msg("Start REST server")

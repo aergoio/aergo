@@ -128,6 +128,14 @@ func (base *BaseComponent) RequestTo(targetCompName string, message interface{})
 	targetComp.Request(message, base.pid)
 }
 
+// RequestBroadcast passes a given message to all components registered in hub
+func (base *BaseComponent) RequestBroadcast(message interface{}) {
+	if base.hub == nil {
+		panic("Component hub is not set")
+	}
+	base.hub.RequestBroadcast(message, base.pid)
+}
+
 // RequestFuture is similar with Request; passes a given message to this component.
 // And this returns a future, that represent an asynchronous result
 func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {

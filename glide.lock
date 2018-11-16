@@ -1,5 +1,5 @@
-hash: 280e46be25b9bb66a25d8b9c9af3a53d05e73f4836cda1a75a339a8587662287
-updated: 2018-11-15T17:38:09.872981+09:00
+hash: ba500891e6a25397457ca7c50882765569e50901f64c2f57ca1ddce5926c7d9a
+updated: 2018-11-16T15:44:44.021006+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: b33acec1163b419b28c6a18e5e3f55f336fa7327
@@ -228,6 +228,12 @@ imports:
   version: c2353362d570a7bfa228149c62842019201cfb71
   subpackages:
   - assert
+- name: github.com/mailru/easyjson
+  version: 60711f1a8329503b04e1c88535f419d0bb440bff
+  subpackages:
+  - buffer
+  - jlexer
+  - jwriter
 - name: github.com/mattn/go-colorable
   version: 167de6bfdfba052fa6b2d3664c8f5272e23c9072
 - name: github.com/mattn/go-isatty
@@ -260,6 +266,11 @@ imports:
   version: a91e75d03bf4dba801af7b159c8b2aa7b5f47ea8
 - name: github.com/multiformats/go-multistream
   version: 2b032632ecab1e1b98c8d2391a4f6ab9a6c9e140
+- name: github.com/olivere/elastic
+  version: 4982266e48e0dc5c639e389b50221dcef09cdc99
+  subpackages:
+  - config
+  - uritemplates
 - name: github.com/opentracing/opentracing-go
   version: be550b025b433cdfa2f11efb962afa2ea3c4d967
   subpackages:
@@ -380,6 +391,10 @@ imports:
   - idna
   - internal/timeseries
   - trace
+- name: golang.org/x/sync
+  version: 42b317875d0fa942474b76e1b46a6060d720ae6e
+  subpackages:
+  - errgroup
 - name: golang.org/x/sys
   version: 66b7b1311ac80bbafcd2daeef9a5e6e2cd1e2399
   subpackages:

@@ -79,6 +79,11 @@ func (hub *ComponentHub) Register(component IComponent) {
 	component.SetHub(hub)
 }
 
+// Unregister a component from this hub
+func (hub *ComponentHub) Unregister(component IComponent) {
+	delete(hub.components, component.GetName())
+}
+
 // Statistics invoke requests to all registered components,
 // collect and return it's response
 // An input argument, timeout, is used to set actor request's timeout.
@@ -170,6 +175,12 @@ func (hub *ComponentHub) RequestFutureResult(
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip).Result()
+}
+
+func (hub *ComponentHub) RequestBroadcast(message interface{}, sender *actor.PID) {
+	for _, comp := range hub.components {
+		comp.Request(message, sender)
+	}
 }
 
 // Get returns a component which has a targetName
