@@ -22,42 +22,42 @@ func init() {
 		PersistentPostRun: disconnectAergo,
 	}
 
-	newCmd.Flags().StringVar(&pw, "password", "", "password")
-	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	newCmd.Flags().StringVar(&pw, "password", "", "Password")
+	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
-	listCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	listCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
-	unlockCmd.Flags().StringVar(&address, "address", "", "address of account")
+	unlockCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	unlockCmd.MarkFlagRequired("address")
-	unlockCmd.Flags().StringVar(&pw, "password", "", "password")
+	unlockCmd.Flags().StringVar(&pw, "password", "", "Password")
 
-	lockCmd.Flags().StringVar(&address, "address", "", "address of account")
+	lockCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	lockCmd.MarkFlagRequired("address")
-	lockCmd.Flags().StringVar(&pw, "password", "", "password")
+	lockCmd.Flags().StringVar(&pw, "password", "", "Password")
 
-	importCmd.Flags().StringVar(&importFormat, "if", "", "base58 import format string")
+	importCmd.Flags().StringVar(&importFormat, "if", "", "Base58 import format string")
 	importCmd.MarkFlagRequired("if")
-	importCmd.Flags().StringVar(&pw, "password", "", "password when exporting")
-	importCmd.Flags().StringVar(&to, "newpassword", "", "password to be reset")
-	importCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	importCmd.Flags().StringVar(&pw, "password", "", "Password when exporting")
+	importCmd.Flags().StringVar(&to, "newpassword", "", "Password to be reset")
+	importCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
-	exportCmd.Flags().StringVar(&address, "address", "", "address of account")
+	exportCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	exportCmd.MarkFlagRequired("address")
-	exportCmd.Flags().StringVar(&pw, "password", "", "password")
-	exportCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "path to data directory")
+	exportCmd.Flags().StringVar(&pw, "password", "", "Password")
+	exportCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
-	voteCmd.Flags().StringVar(&address, "address", "", "base58 address of voter")
+	voteCmd.Flags().StringVar(&address, "address", "", "Account address of voter")
 	voteCmd.MarkFlagRequired("address")
-	voteCmd.Flags().StringVar(&to, "to", "", "json array which has base58 address of candidates or input file path")
+	voteCmd.Flags().StringVar(&to, "to", "", "Json array which has base58 address of candidates(peer) or input file path")
 	voteCmd.MarkFlagRequired("to")
 
-	stakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
+	stakingCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakingCmd.MarkFlagRequired("address")
-	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
+	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "Amount of staking")
 	stakingCmd.MarkFlagRequired("amount")
-	unstakingCmd.Flags().StringVar(&address, "address", "", "base58 address")
+	unstakingCmd.Flags().StringVar(&address, "address", "", "Account address")
 	unstakingCmd.MarkFlagRequired("address")
-	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "amount of staking")
+	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "Amount of staking")
 	unstakingCmd.MarkFlagRequired("amount")
 
 	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakingCmd, unstakingCmd)

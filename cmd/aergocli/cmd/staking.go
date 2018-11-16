@@ -15,7 +15,7 @@ import (
 
 var stakingCmd = &cobra.Command{
 	Use:   "staking",
-	Short: "",
+	Short: "Staking balance to aergo system",
 	Run:   execStaking,
 }
 
@@ -25,7 +25,7 @@ func execStaking(cmd *cobra.Command, args []string) {
 
 var unstakingCmd = &cobra.Command{
 	Use:   "unstaking",
-	Short: "",
+	Short: "Unstaking balance from aergo system",
 	Run:   execUnstaking,
 }
 
