@@ -315,7 +315,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	// unnecessary chain execution & rollback.
 	cp.reorganize()
 
-	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("added block successfully. ")
+	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("Block added successfully")
 
 	return nil
 }

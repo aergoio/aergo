@@ -92,7 +92,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	consensusSvc, err := impl.New(cfg, compMng)
 	if err != nil {
-		svrlog.Error().Err(err).Msg("failed to start consensus service. server shutdown")
+		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)
 	}
 
@@ -111,12 +111,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 	compMng.Register(p2pSvc)
 
 	if cfg.EnableRest {
-		svrlog.Info().Msg("Start Rest server")
+		svrlog.Info().Msg("Start REST server")
 		restsvc := rest.NewRestService(cfg, chainSvc)
 		compMng.Register(restsvc)
-		//restsvc.Start()
 	} else {
-		svrlog.Info().Msg("Do not Start Rest server")
+		svrlog.Info().Msg("Do not start REST server")
 	}
 
 	compMng.Start()
