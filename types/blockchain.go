@@ -63,7 +63,7 @@ type SyncContext struct {
 	BestNo   BlockNo
 	TargetNo BlockNo //sync target blockno
 
-	CommonAncestor *BlockInfo
+	CommonAncestor *Block
 
 	TotalCnt   uint64
 	RemainCnt  uint64
@@ -74,9 +74,9 @@ func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
 	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo}
 }
 
-func (ctx *SyncContext) SetAncestor(ancestor *BlockInfo) {
+func (ctx *SyncContext) SetAncestor(ancestor *Block) {
 	ctx.CommonAncestor = ancestor
-	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.No
+	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.BlockNo()
 	ctx.RemainCnt = ctx.TotalCnt
 }
 

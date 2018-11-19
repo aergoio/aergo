@@ -255,7 +255,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		bid := msg.Block.BlockID()
 		block := msg.Block
 		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Msg("add block chainservice")
+			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
@@ -266,19 +266,19 @@ func (cs *ChainService) Receive(context actor.Context) {
 				bstate = msg.Bstate.(*state.BlockState)
 			}
 			err = cs.addBlock(block, bstate, msg.PeerID)
-			if err != nil {
+			if err != nil && err != ErrBlockOrphan {
 				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
 			}
 		}
 
-		rsp := &message.AddBlockRsp{
+		rsp := message.AddBlockRsp{
 			BlockNo:   block.GetHeader().GetBlockNo(),
 			BlockHash: block.BlockHash(),
 			Err:       err,
 		}
 
 		if msg.IsSync {
-			cs.RequestTo(message.SyncerSvc, rsp)
+			cs.RequestTo(message.SyncerSvc, &rsp)
 		} else {
 			context.Respond(rsp)
 		}

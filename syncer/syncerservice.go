@@ -216,8 +216,14 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 		return ErrFinderInternal
 	}
 
+	ancestor, err := syncer.chain.GetBlock(msg.Ancestor.Hash)
+	if err != nil {
+		logger.Error().Err(err).Msg("error getting ancestor block in syncer")
+		return err
+	}
+
 	//set ancestor in types.SyncContext
-	syncer.ctx.SetAncestor(msg.Ancestor)
+	syncer.ctx.SetAncestor(ancestor)
 
 	syncer.finder.stop()
 	syncer.finder = nil
@@ -232,18 +238,37 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 }
 
 func (syncer *Syncer) Statistics() *map[string]interface{} {
-	if syncer.ctx == nil {
+	var start, end, total, added, blockfetched uint64
+
+	if syncer.ctx != nil {
+		end = syncer.ctx.TargetNo
+		if syncer.ctx.CommonAncestor != nil {
+			total = syncer.ctx.TotalCnt
+			start = syncer.ctx.CommonAncestor.BlockNo()
+		}
+	} else {
 		return &map[string]interface{}{
 			"startning": syncer.isstartning,
 			"total":     0,
 			"remain":    0,
 		}
-	} else {
-		return &map[string]interface{}{
-			"startning": syncer.isstartning,
-			"total":     syncer.ctx.TotalCnt,
-			"remain":    syncer.ctx.RemainCnt,
+	}
+
+	if syncer.blockFetcher != nil {
+		lastblock := syncer.blockFetcher.stat.getLastAddBlock()
+		added = lastblock.BlockNo()
+		if syncer.blockFetcher.stat.getMaxChunkRsp() != nil {
+			blockfetched = syncer.blockFetcher.stat.getMaxChunkRsp().BlockNo()
 		}
+	}
+
+	return &map[string]interface{}{
+		"startning":    syncer.isstartning,
+		"total":        total,
+		"start":        start,
+		"end":          end,
+		"added":        added,
+		"blockfetched": blockfetched,
 	}
 }
 

@@ -82,6 +82,7 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 
 		for _, block := range blocks {
 			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
+				logger.Error().Str("peer", msg.ToWhom.Pretty()).Msg("GetBlockChunksRsp hashes inconsistent")
 				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
 			}
 
@@ -137,7 +138,7 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	bf := bproc.blockFetcher
 
-	logger.Debug().Str("peer", msg.ToWhom.Pretty()).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockCHunkRsp")
+	logger.Debug().Str("peer", msg.ToWhom.Pretty()).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockChunkRsp")
 
 	task, err := bf.findFinished(msg, false)
 	if err != nil {
@@ -146,7 +147,7 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 			Int("count", len(msg.Blocks)).
 			Str("from", enc.ToString(msg.Blocks[0].GetHash())).
 			Str("to", enc.ToString(msg.Blocks[len(msg.Blocks)-1].GetHash())).
-			Msg("dropped unknown block message")
+			Msg("dropped unknown block response message")
 		return nil
 	}
 
@@ -167,7 +168,7 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 	task, err := bf.findFinished(msg, true)
 	if err != nil {
 		//TODO invalid peer
-		logger.Error().Str("peer", msg.ToWhom.Pretty()).Msg("dropped unknown block error message")
+		logger.Error().Err(err).Str("peer", msg.ToWhom.Pretty()).Msg("dropped unknown block error message")
 		return nil
 	}
 
@@ -177,6 +178,7 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 
 func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	if err := bproc.isValidResponse(msg); err != nil {
+		logger.Info().Err(err).Uint64("no", msg.BlockNo).Str("hash", enc.ToString(msg.BlockHash)).Msg("block connect failed")
 		return err
 	}
 
@@ -300,8 +302,9 @@ func (bproc *BlockProcessor) popFromConnQueue() *ConnectTask {
 
 	//check if first task is next block
 	firstReq := sortedList[0]
-	if bproc.curBlock != nil && firstReq.firstNo != (bproc.curBlock.BlockNo()+1) {
-		logger.Debug().Uint64("first", firstReq.firstNo).Uint64("cur", bproc.curBlock.BlockNo()).Msg("next block is not fetched yet")
+	if bproc.prevBlock != nil &&
+		firstReq.firstNo != (bproc.prevBlock.BlockNo()+1) {
+		logger.Debug().Uint64("first", firstReq.firstNo).Uint64("prev", bproc.prevBlock.BlockNo()).Msg("next block is not fetched yet")
 		return nil
 	}
 

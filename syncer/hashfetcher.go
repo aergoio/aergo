@@ -48,9 +48,9 @@ type HashRequest struct {
 }
 
 var (
-	dfltTimeout = time.Second * 180
-	//DfltHashReqSize  = uint64(128)
-	DfltHashReqSize = uint64(10)
+	dfltTimeout     = time.Second * 180
+	DfltHashReqSize = uint64(100)
+	//DfltHashReqSize = uint64(10)
 )
 
 var (
@@ -67,7 +67,7 @@ func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh c
 
 	hf.resultCh = bfCh
 
-	hf.lastBlockInfo = ctx.CommonAncestor
+	hf.lastBlockInfo = &types.BlockInfo{Hash: ctx.CommonAncestor.GetHash(), No: ctx.CommonAncestor.BlockNo()}
 
 	hf.maxHashReq = maxHashReq
 

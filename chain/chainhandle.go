@@ -26,6 +26,7 @@ var (
 	ErrTxInsufficientBalance = errors.New("insufficient balance")
 	ErrTxInvalidType         = errors.New("invalid type")
 	ErrorNoAncestor          = errors.New("not found ancestor")
+	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -289,7 +290,11 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 			return fmt.Errorf("block received from BP can not be orphan")
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
-		return err
+		if err == nil {
+			return ErrBlockOrphan
+		} else {
+			return err
+		}
 	}
 
 	select {

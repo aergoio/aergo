@@ -104,6 +104,10 @@ func (tchain *StubBlockChain) GetBlockInfo(no uint64) *types.BlockInfo {
 	return &types.BlockInfo{tchain.hashes[no], no}
 }
 
+func (tchain *StubBlockChain) GetBlock(no uint64) *types.Block {
+	return tchain.blocks[no]
+}
+
 func (tchain *StubBlockChain) GetBlocks(hashes []message.BlockHash) ([]*types.Block, error) {
 	startNo := -1
 
@@ -148,12 +152,13 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 	syncer.bfInputCh = make(chan *HashSet)
 	syncer.testhub = NewStubHub()
 
-	if useHashFetcher {
-		syncer.hf = newHashFetcher(ctx, syncer.testhub, syncer.bfInputCh, TestMaxHashReq)
-	} else if useBlockFetcher {
+	if useBlockFetcher {
 		syncer.bf = newBlockFetcher(ctx, syncer.testhub, TestMaxFetchSize, TestMaxTasks, TestMaxPendingTasks)
 
 		syncer.bfInputCh = syncer.bf.hfCh
+	}
+	if useHashFetcher {
+		syncer.hf = newHashFetcher(ctx, syncer.testhub, syncer.bfInputCh, TestMaxHashReq)
 	}
 
 	syncer.remoteChain = remoteChain
@@ -161,6 +166,22 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 	syncer.makeStubPeerSet(TestMaxPeer)
 
 	return syncer
+}
+
+func (syncer *StubSyncer) start(t *testing.T) {
+	logger.Debug().Msg("stubsyncer start")
+
+	if syncer.ctx.CommonAncestor == nil {
+		t.Fatal("common ancestor is not set")
+	}
+
+	syncer.hf.Start()
+	syncer.bf.Start()
+
+	for {
+		msg := syncer.testhub.recvMessage()
+		syncer.handleMessageAuto(t, msg, nil)
+	}
 }
 
 func (syncer *StubSyncer) stop(t *testing.T) {
@@ -174,7 +195,45 @@ func (syncer *StubSyncer) stop(t *testing.T) {
 	}
 }
 
-func (syncer *StubSyncer) handleMessage(t *testing.T, inmsg interface{}, responseErr error) {
+func (syncer *StubSyncer) handleMessageAuto(t *testing.T, inmsg interface{}, responseErr error) {
+	switch msg := inmsg.(type) {
+	//p2p role
+	case *message.GetHashes: //from HashFetcher
+		blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
+
+		assert.Equal(t, len(blkHashes), int(msg.Count))
+		rsp := &message.GetHashesRsp{msg.PrevInfo, blkHashes, uint64(len(blkHashes)), responseErr}
+
+		syncer.hf.GetHahsesRsp(rsp)
+
+	case *message.GetPeers: //from BlockFetcher
+		rspMsg := makePeerReply(syncer.stubPeers)
+		syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
+
+	case *message.GetBlockChunks:
+		syncer.GetBlockChunks(t, msg)
+
+	case *message.AddBlock:
+		syncer.AddBlock(t, msg, responseErr)
+
+	case *message.SyncStop:
+		syncer.stop(t)
+	case *message.CloseFetcher:
+		if msg.FromWho == NameHashFetcher {
+			syncer.hf.stop()
+			syncer.hf = nil
+		} else if msg.FromWho == NameBlockFetcher {
+			syncer.bf.stop()
+			syncer.bf = nil
+		} else {
+			logger.Error().Msg("invalid closing module message to syncer")
+		}
+	default:
+		t.Error("invalid syncer message")
+	}
+}
+
+func (syncer *StubSyncer) handleMessageManual(t *testing.T, inmsg interface{}, responseErr error) {
 	switch msg := inmsg.(type) {
 	//p2p role
 	case *message.GetHashes: //from HashFetcher

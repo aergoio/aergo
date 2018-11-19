@@ -11,7 +11,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	//make remoteBlockChain
 	remoteChain := initStubBlockChain(10)
 
-	ancestor := remoteChain.GetBlockInfo(0)
+	ancestor := remoteChain.GetBlock(0)
 
 	ctx := types.NewSyncCtx("p1", 5, 1)
 	ctx.SetAncestor(ancestor)
@@ -23,14 +23,14 @@ func TestHashFetcher_normal(t *testing.T) {
 	//receive GetHash message
 	msg := syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 
 	//when pop result msg, hashfetcher send new request
 	resHashSet := syncer.getResultFromHashFetcher()
 	assert.Equal(t, int(TestMaxHashReq), resHashSet.Count)
 
 	msg = syncer.testhub.recvMessage()
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 
 	//when pop result msg, hashfetcher send new request
 
@@ -40,7 +40,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	//receive close hashfetcher message
 	msg = syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.CloseFetcher{}, msg, "need syncer close hashfetcher msg")
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 	assert.Nil(t, syncer.hf, "hashfetcher set nil")
 
 	syncer.stop(t)
@@ -49,8 +49,7 @@ func TestHashFetcher_normal(t *testing.T) {
 func TestHashFetcher_ResponseError(t *testing.T) {
 	//make remoteBlockChain
 	remoteChain := initStubBlockChain(10)
-
-	ancestor := remoteChain.GetBlockInfo(0)
+	ancestor := remoteChain.GetBlock(0)
 
 	ctx := types.NewSyncCtx("p1", 5, 1)
 	ctx.SetAncestor(ancestor)
@@ -62,12 +61,12 @@ func TestHashFetcher_ResponseError(t *testing.T) {
 	//receive GetHash message
 	msg := syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
-	syncer.handleMessage(t, msg, ErrGetHashesRspError)
+	syncer.handleMessageManual(t, msg, ErrGetHashesRspError)
 
 	//stop
 	msg = syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 
 	assert.True(t, syncer.isStop, "hashfetcher finished")
 }

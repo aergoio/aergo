@@ -15,7 +15,7 @@ func testHandleAddBlock(t *testing.T, syncer *StubSyncer, blockNo uint64) {
 	assert.Equal(t, blockNo, msg.(*message.AddBlock).Block.GetHeader().BlockNo, "check add blockno")
 
 	//AddBlockRsp
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 }
 
 // test blockfetcher
@@ -28,7 +28,7 @@ func TestBlockFetcher_normal(t *testing.T) {
 	//make remoteBlockChain
 	remoteChain := initStubBlockChain(10)
 
-	ancestor := remoteChain.GetBlockInfo(0)
+	ancestor := remoteChain.GetBlock(0)
 
 	ctx := types.NewSyncCtx("p1", testTargetNo, 1)
 	ctx.SetAncestor(ancestor)
@@ -43,7 +43,7 @@ func TestBlockFetcher_normal(t *testing.T) {
 	msg := syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.GetPeers{}, msg, "get peers from BF")
 	//reply peers
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 
 	testHashSet := func(prev *types.BlockInfo, count uint64) {
 		//push hashSet
@@ -63,7 +63,7 @@ func TestBlockFetcher_normal(t *testing.T) {
 		}
 
 		for i := 0; i < taskCount; i++ {
-			syncer.handleMessage(t, msgs[i], nil)
+			syncer.handleMessageManual(t, msgs[i], nil)
 		}
 
 		//AddBlockReq - must run #len(hashes) times
@@ -72,14 +72,14 @@ func TestBlockFetcher_normal(t *testing.T) {
 		}
 
 		//check last == prev
-		assert.Equal(t, prev.No+uint64(len(hashes)), syncer.bf.stat.maxRspBlock.GetHeader().BlockNo, "max block chunk response")
+		assert.Equal(t, prev.No+uint64(len(hashes)), syncer.bf.stat.getMaxChunkRsp().GetHeader().BlockNo, "max block chunk response")
 	}
 
 	//1~3 : 1~2 / 3
-	testHashSet(ancestor, 3)
+	testHashSet(&types.BlockInfo{Hash: ancestor.GetHash(), No: ancestor.BlockNo()}, 3)
 
-	prevInfo := &types.BlockInfo{Hash: syncer.bf.stat.maxRspBlock.GetHash(),
-		No: syncer.bf.stat.maxRspBlock.GetHeader().BlockNo}
+	prevInfo := &types.BlockInfo{Hash: syncer.bf.stat.getMaxChunkRsp().GetHash(),
+		No: syncer.bf.stat.getMaxChunkRsp().GetHeader().BlockNo}
 
 	//4~5 : 4~5 end
 	testHashSet(prevInfo, 2)
@@ -87,5 +87,5 @@ func TestBlockFetcher_normal(t *testing.T) {
 	//stop
 	msg = syncer.testhub.recvMessage()
 	assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
-	syncer.handleMessage(t, msg, nil)
+	syncer.handleMessageManual(t, msg, nil)
 }

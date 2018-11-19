@@ -15,7 +15,7 @@ type ChainAnchor []([]byte)
 const (
 	//MaxAnchors = 32
 	MaxAnchors = 1000000 //FIXME modify after implementing finder.fullscan
-	Skip       = 8
+	Skip       = 16
 )
 
 // returns anchor blocks of chain
