@@ -377,14 +377,17 @@ func (p *remotePeerImpl) consumeRequest(originalID MsgID) {
 	p.reqMutex.Unlock()
 }
 
+func (p *remotePeerImpl)notFoundReceiver(msg Message, msgBody proto.Message) bool {
+	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
+	return false
+}
+
 func (p *remotePeerImpl) GetReceiver(originalID MsgID) ResponseReceiver {
 	p.reqMutex.Lock()
 	defer p.reqMutex.Unlock()
 	req, found := p.requests[originalID]
 	if !found || req.receiver == nil {
-		return func(msg Message, msgBody proto.Message) bool {
-			return false
-		}
+		return p.notFoundReceiver
 	}
 	return req.receiver
 }

@@ -594,10 +594,10 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	}
 	// GetReceiver should not return nil and consumeRequest must be thread-safe
 	tests := []struct {
-		name string
-		toAdd []MsgID
-		inID MsgID
-		cotained bool
+		name      string
+		toAdd     []MsgID
+		inID      MsgID
+		contained bool
 	}{
 		// 1. not anything
 		{"TEmpty",idList[1:10],idList[0], false},
@@ -620,12 +620,13 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
-			assert.Equal(t, test.cotained, actual(nil, nil))
+			dummyMsg := &V030Message{id:NewMsgID(), originalID:test.inID}
+			assert.Equal(t, test.contained, actual(dummyMsg, nil))
 
 			p.consumeRequest(test.inID)
 			actual2 := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual2)
-			assert.Equal(t, false, actual2(nil, nil))
+			assert.Equal(t, false, actual2(dummyMsg, nil))
 		})
 	}
 }
