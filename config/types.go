@@ -20,6 +20,7 @@ type Config struct {
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
+	Monitor    *MonitorConfig	 `mapstructure:"monitor"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -35,8 +36,9 @@ type BaseConfig struct {
 // RPCConfig defines configurations for rpc service
 type RPCConfig struct {
 	// RPC and REST
-	NetServiceAddr string `mapstructure:"netserviceaddr" description:"RPC service address"`
-	NetServicePort int    `mapstructure:"netserviceport" description:"RPC service port"`
+	NetServiceAddr  string `mapstructure:"netserviceaddr" description:"RPC service address"`
+	NetServicePort  int    `mapstructure:"netserviceport" description:"RPC service port"`
+	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
@@ -52,8 +54,10 @@ type RESTConfig struct {
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
-	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N ip address, used when machine has multiple network interface or is over the proxy"`
-	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N network protocol port"`
+	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
+	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
+	NPBindAddr      string   `mapstructure:"npbindaddr" description:"N2N bind address. If it was set, it only accept connection to this addresse only"`
+	NPBindPort      int      `mapstructure:"npbindport" description:"N2N bind port. It not set, bind port is same as netprotocolport. Set if server is configured with NAT and port is differ."`
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
@@ -67,6 +71,7 @@ type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
+	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -83,6 +88,11 @@ type ConsensusConfig struct {
 	BlockInterval int64    `mapstructure:"blockinterval" description:"block production interval (sec)"`
 	DposBpNumber  uint16   `mapstructure:"dposbps" description:"the number of DPoS block producers"`
 	BpIds         []string `mapstructure:"bpids" description:"the IDs of the block producers"`
+}
+
+type MonitorConfig struct {
+	ServerProtocol string  `mapstructure:"protocol" description:"Protocol is one of next: http, https or kafka"`
+	ServerEndpoint string  `mapstructure:"endpoint" description:"Endpoint to send"`
 }
 
 /*
@@ -111,6 +121,7 @@ enabletestmode = {{.BaseConfig.EnableTestmode}}
 [rpc]
 netserviceaddr = "{{.RPC.NetServiceAddr}}"
 netserviceport = {{.RPC.NetServicePort}}
+netservicetrace = {{.RPC.NetServiceTrace}}
 nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
@@ -120,10 +131,15 @@ nsallowcors = {{.RPC.NSAllowCORS}}
 restport = "{{.REST.RestPort}}"
 
 [p2p]
+# Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
 netprotocoladdr = "{{.P2P.NetProtocolAddr}}"
 netprotocolport = {{.P2P.NetProtocolPort}}
+npbindaddr = "{{.P2P.NPBindAddr}}"
+npbindport = {{.P2P.NPBindPort}}
+# TLS and certificate is not applied in alpha release.
 nptls = {{.P2P.NPEnableTLS}}
 npcert = "{{.P2P.NPCert}}"
+# Set file path of key file
 npkey = "{{.P2P.NPKey}}"
 npaddpeers = [{{range .P2P.NPAddPeers}}
 "{{.}}", {{end}}
@@ -136,7 +152,7 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
-
+usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
@@ -151,4 +167,8 @@ dposbps = {{.Consensus.DposBpNumber}}
 bpids = [{{range .Consensus.BpIds}}
 "{{.}}", {{end}}
 ]
+
+[monitor]
+protocol = "{{.Monitor.ServerProtocol}}"
+endpoint = "{{.Monitor.ServerEndpoint}}"
 `

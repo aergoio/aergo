@@ -75,9 +75,11 @@ type PeerManager interface {
  */
 type peerManager struct {
 	host.Host
-	privateKey crypto.PrivKey
-	publicKey  crypto.PubKey
-	selfMeta   PeerMeta
+	privateKey  crypto.PrivKey
+	publicKey   crypto.PubKey
+	bindAddress net.IP
+	bindPort    int
+	selfMeta    PeerMeta
 
 	handlerFactory HandlerFactory
 	actorServ  ActorService
@@ -174,30 +176,60 @@ func (pm *peerManager) init() {
 	pub := NodePubKey()
 	pid := NodeID()
 
-	listenAddr := net.ParseIP(pm.conf.NetProtocolAddr)
-	listenPort := pm.conf.NetProtocolPort
-	var err error
-	if nil == listenAddr {
-		panic("invalid NetProtocolAddr " + pm.conf.NetProtocolAddr)
-	} else if !listenAddr.IsUnspecified() {
-		pm.logger.Info().Str("pm.conf.NetProtocolAddr", pm.conf.NetProtocolAddr).Int("listenPort", listenPort).Msg("Using NetProtocolAddr in configfile")
-	} else {
-		listenAddr, err = externalIP()
-		pm.logger.Info().Str("addr", listenAddr.To4().String()).Int("port", listenPort).Msg("No NetProtocolAddr is specified")
-		if err != nil {
-			panic("Couldn't find listening ip address: " + err.Error())
-		}
-	}
 	pm.privateKey = priv
 	pm.publicKey = pub
-	pm.selfMeta.IPAddress = listenAddr.String()
-	pm.selfMeta.Port = uint32(listenPort)
+	// init address and port
+	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
+	peerAddr, peerPort := pm.getProtocolAddrs()
+	pm.selfMeta.IPAddress = peerAddr.String()
+	pm.selfMeta.Port = uint32(peerPort)
 	pm.selfMeta.ID = pid
+
+	// if bindAddress or bindPort is not set, it will be same as NetProtocolAddr or NetProtocolPort
+	if len(pm.conf.NPBindAddr) > 0 {
+		bindAddr := net.ParseIP(pm.conf.NPBindAddr)
+		if bindAddr == nil {
+			panic("invalid NPBindAddr " + pm.conf.NPBindAddr)
+		}
+		pm.bindAddress = bindAddr
+	} else {
+		pm.bindAddress = peerAddr
+	}
+	if pm.conf.NPBindPort > 0 {
+		pm.bindPort = pm.conf.NPBindPort
+	} else {
+		pm.bindPort = peerPort
+	}
+
+	// set meta info
+	// TODO more survey libp2p NAT configuration
 
 	// set designated peers
 	pm.addDesignatedPeers()
 }
 
+func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
+	if len(pm.conf.NetProtocolAddr) != 0 {
+		protocolAddr = net.ParseIP(pm.conf.NetProtocolAddr)
+		if protocolAddr == nil {
+			panic("invalid NetProtocolAddr " + pm.conf.NetProtocolAddr)
+		}
+		if protocolAddr.IsUnspecified() {
+			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
+		}
+	} else {
+		extIP, err := externalIP()
+		if err != nil {
+			panic("error while finding IP address: "+err.Error())
+		}
+		protocolAddr = extIP
+	}
+	protocolPort = pm.conf.NetProtocolPort
+	if protocolPort <= 0 {
+		panic("invalid NetProtocolPort " + strconv.Itoa(pm.conf.NetProtocolPort))
+	}
+	return
+}
 func (pm *peerManager) run() {
 
 	go pm.runManagePeers()
@@ -448,8 +480,7 @@ func (pm *peerManager) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
 	// FIXME: should also support ip6 later
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
-		pm.selfMeta.IPAddress, pm.selfMeta.Port))
+	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",pm.bindAddress, pm.bindPort))
 	if err != nil {
 		panic("Can't estabilish listening address: " + err.Error())
 	}

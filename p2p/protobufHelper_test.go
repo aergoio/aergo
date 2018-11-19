@@ -48,7 +48,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 				assert.Equal(t, prevCacheSize+1, len(peer.requests))
 				actualMo, ok := peer.requests[msgID]
 				assert.True(t, ok)
-				assert.Equal(t, pr, actualMo)
+				assert.Equal(t, pr, actualMo.reqMO)
 			} else {
 				assert.Equal(t, prevCacheSize, len(peer.requests))
 			}
@@ -81,7 +81,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			pr := factory.newMsgResponseOrder(NewMsgID(), PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
-			peer.requests[msgID] = &pbRequestOrder{}
+			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 
 			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
@@ -124,7 +124,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			msgID := sampleMsgID
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &pbRequestOrder{}
+			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
 				var hashKey BlkHash
@@ -178,7 +178,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			msgID := pr.GetMsgID()
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &pbRequestOrder{}
+			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			var hashKey [txhashLen]byte
 			for i := 0; i < tt.keyExist; i++ {

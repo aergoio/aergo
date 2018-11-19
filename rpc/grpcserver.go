@@ -391,7 +391,7 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 // GetStateAndProof handle rpc request getstateproof
 func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.StateProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetStateAndProof{Account: in.Account, Root: in.Root}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
+		&message.GetStateAndProof{Account: in.Account, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -563,10 +563,10 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
 		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
 	} else if len(in.Value) == types.AddressLength {
 		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetElected").Result()
+			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
 	} else {
 		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}
@@ -578,6 +578,27 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Top, rsp.Err
+}
+
+//GetStaking handle rpc request getstaking
+func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleBytes) (*types.Staking, error) {
+	var err error
+	var result interface{}
+
+	if len(in.Value) == types.AddressLength {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetStaking{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStaking").Result()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "Only support valid address")
+	}
+	rsp, ok := result.(*message.GetStakingRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Staking, rsp.Err
 }
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
@@ -617,6 +638,20 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
+}
+
+// QueryContractState queries the state of a contract state variable without executing a contract function.
+func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.StateQuery) (*types.StateQueryProof, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetStateQuery{ContractAddress: in.ContractAddress, VarName: in.VarName, VarIndex: in.VarIndex, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetStateQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Result, rsp.Err
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {

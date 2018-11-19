@@ -1,2 +1,3 @@
 *.go	text eol=lf
 *       text=auto
+contract/sqlite3-binding.*	linguist-vendored

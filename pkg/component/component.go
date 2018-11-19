@@ -6,6 +6,7 @@
 package component
 
 import (
+	"github.com/opentracing/opentracing-go"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 )
 
 var _ IComponent = (*BaseComponent)(nil)
+
+type ActorSpan struct {
+	span 	opentracing.Span
+}
 
 // BaseComponent provides a basic implementations for IComponent interface
 type BaseComponent struct {
@@ -24,10 +29,12 @@ type BaseComponent struct {
 	status          Status
 	hub             *ComponentHub
 	accProcessedMsg uint64
+	inbounds        []actor.InboundMiddleware
+	outbounds		[]actor.OutboundMiddleware
 }
 
 // NewBaseComponent is a helper to create BaseComponent
-// This func requires this component's name, implemenation of IActor, and
+// This func requires this component's name, implementation of IActor, and
 // logger to record internal log msg
 // Setting a logger with a same name with the component is recommended
 func NewBaseComponent(name string, actor IActor, logger *log.Logger) *BaseComponent {
@@ -62,7 +69,56 @@ func (base *BaseComponent) Start() {
 
 	skipResumeStrategy := actor.NewOneForOneStrategy(0, 0, resumeDecider)
 
-	workerProps := actor.FromInstance(base).WithGuardian(skipResumeStrategy)
+	inbound := func(next actor.ActorFunc) actor.ActorFunc {
+		fn := func(c actor.Context) {
+			parentSpanId := c.MessageHeader().Get("opentracing-span")
+			parentSpan := base.hub.RestoreSpan(parentSpanId)
+			var span opentracing.Span
+
+			if nil == parentSpan {
+				span = opentracing.StartSpan(base.name)
+			} else {
+				span = opentracing.StartSpan(
+					base.name,
+					opentracing.ChildOf((*parentSpan).Context()))
+			}
+			spanId := base.hub.SaveSpan(span)
+			defer base.hub.DestroySpan(spanId)
+
+			next(c)
+		}
+		return fn
+	}
+	outbound := func(next actor.SenderFunc) actor.SenderFunc {
+		fn := func(c actor.Context, target *actor.PID, envelope *actor.MessageEnvelope) {
+			if nil == envelope.Header {
+				envelope.Header = make(map[string] string)
+			}
+			parentSpanId := c.MessageHeader().Get("opentracing-span")
+			parentSpan := base.hub.RestoreSpan(parentSpanId)
+			var span opentracing.Span
+
+			if nil == parentSpan {
+				span = opentracing.StartSpan(base.name)
+			} else {
+				span = opentracing.StartSpan(
+					base.name,
+					opentracing.ChildOf((*parentSpan).Context()))
+			}
+			spanId := base.hub.SaveSpan(span)
+			defer base.hub.DestroySpan(spanId)
+
+			envelope.Header.Set("opentracing-span", spanId)
+
+			next(c, target, envelope)
+		}
+		return fn
+	}
+
+	workerProps := actor.FromInstance(base).
+		WithGuardian(skipResumeStrategy).
+		WithMiddleware(inbound).
+		WithOutboundMiddleware(outbound)
 
 	var err error
 	// create and spawn an actor using the name as an unique id
@@ -73,8 +129,8 @@ func (base *BaseComponent) Start() {
 		base.Warn().Err(err).Msg("actor name is duplicate")
 	}
 
-	// Wait for the messaging hub to be fully initilized. - Incomplete
-	// initilization leads to a crash.
+	// Wait for the messaging hub to be fully initialized. - Incomplete
+	// initialization leads to a crash.
 	hubInit.wait()
 
 	base.IActor.AfterStart()
@@ -163,10 +219,10 @@ func (base *BaseComponent) MsgQueueLen() int32 {
 	return base.pid.MsgNum()
 }
 
+
 // Receive in the BaseComponent handles system messages and invokes actor's
 // receive function; implementation to handle incomming messages
 func (base *BaseComponent) Receive(context actor.Context) {
-
 	switch msg := context.Message().(type) {
 
 	case *actor.Started:

@@ -9,10 +9,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -26,12 +25,12 @@ var (
 func init() {
 	contractCmd := &cobra.Command{
 		Use:   "contract [flags] subcommand",
-		Short: "contract command",
+		Short: "Contract command",
 	}
 
 	deployCmd := &cobra.Command{
 		Use:   "deploy [flags] creator [bcfile] [abifile]",
-		Short: "deploy a contract",
+		Short: "Deploy a contract",
 		Args:  cobra.MinimumNArgs(1),
 		Run:   runDeployCmd,
 	}
@@ -40,7 +39,7 @@ func init() {
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract name [args]",
-		Short: "call a contract function",
+		Short: "Call a contract function",
 		Args:  cobra.MinimumNArgs(3),
 		Run:   runCallCmd,
 	}
@@ -48,21 +47,31 @@ func init() {
 	callCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 
+	stateQueryCmd := &cobra.Command{
+		Use:   "statequery [flags] contract varname varindex",
+		Short: "query the state of a contract with variable name and optional index",
+		Args:  cobra.MinimumNArgs(2),
+		Run:   runQueryStateCmd,
+	}
+	stateQueryCmd.Flags().StringVar(&stateroot, "root", "", "Query the state at a specified state root")
+	stateQueryCmd.Flags().BoolVar(&compressed, "compressed", false, "Get a compressed proof for the state")
+
 	contractCmd.AddCommand(
 		deployCmd,
 		callCmd,
 		&cobra.Command{
 			Use:   "abi [flags] contract",
-			Short: "get ABI of the contract",
+			Short: "Get ABI of the contract",
 			Args:  cobra.MinimumNArgs(1),
 			Run:   runGetABICmd,
 		},
 		&cobra.Command{
 			Use:   "query [flags] contract fname [args]",
-			Short: "query contract by executing read-only function",
+			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
 		},
+		stateQueryCmd,
 	)
 	rootCmd.AddCommand(contractCmd)
 }
@@ -271,6 +280,36 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	}
 
 	ret, err := client.QueryContract(context.Background(), query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd.Println(ret)
+}
+
+func runQueryStateCmd(cmd *cobra.Command, args []string) {
+	var root []byte
+	var err error
+	contract, err := types.DecodeAddress(args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(stateroot) != 0 {
+		root, err = base58.Decode(stateroot)
+		if err != nil {
+			cmd.Printf("decode error: %s", err.Error())
+			return
+		}
+	}
+	stateQuery := &types.StateQuery{
+		ContractAddress: contract,
+		VarName:         args[1],
+		Root:            root,
+		Compressed:      compressed,
+	}
+	if len(args) > 2 {
+		stateQuery.VarIndex = args[2]
+	}
+	ret, err := client.QueryContractState(context.Background(), stateQuery)
 	if err != nil {
 		log.Fatal(err)
 	}

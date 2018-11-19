@@ -7,13 +7,11 @@ package cmd
 
 import (
 	"context"
-
-	sha256 "github.com/minio/sha256-simd"
-
 	"io/ioutil"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	sha256 "github.com/minio/sha256-simd"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +35,6 @@ func init() {
 }
 
 func execCommitTX(cmd *cobra.Command, args []string) {
-	var msg *types.CommitResultList
 	if jsonPath != "" {
 		b, readerr := ioutil.ReadFile(jsonPath)
 		if readerr != nil {
@@ -48,6 +45,7 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 	}
 
 	if jsonTx != "" {
+		var msg *types.CommitResultList
 		txlist, err := util.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
@@ -58,9 +56,9 @@ func execCommitTX(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-	}
-	for i, r := range msg.Results {
-		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
+		for i, r := range msg.Results {
+			cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
+		}
 	}
 }
 

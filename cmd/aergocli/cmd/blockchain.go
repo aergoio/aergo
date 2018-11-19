@@ -32,7 +32,7 @@ var blockchainCmd = &cobra.Command{
 		if printHex {
 			cmd.Println(util.ConvHexBlockchainStatus(msg))
 		} else {
-			cmd.Println(util.JSON(msg))
+			cmd.Println(util.ConvBlockchainStatus(msg))
 		}
 	},
 }

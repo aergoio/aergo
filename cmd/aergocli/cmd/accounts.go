@@ -17,7 +17,7 @@ import (
 func init() {
 	accountCmd := &cobra.Command{
 		Use:               "account [flags] subcommand",
-		Short:             "account command",
+		Short:             "Account command",
 		PersistentPreRun:  preConnectAergo,
 		PersistentPostRun: disconnectAergo,
 	}

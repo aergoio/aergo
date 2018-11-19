@@ -12,6 +12,43 @@ import (
 
 type ChainAnchor []([]byte)
 
+const (
+	//MaxAnchors = 32
+	MaxAnchors = 1000000 //FIXME modify after implementing finder.fullscan
+	Skip       = 8
+)
+
+// returns anchor blocks of chain
+// use config
+func (cs *ChainService) getAnchorsNew() (ChainAnchor, error) {
+	//from top : 8 * 32 = 256
+	anchors := make(ChainAnchor, 0, MaxAnchors)
+	cnt := MaxAnchors
+	logger.Debug().Msg("get anchors")
+
+	blkNo := cs.getBestBlockNo()
+	for i := 0; i < cnt; i++ {
+		blockHash, err := cs.getHashByNo(blkNo)
+		if err != nil {
+			logger.Info().Msg("assertion - hash get failed")
+			// assertion!
+			return nil, err
+		}
+
+		anchors = append(anchors, blockHash)
+
+		logger.Debug().Uint64("no", blkNo).Msg("anchor added")
+
+		if blkNo < Skip {
+			blkNo = 0
+			break
+		}
+		blkNo -= Skip
+	}
+
+	return anchors, nil
+}
+
 // returns anchor blocks of chain
 // use config
 func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {

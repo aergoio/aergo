@@ -55,6 +55,10 @@ const (
 	GetMissingRequest
 	GetMissingResponse
 	NewBlockNotice
+	GetAncestorRequest
+	GetAncestorResponse
+	GetHashesRequest
+	GetHashesResponse
 )
 const (
 	GetTXsRequest SubProtocol = 0x020 + iota

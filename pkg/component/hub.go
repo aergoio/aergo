@@ -6,6 +6,8 @@
 package component
 
 import (
+	"github.com/opentracing/opentracing-go"
+	"github.com/satori/go.uuid"
 	"sync"
 	"time"
 
@@ -17,9 +19,16 @@ type ICompSyncRequester interface {
 	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 
-// ComponentHub keeps a list of registerd components
+type ICompRequester interface {
+	Tell(targetName string, message interface{})
+	RequestFutureResult(targetName string, message interface{}, timeout time.Duration, tip string) (interface{}, error)
+}
+
+// ComponentHub keeps a list of registered components
 type ComponentHub struct {
-	components map[string]IComponent
+	components 	map[string]IComponent
+	spanLock	sync.Mutex
+	spans 		map[string]*opentracing.Span
 }
 
 type hubInitSync struct {
@@ -33,6 +42,7 @@ var hubInit hubInitSync
 func NewComponentHub() *ComponentHub {
 	hub := ComponentHub{
 		components: make(map[string]IComponent),
+		spans: make(map[string]*opentracing.Span),
 	}
 	return &hub
 }
@@ -50,6 +60,30 @@ func (h *hubInitSync) end() {
 func (h *hubInitSync) wait() {
 	h.Done()
 	<-h.finished
+}
+
+func (hub *ComponentHub) SaveSpan(span opentracing.Span) string {
+	id := uuid.Must(uuid.NewV4()).String()
+	hub.spanLock.Lock()
+	defer hub.spanLock.Unlock()
+	hub.spans[id] = &span
+	return id
+}
+
+func (hub *ComponentHub) RestoreSpan(id string) *opentracing.Span {
+	hub.spanLock.Lock()
+	defer hub.spanLock.Unlock()
+	return hub.spans[id]
+}
+
+func (hub *ComponentHub) DestroySpan(id string) {
+	hub.spanLock.Lock()
+	defer hub.spanLock.Unlock()
+	span := hub.spans[id]
+	if nil != span {
+		(*span).Finish()
+		//delete(hub.spans, id)
+	}
 }
 
 // Start invokes start funcs of registered components at this hub
@@ -154,6 +188,17 @@ func (hub *ComponentHub) RequestFuture(
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip)
+}
+
+func (hub *ComponentHub) RequestFutureResult(
+	targetName string, message interface{}, timeout time.Duration, tip string) (interface{}, error) {
+
+	targetComponent := hub.components[targetName]
+	if targetComponent == nil {
+		panic("Unregistered Component")
+	}
+
+	return targetComponent.RequestFuture(message, timeout, tip).Result()
 }
 
 // Get returns a component which has a targetName

@@ -24,6 +24,7 @@ type msgOrder interface {
 // mf is interface of factory which create mo object
 type moFactory interface {
 	newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder
+	newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder
 	newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder
 	newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder
 	newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder

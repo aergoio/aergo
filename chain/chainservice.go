@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"bytes"
 	"errors"
 	"runtime"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
@@ -58,7 +60,8 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 		cfg.Blockchain.CoinbaseAccount,
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
-		cfg.Blockchain.MaxAnchorCount); err != nil {
+		cfg.Blockchain.MaxAnchorCount,
+		cfg.Blockchain.UseFastSyncer); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
@@ -273,7 +276,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 			BlockHash: block.BlockHash(),
 			Err:       err,
 		})
-		cs.Hub().Tell(message.RPCSvc, block)
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
@@ -291,7 +293,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
-		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id, msg.Root)
+		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
@@ -307,6 +309,20 @@ func (cs *ChainService) Receive(context actor.Context) {
 			TopMatched: topHash,
 			TopNumber:  topNo,
 			StopNumber: stopNo,
+		})
+	case *message.GetAnchors:
+		anchor, err := cs.getAnchorsNew()
+		context.Respond(message.GetAnchorsRsp{
+			anchor,
+			err,
+		})
+	case *message.GetAncestor:
+		hashes := msg.Hashes
+		ancestor, err := cs.findAncestor(hashes)
+
+		context.Respond(message.GetAncestorRsp{
+			Ancestor: ancestor,
+			Err:      err,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
@@ -347,6 +363,34 @@ func (cs *ChainService) Receive(context actor.Context) {
 			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
+	case *message.GetStateQuery:
+		var varProof *types.ContractVarProof
+		var contractProof *types.StateProof
+		var err error
+
+		id := types.ToAccountID(msg.ContractAddress)
+		contractProof, err = cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
+		} else if contractProof.Inclusion {
+			contractTrieRoot := contractProof.State.StorageRoot
+			varId := bytes.NewBufferString("_")
+			varId.WriteString(msg.VarName)
+			varId.WriteString(msg.VarIndex)
+			varTrieKey := common.Hasher(varId.Bytes())
+			varProof, err = cs.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
+			if err != nil {
+				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+			}
+		}
+		stateQuery := &types.StateQueryProof{
+			ContractProof: contractProof,
+			VarProof:      varProof,
+		}
+		context.Respond(message.GetStateQueryRsp{
+			Result: stateQuery,
+			Err:    err,
+		})
 	case *message.SyncBlockState:
 		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
@@ -360,6 +404,12 @@ func (cs *ChainService) Receive(context actor.Context) {
 		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,
+		})
+	case *message.GetStaking:
+		staking, err := cs.getStaking(msg.Addr)
+		context.Respond(&message.GetStakingRsp{
+			Staking: staking,
+			Err:     err,
 		})
 
 	case actor.SystemMessage,
@@ -398,16 +448,29 @@ func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
 	var voteList types.VoteList
 	var tmp []*types.Vote
 	voteList.Votes = tmp
-	amount, _, to, err := system.GetVote(scs, addr)
+	vote, err := system.GetVote(scs, addr)
 	if err != nil {
 		return nil, err
 	}
+	to := vote.GetCandidate()
 	for offset := 0; offset < len(to); offset += system.PeerIDLength {
 		vote := &types.Vote{
 			Candidate: to[offset : offset+system.PeerIDLength],
-			Amount:    amount,
+			Amount:    vote.GetAmount(),
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
 	return &voteList, nil
+}
+
+func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	staking, err := system.GetStaking(scs, addr)
+	if err != nil {
+		return nil, err
+	}
+	return staking, nil
 }

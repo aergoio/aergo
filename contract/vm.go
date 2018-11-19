@@ -49,16 +49,27 @@ type CallState struct {
 }
 
 type StateSet struct {
-	contract  *state.ContractState
-	bs        *state.BlockState
-	callState map[string]*CallState
-	rootState *StateSet
-	refCnt    uint
+	contract          *state.ContractState
+	bs                *state.BlockState
+	callState         map[string]*CallState
+	rootState         *StateSet
+	lastRecoveryEntry *recoveryEntry
+	refCnt            uint
 }
 
 type stateMap struct {
 	states map[string]*StateSet
 	mu     sync.Mutex
+}
+
+type recoveryEntry struct {
+	seq           int
+	amount        uint64
+	senderState   *types.State
+	callState     *CallState
+	sqlSaveName   *string
+	stateRevision state.Snapshot
+	prev          *recoveryEntry
 }
 
 type LState = C.struct_lua_State
@@ -306,7 +317,7 @@ func (ce *Executor) commitCalledContract() error {
 			continue
 		}
 		aid, _ := types.DecodeAddress(k)
-		err = bs.PutState(types.ToAccountID(aid), v.ctrState.State)
+		err = bs.PutState(types.ToAccountID(aid), v.curState)
 		if err != nil {
 			return DbSystemError(err)
 		}
@@ -760,15 +771,13 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 			return -1
 		}
 	}
-	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
-		bcCtx.transferFailed = 1
-		return -1
-	}
+
 	callee := getContract(callState.ctrState, cid, nil)
 	if callee == nil {
 		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
 		return -1
 	}
+
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
 		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, callState.curState.SqlRecoveryPoint,
@@ -788,12 +797,21 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		luaPushStr(L, "[System.LuaCallContract] invalid args:"+err.Error())
 		return -1
 	}
+	senderState := stateSet.contract.State
+	if amount > 0 {
+		if sendBalance(L, senderState, callState.curState, amount) == false {
+			bcCtx.transferFailed = 1
+			return -1
+		}
+	}
+	if rootState.lastRecoveryEntry != nil {
+		setRecoveryPoint(&contractIdStr, rootState, senderState, callState, amount, callState.ctrState.Snapshot())
+	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		luaPushStr(L, "[System.LuaCallContract] call err:"+ce.err.Error())
 		return -1
 	}
-
 	return ret
 }
 
@@ -816,7 +834,8 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 		luaPushStr(L, "[System.LuaCallContract]not found contract state")
 		return -1
 	}
-	bs := stateSet.rootState.bs
+	rootState := stateSet.rootState
+	bs := rootState.bs
 	contractState, err := bs.OpenContractStateAccount(types.ToAccountID(cid))
 	contract := getContract(contractState, cid, nil)
 	if contract == nil {
@@ -837,6 +856,12 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 	if err != nil {
 		luaPushStr(L, "[System.LuaCallContract] invalid args:"+err.Error())
 		return -1
+	}
+
+	if rootState.lastRecoveryEntry != nil {
+		selfContractId := C.GoString(bcCtx.contractId)
+		callState := rootState.callState[selfContractId]
+		setRecoveryPoint(&selfContractId, rootState, nil, callState, 0, callState.ctrState.Snapshot())
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
@@ -883,6 +908,9 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 		bcCtx.transferFailed = 1
 		return -1
 	}
+	if rootState.lastRecoveryEntry != nil {
+		setRecoveryPoint(nil, rootState, stateSet.contract.State, callState, amount, 0)
+	}
 	return 0
 }
 
@@ -905,6 +933,47 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount u
 //export LuaPrint
 func LuaPrint(contractId *C.char, args *C.char) {
 	logger.Info().Str("Contract SystemPrint", C.GoString(contractId)).Msg(C.GoString(args))
+}
+
+//export LuaSetRecoveryPoint
+func LuaSetRecoveryPoint(L *LState, bcCtx *LBlockchainCtx) C.int {
+	stateKeyStr := C.GoString(bcCtx.stateKey)
+
+	stateSet := contractMap.lookup(stateKeyStr)
+	if stateSet == nil {
+		luaPushStr(L, "[System.LuaCallContract]not found contract state")
+		return -1
+	}
+	rootState := stateSet.rootState
+	selfContractId := C.GoString(bcCtx.contractId)
+	callState := rootState.callState[selfContractId]
+	setRecoveryPoint(&selfContractId, rootState, nil, callState, 0, callState.ctrState.Snapshot())
+	return C.int(rootState.lastRecoveryEntry.seq)
+}
+
+//export LuaClearRecovery
+func LuaClearRecovery(L *LState, stateKey *C.char, start int, error bool) C.int {
+	stateKeyStr := C.GoString(stateKey)
+	stateSet := contractMap.lookup(stateKeyStr)
+	if stateSet == nil {
+		luaPushStr(L, "[System.LuaCallContract]not found contract state")
+		return -1
+	}
+	rootState := stateSet.rootState
+	item := rootState.lastRecoveryEntry
+	for {
+		if error {
+			item.recovery()
+		}
+		if item.seq == start {
+			if error || item.prev == nil {
+				rootState.lastRecoveryEntry = item.prev
+			}
+			return 0
+		}
+		item = item.prev
+	}
+	return 0
 }
 
 //export LuaGetDbHandle
@@ -934,4 +1003,49 @@ func LuaGetDbHandle(ctxKey *C.char, contract *C.char, rp C.ulonglong, readOnly C
 	}
 	callState.tx = tx
 	return callState.tx.GetHandle()
+}
+
+func (re *recoveryEntry) recovery() {
+	callState := re.callState
+	if re.amount > 0 {
+		re.senderState.Balance += re.amount
+		callState.curState.Balance -= re.amount
+	}
+	if re.sqlSaveName == nil && re.stateRevision == 0 {
+		return
+	}
+	callState.ctrState.Rollback(re.stateRevision)
+	if callState.tx != nil {
+		if re.sqlSaveName == nil {
+			callState.tx.RollbackToSavepoint()
+			callState.tx = nil
+		} else {
+			callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+		}
+	}
+}
+
+func setRecoveryPoint(contractId *string, rootState *StateSet, senderState *types.State,
+	callState *CallState, amount uint64, snapshot state.Snapshot) {
+	var seq int
+	prev := rootState.lastRecoveryEntry
+	if prev != nil {
+		seq = prev.seq + 1
+	}
+	recoveryEntry := &recoveryEntry{
+		seq,
+		amount,
+		senderState,
+		callState,
+		nil,
+		snapshot,
+		prev,
+	}
+	tx := callState.tx
+	if tx != nil {
+		saveName := fmt.Sprintf("%s_%p", *contractId, &recoveryEntry)
+		tx.SubSavepoint(saveName)
+		recoveryEntry.sqlSaveName = &saveName
+	}
+	rootState.lastRecoveryEntry = recoveryEntry
 }

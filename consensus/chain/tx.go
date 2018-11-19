@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -22,9 +23,10 @@ import (
 var logger = log.NewLogger("consensus")
 
 // FetchTXs requests to mempool and returns types.Tx array.
-func FetchTXs(hs component.ICompSyncRequester) []*types.Tx {
+func FetchTXs(hs component.ICompSyncRequester, maxBlockBodySize uint32) []*types.Tx {
 	//bf.RequestFuture(message.MemPoolSvc, &message.MemPoolGenerateSampleTxs{MaxCount: 3}, time.Second)
-	result, err := hs.RequestFuture(message.MemPoolSvc, &message.MemPoolGet{}, time.Second,
+	result, err := hs.RequestFuture(message.MemPoolSvc,
+		&message.MemPoolGet{MaxBlockBodySize: maxBlockBodySize}, time.Second,
 		"consensus/util/info.FetchTXs").Result()
 	if err != nil {
 		logger.Info().Err(err).Msg("can't fetch transactions from mempool")
@@ -87,7 +89,16 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		logger.Debug().Msg("start gathering tx")
 	}
 
-	txIn := FetchTXs(hs)
+	select {
+	case chain.InAddBlock <- struct{}{}:
+	default:
+		return nil, errors.New("best block changed in chainservice")
+	}
+	defer func() {
+		<-chain.InAddBlock
+	}()
+
+	txIn := FetchTXs(hs, maxBlockBodySize)
 	nCand = len(txIn)
 	if nCand == 0 {
 		return txIn, nil
@@ -103,7 +114,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		}()
 	}
 
-	op := NewCompTxOp(newBlockLimitOp(maxBlockBodySize), txOp)
+	op := NewCompTxOp(txOp)
 
 	var preLoadTx *types.Tx
 	for i, tx := range txIn {

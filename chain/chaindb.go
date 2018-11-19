@@ -388,7 +388,7 @@ func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	}
 	buf := types.Block{}
 	err := cdb.loadData(blockHash, &buf)
-	if err != nil {
+	if err != nil || !bytes.Equal(buf.Hash, blockHash) {
 		return nil, &ErrNoBlock{id: blockHash}
 	}
 

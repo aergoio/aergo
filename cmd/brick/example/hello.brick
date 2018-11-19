@@ -1,0 +1,17 @@
+# create an account and deposit coin
+inject bj 100
+
+# check balance
+getstate bj
+
+# delpoy helloworld smart contract
+deploy bj 1 helloctr `./example/hello.lua`
+
+# query to contract, this will print "hello world"
+query helloctr hello `[]` `"hello world"`
+
+# call and execute contract
+call bj 1 helloctr set_name `["aergo"]`
+
+# query again, this now will print "hello aergo"
+query helloctr hello `[]` `"hello aergo"`

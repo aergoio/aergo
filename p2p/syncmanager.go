@@ -107,6 +107,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hashArr BlkHash, da
 	}
 }
 // HandleGetBlockResponse handle when remote peer send a block information.
+// TODO this method will be removed after newer syncer is developed
 func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse) {
 	blocks := resp.Blocks
 	peerID := peer.ID()
@@ -132,7 +133,6 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 				sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
 				break
 			}
-			// TODO: more fine checking?
 			if addblockRsp.BlockNo < 0 {
 				sm.logger.Error().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Should not come here")
 				break

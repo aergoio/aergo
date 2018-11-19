@@ -67,6 +67,7 @@ func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
 
 type pbRequestOrder struct {
 	pbMessageOrder
+	respReceiver ResponseReceiver
 }
 
 func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
@@ -75,7 +76,11 @@ func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
 		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
-	p.requests[pr.message.ID()] = pr
+
+	p.reqMutex.Lock()
+	p.requests[pr.message.ID()] = &requestInfo{cTime:time.Now(), reqMO:pr, receiver: pr.respReceiver}
+	p.reqMutex.Unlock()
+
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
 
@@ -171,6 +176,16 @@ func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubPr
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4()).String()
 	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", protocolID, message, mf.signer) {
+		return rmo
+	}
+	return nil
+}
+
+func (mf *pbMOFactory) newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder {
+	rmo := &pbRequestOrder{}
+	msgID := uuid.Must(uuid.NewV4()).String()
+	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", protocolID, message, mf.signer) {
+		rmo.respReceiver = respReceiver
 		return rmo
 	}
 	return nil

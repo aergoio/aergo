@@ -18,6 +18,9 @@ import (
 const aergosystem = "aergo.system"
 
 var (
+	// Used for test.
+	test bool
+
 	// Used for flags.
 	home    string
 	cfgFile string
@@ -31,6 +34,13 @@ var (
 	from   string
 	to     string
 	amount uint64
+
+	address    string
+	stateroot  string
+	proof      bool
+	compressed bool
+
+	staking bool
 
 	remote       bool
 	importFormat string
@@ -50,8 +60,8 @@ func init() {
 	log.SetOutput(os.Stderr)
 	cobra.OnInitialize(initConfig)
 	rootCmd.SetOutput(os.Stdout)
-	rootCmd.PersistentFlags().StringVar(&home, "home", ".", "aergo home path")
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "config.toml", "config file (default is config.toml)")
+	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo cli home path")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is cliconfig.toml)")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
 }
@@ -81,6 +91,10 @@ func GetServerAddress() string {
 }
 
 func connectAergo(cmd *cobra.Command, args []string) {
+	if test {
+		return
+	}
+
 	serverAddr := GetServerAddress()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	var ok bool
@@ -91,6 +105,10 @@ func connectAergo(cmd *cobra.Command, args []string) {
 }
 
 func disconnectAergo(cmd *cobra.Command, args []string) {
+	if test {
+		return
+	}
+
 	if client != nil {
 		client.Close()
 	}

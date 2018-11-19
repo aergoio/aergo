@@ -7,6 +7,7 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"net"
 	"net/http"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
 )
@@ -49,8 +51,15 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 		msgHelper:   message.GetHelper(),
 		blockstream: []types.AergoRPCService_ListBlockStreamServer{},
 	}
+
+	tracer := opentracing.GlobalTracer()
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
+	}
+
+	if cfg.RPC.NetServiceTrace {
+		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
+		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 	}
 
 	grpcServer := grpc.NewServer(opts...)
@@ -108,12 +117,16 @@ func (ns *RPC) Receive(context actor.Context) {
 	case *types.Block:
 		server, _ := ns.actualServer.(*AergoRPCService)
 		server.BroadcastToListBlockStream(msg)
+	case *actor.Started:
+	case *actor.Stopping:
+	case *actor.Stopped:
+		// Ignore actor lfiecycle messages
 	default:
 		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
 	}
 }
 
-// Create HTTP handler that redirects matching requests to the grpc-web wrapper.
+// Create HTTP handler that redirects matching grpc-web requests to the grpc-web wrapper.
 func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
@@ -130,8 +143,7 @@ func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 	if err := server.Serve(l); err != nil {
 		switch err {
 		case cmux.ErrListenerClosed:
-			// sometimes this is occured when this is killed by signals
-			// but this is normal case, not bug. so skip
+			// Server killed, usually by ctrl-c signal
 		default:
 			panic(err)
 		}
@@ -165,6 +177,10 @@ func (ns *RPC) serve() {
 	httpL := tcpm.Match(cmux.HTTP1Fast())
 
 	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
+
+	if ns.conf.RPC.NSEnableTLS {
+		ns.Warn().Msg("TLS is enabled in configuration, but currently not supported")
+	}
 
 	// Server both servers
 	go ns.serveGRPC(grpcL, ns.grpcServer)

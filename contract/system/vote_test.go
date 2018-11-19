@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,12 +42,16 @@ func TestVoteResult(t *testing.T) {
 	defer deinitTest()
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	assert.NoError(t, err, "could not open contract state")
-
+	testResult := &map[string]uint64{}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		err := updateVoteResult(scs, []byte(to), (uint64)(i*i), true)
-		assert.NoError(t, err, "failed to updateVoteResult")
+		(*testResult)[base58.Encode([]byte(to))] = uint64(i * i)
 	}
+	err = InitVoteResult(scs, nil)
+	assert.NotNil(t, err, "argument should not nil")
+	err = InitVoteResult(scs, testResult)
+	assert.NoError(t, err, "failed to InitVoteResult")
+
 	const getTestSize = 23
 	result, err := GetVoteResult(scs, getTestSize)
 	assert.NoError(t, err, "could not get vote result")
@@ -55,7 +60,7 @@ func TestVoteResult(t *testing.T) {
 	for i, v := range result.Votes {
 		oldi := testSize - (i + 1)
 		assert.Falsef(t, v.Amount > oldAmount, "failed to sort result old:%d, %d:%d", oldAmount, i, v.Amount)
-		assert.Equalf(t, uint64(oldi*oldi), v.Amount, "not match amount value", oldAmount, i, v.Amount)
+		assert.Equalf(t, uint64(oldi*oldi), v.Amount, "not match amount value")
 		oldAmount = v.Amount
 	}
 }
@@ -70,20 +75,20 @@ func TestVoteData(t *testing.T) {
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
 		to := fmt.Sprintf("%39d", i)
-		amount, updateBlockNo, candidates, err := GetVote(scs, []byte(from))
+		vote, err := GetVote(scs, []byte(from))
 		assert.NoError(t, err, "failed to getVote")
-		assert.Zero(t, amount, "new amount value is already set")
-		assert.Zero(t, updateBlockNo, "new updateBlockNo value is already set")
-		assert.Nil(t, candidates, "new candidates value is already set")
+		assert.Zero(t, vote.Amount, "new amount value is already set")
+		assert.Nil(t, vote.Candidate, "new candidates value is already set")
 
-		err = setVote(scs, []byte(from), []byte(to), (uint64)(math.MaxInt64+i), (uint64)(i))
+		testVote := &types.Vote{Candidate: []byte(to), Amount: uint64(math.MaxInt64 + i)}
+
+		err = setVote(scs, []byte(from), testVote)
 		assert.NoError(t, err, "failed to setVote")
 
-		amount, updateBlockNo, candidates, err = getVote(scs, []byte(from))
+		vote, err = getVote(scs, []byte(from))
 		assert.NoError(t, err, "failed to getVote after set")
-		assert.Equal(t, uint64(math.MaxInt64+i), amount, "invalid amount")
-		assert.Equal(t, uint64(i), updateBlockNo, "invalid block number")
-		assert.Equal(t, []byte(to), candidates, "invalid candidates")
+		assert.Equal(t, uint64(math.MaxInt64+i), vote.Amount, "invalid amount")
+		assert.Equal(t, []byte(to), vote.Candidate, "invalid candidates")
 	}
 }
 

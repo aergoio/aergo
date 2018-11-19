@@ -5,7 +5,9 @@
 package system
 
 import (
-	"encoding/binary"
+	"bytes"
+	"encoding/gob"
+	"errors"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -23,12 +25,13 @@ func staking(txBody *types.TxBody, senderState *types.State,
 		return err
 	}
 
-	staked, _, err := getStaking(scs, txBody.Account)
+	staked, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return err
 	}
-
-	err = setStaking(scs, txBody.Account, staked+txBody.Amount, blockNo)
+	staked.Amount += txBody.Amount
+	staked.When = blockNo
+	err = setStaking(scs, txBody.Account, staked)
 	if err != nil {
 		return err
 	}
@@ -38,21 +41,24 @@ func staking(txBody *types.TxBody, senderState *types.State,
 }
 
 func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
-	staked, _, err := validateForUnstaking(txBody, scs, blockNo)
+	staked, err := validateForUnstaking(txBody, scs, blockNo)
 	if err != nil {
 		return err
 	}
 	amount := txBody.Amount
 	var backToBalance uint64
-	if staked < amount {
+	if staked.GetAmount() < amount {
 		amount = 0
-		backToBalance = staked
+		backToBalance = staked.GetAmount()
 	} else {
-		amount = staked - txBody.Amount
+		amount = staked.GetAmount() - txBody.Amount
 		backToBalance = txBody.Amount
 	}
-	err = setStaking(scs, txBody.Account, amount, 0)
+	staked.Amount = amount
 	//blockNo will be updated in voting
+	staked.When = 0 /*blockNo*/
+
+	err = setStaking(scs, txBody.Account, staked)
 	if err != nil {
 		return err
 	}
@@ -65,35 +71,37 @@ func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.Contra
 	return nil
 }
 
-func setStaking(scs *state.ContractState, who []byte, balance uint64, blockNo uint64) error {
+func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
 	key := append(stakingkey, who...)
-	v := make([]byte, 16)
-	binary.LittleEndian.PutUint64(v, balance)
-	binary.LittleEndian.PutUint64(v[8:], blockNo) //TODO:change to block no
-	//logger.Info().Str("key", util.enc.ToString(key)).Msg("VOTE setStaking")
-	//logger.Info().Uint64("balance", balance).Uint64("blockNo", blockNo).Msg("VOTE setStaking")
-	return scs.SetData(key, v)
+	var data bytes.Buffer
+	enc := gob.NewEncoder(&data)
+	err := enc.Encode(staking)
+	if err != nil {
+		return err
+	}
+	return scs.SetData(key, data.Bytes())
 }
 
-func getStaking(scs *state.ContractState, who []byte) (uint64, uint64, error) {
+func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
 	key := append(stakingkey, who...)
 	data, err := scs.GetData(key)
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
-	var staked uint64
-	var blockNo uint64
-	if cap(data) == 0 {
-		staked = 0
-		blockNo = 0
-	} else if cap(data) >= 8 {
-		staked = binary.LittleEndian.Uint64(data[:8])
-		blockNo = 0
-		if cap(data) >= 16 {
-			blockNo = binary.LittleEndian.Uint64(data[8:16])
+	var staking types.Staking
+	if len(data) != 0 {
+		dec := gob.NewDecoder(bytes.NewBuffer(data))
+		err = dec.Decode(&staking)
+		if err != nil {
+			return nil, err
 		}
 	}
-	//logger.Info().Str("key", util.enc.ToString(key)).Msg("VOTE getStaking")
-	//logger.Info().Uint64("staked", staked).Uint64("blockNo", blockNo).Msg("VOTE getStaking")
-	return staked, blockNo, nil
+	return &staking, nil
+}
+
+func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error) {
+	if address != nil {
+		return getStaking(scs, address)
+	}
+	return nil, errors.New("invalid argument : address should not nil")
 }

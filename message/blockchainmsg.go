@@ -63,8 +63,9 @@ type GetStateRsp struct {
 	Err   error
 }
 type GetStateAndProof struct {
-	Account []byte
-	Root    []byte
+	Account    []byte
+	Root       []byte
+	Compressed bool
 }
 type GetStateAndProofRsp struct {
 	StateProof *types.StateProof
@@ -103,6 +104,17 @@ type GetQueryRsp struct {
 	Result []byte
 	Err    error
 }
+type GetStateQuery struct {
+	ContractAddress []byte
+	VarName         string
+	VarIndex        string
+	Root            []byte
+	Compressed      bool
+}
+type GetStateQueryRsp struct {
+	Result *types.StateQueryProof
+	Err    error
+}
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.
 type SyncBlockState struct {
@@ -124,4 +136,31 @@ type GetVote struct {
 type GetVoteRsp struct {
 	Top *types.VoteList
 	Err error
+}
+
+type GetStaking struct {
+	Addr []byte
+}
+
+type GetStakingRsp struct {
+	Staking *types.Staking
+	Err     error
+}
+
+type GetAnchors struct{}
+type GetAnchorsRsp struct {
+	Hashes [][]byte
+	Err    error
+}
+
+// receive from p2p
+type GetAncestor struct {
+	Hashes   [][]byte
+	StopHash []byte
+}
+
+// response to p2p for GetAncestor message
+type GetAncestorRsp struct {
+	Ancestor *types.BlockInfo
+	Err      error
 }

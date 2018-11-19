@@ -7,15 +7,15 @@
 #include "state_module.h"
 #include "_cgo_export.h"
 
-lua_State *vm_newstate()
+lua_State *luac_vm_newstate()
 {
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
-	luaopen_state(L);
+	luac_open_state(L);
 	return L;
 }
 
-void vm_close(lua_State *L)
+void luac_vm_close(lua_State *L)
 {
 	if (L != NULL)
 		lua_close(L);
@@ -83,7 +83,6 @@ const char *vm_loadfile(lua_State *L, const char *code)
 	const char *errMsg = NULL;
 	if (luaL_loadfile(L, code) != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
 		return errMsg;
 	}
 	return NULL;
@@ -94,7 +93,6 @@ const char *vm_loadstring(lua_State *L, const char *code)
 	const char *errMsg = NULL;
 	if (luaL_loadstring(L, code) != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
 		return errMsg;
 	}
 	return NULL;

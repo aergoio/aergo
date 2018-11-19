@@ -13,6 +13,13 @@ static int state_map(lua_State *L)
     return 1;
 }
 
+static int state_array(lua_State *L)
+{
+    luaL_checkint(L, 1);
+    lua_newtable(L);
+    return 1;
+}
+
 static int state_value(lua_State *L)
 {
     lua_newtable(L);
@@ -34,10 +41,11 @@ static int state_var(lua_State *L)
     return 0;
 }
 
-int luaopen_state(lua_State *L)
+int luac_open_state(lua_State *L)
 {
     static const luaL_Reg state_lib[] = {
         {"map", state_map},
+        {"array", state_array},
         {"value", state_value},
         {"var", state_var},
         {NULL, NULL}

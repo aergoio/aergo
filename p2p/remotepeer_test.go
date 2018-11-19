@@ -238,9 +238,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
-			p.requests[mid1] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid1, timestamp:time.Now().Add(time.Minute * -61).Unix()}}}
-			p.requests[mid2] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid2, timestamp:time.Now().Add(time.Minute*-60 - time.Second).Unix()}}}
-			p.requests[midn] = &pbRequestOrder{pbMessageOrder{message: &V030Message{id:midn, timestamp:time.Now().Add(time.Minute * -60).Unix()}}}
+			p.requests[mid1] = &requestInfo{cTime:time.Now().Add(time.Minute * -61), reqMO:&pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid1}}, nil}}
+			p.requests[mid2] = &requestInfo{cTime:time.Now().Add(time.Minute * -60).Add(time.Second*-1), reqMO:&pbRequestOrder{pbMessageOrder{message: &V030Message{id:mid2}}, nil}}
+			p.requests[midn] = &requestInfo{cTime:time.Now().Add(time.Minute * -59), reqMO:&pbRequestOrder{pbMessageOrder{message: &V030Message{id:midn}}, nil}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -567,16 +567,65 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 
 			mockMF.On("newMsgTxBroadcastOrder",mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockMO)
 
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
-			target.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
-			target.maxTxNoticeHashSize = maxTxHashSize
-			//target.write.Open()
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
+			p.maxTxNoticeHashSize = maxTxHashSize
+			//p.write.Open()
 
-			target.pushTxsNotice(test.in)
+			p.pushTxsNotice(test.in)
 
 			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder",test.expectSend)
-			//target.write.Close()
+			//p.write.Close()
 
+		})
+	}
+}
+
+func TestRemotePeerImpl_GetReceiver(t *testing.T) {
+	idSize := 10
+	idList := make([]MsgID, idSize)
+	recvList := make(map[MsgID]ResponseReceiver)
+	for i:=0;i<idSize ; i++ {
+		idList[i] = NewMsgID()
+		recvList[idList[i]] = func(msg Message, msgBody proto.Message) bool {
+			logger.Debug().Int("seq", i).Msg("receiver called")
+			return true
+		}
+	}
+	// GetReceiver should not return nil and consumeRequest must be thread-safe
+	tests := []struct {
+		name string
+		toAdd []MsgID
+		inID MsgID
+		cotained bool
+	}{
+		// 1. not anything
+		{"TEmpty",idList[1:10],idList[0], false},
+		// 2. have request history but no receiver
+		{"TNOReceiver",idList[1:10],NewMsgID(), false},
+		// 3. have request history with receiver
+		{"THave",idList[1:10],idList[1], true},
+		// 4. have multiple receivers
+		// TODO maybe to make separate test
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(MockActorService)
+			mockPeerManager := new(MockPeerManager)
+			mockSigner := new (mockMsgSigner)
+			mockMF := new(MockMoFactory)
+			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil)
+			for _, add := range test.toAdd {
+				p.requests[add] = &requestInfo{receiver:recvList[add]}
+			}
+			actual := p.GetReceiver(test.inID)
+			assert.NotNil(t, actual)
+			assert.Equal(t, test.cotained, actual(nil, nil))
+
+			p.consumeRequest(test.inID)
+			actual2 := p.GetReceiver(test.inID)
+			assert.NotNil(t, actual2)
+			assert.Equal(t, false, actual2(nil, nil))
 		})
 	}
 }

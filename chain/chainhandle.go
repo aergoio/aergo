@@ -25,7 +25,19 @@ var (
 	ErrTxInvalidNonce        = errors.New("invalid nonce")
 	ErrTxInsufficientBalance = errors.New("insufficient balance")
 	ErrTxInvalidType         = errors.New("invalid type")
+	ErrorNoAncestor          = errors.New("not found ancestor")
+
+	InAddBlock = make(chan struct{}, 1)
 )
+
+type ErrBlock struct {
+	err   error
+	block *types.BlockInfo
+}
+
+func (ec *ErrBlock) Error() string {
+	return fmt.Sprintf("Error:%s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+}
 
 type ErrTx struct {
 	err error
@@ -54,6 +66,10 @@ func (cs *ChainService) GetBlock(blockHash []byte) (*types.Block, error) {
 
 func (cs *ChainService) getBlock(blockHash []byte) (*types.Block, error) {
 	return cs.cdb.getBlock(blockHash)
+}
+
+func (cs *ChainService) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	return cs.getHashByNo(blockNo)
 }
 
 func (cs *ChainService) getHashByNo(blockNo types.BlockNo) ([]byte, error) {
@@ -276,6 +292,13 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return err
 	}
 
+	select {
+	case InAddBlock <- struct{}{}:
+	}
+	defer func() {
+		<-InAddBlock
+	}()
+
 	cp, err := newChainProcessor(newBlock, usedBstate, cs)
 	if err != nil {
 		return err
@@ -292,7 +315,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	// unnecessary chain execution & rollback.
 	cp.reorganize()
 
-	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("added block successfully. ")
+	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("Block added successfully")
 
 	return nil
 }
@@ -549,7 +572,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 
 	bs.BpReward += txFee
 
-	if receiver.IsNew() {
+	if receiver.IsNew() && txBody.Recipient == nil {
 		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
 		return nil
 
@@ -625,20 +648,25 @@ func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block,
 
 		return err
 	}
-	// request missing
-	orphanNo := block.GetHeader().GetBlockNo()
-	bestNo := bestBlock.GetHeader().GetBlockNo()
-	if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
-		logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
-			Msg("skip sync with too old block")
-		return nil
+
+	if cs.cfg.Blockchain.UseFastSyncer {
+		cs.RequestTo(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: block.GetHeader().GetBlockNo()})
+	} else {
+		// request missing
+		orphanNo := block.GetHeader().GetBlockNo()
+		bestNo := bestBlock.GetHeader().GetBlockNo()
+		if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
+			logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
+				Msg("skip sync with too old block")
+			return nil
+		}
+		anchors := cs.getAnchorsFromHash(block.BlockHash())
+		hashes := make([]message.BlockHash, 0)
+		for _, a := range anchors {
+			hashes = append(hashes, message.BlockHash(a))
+		}
+		cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 	}
-	anchors := cs.getAnchorsFromHash(block.BlockHash())
-	hashes := make([]message.BlockHash, 0)
-	for _, a := range anchors {
-		hashes = append(hashes, message.BlockHash(a))
-	}
-	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
 
 	return nil
 }
@@ -694,6 +722,42 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 	}
 
 	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
+}
+
+func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
+	// 1. check endpoint is on main chain (or, return nil)
+	logger.Debug().Int("len", len(Hashes)).Msg("find ancestor")
+
+	var mainhash []byte
+	var mainblock *types.Block
+	var err error
+	// 2. get the highest block of Hashes hash on main chain
+	for _, hash := range Hashes {
+		// need to be short
+		mainblock, err = cs.cdb.getBlock(hash)
+		if err != nil {
+			continue
+		}
+		// get main hash with same block height
+		mainhash, err = cs.cdb.getHashByNo(
+			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
+		if err != nil {
+			continue
+		}
+
+		if bytes.Equal(mainhash, mainblock.BlockHash()) {
+			break
+		}
+		mainblock = nil
+	}
+
+	// TODO: handle the case that can't find the hash in main chain
+	if mainblock == nil {
+		logger.Debug().Msg("Can't search same ancestor")
+		return nil, ErrorNoAncestor
+	}
+
+	return &types.BlockInfo{Hash: mainblock.GetHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {

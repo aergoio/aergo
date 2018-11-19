@@ -80,6 +80,9 @@ type InOutPeer struct {
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	var err error
+	if source == nil {
+		return errors.New("tx body is empty")
+	}
 	target.Nonce = source.Nonce
 	if source.Account != "" {
 		target.Account, err = types.DecodeAddress(source.Account)
@@ -161,6 +164,9 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 
 func ConvTx(tx *types.Tx) *InOutTx {
 	out := &InOutTx{Body: &InOutTxBody{}}
+	if tx == nil {
+		return out
+	}
 	out.Hash = base58.Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
 	if tx.Body.Account != nil {
@@ -188,16 +194,20 @@ func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
 
 func ConvBlock(b *types.Block) *InOutBlock {
 	out := &InOutBlock{}
-	out.Hash = base58.Encode(b.Hash)
-	out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
-	out.Header.BlockNo = b.GetHeader().GetBlockNo()
-	out.Header.Timestamp = b.GetHeader().GetTimestamp()
-	out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
-	out.Header.Confirms = b.GetHeader().GetConfirms()
-	out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
-	out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
-	for _, tx := range b.Body.Txs {
-		out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+	if b != nil {
+		out.Hash = base58.Encode(b.Hash)
+		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
+		out.Header.BlockNo = b.GetHeader().GetBlockNo()
+		out.Header.Timestamp = b.GetHeader().GetTimestamp()
+		out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
+		out.Header.Confirms = b.GetHeader().GetConfirms()
+		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
+		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
+		if b.Body != nil {
+			for _, tx := range b.Body.Txs {
+				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
+			}
+		}
 	}
 	return out
 }
@@ -211,6 +221,20 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()
 	return out
+}
+
+func ConvBlockchainStatus(in *types.BlockchainStatus) string {
+	out := &InOutBlockchainStatus{}
+	if in == nil {
+		return ""
+	}
+	out.Hash = base58.Encode(in.BestBlockHash)
+	out.Height = in.BestHeight
+	jsonout, err := json.Marshal(out)
+	if err != nil {
+		return ""
+	}
+	return string(jsonout)
 }
 
 func TxConvBase58Addr(tx *types.Tx) string {

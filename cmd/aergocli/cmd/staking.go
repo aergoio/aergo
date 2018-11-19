@@ -53,7 +53,7 @@ func sendStaking(cmd *cobra.Command, s bool) {
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
-			Recipient: []byte(aergosystem),
+			Recipient: []byte(types.AergoSystem),
 			Amount:    amount,
 			Price:     0,
 			Payload:   payload,

@@ -15,11 +15,13 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
-	maxAccount   = 1000
-	maxRecipient = 1000
+	maxAccount       = 1000
+	maxRecipient     = 1000
+	maxBlockBodySize = 10485760
 )
 
 var (
@@ -127,24 +129,19 @@ func TestInvalidTransaction(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	err := pool.put(genTx(0, 1, 1, defaultBalance*2))
-	if err != types.ErrInsufficientBalance {
-		t.Errorf("check valid failed, err != ErrInsufficientBalance, but %s", err)
-	}
+	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "wrong err")
 
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != nil {
-		t.Errorf("tx should be accepted, err:%s", err)
-	}
+	assert.NoError(t, err, "tx should be accepted")
+
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != types.ErrTxAlreadyInMempool {
-		t.Errorf("tx should be denied /w ErrTxAlreadyInMempool, err:%s", err)
-	}
+	assert.EqualError(t, err, types.ErrTxAlreadyInMempool.Error(), "tx should be denied")
+
 	txs := []*types.Tx{genTx(0, 1, 1, 1)}
 	simulateBlockGen(txs...)
+
 	err = pool.put(genTx(0, 1, 1, 1))
-	if err != types.ErrTxNonceTooLow {
-		t.Errorf("tx should be denied /w ErrTxNonceTooLow, err:%s", err)
-	}
+	assert.EqualError(t, err, types.ErrTxNonceTooLow.Error(), "tx should be denied")
 }
 
 /*
@@ -173,73 +170,65 @@ func TestOrphanTransaction(t *testing.T) {
 	defer deinitTest()
 
 	err := pool.put(genTx(0, 1, 1, 2))
-	if err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
+	assert.NoError(t, err, "tx should be accepted")
+
 	// tx inject order : 1 3 5 2 4 10 9 8 7 6
 	// non-sequential nonce should be accepted (orphan) but not counted
-	if err = pool.put(genTx(0, 1, 3, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if err = pool.put(genTx(0, 1, 5, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
+	err = pool.put(genTx(0, 1, 3, 2))
+	assert.NoError(t, err, "tx should be accepted")
 
-	if p1, p2 := pool.Size(); !(p1 == 3 && p2 == 2) {
-		t.Errorf("invalid count status pool:%d orphan:%d", p1, p2)
-	}
+	err = pool.put(genTx(0, 1, 5, 2))
+	assert.NoError(t, err, "tx should be accepted")
 
-	if err = pool.put(genTx(0, 1, 2, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if p1, p2 := pool.Size(); !(p1 == 4 && p2 == 1) {
-		t.Errorf("invalid count status pool:%d orphan:%d", p1, p2)
-	}
-	if err = pool.put(genTx(0, 1, 4, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if p1, p2 := pool.Size(); !(p1 == 5 && p2 == 0) {
-		t.Errorf("invalid count status pool:%d orphan:%d", p1, p2)
-	}
+	total, orphan := pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{3, 2}, "wrong mempool stat")
 
-	if err = pool.put(genTx(0, 1, 10, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if err = pool.put(genTx(0, 1, 9, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if err = pool.put(genTx(0, 1, 8, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if err = pool.put(genTx(0, 1, 7, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if p1, p2 := pool.Size(); !(p1 == 9 && p2 == 4) {
-		t.Errorf("invalid count status pool:%d orphan:%d", p1, p2)
-	}
+	err = pool.put(genTx(0, 1, 2, 2))
+	assert.NoError(t, err, "tx should be accepted")
 
-	//pool.pool[getAccount(genTx(0, 1, 1, 1))].CheckSanity()
-	//pool.pending[getAccount(genTx(0, 1, 1, 1))].CheckSanity()
-	if err = pool.put(genTx(0, 1, 6, 2)); err != nil {
-		t.Error("put tx should be succeeded", err)
-	}
-	if p1, p2 := pool.Size(); !(p1 == 10 && p2 == 0) {
-		t.Errorf("invalid count status pool:%d orphan:%d", p1, p2)
-	}
+	total, orphan = pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{4, 1}, "wrong mempool stat")
 
+	err = pool.put(genTx(0, 1, 4, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	total, orphan = pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{5, 0}, "wrong mempool stat")
+
+	err = pool.put(genTx(0, 1, 10, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	err = pool.put(genTx(0, 1, 9, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	err = pool.put(genTx(0, 1, 8, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	err = pool.put(genTx(0, 1, 7, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	total, orphan = pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{9, 4}, "wrong mempool stat")
+
+	err = pool.put(genTx(0, 1, 6, 2))
+	assert.NoError(t, err, "tx should be accepted")
+
+	total, orphan = pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{10, 0}, "wrong mempool stat")
 }
+
 func TestBasics2(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
 
-	accCount := 100
+	accCount := 1000
 	txCount := 1000
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)
-		//nonce[i] = uint64(txCount -i+1)
 	}
+
 	for i := 0; i < accCount; i++ {
 		rand.Shuffle(txCount, func(i, j int) {
 			nonce[i], nonce[j] = nonce[j], nonce[i]
@@ -251,23 +240,13 @@ func TestBasics2(t *testing.T) {
 	}
 
 	for _, tx := range txs {
-		errs := pool.puts(tx)
-
-		if errs[0] != nil {
-			t.Errorf("th - tx should be added(%s),", errs)
-		}
+		err := pool.put(tx)
+		assert.NoError(t, err, "tx should be accepted")
 	}
 
-	txsMempool, err := pool.get()
-	if err != nil {
-		t.Errorf("Getting tx should be succeeded, %s", err)
-	}
-	t.Log(len(txsMempool))
-	/*
-		if !sameTxs(txs, txsMempool) {
-			t.Error("should be same")
-		}
-	*/
+	txsMempool, err := pool.get(maxBlockBodySize * 10)
+	assert.NoError(t, err, "get failed")
+	assert.Equal(t, len(txsMempool), len(txs))
 }
 
 // gen sequential transactions
@@ -282,7 +261,6 @@ func TestBasics(t *testing.T) {
 	nonce := make([]uint64, txCount)
 	for i := 0; i < txCount; i++ {
 		nonce[i] = uint64(i + 1)
-		//nonce[i] = uint64(txCount -i+1)
 	}
 	for i := 0; i < accCount; i++ {
 		rand.Shuffle(txCount, func(i, j int) {
@@ -293,24 +271,17 @@ func TestBasics(t *testing.T) {
 			txs = append(txs, tmp)
 		}
 	}
-	errs := pool.puts(txs...)
 
-	if len(errs) != accCount*txCount {
-		t.Error("error count invalid", len(errs))
-	}
+	errs := pool.puts(txs...)
+	assert.Equal(t, len(errs), accCount*txCount, "error length is different")
+
 	for i := 0; i < len(errs); i++ {
-		if errs[i] != nil {
-			t.Errorf("%dth - tx should be added(%s),", i, errs[i])
-		}
+		assert.NoError(t, errs[i], "%dth tx failed", i)
 	}
-	txsMempool, err := pool.get()
-	if err != nil {
-		t.Errorf("Getting tx should be succeeded, %s", err)
-	}
-	t.Log(len(txsMempool))
-	if !sameTxs(txs, txsMempool) {
-		t.Error("should be same")
-	}
+
+	txsMempool, err := pool.get(maxBlockBodySize)
+	assert.NoError(t, err, "get failed")
+	assert.Equal(t, len(txsMempool), len(txs))
 }
 
 func TestDeleteOTxs(t *testing.T) {
@@ -322,15 +293,15 @@ func TestDeleteOTxs(t *testing.T) {
 		txs = append(txs, tmp)
 	}
 	pool.puts(txs...)
-	if ps, _ := pool.Size(); ps != 5 {
-		t.Errorf("pool should contain 5 , %d", ps)
-	}
+
+	total, orphan := pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{5, 0}, "wrong mempool stat")
 
 	txs[4] = genTx(0, 1, 5, 150)
 	simulateBlockGen(txs...)
-	if r, o := pool.Size(); r != 0 || o != 0 {
-		t.Error("pool should contain nothing", r, o)
-	}
+
+	total, orphan = pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{0, 0}, "wrong mempool stat")
 }
 
 // add 100 sequential txs and simulate to generate block 10time.
@@ -345,40 +316,37 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 		txs = append(txs, tmp)
 	}
 	pool.puts(txs...)
-	if ps, _ := pool.Size(); ps != 100 {
-		t.Errorf("pool should contain 100 , %d", ps)
-	}
-	//suppose 10 txs are select into new block
 
+	total, orphan := pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{100, 0}, "wrong mempool stat")
+
+	//suppose 10 txs are select into new block
 	for j := 0; j < 10; j++ {
 		simulateBlockGen(txs[:10]...)
-		if ps, _ := pool.Size(); ps != 10*(9-j) {
-			t.Errorf("pool should contain 90 , %d", ps)
-		}
+
+		total, orphan := pool.Size()
+		assert.EqualValuesf(t, []int{total, orphan}, []int{10 * (9 - j), 0}, "wrong mempool stat")
 
 		removed := txs[:10]
+
 		for _, tx := range removed {
-			if pool.exists(tx.Hash) != nil {
-				t.Errorf("wrong tx removed [%s]", tx.GetBody().String())
-			}
+			found := pool.exists(tx.Hash)
+			assert.Nil(t, found, "wrong transaction removed")
 		}
 
 		leftover := txs[10:]
 		for _, tx := range leftover {
-			if pool.exists(tx.Hash) == nil {
-				t.Errorf("wrong tx removed [%s]", tx.GetBody().String())
-			}
+			found := pool.exists(tx.Hash)
+			assert.NotNil(t, found, "wrong transaction removed")
 		}
 		txs = txs[10:]
 	}
 
-	if l, e := pool.get(); e != nil || len(l) != 0 {
-		t.Fatalf("there's leftover")
-	}
+	l, e := pool.get(maxBlockBodySize)
+	assert.NoError(t, e, "get should succeed")
+	assert.Equalf(t, len(l), 0, "leftover found")
 }
 
-// suppose txs appended with orphan
-//
 func TestDeleteInvokeRearrange(t *testing.T) {
 
 	initTest(t)
@@ -398,14 +366,12 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 		if _, v := missing[i]; v {
 			continue
 		}
-		if pool.put(tmp) != nil {
-			t.Errorf("pool should accept tx")
-			//			t.Errorf("???? %d %d", getNonce(tmp), tmp.GetBody().GetNonce())
-		}
+		assert.NoError(t, pool.put(tmp), "tx should be accepted")
 	}
-	if ps, os := pool.Size(); ps != 37 || os != 31 {
-		t.Errorf("pool should contain 100 , %d, %d", ps, os)
-	}
+
+	total, orphan := pool.Size()
+	assert.EqualValuesf(t, []int{total, orphan}, []int{37, 31}, "wrong mempool stat")
+
 	// txs currently
 	// ready: 1~6 orphan: 10~16, 20~26, 30~32, 36~49
 	// test senario : check boundary, middle, end of each tx chunk
@@ -427,9 +393,8 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 		//t.Errorf("%d, %d, %d", i, p1, p2)
 		removed := txs[s:e]
 		for _, tx := range removed {
-			if pool.exists(tx.Hash) != nil {
-				t.Errorf("wrong tx removed [%s]", tx.GetBody().String())
-			}
+			found := pool.exists(tx.Hash)
+			assert.Nil(t, found, "wrong transaction removed")
 		}
 
 		leftover := txs[e:]

@@ -25,13 +25,29 @@ func (_m *MockMoFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice
 	return r0
 }
 
-// newMsgRequestOrder provides a mock function with given fields: expecteResponse, protocolID, message
-func (_m *MockMoFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
-	ret := _m.Called(expecteResponse, protocolID, message)
+// newMsgRequestOrder provides a mock function with given fields: expectedResponse, protocolID, message
+func (_m *MockMoFactory) newMsgRequestOrder(expectResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
+	ret := _m.Called(expectResponse, protocolID, message)
 
 	var r0 msgOrder
 	if rf, ok := ret.Get(0).(func(bool, SubProtocol, pbMessage) msgOrder); ok {
-		r0 = rf(expecteResponse, protocolID, message)
+		r0 = rf(expectResponse, protocolID, message)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(msgOrder)
+		}
+	}
+
+	return r0
+}
+
+// newMsgBlockRequestOrder provides a mock function with given fields: respReceiver, protocolID, message
+func (_m *MockMoFactory) newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder {
+	ret := _m.Called(respReceiver, protocolID, message)
+
+	var r0 msgOrder
+	if rf, ok := ret.Get(0).(func(ResponseReceiver, SubProtocol, pbMessage) msgOrder); ok {
+		r0 = rf(respReceiver, protocolID, message)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(msgOrder)

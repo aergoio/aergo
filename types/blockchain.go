@@ -51,7 +51,51 @@ func getLastIndexOfBH() (lastIndex int) {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetBestBlock() (*Block, error)
+	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)
+	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
+	GetHashByNo(blockNo BlockNo) ([]byte, error)
+}
+
+type SyncContext struct {
+	PeerID peer.ID
+
+	BestNo   BlockNo
+	TargetNo BlockNo //sync target blockno
+
+	CommonAncestor *BlockInfo
+
+	TotalCnt   uint64
+	RemainCnt  uint64
+	LastAnchor []byte
+}
+
+func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
+	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo}
+}
+
+func (ctx *SyncContext) SetAncestor(ancestor *BlockInfo) {
+	ctx.CommonAncestor = ancestor
+	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.No
+	ctx.RemainCnt = ctx.TotalCnt
+}
+
+// NodeInfo is used for actor message to send block info
+type BlockInfo struct {
+	Hash []byte
+	No   BlockNo
+}
+
+func (bi *BlockInfo) Equal(target *BlockInfo) bool {
+	if target == nil {
+		return false
+	}
+
+	if bi.No == target.No && bytes.Equal(bi.Hash, target.Hash) {
+		return true
+	} else {
+		return false
+	}
 }
 
 // BlockNo is the height of a block, which starts from 0 (genesis block).
