@@ -3,15 +3,12 @@
 
 # build result
 /bin
+/build
 debug
 debug.test
 Gopkg.lock
 *.o
 *.a
-CMakeFiles/
-cmake_install.cmake
-CMakeCache.txt
-Makefile
 
 # vim swp file
 *.swp
