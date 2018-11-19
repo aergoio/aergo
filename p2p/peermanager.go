@@ -338,13 +338,13 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 	var peerID = meta.ID
 	pm.mutex.Lock()
-	newPeer, ok := pm.remotePeers[peerID]
+	inboundPeer, ok := pm.remotePeers[peerID]
 	if ok {
-		// peer is already exist
-		pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Peer is already managed by peermanager")
+		// peer is already exist (and maybe inbound peer)
+		pm.logger.Info().Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("Peer is already managed by peermanager")
 		if meta.Designated {
 			// If remote peer was connected first. designated flag is not set yet.
-			newPeer.meta.Designated = true
+			inboundPeer.meta.Designated = true
 		}
 		pm.mutex.Unlock()
 		return true
@@ -381,30 +381,30 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 
 	pm.mutex.Lock()
-	newPeer, ok = pm.remotePeers[peerID]
+	inboundPeer, ok = pm.remotePeers[peerID]
 	if ok {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and remote peer is higher priority and close this outbound connection.")
+			pm.logger.Info().Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("Inbound connection was already handshaked while handshaking outbound connection, and remote peer is higher priority so closing this outbound connection.")
 			pm.mutex.Unlock()
 			pm.sendGoAway(rw, "Already handshaked")
 			s.Close()
 			return true
 		} else {
-			pm.logger.Info().Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("Inbound connection  was already handshaked while handshaking outbound connection, and local peer is higher priority and reming this outbound connection.")
+			pm.logger.Info().Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("Inbound connection was already handshaked while handshaking outbound connection, but local peer is higher priority so closing that inbound connection")
 			// disconnect lower valued connection
 			pm.deletePeer(meta.ID)
-			newPeer.stop()
+			inboundPeer.stop()
 		}
 	}
 
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	newPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
+	inboundPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
-	pm.handlerFactory.insertHandlers(newPeer)
-	go newPeer.runPeer()
-	pm.insertPeer(peerID, newPeer)
+	pm.handlerFactory.insertHandlers(inboundPeer)
+	go inboundPeer.runPeer()
+	pm.insertPeer(peerID, inboundPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
 	pm.mutex.Unlock()
 
@@ -413,7 +413,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	for i, addr := range addrs {
 		addrStrs[i] = addr.String()
 	}
-	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("addresses of peer")
+	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
 
 	// peer is ready
 	h.doInitialSync()
@@ -544,23 +544,24 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	peerID := meta.ID
-	peer, found := pm.remotePeers[peerID]
+	outboundPeer, found := pm.remotePeers[peerID]
 
 	if found {
 		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and remote peer is higher priority and close this inbound connection.")
-			return false
-		} else {
-			pm.logger.Info().Str(LogPeerID, peer.meta.ID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, and local peer is higher priority and remain this inbound connection.")
-			// disconnect lower valued connection
+			pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Outbound connection was already handshaked while handshaking inbound connection, and remote peer is higher priority so closing that outbound connection.")
+			pm.sendGoAway(rw, "Already handshaked")
 			pm.deletePeer(meta.ID)
-			peer.stop()
+			outboundPeer.stop()
+		} else {
+			pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, but local peer is higher priority and closing this inbound connection.")
+			// disconnect lower valued connection
+			return false
 		}
 	}
-	peer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
-	pm.handlerFactory.insertHandlers(peer)
-	go peer.runPeer()
-	pm.insertPeer(peerID, peer)
+	inboundPeer := newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
+	pm.handlerFactory.insertHandlers(inboundPeer)
+	go inboundPeer.runPeer()
+	pm.insertPeer(peerID, inboundPeer)
 	peerAddr := meta.ToPeerAddress()
 
 	addrs := pm.Peerstore().Addrs(peerID)
@@ -568,7 +569,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	for i, addr := range addrs {
 		addrStrs[i] = addr.String()
 	}
-	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, peer.meta.ID.Pretty()).Msg("addresses of peer")
+	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
 	return true
 }
