@@ -96,21 +96,9 @@ We are developing the most practical and powerful platform for blockchain busine
 
 ### Build
 
-#### Unix, Mac
-
 ```
 $ go get -d github.com/aergoio/aergo/account
 $ cd ${GOPATH}/src/github.com/aergoio/aergo
-$ cmake .
-$ make
-```
-
-#### Windows
-
-```
-$ go get -d github.com/aergoio/aergo/account
-$ cd ${GOPATH}/src/github.com/aergoio/aergo
-$ cmake -G "Unix Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make.exe .
 $ make
 ```
 
