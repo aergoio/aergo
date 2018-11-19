@@ -232,8 +232,6 @@ get_opt(env_t *env, int argc, char **argv)
 
         if (strcmp(argv[i], "--verbose") == 0)
             flag_set(env->flag, FLAG_VERBOSE);
-        else if (strcmp(argv[i], "--ast-dump") == 0)
-            flag_set(env->flag, FLAG_AST_DUMP);
         else if (strcmp(argv[i], "--lex-dump") == 0)
             flag_set(env->flag, FLAG_LEX_DUMP);
         else if (strcmp(argv[i], "--yacc-dump") == 0)

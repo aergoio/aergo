@@ -11,6 +11,6 @@
 #include "ast_blk.h"
 #include "gen.h"
 
-void blk_gen(gen_t *gen, ast_blk_t *blk);
+BinaryenExpressionRef blk_gen(gen_t *gen, ast_blk_t *blk);
 
 #endif /* ! _GEN_BLK_H */

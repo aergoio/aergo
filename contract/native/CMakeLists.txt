@@ -32,6 +32,7 @@ set(libascl_SRCS
     gen_blk.c
     gen_stmt.c
     gen_exp.c
+    gen_meta.c
     assert.c
     error.c
     strbuf.c

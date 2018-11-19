@@ -15,10 +15,14 @@ typedef struct gen_s {
     flag_t flag;
 
     ast_blk_t *root;
-
     BinaryenModuleRef module;
+
+    char path[PATH_MAX_LEN + 5];
+
+    int buf_size;
+    char *buf;
 } gen_t;
 
-void gen(ast_t *ast, flag_t flag);
+void gen(ast_t *ast, flag_t flag, char *path);
 
 #endif /* ! _GEN_H */

@@ -11,6 +11,6 @@
 #include "ast_exp.h"
 #include "gen.h"
 
-void exp_gen(gen_t *gen, ast_exp_t *exp);
+BinaryenExpressionRef exp_gen(gen_t *gen, ast_exp_t *exp);
 
 #endif /* ! _GEN_EXP_H */

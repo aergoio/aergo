@@ -24,9 +24,4 @@ ast_new(void)
     return ast;
 }
 
-void 
-ast_dump(ast_t *ast)
-{
-}
-
 /* end of ast.c */

@@ -11,6 +11,6 @@
 #include "ast_id.h"
 #include "gen.h"
 
-void id_gen(gen_t *gen, ast_id_t *id);
+BinaryenExpressionRef id_gen(gen_t *gen, ast_id_t *id);
 
 #endif /* ! _GEN_ID_H */

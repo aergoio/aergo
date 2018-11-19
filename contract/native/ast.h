@@ -34,6 +34,4 @@ extern int node_num_;
 
 ast_t *ast_new(void);
 
-void ast_dump(ast_t *ast);
-
 #endif /* ! _AST_H */

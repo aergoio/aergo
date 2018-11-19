@@ -33,6 +33,19 @@ close_file(FILE *fp)
     fclose(fp);
 }
 
+void
+write_file(char *path, char *str, int len)
+{
+    int n;
+    FILE *fp = open_file(path, "w+");
+
+    n = fwrite(str, len, 1, fp);
+    if (n == 0)
+        FATAL(ERROR_FILE_IO, path, strerror(errno));
+
+    close_file(fp);
+}
+
 char *
 strtrim(char *str, char *ptn)
 {

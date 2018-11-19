@@ -59,4 +59,9 @@ error(ERROR_DUPLICATED_ENUM_VAL,    "duplicated enumerator value")
 error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
 error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 
+/******************************************************************************
+ * wasm generator
+ *****************************************************************************/
+error(ERROR_BINARY_OVERFLOW,        "binary length overflows 1048576 bytes")
+
 /* vim:set filetype=c: */

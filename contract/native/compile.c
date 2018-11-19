@@ -25,13 +25,10 @@ compile(char *path, flag_t flag)
     preprocess(path, flag, &src);
     parse(path, flag, &src, &ast);
 
-    if (flag_on(flag, FLAG_AST_DUMP))
-        ast_dump(ast);
-
     check(ast, flag);
 
     if (is_no_error())
-        gen(ast, flag);
+        gen(ast, flag, path);
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();

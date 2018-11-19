@@ -10,105 +10,110 @@
 
 #include "gen_stmt.h"
 
-static void
+static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
+    BinaryenExpressionRef value;
+
+    value = exp_gen(gen, stmt->u_assign.r_exp);
+
+    return BinaryenSetLocal(gen->module, 0, value);
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_loop(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_jump(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_goto(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_ddl(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-static void
+static BinaryenExpressionRef
 stmt_gen_blk(gen_t *gen, ast_stmt_t *stmt)
 {
+    return NULL;
 }
 
-void
+BinaryenExpressionRef
 stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
     case STMT_NULL:
-        break;
+        return BinaryenNop(gen->module);
 
     case STMT_EXP:
-        exp_gen(gen, stmt->u_exp.exp);
-        break;
+        return exp_gen(gen, stmt->u_exp.exp);
 
     case STMT_ASSIGN:
-        stmt_gen_assign(gen, stmt);
-        break;
+        return stmt_gen_assign(gen, stmt);
 
     case STMT_IF:
-        stmt_gen_if(gen, stmt);
-        break;
+        return stmt_gen_if(gen, stmt);
 
     case STMT_LOOP:
-        stmt_gen_loop(gen, stmt);
-        break;
+        return stmt_gen_loop(gen, stmt);
 
     case STMT_SWITCH:
-        stmt_gen_switch(gen, stmt);
-        break;
+        return stmt_gen_switch(gen, stmt);
 
     case STMT_RETURN:
-        stmt_gen_return(gen, stmt);
-        break;
+        return stmt_gen_return(gen, stmt);
 
     case STMT_CONTINUE:
-        stmt_gen_jump(gen, stmt);
-        break;
+        return stmt_gen_jump(gen, stmt);
 
     case STMT_BREAK:
         /* TODO: because of switch statement, we will handle this later */
-        break;
+        return NULL;
 
     case STMT_GOTO:
-        stmt_gen_goto(gen, stmt);
-        break;
+        return stmt_gen_goto(gen, stmt);
 
     case STMT_DDL:
-        stmt_gen_ddl(gen, stmt);
-        break;
+        return stmt_gen_ddl(gen, stmt);
 
     case STMT_BLK:
-        stmt_gen_blk(gen, stmt);
-        break;
+        return stmt_gen_blk(gen, stmt);
 
     default:
         ASSERT1(!"invalid statement", stmt->kind);
     }
+
+    return NULL;
 }
 
 /* end of gen_stmt.c */

@@ -11,6 +11,6 @@
 #include "ast_stmt.h"
 #include "gen.h"
 
-void stmt_gen(gen_t *gen, ast_stmt_t *stmt);
+BinaryenExpressionRef stmt_gen(gen_t *gen, ast_stmt_t *stmt);
 
 #endif /* ! _GEN_STMT_H */
