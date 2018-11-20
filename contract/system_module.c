@@ -139,7 +139,6 @@ static int getContractID(lua_State *L)
 static int getCreator(lua_State *L)
 {
 	const bc_ctx_t *exec = getLuaExecContext(L);
-	char *value;
 	int ret;
 
 	if (exec == NULL) {
@@ -151,20 +150,29 @@ static int getCreator(lua_State *L)
 	}
 	if (ret == 0)
 		return 0;
-	value = (char *)luaL_checkstring(L, -1);
+	luaL_checkstring(L, -1);
 	return 1;
 }
 
 static int getAmount(lua_State *L)
 {
 	const bc_ctx_t *exec = getLuaExecContext(L);
-	char *value;
-	int ret;
 
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 	lua_pushinteger(L, exec->amount);
+	return 1;
+}
+
+static int getOrigin(lua_State *L)
+{
+	const bc_ctx_t *exec = getLuaExecContext(L);
+
+	if (exec == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	lua_pushstring(L, exec->origin);
 	return 1;
 }
 
@@ -178,6 +186,7 @@ static const luaL_Reg sys_lib[] = {
 	{"getBlockheight", getBlockHeight},
 	{"getTimestamp", getTimestamp},
 	{"getContractID", getContractID},
+	{"getOrigin", getOrigin},
 	{"getAmount", getAmount},
 	{NULL, NULL}
 };

@@ -9,6 +9,7 @@
 typedef struct blockchain_ctx {
 	char *stateKey;
 	char *sender;
+	char *origin;
 	char *contractId;
 	char *txHash;
 	unsigned long long blockHeight;

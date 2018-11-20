@@ -1874,10 +1874,14 @@ func TestPcall(t *testing.T) {
 		return system.getItem("count")
 	end
 
+	function getOrigin()
+		return system.getOrigin()
+	end
+
 	function set(val)
 		system.setItem("count", val)
 	end
-	abi.register(inc,get,set, init, pkins1, pkins2, pkget)
+	abi.register(inc,get,set, init, pkins1, pkins2, pkget, getOrigin)
 	`
 
 	bc, err := LoadDummyChain()
@@ -1936,7 +1940,11 @@ func TestPcall(t *testing.T) {
 	function sqlget()
 		return contract.call(system.getItem("addr"), "pkget")
 	end
-	abi.register(add, dadd, get, dget, send, sql, sqlget)
+
+	function getOrigin()
+		return contract.call(system.getItem("addr"), "getOrigin")
+	end
+	abi.register(add, dadd, get, dget, send, sql, sqlget, getOrigin)
 	`
 	bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
@@ -1951,6 +1959,13 @@ func TestPcall(t *testing.T) {
 	err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
+	}
+
+	tx := NewLuaTxCall("ktlee", "caller", 5, `{"Name":"getOrigin", "Args":[]}`)
+	bc.ConnectBlock(tx)
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 
 	definition3 := `
@@ -1979,7 +1994,12 @@ func TestPcall(t *testing.T) {
 	function get()
 		return system.getItem("arg")
 	end
-	abi.register(set, set2, get)
+	
+	function getBalance()
+		return contract.balance()
+	end
+
+	abi.register(set, set2, get, getBalance)
 	`
 
 	bc, err = LoadDummyChain()
@@ -1992,11 +2012,15 @@ func TestPcall(t *testing.T) {
 		NewLuaTxAccount("bong", 0),
 		NewLuaTxDef("ktlee", "counter", 10, definition3),
 	)
-	tx := NewLuaTxCall("ktlee", "counter", 10,
+	tx = NewLuaTxCall("ktlee", "counter", 10,
 		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
 
 	bc.ConnectBlock(tx)
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "18")
 	if err != nil {
 		t.Error(err)
 	}

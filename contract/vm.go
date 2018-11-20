@@ -125,6 +125,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		service:     C.int(service),
 		amount:      C.ulonglong(amount),
 	}
+	bcCtx.origin = bcCtx.sender
 	registerMap(bcCtx, blockState, senderState, contractState, root)
 
 	return bcCtx
@@ -783,6 +784,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
 		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, callState.curState.SqlRecoveryPoint,
 		int(bcCtx.service), amount)
+	newBcCtx.origin = bcCtx.origin
 	ce := newExecutor(callee, newBcCtx)
 	defer ce.close(true)
 
@@ -1049,4 +1051,45 @@ func setRecoveryPoint(contractId *string, rootState *StateSet, senderState *type
 		recoveryEntry.sqlSaveName = &saveName
 	}
 	rootState.lastRecoveryEntry = recoveryEntry
+}
+
+//export LuaGetBalance
+func LuaGetBalance(L *LState, bcCtx *LBlockchainCtx, contractId *C.char) C.int {
+	stateKeyStr := C.GoString(bcCtx.stateKey)
+
+	if contractId == nil {
+		stateSet := contractMap.lookup(stateKeyStr)
+
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.contract.GetBalance()))
+		return 0
+	}
+	contractIdStr := C.GoString(contractId)
+	cid, err := types.DecodeAddress(contractIdStr)
+	if err != nil {
+		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
+		return -1
+	}
+
+	stateSet := contractMap.lookup(stateKeyStr)
+	if stateSet == nil {
+		luaPushStr(L, "[System.LuaCallContract]not found contract state")
+		return -1
+	}
+
+	rootState := stateSet.rootState
+	callState := rootState.callState[contractIdStr]
+	if callState == nil {
+		bs := rootState.bs
+
+		as, err := bs.GetAccountState(types.ToAccountID(cid))
+		if err != nil {
+			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
+			return -1
+		}
+		C.lua_pushinteger(L, C.lua_Integer(as.GetBalance()))
+	} else {
+		C.lua_pushinteger(L, C.lua_Integer(callState.curState.GetBalance()))
+	}
+
+	return 0
 }

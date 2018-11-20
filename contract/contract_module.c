@@ -175,7 +175,30 @@ static int moduleSend(lua_State *L)
 		lua_error(L);
 	}
 
-	return ret;
+	return 0;
+}
+
+static int moduleBalance(lua_State *L)
+{
+	char *contract;
+	int ret;
+	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	lua_Integer amount;
+
+	if (exec == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+    if (lua_gettop(L) == 0 || lua_isnil(L, 1))
+        contract = NULL;
+    else
+	    contract = (char *)luaL_checkstring(L, 1);
+
+	if ((ret = LuaGetBalance(L, exec, contract)) < 0) {
+		lua_error(L);
+	}
+
+	return 1;
 }
 
 static int modulePcall(lua_State *L)
@@ -234,6 +257,7 @@ static const luaL_Reg delegate_call_meta[] = {
 };
 
 static const luaL_Reg contract_lib[] = {
+	{"balance", moduleBalance},
 	{"send", moduleSend},
 	{"pcall", modulePcall},
 	{NULL, NULL}
