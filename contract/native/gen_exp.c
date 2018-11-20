@@ -140,7 +140,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
-    return NULL;
+    return BinaryenNop(gen->module);
 }
 
 static BinaryenExpressionRef

@@ -112,6 +112,8 @@ id_check_var(check_t *check, ast_id_t *id)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
     }
 
+    id->idx = check->var_idx++;
+
     return NO_ERROR;
 }
 
@@ -219,6 +221,8 @@ id_check_param(check_t *check, ast_id_t *id)
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, true));
+
+    id->idx = check->var_idx++;
 
     return NO_ERROR;
 }

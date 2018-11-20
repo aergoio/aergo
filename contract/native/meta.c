@@ -258,6 +258,32 @@ meta_cmp(meta_t *x, meta_t *y)
     return meta_cmp_type(x, y);
 }
 
+int
+meta_size(meta_t *meta)
+{
+    /*
+    int i;
+    int size = 0;
+
+    if (is_bool_type(meta) || is_num_family(meta)) {
+        size = TYPE_SIZE(meta->type);
+    }
+    else if (is_struct_type(meta)) {
+        int elem_size;
+
+        for (i = 0; i < meta->elem_cnt; i++) {
+            elem_size = meta_size(meta->elems[i]);
+        }
+    }
+    else {
+        ASSERT1(!"unsupported type", meta->type);
+    }
+
+    return size;
+    */
+    return 0;
+}
+
 void
 meta_dump(meta_t *meta, int indent)
 {

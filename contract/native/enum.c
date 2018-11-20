@@ -30,6 +30,29 @@ char *type_names_[TYPE_MAX] = {
     "tuple"
 };
 
+int type_sizes_[TYPE_MAX] = {
+    0,
+    sizeof(bool),
+    sizeof(uint8_t),
+    sizeof(int8_t),
+    sizeof(uint8_t),
+    sizeof(int16_t),
+    sizeof(uint16_t),
+    sizeof(int32_t),
+    sizeof(uint32_t),
+    sizeof(int64_t),
+    sizeof(uint64_t),
+    sizeof(float),
+    sizeof(double),
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1
+};
+
 char *id_kinds_[ID_MAX] = {
     "variable",
     "struct",

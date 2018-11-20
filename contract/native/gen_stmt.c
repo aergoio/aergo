@@ -41,7 +41,7 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 {
-    return NULL;
+    return BinaryenNop(gen->module);
 }
 
 static BinaryenExpressionRef

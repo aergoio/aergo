@@ -55,6 +55,7 @@ blk_check(check_t *check, ast_blk_t *blk)
     check_unused_ids(&blk->ids);
 
     check->blk = blk->up;
+    check->var_idx = 0;
 }
 
 /* end of check_blk.c */

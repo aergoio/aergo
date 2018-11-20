@@ -390,7 +390,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     if (arg_exp != NULL) {
         if (is_void_type(fn_meta))
             RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "argument", 0,
-                   meta_elem_size(&arg_exp->meta));
+                   meta_cnt(&arg_exp->meta));
 
         exp_check(check, arg_exp);
 
@@ -398,7 +398,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     }
     else if (!is_void_type(fn_meta)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument", 
-               meta_elem_size(fn_meta), 0);
+               meta_cnt(fn_meta), 0);
     }
 
     return NO_ERROR;

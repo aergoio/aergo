@@ -39,7 +39,7 @@ id_gen_func(gen_t *gen, ast_id_t *id)
     param_cnt = array_size(param_ids);
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
-    for (i = 0, j = 0; param_cnt; i++) {
+    for (i = 0, j = 0; i < param_cnt; i++) {
         params[j++] = meta_gen(gen, &array_item(param_ids, i, ast_id_t)->meta);
     }
 

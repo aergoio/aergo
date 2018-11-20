@@ -73,7 +73,7 @@
 
 #define meta_copy(dest, src)        *(dest) = *(src)
 
-#define meta_elem_size(meta)                                                             \
+#define meta_cnt(meta)                                                                   \
     (is_void_type(meta) ? 0 :                                                            \
      ((is_tuple_type(meta) || is_struct_type(meta)) ?  (meta)->elem_cnt : 1))
 
@@ -106,6 +106,8 @@ void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
 
 int meta_cmp(meta_t *x, meta_t *y);
+
+int meta_size(meta_t *meta);
 
 void meta_dump(meta_t *meta, int indent);
 

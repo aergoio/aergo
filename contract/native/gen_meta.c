@@ -24,6 +24,7 @@ meta_gen(gen_t *gen, meta_t *meta)
     case TYPE_UINT8:
     case TYPE_UINT16:
     case TYPE_UINT32:
+    case TYPE_STRING:
         return BinaryenTypeInt32();
 
     case TYPE_INT64:
@@ -36,7 +37,6 @@ meta_gen(gen_t *gen, meta_t *meta)
     case TYPE_DOUBLE:
         return BinaryenTypeFloat64();
 
-    case TYPE_STRING:
     case TYPE_ACCOUNT:
     case TYPE_STRUCT:
     case TYPE_MAP:

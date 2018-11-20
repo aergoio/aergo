@@ -36,6 +36,7 @@ typedef enum errlvl_e {
 } errlvl_t;
 
 #define TYPE_NAME(type)         type_names_[(type)]
+#define TYPE_SIZE(type)         type_sizes_[(type)]
 
 #define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
 
@@ -188,6 +189,7 @@ typedef enum val_kind_e {
 } val_kind_t;
 
 extern char *type_names_[TYPE_MAX];
+extern int type_sizes_[TYPE_MAX];
 
 extern char *id_kinds_[ID_MAX];
 extern char *stmt_kinds_[STMT_MAX];

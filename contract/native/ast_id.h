@@ -84,9 +84,11 @@ struct ast_id_s {
     };
 
     // results of semantic checker
-    bool is_used;           /* whether is referenced */
-    meta_t meta;            /* identifier metadata */
-    value_t *val;           /* constant value */
+    bool is_used;       /* whether is referenced */
+    meta_t meta;        /* identifier metadata */
+    value_t *val;       /* constant value */
+
+    int idx;            /* index of variable */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
