@@ -276,6 +276,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			BlockHash: block.BlockHash(),
 			Err:       err,
 		})
+		cs.Hub().Tell(message.RPCSvc, block)
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {

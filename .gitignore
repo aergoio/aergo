@@ -3,15 +3,12 @@
 
 # build result
 /bin
+/build
 debug
 debug.test
 Gopkg.lock
 *.o
 *.a
-CMakeFiles/
-cmake_install.cmake
-CMakeCache.txt
-Makefile
 *.yy.c
 *.tab.*
 *.output
@@ -27,8 +24,3 @@ Makefile
 
 # developer workspace specific
 /conf
-
-# cmake-related
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
