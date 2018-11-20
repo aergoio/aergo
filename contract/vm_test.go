@@ -2017,4 +2017,69 @@ func TestPcall(t *testing.T) {
 	}
 }
 
+func TestPingpongCall(t *testing.T) {
+	definition1 := `
+	function constructor()
+		system.setItem("key",  "empty")
+	end
+	function start(addr)
+		system.setItem("key",  "start")
+		contract.call(addr, "called")
+	end
+
+	function callback()
+		system.setItem("key",  "callback")
+	end
+
+	function get()
+		return system.getItem("key")
+	end
+
+	abi.register(start, callback, get)
+	`
+
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition1),
+	)
+
+	definition2 := `
+	function constructor(addr)
+		system.setItem("key",  "empty")
+		system.setItem("addr",  addr)
+	end
+
+	function called()
+		system.setItem("key",  "called")
+		contract.call(system.getItem("addr"), "callback")
+	end
+
+	function get()
+		return system.getItem("key")
+	end
+
+	abi.register(called, get)
+	`
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "b", 10, definition2).
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("a")))),
+	)
+	tx := NewLuaTxCall("ktlee", "a", 15,
+		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(strHash("b"))))
+	bc.ConnectBlock(tx)
+	err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"get", "Args":[]}`, "", `"called"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

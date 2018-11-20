@@ -640,8 +640,9 @@ func (sm *stateMap) register(key string, item *StateSet) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	if sm.states[key] != nil {
-		item.refCnt++
+	found := sm.states[key]
+	if found != nil {
+		found.refCnt++
 		return
 	}
 	item.refCnt++
