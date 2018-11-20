@@ -176,6 +176,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetHashes:
 		p2ps.GetBlockHashes(context, msg)
+	case *message.GetHashByNo:
+		p2ps.GetBlockHashByNo(context, msg)
 	case *message.NotifyNewBlock:
 		p2ps.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
@@ -253,6 +255,8 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetHashesRequest] = newGetHashesReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetHashesResponse] = newGetHashesRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetHashByNoRequest] = newGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetHashByNoResponse] = newGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// TxHandlers
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)

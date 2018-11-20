@@ -96,7 +96,6 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 	}
 }
 
-
 type testDoubleHashRespFactory struct {
 	v030MOFactory
 	lastResp *types.GetHashesResponse
@@ -107,6 +106,62 @@ func (f *testDoubleHashRespFactory) newMsgResponseOrder(reqID MsgID, protocolID 
 	f.lastStatus = f.lastResp.Status
 	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
 }
+
+
+func TestGetHashByNoRequestHandler_handle(t *testing.T) {
+	baseHeight := uint64(110000)
+	wrongHeight := uint64(21531535)
+	tests := []struct {
+		name string
+		inNum uint64
+
+		expectedStatus types.ResultStatus
+	}{
+		// 1. success (exact prev and enough chaining)
+		{"Tsucc", baseHeight, types.ResultStatus_OK},
+		// 2. exact prev but smaller chaining
+		{"TMissing", wrongHeight, types.ResultStatus_NOT_FOUND},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockPeer := new(MockRemotePeer)
+			mockActor := new(MockActorService)
+			dummyMF := new(testDoubleHashByNoRespFactory)
+			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("MF").Return(dummyMF)
+			mockPeer.On("sendMessage", mock.Anything)
+
+			mockAcc := new(MockChainAccessor)
+			mockActor.On("GetChainAccessor").Return(mockAcc)
+			mockAcc.On("GetHashByNo", baseHeight).Return(sampleBlks[0], nil)
+			mockAcc.On("GetHashByNo", wrongHeight).Return(nil, &chain.ErrNoBlock{})
+			msg := &V030Message{subProtocol:GetHashByNoRequest, id: sampleMsgID}
+			body := &types.GetHashByNo{BlockNo:test.inNum}
+
+			h := newGetHashByNoReqHandler(mockPM, mockPeer, logger, mockActor)
+			h.handle(msg, body)
+
+			// verify
+			assert.Equal(t, test.expectedStatus.String(), dummyMF.lastStatus.String())
+			// send only one response whether success or not
+			mockPeer.AssertNumberOfCalls(t, "sendMessage",1)
+			mockAcc.AssertNumberOfCalls(t, "GetHashByNo", 1)
+		})
+	}
+}
+
+type testDoubleHashByNoRespFactory struct {
+	v030MOFactory
+	lastResp *types.GetHashByNoResponse
+	lastStatus types.ResultStatus
+}
+func (f *testDoubleHashByNoRespFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
+	f.lastResp = message.(*types.GetHashByNoResponse)
+	f.lastStatus = f.lastResp.Status
+	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
+}
+
 
 // emulate db
 type testDoubleChainAccessor struct {

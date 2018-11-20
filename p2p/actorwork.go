@@ -102,6 +102,20 @@ func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 	receiver.StartGet()
 }
 
+// GetBlockHashes send request message to peer and make response message for block hashes
+func (p2ps *P2P) GetBlockHashByNo(context actor.Context, msg *message.GetHashByNo) {
+	peerID := msg.ToWhom
+	// TODO
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetHashByNoRequest.String()).Msg("Invalid peerID")
+		context.Respond(&message.GetHashByNoRsp{Err:message.PeerNotFoundError})
+		return
+	}
+	receiver := NewBlockHashByNoReceiver(p2ps, remotePeer, msg.BlockNo, fetchTimeOut)
+	receiver.StartGet()
+}
+
 // NotifyNewBlock send notice message of new block to a peer
 func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	req := &types.NewBlockNotice{

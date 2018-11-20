@@ -351,24 +351,11 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	}
 	pm.mutex.Unlock()
 
-	// if peer exists in peerstore already, clear previous (and possibly wrong) addresses.
-	// commented out clearing code, since there seems to be race condition, this code willed be deleted or reborn after
-	// more investigation.
-	//if pm.checkInPeerstore(peerID) {
-	//	addrs := pm.Peerstore().Addrs(peerID)
-	//	addrStrs := make([]string, len(addrs))
-	//	for i, addr := range addrs {
-	//		addrStrs[i] = addr.String()
-	//	}
-	//	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, peerID.Pretty()).Msg("clearing all prev address of peer before connect")
-	//	pm.Peerstore().ClearAddrs(peerID)
-	//}
 	pm.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
-
 	ctx := context.Background()
 	s, err := pm.NewStream(ctx, meta.ID, aergoP2PSub)
 	if err != nil {
-		pm.logger.Info().Err(err).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
+		pm.logger.Info().Err(err).Str("addr", addrString).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)

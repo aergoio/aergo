@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -132,6 +133,75 @@ func (bh *getHashResponseHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesResponse)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Hashes),data.HasNext) )
+
+	// locate request data and remove it if found
+	remotePeer.GetReceiver(msg.OriginalID())(msg, data)
+}
+
+
+type getHashByNoRequestHandler struct {
+	BaseMsgHandler
+}
+
+type getHashByNoResponseHandler struct {
+	BaseMsgHandler
+}
+
+
+// newBlockReqHandler creates handler for GetBlockRequest
+func newGetHashByNoReqHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *getHashByNoRequestHandler {
+	bh := &getHashByNoRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashByNoRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+
+	return bh
+}
+
+func (bh *getHashByNoRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.GetHashByNo{})
+}
+
+
+func (bh *getHashByNoRequestHandler) handle(msg Message, msgBody proto.Message) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
+	data := msgBody.(*types.GetHashByNo)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
+	chainAccessor := bh.actor.GetChainAccessor()
+
+	// check if remote peer has valid chain,
+	// TODO also check if found prevBlock is on main chain or side chain, assume in main chain for now.
+	targetHash, err := chainAccessor.GetHashByNo(data.BlockNo)
+	if err != nil {
+		resp := &types.GetHashByNoResponse{Status:types.ResultStatus_NOT_FOUND}
+		remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetHashByNoResponse, resp))
+		return
+	}
+
+	// generate response message
+	resp := &types.GetHashByNoResponse{
+		Status: types.ResultStatus_OK,
+		BlockHash: targetHash,
+	}
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetHashByNoResponse, resp))
+}
+
+
+// newBlockReqHandler creates handler for GetBlockRequest
+func newGetHashByNoRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *getHashByNoResponseHandler {
+	bh := &getHashByNoResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashByNoResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+
+	return bh
+}
+
+func (bh *getHashByNoResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
+	return unmarshalAndReturn(rawbytes, &types.GetHashByNoResponse{})
+}
+
+
+func (bh *getHashByNoResponseHandler) handle(msg Message, msgBody proto.Message) {
+	peerID := bh.peer.ID()
+	remotePeer := bh.peer
+	data := msgBody.(*types.GetHashByNoResponse)
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("%s=%s",LogBlkHash,enc.ToString(data.BlockHash)) )
 
 	// locate request data and remove it if found
 	remotePeer.GetReceiver(msg.OriginalID())(msg, data)

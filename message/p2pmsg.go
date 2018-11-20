@@ -153,3 +153,14 @@ type GetHashesRsp struct {
 	Count    uint64
 	Err      error
 }
+
+
+type GetHashByNo struct {
+	ToWhom   peer.ID
+	BlockNo  types.BlockNo
+}
+
+type GetHashByNoRsp struct {
+	BlockHash   BlockHash
+	Err      error
+}

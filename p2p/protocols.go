@@ -59,6 +59,8 @@ const (
 	GetAncestorResponse
 	GetHashesRequest
 	GetHashesResponse
+	GetHashByNoRequest
+	GetHashByNoResponse
 )
 const (
 	GetTXsRequest SubProtocol = 0x020 + iota
