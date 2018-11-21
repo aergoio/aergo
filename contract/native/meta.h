@@ -51,7 +51,7 @@
 
 #define is_compatible_type(x, y)    (is_primitive_type(x) && is_primitive_type(y))
 
-#define is_const_type(meta)         (meta)->is_const
+#define is_lit_type(meta)           (meta)->is_lit
 #define is_array_type(meta)         ((meta)->arr_dim > 0)
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
@@ -90,7 +90,7 @@ struct meta_s {
     int arr_dim;            /* dimension of array */
     int *arr_size;          /* size of each dimension */
 
-    bool is_const;          /* whether it is constant */
+    bool is_lit;          /* whether it is constant */
 
     /* structured meta (map, struct or tuple) */
     int elem_cnt;           /* count of elements */
@@ -130,9 +130,9 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
-meta_set_const(meta_t *meta)
+meta_set_lit(meta_t *meta)
 {
-    meta->is_const = true;
+    meta->is_lit = true;
 }
 
 static inline void
@@ -149,14 +149,14 @@ meta_eval(meta_t *meta, meta_t *x, meta_t *y)
 {
     ASSERT(meta != NULL);
 
-    if (is_const_type(x) && is_const_type(y)) {
+    if (is_lit_type(x) && is_lit_type(y)) {
         ASSERT1(is_builtin_type(x), x->type);
         ASSERT1(is_builtin_type(y), y->type);
 
         meta_set(meta, MAX(x->type, y->type));
-        meta_set_const(meta);
+        meta_set_lit(meta);
     }
-    else if (is_const_type(x)) {
+    else if (is_lit_type(x)) {
         meta_copy(meta, y);
     }
     else {

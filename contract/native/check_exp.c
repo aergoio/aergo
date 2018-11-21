@@ -73,7 +73,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid value", exp->u_lit.val.kind);
     }
 
-    meta_set_const(&exp->meta);
+    meta_set_lit(&exp->meta);
 
     return NO_ERROR;
 }
@@ -170,7 +170,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
         meta_copy(&exp->meta, id_meta);
 
-        if (is_const_type(idx_meta)) {
+        if (is_lit_type(idx_meta)) {
             ASSERT1(is_lit_exp(idx_exp), idx_exp->kind);
             ASSERT(id_meta->arr_size != NULL);
 
@@ -553,7 +553,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         }
 
         meta_set_map(&exp->meta, NULL, NULL);
-        meta_set_const(&exp->meta);
+        meta_set_lit(&exp->meta);
 
         return NO_ERROR;
     }
