@@ -12,7 +12,7 @@
 #include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
-#define is_lit_exp(exp)             ((exp)->kind == EXP_VAL)
+#define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)

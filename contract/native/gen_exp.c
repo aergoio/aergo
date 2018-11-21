@@ -173,7 +173,7 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_ID:
         return exp_gen_id(gen, exp);
 
-    case EXP_VAL:
+    case EXP_LIT:
         return exp_gen_val(gen, exp);
 
     case EXP_TYPE:

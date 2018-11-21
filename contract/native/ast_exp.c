@@ -32,7 +32,7 @@ exp_new_null(src_pos_t *pos)
 ast_exp_t *
 exp_new_lit(src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_VAL, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_LIT, pos);
 
     value_init(&exp->u_lit.val);
 
@@ -179,7 +179,7 @@ exp_eval_const(ast_exp_t *exp)
 
     value_eval(op, &exp->u_lit.val, &l_exp->u_lit.val, r_val);
 
-    exp->kind = EXP_VAL;
+    exp->kind = EXP_LIT;
     meta_set_const(&exp->meta);
 
     return NO_ERROR;

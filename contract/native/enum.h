@@ -83,7 +83,7 @@ typedef enum id_kind_e {
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
-    EXP_VAL,
+    EXP_LIT,
     EXP_TYPE,
     EXP_ID,
     EXP_ARRAY,

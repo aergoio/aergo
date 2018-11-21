@@ -680,7 +680,7 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_ID:
         return exp_check_id(check, exp);
 
-    case EXP_VAL:
+    case EXP_LIT:
         return exp_check_val(check, exp);
 
     case EXP_TYPE:
