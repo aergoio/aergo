@@ -93,16 +93,17 @@ contract test {
         string b;
     }
 
-    func f1(int x, string y) s { s v = { x, y }; return v; }
-    func f2() map(int, string) { return new map(); }
+    func f1(int x, string y) s { s v = new { x, y }; return v; }
+    func f2(int x, string y) s { return new { x, y }; }
+    func f3() map(int, string) { return new map(); }
 
     test() {
         s v = f1(1, "1");
         int a = f1(2, "2").a;
-        string b = f1(2, "2").b;
+        string b = f2(2, "2").b;
 
-        map(int, string) m = f2();
-        m[1] = f2()[1];
+        map(int, string) m = f3();
+        m[1] = f3()[1];
     }
 }
 

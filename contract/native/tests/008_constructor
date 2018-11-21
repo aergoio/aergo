@@ -52,7 +52,7 @@ contract callee { int a; }
 
 contract test {
     test() {
-        callee c = { 1 };
+        callee c = new { 1 };
     }
 }
 

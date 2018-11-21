@@ -167,9 +167,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      declarator
 %type <exp>     size_opt
 %type <array>   var_init_list
-%type <exp>     initializer
-%type <array>   elem_list
-%type <exp>     init_elem
 %type <id>      compound
 %type <id>      struct
 %type <array>   field_list
@@ -229,8 +226,11 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     post_exp
 %type <array>   arg_list
 %type <exp>     prim_exp
-%type <exp>     simple_lit
+%type <exp>     literal
 %type <exp>     new_exp
+%type <exp>     initializer
+%type <array>   elem_list
+%type <exp>     init_elem
 %type <str>     non_reserved_token
 %type <str>     identifier
 
@@ -311,7 +311,10 @@ contract_body:
 variable:
     var_decl ';'
 |   var_init_decl ';'
-|   var_type error ';'  { $$ = NULL; }
+|   var_type error ';'
+    {
+        $$ = NULL;
+    }
 ;
 
 var_decl:
@@ -443,50 +446,16 @@ size_opt:
 ;
 
 var_init_list:
-    initializer
-    {
-        $$ = array_new();
-        exp_add_last($$, $1);
-    }
-|   var_init_list ',' initializer
-    {
-        $$ = $1;
-        exp_add_last($$, $3);
-    }
-;
-
-initializer:
     sql_exp
-|   '{' elem_list comma_opt '}'
-    {
-        $$ = exp_new_tuple($2, &@$);
-    }
-;
-
-elem_list:
-    init_elem
     {
         $$ = array_new();
         exp_add_last($$, $1);
     }
-|   elem_list ',' init_elem
+|   var_init_list ',' sql_exp
     {
         $$ = $1;
         exp_add_last($$, $3);
     }
-;
-
-init_elem:
-    initializer
-|   identifier ':' initializer
-    {
-        $$ = $3;
-    }
-;
-
-comma_opt:
-    /* empty */
-|   ','
 ;
 
 compound:
@@ -501,7 +470,10 @@ struct:
     {
         $$ = id_new_struct($2, $4, &@$);
     }
-|   K_STRUCT error '}'  { $$ = NULL; }
+|   K_STRUCT error '}'
+    {
+        $$ = NULL;
+    }
 ;
 
 field_list:
@@ -540,7 +512,10 @@ enumeration:
     {
         $$ = id_new_enum($2, $4, &@$);
     }
-|   K_ENUM error ')'    { $$ = NULL; }
+|   K_ENUM error ')'
+    {
+        $$ = NULL;
+    }
 ;
 
 enum_list:
@@ -1159,8 +1134,8 @@ arg_list:
 ;
 
 prim_exp:
-    new_exp
-|   simple_lit
+    literal
+|   new_exp
 |   identifier
     {
         $$ = exp_new_id($1, &@$);
@@ -1171,7 +1146,7 @@ prim_exp:
     }
 ;
 
-simple_lit:
+literal:
     K_NULL
     {
         $$ = exp_new_lit(&@$);
@@ -1254,6 +1229,44 @@ new_exp:
 
         $$ = exp_new_call(exp_new_id(xstrdup("map"), &@2), exps, &@$);
     }
+|   K_NEW initializer
+    {
+        $$ = $2;
+    }
+;
+
+initializer:
+    '{' elem_list comma_opt '}'
+    {
+        $$ = exp_new_tuple($2, &@$);
+    }
+;
+
+elem_list:
+    init_elem
+    {
+        $$ = array_new();
+        exp_add_last($$, $1);
+    }
+|   elem_list ',' init_elem
+    {
+        $$ = $1;
+        exp_add_last($$, $3);
+    }
+;
+
+init_elem:
+    ternary_exp
+|   initializer
+|   identifier ':' init_elem
+    {
+        $$ = $3;
+    }
+;
+
+comma_opt:
+    /* empty */
+|   ','
 ;
 
 non_reserved_token:

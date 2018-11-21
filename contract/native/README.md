@@ -8,10 +8,10 @@ Aergo Smart Contract Lanaguage(이하 ASCL)은 Aergo를 위한 smart contract �
 ASCL은 다음과 같은 특성을 가진다.
 
 * Strongly typed 언어다.
-* 상속과 추상화를 제외한 object-oriented language다.
+* (상속과 추상화를 제외한) object-oriented language다.
 * C, Java, Go 등과 같은 일반적인 언어 구문을 지원한다.
 * Database 접근을 위한 SQL 확장 구문을 지원한다.
-* Blockchain 접근을 위한 blockchain 확장 구문을 제공한다.
+* Blockchain 접근을 위한 blockchain 확장 구문을 지원한다.
 * [WebAssembly](https://webassembly.org/)로 컴파일된다.
 
 ## Notation
@@ -376,7 +376,7 @@ enum City {
 
 #### Object types
 
-object 타입은 map과 contract 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, new function을 사용하여 빈 객체로 초기화할 수 있다.
+object 타입은 map과 contract 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, <a href="#new_func">new function</a>을 사용하여 빈 객체로 초기화할 수 있다.
 
 ##### Map type
 
@@ -392,7 +392,7 @@ map(int, User)
 map(int, map(string, string))
 ```
 
-map 타입은 <a href="#initializer">static initializer</a>를 이용하거나 new function을 사용하여 초기화할 수 있다.
+map 타입은 <a href="#initializer">static initializer</a>를 이용하거나 <a href="#new_func">new function</a>을 사용하여 초기화할 수 있다.
 
 ```
 map(int, string) m = null;
@@ -404,7 +404,7 @@ map(int, string) m = new map(10);
 
 ##### Contract type
 
-contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#initializer">static initializer</a>를 사용할 수 없고, new function을 사용하여 <a href="#ctor_decl">constructor</a>를 호출해야 한다.
+contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#initializer">static initializer</a>를 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출해야 한다.
 
 ```
 MyContract myCon = null;
@@ -562,7 +562,7 @@ i = 1;              // raise error
 <a name="array_decl">ArrayDecl</a> = "[" <a href="#expression">Expression</a> "]" ;
 </pre>
 
-array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 static initializer가 정의된 경우엔 array 크기를 생략할 수 있다.
+array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 <a href="#initializer">static initializer</a>가 정의된 경우엔 array 크기를 생략할 수 있다.
 
 또한, array는 N-dimension으로 선언할 수 있다.
 
@@ -584,9 +584,9 @@ static initializer는 variable의 값을 정의할 때 사용하며, 단순히 e
 
 <pre>
 <a name="initializer">Initializer</a> = <a href="#expression">Expression</a> | <a href="#array_init">ArrayInit</a> | <a href="#struct_init">StructInit</a> | <a href="#map_init">MapInit</a> ;
-<a name="array_init">ArrayInit</a>   = "{" { <a href="#initializer">Initializer</a> "," } "}"
-<a name="struct_init">StructInit</a>  = "{" { <a href="#initializer">Initializer</a> "," } "}"
-<a name="map_init">MapInit</a>     = "{" { "{" <a href="#initializer">Initializer</a> "," <a href="#initializer">Initializer</a> "}" "," } "}" ;
+<a name="array_init">ArrayInit</a>   = "new" "{" { <a href="#initializer">Initializer</a> "," } "}"
+<a name="struct_init">StructInit</a>  = "new" "{" { <a href="#initializer">Initializer</a> "," } "}"
+<a name="map_init">MapInit</a>     = "new" "{" { "{" <a href="#initializer">Initializer</a> "," <a href="#initializer">Initializer</a> "}" "," } "}" ;
 </pre>
 
 다음은 simple expression을 사용한 initializer다.
@@ -604,12 +604,12 @@ string company, nation = "Blocko", "Korea";
 다음은 array initializer다.
 
 ```
-int levels[2] = { 98, 99 };
-string classes[3] = { "magician", "barbarian", "archer" };
+int levels[2] = new { 98, 99 };
+string classes[3] = new { "magician", "barbarian", "archer" };
 
 const int DIVISION = 2;
 const int WEEK = 7;
-double sales_per_week[DIVISION][WEEK] = {
+double sales_per_week[DIVISION][WEEK] = new {
     // first division
     { 1.3, 2.0, 2.1, 0.3, 1.8, 6.4, 5.7 },
     // second division
@@ -625,13 +625,13 @@ struct Singer {
     int debut_year;
     int album_cnt;
 }
-Singer michael = { "Michael Jackson", 1964, 11 };
-Single kpops[2] = {
+Singer michael = new { "Michael Jackson", 1964, 11 };
+Single kpops[2] = new {
     { "Yong-pil Cho", 1979, 19 },
     { "Mi-ja Lee", 1959, 500 },
 };
 
-map(int, string) keystore = {
+map(int, string) keystore = new {
     { 20180850, "19ffbaae54a4c1c4cd6ceef01eff0595e3c778ce" },
     { 20181025, "3b6af44ef92fb973626925ddfd79a77dcd70456e" },
     { 20181357, "043ade3730e2172d917575132dff58f271ad59f4" },
@@ -703,12 +703,18 @@ double d = (double)i;
 string s = (string)i;
 ```
 
-<a href="#complex_type">complex type</a>에 대한 type conversion이나 implicit type conversion은 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
+<a href="#complex_type">complex type</a>에 대한 type conversion은 지원하지 않는다.
 
 ```
 map(int, string) m1;
 map(int, string) m2 = (map(int, string))m1;     // raise error
+```
 
+> **TODO** 이 밑에 내용은 "Type conversion" 섹션을 만들어 더 자세히 써야 한다.
+
+<a href="#complex_type">complex type</a>에 대한 type conversion이나 implicit type conversion은 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
+
+```
 int16 i = 0;
 int32 j = 1;
 int32 k = i + j;    // raise error
@@ -1319,7 +1325,7 @@ constructor는 return type을 가질 수 없다.
 
 #### Constructor references
 
-constructor를 참조하기 위해서는 먼저 new function을 이용하여 객체화해야 한다.
+constructor를 참조하기 위해서는 먼저 <a href="#new_func">new function</a>을 이용하여 객체화해야 한다.
 
 ```
 Exchange ex = new Exchange(7, "Binance");
@@ -1401,6 +1407,17 @@ func f2() int, string {
 
 만약 return type이 정의되어 있으나, return statement가 없는 경우엔 에러가 발생한다.
 
+#### New functions
+
+> **TODO** 구현 후 설명 필요
+
+<pre>
+<a name="new_func">NewFunc</a>     = <a href="#new_cont">NewContract</a> | <a href="#new_cont">NewMap</a> ;
+
+<a name="new_cont">NewContract</a> = "new" "identifier" "(" [ <a href="#arg_list">ArgumentList</a> ] ")" ;
+<a name="new_map">NewMap</a>      = "new" "map" "(" [ <a href="#integer_lit">integer_lit</a> ] ")" ;
+</pre>
+
 #### Built-in functions
 
 > **TODO** 구현 후 설명 필요
@@ -1412,8 +1429,10 @@ func f2() int, string {
 ### DML, Query expressions
 
 <pre>
-<a name="sql_exp">SqlExp</a>         = ? insert statement ? | ? update statement ? |
-                 ? delete statement ? | ? select statement ? ;
+<a name="sql_exp">SqlExp</a> = ? insert statement ? | 
+         ? update statement ? |
+         ? delete statement ? | 
+         ? select statement ? ;
 </pre>
 
 ### DDL statements

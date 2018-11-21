@@ -133,8 +133,8 @@ contract test {
             int a;
             string b;
         }
-        s v1 = { 1, "1" };
-        s v2 = { 2, "2" };
+        s v1 = new { 1, "1" };
+        s v2 = new { 2, "2" };
 
         map(string, s) m3;
         m3["1"] = v1;
@@ -166,7 +166,7 @@ contract test {
     test() {
         struct s1 { int a; }
         struct s2 { string a; }
-        s2 v = { "2" };
+        s2 v = new { "2" };
 
         map(int, s1) m;
         m[1] = v;
@@ -206,7 +206,7 @@ contract test {
         double d[2];
     }
     test() {
-        s v = { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
+        s v = new { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
         v.a++;
         v.a |= 0xabcd;
         v.b += "2";
