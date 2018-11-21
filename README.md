@@ -17,6 +17,8 @@ We are developing the most practical and powerful platform for blockchain busine
 3. Scalable architecture
 4. Connect with the world
 
+You can see the current pre-testnet via aergoscan service: [aergoscan](https://aergoscan.io)
+
 ## Roadmaps
 
 ### beginning: Skeleton (31, July, 2018)
@@ -72,8 +74,7 @@ We are developing the most practical and powerful platform for blockchain busine
 
 ## Key thoughts of the architecture
 
-1. MVP based, Forward compatibility, Iteration
-2. Following Golang conventions
+MVP based, Forward compatibility, Iteration
 
 ## Information
 
@@ -82,7 +83,7 @@ We are developing the most practical and powerful platform for blockchain busine
 | Usage | Port |
 |-------|------|
 |  gRPC | 7845 |
-|*  P2P | 7846 |
+|  P2P  | 7846 |
 |  REST | 8080 |
 
 ## Installation
@@ -96,13 +97,12 @@ We are developing the most practical and powerful platform for blockchain busine
 
 ### Build
 
-```
-$ go get -d github.com/aergoio/aergo/account
-$ cd ${GOPATH}/src/github.com/aergoio/aergo
-$ make
-```
+[gettig started_how to build](https://github.com/aergoio/aergo/wiki/getting-started_how-to-build)
 
 ## Contribution
+
+Following Golang conventions
+TBD
 
 ## License
 
