@@ -159,18 +159,15 @@ exp_eval_const(ast_exp_t *exp)
     ast_exp_t *l_exp = exp->u_op.l_exp;
     value_t *r_val = NULL;
 
-    if (!is_op_exp(exp) || !is_lit_type(&l_exp->meta))
+    if (!is_op_exp(exp) || !is_lit_exp(l_exp))
         return NO_ERROR;
-
-    ASSERT1(is_lit_exp(l_exp), l_exp->kind);
 
     if (exp->u_op.r_exp != NULL) {
         ast_exp_t *r_exp = exp->u_op.r_exp;
 
-        if (!is_lit_type(&r_exp->meta))
+        if (!is_lit_exp(r_exp))
             return NO_ERROR;
 
-        ASSERT1(is_lit_exp(r_exp), r_exp->kind);
         r_val = &r_exp->u_lit.val;
 
         if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))

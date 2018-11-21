@@ -37,18 +37,14 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             meta_t *size_meta = &size_exp->meta;
             value_t *size_val;
 
-            if (size_id != NULL && size_id->val != NULL) {
+            if (size_id != NULL && size_id->val != NULL)
                 /* constant variable */
                 size_val = size_id->val;
-            }
-            else if (is_dec_family(size_meta) && is_lit_type(size_meta)) {
+            else if (is_dec_family(size_meta) && is_lit_exp(size_exp))
                 /* integer literal */
-                ASSERT1(is_lit_exp(size_exp), size_exp->kind);
                 size_val = &size_exp->u_lit.val;
-            }
-            else {
+            else
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
-            }
 
             ASSERT1(is_int_val(size_val), size_val->kind);
             id->meta.arr_size[i] = int_val(size_val);
@@ -86,7 +82,7 @@ id_check_var(check_t *check, ast_id_t *id)
 
         CHECK(exp_check(check, init_exp));
 
-        /* This might be a duplicate check because it will be checked by meta_cmp(), 
+        /* This might be a duplicate check because it will be checked by meta_cmp(),
          * but is done to show more specific error not just mismatch error. */
         if (is_tuple_type(init_meta)) {
 			if (!is_array_type(&id->meta) &&
@@ -170,10 +166,8 @@ id_check_enum(check_t *check, ast_id_t *id)
 
             CHECK(exp_check(check, init_exp));
 
-            if (!is_lit_type(init_meta) || !is_dec_family(init_meta))
+            if (!is_lit_exp(init_exp) || !is_dec_family(init_meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
-
-            ASSERT1(is_lit_exp(init_exp), init_exp->kind);
 
             init_val = &init_exp->u_lit.val;
             ASSERT1(is_int_val(init_val), init_val->kind);

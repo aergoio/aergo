@@ -170,8 +170,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
         meta_copy(&exp->meta, id_meta);
 
-        if (is_lit_type(idx_meta)) {
-            ASSERT1(is_lit_exp(idx_exp), idx_exp->kind);
+        if (is_lit_exp(idx_exp)) {
             ASSERT(id_meta->arr_size != NULL);
 
             if (id_meta->arr_size[0] > 0 &&
