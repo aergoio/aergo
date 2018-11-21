@@ -247,6 +247,8 @@ main(int argc, char **argv)
 #define LINE_MAX_SIZE   80
     int i;
     int file_cnt = 0;
+    char *gopath;
+    char path[PATH_MAX_LEN];
     char files[FILE_MAX_CNT][PATH_MAX_LEN];
     char delim[LINE_MAX_SIZE + 1];
     char buf[LINE_MAX_SIZE + 1];
@@ -255,9 +257,16 @@ main(int argc, char **argv)
     struct stat st;
     env_t env;
 
-    dir = opendir(".");
+    gopath = getenv("GOPATH");
+    ASSERT(gopath != NULL);
+
+    strcpy(path, gopath);
+    strtrim(path, "/");
+    strcat(path, "/src/github.com/aergoio/aergo/contract/native/tests");
+
+    dir = opendir(path);
     if (dir == NULL)
-        FATAL(ERROR_DIR_IO, ".", strerror(errno));
+        FATAL(ERROR_DIR_IO, path, strerror(errno));
 
     env_init(&env);
     get_opt(&env, argc, argv);
@@ -271,13 +280,20 @@ main(int argc, char **argv)
     memset(files, 0x00, sizeof(files));
 
     while ((entry = readdir(dir)) != NULL) {
-        stat(entry->d_name, &st);
-
-        if (!S_ISREG(st.st_mode) || !isdigit(entry->d_name[0]))
+        if (!isdigit(entry->d_name[0]))
             continue;
 
         ASSERT(file_cnt < FILE_MAX_CNT);
-        strcpy(files[file_cnt++], entry->d_name);
+
+        strcpy(files[file_cnt], path);
+        strcat(files[file_cnt], "/");
+        strcat(files[file_cnt], entry->d_name);
+
+        stat(files[file_cnt], &st);
+        if (!S_ISREG(st.st_mode))
+            continue;
+
+        file_cnt++;
     }
 
     qsort(files, file_cnt, PATH_MAX_LEN, (int (*)(const void *, const void *))&strcmp);

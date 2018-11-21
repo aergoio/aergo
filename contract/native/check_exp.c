@@ -49,7 +49,7 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_val(check_t *check, ast_exp_t *exp)
+exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
 
@@ -681,7 +681,7 @@ exp_check(check_t *check, ast_exp_t *exp)
         return exp_check_id(check, exp);
 
     case EXP_LIT:
-        return exp_check_val(check, exp);
+        return exp_check_lit(check, exp);
 
     case EXP_TYPE:
         return exp_check_type(check, exp);

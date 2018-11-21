@@ -44,7 +44,7 @@ gen_reset(gen_t *gen)
 void
 gen(ast_t *ast, flag_t flag, char *path)
 {
-    int i, n;
+    //int i, n;
     gen_t gen;
 
     if (ast == NULL)
@@ -52,6 +52,7 @@ gen(ast_t *ast, flag_t flag, char *path)
 
     gen_init(&gen, ast, flag, path);
 
+    /*
     for (i = 0; i < array_size(&gen.root->ids); i++) {
         id_gen(&gen, array_item(&gen.root->ids, i, ast_id_t));
     }
@@ -69,6 +70,7 @@ gen(ast_t *ast, flag_t flag, char *path)
         else
             FATAL(ERROR_BINARY_OVERFLOW);
     }
+    */
 
     gen_reset(&gen);
 }
