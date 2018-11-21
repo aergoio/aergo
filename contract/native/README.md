@@ -392,7 +392,7 @@ map(int, User)
 map(int, map(string, string))
 ```
 
-map 타입은 <a href="#initializer">static initializer</a>를 이용하거나 <a href="#new_func">new function</a>을 사용하여 초기화할 수 있다.
+map 타입은 <a href="#init_exp">initializer expression</a>를 이용하거나 <a href="#new_func">new function</a>을 사용하여 초기화할 수 있다.
 
 ```
 map(int, string) m = null;
@@ -404,12 +404,43 @@ map(int, string) m = new map(10);
 
 ##### Contract type
 
-contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#initializer">static initializer</a>를 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출해야 한다.
+contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출해야 한다.
 
 ```
 MyContract myCon = null;
 MyContract myCon = new MyContract();
 ```
+
+### Type conversions
+
+ASCL은 strongly typed language로서 implicit type conversion을 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
+
+```
+int16 i = 0;
+int32 j = 1;
+int32 k = i + j;    // raise error
+float f = i;        // raise error
+```
+
+다만, 예외적으로 operand가 constant인 경우엔 implicit conversion을 허용하나, 다음과 같이 같은 유형의 타입이 아닌 경우엔 위와 마찬가지로 에러가 발생한다.
+
+```
+Constant  Comparable types
+--------  --------------------------------------------------------------
+booleans  bool
+integers  byte, int8, int16, int32, int64, uint8, uint16, uint32, uint64
+floats    float, double
+strings   string
+```
+
+```
+bool b = 1;         // raise error
+int i = 1.23;       // raise error
+float f = 1024;     // raise error
+string s = 61;      // raise error
+```
+
+만약 explicit type conversion을 하고 싶은 경우엔 <a href="#cast_exp">cast expression</a>을 사용한다.
 
 ## Program structures
 
@@ -461,7 +492,7 @@ variable은 값을 저장하기 위한 공간으로 다음과 같이 선언한�
 <a name="var_list">VariableList</a>   = <a href="#variable">Variable</a> { "," <a href="#variable">Variable</a> } ;
 <a name="variable">Variable</a>       = <a href="#identifier">identfier</a> [ <a href="#array_decl">ArrayDecl</a> ] ;
 
-<a name="init_list">InitalizerList</a> = <a href="#initializer">Initializer</a> { "," <a href="#initializer">Initializer</a> } ;
+<a name="init_list">InitalizerList</a> = <a href="#init_exp">Initializer</a> { "," <a href="#init_exp">Initializer</a> } ;
 </pre>
 
 #### Variable declarations
@@ -562,7 +593,7 @@ i = 1;              // raise error
 <a name="array_decl">ArrayDecl</a> = "[" <a href="#expression">Expression</a> "]" ;
 </pre>
 
-array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 <a href="#initializer">static initializer</a>가 정의된 경우엔 array 크기를 생략할 수 있다.
+array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 <a href="#init_exp">initializer expression</a>이 정의된 경우엔 array 크기를 생략할 수 있다.
 
 또한, array는 N-dimension으로 선언할 수 있다.
 
@@ -577,66 +608,6 @@ int cars[MAX_SIZE];
 ```
 
 array의 element에 접근하기 위해선 <a href="#index_exp">index expression</a>을 사용해야 하고, 첫번째 element부터 마지막 element까지 차례로 0 ~ (size of array - 1)까지의 index를 사용한다.
-
-#### Static initializers
-
-static initializer는 variable의 값을 정의할 때 사용하며, 단순히 expression으로 표현되는 값을 사용할 수도 있고, "{" ... "}" 형태로 표현되는 complex value를 사용할 수도 있다.
-
-<pre>
-<a name="initializer">Initializer</a> = <a href="#expression">Expression</a> | <a href="#array_init">ArrayInit</a> | <a href="#struct_init">StructInit</a> | <a href="#map_init">MapInit</a> ;
-<a name="array_init">ArrayInit</a>   = "new" "{" { <a href="#initializer">Initializer</a> "," } "}"
-<a name="struct_init">StructInit</a>  = "new" "{" { <a href="#initializer">Initializer</a> "," } "}"
-<a name="map_init">MapInit</a>     = "new" "{" { "{" <a href="#initializer">Initializer</a> "," <a href="#initializer">Initializer</a> "}" "," } "}" ;
-</pre>
-
-다음은 simple expression을 사용한 initializer다.
-
-```
-bool is_male = true;
-int identifier = 2018102;
-string name = "wrpark";
-double height = 180.4;
-
-int age, birth = 40, 1979;
-string company, nation = "Blocko", "Korea";
-```
-
-다음은 array initializer다.
-
-```
-int levels[2] = new { 98, 99 };
-string classes[3] = new { "magician", "barbarian", "archer" };
-
-const int DIVISION = 2;
-const int WEEK = 7;
-double sales_per_week[DIVISION][WEEK] = new {
-    // first division
-    { 1.3, 2.0, 2.1, 0.3, 1.8, 6.4, 5.7 },
-    // second division
-    { 1.7, 3.8, 2.1, 1.1, 7.3, 5.0, 2.5 },
-};
-```
-
-다음은 struct, map variable에 대한 initializer다.
-
-```
-struct Singer {
-    string name;
-    int debut_year;
-    int album_cnt;
-}
-Singer michael = new { "Michael Jackson", 1964, 11 };
-Single kpops[2] = new {
-    { "Yong-pil Cho", 1979, 19 },
-    { "Mi-ja Lee", 1959, 500 },
-};
-
-map(int, string) keystore = new {
-    { 20180850, "19ffbaae54a4c1c4cd6ceef01eff0595e3c778ce" },
-    { 20181025, "3b6af44ef92fb973626925ddfd79a77dcd70456e" },
-    { 20181357, "043ade3730e2172d917575132dff58f271ad59f4" },
-};
-```
 
 ### Expressions
 
@@ -660,7 +631,7 @@ expression은 operator와 operands의 결합으로 이뤄진다.
 primary expression은 unary, binary, ternary expression의 operand로 사용된다.
 
 <pre>
-<a name="primary_exp">PrimaryExp</a> = <a href="#id_exp">IdExp</a> | <a href="#val_exp">ValueExp</a> | <a href="#cast_exp">CastExp</a> | <a href="#index_exp">IndexExp</a> | <a href="#call_exp">CallExp</a> | <a href="#access_exp">AccessExp</a> |
+<a name="primary_exp">PrimaryExp</a> = <a href="#id_exp">IdExp</a> | <a href="#val_exp">ValueExp</a> | <a href="#cast_exp">CastExp</a> | <a href="#index_exp">IndexExp</a> | <a href="#call_exp">CallExp</a> | <a href="#access_exp">AccessExp</a> | <a href="#init_exp">InitExp</a> |
              <a href="#primary_exp">PrimaryExp</a> "++" | <a href="#primary_exp">PrimaryExp</a> "--" | "(" <a href="#exp">Expression</a> ")" ;
 </pre>
 
@@ -708,28 +679,6 @@ string s = (string)i;
 ```
 map(int, string) m1;
 map(int, string) m2 = (map(int, string))m1;     // raise error
-```
-
-> **TODO** 이 밑에 내용은 "Type conversion" 섹션을 만들어 더 자세히 써야 한다.
-
-<a href="#complex_type">complex type</a>에 대한 type conversion이나 implicit type conversion은 지원하지 않으며 만약 operand의 타입이 서로 다를 경우엔 에러가 발생한다.
-
-```
-int16 i = 0;
-int32 j = 1;
-int32 k = i + j;    // raise error
-float f = i;        // raise error
-```
-
-예외적으로 operand가 constant인 경우엔 implicit conversion을 허용하나, 다음과 같이 같은 유형의 타입이 아닌 경우엔 마찬가지로 에러가 발생한다.
-
-```
-Constant  Comparable types
---------  --------------------------------------------------------------
-booleans  bool
-integers  byte, int8, int16, int32, int64, uint8, uint16, uint32, uint64
-floats    float, double
-strings   string
 ```
 
 ##### Index expressions
@@ -784,15 +733,62 @@ access expression은 struct field에 접근하거나 contract state variable을 
 </pre>
 
 ```
-struct math {
+struct coord {
     int x;
     int y;
     int z;
 }
-math calc;
+coord calc;
 calc.x = 1;
 calc.y = 1;
 calc.z = calc.x + calc.y;
+```
+
+##### Initializer expression
+
+initializer expression은 complex variable 값을 정의할 때 사용하며, "new {" ... "}" 형태로 표현한다.
+
+<pre>
+<a name="init_exp">InitExp</a>     = "new" <a href="#initializer">Initializer</a> ;
+<a name="initializer">Initializer</a> = "{" <a href="#elem_list">ElementList</a> "}" ;
+<a name="elem_list">ElementList</a> = ( <a href="#expression">Expression</a> | <a href="#initializer">Initializer</a> ) { "," ( <a href="#expression">Expression</a> | <a href="#initializer">Initializer</a> ) } ;
+</pre>
+
+다음은 array initializer다. multi-dimension인 경우엔 중첩해서 선언한다.
+
+```
+int levels[2] = new { 98, 99 };
+string classes[3] = new { "magician", "barbarian", "archer" };
+
+const int DIVISION = 2;
+const int WEEK = 7;
+double sales_per_week[DIVISION][WEEK] = new {
+    // first division
+    { 1.3, 2.0, 2.1, 0.3, 1.8, 6.4, 5.7 },
+    // second division
+    { 1.7, 3.8, 2.1, 1.1, 7.3, 5.0, 2.5 },
+};
+```
+
+다음은 struct, map variable에 대한 initializer다.
+
+```
+struct Singer {
+    string name;
+    int debut_year;
+    int album_cnt;
+}
+Singer michael = new { "Michael Jackson", 1964, 11 };
+Single kpops[2] = new {
+    { "Yong-pil Cho", 1979, 19 },
+    { "Mi-ja Lee", 1959, 500 },
+};
+
+map(int, string) keystore = new {
+    { 20180850, "19ffbaae54a4c1c4cd6ceef01eff0595e3c778ce" },
+    { 20181025, "3b6af44ef92fb973626925ddfd79a77dcd70456e" },
+    { 20181357, "043ade3730e2172d917575132dff58f271ad59f4" },
+};
 ```
 
 #### <a name="operator">Operators</a>
@@ -1346,7 +1342,7 @@ function은 일련의 task를 수행하기 위한 기본 단위다.
 function modifier는 각 function의 속성을 정의하는 것으로 다음과 같다.
 
 <pre>
-<a name="mod">modifier</a>       = [ "public" ] { "payable" | "readonly" } ;
+<a name="mod">modifier</a> = [ "public" ] { "payable" | "readonly" } ;
 </pre>
 
 function도 variable과 마찬가지로 기본적으로 private 속성을 가지나, public을 정의한 경우 외부 smart contract에서 참조할 수 있다.

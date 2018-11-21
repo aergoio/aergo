@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
+#include "array.h"
 
 #define LABEL_MAX_SIZE              128
 

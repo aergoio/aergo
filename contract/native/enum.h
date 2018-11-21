@@ -185,6 +185,7 @@ typedef enum val_kind_e {
     VAL_FP,
     VAL_STR,
     VAL_OBJ,
+    VAL_ADDR,
     VAL_MAX
 } val_kind_t;
 

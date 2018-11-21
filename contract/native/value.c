@@ -22,7 +22,7 @@
         if (is_int_val(x))                                                               \
             value_set_int(val, int_val(x) op int_val(y));                                \
         else if (is_fp_val(x))                                                           \
-            value_set_fp(val, fp_val(x) op fp_val(y));                               \
+            value_set_fp(val, fp_val(x) op fp_val(y));                                   \
         else if (is_str_val(x))                                                          \
             value_set_str((val), xstrcat(str_val(x), str_val(y)));                       \
         else                                                                             \
@@ -95,6 +95,11 @@ value_check(value_t *val, meta_t *meta)
 
     case VAL_OBJ:
         ASSERT1(is_map_type(meta) || is_object_type(meta), meta->type);
+        break;
+
+    case VAL_ADDR:
+        ASSERT1(is_string_type(meta) || is_struct_type(meta) || is_tuple_type(meta), 
+                meta->type);
         break;
 
     default:

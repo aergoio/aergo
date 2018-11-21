@@ -21,8 +21,10 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
     ASSERT(is_empty_array(&root->stmts));
     ASSERT(root->up == NULL);
 
-    check->flag = flag;
+    check->ast = ast;
     check->root = root;
+
+    check->flag = flag;
 
     check->blk = root;
 

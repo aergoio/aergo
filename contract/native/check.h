@@ -21,9 +21,10 @@ typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
 typedef struct check_s {
-    flag_t flag;
-
+    ast_t *ast;
     ast_blk_t *root;
+
+    flag_t flag;
 
     /* temporary context */
     ast_blk_t *blk;         /* current block */

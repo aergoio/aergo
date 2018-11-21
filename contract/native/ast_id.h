@@ -9,7 +9,9 @@
 #include "common.h"
 
 #include "ast.h"
+#include "array.h"
 #include "enum.h"
+#include "meta.h"
 #include "value.h"
 
 #define is_var_id(id)               ((id)->kind == ID_VAR)

@@ -31,8 +31,8 @@
 #define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
 #define __SOURCE__          FILENAME(__FILE__), __LINE__
 
-#define PTR2INT(x)          ((int)((ptrdiff_t)(x)))
-#define INT2PTR(x)          ((void *)((ptrdiff_t)(x)))
+#define ALIGN32(v)          (((v) + 3) & ~3)
+#define ALIGN64(v)          (((v) + 7) & ~7)
 
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 typedef unsigned char bool;
