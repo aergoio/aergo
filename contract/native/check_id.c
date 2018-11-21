@@ -153,12 +153,14 @@ id_check_enum(check_t *check, ast_id_t *id)
         ast_id_t *elem_id = array_item(elem_ids, i, ast_id_t);
         ast_exp_t *init_exp = elem_id->u_var.init_exp;
 
-        if (elem_id->u_var.init_exp == NULL) {
-            ast_exp_t *val_exp = exp_new_lit(&elem_id->pos);
+        if (init_exp == NULL) {
+            init_exp = exp_new_lit(&elem_id->pos);
 
-            value_set_int(&val_exp->u_lit.val, enum_val);
+            value_set_int(&init_exp->u_lit.val, enum_val);
 
-            elem_id->u_var.init_exp = val_exp;
+            CHECK(exp_check(check, init_exp));
+
+            elem_id->u_var.init_exp = init_exp;
         }
         else {
             meta_t *init_meta = &init_exp->meta;

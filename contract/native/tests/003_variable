@@ -203,7 +203,7 @@ contract test {
     }
 }
 
-@test(non_constant_enumerator)
+@test(non_integer_enumerator)
 @error(ERROR_INVALID_ENUM_VAL)
 contract test {
     enum e1 {
