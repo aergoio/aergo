@@ -213,7 +213,7 @@ value_shift_l(value_t *val, value_t *x, value_t *y)
 static void
 value_shift_r(value_t *val, value_t *x, value_t *y)
 {
-    ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);             \
+    ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);
     value_eval_bit(>>, val, x, y);
 }
 
