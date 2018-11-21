@@ -50,7 +50,7 @@ func (c *queryContract) parse(args string) (string, string, string, string, erro
 
 	queryCode := "[]"
 
-	if len(splitArgs) == 3 {
+	if len(splitArgs) >= 3 {
 		queryCode = splitArgs[2].Text
 	}
 
