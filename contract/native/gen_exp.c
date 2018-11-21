@@ -16,15 +16,15 @@ exp_gen_id(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_val(gen_t *gen, ast_exp_t *exp)
 {
-    ASSERT1(is_val_exp(exp), exp->kind);
+    ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_val.val.kind) {
+    switch (exp->u_lit.val.kind) {
     case VAL_BOOL:
-        return BinaryenConst(gen->module, BinaryenLiteralInt32(bool_val(&exp->u_val.val)));
+        return BinaryenConst(gen->module, BinaryenLiteralInt32(bool_val(&exp->u_lit.val)));
     case VAL_INT:
-        return BinaryenConst(gen->module, BinaryenLiteralInt64(int_val(&exp->u_val.val)));
+        return BinaryenConst(gen->module, BinaryenLiteralInt64(int_val(&exp->u_lit.val)));
     case VAL_FP:
-        return BinaryenConst(gen->module, BinaryenLiteralFloat64(fp_val(&exp->u_val.val)));
+        return BinaryenConst(gen->module, BinaryenLiteralFloat64(fp_val(&exp->u_lit.val)));
     case VAL_STR:
         // XXX
         break;
@@ -32,7 +32,7 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
         // XXX
         break;
     default:
-        ASSERT1(!"invalid value", exp->u_val.val.kind);
+        ASSERT1(!"invalid value", exp->u_lit.val.kind);
     }
 
     return NULL;

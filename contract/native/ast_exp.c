@@ -30,11 +30,11 @@ exp_new_null(src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_val(src_pos_t *pos)
+exp_new_lit(src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_VAL, pos);
 
-    value_init(&exp->u_val.val);
+    value_init(&exp->u_lit.val);
 
     return exp;
 }
@@ -162,7 +162,7 @@ exp_eval_const(ast_exp_t *exp)
     if (!is_op_exp(exp) || !is_const_type(&l_exp->meta))
         return NO_ERROR;
 
-    ASSERT1(is_val_exp(l_exp), l_exp->kind);
+    ASSERT1(is_lit_exp(l_exp), l_exp->kind);
 
     if (exp->u_op.r_exp != NULL) {
         ast_exp_t *r_exp = exp->u_op.r_exp;
@@ -170,14 +170,14 @@ exp_eval_const(ast_exp_t *exp)
         if (!is_const_type(&r_exp->meta))
             return NO_ERROR;
 
-        ASSERT1(is_val_exp(r_exp), r_exp->kind);
-        r_val = &r_exp->u_val.val;
+        ASSERT1(is_lit_exp(r_exp), r_exp->kind);
+        r_val = &r_exp->u_lit.val;
 
         if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
             RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
     }
 
-    value_eval(op, &exp->u_val.val, &l_exp->u_val.val, r_val);
+    value_eval(op, &exp->u_lit.val, &l_exp->u_lit.val, r_val);
 
     exp->kind = EXP_VAL;
     meta_set_const(&exp->meta);

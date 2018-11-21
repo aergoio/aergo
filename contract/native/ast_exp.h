@@ -12,7 +12,7 @@
 #include "value.h"
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
-#define is_val_exp(exp)             ((exp)->kind == EXP_VAL)
+#define is_lit_exp(exp)             ((exp)->kind == EXP_VAL)
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
@@ -42,9 +42,9 @@ typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
 /* null, true, false, 1, 1.0, 0x1, "..." */
-typedef struct exp_val_s {
+typedef struct exp_lit_s {
     value_t val;
-} exp_val_t;
+} exp_lit_t;
 
 /* primitive, struct, map */
 typedef struct exp_type_s {
@@ -115,7 +115,7 @@ struct ast_exp_s {
     exp_kind_t kind;
 
     union {
-        exp_val_t u_val;
+        exp_lit_t u_lit;
         exp_type_t u_type;
         exp_id_t u_id;
         exp_array_t u_arr;
@@ -134,7 +134,7 @@ struct ast_exp_s {
 };
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
-ast_exp_t *exp_new_val(src_pos_t *pos);
+ast_exp_t *exp_new_lit(src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);

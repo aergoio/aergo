@@ -43,8 +43,8 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             }
             else if (is_dec_family(size_meta) && is_const_type(size_meta)) {
                 /* integer literal */
-                ASSERT1(is_val_exp(size_exp), size_exp->kind);
-                size_val = &size_exp->u_val.val;
+                ASSERT1(is_lit_exp(size_exp), size_exp->kind);
+                size_val = &size_exp->u_lit.val;
             }
             else {
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
@@ -86,8 +86,8 @@ id_check_var(check_t *check, ast_id_t *id)
 
         CHECK(exp_check(check, init_exp));
 
-        /* This might be a redundant check, but is done to show 
-         * more specific error not just mismatch error. */
+        /* This might be a duplicate check because it will be checked by meta_cmp(), 
+         * but is done to show more specific error not just mismatch error. */
         if (is_tuple_type(init_meta)) {
 			if (!is_array_type(&id->meta) &&
                 !is_map_type(type_meta) && !is_struct_type(type_meta))
@@ -101,11 +101,11 @@ id_check_var(check_t *check, ast_id_t *id)
 
 		CHECK(meta_cmp(&id->meta, &init_exp->meta));
 
-        if (is_val_exp(init_exp)) {
-            if (!value_check(&init_exp->u_val.val, &id->meta))
+        if (is_lit_exp(init_exp)) {
+            if (!value_check(&init_exp->u_lit.val, &id->meta))
                 RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
 
-            id->val = &init_exp->u_val.val;
+            id->val = &init_exp->u_lit.val;
         }
     }
     else if (is_const_id(id)) {
@@ -158,9 +158,9 @@ id_check_enum(check_t *check, ast_id_t *id)
         ast_exp_t *init_exp = elem_id->u_var.init_exp;
 
         if (elem_id->u_var.init_exp == NULL) {
-            ast_exp_t *val_exp = exp_new_val(&elem_id->pos);
+            ast_exp_t *val_exp = exp_new_lit(&elem_id->pos);
 
-            value_set_int(&val_exp->u_val.val, enum_val);
+            value_set_int(&val_exp->u_lit.val, enum_val);
 
             elem_id->u_var.init_exp = val_exp;
         }
@@ -173,16 +173,16 @@ id_check_enum(check_t *check, ast_id_t *id)
             if (!is_const_type(init_meta) || !is_dec_family(init_meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
 
-            ASSERT1(is_val_exp(init_exp), init_exp->kind);
+            ASSERT1(is_lit_exp(init_exp), init_exp->kind);
 
-            init_val = &init_exp->u_val.val;
+            init_val = &init_exp->u_lit.val;
             ASSERT1(is_int_val(init_val), init_val->kind);
 
             for (j = 0; j < i; j++) {
                 ast_id_t *prev_id = array_item(elem_ids, j, ast_id_t);
 
                 if (prev_id->u_var.init_exp != NULL) {
-                    value_t *prev_val = &prev_id->u_var.init_exp->u_val.val;
+                    value_t *prev_val = &prev_id->u_var.init_exp->u_lit.val;
 
                     if (value_cmp(init_val, prev_val) == 0)
                         RETURN(ERROR_DUPLICATED_ENUM_VAL, &init_exp->pos);

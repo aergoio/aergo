@@ -1174,55 +1174,55 @@ prim_exp:
 simple_lit:
     K_NULL
     {
-        $$ = exp_new_val(&@$);
-        value_set_obj(&$$->u_val.val, NULL);
+        $$ = exp_new_lit(&@$);
+        value_set_obj(&$$->u_lit.val, NULL);
     }
 |   K_TRUE
     {
-        $$ = exp_new_val(&@$);
-        value_set_bool(&$$->u_val.val, true);
+        $$ = exp_new_lit(&@$);
+        value_set_bool(&$$->u_lit.val, true);
     }
 |   K_FALSE
     {
-        $$ = exp_new_val(&@$);
-        value_set_bool(&$$->u_val.val, false);
+        $$ = exp_new_lit(&@$);
+        value_set_bool(&$$->u_lit.val, false);
     }
 |   L_INT
     {
         uint64_t v;
 
-        $$ = exp_new_val(&@$);
+        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNu64, &v);
-        value_set_int(&$$->u_val.val, v);
+        value_set_int(&$$->u_lit.val, v);
     }
 |   L_OCTAL
     {
         uint64_t v;
 
-        $$ = exp_new_val(&@$);
+        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNo64, &v);
-        value_set_int(&$$->u_val.val, v);
+        value_set_int(&$$->u_lit.val, v);
     }
 |   L_HEX
     {
         uint64_t v;
 
-        $$ = exp_new_val(&@$);
+        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNx64, &v);
-        value_set_int(&$$->u_val.val, v);
+        value_set_int(&$$->u_lit.val, v);
     }
 |   L_FLOAT
     {
         double v;
 
-        $$ = exp_new_val(&@$);
+        $$ = exp_new_lit(&@$);
         sscanf($1, "%lf", &v);
-        value_set_fp(&$$->u_val.val, v);
+        value_set_fp(&$$->u_lit.val, v);
     }
 |   L_STR
     {
-        $$ = exp_new_val(&@$);
-        value_set_str(&$$->u_val.val, $1);
+        $$ = exp_new_lit(&@$);
+        value_set_str(&$$->u_lit.val, $1);
     }
 ;
 
@@ -1245,9 +1245,9 @@ new_exp:
         array_t *exps;
         ast_exp_t *size_exp;
 
-        size_exp = exp_new_val(&@4);
+        size_exp = exp_new_lit(&@4);
         sscanf($4, "%"SCNd64, &v);
-        value_set_int(&size_exp->u_val.val, v);
+        value_set_int(&size_exp->u_lit.val, v);
 
         exps = array_new();
         exp_add_last(exps, size_exp);

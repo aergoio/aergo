@@ -51,9 +51,9 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 static int
 exp_check_val(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(is_val_exp(exp), exp->kind);
+    ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_val.val.kind) {
+    switch (exp->u_lit.val.kind) {
     case VAL_BOOL:
         meta_set_bool(&exp->meta);
         break;
@@ -70,7 +70,7 @@ exp_check_val(check_t *check, ast_exp_t *exp)
         meta_set_object(&exp->meta);
         break;
     default:
-        ASSERT1(!"invalid value", exp->u_val.val.kind);
+        ASSERT1(!"invalid value", exp->u_lit.val.kind);
     }
 
     meta_set_const(&exp->meta);
@@ -171,11 +171,11 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta);
 
         if (is_const_type(idx_meta)) {
-            ASSERT1(is_val_exp(idx_exp), idx_exp->kind);
+            ASSERT1(is_lit_exp(idx_exp), idx_exp->kind);
             ASSERT(id_meta->arr_size != NULL);
 
             if (id_meta->arr_size[0] > 0 &&
-                int_val(&idx_exp->u_val.val) >= (uint)id_meta->arr_size[0])
+                int_val(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -577,8 +577,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
 
-        if (is_val_exp(param_exp) &&
-            !value_check(&param_exp->u_val.val, &param_id->meta))
+        if (is_lit_exp(param_exp) &&
+            !value_check(&param_exp->u_lit.val, &param_id->meta))
             RETURN(ERROR_NUMERIC_OVERFLOW, &param_exp->pos,
                    meta_to_str(&param_id->meta));
     }

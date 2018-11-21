@@ -48,7 +48,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
     CHECK(meta_cmp(l_meta, r_meta));
 
-    if (is_val_exp(r_exp) && !value_check(&r_exp->u_val.val, l_meta))
+    if (is_lit_exp(r_exp) && !value_check(&r_exp->u_lit.val, l_meta))
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
 
     return NO_ERROR;
@@ -212,8 +212,8 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     id->u_var.size_exps = NULL;
-    id->u_var.init_exp = exp_new_val(pos);
-    value_set_int(&id->u_var.init_exp->u_val.val, 0);
+    id->u_var.init_exp = exp_new_lit(pos);
+    value_set_int(&id->u_var.init_exp->u_lit.val, 0);
 
     id_add_last(&blk->ids, id);
 
