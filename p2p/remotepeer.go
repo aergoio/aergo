@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/message"
 	"github.com/golang/protobuf/proto"
-	"strings"
 	"sync"
 	"time"
 
@@ -516,12 +515,11 @@ func (p *remotePeerImpl) pruneRequests() {
 			deletedCnt++
 		}
 	}
-	//p.logger.Infof("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	p.logger.Info().Int("count", deletedCnt).Str(LogPeerID, p.meta.ID.Pretty()).
-		Time("until", expireTime).Msg("Pruned requests, but no response to peer")
+		Time("until", expireTime).Msg("Pruned requests which response was not came")
 	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {
-		p.logger.Debug().Msg(strings.Join(deletedReqs[:], ","))
+		p.logger.Debug().Strs("reqs", deletedReqs).Msg("Pruned")
 	}
 }
 

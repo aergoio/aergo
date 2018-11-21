@@ -130,10 +130,10 @@ func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Mes
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Hashes))
 
 	// send block headers to blockchain service
-	remotePeer.consumeRequest(msg.ID())
+	remotePeer.consumeRequest(msg.OriginalID())
 
 	// TODO: it's not used yet, but used in RPC and can be used in future performance tuning
 }
@@ -378,7 +378,7 @@ func (bh *getAncestorResponseHandler) handle(msg Message, msgBody proto.Message)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
 
 	// locate request data and remove it if found
-	remotePeer.consumeRequest(msg.ID())
+	remotePeer.consumeRequest(msg.OriginalID())
 
 	var ancestor *types.BlockInfo
 	if data.Status == types.ResultStatus_OK {
