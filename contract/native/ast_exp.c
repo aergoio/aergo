@@ -177,7 +177,7 @@ exp_eval_const(ast_exp_t *exp)
     value_eval(op, &exp->u_lit.val, &l_exp->u_lit.val, r_val);
 
     exp->kind = EXP_LIT;
-    meta_set_lit(&exp->meta);
+    meta_set_undef(&exp->meta);
 
     return NO_ERROR;
 }

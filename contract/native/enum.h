@@ -65,7 +65,7 @@ typedef enum type_e {
     TYPE_OBJECT     = 17,           /* contract or null */
     TYPE_BUILTIN    = TYPE_OBJECT,
 
-    TYPE_VOID       = 18,           /* for return type of function */
+    TYPE_VOID       = 18,           /* for function */
     TYPE_TUPLE      = 19,           /* for tuple expression */
     TYPE_MAX
 } type_t;

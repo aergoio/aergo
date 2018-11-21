@@ -59,9 +59,11 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
     case VAL_INT:
         meta_set_uint64(&exp->meta);
+        meta_set_undef(&exp->meta);
         break;
     case VAL_FP:
         meta_set_double(&exp->meta);
+        meta_set_undef(&exp->meta);
         break;
     case VAL_STR:
         meta_set_string(&exp->meta);
@@ -72,8 +74,6 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
     default:
         ASSERT1(!"invalid value", exp->u_lit.val.kind);
     }
-
-    meta_set_lit(&exp->meta);
 
     return NO_ERROR;
 }
@@ -552,7 +552,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         }
 
         meta_set_map(&exp->meta, NULL, NULL);
-        meta_set_lit(&exp->meta);
+        meta_set_undef(&exp->meta);
 
         return NO_ERROR;
     }
