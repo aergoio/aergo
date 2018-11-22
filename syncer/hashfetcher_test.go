@@ -9,14 +9,14 @@ import (
 
 func TestHashFetcher_normal(t *testing.T) {
 	//make remoteBlockChain
-	remoteChain := initStubBlockChain(10)
+	remoteChain := initStubBlockChain(nil, 10)
 
-	ancestor := remoteChain.GetBlock(0)
+	ancestor := remoteChain.GetBlockByNo(0)
 
 	ctx := types.NewSyncCtx("p1", 5, 1)
 	ctx.SetAncestor(ancestor)
 
-	syncer := NewStubSyncer(ctx, true, false, remoteChain)
+	syncer := NewStubSyncer(ctx, false, true, false, nil, remoteChain)
 	syncer.hf.Start()
 
 	//hashset 1~3, 4~5
@@ -48,13 +48,13 @@ func TestHashFetcher_normal(t *testing.T) {
 
 func TestHashFetcher_ResponseError(t *testing.T) {
 	//make remoteBlockChain
-	remoteChain := initStubBlockChain(10)
-	ancestor := remoteChain.GetBlock(0)
+	remoteChain := initStubBlockChain(nil, 10)
+	ancestor := remoteChain.GetBlockByNo(0)
 
 	ctx := types.NewSyncCtx("p1", 5, 1)
 	ctx.SetAncestor(ancestor)
 
-	syncer := NewStubSyncer(ctx, true, false, remoteChain)
+	syncer := NewStubSyncer(ctx, false, true, false, nil, remoteChain)
 	syncer.hf.Start()
 
 	//hashset 2~4, 5~7, 8~9

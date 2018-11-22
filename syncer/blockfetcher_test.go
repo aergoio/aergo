@@ -26,14 +26,14 @@ func TestBlockFetcher_normal(t *testing.T) {
 	testTargetNo := uint64(5)
 
 	//make remoteBlockChain
-	remoteChain := initStubBlockChain(10)
+	remoteChain := initStubBlockChain(nil, 10)
 
-	ancestor := remoteChain.GetBlock(0)
+	ancestor := remoteChain.GetBlockByNo(0)
 
 	ctx := types.NewSyncCtx("p1", testTargetNo, 1)
 	ctx.SetAncestor(ancestor)
 
-	syncer := NewStubSyncer(ctx, false, true, remoteChain)
+	syncer := NewStubSyncer(ctx, false, false, true, nil, remoteChain)
 	syncer.bf.Start()
 
 	bf := syncer.bf

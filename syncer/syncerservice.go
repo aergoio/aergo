@@ -73,6 +73,8 @@ func (syncer *Syncer) BeforeStop() {
 
 func (syncer *Syncer) Reset() {
 	if syncer.isstartning {
+		logger.Info().Msg("syncer stop#1")
+
 		syncer.finder.stop()
 		syncer.hashFetcher.stop()
 		syncer.blockFetcher.stop()
@@ -98,6 +100,8 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			return
 		case *message.GetHashesRsp:
 			return
+		case *message.GetHashByNoRsp:
+			return
 		case *message.GetBlockChunksRsp:
 			return
 		case *message.AddBlockRsp:
@@ -115,7 +119,8 @@ func (syncer *Syncer) Receive(context actor.Context) {
 		}
 	case *message.GetSyncAncestorRsp:
 		syncer.handleAncestorRsp(msg)
-
+	case *message.GetHashByNoRsp:
+		syncer.handleGetHashByNoRsp(msg)
 	case *message.FinderResult:
 		err := syncer.handleFinderResult(msg)
 		if err != nil {
@@ -168,7 +173,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("sync requested")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
 
 	if syncer.isstartning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
@@ -190,13 +195,14 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 		return nil
 	}
 
-	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("sync started")
+	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
 
 	//TODO BP stop
 	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isstartning = true
 
-	syncer.finder = newFinder(syncer.ctx, syncer.Hub())
+	syncer.finder = newFinder(syncer.ctx, syncer.Hub(), syncer.chain)
+	syncer.finder.start()
 
 	return err
 }
@@ -208,10 +214,17 @@ func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
 	syncer.finder.lScanCh <- msg.Ancestor
 }
 
+func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
+	logger.Debug().Msg("syncer received gethashbyno response")
+
+	//set ancestor in types.SyncContext
+	syncer.finder.GetHashByNoRsp(msg)
+}
+
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	logger.Debug().Msg("syncer received finder result message")
 
-	if msg.Err != nil {
+	if msg.Err != nil || msg.Ancestor == nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")
 		return ErrFinderInternal
 	}

@@ -84,12 +84,12 @@ func (hf *HashFetcher) Start() {
 	hf.waitGroup = &sync.WaitGroup{}
 	hf.waitGroup.Add(1)
 
+	hf.isRunning = true
+
 	run := func() {
 		defer hf.waitGroup.Done()
 
 		logger.Debug().Msg("start hash fetcher")
-
-		hf.isRunning = true
 
 		timer := time.NewTimer(hf.timeout)
 
@@ -178,7 +178,13 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 	}
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: lastHash, No: lastHashNo}
-	hf.resultCh <- hashSet
+
+	select {
+	case hf.resultCh <- hashSet:
+	case <-hf.quitCh:
+		logger.Info().Msg("hash fetcher quit while pushing result")
+	}
+
 	hf.isRequesting = false
 
 	logger.Debug().Uint64("target", hf.ctx.TargetNo).Uint64("start", hashSet.StartNo).Uint64("last", lastHashNo).Int("count", len(hashSet.Hashes)).Msg("push hashset to BlockFetcher")
@@ -187,7 +193,7 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 }
 
 func (hf *HashFetcher) stop() {
-	logger.Info().Msg("HashFetcher stop")
+	logger.Info().Msg("HashFetcher stop#1")
 
 	if hf == nil {
 		return
@@ -205,6 +211,7 @@ func (hf *HashFetcher) stop() {
 		hf.waitGroup.Wait()
 		hf.isRunning = false
 	}
+	logger.Info().Msg("HashFetcher stopped")
 }
 
 func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) (bool, error) {

@@ -67,11 +67,11 @@ type SyncContext struct {
 
 	TotalCnt   uint64
 	RemainCnt  uint64
-	LastAnchor []byte
+	LastAnchor BlockNo
 }
 
 func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo}
+	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
 }
 
 func (ctx *SyncContext) SetAncestor(ancestor *Block) {

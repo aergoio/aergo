@@ -151,6 +151,7 @@ type GetStakingRsp struct {
 type GetAnchors struct{}
 type GetAnchorsRsp struct {
 	Hashes [][]byte
+	LastNo types.BlockNo
 	Err    error
 }
 

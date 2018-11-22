@@ -19,13 +19,18 @@ type StubSyncer struct {
 
 	testhub *StubHub
 
-	hf *HashFetcher
-	bf *BlockFetcher
+	finder *Finder
+	hf     *HashFetcher
+	bf     *BlockFetcher
 
 	bfInputCh chan *HashSet
 
 	remoteChain *StubBlockChain
-	stubPeers   []*StubPeer
+	localChain  *StubBlockChain
+
+	stubPeers []*StubPeer
+
+	stopFoundAncestor bool
 
 	isStop bool
 }
@@ -104,7 +109,7 @@ func (tchain *StubBlockChain) GetBlockInfo(no uint64) *types.BlockInfo {
 	return &types.BlockInfo{tchain.hashes[no], no}
 }
 
-func (tchain *StubBlockChain) GetBlock(no uint64) *types.Block {
+func (tchain *StubBlockChain) GetBlockByNo(no uint64) *types.Block {
 	return tchain.blocks[no]
 }
 
@@ -136,22 +141,52 @@ func (tchain *StubBlockChain) GetBlocks(hashes []message.BlockHash) ([]*types.Bl
 	return resultBlocks, nil
 }
 
-func initStubBlockChain(size int) *StubBlockChain {
+func (tchain *StubBlockChain) GetBestBlock() (*types.Block, error) {
+	return tchain.bestBlock, nil
+}
+
+func (tchain *StubBlockChain) GetBlock(blockHash []byte) (*types.Block, error) {
+	for _, block := range tchain.blocks {
+		if bytes.Equal(block.GetHash(), blockHash) {
+			return block, nil
+			break
+		}
+	}
+
+	return nil, ErrNotExistBlock
+}
+
+func (tchain *StubBlockChain) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	if uint64(len(tchain.hashes)) <= blockNo {
+		return nil, ErrNotExistHash
+	}
+
+	return tchain.hashes[blockNo], nil
+}
+
+func initStubBlockChain(prefixChain []*types.Block, genCount int) *StubBlockChain {
 	chain := NewStubBlockChain()
 
 	//load initial blocks
-	for i := 0; i < size; i++ {
+	for _, block := range prefixChain {
+		chain.addBlock(block)
+	}
+
+	for i := 0; i < genCount; i++ {
 		chain.genAddBlock()
 	}
 
 	return chain
 }
 
-func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher bool, remoteChain *StubBlockChain) *StubSyncer {
+func NewStubSyncer(ctx *types.SyncContext, useFinder bool, useHashFetcher bool, useBlockFetcher bool, localChain *StubBlockChain, remoteChain *StubBlockChain) *StubSyncer {
 	syncer := &StubSyncer{ctx: ctx}
 	syncer.bfInputCh = make(chan *HashSet)
 	syncer.testhub = NewStubHub()
 
+	if useFinder {
+		syncer.finder = newFinder(ctx, syncer.testhub, localChain)
+	}
 	if useBlockFetcher {
 		syncer.bf = newBlockFetcher(ctx, syncer.testhub, TestMaxFetchSize, TestMaxTasks, TestMaxPendingTasks)
 
@@ -162,6 +197,7 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 	}
 
 	syncer.remoteChain = remoteChain
+	syncer.localChain = localChain
 
 	syncer.makeStubPeerSet(TestMaxPeer)
 
@@ -171,16 +207,23 @@ func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher 
 func (syncer *StubSyncer) start(t *testing.T) {
 	logger.Debug().Msg("stubsyncer start")
 
-	if syncer.ctx.CommonAncestor == nil {
+	if syncer.finder == nil && syncer.ctx.CommonAncestor == nil {
 		t.Fatal("common ancestor is not set")
 	}
 
-	syncer.hf.Start()
-	syncer.bf.Start()
+	if syncer.hf != nil {
+		syncer.hf.Start()
+	}
+	if syncer.bf != nil {
+		syncer.bf.Start()
+	}
 
 	for {
 		msg := syncer.testhub.recvMessage()
-		syncer.handleMessageAuto(t, msg, nil)
+		isStop := syncer.handleMessageAuto(t, msg, nil)
+		if isStop {
+			return
+		}
 	}
 }
 
@@ -195,9 +238,28 @@ func (syncer *StubSyncer) stop(t *testing.T) {
 	}
 }
 
-func (syncer *StubSyncer) handleMessageAuto(t *testing.T, inmsg interface{}, responseErr error) {
+func (syncer *StubSyncer) handleMessageAuto(t *testing.T, inmsg interface{}, responseErr error) bool {
 	switch msg := inmsg.(type) {
 	//p2p role
+	case *message.GetHashByNo: //from Finder
+		//targetPeer = 0
+		hash, err := syncer.stubPeers[0].blockChain.GetHashByNo(msg.BlockNo)
+		rsp := &message.GetHashByNoRsp{BlockHash: hash, Err: err}
+		syncer.finder.GetHashByNoRsp(rsp)
+	case *message.FinderResult:
+		var ancestor *types.Block
+		if msg.Ancestor != nil {
+			ancestor, _ = syncer.localChain.GetBlock(msg.Ancestor.Hash)
+		}
+		//set ancestor in types.SyncContext
+		syncer.ctx.SetAncestor(ancestor)
+		syncer.finder.stop()
+		syncer.finder = nil
+
+		if syncer.stopFoundAncestor {
+			return true
+		}
+
 	case *message.GetHashes: //from HashFetcher
 		blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
 
@@ -218,6 +280,7 @@ func (syncer *StubSyncer) handleMessageAuto(t *testing.T, inmsg interface{}, res
 
 	case *message.SyncStop:
 		syncer.stop(t)
+		return true
 	case *message.CloseFetcher:
 		if msg.FromWho == NameHashFetcher {
 			syncer.hf.stop()
@@ -231,6 +294,8 @@ func (syncer *StubSyncer) handleMessageAuto(t *testing.T, inmsg interface{}, res
 	default:
 		t.Error("invalid syncer message")
 	}
+
+	return false
 }
 
 func (syncer *StubSyncer) handleMessageManual(t *testing.T, inmsg interface{}, responseErr error) {
