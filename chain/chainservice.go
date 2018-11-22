@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -48,7 +47,7 @@ var (
 )
 
 // NewChainService create instance of ChainService
-func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool.MemPool) *ChainService {
+func NewChainService(cfg *cfg.Config, cc consensus.Consensus) *ChainService {
 	actor := &ChainService{
 		ChainConsensus: cc,
 		cfg:            cfg,
@@ -68,12 +67,10 @@ func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool
 
 	if cc != nil {
 		cc.SetStateDB(actor.sdb)
+		cc.SetChainAccessor(actor)
 	}
 
 	actor.validator = NewBlockValidator(actor.sdb)
-	if pool != nil {
-		pool.SetChainStateDB(actor.sdb)
-	}
 	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
 
 	return actor
@@ -99,6 +96,11 @@ func (cs *ChainService) initDB(dbType string, dataDir string) error {
 	contract.LoadDatabase(dataDir)
 
 	return nil
+}
+
+// SDB returns cs.sdb.
+func (cs *ChainService) SDB() *state.ChainStateDB {
+	return cs.sdb
 }
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary

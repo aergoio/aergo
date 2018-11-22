@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
@@ -32,11 +34,9 @@ type RPC struct {
 
 	*component.BaseComponent
 
-	hub *component.ComponentHub
-
 	grpcServer    *grpc.Server
 	grpcWebServer *grpcweb.WrappedGrpcServer
-	actualServer  aergorpc.AergoRPCServiceServer
+	actualServer  *AergoRPCService
 	httpServer    *http.Server
 
 	ca types.ChainAccessor
@@ -45,9 +45,8 @@ type RPC struct {
 //var _ component.IComponent = (*RPCComponent)(nil)
 
 // NewRPC create an rpc service
-func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
+func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
-		hub:         hub,
 		msgHelper:   message.GetHelper(),
 		blockstream: []types.AergoRPCService_ListBlockStreamServer{},
 	}
@@ -73,7 +72,6 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 
 	rpcsvc := &RPC{
 		conf: cfg,
-		hub:  hub,
 
 		grpcServer:    grpcServer,
 		grpcWebServer: grpcWebServer,
@@ -91,6 +89,11 @@ func NewRPC(hub *component.ComponentHub, cfg *config.Config, chainAccessor types
 	}
 
 	return rpcsvc
+}
+
+func (ns *RPC) SetHub(hub *component.ComponentHub) {
+	ns.actualServer.hub = hub
+	ns.BaseComponent.SetHub(hub)
 }
 
 // Start start rpc service.
@@ -115,7 +118,7 @@ func (ns *RPC) Statistics() *map[string]interface{} {
 func (ns *RPC) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *types.Block:
-		server, _ := ns.actualServer.(*AergoRPCService)
+		server := ns.actualServer
 		server.BroadcastToListBlockStream(msg)
 	case *actor.Started:
 	case *actor.Stopping:

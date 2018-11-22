@@ -131,16 +131,17 @@ func rootRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	mpoolSvc := mempool.NewMemPoolService(cfg)
-	compMng.Register(mpoolSvc)
-	chainSvc := chain.NewChainService(cfg, consensusSvc, mpoolSvc)
+	chainSvc := chain.NewChainService(cfg, consensusSvc)
 	compMng.Register(chainSvc)
-	consensusSvc.SetChainAccessor(chainSvc)
-	rpcSvc := rpc.NewRPC(compMng, cfg, chainSvc)
+	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
+	compMng.Register(mpoolSvc)
+	accountSvc := account.NewAccountService(cfg)
+	compMng.Register(accountSvc)
+	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	compMng.Register(rpcSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	compMng.Register(syncSvc)
-	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
+	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	compMng.Register(p2pSvc)
 
 	if cfg.Personal {

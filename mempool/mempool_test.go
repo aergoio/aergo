@@ -69,7 +69,7 @@ func simulateBlockGen(txs ...*types.Tx) error {
 func initTest(t *testing.T) {
 	serverCtx := config.NewServerContext("", "")
 	cfg := serverCtx.GetDefaultConfig().(*config.Config)
-	pool = NewMemPoolService(cfg)
+	pool = NewMemPoolService(cfg, nil)
 	pool.testConfig = true
 	pool.BeforeStart()
 

@@ -32,8 +32,6 @@ type nodeInfo struct {
 type P2P struct {
 	*component.BaseComponent
 
-	hub *component.ComponentHub
-
 	pm     PeerManager
 	sm     SyncManager
 	rm     ReconnectManager
@@ -112,10 +110,8 @@ func NodePubKey() crypto.PubKey {
 }
 
 // NewP2P create a new ActorService for p2p
-func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *chain.ChainService) *P2P {
-	p2psvc := &P2P{
-		hub: hub,
-	}
+func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
+	p2psvc := &P2P{}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
 	p2psvc.init(cfg, chainsvc)
 	return p2psvc
@@ -191,7 +187,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 
 	case *message.GetPeers:
 		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks:lastBlks, States: states})
+		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks: lastBlks, States: states})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
 	}
