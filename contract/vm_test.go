@@ -2106,4 +2106,86 @@ func TestPingpongCall(t *testing.T) {
 	}
 }
 
+func TestArrayArg(t *testing.T) {
+	definition1 := `
+	function copy(arr)
+		assert(type(arr) == "table", "table expected")
+		local rv = {}
+		for i, v in ipairs(arr) do
+			table.insert(rv, i, v)
+        end
+		return rv
+	end
+	function two_arr(arr1, arr2)
+		assert(type(arr1) == "table", "table expected")
+		assert(type(arr2) == "table", "table expected")
+		local rv = {}
+		table.insert(rv, 1, #arr1)
+		table.insert(rv, 2, #arr2)
+		return rv
+	end
+	function mixed_args(arr1, map1, n)
+		assert(type(arr1) == "table", "table expected")
+		assert(type(map1) == "table", "table expected")
+		local rv = {}
+		table.insert(rv, 1, arr1)
+		table.insert(rv, 2, map1)
+		table.insert(rv, 3, n)
+		return rv
+	end
+
+	abi.register(copy, two_arr, mixed_args)
+	`
+
+	bc, err := LoadDummyChain()
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition1),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "copy", "Args":[1, 2, 3]}`, "table expected", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "copy", "Args":[[1, 2, 3]]}`, "", "[1,2,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "two_arr", "Args":[[1, 2, 3],[4, 5]]}`, "", "[3,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[[1, 2, 3], {"name": "kslee", "age": 39}, 7]}`,
+		"",
+		`[[1,2,3],{"name":"kslee","age":39},7]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[
+[[1, 2, 3],["first", "second"]],
+{"name": "kslee", "age": 39, "address": {"state": "XXX-do", "city": "YYY-si"}},
+"end"
+]}`,
+		"",
+		`[[[1,2,3],["first","second"]],{"address":{"state":"XXX-do","city":"YYY-si"},"age":39,"name":"kslee"},"end"]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[
+[{"name": "wook", "age": 50}, {"name": "hook", "age": 42}],
+{"name": "kslee", "age": 39, "scores": [10, 20, 30, 40, 50]},
+"hmm..."
+]}`,
+		"",
+		`[[{"name":"wook","age":50},{"name":"hook","age":42}],{"scores":[10,20,30,40,50],"age":39,"name":"kslee"},"hmm..."]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

@@ -182,28 +182,68 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 
 func (ce *Executor) processArgs(ci *types.CallInfo) {
 	for _, v := range ci.Args {
-		switch arg := v.(type) {
-		case string:
-			argC := C.CString(arg)
-			C.lua_pushstring(ce.L, argC)
-			C.free(unsafe.Pointer(argC))
-		case int:
-			C.lua_pushinteger(ce.L, C.lua_Integer(arg))
-		case float64:
-			C.lua_pushnumber(ce.L, C.double(arg))
-		case bool:
-			var b int
-			if arg {
-				b = 1
-			}
-			C.lua_pushboolean(ce.L, C.int(b))
-		case nil:
-			C.lua_pushnil(ce.L)
-		default:
-			ce.err = errors.New("unsupported type:" + reflect.TypeOf(v).Name())
+		if err := pushValue(ce.L, v); err != nil {
+			ce.err = err
 			return
 		}
 	}
+}
+
+func pushValue(L *LState, v interface{}) error {
+	switch arg := v.(type) {
+	case string:
+		argC := C.CString(arg)
+		C.lua_pushstring(L, argC)
+		C.free(unsafe.Pointer(argC))
+	case int:
+		C.lua_pushinteger(L, C.lua_Integer(arg))
+	case float64:
+		C.lua_pushnumber(L, C.double(arg))
+	case bool:
+		var b int
+		if arg {
+			b = 1
+		}
+		C.lua_pushboolean(L, C.int(b))
+	case nil:
+		C.lua_pushnil(L)
+	case []interface{}:
+		toLuaArray(L, arg)
+	case map[string]interface{}:
+		toLuaTable(L, arg)
+	default:
+		return errors.New("unsupported type:" + reflect.TypeOf(v).Name())
+	}
+	return nil
+}
+
+func toLuaArray(L *LState, arr []interface{}) error {
+	C.lua_createtable(L, C.int(len(arr)), C.int(0))
+	n := C.lua_gettop(L)
+	for i, v := range arr {
+		if err := pushValue(L, v); err != nil {
+			return err
+		}
+		C.lua_rawseti(L, n, C.int(i+1))
+	}
+	return nil
+}
+
+func toLuaTable(L *LState, tab map[string]interface{}) error {
+	C.lua_createtable(L, C.int(0), C.int(len(tab)))
+	n := C.lua_gettop(L)
+	for k, v := range tab {
+		// push a key
+		key := C.CString(k)
+		C.lua_pushstring(L, key)
+		C.free(unsafe.Pointer(key))
+
+		if err := pushValue(L, v); err != nil {
+			return err
+		}
+		C.lua_rawset(L, n)
+	}
+	return nil
 }
 
 func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
