@@ -10,10 +10,8 @@ CMAKE_CMD ?= cmake
 BUILD_DIR := build
 BUILD_FILE := $(BUILD_DIR)/Makefile
 
-SYS_INFO := $(shell uname 2>/dev/null || echo Unknown)
-
 ifeq ($(OS),Windows_NT)
-    ifneq ($(filter MINGW%,$(SYS_INFO)),)
+    ifneq ($(filter MINGW%,$(shell uname 2>/dev/null || echo Unknown)),)
 	    MAKE_FLAG := -D CMAKE_MAKE_PROGRAM=mingw32-make.exe
     endif
 endif
@@ -21,7 +19,7 @@ endif
 .PHONY: all release debug clean
 
 all: $(BUILD_FILE)
-	@$(MAKE) --no-print-directory -C $(BUILD_DIR) $(MAKECMDGOALS)
+	@$(MAKE) --no-print-directory -C $(BUILD_DIR)
 
 $(BUILD_FILE):
 	@mkdir -p $(BUILD_DIR)
