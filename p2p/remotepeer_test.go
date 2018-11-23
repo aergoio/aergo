@@ -105,8 +105,6 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, dummyRW)
 			p.state.SetAndGet(types.RUNNING)
-			p.write.Open()
-			defer p.write.Close()
 			go p.runWrite()
 			p.state.SetAndGet(types.RUNNING)
 
@@ -147,9 +145,7 @@ func TestePeer_sendPing(t *testing.T) {
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 			mockMF.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, nil, nil)
-			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
-			defer p.write.Close()
 
 			go p.sendPing()
 
@@ -157,10 +153,9 @@ func TestePeer_sendPing(t *testing.T) {
 
 			actualWrite := false
 			select {
-			case msg := <-p.write.Out():
+			case msg := <-p.dWrite :
 				assert.Equal(t, PingRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
-				p.write.Done() <- msg
 			default:
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
@@ -198,9 +193,7 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil,nil)
-			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
-			defer p.write.Close()
 
 			go p.sendStatus()
 
@@ -208,10 +201,9 @@ func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
 
 			actualWrite := false
 			select {
-			case msg := <-p.write.Out():
+			case msg := <-p.dWrite:
 				assert.Equal(t, StatusRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
-				p.write.Done() <- msg
 			default:
 			}
 			assert.Equal(t, tt.wants.wantWrite, actualWrite)
@@ -313,21 +305,18 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 			wg2 := &sync.WaitGroup{}
 			wg2.Add(1)
 			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil,nil)
-			p.write.Open()
 			p.state.SetAndGet(types.RUNNING)
-			defer p.write.Close()
 
 			if !tt.timeout {
 				go func() {
 					wg.Wait()
 					for {
 						select {
-						case mo := <-p.write.Out():
+						case mo := <-p.dWrite:
 							p.logger.Info().Msgf("Got order from chan %v", mo)
 							msg := mo.(msgOrder)
 							p.logger.Info().Str(LogMsgID, msg.GetMsgID().String()).Msg("Got order")
 							atomic.AddInt32(&writeCnt, 1)
-							p.write.Done() <- msg
 							wg2.Done()
 							continue
 						case <-finishTest:

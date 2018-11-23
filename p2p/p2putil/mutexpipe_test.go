@@ -1,3 +1,8 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package p2putil
 
 import (
@@ -10,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestChannelpipe(t *testing.T) {
+func TestMutexPipe(t *testing.T) {
 	const arrSize = 30
 	var mos [arrSize]TestItem
 	for i := 0; i < arrSize; i++ {
@@ -19,16 +24,21 @@ func TestChannelpipe(t *testing.T) {
 
 	logger := log.NewLogger("test")
 	tests := []struct {
-		name     string
-		cap      int
-		stallIdx int
+		name      string
+		cap       int
+		finishIdx int
 
 		expectMinOut uint64
 		expectConsec uint64
+		//expectMinOut uint64
+		//expectOut    uint64
 	}{
 		{"tStall", 10, 0, 2, 18},
 		{"tmidStall", 10, 5, 7, 13},
 		{"tfast", 10, 1000, arrSize - 10, 0},
+		//{"tStall", 10, 1, 2, 2},
+		//{"tmidStall", 10, 5, 6, 6},
+		//{"tfast", 10, 1000, arrSize - 10, 30},
 		// TODO: Add test cases.
 	}
 
@@ -37,35 +47,41 @@ func TestChannelpipe(t *testing.T) {
 			doneC := make(chan int, 1)
 			statListener := NewStatLister()
 			listener := NewMultiListener(statListener, &logListener{logger}, &orderCheckListener{t: t, outId: -1, dropId: -1})
-			c := newDefaultChannelPipe(tt.cap, listener)
+			//c := newMutexPipe(tt.cap, listener)
+			c := newMutexPipe(tt.cap, listener)
 			c.Open()
-			go consumeStall(c, tt.stallIdx, arrSize, doneC)
+			failCount := 0
+			go consumeStall(c, tt.finishIdx, arrSize, doneC)
 			for _, mo := range mos {
-				c.Put(mo)
+				if !c.Put(mo) {
+					failCount++
+				}
 				time.Sleep(time.Millisecond)
+
 			}
-			consumeCount := <-doneC
+			consumedCount := <-doneC
 			lock := &sync.Mutex{}
 			lock.Lock()
 			actStat := statListener
 			lock.Unlock()
 
-			fmt.Printf("In %d , out %d , consecutive drop %d\n", actStat.incnt, actStat.outcnt, actStat.consecdrop)
+			fmt.Printf("In %d , out %d , failed count %d\n", actStat.incnt, actStat.outcnt, failCount)
+			assert.Equal(t, uint64(arrSize), actStat.incnt)
 			assert.True(t, actStat.incnt == arrSize)
 			if tt.expectConsec == 0 {
-				assert.Equal(t, uint64(consumeCount), actStat.outcnt)
+				assert.Equal(t, uint64(consumedCount), actStat.outcnt)
 				assert.Equal(t, actStat.incnt, actStat.outcnt)
 			} else {
-				assert.Equal(t, uint64(consumeCount+1), actStat.outcnt)
+				assert.Equal(t, uint64(consumedCount+1), actStat.outcnt)
 				assert.Equal(t, actStat.incnt, actStat.outcnt+actStat.consecdrop+uint64(tt.cap))
 			}
 
-			c.Close()
+			//c.Close()
 		})
 	}
 }
 
-func Test_nonBlockWriteChan2(t *testing.T) {
+func TestMutexPipe_nonBlockWriteChan2(t *testing.T) {
 	const arrSize = 30
 	var mos [arrSize]TestItem
 	for i := 0; i < arrSize; i++ {
@@ -90,12 +106,14 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 			doneC := make(chan int, 1)
 			statListener := NewStatLister()
 			listener := NewMultiListener(statListener, &logListener{logger}, &orderCheckListener{t: t, outId: -1, dropId: -1})
-			c := newDefaultChannelPipe(tt.cap, listener)
+			c := newMutexPipe(tt.cap, listener)
 			c.Open()
 
 			go consumeStall2(c, tt.stallIdx, arrSize, doneC)
 			for _, mo := range mos {
-				c.Put(mo)
+				for !c.Put(mo) {
+					time.Sleep(time.Millisecond<<3)
+				}
 			}
 			consumeCount := <-doneC
 			lock := &sync.Mutex{}
@@ -112,91 +130,7 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 	}
 }
 
-func consumeStall(wc ChannelPipe, finishIdx int, maxCnt int, doneChannel chan<- int) {
-	arrs := make([]int, 0, maxCnt)
-	cnt := 0
-LOOP:
-	for cnt < maxCnt {
-		select {
-		case <-time.NewTimer(time.Millisecond * 200).C:
-			fmt.Printf("Internal expiretime is out \n")
-			break LOOP
-		case mo := <-wc.Out():
-			cnt++
-			arrs = append(arrs, mo.(TestItem).ID())
-			wc.Done()
-			// fmt.Printf("Consuming mo %s \n", mo.GetRequestID())
-			if cnt >= finishIdx {
-				fmt.Printf("Finishing consume after index %d \n", cnt)
-				break LOOP
-			}
-		}
-	}
-	fmt.Println("Consumed ", arrs)
-	doneChannel <- cnt
-}
-
-func consumeStall2(wc ChannelPipe, idx int, maxCnt int, doneChannel chan<- int) {
-	arrs := make([]int, 0, maxCnt)
-	cnt := 0
-LOOP:
-	for cnt < maxCnt {
-		select {
-		case <-time.NewTimer(time.Millisecond * 200).C:
-			fmt.Printf("Internal expiretime is out \n")
-			break LOOP
-		case mo := <-wc.Out():
-			cnt++
-			if cnt%4 == 3 {
-				time.Sleep(time.Millisecond)
-			}
-			arrs = append(arrs, mo.(TestItem).ID())
-			wc.Done()
-			// fmt.Printf("Consuming mo %s \n", mo.GetRequestID())
-		}
-	}
-	fmt.Println("Consumed ", arrs)
-	doneChannel <- cnt
-}
-
-type logListener struct {
-	logger *log.Logger
-}
-
-func (l *logListener) OnIn(element interface{}) {
-	l.logger.Info().Int("id", element.(TestItem).ID()).Msg("In")
-}
-
-func (l *logListener) OnDrop(element interface{}) {
-	l.logger.Info().Int("id", element.(TestItem).ID()).Msg("Drop")
-}
-
-func (l *logListener) OnOut(element interface{}) {
-	l.logger.Info().Int("id", element.(TestItem).ID()).Msg("Out")
-}
-
-type orderCheckListener struct {
-	t      *testing.T
-	outId  int
-	dropId int
-}
-
-func (l *orderCheckListener) OnIn(element interface{}) {
-}
-
-func (l *orderCheckListener) OnDrop(element interface{}) {
-	id := element.(TestItem).ID()
-	assert.Truef(l.t, id > l.dropId, "dropId expected higer thant %d, but %d", l.dropId, id)
-	l.dropId = id
-}
-
-func (l *orderCheckListener) OnOut(element interface{}) {
-	id := element.(TestItem).ID()
-	assert.Truef(l.t, id > l.outId, "outId expected higer thant %d, but %d", l.outId, id)
-	l.outId = id
-}
-
-func TestLongterm(t *testing.T) {
+func TestMutexPipe_Longterm(t *testing.T) {
 	// skip unit test in normal time..
 	t.SkipNow()
 	const arrSize = 30
@@ -229,7 +163,7 @@ func TestLongterm(t *testing.T) {
 			finish := make(chan interface{})
 			statListener := NewStatLister()
 			listener := NewMultiListener(statListener, &logListener{logger})
-			c := newDefaultChannelPipe(tt.cap, listener)
+			c := newMutexPipe(tt.cap, listener)
 			c.Open()
 
 			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
@@ -262,7 +196,7 @@ func TestLongterm(t *testing.T) {
 	}
 }
 
-func TestMultiLoads(t *testing.T) {
+func TestMutexPipe_MultiLoads(t *testing.T) {
 	// skip unit test in normal time..
 	// t.SkipNow()
 	const threadsize = 100
@@ -324,31 +258,4 @@ func TestMultiLoads(t *testing.T) {
 			c.Close()
 		})
 	}
-}
-
-type testItem2 struct {
-	testItem
-	routineId int
-}
-
-func consumeForLongterm(wc ChannelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
-	finishTime := time.NewTimer(ttl)
-	cnt := 0
-LOOP:
-	for {
-		select {
-		case <-finishChannel:
-			fmt.Printf("Finish loop by signal\n")
-			break LOOP
-		case <-finishTime.C:
-			fmt.Printf("Finish loop by time expire \n")
-			break LOOP
-		case <-wc.Out():
-			cnt++
-			time.Sleep(time.Millisecond >> 2)
-			wc.Done()
-		}
-	}
-	fmt.Printf("Consumed %d items\n", cnt)
-	doneChannel <- cnt
 }

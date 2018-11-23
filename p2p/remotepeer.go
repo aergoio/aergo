@@ -23,7 +23,12 @@ import (
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
-const defaultPingInterval = time.Second * 60
+const (
+	defaultPingInterval = time.Second * 60
+
+	writeChannelTimeout = time.Second * 2
+	writeMsgBufferSize = 20
+)
 
 var TimeoutError error
 func init() {
@@ -85,7 +90,6 @@ type remotePeerImpl struct {
 
 	stopChan chan struct{}
 
-	write      p2putil.ChannelPipe
 	// direct write channel
 	dWrite     chan msgOrder
 	closeWrite chan struct{}
@@ -135,8 +139,8 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		txNoticeQueue: p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 	}
-	peer.write = p2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
-	peer.dWrite = make(chan msgOrder)
+	//peer.write =make(chan msgp2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
+	peer.dWrite = make(chan msgOrder, writeMsgBufferSize)
 
 	var err error
 	peer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -210,7 +214,6 @@ func (p *remotePeerImpl) runPeer() {
 	pingTicker := time.NewTicker(p.pingDuration)
 
 	go p.runWrite()
-	p.write.Open()
 	go p.runRead()
 
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
@@ -234,7 +237,6 @@ READNOPLOOP:
 	p.state.SetAndGet(types.STOPPED)
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect
-	p.write.Close()
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
 }
@@ -252,9 +254,6 @@ WRITELOOP:
 		select {
 		case m := <-p.dWrite:
 			p.writeToPeer(m)
-		case m := <-p.write.Out():
-			p.writeToPeer(m.(msgOrder))
-			p.write.Done() <- m
 		case <-cleanupTicker.C:
 			p.pruneRequests()
 		case <-p.closeWrite:
@@ -284,7 +283,6 @@ func (p *remotePeerImpl) runRead() {
 			return
 		}
 	}
-
 }
 
 func (p *remotePeerImpl) handleMsg(msg Message) error {
@@ -327,15 +325,20 @@ func (p *remotePeerImpl) stop() {
 	p.stopChan <- struct{}{}
 }
 
-const writeChannelTimeout = time.Second * 2
-
 func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 	if p.state.Get() != types.RUNNING {
 		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
 			Str(LogMsgID, msg.GetMsgID().String()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
-	p.write.In() <- msg
+	select {
+		case p.dWrite <- msg:
+			// it's OK
+		default:
+			p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
+				Str(LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
+			p.pm.RemovePeer(p.meta.ID)
+	}
 }
 
 func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration) error {
@@ -348,6 +351,9 @@ func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration)
 		case p.dWrite <- msg :
 			return nil
 		case <- time.NewTimer(timeout).C :
+			p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
+				Str(LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
+			p.pm.RemovePeer(p.meta.ID)
 			return TimeoutError
 	}
 }
@@ -548,34 +554,3 @@ func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
 }
 
-func newHangresolver(peer *remotePeerImpl, logger *log.Logger) *hangResolver {
-	return &hangResolver{p: peer, logger: logger}
-}
-
-type hangResolver struct {
-	p      *remotePeerImpl
-	logger *log.Logger
-
-	consecutiveDrops uint64
-}
-
-func (l *hangResolver) OnIn(element interface{}) {
-}
-
-func (l *hangResolver) OnDrop(element interface{}) {
-	l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
-	l.p.pm.RemovePeer(l.p.ID())
-	//mo := element.(msgOrder)
-	//now := time.Now().Unix()
-	//// if last send hang too long. drop this peer
-	//if l.consecutiveDrops > 20 || (now-mo.Timestamp()) > 60 {
-	//	l.logger.Info().Str(LogPeerID, l.p.ID().Pretty()).Msg("Peer seems to hang, drop this peer")
-	//	l.p.pm.RemovePeer(l.p.ID())
-	//} else {
-	//	l.logger.Debug().Str(LogPeerID, l.p.ID().Pretty()).Str(LogMsgID, mo.GetMsgID().String()).Str(LogProtoID, mo.GetProtocolID().String()).Msg("Peer too busy or deadlock, stalled message is dropped")
-	//}
-}
-
-func (l *hangResolver) OnOut(element interface{}) {
-	l.consecutiveDrops = 0
-}
