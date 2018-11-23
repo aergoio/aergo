@@ -43,7 +43,7 @@ func init() {
 	}
 }
 
-func newSyncWorker(sm *syncManager, peer RemotePeer, hashes []message.BlockHash, stopHash message.BlockHash) (*syncWorker) {
+func newSyncWorker(sm *syncManager, peer RemotePeer, hashes []message.BlockHash, stopHash message.BlockHash) *syncWorker {
 	var currentBest, stopH BlkHash
 	copy(currentBest[:], hashes[0])
 	copy(stopH[:], stopHash)
@@ -75,25 +75,25 @@ func (sw *syncWorker) runWorker() {
 	sw.requestMsgID = mo.GetMsgID()
 
 	timer := time.NewTimer(sw.ttl)
-	RUNLOOP:
+RUNLOOP:
 	for {
 		select {
 		case <-timer.C:
-			sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Str("base_hash",sw.currentBest.String()).Msg("sync work timeout")
+			sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("sync work timeout")
 			break RUNLOOP
 		case <-sw.cancel:
-			sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Str("base_hash",sw.currentBest.String()).Msg("sync work cancelled")
+			sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("sync work cancelled")
 			break RUNLOOP
 		case <-sw.retain:
 			if !timer.Stop() {
 				// it's already timeout or finished.
-				sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Str("base_hash",sw.currentBest.String()).Msg("failed to retain. already timeout or cancelled")
+				sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("failed to retain. already timeout or cancelled")
 				break RUNLOOP
 			}
-			sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Str("base_hash",sw.currentBest.String()).Msg("retain sync work")
+			sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("retain sync work")
 			timer.Reset(sw.ttl)
 		case <-sw.finish:
-			sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Str("base_hash",sw.currentBest.String()).Msg("sync work finished")
+			sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("sync work finished")
 			// add code if finish is needed.
 			break RUNLOOP
 		}
@@ -119,10 +119,10 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 	}
 
 	// send to chainservice if no actor is found.
-	lastIdx := len(blocks)-1
-	checkpoint := AddBlockCheckpoint-1
+	lastIdx := len(blocks) - 1
+	checkpoint := AddBlockCheckpoint - 1
 	for i, block := range blocks {
-		if i % AddBlockCheckpoint == checkpoint || i == lastIdx {
+		if i%AddBlockCheckpoint == checkpoint || i == lastIdx {
 			// cancel worker if failed to add any block.
 			rsp, err := sw.sm.actor.CallRequest(message.ChainSvc, &message.AddBlock{PeerID: sw.peerID, Block: block, Bstate: nil}, AddBlockWaitTime)
 			if err != nil {
@@ -137,7 +137,7 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 			}
 			addblockRsp, ok := rsp.(message.AddBlockRsp)
 			if ok == false {
-				sw.sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
+				sw.sm.logger.Error().Str("actual_type", reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
 				sw.Cancel()
 				return
 			}
@@ -152,13 +152,12 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 		}
 	}
 
-
 	if hasNext {
 		sw.retain <- struct{}{}
 		lastBlock := blocks[len(blocks)-1]
-		copy(sw.currentParent[:], lastBlock.GetHash())
+		copy(sw.currentParent[:], lastBlock.BlockHash())
 	} else {
-		sw.sm.logger.Debug().Str(LogPeerID,sw.peerID.Pretty()).Msg("last response came. finishing worker")
+		sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Msg("last response came. finishing worker")
 		sw.finish <- struct{}{}
 	}
 
