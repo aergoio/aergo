@@ -233,7 +233,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 			}
 
 			//found branch root
-			if bytes.Equal(brBlock.GetHash(), mainBlock.GetHash()) {
+			if bytes.Equal(brBlock.BlockHash(), mainBlock.BlockHash()) {
 				if curBestNo == brBlockNo {
 					return ErrInvalidBranchRoot
 				}
@@ -270,7 +270,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 		prevBrBlockNo := brBlock.GetHeader().GetBlockNo()
 		if brBlockNo-1 != prevBrBlockNo {
-			return &ErrReorgBlock{errMsgInvalidOldBlock, prevBrBlockNo, brBlock.GetHash()}
+			return &ErrReorgBlock{errMsgInvalidOldBlock, prevBrBlockNo, brBlock.BlockHash()}
 		}
 		brBlockNo = brBlock.GetHeader().GetBlockNo()
 	}

@@ -388,7 +388,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	//FIXME newblock must be created after sdb.apply()
 	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
 	bc.bestBlockNo = bc.bestBlockNo + 1
-	bc.bestBlockId = types.ToBlockID(bc.cBlock.GetHash())
+	bc.bestBlockId = types.ToBlockID(bc.cBlock.BlockHash())
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, bc.cBlock)
 

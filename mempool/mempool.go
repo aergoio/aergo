@@ -241,7 +241,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 		return true
 	}
 
-	newBlockID := types.ToBlockID(block.GetHash())
+	newBlockID := types.ToBlockID(block.BlockHash())
 	parentBlockID := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
 	normal := true
 

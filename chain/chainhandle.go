@@ -101,7 +101,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 		return nil, errors.New("cannot find a receipt")
 	}
 
-	return cs.cdb.getReceipt(block.GetHash(), block.GetHeader().BlockNo, i.Idx)
+	return cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
 }
 
 type chainProcessor struct {
@@ -721,7 +721,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 		return nil, HashNumberUnknown, HashNumberUnknown
 	}
 
-	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
+	return mainblock.BlockHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
 }
 
 func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
@@ -757,7 +757,7 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 		return nil, ErrorNoAncestor
 	}
 
-	return &types.BlockInfo{Hash: mainblock.GetHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
+	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {
