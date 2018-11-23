@@ -3,6 +3,7 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -2185,6 +2186,59 @@ func TestArrayArg(t *testing.T) {
 	)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestAbi(t *testing.T) {
+	errMsg := "no exported functions"
+
+	noAbi := `
+	function dummy()
+		system.print("dummy")
+	end`
+
+	bc, err := LoadDummyChain()
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, noAbi),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "no exported functions") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
+
+	empty := `
+	function dummy()
+		system.print("dummy")
+	end
+	abi.register()`
+
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "a", 10, empty),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "no exported functions.") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
+
+	localFunc := `
+	function dummy()
+		system.print("dummy")
+	end
+	local function helper()
+		system.print("helper")
+	end
+	abi.register(helper)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "a", 10, localFunc),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "global function expected") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
 	}
 }
 
