@@ -21,8 +21,9 @@ var (
 func init() {
 	log.SetOutput(os.Stderr)
 	rootCmd = &cobra.Command{
-		Use:   "aergoluac [flags] srcfile bcfile",
-		Short: "compile a contract",
+		Use:   "aergoluac --payload srcfile\n  aergoluac --abi abifile srcfile bcfile",
+		Short: "Compile a lua contract",
+		Long:  "Compile a lua contract. This command makes a bytecode file and a ABI file or prints a payload data.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if payload {
 				if len(args) == 0 {

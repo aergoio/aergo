@@ -68,7 +68,7 @@ func DumpFromFile(srcFileName string) {
 		log.Fatal(C.GoString(errMsg))
 	}
 
-	fmt.Print(util.EncodeCode(b.Bytes()))
+	fmt.Println(util.EncodeCode(b.Bytes()))
 }
 
 func DumpFromStdin() {
@@ -104,7 +104,7 @@ func DumpFromStdin() {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		log.Fatal(C.GoString(errMsg))
 	}
-	fmt.Print(util.EncodeCode(b.Bytes()))
+	fmt.Println(util.EncodeCode(b.Bytes()))
 }
 
 //export addLen

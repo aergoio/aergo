@@ -29,16 +29,17 @@ func init() {
 	}
 
 	deployCmd := &cobra.Command{
-		Use:   "deploy [flags] creator [bcfile] [abifile]",
-		Short: "Deploy a contract",
+		Use:   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Short: "Deploy a compiled contract to the server",
 		Args:  cobra.MinimumNArgs(1),
 		Run:   runDeployCmd,
+		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
 
 	callCmd := &cobra.Command{
-		Use:   "call [flags] sender contract name [args]",
+		Use:   "call [flags] sender contract funcname '[argument...]'",
 		Short: "Call a contract function",
 		Args:  cobra.MinimumNArgs(3),
 		Run:   runCallCmd,
@@ -66,7 +67,7 @@ func init() {
 			Run:   runGetABICmd,
 		},
 		&cobra.Command{
-			Use:   "query [flags] contract fname [args]",
+			Use:   "query [flags] contract funcname '[argument...]'",
 			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
