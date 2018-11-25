@@ -21,8 +21,6 @@ ast_new(void)
 
     ast->root = blk_new_root(&pos);
 
-    dsgmt_init(&ast->dsgmt);
-
     return ast;
 }
 

@@ -31,9 +31,6 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
     check->cont_id = NULL;
     check->qual_id = NULL;
     check->func_id = NULL;
-
-    check->mem_addr = 0;
-    check->var_idx = 0;
 }
 
 void

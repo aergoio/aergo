@@ -86,7 +86,7 @@ struct ast_id_s {
     };
 
     // results of semantic checker
-    bool is_used;       /* whether is referenced */
+    bool is_used;       /* whether it is referenced */
     meta_t meta;        /* identifier metadata */
     value_t *val;       /* constant value */
 

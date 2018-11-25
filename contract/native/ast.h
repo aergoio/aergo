@@ -8,8 +8,6 @@
 
 #include "common.h"
 
-#include "dsgmt.h"
-
 #define AST_NODE_DECL                                                                    \
     int num;                                                                             \
     src_pos_t pos
@@ -27,9 +25,6 @@ typedef struct ast_blk_s ast_blk_t;
 
 typedef struct ast_s {
     ast_blk_t *root;
-
-    /* results of semantic checker */
-    dsgmt_t dsgmt;
 } ast_t;
 
 extern int node_num_;
