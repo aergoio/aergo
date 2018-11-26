@@ -31,3 +31,12 @@ func TestGenesisChainID(t *testing.T) {
 	fmt.Println("len:", len(chainID))
 	fmt.Println("chain_id: ", enc.ToString(chainID))
 }
+
+func TestGenesisBytes(t *testing.T) {
+	a := assert.New(t)
+	g1 := GetDefaultGenesis()
+	g1.Balance = map[string]*State{"abc": &State{Balance: 1234}}
+	b := g1.Bytes()
+	g2 := GetGenesisFromBytes(b)
+	a.Nil(g2.Balance)
+}

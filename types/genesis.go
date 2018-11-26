@@ -65,7 +65,9 @@ func (g *Genesis) ChainID() []byte {
 }
 
 // Bytes returns byte-encoded BPs from g.
-func (g *Genesis) Bytes() []byte {
+func (g Genesis) Bytes() []byte {
+	// Omit the Balance to reduce the resulting data size.
+	g.Balance = nil
 	if b, err := common.GobEncode(g); err == nil {
 		return b
 	}
