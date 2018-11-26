@@ -43,12 +43,12 @@ var (
 	genesisBlock     *types.Block
 	initialBestBlock *types.Block
 
-	ErrBlockExist = errors.New("error! block already exist")
+	errBlockExist = errors.New("error! block already exist")
 )
 
 // NewChainService create instance of ChainService
 func NewChainService(cfg *cfg.Config) *ChainService {
-	actor := &ChainService{
+	cs := &ChainService{
 		cfg: cfg,
 		cdb: NewChainDB(),
 		sdb: state.NewChainStateDB(),
@@ -64,10 +64,19 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("invalid config: blockchain")
 	}
 
-	actor.validator = NewBlockValidator(actor.sdb)
-	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
+	cs.validator = NewBlockValidator(cs.sdb)
+	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 
-	return actor
+	if err := cs.initDB(cs.cfg.DbType, cs.cfg.DataDir); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
+	}
+
+	// init genesis block
+	if _, err := cs.initGenesis(nil); err != nil {
+		logger.Fatal().Err(err).Msg("failed to genesis block")
+	}
+
+	return cs
 }
 
 func (cs *ChainService) initDB(dbType string, dataDir string) error {
@@ -105,17 +114,6 @@ func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary
 func (cs *ChainService) BeforeStart() {
-	var err error
-
-	if err = cs.initDB(cs.cfg.DbType, cs.cfg.DataDir); err != nil {
-		logger.Fatal().Err(err).Msg("failed to initialize DB")
-	}
-
-	// init genesis block
-	if _, err := cs.initGenesis(nil); err != nil {
-		logger.Fatal().Err(err).Msg("failed to genesis block")
-	}
-
 	cs.ChainConsensus.Init(cs.cdb)
 }
 
@@ -261,7 +259,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = ErrBlockExist
+			err = errBlockExist
 		} else {
 			var bstate *state.BlockState
 			if msg.Bstate != nil {
