@@ -70,6 +70,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
     case VAL_OBJ:
         meta_set_object(&exp->meta);
+        meta_set_undef(&exp->meta);
         break;
     default:
         ASSERT1(!"invalid value", exp->u_lit.val.kind);

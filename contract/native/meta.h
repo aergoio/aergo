@@ -42,6 +42,9 @@
 #define is_fp_family(meta)          (is_float_type(meta) || is_double_type(meta))
 #define is_num_family(meta)         (is_dec_family(meta) || is_fp_family(meta))
 
+#define is_obj_family(meta)                                                              \
+    (is_string_type(meta) || is_map_type(meta) || is_object_type(meta))
+
 #define is_primitive_type(meta)                                                          \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
 #define is_builtin_type(meta)                                                            \

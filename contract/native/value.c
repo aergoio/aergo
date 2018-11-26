@@ -94,7 +94,7 @@ value_check(value_t *val, meta_t *meta)
         break;
 
     case VAL_OBJ:
-        ASSERT1(is_map_type(meta) || is_object_type(meta), meta->type);
+        ASSERT1(is_obj_family(meta), meta->type);
         break;
 
     case VAL_ADDR:

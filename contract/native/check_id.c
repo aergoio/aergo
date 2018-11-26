@@ -47,6 +47,10 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
             ASSERT1(is_int_val(size_val), size_val->kind);
+
+            if (int_val(size_val) <= 0)
+                RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
+
             id->meta.arr_size[i] = int_val(size_val);
         }
     }
@@ -54,11 +58,64 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
     return NO_ERROR;
 }
 
+static ast_exp_t *
+id_gen_dflt_exp(meta_t *meta)
+{
+    int i, j;
+    ast_exp_t *init_exp;
+
+    if (is_bool_type(meta)) {
+        init_exp = exp_new_lit(meta->pos);
+        value_set_bool(&init_exp->u_lit.val, false);
+    }
+    else if (is_dec_family(meta)) {
+        init_exp = exp_new_lit(meta->pos);
+        value_set_int(&init_exp->u_lit.val, 0);
+    }
+    else if (is_fp_family(meta)) {
+        init_exp = exp_new_lit(meta->pos);
+        value_set_fp(&init_exp->u_lit.val, 0.0);
+    }
+    else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
+        init_exp = exp_new_lit(meta->pos);
+        value_set_obj(&init_exp->u_lit.val, NULL);
+    }
+    else {
+        array_t *exps = array_new();
+
+        ASSERT1(is_struct_type(meta), meta->type);
+
+        for (i = 0; i < meta->elem_cnt; i++) {
+            exp_add_last(exps, id_gen_dflt_exp(meta->elems[i]));
+        }
+
+        init_exp = exp_new_tuple(exps, meta->pos);
+    }
+
+    if (is_array_type(meta)) {
+        ASSERT1(meta->arr_dim > 0, meta->arr_dim);
+
+        for (i = meta->arr_dim - 1; i >= 0; i--) {
+            array_t *exps = array_new();
+
+            for (j = 0; j < meta->arr_size[i]; j++) {
+                exp_add_last(exps, init_exp);
+            }
+
+            init_exp = exp_new_tuple(exps, meta->pos);
+        }
+    }
+
+    return init_exp;
+}
+
 static int
 id_check_var(check_t *check, ast_id_t *id)
 {
     ast_exp_t *type_exp;
     meta_t *type_meta;
+    ast_exp_t *init_exp;
+    meta_t *init_meta;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
@@ -72,40 +129,41 @@ id_check_var(check_t *check, ast_id_t *id)
 
     meta_copy(&id->meta, type_meta);
 
+    if (is_const_id(id) && id->u_var.init_exp == NULL)
+        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, false));
 
-    if (id->u_var.init_exp != NULL) {
-        /* TODO: named initializer */
-        ast_exp_t *init_exp = id->u_var.init_exp;
-        meta_t *init_meta = &init_exp->meta;
+    if (id->u_var.init_exp == NULL)
+        id->u_var.init_exp = id_gen_dflt_exp(&id->meta);
 
-        CHECK(exp_check(check, init_exp));
+    /* TODO: named initializer */
+    init_exp = id->u_var.init_exp;
+    init_meta = &init_exp->meta;
 
-        /* This might be a duplicate check because it will be checked by meta_cmp(),
-         * but is done to show more specific error not just mismatch error. */
-        if (is_tuple_type(init_meta)) {
-			if (!is_array_type(&id->meta) &&
-                !is_map_type(type_meta) && !is_struct_type(type_meta))
-                /* not allowed static initializer except map or struct */
-                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+    CHECK(exp_check(check, init_exp));
 
-            if (type_exp->id != NULL && is_contract_id(type_exp->id))
-                /* contract object */
-                RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-        }
+    /* This might be a duplicate check because it will be checked by meta_cmp(),
+     * but is done to show more specific error not just mismatch error. */
+    if (is_tuple_type(init_meta)) {
+        if (!is_array_type(&id->meta) &&
+            !is_map_type(type_meta) && !is_struct_type(type_meta))
+            /* not allowed static initializer except map or struct */
+            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-		CHECK(meta_cmp(&id->meta, &init_exp->meta));
-
-        if (is_lit_exp(init_exp)) {
-            if (!value_check(&init_exp->u_lit.val, &id->meta))
-                RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
-
-            id->val = &init_exp->u_lit.val;
-        }
+        if (type_exp->id != NULL && is_contract_id(type_exp->id))
+            /* contract object */
+            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
     }
-    else if (is_const_id(id)) {
-        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+
+    CHECK(meta_cmp(&id->meta, &init_exp->meta));
+
+    if (is_lit_exp(init_exp)) {
+        if (!value_check(&init_exp->u_lit.val, &id->meta))
+            RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
+
+        id->val = &init_exp->u_lit.val;
     }
 
     return NO_ERROR;
