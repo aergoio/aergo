@@ -94,11 +94,16 @@ struct meta_s {
     int arr_dim;            /* dimension of array */
     int *arr_size;          /* size of each dimension */
 
-    bool is_undef;          /* whether it is numeric literal */
+    bool is_undef;          /* whether it is numeric literal or null */
 
     /* structured meta (map, struct or tuple) */
     int elem_cnt;           /* count of elements */
     meta_t **elems;         /* metas of elements */
+
+    /* memory properties */
+    int size;               /* memory size */
+    int offset;             /* relative offset of field */
+    int align;              /* maximum alignment */
 
     src_pos_t *pos;
 };

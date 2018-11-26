@@ -62,6 +62,6 @@ error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 /******************************************************************************
  * wasm generator
  *****************************************************************************/
-error(ERROR_BINARY_OVERFLOW,        "binary length overflows 1048576 bytes")
+error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= 1MB, but %d bytes)")
 
 /* vim:set filetype=c: */

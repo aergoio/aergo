@@ -72,6 +72,9 @@ typedef enum type_e {
     TYPE_MAX
 } type_t;
 
+extern char *type_names_[TYPE_MAX];
+extern int type_sizes_[TYPE_MAX];
+
 #define ID_KIND(id)             id_kinds_[(id)->kind]
 
 typedef enum id_kind_e {
@@ -82,6 +85,8 @@ typedef enum id_kind_e {
     ID_CONTRACT,
     ID_MAX
 } id_kind_t;
+
+extern char *id_kinds_[ID_MAX];
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
@@ -117,6 +122,8 @@ typedef enum stmt_kind_e {
     STMT_BLK,
     STMT_MAX
 } stmt_kind_t;
+
+extern char *stmt_kinds_[STMT_MAX];
 
 typedef enum blk_kind_e {
     BLK_ANON        = 0,
@@ -190,11 +197,5 @@ typedef enum val_kind_e {
     VAL_ADDR,
     VAL_MAX
 } val_kind_t;
-
-extern char *type_names_[TYPE_MAX];
-extern int type_sizes_[TYPE_MAX];
-
-extern char *id_kinds_[ID_MAX];
-extern char *stmt_kinds_[STMT_MAX];
 
 #endif /* ! _ENUM_H */

@@ -95,6 +95,15 @@ contract test {
     }
 }
 
+@test(invalid_array_subscription)
+@error(ERROR_INVALID_SUBSCRIPT)
+contract test {
+    test() {
+        int i;
+        i[0] = 1;
+    }
+}
+
 @test(struct_assignment)
 contract test {
     struct s1 { int a, b; }

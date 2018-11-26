@@ -31,7 +31,7 @@ gen_init(gen_t *gen, ast_t *ast, flag_t flag, char *path)
     else
         strcpy(ptr, WASM_EXT);
 
-    gen->buf_size = WASM_MAX_LEN + 1;
+    gen->buf_size = WASM_MAX_LEN * 2;
     gen->buf = xmalloc(gen->buf_size);
 }
 
@@ -65,10 +65,10 @@ gen(ast_t *ast, flag_t flag, char *path)
     else {
         BinaryenSetDebugInfo(1);
         n = BinaryenModuleWrite(gen.module, gen.buf, gen.buf_size);
-        if (n < gen.buf_size)
+        if (n <= WASM_MAX_LEN)
             write_file(gen.path, gen.buf, n);
         else
-            FATAL(ERROR_BINARY_OVERFLOW);
+            FATAL(ERROR_BINARY_OVERFLOW, n);
     }
     */
 

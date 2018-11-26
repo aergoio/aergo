@@ -155,6 +155,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     id_meta = &id_exp->meta;
 
     CHECK(exp_check(check, id_exp));
+
     exp->id = id_exp->id;
 
     idx_exp = exp->u_arr.idx_exp;
@@ -194,6 +195,8 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         CHECK(meta_cmp(id_meta->elems[0], idx_meta));
         meta_copy(&exp->meta, id_meta->elems[1]);
     }
+
+    ASSERT(exp->id != NULL);
 
     return NO_ERROR;
 }
