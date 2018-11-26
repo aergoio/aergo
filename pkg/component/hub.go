@@ -112,8 +112,10 @@ func (hub *ComponentHub) Stop() {
 // Register assigns a component to this hub for management
 func (hub *ComponentHub) Register(components ...IComponent) {
 	for _, component := range components {
-		hub.components[component.GetName()] = component
-		component.SetHub(hub)
+		if component != nil {
+			hub.components[component.GetName()] = component
+			component.SetHub(hub)
+		}
 	}
 }
 

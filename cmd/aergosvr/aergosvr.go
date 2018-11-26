@@ -126,25 +126,28 @@ func rootRun(cmd *cobra.Command, args []string) {
 	compMng := component.NewComponentHub()
 
 	chainSvc := chain.NewChainService(cfg)
+
 	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc)
+	var accountSvc, restSvc component.IComponent
 
 	if cfg.Personal {
-		accountSvc := account.NewAccountService(cfg)
-		compMng.Register(accountSvc)
+		accountSvc = account.NewAccountService(cfg)
 	}
 
 	if cfg.EnableRest {
 		svrlog.Info().Msg("Start REST server")
-		restsvc := rest.NewRestService(cfg, chainSvc)
-		compMng.Register(restsvc)
+		restSvc = rest.NewRestService(cfg, chainSvc)
 	} else {
 		svrlog.Info().Msg("Do not start REST server")
 	}
+
+	// Register services to Hub. Don't need to do nil-check since Register
+	// function skips nil parameters.
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
 
 	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
 	if err != nil {
