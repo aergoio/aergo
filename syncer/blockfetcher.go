@@ -98,7 +98,8 @@ var (
 )
 
 var (
-	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
+	ErrAllPeerBad       = errors.New("BlockFetcher: error no avaliable peers")
+	ErrQuitBlockFetcher = errors.New("BlockFetcher quit")
 )
 
 func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, cfg *SyncerConfig) *BlockFetcher {
@@ -132,8 +133,10 @@ func (bf *BlockFetcher) Start() {
 
 	bf.isRunning = true
 
-	if bf.cfg.debugContext.debugHashFetcher {
+	if bf.cfg.debugContext != nil && bf.cfg.debugContext.debugHashFetcher {
 		testRun := func() {
+			defer bf.waitGroup.Done()
+
 			for {
 				select {
 				case <-bf.hfCh:
@@ -188,6 +191,11 @@ func (bf *BlockFetcher) Start() {
 
 			//TODO scheduler stop if all tasks have done
 			if err := bf.schedule(); err != nil {
+				if err == ErrQuitBlockFetcher {
+					logger.Info().Msg("BlockFetcher exited while schedule")
+					return
+				}
+
 				logger.Error().Err(err).Msg("BlockFetcher schedule failed & finished")
 				stopSyncer(bf.hub, bf.name, err)
 				return
@@ -355,25 +363,25 @@ func (bf *BlockFetcher) popNextTask(task *FetchTask) {
 }
 
 func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
-	getNewHashSet := func() *HashSet {
+	getNewHashSet := func() (*HashSet, error) {
 		if bf.curHashSet == nil { //blocking
 			logger.Info().Msg("BlockFetcher waiting first hashset")
 
 			select {
 			case hashSet := <-bf.hfCh:
-				return hashSet
+				return hashSet, nil
 			case <-bf.quitCh:
-				return nil
+				return nil, ErrQuitBlockFetcher
 			}
 		} else {
 			select { //nonblocking
 			case hashSet := <-bf.hfCh:
-				return hashSet
+				return hashSet, nil
 			case <-bf.quitCh:
-				return nil
+				return nil, ErrQuitBlockFetcher
 			default:
 				//logger.Debug().Msg("BlockFetcher has no input HashSet")
-				return nil
+				return nil, nil
 			}
 		}
 	}
@@ -409,7 +417,11 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 		if bf.pendingQueue.Len() == 0 {
 			logger.Debug().Msg("pendingqueue is empty")
 
-			hashSet := getNewHashSet()
+			hashSet, err := getNewHashSet()
+			if err != nil {
+				logger.Debug().Err(err).Msg("failed to get new hashset")
+				return nil, err
+			}
 			if hashSet == nil {
 				logger.Debug().Msg("BlockFetcher no hashSet")
 				return nil, nil

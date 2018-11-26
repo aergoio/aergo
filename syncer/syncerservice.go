@@ -296,7 +296,7 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	if syncer.syncerCfg.debugContext.stopByFinder {
+	if syncer.syncerCfg.debugContext != nil && syncer.syncerCfg.debugContext.stopByFinder {
 		return nil
 	}
 
