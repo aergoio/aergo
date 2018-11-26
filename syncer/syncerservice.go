@@ -11,13 +11,16 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
 	"reflect"
+	"testing"
+	"time"
 )
 
 type Syncer struct {
 	*component.BaseComponent
 
-	cfg   *cfg.Config
-	chain types.ChainAccessor
+	cfg       *cfg.Config
+	syncerCfg *SyncerConfig
+	chain     types.ChainAccessor
 
 	isstartning bool
 	ctx         *types.SyncContext
@@ -25,6 +28,31 @@ type Syncer struct {
 	finder       *Finder
 	hashFetcher  *HashFetcher
 	blockFetcher *BlockFetcher
+
+	testHub component.ICompRequester //for test
+}
+
+type SyncerConfig struct {
+	maxHashReqSize   uint64
+	maxBlockReqSize  int
+	maxPendingConn   int
+	maxBlockReqTasks int
+
+	blockFetchTimeOut time.Duration
+
+	useFullScanOnly bool
+
+	debugContext *SyncerDebug
+}
+type SyncerDebug struct {
+	t                *testing.T
+	expAncestor      int
+	debugHashFetcher bool
+	targetNo         uint64
+	stopByFinder     bool
+
+	logAllPeersBad bool
+	logBadPeers    map[int]bool //register bad peers for unit test
 }
 
 var (
@@ -32,6 +60,13 @@ var (
 	NameHashFetcher    = "HashFetcher"
 	NameBlockFetcher   = "BlockFetcher"
 	NameBlockProcessor = "BlockProcessor"
+	SyncerCfg          = &SyncerConfig{
+		maxHashReqSize:    DfltHashReqSize,
+		maxBlockReqSize:   DfltBlockFetchSize,
+		maxPendingConn:    MaxBlockPendingTasks,
+		maxBlockReqTasks:  DfltBlockFetchTasks,
+		blockFetchTimeOut: DfltFetchTimeOut,
+		useFullScanOnly:   false}
 )
 
 var (
@@ -47,8 +82,12 @@ func (ec *ErrSyncMsg) Error() string {
 	return fmt.Sprintf("Error sync message: type=%T, desc=%s", ec.msg, ec.str)
 }
 
-func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor) *Syncer {
-	syncer := &Syncer{cfg: cfg}
+func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor, syncerCfg *SyncerConfig) *Syncer {
+	if syncerCfg == nil {
+		syncerCfg = SyncerCfg
+	}
+
+	syncer := &Syncer{cfg: cfg, syncerCfg: syncerCfg}
 
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
 
@@ -89,6 +128,18 @@ func (syncer *Syncer) Reset() {
 	logger.Info().Msg("syncer stopped")
 }
 
+func (syncer *Syncer) getHub() component.ICompRequester {
+	if syncer.testHub != nil {
+		return syncer.testHub
+	} else {
+		return syncer.BaseComponent.Hub()
+	}
+}
+
+func (syncer *Syncer) SetTestHub(hub component.ICompRequester) {
+	syncer.testHub = hub
+}
+
 // Receive actor message
 func (syncer *Syncer) Receive(context actor.Context) {
 	//drop garbage message
@@ -102,7 +153,7 @@ func (syncer *Syncer) Receive(context actor.Context) {
 			return
 		case *message.GetHashByNoRsp:
 			return
-		case *message.GetBlockChunksRsp:
+		case *message.GetBlockChunks:
 			return
 		case *message.AddBlockRsp:
 			return
@@ -111,7 +162,11 @@ func (syncer *Syncer) Receive(context actor.Context) {
 		}
 	}
 
-	switch msg := context.Message().(type) {
+	syncer.handleMessage(context.Message())
+}
+
+func (syncer *Syncer) handleMessage(inmsg interface{}) {
+	switch msg := inmsg.(type) {
 	case *message.SyncStart:
 		err := syncer.handleSyncStart(msg)
 		if err != nil {
@@ -201,7 +256,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isstartning = true
 
-	syncer.finder = newFinder(syncer.ctx, syncer.Hub(), syncer.chain)
+	syncer.finder = newFinder(syncer.ctx, syncer.getHub(), syncer.chain, syncer.syncerCfg)
 	syncer.finder.start()
 
 	return err
@@ -241,8 +296,12 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltBlockFetchSize, DfltBlockFetchTasks, MaxBlockPendingTasks)
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, DfltHashReqSize)
+	if syncer.syncerCfg.debugContext.stopByFinder {
+		return nil
+	}
+
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.getHub(), syncer.syncerCfg)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.getHub(), syncer.blockFetcher.hfCh, syncer.syncerCfg)
 
 	syncer.blockFetcher.Start()
 	syncer.hashFetcher.Start()

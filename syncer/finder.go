@@ -28,7 +28,7 @@ type Finder struct {
 
 	dfltTimeout time.Duration
 
-	debugFullScanOnly bool
+	cfg *SyncerConfig
 
 	waitGroup *sync.WaitGroup
 }
@@ -45,8 +45,8 @@ var (
 	dfltTimeOut                 = time.Second * 60
 )
 
-func newFinder(ctx *types.SyncContext, hub component.ICompRequester, chain types.ChainAccessor) *Finder {
-	finder := &Finder{ctx: *ctx, hub: hub, chain: chain}
+func newFinder(ctx *types.SyncContext, hub component.ICompRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
+	finder := &Finder{ctx: *ctx, hub: hub, chain: chain, cfg: cfg}
 
 	finder.dfltTimeout = dfltTimeOut
 	finder.quitCh = make(chan interface{})
@@ -121,21 +121,13 @@ func (finder *Finder) stop() {
 	logger.Info().Msg("finder stop#2")
 }
 
-//for debugging
-func (finder *Finder) setFullScanOnly(lastAnchor types.BlockNo) {
-	finder.debugFullScanOnly = true
-	finder.ctx.LastAnchor = lastAnchor
-	if finder.ctx.BestNo+1 < lastAnchor {
-		panic("set invalid last anchor")
-	}
-}
-
 func (finder *Finder) GetHashByNoRsp(rsp *message.GetHashByNoRsp) {
 	finder.fScanCh <- rsp
 }
 
 func (finder *Finder) lightscan() (*types.BlockInfo, error) {
-	if finder.debugFullScanOnly {
+	if finder.cfg.useFullScanOnly {
+		finder.ctx.LastAnchor = finder.ctx.BestNo + 1
 		return nil, nil
 	}
 
@@ -176,7 +168,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
-	logger.Debug().Msg("send GetAncestor message to peer")
+	logger.Debug().Str("peer", finder.ctx.PeerID.Pretty()).Msg("send GetAncestor message to peer")
 	finder.hub.Tell(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)

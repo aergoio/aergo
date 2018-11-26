@@ -1,91 +1,61 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"math"
 	"testing"
 )
 
-func testHandleAddBlock(t *testing.T, syncer *StubSyncer, blockNo uint64) {
-	//AddBlock
-	msg := syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.AddBlock{}, msg, "add block")
-	assert.Equal(t, blockNo, msg.(*message.AddBlock).Block.GetHeader().BlockNo, "check add blockno")
+// test blockfetcher without finder/hashfetcher
+// - must create SyncCtx manually, because finder will be skipped
+func TestBlockFetcher_simple(t *testing.T) {
+	remoteChainLen := 10
+	targetNo := uint64(5)
 
-	//AddBlockRsp
-	syncer.handleMessageManual(t, msg, nil)
-}
+	//ancestor = 0
+	remoteChain := initStubBlockChain(nil, remoteChainLen)
+	localChain := initStubBlockChain(remoteChain.blocks[0:1], 0)
 
-// test blockfetcher
-// sync target : 1 ~ 5
-// GetBlockChunk : 1 ~ 2 (peer0), 3 (peer1), 4 ~ 5 (peer0)
-func TestBlockFetcher_normal(t *testing.T) {
-	//init test ----------------------------------
-	testTargetNo := uint64(5)
+	remoteChains := []*StubBlockChain{remoteChain, remoteChain} //peer count = 2
+	peers := makeStubPeerSet(remoteChains)
 
-	//make remoteBlockChain
-	remoteChain := initStubBlockChain(nil, 10)
+	//set debug property
+	testCfg := *SyncerCfg
+	testCfg.maxHashReqSize = TestMaxHashReqSize
+	testCfg.maxBlockReqSize = TestMaxBlockFetchSize
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
+	testCfg.debugContext.targetNo = targetNo
 
-	ancestor := remoteChain.GetBlockByNo(0)
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
-	ctx := types.NewSyncCtx("p1", testTargetNo, 1)
+	//set ctx manually because finder will be skipped
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
+	ancestor := remoteChain.blocks[0]
 	ctx.SetAncestor(ancestor)
 
-	syncer := NewStubSyncer(ctx, false, false, true, nil, remoteChain)
-	syncer.bf.Start()
+	//run blockFetcher direct
+	syncer.runTestBlockFetcher(ctx)
 
-	bf := syncer.bf
-
-	//start test ----------------------------------
-	//register peers
-	msg := syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.GetPeers{}, msg, "get peers from BF")
-	//reply peers
-	syncer.handleMessageManual(t, msg, nil)
-
-	testHashSet := func(prev *types.BlockInfo, count uint64) {
-		//push hashSet
-		hashes, _ := syncer.remoteChain.GetHashes(prev, count)
-
-		bf.hfCh <- &HashSet{len(hashes), hashes, prev.No + 1}
-
-		taskCount := int(math.Ceil(float64(count) / float64(TestMaxFetchSize)))
-		msgs := make([]interface{}, 0)
-		for i := 0; i < taskCount; i++ {
-			//loop until consume all hashSet (3 block)
-			msg = syncer.testhub.recvMessage()
-			assert.IsTypef(t, &message.GetBlockChunks{}, msg, "get block chunks")
-			assert.True(t, TestMaxFetchSize >= len(msg.(*message.GetBlockChunks).Hashes), "get block chunks")
-
-			msgs = append(msgs, msg)
-		}
-
-		for i := 0; i < taskCount; i++ {
-			syncer.handleMessageManual(t, msgs[i], nil)
-		}
-
-		//AddBlockReq - must run #len(hashes) times
-		for i := 0; i < len(hashes); i++ {
-			testHandleAddBlock(t, syncer, prev.No+uint64(i)+1)
-		}
-
-		//check last == prev
-		assert.Equal(t, prev.No+uint64(len(hashes)), syncer.bf.stat.getMaxChunkRsp().GetHeader().BlockNo, "max block chunk response")
+	syncer.checkResultFn = func(stubSyncer *StubSyncer) {
+		//check blockFetcher status
+		bf := stubSyncer.realSyncer.blockFetcher
+		assert.Equal(stubSyncer.t, uint64(stubSyncer.cfg.debugContext.targetNo), bf.stat.getMaxChunkRsp().BlockNo(), "response mismatch")
+		assert.Equal(stubSyncer.t, uint64(stubSyncer.cfg.debugContext.targetNo), bf.stat.getLastAddBlock().BlockNo(), "last add block mismatch")
 	}
 
-	//1~3 : 1~2 / 3
+	syncer.start()
+
+	testHashSet := func(prev *types.BlockInfo, count uint64) {
+		//push hashSet next from prev
+		hashes, _ := syncer.remoteChain.GetHashes(prev, count)
+
+		syncer.sendHashSetToBlockFetcher(&HashSet{len(hashes), hashes, prev.No + 1})
+	}
+
 	testHashSet(&types.BlockInfo{Hash: ancestor.GetHash(), No: ancestor.BlockNo()}, 3)
 
-	prevInfo := &types.BlockInfo{Hash: syncer.bf.stat.getMaxChunkRsp().GetHash(),
-		No: syncer.bf.stat.getMaxChunkRsp().GetHeader().BlockNo}
-
-	//4~5 : 4~5 end
+	prevInfo := remoteChain.GetBlockInfo(ancestor.BlockNo() + 3)
 	testHashSet(prevInfo, 2)
 
-	//stop
-	msg = syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
-	syncer.handleMessageManual(t, msg, nil)
+	syncer.waitStop()
 }

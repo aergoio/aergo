@@ -26,12 +26,14 @@ func (hubResult *StubHubResult) Result() (interface{}, error) {
 func NewStubHub() *StubHub {
 	hub := &StubHub{}
 
-	hub.sendCh = make(chan interface{})
-	hub.recvCh = make(chan StubHubResult)
+	hub.sendCh = make(chan interface{}, 1000)
+	hub.recvCh = make(chan StubHubResult, 1000)
 
 	return hub
 }
 
+// handle requestFuture requset
+// this api must not use parallel. TODO use lock
 func (hub *StubHub) RequestFutureResult(targetName string, message interface{}, timeout time.Duration, tip string) (interface{}, error) {
 	hub.sendCh <- message
 
@@ -57,6 +59,7 @@ func (hub *StubHub) Tell(targetName string, message interface{}) {
 func (hub *StubHub) recvMessage() interface{} {
 	select {
 	case msg := <-hub.sendCh:
+		logger.Debug().Msg("hub received message")
 		return msg
 	}
 }

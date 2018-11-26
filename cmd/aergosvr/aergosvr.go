@@ -138,7 +138,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	consensusSvc.SetChainAccessor(chainSvc)
 	rpcSvc := rpc.NewRPC(compMng, cfg, chainSvc)
 	compMng.Register(rpcSvc)
-	syncSvc := syncer.NewSyncer(cfg, chainSvc)
+	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	compMng.Register(syncSvc)
 	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
 	compMng.Register(p2pSvc)

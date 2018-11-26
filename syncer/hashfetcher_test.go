@@ -3,70 +3,68 @@ package syncer
 import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestHashFetcher_normal(t *testing.T) {
-	//make remoteBlockChain
-	remoteChain := initStubBlockChain(nil, 10)
+	remoteChainLen := 100
+	localChainLen := 99
+	targetNo := uint64(99)
 
-	ancestor := remoteChain.GetBlockByNo(0)
+	//ancestor = 0
+	remoteChain := initStubBlockChain(nil, remoteChainLen)
+	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen)
 
-	ctx := types.NewSyncCtx("p1", 5, 1)
-	ctx.SetAncestor(ancestor)
+	remoteChains := []*StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
 
-	syncer := NewStubSyncer(ctx, false, true, false, nil, remoteChain)
-	syncer.hf.Start()
+	//set debug property
+	testCfg := *SyncerCfg
+	testCfg.maxHashReqSize = TestMaxHashReqSize
+	testCfg.maxBlockReqSize = TestMaxBlockFetchSize
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
+	testCfg.debugContext.debugHashFetcher = true
+	testCfg.debugContext.targetNo = targetNo
 
-	//hashset 1~3, 4~5
-	//receive GetHash message
-	msg := syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
-	syncer.handleMessageManual(t, msg, nil)
+	//set ctx because finder is skipped
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
+	ancestorInfo := remoteChain.GetBlockInfo(0)
 
-	//when pop result msg, hashfetcher send new request
-	resHashSet := syncer.getResultFromHashFetcher()
-	assert.Equal(t, int(TestMaxHashReq), resHashSet.Count)
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
+	syncer.realSyncer.ctx = ctx
 
-	msg = syncer.testhub.recvMessage()
-	syncer.handleMessageManual(t, msg, nil)
+	syncer.start()
 
-	//when pop result msg, hashfetcher send new request
+	//ancestor of ctx will be set by FinderResult
+	syncer.testhub.Tell(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
 
-	resHashSet = syncer.getResultFromHashFetcher()
-	assert.Equal(t, 2, resHashSet.Count)
-
-	//receive close hashfetcher message
-	msg = syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.CloseFetcher{}, msg, "need syncer close hashfetcher msg")
-	syncer.handleMessageManual(t, msg, nil)
-	assert.Nil(t, syncer.hf, "hashfetcher set nil")
-
-	syncer.stop(t)
+	syncer.waitStop()
 }
 
 func TestHashFetcher_ResponseError(t *testing.T) {
-	//make remoteBlockChain
-	remoteChain := initStubBlockChain(nil, 10)
-	ancestor := remoteChain.GetBlockByNo(0)
+	//TODO test hashfetcher error
+	/*
+		//make remoteBlockChain
+		remoteChain := initStubBlockChain(nil, 10)
+		ancestor := remoteChain.GetBlockByNo(0)
 
-	ctx := types.NewSyncCtx("p1", 5, 1)
-	ctx.SetAncestor(ancestor)
+		ctx := types.NewSyncCtx("p1", 5, 1)
+		ctx.SetAncestor(ancestor)
 
-	syncer := NewStubSyncer(ctx, false, true, false, nil, remoteChain)
-	syncer.hf.Start()
+		syncer := NewStubSyncer(ctx, false, true, false, nil, remoteChain, TestMaxHashReqSize, TestMaxBlockFetchSize)
+		syncer.hf.Start()
 
-	//hashset 2~4, 5~7, 8~9
-	//receive GetHash message
-	msg := syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
-	syncer.handleMessageManual(t, msg, ErrGetHashesRspError)
+		//hashset 2~4, 5~7, 8~9
+		//receive GetHash message
+		msg := syncer.testhub.recvMessage()
+		assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
+		syncer.handleMessageManual(t, msg, ErrGetHashesRspError)
 
-	//stop
-	msg = syncer.testhub.recvMessage()
-	assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
-	syncer.handleMessageManual(t, msg, nil)
+		//stop
+		msg = syncer.testhub.recvMessage()
+		assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
+		syncer.handleMessageManual(t, msg, nil)
 
-	assert.True(t, syncer.isStop, "hashfetcher finished")
+		assert.True(t, syncer.isStop, "hashfetcher finished")
+	*/
 }

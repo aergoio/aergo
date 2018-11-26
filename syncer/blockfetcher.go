@@ -47,6 +47,8 @@ type BlockFetcher struct {
 
 	waitGroup *sync.WaitGroup
 	isRunning bool
+
+	cfg *SyncerConfig
 }
 
 type BlockFetcherStat struct {
@@ -87,7 +89,7 @@ type PeerSet struct {
 
 var (
 	schedTick          = time.Millisecond * 100
-	fetchTimeOut       = time.Second * 30
+	DfltFetchTimeOut   = time.Second * 30
 	DfltBlockFetchSize = 20
 	//DfltBlockFetchSize   = 5
 	MaxPeerFailCount     = 3
@@ -96,22 +98,20 @@ var (
 )
 
 var (
-	ErrAllPeerBad   = errors.New("BlockFetcher: error no avaliable peers")
-	ErrNotFoundTask = errors.New("not found next task")
+	ErrAllPeerBad = errors.New("BlockFetcher: error no avaliable peers")
 )
 
-func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, maxFetchSize int, maxRunningFetchTasks int,
-	maxPendingConnTasks int) *BlockFetcher {
-	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher}
+func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, cfg *SyncerConfig) *BlockFetcher {
+	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher, cfg: cfg}
 
 	bf.quitCh = make(chan interface{})
 	bf.hfCh = make(chan *HashSet)
-	bf.responseCh = make(chan interface{}, maxRunningFetchTasks*2) //for safety. In normal situdation, it should use only one
+	bf.responseCh = make(chan interface{}, cfg.maxBlockReqTasks*2) //for safety. In normal situdation, it should use only one
 
 	bf.peers = newPeerSet()
-	bf.maxFetchSize = maxFetchSize
-	bf.maxFetchTasks = maxRunningFetchTasks
-	bf.maxPendingConn = maxPendingConnTasks
+	bf.maxFetchSize = cfg.maxBlockReqSize
+	bf.maxFetchTasks = cfg.maxBlockReqTasks
+	bf.maxPendingConn = cfg.maxPendingConn
 
 	bf.blockProcessor = NewBlockProcessor(hub, bf, ctx.CommonAncestor, ctx.TargetNo)
 
@@ -131,6 +131,21 @@ func (bf *BlockFetcher) Start() {
 	schedTicker := time.NewTicker(schedTick)
 
 	bf.isRunning = true
+
+	if bf.cfg.debugContext.debugHashFetcher {
+		testRun := func() {
+			for {
+				select {
+				case <-bf.hfCh:
+				case <-bf.quitCh:
+					logger.Info().Msg("BlockFetcher dummy mode exited")
+					return
+				}
+			}
+		}
+
+		go testRun()
+	}
 
 	run := func() {
 		defer bf.waitGroup.Done()
@@ -173,7 +188,7 @@ func (bf *BlockFetcher) Start() {
 
 			//TODO scheduler stop if all tasks have done
 			if err := bf.schedule(); err != nil {
-				logger.Error().Msg("BlockFetcher schedule failed & finished")
+				logger.Error().Err(err).Msg("BlockFetcher schedule failed & finished")
 				stopSyncer(bf.hub, bf.name, err)
 				return
 			}
@@ -268,6 +283,12 @@ func (bf *BlockFetcher) schedule() error {
 }
 
 func (bf *BlockFetcher) checkTaskTimeout() error {
+	debugTimeOut := func(peer *SyncPeer, peers *PeerSet, cfg *SyncerConfig) {
+		if cfg != nil && cfg.debugContext != nil {
+			cfg.debugContext.logBadPeers[peer.No] = true
+		}
+	}
+
 	now := time.Now()
 	var next *list.Element
 
@@ -276,9 +297,11 @@ func (bf *BlockFetcher) checkTaskTimeout() error {
 		task := e.Value.(*FetchTask)
 		next = e.Next()
 
-		if !task.isTimeOut(now) {
+		if !task.isTimeOut(now, bf.cfg.blockFetchTimeOut) {
 			continue
 		}
+
+		debugTimeOut(task.syncPeer, bf.peers, bf.cfg)
 
 		bf.runningQueue.Remove(e)
 
@@ -408,8 +431,16 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 }
 
 func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
+	setDebugAllPeerBad := func(err error, cfg *SyncerConfig) {
+		if err == ErrAllPeerBad && cfg != nil && cfg.debugContext != nil {
+			debugCtx := cfg.debugContext
+			debugCtx.logAllPeersBad = true
+		}
+	}
+
 	freePeer, err := bf.peers.popFree()
 	if err != nil {
+		setDebugAllPeerBad(err, bf.cfg)
 		logger.Error().Err(err).Msg("pop free peer failed")
 		return nil, err
 	}
@@ -436,7 +467,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 
 	logger.Debug().Int("peerno", task.syncPeer.No).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("send block fetch request")
 
-	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: fetchTimeOut})
+	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
 }
 
 //TODO refactoring matchFunc
@@ -634,8 +665,8 @@ func (tq *TaskQueue) Peek() *FetchTask {
 	return elem.Value.(*FetchTask)
 }
 
-func (task *FetchTask) isTimeOut(now time.Time) bool {
-	if now.Sub(task.started) > fetchTimeOut {
+func (task *FetchTask) isTimeOut(now time.Time, timeout time.Duration) bool {
+	if now.Sub(task.started) > timeout {
 		logger.Info().Int("peerno", task.syncPeer.No).Uint64("startno", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Msg("FetchTask peer timeouted")
 		return true
 	}

@@ -55,11 +55,10 @@ var (
 
 var (
 	ErrInvalidHashSet     = errors.New("Invalid hash set reply")
-	ErrGetHashesRspError  = errors.New("GetHashesRsp error received")
 	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
 
-func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh chan *HashSet, maxHashReq uint64) *HashFetcher {
+func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh chan *HashSet, cfg *SyncerConfig) *HashFetcher {
 	hf := &HashFetcher{ctx: ctx, hub: hub, name: NameHashFetcher}
 
 	hf.quitCh = make(chan interface{})
@@ -69,7 +68,7 @@ func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh c
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: ctx.CommonAncestor.GetHash(), No: ctx.CommonAncestor.BlockNo()}
 
-	hf.maxHashReq = maxHashReq
+	hf.maxHashReq = cfg.maxHashReqSize
 
 	hf.timeout = dfltTimeout
 

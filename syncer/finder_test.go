@@ -1,71 +1,66 @@
 package syncer
 
 import (
-	"fmt"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
-	"github.com/stretchr/testify/assert"
+	"github.com/aergoio/aergo/message"
 	"testing"
-)
-
-var (
-	targetPeerID = peer.ID([]byte(fmt.Sprintf("peer-%d", 0)))
-
-	remoteChainLen = 20
-	localChainLen  = 10
-
-	targetNo = uint64(20)
 )
 
 func testFullscanSucceed(t *testing.T, expAncestor uint64) {
 	logger.Debug().Uint64("expAncestor", expAncestor).Msg("testfullscan")
 
-	//case 1: 0 is ancestor
+	remoteChainLen := 11
+	localChainLen := 10
+	targetNo := uint64(1000)
+
 	remoteChain := initStubBlockChain(nil, remoteChainLen)
 	localChain := initStubBlockChain(remoteChain.blocks[0:expAncestor+1], localChainLen-int(expAncestor+1))
 
-	ctx := types.NewSyncCtx(targetPeerID, targetNo, uint64(localChain.best))
+	remoteChains := []*StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
 
-	syncer := NewStubSyncer(ctx, true, false, false, localChain, remoteChain)
+	//set debug property
+	testCfg := *SyncerCfg
+	testCfg.useFullScanOnly = true
+	testCfg.debugContext = &SyncerDebug{t: t, stopByFinder: true, expAncestor: int(expAncestor)}
 
-	assert.Equal(t, targetPeerID, peer.ID(syncer.stubPeers[0].addr.GetPeerID()), "target peerid=peer-0")
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
-	syncer.finder.setFullScanOnly(10)
+	syncer.start()
 
-	syncer.finder.start()
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
+	syncer.testhub.Tell(message.SyncerSvc, syncReq)
 
-	//syncer stop after finding ancestor
-	syncer.stopFoundAncestor = true
-	syncer.start(t)
-
-	assert.Equal(t, expAncestor, syncer.ctx.CommonAncestor.BlockNo(), "wrong ancestor")
+	syncer.waitStop()
 }
 
 func TestFinder_fullscan_found(t *testing.T) {
-	//case 1: 0 is ancestor
 	for i := 0; i < 10; i++ {
 		testFullscanSucceed(t, uint64(i))
 	}
 }
 
 func TestFinder_fullscan_notfound(t *testing.T) {
-	//case 1: 0 is ancestor
+	remoteChainLen := 1002
+	localChainLen := 1000
+	targetNo := uint64(1000)
+
 	remoteChain := initStubBlockChain(nil, remoteChainLen)
 	localChain := initStubBlockChain(nil, localChainLen)
 
-	ctx := types.NewSyncCtx(targetPeerID, targetNo, uint64(localChain.best))
+	remoteChains := []*StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
 
-	syncer := NewStubSyncer(ctx, true, false, false, localChain, remoteChain)
+	//set debug property
+	testCfg := *SyncerCfg
+	testCfg.useFullScanOnly = true
+	testCfg.debugContext = &SyncerDebug{t: t, stopByFinder: true, expAncestor: -1}
 
-	assert.Equal(t, targetPeerID, peer.ID(syncer.stubPeers[0].addr.GetPeerID()), "target peerid=peer-0")
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
-	syncer.finder.setFullScanOnly(10)
+	syncer.start()
 
-	syncer.finder.start()
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
+	syncer.testhub.Tell(message.SyncerSvc, syncReq)
 
-	//syncer stop after finding ancestor
-	syncer.stopFoundAncestor = true
-	syncer.start(t)
-
-	assert.Equal(t, (*types.Block)(nil), syncer.ctx.CommonAncestor, "not nil ancestor")
+	syncer.waitStop()
 }
