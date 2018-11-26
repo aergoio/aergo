@@ -108,6 +108,10 @@ func (syncer *Syncer) AfterStart() {
 }
 
 func (syncer *Syncer) BeforeStop() {
+	if syncer.isstartning {
+		logger.Info().Msg("syncer BeforeStop")
+		syncer.Reset()
+	}
 }
 
 func (syncer *Syncer) Reset() {

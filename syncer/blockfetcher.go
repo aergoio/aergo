@@ -185,7 +185,7 @@ func (bf *BlockFetcher) Start() {
 				}
 
 			case <-bf.quitCh:
-				logger.Info().Msg("BlockFetcher exited")
+				logger.Info().Msg("BlockFetcher quit#1")
 				return
 			}
 
@@ -371,6 +371,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 			case hashSet := <-bf.hfCh:
 				return hashSet, nil
 			case <-bf.quitCh:
+				logger.Debug().Msg("BlockFetcher quitCh#2")
 				return nil, ErrQuitBlockFetcher
 			}
 		} else {
@@ -378,6 +379,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 			case hashSet := <-bf.hfCh:
 				return hashSet, nil
 			case <-bf.quitCh:
+				logger.Debug().Msg("BlockFetcher quitCh#3")
 				return nil, ErrQuitBlockFetcher
 			default:
 				//logger.Debug().Msg("BlockFetcher has no input HashSet")
@@ -532,10 +534,7 @@ func (bf *BlockFetcher) stop() {
 		logger.Info().Msg("BlockFetcher stop#1")
 
 		close(bf.quitCh)
-		bf.quitCh = nil
-
 		close(bf.hfCh)
-		bf.hfCh = nil
 
 		bf.waitGroup.Wait()
 		bf.isRunning = false

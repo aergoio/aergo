@@ -202,10 +202,7 @@ func (hf *HashFetcher) stop() {
 		close(hf.quitCh)
 		logger.Info().Msg("HashFetcher close quitCh")
 
-		//hf.quitCh = nil
-
 		close(hf.responseCh)
-		//hf.responseCh = nil
 
 		hf.waitGroup.Wait()
 		hf.isRunning = false
