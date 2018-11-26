@@ -15,16 +15,14 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
 {
     ast_blk_t *root;
 
-    root = ast->root;
+    check->flag = flag;
 
+    root = ast->root;
     ASSERT(root != NULL);
     ASSERT(is_empty_array(&root->stmts));
     ASSERT(root->up == NULL);
 
     check->ast = ast;
-    check->root = root;
-
-    check->flag = flag;
 
     check->blk = root;
 
@@ -45,8 +43,12 @@ check(ast_t *ast, flag_t flag)
 
     check_init(&check, ast, flag);
 
-    for (i = 0; i < array_size(&check.root->ids); i++) {
-        id_check(&check, array_item(&check.root->ids, i, ast_id_t));
+    for (i = 0; i < array_size(&ast->root->ids); i++) {
+        ast_id_t *id = array_get(&ast->root->ids, i, ast_id_t);
+
+        ASSERT1(is_contract_id(id), id->kind);
+
+        id_check(&check, id);
     }
 }
 

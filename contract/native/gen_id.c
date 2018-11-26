@@ -40,7 +40,7 @@ id_gen_func(gen_t *gen, ast_id_t *id)
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
     for (i = 0, j = 0; i < param_cnt; i++) {
-        params[j++] = meta_gen(gen, &array_item(param_ids, i, ast_id_t)->meta);
+        params[j++] = meta_gen(gen, &array_get(param_ids, i, ast_id_t)->meta);
     }
 
     spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta), 
@@ -51,7 +51,7 @@ id_gen_func(gen_t *gen, ast_id_t *id)
         locals = xmalloc(sizeof(BinaryenType) * local_cnt);
 
         for (i = 0, j = 0; i < local_cnt; i++) {
-            locals[j++] = meta_gen(gen, &array_item(&blk->ids, i, ast_id_t)->meta);
+            locals[j++] = meta_gen(gen, &array_get(&blk->ids, i, ast_id_t)->meta);
         }
 
         body = blk_gen(gen, blk);

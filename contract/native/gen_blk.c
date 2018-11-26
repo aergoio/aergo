@@ -23,11 +23,11 @@ blk_gen(gen_t *gen, ast_blk_t *blk)
     entries = xmalloc(sizeof(BinaryenExpressionRef *) * entry_cnt);
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        entries[j++] = id_gen(gen, array_item(&blk->ids, i, ast_id_t));
+        entries[j++] = id_gen(gen, array_get(&blk->ids, i, ast_id_t));
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        entries[j++] = stmt_gen(gen, array_item(&blk->stmts, i, ast_stmt_t));
+        entries[j++] = stmt_gen(gen, array_get(&blk->stmts, i, ast_stmt_t));
     }
 
     ASSERT2(j == entry_cnt, j, entry_cnt);

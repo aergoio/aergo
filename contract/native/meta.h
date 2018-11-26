@@ -48,8 +48,9 @@
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
 #define is_comparable_type(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
-
-#define is_compatible_type(x, y)    (is_primitive_type(x) && is_primitive_type(y))
+#define is_compatible_type(x, y)                                                         \
+    ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
+     (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
 #define is_undef_type(meta)         (meta)->is_undef
 #define is_array_type(meta)         ((meta)->arr_dim > 0)

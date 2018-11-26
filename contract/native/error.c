@@ -147,7 +147,7 @@ error_dump(void)
     array_t *array = stack_to_array(&errstack_, error_cmp);
 
     for (i = 0; i < array_size(array); i++) {
-        error_t *e = array_item(array, i, error_t);
+        error_t *e = array_get(array, i, error_t);
 
         fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n",
                 err_lvls_[e->level], e->path, e->line, e->desc);

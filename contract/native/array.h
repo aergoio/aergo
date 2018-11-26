@@ -13,7 +13,7 @@
 #define is_empty_array(array)           ((array) == NULL ? true : (array)->size == 0)
 
 #define array_size(array)               ((array) == NULL ? 0 : (array)->size)
-#define array_item(array, idx, type)    ((type *)((array)->items[idx]))
+#define array_get(array, idx, type)     ((type *)((array)->items[idx]))
 
 #define array_add_first(array, item)    array_add((array), 0, (item))
 #define array_add_last(array, item)     array_add((array), (array)->size, (item))
@@ -51,6 +51,14 @@ array_new(void)
     array_init(array);
 
 	return array;
+}
+
+static inline void
+array_set(array_t *array, int idx, void *item)
+{
+    ASSERT2(idx < array->size, idx, array->size);
+
+    array->items[idx] = item;
 }
 
 static inline void

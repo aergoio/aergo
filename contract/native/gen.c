@@ -54,7 +54,7 @@ gen(ast_t *ast, flag_t flag, char *path)
 
     /*
     for (i = 0; i < array_size(&gen.root->ids); i++) {
-        id_gen(&gen, array_item(&gen.root->ids, i, ast_id_t));
+        id_gen(&gen, array_get(&gen.root->ids, i, ast_id_t));
     }
 
     BinaryenModuleValidate(gen.module);

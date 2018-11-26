@@ -82,7 +82,7 @@ meta_set_struct(meta_t *meta, char *name, array_t *ids)
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta->elems[i] = &array_item(ids, i, ast_id_t)->meta;
+        meta->elems[i] = &array_get(ids, i, ast_id_t)->meta;
     }
 }
 
@@ -97,7 +97,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta->elems[i] = &array_item(exps, i, ast_exp_t)->meta;
+        meta->elems[i] = &array_get(exps, i, ast_exp_t)->meta;
     }
 }
 

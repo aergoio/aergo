@@ -22,7 +22,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
     meta_set_array(&id->meta, array_size(size_exps));
 
     for (i = 0; i < array_size(size_exps); i++) {
-        ast_exp_t *size_exp = array_item(size_exps, i, ast_exp_t);
+        ast_exp_t *size_exp = array_get(size_exps, i, ast_exp_t);
 
         CHECK(exp_check(check, size_exp));
 
@@ -123,7 +123,7 @@ id_check_struct(check_t *check, ast_id_t *id)
     ASSERT(fld_ids != NULL);
 
     for (i = 0; i < array_size(fld_ids); i++) {
-        ast_id_t *fld_id = array_item(fld_ids, i, ast_id_t);
+        ast_id_t *fld_id = array_get(fld_ids, i, ast_id_t);
 
         CHECK(id_check_var(check, fld_id));
 
@@ -148,7 +148,7 @@ id_check_enum(check_t *check, ast_id_t *id)
     ASSERT(elem_ids != NULL);
 
     for (i = 0; i < array_size(elem_ids); i++) {
-        ast_id_t *elem_id = array_item(elem_ids, i, ast_id_t);
+        ast_id_t *elem_id = array_get(elem_ids, i, ast_id_t);
         ast_exp_t *init_exp = elem_id->u_var.init_exp;
 
         if (init_exp == NULL) {
@@ -173,7 +173,7 @@ id_check_enum(check_t *check, ast_id_t *id)
             ASSERT1(is_int_val(init_val), init_val->kind);
 
             for (j = 0; j < i; j++) {
-                ast_id_t *prev_id = array_item(elem_ids, j, ast_id_t);
+                ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
 
                 if (prev_id->u_var.init_exp != NULL) {
                     value_t *prev_val = &prev_id->u_var.init_exp->u_lit.val;
@@ -231,7 +231,7 @@ id_check_func(check_t *check, ast_id_t *id)
     param_ids = id->u_func.param_ids;
 
     for (i = 0; i < array_size(param_ids); i++) {
-        ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
+        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
 
         id_check_param(check, param_id);
     }
@@ -242,7 +242,7 @@ id_check_func(check_t *check, ast_id_t *id)
         ast_exp_t *type_exp;
 
         if (array_size(ret_exps) == 1) {
-            type_exp = array_item(ret_exps, 0, ast_exp_t);
+            type_exp = array_get(ret_exps, 0, ast_exp_t);
             ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
             exp_check(check, type_exp);
@@ -250,7 +250,7 @@ id_check_func(check_t *check, ast_id_t *id)
         }
         else {
             for (i = 0; i < array_size(ret_exps); i++) {
-                type_exp = array_item(ret_exps, i, ast_exp_t);
+                type_exp = array_get(ret_exps, i, ast_exp_t);
                 ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
                 exp_check(check, type_exp);

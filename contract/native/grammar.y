@@ -266,7 +266,7 @@ contract_decl:
         bool exist_ctor = false;
 
         for (i = 0; i < array_size(&$4->ids); i++) {
-            ast_id_t *id = array_item(&$4->ids, i, ast_id_t);
+            ast_id_t *id = array_get(&$4->ids, i, ast_id_t);
 
             if (is_ctor_id(id)) {
                 if (strcmp($2, id->name) != 0)
@@ -323,7 +323,7 @@ var_decl:
         int i;
 
         for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_item($2, i, ast_id_t);
+            ast_id_t *id = array_get($2, i, ast_id_t);
 
             id->mod = $1->u_type.mod;
             id->u_var.type_exp = $1;
@@ -343,11 +343,11 @@ var_init_decl:
         }
         else {
             for (i = 0; i < array_size($2); i++) {
-                ast_id_t *id = array_item($2, i, ast_id_t);
+                ast_id_t *id = array_get($2, i, ast_id_t);
 
                 id->mod = $1->u_type.mod;
                 id->u_var.type_exp = $1;
-                id->u_var.init_exp = array_item($4, i, ast_exp_t);
+                id->u_var.init_exp = array_get($4, i, ast_exp_t);
             }
         }
         $$ = $2;
@@ -491,7 +491,7 @@ field:
         int i;
 
         for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_item($2, i, ast_id_t);
+            ast_id_t *id = array_get($2, i, ast_id_t);
 
             ASSERT1(is_var_id(id), id->kind);
             ASSERT1(is_type_exp($1), $1->kind);

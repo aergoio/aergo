@@ -54,15 +54,17 @@ typedef enum type_e {
     TYPE_UINT64     = 10,
     TYPE_FLOAT      = 11,
     TYPE_DOUBLE     = 12,
+    TYPE_PRIMITIVE  = TYPE_DOUBLE,
+
     TYPE_STRING     = 13,
-    TYPE_PRIMITIVE  = TYPE_STRING,
+    TYPE_COMPATIBLE = TYPE_STRING,
 
     TYPE_ACCOUNT    = 14,
     TYPE_STRUCT     = 15,
     TYPE_COMPARABLE = TYPE_STRUCT,
 
     TYPE_MAP        = 16,
-    TYPE_OBJECT     = 17,           /* contract or null */
+    TYPE_OBJECT     = 17,           /* new contract() or null */
     TYPE_BUILTIN    = TYPE_OBJECT,
 
     TYPE_VOID       = 18,           /* for function */

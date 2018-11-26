@@ -36,7 +36,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         array_t *var_exps = l_exp->u_tup.exps;
 
         for (i = 0; i < array_size(var_exps); i++) {
-            ast_exp_t *var_exp = array_item(var_exps, i, ast_exp_t);
+            ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
 
             if (!is_usable_lval(var_exp))
                 RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
@@ -79,7 +79,7 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
     elif_stmts = &stmt->u_if.elif_stmts;
 
     for (i = 0; i < array_size(elif_stmts); i++) {
-        stmt_check(check, array_item(elif_stmts, i, ast_stmt_t));
+        stmt_check(check, array_get(elif_stmts, i, ast_stmt_t));
     }
 
     if (stmt->u_if.else_blk != NULL)
@@ -225,11 +225,11 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
         array_t *var_ids = stmt->u_loop.init_ids;
 
         if (array_size(var_ids) > 1)
-            RETURN(ERROR_NOT_SUPPORTED, &array_item(var_ids, 1, ast_id_t)->pos);
+            RETURN(ERROR_NOT_SUPPORTED, &array_get(var_ids, 1, ast_id_t)->pos);
 
         /* make "variable = loop_exp[i++]" */
         for (i = 0; i < array_size(var_ids); i++) {
-            ast_id_t *var_id = array_item(var_ids, i, ast_id_t);
+            ast_id_t *var_id = array_get(var_ids, i, ast_id_t);
             ast_exp_t *id_exp;
 
             id_exp = exp_new_id(var_id->name, pos);
@@ -334,7 +334,7 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt, meta_t *meta)
     stmts = stmt->u_case.stmts;
 
     for (i = 0; i < array_size(stmts); i++) {
-        stmt_check(check, array_item(stmts, i, ast_stmt_t));
+        stmt_check(check, array_get(stmts, i, ast_stmt_t));
     }
 
     return NO_ERROR;
@@ -364,7 +364,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     case_stmts = stmt->u_sw.case_stmts;
 
     for (i = 0; i < array_size(case_stmts); i++) {
-        stmt_check_case(check, array_item(case_stmts, i, ast_stmt_t), cond_meta);
+        stmt_check_case(check, array_get(case_stmts, i, ast_stmt_t), cond_meta);
     }
 
     return NO_ERROR;
@@ -441,7 +441,7 @@ stmt_check_goto(check_t *check, ast_stmt_t *stmt)
         stmt_cnt = array_size(&blk->stmts);
 
         for (i = 0; i < stmt_cnt; i++) {
-            ast_stmt_t *prev = array_item(&blk->stmts, i, ast_stmt_t);
+            ast_stmt_t *prev = array_get(&blk->stmts, i, ast_stmt_t);
 
             if (prev->label != NULL && strcmp(prev->label, stmt->u_goto.label) == 0) {
                 has_found = true;

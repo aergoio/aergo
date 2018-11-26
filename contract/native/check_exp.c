@@ -501,7 +501,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         ASSERT(ret_exps != NULL);
         ASSERT1(array_size(ret_exps) == 1, array_size(ret_exps));
 
-        type_exp = array_item(ret_exps, 0, ast_exp_t);
+        type_exp = array_get(ret_exps, 0, ast_exp_t);
         ASSERT1(is_type_exp(type_exp), type_exp->kind);
 
         id = type_exp->id;
@@ -545,7 +545,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             ast_exp_t *param_exp;
 
             ASSERT1(array_size(param_exps) == 1, array_size(param_exps));
-            param_exp = array_item(param_exps, 0, ast_exp_t);
+            param_exp = array_get(param_exps, 0, ast_exp_t);
 
             CHECK(exp_check(check, param_exp));
             ASSERT1(is_dec_family(&param_exp->meta), param_exp->meta.type);
@@ -570,8 +570,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
                array_size(param_exps));
 
     for (i = 0; i < array_size(param_exps); i++) {
-        ast_id_t *param_id = array_item(param_ids, i, ast_id_t);
-        ast_exp_t *param_exp = array_item(param_exps, i, ast_exp_t);
+        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+        ast_exp_t *param_exp = array_get(param_exps, i, ast_exp_t);
 
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
@@ -657,7 +657,7 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
     ASSERT(exps != NULL);
 
     for (i = 0; i < array_size(exps); i++) {
-        ast_exp_t *item = array_item(exps, i, ast_exp_t);
+        ast_exp_t *item = array_get(exps, i, ast_exp_t);
 
         CHECK(exp_check(check, item));
     }
