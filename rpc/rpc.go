@@ -21,7 +21,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
