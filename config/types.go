@@ -31,6 +31,7 @@ type BaseConfig struct {
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
+	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
 }
 
 // RPCConfig defines configurations for rpc service
@@ -117,6 +118,7 @@ enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enablerest = {{.BaseConfig.EnableRest}}
 enabletestmode = {{.BaseConfig.EnableTestmode}}
+personal = {{.BaseConfig.Personal}}
 
 [rpc]
 netserviceaddr = "{{.RPC.NetServiceAddr}}"

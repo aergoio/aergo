@@ -6,12 +6,17 @@
 package component
 
 import (
-	"github.com/opentracing/opentracing-go"
-	"github.com/satori/go.uuid"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/opentracing/opentracing-go"
+	"github.com/satori/go.uuid"
+)
+
+var (
+	ErrHubUnregistered = errors.New("Unregistered Component")
 )
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
@@ -184,7 +189,9 @@ func (hub *ComponentHub) RequestFuture(
 
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
-		panic("Unregistered Component")
+		err := actor.NewFuture(timeout)
+		err.PID().Tell(ErrHubUnregistered)
+		return err
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip)
@@ -195,7 +202,7 @@ func (hub *ComponentHub) RequestFutureResult(
 
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
-		panic("Unregistered Component")
+		return nil, ErrHubUnregistered
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip).Result()

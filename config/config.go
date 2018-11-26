@@ -57,15 +57,16 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		ProfilePort:    6060,
 		EnableRest:     false,
 		EnableTestmode: false,
+		Personal:       true,
 	}
 }
 
 func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 	return &RPCConfig{
-		NetServiceAddr: "127.0.0.1",
-		NetServicePort: 7845,
+		NetServiceAddr:  "127.0.0.1",
+		NetServicePort:  7845,
 		NetServiceTrace: false,
-		NSKey:          "",
+		NSKey:           "",
 	}
 }
 

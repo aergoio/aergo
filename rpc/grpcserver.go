@@ -293,11 +293,15 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	}
 	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
-	signTxResult, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.SignTx{Tx: tx}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX").Result()
+	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
+		&message.SignTx{Tx: tx}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	signTxRsp, ok := signTxResult.(*message.SignTxRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(signTxResult))
@@ -404,25 +408,52 @@ func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.Acco
 
 // CreateAccount handle rpc request newaccount
 func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.CreateAccount{Passphrase: in.Passphrase}, defaultActorTimeout, "rpc.(*AergoRPCService).CreateAccount").Result()
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
+		&message.CreateAccount{Passphrase: in.Passphrase}, defaultActorTimeout, "rpc.(*AergoRPCService).CreateAccount")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	/*
+		//same code but not good at folding in editor
+		switch err {
+		case nil:
+		case component.ErrHubUnregistered:
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		default:
+			return nil, status.Errorf(codes.Internal, err.Error())
+		}
+	*/
+
 	rsp, ok := result.(*message.CreateAccountRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Account, nil
+	/*
+		//it's better?
+		switch rsp := result.(type) {
+		case *message.CreateAccountRsp:
+			return rsp.Accounts, nil
+		default:
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		}
+	*/
 }
 
 // GetAccounts handle rpc request getaccounts
 func (rpc *AergoRPCService) GetAccounts(ctx context.Context, in *types.Empty) (*types.AccountList, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.GetAccounts{}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccounts").Result()
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
+		&message.GetAccounts{}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccounts")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.GetAccountsRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -432,12 +463,16 @@ func (rpc *AergoRPCService) GetAccounts(ctx context.Context, in *types.Empty) (*
 
 // LockAccount handle rpc request lockaccount
 func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.LockAccount{Account: in.Account, Passphrase: in.Passphrase},
-		defaultActorTimeout, "rpc.(*AergoRPCService).LockAccount").Result()
+		defaultActorTimeout, "rpc.(*AergoRPCService).LockAccount")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.AccountRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -447,12 +482,16 @@ func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal)
 
 // UnlockAccount handle rpc request unlockaccount
 func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.UnlockAccount{Account: in.Account, Passphrase: in.Passphrase},
-		defaultActorTimeout, "rpc.(*AergoRPCService).UnlockAccount").Result()
+		defaultActorTimeout, "rpc.(*AergoRPCService).UnlockAccount")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.AccountRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -461,12 +500,16 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 }
 
 func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportFormat) (*types.Account, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.ImportAccount{Wif: in.Wif.Value, OldPass: in.Oldpass, NewPass: in.Newpass},
-		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount").Result()
+		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.ImportAccountRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -475,12 +518,16 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 }
 
 func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase},
-		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount").Result()
+		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.ExportAccountRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -490,11 +537,15 @@ func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Persona
 
 // SignTX handle rpc request signtx
 func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.SignTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).SignTX").Result()
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
+		&message.SignTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).SignTX")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.SignTxRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
@@ -504,11 +555,16 @@ func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx
 
 // VerifyTX handle rpc request verifytx
 func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.VerifyResult, error) {
-	result, err := rpc.hub.RequestFuture(message.AccountsSvc,
-		&message.VerifyTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).VerifyTX").Result()
+	//TODO : verify without account service
+	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
+		&message.VerifyTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).VerifyTX")
 	if err != nil {
-		return nil, err
+		if err == component.ErrHubUnregistered {
+			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
+		}
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
 	rsp, ok := result.(*message.VerifyTxRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))

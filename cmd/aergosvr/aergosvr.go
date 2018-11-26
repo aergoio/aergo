@@ -26,10 +26,9 @@ import (
 	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
-	"github.com/spf13/cobra"
-
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -137,14 +136,17 @@ func rootRun(cmd *cobra.Command, args []string) {
 	chainSvc := chain.NewChainService(cfg, consensusSvc, mpoolSvc)
 	compMng.Register(chainSvc)
 	consensusSvc.SetChainAccessor(chainSvc)
-	accountSvc := account.NewAccountService(cfg)
-	compMng.Register(accountSvc)
 	rpcSvc := rpc.NewRPC(compMng, cfg, chainSvc)
 	compMng.Register(rpcSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc)
 	compMng.Register(syncSvc)
 	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
 	compMng.Register(p2pSvc)
+
+	if cfg.Personal {
+		accountSvc := account.NewAccountService(cfg)
+		compMng.Register(accountSvc)
+	}
 
 	if cfg.EnableRest {
 		svrlog.Info().Msg("Start REST server")
