@@ -7,11 +7,27 @@ const (
 	DefaultSeed = 1530838800
 )
 
+var (
+	defaultChainID = ChainID{
+		Magic:     "AREGO.IO",
+		PublicNet: true,
+		Consensus: "dpos",
+	}
+)
+
+// ChainID represents the identity of the chain.
+type ChainID struct {
+	Magic     string `json:"magic"`
+	PublicNet bool   `json:"public"`
+	Consensus string `json:"consensus"`
+}
+
 // Genesis represents genesis block
 type Genesis struct {
+	ID        ChainID           `json:"chain_id,omitempty"`
 	Timestamp int64             `json:"timestamp,omitempty"`
 	Balance   map[string]*State `json:"alloc"`
-	BPIds     []string          `json:"bpids"`
+	BPs       []string          `json:"bps"`
 
 	// followings are for internal use only
 	block     *Block
@@ -47,6 +63,7 @@ func (g *Genesis) SetVoteState(s *State) {
 // GetDefaultGenesis returns default genesis structure
 func GetDefaultGenesis() *Genesis {
 	return &Genesis{
+		ID:        defaultChainID,
 		Timestamp: DefaultSeed,
 		block:     nil,
 	} //TODO embed MAINNET genesis block

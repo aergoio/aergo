@@ -172,7 +172,7 @@ func (bs *bootLoader) load() {
 	}
 
 	if gi := bs.cdb.GetGenesisInfo(); gi != nil {
-		bs.bpIDs = gi.BPIds
+		bs.bpIDs = gi.BPs
 		for i, bp := range bs.bpIDs {
 			logger.Info().Int("index", i).Str("BPID", bp).Msg("initial BP")
 		}

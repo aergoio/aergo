@@ -47,7 +47,7 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 // it also set *State in Genesis to use statedb
 func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 
-	if len(genesis.BPIds) == 0 {
+	if len(genesis.BPs) == 0 {
 		return nil
 	}
 	aid := types.ToAccountID([]byte(types.AergoSystem))
@@ -57,7 +57,7 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	}
 
 	voteResult := make(map[string]uint64)
-	for _, v := range genesis.BPIds {
+	for _, v := range genesis.BPs {
 		voteResult[v] = uint64(0)
 	}
 	if err = system.InitVoteResult(scs, &voteResult); err != nil {
