@@ -1,6 +1,10 @@
 package types
 
-import "github.com/aergoio/aergo/internal/common"
+import (
+	"bytes"
+
+	"github.com/aergoio/aergo/internal/common"
+)
 
 const (
 	// DefaultSeed is temporary const to create same genesis block with no configuration
@@ -22,6 +26,19 @@ type ChainID struct {
 	Consensus string `json:"consensus"`
 }
 
+// Bytes returns the binary representation of g.ID.
+func (cid *ChainID) Bytes() []byte {
+	if b, err := common.GobEncode(cid); err == nil {
+		return b
+	}
+	return nil
+}
+
+// Equals reports wheter cid equals rhs or not.
+func (cid *ChainID) Equals(rhs *ChainID) bool {
+	return bytes.Compare(cid.Bytes(), rhs.Bytes()) == 0
+}
+
 // Genesis represents genesis block
 type Genesis struct {
 	ID        ChainID           `json:"chain_id,omitempty"`
@@ -40,6 +57,11 @@ func (g *Genesis) Block() *Block {
 		g.block = NewBlock(nil, nil, nil, nil, nil, g.Timestamp)
 	}
 	return g.block
+}
+
+// ChainID returns the binary representation of g.ID.
+func (g *Genesis) ChainID() []byte {
+	return g.ID.Bytes()
 }
 
 // Bytes returns byte-encoded BPs from g.
