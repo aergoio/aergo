@@ -43,7 +43,7 @@ var (
 	genesisBlock     *types.Block
 	initialBestBlock *types.Block
 
-	errBlockExist = errors.New("error! block already exist")
+	ErrBlockExist = errors.New("error! block already exist")
 )
 
 // NewChainService create instance of ChainService
@@ -106,6 +106,11 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 	return cs.sdb
 }
 
+// CDBReader returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) CDBReader() consensus.ChainDbReader {
+	return cs.cdb
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
@@ -114,7 +119,6 @@ func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary
 func (cs *ChainService) BeforeStart() {
-	cs.ChainConsensus.Init(cs.cdb)
 }
 
 // AfterStart ... do nothing
@@ -259,7 +263,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		_, err := cs.getBlock(bid[:])
 		if err == nil {
 			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = errBlockExist
+			err = ErrBlockExist
 		} else {
 			var bstate *state.BlockState
 			if msg.Bstate != nil {

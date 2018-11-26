@@ -20,7 +20,7 @@ func New(cfg *config.Config, cs *chain.ChainService, hub *component.ComponentHub
 	var err error
 
 	if cfg.Consensus.EnableDpos {
-		c, err = dpos.New(cfg, hub)
+		c, err = dpos.New(cfg, cs.CDBReader(), hub)
 	} else {
 		c, err = sbp.New(cfg, hub)
 	}

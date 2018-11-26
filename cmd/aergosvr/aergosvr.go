@@ -132,12 +132,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 
-	var accountSvc, restSvc component.IComponent
-
+	var accountSvc component.IComponent
 	if cfg.Personal {
 		accountSvc = account.NewAccountService(cfg)
 	}
 
+	var restSvc component.IComponent
 	if cfg.EnableRest {
 		svrlog.Info().Msg("Start REST server")
 		restSvc = rest.NewRestService(cfg, chainSvc)
@@ -155,10 +155,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	// All the services objects including Consensus must be created before the
+	// actors are started.
 	compMng.Start()
 
 	if cfg.Consensus.EnableBp {
-		// Warning!!!: The consensus service must start after all the other
+		// Warning: The consensus service must start after all the other
 		// services.
 		consensus.Start(consensusSvc)
 	}

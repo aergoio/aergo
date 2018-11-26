@@ -19,10 +19,13 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(confirmsRequired uint16) *Status {
-	return &Status{
+func NewStatus(confirmsRequired uint16, cdb consensus.ChainDbReader) *Status {
+	s := &Status{
 		libState: newLibStatus(confirmsRequired),
 	}
+	s.init(cdb)
+
+	return s
 }
 
 // load restores the last LIB status by using the informations loaded from the
@@ -125,9 +128,13 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	return reorganizable
 }
 
-// Init recovers the last DPoS status including pre-LIB map and confirms
+// init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) Init(cdb consensus.ChainDbReader) {
+func (s *Status) init(cdb consensus.ChainDbReader) {
+	if cdb == nil {
+		return
+	}
+
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
 		panic(err)

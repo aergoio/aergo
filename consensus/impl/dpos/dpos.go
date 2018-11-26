@@ -49,7 +49,7 @@ type bpInfo struct {
 }
 
 // New returns a new DPos object
-func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
+func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.ComponentHub) (consensus.Consensus, error) {
 	Init(cfg.Consensus)
 
 	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
@@ -60,7 +60,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(defaultConsensusCount),
+		Status:       NewStatus(defaultConsensusCount, cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
