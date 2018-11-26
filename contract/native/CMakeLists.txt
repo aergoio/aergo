@@ -41,6 +41,7 @@ set(libascl_SRCS
     strbuf.c
     array.c
     stack.c
+    hash.c
     src_pos.c
     enum.c
     meta.c
