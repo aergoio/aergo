@@ -65,10 +65,9 @@ type ChainDB struct {
 	store db.DB
 }
 
-func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
+func NewChainDB() *ChainDB {
 	// logger.SetLevel("debug")
 	cdb := &ChainDB{
-		cc: cc,
 		//blocks: []*types.Block{},
 		latest: types.BlockNo(0),
 	}

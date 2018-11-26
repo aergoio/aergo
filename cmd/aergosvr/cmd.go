@@ -63,7 +63,7 @@ var initGenesis = &cobra.Command{
 			return
 		}
 
-		chainsvc := chain.NewChainService(cfg, nil)
+		chainsvc := chain.NewChainService(cfg)
 		err = chainsvc.InitGenesisBlock(genesis, cfg.DbType, initpath)
 		if err != nil {
 			fmt.Printf("fail to init genesis block data (error:%s)\n", err)

@@ -6,6 +6,7 @@
 package impl
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos"
@@ -14,7 +15,7 @@ import (
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
+func New(cfg *config.Config, cs *chain.ChainService, hub *component.ComponentHub) (consensus.Consensus, error) {
 	var c consensus.Consensus
 	var err error
 
@@ -23,6 +24,11 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	} else {
 		c, err = sbp.New(cfg, hub)
 	}
+
+	// Link mutual references.
+	cs.SetChainConsensus(c)
+	c.SetStateDB(cs.SDB())
+	c.SetChainAccessor(cs)
 
 	return c, err
 }

@@ -47,13 +47,12 @@ var (
 )
 
 // NewChainService create instance of ChainService
-func NewChainService(cfg *cfg.Config, cc consensus.Consensus) *ChainService {
+func NewChainService(cfg *cfg.Config) *ChainService {
 	actor := &ChainService{
-		ChainConsensus: cc,
-		cfg:            cfg,
-		cdb:            NewChainDB(cc),
-		sdb:            state.NewChainStateDB(),
-		op:             NewOrphanPool(),
+		cfg: cfg,
+		cdb: NewChainDB(),
+		sdb: state.NewChainStateDB(),
+		op:  NewOrphanPool(),
 	}
 	if err := Init(cfg.Blockchain.MaxBlockSize,
 		cfg.Blockchain.CoinbaseAccount,
@@ -63,11 +62,6 @@ func NewChainService(cfg *cfg.Config, cc consensus.Consensus) *ChainService {
 		cfg.Blockchain.UseFastSyncer); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
-	}
-
-	if cc != nil {
-		cc.SetStateDB(actor.sdb)
-		cc.SetChainAccessor(actor)
 	}
 
 	actor.validator = NewBlockValidator(actor.sdb)
@@ -101,6 +95,12 @@ func (cs *ChainService) initDB(dbType string, dataDir string) error {
 // SDB returns cs.sdb.
 func (cs *ChainService) SDB() *state.ChainStateDB {
 	return cs.sdb
+}
+
+// SetChainConsensus sets cs.cc to cc.
+func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
+	cs.ChainConsensus = cc
+	cs.cdb.cc = cc
 }
 
 // BeforeStart initialize chain database and generate empty genesis block if necessary

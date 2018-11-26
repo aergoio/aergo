@@ -125,13 +125,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	consensusSvc, err := impl.New(cfg, compMng)
-	if err != nil {
-		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
-		os.Exit(1)
-	}
-
-	chainSvc := chain.NewChainService(cfg, consensusSvc)
+	chainSvc := chain.NewChainService(cfg)
 	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
@@ -150,6 +144,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 		compMng.Register(restsvc)
 	} else {
 		svrlog.Info().Msg("Do not start REST server")
+	}
+
+	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
+	if err != nil {
+		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
+		os.Exit(1)
 	}
 
 	compMng.Start()
