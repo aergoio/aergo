@@ -14,7 +14,6 @@
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
-#define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
@@ -46,15 +45,6 @@ typedef struct ast_id_s ast_id_t;
 typedef struct exp_lit_s {
     value_t val;
 } exp_lit_t;
-
-/* primitive, struct, map */
-typedef struct exp_type_s {
-    type_t type;
-    char *name;
-    modifier_t mod;
-    ast_exp_t *k_exp;
-    ast_exp_t *v_exp;
-} exp_type_t;
 
 /* name */
 typedef struct exp_id_s {
@@ -117,7 +107,6 @@ struct ast_exp_s {
 
     union {
         exp_lit_t u_lit;
-        exp_type_t u_type;
         exp_id_t u_id;
         exp_array_t u_arr;
         exp_cast_t u_cast;
@@ -136,7 +125,6 @@ struct ast_exp_s {
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
 ast_exp_t *exp_new_lit(src_pos_t *pos);
-ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);

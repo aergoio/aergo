@@ -47,7 +47,7 @@ typedef struct ast_exp_s ast_exp_t;
 #endif /* ! _AST_EXP_T */
 
 typedef struct id_var_s {
-    ast_exp_t *type_exp;
+    meta_t *type_meta;
     ast_exp_t *init_exp;
     array_t *size_exps;
 } id_var_t;
@@ -62,7 +62,7 @@ typedef struct id_enum_s {
 
 typedef struct id_func_s {
     array_t *param_ids;
-    array_t *ret_exps;
+    array_t *ret_metas;
     ast_blk_t *blk;
 } id_func_t;
 
@@ -98,7 +98,7 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_exps, 
+ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_metas,
                       ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 

@@ -40,16 +40,6 @@ exp_new_lit(src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_type(type_t type, src_pos_t *pos)
-{
-    ast_exp_t *exp = ast_exp_new(EXP_TYPE, pos);
-
-    exp->u_type.type = type;
-
-    return exp;
-}
-
-ast_exp_t *
 exp_new_id(char *name, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ID, pos);

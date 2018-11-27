@@ -152,6 +152,12 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     ast_blk_t *blk;
     ast_exp_t *exp;
     ast_stmt_t *stmt;
+    meta_t *meta;
+
+    struct {
+        modifier_t mod;
+        meta_t *meta;
+    } spec;
 }
 
 %type <id>      contract_decl
@@ -159,9 +165,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <array>   variable
 %type <array>   var_decl
 %type <array>   var_init_decl
-%type <exp>     var_type
-%type <exp>     var_qual
-%type <exp>     var_spec
+%type <spec>    var_type
+%type <spec>    var_qual
+%type <meta>    var_spec
 %type <type>    prim_type
 %type <array>   var_name_list
 %type <id>      declarator
@@ -170,7 +176,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      compound
 %type <id>      struct
 %type <array>   field_list
-%type <array>   field
 %type <id>      enumeration
 %type <array>   enum_list
 %type <id>      enumerator
@@ -326,8 +331,8 @@ var_decl:
         for (i = 0; i < array_size($2); i++) {
             ast_id_t *id = array_get($2, i, ast_id_t);
 
-            id->mod = $1->u_type.mod;
-            id->u_var.type_exp = $1;
+            id->mod = $1.mod;
+            id->u_var.type_meta = $1.meta;
         }
         $$ = $2;
     }
@@ -346,8 +351,8 @@ var_init_decl:
             for (i = 0; i < array_size($2); i++) {
                 ast_id_t *id = array_get($2, i, ast_id_t);
 
-                id->mod = $1->u_type.mod;
-                id->u_var.type_exp = $1;
+                id->mod = $1.mod;
+                id->u_var.type_meta = $1.meta;
                 id->u_var.init_exp = array_get($4, i, ast_exp_t);
             }
         }
@@ -360,36 +365,37 @@ var_type:
 |   K_PUBLIC var_type
     {
         $$ = $2;
-        flag_set($$->u_type.mod, MOD_PUBLIC);
+        flag_set($$.mod, MOD_PUBLIC);
     }
 ;
 
 var_qual:
     var_spec
+    {
+        $$.mod = MOD_PRIVATE;
+        $$.meta = $1;
+    }
 |   K_CONST var_spec
     {
-        $$ = $2;
-        flag_set($$->u_type.mod, MOD_CONST);
+        $$.mod = MOD_CONST;
+        $$.meta = $2;
     }
 ;
 
 var_spec:
     prim_type
     {
-        $$ = exp_new_type($1, &@$);
+        $$ = meta_new($1, &@1);
     }
 |   identifier
     {
-        $$ = exp_new_type(TYPE_STRUCT, &@$);
-
-        $$->u_type.name = $1;
+        $$ = meta_new(TYPE_STRUCT, &@1);
+        $$->name = $1;
     }
 |   K_MAP '(' var_spec ',' var_spec ')'
     {
-        $$ = exp_new_type(TYPE_MAP, &@$);
-
-        $$->u_type.k_exp = $3;
-        $$->u_type.v_exp = $5;
+        $$ = meta_new(TYPE_MAP, &@1);
+        meta_set_map($$, $3, $5);
     }
 ;
 
@@ -478,34 +484,16 @@ struct:
 ;
 
 field_list:
-    field
-|   field_list field
+    var_decl ';'
+|   field_list var_decl ';'
     {
         $$ = $1;
         id_join_last($$, $2);
     }
 ;
 
-field:
-    var_spec var_name_list ';'
-    {
-        int i;
-
-        for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_get($2, i, ast_id_t);
-
-            ASSERT1(is_var_id(id), id->kind);
-            ASSERT1(is_type_exp($1), $1->kind);
-
-            id->u_var.type_exp = $1;
-        }
-
-        $$ = $2;
-    }
-;
-
 enumeration:
-    K_ENUM  identifier '{' enum_list comma_opt '}'
+    K_ENUM identifier '{' enum_list comma_opt '}'
     {
         $$ = id_new_enum($2, $4, &@$);
     }
@@ -574,7 +562,8 @@ param_decl:
     var_qual declarator
     {
         $$ = $2;
-        $$->u_var.type_exp = $1;
+        $$->mod = $1.mod;
+        $$->u_var.type_meta = $1.meta;
     }
 ;
 
@@ -656,12 +645,12 @@ return_list:
     var_spec
     {
         $$ = array_new();
-        exp_add_last($$, $1);
+        array_add_last($$, $1);
     }
 |   return_list ',' var_spec
     {
         $$ = $1;
-        exp_add_last($$, $3);
+        array_add_last($$, $3);
     }
 ;
 

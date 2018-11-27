@@ -10,6 +10,7 @@
 
 #include "check_exp.h"
 #include "check_blk.h"
+#include "check_meta.h"
 
 #include "check_id.h"
 
@@ -65,19 +66,19 @@ id_gen_dflt_exp(meta_t *meta)
     ast_exp_t *init_exp;
 
     if (is_bool_type(meta)) {
-        init_exp = exp_new_lit(meta->pos);
+        init_exp = exp_new_lit(&meta->pos);
         value_set_bool(&init_exp->u_lit.val, false);
     }
     else if (is_dec_family(meta)) {
-        init_exp = exp_new_lit(meta->pos);
+        init_exp = exp_new_lit(&meta->pos);
         value_set_int(&init_exp->u_lit.val, 0);
     }
     else if (is_fp_family(meta)) {
-        init_exp = exp_new_lit(meta->pos);
+        init_exp = exp_new_lit(&meta->pos);
         value_set_fp(&init_exp->u_lit.val, 0.0);
     }
     else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
-        init_exp = exp_new_lit(meta->pos);
+        init_exp = exp_new_lit(&meta->pos);
         value_set_obj(&init_exp->u_lit.val, NULL);
     }
     else {
@@ -89,7 +90,7 @@ id_gen_dflt_exp(meta_t *meta)
             exp_add_last(exps, id_gen_dflt_exp(meta->elems[i]));
         }
 
-        init_exp = exp_new_tuple(exps, meta->pos);
+        init_exp = exp_new_tuple(exps, &meta->pos);
     }
 
     if (is_array_type(meta)) {
@@ -102,7 +103,7 @@ id_gen_dflt_exp(meta_t *meta)
                 exp_add_last(exps, init_exp);
             }
 
-            init_exp = exp_new_tuple(exps, meta->pos);
+            init_exp = exp_new_tuple(exps, &meta->pos);
         }
     }
 
@@ -112,22 +113,18 @@ id_gen_dflt_exp(meta_t *meta)
 static int
 id_check_var(check_t *check, ast_id_t *id)
 {
-    ast_exp_t *type_exp;
     meta_t *type_meta;
     ast_exp_t *init_exp;
     meta_t *init_meta;
 
     ASSERT1(is_var_id(id), id->kind);
-    ASSERT(id->u_var.type_exp != NULL);
+    ASSERT(id->u_var.type_meta != NULL);
 
     id->is_checked = true;
 
-    type_exp = id->u_var.type_exp;
-    type_meta = &type_exp->meta;
+    type_meta = id->u_var.type_meta;
 
-    ASSERT1(is_type_exp(type_exp), type_exp->kind);
-
-    CHECK(exp_check(check, type_exp));
+    CHECK(meta_check(check, type_meta));
 
     meta_copy(&id->meta, type_meta);
 
@@ -154,9 +151,11 @@ id_check_var(check_t *check, ast_id_t *id)
             /* not allowed static initializer except map or struct */
             RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
+#if 0
         if (type_exp->id != NULL && is_contract_id(type_exp->id))
             /* contract object */
             RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+#endif
     }
 
     CHECK(meta_cmp(&id->meta, &init_exp->meta));
@@ -267,20 +266,19 @@ id_check_enum(check_t *check, ast_id_t *id)
 static int
 id_check_param(check_t *check, ast_id_t *id)
 {
-    ast_exp_t *type_exp;
+    meta_t *type_meta;
 
     ASSERT1(is_var_id(id), id->kind);
-    ASSERT(id->u_var.type_exp != NULL);
+    ASSERT(id->u_var.type_meta != NULL);
     ASSERT(id->u_var.init_exp == NULL);
 
     id->is_checked = true;
 
-    type_exp = id->u_var.type_exp;
-    ASSERT1(is_type_exp(type_exp), type_exp->kind);
+    type_meta = id->u_var.type_meta;
 
-    CHECK(exp_check(check, type_exp));
+    CHECK(meta_check(check, type_meta));
 
-    meta_copy(&id->meta, &type_exp->meta);
+    meta_copy(&id->meta, type_meta);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, true));
@@ -293,7 +291,8 @@ id_check_func(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *param_ids;
-    array_t *ret_exps;
+    array_t *ret_metas;
+    meta_t *id_meta;
 
     ASSERT1(is_func_id(id), id->kind);
 
@@ -307,33 +306,38 @@ id_check_func(check_t *check, ast_id_t *id)
         id_check_param(check, param_id);
     }
 
-    ret_exps = id->u_func.ret_exps;
+    id_meta = &id->meta;
+    ret_metas = id->u_func.ret_metas;
 
-    if (ret_exps != NULL) {
-        ast_exp_t *type_exp;
+    if (ret_metas != NULL) {
+        meta_t *ret_meta;
 
-        if (array_size(ret_exps) == 1) {
-            type_exp = array_get(ret_exps, 0, ast_exp_t);
-            ASSERT1(is_type_exp(type_exp), type_exp->kind);
+        if (array_size(ret_metas) == 1) {
+            ret_meta = array_get(ret_metas, 0, meta_t);
 
-            exp_check(check, type_exp);
-            meta_copy(&id->meta, &type_exp->meta);
+            meta_check(check, ret_meta);
+            meta_copy(id_meta, ret_meta);
         }
         else {
-            for (i = 0; i < array_size(ret_exps); i++) {
-                type_exp = array_get(ret_exps, i, ast_exp_t);
-                ASSERT1(is_type_exp(type_exp), type_exp->kind);
+            meta_set(id_meta, TYPE_TUPLE);
 
-                exp_check(check, type_exp);
+            id_meta->elem_cnt = array_size(ret_metas);
+            id_meta->elems = xmalloc(sizeof(meta_t *) * id_meta->elem_cnt);
+
+            for (i = 0; i < array_size(ret_metas); i++) {
+                ret_meta = array_get(ret_metas, i, meta_t);
+
+                meta_check(check, ret_meta);
+                id_meta->elems[i] = ret_meta;
             }
-            meta_set_tuple(&id->meta, ret_exps);
         }
     }
     else if (is_ctor_id(id)) {
-        meta_set_object(&id->meta);
+        meta_set_object(id_meta);
+        id_meta->name = id->name;
     }
     else {
-        meta_set_void(&id->meta);
+        meta_set_void(id_meta);
     }
 
     if (id->u_func.blk != NULL) {
@@ -360,6 +364,7 @@ id_check_contract(check_t *check, ast_id_t *id)
         blk_check(check, id->u_cont.blk);
 
     meta_set_object(&id->meta);
+    id->meta.name = id->name;
 
     check->cont_id = NULL;
 

@@ -91,7 +91,6 @@ extern char *id_kinds_[ID_MAX];
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
     EXP_LIT,
-    EXP_TYPE,
     EXP_ID,
     EXP_ARRAY,
     EXP_CAST,

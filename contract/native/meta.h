@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "ast.h"
 #include "array.h"
 #include "value.h"
 
@@ -55,8 +56,8 @@
     ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
      (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
-#define is_undef_type(meta)         (meta)->is_undef
 #define is_array_type(meta)         ((meta)->arr_dim > 0)
+#define is_undef_type(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -87,14 +88,16 @@ typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
 struct meta_s {
+    AST_NODE_DECL;
+
     type_t type;
 
-    char *name;             /* name of struct */
+    char *name;             /* name of struct or contract */
 
     int arr_dim;            /* dimension of array */
     int *arr_size;          /* size of each dimension */
 
-    bool is_undef;          /* whether it is numeric literal or null */
+    bool is_undef;          /* whether it is literal */
 
     /* structured meta (map, struct or tuple) */
     int elem_cnt;           /* count of elements */
@@ -104,8 +107,6 @@ struct meta_s {
     int size;               /* memory size */
     int offset;             /* relative offset of field */
     int align;              /* maximum alignment */
-
-    src_pos_t *pos;
 };
 
 char *meta_to_str(meta_t *x);
@@ -127,7 +128,20 @@ meta_init(meta_t *meta, src_pos_t *pos)
     ASSERT(pos != NULL);
 
     memset(meta, 0x00, sizeof(meta_t));
-    meta->pos = pos;
+
+    ast_node_init(meta, pos);
+}
+
+static inline meta_t *
+meta_new(type_t type, src_pos_t *pos)
+{
+    meta_t *meta = xcalloc(sizeof(meta_t));
+
+    ast_node_init(meta, pos);
+
+    meta->type = type;
+
+    return meta;
 }
 
 static inline void

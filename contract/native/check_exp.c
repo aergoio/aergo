@@ -83,67 +83,6 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_type(check_t *check, ast_exp_t *exp)
-{
-    ASSERT1(is_type_exp(exp), exp->kind);
-
-    if (exp->u_type.type == TYPE_STRUCT) {
-        ast_id_t *id;
-
-        ASSERT(exp->u_type.name != NULL);
-        ASSERT(exp->u_type.k_exp == NULL);
-        ASSERT(exp->u_type.v_exp == NULL);
-
-        if (check->qual_id != NULL)
-            id = id_search_fld(check->qual_id, exp->u_type.name,
-                               check->qual_id == check->cont_id);
-        else
-            id = id_search_name(check->blk, exp->u_type.name, exp->num);
-
-        if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
-            RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, exp->u_type.name);
-
-        id->is_used = true;
-
-        exp->id = id;
-        meta_copy(&exp->meta, &id->meta);
-    }
-    else if (exp->u_type.type == TYPE_MAP) {
-        ast_exp_t *k_exp, *v_exp;
-        meta_t *k_meta, *v_meta;
-
-        ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
-        ASSERT(exp->u_type.k_exp != NULL);
-        ASSERT(exp->u_type.v_exp != NULL);
-
-        k_exp = exp->u_type.k_exp;
-        k_meta = &k_exp->meta;
-
-        CHECK(exp_check_type(check, k_exp));
-
-        if (!is_comparable_type(k_meta))
-            RETURN(ERROR_NOT_COMPARABLE_TYPE, &k_exp->pos, meta_to_str(k_meta));
-
-        v_exp = exp->u_type.v_exp;
-        v_meta = &v_exp->meta;
-
-        CHECK(exp_check_type(check, v_exp));
-
-        ASSERT(!is_tuple_type(v_meta));
-        meta_set_map(&exp->meta, k_meta, v_meta);
-    }
-    else {
-        ASSERT1(exp->u_type.name == NULL, exp->u_type.name);
-        ASSERT(exp->u_type.k_exp == NULL);
-        ASSERT(exp->u_type.v_exp == NULL);
-
-        meta_set(&exp->meta, exp->u_type.type);
-    }
-
-    return NO_ERROR;
-}
-
-static int
 exp_check_array(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
@@ -506,7 +445,8 @@ static int
 exp_check_access(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
-    meta_t *id_meta, *fld_meta;
+    meta_t *id_meta;
+    meta_t *type_meta = NULL;
     ast_id_t *id;
 
     ASSERT1(is_access_exp(exp), exp->kind);
@@ -521,37 +461,35 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     if (is_var_id(id)) {
-        id = id->u_var.type_exp->id;
+        type_meta = id->u_var.type_meta;
     }
     else if (is_func_id(id)) {
-        array_t *ret_exps;
-        ast_exp_t *type_exp;
+        array_t *ret_metas;
 
         if (!is_struct_type(id_meta) && !is_object_type(id_meta))
             RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-        ret_exps = id->u_func.ret_exps;
-        ASSERT(ret_exps != NULL);
-        ASSERT1(array_size(ret_exps) == 1, array_size(ret_exps));
+        ret_metas = id->u_func.ret_metas;
+        ASSERT(ret_metas != NULL);
+        ASSERT1(array_size(ret_metas) == 1, array_size(ret_metas));
 
-        type_exp = array_get(ret_exps, 0, ast_exp_t);
-        ASSERT1(is_type_exp(type_exp), type_exp->kind);
-
-        id = type_exp->id;
+        type_meta = array_get(ret_metas, 0, meta_t);
     }
+
+    if (type_meta != NULL && type_meta->name != NULL)
+        id = id_search_name(check->blk, type_meta->name, type_meta->num);
 
     if (id == NULL ||
         (!is_struct_id(id) && !is_enum_id(id) && !is_contract_id(id)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     fld_exp = exp->u_acc.fld_exp;
-    fld_meta = &fld_exp->meta;
 
     check->qual_id = id;
 
     if (exp_check(check, fld_exp) == NO_ERROR) {
         exp->id = fld_exp->id;
-        meta_copy(&exp->meta, fld_meta);
+        meta_copy(&exp->meta, &fld_exp->meta);
     }
 
     check->qual_id = NULL;
@@ -721,9 +659,6 @@ exp_check(check_t *check, ast_exp_t *exp)
 
     case EXP_LIT:
         return exp_check_lit(check, exp);
-
-    case EXP_TYPE:
-        return exp_check_type(check, exp);
 
     case EXP_ARRAY:
         return exp_check_array(check, exp);

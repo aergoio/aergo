@@ -107,10 +107,10 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
     int i;
 
     if (!is_tuple_type(y))
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
 
     if (x->elem_cnt != y->elem_cnt)
-        RETURN(ERROR_MISMATCHED_COUNT, y->pos, kind, x->elem_cnt, y->elem_cnt);
+        RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y->elem_cnt);
 
     for (i = 0; i < x->elem_cnt; i++) {
         CHECK(meta_cmp(x->elems[i], y->elems[i]));
@@ -141,7 +141,7 @@ meta_cmp_map(meta_t *x, meta_t *y)
         }
     }
     else {
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     return NO_ERROR;
@@ -155,13 +155,13 @@ meta_cmp_struct(meta_t *x, meta_t *y)
         ASSERT(y->name != NULL);
 
         if (strcmp(x->name, y->name) != 0)
-            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+            RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
     else if (is_tuple_type(y)) {
         return meta_cmp_tuple(x, y, "field");
     }
     else {
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     return NO_ERROR;
@@ -177,7 +177,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
             (is_obj_family(x) && is_obj_family(y)))
             return NO_ERROR;
 
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     if (is_map_type(x))
@@ -190,7 +190,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
         return meta_cmp_struct(x, y);
 
     if (x->type != y->type)
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
 
     return NO_ERROR;
 }
@@ -204,11 +204,11 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
         CHECK(meta_cmp_type(x, y));
 
         if (x->arr_dim != y->arr_dim)
-            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+            RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
 
         for (i = 0; i < x->arr_dim; i++) {
             if (x->arr_size[i] != y->arr_size[i])
-                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->arr_size[i],
+                RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->arr_size[i],
                        y->arr_size[i]);
         }
     }
@@ -216,7 +216,7 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
         if (x->arr_size[idx] == -1)
             x->arr_size[idx] = y->elem_cnt;
         else if (x->arr_size[idx] != y->elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->arr_size[idx],
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->arr_size[idx],
                    y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
@@ -227,7 +227,7 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
         }
     }
     else {
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
 
     return NO_ERROR;

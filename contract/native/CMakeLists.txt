@@ -30,6 +30,7 @@ set(libascl_SRCS
     check_blk.c
     check_stmt.c
     check_exp.c
+    check_meta.c
     gen.c
     gen_id.c
     gen_blk.c

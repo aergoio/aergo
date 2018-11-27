@@ -39,12 +39,6 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_type(gen_t *gen, ast_exp_t *exp)
-{
-    return NULL;
-}
-
-static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
     return NULL;
@@ -175,9 +169,6 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
 
     case EXP_LIT:
         return exp_gen_val(gen, exp);
-
-    case EXP_TYPE:
-        return exp_gen_type(gen, exp);
 
     case EXP_ARRAY:
         return exp_gen_array(gen, exp);
