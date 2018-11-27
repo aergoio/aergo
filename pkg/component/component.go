@@ -6,9 +6,10 @@
 package component
 
 import (
-	"github.com/opentracing/opentracing-go"
 	"sync/atomic"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -17,7 +18,7 @@ import (
 var _ IComponent = (*BaseComponent)(nil)
 
 type ActorSpan struct {
-	span 	opentracing.Span
+	span opentracing.Span
 }
 
 // BaseComponent provides a basic implementations for IComponent interface
@@ -30,7 +31,7 @@ type BaseComponent struct {
 	hub             *ComponentHub
 	accProcessedMsg uint64
 	inbounds        []actor.InboundMiddleware
-	outbounds		[]actor.OutboundMiddleware
+	outbounds       []actor.OutboundMiddleware
 }
 
 // NewBaseComponent is a helper to create BaseComponent
@@ -92,7 +93,7 @@ func (base *BaseComponent) Start() {
 	outbound := func(next actor.SenderFunc) actor.SenderFunc {
 		fn := func(c actor.Context, target *actor.PID, envelope *actor.MessageEnvelope) {
 			if nil == envelope.Header {
-				envelope.Header = make(map[string] string)
+				envelope.Header = make(map[string]string)
 			}
 			parentSpanId := c.MessageHeader().Get("opentracing-span")
 			parentSpan := base.hub.RestoreSpan(parentSpanId)
@@ -148,7 +149,8 @@ func (base *BaseComponent) Stop() {
 // Tell passes a given message to this component and forgets
 func (base *BaseComponent) Tell(message interface{}) {
 	if base.pid == nil {
-		panic("PID is empty")
+		logger.Warn().Msg("PID is empty")
+		return // do nothing
 	}
 	base.pid.Tell(message)
 }
@@ -158,7 +160,8 @@ func (base *BaseComponent) Tell(message interface{}) {
 // using a hub set
 func (base *BaseComponent) TellTo(targetCompName string, message interface{}) {
 	if base.hub == nil {
-		panic("Component hub is not set")
+		logger.Warn().Str("from", base.GetName()).Str("to", targetCompName).Interface("msg", message).Msg("Hub is not set")
+		return // do nothing
 	}
 	base.hub.Tell(targetCompName, message)
 }
@@ -168,7 +171,8 @@ func (base *BaseComponent) TellTo(targetCompName string, message interface{}) {
 // an actor request
 func (base *BaseComponent) Request(message interface{}, sender *actor.PID) {
 	if base.pid == nil {
-		panic("PID is empty")
+		logger.Warn().Str("to", base.GetName()).Str("from", sender.GetId()).Interface("msg", message).Msg("PID is empty")
+		return // do nothing
 	}
 	base.pid.Request(message, sender)
 }
@@ -178,7 +182,8 @@ func (base *BaseComponent) Request(message interface{}, sender *actor.PID) {
 // from the target component in form of an actor request
 func (base *BaseComponent) RequestTo(targetCompName string, message interface{}) {
 	if base.hub == nil {
-		panic("Component hub is not set")
+		logger.Warn().Str("to", targetCompName).Str("from", base.GetName()).Interface("msg", message).Msg("Hub is not set")
+		return // do nothing
 	}
 	targetComp := base.hub.Get(targetCompName)
 	targetComp.Request(message, base.pid)
@@ -188,7 +193,11 @@ func (base *BaseComponent) RequestTo(targetCompName string, message interface{})
 // And this returns a future, that represent an asynchronous result
 func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Duration, tip string) *actor.Future {
 	if base.pid == nil {
-		panic("PID is empty")
+		logger.Warn().Str("to", base.GetName()).Str("from", tip).Interface("msg", message).Msg("PID is empty")
+		retFuture := actor.NewFuturePrefix("NilPID", timeout)
+		retFuture.PID().Tell(ErrHubUnregistered)
+
+		return retFuture
 	}
 
 	return base.pid.RequestFuturePrefix(message, tip, timeout)
@@ -198,7 +207,11 @@ func (base *BaseComponent) RequestFuture(message interface{}, timeout time.Durat
 // And this returns a future, that represent an asynchronous result
 func (base *BaseComponent) RequestToFuture(targetCompName string, message interface{}, timeout time.Duration) *actor.Future {
 	if base.hub == nil {
-		panic("Component hub is not set")
+		logger.Warn().Str("from", base.GetName()).Str("to", targetCompName).Interface("msg", message).Msg("Hub is not set")
+		retFuture := actor.NewFuturePrefix("NilHub", timeout)
+		retFuture.PID().Tell(ErrHubUnregistered)
+
+		return retFuture
 	}
 
 	return base.hub.RequestFuture(targetCompName, message, timeout, base.name)
@@ -218,7 +231,6 @@ func (base *BaseComponent) Hub() *ComponentHub {
 func (base *BaseComponent) MsgQueueLen() int32 {
 	return base.pid.MsgNum()
 }
-
 
 // Receive in the BaseComponent handles system messages and invokes actor's
 // receive function; implementation to handle incomming messages

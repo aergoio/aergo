@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/opentracing/opentracing-go"
 	"github.com/satori/go.uuid"
 )
 
 var (
 	ErrHubUnregistered = errors.New("Unregistered Component")
+	logger             = log.NewLogger("actor")
 )
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
@@ -31,9 +33,9 @@ type ICompRequester interface {
 
 // ComponentHub keeps a list of registered components
 type ComponentHub struct {
-	components 	map[string]IComponent
-	spanLock	sync.Mutex
-	spans 		map[string]*opentracing.Span
+	components map[string]IComponent
+	spanLock   sync.Mutex
+	spans      map[string]*opentracing.Span
 }
 
 type hubInitSync struct {
@@ -47,7 +49,7 @@ var hubInit hubInitSync
 func NewComponentHub() *ComponentHub {
 	hub := ComponentHub{
 		components: make(map[string]IComponent),
-		spans: make(map[string]*opentracing.Span),
+		spans:      make(map[string]*opentracing.Span),
 	}
 	return &hub
 }
