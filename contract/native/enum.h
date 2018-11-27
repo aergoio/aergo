@@ -194,4 +194,12 @@ typedef enum val_kind_e {
     VAL_MAX
 } val_kind_t;
 
+typedef enum sym_kind_e {
+    SYM_NONE        = 0,
+    SYM_VAR,
+    SYM_REC,
+    SYM_FUNC,
+    SYM_MAX
+} sym_kind_t;
+
 #endif /* ! _ENUM_H */
