@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -11,7 +12,7 @@ import (
 
 type entry interface {
 	KeyID() types.HashID
-	HashID() types.HashID
+	Hash() []byte
 	Value() interface{}
 }
 
@@ -21,22 +22,29 @@ type cached interface {
 
 type valueEntry struct {
 	key   types.HashID
-	hash  types.HashID
 	value interface{}
 }
 
 func newValueEntry(key types.HashID, value interface{}) entry {
 	return &valueEntry{
 		key:   key,
-		hash:  getHash(value),
 		value: value,
+	}
+}
+func newValueEntryDelete(key types.HashID) entry {
+	return &valueEntry{
+		key:   key,
+		value: nil,
 	}
 }
 func (et *valueEntry) KeyID() types.HashID {
 	return et.key
 }
-func (et *valueEntry) HashID() types.HashID {
-	return et.hash
+func (et *valueEntry) Hash() []byte {
+	if hash := getHashBytes(et.value); hash != nil {
+		return hash
+	}
+	return []byte{0}
 }
 func (et *valueEntry) Value() interface{} {
 	return et.value
@@ -156,7 +164,7 @@ func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
 	vals := make([][]byte, size)
 	for i, et := range bufs {
 		keys[i] = append(keys[i], et.KeyID().Bytes()...)
-		vals[i] = append(vals[i], et.HashID().Bytes()...)
+		vals[i] = append(vals[i], et.Hash()...)
 	}
 	return keys, vals
 }
@@ -180,7 +188,7 @@ func (buffer *stateBuffer) stage(dbtx *db.Transaction) error {
 		if err != nil {
 			return err
 		}
-		(*dbtx).Set(et.HashID().Bytes(), buf)
+		(*dbtx).Set(et.Hash(), buf)
 	}
 	return nil
 }
@@ -199,16 +207,19 @@ func marshal(data interface{}) ([]byte, error) {
 	return nil, nil
 }
 
-func getHash(data interface{}) types.HashID {
+func getHashBytes(data interface{}) []byte {
+	if data == nil {
+		return nil
+	}
 	switch data.(type) {
-	case (types.ImplHashID):
-		return data.(types.ImplHashID).HashID()
+	case (types.ImplHashBytes):
+		return data.(types.ImplHashBytes).Hash()
 	default:
 	}
 	buf, err := marshal(data)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to get hash: marshal")
-		return emptyHashID
+		logger.Error().Err(err).Msg("failed to get hash bytes: marshal")
+		return nil
 	}
-	return types.GetHashID(buf)
+	return common.Hasher(buf)
 }

@@ -5,7 +5,6 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	sha256 "github.com/minio/sha256-simd"
 )
 
 func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
@@ -59,7 +58,7 @@ func (st *ContractState) GetBalance() uint64 {
 }
 
 func (st *ContractState) SetCode(code []byte) error {
-	codeHash := sha256.Sum256(code)
+	codeHash := common.Hasher(code)
 	err := saveData(st.store, codeHash[:], &code)
 	if err != nil {
 		return err
@@ -84,15 +83,20 @@ func (st *ContractState) GetCode() ([]byte, error) {
 	return st.code, nil
 }
 
+// SetData store key and value pair to the storage.
 func (st *ContractState) SetData(key, value []byte) error {
 	st.storage.put(newValueEntry(types.GetHashID(key), value))
 	return nil
 }
 
+// GetData returns the value corresponding to the key from the storage.
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
 	if entry := st.storage.get(id); entry != nil {
-		return entry.Value().([]byte), nil
+		if value := entry.Value(); value != nil {
+			return value.([]byte), nil
+		}
+		return nil, nil
 	}
 	dkey, err := st.storage.trie.Get(id[:])
 	if err != nil {
@@ -108,6 +112,12 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	return value, nil
 }
 
+// DeleteData remove key and value pair from the storage.
+func (st *ContractState) DeleteData(key []byte) error {
+	st.storage.put(newValueEntryDelete(types.GetHashID(key)))
+	return nil
+}
+
 // Snapshot returns revision number of storage buffer
 func (st *ContractState) Snapshot() Snapshot {
 	return Snapshot(st.storage.buffer.snapshot())
@@ -118,9 +128,9 @@ func (st *ContractState) Rollback(revision Snapshot) error {
 	return st.storage.buffer.rollback(int(revision))
 }
 
-// HashID implements types.ImplHashID
-func (st *ContractState) HashID() types.HashID {
-	return getHash(st.State)
+// Hash implements types.ImplHashBytes
+func (st *ContractState) Hash() []byte {
+	return getHashBytes(st.State)
 }
 
 // Marshal implements types.ImplMarshal

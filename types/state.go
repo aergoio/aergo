@@ -25,6 +25,11 @@ type ImplHashID interface {
 	HashID() HashID
 }
 
+// ImplHashBytes is a object supports Hash
+type ImplHashBytes interface {
+	Hash() []byte
+}
+
 // ImplMarshal is a object has marshal interface
 type ImplMarshal interface {
 	Marshal() ([]byte, error)

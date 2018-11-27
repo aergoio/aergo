@@ -70,6 +70,48 @@ func TestContractStateData(t *testing.T) {
 	assert.NoError(t, err, "stage contract state")
 }
 
+func TestContractStateDataDelete(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	testAddress := []byte("test_address")
+	testBytes := []byte("test_bytes")
+	testKey := []byte("test_key")
+
+	// open contract state and set test data
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	assert.NoError(t, err, "could not open contract state")
+	err = contractState.SetData(testKey, testBytes)
+	assert.NoError(t, err, "set data to contract state")
+
+	// stage and re-open contract state
+	err = stateDB.StageContractState(contractState)
+	assert.NoError(t, err, "stage contract state")
+	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	assert.NoError(t, err, "could not open contract state")
+
+	// get and delete test data
+	res, err := contractState.GetData(testKey)
+	assert.NoError(t, err, "get data from contract state")
+	assert.Equal(t, testBytes, res, "different data detected")
+	err = contractState.DeleteData(testKey)
+	assert.NoError(t, err, "delete data from contract state")
+
+	// stage and re-open contract state
+	err = stateDB.StageContractState(contractState)
+	assert.NoError(t, err, "stage contract state")
+	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	assert.NoError(t, err, "could not open contract state")
+
+	// get test data
+	res, err = contractState.GetData(testKey)
+	assert.NoError(t, err, "get data from contract state")
+	assert.Nil(t, res, "garbage data detected")
+
+	// stage contract state
+	err = stateDB.StageContractState(contractState)
+	assert.NoError(t, err, "stage contract state")
+}
+
 func TestContractStateEmpty(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
