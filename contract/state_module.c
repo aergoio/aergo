@@ -206,10 +206,12 @@ static int state_value_set(lua_State *L)
 static int state_var(lua_State *L)
 {
     int t, i = 1;
+    const char *var_name;
+
     luaL_checktype(L, 1, LUA_TTABLE);                                   /* T */
     lua_pushnil(L);                                                     /* T nil ; push the first key */
     while (lua_next(L, -2) != 0) {                                      /* T key value */
-        luaL_checkstring(L, -2);
+        var_name = luaL_checkstring(L, -2);
         t = lua_type(L, -1);
         if (LUA_TTABLE == t) {
             lua_pushstring(L, "id");                                    /* T key value id */
@@ -221,7 +223,8 @@ static int state_var(lua_State *L)
             arr->id = strdup((const char *)lua_tostring(L, -2));        /* T key value */
             lua_setglobal(L, lua_tostring(L, -2));                      /* T key */
         } else {
-            lua_pushfstring(L, "bad argument %d to 'state_var' (state_value, state_map or state_array expected, got %s", i, lua_typename(L, t));
+            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state_value, state_map or state_array expected, got %s",
+                            var_name, lua_typename(L, t));
             lua_error(L);
         }
         i++;

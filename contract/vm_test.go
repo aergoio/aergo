@@ -125,7 +125,15 @@ func TestGetABI(t *testing.T) {
 	bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "hello", 1,
-			`function hello(say) return "Hello " .. say end abi.register(hello)`),
+			`state.var {
+	Say = state.value()
+}
+
+function hello(say) 
+  return "Hello " .. say 
+end 
+
+abi.register(hello)`),
 	)
 	abi, err := bc.GetABI("hello")
 	if err != nil {
@@ -135,7 +143,7 @@ func TestGetABI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if string(b) != `{"version":"0.1","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}]}` {
+	if string(b) != `{"version":"0.2","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}],"state_variables":[{"name":"Say","type":"value"}]}` {
 		t.Error(string(b))
 	}
 }
