@@ -413,7 +413,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 	return bc.sdb.Rollback(sroot)
 }
 
-func (bc *DummyChain) Query(contract, queryInfo string, expectedErr, expectedRv string) error {
+func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs ...string) error {
 	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
 	if err != nil {
 		return err
@@ -429,10 +429,14 @@ func (bc *DummyChain) Query(contract, queryInfo string, expectedErr, expectedRv 
 		return err
 	}
 
-	if expectedRv != string(rv) {
-		return fmt.Errorf("expected: %s, but got: %s", expectedRv, string(rv))
+	for _, ev := range expectedRvs {
+		if ev != string(rv) {
+			err = fmt.Errorf("expected: %s, but got: %s", ev, string(rv))
+		} else {
+			return nil
+		}
 	}
-	return nil
+	return err
 }
 
 func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {

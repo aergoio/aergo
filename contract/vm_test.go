@@ -2172,6 +2172,7 @@ func TestArrayArg(t *testing.T) {
 ]}`,
 		"",
 		`[[[1,2,3],["first","second"]],{"address":{"state":"XXX-do","city":"YYY-si"},"age":39,"name":"kslee"},"end"]`,
+		`[[[1,2,3],["first","second"]],{"address":{"city":"YYY-si","state":"XXX-do"},"age":39,"name":"kslee"},"end"]`,
 	)
 	if err != nil {
 		t.Error(err)
