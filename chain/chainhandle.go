@@ -28,6 +28,8 @@ var (
 	ErrorNoAncestor          = errors.New("not found ancestor")
 	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
 
+	errBlockStale = errors.New("produced block becomes stale")
+
 	InAddBlock = make(chan struct{}, 1)
 )
 
@@ -37,7 +39,7 @@ type ErrBlock struct {
 }
 
 func (ec *ErrBlock) Error() string {
-	return fmt.Sprintf("Error:%s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
 }
 
 type ErrTx struct {
@@ -277,6 +279,22 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
 		return err
+	}
+
+	// The newly produced block becomes stale because the more block(s) are
+	// connected to the blockchain so that the best block is changed. In this
+	// case, newBlock is rejected because it is unlikely that newBlock belongs
+	// to the main branch. Warning: the condition 'usedBstate != nil' is used
+	// to check whether newBlock is produced by the current node itself. Later,
+	// more explicit condition may be needed instead of this.
+	if usedBstate != nil && newBlock.PrevID() != bestBlock.ID() {
+		return &ErrBlock{
+			err: errBlockStale,
+			block: &types.BlockInfo{
+				Hash: newBlock.BlockHash(),
+				No:   newBlock.BlockNo(),
+			},
+		}
 	}
 
 	// Check consensus header validity

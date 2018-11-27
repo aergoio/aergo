@@ -134,14 +134,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
-	if id == dpos.bpid() && block.PrevID() != bestBlock.ID() {
-		return &consensus.ErrorConsensus{
-			Msg: fmt.Sprintf(
-				"best block changed after block production: parent: %v (curr: %v), best block: %v",
-				block.PrevID(), block.ID(), bestBlock.ID()),
-		}
-	}
-
 	ns := block.GetHeader().GetTimestamp()
 	idx, ok := dpos.bpc.BpID2Index(id)
 	s := slot.NewFromUnixNano(ns)
