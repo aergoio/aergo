@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/golang/protobuf/proto"
 	"sync"
 	"time"
@@ -87,6 +88,7 @@ type remotePeerImpl struct {
 	pm        PeerManager
 	mf        moFactory
 	signer    msgSigner
+	metric    *metric.PeerMetric
 
 	stopChan chan struct{}
 
