@@ -533,7 +533,7 @@ enumerator:
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
     }
-|   identifier '=' ternary_exp
+|   identifier '=' or_exp
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
         $$->u_var.init_exp = $3;

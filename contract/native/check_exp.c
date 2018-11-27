@@ -33,12 +33,15 @@ exp_check_id(check_t *check, ast_exp_t *exp)
             id = id_search_name(check->blk, exp->u_id.name, exp->num);
 
             if (id != NULL && is_contract_id(id))
+                /* search constructor */
                 id = id_search_name(id->u_cont.blk, exp->u_id.name, exp->num);
         }
     }
 
     if (id == NULL)
         RETURN(ERROR_UNDEFINED_ID, &exp->pos, exp->u_id.name);
+
+    ASSERT(id->is_checked);
 
     id->is_used = true;
 
@@ -175,6 +178,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (is_lit_exp(idx_exp)) {
             ASSERT(id_meta->arr_size != NULL);
 
+            /* arr_size[0] can be negative if array is used as a parameter */
             if (id_meta->arr_size[0] > 0 &&
                 int_val(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
@@ -222,11 +226,13 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
-    /*
-     * value_cast(&exp->val, val_meta->type, exp->u_cast.type);
-     */
+    if (is_lit_exp(val_exp)) {
+        exp->u_lit.val = val_exp->u_lit.val;
+        value_cast(&exp->u_lit.val, &exp->meta);
 
-    //exp_eval_range(exp);
+        exp->kind = EXP_LIT;
+        meta_set_undef(&exp->meta);
+    }
 
     return NO_ERROR;
 }
@@ -265,7 +271,6 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(meta_cmp(l_meta, r_meta));
 
     meta_eval(&exp->meta, l_meta, r_meta);
-    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -311,7 +316,6 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     }
 
     meta_copy(&exp->meta, l_meta);
-    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -343,7 +347,6 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     CHECK(meta_cmp(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
-    exp_eval_const(exp);
 
     return NO_ERROR;
 }
@@ -380,7 +383,6 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-        exp_eval_const(exp);
         break;
 
     case OP_NOT:
@@ -388,7 +390,6 @@ exp_check_op_unary(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
         meta_copy(&exp->meta, l_meta);
-        exp_eval_const(exp);
         break;
 
     default:
@@ -431,22 +432,26 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 static int
 exp_check_op(check_t *check, ast_exp_t *exp)
 {
+    op_kind_t op = exp->u_op.kind;
+
     ASSERT1(is_op_exp(exp), exp->kind);
 
-    switch (exp->u_op.kind) {
+    switch (op) {
     case OP_ADD:
     case OP_SUB:
     case OP_MUL:
     case OP_DIV:
     case OP_MOD:
-        return exp_check_op_arith(check, exp);
+        CHECK(exp_check_op_arith(check, exp));
+        break;
 
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
     case OP_RSHIFT:
     case OP_LSHIFT:
-        return exp_check_op_bit(check, exp);
+        CHECK(exp_check_op_bit(check, exp));
+        break;
 
     case OP_EQ:
     case OP_NE:
@@ -454,20 +459,44 @@ exp_check_op(check_t *check, ast_exp_t *exp)
     case OP_GT:
     case OP_LE:
     case OP_GE:
-        return exp_check_op_cmp(check, exp);
+        CHECK(exp_check_op_cmp(check, exp));
+        break;
 
     case OP_INC:
     case OP_DEC:
     case OP_NOT:
     case OP_NEG:
-        return exp_check_op_unary(check, exp);
+        CHECK(exp_check_op_unary(check, exp));
+        break;
 
     case OP_AND:
     case OP_OR:
-        return exp_check_op_bool_cmp(check, exp);
+        CHECK(exp_check_op_bool_cmp(check, exp));
+        break;
 
     default:
         ASSERT1(!"invalid operator", exp->u_op.kind);
+    }
+
+    if (is_lit_exp(exp->u_op.l_exp)) {
+        ast_exp_t *l_exp = exp->u_op.l_exp;
+        ast_exp_t *r_exp = exp->u_op.r_exp;
+        value_t *r_val = NULL;
+
+        if (r_exp != NULL) {
+            if (!is_lit_exp(r_exp))
+                return NO_ERROR;
+
+            r_val = &r_exp->u_lit.val;
+
+            if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
+                RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
+        }
+
+        value_eval(op, &l_exp->u_lit.val, r_val, &exp->u_lit.val);
+
+        exp->kind = EXP_LIT;
+        meta_set_undef(&exp->meta);
     }
 
     return NO_ERROR;
@@ -646,7 +675,14 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, post_exp));
     CHECK(meta_cmp(in_meta, post_meta));
 
-    meta_eval(&exp->meta, in_meta, post_meta);
+    if (is_lit_exp(pre_exp)) {
+        ASSERT1(is_bool_val(&pre_exp->u_lit.val), pre_exp->u_lit.val.kind);
+
+        *exp = bool_val(&pre_exp->u_lit.val) ? *in_exp : *post_exp;
+    }
+    else {
+        meta_eval(&exp->meta, in_meta, post_meta);
+    }
 
     return NO_ERROR;
 }

@@ -120,6 +120,8 @@ id_check_var(check_t *check, ast_id_t *id)
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
 
+    id->is_checked = true;
+
     type_exp = id->u_var.type_exp;
     type_meta = &type_exp->meta;
 
@@ -177,6 +179,8 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     ASSERT1(is_struct_id(id), id->kind);
 
+    id->is_checked = true;
+
     fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
 
@@ -202,12 +206,16 @@ id_check_enum(check_t *check, ast_id_t *id)
 
     ASSERT1(is_enum_id(id), id->kind);
 
+    id->is_checked = true;
+
     elem_ids = id->u_enum.elem_ids;
     ASSERT(elem_ids != NULL);
 
     for (i = 0; i < array_size(elem_ids); i++) {
         ast_id_t *elem_id = array_get(elem_ids, i, ast_id_t);
         ast_exp_t *init_exp = elem_id->u_var.init_exp;
+
+        elem_id->is_checked = true;
 
         if (init_exp == NULL) {
             init_exp = exp_new_lit(&elem_id->pos);
@@ -244,6 +252,7 @@ id_check_enum(check_t *check, ast_id_t *id)
             enum_val = int_val(init_val);
         }
 
+        elem_id->val = &init_exp->u_lit.val;
         meta_set_int32(&elem_id->meta);
 
         flag_set(elem_id->mod, MOD_PUBLIC);
@@ -263,6 +272,8 @@ id_check_param(check_t *check, ast_id_t *id)
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_exp != NULL);
     ASSERT(id->u_var.init_exp == NULL);
+
+    id->is_checked = true;
 
     type_exp = id->u_var.type_exp;
     ASSERT1(is_type_exp(type_exp), type_exp->kind);
@@ -285,6 +296,8 @@ id_check_func(check_t *check, ast_id_t *id)
     array_t *ret_exps;
 
     ASSERT1(is_func_id(id), id->kind);
+
+    id->is_checked = true;
 
     param_ids = id->u_func.param_ids;
 
@@ -338,6 +351,8 @@ static int
 id_check_contract(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_contract_id(id), id->kind);
+
+    id->is_checked = true;
 
     check->cont_id = id;
 

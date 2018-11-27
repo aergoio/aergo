@@ -6,10 +6,10 @@
 #include "common.h"
 
 #include "prep.h"
+#include "ast.h"
 #include "parse.h"
 #include "check.h"
 #include "gen.h"
-#include "ast.h"
 #include "strbuf.h"
 
 #include "compile.h"
@@ -21,14 +21,17 @@ compile(char *path, flag_t flag)
     ast_t *ast = NULL;
 
     strbuf_init(&src);
-
     preprocess(path, flag, &src);
+
     parse(path, flag, &src, &ast);
 
-    check(ast, flag);
+    if (ast != NULL) {
+        /* empty contract can be null */
+        check(ast, flag);
 
-    if (is_no_error())
-        gen(ast, flag, path);
+        if (is_no_error())
+            gen(ast, flag, path);
+    }
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();

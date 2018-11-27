@@ -14,6 +14,7 @@
 static int
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 {
+    int i;
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
@@ -32,7 +33,6 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     CHECK(exp_check(check, r_exp));
 
     if (is_tuple_exp(l_exp)) {
-        int i;
         array_t *var_exps = l_exp->u_tup.exps;
 
         for (i = 0; i < array_size(var_exps); i++) {
@@ -48,8 +48,25 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
     CHECK(meta_cmp(l_meta, r_meta));
 
-    if (is_lit_exp(r_exp) && !value_check(&r_exp->u_lit.val, l_meta))
+    if (is_tuple_exp(l_exp)) {
+        array_t *var_exps = l_exp->u_tup.exps;
+        array_t *val_exps = r_exp->u_tup.exps;
+
+        if (is_tuple_exp(r_exp) && array_size(var_exps) == array_size(val_exps)) {
+            for (i = 0; i < array_size(var_exps); i++) {
+                ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
+                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+
+                if (is_lit_exp(val_exp) &&
+                    !value_check(&val_exp->u_lit.val, &var_exp->meta))
+                    RETURN(ERROR_NUMERIC_OVERFLOW, &val_exp->pos,
+                           meta_to_str(&var_exp->meta));
+            }
+        }
+    }
+    else if (is_lit_exp(r_exp) && !value_check(&r_exp->u_lit.val, l_meta)) {
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
+    }
 
     return NO_ERROR;
 }
@@ -397,7 +414,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
         return meta_cmp(fn_meta, &arg_exp->meta);
     }
     else if (!is_void_type(fn_meta)) {
-        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument", 
+        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument",
                meta_cnt(fn_meta), 0);
     }
 

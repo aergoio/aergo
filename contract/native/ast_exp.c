@@ -152,36 +152,6 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
     return exp;
 }
 
-int
-exp_eval_const(ast_exp_t *exp)
-{
-    op_kind_t op = exp->u_op.kind;
-    ast_exp_t *l_exp = exp->u_op.l_exp;
-    value_t *r_val = NULL;
-
-    if (!is_op_exp(exp) || !is_lit_exp(l_exp))
-        return NO_ERROR;
-
-    if (exp->u_op.r_exp != NULL) {
-        ast_exp_t *r_exp = exp->u_op.r_exp;
-
-        if (!is_lit_exp(r_exp))
-            return NO_ERROR;
-
-        r_val = &r_exp->u_lit.val;
-
-        if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
-            RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
-    }
-
-    value_eval(op, &exp->u_lit.val, &l_exp->u_lit.val, r_val);
-
-    exp->kind = EXP_LIT;
-    meta_set_undef(&exp->meta);
-
-    return NO_ERROR;
-}
-
 void
 ast_exp_dump(ast_exp_t *exp, int indent)
 {

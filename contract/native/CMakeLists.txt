@@ -18,19 +18,19 @@ set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "grammar.output"
 
 set(libascl_SRCS
     compile.c
-    parse.c
     prep.c
-    check.c
-    gen.c
+    parse.c
     ast.c
     ast_id.c
     ast_blk.c
     ast_stmt.c
     ast_exp.c
+    check.c
     check_id.c
     check_blk.c
     check_stmt.c
     check_exp.c
+    gen.c
     gen_id.c
     gen_blk.c
     gen_stmt.c

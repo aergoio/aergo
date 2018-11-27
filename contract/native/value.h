@@ -26,12 +26,6 @@
 #define is_zero_val(val)                                                                 \
     (is_int_val(val) ? (val)->i == 0 : (is_fp_val(val) ? (val)->d == 0.0f : false))
 
-#define value_eval(op, val, x, y)                                                        \
-    do {                                                                                 \
-        ASSERT1((op) >= OP_ADD && (op) < OP_CF_MAX, (op));                               \
-        eval_fntab_[(op)]((val), (x), (y));                                              \
-    } while (0)
-
 #ifndef _VALUE_T
 #define _VALUE_T
 typedef struct value_s value_t;
@@ -55,13 +49,15 @@ struct value_s {
         double d;       /* floating point */
         char *s;        /* string */
         void *p;        /* object pointer */
-        uint32_t a;     /* address of memory */
+        uint32_t a;     /* memory address */
     };
 };
 
-extern eval_fn_t eval_fntab_[OP_CF_MAX];
-
 bool value_check(value_t *val, meta_t *meta);
+
+void value_eval(op_kind_t op, value_t *x, value_t *y, value_t *res);
+
+void value_cast(value_t *val, meta_t *to);
 
 int value_cmp(value_t *x, value_t *y);
 

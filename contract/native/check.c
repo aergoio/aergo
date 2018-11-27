@@ -37,10 +37,6 @@ check(ast_t *ast, flag_t flag)
     int i;
     check_t check;
 
-    if (ast == NULL)
-        /* empty contract can be null */
-        return;
-
     check_init(&check, ast, flag);
 
     for (i = 0; i < array_size(&ast->root->ids); i++) {

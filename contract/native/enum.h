@@ -142,7 +142,7 @@ typedef enum modifier_e {
 } modifier_t;
 
 typedef enum op_kind_e {
-    /* constant folding is possible up to OP_NOT */
+    /* constant folding is possible up to OP_OR */
     OP_ADD          = 0,
     OP_SUB,
     OP_MUL,
@@ -161,14 +161,11 @@ typedef enum op_kind_e {
     OP_LSHIFT,
     OP_NEG,
     OP_NOT,
-    OP_CF_MAX,
-
-    /* short-circuit evaluation is possible up to OP_OR */
-    OP_AND          = OP_CF_MAX,
+    OP_AND,
     OP_OR,
-    OP_SCE_MAX,
+    OP_CF_MAX      = OP_OR,
 
-    OP_INC          = OP_SCE_MAX,
+    OP_INC,
     OP_DEC,
     OP_MAX
 } op_kind_t;
