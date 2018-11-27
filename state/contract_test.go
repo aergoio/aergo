@@ -1,7 +1,6 @@
 package state
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
@@ -20,9 +19,7 @@ func initTest(t *testing.T) {
 	genesis := types.GetTestGenesis()
 
 	err := chainStateDB.SetGenesis(genesis)
-	if err != nil {
-		t.Errorf("failed init : %s", err.Error())
-	}
+	assert.NoError(t, err, "failed init")
 }
 func deinitTest() {
 	_ = chainStateDB.Close()
@@ -33,18 +30,19 @@ func TestContractStateCode(t *testing.T) {
 	defer deinitTest()
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
+
+	// open contract state
 	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
+
+	// set code
 	err = contractState.SetCode(testBytes)
-	if err != nil {
-		t.Errorf("counld set code to contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "set code to contract state")
+
+	// get code
 	res, err := contractState.GetCode()
-	if !bytes.Equal(res, testBytes) {
-		t.Errorf("different code detected : %s =/= %s", testBytes, string(res))
-	}
+	assert.NoError(t, err, "get code from contract state")
+	assert.Equal(t, testBytes, res, "different code detected")
 }
 
 func TestContractStateData(t *testing.T) {
@@ -53,36 +51,37 @@ func TestContractStateData(t *testing.T) {
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
 	testKey := []byte("test_key")
+
+	// open contract state
 	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
+
+	// set data
 	err = contractState.SetData(testKey, testBytes)
-	if err != nil {
-		t.Errorf("counld set data to contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "set data to contract state")
+
+	// get data
 	res, err := contractState.GetData(testKey)
-	if !bytes.Equal(res, testBytes) {
-		t.Errorf("different data detected : %s =/= %s", testBytes, string(res))
-	}
+	assert.NoError(t, err, "get data from contract state")
+	assert.Equal(t, testBytes, res, "different data detected")
+
+	// stage contract state
 	err = stateDB.StageContractState(contractState)
-	if err != nil {
-		t.Errorf("counld commit contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "stage contract state")
 }
 
 func TestContractStateEmpty(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	testAddress := []byte("test_address")
+
+	// open contract state
 	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
+
+	// stage contract state
 	err = stateDB.StageContractState(contractState)
-	if err != nil {
-		t.Errorf("counld commit contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "stage contract state")
 }
 
 func TestContractStateReOpenData(t *testing.T) {
@@ -91,37 +90,33 @@ func TestContractStateReOpenData(t *testing.T) {
 	testAddress := []byte("test_address")
 	testBytes := []byte("test_bytes")
 	testKey := []byte("test_key")
+
+	// open contract state
 	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
+
+	// set data
 	err = contractState.SetData(testKey, testBytes)
-	if err != nil {
-		t.Errorf("counld set data to contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "set data to contract state")
+
+	// get data
 	res, err := contractState.GetData(testKey)
-	if err != nil {
-		t.Errorf("counld set data to contract state : %s", err.Error())
-	}
-	if !bytes.Equal(res, testBytes) {
-		t.Errorf("different data detected : %s =/= %s", testBytes, string(res))
-	}
+	assert.NoError(t, err, "get data from contract state")
+	assert.Equal(t, testBytes, res, "different data detected")
+
+	// stage contract state
 	err = stateDB.StageContractState(contractState)
-	if err != nil {
-		t.Errorf("counld commit contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "stage contract state")
+
+	// re-open contract state
 	//contractState2, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
 	contractState2, err := stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
+
+	// get data
 	res2, err := contractState2.GetData(testKey)
-	if err != nil {
-		t.Errorf("counld not get contract state : %s", err.Error())
-	}
-	if !bytes.Equal(res2, testBytes) {
-		t.Errorf("different data detected : %s =/= %s", testBytes, string(res2))
-	}
+	assert.NoError(t, err, "get data from contract state")
+	assert.Equal(t, testBytes, res2, "different data detected")
 }
 
 func TestContractStateRollback(t *testing.T) {
@@ -130,10 +125,10 @@ func TestContractStateRollback(t *testing.T) {
 
 	testAddress := []byte("test_address")
 	testKey := []byte("test_key")
+
+	// open contract state
 	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	if err != nil {
-		t.Errorf("counld not open contract state : %s", err.Error())
-	}
+	assert.NoError(t, err, "could not open contract state")
 
 	// test data
 	_ = contractState.SetData(testKey, []byte("1")) // rev 1
