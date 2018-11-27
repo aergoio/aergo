@@ -19,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/davecgh/go-spew/spew"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -50,6 +51,17 @@ type bpInfo struct {
 
 // New returns a new DPos object
 func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.ComponentHub) (consensus.Consensus, error) {
+	genesis := cdb.GetGenesisInfo()
+
+	logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
+	bpCount := len(genesis.BPs)
+	// Prefer BPs from the GenesisInfo. Overwrite.
+	if bpCount > 0 {
+		logger.Debug().Msg("use BPs from the genesis info")
+		cfg.Consensus.BpIds = genesis.BPs
+		cfg.Consensus.DposBpNumber = uint16(bpCount)
+	}
+
 	Init(cfg.Consensus)
 
 	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)

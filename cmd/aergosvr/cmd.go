@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var initpath string
+var dataDir string
 
 func init() {
-	initGenesis.Flags().StringVar(&initpath, "dir", "", "Data directory")
+	initGenesis.Flags().StringVar(&dataDir, "dir", "", "Data directory")
 	rootCmd.AddCommand(initGenesis)
 }
 
@@ -22,54 +22,58 @@ var initGenesis = &cobra.Command{
 	Short: "Create genesis block based on input json file",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
-			fmt.Println("Usage: aergosvr init {genesis.json} --data {target directory}")
+			fmt.Fprintln(os.Stderr, "Usage: aergosvr init {genesis.json} --data {target directory}")
 			return
 		}
 		jsonpath := args[0]
 
 		file, err := os.Open(jsonpath)
 		if err != nil {
-			fmt.Printf("fail to open %s \n", jsonpath)
+			fmt.Fprintf(os.Stderr, "fail to open %s \n", jsonpath)
 			return
 		}
 		defer file.Close()
 
-		if initpath == "" {
-			initpath = cfg.DataDir
+		if dataDir == "" {
+			dataDir = cfg.DataDir
 		}
 
 		// if initpath is feeded, gaurantee initpath is accessible directory
-		fi, err := os.Stat(initpath)
+		fi, err := os.Stat(dataDir)
 		if err == nil && !fi.IsDir() {
-			fmt.Printf("%s is not a directory\n", initpath)
+			fmt.Fprintf(os.Stderr, "%s is not a directory\n", dataDir)
 			return
 		}
 		if err != nil {
 			if !os.IsNotExist(err) {
-				fmt.Printf("cannot access %s(err:%s)\n", initpath, err)
+				fmt.Fprintf(os.Stderr, "cannot access %s(error:%s)\n", dataDir, err)
 				return
-			} else {
-				err := os.MkdirAll(initpath, 0755)
-				if err != nil {
-					fmt.Printf("fail to create %s (err:%s)\n", initpath, err)
-					return
-				}
+			}
+
+			err := os.MkdirAll(dataDir, 0755)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fail to create %s (error:%s)\n", dataDir, err)
+				return
 			}
 		}
 		// use default config's DataDir if empty
 		genesis := new(types.Genesis)
 		if err := json.NewDecoder(file).Decode(genesis); err != nil {
-			fmt.Printf("fail to deserialize %s(error:%s)\n", jsonpath, err)
+			fmt.Fprintf(os.Stderr, "fail to deserialize %s (error:%s)\n", jsonpath, err)
 			return
 		}
 
-		chainsvc := chain.NewChainService(cfg)
-		err = chainsvc.InitGenesisBlock(genesis, cfg.DbType, initpath)
+		core, err := chain.NewCore(cfg.DbType, dataDir, false)
 		if err != nil {
-			fmt.Printf("fail to init genesis block data (error:%s)\n", err)
+			fmt.Fprintf(os.Stderr, "fail to init a blockchain core (error:%s)\n", err)
 		}
-		fmt.Printf("genesis block is created in (%s)\n", initpath)
 
-		chainsvc.CloseDB()
+		err = core.InitGenesisBlock(genesis)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "fail to init genesis block data (error:%s)\n", err)
+		}
+		fmt.Fprintf(os.Stderr, "genesis block is created in (%s)\n", dataDir)
+
+		core.Close()
 	},
 }

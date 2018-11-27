@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +37,11 @@ func TestGenesisBytes(t *testing.T) {
 	a := assert.New(t)
 	g1 := GetDefaultGenesis()
 	g1.Balance = map[string]*State{"abc": &State{Balance: 1234}}
+	g1.BPs = []string{"xxx", "yyy", "zzz"}
 	b := g1.Bytes()
+	fmt.Println(spew.Sdump(g1))
+
 	g2 := GetGenesisFromBytes(b)
+	fmt.Println(spew.Sdump(g2))
 	a.Nil(g2.Balance)
 }
