@@ -125,41 +125,42 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	consensusSvc, err := impl.New(cfg, compMng)
+	chainSvc := chain.NewChainService(cfg)
+
+	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
+	rpcSvc := rpc.NewRPC(cfg, chainSvc)
+	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
+	p2pSvc := p2p.NewP2P(cfg, chainSvc)
+
+	var accountSvc component.IComponent
+	if cfg.Personal {
+		accountSvc = account.NewAccountService(cfg)
+	}
+
+	var restSvc component.IComponent
+	if cfg.EnableRest {
+		svrlog.Info().Msg("Start REST server")
+		restSvc = rest.NewRestService(cfg, chainSvc)
+	} else {
+		svrlog.Info().Msg("Do not start REST server")
+	}
+
+	// Register services to Hub. Don't need to do nil-check since Register
+	// function skips nil parameters.
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
+
+	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)
 	}
 
-	mpoolSvc := mempool.NewMemPoolService(cfg)
-	compMng.Register(mpoolSvc)
-	chainSvc := chain.NewChainService(cfg, consensusSvc, mpoolSvc)
-	compMng.Register(chainSvc)
-	consensusSvc.SetChainAccessor(chainSvc)
-	rpcSvc := rpc.NewRPC(compMng, cfg, chainSvc)
-	compMng.Register(rpcSvc)
-	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
-	compMng.Register(syncSvc)
-	p2pSvc := p2p.NewP2P(compMng, cfg, chainSvc)
-	compMng.Register(p2pSvc)
-
-	if cfg.Personal {
-		accountSvc := account.NewAccountService(cfg)
-		compMng.Register(accountSvc)
-	}
-
-	if cfg.EnableRest {
-		svrlog.Info().Msg("Start REST server")
-		restsvc := rest.NewRestService(cfg, chainSvc)
-		compMng.Register(restsvc)
-	} else {
-		svrlog.Info().Msg("Do not start REST server")
-	}
-
+	// All the services objects including Consensus must be created before the
+	// actors are started.
 	compMng.Start()
 
 	if cfg.Consensus.EnableBp {
-		// Warning!!!: The consensus service must start after all the other
+		// Warning: The consensus service must start after all the other
 		// services.
 		consensus.Start(consensusSvc)
 	}

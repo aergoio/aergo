@@ -24,6 +24,7 @@ import (
 
 const (
 	chainDBName = "chain"
+	genesisKey  = chainDBName + ".genesisInfo"
 
 	TxBatchMax = 10000
 )
@@ -64,10 +65,9 @@ type ChainDB struct {
 	store db.DB
 }
 
-func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
+func NewChainDB() *ChainDB {
 	// logger.SetLevel("debug")
 	cdb := &ChainDB{
-		cc: cc,
 		//blocks: []*types.Block{},
 		latest: types.BlockNo(0),
 	}
@@ -187,17 +187,29 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
+
+func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
+	block := genesis.Block()
+
 	tx := cdb.store.NewTx()
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}
 
 	cdb.connectToChain(&tx, block)
+	tx.Set([]byte(genesisKey), genesis.Bytes())
 
 	tx.Commit()
 
 	logger.Info().Msg("Genesis Block Added")
+	return nil
+}
+
+// GetGenesisInfo returns Genesis info from cdb.
+func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
+	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
+		return types.GetGenesisFromBytes(b)
+	}
 	return nil
 }
 
@@ -252,8 +264,8 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 	defer dbTx.Discard()
 
 	//make newTx because of batchsize limit of DB
-	getNewTx := func (remainTxCnt int) {
-		if txCnt + remainTxCnt >= TxBatchMax {
+	getNewTx := func(remainTxCnt int) {
+		if txCnt+remainTxCnt >= TxBatchMax {
 			dbTx.Commit()
 			dbTx = cdb.store.NewTx()
 			txCnt = 0

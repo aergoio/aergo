@@ -58,9 +58,10 @@ type MemPool struct {
 }
 
 // NewMemPoolService create and return new MemPool
-func NewMemPoolService(cfg *cfg.Config) *MemPool {
+func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
 	actor := &MemPool{
 		cfg:      cfg,
+		sdb:      sdb,
 		cache:    map[types.TxID]*types.Tx{},
 		pool:     map[types.AccountID]*TxList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
@@ -68,6 +69,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		verifier: nil,
 		//testConfig:    true, // FIXME test config should be removed
 	}
+
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
 	return actor
@@ -110,10 +112,6 @@ func (mp *MemPool) BeforeStop() {
 		mp.verifier.GracefulStop()
 	}
 	mp.dumpTxsToFile()
-}
-
-func (mp *MemPool) SetChainStateDB(sdb *state.ChainStateDB) {
-	mp.sdb = sdb
 }
 
 // Size returns current maintaining number of transactions

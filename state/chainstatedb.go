@@ -81,7 +81,7 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
-	block := genesisBlock.GetBlock()
+	block := genesisBlock.Block()
 
 	// create state of genesis block
 	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()))
@@ -93,9 +93,9 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 		}
 	}
 
-	if genesisBlock.VoteState != nil {
+	if genesisBlock.VoteState() != nil {
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		if err := gbState.PutState(aid, genesisBlock.VoteState); err != nil {
+		if err := gbState.PutState(aid, genesisBlock.VoteState()); err != nil {
 			return err
 		}
 	}

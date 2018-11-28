@@ -110,9 +110,13 @@ func (hub *ComponentHub) Stop() {
 }
 
 // Register assigns a component to this hub for management
-func (hub *ComponentHub) Register(component IComponent) {
-	hub.components[component.GetName()] = component
-	component.SetHub(hub)
+func (hub *ComponentHub) Register(components ...IComponent) {
+	for _, component := range components {
+		if component != nil {
+			hub.components[component.GetName()] = component
+			component.SetHub(hub)
+		}
+	}
 }
 
 // Statistics invoke requests to all registered components,

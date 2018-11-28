@@ -18,26 +18,12 @@ import (
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
-
-// ChainService manage connectivity of blocks
-type ChainService struct {
-	*component.BaseComponent
-	consensus.ChainConsensus
-
-	cfg *cfg.Config
-	cdb *ChainDB
-	sdb *state.ChainStateDB
-	op  *OrphanPool
-
-	validator *BlockValidator
-}
 
 var (
 	logger           = log.NewLogger("chain")
@@ -47,51 +33,42 @@ var (
 	ErrBlockExist = errors.New("error! block already exist")
 )
 
-// NewChainService create instance of ChainService
-func NewChainService(cfg *cfg.Config, cc consensus.ChainConsensus, pool *mempool.MemPool) *ChainService {
-	actor := &ChainService{
-		ChainConsensus: cc,
-		cfg:            cfg,
-		cdb:            NewChainDB(cc),
-		sdb:            state.NewChainStateDB(),
-		op:             NewOrphanPool(),
-	}
-	if err := Init(cfg.Blockchain.MaxBlockSize,
-		cfg.Blockchain.CoinbaseAccount,
-		types.DefaultCoinbaseFee,
-		cfg.Consensus.EnableBp,
-		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer); err != nil {
-		logger.Error().Err(err).Msg("failed to init chainservice")
-		panic("invalid config: blockchain")
-	}
-
-	if cc != nil {
-		cc.SetStateDB(actor.sdb)
-	}
-
-	actor.validator = NewBlockValidator(actor.sdb)
-	if pool != nil {
-		pool.SetChainStateDB(actor.sdb)
-	}
-	actor.BaseComponent = component.NewBaseComponent(message.ChainSvc, actor, logger)
-
-	return actor
+// Core represents a storage layer of a blockchain (chain & state DB).
+type Core struct {
+	cdb *ChainDB
+	sdb *state.ChainStateDB
 }
 
-func (cs *ChainService) initDB(dbType string, dataDir string) error {
+// NewCore returns an instance of Core.
+func NewCore(dbType string, dataDir string, testModeOn bool) (*Core, error) {
+	core := &Core{
+		cdb: NewChainDB(),
+		sdb: state.NewChainStateDB(),
+	}
+
+	err := core.init(dbType, dataDir, testModeOn)
+	if err != nil {
+		return nil, err
+	}
+
+	return core, nil
+}
+
+// Init prepares Core (chain & state DB).
+func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
 	// init chaindb
-	if err := cs.cdb.Init(dbType, dataDir); err != nil {
+	if err := core.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
 
 	// init statedb
-	bestBlock, err := cs.GetBestBlock()
+	bestBlock, err := core.cdb.GetBestBlock()
 	if err != nil {
 		return err
 	}
-	if err := cs.sdb.Init(dbType, dataDir, bestBlock, cs.cfg.EnableTestmode); err != nil {
+
+	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
@@ -101,62 +78,27 @@ func (cs *ChainService) initDB(dbType string, dataDir string) error {
 	return nil
 }
 
-// BeforeStart initialize chain database and generate empty genesis block if necessary
-func (cs *ChainService) BeforeStart() {
-	var err error
-
-	if err = cs.initDB(cs.cfg.DbType, cs.cfg.DataDir); err != nil {
-		logger.Fatal().Err(err).Msg("failed to initialize DB")
-	}
-
-	// init genesis block
-	if _, err := cs.initGenesis(nil); err != nil {
-		logger.Fatal().Err(err).Msg("failed to genesis block")
-	}
-
-	cs.ChainConsensus.Init(cs.cdb)
-}
-
-// AfterStart ... do nothing
-func (cs *ChainService) AfterStart() {
-}
-
-// InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (cs *ChainService) InitGenesisBlock(gb *types.Genesis, dbType string, dataDir string) error {
-
-	if err := cs.initDB(dbType, dataDir); err != nil {
-		logger.Fatal().Err(err).Msg("failed to initialize DB")
-		return err
-	}
-	_, err := cs.initGenesis(gb)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
-		return err
-	}
-	return nil
-}
-
-func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error) {
-	gh, _ := cs.cdb.getHashByNo(0)
+func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
+	gh, _ := core.cdb.getHashByNo(0)
 	if gh == nil || len(gh) == 0 {
-		logger.Info().Uint64("nom", cs.cdb.latest).Msg("current latest")
-		if cs.cdb.latest == 0 {
+		logger.Info().Uint64("nom", core.cdb.latest).Msg("current latest")
+		if core.cdb.latest == 0 {
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
 
-			err := InitGenesisBPs(cs.sdb.GetStateDB(), genesis)
+			err := InitGenesisBPs(core.sdb.GetStateDB(), genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set bp identifications")
 				return nil, err
 			}
-			err = cs.sdb.SetGenesis(genesis)
+			err = core.sdb.SetGenesis(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
 				return nil, err
 			}
 
-			err = cs.cdb.addGenesisBlock(genesis.GetBlock())
+			err = core.cdb.addGenesisBlock(genesis)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot add genesisblock")
 				return nil, err
@@ -165,12 +107,103 @@ func (cs *ChainService) initGenesis(genesis *types.Genesis) (*types.Block, error
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
-	genesisBlock, _ := cs.cdb.GetBlockByNo(0)
+	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
 	return genesisBlock, nil
+}
+
+// Close closes chain & state DB.
+func (core *Core) Close() {
+	if core.sdb != nil {
+		core.sdb.Close()
+	}
+	if core.cdb != nil {
+		core.cdb.Close()
+	}
+	contract.CloseDatabase()
+}
+
+// InitGenesisBlock initialize chain database and generate specified genesis block if necessary
+func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
+	_, err := core.initGenesis(gb)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
+		return err
+	}
+	return nil
+}
+
+// ChainService manage connectivity of blocks
+type ChainService struct {
+	*component.BaseComponent
+	consensus.ChainConsensus
+	*Core
+
+	cfg *cfg.Config
+	op  *OrphanPool
+
+	validator *BlockValidator
+}
+
+// NewChainService creates an instance of ChainService.
+func NewChainService(cfg *cfg.Config) *ChainService {
+	cs := &ChainService{
+		cfg: cfg,
+		op:  NewOrphanPool(),
+	}
+
+	var err error
+	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode); err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialize DB")
+		panic(err)
+	}
+
+	if err = Init(cfg.Blockchain.MaxBlockSize,
+		cfg.Blockchain.CoinbaseAccount,
+		types.DefaultCoinbaseFee,
+		cfg.Consensus.EnableBp,
+		cfg.Blockchain.MaxAnchorCount,
+		cfg.Blockchain.UseFastSyncer); err != nil {
+		logger.Error().Err(err).Msg("failed to init chainservice")
+		panic("invalid config: blockchain")
+	}
+
+	cs.validator = NewBlockValidator(cs.sdb)
+	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
+
+	// init genesis block
+	if _, err := cs.initGenesis(nil); err != nil {
+		logger.Fatal().Err(err).Msg("failed to create a genesis block")
+	}
+
+	return cs
+}
+
+// SDB returns cs.sdb.
+func (cs *ChainService) SDB() *state.ChainStateDB {
+	return cs.sdb
+}
+
+// CDBReader returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) CDBReader() consensus.ChainDbReader {
+	return cs.cdb
+}
+
+// SetChainConsensus sets cs.cc to cc.
+func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
+	cs.ChainConsensus = cc
+	cs.cdb.cc = cc
+}
+
+// BeforeStart initialize chain database and generate empty genesis block if necessary
+func (cs *ChainService) BeforeStart() {
+}
+
+// AfterStart ... do nothing
+func (cs *ChainService) AfterStart() {
 }
 
 // ChainSync synchronize with peer
@@ -188,20 +221,9 @@ func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
 
 // BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
-	cs.CloseDB()
+	cs.Close()
 
 	cs.validator.Stop()
-}
-
-// CloseDB close chain database
-func (cs *ChainService) CloseDB() {
-	if cs.sdb != nil {
-		cs.sdb.Close()
-	}
-	if cs.cdb != nil {
-		cs.cdb.Close()
-	}
-	contract.CloseDatabase()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block) {

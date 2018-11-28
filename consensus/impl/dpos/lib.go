@@ -1,22 +1,18 @@
 package dpos
 
 import (
-	"bytes"
 	"container/list"
 	"fmt"
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
-var (
-	libStatusKey = []byte("dpos.LibStatus")
-	libLoader    *bootLoader
-)
+var libStatusKey = []byte("dpos.LibStatus")
 
 type errLibUpdate struct {
 	current string
@@ -207,11 +203,10 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 }
 
 func (ls *libStatus) save(tx db.Transaction) error {
-	buf, err := encode(ls)
+	b, err := common.GobEncode(ls)
 	if err != nil {
 		return err
 	}
-	b := buf.Bytes()
 
 	tx.Set(libStatusKey, b)
 
@@ -349,29 +344,6 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 	}
 }
 
-type bootLoader struct {
-	ls      *libStatus
-	best    *types.Block
-	genesis *types.Block
-	cdb     consensus.ChainDbReader
-}
-
-func (bs *bootLoader) load() {
-	if ls := bs.loadLibStatus(); ls != nil {
-		bs.ls = ls
-		logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status loaded from DB")
-		for id, p := range ls.Prpsd {
-			if p == nil {
-				continue
-			}
-			logger.Debug().Str("BPID", id).
-				Str("confirmed hash", p.Plib.Hash()).
-				Str("confirmedBy hash", p.PlibBy.Hash()).
-				Msg("pre-LIB entry")
-		}
-	}
-}
-
 func (bs *bootLoader) loadLibStatus() *libStatus {
 	pls := newLibStatus(defaultConsensusCount)
 	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
@@ -388,7 +360,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
 	}
 
-	err := decode(bytes.NewBuffer(value), dst)
+	err := common.GobDecode(value, dst)
 	if err != nil {
 		logger.Debug().Err(err).Str("key", string(key)).
 			Msg("failed to decode DPoS status")
@@ -409,12 +381,12 @@ func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
 	}
 
 	pls := newLibStatus(defaultConsensusCount)
-	pls.genesisInfo = newBlockInfo(libLoader.genesis)
+	pls.genesisInfo = newBlockInfo(bsLoader.genesis)
 
 	logger.Debug().Uint64("beginning", begBlockNo).Uint64("ending", endBlockNo).
 		Msg("restore pre-LIB status from blocks")
 	for i := begBlockNo; i <= endBlockNo; i++ {
-		block, err := libLoader.cdb.GetBlockByNo(i)
+		block, err := bsLoader.cdb.GetBlockByNo(i)
 		if err != nil {
 			// XXX Better error handling?!
 			logger.Error().Err(err).Msg("failed to read block")
