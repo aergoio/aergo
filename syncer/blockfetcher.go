@@ -28,7 +28,7 @@ type BlockFetcher struct {
 
 	runningQueue TaskQueue
 	pendingQueue TaskQueue
-	retryQueue   TaskQueue
+	retryQueue   SortedTaskQueue
 
 	responseCh chan interface{} //BlockResponse, AddBlockResponse message
 	peers      *PeerSet
@@ -67,6 +67,30 @@ type TaskQueue struct {
 	list.List
 }
 
+type SortedTaskQueue struct {
+	TaskQueue
+}
+
+func (squeue *SortedTaskQueue) Push(task *FetchTask) {
+	var bigElem *list.Element
+
+	for e := squeue.Front(); e != nil; e = e.Next() {
+		// do something with e.Value
+		curTask := e.Value.(*FetchTask)
+		if curTask.startNo > task.startNo {
+			bigElem = e
+			break
+		}
+	}
+
+	if bigElem != nil {
+		squeue.InsertBefore(task, bigElem)
+	} else {
+		squeue.PushBack(task)
+	}
+
+}
+
 type FetchTask struct {
 	count   int
 	hashes  []message.BlockHash
@@ -88,10 +112,9 @@ type PeerSet struct {
 }
 
 var (
-	schedTick          = time.Millisecond * 100
-	DfltFetchTimeOut   = time.Second * 30
-	DfltBlockFetchSize = 20
-	//DfltBlockFetchSize   = 5
+	schedTick            = time.Millisecond * 100
+	DfltFetchTimeOut     = time.Second * 30
+	DfltBlockFetchSize   = 20
 	MaxPeerFailCount     = 3
 	DfltBlockFetchTasks  = 5
 	MaxBlockPendingTasks = 10
@@ -341,7 +364,7 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) error {
 	task.syncPeer = nil
 
 	//TODO sort by time because deadlock
-	bf.retryQueue.PushBack(task)
+	bf.retryQueue.Push(task)
 
 	if bf.peers.isAllBad() {
 		return ErrAllPeerBad

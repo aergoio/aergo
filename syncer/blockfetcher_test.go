@@ -59,3 +59,42 @@ func TestBlockFetcher_simple(t *testing.T) {
 
 	syncer.waitStop()
 }
+
+func TestBlockFetcher_SortedQueue(t *testing.T) {
+	var squeue SortedTaskQueue
+
+	t1 := &FetchTask{count: 1, startNo: 1}
+	t2 := &FetchTask{count: 1, startNo: 2}
+	t3 := &FetchTask{count: 1, startNo: 3}
+
+	squeue.Init()
+	squeue.Push(t1)
+
+	for i := 1; i <= 1; i++ {
+		outTask := squeue.Pop()
+		assert.Equal(t, uint64(i), outTask.startNo, "task not sorted")
+	}
+	assert.Equal(t, 0, squeue.Len())
+
+	squeue.Init()
+	squeue.Push(t1)
+	squeue.Push(t2)
+	squeue.Push(t3)
+
+	for i := 1; i <= 3; i++ {
+		outTask := squeue.Pop()
+		assert.Equal(t, uint64(i), outTask.startNo, "task not sorted")
+	}
+	assert.Equal(t, 0, squeue.Len())
+
+	squeue.Init()
+	squeue.Push(t3)
+	squeue.Push(t2)
+	squeue.Push(t1)
+
+	for i := 1; i <= 3; i++ {
+		outTask := squeue.Pop()
+		assert.Equal(t, uint64(i), outTask.startNo, "task not sorted")
+	}
+	assert.Equal(t, 0, squeue.Len())
+}
