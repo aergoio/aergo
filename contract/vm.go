@@ -195,10 +195,12 @@ func pushValue(L *LState, v interface{}) error {
 		argC := C.CString(arg)
 		C.lua_pushstring(L, argC)
 		C.free(unsafe.Pointer(argC))
-	case int:
-		C.lua_pushinteger(L, C.lua_Integer(arg))
 	case float64:
-		C.lua_pushnumber(L, C.double(arg))
+		if arg == float64(int64(arg)) {
+			C.lua_pushinteger(L, C.lua_Integer(arg))
+		} else {
+			C.lua_pushnumber(L, C.double(arg))
+		}
 	case bool:
 		var b int
 		if arg {

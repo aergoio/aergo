@@ -2251,4 +2251,53 @@ func TestAbi(t *testing.T) {
 	}
 }
 
+func TestMapKey(t *testing.T) {
+	definition := `
+	state.var{
+		counts = state.map()
+	}
+	function setCount(key, value)
+		counts[key] = value
+	end
+	function getCount(key)
+		return counts[key]
+	end
+	abi.register(setCount, getCount)
+`
+	bc, _ := LoadDummyChain()
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition),
+	)
+
+	err := bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1, 10]}`),
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":["1", 20]}`),
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1.1, 30]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "", "20")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "30")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1,
+			`{"Name":"setCount", "Args":[true, 40]}`,
+		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
