@@ -134,3 +134,12 @@ contract test {
         f() = 2;
     }
 }
+
+@test(function_declaration_order)
+@error(ERROR_UNDEFINED_ID)
+contract test {
+    test() {
+        int v = f1();
+    }
+    func f1() int { return 1; }
+}

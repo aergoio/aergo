@@ -13,6 +13,12 @@
 
 #define LABEL_MAX_SIZE              128
 
+#define is_normal_blk(blk)          ((blk)->kind == BLK_NORMAL)
+#define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
+#define is_contract_blk(blk)        ((blk)->kind == BLK_CONTRACT)
+#define is_func_blk(blk)            ((blk)->kind == BLK_FUNC)
+#define is_loop_blk(blk)            ((blk)->kind == BLK_LOOP)
+
 #ifndef _AST_BLK_T
 #define _AST_BLK_T
 typedef struct ast_blk_s ast_blk_t;
@@ -34,7 +40,7 @@ struct ast_blk_s {
     char exit_label[LABEL_MAX_SIZE + 1];
 };
 
-ast_blk_t *blk_new_anon(src_pos_t *pos);
+ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
 

@@ -146,7 +146,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 
         goto_stmt = stmt_new_goto(blk->exit_label, &cond_exp->pos);
 
-        if_blk = blk_new_anon(&cond_exp->pos);
+        if_blk = blk_new_normal(&cond_exp->pos);
         array_add_last(&if_blk->stmts, goto_stmt);
 
         not_exp = exp_new_op(OP_NOT, cond_exp, NULL, &cond_exp->pos);

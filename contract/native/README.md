@@ -38,6 +38,7 @@ ASCL로 작성된 프로그램은 다음 사항을 준수해야 한다.
 
 * [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 형식으로 작성해야 한다.
 * 대소문자를 구분한다.
+* 모든 변수와 함수는 cross reference를 허용하지 않는다.
 
 > **TODO** hardware 혹은 OS 설명 필요
 
@@ -968,7 +969,7 @@ int j = 10 + i++;   /* first, execute j = 10 + i
 statement는 variable과 constant, expression등의 조합으로 이뤄지며, 일종의 atomic 객체로 취급하여 개별 expression 수행중에 에러가 발생하는 경우엔 즉시 수행이 중지된다.
 
 <pre>
-<a name="stmt">Statement</a> = <a href="#exp_stmt">ExpressionStmt</a> | <a href="#assign_stmt">AssignStmt</a> | <a href="#label_stmt">LabelStmt</a> | <a href="#if_stmt">IfStmt</a> | <a href="#loop_stmt">LoopStmt</a> | 
+<a name="stmt">Statement</a> = <a href="#exp_stmt">ExpressionStmt</a> | <a href="#assign_stmt">AssignStmt</a> | <a href="#label_stmt">LabelStmt</a> | <a href="#if_stmt">IfStmt</a> | <a href="#loop_stmt">LoopStmt</a> |
             <a href="#switch_stmt">SwitchStmt</a> | <a href="#exp_stmt">JumpStmt</a> | <a href="#exp_stmt">DdlStmt</a> | <a href="#exp_stmt">BlockStmt</a> ;
 </pre>
 
@@ -1425,9 +1426,9 @@ func f2() int, string {
 ### DML, Query expressions
 
 <pre>
-<a name="sql_exp">SqlExp</a> = ? insert statement ? | 
+<a name="sql_exp">SqlExp</a> = ? insert statement ? |
          ? update statement ? |
-         ? delete statement ? | 
+         ? delete statement ? |
          ? select statement ? ;
 </pre>
 

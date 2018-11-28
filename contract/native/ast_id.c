@@ -69,6 +69,9 @@ id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
     id->u_func.ret_ids = ret_ids;
     id->u_func.blk = blk;
 
+    if (id->u_func.blk != NULL)
+        id->u_func.blk->kind = BLK_FUNC;
+
     return id;
 }
 
@@ -78,6 +81,9 @@ id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
     ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_PUBLIC, name, pos);
 
     id->u_cont.blk = blk;
+
+    if (id->u_cont.blk != NULL)
+        id->u_cont.blk->kind = BLK_CONTRACT;
 
     return id;
 }

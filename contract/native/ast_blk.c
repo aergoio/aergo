@@ -28,9 +28,9 @@ ast_blk_new(blk_kind_t kind, src_pos_t *pos)
 }
 
 ast_blk_t *
-blk_new_anon(src_pos_t *pos)
+blk_new_normal(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_ANON, pos);
+    return ast_blk_new(BLK_NORMAL, pos);
 }
 
 ast_blk_t *

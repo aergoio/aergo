@@ -125,8 +125,10 @@ typedef enum stmt_kind_e {
 extern char *stmt_kinds_[STMT_MAX];
 
 typedef enum blk_kind_e {
-    BLK_ANON        = 0,
+    BLK_NORMAL      = 0,
     BLK_ROOT,
+    BLK_CONTRACT,
+    BLK_FUNC,
     BLK_LOOP,
     BLK_MAX
 } blk_kind_t;
