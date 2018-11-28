@@ -38,18 +38,22 @@ type SyncerConfig struct {
 	maxPendingConn   int
 	maxBlockReqTasks int
 
-	blockFetchTimeOut time.Duration
+	fetchTimeOut time.Duration
 
 	useFullScanOnly bool
 
 	debugContext *SyncerDebug
 }
 type SyncerDebug struct {
-	t                *testing.T
-	expAncestor      int
+	t            *testing.T
+	expAncestor  int
+	targetNo     uint64
+	expErrResult error
+
 	debugHashFetcher bool
-	targetNo         uint64
-	stopByFinder     bool
+	debugFinder      bool
+
+	BfWaitTime time.Duration
 
 	logAllPeersBad bool
 	logBadPeers    map[int]bool //register bad peers for unit test
@@ -57,16 +61,17 @@ type SyncerDebug struct {
 
 var (
 	logger             = log.NewLogger("syncer")
+	NameFinder         = "Finder"
 	NameHashFetcher    = "HashFetcher"
 	NameBlockFetcher   = "BlockFetcher"
 	NameBlockProcessor = "BlockProcessor"
 	SyncerCfg          = &SyncerConfig{
-		maxHashReqSize:    DfltHashReqSize,
-		maxBlockReqSize:   DfltBlockFetchSize,
-		maxPendingConn:    MaxBlockPendingTasks,
-		maxBlockReqTasks:  DfltBlockFetchTasks,
-		blockFetchTimeOut: DfltFetchTimeOut,
-		useFullScanOnly:   false}
+		maxHashReqSize:   DfltHashReqSize,
+		maxBlockReqSize:  DfltBlockFetchSize,
+		maxPendingConn:   MaxBlockPendingTasks,
+		maxBlockReqTasks: DfltBlockFetchTasks,
+		fetchTimeOut:     DfltFetchTimeOut,
+		useFullScanOnly:  false}
 )
 
 var (
@@ -300,7 +305,7 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	if syncer.syncerCfg.debugContext != nil && syncer.syncerCfg.debugContext.stopByFinder {
+	if syncer.syncerCfg.debugContext != nil && syncer.syncerCfg.debugContext.debugFinder {
 		return nil
 	}
 

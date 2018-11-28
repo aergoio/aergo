@@ -4,6 +4,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"testing"
+	"time"
 )
 
 func TestHashFetcher_normal(t *testing.T) {
@@ -38,6 +39,47 @@ func TestHashFetcher_normal(t *testing.T) {
 	//ancestor of ctx will be set by FinderResult
 	syncer.testhub.Tell(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
 
+	syncer.waitStop()
+}
+
+//test if hashfetcher stops successfully while waiting to send HashSet to resultCh
+func TestHashFetcher_quit(t *testing.T) {
+	remoteChainLen := 100
+	localChainLen := 99
+	targetNo := uint64(99)
+
+	//ancestor = 0
+	remoteChain := initStubBlockChain(nil, remoteChainLen)
+	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen)
+
+	remoteChains := []*StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
+
+	//set debug property
+	testCfg := *SyncerCfg
+	testCfg.maxHashReqSize = TestMaxHashReqSize
+	testCfg.maxBlockReqSize = TestMaxBlockFetchSize
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
+	testCfg.debugContext.debugHashFetcher = true
+	testCfg.debugContext.BfWaitTime = time.Second * 1000
+
+	//set ctx because finder is skipped
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
+	ancestorInfo := remoteChain.GetBlockInfo(0)
+
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
+	syncer.realSyncer.ctx = ctx
+
+	syncer.start()
+
+	//ancestor of ctx will be set by FinderResult
+	syncer.testhub.Tell(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
+
+	//test if hashfetcher stop
+	go func() {
+		time.Sleep(time.Second * 1)
+		stopSyncer(syncer.testhub, NameBlockFetcher, ErrQuitBlockFetcher)
+	}()
 	syncer.waitStop()
 }
 
