@@ -54,6 +54,7 @@ var (
 )
 
 var (
+	ErrQuitHashFetcher    = errors.New("Hashfetcher quit")
 	ErrInvalidHashSet     = errors.New("Invalid hash set reply")
 	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
@@ -111,7 +112,9 @@ func (hf *HashFetcher) Start() {
 					if err := hf.processHashSet(HashSet); err != nil {
 						//TODO send errmsg to syncer & stop sync
 						logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
-						stopSyncer(hf.hub, hf.name, err)
+						if err != ErrQuitHashFetcher {
+							stopSyncer(hf.hub, hf.name, err)
+						}
 						return
 					}
 
@@ -178,10 +181,12 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: lastHash, No: lastHashNo}
 
+	//total HashSet in memory can be 3 (network + resultCh + blockFetcher)
 	select {
 	case hf.resultCh <- hashSet:
 	case <-hf.quitCh:
 		logger.Info().Msg("hash fetcher quit while pushing result")
+		return ErrQuitHashFetcher
 	}
 
 	hf.isRequesting = false
@@ -192,13 +197,13 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 }
 
 func (hf *HashFetcher) stop() {
-	logger.Info().Msg("HashFetcher stop#1")
-
 	if hf == nil {
 		return
 	}
 
-	if hf.isRunning && hf.quitCh != nil {
+	logger.Info().Msg("HashFetcher stop#1")
+
+	if hf.isRunning {
 		close(hf.quitCh)
 		logger.Info().Msg("HashFetcher close quitCh")
 

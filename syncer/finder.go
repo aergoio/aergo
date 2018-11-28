@@ -20,7 +20,6 @@ type Finder struct {
 	lScanCh  chan *types.BlockInfo
 	fScanCh  chan *message.GetHashByNoRsp
 
-	doneCh chan *FinderResult
 	quitCh chan interface{}
 
 	lastAnchor []byte //point last block during lightscan
@@ -30,6 +29,7 @@ type Finder struct {
 
 	cfg *SyncerConfig
 
+	isRunning bool
 	waitGroup *sync.WaitGroup
 }
 
@@ -39,18 +39,17 @@ type FinderResult struct {
 }
 
 var (
-	ErrorFinderClosed           = errors.New("sync finder closed")
+	ErrFinderQuit               = errors.New("sync finder quit")
 	ErrorGetSyncAncestorTimeout = errors.New("timeout for GetSyncAncestor")
-	ErrorFinderTimeout          = errors.New("Finder timeout")
-	dfltTimeOut                 = time.Second * 60
+	ErrFinderTimeout            = errors.New("Finder timeout")
 )
 
 func newFinder(ctx *types.SyncContext, hub component.ICompRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
 	finder := &Finder{ctx: *ctx, hub: hub, chain: chain, cfg: cfg}
 
-	finder.dfltTimeout = dfltTimeOut
+	finder.dfltTimeout = cfg.fetchTimeOut
 	finder.quitCh = make(chan interface{})
-	finder.doneCh = make(chan *FinderResult)
+	finder.lScanCh = make(chan *types.BlockInfo)
 	finder.lScanCh = make(chan *types.BlockInfo)
 	finder.fScanCh = make(chan *message.GetHashByNoRsp)
 
@@ -60,9 +59,10 @@ func newFinder(ctx *types.SyncContext, hub component.ICompRequester, chain types
 //TODO refactoring: move logic to SyncContext (sync Object)
 func (finder *Finder) start() {
 	finder.waitGroup = &sync.WaitGroup{}
-	finder.waitGroup.Add(2)
+	finder.waitGroup.Add(1)
+	finder.isRunning = true
 
-	scanFn := func() {
+	run := func() {
 		var ancestor *types.BlockInfo
 		var err error
 
@@ -80,26 +80,17 @@ func (finder *Finder) start() {
 			ancestor, err = finder.fullscan()
 		}
 
-		finder.doneCh <- &FinderResult{ancestor, err}
-		logger.Debug().Msg("stop to find common ancestor")
+		if err != nil {
+			logger.Debug().Msg("quit finder")
+			stopSyncer(finder.hub, NameFinder, err)
+			return
+		}
+
+		finder.hub.Tell(message.SyncerSvc, &message.FinderResult{Ancestor: ancestor, Err: nil})
+		logger.Debug().Msg("stopped finder successfully")
 	}
 
-	go scanFn()
-
-	go func() {
-		defer finder.waitGroup.Done()
-		for {
-			select {
-			case result := <-finder.doneCh:
-				finder.hub.Tell(message.SyncerSvc, &message.FinderResult{result.ancestor, result.err})
-				logger.Info().Msg("finder finished")
-				return
-			case <-finder.quitCh:
-				logger.Info().Msg("finder exited")
-				return
-			}
-		}
-	}()
+	go run()
 }
 
 func (finder *Finder) stop() {
@@ -109,11 +100,11 @@ func (finder *Finder) stop() {
 
 	logger.Info().Msg("finder stop#1")
 
-	if finder.quitCh != nil {
+	if finder.isRunning {
 		logger.Debug().Msg("finder closed quitChannel")
 
 		close(finder.quitCh)
-		finder.quitCh = nil
+		finder.isRunning = false
 	}
 
 	finder.waitGroup.Wait()
@@ -181,7 +172,7 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 			logger.Error().Float64("sec", finder.dfltTimeout.Seconds()).Msg("get ancestor response timeout")
 			return nil, ErrorGetSyncAncestorTimeout
 		case <-finder.quitCh:
-			return nil, ErrorFinderClosed
+			return nil, ErrFinderQuit
 		}
 	}
 }
@@ -255,9 +246,9 @@ func (finder *Finder) hasSameHash(no types.BlockNo, localHash []byte) (bool, err
 				return result, result.Err
 			case <-timer.C:
 				logger.Error().Float64("sec", finder.dfltTimeout.Seconds()).Msg("finder get response timeout")
-				return nil, ErrorFinderTimeout
+				return nil, ErrFinderTimeout
 			case <-finder.quitCh:
-				return nil, ErrorFinderClosed
+				return nil, ErrFinderQuit
 			}
 		}
 	}

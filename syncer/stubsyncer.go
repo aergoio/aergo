@@ -120,6 +120,9 @@ func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
 			assert.Fail(stubSyncer.t, "invalid closefetcher")
 		}
 	case *message.SyncStop:
+		if stubSyncer.cfg.debugContext.expErrResult != nil {
+			assert.Equal(stubSyncer.t, stubSyncer.cfg.debugContext.expErrResult, resmsg.Err, "expected syncer stop error")
+		}
 		//check final result
 		if stubSyncer.checkResultFn != nil {
 			stubSyncer.checkResultFn(stubSyncer)
@@ -149,7 +152,7 @@ func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
 			return true
 		}
 
-		if stubSyncer.cfg.debugContext.stopByFinder {
+		if stubSyncer.cfg.debugContext.debugFinder {
 			return true
 		}
 	case *message.CloseFetcher:
@@ -191,10 +194,20 @@ func (stubSyncer *StubSyncer) handleActorMsg(inmsg interface{}) {
 
 //reply to requestFuture()
 func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
-	hashes, lastno, err := syncer.localChain.GetAnchors()
+	go func() {
+		if syncer.cfg.debugContext.debugFinder {
+			if syncer.stubPeers[0].timeDelaySec > 0 {
+				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer sleep")
+				time.Sleep(syncer.stubPeers[0].timeDelaySec)
+				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer wakeup")
+			}
+		}
 
-	rspMsg := message.GetAnchorsRsp{Hashes: hashes, LastNo: lastno, Err: err}
-	syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
+		hashes, lastno, err := syncer.localChain.GetAnchors()
+
+		rspMsg := message.GetAnchorsRsp{Hashes: hashes, LastNo: lastno, Err: err}
+		syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
+	}()
 }
 
 func (syncer *StubSyncer) GetPeers(msg *message.GetPeers) {

@@ -135,19 +135,27 @@ func (bf *BlockFetcher) Start() {
 
 	if bf.cfg.debugContext != nil && bf.cfg.debugContext.debugHashFetcher {
 		testRun := func() {
+			logger.Debug().Msg("BlockFetcher dummy mode started")
+
 			defer bf.waitGroup.Done()
 
 			for {
+				if bf.cfg.debugContext.BfWaitTime > 0 {
+					logger.Debug().Msg("BlockFetcher sleep")
+					time.Sleep(bf.cfg.debugContext.BfWaitTime)
+					logger.Debug().Msg("BlockFetcher wakeup")
+				}
 				select {
 				case <-bf.hfCh:
 				case <-bf.quitCh:
-					logger.Info().Msg("BlockFetcher dummy mode exited")
+					logger.Debug().Msg("BlockFetcher dummy mode exited")
 					return
 				}
 			}
 		}
 
 		go testRun()
+		return
 	}
 
 	run := func() {
@@ -241,51 +249,48 @@ func (bf *BlockFetcher) init() error {
 }
 
 func (bf *BlockFetcher) schedule() error {
-	//check no free peer
-	if bf.peers.free == 0 {
-		return nil
-	}
+	for bf.peers.free > 0 {
+		//check max concurrent runing task count
+		curRunning := bf.runningQueue.Len()
+		if curRunning >= bf.maxFetchTasks {
+			//logger.Debug().Int("runnig", curRunning).Int("pending", bf.pendingQueue.Len()).Msg("max running")
+			return nil
+		}
 
-	//check max concurrent runing task count
-	curRunning := bf.runningQueue.Len()
-	if curRunning >= bf.maxFetchTasks {
-		//logger.Debug().Int("runnig", curRunning).Int("pending", bf.pendingQueue.Len()).Msg("max running")
-		return nil
-	}
+		//check no task
+		candTask, err := bf.searchCandidateTask()
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to search candidate task")
+			return err
+		}
+		if candTask == nil {
+			return nil
+		}
 
-	//check no task
-	candTask, err := bf.searchCandidateTask()
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to search candidate task")
-		return err
-	}
-	if candTask == nil {
-		return nil
-	}
+		//check max pending connect
+		//	if next task is retry task, must run. it can be next block to connect
+		curPendingConn := len(bf.blockProcessor.connQueue)
+		if curPendingConn >= bf.maxPendingConn && candTask.retry <= 0 {
+			return nil
+		}
 
-	//check max pending connect
-	//	if next task is retry task, must run. it can be next block to connect
-	curPendingConn := len(bf.blockProcessor.connQueue)
-	if curPendingConn >= bf.maxPendingConn && candTask.retry <= 0 {
-		return nil
-	}
+		freePeer, err := bf.popFreePeer()
+		if err != nil {
+			logger.Error().Err(err).Msg("error to get free peer")
+			return err
+		}
+		if freePeer == nil {
+			panic("free peer can't be nil")
+		}
 
-	freePeer, err := bf.popFreePeer()
-	if err != nil {
-		logger.Error().Err(err).Msg("error to get free peer")
-		return err
-	}
-	if freePeer == nil {
-		panic("free peer can't be nil")
-	}
+		bf.popNextTask(candTask)
+		if candTask == nil {
+			panic("task can't be nil")
+		}
 
-	bf.popNextTask(candTask)
-	if candTask == nil {
-		panic("task can't be nil")
+		logger.Debug().Int("pendingConn", curPendingConn).Int("running", curRunning).Msg("schedule")
+		bf.runTask(candTask, freePeer)
 	}
-
-	logger.Debug().Int("pendingConn", curPendingConn).Int("running", curRunning).Msg("schedule")
-	bf.runTask(candTask, freePeer)
 
 	return nil
 }
@@ -305,7 +310,7 @@ func (bf *BlockFetcher) checkTaskTimeout() error {
 		task := e.Value.(*FetchTask)
 		next = e.Next()
 
-		if !task.isTimeOut(now, bf.cfg.blockFetchTimeOut) {
+		if !task.isTimeOut(now, bf.cfg.fetchTimeOut) {
 			continue
 		}
 
@@ -335,6 +340,7 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) error {
 	task.retry++
 	task.syncPeer = nil
 
+	//TODO sort by time because deadlock
 	bf.retryQueue.PushBack(task)
 
 	if bf.peers.isAllBad() {
