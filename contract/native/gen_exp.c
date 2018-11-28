@@ -164,7 +164,7 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_NULL:
         return NULL;
 
-    case EXP_ID:
+    case EXP_REF:
         return exp_gen_id(gen, exp);
 
     case EXP_LIT:

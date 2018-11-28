@@ -40,11 +40,11 @@ exp_new_lit(src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_id(char *name, src_pos_t *pos)
+exp_new_ref(char *name, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ID, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_REF, pos);
 
-    exp->u_id.name = name;
+    exp->u_ref.name = name;
 
     return exp;
 }

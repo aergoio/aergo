@@ -14,7 +14,7 @@
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
-#define is_id_exp(exp)              ((exp)->kind == EXP_ID)
+#define is_ref_exp(exp)             ((exp)->kind == EXP_REF)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_op_exp(exp)              ((exp)->kind == EXP_OP)
@@ -26,7 +26,7 @@
 
 #define is_usable_lval(exp)                                                              \
     ((exp)->id != NULL && !is_const_id((exp)->id) &&                                     \
-     (is_id_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
+     (is_ref_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
 #define exp_add_first               array_add_first
 #define exp_add_last                array_add_last
@@ -47,9 +47,9 @@ typedef struct exp_lit_s {
 } exp_lit_t;
 
 /* name */
-typedef struct exp_id_s {
+typedef struct exp_ref_s {
     char *name;
-} exp_id_t;
+} exp_ref_t;
 
 /* id[idx] */
 typedef struct exp_array_s {
@@ -107,7 +107,7 @@ struct ast_exp_s {
 
     union {
         exp_lit_t u_lit;
-        exp_id_t u_id;
+        exp_ref_t u_ref;
         exp_array_t u_arr;
         exp_cast_t u_cast;
         exp_call_t u_call;
@@ -125,7 +125,7 @@ struct ast_exp_s {
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
 ast_exp_t *exp_new_lit(src_pos_t *pos);
-ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
+ast_exp_t *exp_new_ref(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);

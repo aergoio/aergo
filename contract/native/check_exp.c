@@ -15,31 +15,31 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
 
-    ASSERT1(is_id_exp(exp), exp->kind);
-    ASSERT(exp->u_id.name != NULL);
+    ASSERT1(is_ref_exp(exp), exp->kind);
+    ASSERT(exp->u_ref.name != NULL);
 
-    if (strcmp(exp->u_id.name, "this") == 0) {
+    if (strcmp(exp->u_ref.name, "this") == 0) {
         id = check->cont_id;
     }
     else if (check->qual_id != NULL) {
-        id = id_search_fld(check->qual_id, exp->u_id.name,
+        id = id_search_fld(check->qual_id, exp->u_ref.name,
                            check->cont_id == check->qual_id);
     }
     else {
         if (check->func_id != NULL)
-            id = id_search_param(check->func_id, exp->u_id.name);
+            id = id_search_param(check->func_id, exp->u_ref.name);
 
         if (id == NULL) {
-            id = id_search_name(check->blk, exp->u_id.name, exp->num);
+            id = id_search_name(check->blk, exp->u_ref.name, exp->num);
 
             if (id != NULL && is_contract_id(id))
                 /* search constructor */
-                id = id_search_name(id->u_cont.blk, exp->u_id.name, exp->num);
+                id = id_search_name(id->u_cont.blk, exp->u_ref.name, exp->num);
         }
     }
 
     if (id == NULL)
-        RETURN(ERROR_UNDEFINED_ID, &exp->pos, exp->u_id.name);
+        RETURN(ERROR_UNDEFINED_ID, &exp->pos, exp->u_ref.name);
 
     ASSERT(id->is_checked);
 
@@ -511,7 +511,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     id_exp = exp->u_call.id_exp;
     param_exps = exp->u_call.param_exps;
 
-    if (is_id_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
+    if (is_ref_exp(id_exp) && strcmp(id_exp->u_ref.name, "map") == 0) {
         if (param_exps != NULL) {
             ast_exp_t *param_exp;
 
@@ -654,7 +654,7 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_NULL:
         return NO_ERROR;
 
-    case EXP_ID:
+    case EXP_REF:
         return exp_check_id(check, exp);
 
     case EXP_LIT:

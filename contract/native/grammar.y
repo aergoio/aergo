@@ -1113,7 +1113,7 @@ post_exp:
     }
 |   post_exp '.' identifier
     {
-        $$ = exp_new_access($1, exp_new_id($3, &@3), &@$);
+        $$ = exp_new_access($1, exp_new_ref($3, &@3), &@$);
     }
 |   post_exp UNARY_INC
     {
@@ -1147,11 +1147,11 @@ new_exp:
     prim_exp
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_id($2, &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_ref($2, &@2), $4, &@$);
     }
 |   K_NEW K_MAP '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_id(xstrdup("map"), &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_ref(xstrdup("map"), &@2), $4, &@$);
     }
 |   K_NEW initializer
     {
@@ -1192,7 +1192,7 @@ prim_exp:
     literal
 |   identifier
     {
-        $$ = exp_new_id($1, &@$);
+        $$ = exp_new_ref($1, &@$);
     }
 |   '(' expression ')'
     {
