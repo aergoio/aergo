@@ -464,16 +464,16 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         type_meta = id->u_var.type_meta;
     }
     else if (is_func_id(id)) {
-        array_t *ret_metas;
+        array_t *ret_ids;
 
         if (!is_struct_type(id_meta) && !is_object_type(id_meta))
             RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-        ret_metas = id->u_func.ret_metas;
-        ASSERT(ret_metas != NULL);
-        ASSERT1(array_size(ret_metas) == 1, array_size(ret_metas));
+        ret_ids = id->u_func.ret_ids;
+        ASSERT(ret_ids != NULL);
+        ASSERT1(array_size(ret_ids) == 1, array_size(ret_ids));
 
-        type_meta = array_get(ret_metas, 0, meta_t);
+        type_meta = &array_get(ret_ids, 0, ast_id_t)->meta;
     }
 
     if (type_meta != NULL && type_meta->name != NULL)

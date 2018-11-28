@@ -60,13 +60,13 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_metas,
+id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
             ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FUNC, mod, name, pos);
 
     id->u_func.param_ids = param_ids;
-    id->u_func.ret_metas = ret_metas;
+    id->u_func.ret_ids = ret_ids;
     id->u_func.blk = blk;
 
     return id;

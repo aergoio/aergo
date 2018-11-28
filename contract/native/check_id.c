@@ -59,6 +59,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
     return NO_ERROR;
 }
 
+#if 0
 static ast_exp_t *
 id_gen_dflt_exp(meta_t *meta)
 {
@@ -109,13 +110,16 @@ id_gen_dflt_exp(meta_t *meta)
 
     return init_exp;
 }
+#endif
 
 static int
 id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
+    /*
     ast_exp_t *init_exp;
     meta_t *init_meta;
+    */
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_meta != NULL);
@@ -134,37 +138,33 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, false));
 
+    /*
     if (id->u_var.init_exp == NULL)
         id->u_var.init_exp = id_gen_dflt_exp(&id->meta);
+        */
 
-    /* TODO: named initializer */
-    init_exp = id->u_var.init_exp;
-    init_meta = &init_exp->meta;
+    if (id->u_var.init_exp != NULL) {
+        /* TODO: named initializer */
+        ast_exp_t *init_exp = id->u_var.init_exp;
+        meta_t *init_meta = &init_exp->meta;
 
-    CHECK(exp_check(check, init_exp));
+        CHECK(exp_check(check, init_exp));
 
-    /* This might be a duplicate check because it will be checked by meta_cmp(),
-     * but is done to show more specific error not just mismatch error. */
-    if (is_tuple_type(init_meta)) {
-        if (!is_array_type(&id->meta) &&
+        /* This might be a duplicate check because it will be checked by meta_cmp(),
+         * but is done to show more specific error not just mismatch error. */
+        if (is_tuple_type(init_meta) && !is_array_type(&id->meta) &&
             !is_map_type(type_meta) && !is_struct_type(type_meta))
             /* not allowed static initializer except map or struct */
             RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
 
-#if 0
-        if (type_exp->id != NULL && is_contract_id(type_exp->id))
-            /* contract object */
-            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
-#endif
-    }
+        CHECK(meta_cmp(&id->meta, &init_exp->meta));
 
-    CHECK(meta_cmp(&id->meta, &init_exp->meta));
+        if (is_lit_exp(init_exp)) {
+            if (!value_check(&init_exp->u_lit.val, &id->meta))
+                RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
 
-    if (is_lit_exp(init_exp)) {
-        if (!value_check(&init_exp->u_lit.val, &id->meta))
-            RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
-
-        id->val = &init_exp->u_lit.val;
+            id->val = &init_exp->u_lit.val;
+        }
     }
 
     return NO_ERROR;
@@ -291,7 +291,7 @@ id_check_func(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *param_ids;
-    array_t *ret_metas;
+    array_t *ret_ids;
     meta_t *id_meta;
 
     ASSERT1(is_func_id(id), id->kind);
@@ -307,34 +307,34 @@ id_check_func(check_t *check, ast_id_t *id)
     }
 
     id_meta = &id->meta;
-    ret_metas = id->u_func.ret_metas;
+    ret_ids = id->u_func.ret_ids;
 
-    if (ret_metas != NULL) {
-        meta_t *ret_meta;
+    if (ret_ids != NULL) {
+        ast_id_t *ret_id;
 
-        if (array_size(ret_metas) == 1) {
-            ret_meta = array_get(ret_metas, 0, meta_t);
+        if (array_size(ret_ids) == 1) {
+            ret_id = array_get(ret_ids, 0, ast_id_t);
 
-            meta_check(check, ret_meta);
-            meta_copy(id_meta, ret_meta);
+            id_check_var(check, ret_id);
+            meta_copy(id_meta, &ret_id->meta);
         }
         else {
+            /* TODO: add API for meta_set_tuple() from ids */
             meta_set(id_meta, TYPE_TUPLE);
 
-            id_meta->elem_cnt = array_size(ret_metas);
+            id_meta->elem_cnt = array_size(ret_ids);
             id_meta->elems = xmalloc(sizeof(meta_t *) * id_meta->elem_cnt);
 
-            for (i = 0; i < array_size(ret_metas); i++) {
-                ret_meta = array_get(ret_metas, i, meta_t);
+            for (i = 0; i < array_size(ret_ids); i++) {
+                ret_id = array_get(ret_ids, i, ast_id_t);
 
-                meta_check(check, ret_meta);
-                id_meta->elems[i] = ret_meta;
+                id_check_var(check, ret_id);
+                id_meta->elems[i] = &ret_id->meta;
             }
         }
     }
     else if (is_ctor_id(id)) {
         meta_set_object(id_meta);
-        id_meta->name = id->name;
     }
     else {
         meta_set_void(id_meta);

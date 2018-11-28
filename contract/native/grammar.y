@@ -189,6 +189,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <mod>     modifier_opt
 %type <array>   return_opt
 %type <array>   return_list
+%type <id>      return_decl
 %type <stmt>    statement
 %type <stmt>    empty_stmt
 %type <stmt>    exp_stmt
@@ -642,15 +643,32 @@ return_opt:
 ;
 
 return_list:
-    var_spec
+    return_decl
     {
         $$ = array_new();
-        array_add_last($$, $1);
+        id_add_last($$, $1);
     }
-|   return_list ',' var_spec
+|   return_list ',' return_decl
     {
         $$ = $1;
-        array_add_last($$, $3);
+        id_add_last($$, $3);
+    }
+;
+
+return_decl:
+    var_spec
+    {
+        char name[256];
+
+        snprintf(name, sizeof(name), "__return_var_%d", node_num_);
+
+        $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
+        $$->u_var.type_meta = $1;
+    }
+|   var_spec declarator
+    {
+        $$ = $2;
+        $$->u_var.type_meta = $1;
     }
 ;
 
