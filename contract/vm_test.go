@@ -2300,4 +2300,64 @@ func TestMapKey(t *testing.T) {
 	}
 }
 
+func TestStateVarFieldUpdate(t *testing.T) {
+	src := `
+state.var{
+   Person = state.value()
+}
+
+function constructor()
+  Person:set({ name = "kslee", age = 38, address = "blahblah..." })
+end
+
+function InvalidUpdateAge(age)
+  Person:get().age = age
+end
+
+function ValidUpdateAge(age)
+  local p = Person:get()
+  p.age = age
+  Person:set(p)
+end
+
+function GetPerson()
+  return Person:get()
+end
+
+abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "c", 10, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "c", 1, `{"Name":"InvalidUpdateAge", "Args":[10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("c", `{"Name":"GetPerson"}`, "",
+		`{"address":"blahblah...","age":38,"name":"kslee"}`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "c", 1, `{"Name":"ValidUpdateAge", "Args":[10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("c", `{"Name":"GetPerson"}`, "",
+		`{"address":"blahblah...","age":10,"name":"kslee"}`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
