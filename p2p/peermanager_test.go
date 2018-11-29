@@ -31,7 +31,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	mockMF := new(MockMoFactory)
 	target := NewPeerManager(nil, mockActor,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		nil, new(MockReconnectManager),
+		nil, new(MockReconnectManager), nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	target.Host = &mockHost{pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
@@ -60,7 +60,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockMF := new(MockMoFactory)
 	target := NewPeerManager(nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		nil, new(MockReconnectManager),
+		nil, new(MockReconnectManager), nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	iterSize := 500
@@ -100,7 +100,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	InitNodeInfo(tConfig.P2P, tLogger)
 	target := NewPeerManager(nil, mockActorServ,
 		tConfig,
-		nil, new(MockReconnectManager),
+		nil, new(MockReconnectManager), nil,
 		tLogger, mockMF).(*peerManager)
 
 	iterSize := 500

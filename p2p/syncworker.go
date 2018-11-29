@@ -87,7 +87,7 @@ RUNLOOP:
 		case <-sw.retain:
 			if !timer.Stop() {
 				// it's already timeout or finished.
-				sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("failed to retain. already timeout or cancelled")
+				sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("failed to retain sync work. already timeout or cancelled")
 				break RUNLOOP
 			}
 			sw.sm.logger.Debug().Str(LogPeerID, sw.peerID.Pretty()).Str("base_hash", sw.currentBest.String()).Msg("retain sync work")

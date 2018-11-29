@@ -130,6 +130,9 @@ type GetPeersRsp struct {
 	States   []types.PeerState
 }
 
+type GetMetrics struct {
+}
+
 // GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
 type GetSyncAncestor struct {
 	ToWhom peer.ID

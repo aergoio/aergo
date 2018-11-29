@@ -8,6 +8,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"net"
 	"strconv"
@@ -82,10 +83,11 @@ type peerManager struct {
 	selfMeta    PeerMeta
 
 	handlerFactory HandlerFactory
-	actorServ  ActorService
-	signer     msgSigner
-	mf 		   moFactory
-	rm         ReconnectManager
+	actorServ      ActorService
+	signer         msgSigner
+	mf             moFactory
+	rm             ReconnectManager
+	mm             metric.MetricsManager
 
 	designatedPeers map[peer.ID]PeerMeta
 
@@ -118,18 +120,19 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, logger *log.Logger, mf moFactory) PeerManager {
+func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, mm metric.MetricsManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		handlerFactory: handlerFactory,
-		actorServ: iServ,
-		conf:      p2pConf,
-		signer:    signer,
-		mf:        mf,
-		rm:        rm,
-		logger:    logger,
-		mutex:     &sync.Mutex{},
+		actorServ:      iServ,
+		conf:           p2pConf,
+		signer:         signer,
+		mf:             mf,
+		rm:             rm,
+		mm:             mm,
+		logger:         logger,
+		mutex:          &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
 
@@ -142,7 +145,6 @@ func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.
 		fillPoolChannel:   make(chan []PeerMeta),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
-
 	}
 
 	// additional initializations
@@ -220,7 +222,7 @@ func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int
 	} else {
 		extIP, err := externalIP()
 		if err != nil {
-			panic("error while finding IP address: "+err.Error())
+			panic("error while finding IP address: " + err.Error())
 		}
 		protocolAddr = extIP
 	}
@@ -311,6 +313,7 @@ MANLOOP:
 			}
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
+		    pm.logPeerMetrics()
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
@@ -324,6 +327,12 @@ MANLOOP:
 	// cleanup peers
 	for peerID := range pm.remotePeers {
 		pm.removePeer(peerID)
+	}
+}
+
+func (pm *peerManager) logPeerMetrics() {
+	if pm.logger.IsDebugEnabled() {
+		pm.logger.Debug().Msg(pm.mm.Summary())
 	}
 }
 
@@ -358,8 +367,11 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		pm.logger.Info().Err(err).Str("addr", addrString).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(aergoP2PSub)).Msg("Error while get stream")
 		return false
 	}
+
+	rd := metric.NewReader(s)
+	wt := metric.NewWriter(s)
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-	rw, remoteStatus, err := h.handshakeOutboundPeerTimeout(s, s, defaultHandshakeTTL)
+	rw, remoteStatus, err := h.handshakeOutboundPeerTimeout(rd, wt, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
 		//pm.sendGoAway(rw, "Failed to handshake")
@@ -387,12 +399,13 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	// update peer info to remote sent infor
 	meta = FromPeerAddress(remoteStatus.Sender)
 
-	inboundPeer = newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
+	outboundPeer := newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
-	pm.handlerFactory.insertHandlers(inboundPeer)
-	go inboundPeer.runPeer()
-	pm.insertPeer(peerID, inboundPeer)
+	pm.handlerFactory.insertHandlers(outboundPeer)
+	go outboundPeer.runPeer()
+	pm.insertPeer(peerID, outboundPeer)
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
+	outboundPeer.metric = pm.mm.Add(peerID, rd, wt)
 	pm.mutex.Unlock()
 
 	addrs := pm.Peerstore().Addrs(peerID)
@@ -400,7 +413,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	for i, addr := range addrs {
 		addrStrs[i] = addr.String()
 	}
-	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
+	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, outboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
 
 	// peer is ready
 	h.doInitialSync()
@@ -482,7 +495,7 @@ func (pm *peerManager) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
 	// FIXME: should also support ip6 later
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",pm.bindAddress, pm.bindPort))
+	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", pm.bindAddress, pm.bindPort))
 	if err != nil {
 		panic("Can't estabilish listening address: " + err.Error())
 	}
@@ -506,7 +519,9 @@ func (pm *peerManager) startListener() {
 func (pm *peerManager) onHandshake(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-	rw, statusMsg, err := h.handshakeInboundPeer(s, s)
+	rd := metric.NewReader(s)
+	wt := metric.NewWriter(s)
+	rw, statusMsg, err := h.handshakeInboundPeer(rd, wt)
 	if err != nil {
 		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
 		s.Close()
@@ -515,19 +530,22 @@ func (pm *peerManager) onHandshake(s inet.Stream) {
 	// TODO: check status
 	meta := FromPeerAddress(statusMsg.Sender)
 	// try Add peer
-	if !pm.tryAddInboundPeer(meta, rw) {
+	if inboundPeer, success := pm.tryAddInboundPeer(meta, rw); !success {
 		// failed to add
 		pm.sendGoAway(rw, "Concurrent handshake")
 		s.Close()
 		return
+	} else {
+		inboundPeer.metric = pm.mm.Add(peerID, rd, wt)
 	}
+
 
 	h.doInitialSync()
 	// notice to p2pmanager that handshaking is finished
 	pm.NotifyPeerHandshake(peerID)
 }
 
-func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
+func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) (*remotePeerImpl, bool) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	peerID := meta.ID
@@ -542,7 +560,7 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 		} else {
 			pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, but local peer is higher priority and closing this inbound connection.")
 			// disconnect lower valued connection
-			return false
+			return nil, false
 		}
 	}
 	inboundPeer := newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
@@ -556,9 +574,10 @@ func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) bool {
 	for i, addr := range addrs {
 		addrStrs[i] = addr.String()
 	}
-	pm.logger.Debug().Strs("addrs" , addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
+	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
 	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
-	return true
+
+	return inboundPeer, true
 }
 
 func (pm *peerManager) Start() error {
@@ -690,6 +709,7 @@ func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
 
 // this method should be called inside pm.mutex
 func (pm *peerManager) deletePeer(ID peer.ID) {
+	pm.mm.Remove(ID)
 	delete(pm.remotePeers, ID)
 	pm.updatePeerCache()
 }
