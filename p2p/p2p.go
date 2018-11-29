@@ -165,11 +165,12 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 
 // Receive got actor message and then handle it.
 func (p2ps *P2P) Receive(context actor.Context) {
-
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
 	case *message.GetAddressesMsg:
 		p2ps.GetAddresses(msg.ToWhom, msg.Size)
+	case *message.GetMetrics:
+		context.Respond(p2ps.mm.Metrics())
 	case *message.GetBlockHeaders:
 		p2ps.GetBlockHeaders(msg)
 	case *message.GetBlockChunks:

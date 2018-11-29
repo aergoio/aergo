@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/aergoio/aergo/p2p/metric"
 	"reflect"
 	"sync"
 	"time"
@@ -45,6 +46,45 @@ const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
+
+
+func (rpc *AergoRPCService) Metric(ctx context.Context, req *types.MetricsRequest) (*types.Metrics, error) {
+	result := &types.Metrics{}
+	processed := make(map[types.MetricType]interface{})
+	for _, mt := range req.Types {
+		if _,found := processed[mt]; found {
+			continue
+		}
+		processed[mt]=mt
+
+		switch mt {
+		case types.MetricType_P2P_NETWORK:
+			rpc.fillPeerMetrics(result)
+		default:
+			// TODO log itB
+		}
+	}
+
+	return result, nil
+}
+
+func (rpc *AergoRPCService) fillPeerMetrics(result *types.Metrics) {
+	// fill metrics for p2p
+	presult, err := rpc.actorHelper.CallRequestDefaultTimeout(message.P2PSvc,
+		&message.GetMetrics{})
+	if err != nil {
+		return
+	}
+	metrics := presult.([]*metric.PeerMetric)
+	mets := make([]*types.PeerMetric, len(metrics))
+	for i, met := range metrics {
+		rMet := &types.PeerMetric{PeerID:[]byte(met.PeerID), SumIn:met.SumIn, AvrIn:met.InMetric.APS(),
+			SumOut:met.SumOut, AvrOut:met.OutMetric.APS()}
+		mets[i] = rMet
+	}
+
+	result.Peers = mets
+}
 
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*types.BlockchainStatus, error) {
