@@ -30,7 +30,7 @@ var (
 	genesisBlock     *types.Block
 	initialBestBlock *types.Block
 
-	ErrBlockExist = errors.New("error! block already exist")
+	ErrBlockExist = errors.New("block already exist")
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -80,7 +80,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
 
 func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := core.cdb.getHashByNo(0)
-	if gh == nil || len(gh) == 0 {
+	if len(gh) == 0 {
 		logger.Info().Uint64("nom", core.cdb.latest).Msg("current latest")
 		if core.cdb.latest == 0 {
 			if genesis == nil {
@@ -177,6 +177,16 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	// init genesis block
 	if _, err := cs.initGenesis(nil); err != nil {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
+	}
+
+	top, err := cs.getVotes(1)
+	if err != nil {
+		logger.Debug().Err(err).Msg("failed to get elected BPs")
+	} else {
+		for _, res := range top.Votes {
+			logger.Debug().Str("BP", enc.ToString(res.Candidate)).
+				Uint64("votes", res.Amount).Msgf("BP vote stat")
+		}
 	}
 
 	return cs
@@ -468,7 +478,7 @@ func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
 	if err != nil {
 		return nil, err
 	}
-	return system.GetVoteResult(scs, n)
+	return system.GetVoteResult(scs)
 }
 
 func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
