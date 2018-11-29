@@ -29,7 +29,7 @@ func testFullscanSucceed(t *testing.T, expAncestor uint64) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 }
@@ -61,7 +61,7 @@ func TestFinder_fullscan_notfound(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 }
@@ -91,7 +91,7 @@ func TestFinder_timeout(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 }

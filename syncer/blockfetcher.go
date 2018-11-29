@@ -16,7 +16,7 @@ import (
 )
 
 type BlockFetcher struct {
-	hub component.ICompRequester //for communicate with other service
+	compRequester component.IComponentRequester //for communicate with other service
 
 	ctx *types.SyncContext
 
@@ -125,8 +125,8 @@ var (
 	ErrQuitBlockFetcher = errors.New("BlockFetcher quit")
 )
 
-func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, cfg *SyncerConfig) *BlockFetcher {
-	bf := &BlockFetcher{ctx: ctx, hub: hub, name: NameBlockFetcher, cfg: cfg}
+func newBlockFetcher(ctx *types.SyncContext, compRequester component.IComponentRequester, cfg *SyncerConfig) *BlockFetcher {
+	bf := &BlockFetcher{ctx: ctx, compRequester: compRequester, name: NameBlockFetcher, cfg: cfg}
 
 	bf.quitCh = make(chan interface{})
 	bf.hfCh = make(chan *HashSet)
@@ -137,7 +137,7 @@ func newBlockFetcher(ctx *types.SyncContext, hub component.ICompRequester, cfg *
 	bf.maxFetchTasks = cfg.maxBlockReqTasks
 	bf.maxPendingConn = cfg.maxPendingConn
 
-	bf.blockProcessor = NewBlockProcessor(hub, bf, ctx.CommonAncestor, ctx.TargetNo)
+	bf.blockProcessor = NewBlockProcessor(compRequester, bf, ctx.CommonAncestor, ctx.TargetNo)
 
 	bf.blockProcessor.connQueue = make([]*ConnectTask, 0, 16)
 
@@ -187,7 +187,7 @@ func (bf *BlockFetcher) Start() {
 		logger.Debug().Msg("start block fetcher")
 
 		if err := bf.init(); err != nil {
-			stopSyncer(bf.hub, bf.name, err)
+			stopSyncer(bf.compRequester, bf.name, err)
 			return
 		}
 
@@ -198,7 +198,7 @@ func (bf *BlockFetcher) Start() {
 			case <-schedTicker.C:
 				if err := bf.checkTaskTimeout(); err != nil {
 					logger.Error().Err(err).Msg("failed checkTaskTimeout")
-					stopSyncer(bf.hub, bf.name, err)
+					stopSyncer(bf.compRequester, bf.name, err)
 					return
 				}
 
@@ -211,7 +211,7 @@ func (bf *BlockFetcher) Start() {
 				err := bf.blockProcessor.run(msg)
 				if err != nil {
 					logger.Error().Err(err).Msg("invalid block response message")
-					stopSyncer(bf.hub, bf.name, err)
+					stopSyncer(bf.compRequester, bf.name, err)
 					return
 				}
 
@@ -228,7 +228,7 @@ func (bf *BlockFetcher) Start() {
 				}
 
 				logger.Error().Err(err).Msg("BlockFetcher schedule failed & finished")
-				stopSyncer(bf.hub, bf.name, err)
+				stopSyncer(bf.compRequester, bf.name, err)
 				return
 			}
 		}
@@ -239,7 +239,7 @@ func (bf *BlockFetcher) Start() {
 
 func (bf *BlockFetcher) init() error {
 	setPeers := func() error {
-		result, err := bf.hub.RequestFutureResult(message.P2PSvc, &message.GetPeers{}, dfltTimeout, "BlockFetcher init")
+		result, err := bf.compRequester.RequestToFutureResult(message.P2PSvc, &message.GetPeers{}, dfltTimeout, "BlockFetcher init")
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get peers information")
 			return err
@@ -510,7 +510,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 
 	logger.Debug().Int("peerno", task.syncPeer.No).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("send block fetch request")
 
-	bf.hub.Tell(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
+	bf.compRequester.TellTo(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
 }
 
 //TODO refactoring matchFunc

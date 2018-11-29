@@ -26,7 +26,7 @@ func TestSyncer_sync1000(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 
@@ -52,7 +52,7 @@ func TestSyncer_sync10000(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 
@@ -77,7 +77,7 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 
@@ -112,7 +112,7 @@ func TestSyncer_sync_slowPeer(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 
@@ -152,7 +152,7 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 	syncer.start()
 
 	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
-	syncer.testhub.Tell(message.SyncerSvc, syncReq)
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 

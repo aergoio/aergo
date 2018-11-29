@@ -13,8 +13,8 @@ import (
 )
 
 type Finder struct {
-	hub   component.ICompRequester //for communicate with other service
-	chain types.ChainAccessor
+	compRequester component.IComponentRequester //for communicate with other service
+	chain         types.ChainAccessor
 
 	anchorCh chan chain.ChainAnchor
 	lScanCh  chan *types.BlockInfo
@@ -44,8 +44,8 @@ var (
 	ErrFinderTimeout            = errors.New("Finder timeout")
 )
 
-func newFinder(ctx *types.SyncContext, hub component.ICompRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
-	finder := &Finder{ctx: *ctx, hub: hub, chain: chain, cfg: cfg}
+func newFinder(ctx *types.SyncContext, compRequester component.IComponentRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
+	finder := &Finder{ctx: *ctx, compRequester: compRequester, chain: chain, cfg: cfg}
 
 	finder.dfltTimeout = cfg.fetchTimeOut
 	finder.quitCh = make(chan interface{})
@@ -82,11 +82,11 @@ func (finder *Finder) start() {
 
 		if err != nil {
 			logger.Debug().Msg("quit finder")
-			stopSyncer(finder.hub, NameFinder, err)
+			stopSyncer(finder.compRequester, NameFinder, err)
 			return
 		}
 
-		finder.hub.Tell(message.SyncerSvc, &message.FinderResult{Ancestor: ancestor, Err: nil})
+		finder.compRequester.TellTo(message.SyncerSvc, &message.FinderResult{Ancestor: ancestor, Err: nil})
 		logger.Debug().Msg("stopped finder successfully")
 	}
 
@@ -141,7 +141,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.hub.RequestFutureResult(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors")
+	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -160,7 +160,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
 	logger.Debug().Str("peer", finder.ctx.PeerID.Pretty()).Msg("send GetAncestor message to peer")
-	finder.hub.Tell(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
+	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)
 
@@ -235,7 +235,7 @@ func (finder *Finder) binarySearch(left uint64, right uint64) (*types.BlockInfo,
 }
 
 func (finder *Finder) hasSameHash(no types.BlockNo, localHash []byte) (bool, error) {
-	finder.hub.Tell(message.P2PSvc, &message.GetHashByNo{ToWhom: finder.ctx.PeerID, BlockNo: no})
+	finder.compRequester.TellTo(message.P2PSvc, &message.GetHashByNo{ToWhom: finder.ctx.PeerID, BlockNo: no})
 
 	recvHashRsp := func() (*message.GetHashByNoRsp, error) {
 		timer := time.NewTimer(finder.dfltTimeout)

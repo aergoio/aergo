@@ -14,8 +14,8 @@ import (
 )
 
 type StubSyncer struct {
-	realSyncer *Syncer
-	testhub    *StubHub
+	realSyncer    *Syncer
+	stubRequester *StubRequester
 
 	localChain  *StubBlockChain
 	remoteChain *StubBlockChain
@@ -51,9 +51,9 @@ func NewTestSyncer(t *testing.T, localChain *StubBlockChain, remoteChain *StubBl
 	syncer := NewSyncer(nil, localChain, cfg)
 	testsyncer := &StubSyncer{realSyncer: syncer, localChain: localChain, remoteChain: remoteChain, stubPeers: peers, cfg: cfg, t: t}
 
-	testsyncer.testhub = NewStubHub()
+	testsyncer.stubRequester = NewStubRequester()
 
-	syncer.SetTestHub(testsyncer.testhub)
+	syncer.SetRequester(testsyncer.stubRequester)
 
 	return testsyncer
 }
@@ -66,7 +66,7 @@ func (stubSyncer *StubSyncer) start() {
 		defer stubSyncer.waitGroup.Done()
 
 		for {
-			msg := stubSyncer.testhub.recvMessage()
+			msg := stubSyncer.stubRequester.recvMessage()
 			isStop := stubSyncer.handleMessage(msg)
 			if isStop {
 				return
@@ -206,13 +206,13 @@ func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
 		hashes, lastno, err := syncer.localChain.GetAnchors()
 
 		rspMsg := message.GetAnchorsRsp{Hashes: hashes, LastNo: lastno, Err: err}
-		syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
+		syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
 	}()
 }
 
 func (syncer *StubSyncer) GetPeers(msg *message.GetPeers) {
 	rspMsg := makePeerReply(syncer.stubPeers)
-	syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
+	syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
 }
 
 func (syncer *StubSyncer) GetSyncAncestor(msg *message.GetSyncAncestor) {
@@ -221,7 +221,7 @@ func (syncer *StubSyncer) GetSyncAncestor(msg *message.GetSyncAncestor) {
 	ancestor := stubPeer.blockChain.GetAncestorWithHashes(msg.Hashes)
 
 	rspMsg := &message.GetSyncAncestorRsp{Ancestor: ancestor}
-	syncer.testhub.Tell(message.SyncerSvc, rspMsg) //TODO refactoring: stubhubresult
+	syncer.stubRequester.TellTo(message.SyncerSvc, rspMsg) //TODO refactoring: stubcompRequesterresult
 
 }
 
@@ -229,7 +229,7 @@ func (syncer *StubSyncer) GetHashByNo(msg *message.GetHashByNo) {
 	//targetPeer = 0
 	hash, err := syncer.stubPeers[0].blockChain.GetHashByNo(msg.BlockNo)
 	rsp := &message.GetHashByNoRsp{BlockHash: hash, Err: err}
-	syncer.testhub.Tell(message.SyncerSvc, rsp)
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
 func (syncer *StubSyncer) GetHashes(msg *message.GetHashes, responseErr error) {
 	blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
@@ -237,7 +237,7 @@ func (syncer *StubSyncer) GetHashes(msg *message.GetHashes, responseErr error) {
 	assert.Equal(syncer.t, len(blkHashes), int(msg.Count))
 	rsp := &message.GetHashesRsp{msg.PrevInfo, blkHashes, uint64(len(blkHashes)), responseErr}
 
-	syncer.testhub.Tell(message.SyncerSvc, rsp)
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
 
 func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
@@ -257,7 +257,7 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 		blocks, err := stubPeer.blockChain.GetBlocks(msg.Hashes)
 
 		rsp := &message.GetBlockChunksRsp{ToWhom: msg.ToWhom, Blocks: blocks, Err: err}
-		syncer.testhub.Tell(message.SyncerSvc, rsp)
+		syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 	}()
 }
 
@@ -267,7 +267,7 @@ func (syncer *StubSyncer) AddBlock(msg *message.AddBlock, responseErr error) {
 
 	rsp := &message.AddBlockRsp{BlockNo: msg.Block.GetHeader().BlockNo, BlockHash: msg.Block.GetHash(), Err: err}
 	logger.Debug().Uint64("no", msg.Block.GetHeader().BlockNo).Msg("add block succeed")
-	syncer.testhub.Tell(message.SyncerSvc, rsp)
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
 
 func (syncer *StubSyncer) findStubPeer(peerID peer.ID) *StubPeer {
@@ -301,7 +301,7 @@ func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 
 //test block fetcher only
 func (stubSyncer *StubSyncer) runTestBlockFetcher(ctx *types.SyncContext) {
-	stubSyncer.realSyncer.blockFetcher = newBlockFetcher(ctx, stubSyncer.realSyncer.getHub(), stubSyncer.cfg)
+	stubSyncer.realSyncer.blockFetcher = newBlockFetcher(ctx, stubSyncer.realSyncer.getCompRequester(), stubSyncer.cfg)
 	stubSyncer.realSyncer.blockFetcher.Start()
 }
 
