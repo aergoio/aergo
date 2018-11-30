@@ -45,7 +45,16 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 
     id->is_used = true;
 
-    exp->id = id;
+    if (is_const_id(id)) {
+        ASSERT(id->val != NULL);
+
+        exp->kind = EXP_LIT;
+        exp->u_lit.val = *id->val;
+    }
+    else {
+        exp->id = id;
+    }
+
     meta_copy(&exp->meta, &id->meta);
 
     return NO_ERROR;
@@ -613,14 +622,7 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, post_exp));
     CHECK(meta_cmp(in_meta, post_meta));
 
-    if (is_lit_exp(pre_exp)) {
-        ASSERT1(is_bool_val(&pre_exp->u_lit.val), pre_exp->u_lit.val.kind);
-
-        *exp = bool_val(&pre_exp->u_lit.val) ? *in_exp : *post_exp;
-    }
-    else {
-        meta_eval(&exp->meta, in_meta, post_meta);
-    }
+    meta_eval(&exp->meta, in_meta, post_meta);
 
     return NO_ERROR;
 }
