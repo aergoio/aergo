@@ -498,7 +498,7 @@ enumeration:
     {
         $$ = id_new_enum($2, $4, &@$);
     }
-|   K_ENUM error ')'
+|   K_ENUM error '}'
     {
         $$ = NULL;
     }
