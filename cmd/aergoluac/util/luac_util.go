@@ -16,9 +16,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"unsafe"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/types"
 )
 
 var (
@@ -28,6 +30,13 @@ var (
 func Compile(code string) ([]byte, error) {
 	b.Reset()
 	L := C.luac_vm_newstate()
+	if L == nil {
+		runtime.GC()
+		L = C.luac_vm_newstate()
+		if L == nil {
+			return nil, types.ErrVmStart
+		}
+	}
 	defer C.luac_vm_close(L)
 	cstr := C.CString(code)
 	defer C.free(unsafe.Pointer(cstr))
