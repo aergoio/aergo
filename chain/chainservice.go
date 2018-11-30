@@ -131,6 +131,11 @@ func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
 	return nil
 }
 
+type IChainHandler interface {
+	getBlock(blockHash []byte) (*types.Block, error)
+	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
+}
+
 // ChainService manage connectivity of blocks
 type ChainService struct {
 	*component.BaseComponent
@@ -141,6 +146,9 @@ type ChainService struct {
 	op  *OrphanPool
 
 	validator *BlockValidator
+
+	chainWorker  *ChainWorker
+	chainManager *ChainManager
 }
 
 // NewChainService creates an instance of ChainService.
@@ -168,6 +176,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	cs.validator = NewBlockValidator(cs.sdb)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
+	cs.chainManager = newChainManager(cs)
+	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount)
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil); err != nil {
@@ -209,6 +219,7 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
+	cs.chainManager.Start()
 }
 
 // ChainSync synchronize with peer
@@ -227,6 +238,9 @@ func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
 // BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
 	cs.Close()
+
+	cs.chainManager.Stop()
+	cs.chainWorker.Stop()
 
 	cs.validator.Stop()
 }
@@ -277,40 +291,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.AddBlock:
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		bid := msg.Block.BlockID()
-		block := msg.Block
-		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
-		_, err := cs.getBlock(bid[:])
-		if err == nil {
-			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = ErrBlockExist
-		} else {
-			var bstate *state.BlockState
-			if msg.Bstate != nil {
-				bstate = msg.Bstate.(*state.BlockState)
-			}
-			err = cs.addBlock(block, bstate, msg.PeerID)
-			if err != nil && err != ErrBlockOrphan {
-				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
-			}
-		}
-
-		rsp := message.AddBlockRsp{
-			BlockNo:   block.GetHeader().GetBlockNo(),
-			BlockHash: block.BlockHash(),
-			Err:       err,
-		}
-
-		if msg.IsSync {
-			cs.RequestTo(message.SyncerSvc, &rsp)
-		} else {
-			context.Respond(rsp)
-		}
-
-		cs.Hub().Tell(message.RPCSvc, block)
+		cs.chainManager.Request(msg, context.Sender())
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
