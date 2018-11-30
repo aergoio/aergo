@@ -458,8 +458,8 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 	var b bytes.Buffer
 	b.Write(data)
 	var receipts types.Receipts
-	gob := gob.NewDecoder(&b)
-	gob.Decode(&receipts)
+	decoder := gob.NewDecoder(&b)
+	decoder.Decode(&receipts)
 
 	if idx < 0 || idx > int32(len(receipts)) {
 		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
