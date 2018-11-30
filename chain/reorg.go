@@ -60,12 +60,13 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 	cdb := cs.cdb
 	blockNo := block.BlockNo()
 
-	isNeed := cdb.latest < blockNo
+	latest := cdb.getBestBlockNo()
+	isNeed := latest < blockNo
 
 	if isNeed {
 		logger.Debug().
 			Uint64("blockNo", blockNo).
-			Uint64("latestNo", cdb.latest).
+			Uint64("latestNo", latest).
 			Str("prev", block.ID()).
 			Msg("need reorganization")
 	}
@@ -221,7 +222,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	brBlock := reorg.brTopBlock
 	brBlockNo := brBlock.BlockNo()
 
-	curBestNo := cdb.latest
+	curBestNo := cdb.getBestBlockNo()
 
 	for {
 		if brBlockNo <= curBestNo {

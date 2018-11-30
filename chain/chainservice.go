@@ -83,8 +83,9 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
 func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := core.cdb.getHashByNo(0)
 	if len(gh) == 0 {
-		logger.Info().Uint64("nom", core.cdb.latest).Msg("current latest")
-		if core.cdb.latest == 0 {
+		latest := core.cdb.getBestBlockNo()
+		logger.Info().Uint64("nom", latest).Msg("current latest")
+		if latest == 0 {
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}

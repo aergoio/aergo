@@ -161,7 +161,7 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 
 	if logger.IsDebugEnabled() {
 		logger.Debug().Bool("isMainChain", cp.isMain()).
-			Uint64("latest", cp.cdb.latest).
+			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
 			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
