@@ -174,6 +174,7 @@ static int
 id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
+    int offset = 0;
     array_t *fld_ids;
 
     ASSERT1(is_struct_id(id), id->kind);
@@ -189,6 +190,9 @@ id_check_struct(check_t *check, ast_id_t *id)
         CHECK(id_check_var(check, fld_id));
 
         flag_set(fld_id->mod, MOD_PUBLIC);
+
+        fld_id->offset = offset;
+        offset += ALIGN64(fld_id->meta.size);
     }
 
     meta_set_struct(&id->meta, id->name, fld_ids);

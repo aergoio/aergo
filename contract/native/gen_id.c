@@ -23,7 +23,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         if (y is local)
             BinaryenExpressionRef value = BinaryenGetLocal(module, idx);
         else
-            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, offset, align, type, addr);
+            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, 0, align, type, address of y);
 
         BinaryenSetLocal(module, 0, value);
 
@@ -43,11 +43,11 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         BinaryenStore(module, size, offset, align, addr, value, type);
 
         if (y is local)
-            BinaryenExpressionRef value = BinaryenGetLocal(module, idx);
+            BinaryenExpressionRef value = BinaryenGetLocal(module, index of y);
         else
-            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, offset, align, type, addr);
+            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, offset, align, type, address of y);
 
-        BinaryenStore(module, size, offset + x, align, addr, value, type);
+        BinaryenStore(module, size, offset + x, align, address of x, value, type);
     */
 
     if (id->u_var.init_exp != NULL) {

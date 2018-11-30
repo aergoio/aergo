@@ -14,7 +14,7 @@
 static int
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 {
-    int i;
+    int i, rc;
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
@@ -25,7 +25,12 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     l_exp = stmt->u_assign.l_exp;
     l_meta = &l_exp->meta;
 
-    CHECK(exp_check(check, l_exp));
+    check->is_lval = true;
+    rc = exp_check(check, l_exp);
+    check->is_lval = false;
+
+    if (rc != NO_ERROR)
+        return rc;
 
     r_exp = stmt->u_assign.r_exp;
     r_meta = &r_exp->meta;

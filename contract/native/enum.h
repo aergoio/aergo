@@ -88,6 +88,12 @@ typedef enum id_kind_e {
 
 extern char *id_kinds_[ID_MAX];
 
+typedef enum scope_e {
+    SCOPE_LOCAL     = 0,
+    SCOPE_GLOBAL,
+    SCOPE_MAX
+} scope_t;
+
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
     EXP_LIT,

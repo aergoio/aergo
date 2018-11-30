@@ -45,9 +45,10 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 
     id->is_used = true;
 
-    if (is_const_id(id)) {
-        ASSERT(id->val != NULL);
-
+    /* TODO: we have to clone composite assign expression
+    if (!check->is_lval && id->val != NULL) {
+    */
+    if (is_const_id(id) && id->val != NULL) {
         exp->kind = EXP_LIT;
         exp->u_lit.val = *id->val;
     }

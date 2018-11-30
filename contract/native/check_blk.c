@@ -45,7 +45,12 @@ blk_check(check_t *check, ast_blk_t *blk)
     check->blk = blk;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        id_check(check, array_get(&blk->ids, i, ast_id_t));
+        ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+
+        if (is_contract_blk(blk))
+            id->scope = SCOPE_GLOBAL;
+
+        id_check(check, id);
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {

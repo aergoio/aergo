@@ -31,6 +31,8 @@ typedef struct check_s {
     ast_id_t *cont_id;      /* current contract */
     ast_id_t *qual_id;      /* current access qualifier */
     ast_id_t *func_id;      /* current function */
+
+    bool is_lval;           /* whether it is lvalue */
 } check_t;
 
 void check(ast_t *ast, flag_t flag);

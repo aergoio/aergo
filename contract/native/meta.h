@@ -91,6 +91,7 @@ struct meta_s {
     AST_NODE_DECL;
 
     type_t type;
+    int size;               /* size of type */
 
     char *name;             /* name of struct or contract */
 
@@ -104,7 +105,6 @@ struct meta_s {
     meta_t **elems;         /* metas of elements */
 
     /* memory properties */
-    int size;               /* memory size */
     int offset;             /* relative offset of field */
     int align;              /* maximum alignment */
 };
@@ -140,6 +140,7 @@ meta_new(type_t type, src_pos_t *pos)
     ast_node_init(meta, pos);
 
     meta->type = type;
+    meta->size = TYPE_SIZE(type);
 
     return meta;
 }
@@ -150,6 +151,7 @@ meta_set(meta_t *meta, type_t type)
     ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
+    meta->size = TYPE_SIZE(type);
 }
 
 static inline void

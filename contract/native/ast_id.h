@@ -89,10 +89,12 @@ struct ast_id_s {
     bool is_used;       /* whether it is referenced */
     bool is_checked;    /* whether it is checked */
 
+    scope_t scope;      /* local or global */
+
     meta_t meta;        /* identifier metadata */
     value_t *val;       /* constant value */
 
-    int idx;            /* index of variable */
+    int offset;         /* memory offset of field */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);

@@ -128,6 +128,35 @@ exp_gen_op(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp)
 {
+    /*
+    struct {
+        int x;
+        string y;
+    };
+    struct a;
+    struct b;
+        // a, b should has address of memory
+
+    a.x = 1;
+        if (a is struct) {
+            value = BinaryenConst(module, BinaryenLiteralInt32(1));
+            BinaryenStore(module, size, offset of x, align, base address of a, value, type);
+        }
+        else if (a is contract) {
+        }
+
+    a.x = p1;
+        value = BinaryenGetLocal(module, index of p1);
+        BinaryenStore(module, size, offset of x, align, base address of a, value, type);
+
+    a.y = "abc";
+        value = address of "abc";
+        BinaryenStore(module, size, offset of y, align, base address of a, value, type);
+
+    a.y = b.y;
+        value = BinaryenLoad(module, size, signed, offset of y, align, type, base address of b);
+        BinaryenStore(module, size, offset of x, align, base address of a, value, type);
+    */
     return NULL;
 }
 
