@@ -115,8 +115,8 @@ func (mm *metricsManager) Summary() string {
 		sb.WriteString("PeerID                                                   :  IN_TOTAL,    IN_AVR,   IN_LOAD  :   OUT_TOTAL,   OUT_AVR,  OUT_LOAD\n")
 		for _, met := range mm.Metrics() {
 			sb.WriteString(met.PeerID.Pretty())
-			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.SumIn, met.InMetric.APS(), met.InMetric.LoadScore()))
-			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.SumOut, met.OutMetric.APS(), met.OutMetric.LoadScore()))
+			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.totalIn, met.InMetric.APS(), met.InMetric.LoadScore()))
+			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.totalOut, met.OutMetric.APS(), met.OutMetric.LoadScore()))
 			sb.WriteString("\n")
 		}
 	}
