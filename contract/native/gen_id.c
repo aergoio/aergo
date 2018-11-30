@@ -14,6 +14,42 @@
 static BinaryenExpressionRef
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
+    /*
+    int i = 1;
+        BinaryenExpressionRef value = BinaryenConst(module, BinaryenLiteralInt32(1));
+        BinaryenSetLocal(module, 0, value);
+
+    int x = y;
+        if (y is local)
+            BinaryenExpressionRef value = BinaryenGetLocal(module, idx);
+        else
+            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, offset, align, type, addr);
+
+        BinaryenSetLocal(module, 0, value);
+
+    string x = "abc";
+    int x[2] = { 1, 2 };
+    struct x = { 1, "abc" };
+        // nothing to do
+        // x should has address of value in data segment
+    
+    string y = x;
+        // nothing to do
+        // x should has address of x in data segment
+
+    int x[2] = { 1, y };
+    struct x = { 1, y };
+        BinaryenExpressionRef value = BinaryenConst(module, BinaryenLiteralInt32(1));
+        BinaryenStore(module, size, offset, align, addr, value, type);
+
+        if (y is local)
+            BinaryenExpressionRef value = BinaryenGetLocal(module, idx);
+        else
+            BinaryenExpressionRef value = BinaryenLoad(module, size, signed, offset, align, type, addr);
+
+        BinaryenStore(module, size, offset + x, align, addr, value, type);
+    */
+
     if (id->u_var.init_exp != NULL) {
         BinaryenExpressionRef value = exp_gen(gen, id->u_var.init_exp);
 
