@@ -165,3 +165,10 @@ sqlite3 *vm_get_db(lua_State *L)
     }
     return db;
 }
+
+void vm_get_abi_function(lua_State *L, char *fname)
+{
+	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+	lua_getfield(L, -1, "call");
+	lua_pushstring(L, fname);
+}

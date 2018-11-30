@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"reflect"
 	"sync"
 	"unsafe"
@@ -90,11 +91,8 @@ func init() {
 	contractMap.init()
 }
 
-func registerMap(bcCtx *LBlockchainCtx, blockState *state.BlockState, senderState *types.State,
+func registerMap(contractId, sender, stateKey string, blockState *state.BlockState, senderState *types.State,
 	contractState *state.ContractState, root *StateSet) {
-	contractId := C.GoString(bcCtx.contractId)
-	sender := C.GoString(bcCtx.sender)
-	stateKey := C.GoString(bcCtx.stateKey)
 	stateSet := &StateSet{contract: contractState, bs: blockState, rootState: root}
 	if root == nil {
 		stateSet.callState = make(map[string]*CallState)
@@ -106,15 +104,14 @@ func registerMap(bcCtx *LBlockchainCtx, blockState *state.BlockState, senderStat
 }
 
 func NewContext(blockState *state.BlockState, senderState *types.State,
-	contractState *state.ContractState, Sender string,
+	contractState *state.ContractState, sender string,
 	txHash string, blockHeight uint64, timestamp int64, node string, confirmed int,
 	contractId string, query int, root *StateSet, rp uint64, service int, amount uint64) *LBlockchainCtx {
 
 	stateKey := fmt.Sprintf("%d%s%s", service, contractId, txHash)
-
 	bcCtx := &LBlockchainCtx{
 		stateKey:    C.CString(stateKey),
-		sender:      C.CString(Sender),
+		sender:      C.CString(sender),
 		txHash:      C.CString(txHash),
 		blockHeight: C.ulonglong(blockHeight),
 		timestamp:   C.longlong(timestamp/1e9),
@@ -127,7 +124,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		amount:      C.ulonglong(amount),
 	}
 	bcCtx.origin = bcCtx.sender
-	registerMap(bcCtx, blockState, senderState, contractState, root)
+	registerMap(contractId, sender, stateKey, blockState, senderState, contractState, root)
 
 	return bcCtx
 }
@@ -136,7 +133,7 @@ func (bcCtx *LBlockchainCtx) Close() {
 	if bcCtx == nil {
 		return
 	}
-	if bcCtx.stateKey != nil {
+	if bcCtx.isQuery == 1 || bcCtx.timestamp != 0 {
 		contractMap.unregister(C.GoString(bcCtx.stateKey))
 	}
 	C.bc_ctx_delete(bcCtx)
@@ -253,17 +250,10 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
-	abiStr := C.CString("abi")
-	callStr := C.CString("call")
+
 	abiName := C.CString(ci.Name)
-
-	defer C.free(unsafe.Pointer(abiStr))
-	defer C.free(unsafe.Pointer(callStr))
-	defer C.free(unsafe.Pointer(abiName))
-
-	C.vm_getfield(ce.L, abiStr)
-	C.lua_getfield(ce.L, -1, callStr)
-	C.lua_pushstring(ce.L, abiName)
+	C.vm_get_abi_function(ce.L, abiName)
+	C.free(unsafe.Pointer(abiName))
 
 	ce.processArgs(ci)
 	nret := C.int(0)
@@ -360,7 +350,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.prevState == nil {
 			continue
 		}
-		aid, _ := types.DecodeAddress(k)
+		aid, _ := enc.ToBytes(k)
 		err = bs.PutState(types.ToAccountID(aid), v.curState)
 		if err != nil {
 			return DbSystemError(err)
@@ -451,11 +441,11 @@ func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contr
 	defer ce.close(true)
 
 	bcCtx := ce.blockchainCtx
+	contractId := C.GoString(bcCtx.contractId)
+	sender := C.GoString(bcCtx.sender)
+	stateKey := C.GoString(bcCtx.stateKey)
 
-	stateKey := fmt.Sprintf("%d%s%s", C.int(bcCtx.service),
-		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash))
-	bcCtx.stateKey = C.CString(stateKey)
-	registerMap(bcCtx, bs, senderState, contractState, nil)
+	registerMap(contractId, sender, stateKey, bs, senderState, contractState, nil)
 	bcCtx.blockHeight = C.ulonglong(blockNo)
 	bcCtx.timestamp = C.longlong(ts)
 	bcCtx.rp = C.ulonglong(rp)
@@ -477,13 +467,30 @@ func PreCall(ce *Executor, bs *state.BlockState, senderState *types.State, contr
 	return ce.jsonRet, err
 }
 
-func PreloadEx(contractState *state.ContractState, code, contractAddress []byte,
+func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contractId string, code, contractAddress []byte,
 	bcCtx *LBlockchainCtx) (*Executor, error) {
 
 	var err error
 	var ci types.CallInfo
-	contract := getContract(contractState, contractAddress, nil)
+	var contractCode []byte
+	var contract *Contract
+
+	if bs != nil {
+		contractCode = bs.CodeMap[contractId]
+	}
+	if contractCode == nil {
+		contract = getContract(contractState, contractAddress, nil)
+	} else {
+		contract = &Contract{
+			code:    contractCode,
+			address: contractAddress[:],
+		}
+	}
+
 	if contract != nil {
+		if contractCode == nil {
+			bs.CodeMap[contractId] = contract.code
+		}
 		err = json.Unmarshal(code, &ci)
 		if err != nil {
 			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -610,7 +617,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	var ce *Executor
 
 	bcCtx := NewContext(bs, nil, contractState, "", "",
-		0, 0, "", 0, types.EncodeAddress(contractAddress),
+		0, 0, "", 0, enc.ToString(contractAddress),
 		1, nil, contractState.SqlRecoveryPoint, ChainService, 0)
 
 	if ctrLog.IsDebugEnabled() {
@@ -774,11 +781,10 @@ func LuaGetDB(L *LState, stateKey *C.char, key *C.char) C.int {
 func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname *C.char, args *C.char,
 	amount uint64, gas uint64) C.int {
 	stateKeyStr := C.GoString(bcCtx.stateKey)
-	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
 
-	cid, err := types.DecodeAddress(contractIdStr)
+	cid, err := types.DecodeAddress(C.GoString(contractId))
 	if err != nil {
 		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
 		return -1
@@ -792,7 +798,8 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 	}
 
 	rootState := stateSet.rootState
-	callState := rootState.callState[contractIdStr]
+	cidstr := enc.ToString(cid)
+	callState := rootState.callState[cidstr]
 	if callState == nil {
 		bs := rootState.bs
 
@@ -810,7 +817,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		}
 		callState =
 			&CallState{ctrState: contractState, prevState: prevState, curState: &curState}
-		rootState.callState[contractIdStr] = callState
+		rootState.callState[cidstr] = callState
 	}
 	if callState.ctrState == nil {
 		callState.ctrState, err = rootState.bs.OpenContractState(aid, callState.curState)
@@ -822,13 +829,13 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 
 	callee := getContract(callState.ctrState, cid, nil)
 	if callee == nil {
-		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+string(contractIdStr))
+		luaPushStr(L, "[System.LuaGetContract]cannot find contract "+C.GoString(contractId))
 		return -1
 	}
 
 	newBcCtx := NewContext(nil, nil, callState.ctrState,
 		C.GoString(bcCtx.contractId), C.GoString(bcCtx.txHash), uint64(bcCtx.blockHeight), int64(bcCtx.timestamp),
-		"", int(bcCtx.confirmed), contractIdStr, int(bcCtx.isQuery), rootState, callState.curState.SqlRecoveryPoint,
+		"", int(bcCtx.confirmed), cidstr, int(bcCtx.isQuery), rootState, callState.curState.SqlRecoveryPoint,
 		int(bcCtx.service), amount)
 	newBcCtx.origin = bcCtx.origin
 	ce := newExecutor(callee, newBcCtx)
@@ -854,7 +861,7 @@ func LuaCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, fname
 		}
 	}
 	if rootState.lastRecoveryEntry != nil {
-		setRecoveryPoint(&contractIdStr, rootState, senderState, callState, amount, callState.ctrState.Snapshot())
+		setRecoveryPoint(&cidstr, rootState, senderState, callState, amount, callState.ctrState.Snapshot())
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
@@ -923,9 +930,8 @@ func LuaDelegateCallContract(L *LState, bcCtx *LBlockchainCtx, contractId *C.cha
 //export LuaSendAmount
 func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount uint64) C.int {
 	stateKeyStr := C.GoString(bcCtx.stateKey)
-	contractIdStr := C.GoString(contractId)
 
-	cid, err := types.DecodeAddress(contractIdStr)
+	cid, err := types.DecodeAddress(C.GoString(contractId))
 	if err != nil {
 		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
 		return -1
@@ -937,8 +943,9 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 		return -1
 	}
 
+	cidstr := enc.ToString(cid)
 	rootState := stateSet.rootState
-	callState := rootState.callState[contractIdStr]
+	callState := rootState.callState[cidstr]
 	if callState == nil {
 		bs := rootState.bs
 
@@ -951,7 +958,7 @@ func LuaSendAmount(L *LState, bcCtx *LBlockchainCtx, contractId *C.char, amount 
 		curState := types.Clone(*prevState).(types.State)
 		callState =
 			&CallState{prevState: prevState, curState: &curState}
-		rootState.callState[contractIdStr] = callState
+		rootState.callState[cidstr] = callState
 	}
 	if sendBalance(L, stateSet.contract.State, callState.curState, amount) == false {
 		bcCtx.transferFailed = 1
@@ -1109,8 +1116,7 @@ func LuaGetBalance(L *LState, bcCtx *LBlockchainCtx, contractId *C.char) C.int {
 		C.lua_pushinteger(L, C.lua_Integer(stateSet.contract.GetBalance()))
 		return 0
 	}
-	contractIdStr := C.GoString(contractId)
-	cid, err := types.DecodeAddress(contractIdStr)
+	cid, err := types.DecodeAddress(C.GoString(contractId))
 	if err != nil {
 		luaPushStr(L, "[System.LuaGetContract]invalid contractId :"+err.Error())
 		return -1
@@ -1122,8 +1128,9 @@ func LuaGetBalance(L *LState, bcCtx *LBlockchainCtx, contractId *C.char) C.int {
 		return -1
 	}
 
+	cidstr := enc.ToString(cid)
 	rootState := stateSet.rootState
-	callState := rootState.callState[contractIdStr]
+	callState := rootState.callState[cidstr]
 	if callState == nil {
 		bs := rootState.bs
 
@@ -1138,4 +1145,10 @@ func LuaGetBalance(L *LState, bcCtx *LBlockchainCtx, contractId *C.char) C.int {
 	}
 
 	return 0
+}
+
+//export LuaAddressEncode
+func LuaAddressEncode(L *LState, address *C.char) {
+	account, _ := enc.ToBytes(C.GoString(address))
+	luaPushStr(L, types.EncodeAddress(account))
 }

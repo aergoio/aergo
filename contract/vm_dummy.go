@@ -3,9 +3,9 @@ package contract
 // helper functions
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"io/ioutil"
 	"path"
 	"strconv"
@@ -286,9 +286,10 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 	return contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
 			uContractState.SqlRecoveryPoint = 1
+
 			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
+				enc.ToString(l.sender), enc.ToString(l.hash()), blockNo, ts,
+				"", 1, enc.ToString(l.contract),
 				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
 			_, err := Create(eContractState, l.code, l.contract, bcCtx)
@@ -338,8 +339,8 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptT
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
 			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
+				enc.ToString(l.sender), enc.ToString(l.hash()), blockNo, ts,
+				"", 1, enc.ToString(l.contract),
 				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
 			if err != nil {

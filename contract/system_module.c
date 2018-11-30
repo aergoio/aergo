@@ -93,7 +93,7 @@ static int getSender(lua_State *L)
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushstring(L, exec->sender);
+	LuaAddressEncode(L, exec->sender);
 	return 1;
 }
 
@@ -133,7 +133,7 @@ static int getContractID(lua_State *L)
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushstring(L, exec->contractId);
+	LuaAddressEncode(L, exec->contractId);
 	return 1;
 }
 
@@ -173,7 +173,7 @@ static int getOrigin(lua_State *L)
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushstring(L, exec->origin);
+	LuaAddressEncode(L, exec->origin);
 	return 1;
 }
 

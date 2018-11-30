@@ -3,9 +3,10 @@ package contract
 import "C"
 import (
 	"errors"
+	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"strconv"
 
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -94,9 +95,9 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	if ex != nil {
 		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
 	} else {
-		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
+		bcCtx := NewContext(bs, sender.State(), contractState, enc.ToString(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
+			enc.ToString(receiver.ID()), 0, nil, receiver.RP(),
 			preLoadService, txBody.GetAmount())
 
 		if receiver.IsCreate() {
@@ -166,11 +167,11 @@ func preLoadWorker() {
 			continue
 		}
 		txHash := enc.ToString(tx.GetHash())
-		sender := types.EncodeAddress(txBody.GetAccount())
-		contractId := types.EncodeAddress(receiver.ID())
-
+		contractId := enc.ToString(receiver.ID())
+		stateKey := fmt.Sprintf("%d%s%s", reqInfo.preLoadService, contractId, txHash)
 		bcCtx := &LBlockchainCtx{
-			sender:     C.CString(sender),
+			stateKey:   C.CString(stateKey),
+			sender:     C.CString(enc.ToString(txBody.GetAccount())),
 			txHash:     C.CString(txHash),
 			contractId: C.CString(contractId),
 			service:    C.int(reqInfo.preLoadService),
@@ -180,7 +181,7 @@ func preLoadWorker() {
 			node:       C.CString(""),
 		}
 
-		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)
+		ex, err := PreloadEx(bs, contractState, contractId, txBody.Payload, receiver.ID(), bcCtx)
 		if err != nil {
 			bcCtx.Del()
 		}
