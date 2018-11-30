@@ -38,7 +38,7 @@ func TestBasicExecute(t *testing.T) {
 
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, 0)
 	assert.NoError(t, err, "Execute system tx failed in staking")
-	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
+	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender.GetBalanceBigInt() should be 0 after staking")
 
 	tx.Body.Payload = []byte{'v'}
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay)
@@ -47,7 +47,7 @@ func TestBasicExecute(t *testing.T) {
 	tx.Body.Payload = []byte{'u'}
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "Execute system tx failed in unstaking")
-	assert.Equal(t, senderState.GetBalance(), uint64(1000), "sender balance should be 0 after staking")
+	assert.Equal(t, senderState.GetBalance(), uint64(1000), "sender.GetBalanceBigInt() should be 0 after staking")
 }
 
 func TestValidateSystemTxForStaking(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"path"
 	"strconv"
 	"strings"
@@ -117,7 +118,7 @@ func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64,
 		return err
 	}
 	updatedAccountState := types.State(*accountState)
-	updatedAccountState.Balance = l.balance
+	updatedAccountState.Balance = new(big.Int).SetUint64(l.balance).Bytes()
 	bs.PutState(id, &updatedAccountState)
 	return nil
 }

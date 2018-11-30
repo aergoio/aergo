@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"sync"
 	"unsafe"
@@ -963,14 +964,15 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount u
 	if sender == receiver {
 		return true
 	}
-	if sender.Balance < amount {
+	amountBigInt := new(big.Int).SetUint64(amount)
+	if sender.GetBalanceBigInt().Cmp(amount) < 0 {
 		luaPushStr(L, "[Contract.call]insuficient balance"+
-			string(sender.Balance)+" : "+string(amount))
+			sender.GetBalanceBigInt().String()+" : "+string(amountBigInt))
 		return false
 	} else {
-		sender.Balance = sender.Balance - amount
+		sender.Balance = new(big.Int).Sub(sender.GetBalanceBigInt(), amountBigInt).Bytes()
 	}
-	receiver.Balance = receiver.Balance + amount
+	receiver.Balance = new(big.Int).Add(receiver.GetBalanceBigInt(), amountBigInt).Bytes()
 
 	return true
 }

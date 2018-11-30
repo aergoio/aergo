@@ -1,8 +1,15 @@
 package types
 
-const AergoSystem = "aergo.system"
-const StakingMinimum = 1000
+import "math/big"
 
-func (v VoteList) Len() int           { return len(v.Votes) }
-func (v VoteList) Less(i, j int) bool { return v.Votes[i].Amount < v.Votes[j].Amount }
-func (v VoteList) Swap(i, j int)      { v.Votes[i], v.Votes[j] = v.Votes[j], v.Votes[i] }
+const AergoSystem = "aergo.system"
+
+func (vl VoteList) Len() int { return len(vl.Votes) }
+func (vl VoteList) Less(i, j int) bool {
+	return new(big.Int).SetBytes(vl.Votes[i].Amount).Cmp(new(big.Int).SetBytes(vl.Votes[j].Amount)) < 0
+}
+func (vl VoteList) Swap(i, j int) { vl.Votes[i], vl.Votes[j] = vl.Votes[j], vl.Votes[i] }
+
+func (v Vote) GetAmountBigInt() *big.Int {
+	return new(big.Int).SetBytes(v.Amount)
+}

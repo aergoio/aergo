@@ -1,6 +1,8 @@
 package state
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
@@ -50,11 +52,11 @@ func (st *ContractState) GetNonce() uint64 {
 	return st.State.GetNonce()
 }
 
-func (st *ContractState) SetBalance(balance uint64) {
-	st.State.Balance = balance
+func (st *ContractState) SetBalance(balance *big.Int) {
+	st.State.Balance = balance.Bytes()
 }
-func (st *ContractState) GetBalance() uint64 {
-	return st.State.GetBalance()
+func (st *ContractState) GetBalance() *big.Int {
+	return new(big.Int).SetBytes(st.State.GetBalance())
 }
 
 func (st *ContractState) SetCode(code []byte) error {

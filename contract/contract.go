@@ -53,11 +53,11 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
-		if sender.Balance() < txBody.Amount {
+		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return "", types.ErrInsufficientBalance
 		}
-		sender.SubBalance(txBody.Amount)
-		receiver.AddBalance(txBody.Amount)
+		sender.SubBalance(txBody.GetAmountBigInt())
+		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
 	if txBody.Payload == nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"strconv"
 
@@ -22,10 +23,10 @@ type InOutTxBody struct {
 	Nonce     uint64
 	Account   string
 	Recipient string
-	Amount    uint64
+	Amount    *big.Int
 	Payload   string
 	Limit     uint64
-	Price     uint64
+	Price     *big.Int
 	Type      types.TxType
 	Sign      string
 }
@@ -96,7 +97,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 			return err
 		}
 	}
-	target.Amount = source.Amount
+	target.Amount = source.Amount.Bytes()
 	if source.Payload != "" {
 		target.Payload, err = base58.Decode(source.Payload)
 		if err != nil {
@@ -104,7 +105,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 	}
 	target.Limit = source.Limit
-	target.Price = source.Price
+	target.Price = source.Price.Bytes()
 	if source.Sign != "" {
 		target.Sign, err = base58.Decode(source.Sign)
 		if err != nil {
@@ -175,10 +176,10 @@ func ConvTx(tx *types.Tx) *InOutTx {
 	if tx.Body.Recipient != nil {
 		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	}
-	out.Body.Amount = tx.Body.Amount
+	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount)
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.Limit = tx.Body.Limit
-	out.Body.Price = tx.Body.Price
+	out.Body.Price = new(big.Int).SetBytes(tx.Body.Price)
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out

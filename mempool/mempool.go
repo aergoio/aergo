@@ -410,7 +410,7 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
 		//mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
-		return &types.State{Balance: bal, Nonce: nonce}, nil
+		return &types.State{Balance: bal.Bytes(), Nonce: nonce}, nil
 	}
 
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))

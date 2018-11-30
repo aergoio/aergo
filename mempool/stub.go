@@ -6,6 +6,7 @@
 package mempool
 
 import (
+	"math/big"
 	"sync"
 
 	"github.com/aergoio/aergo/types"
@@ -57,7 +58,7 @@ const defaultBalance = uint64(10000000)
 
 var (
 	lock        sync.RWMutex
-	balance     = map[string]uint64{}
+	balance     = map[string]*big.Int{}
 	nonce       = map[string]uint64{}
 	bestBlockNo = types.BlockNo(1)
 )
@@ -65,7 +66,7 @@ var (
 func initStubData() {
 	lock.Lock()
 	defer lock.Unlock()
-	balance = map[string]uint64{}
+	balance = map[string]*big.Int{}
 	nonce = map[string]uint64{}
 	bestBlockNo = types.BlockNo(1)
 
@@ -79,12 +80,12 @@ func getNonceByAccMock(acc string) uint64 {
 	}
 	return nonce[acc]
 }
-func getBalanceByAccMock(acc string) uint64 {
+func getBalanceByAccMock(acc string) *big.Int {
 	lock.Lock()
 	defer lock.Unlock()
 	_, ok := balance[acc]
 	if !ok {
-		balance[acc] = defaultBalance
+		balance[acc] = new(big.Int).SetUint64(defaultBalance)
 	}
 	return balance[acc]
 }

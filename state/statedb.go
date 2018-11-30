@@ -8,6 +8,7 @@ package state
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -153,7 +154,7 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 	}
 	if st == nil {
 		if states.testmode {
-			return &types.State{Balance: 100000000}, nil
+			return &types.State{Balance: new(big.Int).SetUint64(1000000000000000000).Bytes()}, nil
 		}
 		return &types.State{}, nil
 	}
@@ -190,16 +191,18 @@ func (v *V) SetNonce(nonce uint64) {
 	v.newV.Nonce = nonce
 }
 
-func (v *V) Balance() uint64 {
-	return v.newV.Balance
+func (v *V) Balance() *big.Int {
+	return new(big.Int).SetBytes(v.newV.Balance)
 }
 
-func (v *V) AddBalance(amount uint64) {
-	v.newV.Balance += amount
+func (v *V) AddBalance(amount *big.Int) {
+	balance := new(big.Int).SetBytes(v.newV.Balance)
+	v.newV.Balance = new(big.Int).Add(balance, amount).Bytes()
 }
 
-func (v *V) SubBalance(amount uint64) {
-	v.newV.Balance -= amount
+func (v *V) SubBalance(amount *big.Int) {
+	balance := new(big.Int).SetBytes(v.newV.Balance)
+	v.newV.Balance = new(big.Int).Sub(balance, amount).Bytes()
 }
 
 func (v *V) RP() uint64 {
@@ -248,7 +251,7 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 				id:     id,
 				aid:    aid,
 				oldV:   &types.State{},
-				newV:   &types.State{Balance: 100000000},
+				newV:   &types.State{Balance: new(big.Int).SetUint64(1000000000000000000).Bytes()},
 				newOne: true,
 			}, nil
 		}

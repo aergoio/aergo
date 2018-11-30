@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -29,14 +30,16 @@ func staking(txBody *types.TxBody, senderState *types.State,
 	if err != nil {
 		return err
 	}
-	staked.Amount += txBody.Amount
+	beforeStaked := staked.GetAmountBigInt()
+	amount := txBody.GetAmountBigInt()
+	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
 	staked.When = blockNo
 	err = setStaking(scs, txBody.Account, staked)
 	if err != nil {
 		return err
 	}
 
-	senderState.Balance = senderState.Balance - txBody.Amount
+	senderState.Balance = new(big.Int).Sub(senderState.GetBalanceBigInt(), amount).Bytes()
 	return nil
 }
 
@@ -45,16 +48,16 @@ func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.Contra
 	if err != nil {
 		return err
 	}
-	amount := txBody.Amount
-	var backToBalance uint64
-	if staked.GetAmount() < amount {
-		amount = 0
-		backToBalance = staked.GetAmount()
+	amount := txBody.GetAmountBigInt()
+	var backToBalance *big.Int
+	if staked.GetAmountBigInt().Cmp(amount) < 0 {
+		amount = new(big.Int).SetUint64(0)
+		backToBalance = staked.GetAmountBigInt()
 	} else {
-		amount = staked.GetAmount() - txBody.Amount
-		backToBalance = txBody.Amount
+		amount = new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
+		backToBalance = txBody.GetAmountBigInt()
 	}
-	staked.Amount = amount
+	staked.Amount = amount.Bytes()
 	//blockNo will be updated in voting
 	staked.When = 0 /*blockNo*/
 
@@ -67,7 +70,7 @@ func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.Contra
 		return err
 	}
 
-	senderState.Balance = senderState.Balance + backToBalance
+	senderState.Balance = new(big.Int).Add(senderState.GetBalanceBigInt(), backToBalance).Bytes()
 	return nil
 }
 
