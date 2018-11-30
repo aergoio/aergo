@@ -339,28 +339,6 @@ var_decl:
     }
 ;
 
-var_init_decl:
-    var_type var_name_list '=' var_init_list
-    {
-        int i;
-
-        if (array_size($2) != array_size($4)) {
-            ERROR(ERROR_MISMATCHED_COUNT, &@4, "declaration", array_size($2),
-                  array_size($4));
-        }
-        else {
-            for (i = 0; i < array_size($2); i++) {
-                ast_id_t *id = array_get($2, i, ast_id_t);
-
-                id->mod = $1.mod;
-                id->u_var.type_meta = $1.meta;
-                id->u_var.init_exp = array_get($4, i, ast_exp_t);
-            }
-        }
-        $$ = $2;
-    }
-;
-
 var_type:
     var_qual
 |   K_PUBLIC var_type
@@ -451,6 +429,26 @@ declarator:
 size_opt:
     /* empty */         { $$ = exp_new_null(&@$); }
 |   add_exp
+;
+
+var_init_decl:
+    var_decl '=' var_init_list
+    {
+        int i;
+
+        if (array_size($1) != array_size($3)) {
+            ERROR(ERROR_MISMATCHED_COUNT, &@3, "declaration", array_size($1),
+                  array_size($3));
+        }
+        else {
+            for (i = 0; i < array_size($1); i++) {
+                ast_id_t *id = array_get($1, i, ast_id_t);
+
+                id->u_var.init_exp = array_get($3, i, ast_exp_t);
+            }
+        }
+        $$ = $1;
+    }
 ;
 
 var_init_list:
