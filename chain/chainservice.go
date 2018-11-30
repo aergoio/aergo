@@ -8,6 +8,8 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"reflect"
 	"runtime"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -134,6 +136,9 @@ func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
 type IChainHandler interface {
 	getBlock(blockHash []byte) (*types.Block, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
+	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
+	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
+	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 }
 
 // ChainService manage connectivity of blocks
@@ -220,6 +225,7 @@ func (cs *ChainService) BeforeStart() {
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
 	cs.chainManager.Start()
+	cs.chainWorker.Start()
 }
 
 // ChainSync synchronize with peer
@@ -257,6 +263,17 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 func (cs *ChainService) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
+	case *message.AddBlock:
+		cs.chainManager.Request(msg, context.Sender())
+
+	case *message.GetAnchors: //TODO move to ChainWorker (need chain lock)
+		cs.chainManager.Request(msg, context.Sender())
+
+	case *message.GetMissing:
+		cs.chainManager.Request(msg, context.Sender())
+
+	case *message.GetAncestor:
+		cs.chainManager.Request(msg, context.Sender())
 
 	case *message.GetBestBlockNo:
 		context.Respond(message.GetBestBlockNoRsp{
@@ -290,8 +307,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Block: block,
 			Err:   err,
 		})
-	case *message.AddBlock:
-		cs.chainManager.Request(msg, context.Sender())
+
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
@@ -316,30 +332,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
 			Err:        err,
-		})
-	case *message.GetMissing:
-		stopHash := msg.StopHash
-		hashes := msg.Hashes
-		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
-		context.Respond(message.GetMissingRsp{
-			TopMatched: topHash,
-			TopNumber:  topNo,
-			StopNumber: stopNo,
-		})
-	case *message.GetAnchors:
-		anchor, lastNo, err := cs.getAnchorsNew()
-		context.Respond(message.GetAnchorsRsp{
-			Hashes: anchor,
-			LastNo: lastNo,
-			Err:    err,
-		})
-	case *message.GetAncestor:
-		hashes := msg.Hashes
-		ancestor, err := cs.findAncestor(hashes)
-
-		context.Respond(message.GetAncestorRsp{
-			Ancestor: ancestor,
-			Err:      err,
 		})
 	case *message.GetTx:
 		tx, txIdx, err := cs.getTx(msg.TxHash)
@@ -490,4 +482,126 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, err
 	}
 	return staking, nil
+}
+
+type ChainManager struct {
+	*SubComponent
+	IChainHandler //to use chain APIs
+}
+
+type ChainWorker struct {
+	*SubComponent
+	IChainHandler //to use chain APIs
+}
+
+var (
+	chainManagerName = "Chain Manager"
+	chainWorkerName  = "Chain Worker"
+)
+
+func newChainManager(cs *ChainService) *ChainManager {
+	chainManager := &ChainManager{IChainHandler: cs}
+	chainManager.SubComponent = NewSubComponent(chainManager, cs.BaseComponent, chainManagerName, 1)
+
+	return chainManager
+}
+
+func newChainWorker(cs *ChainService, cntWorker int) *ChainWorker {
+	chainWorker := &ChainWorker{IChainHandler: cs}
+	chainWorker.SubComponent = NewSubComponent(chainWorker, cs.BaseComponent, chainWorkerName, cntWorker)
+
+	return chainWorker
+}
+
+func (cm *ChainManager) Receive(context actor.Context) {
+	logger.Debug().Msg("chain manager")
+	switch msg := context.Message().(type) {
+
+	case *message.AddBlock:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		bid := msg.Block.BlockID()
+		block := msg.Block
+		logger.Debug().Str("hash", msg.Block.ID()).
+			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+		_, err := cm.getBlock(bid[:])
+		if err == nil {
+			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
+			err = ErrBlockExist
+		} else {
+			var bstate *state.BlockState
+			if msg.Bstate != nil {
+				bstate = msg.Bstate.(*state.BlockState)
+			}
+			err = cm.addBlock(block, bstate, msg.PeerID)
+			if err != nil && err != ErrBlockOrphan {
+				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
+			}
+		}
+
+		rsp := message.AddBlockRsp{
+			BlockNo:   block.GetHeader().GetBlockNo(),
+			BlockHash: block.BlockHash(),
+			Err:       err,
+		}
+
+		if msg.IsSync {
+			//TODO change Syncer AddBlock request to use Request()
+			cm.RequestTo(message.SyncerSvc, &rsp)
+		} else {
+			context.Respond(rsp)
+		}
+
+		cm.TellTo(message.RPCSvc, block)
+	case *message.GetMissing:
+		stopHash := msg.StopHash
+		hashes := msg.Hashes
+		topHash, topNo, stopNo := cm.handleMissing(stopHash, hashes)
+		context.Respond(message.GetMissingRsp{
+			TopMatched: topHash,
+			TopNumber:  topNo,
+			StopNumber: stopNo,
+		})
+	case *message.GetAnchors:
+		anchor, lastNo, err := cm.getAnchorsNew()
+		context.Respond(message.GetAnchorsRsp{
+			Hashes: anchor,
+			LastNo: lastNo,
+			Err:    err,
+		})
+	case *message.GetAncestor:
+		hashes := msg.Hashes
+		ancestor, err := cm.findAncestor(hashes)
+
+		context.Respond(message.GetAncestorRsp{
+			Ancestor: ancestor,
+			Err:      err,
+		})
+	default:
+		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
+		logger.Debug().Msg(debug)
+	}
+}
+
+func (cw *ChainWorker) Receive(context actor.Context) {
+	logger.Debug().Msg("chain worker")
+	switch msg := context.Message().(type) {
+	/*
+		case *message.GetMissing:
+			stopHash := msg.StopHash
+			hashes := msg.Hashes
+			mhashes, mnos := cw.handleMissing(stopHash, hashes)
+			context.Respond(message.GetMissingRsp{
+				Hashes:   mhashes,
+				Blocknos: mnos,
+			})
+		case *message.SyncBlockState:
+			cw.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
+	*/
+
+	default:
+		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
+		logger.Debug().Msg(debug)
+	}
 }
