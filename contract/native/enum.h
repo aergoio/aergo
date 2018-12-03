@@ -106,6 +106,7 @@ typedef enum exp_kind_e {
     EXP_SQL,
     EXP_TERNARY,
     EXP_TUPLE,
+    EXP_INIT,
     EXP_MAX
 } exp_kind_t;
 

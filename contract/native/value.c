@@ -74,6 +74,7 @@
 bool
 value_check(value_t *val, meta_t *meta)
 {
+    /* assume that we've already checked meta */
     switch (val->kind) {
     case VAL_BOOL:
         ASSERT1(is_bool_type(meta), meta->type);

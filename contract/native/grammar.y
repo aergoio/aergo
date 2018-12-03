@@ -1160,7 +1160,7 @@ new_exp:
 initializer:
     '{' elem_list comma_opt '}'
     {
-        $$ = exp_new_tuple($2, &@$);
+        $$ = exp_new_init($2, &@$);
     }
 ;
 

@@ -6,7 +6,7 @@
 .PHONY: all check
 
 all:
-	@$(MAKE) --no-print-directory -C ../.. ascl
+	@$(MAKE) --no-print-directory -C ../.. aergoscc
 
 check:
 	@$(MAKE) --no-print-directory -C ../.. ascl-check

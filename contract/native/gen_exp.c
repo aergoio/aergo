@@ -5,37 +5,62 @@
 
 #include "common.h"
 
+#include "ast_id.h"
+#include "gen_meta.h"
+
 #include "gen_exp.h"
 
 static BinaryenExpressionRef
 exp_gen_id(gen_t *gen, ast_exp_t *exp)
 {
-    return NULL;
+    ast_id_t *id = exp->id;
+
+    ASSERT(id != NULL);
+
+    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta))
+        return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, &id->meta));
+
+    return BinaryenLoad(gen->module, meta_size(&id->meta), is_int_family(&id->meta),
+                        id->offset, 0, meta_gen(gen, &id->meta),
+                        BinaryenConst(gen->module, BinaryenLiteralInt32(id->addr)));
 }
 
 static BinaryenExpressionRef
 exp_gen_val(gen_t *gen, ast_exp_t *exp)
 {
+    int addr;
+    struct BinaryenLiteral value;
+
     ASSERT1(is_lit_exp(exp), exp->kind);
 
     switch (exp->u_lit.val.kind) {
     case VAL_BOOL:
-        return BinaryenConst(gen->module, BinaryenLiteralInt32(bool_val(&exp->u_lit.val)));
+        value = BinaryenLiteralInt32(bool_val(&exp->u_lit.val));
+        break;
+
     case VAL_INT:
-        return BinaryenConst(gen->module, BinaryenLiteralInt64(int_val(&exp->u_lit.val)));
+        value = BinaryenLiteralInt64(int_val(&exp->u_lit.val));
+        break;
+
     case VAL_FP:
-        return BinaryenConst(gen->module, BinaryenLiteralFloat64(fp_val(&exp->u_lit.val)));
+        value = BinaryenLiteralFloat64(fp_val(&exp->u_lit.val));
+        break;
+
     case VAL_STR:
-        // XXX
+        addr = dsgmt_add_string(gen->dsgmt, str_val(&exp->u_lit.val));
+        value = BinaryenLiteralInt32(addr);
         break;
+
     case VAL_OBJ:
-        // XXX
+        ASSERT(obj_val(&exp->u_lit.val) == NULL);
+        value = BinaryenLiteralInt32(0);
         break;
+
     default:
         ASSERT1(!"invalid value", exp->u_lit.val.kind);
     }
 
-    return NULL;
+    return BinaryenConst(gen->module, value);
 }
 
 static BinaryenExpressionRef

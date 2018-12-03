@@ -143,6 +143,19 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
 }
 
 ast_exp_t *
+exp_new_init(array_t *exps, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_INIT, pos);
+
+    if (exps == NULL)
+        exp->u_init.exps = array_new();
+    else
+        exp->u_init.exps = exps;
+
+    return exp;
+}
+
+ast_exp_t *
 exp_clone(ast_exp_t *exp)
 {
     int i;

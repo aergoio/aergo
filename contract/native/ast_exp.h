@@ -23,6 +23,7 @@
 #define is_sql_exp(exp)             ((exp)->kind == EXP_SQL)
 #define is_ternary_exp(exp)         ((exp)->kind == EXP_TERNARY)
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
+#define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
 
 #define is_usable_lval(exp)                                                              \
     ((exp)->id != NULL && !is_const_id((exp)->id) &&                                     \
@@ -100,6 +101,11 @@ typedef struct exp_tuple_s {
     array_t *exps;
 } exp_tuple_t;
 
+/* new {exp, exp, exp, ...} */
+typedef struct exp_init_s {
+    array_t *exps;
+} exp_init_t;
+
 struct ast_exp_s {
     AST_NODE_DECL;
 
@@ -116,6 +122,7 @@ struct ast_exp_s {
         exp_ternary_t u_tern;
         exp_sql_t u_sql;
         exp_tuple_t u_tup;
+        exp_init_t u_init;
     };
 
     /* results of semantic checker */
@@ -132,10 +139,11 @@ ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_op(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                       src_pos_t *pos);
-ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp, 
+ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
                            src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
+ast_exp_t *exp_new_init(array_t *exps, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

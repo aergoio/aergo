@@ -37,6 +37,7 @@ set(libascl_SRCS
     gen_stmt.c
     gen_exp.c
     gen_meta.c
+    gen_mem.c
     assert.c
     error.c
     strbuf.c
@@ -47,6 +48,7 @@ set(libascl_SRCS
     enum.c
     meta.c
     value.c
+    dsgmt.c
     util.c
     xalloc.c
     ${BISON_PARSER_OUTPUTS}

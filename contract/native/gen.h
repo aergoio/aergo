@@ -9,15 +9,21 @@
 #include "common.h"
 
 #include "ast.h"
+#include "dsgmt.h"
 #include "binaryen-c.h"
 
 typedef struct gen_s {
     flag_t flag;
+    char path[PATH_MAX_LEN + 5];
 
     ast_blk_t *root;
     BinaryenModuleRef module;
 
-    char path[PATH_MAX_LEN + 5];
+    dsgmt_t *dsgmt;
+    int id_idx;
+
+    int local_cnt;
+    BinaryenType *locals;
 
     int buf_size;
     char *buf;

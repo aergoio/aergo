@@ -8,6 +8,7 @@
 #include "util.h"
 #include "ast_blk.h"
 #include "gen_id.h"
+#include "gen_mem.h"
 
 #include "gen.h"
 
@@ -31,6 +32,12 @@ gen_init(gen_t *gen, ast_t *ast, flag_t flag, char *path)
     else
         strcpy(ptr, WASM_EXT);
 
+    gen->dsgmt = dsgmt_new();
+    gen->id_idx = 0;
+
+    gen->local_cnt = 0;
+    gen->locals = NULL;
+
     gen->buf_size = WASM_MAX_LEN * 2;
     gen->buf = xmalloc(gen->buf_size);
 }
@@ -44,7 +51,7 @@ gen_reset(gen_t *gen)
 void
 gen(ast_t *ast, flag_t flag, char *path)
 {
-    //int i, n;
+    int i, n;
     gen_t gen;
 
     if (ast == NULL)
@@ -52,17 +59,19 @@ gen(ast_t *ast, flag_t flag, char *path)
 
     gen_init(&gen, ast, flag, path);
 
-    /*
-    for (i = 0; i < array_size(&gen.root->ids); i++) {
-        id_gen(&gen, array_get(&gen.root->ids, i, ast_id_t));
-    }
-
-    BinaryenModuleValidate(gen.module);
-
     if (flag_on(flag, FLAG_TEST)) {
-        BinaryenModuleInterpret(gen.module);
+        // XXX: temporary
+        //BinaryenModuleInterpret(gen.module);
     }
     else {
+        for (i = 0; i < array_size(&gen.root->ids); i++) {
+            id_gen(&gen, array_get(&gen.root->ids, i, ast_id_t));
+        }
+
+        mem_gen(&gen, gen.dsgmt);
+
+        BinaryenModuleValidate(gen.module);
+
         BinaryenSetDebugInfo(1);
         n = BinaryenModuleWrite(gen.module, gen.buf, gen.buf_size);
         if (n <= WASM_MAX_LEN)
@@ -70,7 +79,6 @@ gen(ast_t *ast, flag_t flag, char *path)
         else
             FATAL(ERROR_BINARY_OVERFLOW, n);
     }
-    */
 
     gen_reset(&gen);
 }

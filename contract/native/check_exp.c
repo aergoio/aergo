@@ -638,12 +638,55 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
     ASSERT(exps != NULL);
 
     for (i = 0; i < array_size(exps); i++) {
-        ast_exp_t *item = array_get(exps, i, ast_exp_t);
-
-        CHECK(exp_check(check, item));
+        CHECK(exp_check(check, array_get(exps, i, ast_exp_t)));
     }
 
     meta_set_tuple(&exp->meta, exps);
+
+    return NO_ERROR;
+}
+
+static int
+exp_check_init(check_t *check, ast_exp_t *exp)
+{
+    //bool is_lit = true;
+    int i;
+    int size = 0;
+    array_t *exps = exp->u_init.exps;
+
+    ASSERT1(is_init_exp(exp), exp->kind);
+    ASSERT(exps != NULL);
+
+    for (i = 0; i < array_size(exps); i++) {
+        ast_exp_t *elem_exp = array_get(exps, i, ast_exp_t);
+
+        ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
+
+        CHECK(exp_check(check, elem_exp));
+
+        /*
+        if (!is_lit_exp(elem_exp))
+            is_lit = false;
+            */
+
+        size += ALIGN64(meta_size(&elem_exp->meta));
+    }
+
+    /* XXX 
+    if (is_lit) {
+        int offset = 0;
+        char *raw = xmalloc(size);
+
+        for (i = 0; i < array_size(exps); i++) {
+            ast_exp_t *elem_exp = array_get(exps, i, ast_exp_t);
+        }
+
+        exp->kind = EXP_LIT;
+    }
+    else {
+    */
+        meta_set_tuple(&exp->meta, exps);
+    //}
 
     return NO_ERROR;
 }
@@ -686,6 +729,9 @@ exp_check(check_t *check, ast_exp_t *exp)
 
     case EXP_TUPLE:
         return exp_check_tuple(check, exp);
+
+    case EXP_INIT:
+        return exp_check_init(check, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

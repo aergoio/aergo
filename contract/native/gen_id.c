@@ -50,10 +50,22 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         BinaryenStore(module, size, offset + x, align, address of x, value, type);
     */
 
+    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta)) {
+        id->idx = gen->id_idx++;
+
+        if (gen->locals == NULL)
+            gen->locals = xmalloc(sizeof(BinaryenType));
+        else
+            gen->locals = xrealloc(gen->locals, 
+                                   sizeof(BinaryenType) * (gen->local_cnt + 1));
+
+        gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
+    }
+
     if (id->u_var.init_exp != NULL) {
         BinaryenExpressionRef value = exp_gen(gen, id->u_var.init_exp);
 
-        return BinaryenSetLocal(gen->module, 0, value);
+        return BinaryenSetLocal(gen->module, id->idx, value);
     }
 
     return NULL;
@@ -62,38 +74,40 @@ id_gen_var(gen_t *gen, ast_id_t *id)
 static BinaryenExpressionRef
 id_gen_func(gen_t *gen, ast_id_t *id)
 {
-    int i, j;
+    int i;
     int param_cnt;
     BinaryenType *params;
-    int local_cnt = 0;
-    BinaryenType *locals = NULL;
-    BinaryenFunctionRef spec;
+    BinaryenFunctionTypeRef spec;
+    BinaryenFunctionRef func;
     BinaryenExpressionRef body = NULL;
-    ast_blk_t *blk = id->u_func.blk;
     array_t *param_ids = id->u_func.param_ids;
+    array_t *ret_ids = id->u_func.ret_ids;
 
-    param_cnt = array_size(param_ids);
+    param_cnt = array_size(param_ids) + array_size(ret_ids);
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
-    for (i = 0, j = 0; i < param_cnt; i++) {
-        params[j++] = meta_gen(gen, &array_get(param_ids, i, ast_id_t)->meta);
+    for (i = 0; i < array_size(param_ids); i++) {
+        params[gen->id_idx++] = meta_gen(gen, &array_get(param_ids, i, ast_id_t)->meta);
+    }
+
+    for (i = 0; i < array_size(ret_ids); i++) {
+        params[gen->id_idx++] = meta_gen(gen, &array_get(ret_ids, i, ast_id_t)->meta);
     }
 
     spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta), 
                                    params, param_cnt);
 
-    if (blk != NULL) {
-        local_cnt = array_size(&blk->ids);
-        locals = xmalloc(sizeof(BinaryenType) * local_cnt);
+    if (id->u_func.blk != NULL)
+        body = blk_gen(gen, id->u_func.blk);
 
-        for (i = 0, j = 0; i < local_cnt; i++) {
-            locals[j++] = meta_gen(gen, &array_get(&blk->ids, i, ast_id_t)->meta);
-        }
+    func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt, 
+                               body);
 
-        body = blk_gen(gen, blk);
-    }
+    gen->id_idx = 0;
+    gen->local_cnt = 0;
+    gen->locals = NULL;
 
-    return BinaryenAddFunction(gen->module, id->name, spec, locals, local_cnt, body);
+    return func;
 }
 
 static BinaryenExpressionRef
