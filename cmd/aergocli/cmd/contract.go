@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -149,7 +150,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			Nonce:   state.GetNonce() + 1,
 			Account: creator,
 			Payload: payload,
-			Amount:  amount,
+			Amount:  new(big.Int).SetUint64(amount).Bytes(),
 		},
 	}
 
@@ -221,7 +222,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Account:   caller,
 			Recipient: contract,
 			Payload:   payload,
-			Amount:    amount,
+			Amount:    new(big.Int).SetUint64(amount).Bytes(),
 		},
 	}
 	sign, err := client.SignTX(context.Background(), tx)

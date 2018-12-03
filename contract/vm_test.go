@@ -166,14 +166,14 @@ func TestContractQuery(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if ktlee.Balance != uint64(98) {
+	if ktlee.GetBalanceBigInt().Uint64() != uint64(98) {
 		t.Error(ktlee.Balance)
 	}
 	query, err := bc.GetAccountState("query")
 	if err != nil {
 		t.Error(err)
 	}
-	if query.Balance != uint64(2) {
+	if query.GetBalanceBigInt().Uint64() != uint64(2) {
 		t.Error(query.Balance)
 	}
 
@@ -1746,7 +1746,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `100` {
+	if receipt.GetRet() != `"100"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
@@ -2029,12 +2029,12 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "18")
+	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "\"18\"")
 	if err != nil {
 		t.Error(err)
 	}
 	state, err := bc.GetAccountState("bong")
-	if state.GetBalance() != 2 {
+	if state.GetBalanceBigInt().Uint64() != 2 {
 		t.Error("balance error")
 	}
 	tx = NewLuaTxCall("ktlee", "counter", 10,
@@ -2045,7 +2045,7 @@ func TestPcall(t *testing.T) {
 		t.Error(err)
 	}
 	state, err = bc.GetAccountState("bong")
-	if state.GetBalance() != 3 {
+	if state.GetBalanceBigInt().Uint64() != 3 {
 		t.Error("balance error")
 	}
 }
