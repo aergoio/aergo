@@ -1,9 +1,10 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/message"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/message"
 )
 
 func testFullscanSucceed(t *testing.T, expAncestor uint64) {
@@ -82,9 +83,9 @@ func TestFinder_timeout(t *testing.T) {
 
 	//set debug property
 	testCfg := *SyncerCfg
-	testCfg.fetchTimeOut = time.Second * 1
+	testCfg.fetchTimeOut = time.Millisecond * 500
 	testCfg.debugContext = &SyncerDebug{t: t, debugFinder: true, expAncestor: -1, expErrResult: ErrHubFutureTimeOut}
-	peers[0].timeDelaySec = time.Second * 2
+	peers[0].timeDelaySec = time.Second * 1
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 

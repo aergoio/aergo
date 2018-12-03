@@ -2,10 +2,11 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/message"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/message"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSyncer_sync1000(t *testing.T) {
@@ -104,9 +105,9 @@ func TestSyncer_sync_slowPeer(t *testing.T) {
 	testCfg := *SyncerCfg
 	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
 	testCfg.debugContext.logBadPeers = make(map[int]bool)
-	testCfg.fetchTimeOut = time.Second * 2
+	testCfg.fetchTimeOut = time.Millisecond * 500
 	expBadPeer := 1
-	peers[expBadPeer].timeDelaySec = time.Second * 4
+	peers[expBadPeer].timeDelaySec = time.Second * 1
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 	syncer.start()
@@ -142,11 +143,11 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
 	testCfg.debugContext.logBadPeers = make(map[int]bool)
 
-	testCfg.fetchTimeOut = time.Second * 1
-	peers[0].timeDelaySec = time.Second * 2
-	peers[1].timeDelaySec = time.Second * 2
-	peers[2].timeDelaySec = time.Second * 2
-	peers[3].timeDelaySec = time.Second * 2
+	testCfg.fetchTimeOut = time.Millisecond * 500
+	peers[0].timeDelaySec = time.Second * 1
+	peers[1].timeDelaySec = time.Second * 1
+	peers[2].timeDelaySec = time.Second * 1
+	peers[3].timeDelaySec = time.Second * 1
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 	syncer.start()

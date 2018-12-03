@@ -1,10 +1,11 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/types"
 )
 
 func TestHashFetcher_normal(t *testing.T) {
