@@ -99,13 +99,13 @@ type luaTx interface {
 
 type luaTxAccount struct {
 	name    []byte
-	balance uint64
+	balance *big.Int
 }
 
 func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
 	return &luaTxAccount{
 		name:    strHash(name),
-		balance: balance,
+		balance: new(big.Int).SetUint64(balance),
 	}
 }
 
@@ -118,7 +118,7 @@ func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64,
 		return err
 	}
 	updatedAccountState := types.State(*accountState)
-	updatedAccountState.Balance = new(big.Int).SetUint64(l.balance).Bytes()
+	updatedAccountState.Balance = l.balance.Bytes()
 	bs.PutState(id, &updatedAccountState)
 	return nil
 }
@@ -126,14 +126,14 @@ func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64,
 type luaTxSend struct {
 	sender   []byte
 	receiver []byte
-	balance  uint64
+	balance  *big.Int
 }
 
 func NewLuaTxSend(sender, receiver string, balance uint64) *luaTxSend {
 	return &luaTxSend{
 		sender:   strHash(sender),
 		receiver: strHash(receiver),
-		balance:  balance,
+		balance:  new(big.Int).SetUint64(balance),
 	}
 }
 
@@ -150,7 +150,7 @@ func (l *luaTxSend) run(bs *state.BlockState, blockNo uint64, ts int64,
 	senderState, err := bs.GetAccountState(senderID)
 	if err != nil {
 		return err
-	} else if senderState.GetBalance() < l.balance {
+	} else if senderState.GetBalanceBigInt().Cmp(l.balance) < 0 {
 		return fmt.Errorf("insufficient balance to sender")
 	}
 	receiverState, err := bs.GetAccountState(receiverID)
@@ -159,11 +159,11 @@ func (l *luaTxSend) run(bs *state.BlockState, blockNo uint64, ts int64,
 	}
 
 	updatedSenderState := types.State(*senderState)
-	updatedSenderState.Balance = updatedSenderState.Balance - l.balance
+	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.balance).Bytes()
 	bs.PutState(senderID, &updatedSenderState)
 
 	updatedReceiverState := types.State(*receiverState)
-	updatedReceiverState.Balance = updatedReceiverState.Balance + l.balance
+	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.balance).Bytes()
 	bs.PutState(receiverID, &updatedReceiverState)
 
 	return nil
@@ -172,7 +172,7 @@ func (l *luaTxSend) run(bs *state.BlockState, blockNo uint64, ts int64,
 type luaTxCommon struct {
 	sender   []byte
 	contract []byte
-	amount   uint64
+	amount   *big.Int
 	code     []byte
 	id       uint64
 }
@@ -195,7 +195,7 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 			sender:   strHash(sender),
 			contract: strHash(contract),
 			code:     codeWithInit,
-			amount:   amount,
+			amount:   new(big.Int).SetUint64(amount),
 			id:       newTxId(),
 		},
 		cErr: nil,
@@ -268,8 +268,8 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 
 	uCallerState := types.State(*creatorState)
-	uCallerState.Balance -= l.amount
-	uContractState.Balance += l.amount
+	uCallerState.Balance = new(big.Int).Sub(uCallerState.GetBalanceBigInt(), l.amount).Bytes()
+	uContractState.Balance = new(big.Int).Add(uContractState.GetBalanceBigInt(), l.amount).Bytes()
 
 	bs.PutState(creatorId, &uCallerState)
 	bs.PutState(contractId, &uContractState)
@@ -315,7 +315,7 @@ func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCal
 		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
-			amount:   amount,
+			amount:   new(big.Int).SetUint64(amount),
 			code:     []byte(code),
 			id:       newTxId(),
 		},

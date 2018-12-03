@@ -97,7 +97,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
 			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
 			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
-			preLoadService, txBody.GetAmount())
+			preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
 			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
@@ -174,7 +174,7 @@ func preLoadWorker() {
 			txHash:     C.CString(txHash),
 			contractId: C.CString(contractId),
 			service:    C.int(reqInfo.preLoadService),
-			amount:     C.ulonglong(txBody.GetAmount()),
+			amount:     C.CString(txBody.GetAmountBigInt().String()),
 			isQuery:    C.int(0),
 			confirmed:  C.int(0),
 			node:       C.CString(""),

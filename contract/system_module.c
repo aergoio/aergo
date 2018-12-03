@@ -161,7 +161,7 @@ static int getAmount(lua_State *L)
 	if (exec == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushinteger(L, exec->amount);
+	lua_pushstring(L, exec->amount);
 	return 1;
 }
 
