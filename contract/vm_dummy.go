@@ -62,7 +62,7 @@ func (bc *DummyChain) newBState() *state.BlockState {
 		Header: &types.BlockHeader{
 			PrevBlockHash: []byte(bc.bestBlockId.String()),
 			BlockNo:       bc.bestBlockNo + 1,
-			Timestamp:     time.Now().Unix(),
+			Timestamp:     time.Now().UnixNano(),
 		},
 	}
 	bc.cBlock = &b

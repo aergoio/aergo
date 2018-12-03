@@ -7,6 +7,7 @@ package contract
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
+#cgo !windows CFLAGS: -DLJ_TARGET_POSIX
 #cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
@@ -116,7 +117,7 @@ func NewContext(blockState *state.BlockState, senderState *types.State,
 		sender:      C.CString(Sender),
 		txHash:      C.CString(txHash),
 		blockHeight: C.ulonglong(blockHeight),
-		timestamp:   C.longlong(timestamp),
+		timestamp:   C.longlong(timestamp/1e9),
 		node:        C.CString(node),
 		confirmed:   C.int(confirmed),
 		contractId:  C.CString(contractId),

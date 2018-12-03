@@ -110,7 +110,7 @@ func TestContractSystem(t *testing.T) {
 	tx := NewLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
 	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
-	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0c7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp)
+	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0c7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
 	}
@@ -2355,6 +2355,68 @@ abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 	err = bc.Query("c", `{"Name":"GetPerson"}`, "",
 		`{"address":"blahblah...","age":10,"name":"kslee"}`,
 	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDatetime(t *testing.T) {
+	src := `
+state.var {
+    cdate = state.value()
+}
+
+function constructor()
+	cdate:set(906000490)
+	--cdate:set(1)
+end
+
+function CreateDate()
+	return system.date("%c", cdate:get())
+end
+
+function Extract(fmt)
+	return system.date(fmt, cdate:get())
+end
+
+function Difftime()
+	system.print(system.date("%c", cdate:get()))
+	s = system.date("*t", cdate:get())
+	system.print(s)
+	s.hour = 2 
+	s.min = 0
+	s.sec = 0
+	system.print(system.date("*t", system.time(s)))
+	return system.difftime(cdate:get(), system.time(s))
+end
+
+abi.register(CreateDate, Extract, Difftime)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "datetime", 1, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"Thu Sep 17 02:48:10 1998"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%x"]}`, "", `"09/17/98"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%X"]}`, "", `"02:48:10"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"02:48:10 AM"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `2890`)
 	if err != nil {
 		t.Error(err)
 	}
