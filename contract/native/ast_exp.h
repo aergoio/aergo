@@ -137,6 +137,8 @@ ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *pos
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
 
+ast_exp_t *exp_clone(ast_exp_t *exp);
+
 void ast_exp_dump(ast_exp_t *exp, int indent);
 
 #endif /* ! _AST_EXP_H */

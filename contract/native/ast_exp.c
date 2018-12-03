@@ -142,6 +142,76 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
     return exp;
 }
 
+ast_exp_t *
+exp_clone(ast_exp_t *exp)
+{
+    int i;
+    ast_exp_t *res;
+    array_t *exps;
+    array_t *res_exps;
+
+    if (exp == NULL)
+        return NULL;
+
+    switch (exp->kind) {
+    case EXP_NULL:
+        return exp_new_null(&exp->pos);
+
+    case EXP_REF:
+        return exp_new_ref(exp->u_ref.name, &exp->pos);
+
+    case EXP_LIT:
+        res = exp_new_lit(&exp->pos);
+        res->u_lit.val = exp->u_lit.val;
+        return res;
+
+    case EXP_ARRAY:
+        return exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
+                             &exp->pos);
+
+    case EXP_CAST:
+        return exp_new_cast(exp->u_cast.type, exp_clone(exp->u_cast.val_exp),
+                             &exp->pos);
+
+    case EXP_OP:
+        return exp_new_op(exp->u_op.kind, exp_clone(exp->u_op.l_exp),
+                          exp_clone(exp->u_op.r_exp), &exp->pos);
+
+    case EXP_ACCESS:
+        return exp_new_access(exp_clone(exp->u_acc.id_exp),
+                              exp_clone(exp->u_acc.fld_exp), &exp->pos);
+
+    case EXP_CALL:
+        exps = exp->u_call.param_exps;
+        res_exps = array_new();
+        for (i = 0; i < array_size(exps); i++) {
+            array_add_last(res_exps, exp_clone(array_get(exps, i, ast_exp_t)));
+        }
+        return exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
+
+    case EXP_SQL:
+        return exp_new_sql(exp->u_sql.kind, exp->u_sql.sql, &exp->pos);
+
+    case EXP_TERNARY:
+        return exp_new_ternary(exp_clone(exp->u_tern.pre_exp),
+                               exp_clone(exp->u_tern.in_exp),
+                               exp_clone(exp->u_tern.post_exp), &exp->pos);
+
+    case EXP_TUPLE:
+        exps = exp->u_tup.exps;
+        res_exps = array_new();
+        for (i = 0; i < array_size(exps); i++) {
+            array_add_last(res_exps, exp_clone(array_get(exps, i, ast_exp_t)));
+        }
+        return exp_new_tuple(res_exps, &exp->pos);
+
+    default:
+        ASSERT1(!"invalid expression", exp->kind);
+    }
+
+    return NULL;
+}
+
 void
 ast_exp_dump(ast_exp_t *exp, int indent)
 {
