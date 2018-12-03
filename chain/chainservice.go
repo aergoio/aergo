@@ -437,12 +437,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			Err:       err,
 		}
 
-		if msg.IsSync {
-			//TODO change Syncer AddBlock request to use Request()
-			cm.RequestTo(message.SyncerSvc, &rsp)
-		} else {
-			context.Respond(rsp)
-		}
+		context.Respond(&rsp)
 
 		cm.TellTo(message.RPCSvc, block)
 	case *message.GetMissing:

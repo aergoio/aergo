@@ -3,13 +3,14 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"sort"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"sort"
 )
 
 type BlockProcessor struct {
@@ -275,7 +276,7 @@ func (bproc *BlockProcessor) connectBlock(block *types.Block) {
 		Str("hash", enc.ToString(block.GetHash())).
 		Msg("request connecting block to chainsvc")
 
-	bproc.compRequester.TellTo(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil, IsSync: true})
+	bproc.compRequester.RequestTo(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil, IsSync: true})
 }
 
 func (bproc *BlockProcessor) pushToConnQueue(newReq *ConnectTask) {
