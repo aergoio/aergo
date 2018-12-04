@@ -1220,7 +1220,7 @@ literal:
 
         $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNu64, &v);
-        value_set_int(&$$->u_lit.val, v);
+        value_set_ui64(&$$->u_lit.val, v);
     }
 |   L_OCTAL
     {
@@ -1228,7 +1228,7 @@ literal:
 
         $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNo64, &v);
-        value_set_int(&$$->u_lit.val, v);
+        value_set_ui64(&$$->u_lit.val, v);
     }
 |   L_HEX
     {
@@ -1236,7 +1236,7 @@ literal:
 
         $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNx64, &v);
-        value_set_int(&$$->u_lit.val, v);
+        value_set_ui64(&$$->u_lit.val, v);
     }
 |   L_FLOAT
     {
@@ -1244,7 +1244,7 @@ literal:
 
         $$ = exp_new_lit(&@$);
         sscanf($1, "%lf", &v);
-        value_set_fp(&$$->u_lit.val, v);
+        value_set_f64(&$$->u_lit.val, v);
     }
 |   L_STR
     {

@@ -66,27 +66,27 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_lit.val.kind) {
-    case VAL_BOOL:
+    switch (exp->u_lit.val.type) {
+    case TYPE_BOOL:
         meta_set_bool(&exp->meta);
         break;
-    case VAL_INT:
+    case TYPE_UINT64:
         meta_set_uint64(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
-    case VAL_FP:
+    case TYPE_DOUBLE:
         meta_set_double(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
-    case VAL_STR:
+    case TYPE_STRING:
         meta_set_string(&exp->meta);
         break;
-    case VAL_OBJ:
+    case TYPE_OBJECT:
         meta_set_object(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
     default:
-        ASSERT1(!"invalid value", exp->u_lit.val.kind);
+        ASSERT1(!"invalid value", exp->u_lit.val.type);
     }
 
     return NO_ERROR;
@@ -129,7 +129,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
             /* arr_size[0] can be negative if array is used as a parameter */
             if (id_meta->arr_size[0] > 0 &&
-                int_val(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
+                ui64_val(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -558,7 +558,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
 
         if (is_lit_exp(param_exp) &&
-            !value_check(&param_exp->u_lit.val, &param_id->meta))
+            !value_fit(&param_exp->u_lit.val, &param_id->meta))
             RETURN(ERROR_NUMERIC_OVERFLOW, &param_exp->pos,
                    meta_to_str(&param_id->meta));
     }

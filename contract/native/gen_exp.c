@@ -33,31 +33,31 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
 
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_lit.val.kind) {
-    case VAL_BOOL:
+    switch (exp->u_lit.val.type) {
+    case TYPE_BOOL:
         value = BinaryenLiteralInt32(bool_val(&exp->u_lit.val));
         break;
 
-    case VAL_INT:
-        value = BinaryenLiteralInt64(int_val(&exp->u_lit.val));
+    case TYPE_UINT64:
+        value = BinaryenLiteralInt64(ui64_val(&exp->u_lit.val));
         break;
 
-    case VAL_FP:
-        value = BinaryenLiteralFloat64(fp_val(&exp->u_lit.val));
+    case TYPE_DOUBLE:
+        value = BinaryenLiteralFloat64(f64_val(&exp->u_lit.val));
         break;
 
-    case VAL_STR:
+    case TYPE_STRING:
         addr = dsgmt_add_string(gen->dsgmt, str_val(&exp->u_lit.val));
         value = BinaryenLiteralInt32(addr);
         break;
 
-    case VAL_OBJ:
+    case TYPE_OBJECT:
         ASSERT(obj_val(&exp->u_lit.val) == NULL);
         value = BinaryenLiteralInt32(0);
         break;
 
     default:
-        ASSERT1(!"invalid value", exp->u_lit.val.kind);
+        ASSERT1(!"invalid value", exp->u_lit.val.type);
     }
 
     return BinaryenConst(gen->module, value);

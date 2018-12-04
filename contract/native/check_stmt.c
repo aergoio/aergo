@@ -58,13 +58,13 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
 
                 if (is_lit_exp(val_exp) &&
-                    !value_check(&val_exp->u_lit.val, &var_exp->meta))
+                    !value_fit(&val_exp->u_lit.val, &var_exp->meta))
                     RETURN(ERROR_NUMERIC_OVERFLOW, &val_exp->pos,
                            meta_to_str(&var_exp->meta));
             }
         }
     }
-    else if (is_lit_exp(r_exp) && !value_check(&r_exp->u_lit.val, l_meta)) {
+    else if (is_lit_exp(r_exp) && !value_fit(&r_exp->u_lit.val, l_meta)) {
         RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
     }
 
@@ -230,7 +230,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     id->u_var.size_exps = NULL;
     id->u_var.init_exp = exp_new_lit(pos);
-    value_set_int(&id->u_var.init_exp->u_lit.val, 0);
+    value_set_ui64(&id->u_var.init_exp->u_lit.val, 0);
 
     id_add_last(&blk->ids, id);
 

@@ -47,12 +47,12 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             else
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            ASSERT1(is_int_val(size_val), size_val->kind);
+            ASSERT1(is_ui64_val(size_val), size_val->type);
 
-            if (int_val(size_val) <= 0)
+            if (ui64_val(size_val) <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            id->meta.arr_size[i] = int_val(size_val);
+            id->meta.arr_size[i] = ui64_val(size_val);
         }
     }
 
@@ -72,11 +72,11 @@ id_gen_dflt_exp(meta_t *meta)
     }
     else if (is_dec_family(meta)) {
         init_exp = exp_new_lit(&meta->pos);
-        value_set_int(&init_exp->u_lit.val, 0);
+        value_set_ui64(&init_exp->u_lit.val, 0);
     }
     else if (is_fp_family(meta)) {
         init_exp = exp_new_lit(&meta->pos);
-        value_set_fp(&init_exp->u_lit.val, 0.0);
+        value_set_f64(&init_exp->u_lit.val, 0.0);
     }
     else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
         init_exp = exp_new_lit(&meta->pos);
@@ -160,7 +160,7 @@ id_check_var(check_t *check, ast_id_t *id)
         CHECK(meta_cmp(&id->meta, &init_exp->meta));
 
         if (is_lit_exp(init_exp)) {
-            if (!value_check(&init_exp->u_lit.val, &id->meta))
+            if (!value_fit(&init_exp->u_lit.val, &id->meta))
                 RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
 
             id->val = &init_exp->u_lit.val;
@@ -223,7 +223,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         if (init_exp == NULL) {
             init_exp = exp_new_lit(&elem_id->pos);
 
-            value_set_int(&init_exp->u_lit.val, enum_val);
+            value_set_ui64(&init_exp->u_lit.val, enum_val);
 
             CHECK(exp_check(check, init_exp));
 
@@ -239,7 +239,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
 
             init_val = &init_exp->u_lit.val;
-            ASSERT1(is_int_val(init_val), init_val->kind);
+            ASSERT1(is_ui64_val(init_val), init_val->type);
 
             for (j = 0; j < i; j++) {
                 ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
@@ -252,7 +252,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 }
             }
 
-            enum_val = int_val(init_val);
+            enum_val = ui64_val(init_val);
         }
 
         elem_id->val = &init_exp->u_lit.val;

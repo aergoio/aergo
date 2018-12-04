@@ -192,17 +192,6 @@ typedef enum loop_kind_e {
     LOOP_MAX
 } loop_kind_t;
 
-typedef enum val_kind_e {
-    VAL_NONE        = 0,
-    VAL_BOOL,
-    VAL_INT,
-    VAL_FP,
-    VAL_STR,
-    VAL_OBJ,
-    VAL_ADDR,
-    VAL_MAX
-} val_kind_t;
-
 typedef enum sym_kind_e {
     SYM_NONE        = 0,
     SYM_VAR,

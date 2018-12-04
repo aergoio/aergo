@@ -9,115 +9,141 @@
 
 #include "value.h"
 
-#define value_check_int(val, max)                                                        \
-    (((val)->is_neg && (val)->i > (uint64_t)(max) + 1) ||                                \
-     (!(val)->is_neg && (val)->i > (uint64_t)(max)))
+#define value_fit_int(val, max)                                                          \
+    (((val)->is_neg && (val)->ui64 > (uint64_t)(max) + 1) ||                             \
+     (!(val)->is_neg && (val)->ui64 > (uint64_t)(max)))
 
-#define value_check_uint(val, max)      ((val)->is_neg || (val)->i > (max))
+#define value_fit_uint(val, max)      ((val)->is_neg || (val)->ui64 > (max))
 
 #define value_eval_arith(op, x, y, res)                                                  \
     do {                                                                                 \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
                                                                                          \
-        if (is_int_val(x))                                                               \
-            value_set_int(res, int_val(x) op int_val(y));                                \
-        else if (is_fp_val(x))                                                           \
-            value_set_fp(res, fp_val(x) op fp_val(y));                                   \
-        else if (is_str_val(x))                                                          \
+        switch (x->type) {                                                               \
+        case TYPE_UINT64:                                                                \
+            value_set_ui64(res, ui64_val(x) op ui64_val(y));                             \
+            break;                                                                       \
+        case TYPE_DOUBLE:                                                                \
+            value_set_f64(res, f64_val(x) op f64_val(y));                                \
+            break;                                                                       \
+        case TYPE_STRING:                                                                \
             value_set_str((res), xstrcat(str_val(x), str_val(y)));                       \
-        else                                                                             \
-            ASSERT1(!"invalid value", (x)->kind);                                        \
+            break;                                                                       \
+        default:                                                                         \
+            ASSERT1(!"invalid value", (x)->type);                                        \
+        }                                                                                \
     } while (0)
 
 #define value_eval_cmp(op, x, y, res)                                                    \
     do {                                                                                 \
-        bool v = false;                                                                \
+        bool v = false;                                                                  \
                                                                                          \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
                                                                                          \
-        if (is_bool_val(x))                                                              \
-            v = bool_val(x) op bool_val(y);                                            \
-        else if (is_int_val(x))                                                          \
-            v = int_val(x) op int_val(y);                                              \
-        else if (is_fp_val(x))                                                           \
-            v = fp_val(x) op fp_val(y);                                                \
-        else if (is_str_val(x))                                                          \
-            v = strcmp(str_val(x), str_val(y)) op 0;                                   \
-        else if (is_obj_val(x))                                                          \
-            v = obj_val(x) op obj_val(y);                                              \
-        else                                                                             \
-            ASSERT1(!"invalid value", (x)->kind);                                        \
+        switch (x->type) {                                                               \
+        case TYPE_BOOL:                                                                  \
+            v = bool_val(x) op bool_val(y);                                              \
+            break;                                                                       \
+        case TYPE_UINT64:                                                                \
+            v = ui64_val(x) op ui64_val(y);                                              \
+            break;                                                                       \
+        case TYPE_DOUBLE:                                                                \
+            v = f64_val(x) op f64_val(y);                                                \
+            break;                                                                       \
+        case TYPE_STRING:                                                                \
+            v = strcmp(str_val(x), str_val(y)) op 0;                                     \
+            break;                                                                       \
+        case TYPE_OBJECT:                                                                \
+            v = obj_val(x) op obj_val(y);                                                \
+            break;                                                                       \
+        default:                                                                         \
+            ASSERT1(!"invalid value", (x)->type);                                        \
+        }                                                                                \
                                                                                          \
-        value_set_bool((res), v);                                                      \
+        value_set_bool((res), v);                                                        \
     } while (0)
 
 #define value_eval_bit(op, x, y, res)                                                    \
     do {                                                                                 \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
                                                                                          \
-        if (is_int_val(x))                                                               \
-            value_set_int((res), int_val(x) op int_val(y));                              \
-        else                                                                             \
-            ASSERT1(!"invalid value", (x)->kind);                                        \
-    } while (0)
-
-#define value_eval_bool_cmp(op, x, y, res)                                               \
-    do {                                                                                 \
-        ASSERT2((x)->kind == (y)->kind, (x)->kind, (y)->kind);                           \
-                                                                                         \
-        if (is_bool_val(x))                                                              \
-            value_set_bool((res), bool_val(x) op bool_val(y));                           \
-        else                                                                             \
-            ASSERT1(!"invalid value", (x)->kind);                                        \
+        switch (x->type) {                                                               \
+        case TYPE_UINT64:                                                                \
+            value_set_ui64(res, ui64_val(x) op ui64_val(y));                             \
+            break;                                                                       \
+        default:                                                                         \
+            ASSERT1(!"invalid value", (x)->type);                                        \
+        }                                                                                \
     } while (0)
 
 bool
-value_check(value_t *val, meta_t *meta)
+value_fit(value_t *val, meta_t *meta)
 {
-    /* assume that we've already checked meta */
-    switch (val->kind) {
-    case VAL_BOOL:
+    ASSERT1(!is_undef_type(meta), meta->type);
+
+    switch (val->type) {
+    case TYPE_BOOL:
         ASSERT1(is_bool_type(meta), meta->type);
         break;
 
-    case VAL_INT:
+    case TYPE_UINT64:
         ASSERT1(is_dec_family(meta), meta->type);
-        if ((meta->type == TYPE_BYTE && value_check_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT8 && value_check_int(val, INT8_MAX)) ||
-            (meta->type == TYPE_UINT8 && value_check_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT16 && value_check_int(val, INT16_MAX)) ||
-            (meta->type == TYPE_UINT16 && value_check_uint(val, UINT16_MAX)) ||
-            (meta->type == TYPE_INT32 && value_check_int(val, INT32_MAX)) ||
-            (meta->type == TYPE_UINT32 && value_check_uint(val, UINT32_MAX)) ||
-            (meta->type == TYPE_INT64 && value_check_int(val, INT64_MAX)) ||
+        if ((meta->type == TYPE_BYTE && value_fit_uint(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT8 && value_fit_int(val, INT8_MAX)) ||
+            (meta->type == TYPE_UINT8 && value_fit_uint(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT16 && value_fit_int(val, INT16_MAX)) ||
+            (meta->type == TYPE_UINT16 && value_fit_uint(val, UINT16_MAX)) ||
+            (meta->type == TYPE_INT32 && value_fit_int(val, INT32_MAX)) ||
+            (meta->type == TYPE_UINT32 && value_fit_uint(val, UINT32_MAX)) ||
+            (meta->type == TYPE_INT64 && value_fit_int(val, INT64_MAX)) ||
             (meta->type == TYPE_UINT64 && val->is_neg))
             return false;
         break;
 
-    case VAL_FP:
+    case TYPE_DOUBLE:
         ASSERT1(is_fp_family(meta), meta->type);
         if (meta->type == TYPE_FLOAT && val->d > FLT_MAX)
             return false;
         break;
 
-    case VAL_STR:
+    case TYPE_STRING:
         ASSERT1(is_string_type(meta), meta->type);
         break;
 
-    case VAL_OBJ:
+    case TYPE_OBJECT:
         ASSERT1(is_obj_family(meta), meta->type);
         break;
 
-    case VAL_ADDR:
-        ASSERT1(is_string_type(meta) || is_struct_type(meta) || is_tuple_type(meta),
-                meta->type);
-        break;
-
     default:
-        ASSERT1(!"invalid value", val->kind);
+        ASSERT1(!"invalid value", val->type);
     }
 
     return true;
+}
+
+int
+value_cmp(value_t *x, value_t *y)
+{
+    ASSERT2(x->type == y->type, x->type, y->type);
+
+    switch (x->type) {
+    case TYPE_BOOL:
+        return bool_val(x) == bool_val(y) ? 0 : (bool_val(x) > bool_val(y) ? 1 : -1);
+
+    case TYPE_UINT64:
+        return ui64_val(x) == ui64_val(y) ? 0 : (ui64_val(x) > ui64_val(y) ? 1 : -1);
+
+    case TYPE_DOUBLE:
+        return f64_val(x) == f64_val(y) ? 0 : (f64_val(x) > f64_val(y) ? 1 : -1);
+
+    case TYPE_STRING:
+        return strcmp(str_val(x), str_val(y));
+
+    default:
+        ASSERT1(!"invalid value", x->type);
+    }
+
+    return 0;
 }
 
 static void
@@ -141,9 +167,9 @@ value_mul(value_t *x, value_t *y, value_t *res)
 static void
 value_div(value_t *x, value_t *y, value_t *res)
 {
-    if (is_int_val(x))
-        ASSERT(y->i != 0);
-    else if (is_fp_val(x))
+    if (is_ui64_val(x))
+        ASSERT(y->ui64 != 0);
+    else if (is_f64_val(x))
         ASSERT(y->d != 0.0f);
 
     value_eval_arith(/, x, y, res);
@@ -152,12 +178,12 @@ value_div(value_t *x, value_t *y, value_t *res)
 static void
 value_mod(value_t *x, value_t *y, value_t *res)
 {
-    if (is_int_val(x)) {
-        ASSERT(y->i != 0);
-        value_set_int(res, x->i % y->i);
+    if (is_ui64_val(x)) {
+        ASSERT(y->ui64 != 0);
+        value_set_ui64(res, x->ui64 % y->ui64);
     }
     else {
-        ASSERT1(!"invalid value", res->kind);
+        ASSERT1(!"invalid value", res->type);
     }
 }
 
@@ -232,12 +258,12 @@ value_neg(value_t *x, value_t *y, value_t *res)
 {
     ASSERT(y == NULL);
 
-    if (is_int_val(x))
-        value_set_int(res, int_val(x));
-    else if (is_fp_val(x))
-        value_set_fp(res, fp_val(x));
+    if (is_ui64_val(x))
+        value_set_ui64(res, ui64_val(x));
+    else if (is_f64_val(x))
+        value_set_f64(res, f64_val(x));
     else
-        ASSERT1(!"invalid value", x->kind);
+        ASSERT1(!"invalid value", x->type);
 
     value_set_neg(res, !x->is_neg);
 }
@@ -250,19 +276,19 @@ value_not(value_t *x, value_t *y, value_t *res)
     if (is_bool_val(x))
         value_set_bool(res, !x->b);
     else
-        ASSERT1(!"invalid value", x->kind);
+        ASSERT1(!"invalid value", x->type);
 }
 
 static void
 value_and(value_t *x, value_t *y, value_t *res)
 {
-    value_eval_bool_cmp(&&, x, y, res);
+    value_eval_cmp(&&, x, y, res);
 }
 
 static void
 value_or(value_t *x, value_t *y, value_t *res)
 {
-    value_eval_bool_cmp(||, x, y, res);
+    value_eval_cmp(||, x, y, res);
 }
 
 eval_fn_t eval_fntab_[OP_CF_MAX + 1] = {
@@ -293,94 +319,96 @@ value_eval(op_kind_t op, value_t *x, value_t *y, value_t *res)
 {
     ASSERT1(op >= OP_ADD && op <= OP_CF_MAX, op);
 
+    value_init(res);
+
     eval_fntab_[op](x, y, res);
 }
 
 static void
 value_cast_to_bool(value_t *val)
 {
-    switch (val->kind) {
-    case VAL_BOOL:
+    switch (val->type) {
+    case TYPE_BOOL:
         break;
 
-    case VAL_INT:
-        value_set_bool(val, val->i != 0);
+    case TYPE_UINT64:
+        value_set_bool(val, val->ui64 != 0);
         value_set_neg(val, false);
         break;
 
-    case VAL_FP:
+    case TYPE_DOUBLE:
         value_set_bool(val, val->d != 0.0);
         value_set_neg(val, false);
         break;
 
-    case VAL_STR:
-        value_set_bool(val, str_val(val) == NULL || strcmp(str_val(val), "false") == 0);
+    case TYPE_STRING:
+        value_set_bool(val, str_val(val) != NULL && strcmp(str_val(val), "false") != 0);
         break;
 
     default:
-        ASSERT1(!"invalid value", val->kind);
+        ASSERT1(!"invalid value", val->type);
     }
 }
 
 static void
-value_cast_to_int(value_t *val)
+value_cast_to_ui64(value_t *val)
 {
-    uint64_t i = 0;
+    uint64_t ui64 = 0;
 
-    switch (val->kind) {
-    case VAL_BOOL:
-        value_set_int(val, val->b ? 1 : 0);
+    switch (val->type) {
+    case TYPE_BOOL:
+        value_set_ui64(val, val->b ? 1 : 0);
         break;
 
-    case VAL_INT:
+    case TYPE_UINT64:
         break;
 
-    case VAL_FP:
-        value_set_int(val, (uint64_t)val->d);
+    case TYPE_DOUBLE:
+        value_set_ui64(val, (uint64_t)val->d);
         break;
 
-    case VAL_STR:
+    case TYPE_STRING:
         if (val->s != NULL) {
             if (val->s[0] == '-') {
-                sscanf(val->s + 1, "%"SCNu64, &i);
+                sscanf(val->s + 1, "%"SCNu64, &ui64);
                 value_set_neg(val, true);
             }
             else {
-                sscanf(val->s, "%"SCNu64, &i);
+                sscanf(val->s, "%"SCNu64, &ui64);
             }
         }
-        value_set_int(val, i);
+        value_set_ui64(val, ui64);
         break;
 
     default:
-        ASSERT1(!"invalid value", val->kind);
+        ASSERT1(!"invalid value", val->type);
     }
 }
 
 static void
-value_cast_to_fp(value_t *val)
+value_cast_to_f64(value_t *val)
 {
     double d;
 
-    switch (val->kind) {
-    case VAL_BOOL:
-        value_set_fp(val, bool_val(val) ? 1.0 : 0.0);
+    switch (val->type) {
+    case TYPE_BOOL:
+        value_set_f64(val, bool_val(val) ? 1.0 : 0.0);
         break;
 
-    case VAL_INT:
-        value_set_fp(val, (double)val->i);
+    case TYPE_UINT64:
+        value_set_f64(val, (double)val->ui64);
         break;
 
-    case VAL_FP:
+    case TYPE_DOUBLE:
         break;
 
-    case VAL_STR:
+    case TYPE_STRING:
         sscanf(val->s, "%lf", &d);
-        value_set_fp(val, d);
+        value_set_f64(val, d);
         break;
 
     default:
-        ASSERT1(!"invalid value", val->kind);
+        ASSERT1(!"invalid value", val->type);
     }
 }
 
@@ -389,67 +417,42 @@ value_cast_to_str(value_t *val)
 {
     char buf[256];
 
-    switch (val->kind) {
-    case VAL_BOOL:
+    switch (val->type) {
+    case TYPE_BOOL:
         value_set_str(val, val->b ? xstrdup("true") : xstrdup("false"));
         break;
 
-    case VAL_INT:
-        snprintf(buf, sizeof(buf), "%"PRIu64, int_val(val));
+    case TYPE_UINT64:
+        snprintf(buf, sizeof(buf), "%"PRIu64, ui64_val(val));
         value_set_str(val, xstrdup(buf));
         break;
 
-    case VAL_FP:
-        snprintf(buf, sizeof(buf), "%lf", fp_val(val));
+    case TYPE_DOUBLE:
+        snprintf(buf, sizeof(buf), "%lf", f64_val(val));
         value_set_str(val, xstrdup(buf));
         break;
 
-    case VAL_STR:
+    case TYPE_STRING:
         break;
 
     default:
-        ASSERT1(!"invalid value", val->kind);
+        ASSERT1(!"invalid value", val->type);
     }
 }
 
 void
-value_cast(value_t *val, meta_t *to)
+value_cast(value_t *val, meta_t *meta)
 {
-    if (is_bool_type(to))
+    if (is_bool_type(meta))
         value_cast_to_bool(val);
-    else if (is_dec_family(to))
-        value_cast_to_int(val);
-    else if (is_fp_family(to))
-        value_cast_to_fp(val);
-    else if (is_string_type(to))
+    else if (is_dec_family(meta))
+        value_cast_to_ui64(val);
+    else if (is_fp_family(meta))
+        value_cast_to_f64(val);
+    else if (is_string_type(meta))
         value_cast_to_str(val);
     else
-        ASSERT1(!"invalid type", to->type);
-}
-
-int
-value_cmp(value_t *x, value_t *y)
-{
-    ASSERT2(x->kind == y->kind, x->kind, y->kind);
-
-    switch (x->kind) {
-    case VAL_BOOL:
-        return bool_val(x) == bool_val(y) ? 0 : (bool_val(x) > bool_val(y) ? 1 : -1);
-
-    case VAL_INT:
-        return int_val(x) == int_val(y) ? 0 : (int_val(x) > int_val(y) ? 1 : -1);
-
-    case VAL_FP:
-        return fp_val(x) == fp_val(y) ? 0 : (fp_val(x) > fp_val(y) ? 1 : -1);
-
-    case VAL_STR:
-        return strcmp(str_val(x), str_val(y));
-
-    default:
-        ASSERT1(!"invalid value", x->kind);
-    }
-
-    return 0;
+        ASSERT1(!"invalid type", meta->type);
 }
 
 /* end of value.c */
