@@ -187,7 +187,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	cs.validator = NewBlockValidator(cs.sdb)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
-	cs.chainManager = newChainManager(cs)
+	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
 
 	// init genesis block
@@ -272,7 +272,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 	case *message.AddBlock,
 		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
 		*message.GetMissing,
-		*message.GetAncestor:
+		*message.GetAncestor,
+		*message.GetQuery:
 		cs.chainManager.Request(msg, context.Sender())
 
 		//pass to chainWorker
@@ -308,18 +309,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 		err := msg.Err
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to remove txs from mempool")
-		}
-	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
@@ -387,6 +376,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 type ChainManager struct {
 	*SubComponent
 	IChainHandler //to use chain APIs
+	*Core         // TODO remove after moving GetQuery to ChainWorker
 }
 
 type ChainWorker struct {
@@ -400,8 +390,8 @@ var (
 	chainWorkerName  = "Chain Worker"
 )
 
-func newChainManager(cs *ChainService) *ChainManager {
-	chainManager := &ChainManager{IChainHandler: cs}
+func newChainManager(cs *ChainService, core *Core) *ChainManager {
+	chainManager := &ChainManager{IChainHandler: cs, Core: core}
 	chainManager.SubComponent = NewSubComponent(chainManager, cs.BaseComponent, chainManagerName, 1)
 
 	return chainManager
@@ -474,6 +464,18 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			Ancestor: ancestor,
 			Err:      err,
 		})
+	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(cm.sdb.OpenNewStateDB(cm.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
