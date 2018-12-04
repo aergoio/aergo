@@ -11,6 +11,7 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58"
@@ -156,25 +157,23 @@ func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) err
 	}
 	sort.Sort(sort.Reverse(voteList))
 	//logger.Info().Msgf("VOTE set list %v", voteList.Votes)
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(voteList)
+	data, err := common.GobEncode(voteList)
 	if err != nil {
 		return err
 	}
-	return scs.SetData(sortedlistkey, data.Bytes())
+	return scs.SetData(sortedlistkey, data)
 }
 
-func GetVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
+func GetVoteResult(scs *state.ContractState) (*types.VoteList, error) {
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err
 	}
-	dec := gob.NewDecoder(bytes.NewBuffer(data))
-	var voteList types.VoteList
-	err = dec.Decode(&voteList)
+
+	voteList := &types.VoteList{}
+	err = common.GobDecode(data, voteList)
 	if err != nil {
 		return nil, err
 	}
-	return &voteList, nil
+	return voteList, nil
 }

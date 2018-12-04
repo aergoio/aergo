@@ -5,11 +5,12 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/contract"
 	"io/ioutil"
 	"math"
 	"os"
 	"testing"
+
+	"github.com/aergoio/aergo/contract"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/account/key"
@@ -28,7 +29,7 @@ func initTest(t *testing.T, testmode bool) {
 	sdb.Init(string(db.BadgerImpl), tmpdir, nil, testmode)
 	genesis := types.GetTestGenesis()
 
-	err := sdb.SetGenesis(genesis)
+	err := sdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
