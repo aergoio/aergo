@@ -8,6 +8,8 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"reflect"
 	"runtime"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -26,9 +28,7 @@ import (
 )
 
 var (
-	logger           = log.NewLogger("chain")
-	genesisBlock     *types.Block
-	initialBestBlock *types.Block
+	logger = log.NewLogger("chain")
 
 	ErrBlockExist = errors.New("block already exist")
 )
@@ -81,8 +81,9 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
 func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := core.cdb.getHashByNo(0)
 	if len(gh) == 0 {
-		logger.Info().Uint64("nom", core.cdb.latest).Msg("current latest")
-		if core.cdb.latest == 0 {
+		latest := core.cdb.getBestBlockNo()
+		logger.Info().Uint64("nom", latest).Msg("current latest")
+		if latest == 0 {
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
 			}
@@ -131,6 +132,21 @@ func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
 	return nil
 }
 
+type IChainHandler interface {
+	getBlock(blockHash []byte) (*types.Block, error)
+	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
+	getReceipt(txHash []byte) (*types.Receipt, error)
+	getVote(addr []byte) (*types.VoteList, error)
+	getVotes(n int) (*types.VoteList, error)
+	getStaking(addr []byte) (*types.Staking, error)
+	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
+	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
+	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
+	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
+	checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte)
+}
+
 // ChainService manage connectivity of blocks
 type ChainService struct {
 	*component.BaseComponent
@@ -141,6 +157,9 @@ type ChainService struct {
 	op  *OrphanPool
 
 	validator *BlockValidator
+
+	chainWorker  *ChainWorker
+	chainManager *ChainManager
 }
 
 // NewChainService creates an instance of ChainService.
@@ -168,6 +187,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	cs.validator = NewBlockValidator(cs.sdb)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
+	cs.chainManager = newChainManager(cs, cs.Core)
+	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil); err != nil {
@@ -209,6 +230,8 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
+	cs.chainManager.Start()
+	cs.chainWorker.Start()
 }
 
 // ChainSync synchronize with peer
@@ -228,6 +251,9 @@ func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
 func (cs *ChainService) BeforeStop() {
 	cs.Close()
 
+	cs.chainManager.Stop()
+	cs.chainWorker.Stop()
+
 	cs.validator.Stop()
 }
 
@@ -243,7 +269,29 @@ func (cs *ChainService) notifyBlock(block *types.Block) {
 func (cs *ChainService) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
+	case *message.AddBlock,
+		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
+		*message.GetMissing,
+		*message.GetAncestor,
+		*message.GetQuery:
+		cs.chainManager.Request(msg, context.Sender())
 
+		//pass to chainWorker
+	case *message.GetBlock,
+		*message.GetBlockByNo,
+		*message.GetState,
+		*message.GetStateAndProof,
+		*message.GetTx,
+		*message.GetReceipt,
+		*message.GetABI,
+		*message.GetStateQuery,
+		*message.SyncBlockState,
+		*message.GetElected,
+		*message.GetVote,
+		*message.GetStaking:
+		cs.chainWorker.Request(msg, context.Sender())
+
+		//handle directly
 	case *message.GetBestBlockNo:
 		context.Respond(message.GetBestBlockNoRsp{
 			BlockNo: cs.getBestBlockNo(),
@@ -257,197 +305,11 @@ func (cs *ChainService) Receive(context actor.Context) {
 			Block: block,
 			Err:   err,
 		})
-	case *message.GetBlock:
-		bid := types.ToBlockID(msg.BlockHash)
-		block, err := cs.getBlock(bid[:])
-		if err != nil {
-			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
-		}
-		context.Respond(message.GetBlockRsp{
-			Block: block,
-			Err:   err,
-		})
-	case *message.GetBlockByNo:
-		block, err := cs.getBlockByNo(msg.BlockNo)
-		if err != nil {
-			logger.Error().Err(err).Uint64("blockNo", msg.BlockNo).Msg("failed to get block by no")
-		}
-		context.Respond(message.GetBlockByNoRsp{
-			Block: block,
-			Err:   err,
-		})
-	case *message.AddBlock:
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		bid := msg.Block.BlockID()
-		block := msg.Block
-		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
-		_, err := cs.getBlock(bid[:])
-		if err == nil {
-			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = ErrBlockExist
-		} else {
-			var bstate *state.BlockState
-			if msg.Bstate != nil {
-				bstate = msg.Bstate.(*state.BlockState)
-			}
-			err = cs.addBlock(block, bstate, msg.PeerID)
-			if err != nil && err != ErrBlockOrphan {
-				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
-			}
-		}
-
-		rsp := message.AddBlockRsp{
-			BlockNo:   block.GetHeader().GetBlockNo(),
-			BlockHash: block.BlockHash(),
-			Err:       err,
-		}
-
-		if msg.IsSync {
-			cs.RequestTo(message.SyncerSvc, &rsp)
-		} else {
-			context.Respond(rsp)
-		}
-
-		cs.Hub().Tell(message.RPCSvc, block)
 	case *message.MemPoolDelRsp:
 		err := msg.Err
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to remove txs from mempool")
 		}
-	case *message.GetState:
-		id := types.ToAccountID(msg.Account)
-		state, err := cs.sdb.GetStateDB().GetAccountState(id)
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
-		}
-		context.Respond(message.GetStateRsp{
-			State: state,
-			Err:   err,
-		})
-	case *message.GetStateAndProof:
-		id := types.ToAccountID(msg.Account)
-		stateProof, err := cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
-		}
-		context.Respond(message.GetStateAndProofRsp{
-			StateProof: stateProof,
-			Err:        err,
-		})
-	case *message.GetMissing:
-		stopHash := msg.StopHash
-		hashes := msg.Hashes
-		topHash, topNo, stopNo := cs.handleMissing(stopHash, hashes)
-		context.Respond(message.GetMissingRsp{
-			TopMatched: topHash,
-			TopNumber:  topNo,
-			StopNumber: stopNo,
-		})
-	case *message.GetAnchors:
-		anchor, lastNo, err := cs.getAnchorsNew()
-		context.Respond(message.GetAnchorsRsp{
-			Hashes: anchor,
-			LastNo: lastNo,
-			Err:    err,
-		})
-	case *message.GetAncestor:
-		hashes := msg.Hashes
-		ancestor, err := cs.findAncestor(hashes)
-
-		context.Respond(message.GetAncestorRsp{
-			Ancestor: ancestor,
-			Err:      err,
-		})
-	case *message.GetTx:
-		tx, txIdx, err := cs.getTx(msg.TxHash)
-		context.Respond(message.GetTxRsp{
-			Tx:    tx,
-			TxIds: txIdx,
-			Err:   err,
-		})
-	case *message.GetReceipt:
-		receipt, err := cs.getReceipt(msg.TxHash)
-		context.Respond(message.GetReceiptRsp{
-			Receipt: receipt,
-			Err:     err,
-		})
-	case *message.GetABI:
-		contractState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
-		if err == nil {
-			abi, err := contract.GetABI(contractState)
-			context.Respond(message.GetABIRsp{
-				ABI: abi,
-				Err: err,
-			})
-		} else {
-			context.Respond(message.GetABIRsp{
-				ABI: nil,
-				Err: err,
-			})
-		}
-	case *message.GetQuery:
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
-		}
-	case *message.GetStateQuery:
-		var varProof *types.ContractVarProof
-		var contractProof *types.StateProof
-		var err error
-
-		id := types.ToAccountID(msg.ContractAddress)
-		contractProof, err = cs.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
-		} else if contractProof.Inclusion {
-			contractTrieRoot := contractProof.State.StorageRoot
-			varId := bytes.NewBufferString("_")
-			varId.WriteString(msg.VarName)
-			varId.WriteString(msg.VarIndex)
-			varTrieKey := common.Hasher(varId.Bytes())
-			varProof, err = cs.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
-			if err != nil {
-				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
-			}
-		}
-		stateQuery := &types.StateQueryProof{
-			ContractProof: contractProof,
-			VarProof:      varProof,
-		}
-		context.Respond(message.GetStateQueryRsp{
-			Result: stateQuery,
-			Err:    err,
-		})
-	case *message.SyncBlockState:
-		cs.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
-	case *message.GetElected:
-		top, err := cs.getVotes(msg.N)
-		context.Respond(&message.GetVoteRsp{
-			Top: top,
-			Err: err,
-		})
-	case *message.GetVote:
-		top, err := cs.getVote(msg.Addr)
-		context.Respond(&message.GetVoteRsp{
-			Top: top,
-			Err: err,
-		})
-	case *message.GetStaking:
-		staking, err := cs.getStaking(msg.Addr)
-		context.Respond(&message.GetStakingRsp{
-			Staking: staking,
-			Err:     err,
-		})
-
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
@@ -509,4 +371,236 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, err
 	}
 	return staking, nil
+}
+
+type ChainManager struct {
+	*SubComponent
+	IChainHandler //to use chain APIs
+	*Core         // TODO remove after moving GetQuery to ChainWorker
+}
+
+type ChainWorker struct {
+	*SubComponent
+	IChainHandler //to use chain APIs
+	*Core
+}
+
+var (
+	chainManagerName = "Chain Manager"
+	chainWorkerName  = "Chain Worker"
+)
+
+func newChainManager(cs *ChainService, core *Core) *ChainManager {
+	chainManager := &ChainManager{IChainHandler: cs, Core: core}
+	chainManager.SubComponent = NewSubComponent(chainManager, cs.BaseComponent, chainManagerName, 1)
+
+	return chainManager
+}
+
+func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
+	chainWorker := &ChainWorker{IChainHandler: cs, Core: core}
+	chainWorker.SubComponent = NewSubComponent(chainWorker, cs.BaseComponent, chainWorkerName, cntWorker)
+
+	return chainWorker
+}
+
+func (cm *ChainManager) Receive(context actor.Context) {
+	logger.Debug().Msg("chain manager")
+	switch msg := context.Message().(type) {
+
+	case *message.AddBlock:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		bid := msg.Block.BlockID()
+		block := msg.Block
+		logger.Debug().Str("hash", msg.Block.ID()).
+			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+		_, err := cm.getBlock(bid[:])
+		if err == nil {
+			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
+			err = ErrBlockExist
+		} else {
+			var bstate *state.BlockState
+			if msg.Bstate != nil {
+				bstate = msg.Bstate.(*state.BlockState)
+			}
+			err = cm.addBlock(block, bstate, msg.PeerID)
+			if err != nil && err != ErrBlockOrphan {
+				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
+			}
+		}
+
+		rsp := message.AddBlockRsp{
+			BlockNo:   block.GetHeader().GetBlockNo(),
+			BlockHash: block.BlockHash(),
+			Err:       err,
+		}
+
+		context.Respond(&rsp)
+
+		cm.TellTo(message.RPCSvc, block)
+	case *message.GetMissing:
+		stopHash := msg.StopHash
+		hashes := msg.Hashes
+		topHash, topNo, stopNo := cm.handleMissing(stopHash, hashes)
+		context.Respond(message.GetMissingRsp{
+			TopMatched: topHash,
+			TopNumber:  topNo,
+			StopNumber: stopNo,
+		})
+	case *message.GetAnchors:
+		anchor, lastNo, err := cm.getAnchorsNew()
+		context.Respond(message.GetAnchorsRsp{
+			Hashes: anchor,
+			LastNo: lastNo,
+			Err:    err,
+		})
+	case *message.GetAncestor:
+		hashes := msg.Hashes
+		ancestor, err := cm.findAncestor(hashes)
+
+		context.Respond(message.GetAncestorRsp{
+			Ancestor: ancestor,
+			Err:      err,
+		})
+	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(cm.sdb.OpenNewStateDB(cm.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
+	default:
+		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
+		logger.Debug().Msg(debug)
+	}
+}
+
+func (cw *ChainWorker) Receive(context actor.Context) {
+	logger.Debug().Msg("chain worker")
+	switch msg := context.Message().(type) {
+	case *message.GetBlock:
+		bid := types.ToBlockID(msg.BlockHash)
+		block, err := cw.getBlock(bid[:])
+		if err != nil {
+			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
+		}
+		context.Respond(message.GetBlockRsp{
+			Block: block,
+			Err:   err,
+		})
+	case *message.GetBlockByNo:
+		block, err := cw.getBlockByNo(msg.BlockNo)
+		if err != nil {
+			logger.Error().Err(err).Uint64("blockNo", msg.BlockNo).Msg("failed to get block by no")
+		}
+		context.Respond(message.GetBlockByNoRsp{
+			Block: block,
+			Err:   err,
+		})
+	case *message.GetState:
+		id := types.ToAccountID(msg.Account)
+		accState, err := cw.sdb.GetStateDB().GetAccountState(id)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+		}
+		context.Respond(message.GetStateRsp{
+			State: accState,
+			Err:   err,
+		})
+	case *message.GetStateAndProof:
+		id := types.ToAccountID(msg.Account)
+		stateProof, err := cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+		}
+		context.Respond(message.GetStateAndProofRsp{
+			StateProof: stateProof,
+			Err:        err,
+		})
+	case *message.GetTx:
+		tx, txIdx, err := cw.getTx(msg.TxHash)
+		context.Respond(message.GetTxRsp{
+			Tx:    tx,
+			TxIds: txIdx,
+			Err:   err,
+		})
+	case *message.GetReceipt:
+		receipt, err := cw.getReceipt(msg.TxHash)
+		context.Respond(message.GetReceiptRsp{
+			Receipt: receipt,
+			Err:     err,
+		})
+	case *message.GetABI:
+		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err == nil {
+			abi, err := contract.GetABI(contractState)
+			context.Respond(message.GetABIRsp{
+				ABI: abi,
+				Err: err,
+			})
+		} else {
+			context.Respond(message.GetABIRsp{
+				ABI: nil,
+				Err: err,
+			})
+		}
+	case *message.GetStateQuery:
+		var varProof *types.ContractVarProof
+		var contractProof *types.StateProof
+		var err error
+
+		id := types.ToAccountID(msg.ContractAddress)
+		contractProof, err = cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
+		} else if contractProof.Inclusion {
+			contractTrieRoot := contractProof.State.StorageRoot
+			varId := bytes.NewBufferString("_")
+			varId.WriteString(msg.VarName)
+			varId.WriteString(msg.VarIndex)
+			varTrieKey := common.Hasher(varId.Bytes())
+			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
+			if err != nil {
+				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+			}
+		}
+		stateQuery := &types.StateQueryProof{
+			ContractProof: contractProof,
+			VarProof:      varProof,
+		}
+		context.Respond(message.GetStateQueryRsp{
+			Result: stateQuery,
+			Err:    err,
+		})
+	case *message.SyncBlockState:
+		cw.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
+	case *message.GetElected:
+		top, err := cw.getVotes(msg.N)
+		context.Respond(&message.GetVoteRsp{
+			Top: top,
+			Err: err,
+		})
+	case *message.GetVote:
+		top, err := cw.getVote(msg.Addr)
+		context.Respond(&message.GetVoteRsp{
+			Top: top,
+			Err: err,
+		})
+	case *message.GetStaking:
+		staking, err := cw.getStaking(msg.Addr)
+		context.Respond(&message.GetStakingRsp{
+			Staking: staking,
+			Err:     err,
+		})
+	default:
+		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
+		logger.Debug().Msg(debug)
+	}
 }

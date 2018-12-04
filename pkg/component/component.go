@@ -217,6 +217,14 @@ func (base *BaseComponent) RequestToFuture(targetCompName string, message interf
 	return base.hub.RequestFuture(targetCompName, message, timeout, base.name)
 }
 
+// RequestToFutureResult is wrapper of RequestToFuture, but this api doesn't return actor.Future.
+// This api can be used when it is possible to use actor.Future type
+func (base *BaseComponent) RequestToFutureResult(targetCompName string, message interface{}, timeout time.Duration, tip string) (interface{}, error) {
+	retFuture := base.RequestToFuture(targetCompName, message, timeout)
+
+	return retFuture.Result()
+}
+
 // SetHub assigns a component hub to be used internally
 func (base *BaseComponent) SetHub(hub *ComponentHub) {
 	base.hub = hub

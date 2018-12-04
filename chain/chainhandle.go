@@ -22,11 +22,8 @@ import (
 )
 
 var (
-	ErrTxInvalidNonce        = errors.New("invalid nonce")
-	ErrTxInsufficientBalance = errors.New("insufficient balance")
-	ErrTxInvalidType         = errors.New("invalid type")
-	ErrorNoAncestor          = errors.New("not found ancestor")
-	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
+	ErrorNoAncestor = errors.New("not found ancestor")
+	ErrBlockOrphan  = errors.New("block is ohphan, so not connected in chain")
 
 	errBlockStale = errors.New("produced block becomes stale")
 
@@ -161,7 +158,7 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 
 	if logger.IsDebugEnabled() {
 		logger.Debug().Bool("isMainChain", cp.isMain()).
-			Uint64("latest", cp.cdb.latest).
+			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
 			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
