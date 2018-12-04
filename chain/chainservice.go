@@ -283,7 +283,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetTx,
 		*message.GetReceipt,
 		*message.GetABI,
-		*message.GetQuery,
 		*message.GetStateQuery,
 		*message.SyncBlockState,
 		*message.GetElected,
@@ -310,7 +309,18 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to remove txs from mempool")
 		}
-
+	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		ctrState, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
 	case actor.SystemMessage,
 		actor.AutoReceiveMessage,
 		actor.NotInfluenceReceiveTimeout:
@@ -538,18 +548,6 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 				ABI: nil,
 				Err: err,
 			})
-		}
-	case *message.GetQuery:
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
 		var varProof *types.ContractVarProof
