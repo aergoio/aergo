@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"os"
 	"path/filepath"
 	"sync"
@@ -48,7 +49,7 @@ func init() {
 	sql.Register(statesqlDriver, &SQLiteDriver{
 		ConnectHook: func(conn *SQLiteConn) error {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
-				b, err := types.DecodeAddress(database.OpenDbName)
+				b, err := enc.ToBytes(database.OpenDbName)
 				if err != nil {
 					logger.Error().Err(err).Msg("Open SQL Connection")
 					return nil
@@ -59,7 +60,7 @@ func init() {
 					tx:        nil,
 					conn:      conn,
 					name:      database.OpenDbName,
-					accountID: types.ToAccountID(b),
+					accountID: types.AccountID(types.ToHashID(b)),
 				}
 			} else {
 				logger.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")

@@ -13,11 +13,7 @@ const (
 	helloCode = `function hello(say) return "Hello " .. say end abi.register(hello)`
 
 	systemCode = `function testState()
-		string.format("creator: %s",system.getContractID())
-		string.format("timestamp: %d",system.getTimestamp())
-		string.format("blockheight: %d",system.getBlockheight())
 		system.setItem("key1", 999)
-		string.format("getitem : %s",system.getItem("key1"))
 		return system.getSender(), system.getTxhash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
 	  end 
 abi.register(testState)`
@@ -110,7 +106,7 @@ func TestContractSystem(t *testing.T) {
 	tx := NewLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
 	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
-	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0c7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
+	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","4huAuw28LdAg9nKji5t1EGSkZ3ScvnyZwH2KBZCKejqHJ","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
 	}
