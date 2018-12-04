@@ -6,19 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSignWithKey(t *testing.T) {
 	const testAddr = "AmNBjtxomk1uaFrwj8rEKVxYEJ1nzy73dsGrNZzkqs88q8Mkv8GN"
-	const signLength = 70
+	const signLength = 71
 	output, err := executeCommand(rootCmd, "signtx", "--key", "12345678", "--jsontx", "{}")
 	assert.NoError(t, err, "should be success")
 

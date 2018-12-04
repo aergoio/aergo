@@ -154,7 +154,7 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 	}
 	if st == nil {
 		if states.testmode {
-			return &types.State{Balance: new(big.Int).SetUint64(1000000000000000000).Bytes()}, nil
+			return &types.State{Balance: new(big.Int).SetUint64(10000000000000000000).Bytes()}, nil
 		}
 		return &types.State{}, nil
 	}
@@ -251,7 +251,7 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 				id:     id,
 				aid:    aid,
 				oldV:   &types.State{},
-				newV:   &types.State{Balance: new(big.Int).SetUint64(1000000000000000000).Bytes()},
+				newV:   &types.State{Balance: new(big.Int).SetUint64(10000000000000000000).Bytes()},
 				newOne: true,
 			}, nil
 		}

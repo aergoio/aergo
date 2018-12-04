@@ -36,24 +36,6 @@ func (m *MockAergoRPCServiceClient) EXPECT() *MockAergoRPCServiceClientMockRecor
 }
 
 // Blockchain mocks base method
-func (m *MockAergoRPCServiceClient) Metric(arg0 context.Context, arg1 *types.MetricsRequest, arg2 ...grpc.CallOption) (*types.Metrics, error) {
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Metric", varargs...)
-	ret0, _ := ret[0].(*types.Metrics)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Blockchain indicates an expected call of Blockchain
-func (mr *MockAergoRPCServiceClientMockRecorder) Metric(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metric", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).Metric), varargs...)
-}
-
-// Blockchain mocks base method
 func (m *MockAergoRPCServiceClient) Blockchain(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.BlockchainStatus, error) {
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -393,6 +375,24 @@ func (m *MockAergoRPCServiceClient) LockAccount(arg0 context.Context, arg1 *type
 func (mr *MockAergoRPCServiceClientMockRecorder) LockAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).LockAccount), varargs...)
+}
+
+// Metric mocks base method
+func (m *MockAergoRPCServiceClient) Metric(arg0 context.Context, arg1 *types.MetricsRequest, arg2 ...grpc.CallOption) (*types.Metrics, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Metric", varargs...)
+	ret0, _ := ret[0].(*types.Metrics)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Metric indicates an expected call of Metric
+func (mr *MockAergoRPCServiceClientMockRecorder) Metric(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metric", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).Metric), varargs...)
 }
 
 // NodeState mocks base method

@@ -33,7 +33,7 @@ var (
 
 	from   string
 	to     string
-	amount uint64
+	amount string
 
 	address    string
 	stateroot  string

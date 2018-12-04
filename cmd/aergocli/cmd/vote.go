@@ -85,8 +85,6 @@ func execVote(cmd *cobra.Command, args []string) {
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(aergosystem),
-			Amount:    uint64(amount),
-			Price:     0,
 			Payload:   payload,
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,

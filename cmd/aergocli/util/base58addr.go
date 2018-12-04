@@ -97,7 +97,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 			return err
 		}
 	}
-	target.Amount = source.Amount.Bytes()
+	if source.Amount != nil {
+		target.Amount = source.Amount.Bytes()
+	}
 	if source.Payload != "" {
 		target.Payload, err = base58.Decode(source.Payload)
 		if err != nil {
@@ -105,7 +107,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 	}
 	target.Limit = source.Limit
-	target.Price = source.Price.Bytes()
+	if source.Price != nil {
+		target.Price = source.Price.Bytes()
+	}
 	if source.Sign != "" {
 		target.Sign, err = base58.Decode(source.Sign)
 		if err != nil {

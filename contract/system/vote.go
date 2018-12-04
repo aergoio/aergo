@@ -73,6 +73,11 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		}
 		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
 			key := txBody.Payload[offset+1 : offset+PeerIDLength+1]
+
+			if (*voteResult)[base58.Encode(key)] == nil {
+				(*voteResult)[base58.Encode(key)] = new(big.Int).SetUint64(0)
+			}
+
 			(*voteResult)[base58.Encode(key)] = new(big.Int).Add((*voteResult)[base58.Encode(key)], staked.GetAmountBigInt())
 		}
 	}

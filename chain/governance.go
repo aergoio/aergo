@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
@@ -56,9 +57,9 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 		return err
 	}
 
-	voteResult := make(map[string]uint64)
+	voteResult := make(map[string]*big.Int)
 	for _, v := range genesis.BPs {
-		voteResult[v] = uint64(0)
+		voteResult[v] = new(big.Int).SetUint64(0)
 	}
 	if err = system.InitVoteResult(scs, &voteResult); err != nil {
 		return err

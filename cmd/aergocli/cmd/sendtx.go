@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -27,7 +28,7 @@ func init() {
 	sendtxCmd.MarkFlagRequired("from")
 	sendtxCmd.Flags().StringVar(&to, "to", "", "Recipient account address")
 	sendtxCmd.MarkFlagRequired("to")
-	sendtxCmd.Flags().Uint64Var(&amount, "amount", 0, "How much in AER")
+	sendtxCmd.Flags().StringVar(&amount, "amount", "0", "How much in AER")
 	sendtxCmd.MarkFlagRequired("amount")
 }
 
@@ -40,7 +41,11 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --to flag\n" + err.Error())
 	}
-	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amount}}
+	amountBigInt, ok := new(big.Int).SetString(amount, 10)
+	if !ok {
+		return errors.New("failed to parse --amount flag\n" + err.Error())
+	}
+	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amountBigInt.Bytes()}}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		return errors.New("Failed request to aergo sever\n" + err.Error())

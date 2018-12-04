@@ -53,11 +53,11 @@ func init() {
 
 	stakingCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakingCmd.MarkFlagRequired("address")
-	stakingCmd.Flags().Uint64Var(&amount, "amount", 0, "Amount of staking")
+	stakingCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
 	stakingCmd.MarkFlagRequired("amount")
 	unstakingCmd.Flags().StringVar(&address, "address", "", "Account address")
 	unstakingCmd.MarkFlagRequired("address")
-	unstakingCmd.Flags().Uint64Var(&amount, "amount", 0, "Amount of staking")
+	unstakingCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
 	unstakingCmd.MarkFlagRequired("amount")
 
 	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakingCmd, unstakingCmd)

@@ -8,6 +8,7 @@ package system
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"testing"
 
@@ -42,10 +43,10 @@ func TestVoteResult(t *testing.T) {
 	defer deinitTest()
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	assert.NoError(t, err, "could not open contract state")
-	testResult := &map[string]uint64{}
+	testResult := &map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		(*testResult)[base58.Encode([]byte(to))] = uint64(i * i)
+		(*testResult)[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
 	assert.NotNil(t, err, "argument should not nil")
@@ -56,12 +57,13 @@ func TestVoteResult(t *testing.T) {
 	result, err := GetVoteResult(scs, getTestSize)
 	assert.NoError(t, err, "could not get vote result")
 
-	oldAmount := (uint64)(math.MaxUint64)
+	oldAmount := new(big.Int).SetUint64((uint64)(math.MaxUint64))
 	for i, v := range result.Votes {
 		oldi := testSize - (i + 1)
-		assert.Falsef(t, v.Amount > oldAmount, "failed to sort result old:%d, %d:%d", oldAmount, i, v.Amount)
-		assert.Equalf(t, uint64(oldi*oldi), v.Amount, "not match amount value")
-		oldAmount = v.Amount
+		assert.Falsef(t, new(big.Int).SetBytes(v.Amount).Cmp(oldAmount) > 0,
+			"failed to sort result old:%v, %d:%v", oldAmount, i, new(big.Int).SetBytes(v.Amount))
+		assert.Equalf(t, uint64(oldi*oldi), new(big.Int).SetBytes(v.Amount).Uint64(), "not match amount value")
+		oldAmount = new(big.Int).SetBytes(v.Amount)
 	}
 }
 
@@ -80,14 +82,15 @@ func TestVoteData(t *testing.T) {
 		assert.Zero(t, vote.Amount, "new amount value is already set")
 		assert.Nil(t, vote.Candidate, "new candidates value is already set")
 
-		testVote := &types.Vote{Candidate: []byte(to), Amount: uint64(math.MaxInt64 + i)}
+		testVote := &types.Vote{Candidate: []byte(to),
+			Amount: new(big.Int).SetUint64(uint64(math.MaxInt64 + i)).Bytes()}
 
 		err = setVote(scs, []byte(from), testVote)
 		assert.NoError(t, err, "failed to setVote")
 
 		vote, err = getVote(scs, []byte(from))
 		assert.NoError(t, err, "failed to getVote after set")
-		assert.Equal(t, uint64(math.MaxInt64+i), vote.Amount, "invalid amount")
+		assert.Equal(t, uint64(math.MaxInt64+i), new(big.Int).SetBytes(vote.Amount).Uint64(), "invalid amount")
 		assert.Equal(t, []byte(to), vote.Candidate, "invalid candidates")
 	}
 }
@@ -106,14 +109,15 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  5000,
+			Amount:  types.StakingMinimum.Bytes(),
 		},
 	}
-	senderState := &types.State{Balance: 10000}
+	senderState := &types.State{Balance: types.MaxAER.Bytes()}
 	tx.Body.Payload = buildStakingPayload(true)
 	err = staking(tx.Body, senderState, scs, 0)
-	assert.Equal(t, err, nil, "staking failed")
-	assert.Equal(t, senderState.GetBalance(), uint64(5000), "sender.GetBalanceBigInt() should be reduced after staking")
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
+		"sender.GetBalanceBigInt() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
 	err = voting(tx.Body, scs, VotingDelay-1)
@@ -126,7 +130,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
-	assert.EqualValues(t, 5000, result.GetVotes()[0].Amount, "invalid amount in voting result")
+	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	err = unstaking(tx.Body, senderState, scs, VotingDelay)
@@ -139,7 +143,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
-	assert.EqualValues(t, 0, result2.GetVotes()[0].Amount, "invalid amount in voting result")
+	assert.Nil(t, result2.GetVotes()[0].Amount, "invalid amount in voting result")
 }
 
 func buildVotingPayload(count int) []byte {
