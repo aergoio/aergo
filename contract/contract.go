@@ -3,8 +3,6 @@ package contract
 import "C"
 import (
 	"errors"
-	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"strconv"
 
 	"github.com/aergoio/aergo/state"
@@ -81,7 +79,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		for {
 			preload := <-replyCh
 			if preload.tx != tx {
-				preload.ex.close(true)
+				preload.ex.close()
 				continue
 			}
 			ex = preload.ex
@@ -93,17 +91,16 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if ex != nil {
-		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
+		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP())
 	} else {
-		bcCtx := NewContext(bs, sender.State(), contractState, enc.ToString(txBody.GetAccount()),
-			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-			enc.ToString(receiver.ID()), 0, nil, receiver.RP(),
-			preLoadService, txBody.GetAmount())
+		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
+			tx.GetHash(), blockNo, ts, "", true,
+			false, receiver.RP(), preLoadService, txBody.GetAmount())
 
 		if receiver.IsCreate() {
-			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
+			rv, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
+			rv, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
 	if err != nil {
@@ -135,7 +132,7 @@ func preLoadWorker() {
 
 		if len(replyCh) > 2 {
 			preload := <-replyCh
-			preload.ex.close(true)
+			preload.ex.close()
 		}
 
 		bs := reqInfo.bs
@@ -147,6 +144,7 @@ func preLoadWorker() {
 			txBody.Payload == nil {
 			continue
 		}
+
 		receiver, err := bs.GetAccountStateV(recipient)
 		if err != nil {
 			replyCh <- &loadedReply{tx, nil, err}
@@ -166,25 +164,11 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		txHash := enc.ToString(tx.GetHash())
-		contractId := enc.ToString(receiver.ID())
-		stateKey := fmt.Sprintf("%d%s%s", reqInfo.preLoadService, contractId, txHash)
-		bcCtx := &LBlockchainCtx{
-			stateKey:   C.CString(stateKey),
-			sender:     C.CString(enc.ToString(txBody.GetAccount())),
-			txHash:     C.CString(txHash),
-			contractId: C.CString(contractId),
-			service:    C.int(reqInfo.preLoadService),
-			amount:     C.ulonglong(txBody.GetAmount()),
-			isQuery:    C.int(0),
-			confirmed:  C.int(0),
-			node:       C.CString(""),
-		}
+		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
+			tx.GetHash(), 0, 0, "", false,
+			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmount())
 
-		ex, err := PreloadEx(bs, contractState, contractId, txBody.Payload, receiver.ID(), bcCtx)
-		if err != nil {
-			bcCtx.Del()
-		}
+		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
 		replyCh <- &loadedReply{tx, ex, err}
 	}
 }

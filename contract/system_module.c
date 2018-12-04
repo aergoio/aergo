@@ -5,18 +5,18 @@
 #include "util.h"
 #include "_cgo_export.h"
 
-extern const bc_ctx_t *getLuaExecContext(lua_State *L);
+extern const int *getLuaExecContext(lua_State *L);
 
 static int systemPrint(lua_State *L)
 {
     char *jsonValue;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 
     jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
     if (jsonValue == NULL) {
 		lua_error(L);
 	}
-    LuaPrint(exec->contractId, jsonValue);
+    LuaPrint(service, jsonValue);
     free(jsonValue);
 	return 0;
 }
@@ -26,14 +26,10 @@ int setItem(lua_State *L)
 	const char *key;
 	char *jsonValue;
 	char *dbKey;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
-	}
-
-	if (exec->isQuery) {
-	    luaL_error(L, "set not permitted in query");
 	}
 
 	luaL_checkany(L, 2);
@@ -44,8 +40,8 @@ int setItem(lua_State *L)
 		lua_error(L);
 	}
 
-	dbKey = lua_util_get_db_key(exec, key);
-	if (LuaSetDB(L, exec->stateKey, dbKey, jsonValue) != 0) {
+	dbKey = lua_util_get_db_key(key);
+	if (LuaSetDB(L, service, dbKey, jsonValue) != 0) {
 		free(jsonValue);
 		free(dbKey);
 		lua_error(L);
@@ -60,17 +56,17 @@ int getItem(lua_State *L)
 {
 	const char *key;
 	char *dbKey;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	char *jsonValue;
 	int ret;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 	key = luaL_checkstring(L, 1);
-	dbKey = lua_util_get_db_key(exec, key);
+	dbKey = lua_util_get_db_key(key);
 
-	ret = LuaGetDB(L, exec->stateKey, dbKey);
+	ret = LuaGetDB(L, service, dbKey);
 
 	free(dbKey);
 	if (ret < 0) {
@@ -89,63 +85,63 @@ int getItem(lua_State *L)
 
 static int getSender(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	LuaAddressEncode(L, exec->sender);
+	LuaGetSender(L, service);
 	return 1;
 }
 
 static int getTxhash(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushstring(L, exec->txHash);
+	LuaGetHash(L, service);
 	return 1;
 }
 
 static int getBlockHeight(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushinteger(L, exec->blockHeight);
+	LuaGetBlockNo(L, service);
 	return 1;
 }
 
 static int getTimestamp(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushinteger(L, exec->timestamp);
+	LuaGetTimeStamp(L, service);
 	return 1;
 }
 
 static int getContractID(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	LuaAddressEncode(L, exec->contractId);
+	LuaGetContractId(L, service);
 	return 1;
 }
 
 static int getCreator(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	int ret;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	ret = LuaGetDB(L, exec->stateKey, "Creator");
+	ret = LuaGetDB(L, service, "Creator");
 	if (ret < 0) {
 		lua_error(L);
 	}
@@ -157,23 +153,21 @@ static int getCreator(lua_State *L)
 
 static int getAmount(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	lua_pushinteger(L, exec->amount);
+	LuaGetAmount(L, service);
 	return 1;
 }
 
 static int getOrigin(lua_State *L)
 {
-	const bc_ctx_t *exec = getLuaExecContext(L);
-
-	if (exec == NULL) {
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	LuaAddressEncode(L, exec->origin);
+	LuaGetOrigin(L, service);
 	return 1;
 }
 

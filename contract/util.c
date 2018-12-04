@@ -438,7 +438,7 @@ char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 	return sbuf.buf;
 }
 
-char *lua_util_get_db_key(const bc_ctx_t *bc_ctx, const char *key)
+char *lua_util_get_db_key(const char *key)
 {
 
 	char *dbKey = malloc(sizeof(char) * (strlen(key) + 2));

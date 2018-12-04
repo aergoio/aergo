@@ -19,20 +19,20 @@ static void preloadModules(lua_State *L)
 	luaopen_json(L);
 }
 
-static void setLuaExecContext(lua_State *L, bc_ctx_t *bc_ctx)
+static void setLuaExecContext(lua_State *L, int *service)
 {
-	lua_pushlightuserdata(L, bc_ctx);
+	lua_pushlightuserdata(L, service);
 	lua_setglobal(L, luaExecContext);
 }
 
-const bc_ctx_t *getLuaExecContext(lua_State *L)
+const int *getLuaExecContext(lua_State *L)
 {
-	bc_ctx_t *exec;
+	int *service;
 	lua_getglobal(L, luaExecContext);
-	exec = (bc_ctx_t *)lua_touserdata(L, -1);
+	service = (int *)lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	return exec;
+	return service;
 }
 
 void bc_ctx_delete(bc_ctx_t *bc_ctx) {
@@ -56,14 +56,14 @@ lua_State *vm_newstate()
 	return L;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, bc_ctx_t *bc_ctx)
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, int *service)
 {
 	int err;
 	const char *errMsg = NULL;
 
-	setLuaExecContext(L, bc_ctx);
+	setLuaExecContext(L, service);
 
-	err = luaL_loadbuffer(L, code, sz, bc_ctx->contractId);
+	err = luaL_loadbuffer(L, code, sz, "lua contract");
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
@@ -153,13 +153,12 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 
 sqlite3 *vm_get_db(lua_State *L)
 {
-    bc_ctx_t *ctx;
+    int *service;
     sqlite3 *db;
 
-    ctx = (bc_ctx_t *)getLuaExecContext(L);
-    db = LuaGetDbHandle(ctx->stateKey, ctx->contractId, ctx->rp, ctx->isQuery);
+    service = (int *)getLuaExecContext(L);
+    db = LuaGetDbHandle(service);
     if (db == NULL) {
-        ctx->dbSystemError = 1;
         lua_pushstring(L, "can't open a database connection");
         lua_error(L);
     }

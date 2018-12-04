@@ -60,7 +60,7 @@ func init() {
 					tx:        nil,
 					conn:      conn,
 					name:      database.OpenDbName,
-					accountID: types.ToAccountID(b),
+					accountID: types.AccountID(types.ToHashID(b)),
 				}
 			} else {
 				logger.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")
