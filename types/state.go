@@ -138,5 +138,8 @@ func Clone(i interface{}) interface{} {
 }
 
 func (st *State) GetBalanceBigInt() *big.Int {
+	if st == nil {
+		return new(big.Int).SetUint64(0)
+	}
 	return new(big.Int).SetBytes(st.Balance)
 }

@@ -143,6 +143,6 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.GetAmountBigInt().String())
 	}
 }
