@@ -401,7 +401,7 @@ func LuaGetBlockNo(L *LState, service *C.int) {
 func LuaGetTimeStamp(L *LState, service *C.int) {
 	stateSet := curStateSet[*service]
 
-	C.lua_pushinteger(L, C.lua_Integer(stateSet.timestamp))
+	C.lua_pushinteger(L, C.lua_Integer(stateSet.timestamp/1e9))
 }
 
 //export LuaGetContractId
