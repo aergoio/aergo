@@ -23,10 +23,10 @@ type InOutTxBody struct {
 	Nonce     uint64
 	Account   string
 	Recipient string
-	Amount    *big.Int
+	Amount    string
 	Payload   string
 	Limit     uint64
-	Price     *big.Int
+	Price     string
 	Type      types.TxType
 	Sign      string
 }
@@ -97,8 +97,12 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 			return err
 		}
 	}
-	if source.Amount != nil {
-		target.Amount = source.Amount.Bytes()
+	if source.Amount != "" {
+		amount, ok := new(big.Int).SetString(source.Amount, 10)
+		if !ok {
+			return errors.New("failed to parse amount")
+		}
+		target.Amount = amount.Bytes()
 	}
 	if source.Payload != "" {
 		target.Payload, err = base58.Decode(source.Payload)
@@ -107,8 +111,12 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 	}
 	target.Limit = source.Limit
-	if source.Price != nil {
-		target.Price = source.Price.Bytes()
+	if source.Price != "" {
+		price, ok := new(big.Int).SetString(source.Price, 10)
+		if !ok {
+			return errors.New("failed to parse price")
+		}
+		target.Price = price.Bytes()
 	}
 	if source.Sign != "" {
 		target.Sign, err = base58.Decode(source.Sign)
@@ -180,10 +188,10 @@ func ConvTx(tx *types.Tx) *InOutTx {
 	if tx.Body.Recipient != nil {
 		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	}
-	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount)
+	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.Limit = tx.Body.Limit
-	out.Body.Price = new(big.Int).SetBytes(tx.Body.Price)
+	out.Body.Price = new(big.Int).SetBytes(tx.Body.Price).String()
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out

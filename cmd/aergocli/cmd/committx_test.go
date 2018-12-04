@@ -50,7 +50,7 @@ func TestCommitTxWithMock(t *testing.T) {
 		nil,
 	).MaxTimes(1)
 
-	output, err = executeCommand(rootCmd, "committx", "--jsontx", "{ \"Hash\": \"HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY\", \"Body\": {\"Nonce\": 2, \"Account\": \"AmNBZ8WQKP8DbuP9Q9W9vGFhiT8vQNcuSZ2SbBbVvbJWGV3Wh1mn\", \"Recipient\": \"AmLnVfGwq49etaa7dnzfGJTbaZWV7aVmrxFes4KmWukXwtooVZPJ\", \"Amount\": 25000, \"Payload\": \"\", \"Limit\": 100, \"Price\": 1, \"Type\": 0, \"Sign\": \"381yXYxTtq2tRPRQPF7tHH6Cq3y8PvcsFWztPwCRmmYfqnK83Z3a6Yj9fyy8Rpvrrw76Y52SNAP6Th3BYQjX1Bcmf6NQrDHQ\"}}")
+	output, err = executeCommand(rootCmd, "committx", "--jsontx", "{ \"Hash\": \"HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY\", \"Body\": {\"Nonce\": 2, \"Account\": \"AmNBZ8WQKP8DbuP9Q9W9vGFhiT8vQNcuSZ2SbBbVvbJWGV3Wh1mn\", \"Recipient\": \"AmLnVfGwq49etaa7dnzfGJTbaZWV7aVmrxFes4KmWukXwtooVZPJ\", \"Amount\": \"25000\", \"Payload\": \"\", \"Limit\": 100, \"Price\": \"1\", \"Type\": 0, \"Sign\": \"381yXYxTtq2tRPRQPF7tHH6Cq3y8PvcsFWztPwCRmmYfqnK83Z3a6Yj9fyy8Rpvrrw76Y52SNAP6Th3BYQjX1Bcmf6NQrDHQ\"}}")
 	assert.NoError(t, err, "should no error")
 	assert.Equal(t, "1 : HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY TX_OK \n", output)
 }
