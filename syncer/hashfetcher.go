@@ -1,13 +1,14 @@
 package syncer
 
 import (
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 )
 
 type HashFetcher struct {

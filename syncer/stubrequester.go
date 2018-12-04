@@ -1,8 +1,9 @@
 package syncer
 
 import (
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type StubRequester struct {

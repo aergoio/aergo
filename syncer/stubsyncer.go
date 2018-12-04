@@ -2,15 +2,16 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-peer"
+	"github.com/stretchr/testify/assert"
 )
 
 type StubSyncer struct {

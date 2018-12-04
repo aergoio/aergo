@@ -2,10 +2,8 @@ package chain
 
 import (
 	"bytes"
-	"fmt"
-
 	"errors"
-
+	"fmt"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
