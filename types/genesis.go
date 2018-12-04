@@ -15,6 +15,7 @@ var (
 	defaultChainID = ChainID{
 		Magic:     "AREGO.IO",
 		PublicNet: true,
+		MainNet:   false,
 		Consensus: "dpos",
 	}
 )
@@ -23,6 +24,7 @@ var (
 type ChainID struct {
 	Magic     string `json:"magic"`
 	PublicNet bool   `json:"public"`
+	MainNet   bool   `json:"mainnet"`
 	Consensus string `json:"consensus"`
 }
 
