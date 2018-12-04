@@ -41,7 +41,7 @@ func LoadDummyChain() (*DummyChain, error) {
 		return nil, err
 	}
 	genesis := types.GetTestGenesis()
-	bc.sdb.SetGenesis(genesis)
+	bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)

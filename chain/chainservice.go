@@ -87,12 +87,7 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 				genesis = types.GetDefaultGenesis()
 			}
 
-			err := InitGenesisBPs(core.sdb.GetStateDB(), genesis)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot set bp identifications")
-				return nil, err
-			}
-			err = core.sdb.SetGenesis(genesis)
+			err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
 			if err != nil {
 				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
 				return nil, err

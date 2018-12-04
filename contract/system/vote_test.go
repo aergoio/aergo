@@ -25,7 +25,7 @@ func initTest(t *testing.T) {
 	sdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
 
-	err := sdb.SetGenesis(genesis)
+	err := sdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
