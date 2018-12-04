@@ -164,7 +164,7 @@ func newExecutor(contract *Contract, bcCtx *LBlockchainCtx) *Executor {
 	}
 	if ce.L == nil {
 		ctrLog.Error().Str("error", "failed: create lua state")
-		ce.err = errors.New("failed: create lua state")
+		ce.err = types.ErrVmStart
 		return ce
 	}
 	if cErrMsg := C.vm_loadbuff(
@@ -575,6 +575,9 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
 			return string(ret), dbErr
+		}
+		if err == types.ErrVmStart {
+			return string(ret), err
 		}
 		return string(ret), nil
 	}

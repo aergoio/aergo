@@ -10,6 +10,9 @@
 lua_State *luac_vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	if (L == NULL) {
+	    return NULL;
+	}
 	luaL_openlibs(L);
 	luac_open_state(L);
 	return L;

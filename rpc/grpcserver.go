@@ -78,8 +78,8 @@ func (rpc *AergoRPCService) fillPeerMetrics(result *types.Metrics) {
 	metrics := presult.([]*metric.PeerMetric)
 	mets := make([]*types.PeerMetric, len(metrics))
 	for i, met := range metrics {
-		rMet := &types.PeerMetric{PeerID:[]byte(met.PeerID), SumIn:met.SumIn, AvrIn:met.InMetric.APS(),
-			SumOut:met.SumOut, AvrOut:met.OutMetric.APS()}
+		rMet := &types.PeerMetric{PeerID:[]byte(met.PeerID), SumIn:met.TotalIn(), AvrIn:met.InMetric.APS(),
+			SumOut:met.TotalOut(), AvrOut:met.OutMetric.APS()}
 		mets[i] = rMet
 	}
 
