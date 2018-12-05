@@ -1788,7 +1788,19 @@ func TestArray(t *testing.T) {
 		return rv
 	end
 
-	abi.register(inc,get,set,len,iter)`
+	function iter2()
+		local rv = {}
+		for i, v in counts:ipairs() do
+			if v == nil then
+				rv[i] = "nil"
+			else
+				rv[i] = v
+			end
+		end
+		return rv
+	end
+
+	abi.register(inc,get,set,len,iter,iter2)`
 
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -1828,6 +1840,10 @@ func TestArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"iter2"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2258,7 +2274,10 @@ func TestMapKey(t *testing.T) {
 	function getCount(key)
 		return counts[key]
 	end
-	abi.register(setCount, getCount)
+	function delCount(key)
+		counts:delete(key)
+	end
+	abi.register(setCount, getCount, delCount)
 `
 	bc, _ := LoadDummyChain()
 	_ = bc.ConnectBlock(
@@ -2291,6 +2310,20 @@ func TestMapKey(t *testing.T) {
 			`{"Name":"setCount", "Args":[true, 40]}`,
 		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"delCount", "Args":[1.1]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2413,6 +2446,157 @@ abi.register(CreateDate, Extract, Difftime)
 		t.Error(err)
 	}
 	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `2890`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDynamicArray(t *testing.T) {
+	zeroLen := `
+state.var {
+    fixedArray = state.array(0)
+}
+
+function Length()
+	return #fixedArray
+end
+
+abi.register(Length)
+`
+	bc, _ := LoadDummyChain()
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+	)
+	err := bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "zeroLen", 1, zeroLen),
+	)
+	if err == nil {
+		t.Error("expected: the array length must be greater than zero")
+	}
+	if !strings.Contains(err.Error(), "the array length must be greater than zero") {
+		t.Errorf(err.Error())
+	}
+
+	dArr := `
+state.var {
+    dArr = state.array()
+}
+
+function Append(val)
+	dArr.append(val)
+end
+
+function Get(idx)
+	return dArr[idx]
+end
+
+function Set(idx, val)
+	dArr[idx] = val
+end
+
+function Length()
+	return #dArr
+end
+
+abi.register(Append, Get, Set, Length)
+`
+	tx := NewLuaTxDef("ktlee", "dArr", 1, dArr)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "0")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [10]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [20]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [2]}`, "", "20")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "index out of range", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [30]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [40]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "4")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Set", "Args": [3, 50]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "", "50")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDupVar(t *testing.T) {
+	dupVar := `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+state.var{
+	Var1 = state.value(),
+}
+abi.register(GetVar1)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "dupVar", 1, dupVar),
+	)
+	if err == nil {
+		t.Error("duplicated variable: 'Var1'")
+	}
+	if !strings.Contains(err.Error(), "duplicated variable: 'Var1'") {
+		t.Error(err)
+	}
+
+	dupVar = `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+function Work()
+	state.var{
+		Var1 = state.value(),
+	}
+end
+abi.register(GetVar1, Work)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "dupVar1", 1, dupVar),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dupVar1", 1, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
+	)
 	if err != nil {
 		t.Error(err)
 	}

@@ -412,10 +412,10 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
 
+	curStateSet[stateSet.service] = stateSet
 	ce := newExecutor(contract, stateSet)
 	defer ce.close()
 
-	curStateSet[stateSet.service] = stateSet
 	ce.call(&ci, nil)
 	err = ce.err
 	if err == nil {
@@ -556,11 +556,11 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return string(errMsg), nil
 	}
 
+	curStateSet[stateSet.service] = stateSet
 	var ce *Executor
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 
-	curStateSet[stateSet.service] = stateSet
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
@@ -616,6 +616,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
+	curStateSet[stateSet.service] = stateSet
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 	defer func() {
@@ -623,7 +624,6 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 			err = dbErr
 		}
 	}()
-	curStateSet[stateSet.service] = stateSet
 	ce.call(&ci, nil)
 	return []byte(ce.jsonRet), ce.err
 }
