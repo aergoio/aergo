@@ -2418,4 +2418,101 @@ abi.register(CreateDate, Extract, Difftime)
 	}
 }
 
+func TestDynamicArray(t *testing.T) {
+	zeroLen := `
+state.var {
+    fixedArray = state.array(0)
+}
+
+function Length()
+	return #fixedArray
+end
+
+abi.register(Length)
+`
+	bc, _ := LoadDummyChain()
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+	)
+	err := bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "zeroLen", 1, zeroLen),
+	)
+	if err == nil {
+		t.Error("expected: the array length must be greater than zero")
+	}
+	if !strings.Contains(err.Error(), "the array length must be greater than zero") {
+		t.Errorf(err.Error())
+	}
+
+	dArr := `
+state.var {
+    dArr = state.array()
+}
+
+function Append(val)
+	dArr.append(val)
+end
+
+function Get(idx)
+	return dArr[idx]
+end
+
+function Set(idx, val)
+	dArr[idx] = val
+end
+
+function Length()
+	return #dArr
+end
+
+abi.register(Append, Get, Set, Length)
+`
+	tx := NewLuaTxDef("ktlee", "dArr", 1, dArr)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "0")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [10]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [20]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [2]}`, "", "20")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "index out of range", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [30]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [40]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "4")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Set", "Args": [3, 50]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "", "50")
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

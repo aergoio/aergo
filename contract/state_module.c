@@ -8,11 +8,14 @@
 #include "vm.h"
 #include "system_module.h"
 
-#define STATE_MAP_ID "__state_map__"
-#define STATE_ARRAY_ID "__state_array__"
-#define STATE_VALUE_ID "__state_value__"
+#define STATE_MAP_ID            "__state_map__"
+#define STATE_ARRAY_ID          "__state_array__"
+#define STATE_VALUE_ID          "__state_value__"
 
-#define STATE_VAR_KEY_PREFIX "_sv_"
+#define STATE_VAR_KEY_PREFIX    "_sv_"
+#define STATE_VAR_META_LEN      "_sv_meta_len_"
+
+static int state_array_append(lua_State *L);
 
 /* map */
 
@@ -78,18 +81,26 @@ static int state_map_set(lua_State *L)
 typedef struct {
     char *id;
     int len;
+    int is_fixed;
 } state_array_t;
 
 static int state_array(lua_State *L)
 {
-    int len;
+    int is_fixed;
+    int len = 0;
     state_array_t *arr;
-    len = luaL_checkint(L, 1);                          /* size */
+
+    is_fixed = lua_gettop(L) != 0;
+    if (is_fixed) {
+        len = luaL_checkint(L, 1);                       /* size */
+        luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
+    }
     arr = lua_newuserdata(L, sizeof(state_array_t));    /* size a */
     luaL_getmetatable(L, STATE_ARRAY_ID);               /* size a mt */
     lua_setmetatable(L, -2);                            /* size a */
     arr->len = len;
     arr->id = NULL;
+    arr->is_fixed = is_fixed;
     return 1;
 }
 
@@ -104,9 +115,19 @@ static state_array_t *state_array_checkarg(lua_State *L)
 
 static int state_array_get(lua_State *L)
 {
+    const char *method;
     const char *idx;
     state_array_t *arr;
 
+    method = lua_tostring(L, 2);
+    if (method != NULL) {                           /* methods */
+        if (strcmp(method, "append") == 0) {
+            luaL_checkudata(L, 1, STATE_ARRAY_ID);
+            lua_pushvalue(L, 1);
+            lua_pushcclosure(L, state_array_append, 1);
+            return 1;
+        }
+    }
     arr = state_array_checkarg(L);                  /* a i */
     lua_pushcfunction(L, getItemWithPrefix);        /* a i f */
     lua_pushstring(L, arr->id);                     /* a i f id */
@@ -141,6 +162,27 @@ static int state_array_set(lua_State *L)
     lua_pushvalue(L, 3);                            /* a i v f idi v */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* a i v f idi v prefix */
     lua_call(L, 3, 0);                              /* a i v */
+    return 0;
+}
+
+static int state_array_append(lua_State *L)
+{
+    state_array_t *arr = (state_array_t *)lua_touserdata(L, lua_upvalueindex(1));
+    luaL_argcheck(L, arr != NULL, 1, "’state.array’ expected");
+    if (arr->is_fixed) {
+        return luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
+    }
+    arr->len++;
+    lua_pushcfunction(L, state_array_set);          /* a | v f */
+    lua_pushvalue(L, lua_upvalueindex(1));          /* a | v f a */
+    lua_pushinteger(L, arr->len);                   /* a | v f a i */
+    lua_pushvalue(L, 1);                            /* a | v f a i v */
+    lua_call(L, 3, 0);
+    lua_pushcfunction(L, setItemWithPrefix);
+    lua_pushstring(L, arr->id);
+    lua_pushinteger(L, arr->len);
+    lua_pushstring(L, STATE_VAR_META_LEN);
+    lua_call(L, 3, 0);
     return 0;
 }
 
@@ -245,6 +287,14 @@ static int state_var(lua_State *L)
             state_array_t *arr = luaL_checkudata(L, -1, STATE_ARRAY_ID);
             arr->id = strdup((const char *)lua_tostring(L, -2));        /* T key value */
             lua_setglobal(L, lua_tostring(L, -2));                      /* T key */
+            if (!arr->is_fixed) {
+                lua_pushcfunction(L, getItemWithPrefix);
+                lua_pushstring(L, arr->id);
+                lua_pushstring(L, STATE_VAR_META_LEN);
+                lua_call(L, 2, 1);
+                arr->len = luaL_optinteger(L, -1, 0);
+                lua_pop(L, 1);
+            }
         } else {
             lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state_value, state_map or state_array expected, got %s",
                             var_name, lua_typename(L, t));

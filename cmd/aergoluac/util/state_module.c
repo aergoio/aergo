@@ -12,7 +12,7 @@
 static int state_map(lua_State *L)
 {
     lua_newtable(L);
-    lua_pushstring(L, TYPE_NAME);    /* m _type_ */
+    lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "map");       /* m _type_ map */
     lua_rawset(L, -3);
     return 1;
@@ -20,9 +20,13 @@ static int state_map(lua_State *L)
 
 static int state_array(lua_State *L)
 {
-    luaL_checkint(L, 1);
+    int is_fixed = lua_gettop(L) != 0;
+    if (is_fixed) {
+        int len = luaL_checkint(L, 1);      /* size */
+        luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
+    }
     lua_newtable(L);
-    lua_pushstring(L, TYPE_NAME);    /* m _type_ */
+    lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "array");     /* m _type_ array */
     lua_rawset(L, -3);
     return 1;
@@ -31,7 +35,7 @@ static int state_array(lua_State *L)
 static int state_value(lua_State *L)
 {
     lua_newtable(L);
-    lua_pushstring(L, TYPE_NAME);    /* m _type_ */
+    lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "value");     /* m _type_ value */
     lua_rawset(L, -3);
     return 1;
