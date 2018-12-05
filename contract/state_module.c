@@ -19,6 +19,7 @@
 
 static int state_map_delete(lua_State *L);
 static int state_array_append(lua_State *L);
+static int state_array_pairs(lua_State *L);
 
 /* map */
 
@@ -141,12 +142,17 @@ static int state_array_get(lua_State *L)
 
     method = lua_tostring(L, 2);
     if (method != NULL) {                           /* methods */
+        luaL_checkudata(L, 1, STATE_ARRAY_ID);
+        lua_pushvalue(L, 1);
         if (strcmp(method, "append") == 0) {
-            luaL_checkudata(L, 1, STATE_ARRAY_ID);
-            lua_pushvalue(L, 1);
             lua_pushcclosure(L, state_array_append, 1);
             return 1;
         }
+        if (strcmp(method, "ipairs") == 0) {
+            lua_pushcclosure(L, state_array_pairs, 1);
+            return 1;
+        }
+        lua_pop(L, 1);
     }
     arr = state_array_checkarg(L);                  /* a i */
     lua_pushcfunction(L, getItemWithPrefix);        /* a i f */

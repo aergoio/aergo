@@ -1788,7 +1788,19 @@ func TestArray(t *testing.T) {
 		return rv
 	end
 
-	abi.register(inc,get,set,len,iter)`
+	function iter2()
+		local rv = {}
+		for i, v in counts:ipairs() do
+			if v == nil then
+				rv[i] = "nil"
+			else
+				rv[i] = v
+			end
+		end
+		return rv
+	end
+
+	abi.register(inc,get,set,len,iter,iter2)`
 
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -1828,6 +1840,10 @@ func TestArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("array", `{"Name":"iter2"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
 	if err != nil {
 		t.Error(err)
 	}
