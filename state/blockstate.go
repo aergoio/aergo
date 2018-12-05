@@ -15,6 +15,7 @@ type BlockState struct {
 	StateDB
 	BpReward []byte //final bp reward, increment when tx executes
 	receipts types.Receipts
+	CodeMap  map[types.AccountID][]byte
 }
 
 // NewBlockInfo create new blockInfo contains blockNo, blockHash and blockHash of previous block
@@ -37,6 +38,7 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 func NewBlockState(states *StateDB) *BlockState {
 	return &BlockState{
 		StateDB: *states,
+		CodeMap: make(map[types.AccountID][]byte),
 	}
 }
 

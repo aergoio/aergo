@@ -3,17 +3,18 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"sort"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"sort"
 )
 
 type BlockProcessor struct {
-	hub component.ICompRequester //for communicate with other service
+	compRequester component.IComponentRequester //for communicate with other service
 
 	blockFetcher *BlockFetcher
 
@@ -35,10 +36,10 @@ type ConnectTask struct {
 	cur      int
 }
 
-func NewBlockProcessor(hub component.ICompRequester, blockFetcher *BlockFetcher, ancestor *types.Block,
+func NewBlockProcessor(compRequester component.IComponentRequester, blockFetcher *BlockFetcher, ancestor *types.Block,
 	targetNo types.BlockNo) *BlockProcessor {
 	return &BlockProcessor{
-		hub:           hub,
+		compRequester: compRequester,
 		blockFetcher:  blockFetcher,
 		prevBlock:     ancestor,
 		targetBlockNo: targetNo,
@@ -199,7 +200,7 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 
 	if curBlock.BlockNo() == bproc.targetBlockNo {
 		logger.Info().Msg("connected last block, stop syncer")
-		stopSyncer(bproc.hub, bproc.name, nil)
+		stopSyncer(bproc.compRequester, bproc.name, nil)
 	}
 
 	bproc.prevBlock = curBlock
@@ -275,7 +276,7 @@ func (bproc *BlockProcessor) connectBlock(block *types.Block) {
 		Str("hash", enc.ToString(block.GetHash())).
 		Msg("request connecting block to chainsvc")
 
-	bproc.hub.Tell(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil, IsSync: true})
+	bproc.compRequester.RequestTo(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil, IsSync: true})
 }
 
 func (bproc *BlockProcessor) pushToConnQueue(newReq *ConnectTask) {

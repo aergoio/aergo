@@ -18,7 +18,7 @@ func initTest(t *testing.T) {
 	stateDB = chainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 
-	err := chainStateDB.SetGenesis(genesis)
+	err := chainStateDB.SetGenesis(genesis, nil)
 	assert.NoError(t, err, "failed init")
 }
 func deinitTest() {

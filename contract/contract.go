@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -80,7 +79,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		for {
 			preload := <-replyCh
 			if preload.tx != tx {
-				preload.ex.close(true)
+				preload.ex.close()
 				continue
 			}
 			ex = preload.ex
@@ -92,17 +91,16 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if ex != nil {
-		rv, err = PreCall(ex, bs, sender.State(), contractState, blockNo, ts, receiver.RP())
+		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP())
 	} else {
-		bcCtx := NewContext(bs, sender.State(), contractState, types.EncodeAddress(txBody.GetAccount()),
-			enc.ToString(tx.GetHash()), blockNo, ts, "", 0,
-			types.EncodeAddress(receiver.ID()), 0, nil, receiver.RP(),
-			preLoadService, txBody.GetAmountBigInt())
+		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
+			tx.GetHash(), blockNo, ts, "", true,
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
-			rv, err = Create(contractState, txBody.Payload, receiver.ID(), bcCtx)
+			rv, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, err = Call(contractState, txBody.Payload, receiver.ID(), bcCtx)
+			rv, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
 	if err != nil {
@@ -134,7 +132,7 @@ func preLoadWorker() {
 
 		if len(replyCh) > 2 {
 			preload := <-replyCh
-			preload.ex.close(true)
+			preload.ex.close()
 		}
 
 		bs := reqInfo.bs
@@ -146,6 +144,7 @@ func preLoadWorker() {
 			txBody.Payload == nil {
 			continue
 		}
+
 		receiver, err := bs.GetAccountStateV(recipient)
 		if err != nil {
 			replyCh <- &loadedReply{tx, nil, err}
@@ -165,25 +164,11 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		txHash := enc.ToString(tx.GetHash())
-		sender := types.EncodeAddress(txBody.GetAccount())
-		contractId := types.EncodeAddress(receiver.ID())
+		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
+			tx.GetHash(), 0, 0, "", false,
+			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
-		bcCtx := &LBlockchainCtx{
-			sender:     C.CString(sender),
-			txHash:     C.CString(txHash),
-			contractId: C.CString(contractId),
-			service:    C.int(reqInfo.preLoadService),
-			amount:     C.CString(txBody.GetAmountBigInt().String()),
-			isQuery:    C.int(0),
-			confirmed:  C.int(0),
-			node:       C.CString(""),
-		}
-
-		ex, err := PreloadEx(contractState, txBody.Payload, receiver.ID(), bcCtx)
-		if err != nil {
-			bcCtx.Del()
-		}
+		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
 		replyCh <- &loadedReply{tx, ex, err}
 	}
 }

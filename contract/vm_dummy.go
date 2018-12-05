@@ -3,7 +3,6 @@ package contract
 // helper functions
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -43,7 +42,7 @@ func LoadDummyChain() (*DummyChain, error) {
 		return nil, err
 	}
 	genesis := types.GetTestGenesis()
-	bc.sdb.SetGenesis(genesis)
+	bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
@@ -63,7 +62,7 @@ func (bc *DummyChain) newBState() *state.BlockState {
 		Header: &types.BlockHeader{
 			PrevBlockHash: []byte(bc.bestBlockId.String()),
 			BlockNo:       bc.bestBlockNo + 1,
-			Timestamp:     time.Now().Unix(),
+			Timestamp:     time.Now().UnixNano(),
 		},
 	}
 	bc.cBlock = &b
@@ -242,37 +241,34 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 }
 
 func contractFrame(l *luaTxCommon, bs *state.BlockState,
-	run func(s, c *types.State, id types.AccountID, cs *state.ContractState) error) error {
+	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) error) error {
 
 	creatorId := types.ToAccountID(l.sender)
-	creatorState, err := bs.GetAccountState(creatorId)
+	creatorState, err := bs.GetAccountStateV(l.sender)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.contract)
-	contractState, err := bs.GetAccountState(contractId)
+	contractState, err := bs.GetAccountStateV(l.contract)
 	if err != nil {
 		return err
 	}
 
-	uContractState := types.State(*contractState)
-	eContractState, err := bs.OpenContractState(contractId, &uContractState)
+	eContractState, err := bs.OpenContractState(contractId, contractState.State())
 	if err != nil {
 		return err
 	}
 
-	err = run(creatorState, &uContractState, contractId, eContractState)
+	err = run(creatorState, contractState, contractId, eContractState)
 	if err != nil {
 		return err
 	}
+	creatorState.SubBalance(l.amount)
+	contractState.AddBalance(l.amount)
 
-	uCallerState := types.State(*creatorState)
-	uCallerState.Balance = new(big.Int).Sub(uCallerState.GetBalanceBigInt(), l.amount).Bytes()
-	uContractState.Balance = new(big.Int).Add(uContractState.GetBalanceBigInt(), l.amount).Bytes()
-
-	bs.PutState(creatorId, &uCallerState)
-	bs.PutState(contractId, &uContractState)
+	bs.PutState(creatorId, creatorState.State())
+	bs.PutState(contractId, contractState.State())
 	return nil
 
 }
@@ -285,14 +281,14 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64,
 	}
 
 	return contractFrame(&l.luaTxCommon, bs,
-		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
-			uContractState.SqlRecoveryPoint = 1
-			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
-				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
+		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
+			contract.State().SqlRecoveryPoint = 1
 
-			_, err := Create(eContractState, l.code, l.contract, bcCtx)
+			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+				l.hash(), blockNo, ts, "", true,
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
+
+			_, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
 			}
@@ -337,12 +333,11 @@ func (l *luaTxCall) fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
-		func(senderState, uContractState *types.State, contractId types.AccountID, eContractState *state.ContractState) error {
-			bcCtx := NewContext(bs, senderState, eContractState,
-				types.EncodeAddress(l.sender), hex.EncodeToString(l.hash()), blockNo, ts,
-				"", 1, types.EncodeAddress(l.contract),
-				0, nil, uContractState.SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-			rv, err := Call(eContractState, l.code, l.contract, bcCtx)
+		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
+			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+				l.hash(), blockNo, ts, "", true,
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
+			rv, err := Call(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
 			}

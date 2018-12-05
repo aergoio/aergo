@@ -1,17 +1,18 @@
 package syncer
 
 import (
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 )
 
 type HashFetcher struct {
-	hub component.ICompRequester //for communicate with other service
+	compRequester component.IComponentRequester //for communicate with other service
 
 	ctx *types.SyncContext
 
@@ -59,8 +60,8 @@ var (
 	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
 
-func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh chan *HashSet, cfg *SyncerConfig) *HashFetcher {
-	hf := &HashFetcher{ctx: ctx, hub: hub, name: NameHashFetcher}
+func newHashFetcher(ctx *types.SyncContext, compRequester component.IComponentRequester, bfCh chan *HashSet, cfg *SyncerConfig) *HashFetcher {
+	hf := &HashFetcher{ctx: ctx, compRequester: compRequester, name: NameHashFetcher}
 
 	hf.quitCh = make(chan interface{})
 	hf.responseCh = make(chan *message.GetHashesRsp)
@@ -113,19 +114,19 @@ func (hf *HashFetcher) Start() {
 						//TODO send errmsg to syncer & stop sync
 						logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
 						if err != ErrQuitHashFetcher {
-							stopSyncer(hf.hub, hf.name, err)
+							stopSyncer(hf.compRequester, hf.name, err)
 						}
 						return
 					}
 
 					if hf.isFinished(HashSet) {
-						closeFetcher(hf.hub, hf.name)
+						closeFetcher(hf.compRequester, hf.name)
 						logger.Info().Msg("HashFetcher finished")
 						return
 					}
 					hf.requestHashSet()
 				} else if err != nil {
-					stopSyncer(hf.hub, hf.name, err)
+					stopSyncer(hf.compRequester, hf.name, err)
 				}
 
 				//timer restart
@@ -133,7 +134,7 @@ func (hf *HashFetcher) Start() {
 			case <-timer.C:
 				if hf.requestTimeout() {
 					logger.Error().Msg("HashFetcher response timeout.")
-					stopSyncer(hf.hub, hf.name, ErrHashFetcherTimeout)
+					stopSyncer(hf.compRequester, hf.name, ErrHashFetcherTimeout)
 				}
 
 			case <-hf.quitCh:
@@ -166,7 +167,7 @@ func (hf *HashFetcher) requestHashSet() {
 
 	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
-	hf.hub.Tell(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
+	hf.compRequester.TellTo(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
 }
 
 func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {

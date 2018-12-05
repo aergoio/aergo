@@ -6,13 +6,14 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 
 	"fmt"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-	"reflect"
-	"testing"
-	"time"
 )
 
 type Syncer struct {
@@ -29,7 +30,7 @@ type Syncer struct {
 	hashFetcher  *HashFetcher
 	blockFetcher *BlockFetcher
 
-	testHub component.ICompRequester //for test
+	compRequester component.IComponentRequester //for test
 }
 
 type SyncerConfig struct {
@@ -95,7 +96,7 @@ func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor, syncerCfg *SyncerConf
 	syncer := &Syncer{cfg: cfg, syncerCfg: syncerCfg}
 
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
-
+	syncer.compRequester = syncer.BaseComponent
 	syncer.chain = chain
 
 	logger.Info().Msg("Syncer started")
@@ -137,16 +138,17 @@ func (syncer *Syncer) Reset() {
 	logger.Info().Msg("syncer stopped")
 }
 
-func (syncer *Syncer) getHub() component.ICompRequester {
-	if syncer.testHub != nil {
-		return syncer.testHub
+func (syncer *Syncer) getCompRequester() component.IComponentRequester {
+	if syncer.compRequester != nil {
+		return syncer.compRequester
 	} else {
-		return syncer.BaseComponent.Hub()
+		return syncer.BaseComponent
 	}
 }
 
-func (syncer *Syncer) SetTestHub(hub component.ICompRequester) {
-	syncer.testHub = hub
+// This api used for test to set stub IComponentRequester
+func (syncer *Syncer) SetRequester(stubRequester component.IComponentRequester) {
+	syncer.compRequester = stubRequester
 }
 
 // Receive actor message
@@ -265,7 +267,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isstartning = true
 
-	syncer.finder = newFinder(syncer.ctx, syncer.getHub(), syncer.chain, syncer.syncerCfg)
+	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
 	syncer.finder.start()
 
 	return err
@@ -309,8 +311,8 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 		return nil
 	}
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.getHub(), syncer.syncerCfg)
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.getHub(), syncer.blockFetcher.hfCh, syncer.syncerCfg)
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.getCompRequester(), syncer.syncerCfg)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.getCompRequester(), syncer.blockFetcher.hfCh, syncer.syncerCfg)
 
 	syncer.blockFetcher.Start()
 	syncer.hashFetcher.Start()
@@ -353,12 +355,12 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 	}
 }
 
-func stopSyncer(hub component.ICompRequester, who string, err error) {
+func stopSyncer(compRequester component.IComponentRequester, who string, err error) {
 	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
 
-	hub.Tell(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
+	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
 }
 
-func closeFetcher(hub component.ICompRequester, who string) {
-	hub.Tell(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
+func closeFetcher(compRequester component.IComponentRequester, who string) {
+	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
 }

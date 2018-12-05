@@ -26,7 +26,7 @@ func initTest(t *testing.T) {
 	sdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
 
-	err := sdb.SetGenesis(genesis)
+	err := sdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
@@ -54,7 +54,7 @@ func TestVoteResult(t *testing.T) {
 	assert.NoError(t, err, "failed to InitVoteResult")
 
 	const getTestSize = 23
-	result, err := GetVoteResult(scs, getTestSize)
+	result, err := GetVoteResult(scs)
 	assert.NoError(t, err, "could not get vote result")
 
 	oldAmount := new(big.Int).SetUint64((uint64)(math.MaxUint64))
@@ -126,7 +126,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	err = voting(tx.Body, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 
-	result, err := GetVoteResult(scs, 1)
+	result, err := GetVoteResult(scs)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
@@ -139,7 +139,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	err = unstaking(tx.Body, senderState, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
 
-	result2, err := GetVoteResult(scs, 1)
+	result2, err := GetVoteResult(scs)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")

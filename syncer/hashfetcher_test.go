@@ -1,10 +1,11 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/types"
 )
 
 func TestHashFetcher_normal(t *testing.T) {
@@ -37,7 +38,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	syncer.start()
 
 	//ancestor of ctx will be set by FinderResult
-	syncer.testhub.Tell(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
+	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
 
 	syncer.waitStop()
 }
@@ -73,12 +74,12 @@ func TestHashFetcher_quit(t *testing.T) {
 	syncer.start()
 
 	//ancestor of ctx will be set by FinderResult
-	syncer.testhub.Tell(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
+	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
 
 	//test if hashfetcher stop
 	go func() {
 		time.Sleep(time.Second * 1)
-		stopSyncer(syncer.testhub, NameBlockFetcher, ErrQuitBlockFetcher)
+		stopSyncer(syncer.stubRequester, NameBlockFetcher, ErrQuitBlockFetcher)
 	}()
 	syncer.waitStop()
 }
@@ -98,12 +99,12 @@ func TestHashFetcher_ResponseError(t *testing.T) {
 
 		//hashset 2~4, 5~7, 8~9
 		//receive GetHash message
-		msg := syncer.testhub.recvMessage()
+		msg := syncer.stubRequester.recvMessage()
 		assert.IsTypef(t, &message.GetHashes{}, msg, "invalid message from hf")
 		syncer.handleMessageManual(t, msg, ErrGetHashesRspError)
 
 		//stop
-		msg = syncer.testhub.recvMessage()
+		msg = syncer.stubRequester.recvMessage()
 		assert.IsTypef(t, &message.SyncStop{}, msg, "need syncer stop msg")
 		syncer.handleMessageManual(t, msg, nil)
 

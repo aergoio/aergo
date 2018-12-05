@@ -46,11 +46,7 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
-func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
-
-	if len(genesis.BPs) == 0 {
-		return nil
-	}
+func InitGenesisBPs(states *state.StateDB, bps []string) error {
 	aid := types.ToAccountID([]byte(types.AergoSystem))
 	scs, err := states.OpenContractStateAccount(aid)
 	if err != nil {
@@ -58,7 +54,7 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	}
 
 	voteResult := make(map[string]*big.Int)
-	for _, v := range genesis.BPs {
+	for _, v := range bps {
 		voteResult[v] = new(big.Int).SetUint64(0)
 	}
 	if err = system.InitVoteResult(scs, &voteResult); err != nil {
@@ -67,6 +63,9 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	if err = states.StageContractState(scs); err != nil {
 		return err
 	}
-	genesis.SetVoteState(scs.State)
+	if err = states.Update(); err != nil {
+		return err
+	}
+
 	return nil
 }

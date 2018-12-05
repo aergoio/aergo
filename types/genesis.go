@@ -15,6 +15,7 @@ var (
 	defaultChainID = ChainID{
 		Magic:     "AREGO.IO",
 		PublicNet: true,
+		MainNet:   false,
 		Consensus: "dpos",
 	}
 )
@@ -23,6 +24,7 @@ var (
 type ChainID struct {
 	Magic     string `json:"magic"`
 	PublicNet bool   `json:"public"`
+	MainNet   bool   `json:"mainnet"`
 	Consensus string `json:"consensus"`
 }
 
@@ -47,8 +49,7 @@ type Genesis struct {
 	BPs       []string          `json:"bps"`
 
 	// followings are for internal use only
-	block     *Block
-	voteState *State
+	block *Block
 }
 
 // Block returns Block corresponding to g.
@@ -72,16 +73,6 @@ func (g Genesis) Bytes() []byte {
 		return b
 	}
 	return nil
-}
-
-// VoteState returns g.voteState
-func (g *Genesis) VoteState() *State {
-	return g.voteState
-}
-
-// SetVoteState sets s to g.VoteState.
-func (g *Genesis) SetVoteState(s *State) {
-	g.voteState = s
 }
 
 // GetDefaultGenesis returns default genesis structure

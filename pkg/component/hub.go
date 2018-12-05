@@ -26,11 +26,6 @@ type ICompSyncRequester interface {
 	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 
-type ICompRequester interface {
-	Tell(targetName string, message interface{})
-	RequestFutureResult(targetName string, message interface{}, timeout time.Duration, tip string) (interface{}, error)
-}
-
 // ComponentHub keeps a list of registered components
 type ComponentHub struct {
 	components map[string]IComponent
