@@ -130,7 +130,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
             /* arr_size[0] can be negative if array is used as a parameter */
             if (id_meta->arr_size[0] > 0 &&
-                ui64_val(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
+                val_ui64(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -650,9 +650,8 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
 static int
 exp_check_init(check_t *check, ast_exp_t *exp)
 {
-    //bool is_lit = true;
     int i;
-    int size = 0;
+    bool is_aggr_lit = true;
     array_t *exps = exp->u_init.exps;
 
     ASSERT1(is_init_exp(exp), exp->kind);
@@ -665,29 +664,27 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, elem_exp));
 
-        /*
         if (!is_lit_exp(elem_exp))
-            is_lit = false;
-            */
-
-        size += ALIGN64(meta_size(&elem_exp->meta));
+            is_aggr_lit = false;
     }
 
-    /* XXX 
-    if (is_lit) {
+    meta_set_tuple(&exp->meta, exps);
+
+    if (is_aggr_lit) {
         int offset = 0;
-        char *raw = xmalloc(size);
+        char *raw = xmalloc(meta_size(&exp->meta));
 
         for (i = 0; i < array_size(exps); i++) {
             ast_exp_t *elem_exp = array_get(exps, i, ast_exp_t);
+            value_t *elem_val = &elem_exp->u_lit.val;
+
+            memcpy(raw + offset, val_ptr(elem_val), val_size(elem_val));
+            offset += meta_size(&elem_exp->meta);
         }
 
         exp->kind = EXP_LIT;
+        value_set_ptr(&exp->u_lit.val, raw, offset);
     }
-    else {
-    */
-        meta_set_tuple(&exp->meta, exps);
-    //}
 
     return NO_ERROR;
 }

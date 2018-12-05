@@ -8,76 +8,83 @@
 
 #include "common.h"
 
-#define is_null_val(val)            ((val)->len == 0)
+#define is_null_val(val)            ((val)->size == 0)
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
 #define is_ui32_val(val)            ((val)->type == TYPE_UINT32)
 #define is_ui64_val(val)            ((val)->type == TYPE_UINT64)
 #define is_f32_val(val)             ((val)->type == TYPE_FLOAT)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
-#define is_obj_val(val)             ((val)->type == TYPE_OBJECT)
+#define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
 
-#define bool_val(val)               ((val)->b)
-#define ui32_val(val)               ((val)->is_neg ? -(val)->ui32 : (val)->ui32)
-#define ui64_val(val)               ((val)->is_neg ? -(val)->ui64 : (val)->ui64)
-#define f32_val(val)                ((val)->f)
-#define f64_val(val)                ((val)->d)
-#define str_val(val)                ((val)->s)
-#define obj_val(val)                ((val)->p)
+#define val_ptr(val)                ((val)->ptr)
+#define val_size(val)               ((val)->size)
+
+#define val_bool(val)               ((val)->b)
+#define val_ui32(val)               ((val)->is_neg ? -(val)->ui32 : (val)->ui32)
+#define val_ui64(val)               ((val)->is_neg ? -(val)->ui64 : (val)->ui64)
+#define val_f32(val)                ((val)->f)
+#define val_f64(val)                ((val)->d)
+#define val_str(val)                ((val)->ptr)
 
 #define is_zero_val(val)                                                                 \
     (is_ui64_val(val) ? (val)->ui64 == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
 
-#define value_set_null(val)         (val)->len = 0
-
 #define value_set_bool(val, v)                                                           \
     do {                                                                                 \
         (val)->type = TYPE_BOOL;                                                         \
-        (val)->len = sizeof(bool);                                                       \
+        (val)->size = sizeof(bool);                                                      \
+        (val)->ptr = &(val)->b;                                                          \
         (val)->b = (v);                                                                  \
     } while (0)
 
 #define value_set_ui32(val, v)                                                           \
     do {                                                                                 \
         (val)->type = TYPE_UINT32;                                                       \
-        (val)->len = sizeof(uint32_t);                                                   \
+        (val)->size = sizeof(uint32_t);                                                  \
+        (val)->ptr = &(val)->ui32;                                                       \
         (val)->ui32 = (v);                                                               \
     } while (0)
 
 #define value_set_ui64(val, v)                                                           \
     do {                                                                                 \
         (val)->type = TYPE_UINT64;                                                       \
-        (val)->len = sizeof(uint64_t);                                                   \
+        (val)->size = sizeof(uint64_t);                                                  \
+        (val)->ptr = &(val)->ui64;                                                       \
         (val)->ui64 = (v);                                                               \
     } while (0)
 
 #define value_set_f32(val, v)                                                            \
     do {                                                                                 \
         (val)->type = TYPE_FLOAT;                                                        \
-        (val)->len = sizeof(float);                                                      \
+        (val)->size = sizeof(float);                                                     \
+        (val)->ptr = &(val)->f;                                                          \
         (val)->f = (v);                                                                  \
     } while (0)
 
 #define value_set_f64(val, v)                                                            \
     do {                                                                                 \
         (val)->type = TYPE_DOUBLE;                                                       \
-        (val)->len = sizeof(double);                                                     \
+        (val)->size = sizeof(double);                                                    \
+        (val)->ptr = &(val)->d;                                                          \
         (val)->d = (v);                                                                  \
     } while (0)
 
 #define value_set_str(val, v)                                                            \
     do {                                                                                 \
         (val)->type = TYPE_STRING;                                                       \
-        (val)->len = strlen(v);                                                          \
-        (val)->s = (v);                                                                  \
+        (val)->size = strlen(v);                                                         \
+        (val)->ptr = (v);                                                                \
     } while (0)
 
-#define value_set_obj(val, v)                                                            \
+#define value_set_ptr(val, v, l)                                                         \
     do {                                                                                 \
         (val)->type = TYPE_OBJECT;                                                       \
-        (val)->len = sizeof(void *);                                                     \
-        (val)->p = (v);                                                                  \
+        (val)->size = l;                                                                 \
+        (val)->ptr = (v);                                                                \
     } while (0)
+
+#define value_set_null(val)         value_set_ptr(val, NULL, 0)
 
 #ifndef _VALUE_T
 #define _VALUE_T
@@ -93,9 +100,10 @@ typedef void (*eval_fn_t)(value_t *, value_t *, value_t *) ;
 
 struct value_s {
     type_t type;
-    int len;
+    int size;
     bool is_neg;
 
+    void *ptr;
     union {
         bool b;
         uint32_t ui32;
@@ -103,7 +111,6 @@ struct value_s {
         float f;
         double d;
         char *s;
-        void *p;
     };
 };
 

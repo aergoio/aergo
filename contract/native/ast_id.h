@@ -95,8 +95,8 @@ struct ast_id_s {
     value_t *val;       /* constant value */
 
     int addr;           /* base address */
-    int offset;         /* relative offset */
     int idx;            /* local index */
+    int offset;         /* relative offset */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);

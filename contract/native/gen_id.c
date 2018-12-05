@@ -14,6 +14,8 @@
 static BinaryenExpressionRef
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
+    ast_exp_t *init_exp = id->u_var.init_exp;
+
     /*
     int i = 1;
         BinaryenExpressionRef value = BinaryenConst(module, BinaryenLiteralInt32(1));
@@ -60,12 +62,25 @@ id_gen_var(gen_t *gen, ast_id_t *id)
                                    sizeof(BinaryenType) * (gen->local_cnt + 1));
 
         gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
+
+        if (init_exp != NULL)
+            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, init_exp));
     }
+    else if (init_exp != NULL) {
+        if (is_lit_exp(init_exp)) {
+            BinaryenExpressionRef value = exp_gen(gen, init_exp);
 
-    if (id->u_var.init_exp != NULL) {
-        BinaryenExpressionRef value = exp_gen(gen, id->u_var.init_exp);
+            ASSERT2(BinaryenExpressionGetId(value) == BinaryenConstId(),
+                    BinaryenExpressionGetId(value), BinaryenConstId());
 
-        return BinaryenSetLocal(gen->module, id->idx, value);
+            id->addr = BinaryenConstGetValueI32(value);
+        }
+        else {
+            // XXX: occupy data segment & store instruction
+        }
+    }
+    else {
+        // XXX: occupy data segment & set address
     }
 
     return NULL;

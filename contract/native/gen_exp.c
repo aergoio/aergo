@@ -35,32 +35,32 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
 
     switch (exp->u_lit.val.type) {
     case TYPE_BOOL:
-        value = BinaryenLiteralInt32(bool_val(&exp->u_lit.val));
+        value = BinaryenLiteralInt32(val_bool(&exp->u_lit.val));
         break;
 
     case TYPE_UINT32:
-        value = BinaryenLiteralInt32(ui32_val(&exp->u_lit.val));
+        value = BinaryenLiteralInt32(val_ui32(&exp->u_lit.val));
         break;
 
     case TYPE_UINT64:
-        value = BinaryenLiteralInt64(ui64_val(&exp->u_lit.val));
+        value = BinaryenLiteralInt64(val_ui64(&exp->u_lit.val));
         break;
 
     case TYPE_FLOAT:
-        value = BinaryenLiteralFloat32(f32_val(&exp->u_lit.val));
+        value = BinaryenLiteralFloat32(val_f32(&exp->u_lit.val));
         break;
 
     case TYPE_DOUBLE:
-        value = BinaryenLiteralFloat64(f64_val(&exp->u_lit.val));
+        value = BinaryenLiteralFloat64(val_f64(&exp->u_lit.val));
         break;
 
     case TYPE_STRING:
-        addr = dsgmt_add_string(gen->dsgmt, str_val(&exp->u_lit.val));
+        addr = dsgmt_add_string(gen->dsgmt, val_str(&exp->u_lit.val));
         value = BinaryenLiteralInt32(addr);
         break;
 
     case TYPE_OBJECT:
-        ASSERT(obj_val(&exp->u_lit.val) == NULL);
+        ASSERT(val_ptr(&exp->u_lit.val) == NULL);
         value = BinaryenLiteralInt32(0);
         break;
 

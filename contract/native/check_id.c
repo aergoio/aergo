@@ -49,9 +49,9 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
             if (is_ui32_val(size_val))
-                arr_size = ui32_val(size_val);
+                arr_size = val_ui32(size_val);
             else if (is_ui64_val(size_val))
-                arr_size = ui64_val(size_val);
+                arr_size = val_ui64(size_val);
             else
                 ASSERT1(!"invalid size expression", size_val->type);
 
@@ -86,7 +86,7 @@ id_gen_dflt_exp(meta_t *meta)
     }
     else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
         init_exp = exp_new_lit(&meta->pos);
-        value_set_obj(&init_exp->u_lit.val, NULL);
+        value_set_null(&init_exp->u_lit.val);
     }
     else {
         array_t *exps = array_new();
@@ -251,14 +251,14 @@ id_check_enum(check_t *check, ast_id_t *id)
                 ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
 
                 if (prev_id->u_var.init_exp != NULL) {
-                    value_t *prev_val = &prev_id->u_var.init_exp->u_lit.val;
+                    value_t *val_prev = &prev_id->u_var.init_exp->u_lit.val;
 
-                    if (value_cmp(init_val, prev_val) == 0)
+                    if (value_cmp(init_val, val_prev) == 0)
                         RETURN(ERROR_DUPLICATED_ENUM_VAL, &init_exp->pos);
                 }
             }
 
-            enum_val = ui64_val(init_val);
+            enum_val = val_ui64(init_val);
         }
 
         elem_id->val = &init_exp->u_lit.val;

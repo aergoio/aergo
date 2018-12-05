@@ -1202,7 +1202,7 @@ literal:
     K_NULL
     {
         $$ = exp_new_lit(&@$);
-        value_set_obj(&$$->u_lit.val, NULL);
+        value_set_null(&$$->u_lit.val);
     }
 |   K_TRUE
     {
