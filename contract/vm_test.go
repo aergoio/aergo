@@ -2515,4 +2515,57 @@ abi.register(Append, Get, Set, Length)
 		t.Error(err)
 	}
 }
+
+func TestDupVar(t *testing.T) {
+	dupVar := `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+state.var{
+	Var1 = state.value(),
+}
+abi.register(GetVar1)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "dupVar", 1, dupVar),
+	)
+	if err == nil {
+		t.Error("duplicated variable: 'Var1'")
+	}
+	if !strings.Contains(err.Error(), "duplicated variable: 'Var1'") {
+		t.Error(err)
+	}
+
+	dupVar = `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+function Work()
+	state.var{
+		Var1 = state.value(),
+	}
+end
+abi.register(GetVar1, Work)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "dupVar1", 1, dupVar),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dupVar1", 1, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

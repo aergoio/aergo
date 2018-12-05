@@ -60,7 +60,7 @@ static int state_var(lua_State *L)
         lua_pushstring(L, TYPE_NAME);           /* T key value _type_ */
         lua_rawget(L, -2);                      /* T key value "type_name" */
         if (lua_isnil(L, -1)) {
-            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state_value, state_map or state_array expected, got %s",
+            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
                             var_name, lua_typename(L, t));
             lua_error(L);
         }

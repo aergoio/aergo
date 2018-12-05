@@ -15,6 +15,8 @@
 #define STATE_VAR_KEY_PREFIX    "_sv_"
 #define STATE_VAR_META_LEN      "_sv_meta_len_"
 
+#define TYPE_NAME               "_type_"
+
 static int state_array_append(lua_State *L);
 
 /* map */
@@ -22,6 +24,9 @@ static int state_array_append(lua_State *L);
 static int state_map(lua_State *L)
 {
     lua_newtable(L);                                /* m */
+    lua_pushstring(L, TYPE_NAME);                   /* m _type_ */
+    lua_pushstring(L, "map");                       /* m _type_ map */
+    lua_rawset(L, -3);                              /* m */
     luaL_getmetatable(L, STATE_MAP_ID);             /* m mt */
     lua_setmetatable(L, -2);                        /* m */
     return 1;
@@ -233,6 +238,9 @@ static int state_array_pairs(lua_State *L)
 static int state_value(lua_State *L)
 {
     lua_newtable(L);                                /* T */
+    lua_pushstring(L, TYPE_NAME);                   /* T _type_ */
+    lua_pushstring(L, "value");                     /* T _type_ map */
+    lua_rawset(L, -3);                              /* T */
     luaL_getmetatable(L, STATE_VALUE_ID);           /* T mt */
     lua_setmetatable(L, -2);                        /* T */
     return 1;
@@ -268,6 +276,16 @@ static int state_value_set(lua_State *L)
 
 /* global variable */
 
+static void insert_var(lua_State *L, const char *var_name)
+{
+    lua_getglobal(L, "abi");                        /* "type_name" m */
+    lua_getfield(L, -1, "register_var");            /* "type_name" m f */
+    lua_pushstring(L, var_name);                    /* "type_name" m f var_name */
+    lua_pushvalue(L, -4);                           /* "type_name" m f var_name "type_name" */
+    lua_call(L, 2, 0);                              /* "type_name" m */
+    lua_pop(L, 2);
+}
+
 static int state_var(lua_State *L)
 {
     int t, i = 1;
@@ -282,11 +300,21 @@ static int state_var(lua_State *L)
             lua_pushstring(L, "id");                                    /* T key value id */
             lua_pushvalue(L, -3);                                       /* T key value id key */
             lua_rawset(L, -3);                                          /* T key value{id=key} */
-            lua_setglobal(L, lua_tostring(L, -2));                      /* T key */
+            lua_pushstring(L, TYPE_NAME);                               /* T key value _type_ */
+            lua_rawget(L, -2);                                          /* T key value "type_name" */
+            if (lua_isnil(L, -1)) {
+                lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
+                        var_name, lua_typename(L, t));
+                lua_error(L);
+            }
+            insert_var(L, var_name);
+            lua_setglobal(L, var_name);                                 /* T key */
         } else if (LUA_TUSERDATA == t) {
             state_array_t *arr = luaL_checkudata(L, -1, STATE_ARRAY_ID);
             arr->id = strdup((const char *)lua_tostring(L, -2));        /* T key value */
-            lua_setglobal(L, lua_tostring(L, -2));                      /* T key */
+            lua_pushstring(L, "array");                                 /* T key "type_name" */
+            insert_var(L, var_name);
+            lua_setglobal(L, var_name);                                 /* T key */
             if (!arr->is_fixed) {
                 lua_pushcfunction(L, getItemWithPrefix);
                 lua_pushstring(L, arr->id);
@@ -296,7 +324,7 @@ static int state_var(lua_State *L)
                 lua_pop(L, 1);
             }
         } else {
-            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state_value, state_map or state_array expected, got %s",
+            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
                             var_name, lua_typename(L, t));
             lua_error(L);
         }
