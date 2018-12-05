@@ -45,7 +45,7 @@ func (cid *ChainID) Equals(rhs *ChainID) bool {
 type Genesis struct {
 	ID        ChainID           `json:"chain_id,omitempty"`
 	Timestamp int64             `json:"timestamp,omitempty"`
-	Balance   map[string]*State `json:"alloc"`
+	Balance   map[string]string `json:"balance"`
 	BPs       []string          `json:"bps"`
 
 	// followings are for internal use only
