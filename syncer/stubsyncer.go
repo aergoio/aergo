@@ -148,7 +148,7 @@ func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
 	case *message.FinderResult:
 		if stubSyncer.cfg.debugContext.expAncestor >= 0 {
 			assert.Equal(stubSyncer.t, uint64(stubSyncer.cfg.debugContext.expAncestor), resmsg.Ancestor.No, "ancestor mismatch")
-		} else if !stubSyncer.realSyncer.isstartning {
+		} else if !stubSyncer.realSyncer.isRunning {
 			assert.Equal(stubSyncer.t, stubSyncer.cfg.debugContext.expAncestor, -1, "ancestor mismatch")
 			return true
 		}
