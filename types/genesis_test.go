@@ -20,6 +20,7 @@ func TestDefaultGenesis(t *testing.T) {
 func TestGenesisJSON(t *testing.T) {
 	a := assert.New(t)
 	g := GetDefaultGenesis()
+	g.Balance = map[string]*State{"abc": &State{Balance: new(big.Int).SetUint64(1234).Bytes()}}
 	b, err := json.Marshal(g)
 	a.Nil(err)
 	fmt.Println(string(b))
