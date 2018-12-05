@@ -17,6 +17,7 @@
 
 #define TYPE_NAME               "_type_"
 
+static int state_map_delete(lua_State *L);
 static int state_array_append(lua_State *L);
 
 /* map */
@@ -27,6 +28,8 @@ static int state_map(lua_State *L)
     lua_pushstring(L, TYPE_NAME);                   /* m _type_ */
     lua_pushstring(L, "map");                       /* m _type_ map */
     lua_rawset(L, -3);                              /* m */
+    lua_pushcfunction(L, state_map_delete);         /* m delete f */
+    lua_setfield(L, -2, "delete");                  /* m */
     luaL_getmetatable(L, STATE_MAP_ID);             /* m mt */
     lua_setmetatable(L, -2);                        /* m */
     return 1;
@@ -78,6 +81,18 @@ static int state_map_set(lua_State *L)
     lua_pushvalue(L, 3);                            /* m key value f id..key_type..key value */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key value f id..key_type..key value prefix */
     lua_call(L, 3, 0);                              /* t key value */
+    return 0;
+}
+
+static int state_map_delete(lua_State *L)
+{
+    int key_type;
+    luaL_checktype(L, 1, LUA_TTABLE);               /* m key */
+    key_type = state_map_check_index(L, 2);
+    lua_pushcfunction(L, delItemWithPrefix);        /* m key f */
+    state_map_push_key(L, key_type);                /* m key f id..key_type..key */
+    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key f id..key_type..key prefix */
+    lua_call(L, 2, 1);                              /* m key rv */
     return 0;
 }
 

@@ -8,5 +8,6 @@ extern int setItem(lua_State *L);
 extern int setItemWithPrefix(lua_State *L);
 extern int getItem(lua_State *L);
 extern int getItemWithPrefix(lua_State *L);
+extern int delItemWithPrefix(lua_State *L);
 
 #endif /* _SYSTEM_MODULE_H */

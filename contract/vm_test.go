@@ -2258,7 +2258,10 @@ func TestMapKey(t *testing.T) {
 	function getCount(key)
 		return counts[key]
 	end
-	abi.register(setCount, getCount)
+	function delCount(key)
+		counts:delete(key)
+	end
+	abi.register(setCount, getCount, delCount)
 `
 	bc, _ := LoadDummyChain()
 	_ = bc.ConnectBlock(
@@ -2291,6 +2294,20 @@ func TestMapKey(t *testing.T) {
 			`{"Name":"setCount", "Args":[true, 40]}`,
 		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"delCount", "Args":[1.1]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2568,4 +2585,5 @@ abi.register(GetVar1, Work)
 		t.Error(err)
 	}
 }
+
 // end of test-cases

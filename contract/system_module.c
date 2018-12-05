@@ -99,6 +99,29 @@ int getItem(lua_State *L)
 	return getItemWithPrefix(L);
 }
 
+int delItemWithPrefix(lua_State *L)
+{
+	char *dbKey;
+	int *service = (int *)getLuaExecContext(L);
+	char *jsonValue;
+	int ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	luaL_checkstring(L, 1);
+	luaL_checkstring(L, 2);
+	lua_pushvalue(L, 1);
+	lua_concat(L, 2);
+	dbKey = (char *)lua_tostring(L, -1);
+
+	ret = LuaDelDB(L, service, dbKey);
+	if (ret < 0) {
+		lua_error(L);
+	}
+    return 0;
+}
+
 static int getSender(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);

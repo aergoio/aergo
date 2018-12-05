@@ -66,6 +66,21 @@ func LuaGetDB(L *LState, service *C.int, key *C.char) C.int {
 	return 1
 }
 
+//export LuaDelDB
+func LuaDelDB(L *LState, service *C.int, key *C.char) C.int {
+	stateSet := curStateSet[*service]
+	if stateSet == nil {
+		luaPushStr(L, "[System.LuaGetDB]not found contract state")
+		return -1
+	}
+	err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key)))
+	if err != nil {
+		luaPushStr(L, err.Error())
+		return -1
+	}
+	return 0
+}
+
 //export LuaCallContract
 func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.char, args *C.char,
 	amount uint64, gas uint64) C.int {
