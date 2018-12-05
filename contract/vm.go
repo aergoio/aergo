@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"unsafe"
 
@@ -47,7 +48,7 @@ type ContractInfo struct {
 	sender     []byte
 	contractId []byte
 	rp         uint64
-	amount     uint64
+	amount     *big.Int
 }
 
 type StateSet struct {
@@ -69,7 +70,7 @@ type StateSet struct {
 
 type recoveryEntry struct {
 	seq           int
-	amount        uint64
+	amount        *big.Int
 	senderState   *types.State
 	callState     *CallState
 	sqlSaveName   *string
@@ -93,7 +94,7 @@ func init() {
 	ctrLog = log.NewLogger("contract")
 }
 
-func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64, amount uint64) *ContractInfo {
+func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64, amount *big.Int) *ContractInfo {
 	return &ContractInfo{
 		callState,
 		sender,
@@ -106,7 +107,7 @@ func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64,
 func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
 	timestamp int64, node string, confirmed bool,
-	query bool, rp uint64, service int, amount uint64) *StateSet {
+	query bool, rp uint64, service int, amount *big.Int) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
@@ -138,7 +139,7 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 	callState := &CallState{ctrState: contractState, curState: contractState.State}
 
 	stateSet := &StateSet{
-		curContract: newContractInfo(callState, nil, receiverId, rp, 0),
+		curContract: newContractInfo(callState, nil, receiverId, rp, big.NewInt(0)),
 		bs:          blockState,
 		node:        node,
 		confirmed:   confirmed,
@@ -677,10 +678,11 @@ func codeLength(val []byte) uint32 {
 }
 
 func (re *recoveryEntry) recovery() {
+	var zero big.Int
 	callState := re.callState
-	if re.amount > 0 {
-		re.senderState.Balance += re.amount
-		callState.curState.Balance -= re.amount
+	if re.amount.Cmp(&zero) > 0 {
+		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
+		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
 	if re.sqlSaveName == nil && re.stateRevision == 0 {
 		return

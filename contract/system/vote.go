@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"math/big"
 	"sort"
 
 	"github.com/aergoio/aergo/internal/common"
@@ -49,7 +50,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 
 	for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
 		key := oldvote.Candidate[offset : offset+PeerIDLength]
-		(*voteResult)[base58.Encode(key)] -= oldvote.Amount
+		(*voteResult)[base58.Encode(key)] = new(big.Int).Sub((*voteResult)[base58.Encode(key)], oldvote.GetAmountBigInt())
 	}
 
 	if txBody.Payload[0] != 'v' { //called from unstaking
@@ -60,10 +61,10 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		}
 		for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
 			key := oldvote.Candidate[offset : offset+PeerIDLength]
-			(*voteResult)[base58.Encode(key)] += staked.GetAmount()
+			(*voteResult)[base58.Encode(key)] = new(big.Int).Add((*voteResult)[base58.Encode(key)], staked.GetAmountBigInt())
 		}
 	} else {
-		if staked.GetAmount() == 0 {
+		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return types.ErrMustStakeBeforeVote
 		}
 		vote := &types.Vote{Candidate: txBody.Payload[1:], Amount: staked.GetAmount()}
@@ -73,7 +74,12 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		}
 		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
 			key := txBody.Payload[offset+1 : offset+PeerIDLength+1]
-			(*voteResult)[base58.Encode(key)] += staked.GetAmount()
+
+			if (*voteResult)[base58.Encode(key)] == nil {
+				(*voteResult)[base58.Encode(key)] = new(big.Int).SetUint64(0)
+			}
+
+			(*voteResult)[base58.Encode(key)] = new(big.Int).Add((*voteResult)[base58.Encode(key)], staked.GetAmountBigInt())
 		}
 	}
 
@@ -118,8 +124,8 @@ func setVote(scs *state.ContractState, voter []byte, vote *types.Vote) error {
 	return scs.SetData(key, data.Bytes())
 }
 
-func loadVoteResult(scs *state.ContractState) (*map[string]uint64, error) {
-	voteResult := map[string]uint64{}
+func loadVoteResult(scs *state.ContractState) (*map[string]*big.Int, error) {
+	voteResult := map[string]*big.Int{}
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err
@@ -132,26 +138,26 @@ func loadVoteResult(scs *state.ContractState) (*map[string]uint64, error) {
 			return nil, err
 		}
 		for _, v := range voteList.GetVotes() {
-			voteResult[base58.Encode(v.Candidate)] = v.Amount
+			voteResult[base58.Encode(v.Candidate)] = v.GetAmountBigInt()
 		}
 	}
 	return &voteResult, nil
 }
 
-func InitVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
+func InitVoteResult(scs *state.ContractState, voteResult *map[string]*big.Int) error {
 	if voteResult == nil {
 		return errors.New("Invalid argument : voteReult should not nil")
 	}
 	return syncVoteResult(scs, voteResult)
 }
 
-func syncVoteResult(scs *state.ContractState, voteResult *map[string]uint64) error {
+func syncVoteResult(scs *state.ContractState, voteResult *map[string]*big.Int) error {
 	var voteList types.VoteList
 	for k, v := range *voteResult {
 		c, _ := base58.Decode(k)
 		vote := &types.Vote{
 			Candidate: c,
-			Amount:    v,
+			Amount:    v.Bytes(),
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}

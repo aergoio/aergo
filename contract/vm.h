@@ -21,7 +21,7 @@ typedef struct blockchain_ctx {
 	int dbSystemError;
 	unsigned long long rp;
 	int service;
-	unsigned long long amount;
+	char *amount;
 } bc_ctx_t;
 
 lua_State *vm_newstate();

@@ -85,8 +85,6 @@ func execVote(cmd *cobra.Command, args []string) {
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(aergosystem),
-			Amount:    uint64(amount),
-			Price:     0,
 			Payload:   payload,
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,
@@ -145,6 +143,6 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	for i, r := range msg.GetVotes() {
-		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.Amount)
+		cmd.Println(i+1, " : ", base58.Encode(r.Candidate), " : ", r.GetAmountBigInt().String())
 	}
 }

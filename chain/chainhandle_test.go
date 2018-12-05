@@ -7,13 +7,13 @@ package chain
 import (
 	"io/ioutil"
 	"math"
+	"math/big"
 	"os"
 	"testing"
 
-	"github.com/aergoio/aergo/contract"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -76,12 +76,12 @@ func TestErrorInExecuteTx(t *testing.T) {
 	assert.EqualError(t, err, types.ErrTxNonceTooLow.Error(), "execute tx body with account")
 
 	tx.Body.Nonce = 1
-	tx.Body.Amount = math.MaxUint64
+	tx.Body.Amount = new(big.Int).SetUint64(math.MaxUint64).Bytes()
 	signTestAddress(t, tx)
 	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
 
-	tx.Body.Amount = types.MaxAER
+	tx.Body.Amount = types.MaxAER.Bytes()
 	signTestAddress(t, tx)
 	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
@@ -102,13 +102,13 @@ func TestBasicExecuteTx(t *testing.T) {
 	assert.NoError(t, err, "execute amount 0")
 
 	tx.Body.Nonce = 2
-	tx.Body.Amount = 1000
+	tx.Body.Amount = new(big.Int).SetUint64(1000).Bytes()
 	signTestAddress(t, tx)
 	err = executeTx(bs, tx, 0, 0, contract.ChainService)
 	assert.NoError(t, err, "execute amount 1000")
 
 	tx.Body.Nonce = 3
-	tx.Body.Amount = 10000
+	tx.Body.Amount = (new(big.Int).Add(types.StakingMinimum, new(big.Int).SetUint64(1))).Bytes()
 	tx.Body.Recipient = []byte(types.AergoSystem)
 	tx.Body.Type = types.TxType_GOVERNANCE
 	tx.Body.Payload = []byte{'s'}

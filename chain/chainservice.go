@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"runtime"
 
@@ -201,7 +202,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	} else {
 		for _, res := range top.Votes {
 			logger.Debug().Str("BP", enc.ToString(res.Candidate)).
-				Uint64("votes", res.Amount).Msgf("BP vote stat")
+				Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
 		}
 	}
 

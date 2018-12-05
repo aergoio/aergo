@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -548,14 +549,15 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	var txFee uint64
+	var txFee *big.Int
 	var rv string
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		txFee = CoinbaseFee
+		txFee = new(big.Int).SetUint64(CoinbaseFee)
 		sender.SubBalance(txFee)
 		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
+		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
@@ -571,7 +573,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 			if sErr != nil {
 				return sErr
 			}
-			bs.BpReward += txFee
+			bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
 			return nil
 		}
@@ -590,7 +592,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		}
 	}
 
-	bs.BpReward += txFee
+	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
 	if receiver.IsNew() && txBody.Recipient == nil {
 		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
@@ -602,8 +604,9 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
-	if bState.BpReward <= 0 || coinbaseAccount == nil {
-		logger.Debug().Uint64("reward", bState.BpReward).Msg("coinbase is skipped")
+	bpReward := new(big.Int).SetBytes(bState.BpReward)
+	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
+		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")
 		return nil
 	}
 
@@ -614,15 +617,15 @@ func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	receiverChange := types.State(*receiverState)
-	receiverChange.Balance = receiverChange.Balance + bState.BpReward
+	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
 
 	err = bState.PutState(receiverID, &receiverChange)
 	if err != nil {
 		return err
 	}
 
-	logger.Debug().Uint64("reward", bState.BpReward).
-		Uint64("newbalance", receiverChange.Balance).Msg("send reward to coinbase account")
+	logger.Debug().Str("reward", bpReward.String()).
+		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
 
 	return nil
 }

@@ -13,7 +13,7 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	BpReward uint64 //final bp reward, increment when tx executes
+	BpReward []byte //final bp reward, increment when tx executes
 	receipts types.Receipts
 	CodeMap  map[types.AccountID][]byte
 }

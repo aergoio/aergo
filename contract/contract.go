@@ -52,11 +52,11 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
-		if sender.Balance() < txBody.Amount {
+		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return "", types.ErrInsufficientBalance
 		}
-		sender.SubBalance(txBody.Amount)
-		receiver.AddBalance(txBody.Amount)
+		sender.SubBalance(txBody.GetAmountBigInt())
+		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
 	if txBody.Payload == nil {
@@ -95,7 +95,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 	} else {
 		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmount())
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
 			rv, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
@@ -166,7 +166,7 @@ func preLoadWorker() {
 		}
 		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), 0, 0, "", false,
-			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmount())
+			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
 		replyCh <- &loadedReply{tx, ex, err}

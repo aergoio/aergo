@@ -37,10 +37,10 @@ func init() {
   "Nonce": 1,
   "Account": "AmLfhA2F82Nayuek17tvzechaQPe5cRQKBBJ8xfei7GejvufVRBp",
   "Recipient": "Amgf9vfcHKkC1ijGTMjxLoeTTutXgbaHHBznpHu5ugutU96iKSLW",
-  "Amount": 0,
+  "Amount": "0",
   "Payload": "Base58EncodedBytes",
   "Limit": 0,
-  "Price": 0,
+  "Price": "0",
   "Type": 0,
   "Sign": "Base58EncodedBytes"
  }

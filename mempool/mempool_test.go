@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"encoding/binary"
+	"math/big"
 	"math/rand"
 	"os"
 	"sync/atomic"
@@ -54,7 +55,7 @@ func simulateBlockGen(txs ...*types.Tx) error {
 		if !ok {
 			balance[acc] = defaultBalance
 		}
-		balance[acc] -= tx.GetBody().GetAmount()
+		balance[acc] -= tx.GetBody().GetAmountBigInt().Uint64()
 	}
 	lock.Unlock()
 	pool.removeOnBlockArrival(
@@ -116,7 +117,7 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 			Nonce:     nonce,
 			Account:   accs[acc],
 			Recipient: recipient[rec],
-			Amount:    amount,
+			Amount:    new(big.Int).SetUint64(amount).Bytes(),
 		},
 	}
 	tx.Hash = tx.CalculateTxHash()

@@ -12,10 +12,12 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"unsafe"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"unsafe"
 )
 
 func luaPushStr(L *LState, str string) {
@@ -69,7 +71,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	amount uint64, gas uint64) C.int {
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
-
+	amountBig := new(big.Int).SetUint64(amount)
 	cid, err := types.DecodeAddress(C.GoString(contractId))
 	if err != nil {
 		luaPushStr(L, "[System.LuaCallContract]invalid contractId :"+err.Error())
@@ -138,16 +140,16 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	}
 	senderState := prevContractInfo.callState.curState
 	if amount > 0 {
-		if sendBalance(L, senderState, callState.curState, amount) == false {
+		if sendBalance(L, senderState, callState.curState, amountBig) == false {
 			stateSet.transferFailed = true
 			return -1
 		}
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		setRecoveryPoint(aid, stateSet, senderState, callState, amount, callState.ctrState.Snapshot())
+		setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
-		callState.curState.SqlRecoveryPoint, amount)
+		callState.curState.SqlRecoveryPoint, amountBig)
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
@@ -202,7 +204,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	if stateSet.lastRecoveryEntry != nil {
 		callState := stateSet.curContract.callState
-		setRecoveryPoint(aid, stateSet, nil, callState, 0, callState.ctrState.Snapshot())
+		setRecoveryPoint(aid, stateSet, nil, callState, big.NewInt(0), callState.ctrState.Snapshot())
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
@@ -214,7 +216,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 //export LuaSendAmount
 func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64) C.int {
-
+	amountBig := new(big.Int).SetUint64(amount)
 	cid, err := types.DecodeAddress(C.GoString(contractId))
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaSendAmount]invalid contractId :"+err.Error())
@@ -247,28 +249,28 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64)
 		stateSet.callState[aid] = callState
 	}
 	senderState := stateSet.curContract.callState.curState
-	if sendBalance(L, senderState, callState.curState, amount) == false {
+	if sendBalance(L, senderState, callState.curState, amountBig) == false {
 		stateSet.transferFailed = true
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		setRecoveryPoint(aid, stateSet, senderState, callState, amount, 0)
+		setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, 0)
 	}
 	return 0
 }
 
-func sendBalance(L *LState, sender *types.State, receiver *types.State, amount uint64) bool {
+func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *big.Int) bool {
 	if sender == receiver {
 		return true
 	}
-	if sender.Balance < amount {
-		luaPushStr(L, "insuficient balance"+
-			string(sender.Balance)+" : "+string(amount))
+	if sender.GetBalanceBigInt().Cmp(amount) < 0 {
+		luaPushStr(L, "[Contract.call]insuficient balance"+
+			sender.GetBalanceBigInt().String()+" : "+amount.String())
 		return false
 	} else {
-		sender.Balance = sender.Balance - amount
+		sender.Balance = new(big.Int).Sub(sender.GetBalanceBigInt(), amount).Bytes()
 	}
-	receiver.Balance = receiver.Balance + amount
+	receiver.Balance = new(big.Int).Add(receiver.GetBalanceBigInt(), amount).Bytes()
 
 	return true
 }
@@ -280,7 +282,7 @@ func LuaPrint(service *C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
-	callState *CallState, amount uint64, snapshot state.Snapshot) {
+	callState *CallState, amount *big.Int, snapshot state.Snapshot) {
 	var seq int
 	prev := stateSet.lastRecoveryEntry
 	if prev != nil {
@@ -318,7 +320,7 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 	}
 	curContract := stateSet.curContract
 	setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
-		curContract.callState, 0, curContract.callState.ctrState.Snapshot())
+		curContract.callState, big.NewInt(0), curContract.callState.ctrState.Snapshot())
 	return C.int(stateSet.lastRecoveryEntry.seq)
 }
 
@@ -349,7 +351,7 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if contractId == nil {
-		C.lua_pushinteger(L, C.lua_Integer(stateSet.curContract.callState.ctrState.GetBalance()))
+		luaPushStr(L, stateSet.curContract.callState.ctrState.GetBalanceBigInt().String())
 		return 0
 	}
 	cid, err := types.DecodeAddress(C.GoString(contractId))
@@ -368,9 +370,9 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 			luaPushStr(L, "[Contract.LuaGetBalance]getAccount Error :"+err.Error())
 			return -1
 		}
-		C.lua_pushinteger(L, C.lua_Integer(as.GetBalance()))
+		luaPushStr(L, as.GetBalanceBigInt().String())
 	} else {
-		C.lua_pushinteger(L, C.lua_Integer(callState.curState.GetBalance()))
+		luaPushStr(L, callState.curState.GetBalanceBigInt().String())
 	}
 
 	return 0
@@ -415,7 +417,7 @@ func LuaGetContractId(L *LState, service *C.int) {
 func LuaGetAmount(L *LState, service *C.int) {
 	stateSet := curStateSet[*service]
 
-	C.lua_pushinteger(L, C.lua_Integer(stateSet.curContract.amount))
+	luaPushStr(L, stateSet.curContract.amount.String())
 }
 
 //export LuaGetOrigin

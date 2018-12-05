@@ -67,7 +67,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			return
 		}
 		cmd.Printf("{account:%s, nonce:%d, balance:%d}\n",
-			address, msg.GetNonce(), msg.GetBalance())
+			address, msg.GetNonce(), msg.GetBalanceBigInt())
 	} else {
 		// Get the state and proof at a specific root.
 		// If root is nil, the latest block is queried.
@@ -78,7 +78,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			return
 		}
 		cmd.Printf("{account:%s, nonce:%d, balance:%d, included:%t, merkle proof length:%d, height:%d}\n",
-			address, msg.GetState().GetNonce(), msg.GetState().GetBalance(), msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
+			address, msg.GetState().GetNonce(), msg.GetState().GetBalanceBigInt(), msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
 	}
 
 }
