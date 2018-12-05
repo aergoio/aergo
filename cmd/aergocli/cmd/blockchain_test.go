@@ -13,6 +13,7 @@ import (
 
 func TestBlockchainWithMock(t *testing.T) {
 	mock := initMock(t)
+	defer deinitMock()
 
 	testBlockHashString := "56Qy6MQei9KM13rqEq1jiJ7Da21Kcq9KdmYWcnPLtxS3"
 	testBlockHash, _ := base58.Decode(testBlockHashString)
@@ -25,7 +26,6 @@ func TestBlockchainWithMock(t *testing.T) {
 		nil,
 	).MaxTimes(3)
 
-	test = true
 	output, err := executeCommand(rootCmd, "blockchain")
 	assert.NoError(t, err, "should be success")
 	t.Log(output)

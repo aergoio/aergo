@@ -10,6 +10,9 @@
 lua_State *luac_vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	if (L == NULL) {
+	    return NULL;
+	}
 	luaL_openlibs(L);
 	luac_open_state(L);
 	return L;
@@ -28,34 +31,30 @@ static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u
 
 const char *vm_compile(lua_State *L, const char *code, const char *byte, const char *abi)
 {
-	const char *errMsg = NULL;
 	FILE *f = NULL;
 
 	if (luaL_loadfile(L, code) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		lua_close(L);
-		return errMsg;
+		return lua_tostring(L, -1);
 	}
 	f = fopen(byte, "wb");
 	if (f == NULL) {
 		return "cannot open a bytecode file";
 	}
 	if (lua_dump(L, kpt_lua_Writer, f) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
+	    fclose(f);
+		return lua_tostring(L, -1);
 	}
 	fclose(f);
 
 	if (abi != NULL && strlen(abi) > 0) {
 		const char *r;
 		if (lua_pcall(L, 0, 0, 0) != 0) {
-		   errMsg = strdup(lua_tostring(L, -1));
-		   return errMsg;
+		   return lua_tostring(L, -1);
 		}
 		lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 		lua_getfield(L, -1, "generate");
 		if (lua_pcall(L, 0, 1, 0) != 0) {
-		    errMsg = strdup(lua_tostring(L, -1));
-		    return errMsg;
+		    return lua_tostring(L, -1);
 		}
 		if (!lua_isstring(L, -1)) {
 		    return "cannot create a abi file";
@@ -69,7 +68,7 @@ const char *vm_compile(lua_State *L, const char *code, const char *byte, const c
 		fclose(f);
 	}
 
-	return errMsg;
+	return NULL;
 }
 
 static int writer_buf(lua_State *L, const void *p, size_t size, void *b)
@@ -80,56 +79,49 @@ static int writer_buf(lua_State *L, const void *p, size_t size, void *b)
 
 const char *vm_loadfile(lua_State *L, const char *code)
 {
-	const char *errMsg = NULL;
 	if (luaL_loadfile(L, code) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+		return lua_tostring(L, -1);
 	}
 	return NULL;
 }
 
 const char *vm_loadstring(lua_State *L, const char *code)
 {
-	const char *errMsg = NULL;
 	if (luaL_loadstring(L, code) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+		return lua_tostring(L, -1);
 	}
 	return NULL;
 }
 
 const char *vm_stringdump(lua_State *L)
 {
-	const char *errMsg = NULL;
 	luaL_Buffer b;
 
 	luaL_buffinit(L, &b);
 	if (lua_dump(L, writer_buf, &b) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
+		return lua_tostring(L, -1);
 	}
 	luaL_pushresult(&b);
 	if (!lua_isstring(L, -1)) {
-		return "compile failed";
+		return "empty bytecode";
 	}
 	addLen(lua_strlen(L, -1));
 	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
 	lua_pop(L, 1);
 
 	if (lua_pcall(L, 0, 0, 0) != 0) {
-	   errMsg = strdup(lua_tostring(L, -1));
-	   return errMsg;
+	   return lua_tostring(L, -1);
 	}
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "generate");
 	if (lua_pcall(L, 0, 1, 0) != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+		return lua_tostring(L, -1);
 	}
 	if (!lua_isstring(L, -1)) {
-		return "abi generation is failed";
+		return "empty ABI string";
 	}
 	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
 
-	return errMsg;
+	return NULL;
 }
 

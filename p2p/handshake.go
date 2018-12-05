@@ -149,6 +149,7 @@ func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error
 func (h *PeerHandshaker) doInitialSync() {
 
 	if chain.UseFastSyncer {
+		h.logger.Debug().Uint64("target", h.remoteStatus.BestHeight).Msg("request new syncer")
 		h.actorServ.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: h.peerID, TargetNo: h.remoteStatus.BestHeight})
 	} else {
 		// sync block infos

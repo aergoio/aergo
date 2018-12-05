@@ -3,6 +3,7 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -12,11 +13,7 @@ const (
 	helloCode = `function hello(say) return "Hello " .. say end abi.register(hello)`
 
 	systemCode = `function testState()
-		string.format("creator: %s",system.getContractID())
-		string.format("timestamp: %d",system.getTimestamp())
-		string.format("blockheight: %d",system.getBlockheight())
 		system.setItem("key1", 999)
-		string.format("getitem : %s",system.getItem("key1"))
 		return system.getSender(), system.getTxhash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
 	  end 
 abi.register(testState)`
@@ -109,7 +106,7 @@ func TestContractSystem(t *testing.T) {
 	tx := NewLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
 	bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
-	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","0c7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp)
+	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","4huAuw28LdAg9nKji5t1EGSkZ3ScvnyZwH2KBZCKejqHJ","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
 	}
@@ -124,7 +121,15 @@ func TestGetABI(t *testing.T) {
 	bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "hello", 1,
-			`function hello(say) return "Hello " .. say end abi.register(hello)`),
+			`state.var {
+	Say = state.value()
+}
+
+function hello(say) 
+  return "Hello " .. say 
+end 
+
+abi.register(hello)`),
 	)
 	abi, err := bc.GetABI("hello")
 	if err != nil {
@@ -134,7 +139,7 @@ func TestGetABI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if string(b) != `{"version":"0.1","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}]}` {
+	if string(b) != `{"version":"0.2","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}],"state_variables":[{"name":"Say","type":"value"}]}` {
 		t.Error(string(b))
 	}
 }
@@ -157,14 +162,14 @@ func TestContractQuery(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if ktlee.Balance != uint64(98) {
+	if ktlee.GetBalanceBigInt().Uint64() != uint64(98) {
 		t.Error(ktlee.Balance)
 	}
 	query, err := bc.GetAccountState("query")
 	if err != nil {
 		t.Error(err)
 	}
-	if query.Balance != uint64(2) {
+	if query.GetBalanceBigInt().Uint64() != uint64(2) {
 		t.Error(query.Balance)
 	}
 
@@ -1737,7 +1742,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `100` {
+	if receipt.GetRet() != `"100"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
@@ -1874,10 +1879,14 @@ func TestPcall(t *testing.T) {
 		return system.getItem("count")
 	end
 
+	function getOrigin()
+		return system.getOrigin()
+	end
+
 	function set(val)
 		system.setItem("count", val)
 	end
-	abi.register(inc,get,set, init, pkins1, pkins2, pkget)
+	abi.register(inc,get,set, init, pkins1, pkins2, pkget, getOrigin)
 	`
 
 	bc, err := LoadDummyChain()
@@ -1936,7 +1945,11 @@ func TestPcall(t *testing.T) {
 	function sqlget()
 		return contract.call(system.getItem("addr"), "pkget")
 	end
-	abi.register(add, dadd, get, dget, send, sql, sqlget)
+
+	function getOrigin()
+		return contract.call(system.getItem("addr"), "getOrigin")
+	end
+	abi.register(add, dadd, get, dget, send, sql, sqlget, getOrigin)
 	`
 	bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
@@ -1951,6 +1964,13 @@ func TestPcall(t *testing.T) {
 	err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
+	}
+
+	tx := NewLuaTxCall("ktlee", "caller", 5, `{"Name":"getOrigin", "Args":[]}`)
+	bc.ConnectBlock(tx)
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 
 	definition3 := `
@@ -1979,7 +1999,12 @@ func TestPcall(t *testing.T) {
 	function get()
 		return system.getItem("arg")
 	end
-	abi.register(set, set2, get)
+	
+	function getBalance()
+		return contract.balance()
+	end
+
+	abi.register(set, set2, get, getBalance)
 	`
 
 	bc, err = LoadDummyChain()
@@ -1992,7 +2017,7 @@ func TestPcall(t *testing.T) {
 		NewLuaTxAccount("bong", 0),
 		NewLuaTxDef("ktlee", "counter", 10, definition3),
 	)
-	tx := NewLuaTxCall("ktlee", "counter", 10,
+	tx = NewLuaTxCall("ktlee", "counter", 10,
 		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
 
 	bc.ConnectBlock(tx)
@@ -2000,8 +2025,12 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "\"18\"")
+	if err != nil {
+		t.Error(err)
+	}
 	state, err := bc.GetAccountState("bong")
-	if state.GetBalance() != 2 {
+	if state.GetBalanceBigInt().Uint64() != 2 {
 		t.Error("balance error")
 	}
 	tx = NewLuaTxCall("ktlee", "counter", 10,
@@ -2012,8 +2041,380 @@ func TestPcall(t *testing.T) {
 		t.Error(err)
 	}
 	state, err = bc.GetAccountState("bong")
-	if state.GetBalance() != 3 {
+	if state.GetBalanceBigInt().Uint64() != 3 {
 		t.Error("balance error")
+	}
+}
+
+func TestPingpongCall(t *testing.T) {
+	definition1 := `
+	function constructor()
+		system.setItem("key",  "empty")
+	end
+	function start(addr)
+		system.setItem("key",  "start")
+		contract.call(addr, "called")
+	end
+
+	function callback()
+		system.setItem("key",  "callback")
+	end
+
+	function get()
+		return system.getItem("key")
+	end
+
+	abi.register(start, callback, get)
+	`
+
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition1),
+	)
+
+	definition2 := `
+	function constructor(addr)
+		system.setItem("key",  "empty")
+		system.setItem("addr",  addr)
+	end
+
+	function called()
+		system.setItem("key",  "called")
+		contract.call(system.getItem("addr"), "callback")
+	end
+
+	function get()
+		return system.getItem("key")
+	end
+
+	abi.register(called, get)
+	`
+	bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "b", 10, definition2).
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("a")))),
+	)
+	tx := NewLuaTxCall("ktlee", "a", 15,
+		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(strHash("b"))))
+	bc.ConnectBlock(tx)
+	err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"get", "Args":[]}`, "", `"called"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestArrayArg(t *testing.T) {
+	definition1 := `
+	function copy(arr)
+		assert(type(arr) == "table", "table expected")
+		local rv = {}
+		for i, v in ipairs(arr) do
+			table.insert(rv, i, v)
+        end
+		return rv
+	end
+	function two_arr(arr1, arr2)
+		assert(type(arr1) == "table", "table expected")
+		assert(type(arr2) == "table", "table expected")
+		local rv = {}
+		table.insert(rv, 1, #arr1)
+		table.insert(rv, 2, #arr2)
+		return rv
+	end
+	function mixed_args(arr1, map1, n)
+		assert(type(arr1) == "table", "table expected")
+		assert(type(map1) == "table", "table expected")
+		local rv = {}
+		table.insert(rv, 1, arr1)
+		table.insert(rv, 2, map1)
+		table.insert(rv, 3, n)
+		return rv
+	end
+
+	abi.register(copy, two_arr, mixed_args)
+	`
+
+	bc, err := LoadDummyChain()
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition1),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "copy", "Args":[1, 2, 3]}`, "table expected", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "copy", "Args":[[1, 2, 3]]}`, "", "[1,2,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "two_arr", "Args":[[1, 2, 3],[4, 5]]}`, "", "[3,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[[1, 2, 3], {"name": "kslee", "age": 39}, 7]}`,
+		"",
+		`[[1,2,3],{"name":"kslee","age":39},7]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[
+[[1, 2, 3],["first", "second"]],
+{"name": "kslee", "age": 39, "address": {"state": "XXX-do", "city": "YYY-si"}},
+"end"
+]}`,
+		"",
+		`[[[1,2,3],["first","second"]],{"address":{"state":"XXX-do","city":"YYY-si"},"age":39,"name":"kslee"},"end"]`,
+		`[[[1,2,3],["first","second"]],{"address":{"city":"YYY-si","state":"XXX-do"},"age":39,"name":"kslee"},"end"]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name": "mixed_args", "Args":[
+[{"name": "wook", "age": 50}, {"name": "hook", "age": 42}],
+{"name": "kslee", "age": 39, "scores": [10, 20, 30, 40, 50]},
+"hmm..."
+]}`,
+		"",
+		`[[{"name":"wook","age":50},{"name":"hook","age":42}],{"scores":[10,20,30,40,50],"age":39,"name":"kslee"},"hmm..."]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAbi(t *testing.T) {
+	errMsg := "no exported functions"
+
+	noAbi := `
+	function dummy()
+		system.print("dummy")
+	end`
+
+	bc, err := LoadDummyChain()
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, noAbi),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "no exported functions") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
+
+	empty := `
+	function dummy()
+		system.print("dummy")
+	end
+	abi.register()`
+
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "a", 10, empty),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "no exported functions.") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
+
+	localFunc := `
+	function dummy()
+		system.print("dummy")
+	end
+	local function helper()
+		system.print("helper")
+	end
+	abi.register(helper)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "a", 10, localFunc),
+	)
+	if err == nil {
+		t.Errorf("expected: %s, but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), "global function expected") {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
+}
+
+func TestMapKey(t *testing.T) {
+	definition := `
+	state.var{
+		counts = state.map()
+	}
+	function setCount(key, value)
+		counts[key] = value
+	end
+	function getCount(key)
+		return counts[key]
+	end
+	abi.register(setCount, getCount)
+`
+	bc, _ := LoadDummyChain()
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "a", 10, definition),
+	)
+
+	err := bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1, 10]}`),
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":["1", 20]}`),
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1.1, 30]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "", "20")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "30")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1,
+			`{"Name":"setCount", "Args":[true, 40]}`,
+		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStateVarFieldUpdate(t *testing.T) {
+	src := `
+state.var{
+   Person = state.value()
+}
+
+function constructor()
+  Person:set({ name = "kslee", age = 38, address = "blahblah..." })
+end
+
+function InvalidUpdateAge(age)
+  Person:get().age = age
+end
+
+function ValidUpdateAge(age)
+  local p = Person:get()
+  p.age = age
+  Person:set(p)
+end
+
+function GetPerson()
+  return Person:get()
+end
+
+abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "c", 10, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "c", 1, `{"Name":"InvalidUpdateAge", "Args":[10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("c", `{"Name":"GetPerson"}`, "",
+		`{"address":"blahblah...","age":38,"name":"kslee"}`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "c", 1, `{"Name":"ValidUpdateAge", "Args":[10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("c", `{"Name":"GetPerson"}`, "",
+		`{"address":"blahblah...","age":10,"name":"kslee"}`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDatetime(t *testing.T) {
+	src := `
+state.var {
+    cdate = state.value()
+}
+
+function constructor()
+	cdate:set(906000490)
+	--cdate:set(1)
+end
+
+function CreateDate()
+	return system.date("%c", cdate:get())
+end
+
+function Extract(fmt)
+	return system.date(fmt, cdate:get())
+end
+
+function Difftime()
+	system.print(system.date("%c", cdate:get()))
+	s = system.date("*t", cdate:get())
+	system.print(s)
+	s.hour = 2 
+	s.min = 0
+	s.sec = 0
+	system.print(system.date("*t", system.time(s)))
+	return system.difftime(cdate:get(), system.time(s))
+end
+
+abi.register(CreateDate, Extract, Difftime)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "datetime", 1, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"Thu Sep 17 02:48:10 1998"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%x"]}`, "", `"09/17/98"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%X"]}`, "", `"02:48:10"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"02:48:10 AM"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `2890`)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

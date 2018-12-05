@@ -2,10 +2,8 @@ package chain
 
 import (
 	"bytes"
-	"fmt"
-
 	"errors"
-
+	"fmt"
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
@@ -60,12 +58,13 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 	cdb := cs.cdb
 	blockNo := block.BlockNo()
 
-	isNeed := cdb.latest < blockNo
+	latest := cdb.getBestBlockNo()
+	isNeed := latest < blockNo
 
 	if isNeed {
 		logger.Debug().
 			Uint64("blockNo", blockNo).
-			Uint64("latestNo", cdb.latest).
+			Uint64("latestNo", latest).
 			Str("prev", block.ID()).
 			Msg("need reorganization")
 	}
@@ -221,7 +220,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	brBlock := reorg.brTopBlock
 	brBlockNo := brBlock.BlockNo()
 
-	curBestNo := cdb.latest
+	curBestNo := cdb.getBestBlockNo()
 
 	for {
 		if brBlockNo <= curBestNo {
@@ -233,7 +232,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 			}
 
 			//found branch root
-			if bytes.Equal(brBlock.GetHash(), mainBlock.GetHash()) {
+			if bytes.Equal(brBlock.BlockHash(), mainBlock.BlockHash()) {
 				if curBestNo == brBlockNo {
 					return ErrInvalidBranchRoot
 				}
@@ -270,7 +269,7 @@ func (reorg *reorganizer) gatherChainInfo() error {
 
 		prevBrBlockNo := brBlock.GetHeader().GetBlockNo()
 		if brBlockNo-1 != prevBrBlockNo {
-			return &ErrReorgBlock{errMsgInvalidOldBlock, prevBrBlockNo, brBlock.GetHash()}
+			return &ErrReorgBlock{errMsgInvalidOldBlock, prevBrBlockNo, brBlock.BlockHash()}
 		}
 		brBlockNo = brBlock.GetHeader().GetBlockNo()
 	}

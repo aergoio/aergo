@@ -14,11 +14,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"io/ioutil"
-	"log"
 	"os"
+	"runtime"
 	"unsafe"
+
+	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/types"
 )
 
 var (
@@ -28,6 +30,13 @@ var (
 func Compile(code string) ([]byte, error) {
 	b.Reset()
 	L := C.luac_vm_newstate()
+	if L == nil {
+		runtime.GC()
+		L = C.luac_vm_newstate()
+		if L == nil {
+			return nil, types.ErrVmStart
+		}
+	}
 	defer C.luac_vm_close(L)
 	cstr := C.CString(code)
 	defer C.free(unsafe.Pointer(cstr))
@@ -40,7 +49,7 @@ func Compile(code string) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func CompileFromFile(srcFileName, outFileName, abiFileName string) {
+func CompileFromFile(srcFileName, outFileName, abiFileName string) error {
 	cSrcFileName := C.CString(srcFileName)
 	cOutFileName := C.CString(outFileName)
 	cAbiFileName := C.CString(abiFileName)
@@ -51,36 +60,38 @@ func CompileFromFile(srcFileName, outFileName, abiFileName string) {
 	defer C.luac_vm_close(L)
 
 	if errMsg := C.vm_compile(L, cSrcFileName, cOutFileName, cAbiFileName); errMsg != nil {
-		log.Fatal(C.GoString(errMsg))
+		return errors.New(C.GoString(errMsg))
 	}
+	return nil
 }
 
-func DumpFromFile(srcFileName string) {
+func DumpFromFile(srcFileName string) error {
 	cSrcFileName := C.CString(srcFileName)
 	L := C.luac_vm_newstate()
 	defer C.free(unsafe.Pointer(cSrcFileName))
 	defer C.luac_vm_close(L)
 
 	if errMsg := C.vm_loadfile(L, cSrcFileName); errMsg != nil {
-		log.Fatal(C.GoString(errMsg))
+		return errors.New(C.GoString(errMsg))
 	}
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
-		log.Fatal(C.GoString(errMsg))
+		return errors.New(C.GoString(errMsg))
 	}
 
-	fmt.Print(util.EncodeCode(b.Bytes()))
+	fmt.Println(util.EncodeCode(b.Bytes()))
+	return nil
 }
 
-func DumpFromStdin() {
+func DumpFromStdin() error {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	var buf []byte
 	if (fi.Mode() & os.ModeCharDevice) == 0 {
 		buf, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	} else {
 		var bBuf bytes.Buffer
@@ -89,7 +100,7 @@ func DumpFromStdin() {
 			bBuf.WriteString(scanner.Text() + "\n")
 		}
 		if err = scanner.Err(); err != nil {
-			log.Fatal(err)
+			return err
 		}
 		buf = bBuf.Bytes()
 	}
@@ -99,12 +110,13 @@ func DumpFromStdin() {
 	defer C.luac_vm_close(L)
 
 	if errMsg := C.vm_loadstring(L, srcCode); errMsg != nil {
-		log.Fatal(C.GoString(errMsg))
+		return errors.New(C.GoString(errMsg))
 	}
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
-		log.Fatal(C.GoString(errMsg))
+		return errors.New(C.GoString(errMsg))
 	}
-	fmt.Print(util.EncodeCode(b.Bytes()))
+	fmt.Println(util.EncodeCode(b.Bytes()))
+	return nil
 }
 
 //export addLen

@@ -51,4 +51,7 @@ var (
 
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
+
+	//ErrVmStart
+	ErrVmStart = errors.New("cannot start a VM")
 )

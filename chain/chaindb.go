@@ -24,6 +24,7 @@ import (
 
 const (
 	chainDBName = "chain"
+	genesisKey  = chainDBName + ".genesisInfo"
 
 	TxBatchMax = 10000
 )
@@ -58,19 +59,18 @@ func (e ErrNoBlock) Error() string {
 type ChainDB struct {
 	cc consensus.ChainConsensus
 
-	latest    types.BlockNo
+	latest    atomic.Value //types.BlockNo
 	bestBlock atomic.Value // *types.Block
 	//	blocks []*types.Block
 	store db.DB
 }
 
-func NewChainDB(cc consensus.ChainConsensus) *ChainDB {
+func NewChainDB() *ChainDB {
 	// logger.SetLevel("debug")
 	cdb := &ChainDB{
-		cc: cc,
 		//blocks: []*types.Block{},
-		latest: types.BlockNo(0),
 	}
+	cdb.latest.Store(types.BlockNo(0))
 
 	return cdb
 }
@@ -86,10 +86,10 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 		return err
 	}
 	// // if empty then create new genesis block
-	// // if cdb.latest == 0 && len(cdb.blocks) == 0 {
+	// // if cdb.getBestBlockNo() == 0 && len(cdb.blocks) == 0 {
 	// blockIdx := types.BlockNoToBytes(0)
 	// blockHash := cdb.store.Get(blockIdx)
-	// if cdb.latest == 0 && (blockHash == nil || len(blockHash) == 0) {
+	// if cdb.getBestBlockNo() == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
 	return nil
@@ -162,7 +162,7 @@ func (cdb *ChainDB) loadChainData() error {
 
 	// skips := true
 	// for i, _ := range cdb.blocks {
-	// 	if i > 3 && i+3 <= cdb.latest {
+	// 	if i > 3 && i+3 <= cdb.getBestBlockNo() {
 	// 		if skips {
 	// 			skips = false
 	// 			//logger.Info("  ...")
@@ -187,13 +187,17 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 	//logger.Debug("  loaded: ", ToJSON(pb))
 	return nil
 }
-func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
+
+func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
+	block := genesis.Block()
+
 	tx := cdb.store.NewTx()
 	if err := cdb.addBlock(&tx, block); err != nil {
 		return err
 	}
 
 	cdb.connectToChain(&tx, block)
+	tx.Set([]byte(genesisKey), genesis.Bytes())
 
 	tx.Commit()
 
@@ -201,12 +205,22 @@ func (cdb *ChainDB) addGenesisBlock(block *types.Block) error {
 	return nil
 }
 
+// GetGenesisInfo returns Genesis info from cdb.
+func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
+	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
+		return types.GetGenesisFromBytes(b)
+	}
+	return nil
+}
+
 func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockNo) {
-	oldLatest = cdb.latest
-	cdb.latest = newBestBlock.GetHeader().GetBlockNo()
+	oldLatest = cdb.getBestBlockNo()
+
+	newLatest := types.BlockNo(newBestBlock.GetHeader().GetBlockNo())
+	cdb.latest.Store(newLatest)
 	cdb.bestBlock.Store(newBestBlock)
 
-	logger.Debug().Uint64("old", oldLatest).Uint64("new", cdb.latest).Msg("update latest block")
+	logger.Debug().Uint64("old", oldLatest).Uint64("new", newLatest).Msg("update latest block")
 
 	return
 }
@@ -252,8 +266,8 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 	defer dbTx.Discard()
 
 	//make newTx because of batchsize limit of DB
-	getNewTx := func (remainTxCnt int) {
-		if txCnt + remainTxCnt >= TxBatchMax {
+	getNewTx := func(remainTxCnt int) {
+		if txCnt+remainTxCnt >= TxBatchMax {
 			dbTx.Commit()
 			dbTx = cdb.store.NewTx()
 			txCnt = 0
@@ -287,8 +301,9 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 
 func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
-	if blockNo > 0 && blockNo != cdb.latest+1 {
-		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", cdb.latest).Msg("block is branch")
+	bestNo := cdb.getBestBlockNo()
+	if blockNo > 0 && blockNo != bestNo+1 {
+		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", bestNo).Msg("block is branch")
 
 		return false, nil
 	}
@@ -349,9 +364,9 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
 
 	// TODO: Is it possible?
-	// if blockNo != 0 && isMainChain && cdb.latest+1 != blockNo {
+	// if blockNo != 0 && isMainChain && cdb.getBestBlockNo()+1 != blockNo {
 	// 	return fmt.Errorf("failed to add block(%d,%v). blkno != latestNo(%d) + 1", blockNo,
-	// 		block.BlockHash(), cdb.latest)
+	// 		block.BlockHash(), cdb.getBestBlockNo())
 	// }
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
@@ -368,8 +383,14 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	return nil
 }
 
-func (cdb *ChainDB) getBestBlockNo() types.BlockNo {
-	return cdb.latest
+func (cdb *ChainDB) getBestBlockNo() (latestNo types.BlockNo) {
+	aopv := cdb.latest.Load()
+	if aopv != nil {
+		latestNo = aopv.(types.BlockNo)
+	} else {
+		panic("ChainDB:latest is nil")
+	}
+	return latestNo
 }
 
 // GetBlockByNo returns the block with its block number as blockNo.
@@ -437,8 +458,8 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 	var b bytes.Buffer
 	b.Write(data)
 	var receipts types.Receipts
-	gob := gob.NewDecoder(&b)
-	gob.Decode(&receipts)
+	decoder := gob.NewDecoder(&b)
+	decoder.Decode(&receipts)
 
 	if idx < 0 || idx > int32(len(receipts)) {
 		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
@@ -457,7 +478,7 @@ type ChainInfo struct {
 func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	tree := make([]ChainInfo, 0)
 	var i uint64
-	for i = 0; i < cdb.latest; i++ {
+	for i = 0; i < cdb.getBestBlockNo(); i++ {
 		hash, _ := cdb.getHashByNo(i)
 		tree = append(tree, ChainInfo{
 			Height: i,

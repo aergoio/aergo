@@ -2,14 +2,14 @@ package p2putil
 
 // ChannelPipe serve non blocking limited size channel.
 // It preserve input ordering, and not block caller unless it is Closed()
-// it has own goroutine, it must be called Open before using it, and Close for dispose resource.
+// Tt must be called Open before using it, and Close for dispose resource.
 type ChannelPipe interface {
-	// In returns channel for input. it should be used after Open() method is called.
-	// It cause block if item is pushed after Close() is called.
-	In() chan<- interface{}
+	// Put item to pipe. it should be used after Open() method is called.
+	// It always returns true and gurranty that item is queued.
+	Put(item interface{}) bool
 	Out() <-chan interface{}
 	// Done should be called after get item from out channel
-	Done() chan<- interface{}
+	Done()
 
 	Open()
 	Close()
@@ -28,8 +28,11 @@ type channelPipe struct {
 
 // PipeEventListener listen event of ChannelPipe
 type PipeEventListener interface {
+	// OnIn is called when item is queued
 	OnIn(element interface{})
+	// OnDrop is called when queued item is dropped and not out to channel receiver
 	OnDrop(element interface{})
+	// OnOut is called when queued item went to out channel (and will be sent to receiver)
 	OnOut(element interface{})
 }
 
@@ -57,16 +60,17 @@ func newDefaultChannelPipe(bufsize int, listener PipeEventListener) *channelPipe
 	return c
 }
 
-func (c *channelPipe) In() chan<- interface{} {
-	return c.in
+func (c *channelPipe) Put(item interface{}) bool {
+	c.in<-item
+	return true
 }
 
 func (c *channelPipe) Out() <-chan interface{} {
 	return c.out
 }
 
-func (c *channelPipe) Done() chan<- interface{} {
-	return c.done
+func (c *channelPipe) Done() {
+	c.done <- struct{}{}
 }
 
 func (c *channelPipe) Open() {

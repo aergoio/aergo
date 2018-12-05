@@ -15,7 +15,7 @@ import (
 )
 
 func TestP2P_GetBlocksChunk(t *testing.T) {
-	sampleMsg := &message.GetBlockChunks{GetBlockInfos:message.GetBlockInfos{ToWhom:samplePeerID},TTL:time.Minute}
+	sampleMsg := &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: samplePeerID}, TTL: time.Minute}
 
 	// fail: cancel create receiver and return fail instantly
 	mockPM := new(MockPeerManager)
@@ -30,7 +30,6 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 
 	mockCtx.AssertNumberOfCalls(t, "Respond", 1)
 
-
 	// success case
 	mockPM = new(MockPeerManager)
 	mockCtx = new(mockContext)
@@ -38,8 +37,8 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 	mockMF := new(MockMoFactory)
 	mockPM.On("GetPeer", mock.AnythingOfType("peer.ID")).Return(mockPeer, true)
 	mockPeer.On("MF").Return(mockMF)
-	mockPeer.On("sendMessage",mock.Anything)
-	mockMF.On("newMsgBlockRequestOrder",mock.Anything, GetBlocksRequest, mock.AnythingOfType("*types.GetBlockRequest")).Return(dummyMo)
+	mockPeer.On("sendMessage", mock.Anything)
+	mockMF.On("newMsgBlockRequestOrder", mock.Anything, GetBlocksRequest, mock.AnythingOfType("*types.GetBlockRequest")).Return(dummyMo)
 
 	ps = &P2P{}
 	ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
@@ -48,6 +47,43 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 
 	mockCtx.AssertNotCalled(t, "Respond", mock.Anything)
 	// verify that receiver start working.
-	mockMF.AssertNumberOfCalls(t,"newMsgBlockRequestOrder",1)
+	mockMF.AssertNumberOfCalls(t, "newMsgBlockRequestOrder", 1)
+	mockPeer.AssertNumberOfCalls(t, "sendMessage", 1)
+}
+
+func TestP2P_GetBlockHashByNo(t *testing.T) {
+	sampleMsg := &message.GetHashByNo{ToWhom: samplePeerID, BlockNo: uint64(111111)}
+
+	// fail: cancel create receiver and return fail instantly
+	mockPM := new(MockPeerManager)
+	mockCtx := new(mockContext)
+	mockPM.On("GetPeer", mock.AnythingOfType("peer.ID")).Return(nil, false)
+	mockCtx.On("Respond", mock.AnythingOfType("*message.GetHashByNoRsp"))
+	ps := &P2P{}
+	ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
+	ps.pm = mockPM
+
+	ps.GetBlockHashByNo(mockCtx, sampleMsg)
+
+	mockCtx.AssertNumberOfCalls(t, "Respond", 1)
+
+	// success case
+	mockPM = new(MockPeerManager)
+	mockCtx = new(mockContext)
+	mockPeer := new(MockRemotePeer)
+	mockMF := new(MockMoFactory)
+	mockPM.On("GetPeer", mock.AnythingOfType("peer.ID")).Return(mockPeer, true)
+	mockPeer.On("MF").Return(mockMF)
+	mockPeer.On("sendMessage", mock.Anything)
+	mockMF.On("newMsgBlockRequestOrder", mock.Anything, GetHashByNoRequest, mock.AnythingOfType("*types.GetHashByNo")).Return(dummyMo)
+
+	ps = &P2P{}
+	ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
+	ps.pm = mockPM
+	ps.GetBlockHashByNo(mockCtx, sampleMsg)
+
+	mockCtx.AssertNotCalled(t, "Respond", mock.Anything)
+	// verify that receiver start working.
+	mockMF.AssertNumberOfCalls(t, "newMsgBlockRequestOrder", 1)
 	mockPeer.AssertNumberOfCalls(t, "sendMessage", 1)
 }

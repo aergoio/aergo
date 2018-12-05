@@ -8,16 +8,15 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
-
 	"github.com/aergoio/aergo-actor/actor"
-
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/message/mocks"
+	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -72,7 +71,8 @@ func init() {
 	mockCtx = &Context{}
 }
 func TestAergoRPCService_GetTX(t *testing.T) {
-	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: 4332, Recipient: dummyWalletAddress2, Payload: dummyPayload}
+	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: new(big.Int).SetUint64(4332).Bytes(),
+		Recipient: dummyWalletAddress2, Payload: dummyPayload}
 	sampleTx := &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}
 	mockActorHelper.On("CallRequestDefaultTimeout", message.MemPoolSvc, mock.Anything).Return(message.MemPoolGetRsp{}, nil)
 	mockMsgHelper.On("ExtractTxFromResponse", mock.AnythingOfType("message.MemPoolGetRsp")).Return(sampleTx, nil)

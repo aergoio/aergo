@@ -4,7 +4,7 @@
 #include "util.h"
 #include "_cgo_export.h"
 
-extern const bc_ctx_t *getLuaExecContext(lua_State *L);
+extern const int *getLuaExecContext(lua_State *L);
 
 static const char *contract_str = "contract";
 static const char *call_str = "call";
@@ -66,10 +66,10 @@ static int moduleCall(lua_State *L)
 	char *fname;
 	char *json_args;
 	int ret;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount, gas;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
@@ -84,8 +84,6 @@ static int moduleCall(lua_State *L)
 		gas = 0;
 	else
 		gas = luaL_checkinteger(L, -1);
-	if (amount > 0 && exec->isQuery)
-		luaL_error(L, "set not permitted in query");
 
 	lua_pop(L, 2);
 	contract = (char *)luaL_checkstring(L, 2);
@@ -94,7 +92,7 @@ static int moduleCall(lua_State *L)
 	if (json_args == NULL) {
 		lua_error(L);
 	}
-	if ((ret = LuaCallContract(L, exec, contract, fname, json_args, amount, gas)) < 0) {
+	if ((ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas)) < 0) {
 		free(json_args);
 		lua_error(L);
 	}
@@ -126,10 +124,10 @@ static int moduleDelegateCall(lua_State *L)
 	char *fname;
 	char *json_args;
 	int ret;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
@@ -146,7 +144,7 @@ static int moduleDelegateCall(lua_State *L)
 	if (json_args == NULL) {
 		lua_error(L);
 	}
-	if ((ret = LuaDelegateCallContract(L, exec, contract, fname, json_args, gas)) < 0) {
+	if ((ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas)) < 0) {
 		free(json_args);
 		lua_error(L);
 	}
@@ -160,53 +158,71 @@ static int moduleSend(lua_State *L)
 {
 	char *contract;
 	int ret;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	if (exec->isQuery)
-		luaL_error(L, "set not permitted in query");
-
 	contract = (char *)luaL_checkstring(L, 1);
 	amount = luaL_checkinteger(L, 2);
-	if ((ret = LuaSendAmount(L, exec, contract, amount)) < 0) {
+	if ((ret = LuaSendAmount(L, service, contract, amount)) < 0) {
 		lua_error(L);
 	}
 
-	return ret;
+	return 0;
+}
+
+static int moduleBalance(lua_State *L)
+{
+	char *contract;
+	int ret;
+	int *service = (int *)getLuaExecContext(L);
+	lua_Integer amount;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+    if (lua_gettop(L) == 0 || lua_isnil(L, 1))
+        contract = NULL;
+    else
+	    contract = (char *)luaL_checkstring(L, 1);
+
+	if ((ret = LuaGetBalance(L, service, contract)) < 0) {
+		lua_error(L);
+	}
+
+	return 1;
 }
 
 static int modulePcall(lua_State *L)
 {
 	int argc = lua_gettop(L) - 1;
-	bc_ctx_t *exec = (bc_ctx_t *)getLuaExecContext(L);
+	int *service = (int *)getLuaExecContext(L);
 	int start_seq = -1;
 
-	if (exec == NULL) {
+	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
-	if (!exec->isQuery) {
-		start_seq = LuaSetRecoveryPoint(L, exec);
-		if (start_seq < 0)
-			lua_error(L);
-	}
+	start_seq = LuaSetRecoveryPoint(L, service);
+	if (start_seq < 0)
+	    lua_error(L);
 
 	if (lua_pcall(L, argc, LUA_MULTRET, 0) != 0) {
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		if (start_seq != -1) {
-			if (LuaClearRecovery(L, exec->stateKey, start_seq, true) < 0)
+		if (start_seq > 0) {
+			if (LuaClearRecovery(L, service, start_seq, true) < 0)
 				lua_error(L);
 		}
 		return 2;
 	}
 	lua_pushboolean(L, true);
 	lua_insert(L, 1);
-	if (start_seq != -1) {
-		if (LuaClearRecovery(L, exec->stateKey, start_seq, false) < 0)
+	if (start_seq > 0) {
+		if (LuaClearRecovery(L, service, start_seq, false) < 0)
 			lua_error(L);
 	}
 	return lua_gettop(L);
@@ -234,6 +250,7 @@ static const luaL_Reg delegate_call_meta[] = {
 };
 
 static const luaL_Reg contract_lib[] = {
+	{"balance", moduleBalance},
 	{"send", moduleSend},
 	{"pcall", modulePcall},
 	{NULL, NULL}

@@ -138,7 +138,19 @@ func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Blocks),data.HasNext) )
+	if bh.logger.IsDebugEnabled() {
+		additional := ""
+		l := len(data.Blocks)
+		switch l {
+		case 0:
+			additional = fmt.Sprintf("blk_cnt=0,hasNext=%t",data.HasNext)
+		case 1:
+			additional = fmt.Sprintf("blk_cnt=1,hash=%s(num %d),hasNext=%t",enc.ToString(data.Blocks[0].Hash), data.Blocks[0].Header.BlockNo,data.HasNext)
+		default:
+			additional = fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d),hasNext=%t", l, enc.ToString(data.Blocks[0].Hash), data.Blocks[0].Header.BlockNo, enc.ToString(data.Blocks[l-1].Hash), data.Blocks[l-1].Header.BlockNo, data.HasNext)
+		}
+		debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, additional )
+	}
 
 	// locate request data and remove it if found
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {

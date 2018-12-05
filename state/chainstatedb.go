@@ -80,12 +80,13 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 	return NewStateDB(&sdb.store, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
-	block := genesisBlock.GetBlock()
+func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, []string) error) error {
+	block := genesis.Block()
+	stateDB := sdb.OpenNewStateDB(sdb.GetRoot())
 
 	// create state of genesis block
-	gbState := NewBlockState(sdb.OpenNewStateDB(sdb.GetRoot()))
-	for address, balance := range genesisBlock.Balance {
+	gbState := sdb.NewBlockState(stateDB.GetRoot())
+	for address, balance := range genesis.Balance {
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
 		if err := gbState.PutState(id, balance); err != nil {
@@ -93,12 +94,24 @@ func (sdb *ChainStateDB) SetGenesis(genesisBlock *types.Genesis) error {
 		}
 	}
 
-	if genesisBlock.VoteState != nil {
+	if len(genesis.BPs) > 0 && bpInit != nil {
+		// To avoid cyclic dedendency, BP initilization is called via function
+		// pointer.
+		if err := bpInit(stateDB, genesis.BPs); err != nil {
+			return err
+		}
+
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		if err := gbState.PutState(aid, genesisBlock.VoteState); err != nil {
+		scs, err := stateDB.OpenContractStateAccount(aid)
+		if err != nil {
+			return err
+		}
+
+		if err := gbState.PutState(aid, scs.State); err != nil {
 			return err
 		}
 	}
+
 	// save state of genesis block
 	// FIXME don't use chainstate API
 	if err := sdb.Apply(gbState); err != nil {

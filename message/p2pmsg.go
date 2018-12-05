@@ -130,6 +130,9 @@ type GetPeersRsp struct {
 	States   []types.PeerState
 }
 
+type GetMetrics struct {
+}
+
 // GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
 type GetSyncAncestor struct {
 	ToWhom peer.ID
@@ -151,5 +154,16 @@ type GetHashesRsp struct {
 	PrevInfo *types.BlockInfo
 	Hashes   []BlockHash
 	Count    uint64
+	Err      error
+}
+
+
+type GetHashByNo struct {
+	ToWhom   peer.ID
+	BlockNo  types.BlockNo
+}
+
+type GetHashByNoRsp struct {
+	BlockHash   BlockHash
 	Err      error
 }

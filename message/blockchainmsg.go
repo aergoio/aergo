@@ -33,7 +33,7 @@ type GetMissing struct {
 }
 type GetMissingRsp struct {
 	TopMatched BlockHash
-	TopNumber types.BlockNo
+	TopNumber  types.BlockNo
 	StopNumber types.BlockNo
 	//Hashes   []BlockHash
 	//Blocknos []types.BlockNo
@@ -48,6 +48,7 @@ type AddBlock struct {
 	PeerID peer.ID
 	Block  *types.Block
 	Bstate interface{}
+	IsSync bool
 	// Bstate *types.BlockState
 }
 type AddBlockRsp struct {
@@ -150,6 +151,7 @@ type GetStakingRsp struct {
 type GetAnchors struct{}
 type GetAnchorsRsp struct {
 	Hashes [][]byte
+	LastNo types.BlockNo
 	Err    error
 }
 

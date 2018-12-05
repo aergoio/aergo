@@ -1,16 +1,18 @@
 package syncer
 
 import (
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type HashFetcher struct {
-	hub component.ICompRequester //for communicate with other service
+	compRequester component.IComponentRequester //for communicate with other service
 
 	ctx *types.SyncContext
 
@@ -22,6 +24,7 @@ type HashFetcher struct {
 	lastBlockInfo *types.BlockInfo
 	reqCount      uint64
 	reqTime       time.Time
+	isRequesting  bool
 
 	maxHashReq uint64
 	name       string
@@ -29,7 +32,9 @@ type HashFetcher struct {
 	timeout time.Duration
 	debug   bool
 
-	finished bool
+	isRunning bool
+
+	waitGroup *sync.WaitGroup
 }
 
 type HashSet struct {
@@ -44,27 +49,28 @@ type HashRequest struct {
 }
 
 var (
-	dfltTimeout = time.Second * 180
-	MaxHashReq  = uint64(128)
+	dfltTimeout     = time.Second * 180
+	DfltHashReqSize = uint64(100)
+	//DfltHashReqSize = uint64(10)
 )
 
 var (
+	ErrQuitHashFetcher    = errors.New("Hashfetcher quit")
 	ErrInvalidHashSet     = errors.New("Invalid hash set reply")
-	ErrGetHashesRspError  = errors.New("GetHashesRsp error received")
 	ErrHashFetcherTimeout = errors.New("HashFetcher response timeout")
 )
 
-func newHashFetcher(ctx *types.SyncContext, hub component.ICompRequester, bfCh chan *HashSet, maxHashReq uint64) *HashFetcher {
-	hf := &HashFetcher{ctx: ctx, hub: hub, name: NameHashFetcher}
+func newHashFetcher(ctx *types.SyncContext, compRequester component.IComponentRequester, bfCh chan *HashSet, cfg *SyncerConfig) *HashFetcher {
+	hf := &HashFetcher{ctx: ctx, compRequester: compRequester, name: NameHashFetcher}
 
 	hf.quitCh = make(chan interface{})
 	hf.responseCh = make(chan *message.GetHashesRsp)
 
 	hf.resultCh = bfCh
 
-	hf.lastBlockInfo = ctx.CommonAncestor
+	hf.lastBlockInfo = &types.BlockInfo{Hash: ctx.CommonAncestor.GetHash(), No: ctx.CommonAncestor.BlockNo()}
 
-	hf.maxHashReq = maxHashReq
+	hf.maxHashReq = cfg.maxHashReqSize
 
 	hf.timeout = dfltTimeout
 
@@ -76,45 +82,59 @@ func (hf *HashFetcher) setTimeout(timeout time.Duration) {
 }
 
 func (hf *HashFetcher) Start() {
+	hf.waitGroup = &sync.WaitGroup{}
+	hf.waitGroup.Add(1)
+
+	hf.isRunning = true
+
 	run := func() {
+		defer hf.waitGroup.Done()
+
+		logger.Debug().Msg("start hash fetcher")
+
 		timer := time.NewTimer(hf.timeout)
 
 		hf.requestHashSet()
 
 		for {
-		NEXT:
 			select {
-			case msg := <-hf.responseCh:
+			case msg, ok := <-hf.responseCh:
+				if !ok {
+					logger.Error().Msg("HashFetcher responseCh is closed. Syncer is stopping now")
+					return
+				}
 				logger.Debug().Msg("process GetHashesRsp")
 
 				timer.Stop()
-				if !hf.isValidResponse(msg) {
-					goto NEXT
-				}
+				res, err := hf.isValidResponse(msg)
+				if res {
+					HashSet := &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes, StartNo: msg.PrevInfo.No + 1}
 
-				HashSet := &HashSet{Count: len(msg.Hashes), Hashes: msg.Hashes, StartNo: msg.PrevInfo.No + 1}
+					if err := hf.processHashSet(HashSet); err != nil {
+						//TODO send errmsg to syncer & stop sync
+						logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
+						if err != ErrQuitHashFetcher {
+							stopSyncer(hf.compRequester, hf.name, err)
+						}
+						return
+					}
 
-				if err := hf.processHashSet(HashSet); err != nil {
-					//TODO send errmsg to syncer & stop sync
-					logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
-					stopSyncer(hf.hub, hf.name, err)
-					return
+					if hf.isFinished(HashSet) {
+						closeFetcher(hf.compRequester, hf.name)
+						logger.Info().Msg("HashFetcher finished")
+						return
+					}
+					hf.requestHashSet()
+				} else if err != nil {
+					stopSyncer(hf.compRequester, hf.name, err)
 				}
-
-				if hf.isFinished(HashSet) {
-					hf.finished = true
-					closeFetcher(hf.hub, hf.name)
-					logger.Info().Msg("HashFetcher finished")
-					return
-				}
-				hf.requestHashSet()
 
 				//timer restart
 				timer.Reset(hf.timeout)
 			case <-timer.C:
 				if hf.requestTimeout() {
 					logger.Error().Msg("HashFetcher response timeout.")
-					stopSyncer(hf.hub, hf.name, ErrHashFetcherTimeout)
+					stopSyncer(hf.compRequester, hf.name, ErrHashFetcherTimeout)
 				}
 
 			case <-hf.quitCh:
@@ -132,7 +152,7 @@ func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
 }
 
 func (hf *HashFetcher) requestTimeout() bool {
-	return time.Now().Sub(hf.reqTime) > hf.timeout
+	return hf.isRequesting && time.Now().Sub(hf.reqTime) > hf.timeout
 }
 
 func (hf *HashFetcher) requestHashSet() {
@@ -143,10 +163,11 @@ func (hf *HashFetcher) requestHashSet() {
 
 	hf.reqCount = count
 	hf.reqTime = time.Now()
+	hf.isRequesting = true
 
 	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
-	hf.hub.Tell(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
+	hf.compRequester.TellTo(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
 }
 
 func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
@@ -160,7 +181,16 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 	}
 
 	hf.lastBlockInfo = &types.BlockInfo{Hash: lastHash, No: lastHashNo}
-	hf.resultCh <- hashSet
+
+	//total HashSet in memory can be 3 (network + resultCh + blockFetcher)
+	select {
+	case hf.resultCh <- hashSet:
+	case <-hf.quitCh:
+		logger.Info().Msg("hash fetcher quit while pushing result")
+		return ErrQuitHashFetcher
+	}
+
+	hf.isRequesting = false
 
 	logger.Debug().Uint64("target", hf.ctx.TargetNo).Uint64("start", hashSet.StartNo).Uint64("last", lastHashNo).Int("count", len(hashSet.Hashes)).Msg("push hashset to BlockFetcher")
 
@@ -168,27 +198,35 @@ func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {
 }
 
 func (hf *HashFetcher) stop() {
-	logger.Info().Msg("HashFetcher finished")
-
 	if hf == nil {
 		return
 	}
 
-	if hf.quitCh != nil {
+	logger.Info().Msg("HashFetcher stop#1")
+
+	if hf.isRunning {
 		close(hf.quitCh)
-		hf.quitCh = nil
+		logger.Info().Msg("HashFetcher close quitCh")
 
 		close(hf.responseCh)
-		hf.responseCh = nil
+
+		hf.waitGroup.Wait()
+		hf.isRunning = false
 	}
+	logger.Info().Msg("HashFetcher stopped")
 }
 
-func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
+func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) (bool, error) {
 	isValid := true
+	var err error
+
+	if msg == nil {
+		panic("nil message error")
+	}
 
 	if msg.Err != nil {
 		logger.Error().Err(msg.Err).Msg("receive GetHashesRsp with error")
-		stopSyncer(hf.hub, hf.name, ErrGetHashesRspError)
+		err = msg.Err
 		isValid = false
 	}
 
@@ -202,9 +240,10 @@ func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) bool {
 			Uint64("req count", hf.reqCount).
 			Uint64("msg count", msg.Count).
 			Msg("invalid GetHashesRsp")
+		return false, err
 	}
 
-	return true
+	return true, nil
 }
 
 func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {

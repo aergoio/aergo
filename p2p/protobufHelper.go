@@ -71,15 +71,18 @@ type pbRequestOrder struct {
 }
 
 func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
-	err := p.rw.WriteMsg(pr.message)
-	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
-		return err
-	}
-
 	p.reqMutex.Lock()
 	p.requests[pr.message.ID()] = &requestInfo{cTime:time.Now(), reqMO:pr, receiver: pr.respReceiver}
 	p.reqMutex.Unlock()
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.reqMutex.Lock()
+		delete(p.requests, pr.message.ID())
+		p.reqMutex.Unlock()
+		return err
+	}
+
 
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send request message")

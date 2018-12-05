@@ -19,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/davecgh/go-spew/spew"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -49,7 +50,19 @@ type bpInfo struct {
 }
 
 // New returns a new DPos object
-func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, error) {
+func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.ComponentHub) (consensus.Consensus, error) {
+	genesis := cdb.GetGenesisInfo()
+	if genesis != nil {
+		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
+		bpCount := len(genesis.BPs)
+		// Prefer BPs from the GenesisInfo. Overwrite.
+		if bpCount > 0 {
+			logger.Debug().Msg("use BPs from the genesis info")
+			cfg.Consensus.BpIds = genesis.BPs
+			cfg.Consensus.DposBpNumber = uint16(bpCount)
+		}
+	}
+
 	Init(cfg.Consensus)
 
 	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
@@ -60,7 +73,7 @@ func New(cfg *config.Config, hub *component.ComponentHub) (consensus.Consensus, 
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(defaultConsensusCount),
+		Status:       NewStatus(defaultConsensusCount, cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -132,14 +145,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	id, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
-	}
-
-	if id == dpos.bpid() && block.PrevID() != bestBlock.ID() {
-		return &consensus.ErrorConsensus{
-			Msg: fmt.Sprintf(
-				"best block changed after block production: parent: %v (curr: %v), best block: %v",
-				block.PrevID(), block.ID(), bestBlock.ID()),
-		}
 	}
 
 	ns := block.GetHeader().GetTimestamp()

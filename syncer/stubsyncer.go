@@ -1,259 +1,288 @@
 package syncer
 
 import (
-	"bytes"
 	"fmt"
+	"reflect"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
-	"time"
 )
 
-//StubSyncer receive Syncer, P2P, Chain Service actor message
 type StubSyncer struct {
-	ctx *types.SyncContext
+	realSyncer    *Syncer
+	stubRequester *StubRequester
 
-	testhub *StubHub
-
-	hf *HashFetcher
-	bf *BlockFetcher
-
-	bfInputCh chan *HashSet
-
+	localChain  *StubBlockChain
 	remoteChain *StubBlockChain
-	stubPeers   []*StubPeer
 
-	isStop bool
+	stubPeers []*StubPeer
+
+	t *testing.T
+
+	waitGroup *sync.WaitGroup
+
+	cfg *SyncerConfig
+
+	checkResultFn TestResultFn
 }
 
-type StubBlockChain struct {
-	best   int
-	hashes []([]byte)
-	blocks []*types.Block
-
-	bestBlock *types.Block
-}
-
-type StubPeer struct {
-	addr    *types.PeerAddress
-	lastBlk *types.NewBlockNotice
-	state   types.PeerState
-
-	blockChain *StubBlockChain
-}
+type TestResultFn func(stubSyncer *StubSyncer)
 
 var (
-	TestMaxFetchSize = 2
-	TestMaxTasks     = 2
-
-	TestMaxHashReq = uint64(3)
-
-	TestMaxPeer = 2
+	targetPeerID = peer.ID([]byte(fmt.Sprintf("peer-%d", 0)))
 )
 
-var (
-	ErrNotExistHash  = errors.New("not exist hash")
-	ErrNotExistBlock = errors.New("not exist block of the hash")
-)
+func makeStubPeerSet(remoteChains []*StubBlockChain) []*StubPeer {
+	stubPeers := make([]*StubPeer, len(remoteChains))
 
-func NewStubBlockChain() *StubBlockChain {
-	tchain := &StubBlockChain{best: -1}
-
-	tchain.hashes = make([][]byte, 1024)
-	tchain.blocks = make([]*types.Block, 1024)
-
-	return tchain
-}
-
-func (tchain *StubBlockChain) genAddBlock() {
-	newBlock := types.NewBlock(tchain.bestBlock, nil, nil, nil, nil, time.Now().UnixNano())
-	tchain.addBlock(newBlock)
-
-	time.Sleep(time.Nanosecond * 3)
-}
-
-func (tchain *StubBlockChain) addBlock(newBlock *types.Block) {
-	tchain.best += 1
-	tchain.hashes[tchain.best] = newBlock.BlockHash()
-	tchain.blocks[tchain.best] = newBlock
-	tchain.bestBlock = newBlock
-}
-
-func (tchain *StubBlockChain) GetHashes(prevInfo *types.BlockInfo, count uint64) ([]message.BlockHash, error) {
-	if tchain.best < int(prevInfo.No+count) {
-		return nil, ErrNotExistHash
+	for i, chain := range remoteChains {
+		stubPeers[i] = NewStubPeer(i, uint64(chain.best), chain)
 	}
 
-	start := prevInfo.No + 1
-	resHashes := tchain.hashes[start : start+count]
-
-	blkHashes := make([]message.BlockHash, 0)
-	for _, hash := range resHashes {
-		blkHashes = append(blkHashes, hash)
-	}
-
-	return blkHashes, nil
+	return stubPeers
 }
 
-func (tchain *StubBlockChain) GetBlockInfo(no uint64) *types.BlockInfo {
-	return &types.BlockInfo{tchain.hashes[no], no}
+func NewTestSyncer(t *testing.T, localChain *StubBlockChain, remoteChain *StubBlockChain, peers []*StubPeer, cfg *SyncerConfig) *StubSyncer {
+	syncer := NewSyncer(nil, localChain, cfg)
+	testsyncer := &StubSyncer{realSyncer: syncer, localChain: localChain, remoteChain: remoteChain, stubPeers: peers, cfg: cfg, t: t}
+
+	testsyncer.stubRequester = NewStubRequester()
+
+	syncer.SetRequester(testsyncer.stubRequester)
+
+	return testsyncer
 }
 
-func (tchain *StubBlockChain) GetBlocks(hashes []message.BlockHash) ([]*types.Block, error) {
-	startNo := -1
+func (stubSyncer *StubSyncer) start() {
+	stubSyncer.waitGroup = &sync.WaitGroup{}
+	stubSyncer.waitGroup.Add(1)
 
-	for i, block := range tchain.blocks {
-		if bytes.Equal(block.GetHash(), hashes[0]) {
-			startNo = i
-			break
+	go func() {
+		defer stubSyncer.waitGroup.Done()
+
+		for {
+			msg := stubSyncer.stubRequester.recvMessage()
+			isStop := stubSyncer.handleMessage(msg)
+			if isStop {
+				return
+			}
 		}
-	}
-
-	if startNo == -1 {
-		return nil, ErrNotExistBlock
-	}
-
-	resultBlocks := make([]*types.Block, 0)
-	i := startNo
-	for _, hash := range hashes {
-		if !bytes.Equal(tchain.blocks[i].GetHash(), hash) {
-			return nil, ErrNotExistBlock
-		}
-
-		resultBlocks = append(resultBlocks, tchain.blocks[i])
-		i++
-	}
-
-	return resultBlocks, nil
+	}()
 }
 
-func initStubBlockChain(size int) *StubBlockChain {
-	chain := NewStubBlockChain()
-
-	//load initial blocks
-	for i := 0; i < size; i++ {
-		chain.genAddBlock()
-	}
-
-	return chain
+func (stubSyncer *StubSyncer) waitStop() {
+	logger.Info().Msg("test syncer wait to stop")
+	stubSyncer.waitGroup.Wait()
+	logger.Info().Msg("test syncer stopped")
 }
 
-func NewStubSyncer(ctx *types.SyncContext, useHashFetcher bool, useBlockFetcher bool, remoteChain *StubBlockChain) *StubSyncer {
-	syncer := &StubSyncer{ctx: ctx}
-	syncer.bfInputCh = make(chan *HashSet)
-	syncer.testhub = NewStubHub()
-
-	if useHashFetcher {
-		syncer.hf = newHashFetcher(ctx, syncer.testhub, syncer.bfInputCh, TestMaxHashReq)
-	} else if useBlockFetcher {
-		syncer.bf = newBlockFetcher(ctx, syncer.testhub, TestMaxFetchSize, TestMaxTasks)
-
-		syncer.bfInputCh = syncer.bf.hfCh
-	}
-
-	syncer.remoteChain = remoteChain
-
-	syncer.makeStubPeerSet(TestMaxPeer)
-
-	return syncer
-}
-
-func (syncer *StubSyncer) stop(t *testing.T) {
-	logger.Debug().Msg("stubsyncer stop")
-	syncer.hf.stop()
-	syncer.bf.stop()
-	syncer.isStop = true
-}
-
-func (syncer *StubSyncer) handleMessage(t *testing.T, inmsg interface{}, responseErr error) {
-	switch msg := inmsg.(type) {
-	//p2p role
-	case *message.GetHashes: //from HashFetcher
-		blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
-
-		assert.Equal(t, len(blkHashes), int(msg.Count))
-		rsp := &message.GetHashesRsp{msg.PrevInfo, blkHashes, uint64(len(blkHashes)), responseErr}
-
-		syncer.hf.GetHahsesRsp(rsp)
-
-	case *message.GetPeers: //from BlockFetcher
-		rspMsg := makePeerReply(syncer.stubPeers)
-		syncer.testhub.sendReply(StubHubResult{rspMsg, nil})
-
+func isOtherActorRequest(msg interface{}) bool {
+	switch msg.(type) {
+	case *message.GetSyncAncestor:
+		return true
+	case *message.GetAnchors:
+		return true
+	case *message.GetAncestor:
+		return true
+	case *message.GetHashByNo:
+		return true
+	case *message.GetHashes:
+		return true
+	case *message.GetPeers:
+		return true
 	case *message.GetBlockChunks:
-		syncer.GetBlockChunks(t, msg)
-
+		return true
 	case *message.AddBlock:
-		syncer.AddBlock(t, msg, responseErr)
+		return true
+	}
 
-	case *message.SyncStop:
-		syncer.stop(t)
+	return false
+}
+
+func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
+	//prefix handle
+	switch resmsg := msg.(type) {
+	case *message.FinderResult:
+		if resmsg.Ancestor != nil && resmsg.Err == nil && resmsg.Ancestor.No >= 0 {
+			stubSyncer.localChain.Rollback(resmsg.Ancestor)
+		}
 	case *message.CloseFetcher:
-		if msg.FromWho == NameHashFetcher {
-			syncer.hf.stop()
-		} else if msg.FromWho == NameBlockFetcher {
-			syncer.bf.stop()
+		if resmsg.FromWho == NameHashFetcher {
+			if stubSyncer.cfg.debugContext.debugHashFetcher {
+				assert.Equal(stubSyncer.t, stubSyncer.realSyncer.hashFetcher.lastBlockInfo.No, stubSyncer.cfg.debugContext.targetNo, "invalid hash target")
+			}
 		} else {
-			logger.Error().Msg("invalid closing module message to syncer")
+			assert.Fail(stubSyncer.t, "invalid closefetcher")
+		}
+	case *message.SyncStop:
+		if stubSyncer.cfg.debugContext.expErrResult != nil {
+			assert.Equal(stubSyncer.t, stubSyncer.cfg.debugContext.expErrResult, resmsg.Err, "expected syncer stop error")
+		}
+		//check final result
+		if stubSyncer.checkResultFn != nil {
+			stubSyncer.checkResultFn(stubSyncer)
 		}
 	default:
-		t.Error("invalid syncer message")
 	}
+
+	if isOtherActorRequest(msg) {
+		logger.Debug().Msg("msg is for testsyncer")
+
+		stubSyncer.handleActorMsg(msg)
+	} else {
+
+		logger.Debug().Msg("msg is for syncer")
+		stubSyncer.realSyncer.handleMessage(msg)
+	}
+
+	//check stop
+	switch resmsg := msg.(type) {
+	case *message.SyncStop:
+		return true
+	case *message.FinderResult:
+		if stubSyncer.cfg.debugContext.expAncestor >= 0 {
+			assert.Equal(stubSyncer.t, uint64(stubSyncer.cfg.debugContext.expAncestor), resmsg.Ancestor.No, "ancestor mismatch")
+		} else if !stubSyncer.realSyncer.isstartning {
+			assert.Equal(stubSyncer.t, stubSyncer.cfg.debugContext.expAncestor, -1, "ancestor mismatch")
+			return true
+		}
+
+		if stubSyncer.cfg.debugContext.debugFinder {
+			return true
+		}
+	case *message.CloseFetcher:
+		if stubSyncer.cfg.debugContext.debugHashFetcher {
+			return true
+		}
+	default:
+		return false
+	}
+
+	return false
+}
+
+func (stubSyncer *StubSyncer) handleActorMsg(inmsg interface{}) {
+	switch msg := inmsg.(type) {
+	case *message.GetAnchors:
+		stubSyncer.GetAnchors(msg)
+	case *message.GetSyncAncestor:
+		stubSyncer.GetSyncAncestor(msg)
+	case *message.GetHashByNo:
+		stubSyncer.GetHashByNo(msg)
+
+	case *message.GetHashes:
+		stubSyncer.GetHashes(msg, nil)
+
+	case *message.GetPeers:
+		stubSyncer.GetPeers(msg)
+
+	case *message.GetBlockChunks:
+		stubSyncer.GetBlockChunks(msg)
+
+	case *message.AddBlock:
+		stubSyncer.AddBlock(msg, nil)
+	default:
+		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
+		stubSyncer.t.Fatal(str)
+	}
+}
+
+//reply to requestFuture()
+func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
+	go func() {
+		if syncer.cfg.debugContext.debugFinder {
+			if syncer.stubPeers[0].timeDelaySec > 0 {
+				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer sleep")
+				time.Sleep(syncer.stubPeers[0].timeDelaySec)
+				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer wakeup")
+			}
+		}
+
+		hashes, lastno, err := syncer.localChain.GetAnchors()
+
+		rspMsg := message.GetAnchorsRsp{Hashes: hashes, LastNo: lastno, Err: err}
+		syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
+	}()
+}
+
+func (syncer *StubSyncer) GetPeers(msg *message.GetPeers) {
+	rspMsg := makePeerReply(syncer.stubPeers)
+	syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
+}
+
+func (syncer *StubSyncer) GetSyncAncestor(msg *message.GetSyncAncestor) {
+	//find peer
+	stubPeer := syncer.findStubPeer(msg.ToWhom)
+	ancestor := stubPeer.blockChain.GetAncestorWithHashes(msg.Hashes)
+
+	rspMsg := &message.GetSyncAncestorRsp{Ancestor: ancestor}
+	syncer.stubRequester.TellTo(message.SyncerSvc, rspMsg) //TODO refactoring: stubcompRequesterresult
+
+}
+
+func (syncer *StubSyncer) GetHashByNo(msg *message.GetHashByNo) {
+	//targetPeer = 0
+	hash, err := syncer.stubPeers[0].blockChain.GetHashByNo(msg.BlockNo)
+	rsp := &message.GetHashByNoRsp{BlockHash: hash, Err: err}
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
+}
+func (syncer *StubSyncer) GetHashes(msg *message.GetHashes, responseErr error) {
+	blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
+
+	assert.Equal(syncer.t, len(blkHashes), int(msg.Count))
+	rsp := &message.GetHashesRsp{msg.PrevInfo, blkHashes, uint64(len(blkHashes)), responseErr}
+
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
+}
+
+func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
+	stubPeer := syncer.findStubPeer(msg.ToWhom)
+	stubPeer.blockFetched = true
+
+	assert.True(syncer.t, stubPeer != nil, "peer exist")
+
+	go func() {
+		if stubPeer.timeDelaySec > 0 {
+			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer sleep")
+			time.Sleep(stubPeer.timeDelaySec)
+			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer wakeup")
+		}
+
+		//send reply
+		blocks, err := stubPeer.blockChain.GetBlocks(msg.Hashes)
+
+		rsp := &message.GetBlockChunksRsp{ToWhom: msg.ToWhom, Blocks: blocks, Err: err}
+		syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
+	}()
+}
+
+//ChainService
+func (syncer *StubSyncer) AddBlock(msg *message.AddBlock, responseErr error) {
+	err := syncer.localChain.addBlock(msg.Block)
+
+	rsp := &message.AddBlockRsp{BlockNo: msg.Block.GetHeader().BlockNo, BlockHash: msg.Block.GetHash(), Err: err}
+	logger.Debug().Uint64("no", msg.Block.GetHeader().BlockNo).Msg("add block succeed")
+	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
 
 func (syncer *StubSyncer) findStubPeer(peerID peer.ID) *StubPeer {
 	for _, tmpPeer := range syncer.stubPeers {
 		peerIDStr := string(tmpPeer.addr.PeerID)
+		logger.Info().Str("tmp", peerIDStr).Msg("peer is")
 		if strings.Compare(peerIDStr, string(peerID)) == 0 {
 			return tmpPeer
 		}
 	}
 
+	logger.Error().Str("peer", peerID.Pretty()).Msg("can't find peer")
+	panic("peer find fail")
 	return nil
-}
-
-func (syncer *StubSyncer) GetBlockChunks(t *testing.T, msg *message.GetBlockChunks) {
-	stubPeer := syncer.findStubPeer(msg.ToWhom)
-
-	assert.True(t, stubPeer != nil, "peer exist")
-
-	//send reply
-	blocks, err := stubPeer.blockChain.GetBlocks(msg.Hashes)
-
-	msgRsp := &message.GetBlockChunksRsp{ToWhom: msg.ToWhom, Blocks: blocks, Err: err}
-
-	syncer.bf.handleBlockRsp(msgRsp)
-}
-
-func (syncer *StubSyncer) AddBlock(t *testing.T, msg *message.AddBlock, responseError error) {
-	msgRsp := &message.AddBlockRsp{BlockNo: msg.Block.GetHeader().BlockNo, BlockHash: msg.Block.GetHash(), Err: responseError}
-
-	syncer.bf.handleBlockRsp(msgRsp)
-}
-
-func (syncer *StubSyncer) makeStubPeerSet(count int) {
-	syncer.stubPeers = make([]*StubPeer, count)
-
-	for i := 0; i < count; i++ {
-		syncer.stubPeers[i] = NewStubPeer(i, uint64(syncer.remoteChain.best), syncer.remoteChain)
-	}
-}
-
-func NewStubPeer(idx int, lastNo uint64, blockChain *StubBlockChain) *StubPeer {
-	stubPeer := &StubPeer{}
-
-	peerIDBytes := []byte(fmt.Sprintf("peer-%d", idx))
-	stubPeer.addr = &types.PeerAddress{PeerID: peerIDBytes}
-	stubPeer.lastBlk = &types.NewBlockNotice{BlockNo: lastNo}
-	stubPeer.state = types.RUNNING
-
-	stubPeer.blockChain = blockChain
-
-	return stubPeer
 }
 
 func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
@@ -271,7 +300,14 @@ func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 	return &message.GetPeersRsp{Peers: peerAddrs, LastBlks: blockNotices, States: states}
 }
 
-func (syncer *StubSyncer) getResultFromHashFetcher() *HashSet {
-	hashSet := <-syncer.hf.resultCh
-	return hashSet
+//test block fetcher only
+func (stubSyncer *StubSyncer) runTestBlockFetcher(ctx *types.SyncContext) {
+	stubSyncer.realSyncer.blockFetcher = newBlockFetcher(ctx, stubSyncer.realSyncer.getCompRequester(), stubSyncer.cfg)
+	stubSyncer.realSyncer.blockFetcher.Start()
+}
+
+func (stubSyncer *StubSyncer) sendHashSetToBlockFetcher(hashSet *HashSet) {
+	logger.Debug().Uint64("no", hashSet.StartNo).Msg("test syncer pushed hashset to blockfetcher")
+
+	stubSyncer.realSyncer.blockFetcher.hfCh <- hashSet
 }

@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/metric"
 	"io/ioutil"
 	"time"
 
@@ -32,11 +33,10 @@ type nodeInfo struct {
 type P2P struct {
 	*component.BaseComponent
 
-	hub *component.ComponentHub
-
 	pm     PeerManager
 	sm     SyncManager
 	rm     ReconnectManager
+	mm 	metric.MetricsManager
 	mf     moFactory
 	signer msgSigner
 	ca     types.ChainAccessor
@@ -112,10 +112,8 @@ func NodePubKey() crypto.PubKey {
 }
 
 // NewP2P create a new ActorService for p2p
-func NewP2P(hub *component.ComponentHub, cfg *config.Config, chainsvc *chain.ChainService) *P2P {
-	p2psvc := &P2P{
-		hub: hub,
-	}
+func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
+	p2psvc := &P2P{}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
 	p2psvc.init(cfg, chainsvc)
 	return p2psvc
@@ -128,10 +126,12 @@ func (p2ps *P2P) AfterStart() {
 	if err := p2ps.pm.Start(); err != nil {
 		panic("Failed to start p2p component")
 	}
+	p2ps.mm.Start()
 }
 
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
+	p2ps.mm.Stop()
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
 	}
@@ -148,7 +148,8 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, signer, reconMan, p2ps.Logger, mf)
+	metricMan := metric.NewMetricManager(10)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, signer, reconMan, metricMan, p2ps.Logger, mf)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 
 	// connect managers each other
@@ -159,15 +160,17 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.pm = peerMan
 	p2ps.sm = syncMan
 	p2ps.rm = reconMan
+	p2ps.mm = metricMan
 }
 
 // Receive got actor message and then handle it.
 func (p2ps *P2P) Receive(context actor.Context) {
-
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
 	case *message.GetAddressesMsg:
 		p2ps.GetAddresses(msg.ToWhom, msg.Size)
+	case *message.GetMetrics:
+		context.Respond(p2ps.mm.Metrics())
 	case *message.GetBlockHeaders:
 		p2ps.GetBlockHeaders(msg)
 	case *message.GetBlockChunks:
@@ -176,6 +179,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetHashes:
 		p2ps.GetBlockHashes(context, msg)
+	case *message.GetHashByNo:
+		p2ps.GetBlockHashByNo(context, msg)
 	case *message.NotifyNewBlock:
 		p2ps.NotifyNewBlock(*msg)
 	case *message.GetMissingBlocks:
@@ -189,7 +194,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 
 	case *message.GetPeers:
 		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks:lastBlks, States: states})
+		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks: lastBlks, States: states})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
 	}
@@ -253,6 +258,8 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetHashesRequest] = newGetHashesReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetHashesResponse] = newGetHashesRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetHashByNoRequest] = newGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetHashByNoResponse] = newGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// TxHandlers
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)

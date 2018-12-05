@@ -6,10 +6,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"os"
+
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/spf13/cobra"
-	"log"
-	"os"
 )
 
 var (
@@ -19,23 +21,28 @@ var (
 )
 
 func init() {
-	log.SetOutput(os.Stderr)
 	rootCmd = &cobra.Command{
-		Use:   "aergoluac [flags] srcfile bcfile",
-		Short: "compile a contract",
-		Run: func(cmd *cobra.Command, args []string) {
+		Use:   "aergoluac --payload srcfile\n  aergoluac --abi abifile srcfile bcfile",
+		Short: "Compile a lua contract",
+		Long:  "Compile a lua contract. This command makes a bytecode file and a ABI file or prints a payload data.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 			if payload {
 				if len(args) == 0 {
-					util.DumpFromStdin()
+					err = util.DumpFromStdin()
 				} else {
-					util.DumpFromFile(args[0])
+					err = util.DumpFromFile(args[0])
 				}
 			} else {
 				if len(args) < 2 {
-					log.Fatal(cmd.UsageString())
+					return errors.New("2 arguments required: <srcfile> <bcfile>")
 				}
-				util.CompileFromFile(args[0], args[1], abiFile)
+				err = util.CompileFromFile(args[0], args[1], abiFile)
 			}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+			}
+			return nil
 		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
@@ -43,7 +50,5 @@ func init() {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
+	_ = rootCmd.Execute()
 }

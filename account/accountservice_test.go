@@ -3,6 +3,7 @@ package account
 import (
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"testing"
 
 	"github.com/aergoio/aergo/config"
@@ -155,7 +156,7 @@ func TestVerfiyFail(t *testing.T) {
 	assert.NotNil(t, tx.Body.Sign, "failed to sign")
 
 	//edit tx after sign
-	tx.Body.Amount = 0xff
+	tx.Body.Amount = new(big.Int).SetUint64(0xff).Bytes()
 	err = as.ks.VerifyTx(tx)
 	assert.Error(t, err, types.ErrSignNotMatch, "failed to verfiy")
 }

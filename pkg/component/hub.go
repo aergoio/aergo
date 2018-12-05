@@ -6,12 +6,19 @@
 package component
 
 import (
-	"github.com/opentracing/opentracing-go"
-	"github.com/satori/go.uuid"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/opentracing/opentracing-go"
+	"github.com/satori/go.uuid"
+)
+
+var (
+	ErrHubUnregistered = errors.New("Unregistered Component")
+	logger             = log.NewLogger("actor")
 )
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
@@ -19,16 +26,11 @@ type ICompSyncRequester interface {
 	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 
-type ICompRequester interface {
-	Tell(targetName string, message interface{})
-	RequestFutureResult(targetName string, message interface{}, timeout time.Duration, tip string) (interface{}, error)
-}
-
 // ComponentHub keeps a list of registered components
 type ComponentHub struct {
-	components 	map[string]IComponent
-	spanLock	sync.Mutex
-	spans 		map[string]*opentracing.Span
+	components map[string]IComponent
+	spanLock   sync.Mutex
+	spans      map[string]*opentracing.Span
 }
 
 type hubInitSync struct {
@@ -42,7 +44,7 @@ var hubInit hubInitSync
 func NewComponentHub() *ComponentHub {
 	hub := ComponentHub{
 		components: make(map[string]IComponent),
-		spans: make(map[string]*opentracing.Span),
+		spans:      make(map[string]*opentracing.Span),
 	}
 	return &hub
 }
@@ -103,9 +105,13 @@ func (hub *ComponentHub) Stop() {
 }
 
 // Register assigns a component to this hub for management
-func (hub *ComponentHub) Register(component IComponent) {
-	hub.components[component.GetName()] = component
-	component.SetHub(hub)
+func (hub *ComponentHub) Register(components ...IComponent) {
+	for _, component := range components {
+		if component != nil {
+			hub.components[component.GetName()] = component
+			component.SetHub(hub)
+		}
+	}
 }
 
 // Statistics invoke requests to all registered components,
@@ -184,7 +190,9 @@ func (hub *ComponentHub) RequestFuture(
 
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
-		panic("Unregistered Component")
+		err := actor.NewFuture(timeout)
+		err.PID().Tell(ErrHubUnregistered)
+		return err
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip)
@@ -195,7 +203,7 @@ func (hub *ComponentHub) RequestFutureResult(
 
 	targetComponent := hub.components[targetName]
 	if targetComponent == nil {
-		panic("Unregistered Component")
+		return nil, ErrHubUnregistered
 	}
 
 	return targetComponent.RequestFuture(message, timeout, tip).Result()

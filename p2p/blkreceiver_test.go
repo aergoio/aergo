@@ -29,9 +29,10 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockContext := new(mockContext)
+			//mockContext := new(mockContext)
 			mockActor := new(MockActorService)
 			mockActor.On("SendRequest", message.P2PSvc, mock.AnythingOfType("*types.GetBlock"))
+			mockActor.On("TellRequest", message.SyncerSvc, mock.AnythingOfType("*types.GetBlock"))
 			mockMF := new(MockMoFactory)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("MF").Return(mockMF)
@@ -39,7 +40,7 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 			mockMF.On("newMsgBlockRequestOrder",mock.Anything, mock.Anything, mock.Anything).Return(dummyMo)
 
 			expire := time.Now().Add(test.ttl)
-			br := NewBlockReceiver(mockContext, mockPeer, test.input, test.ttl)
+			br := NewBlockReceiver(mockActor, mockPeer, test.input, test.ttl)
 
 			br.StartGet()
 
@@ -91,10 +92,11 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockContext := new(mockContext)
+			//mockContext := new(mockContext)
 			mockActor := new(MockActorService)
 			mockActor.On("SendRequest", message.P2PSvc, mock.AnythingOfType("*types.GetBlock"))
-			mockContext.On("Respond",mock.AnythingOfType("*message.GetBlockChunksRsp"))
+			mockActor.On("TellRequest", message.SyncerSvc, mock.AnythingOfType("*message.GetBlockChunksRsp"))
+			//mockContext.On("Respond",mock.AnythingOfType("*message.GetBlockChunksRsp"))
 			mockMF := new(MockMoFactory)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(dummyPeerID)
@@ -104,7 +106,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			mockMF.On("newMsgBlockRequestOrder",mock.Anything, mock.Anything, mock.Anything).Return(dummyMo)
 
 			//expire := time.Now().Add(test.ttl)
-			br := NewBlockReceiver(mockContext, mockPeer, test.input, test.ttl)
+			br := NewBlockReceiver(mockActor, mockPeer, test.input, test.ttl)
 			br.StartGet()
 
 			msg := &V030Message{subProtocol:GetBlocksResponse, id: sampleMsgID}
@@ -120,9 +122,9 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			}
 
 			mockPeer.AssertNumberOfCalls(t,"consumeRequest", test.consumed)
-			mockContext.AssertNumberOfCalls(t, "Respond", test.sentResp)
+			mockActor.AssertNumberOfCalls(t, "TellRequest", test.sentResp)
 			if test.sentResp > 0 {
-				mockContext.AssertCalled(t, "Respond", mock.MatchedBy(func(arg *message.GetBlockChunksRsp) bool {
+				mockActor.AssertCalled(t, "TellRequest", message.SyncerSvc, mock.MatchedBy(func(arg *message.GetBlockChunksRsp) bool {
 					return (arg.Err != nil) == test.respError
 				}))
 			}

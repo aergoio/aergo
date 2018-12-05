@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"io"
+	"math/big"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -58,9 +59,10 @@ type MemPool struct {
 }
 
 // NewMemPoolService create and return new MemPool
-func NewMemPoolService(cfg *cfg.Config) *MemPool {
+func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
 	actor := &MemPool{
 		cfg:      cfg,
+		sdb:      sdb,
 		cache:    map[types.TxID]*types.Tx{},
 		pool:     map[types.AccountID]*TxList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
@@ -68,6 +70,7 @@ func NewMemPoolService(cfg *cfg.Config) *MemPool {
 		verifier: nil,
 		//testConfig:    true, // FIXME test config should be removed
 	}
+
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
 	return actor
@@ -110,10 +113,6 @@ func (mp *MemPool) BeforeStop() {
 		mp.verifier.GracefulStop()
 	}
 	mp.dumpTxsToFile()
-}
-
-func (mp *MemPool) SetChainStateDB(sdb *state.ChainStateDB) {
-	mp.sdb = sdb
 }
 
 // Size returns current maintaining number of transactions
@@ -241,7 +240,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 		return true
 	}
 
-	newBlockID := types.ToBlockID(block.GetHash())
+	newBlockID := types.ToBlockID(block.BlockHash())
 	parentBlockID := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
 	normal := true
 
@@ -412,7 +411,7 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
 		//mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
-		return &types.State{Balance: bal, Nonce: nonce}, nil
+		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))

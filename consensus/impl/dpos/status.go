@@ -1,15 +1,14 @@
 package dpos
 
 import (
-	"bytes"
-	"encoding/gob"
-	"io"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 )
+
+var bsLoader *bootLoader
 
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
@@ -20,10 +19,13 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(confirmsRequired uint16) *Status {
-	return &Status{
+func NewStatus(confirmsRequired uint16, cdb consensus.ChainDbReader) *Status {
+	s := &Status{
 		libState: newLibStatus(confirmsRequired),
 	}
+	s.init(cdb)
+
+	return s
 }
 
 // load restores the last LIB status by using the informations loaded from the
@@ -33,15 +35,15 @@ func (s *Status) load() {
 		return
 	}
 
-	s.bestBlock = libLoader.bestBlock()
+	s.bestBlock = bsLoader.bestBlock()
 
-	s.libState = libLoader.ls
+	s.libState = bsLoader.ls
 
-	if libLoader.ls != nil {
-		s.libState = libLoader.ls
+	if bsLoader.ls != nil {
+		s.libState = bsLoader.ls
 	}
 
-	genesisBlock := libLoader.genesisBlock()
+	genesisBlock := bsLoader.genesisBlock()
 	s.libState.genesisInfo = &blockInfo{
 		BlockHash: genesisBlock.ID(),
 		BlockNo:   genesisBlock.BlockNo(),
@@ -103,18 +105,6 @@ func (s *Status) Save(tx db.Transaction) error {
 	return s.libState.save(tx)
 }
 
-func encode(e interface{}) (bytes.Buffer, error) {
-	var buf bytes.Buffer
-	err := gob.NewEncoder(&buf).Encode(e)
-
-	return buf, err
-}
-
-func decode(r io.Reader, e interface{}) error {
-	dec := gob.NewDecoder(r)
-	return dec.Decode(e)
-}
-
 // NeedReorganization reports whether reorganization is needed or not.
 func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	s.RLock()
@@ -138,9 +128,13 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	return reorganizable
 }
 
-// Init recovers the last DPoS status including pre-LIB map and confirms
+// init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) Init(cdb consensus.ChainDbReader) {
+func (s *Status) init(cdb consensus.ChainDbReader) {
+	if cdb == nil {
+		return
+	}
+
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
 		panic(err)
@@ -151,12 +145,49 @@ func (s *Status) Init(cdb consensus.ChainDbReader) {
 		best = genesis
 	}
 
-	libLoader = &bootLoader{
+	bsLoader = &bootLoader{
 		ls:      newLibStatus(defaultConsensusCount),
 		best:    best,
 		genesis: genesis,
 		cdb:     cdb,
 	}
 
-	libLoader.load()
+	bsLoader.load()
+}
+
+type bootLoader struct {
+	ls      *libStatus
+	best    *types.Block
+	genesis *types.Block
+	bpIDs   []string
+	cdb     consensus.ChainDbReader
+}
+
+func (bs *bootLoader) load() {
+	if ls := bs.loadLibStatus(); ls != nil {
+		bs.ls = ls
+		logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status loaded from DB")
+		for id, p := range ls.Prpsd {
+			if p == nil {
+				continue
+			}
+			logger.Debug().Str("BPID", id).
+				Str("confirmed hash", p.Plib.Hash()).
+				Str("confirmedBy hash", p.PlibBy.Hash()).
+				Msg("pre-LIB entry")
+		}
+	}
+
+	if gi := bs.cdb.GetGenesisInfo(); gi != nil {
+		bs.bpIDs = gi.BPs
+		for i, bp := range bs.bpIDs {
+			logger.Info().Int("index", i).Str("BPID", bp).Msg("initial BP")
+		}
+	}
+}
+
+// GetInitialBPs returns the initial BP IDs, which are loaded from Genesis
+// info in the chain DB.
+func GetInitialBPs() []string {
+	return bsLoader.bpIDs
 }

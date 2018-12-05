@@ -6,13 +6,13 @@ import "strconv"
 
 const (
 	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
-	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponse"
+	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
 	_SubProtocol_name_2 = "GetTXsRequestGetTxsResponseNewTxNotice"
 )
 
 var (
 	_SubProtocol_index_0 = [...]uint8{0, 13, 24, 36, 42, 58, 75}
-	_SubProtocol_index_1 = [...]uint8{0, 16, 33, 55, 78, 95, 113, 127, 145, 164, 180, 197}
+	_SubProtocol_index_1 = [...]uint8{0, 16, 33, 55, 78, 95, 113, 127, 145, 164, 180, 197, 215, 234}
 	_SubProtocol_index_2 = [...]uint8{0, 13, 27, 38}
 )
 
@@ -21,7 +21,7 @@ func (i SubProtocol) String() string {
 	case 1 <= i && i <= 6:
 		i -= 1
 		return _SubProtocol_name_0[_SubProtocol_index_0[i]:_SubProtocol_index_0[i+1]]
-	case 16 <= i && i <= 26:
+	case 16 <= i && i <= 28:
 		i -= 16
 		return _SubProtocol_name_1[_SubProtocol_index_1[i]:_SubProtocol_index_1[i+1]]
 	case 32 <= i && i <= 34:

@@ -13,6 +13,7 @@ This also provides a batch function to test and help to develop smart contrat.
 * provides an way to run smart contracts in same environment with aergo
 * supports state db, sql
 * alias for account and contract address
+* able to debug smart contracts
 
 ### Interactive Shell
 
@@ -29,7 +30,7 @@ powered by [go-prompt](https://github.com/c-bata/go-prompt)
 
 ## Install
 
-1. git clone and build aergo, unix & mac: `cmake . && make`, windows + mingw64: `cmake -G "Unix Makefiles" -D CMAKE_MAKE_PROGRAM=mingw32-make.exe . && mingw32-make`
+1. git clone and build aergo in debug mode (release is ok, but you cannot debug contracts), unix & mac: `make debug`, windows + mingw64: `mingw32-make debug`
 2. create a directory, where you want
 3. copy binary `brick` and log config file `cmd/brick/arglog.toml` to the directory
 4. move to the directory
@@ -150,3 +151,18 @@ $ ./brick ./example/hello.brick
   INF query compare successfully cmd=query module=brick
   INF batch exec is finished cmd=batch module=brick
 ```
+
+
+## Debugging
+
+If you build in debug mode, you can use `os, io, coroutine` modules which is not allowed in release mode. There is no limit to which debugger to use, but here we describe the zerobrane studio, which provides ui and is easy to install.
+
+1. download [zerobrane studio](https://studio.zerobrane.com/support) (lua ide)
+2. set envoronment var `LUA_PATH, LUACPATH` following an [instruction](https://studio.zerobrane.com/doc-remote-debugging)
+3. Paste `require('mobdebug').start()` at the beginning of a smart contract, you want to investigate
+4. Open the contract file you want to investigate in the editor
+5. In the editor, run debug server `project -> start debugger server`
+6. Using brick, deploy and run  the contract
+7. When you get to that line, it will automatically be switched to the editor
+
+ (CAUTION!) After testing, When distributing to an actual blockchain, you must remove the code used for debugging. It will cause error.

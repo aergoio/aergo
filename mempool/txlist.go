@@ -128,7 +128,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 		return 0, nil
 	}
 
-	if tl.base.Balance > st.Balance {
+	if tl.base.GetBalanceBigInt().Cmp(st.GetBalanceBigInt()) > 0 {
 		balCheck = true
 	}
 	tl.base = st

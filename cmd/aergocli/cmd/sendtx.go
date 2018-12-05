@@ -7,10 +7,11 @@ package cmd
 
 import (
 	"context"
-
-	"github.com/mr-tron/base58/base58"
+	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -18,35 +19,37 @@ var sendtxCmd = &cobra.Command{
 	Use:   "sendtx",
 	Short: "Send transaction",
 	Args:  cobra.MinimumNArgs(0),
-	Run:   execSendTX,
+	RunE:  execSendTX,
 }
 
 func init() {
 	rootCmd.AddCommand(sendtxCmd)
-	sendtxCmd.Flags().StringVar(&from, "from", "", "")
+	sendtxCmd.Flags().StringVar(&from, "from", "", "Sender account address")
 	sendtxCmd.MarkFlagRequired("from")
-	sendtxCmd.Flags().StringVar(&to, "to", "", "")
+	sendtxCmd.Flags().StringVar(&to, "to", "", "Recipient account address")
 	sendtxCmd.MarkFlagRequired("to")
-	sendtxCmd.Flags().Uint64Var(&amount, "amount", 0, "")
+	sendtxCmd.Flags().StringVar(&amount, "amount", "0", "How much in AER")
 	sendtxCmd.MarkFlagRequired("amount")
 }
 
-func execSendTX(cmd *cobra.Command, args []string) {
+func execSendTX(cmd *cobra.Command, args []string) error {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
-		cmd.Printf("Failed decode: %s\n", err.Error())
-		return
+		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
 	recipient, err := types.DecodeAddress(to)
 	if err != nil {
-		cmd.Printf("Failed decode: %s\n", err.Error())
-		return
+		return errors.New("Wrong address in --to flag\n" + err.Error())
 	}
-	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amount}}
+	amountBigInt, ok := new(big.Int).SetString(amount, 10)
+	if !ok {
+		return errors.New("failed to parse --amount flag\n" + err.Error())
+	}
+	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amountBigInt.Bytes()}}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
-		return
+		return errors.New("Failed request to aergo sever\n" + err.Error())
 	}
 	cmd.Println(base58.Encode(msg.Hash), msg.Error)
+	return nil
 }

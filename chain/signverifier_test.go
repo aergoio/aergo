@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/binary"
+	"math/big"
 	"testing"
 
 	"github.com/aergoio/aergo/account/key"
@@ -77,7 +78,7 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 			Nonce:     nonce,
 			Account:   accs[acc],
 			Recipient: recipient[rec],
-			Amount:    amount,
+			Amount:    new(big.Int).SetUint64(amount).Bytes(),
 		},
 	}
 	//tx.Hash = tx.CalculateTxHash()
@@ -92,7 +93,7 @@ func TestInvalidTransactions(t *testing.T) {
 
 	txslice := make([]*types.Tx, 0)
 	tx := genTx(0, 1, 1, 1)
-	tx.Body.Amount = 999999
+	tx.Body.Amount = new(big.Int).SetUint64(999999).Bytes()
 
 	txslice = append(txslice, tx)
 

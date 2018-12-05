@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
@@ -45,20 +46,16 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
-func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
-
-	if len(genesis.BPIds) == 0 {
-		return nil
-	}
+func InitGenesisBPs(states *state.StateDB, bps []string) error {
 	aid := types.ToAccountID([]byte(types.AergoSystem))
 	scs, err := states.OpenContractStateAccount(aid)
 	if err != nil {
 		return err
 	}
 
-	voteResult := make(map[string]uint64)
-	for _, v := range genesis.BPIds {
-		voteResult[v] = uint64(0)
+	voteResult := make(map[string]*big.Int)
+	for _, v := range bps {
+		voteResult[v] = new(big.Int).SetUint64(0)
 	}
 	if err = system.InitVoteResult(scs, &voteResult); err != nil {
 		return err
@@ -66,6 +63,9 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	if err = states.StageContractState(scs); err != nil {
 		return err
 	}
-	genesis.VoteState = scs.State
+	if err = states.Update(); err != nil {
+		return err
+	}
+
 	return nil
 }

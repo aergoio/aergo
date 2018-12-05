@@ -1,12 +1,11 @@
 package key
 
 import (
-	sha256 "github.com/minio/sha256-simd"
-
 	"encoding/binary"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 //Sign return sign with key in the store
@@ -74,10 +73,10 @@ func CalculateHashWithoutSign(txBody *types.TxBody) []byte {
 	binary.Write(h, binary.LittleEndian, txBody.Nonce)
 	h.Write(txBody.Account)
 	h.Write(txBody.Recipient)
-	binary.Write(h, binary.LittleEndian, txBody.Amount)
+	h.Write(txBody.Amount)
 	h.Write(txBody.Payload)
 	binary.Write(h, binary.LittleEndian, txBody.Limit)
-	binary.Write(h, binary.LittleEndian, txBody.Price)
+	h.Write(txBody.Price)
 	binary.Write(h, binary.LittleEndian, txBody.Type)
 	return h.Sum(nil)
 }

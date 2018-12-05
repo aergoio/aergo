@@ -29,11 +29,11 @@ do
 		./aergocli signtx --jsontx \
 			"{\"account\":\"$NEWKEY\", \
 			\"nonce\": $j , \
-			\"price\": 1 , \
+			\"price\": \"1\" , \
 			\"limit\": 100 , \
 			\"recipient\":\"$TO_ACC\", \
 			\"type\": 0, \
-			\"amount\": 25000 }" --address $NEWKEY --password 1 >> "$TARGET_DIR/$NEWKEY.trx" 2> /dev/null
+			\"amount\": \"25000\" }" --address $NEWKEY --password 1 >> "$TARGET_DIR/$NEWKEY.trx" 2> /dev/null
 
 		echo "," >> $TARGET_DIR/$NEWKEY.trx
 	done

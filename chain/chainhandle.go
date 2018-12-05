@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -22,10 +23,10 @@ import (
 )
 
 var (
-	ErrTxInvalidNonce        = errors.New("invalid nonce")
-	ErrTxInsufficientBalance = errors.New("insufficient balance")
-	ErrTxInvalidType         = errors.New("invalid type")
-	ErrorNoAncestor          = errors.New("not found ancestor")
+	ErrorNoAncestor = errors.New("not found ancestor")
+	ErrBlockOrphan  = errors.New("block is ohphan, so not connected in chain")
+
+	errBlockStale = errors.New("produced block becomes stale")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -36,7 +37,7 @@ type ErrBlock struct {
 }
 
 func (ec *ErrBlock) Error() string {
-	return fmt.Sprintf("Error:%s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
 }
 
 type ErrTx struct {
@@ -101,7 +102,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 		return nil, errors.New("cannot find a receipt")
 	}
 
-	return cs.cdb.getReceipt(block.GetHash(), block.GetHeader().BlockNo, i.Idx)
+	return cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
 }
 
 type chainProcessor struct {
@@ -158,7 +159,7 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 
 	if logger.IsDebugEnabled() {
 		logger.Debug().Bool("isMainChain", cp.isMain()).
-			Uint64("latest", cp.cdb.latest).
+			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
 			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
@@ -278,6 +279,22 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return err
 	}
 
+	// The newly produced block becomes stale because the more block(s) are
+	// connected to the blockchain so that the best block is changed. In this
+	// case, newBlock is rejected because it is unlikely that newBlock belongs
+	// to the main branch. Warning: the condition 'usedBstate != nil' is used
+	// to check whether newBlock is produced by the current node itself. Later,
+	// more explicit condition may be needed instead of this.
+	if usedBstate != nil && newBlock.PrevID() != bestBlock.ID() {
+		return &ErrBlock{
+			err: errBlockStale,
+			block: &types.BlockInfo{
+				Hash: newBlock.BlockHash(),
+				No:   newBlock.BlockNo(),
+			},
+		}
+	}
+
 	// Check consensus header validity
 	if err := cs.IsBlockValid(newBlock, bestBlock); err != nil {
 		return err
@@ -289,7 +306,11 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 			return fmt.Errorf("block received from BP can not be orphan")
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
-		return err
+		if err == nil {
+			return ErrBlockOrphan
+		} else {
+			return err
+		}
 	}
 
 	select {
@@ -528,14 +549,15 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	var txFee uint64
+	var txFee *big.Int
 	var rv string
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		txFee = CoinbaseFee
+		txFee = new(big.Int).SetUint64(CoinbaseFee)
 		sender.SubBalance(txFee)
 		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
+		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
@@ -551,7 +573,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 			if sErr != nil {
 				return sErr
 			}
-			bs.BpReward += txFee
+			bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
 			return nil
 		}
@@ -570,7 +592,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		}
 	}
 
-	bs.BpReward += txFee
+	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
 	if receiver.IsNew() && txBody.Recipient == nil {
 		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
@@ -582,8 +604,9 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
-	if bState.BpReward <= 0 || coinbaseAccount == nil {
-		logger.Debug().Uint64("reward", bState.BpReward).Msg("coinbase is skipped")
+	bpReward := new(big.Int).SetBytes(bState.BpReward)
+	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
+		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")
 		return nil
 	}
 
@@ -594,15 +617,15 @@ func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	receiverChange := types.State(*receiverState)
-	receiverChange.Balance = receiverChange.Balance + bState.BpReward
+	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
 
 	err = bState.PutState(receiverID, &receiverChange)
 	if err != nil {
 		return err
 	}
 
-	logger.Debug().Uint64("reward", bState.BpReward).
-		Uint64("newbalance", receiverChange.Balance).Msg("send reward to coinbase account")
+	logger.Debug().Str("reward", bpReward.String()).
+		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
 
 	return nil
 }
@@ -721,7 +744,7 @@ func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message
 		return nil, HashNumberUnknown, HashNumberUnknown
 	}
 
-	return mainblock.GetHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
+	return mainblock.BlockHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
 }
 
 func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
@@ -757,7 +780,7 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 		return nil, ErrorNoAncestor
 	}
 
-	return &types.BlockInfo{Hash: mainblock.GetHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
+	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
 func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {

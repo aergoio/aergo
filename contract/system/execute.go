@@ -6,6 +6,7 @@ package system
 
 import (
 	"math"
+	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -53,7 +54,7 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 		if err != nil {
 			return err
 		}
-		if staked.GetAmount() == 0 {
+		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return types.ErrMustStakeBeforeVote
 		}
 		if staked.GetWhen()+VotingDelay > blockNo {
@@ -70,21 +71,23 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 }
 
 func validateForStaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
-	if txBody.Amount < types.StakingMinimum {
+	amount := txBody.GetAmountBigInt()
+	if amount.Cmp(types.StakingMinimum) < 0 {
 		return types.ErrTooSmallAmount
 	}
 	return nil
 }
 
 func validateForUnstaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
-	if txBody.Amount < types.StakingMinimum {
+	amount := txBody.GetAmountBigInt()
+	if amount.Cmp(types.StakingMinimum) < 0 {
 		return nil, types.ErrTooSmallAmount
 	}
 	staked, err := getStaking(scs, txBody.Account)
 	if err != nil {
 		return nil, err
 	}
-	if staked.GetAmount() == 0 {
+	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeUnstake
 	}
 	if staked.GetWhen()+StakingDelay > blockNo {

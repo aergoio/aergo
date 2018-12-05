@@ -6,18 +6,22 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 
 	"fmt"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
-	"reflect"
 )
 
 type Syncer struct {
 	*component.BaseComponent
 
-	cfg   *cfg.Config
-	chain types.ChainAccessor
+	cfg       *cfg.Config
+	syncerCfg *SyncerConfig
+	chain     types.ChainAccessor
 
 	isstartning bool
 	ctx         *types.SyncContext
@@ -25,13 +29,50 @@ type Syncer struct {
 	finder       *Finder
 	hashFetcher  *HashFetcher
 	blockFetcher *BlockFetcher
+
+	compRequester component.IComponentRequester //for test
+}
+
+type SyncerConfig struct {
+	maxHashReqSize   uint64
+	maxBlockReqSize  int
+	maxPendingConn   int
+	maxBlockReqTasks int
+
+	fetchTimeOut time.Duration
+
+	useFullScanOnly bool
+
+	debugContext *SyncerDebug
+}
+type SyncerDebug struct {
+	t            *testing.T
+	expAncestor  int
+	targetNo     uint64
+	expErrResult error
+
+	debugHashFetcher bool
+	debugFinder      bool
+
+	BfWaitTime time.Duration
+
+	logAllPeersBad bool
+	logBadPeers    map[int]bool //register bad peers for unit test
 }
 
 var (
 	logger             = log.NewLogger("syncer")
+	NameFinder         = "Finder"
 	NameHashFetcher    = "HashFetcher"
 	NameBlockFetcher   = "BlockFetcher"
 	NameBlockProcessor = "BlockProcessor"
+	SyncerCfg          = &SyncerConfig{
+		maxHashReqSize:   DfltHashReqSize,
+		maxBlockReqSize:  DfltBlockFetchSize,
+		maxPendingConn:   MaxBlockPendingTasks,
+		maxBlockReqTasks: DfltBlockFetchTasks,
+		fetchTimeOut:     DfltFetchTimeOut,
+		useFullScanOnly:  false}
 )
 
 var (
@@ -47,11 +88,15 @@ func (ec *ErrSyncMsg) Error() string {
 	return fmt.Sprintf("Error sync message: type=%T, desc=%s", ec.msg, ec.str)
 }
 
-func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor) *Syncer {
-	syncer := &Syncer{cfg: cfg}
+func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor, syncerCfg *SyncerConfig) *Syncer {
+	if syncerCfg == nil {
+		syncerCfg = SyncerCfg
+	}
+
+	syncer := &Syncer{cfg: cfg, syncerCfg: syncerCfg}
 
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
-
+	syncer.compRequester = syncer.BaseComponent
 	syncer.chain = chain
 
 	logger.Info().Msg("Syncer started")
@@ -69,22 +114,70 @@ func (syncer *Syncer) AfterStart() {
 }
 
 func (syncer *Syncer) BeforeStop() {
+	if syncer.isstartning {
+		logger.Info().Msg("syncer BeforeStop")
+		syncer.Reset()
+	}
 }
 
 func (syncer *Syncer) Reset() {
-	syncer.finder.stop()
-	syncer.hashFetcher.stop()
-	syncer.blockFetcher.stop()
+	if syncer.isstartning {
+		logger.Info().Msg("syncer stop#1")
 
-	syncer.finder = nil
-	syncer.isstartning = false
-	syncer.ctx = nil
+		syncer.finder.stop()
+		syncer.hashFetcher.stop()
+		syncer.blockFetcher.stop()
+
+		syncer.finder = nil
+		syncer.hashFetcher = nil
+		syncer.blockFetcher = nil
+		syncer.isstartning = false
+		syncer.ctx = nil
+	}
+
+	logger.Info().Msg("syncer stopped")
+}
+
+func (syncer *Syncer) getCompRequester() component.IComponentRequester {
+	if syncer.compRequester != nil {
+		return syncer.compRequester
+	} else {
+		return syncer.BaseComponent
+	}
+}
+
+// This api used for test to set stub IComponentRequester
+func (syncer *Syncer) SetRequester(stubRequester component.IComponentRequester) {
+	syncer.compRequester = stubRequester
 }
 
 // Receive actor message
 func (syncer *Syncer) Receive(context actor.Context) {
+	//drop garbage message
+	if !syncer.isstartning {
+		switch context.Message().(type) {
+		case *message.GetSyncAncestorRsp:
+			return
+		case *message.FinderResult:
+			return
+		case *message.GetHashesRsp:
+			return
+		case *message.GetHashByNoRsp:
+			return
+		case *message.GetBlockChunks:
+			return
+		case *message.AddBlockRsp:
+			return
+		case *message.SyncStop:
+			return
+		}
+	}
 
-	switch msg := context.Message().(type) {
+	syncer.handleMessage(context.Message())
+}
+
+func (syncer *Syncer) handleMessage(inmsg interface{}) {
+	switch msg := inmsg.(type) {
 	case *message.SyncStart:
 		err := syncer.handleSyncStart(msg)
 		if err != nil {
@@ -92,7 +185,8 @@ func (syncer *Syncer) Receive(context actor.Context) {
 		}
 	case *message.GetSyncAncestorRsp:
 		syncer.handleAncestorRsp(msg)
-
+	case *message.GetHashByNoRsp:
+		syncer.handleGetHashByNoRsp(msg)
 	case *message.FinderResult:
 		err := syncer.handleFinderResult(msg)
 		if err != nil {
@@ -145,7 +239,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("sync requested")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
 
 	if syncer.isstartning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
@@ -167,13 +261,14 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 		return nil
 	}
 
-	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("sync started")
+	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
 
 	//TODO BP stop
 	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isstartning = true
 
-	syncer.finder = newFinder(syncer.ctx, syncer.Hub())
+	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
+	syncer.finder.start()
 
 	return err
 }
@@ -185,46 +280,87 @@ func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
 	syncer.finder.lScanCh <- msg.Ancestor
 }
 
+func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
+	logger.Debug().Msg("syncer received gethashbyno response")
+
+	//set ancestor in types.SyncContext
+	syncer.finder.GetHashByNoRsp(msg)
+}
+
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	logger.Debug().Msg("syncer received finder result message")
 
-	if msg.Err != nil {
+	if msg.Err != nil || msg.Ancestor == nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")
 		return ErrFinderInternal
 	}
 
+	ancestor, err := syncer.chain.GetBlock(msg.Ancestor.Hash)
+	if err != nil {
+		logger.Error().Err(err).Msg("error getting ancestor block in syncer")
+		return err
+	}
+
 	//set ancestor in types.SyncContext
-	syncer.ctx.SetAncestor(msg.Ancestor)
+	syncer.ctx.SetAncestor(ancestor)
 
 	syncer.finder.stop()
 	syncer.finder = nil
 
-	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.Hub(), DfltMaxFetchTask, MaxBlockReq)
-	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.Hub(), syncer.blockFetcher.hfCh, MaxHashReq)
+	if syncer.syncerCfg.debugContext != nil && syncer.syncerCfg.debugContext.debugFinder {
+		return nil
+	}
+
+	syncer.blockFetcher = newBlockFetcher(syncer.ctx, syncer.getCompRequester(), syncer.syncerCfg)
+	syncer.hashFetcher = newHashFetcher(syncer.ctx, syncer.getCompRequester(), syncer.blockFetcher.hfCh, syncer.syncerCfg)
+
+	syncer.blockFetcher.Start()
+	syncer.hashFetcher.Start()
 
 	return nil
 }
 
 func (syncer *Syncer) Statistics() *map[string]interface{} {
-	if syncer.ctx == nil {
+	var start, end, total, added, blockfetched uint64
+
+	if syncer.ctx != nil {
+		end = syncer.ctx.TargetNo
+		if syncer.ctx.CommonAncestor != nil {
+			total = syncer.ctx.TotalCnt
+			start = syncer.ctx.CommonAncestor.BlockNo()
+		}
+	} else {
 		return &map[string]interface{}{
 			"startning": syncer.isstartning,
 			"total":     0,
 			"remain":    0,
 		}
-	} else {
-		return &map[string]interface{}{
-			"startning": syncer.isstartning,
-			"total":     syncer.ctx.TotalCnt,
-			"remain":    syncer.ctx.RemainCnt,
+	}
+
+	if syncer.blockFetcher != nil {
+		lastblock := syncer.blockFetcher.stat.getLastAddBlock()
+		added = lastblock.BlockNo()
+		if syncer.blockFetcher.stat.getMaxChunkRsp() != nil {
+			blockfetched = syncer.blockFetcher.stat.getMaxChunkRsp().BlockNo()
 		}
+	}
+
+	return &map[string]interface{}{
+		"startning":    syncer.isstartning,
+		"total":        total,
+		"start":        start,
+		"end":          end,
+		"added":        added,
+		"blockfetched": blockfetched,
 	}
 }
 
-func stopSyncer(hub component.ICompRequester, who string, err error) {
-	hub.Tell(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
+func stopSyncer(compRequester component.IComponentRequester, who string, err error) {
+	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
+
+	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
 }
 
-func closeFetcher(hub component.ICompRequester, who string) {
-	hub.Tell(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
+func closeFetcher(compRequester component.IComponentRequester, who string) {
+	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
 }

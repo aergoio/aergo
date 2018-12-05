@@ -41,7 +41,7 @@ func TestChannelpipe(t *testing.T) {
 			c.Open()
 			go consumeStall(c, tt.stallIdx, arrSize, doneC)
 			for _, mo := range mos {
-				c.In() <- mo
+				c.Put(mo)
 				time.Sleep(time.Millisecond)
 			}
 			consumeCount := <-doneC
@@ -95,7 +95,7 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 
 			go consumeStall2(c, tt.stallIdx, arrSize, doneC)
 			for _, mo := range mos {
-				c.In() <- mo
+				c.Put(mo)
 			}
 			consumeCount := <-doneC
 			lock := &sync.Mutex{}
@@ -112,7 +112,7 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 	}
 }
 
-func consumeStall(wc *channelPipe, idx int, maxCnt int, doneChannel chan<- int) {
+func consumeStall(wc ChannelPipe, finishIdx int, maxCnt int, doneChannel chan<- int) {
 	arrs := make([]int, 0, maxCnt)
 	cnt := 0
 LOOP:
@@ -124,9 +124,9 @@ LOOP:
 		case mo := <-wc.Out():
 			cnt++
 			arrs = append(arrs, mo.(TestItem).ID())
-			wc.Done() <- mo
+			wc.Done()
 			// fmt.Printf("Consuming mo %s \n", mo.GetRequestID())
-			if cnt >= idx {
+			if cnt >= finishIdx {
 				fmt.Printf("Finishing consume after index %d \n", cnt)
 				break LOOP
 			}
@@ -136,7 +136,7 @@ LOOP:
 	doneChannel <- cnt
 }
 
-func consumeStall2(wc *channelPipe, idx int, maxCnt int, doneChannel chan<- int) {
+func consumeStall2(wc ChannelPipe, idx int, maxCnt int, doneChannel chan<- int) {
 	arrs := make([]int, 0, maxCnt)
 	cnt := 0
 LOOP:
@@ -151,7 +151,7 @@ LOOP:
 				time.Sleep(time.Millisecond)
 			}
 			arrs = append(arrs, mo.(TestItem).ID())
-			wc.Done() <- mo
+			wc.Done()
 			// fmt.Printf("Consuming mo %s \n", mo.GetRequestID())
 		}
 	}
@@ -237,7 +237,7 @@ func TestLongterm(t *testing.T) {
 
 			i := 0
 			for time.Now().Before(expire) {
-				c.In() <- mos[i%arrSize]
+				c.Put(mos[i%arrSize])
 				time.Sleep(time.Millisecond * 5)
 				i++
 
@@ -300,7 +300,7 @@ func TestMultiLoads(t *testing.T) {
 				go func(tid int) {
 					i := 0
 					for time.Now().Before(expire) {
-						c.In() <- mos[i%arrSize]
+						c.Put(mos[i%arrSize])
 						i++
 					}
 					wg.Done()
@@ -331,7 +331,7 @@ type testItem2 struct {
 	routineId int
 }
 
-func consumeForLongterm(wc *channelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
+func consumeForLongterm(wc ChannelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
 	finishTime := time.NewTimer(ttl)
 	cnt := 0
 LOOP:
@@ -343,10 +343,10 @@ LOOP:
 		case <-finishTime.C:
 			fmt.Printf("Finish loop by time expire \n")
 			break LOOP
-		case mo := <-wc.Out():
+		case <-wc.Out():
 			cnt++
 			time.Sleep(time.Millisecond >> 2)
-			wc.Done() <- mo
+			wc.Done()
 		}
 	}
 	fmt.Printf("Consumed %d items\n", cnt)

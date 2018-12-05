@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"math/big"
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/common"
@@ -23,6 +24,11 @@ type TxID HashID
 // ImplHashID is a object has HashID
 type ImplHashID interface {
 	HashID() HashID
+}
+
+// ImplHashBytes is a object supports Hash
+type ImplHashBytes interface {
+	Hash() []byte
 }
 
 // ImplMarshal is a object has marshal interface
@@ -96,7 +102,7 @@ func (id AccountID) String() string {
 func NewState() *State {
 	return &State{
 		Nonce:            0,
-		Balance:          0,
+		Balance:          []byte{0},
 		SqlRecoveryPoint: uint64(1),
 	}
 }
@@ -129,4 +135,11 @@ func Clone(i interface{}) interface{} {
 		return nil
 	}
 	return reflect.Indirect(reflect.ValueOf(i)).Interface()
+}
+
+func (st *State) GetBalanceBigInt() *big.Int {
+	if st == nil {
+		return new(big.Int).SetUint64(0)
+	}
+	return new(big.Int).SetBytes(st.Balance)
 }

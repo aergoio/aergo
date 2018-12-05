@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math/big"
 	"reflect"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -23,12 +24,21 @@ const (
 	DefaultMaxBlockSize = 1 << 20
 	DefaultCoinbaseFee  = 1
 	lastFieldOfBH       = "Sign"
-	MaxAER              = 5000000000000000000 //500000000 AERGO
 )
+
+//MaxAER is maximum value of aergo
+var MaxAER *big.Int
+
+//StakingMinimum is minimum amount for staking
+var StakingMinimum *big.Int
 
 var lastIndexOfBH int
 
 func init() {
+	MaxAER = new(big.Int)
+	MaxAER.SetString("500000000000000000000000000", 10)
+	StakingMinimum = new(big.Int)
+	StakingMinimum.SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
@@ -63,20 +73,20 @@ type SyncContext struct {
 	BestNo   BlockNo
 	TargetNo BlockNo //sync target blockno
 
-	CommonAncestor *BlockInfo
+	CommonAncestor *Block
 
 	TotalCnt   uint64
 	RemainCnt  uint64
-	LastAnchor []byte
+	LastAnchor BlockNo
 }
 
 func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo}
+	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
 }
 
-func (ctx *SyncContext) SetAncestor(ancestor *BlockInfo) {
+func (ctx *SyncContext) SetAncestor(ancestor *Block) {
 	ctx.CommonAncestor = ancestor
-	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.No
+	ctx.TotalCnt = ctx.TargetNo - ctx.CommonAncestor.BlockNo()
 	ctx.RemainCnt = ctx.TotalCnt
 }
 
@@ -367,10 +377,10 @@ func (tx *Tx) CalculateTxHash() []byte {
 	binary.Write(digest, binary.LittleEndian, txBody.Nonce)
 	digest.Write(txBody.Account)
 	digest.Write(txBody.Recipient)
-	binary.Write(digest, binary.LittleEndian, txBody.Amount)
+	digest.Write(txBody.Amount)
 	digest.Write(txBody.Payload)
 	binary.Write(digest, binary.LittleEndian, txBody.Limit)
-	binary.Write(digest, binary.LittleEndian, txBody.Price)
+	digest.Write(txBody.Price)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
@@ -385,16 +395,19 @@ func (tx *Tx) Validate() error {
 	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
-
-	if tx.GetBody().GetAmount() > MaxAER {
+	amount := tx.GetBody().GetAmountBigInt()
+	if amount.Cmp(MaxAER) > 0 {
 		return ErrInsufficientBalance
 	}
+	/*
+		MaxAER is bigger than max of uint64
+		if tx.GetBody().GetLimit() > MaxAER {
+			return ErrInsufficientBalance
+		}
+	*/
 
-	if tx.GetBody().GetLimit() > MaxAER {
-		return ErrInsufficientBalance
-	}
-
-	if tx.GetBody().GetPrice() > MaxAER {
+	price := tx.GetBody().GetPriceBigInt()
+	if price.Cmp(MaxAER) > 0 {
 		return ErrInsufficientBalance
 	}
 
@@ -409,7 +422,7 @@ func (tx *Tx) Validate() error {
 			return ErrTxFormatInvalid
 		}
 		if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
-			tx.GetBody().GetAmount() < StakingMinimum {
+			amount.Cmp(StakingMinimum) < 0 {
 			return ErrTooSmallAmount
 		}
 	default:
@@ -422,18 +435,20 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
+	amount := tx.GetBody().GetAmountBigInt()
+	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		if tx.GetBody().GetAmount()+DefaultCoinbaseFee > senderState.GetBalance() {
+		fee := new(big.Int).SetInt64(DefaultCoinbaseFee)
+		spending := new(big.Int).Add(amount, fee)
+		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
 	case TxType_GOVERNANCE:
 		if string(tx.GetBody().GetRecipient()) == AergoSystem {
-			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
-				tx.GetBody().GetAmount() > senderState.GetBalance() {
-				if tx.GetBody().GetAmount() > senderState.GetBalance() {
-					return ErrInsufficientBalance
-				}
+			if tx.GetBody().GetPayload()[0] == 's' &&
+				amount.Cmp(balance) > 0 {
+				return ErrInsufficientBalance
 			}
 		} else {
 			return ErrTxInvalidRecipient
@@ -474,4 +489,12 @@ func (tx *Tx) Clone() *Tx {
 	}
 	res.Hash = tx.CalculateTxHash()
 	return res
+}
+
+func (b *TxBody) GetAmountBigInt() *big.Int {
+	return new(big.Int).SetBytes(b.GetAmount())
+}
+
+func (b *TxBody) GetPriceBigInt() *big.Int {
+	return new(big.Int).SetBytes(b.GetPrice())
 }

@@ -125,11 +125,6 @@ func (s *SimpleBlockFactory) QuitChan() chan interface{} {
 	return s.quit
 }
 
-// Init has nothing to do since the simple BP don't use any consensus
-// status information.
-func (s *SimpleBlockFactory) Init(cdb consensus.ChainDbReader) {
-}
-
 // Update has nothging to do.
 func (s *SimpleBlockFactory) Update(block *types.Block) {
 }

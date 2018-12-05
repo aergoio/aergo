@@ -47,3 +47,9 @@ type IActor interface {
 
 	Statistics() *map[string]interface{}
 }
+
+type IComponentRequester interface {
+	TellTo(targetCompName string, message interface{})
+	RequestTo(targetCompName string, message interface{})
+	RequestToFutureResult(targetCompName string, message interface{}, timeout time.Duration, tip string) (interface{}, error)
+}

@@ -69,6 +69,7 @@ type Consensus interface {
 type ChainDbReader interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 }
 
@@ -77,7 +78,6 @@ type ChainConsensus interface {
 	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
-	Init(cdb ChainDbReader)
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool

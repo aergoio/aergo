@@ -159,7 +159,7 @@ func (bf *BlockFactory) worker() {
 
 	runtime.LockOSThread()
 
-	lpbNo := libLoader.lpbNo()
+	lpbNo := bsLoader.lpbNo()
 	logger.Info().Uint64("lastly produced block", lpbNo).
 		Msg("start the block factory worker")
 

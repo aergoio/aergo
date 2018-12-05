@@ -83,7 +83,7 @@ func (p2ps *P2P) GetBlocksChunk(context actor.Context, msg *message.GetBlockChun
 		context.Respond(&message.GetBlockChunksRsp{ToWhom:peerID, Err:fmt.Errorf("invalid peer")})
 		return
 	}
-	receiver := NewBlockReceiver(context, remotePeer, blockHashes, msg.TTL)
+	receiver := NewBlockReceiver(p2ps, remotePeer, blockHashes, msg.TTL)
 	receiver.StartGet()
 }
 
@@ -98,7 +98,21 @@ func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 		context.Respond(&message.GetHashesRsp{Hashes:nil, PrevInfo:msg.PrevInfo, Count:0, Err:message.PeerNotFoundError})
 		return
 	}
-	receiver := NewBlockHashesReceiver(context, remotePeer, msg, fetchTimeOut)
+	receiver := NewBlockHashesReceiver(p2ps, remotePeer, msg, fetchTimeOut)
+	receiver.StartGet()
+}
+
+// GetBlockHashes send request message to peer and make response message for block hashes
+func (p2ps *P2P) GetBlockHashByNo(context actor.Context, msg *message.GetHashByNo) {
+	peerID := msg.ToWhom
+	// TODO
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetHashByNoRequest.String()).Msg("Invalid peerID")
+		context.Respond(&message.GetHashByNoRsp{Err:message.PeerNotFoundError})
+		return
+	}
+	receiver := NewBlockHashByNoReceiver(p2ps, remotePeer, msg.BlockNo, fetchTimeOut)
 	receiver.StartGet()
 }
 

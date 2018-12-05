@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -29,22 +30,23 @@ func init() {
 	}
 
 	deployCmd := &cobra.Command{
-		Use:   "deploy [flags] creator [bcfile] [abifile]",
-		Short: "Deploy a contract",
-		Args:  cobra.MinimumNArgs(1),
-		Run:   runDeployCmd,
+		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Short:                 "Deploy a compiled contract to the server",
+		Args:                  cobra.MinimumNArgs(1),
+		Run:                   runDeployCmd,
+		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
-	deployCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
+	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
 
 	callCmd := &cobra.Command{
-		Use:   "call [flags] sender contract name [args]",
+		Use:   "call [flags] sender contract funcname '[argument...]'",
 		Short: "Call a contract function",
 		Args:  cobra.MinimumNArgs(3),
 		Run:   runCallCmd,
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
-	callCmd.PersistentFlags().Uint64Var(&amount, "amount", 0, "setting amount")
+	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 
 	stateQueryCmd := &cobra.Command{
@@ -66,7 +68,7 @@ func init() {
 			Run:   runGetABICmd,
 		},
 		&cobra.Command{
-			Use:   "query [flags] contract fname [args]",
+			Use:   "query [flags] contract funcname '[argument...]'",
 			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
@@ -143,12 +145,17 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	}
+	amountBigInt, ok := new(big.Int).SetString(amount, 10)
+	if !ok {
+		fmt.Fprint(os.Stderr, "failed to parse --amount flags")
+		os.Exit(1)
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Nonce:   state.GetNonce() + 1,
 			Account: creator,
 			Payload: payload,
-			Amount:  amount,
+			Amount:  amountBigInt.Bytes(),
 		},
 	}
 
@@ -214,13 +221,18 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	amountBigInt, ok := new(big.Int).SetString(amount, 10)
+	if !ok {
+		fmt.Fprint(os.Stderr, "failed to parse --amount flags")
+		os.Exit(1)
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Nonce:     nonce,
 			Account:   caller,
 			Recipient: contract,
 			Payload:   payload,
-			Amount:    amount,
+			Amount:    amountBigInt.Bytes(),
 		},
 	}
 	sign, err := client.SignTX(context.Background(), tx)

@@ -12,25 +12,28 @@ set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GCFLAGS "-gcflags=\"-N" "-l\"")
-else()
-    set(LDFLAGS "-s")
 endif()
 
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac aergoscc brick)
 
-add_custom_target(aergocli GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"${LDFLAGS} -X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git rev-parse HEAD`\" ../cmd/aergocli/...
+add_custom_target(aergocli GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git rev-parse HEAD`\" ./cmd/aergocli/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"${LDFLAGS}\" ../cmd/aergosvr/...
+add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergosvr/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"${LDFLAGS}\" ../cmd/aergoluac/...
+add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergoluac/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(aergoscc GOBIN=${BIN_DIR} go install -a ${GCFLAGS} -ldflags \"${LDFLAGS}\" ../cmd/aergoscc/...
+add_custom_target(aergoscc GOBIN=${BIN_DIR} go install -a ${GCFLAGS} ./cmd/aergoscc/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool ascl)
 
-add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"${LDFLAGS} -X github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`\" ../cmd/brick/...
+add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`\" ./cmd/brick/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
 set(VENDOR ${CMAKE_CURRENT_LIST_DIR}/vendor)
@@ -42,13 +45,16 @@ add_custom_target(vendor DEPENDS ${VENDOR})
 
 add_custom_target(deps DEPENDS vendor libtool)
 
-add_custom_target(check go test -timeout 60s ../... 
+add_custom_target(check go test -timeout 60s ./...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
-add_custom_target(cover-check go test -coverprofile c.out ../... 
+add_custom_target(cover-check go test -coverprofile c.out ./...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
 
 add_custom_target(distclean go clean ..
-	COMMAND rm -rf ${BIN_DIR}/aergo* ${BIN_DIR}/brick)
+	COMMAND rm -rf ${BIN_DIR}/aergo* ${BIN_DIR}/brick
+	DEPENDS libtool-clean)
 
 add_custom_target(protoc
 	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=plugins=grpc:$ENV{GOPATH}/src ${PROTO_DIR}/*.proto

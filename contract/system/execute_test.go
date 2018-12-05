@@ -5,6 +5,7 @@
 package system
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -26,11 +27,11 @@ func TestBasicExecute(t *testing.T) {
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  1000,
+			Amount:  types.StakingMinimum.Bytes(),
 			Payload: []byte{'s'},
 		},
 	}
-	senderState := &types.State{Balance: 1000}
+	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
 
 	emptytx := &types.TxBody{}
 	err = ExecuteSystemTx(emptytx, senderState, scs, 0)
@@ -38,7 +39,7 @@ func TestBasicExecute(t *testing.T) {
 
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, 0)
 	assert.NoError(t, err, "Execute system tx failed in staking")
-	assert.Equal(t, senderState.GetBalance(), uint64(0), "sender balance should be 0 after staking")
+	assert.Equal(t, senderState.GetBalanceBigInt().Uint64(), uint64(0), "sender.GetBalanceBigInt() should be 0 after staking")
 
 	tx.Body.Payload = []byte{'v'}
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay)
@@ -47,7 +48,8 @@ func TestBasicExecute(t *testing.T) {
 	tx.Body.Payload = []byte{'u'}
 	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "Execute system tx failed in unstaking")
-	assert.Equal(t, senderState.GetBalance(), uint64(1000), "sender balance should be 0 after staking")
+	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), types.StakingMinimum.Bytes(),
+		"sender.GetBalanceBigInt() should be turn back")
 }
 
 func TestValidateSystemTxForStaking(t *testing.T) {
@@ -63,13 +65,13 @@ func TestValidateSystemTxForStaking(t *testing.T) {
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  types.StakingMinimum,
+			Amount:  types.StakingMinimum.Bytes(),
 			Payload: []byte{'s'},
 		},
 	}
 	err = ValidateSystemTx(tx.GetBody(), scs, 0)
 	assert.NoError(t, err, "Execute system tx failed")
-	tx.Body.Amount = types.StakingMinimum - 1
+	tx.Body.Amount = new(big.Int).Sub(types.StakingMinimum, new(big.Int).SetUint64(1)).Bytes()
 	err = ValidateSystemTx(tx.GetBody(), scs, 0)
 	assert.EqualError(t, types.ErrTooSmallAmount, err.Error(), "Execute system tx failed")
 }
@@ -87,29 +89,29 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  types.StakingMinimum,
+			Amount:  types.StakingMinimum.Bytes(),
 			Payload: []byte{'u'},
 		},
 	}
 	err = ValidateSystemTx(tx.GetBody(), scs, 0)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "Execute system tx failed")
-	tx.Body.Amount = types.StakingMinimum - 1
+	tx.Body.Amount = new(big.Int).Sub(types.StakingMinimum, new(big.Int).SetUint64(1)).Bytes()
 	err = ValidateSystemTx(tx.GetBody(), scs, 0)
 	assert.EqualError(t, types.ErrTooSmallAmount, err.Error(), "Execute system tx failed")
 
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  1000,
+			Amount:  types.StakingMinimum.Bytes(),
 			Payload: []byte{'s'},
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	senderState := &types.State{Balance: 1000}
+	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
 	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, 0)
 	assert.NoError(t, err, "could not execute system tx")
 
-	tx.Body.Amount = types.StakingMinimum
+	tx.Body.Amount = types.StakingMinimum.Bytes()
 	err = ValidateSystemTx(tx.GetBody(), scs, StakingDelay-1)
 	assert.EqualError(t, types.ErrLessTimeHasPassed, err.Error(), "Execute system tx failed")
 	err = ValidateSystemTx(tx.GetBody(), scs, StakingDelay)
@@ -142,12 +144,12 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: account,
-			Amount:  1000,
+			Amount:  types.StakingMinimum.Bytes(),
 			Payload: []byte{'s'},
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	senderState := &types.State{Balance: 1000}
+	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
 	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, 0)
 	assert.NoError(t, err, "could not execute system tx")
 

@@ -40,7 +40,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 
 	tc := &testChain{
 		chain:         make([]*types.Block, 0),
-		status:        NewStatus(consensusCount),
+		status:        NewStatus(consensusCount, nil),
 		bpid:          enc.ToString(b),
 		lpb:           make(map[string]types.BlockNo),
 		bpKey:         bpKey,

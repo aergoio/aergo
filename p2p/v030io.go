@@ -64,10 +64,10 @@ func (r *V030Reader) ReadMsg() (Message, error) {
 	payload := make([]byte, msg.length)
 	read, err = r.readToLen(payload, int(msg.length))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read paylod of msg %s %s : %s", msg.subProtocol.String(), msg.id, err.Error())
 	}
 	if read != int(msg.length) {
-		return nil, fmt.Errorf("invalid stream")
+		return nil, fmt.Errorf("failed to read paylod of msg %s %s : payload length mismatch", msg.subProtocol.String(), msg.id)
 	}
 
 	msg.payload = payload

@@ -5,6 +5,7 @@
 package mempool
 
 import (
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func NewState(nonce uint64, bal uint64) *types.State {
-	return &types.State{Nonce: nonce, Balance: bal}
+	return &types.State{Nonce: nonce, Balance: new(big.Int).SetUint64(bal).Bytes()}
 }
 func TestListPutBasic(t *testing.T) {
 	initTest(t)
