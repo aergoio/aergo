@@ -8,7 +8,7 @@
 all:
 	@$(MAKE) --no-print-directory -C ../.. ascl
 
-tool:
+bin:
 	@$(MAKE) --no-print-directory -C ../.. aergoscc
 
 check:

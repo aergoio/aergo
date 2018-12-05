@@ -38,8 +38,16 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
         value = BinaryenLiteralInt32(bool_val(&exp->u_lit.val));
         break;
 
+    case TYPE_UINT32:
+        value = BinaryenLiteralInt32(ui32_val(&exp->u_lit.val));
+        break;
+
     case TYPE_UINT64:
         value = BinaryenLiteralInt64(ui64_val(&exp->u_lit.val));
+        break;
+
+    case TYPE_FLOAT:
+        value = BinaryenLiteralFloat32(f32_val(&exp->u_lit.val));
         break;
 
     case TYPE_DOUBLE:

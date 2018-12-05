@@ -32,7 +32,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     struct x = { 1, "abc" };
         // nothing to do
         // x should has address of value in data segment
-    
+
     string y = x;
         // nothing to do
         // x should has address of x in data segment
@@ -56,7 +56,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         if (gen->locals == NULL)
             gen->locals = xmalloc(sizeof(BinaryenType));
         else
-            gen->locals = xrealloc(gen->locals, 
+            gen->locals = xrealloc(gen->locals,
                                    sizeof(BinaryenType) * (gen->local_cnt + 1));
 
         gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
@@ -94,13 +94,13 @@ id_gen_func(gen_t *gen, ast_id_t *id)
         params[gen->id_idx++] = meta_gen(gen, &array_get(ret_ids, i, ast_id_t)->meta);
     }
 
-    spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta), 
+    spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta),
                                    params, param_cnt);
 
     if (id->u_func.blk != NULL)
         body = blk_gen(gen, id->u_func.blk);
 
-    func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt, 
+    func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
                                body);
 
     gen->id_idx = 0;

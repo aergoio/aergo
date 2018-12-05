@@ -8,7 +8,6 @@
 #include "util.h"
 #include "ast_blk.h"
 #include "gen_id.h"
-#include "gen_mem.h"
 
 #include "gen.h"
 
@@ -46,6 +45,22 @@ static void
 gen_reset(gen_t *gen)
 {
     BinaryenModuleDispose(gen->module);
+}
+
+static void
+mem_gen(gen_t *gen, dsgmt_t *dsgmt)
+{
+    int i;
+    BinaryenExpressionRef *offsets;
+
+    offsets = xmalloc(sizeof(BinaryenExpressionRef) * dsgmt->size);
+
+    for (i = 0; i < dsgmt->size; i++) {
+        offsets[i] = BinaryenConst(gen->module, BinaryenLiteralInt32(dsgmt->addrs[i]));
+    }
+
+    BinaryenSetMemory(gen->module, 1, dsgmt->offset, "memory",
+                      (const char **)dsgmt->datas, offsets, dsgmt->lens, dsgmt->size, 0);
 }
 
 void

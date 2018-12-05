@@ -18,6 +18,7 @@ static int
 id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
 {
     int i;
+    int arr_size;
     array_t *size_exps = id->u_var.size_exps;
 
     meta_set_array(&id->meta, array_size(size_exps));
@@ -47,12 +48,17 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             else
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            ASSERT1(is_ui64_val(size_val), size_val->type);
+            if (is_ui32_val(size_val))
+                arr_size = ui32_val(size_val);
+            else if (is_ui64_val(size_val))
+                arr_size = ui64_val(size_val);
+            else
+                ASSERT1(!"invalid size expression", size_val->type);
 
-            if (ui64_val(size_val) <= 0)
+            if (arr_size <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            id->meta.arr_size[i] = ui64_val(size_val);
+            id->meta.arr_size[i] = arr_size;
         }
     }
 
