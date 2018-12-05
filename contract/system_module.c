@@ -23,6 +23,13 @@ static int systemPrint(lua_State *L)
 	return 0;
 }
 
+static char *getDbKey(lua_State *L)
+{
+	lua_pushvalue(L, 1);    /* prefix key */
+	lua_concat(L, 2);       /* dbKey(prefix..key) */
+	return (char *)lua_tostring(L, -1);
+}
+
 int setItemWithPrefix(lua_State *L)
 {
 	char *dbKey;
@@ -36,9 +43,7 @@ int setItemWithPrefix(lua_State *L)
 	luaL_checkstring(L, 1);
 	luaL_checkany(L, 2);
 	luaL_checkstring(L, 3);
-	lua_pushvalue(L, 1);
-	lua_concat(L, 2);
-	dbKey = (char *)lua_tostring(L, -1);
+	dbKey = getDbKey(L);
 	jsonValue = lua_util_get_json (L, 2, false);
 	if (jsonValue == NULL) {
 		lua_error(L);
@@ -73,10 +78,7 @@ int getItemWithPrefix(lua_State *L)
 	}
 	luaL_checkstring(L, 1);
 	luaL_checkstring(L, 2);
-	lua_pushvalue(L, 1);
-	lua_concat(L, 2);
-	dbKey = (char *)lua_tostring(L, -1);
-
+	dbKey = getDbKey(L);
 	ret = LuaGetDB(L, service, dbKey);
 	if (ret < 0) {
 		lua_error(L);
@@ -111,10 +113,7 @@ int delItemWithPrefix(lua_State *L)
 	}
 	luaL_checkstring(L, 1);
 	luaL_checkstring(L, 2);
-	lua_pushvalue(L, 1);
-	lua_concat(L, 2);
-	dbKey = (char *)lua_tostring(L, -1);
-
+	dbKey = getDbKey(L);
 	ret = LuaDelDB(L, service, dbKey);
 	if (ret < 0) {
 		lua_error(L);
