@@ -37,6 +37,8 @@ debug:
 
 clean:
 	@$(MAKE) --no-print-directory -C $(BUILD_DIR) distclean
+
+realclean: clean
 	@rm -rf $(BUILD_DIR)
 
 %:

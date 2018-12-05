@@ -49,7 +49,8 @@ add_custom_target(cover-check go test -coverprofile c.out ./...
     DEPENDS build)
 
 add_custom_target(distclean go clean ..
-	COMMAND rm -rf ${BIN_DIR}/aergo* ${BIN_DIR}/brick)
+	COMMAND rm -rf ${BIN_DIR}/aergo* ${BIN_DIR}/brick
+	DEPENDS libtool-clean)
 
 add_custom_target(protoc
 	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=plugins=grpc:$ENV{GOPATH}/src ${PROTO_DIR}/*.proto
