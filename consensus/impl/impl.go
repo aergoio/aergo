@@ -15,14 +15,22 @@ import (
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, cs *chain.ChainService, hub *component.ComponentHub) (consensus.Consensus, error) {
-	var c consensus.Consensus
-	var err error
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
+	var (
+		cdb  = cs.CDBReader()
+		impl = map[string]consensus.Constructor{
+			"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
+			"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP
+		}
+
+		c   consensus.Consensus
+		err error
+	)
 
 	if cfg.Consensus.EnableDpos {
-		c, err = dpos.New(cfg, cs.CDBReader(), hub)
+		c, err = impl["dpos"]()
 	} else {
-		c, err = sbp.New(cfg, hub)
+		c, err = impl["sbp"]()
 	}
 
 	if err == nil {

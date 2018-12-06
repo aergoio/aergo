@@ -55,6 +55,10 @@ func (e ErrorConsensus) Error() string {
 	return errMsg
 }
 
+// Constructor represents a function returning the Consensus interfactor for
+// each implementation.
+type Constructor func() (Consensus, error)
+
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainConsensus

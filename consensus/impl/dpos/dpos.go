@@ -76,8 +76,15 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 	return block
 }
 
+// GetConstructor build and returns consensus.Constructor from New function.
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
+	return func() (consensus.Consensus, error) {
+		return New(cfg, hub, cdb)
+	}
+}
+
 // New returns a new DPos object
-func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.ComponentHub) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
 	genesis := cdb.GetGenesisInfo()
 	if genesis != nil {
 		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
