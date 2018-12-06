@@ -32,18 +32,18 @@
 #define is_void_type(meta)          ((meta)->type == TYPE_VOID)
 #define is_tuple_type(meta)         ((meta)->type == TYPE_TUPLE)
 
-#define is_int_family(meta)                                                              \
+#define is_signed_type(meta)                                                             \
     (is_int8_type(meta) || is_int16_type(meta) || is_int32_type(meta) ||                 \
      is_int64_type(meta))
-#define is_uint_family(meta)                                                             \
+#define is_unsigned_type(meta)                                                           \
     (is_byte_type(meta) ||   is_uint8_type(meta) ||  is_uint16_type(meta) ||             \
      is_uint32_type(meta) || is_uint64_type(meta))
 
-#define is_dec_family(meta)         (is_int_family(meta) || is_uint_family(meta))
-#define is_fp_family(meta)          (is_float_type(meta) || is_double_type(meta))
-#define is_num_family(meta)         (is_dec_family(meta) || is_fp_family(meta))
+#define is_integer_type(meta)       (is_signed_type(meta) || is_unsigned_type(meta))
+#define is_fpoint_type(meta)        (is_float_type(meta) || is_double_type(meta))
+#define is_numeric_type(meta)       (is_integer_type(meta) || is_fpoint_type(meta))
 
-#define is_obj_family(meta)                                                              \
+#define is_pointer_type(meta)                                                            \
     (is_string_type(meta) || is_map_type(meta) || is_object_type(meta))
 
 #define is_primitive_type(meta)                                                          \

@@ -42,7 +42,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             if (size_id != NULL && size_id->val != NULL)
                 /* constant variable */
                 size_val = size_id->val;
-            else if (is_dec_family(size_meta) && is_lit_exp(size_exp))
+            else if (is_integer_type(size_meta) && is_lit_exp(size_exp))
                 /* integer literal */
                 size_val = &size_exp->u_lit.val;
             else
@@ -72,11 +72,11 @@ id_gen_dflt_exp(meta_t *meta)
         dflt_exp = exp_new_lit(&meta->pos);
         value_set_bool(&dflt_exp->u_lit.val, false);
     }
-    else if (is_dec_family(meta)) {
+    else if (is_integer_type(meta)) {
         dflt_exp = exp_new_lit(&meta->pos);
         value_set_i64(&dflt_exp->u_lit.val, 0);
     }
-    else if (is_fp_family(meta)) {
+    else if (is_fpoint_type(meta)) {
         dflt_exp = exp_new_lit(&meta->pos);
         value_set_f64(&dflt_exp->u_lit.val, 0.0);
     }
@@ -237,7 +237,7 @@ id_check_enum(check_t *check, ast_id_t *id)
 
             CHECK(exp_check(check, dflt_exp));
 
-            if (!is_lit_exp(dflt_exp) || !is_dec_family(init_meta))
+            if (!is_lit_exp(dflt_exp) || !is_integer_type(init_meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &dflt_exp->pos);
 
             init_val = &dflt_exp->u_lit.val;

@@ -182,9 +182,9 @@ meta_cmp_type(meta_t *x, meta_t *y)
 {
     if (is_undef_type(x) || is_undef_type(y)) {
         if (x->type == y->type ||
-            (is_dec_family(x) && is_dec_family(y)) ||
-            (is_fp_family(x) && is_fp_family(y)) ||
-            (is_obj_family(x) && is_obj_family(y))) {
+            (is_integer_type(x) && is_integer_type(y)) ||
+            (is_fpoint_type(x) && is_fpoint_type(y)) ||
+            (is_pointer_type(x) && is_pointer_type(y))) {
             if (is_undef_type(x)) {
                 *x = *y;
                 meta_set_undef(x);

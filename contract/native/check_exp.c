@@ -121,7 +121,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->arr_size != NULL);
 
-        if (!is_dec_family(idx_meta))
+        if (!is_integer_type(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
 
         meta_copy(&exp->meta, id_meta);
@@ -208,14 +208,14 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         if (!is_usable_lval(val_exp))
             RETURN(ERROR_INVALID_LVALUE, &val_exp->pos);
 
-        if (!is_dec_family(val_meta))
+        if (!is_integer_type(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
         break;
 
     case OP_NEG:
-        if (!is_num_family(val_meta))
+        if (!is_numeric_type(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
@@ -258,14 +258,14 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, l_exp));
 
     if (op == OP_ADD) {
-        if (!is_num_family(l_meta) && !is_string_type(l_meta))
+        if (!is_numeric_type(l_meta) && !is_string_type(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
     else if (op == OP_MOD) {
-        if (!is_dec_family(l_meta))
+        if (!is_integer_type(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
-    else if (!is_num_family(l_meta)) {
+    else if (!is_numeric_type(l_meta)) {
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
 
@@ -294,7 +294,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, l_exp));
 
-    if (!is_dec_family(l_meta))
+    if (!is_integer_type(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
     r_exp = exp->u_bin.r_exp;
@@ -306,13 +306,13 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
-        if (!is_dec_family(r_meta))
+        if (!is_integer_type(r_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
     case OP_RSHIFT:
     case OP_LSHIFT:
-        if (!is_uint_family(r_meta))
+        if (!is_unsigned_type(r_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
@@ -560,7 +560,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             param_exp = array_get(param_exps, 0, ast_exp_t);
 
             CHECK(exp_check(check, param_exp));
-            ASSERT1(is_dec_family(&param_exp->meta), param_exp->meta.type);
+            ASSERT1(is_integer_type(&param_exp->meta), param_exp->meta.type);
         }
 
         meta_set_map(&exp->meta, NULL, NULL);
