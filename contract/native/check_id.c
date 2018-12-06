@@ -29,7 +29,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!is_param && id->u_var.init_exp == NULL)
+            if (!is_param && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             id->meta.arr_size[i] = -1;
@@ -70,23 +70,23 @@ static ast_exp_t *
 id_gen_dflt_exp(meta_t *meta)
 {
     int i, j;
-    ast_exp_t *init_exp;
+    ast_exp_t *dflt_exp;
 
     if (is_bool_type(meta)) {
-        init_exp = exp_new_lit(&meta->pos);
-        value_set_bool(&init_exp->u_lit.val, false);
+        dflt_exp = exp_new_lit(&meta->pos);
+        value_set_bool(&dflt_exp->u_lit.val, false);
     }
     else if (is_dec_family(meta)) {
-        init_exp = exp_new_lit(&meta->pos);
-        value_set_ui64(&init_exp->u_lit.val, 0);
+        dflt_exp = exp_new_lit(&meta->pos);
+        value_set_ui64(&dflt_exp->u_lit.val, 0);
     }
     else if (is_fp_family(meta)) {
-        init_exp = exp_new_lit(&meta->pos);
-        value_set_f64(&init_exp->u_lit.val, 0.0);
+        dflt_exp = exp_new_lit(&meta->pos);
+        value_set_f64(&dflt_exp->u_lit.val, 0.0);
     }
     else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
-        init_exp = exp_new_lit(&meta->pos);
-        value_set_null(&init_exp->u_lit.val);
+        dflt_exp = exp_new_lit(&meta->pos);
+        value_set_null(&dflt_exp->u_lit.val);
     }
     else {
         array_t *exps = array_new();
@@ -97,7 +97,7 @@ id_gen_dflt_exp(meta_t *meta)
             exp_add_last(exps, id_gen_dflt_exp(meta->elems[i]));
         }
 
-        init_exp = exp_new_tuple(exps, &meta->pos);
+        dflt_exp = exp_new_tuple(exps, &meta->pos);
     }
 
     if (is_array_type(meta)) {
@@ -107,14 +107,14 @@ id_gen_dflt_exp(meta_t *meta)
             array_t *exps = array_new();
 
             for (j = 0; j < meta->arr_size[i]; j++) {
-                exp_add_last(exps, init_exp);
+                exp_add_last(exps, dflt_exp);
             }
 
-            init_exp = exp_new_tuple(exps, &meta->pos);
+            dflt_exp = exp_new_tuple(exps, &meta->pos);
         }
     }
 
-    return init_exp;
+    return dflt_exp;
 }
 #endif
 
@@ -123,7 +123,7 @@ id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
     /*
-    ast_exp_t *init_exp;
+    ast_exp_t *dflt_exp;
     meta_t *init_meta;
     */
 
@@ -138,38 +138,38 @@ id_check_var(check_t *check, ast_id_t *id)
 
     meta_copy(&id->meta, type_meta);
 
-    if (is_const_id(id) && id->u_var.init_exp == NULL)
+    if (is_const_id(id) && id->u_var.dflt_exp == NULL)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, false));
 
     /*
-    if (id->u_var.init_exp == NULL)
-        id->u_var.init_exp = id_gen_dflt_exp(&id->meta);
+    if (id->u_var.dflt_exp == NULL)
+        id->u_var.dflt_exp = id_gen_dflt_exp(&id->meta);
         */
 
-    if (id->u_var.init_exp != NULL) {
+    if (id->u_var.dflt_exp != NULL) {
         /* TODO: named initializer */
-        ast_exp_t *init_exp = id->u_var.init_exp;
-        meta_t *init_meta = &init_exp->meta;
+        ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+        meta_t *init_meta = &dflt_exp->meta;
 
-        CHECK(exp_check(check, init_exp));
+        CHECK(exp_check(check, dflt_exp));
 
         /* This might be a duplicate check because it will be checked by meta_cmp(),
          * but is done to show more specific error not just mismatch error. */
         if (is_tuple_type(init_meta) && !is_array_type(&id->meta) &&
             !is_map_type(type_meta) && !is_struct_type(type_meta))
             /* not allowed static initializer except map or struct */
-            RETURN(ERROR_NOT_ALLOWED_INIT, &init_exp->pos);
+            RETURN(ERROR_NOT_ALLOWED_INIT, &dflt_exp->pos);
 
-        CHECK(meta_cmp(&id->meta, &init_exp->meta));
+        CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
 
-        if (is_lit_exp(init_exp)) {
-            if (!value_fit(&init_exp->u_lit.val, &id->meta))
-                RETURN(ERROR_NUMERIC_OVERFLOW, &init_exp->pos, meta_to_str(&id->meta));
+        if (is_lit_exp(dflt_exp)) {
+            if (!value_fit(&dflt_exp->u_lit.val, &id->meta))
+                RETURN(ERROR_NUMERIC_OVERFLOW, &dflt_exp->pos, meta_to_str(&id->meta));
 
-            id->val = &init_exp->u_lit.val;
+            id->val = &dflt_exp->u_lit.val;
         }
     }
 
@@ -222,46 +222,46 @@ id_check_enum(check_t *check, ast_id_t *id)
 
     for (i = 0; i < array_size(elem_ids); i++) {
         ast_id_t *elem_id = array_get(elem_ids, i, ast_id_t);
-        ast_exp_t *init_exp = elem_id->u_var.init_exp;
+        ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
         elem_id->is_checked = true;
 
-        if (init_exp == NULL) {
-            init_exp = exp_new_lit(&elem_id->pos);
+        if (dflt_exp == NULL) {
+            dflt_exp = exp_new_lit(&elem_id->pos);
 
-            value_set_ui64(&init_exp->u_lit.val, enum_val);
+            value_set_ui64(&dflt_exp->u_lit.val, enum_val);
 
-            CHECK(exp_check(check, init_exp));
+            CHECK(exp_check(check, dflt_exp));
 
-            elem_id->u_var.init_exp = init_exp;
+            elem_id->u_var.dflt_exp = dflt_exp;
         }
         else {
-            meta_t *init_meta = &init_exp->meta;
+            meta_t *init_meta = &dflt_exp->meta;
             value_t *init_val;
 
-            CHECK(exp_check(check, init_exp));
+            CHECK(exp_check(check, dflt_exp));
 
-            if (!is_lit_exp(init_exp) || !is_dec_family(init_meta))
-                RETURN(ERROR_INVALID_ENUM_VAL, &init_exp->pos);
+            if (!is_lit_exp(dflt_exp) || !is_dec_family(init_meta))
+                RETURN(ERROR_INVALID_ENUM_VAL, &dflt_exp->pos);
 
-            init_val = &init_exp->u_lit.val;
+            init_val = &dflt_exp->u_lit.val;
             ASSERT1(is_ui64_val(init_val), init_val->type);
 
             for (j = 0; j < i; j++) {
                 ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
 
-                if (prev_id->u_var.init_exp != NULL) {
-                    value_t *val_prev = &prev_id->u_var.init_exp->u_lit.val;
+                if (prev_id->u_var.dflt_exp != NULL) {
+                    value_t *val_prev = &prev_id->u_var.dflt_exp->u_lit.val;
 
                     if (value_cmp(init_val, val_prev) == 0)
-                        RETURN(ERROR_DUPLICATED_ENUM_VAL, &init_exp->pos);
+                        RETURN(ERROR_DUPLICATED_ENUM_VAL, &dflt_exp->pos);
                 }
             }
 
             enum_val = val_ui64(init_val);
         }
 
-        elem_id->val = &init_exp->u_lit.val;
+        elem_id->val = &dflt_exp->u_lit.val;
         meta_set_int32(&elem_id->meta);
 
         flag_set(elem_id->mod, MOD_PUBLIC);
@@ -280,7 +280,7 @@ id_check_param(check_t *check, ast_id_t *id)
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_meta != NULL);
-    ASSERT(id->u_var.init_exp == NULL);
+    ASSERT(id->u_var.dflt_exp == NULL);
 
     id->is_checked = true;
 

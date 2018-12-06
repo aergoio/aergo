@@ -86,8 +86,8 @@ gen(ast_t *ast, flag_t flag, char *path)
         mem_gen(&gen, gen.dsgmt);
 
         BinaryenModuleValidate(gen.module);
-
         BinaryenSetDebugInfo(1);
+
         n = BinaryenModuleWrite(gen.module, gen.buf, gen.buf_size);
         if (n <= WASM_MAX_LEN)
             write_file(gen.path, gen.buf, n);

@@ -29,43 +29,49 @@ static BinaryenExpressionRef
 exp_gen_val(gen_t *gen, ast_exp_t *exp)
 {
     int addr;
+    value_t *val = &exp->u_lit.val;
     struct BinaryenLiteral value;
 
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_lit.val.type) {
+    switch (val->type) {
     case TYPE_BOOL:
-        value = BinaryenLiteralInt32(val_bool(&exp->u_lit.val));
+        value = BinaryenLiteralInt32(val_bool(val));
         break;
 
     case TYPE_UINT32:
-        value = BinaryenLiteralInt32(val_ui32(&exp->u_lit.val));
+        value = BinaryenLiteralInt32(val_ui32(val));
         break;
 
     case TYPE_UINT64:
-        value = BinaryenLiteralInt64(val_ui64(&exp->u_lit.val));
+        value = BinaryenLiteralInt64(val_ui64(val));
         break;
 
     case TYPE_FLOAT:
-        value = BinaryenLiteralFloat32(val_f32(&exp->u_lit.val));
+        value = BinaryenLiteralFloat32(val_f32(val));
         break;
 
     case TYPE_DOUBLE:
-        value = BinaryenLiteralFloat64(val_f64(&exp->u_lit.val));
+        value = BinaryenLiteralFloat64(val_f64(val));
         break;
 
     case TYPE_STRING:
-        addr = dsgmt_add_string(gen->dsgmt, val_str(&exp->u_lit.val));
+        addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val) + 1);
         value = BinaryenLiteralInt32(addr);
         break;
 
     case TYPE_OBJECT:
-        ASSERT(val_ptr(&exp->u_lit.val) == NULL);
-        value = BinaryenLiteralInt32(0);
+        if (is_null_val(val)) {
+            value = BinaryenLiteralInt32(0);
+        }
+        else {
+            addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val));
+            value = BinaryenLiteralInt32(addr);
+        }
         break;
 
     default:
-        ASSERT1(!"invalid value", exp->u_lit.val.type);
+        ASSERT1(!"invalid value", val->type);
     }
 
     return BinaryenConst(gen->module, value);
@@ -74,7 +80,27 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
-    return NULL;
+    ast_id_t *id = exp->id;
+    BinaryenExpressionRef idx_exp;
+
+    ASSERT(id != NULL);
+
+    if (is_array_type(&id->meta)) {
+        uint32_t offset = id->offset;
+
+        idx_exp = exp_gen(gen, exp->u_arr.idx_exp);
+
+        if (BinaryenExpressionGetId(idx_exp) == BinaryenConstId())
+            offset = BinaryenConstGetValueI64(idx_exp) * meta_size(&id->meta);
+
+        return BinaryenLoad(gen->module, meta_size(&id->meta), is_int_family(&id->meta),
+                            8, 0, meta_gen(gen, &id->meta), 
+                            BinaryenConst(gen->module, BinaryenLiteralInt32(id->addr)));
+    }
+    else {
+        ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
+        return NULL;
+    }
 }
 
 static BinaryenExpressionRef

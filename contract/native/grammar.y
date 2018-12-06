@@ -444,7 +444,7 @@ var_init_decl:
             for (i = 0; i < array_size($1); i++) {
                 ast_id_t *id = array_get($1, i, ast_id_t);
 
-                id->u_var.init_exp = array_get($3, i, ast_exp_t);
+                id->u_var.dflt_exp = array_get($3, i, ast_exp_t);
             }
         }
         $$ = $1;
@@ -523,7 +523,7 @@ enumerator:
 |   identifier '=' or_exp
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
-        $$->u_var.init_exp = $3;
+        $$->u_var.dflt_exp = $3;
     }
 ;
 

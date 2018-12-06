@@ -5,19 +5,30 @@
 
 #include "common.h"
 
+#include "ast_id.h"
 #include "gen_exp.h"
 #include "gen_blk.h"
+#include "gen_meta.h"
 
 #include "gen_stmt.h"
 
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
+    ast_exp_t *l_exp = stmt->u_assign.l_exp;
+    ast_id_t *id = l_exp->id;
     BinaryenExpressionRef value;
+
+    ASSERT(id != NULL);
 
     value = exp_gen(gen, stmt->u_assign.r_exp);
 
-    return BinaryenSetLocal(gen->module, 0, value);
+    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta))
+        return BinaryenSetLocal(gen->module, 0, value);
+    else
+        return BinaryenStore(gen->module, meta_size(&id->meta), id->offset, 0,
+                             BinaryenConst(gen->module, BinaryenLiteralInt32(id->addr)),
+                             value, meta_gen(gen, &id->meta));
 }
 
 static BinaryenExpressionRef

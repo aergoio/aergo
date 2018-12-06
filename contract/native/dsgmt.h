@@ -10,7 +10,9 @@
 
 #include "binaryen-c.h"
 
-#define DSGMT_INIT_CAPACITY     10
+#define DSGMT_INIT_CAPACITY         10
+
+#define dsgmt_occupy(dsgmt, l)      dsgmt_add(dsgmt, xcalloc(l), l)
 
 typedef struct dsgmt_s {
     int cap;
@@ -22,14 +24,13 @@ typedef struct dsgmt_s {
     char **datas;
 } dsgmt_t;
 
-int dsgmt_add_raw(dsgmt_t *dsgmt, uint32_t len, char *raw);
-int dsgmt_add_string(dsgmt_t *dsgmt, char *str);
-
-char *dsgmt_raw(dsgmt_t *dsgmt, uint32_t addr);
+int dsgmt_add(dsgmt_t *dsgmt, void *ptr, uint32_t len);
 
 static inline void
 dsgmt_init(dsgmt_t *dsgmt)
 {
+    void *null = xcalloc(sizeof(void *));
+
     dsgmt->cap = DSGMT_INIT_CAPACITY;
     dsgmt->size = 0;
     dsgmt->offset = 0;
@@ -37,6 +38,8 @@ dsgmt_init(dsgmt_t *dsgmt)
     dsgmt->lens = xmalloc(sizeof(uint32_t) * dsgmt->cap);
     dsgmt->addrs = xmalloc(sizeof(uint32_t) * dsgmt->cap);
     dsgmt->datas = xmalloc(sizeof(char *) * dsgmt->cap);
+
+    dsgmt_add(dsgmt, null, sizeof(void *));
 }
 
 static inline dsgmt_t *

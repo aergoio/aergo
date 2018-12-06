@@ -11,11 +11,22 @@
 
 #include "gen_id.h"
 
+static void
+add_local(gen_t *gen, ast_id_t *id)
+{
+    id->idx = gen->id_idx++;
+
+    if (gen->locals == NULL)
+        gen->locals = xmalloc(sizeof(BinaryenType));
+    else
+        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
+
+    gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
+}
+
 static BinaryenExpressionRef
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
-    ast_exp_t *init_exp = id->u_var.init_exp;
-
     /*
     int i = 1;
         BinaryenExpressionRef value = BinaryenConst(module, BinaryenLiteralInt32(1));
@@ -52,23 +63,29 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         BinaryenStore(module, size, offset + x, align, address of x, value, type);
     */
 
-    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta)) {
-        id->idx = gen->id_idx++;
+    int i;
+    uint32_t size = meta_size(&id->meta);
+    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
 
-        if (gen->locals == NULL)
-            gen->locals = xmalloc(sizeof(BinaryenType));
-        else
-            gen->locals = xrealloc(gen->locals,
-                                   sizeof(BinaryenType) * (gen->local_cnt + 1));
-
-        gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
-
-        if (init_exp != NULL)
-            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, init_exp));
+    if (is_array_type(&id->meta)) {
+        for (i = 0; i < id->meta.arr_dim; i++) {
+            ASSERT(id->meta.arr_size[i] > 0);
+            size *= id->meta.arr_size[i];
+        }
     }
-    else if (init_exp != NULL) {
-        if (is_lit_exp(init_exp)) {
-            BinaryenExpressionRef value = exp_gen(gen, init_exp);
+
+    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta)) {
+        add_local(gen, id);
+
+        if (dflt_exp != NULL)
+            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, dflt_exp));
+    }
+    else {
+        if (dflt_exp == NULL) {
+            id->addr = dsgmt_occupy(gen->dsgmt, size);
+        }
+        else if (is_lit_exp(dflt_exp)) {
+            BinaryenExpressionRef value = exp_gen(gen, dflt_exp);
 
             ASSERT2(BinaryenExpressionGetId(value) == BinaryenConstId(),
                     BinaryenExpressionGetId(value), BinaryenConstId());
@@ -76,11 +93,10 @@ id_gen_var(gen_t *gen, ast_id_t *id)
             id->addr = BinaryenConstGetValueI32(value);
         }
         else {
-            // XXX: occupy data segment & store instruction
+            id->addr = dsgmt_occupy(gen->dsgmt, size);
+
+            return exp_gen(gen, dflt_exp);
         }
-    }
-    else {
-        // XXX: occupy data segment & set address
     }
 
     return NULL;
@@ -142,11 +158,7 @@ id_gen(gen_t *gen, ast_id_t *id)
         return id_gen_var(gen, id);
 
     case ID_STRUCT:
-        //id_gen_struct(gen, id);
-        break;
-
     case ID_ENUM:
-        //id_gen_enum(gen, id);
         break;
 
     case ID_FUNC:
