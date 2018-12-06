@@ -30,7 +30,7 @@ add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergolu
 
 add_custom_target(aergoscc GOBIN=${BIN_DIR} go install -a ${GCFLAGS} ./cmd/aergoscc/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor libtool ascl)
+    DEPENDS vendor binaryen ascl)
 
 add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`\" ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
