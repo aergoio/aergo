@@ -48,12 +48,8 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
             else
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            if (is_ui32_val(size_val))
-                arr_size = val_ui32(size_val);
-            else if (is_ui64_val(size_val))
-                arr_size = val_ui64(size_val);
-            else
-                ASSERT1(!"invalid size expression", size_val->type);
+            ASSERT1(is_i64_val(size_val), size_val->type);
+            arr_size = val_i64(size_val);
 
             if (arr_size <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
@@ -78,7 +74,7 @@ id_gen_dflt_exp(meta_t *meta)
     }
     else if (is_dec_family(meta)) {
         dflt_exp = exp_new_lit(&meta->pos);
-        value_set_ui64(&dflt_exp->u_lit.val, 0);
+        value_set_i64(&dflt_exp->u_lit.val, 0);
     }
     else if (is_fp_family(meta)) {
         dflt_exp = exp_new_lit(&meta->pos);
@@ -229,7 +225,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         if (dflt_exp == NULL) {
             dflt_exp = exp_new_lit(&elem_id->pos);
 
-            value_set_ui64(&dflt_exp->u_lit.val, enum_val);
+            value_set_i64(&dflt_exp->u_lit.val, enum_val);
 
             CHECK(exp_check(check, dflt_exp));
 
@@ -245,7 +241,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 RETURN(ERROR_INVALID_ENUM_VAL, &dflt_exp->pos);
 
             init_val = &dflt_exp->u_lit.val;
-            ASSERT1(is_ui64_val(init_val), init_val->type);
+            ASSERT1(is_i64_val(init_val), init_val->type);
 
             for (j = 0; j < i; j++) {
                 ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
@@ -258,7 +254,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 }
             }
 
-            enum_val = val_ui64(init_val);
+            enum_val = val_i64(init_val);
         }
 
         elem_id->val = &dflt_exp->u_lit.val;

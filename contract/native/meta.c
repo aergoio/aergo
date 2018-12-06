@@ -184,8 +184,17 @@ meta_cmp_type(meta_t *x, meta_t *y)
         if (x->type == y->type ||
             (is_dec_family(x) && is_dec_family(y)) ||
             (is_fp_family(x) && is_fp_family(y)) ||
-            (is_obj_family(x) && is_obj_family(y)))
+            (is_obj_family(x) && is_obj_family(y))) {
+            if (is_undef_type(x)) {
+                *x = *y;
+                meta_set_undef(x);
+            }
+            else {
+                *y = *x;
+                meta_set_undef(y);
+            }
             return NO_ERROR;
+        }
 
         RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }

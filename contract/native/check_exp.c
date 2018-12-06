@@ -131,7 +131,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
             /* arr_size[0] can be negative if array is used as a parameter */
             if (id_meta->arr_size[0] > 0 &&
-                val_ui64(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
+                val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -231,8 +231,6 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
     default:
         ASSERT1(!"invalid operator", exp->u_un.kind);
     }
-
-    return NO_ERROR;
 
     if (is_lit_exp(val_exp)) {
         value_eval(op, &val_exp->u_lit.val, NULL, &exp->u_lit.val);

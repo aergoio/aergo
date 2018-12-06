@@ -10,9 +10,7 @@
 
 #define is_null_val(val)            ((val)->size == 0)
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
-#define is_ui32_val(val)            ((val)->type == TYPE_UINT32)
-#define is_ui64_val(val)            ((val)->type == TYPE_UINT64)
-#define is_f32_val(val)             ((val)->type == TYPE_FLOAT)
+#define is_i64_val(val)             ((val)->type == TYPE_UINT64)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
@@ -21,14 +19,12 @@
 #define val_size(val)               ((val)->size)
 
 #define val_bool(val)               ((val)->b)
-#define val_ui32(val)               ((val)->is_neg ? -(val)->ui32 : (val)->ui32)
-#define val_ui64(val)               ((val)->is_neg ? -(val)->ui64 : (val)->ui64)
-#define val_f32(val)                ((val)->f)
+#define val_i64(val)                ((val)->is_neg ? -(val)->i64 : (val)->i64)
 #define val_f64(val)                ((val)->d)
 #define val_str(val)                ((val)->ptr)
 
 #define is_zero_val(val)                                                                 \
-    (is_ui64_val(val) ? (val)->ui64 == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
+    (is_i64_val(val) ? (val)->i64 == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
 
 #define value_set_bool(val, v)                                                           \
     do {                                                                                 \
@@ -38,28 +34,12 @@
         (val)->b = (v);                                                                  \
     } while (0)
 
-#define value_set_ui32(val, v)                                                           \
-    do {                                                                                 \
-        (val)->type = TYPE_UINT32;                                                       \
-        (val)->size = sizeof(uint32_t);                                                  \
-        (val)->ptr = &(val)->ui32;                                                       \
-        (val)->ui32 = (v);                                                               \
-    } while (0)
-
-#define value_set_ui64(val, v)                                                           \
+#define value_set_i64(val, v)                                                           \
     do {                                                                                 \
         (val)->type = TYPE_UINT64;                                                       \
         (val)->size = sizeof(uint64_t);                                                  \
-        (val)->ptr = &(val)->ui64;                                                       \
-        (val)->ui64 = (v);                                                               \
-    } while (0)
-
-#define value_set_f32(val, v)                                                            \
-    do {                                                                                 \
-        (val)->type = TYPE_FLOAT;                                                        \
-        (val)->size = sizeof(float);                                                     \
-        (val)->ptr = &(val)->f;                                                          \
-        (val)->f = (v);                                                                  \
+        (val)->ptr = &(val)->i64;                                                       \
+        (val)->i64 = (v);                                                               \
     } while (0)
 
 #define value_set_f64(val, v)                                                            \
@@ -106,9 +86,7 @@ struct value_s {
     void *ptr;
     union {
         bool b;
-        uint32_t ui32;
-        uint64_t ui64;
-        float f;
+        uint64_t i64;
         double d;
         char *s;
     };

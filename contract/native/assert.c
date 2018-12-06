@@ -26,7 +26,7 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
         char *name;
         char c;
         uint32_t i32;
-        uint64_t ui64;
+        uint64_t i64;
 
         name = va_arg(vargs, char *);
         size = va_arg(vargs, int);
@@ -44,9 +44,9 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
             fprintf(stderr, "%d = %u = 0x%x\n", i32, i32, i32);
             break;
         case 8:
-            ui64 = va_arg(vargs, uint64_t);
+            i64 = va_arg(vargs, uint64_t);
             fprintf(stderr, "%"PRId64" = %"PRIu64" = 0x%"PRIx64"\n", 
-                    (int64_t)ui64, ui64, ui64);
+                    (int64_t)i64, i64, i64);
             break;
         default:
             break;

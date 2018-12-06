@@ -9,59 +9,23 @@
 
 #include "value.h"
 
-#define ui32_fit_int(val, max)                                                           \
-    (((val)->is_neg && (val)->ui32 <= (uint32_t)(max) + 1) ||                            \
-     (!(val)->is_neg && (val)->ui32 <= (uint32_t)(max)))
+#define i64_fit_signed(val, max)                                                            \
+    (((val)->is_neg && (val)->i64 <= (uint64_t)(max) + 1) ||                             \
+     (!(val)->is_neg && (val)->i64 <= (uint64_t)(max)))
 
-#define ui32_fit_uint(val, max)      (!(val)->is_neg && (val)->ui32 <= (max))
-
-#define ui64_fit_int(val, max)                                                           \
-    (((val)->is_neg && (val)->ui64 <= (uint64_t)(max) + 1) ||                            \
-     (!(val)->is_neg && (val)->ui64 <= (uint64_t)(max)))
-
-#define ui64_fit_uint(val, max)      (!(val)->is_neg && (val)->ui64 <= (max))
+#define i64_fit_unsigned(val, max)      (!(val)->is_neg && (val)->i64 <= (max))
 
 #define value_eval_arith(op, x, y, res)                                                  \
     do {                                                                                 \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
         switch (x->type) {                                                               \
-        case TYPE_UINT32:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                value_set_ui32(res, val_ui32(x) op val_ui32(y));                         \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                value_set_ui64(res, val_ui32(x) op val_ui64(y));                         \
-            }                                                                            \
-            break;                                                                       \
         case TYPE_UINT64:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                value_set_ui64(res, val_ui64(x) op val_ui32(y));                         \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                value_set_ui64(res, val_ui64(x) op val_ui64(y));                         \
-            }                                                                            \
-            break;                                                                       \
-        case TYPE_FLOAT:                                                                 \
-            if (y->type == TYPE_FLOAT) {                                                 \
-                value_set_f32(res, val_f32(x) op val_f32(y));                            \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_DOUBLE, (y)->type);                            \
-                value_set_f64(res, val_f32(x) op val_f64(y));                            \
-            }                                                                            \
+            value_set_i64((res), val_i64(x) op val_i64(y));                              \
             break;                                                                       \
         case TYPE_DOUBLE:                                                                \
-            if (y->type == TYPE_FLOAT) {                                                 \
-                value_set_f64(res, val_f64(x) op val_f32(y));                            \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_DOUBLE, (y)->type);                            \
-                value_set_f64(res, val_f64(x) op val_f64(y));                            \
-            }                                                                            \
+            value_set_f64((res), val_f64(x) op val_f64(y));                              \
             break;                                                                       \
         case TYPE_STRING:                                                                \
-            ASSERT1((y)->type == TYPE_STRING, (y)->type);                                \
             value_set_str((res), xstrcat(val_str(x), val_str(y)));                       \
             break;                                                                       \
         default:                                                                         \
@@ -72,93 +36,42 @@
 #define value_eval_cmp(op, x, y, res)                                                    \
     do {                                                                                 \
         bool v = false;                                                                  \
-                                                                                         \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
         switch (x->type) {                                                               \
         case TYPE_BOOL:                                                                  \
-            ASSERT1((y)->type == TYPE_BOOL, (y)->type);                                  \
             v = val_bool(x) op val_bool(y);                                              \
             break;                                                                       \
-        case TYPE_UINT32:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                v = val_ui32(x) op val_ui32(y);                                          \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                v = val_ui32(x) op val_ui64(y);                                          \
-            }                                                                            \
-            break;                                                                       \
         case TYPE_UINT64:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                v = val_ui64(x) op val_ui32(y);                                          \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                v = val_ui64(x) op val_ui64(y);                                          \
-            }                                                                            \
-            break;                                                                       \
-        case TYPE_FLOAT:                                                                 \
-            if (y->type == TYPE_FLOAT) {                                                 \
-                v = val_f32(x) op val_f32(y);                                            \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_DOUBLE, (y)->type);                            \
-                v = val_f32(x) op val_f64(y);                                            \
-            }                                                                            \
+            v = val_i64(x) op val_i64(y);                                                \
             break;                                                                       \
         case TYPE_DOUBLE:                                                                \
-            if (y->type == TYPE_FLOAT) {                                                 \
-                v = val_f64(x) op val_f32(y);                                            \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_DOUBLE, (y)->type);                            \
-                v = val_f64(x) op val_f64(y);                                            \
-            }                                                                            \
+            v = val_f64(x) op val_f64(y);                                                \
             break;                                                                       \
         case TYPE_STRING:                                                                \
-            if (is_null_val(x) || is_null_val(y)) {                                      \
+            if (is_null_val(x) || is_null_val(y))                                        \
                 v = is_null_val(x) && is_null_val(y);                                    \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_STRING, (y)->type);                            \
+            else                                                                         \
                 v = strcmp(val_str(x), val_str(y)) op 0;                                 \
-            }                                                                            \
             break;                                                                       \
         case TYPE_OBJECT:                                                                \
             ASSERT1((y)->type == TYPE_OBJECT, (y)->type);                                \
-            if (is_null_val(x) || is_null_val(y)) {                                      \
+            if (is_null_val(x) || is_null_val(y))                                        \
                 v = is_null_val(x) && is_null_val(y);                                    \
-            }                                                                            \
-            else {                                                                       \
+            else                                                                         \
                 v = val_ptr(x) op val_ptr(y);                                            \
-            }                                                                            \
             break;                                                                       \
         default:                                                                         \
             ASSERT1(!"invalid value", (x)->type);                                        \
         }                                                                                \
-                                                                                         \
         value_set_bool((res), v);                                                        \
     } while (0)
 
 #define value_eval_bit(op, x, y, res)                                                    \
     do {                                                                                 \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
         switch (x->type) {                                                               \
-        case TYPE_UINT32:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                value_set_ui32(res, val_ui32(x) op val_ui32(y));                         \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                value_set_ui64(res, val_ui32(x) op val_ui64(y));                         \
-            }                                                                            \
-            break;                                                                       \
         case TYPE_UINT64:                                                                \
-            if (y->type == TYPE_UINT32) {                                                \
-                value_set_ui64(res, val_ui64(x) op val_ui32(y));                         \
-            }                                                                            \
-            else {                                                                       \
-                ASSERT1((y)->type == TYPE_UINT64, (y)->type);                            \
-                value_set_ui64(res, val_ui64(x) op val_ui64(y));                         \
-            }                                                                            \
+            value_set_i64(res, val_i64(x) op val_i64(y));                         \
             break;                                                                       \
         default:                                                                         \
             ASSERT1(!"invalid value", (x)->type);                                        \
@@ -175,59 +88,25 @@ value_fit(value_t *val, meta_t *meta)
         ASSERT1(is_bool_type(meta), meta->type);
         break;
 
-    case TYPE_UINT32:
-        ASSERT1(is_dec_family(meta), meta->type);
-        if ((meta->type == TYPE_BYTE && ui32_fit_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT8 && ui32_fit_int(val, INT8_MAX)) ||
-            (meta->type == TYPE_UINT8 && ui32_fit_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT16 && ui32_fit_int(val, INT16_MAX)) ||
-            (meta->type == TYPE_UINT16 && ui32_fit_uint(val, UINT16_MAX)) ||
-            (meta->type == TYPE_INT32 && ui32_fit_int(val, INT32_MAX)) ||
-            (meta->type == TYPE_UINT32 && !val->is_neg))
-            return true;
-
-        if (meta->type == TYPE_INT64 || 
-            (meta->type == TYPE_UINT64 && !val->is_neg)) {
-            value_set_ui64(val, val_ui32(val));
-            return true;
-        }
-
-        return false;
-
     case TYPE_UINT64:
         ASSERT1(is_dec_family(meta), meta->type);
-
-        if ((meta->type == TYPE_BYTE && ui64_fit_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT8 && ui64_fit_int(val, INT8_MAX)) ||
-            (meta->type == TYPE_UINT8 && ui64_fit_uint(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT16 && ui64_fit_int(val, INT16_MAX)) ||
-            (meta->type == TYPE_UINT16 && ui64_fit_uint(val, UINT16_MAX)) ||
-            (meta->type == TYPE_INT32 && ui64_fit_int(val, INT32_MAX)) ||
-            (meta->type == TYPE_UINT32 && ui64_fit_uint(val, UINT32_MAX))) {
-            value_set_ui32(val, (uint32_t)val_ui64(val));
-            return true;
-        }
-
-        if ((meta->type == TYPE_INT64 && ui64_fit_int(val, INT64_MAX)) ||
-            (meta->type == TYPE_UINT64 && !val->is_neg))
-            return true;
-
-        return false;
-
-    case TYPE_FLOAT:
-        ASSERT1(is_fp_family(meta), meta->type);
-        if (meta->type == TYPE_DOUBLE)
-            value_set_f64(val, val_f32(val));
+        if ((meta->type == TYPE_BYTE && !i64_fit_unsigned(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT8 && !i64_fit_signed(val, INT8_MAX)) ||
+            (meta->type == TYPE_UINT8 && !i64_fit_unsigned(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT16 && !i64_fit_signed(val, INT16_MAX)) ||
+            (meta->type == TYPE_UINT16 && !i64_fit_unsigned(val, UINT16_MAX)) ||
+            (meta->type == TYPE_INT32 && !i64_fit_signed(val, INT32_MAX)) ||
+            (meta->type == TYPE_UINT32 && !i64_fit_unsigned(val, UINT32_MAX)) ||
+            (meta->type == TYPE_INT64 && !i64_fit_signed(val, INT64_MAX)) ||
+            (meta->type == TYPE_UINT64 && val->is_neg))
+            return false;
         break;
 
     case TYPE_DOUBLE:
         ASSERT1(is_fp_family(meta), meta->type);
-        if (meta->type == TYPE_FLOAT) {
-            if ((float)val->d > FLT_MAX || (float)val->d < -FLT_MAX)
-                return false;
-
-            value_set_f32(val, (float)val_f64(val));
-        }
+        if (meta->type == TYPE_FLOAT && 
+            ((float)val->d > FLT_MAX || (float)val->d < -FLT_MAX))
+            return false;
         break;
 
     case TYPE_STRING:
@@ -235,6 +114,8 @@ value_fit(value_t *val, meta_t *meta)
         break;
 
     case TYPE_OBJECT:
+        if (is_null_val(val))
+            ASSERT1(is_obj_family(meta), meta->type);
         break;
 
     default:
@@ -254,7 +135,7 @@ value_cmp(value_t *x, value_t *y)
         return val_bool(x) == val_bool(y) ? 0 : (val_bool(x) > val_bool(y) ? 1 : -1);
 
     case TYPE_UINT64:
-        return val_ui64(x) == val_ui64(y) ? 0 : (val_ui64(x) > val_ui64(y) ? 1 : -1);
+        return val_i64(x) == val_i64(y) ? 0 : (val_i64(x) > val_i64(y) ? 1 : -1);
 
     case TYPE_DOUBLE:
         return val_f64(x) == val_f64(y) ? 0 : (val_f64(x) > val_f64(y) ? 1 : -1);
@@ -290,8 +171,8 @@ value_mul(value_t *x, value_t *y, value_t *res)
 static void
 value_div(value_t *x, value_t *y, value_t *res)
 {
-    if (is_ui64_val(x))
-        ASSERT(y->ui64 != 0);
+    if (is_i64_val(x))
+        ASSERT(y->i64 != 0);
     else if (is_f64_val(x))
         ASSERT(y->d != 0.0f);
 
@@ -301,9 +182,9 @@ value_div(value_t *x, value_t *y, value_t *res)
 static void
 value_mod(value_t *x, value_t *y, value_t *res)
 {
-    if (is_ui64_val(x)) {
-        ASSERT(y->ui64 != 0);
-        value_set_ui64(res, x->ui64 % y->ui64);
+    if (is_i64_val(x)) {
+        ASSERT(y->i64 != 0);
+        value_set_i64(res, x->i64 % y->i64);
     }
     else {
         ASSERT1(!"invalid value", res->type);
@@ -381,16 +262,9 @@ value_neg(value_t *x, value_t *y, value_t *res)
 {
     ASSERT(y == NULL);
 
-    if (is_ui32_val(x)) {
-        value_set_ui32(res, val_ui32(x));
+    if (is_i64_val(x)) {
+        value_set_i64(res, val_i64(x));
         value_set_neg(res, !x->is_neg);
-    }
-    else if (is_ui64_val(x)) {
-        value_set_ui64(res, val_ui64(x));
-        value_set_neg(res, !x->is_neg);
-    }
-    else if (is_f32_val(x)) {
-        value_set_f32(res, -val_f32(x));
     }
     else if (is_f64_val(x)) {
         value_set_f64(res, -val_f64(x));
@@ -463,18 +337,8 @@ value_cast_to_bool(value_t *val)
     case TYPE_BOOL:
         break;
 
-    case TYPE_UINT32:
-        value_set_bool(val, val->ui32 != 0);
-        value_set_neg(val, false);
-        break;
-
     case TYPE_UINT64:
-        value_set_bool(val, val->ui64 != 0);
-        value_set_neg(val, false);
-        break;
-
-    case TYPE_FLOAT:
-        value_set_bool(val, val->f != 0.0f);
+        value_set_bool(val, val->i64 != 0);
         value_set_neg(val, false);
         break;
 
@@ -493,119 +357,33 @@ value_cast_to_bool(value_t *val)
 }
 
 static void
-value_cast_to_ui32(value_t *val)
+value_cast_to_i64(value_t *val)
 {
-    uint32_t ui32 = 0;
+    uint64_t i64 = 0;
 
     switch (val->type) {
     case TYPE_BOOL:
-        value_set_ui32(val, val->b ? 1 : 0);
-        break;
-
-    case TYPE_UINT32:
+        value_set_i64(val, val->b ? 1 : 0);
         break;
 
     case TYPE_UINT64:
-        value_set_ui32(val, (uint32_t)val->ui64);
-        break;
-
-    case TYPE_FLOAT:
-        value_set_ui32(val, (uint32_t)val->f);
         break;
 
     case TYPE_DOUBLE:
-        value_set_ui32(val, (uint32_t)val->d);
+        value_set_i64(val, (uint64_t)val->d);
         break;
 
     case TYPE_STRING:
         if (val->s != NULL) {
             if (val->s[0] == '-') {
-                sscanf(val->s + 1, "%u", &ui32);
+                sscanf(val->s + 1, "%"SCNu64, &i64);
                 value_set_neg(val, true);
             }
             else {
-                sscanf(val->s, "%u", &ui32);
+                sscanf(val->s, "%"SCNu64, &i64);
             }
         }
-        value_set_ui32(val, ui32);
-        break;
-
-    default:
-        ASSERT1(!"invalid value", val->type);
-    }
-}
-
-static void
-value_cast_to_ui64(value_t *val)
-{
-    uint64_t ui64 = 0;
-
-    switch (val->type) {
-    case TYPE_BOOL:
-        value_set_ui64(val, val->b ? 1 : 0);
-        break;
-
-    case TYPE_UINT32:
-        value_set_ui64(val, val->ui32);
-        break;
-
-    case TYPE_UINT64:
-        break;
-
-    case TYPE_FLOAT:
-        value_set_ui64(val, (uint64_t)val->f);
-        break;
-
-    case TYPE_DOUBLE:
-        value_set_ui64(val, (uint64_t)val->d);
-        break;
-
-    case TYPE_STRING:
-        if (val->s != NULL) {
-            if (val->s[0] == '-') {
-                sscanf(val->s + 1, "%"SCNu64, &ui64);
-                value_set_neg(val, true);
-            }
-            else {
-                sscanf(val->s, "%"SCNu64, &ui64);
-            }
-        }
-        value_set_ui64(val, ui64);
-        break;
-
-    default:
-        ASSERT1(!"invalid value", val->type);
-    }
-}
-
-static void
-value_cast_to_f32(value_t *val)
-{
-    float f;
-
-    switch (val->type) {
-    case TYPE_BOOL:
-        value_set_f32(val, val_bool(val) ? 1.0 : 0.0);
-        break;
-
-    case TYPE_UINT32:
-        value_set_f32(val, (float)val->ui32);
-        break;
-
-    case TYPE_UINT64:
-        value_set_f32(val, (float)val->ui64);
-        break;
-
-    case TYPE_FLOAT:
-        break;
-
-    case TYPE_DOUBLE:
-        value_set_f32(val, val->d);
-        break;
-
-    case TYPE_STRING:
-        sscanf(val->s, "%f", &f);
-        value_set_f32(val, f);
+        value_set_i64(val, i64);
         break;
 
     default:
@@ -623,16 +401,8 @@ value_cast_to_f64(value_t *val)
         value_set_f64(val, val_bool(val) ? 1.0 : 0.0);
         break;
 
-    case TYPE_UINT32:
-        value_set_f64(val, (double)val->ui32);
-        break;
-
     case TYPE_UINT64:
-        value_set_f64(val, (double)val->ui64);
-        break;
-
-    case TYPE_FLOAT:
-        value_set_f64(val, val->f);
+        value_set_f64(val, (double)val->i64);
         break;
 
     case TYPE_DOUBLE:
@@ -658,18 +428,8 @@ value_cast_to_str(value_t *val)
         value_set_str(val, val->b ? xstrdup("true") : xstrdup("false"));
         break;
 
-    case TYPE_UINT32:
-        snprintf(buf, sizeof(buf), "%u", val_ui32(val));
-        value_set_str(val, xstrdup(buf));
-        break;
-
     case TYPE_UINT64:
-        snprintf(buf, sizeof(buf), "%"PRIu64, val_ui64(val));
-        value_set_str(val, xstrdup(buf));
-        break;
-
-    case TYPE_FLOAT:
-        snprintf(buf, sizeof(buf), "%f", val_f32(val));
+        snprintf(buf, sizeof(buf), "%"PRIu64, val_i64(val));
         value_set_str(val, xstrdup(buf));
         break;
 
@@ -694,16 +454,8 @@ value_cast(value_t *val, meta_t *meta)
         value_cast_to_bool(val);
         break;
 
-    case TYPE_UINT32:
-        value_cast_to_ui32(val);
-        break;
-
     case TYPE_UINT64:
-        value_cast_to_ui64(val);
-        break;
-
-    case TYPE_FLOAT:
-        value_cast_to_f32(val);
+        value_cast_to_i64(val);
         break;
 
     case TYPE_DOUBLE:

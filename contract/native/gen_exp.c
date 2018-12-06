@@ -38,26 +38,34 @@ static BinaryenExpressionRef
 exp_gen_val(gen_t *gen, ast_exp_t *exp, bool is_ref)
 {
     int addr;
+    meta_t *meta = &exp->meta;
     value_t *val = &exp->u_lit.val;
     struct BinaryenLiteral value;
 
-    ASSERT1(is_lit_exp(exp), exp->kind);
-
-    switch (val->type) {
+    switch (meta->type) {
     case TYPE_BOOL:
+        ASSERT1(is_bool_type(meta), meta->type);
         value = BinaryenLiteralInt32(val_bool(val));
         break;
 
+    case TYPE_BYTE:
+    case TYPE_INT8:
+    case TYPE_UINT8:
+    case TYPE_INT16:
+    case TYPE_UINT16:
+    case TYPE_INT32:
     case TYPE_UINT32:
-        value = BinaryenLiteralInt32(val_ui32(val));
+        ASSERT1(is_int_family(meta), meta->type);
+        value = BinaryenLiteralInt32(val_i64(val));
         break;
 
+    case TYPE_INT64:
     case TYPE_UINT64:
-        value = BinaryenLiteralInt64(val_ui64(val));
+        value = BinaryenLiteralInt64(val_i64(val));
         break;
 
     case TYPE_FLOAT:
-        value = BinaryenLiteralFloat32(val_f32(val));
+        value = BinaryenLiteralFloat32(val_f64(val));
         break;
 
     case TYPE_DOUBLE:
@@ -70,6 +78,7 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp, bool is_ref)
         break;
 
     case TYPE_OBJECT:
+    case TYPE_TUPLE:
         if (is_null_val(val)) {
             value = BinaryenLiteralInt32(0);
         }
@@ -80,7 +89,7 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp, bool is_ref)
         break;
 
     default:
-        ASSERT1(!"invalid value", val->type);
+        ASSERT1(!"invalid value", meta->type);
     }
 
     return BinaryenConst(gen->module, value);

@@ -230,7 +230,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     id->u_var.size_exps = NULL;
     id->u_var.init_exp = exp_new_lit(pos);
-    value_set_ui64(&id->u_var.init_exp->u_lit.val, 0);
+    value_set_i64(&id->u_var.init_exp->u_lit.val, 0);
 
     id_add_last(&blk->ids, id);
 
