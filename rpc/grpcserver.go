@@ -640,9 +640,17 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 }
 
 // NodeState handle rpc request nodestate
-func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.SingleBytes) (*types.SingleBytes, error) {
-	timeout := int64(binary.LittleEndian.Uint64(in.Value))
-	statics := rpc.hub.Statistics(time.Duration(timeout) * time.Second)
+func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*types.SingleBytes, error) {
+	timeout := int64(binary.LittleEndian.Uint64(in.Timeout))
+	component := string(in.Component)
+
+	logger.Debug().Str("comp", component).Int64("timeout", timeout).Msg("nodestate")
+
+	statics, err := rpc.hub.Statistics(time.Duration(timeout) * time.Second, component)
+	if err != nil {
+		return nil, err
+	}
+
 	data, err := json.MarshalIndent(statics, "", "\t")
 	if err != nil {
 		return nil, err

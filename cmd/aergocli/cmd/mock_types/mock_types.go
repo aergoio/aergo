@@ -396,7 +396,7 @@ func (mr *MockAergoRPCServiceClientMockRecorder) Metric(arg0, arg1 interface{}, 
 }
 
 // NodeState mocks base method
-func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.NodeReq, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)

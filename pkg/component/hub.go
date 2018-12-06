@@ -118,13 +118,28 @@ func (hub *ComponentHub) Register(components ...IComponent) {
 // collect and return it's response
 // An input argument, timeout, is used to set actor request's timeout.
 // If it is over, than future: timeout string set at error field
-func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompStatRsp {
+func (hub *ComponentHub) Statistics(timeOutSec time.Duration, target string) (map[string]*CompStatRsp, error) {
+	var components map[string]IComponent
+	components = make(map[string]IComponent)
+
+	if len(target) > 0 {
+		component, ok := hub.components[target]
+		if ok {
+			components[target] = component
+		} else {
+			return nil, ErrHubUnregistered
+		}
+	} else {
+		components = hub.components
+	}
+
+
 	var compStatus map[string]Status
 	compStatus = make(map[string]Status)
 
 	// check a status of all components before ask a profiling
 	// request the profiling to only alive components
-	for _, comp := range hub.components {
+	for _, comp := range components {
 		compStatus[comp.GetName()] = comp.Status()
 	}
 
@@ -137,7 +152,7 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 	var retCompStatistics map[string]*CompStatRsp
 	retCompStatistics = make(map[string]*CompStatRsp)
 
-	for name, comp := range hub.components {
+	for name, comp := range components {
 		if compStatus[name] == StartedStatus {
 			// send a request to all component asynchronously
 			jobMap[name] = comp.RequestFuture(
@@ -170,7 +185,7 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration) map[string]*CompSt
 		}
 	}
 
-	return retCompStatistics
+	return retCompStatistics, nil
 }
 
 // Tell pass and forget a message to a component, which has a targetName
