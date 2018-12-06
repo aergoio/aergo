@@ -98,9 +98,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 	}
 	if source.Amount != "" {
-		amount, ok := new(big.Int).SetString(source.Amount, 10)
-		if !ok {
-			return errors.New("failed to parse amount")
+		amount, err := ParseUnit(source.Amount)
+		if err != nil {
+			return err
 		}
 		target.Amount = amount.Bytes()
 	}
@@ -112,9 +112,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	}
 	target.Limit = source.Limit
 	if source.Price != "" {
-		price, ok := new(big.Int).SetString(source.Price, 10)
-		if !ok {
-			return errors.New("failed to parse price")
+		price, err := ParseUnit(source.Price)
+		if err != nil {
+			return err
 		}
 		target.Price = price.Bytes()
 	}

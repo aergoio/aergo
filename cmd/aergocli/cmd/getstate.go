@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ func init() {
 	getstateCmd.Flags().BoolVar(&proof, "proof", false, "Get the proof for the state")
 	getstateCmd.Flags().BoolVar(&compressed, "compressed", false, "Get a compressed proof for the state")
 	getstateCmd.Flags().BoolVar(&staking, "staking", false, "Get the staking info from the address")
+	getstateCmd.Flags().StringVar(&unit, "unit", "aergo", "display unit of balance")
 	rootCmd.AddCommand(getstateCmd)
 }
 
@@ -51,8 +53,13 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, staked:%d, when:%d}\n",
-			address, msg.GetAmount(), msg.GetWhen())
+		amount, err := util.ConvertUnit(msg.GetAmountBigInt(), unit)
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+		cmd.Printf("{account:%s, staked:%s, when:%d}\n",
+			address, amount, msg.GetWhen())
 
 		return
 	}
@@ -66,8 +73,13 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, nonce:%d, balance:%d}\n",
-			address, msg.GetNonce(), msg.GetBalanceBigInt())
+		balance, err := util.ConvertUnit(msg.GetBalanceBigInt(), unit)
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+		cmd.Printf("{account:%s, nonce:%d, balance:%s}\n",
+			address, msg.GetNonce(), balance)
 	} else {
 		// Get the state and proof at a specific root.
 		// If root is nil, the latest block is queried.
@@ -77,8 +89,13 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, nonce:%d, balance:%d, included:%t, merkle proof length:%d, height:%d}\n",
-			address, msg.GetState().GetNonce(), msg.GetState().GetBalanceBigInt(), msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
+		balance, err := util.ConvertUnit(msg.GetState().GetBalanceBigInt(), unit)
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+		cmd.Printf("{account:%s, nonce:%d, balance:%s, included:%t, merkle proof length:%d, height:%d}\n",
+			address, msg.GetState().GetNonce(), balance, msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
 	}
 
 }
