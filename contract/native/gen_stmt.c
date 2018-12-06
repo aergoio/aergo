@@ -16,19 +16,53 @@ static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
-    ast_id_t *id = l_exp->id;
-    BinaryenExpressionRef value;
+    ast_exp_t *r_exp = stmt->u_assign.r_exp;
+    ast_id_t *id;
+    meta_t *meta;
+    BinaryenExpressionRef var_exp, val_exp;
 
-    ASSERT(id != NULL);
+    if (is_tuple_exp(l_exp)) {
+        int i;
+        array_t *l_exps, *r_exps;
 
-    value = exp_gen(gen, stmt->u_assign.r_exp);
+        if (!is_tuple_exp(r_exp)) {
+            ERROR(ERROR_NOT_SUPPORTED, &r_exp->pos);
+            return NULL;
+        }
 
-    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta))
-        return BinaryenSetLocal(gen->module, 0, value);
+        l_exps = l_exp->u_tup.exps;
+        r_exps = r_exp->u_tup.exps;
+
+        if (array_size(l_exps) != array_size(r_exps)) {
+            ERROR(ERROR_NOT_SUPPORTED, &r_exp->pos);
+            return NULL;
+        }
+
+        for (i = 0; i < array_size(l_exps); i++) {
+        }
+
+        return NULL;
+    }
+
+    id = l_exp->id;
+    meta = &l_exp->meta;
+
+    var_exp = exp_gen(gen, l_exp, true);
+
+    ASSERT2(BinaryenExpressionGetId(var_exp) == BinaryenConstId(),
+            BinaryenExpressionGetId(var_exp), BinaryenConstId());
+
+    val_exp = exp_gen(gen, r_exp, false);
+
+    if (id->idx >= 0)
+        /* var_exp == index of variable */
+        return BinaryenSetLocal(gen->module, BinaryenConstGetValueI32(var_exp), val_exp);
     else
-        return BinaryenStore(gen->module, meta_size(&id->meta), id->offset, 0,
+        /* var_exp == offset of variable */
+        return BinaryenStore(gen->module, meta_size(meta),
+                             BinaryenConstGetValueI32(var_exp), 0,
                              BinaryenConst(gen->module, BinaryenLiteralInt32(id->addr)),
-                             value, meta_gen(gen, &id->meta));
+                             val_exp, meta_gen(gen, meta));
 }
 
 static BinaryenExpressionRef
@@ -87,7 +121,7 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenNop(gen->module);
 
     case STMT_EXP:
-        return exp_gen(gen, stmt->u_exp.exp);
+        return exp_gen(gen, stmt->u_exp.exp, false);
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);

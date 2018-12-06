@@ -110,6 +110,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, id_exp));
 
     exp->id = id_exp->id;
+    ASSERT(exp->id != NULL);
 
     idx_exp = exp->u_arr.idx_exp;
     idx_meta = &idx_exp->meta;
@@ -150,8 +151,6 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta->elems[1]);
     }
 
-    ASSERT(exp->id != NULL);
-
     return NO_ERROR;
 }
 
@@ -188,16 +187,74 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 }
 
 static int
+exp_check_unary(check_t *check, ast_exp_t *exp)
+{
+    op_kind_t op = exp->u_un.kind;
+    ast_exp_t *val_exp;
+    meta_t *val_meta;
+
+    ASSERT1(is_unary_exp(exp), exp->kind);
+    ASSERT(exp->u_un.val_exp != NULL);
+
+    val_exp = exp->u_un.val_exp;
+    val_meta = &val_exp->meta;
+
+    CHECK(exp_check(check, val_exp));
+
+    switch (op) {
+    case OP_INC:
+    case OP_DEC:
+        /* XXX: need position information (prefix or postfix) */
+        if (!is_usable_lval(val_exp))
+            RETURN(ERROR_INVALID_LVALUE, &val_exp->pos);
+
+        if (!is_dec_family(val_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
+
+        meta_copy(&exp->meta, val_meta);
+        break;
+
+    case OP_NEG:
+        if (!is_num_family(val_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
+
+        meta_copy(&exp->meta, val_meta);
+        break;
+
+    case OP_NOT:
+        if (!is_bool_type(val_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
+
+        meta_copy(&exp->meta, val_meta);
+        break;
+
+    default:
+        ASSERT1(!"invalid operator", exp->u_un.kind);
+    }
+
+    return NO_ERROR;
+
+    if (is_lit_exp(val_exp)) {
+        value_eval(op, &val_exp->u_lit.val, NULL, &exp->u_lit.val);
+
+        exp->kind = EXP_LIT;
+        meta_set_undef(&exp->meta);
+    }
+
+    return NO_ERROR;
+}
+
+static int
 exp_check_op_arith(check_t *check, ast_exp_t *exp)
 {
-    op_kind_t op = exp->u_op.kind;
+    op_kind_t op = exp->u_bin.kind;
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp != NULL);
+    ASSERT(exp->u_bin.l_exp != NULL);
+    ASSERT(exp->u_bin.r_exp != NULL);
 
-    l_exp = exp->u_op.l_exp;
+    l_exp = exp->u_bin.l_exp;
     l_meta = &l_exp->meta;
 
     CHECK(exp_check(check, l_exp));
@@ -214,7 +271,7 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
 
-    r_exp = exp->u_op.r_exp;
+    r_exp = exp->u_bin.r_exp;
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
@@ -231,10 +288,10 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp != NULL);
+    ASSERT(exp->u_bin.l_exp != NULL);
+    ASSERT(exp->u_bin.r_exp != NULL);
 
-    l_exp = exp->u_op.l_exp;
+    l_exp = exp->u_bin.l_exp;
     l_meta = &l_exp->meta;
 
     CHECK(exp_check(check, l_exp));
@@ -242,12 +299,12 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     if (!is_dec_family(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
-    r_exp = exp->u_op.r_exp;
+    r_exp = exp->u_bin.r_exp;
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
 
-    switch (exp->u_op.kind) {
+    switch (exp->u_bin.kind) {
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
@@ -262,7 +319,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
         break;
 
     default:
-        ASSERT1(!"invalid operator", exp->u_op.kind);
+        ASSERT1(!"invalid operator", exp->u_bin.kind);
     }
 
     meta_copy(&exp->meta, l_meta);
@@ -276,15 +333,15 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp != NULL);
+    ASSERT(exp->u_bin.l_exp != NULL);
+    ASSERT(exp->u_bin.r_exp != NULL);
 
-    l_exp = exp->u_op.l_exp;
+    l_exp = exp->u_bin.l_exp;
     l_meta = &l_exp->meta;
 
     CHECK(exp_check(check, l_exp));
 
-    r_exp = exp->u_op.r_exp;
+    r_exp = exp->u_bin.r_exp;
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
@@ -302,63 +359,15 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_op_unary(check_t *check, ast_exp_t *exp)
-{
-    ast_exp_t *l_exp;
-    meta_t *l_meta;
-
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp == NULL);
-
-    l_exp = exp->u_op.l_exp;
-    l_meta = &l_exp->meta;
-
-    CHECK(exp_check(check, l_exp));
-
-    switch (exp->u_op.kind) {
-    case OP_INC:
-    case OP_DEC:
-        /* XXX: need position information (prefix or postfix) */
-        if (!is_usable_lval(l_exp))
-            RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
-
-        if (!is_dec_family(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
-
-        meta_copy(&exp->meta, l_meta);
-        break;
-
-    case OP_NEG:
-        if (!is_num_family(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
-
-        meta_copy(&exp->meta, l_meta);
-        break;
-
-    case OP_NOT:
-        if (!is_bool_type(l_meta))
-            RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
-
-        meta_copy(&exp->meta, l_meta);
-        break;
-
-    default:
-        ASSERT1(!"invalid operator", exp->u_op.kind);
-    }
-
-    return NO_ERROR;
-}
-
-static int
 exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
 
-    ASSERT(exp->u_op.l_exp != NULL);
-    ASSERT(exp->u_op.r_exp != NULL);
+    ASSERT(exp->u_bin.l_exp != NULL);
+    ASSERT(exp->u_bin.r_exp != NULL);
 
-    l_exp = exp->u_op.l_exp;
+    l_exp = exp->u_bin.l_exp;
     l_meta = &l_exp->meta;
 
     CHECK(exp_check(check, l_exp));
@@ -366,7 +375,7 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
     if (!is_bool_type(l_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
-    r_exp = exp->u_op.r_exp;
+    r_exp = exp->u_bin.r_exp;
     r_meta = &r_exp->meta;
 
     CHECK(exp_check(check, r_exp));
@@ -380,11 +389,11 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_op(check_t *check, ast_exp_t *exp)
+exp_check_binary(check_t *check, ast_exp_t *exp)
 {
-    op_kind_t op = exp->u_op.kind;
+    op_kind_t op = exp->u_bin.kind;
 
-    ASSERT1(is_op_exp(exp), exp->kind);
+    ASSERT1(is_binary_exp(exp), exp->kind);
 
     switch (op) {
     case OP_ADD:
@@ -412,42 +421,65 @@ exp_check_op(check_t *check, ast_exp_t *exp)
         CHECK(exp_check_op_cmp(check, exp));
         break;
 
-    case OP_INC:
-    case OP_DEC:
-    case OP_NOT:
-    case OP_NEG:
-        CHECK(exp_check_op_unary(check, exp));
-        break;
-
     case OP_AND:
     case OP_OR:
         CHECK(exp_check_op_bool_cmp(check, exp));
         break;
 
     default:
-        ASSERT1(!"invalid operator", exp->u_op.kind);
+        ASSERT1(!"invalid operator", exp->u_bin.kind);
     }
 
-    if (is_lit_exp(exp->u_op.l_exp)) {
-        ast_exp_t *l_exp = exp->u_op.l_exp;
-        ast_exp_t *r_exp = exp->u_op.r_exp;
-        value_t *r_val = NULL;
+    if (is_lit_exp(exp->u_bin.l_exp)) {
+        ast_exp_t *l_exp = exp->u_bin.l_exp;
+        ast_exp_t *r_exp = exp->u_bin.r_exp;
 
-        if (r_exp != NULL) {
-            if (!is_lit_exp(r_exp))
-                return NO_ERROR;
+        if (!is_lit_exp(r_exp))
+            return NO_ERROR;
 
-            r_val = &r_exp->u_lit.val;
+        if ((op == OP_DIV || op == OP_MOD) && is_zero_val(&r_exp->u_lit.val))
+            RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
 
-            if ((op == OP_DIV || op == OP_MOD) && is_zero_val(r_val))
-                RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
-        }
-
-        value_eval(op, &l_exp->u_lit.val, r_val, &exp->u_lit.val);
+        value_eval(op, &l_exp->u_lit.val, &r_exp->u_lit.val, &exp->u_lit.val);
 
         exp->kind = EXP_LIT;
         meta_set_undef(&exp->meta);
     }
+
+    return NO_ERROR;
+}
+
+static int
+exp_check_ternary(check_t *check, ast_exp_t *exp)
+{
+    ast_exp_t *pre_exp, *in_exp, *post_exp;
+    meta_t *pre_meta, *in_meta, *post_meta;
+
+    ASSERT1(is_ternary_exp(exp), exp->kind);
+    ASSERT(exp->u_tern.pre_exp != NULL);
+    ASSERT(exp->u_tern.in_exp != NULL);
+    ASSERT(exp->u_tern.post_exp != NULL);
+
+    pre_exp = exp->u_tern.pre_exp;
+    pre_meta = &pre_exp->meta;
+
+    CHECK(exp_check(check, pre_exp));
+
+    if (!is_bool_type(pre_meta))
+        RETURN(ERROR_INVALID_COND_TYPE, &pre_exp->pos, meta_to_str(pre_meta));
+
+    in_exp = exp->u_tern.in_exp;
+    in_meta = &in_exp->meta;
+
+    CHECK(exp_check(check, in_exp));
+
+    post_exp = exp->u_tern.post_exp;
+    post_meta = &post_exp->meta;
+
+    CHECK(exp_check(check, post_exp));
+    CHECK(meta_cmp(in_meta, post_meta));
+
+    meta_eval(&exp->meta, in_meta, post_meta);
 
     return NO_ERROR;
 }
@@ -595,41 +627,6 @@ exp_check_sql(check_t *check, ast_exp_t *exp)
 }
 
 static int
-exp_check_ternary(check_t *check, ast_exp_t *exp)
-{
-    ast_exp_t *pre_exp, *in_exp, *post_exp;
-    meta_t *pre_meta, *in_meta, *post_meta;
-
-    ASSERT1(is_ternary_exp(exp), exp->kind);
-    ASSERT(exp->u_tern.pre_exp != NULL);
-    ASSERT(exp->u_tern.in_exp != NULL);
-    ASSERT(exp->u_tern.post_exp != NULL);
-
-    pre_exp = exp->u_tern.pre_exp;
-    pre_meta = &pre_exp->meta;
-
-    CHECK(exp_check(check, pre_exp));
-
-    if (!is_bool_type(pre_meta))
-        RETURN(ERROR_INVALID_COND_TYPE, &pre_exp->pos, meta_to_str(pre_meta));
-
-    in_exp = exp->u_tern.in_exp;
-    in_meta = &in_exp->meta;
-
-    CHECK(exp_check(check, in_exp));
-
-    post_exp = exp->u_tern.post_exp;
-    post_meta = &post_exp->meta;
-
-    CHECK(exp_check(check, post_exp));
-    CHECK(meta_cmp(in_meta, post_meta));
-
-    meta_eval(&exp->meta, in_meta, post_meta);
-
-    return NO_ERROR;
-}
-
-static int
 exp_check_tuple(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -710,8 +707,14 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_CAST:
         return exp_check_cast(check, exp);
 
-    case EXP_OP:
-        return exp_check_op(check, exp);
+    case EXP_UNARY:
+        return exp_check_unary(check, exp);
+
+    case EXP_BINARY:
+        return exp_check_binary(check, exp);
+
+    case EXP_TERNARY:
+        return exp_check_ternary(check, exp);
 
     case EXP_ACCESS:
         return exp_check_access(check, exp);
@@ -721,9 +724,6 @@ exp_check(check_t *check, ast_exp_t *exp)
 
     case EXP_SQL:
         return exp_check_sql(check, exp);
-
-    case EXP_TERNARY:
-        return exp_check_ternary(check, exp);
 
     case EXP_TUPLE:
         return exp_check_tuple(check, exp);

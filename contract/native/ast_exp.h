@@ -17,11 +17,12 @@
 #define is_ref_exp(exp)             ((exp)->kind == EXP_REF)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
-#define is_op_exp(exp)              ((exp)->kind == EXP_OP)
+#define is_unary_exp(exp)           ((exp)->kind == EXP_UNARY)
+#define is_binary_exp(exp)          ((exp)->kind == EXP_BINARY)
+#define is_ternary_exp(exp)         ((exp)->kind == EXP_TERNARY)
 #define is_access_exp(exp)          ((exp)->kind == EXP_ACCESS)
 #define is_call_exp(exp)            ((exp)->kind == EXP_CALL)
 #define is_sql_exp(exp)             ((exp)->kind == EXP_SQL)
-#define is_ternary_exp(exp)         ((exp)->kind == EXP_TERNARY)
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 #define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
 
@@ -76,12 +77,18 @@ typedef struct exp_access_s {
     ast_exp_t *fld_exp;
 } exp_access_t;
 
+/* val kind */
+typedef struct exp_unary_s {
+    op_kind_t kind;
+    ast_exp_t *val_exp;
+} exp_unary_t;
+
 /* l kind r */
-typedef struct exp_op_s {
+typedef struct exp_binary_s {
     op_kind_t kind;
     ast_exp_t *l_exp;
     ast_exp_t *r_exp;
-} exp_op_t;
+} exp_binary_t;
 
 /* prefix ? infix : postfix */
 typedef struct exp_ternary_s {
@@ -118,7 +125,8 @@ struct ast_exp_s {
         exp_cast_t u_cast;
         exp_call_t u_call;
         exp_access_t u_acc;
-        exp_op_t u_op;
+        exp_unary_t u_un;
+        exp_binary_t u_bin;
         exp_ternary_t u_tern;
         exp_sql_t u_sql;
         exp_tuple_t u_tup;
@@ -137,8 +145,9 @@ ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
-ast_exp_t *exp_new_op(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
-                      src_pos_t *pos);
+ast_exp_t *exp_new_unary(op_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos);
+ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
+                          src_pos_t *pos);
 ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
                            src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);

@@ -149,7 +149,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         if_blk = blk_new_normal(&cond_exp->pos);
         array_add_last(&if_blk->stmts, goto_stmt);
 
-        not_exp = exp_new_op(OP_NOT, cond_exp, NULL, &cond_exp->pos);
+        not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
 
         if_stmt = stmt_new_if(not_exp, if_blk, &cond_exp->pos);
         if_stmt->label = blk->loop_label;

@@ -12,6 +12,11 @@
 #include "dsgmt.h"
 #include "binaryen-c.h"
 
+#ifndef _META_T
+#define _META_T
+typedef struct meta_s meta_t;
+#endif /* ! _META_T */
+
 typedef struct gen_s {
     flag_t flag;
     char path[PATH_MAX_LEN + 5];
@@ -30,5 +35,7 @@ typedef struct gen_s {
 } gen_t;
 
 void gen(ast_t *ast, flag_t flag, char *path);
+
+uint32_t gen_add_local(gen_t *gen, meta_t *meta);
 
 #endif /* ! _GEN_H */

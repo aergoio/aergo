@@ -705,7 +705,7 @@ assign_stmt:
     }
 |   unary_exp assign_op expression ';'
     {
-        $$ = stmt_new_assign($1, exp_new_op($2, $1, $3, &@2), &@2);
+        $$ = stmt_new_assign($1, exp_new_binary($2, $1, $3, &@2), &@2);
     }
 ;
 
@@ -968,7 +968,7 @@ or_exp:
     and_exp
 |   or_exp CMP_OR and_exp
     {
-        $$ = exp_new_op(OP_OR, $1, $3, &@2);
+        $$ = exp_new_binary(OP_OR, $1, $3, &@2);
     }
 ;
 
@@ -976,7 +976,7 @@ and_exp:
     bit_or_exp
 |   and_exp CMP_AND bit_or_exp
     {
-        $$ = exp_new_op(OP_AND, $1, $3, &@2);
+        $$ = exp_new_binary(OP_AND, $1, $3, &@2);
     }
 ;
 
@@ -984,7 +984,7 @@ bit_or_exp:
     bit_xor_exp
 |   bit_or_exp '|' bit_xor_exp
     {
-        $$ = exp_new_op(OP_BIT_OR, $1, $3, &@2);
+        $$ = exp_new_binary(OP_BIT_OR, $1, $3, &@2);
     }
 ;
 
@@ -992,7 +992,7 @@ bit_xor_exp:
     bit_and_exp
 |   bit_xor_exp '^' bit_and_exp
     {
-        $$ = exp_new_op(OP_BIT_XOR, $1, $3, &@2);
+        $$ = exp_new_binary(OP_BIT_XOR, $1, $3, &@2);
     }
 ;
 
@@ -1000,7 +1000,7 @@ bit_and_exp:
     eq_exp
 |   bit_and_exp '&' eq_exp
     {
-        $$ = exp_new_op(OP_BIT_AND, $1, $3, &@2);
+        $$ = exp_new_binary(OP_BIT_AND, $1, $3, &@2);
     }
 ;
 
@@ -1008,7 +1008,7 @@ eq_exp:
     cmp_exp
 |   eq_exp eq_op cmp_exp
     {
-        $$ = exp_new_op($2, $1, $3, &@2);
+        $$ = exp_new_binary($2, $1, $3, &@2);
     }
 ;
 
@@ -1021,7 +1021,7 @@ cmp_exp:
     shift_exp
 |   cmp_exp cmp_op shift_exp
     {
-        $$ = exp_new_op($2, $1, $3, &@2);
+        $$ = exp_new_binary($2, $1, $3, &@2);
     }
 ;
 
@@ -1036,7 +1036,7 @@ shift_exp:
     add_exp
 |   shift_exp shift_op add_exp
     {
-        $$ = exp_new_op($2, $1, $3, &@2);
+        $$ = exp_new_binary($2, $1, $3, &@2);
     }
 ;
 
@@ -1049,7 +1049,7 @@ add_exp:
     mul_exp
 |   add_exp add_op mul_exp
     {
-        $$ = exp_new_op($2, $1, $3, &@2);
+        $$ = exp_new_binary($2, $1, $3, &@2);
     }
 ;
 
@@ -1062,7 +1062,7 @@ mul_exp:
     cast_exp
 |   mul_exp mul_op cast_exp
     {
-        $$ = exp_new_op($2, $1, $3, &@2);
+        $$ = exp_new_binary($2, $1, $3, &@2);
     }
 ;
 
@@ -1084,7 +1084,7 @@ unary_exp:
     post_exp
 |   unary_op unary_exp
     {
-        $$ = exp_new_op($1, $2, NULL, &@$);
+        $$ = exp_new_unary($1, $2, &@$);
     }
 |   '+' unary_exp
     {
@@ -1115,11 +1115,11 @@ post_exp:
     }
 |   post_exp UNARY_INC
     {
-        $$ = exp_new_op(OP_INC, $1, NULL, &@$);
+        $$ = exp_new_unary(OP_INC, $1, &@$);
     }
 |   post_exp UNARY_DEC
     {
-        $$ = exp_new_op(OP_DEC, $1, NULL, &@$);
+        $$ = exp_new_unary(OP_DEC, $1, &@$);
     }
 ;
 

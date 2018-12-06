@@ -11,19 +11,6 @@
 
 #include "gen_id.h"
 
-static void
-add_local(gen_t *gen, ast_id_t *id)
-{
-    id->idx = gen->id_idx++;
-
-    if (gen->locals == NULL)
-        gen->locals = xmalloc(sizeof(BinaryenType));
-    else
-        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
-
-    gen->locals[gen->local_cnt++] = meta_gen(gen, &id->meta);
-}
-
 static BinaryenExpressionRef
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
@@ -75,17 +62,17 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     }
 
     if (is_primitive_type(&id->meta) && !is_array_type(&id->meta)) {
-        add_local(gen, id);
+        id->idx = gen_add_local(gen, &id->meta);
 
         if (dflt_exp != NULL)
-            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, dflt_exp));
+            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, dflt_exp, false));
     }
     else {
         if (dflt_exp == NULL) {
             id->addr = dsgmt_occupy(gen->dsgmt, size);
         }
         else if (is_lit_exp(dflt_exp)) {
-            BinaryenExpressionRef value = exp_gen(gen, dflt_exp);
+            BinaryenExpressionRef value = exp_gen(gen, dflt_exp, false);
 
             ASSERT2(BinaryenExpressionGetId(value) == BinaryenConstId(),
                     BinaryenExpressionGetId(value), BinaryenConstId());
@@ -95,7 +82,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         else {
             id->addr = dsgmt_occupy(gen->dsgmt, size);
 
-            return exp_gen(gen, dflt_exp);
+            return exp_gen(gen, dflt_exp, false);
         }
     }
 
