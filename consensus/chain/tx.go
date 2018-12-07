@@ -20,7 +20,13 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var logger = log.NewLogger("consensus")
+var (
+	// ErrBestBlock indicates that the best block is being changed in
+	// chainservice soon.
+	ErrBestBlock = errors.New("best block changed in chainservice")
+
+	logger = log.NewLogger("consensus")
+)
 
 // FetchTXs requests to mempool and returns types.Tx array.
 func FetchTXs(hs component.ICompSyncRequester, maxBlockBodySize uint32) []*types.Tx {
@@ -92,7 +98,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	select {
 	case chain.InAddBlock <- struct{}{}:
 	default:
-		return nil, errors.New("best block changed in chainservice")
+		return nil, ErrBestBlock
 	}
 	defer func() {
 		<-chain.InAddBlock

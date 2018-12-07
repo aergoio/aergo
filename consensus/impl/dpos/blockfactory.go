@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
@@ -170,7 +171,18 @@ func (bf *BlockFactory) worker() {
 			if err == chain.ErrQuit {
 				return
 			} else if err != nil {
-				logger.Info().Err(err).Msg("failed to produce block")
+				if err == chain.ErrBestBlock {
+					// This means the best block is beging changed by the chain
+					// service. If the chain service quickly executes the
+					// block, there may be still some remaining time to produce
+					// block in the current slot, though. Thus retry block
+					// production by reseting lastJob to nil.
+					lastJob.setIf(nil, func(lhs, rhs *slot.Slot) bool { return lhs == rhs })
+
+					logger.Info().Err(err).Msg("retry block production")
+				} else {
+					logger.Info().Err(err).Msg("failed to produce block")
+				}
 				continue
 			}
 
