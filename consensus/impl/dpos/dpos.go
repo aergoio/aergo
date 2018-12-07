@@ -7,6 +7,7 @@ package dpos
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -30,8 +31,33 @@ var (
 	blockProducers        uint16
 	defaultConsensusCount uint16
 
-	lastJob *slot.Slot
+	lastJob = &lastSlot{}
 )
+
+type lastSlot struct {
+	sync.Mutex
+	s *slot.Slot
+}
+
+func (l *lastSlot) get() *slot.Slot {
+	l.Lock()
+	defer l.Unlock()
+	return l.s
+}
+
+func (l *lastSlot) set(s *slot.Slot) {
+	l.Lock()
+	defer l.Unlock()
+	l.s = s
+}
+
+func (l *lastSlot) setIf(s *slot.Slot, cond func(lhs, rhs *slot.Slot) bool) {
+	l.Lock()
+	defer l.Unlock()
+	if cond(l.s, s) {
+		l.s = s
+	}
+}
 
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
@@ -101,10 +127,10 @@ func (dpos *DPoS) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
-	bpi := dpos.getBpInfo(now, lastJob)
+	bpi := dpos.getBpInfo(now)
 	if bpi != nil {
 		jq <- bpi
-		lastJob = bpi.slot
+		lastJob.set(bpi.slot)
 	}
 }
 
@@ -176,7 +202,7 @@ func (dpos *DPoS) bpIdx() uint16 {
 	return idx
 }
 
-func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
+func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	s := slot.Time(now)
 
 	if !s.IsFor(dpos.bpIdx()) {
@@ -184,7 +210,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 	}
 
 	// already queued slot.
-	if slot.Equal(s, slotQueued) {
+	if slot.Equal(s, lastJob.get()) {
 		return nil
 	}
 
