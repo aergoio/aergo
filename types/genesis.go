@@ -20,11 +20,18 @@ var (
 	}
 )
 
+const (
+	// MagicMax is the max size of the Magic field of ChainID.
+	MagicMax = 10
+	// ConsensusIDMax is the max size of the Consensus field of ChainID.
+	ConsensusIDMax = 10
+)
+
 // ChainID represents the identity of the chain.
 type ChainID struct {
-	Magic     string `json:"magic"`
 	PublicNet bool   `json:"public"`
 	MainNet   bool   `json:"mainnet"`
+	Magic     string `json:"magic"`
 	Consensus string `json:"consensus"`
 }
 
