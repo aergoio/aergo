@@ -36,6 +36,4 @@ typedef struct gen_s {
 
 void gen(ast_t *ast, flag_t flag, char *path);
 
-uint32_t gen_add_local(gen_t *gen, meta_t *meta);
-
 #endif /* ! _GEN_H */

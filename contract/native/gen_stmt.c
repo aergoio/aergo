@@ -47,12 +47,12 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     id = l_exp->id;
     meta = &l_exp->meta;
 
-    var_exp = exp_gen(gen, l_exp, true);
+    var_exp = exp_gen(gen, l_exp, meta, true);
 
     ASSERT2(BinaryenExpressionGetId(var_exp) == BinaryenConstId(),
             BinaryenExpressionGetId(var_exp), BinaryenConstId());
 
-    val_exp = exp_gen(gen, r_exp, false);
+    val_exp = exp_gen(gen, r_exp, meta, false);
 
     if (id->idx >= 0)
         /* var_exp == index of variable */
@@ -121,7 +121,7 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenNop(gen->module);
 
     case STMT_EXP:
-        return exp_gen(gen, stmt->u_exp.exp, false);
+        return exp_gen(gen, stmt->u_exp.exp, &stmt->u_exp.exp->meta, true);
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);

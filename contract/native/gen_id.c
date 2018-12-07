@@ -8,6 +8,7 @@
 #include "gen_blk.h"
 #include "gen_exp.h"
 #include "gen_meta.h"
+#include "gen_util.h"
 
 #include "gen_id.h"
 
@@ -51,28 +52,32 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     */
 
     int i;
-    uint32_t size = meta_size(&id->meta);
+    uint32_t size;
+    meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp = id->u_var.dflt_exp;
 
-    if (is_array_type(&id->meta)) {
+    size = meta_size(meta);
+
+    if (is_array_type(meta)) {
         for (i = 0; i < id->meta.arr_dim; i++) {
             ASSERT(id->meta.arr_size[i] > 0);
             size *= id->meta.arr_size[i];
         }
     }
 
-    if (is_primitive_type(&id->meta) && !is_array_type(&id->meta)) {
-        id->idx = gen_add_local(gen, &id->meta);
+    if (is_primitive_type(meta) && !is_array_type(meta)) {
+        id->idx = gen_add_local(gen, meta);
 
         if (dflt_exp != NULL)
-            return BinaryenSetLocal(gen->module, id->idx, exp_gen(gen, dflt_exp, false));
+            return BinaryenSetLocal(gen->module, id->idx, 
+                                    exp_gen(gen, dflt_exp, meta, false));
     }
     else {
         if (dflt_exp == NULL) {
             id->addr = dsgmt_occupy(gen->dsgmt, size);
         }
         else if (is_lit_exp(dflt_exp)) {
-            BinaryenExpressionRef value = exp_gen(gen, dflt_exp, false);
+            BinaryenExpressionRef value = exp_gen(gen, dflt_exp, &dflt_exp->meta, false);
 
             ASSERT2(BinaryenExpressionGetId(value) == BinaryenConstId(),
                     BinaryenExpressionGetId(value), BinaryenConstId());
@@ -82,7 +87,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         else {
             id->addr = dsgmt_occupy(gen->dsgmt, size);
 
-            return exp_gen(gen, dflt_exp, false);
+            return exp_gen(gen, dflt_exp, meta, false);
         }
     }
 

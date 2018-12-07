@@ -9,6 +9,7 @@
 #include "ast_blk.h"
 #include "gen_id.h"
 #include "gen_meta.h"
+#include "gen_util.h"
 
 #include "gen.h"
 
@@ -97,19 +98,6 @@ gen(ast_t *ast, flag_t flag, char *path)
     }
 
     gen_reset(&gen);
-}
-
-uint32_t
-gen_add_local(gen_t *gen, meta_t *meta)
-{
-    if (gen->locals == NULL)
-        gen->locals = xmalloc(sizeof(BinaryenType));
-    else
-        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
-
-    gen->locals[gen->local_cnt++] = meta_gen(gen, meta);
-
-    return gen->id_idx++;
 }
 
 /* end of gen.c */
