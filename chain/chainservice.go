@@ -563,7 +563,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
-			varId := bytes.NewBufferString("_")
+			varId := bytes.NewBufferString("_sv_")
 			varId.WriteString(msg.VarName)
 			varId.WriteString(msg.VarIndex)
 			varTrieKey := common.Hasher(varId.Bytes())
