@@ -2397,7 +2397,6 @@ state.var {
 
 function constructor()
 	cdate:set(906000490)
-	--cdate:set(1)
 end
 
 function CreateDate()
@@ -2429,7 +2428,7 @@ abi.register(CreateDate, Extract, Difftime)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"Thu Sep 17 02:48:10 1998"`)
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"09/17/98 02:48:10"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2438,6 +2437,10 @@ abi.register(CreateDate, Extract, Difftime)
 		t.Error(err)
 	}
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%X"]}`, "", `"02:48:10"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%A"]}`, "", `"Thursday"`)
 	if err != nil {
 		t.Error(err)
 	}

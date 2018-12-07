@@ -299,8 +299,16 @@ static int os_date(lua_State *L)
                 size_t reslen;
                 char buff[200];  /* Should be big enough for any conversion result. */
                 cc[1] = *(++s);
-                reslen = strftime(buff, sizeof(buff), cc, stm);
-                luaL_addlstring(&b, buff, reslen);
+                if (cc[1] == 'c') {
+                    reslen = strftime(buff, sizeof(buff), "%x", stm);
+                    luaL_addlstring(&b, buff, reslen);
+                    luaL_addchar(&b, ' ');
+                    reslen = strftime(buff, sizeof(buff), "%X", stm);
+                    luaL_addlstring(&b, buff, reslen);
+                } else {
+                    reslen = strftime(buff, sizeof(buff), cc, stm);
+                    luaL_addlstring(&b, buff, reslen);
+                }
             }
         }
         luaL_pushresult(&b);
