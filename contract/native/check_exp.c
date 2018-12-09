@@ -161,7 +161,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
     meta_t *val_meta;
 
     ASSERT1(is_cast_exp(exp), exp->kind);
-    ASSERT1(is_valid_type(exp->u_cast.type), exp->u_cast.type);
+    ASSERT1(is_valid_type(exp->u_cast.to_meta.type), exp->u_cast.to_meta.type);
     ASSERT(exp->u_cast.val_exp != NULL);
 
     val_exp = exp->u_cast.val_exp;
@@ -169,7 +169,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, val_exp));
 
-    meta_set(&exp->meta, exp->u_cast.type);
+    meta_copy(&exp->meta, &exp->u_cast.to_meta);
 
     if (is_array_type(val_meta) || !is_compatible_type(&exp->meta, val_meta))
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),

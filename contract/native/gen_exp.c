@@ -19,13 +19,13 @@ exp_gen_id(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     ASSERT(id != NULL);
 
     if (is_ref) {
-        if (is_primitive_type(meta) && !is_array_type(meta))
+        if (id->idx >= 0)
             return gen_i32(gen, id->idx);
 
         return gen_i32(gen, id->offset);
     }
     else {
-        if (is_primitive_type(meta) && !is_array_type(meta))
+        if (id->idx >= 0)
             return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
 
         return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
@@ -142,7 +142,89 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 static BinaryenExpressionRef
 exp_gen_cast(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
-    return NULL;
+    meta_t *to_meta = &exp->u_cast.to_meta;
+    BinaryenOp op;
+    BinaryenExpressionRef val_exp;
+
+    val_exp = exp_gen(gen, exp->u_cast.val_exp, &exp->meta, false);
+
+    switch (meta->type) {
+    case TYPE_INT8:
+    case TYPE_INT16:
+    case TYPE_INT32:
+        if (is_float_type(to_meta))
+            op = BinaryenConvertSInt32ToFloat32();
+        else if (is_double_type(to_meta))
+            op = BinaryenConvertSInt32ToFloat64();
+        else if (is_int64_type(to_meta) || is_uint64_type(to_meta))
+            op = BinaryenExtendSInt32();
+        break;
+
+    case TYPE_BOOL:
+    case TYPE_BYTE:
+    case TYPE_UINT8:
+    case TYPE_UINT16:
+    case TYPE_UINT32:
+        if (is_float_type(to_meta))
+            op = BinaryenConvertUInt32ToFloat32();
+        else if (is_double_type(to_meta))
+            op = BinaryenConvertUInt32ToFloat64();
+        else if (is_int64_type(to_meta) || is_uint64_type(to_meta))
+            op = BinaryenExtendUInt32();
+        break;
+
+    case TYPE_INT64:
+        if (is_float_type(to_meta))
+            op = BinaryenConvertSInt64ToFloat32();
+        else if (is_double_type(to_meta))
+            op = BinaryenConvertSInt64ToFloat64();
+        else if (!is_int64_type(to_meta) && !is_uint64_type(to_meta))
+            op = BinaryenWrapInt64();
+        break;
+
+    case TYPE_UINT64:
+        if (is_float_type(to_meta))
+            op = BinaryenConvertUInt64ToFloat32();
+        else if (is_double_type(to_meta))
+            op = BinaryenConvertUInt64ToFloat64();
+        else if (!is_int64_type(to_meta) && !is_uint64_type(to_meta))
+            op = BinaryenWrapInt64();
+        break;
+
+    case TYPE_FLOAT:
+        if (is_int64_type(to_meta))
+            op = BinaryenTruncSFloat32ToInt64();
+        else if (is_uint64_type(to_meta))
+            op = BinaryenTruncUFloat32ToInt64();
+        else if (is_signed_type(to_meta))
+            op = BinaryenTruncSFloat32ToInt32();
+        else if (is_unsigned_type(to_meta))
+            op = BinaryenTruncUFloat32ToInt32();
+        else if (is_double_type(to_meta))
+            op = BinaryenPromoteFloat32();
+        break;
+
+    case TYPE_DOUBLE:
+        if (is_int64_type(to_meta))
+            op = BinaryenTruncSFloat64ToInt64();
+        else if (is_uint64_type(to_meta))
+            op = BinaryenTruncUFloat64ToInt64();
+        else if (is_signed_type(to_meta))
+            op = BinaryenTruncSFloat64ToInt32();
+        else if (is_unsigned_type(to_meta))
+            op = BinaryenTruncUFloat64ToInt32();
+        else if (is_float_type(to_meta))
+            op = BinaryenPromoteFloat32();
+        break;
+
+    case TYPE_STRING:
+        break;
+
+    default:
+        ASSERT2(!"invalid conversion", meta->type, exp->u_cast.to_meta.type);
+    }
+
+    return BinaryenUnary(gen->module, op, val_exp);
 }
 
 static BinaryenExpressionRef
@@ -463,6 +545,18 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
         value = BinaryenLoad(module, size, signed, offset of y, align, type, base address of b);
         BinaryenStore(module, size, offset of x, align, base address of a, value, type);
     */
+    ast_id_t *qual_id = exp->u_acc.id_exp->id;
+    ast_id_t *fld_id = exp->id;
+    meta_t *fld_meta = &exp->meta;
+
+    if (is_ref) {
+    }
+    else {
+        return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
+                            fld_id->offset, 0, meta_gen(gen, fld_meta), 
+                            gen_i32(gen, qual_id->addr));
+    }
+
     return NULL;
 }
 

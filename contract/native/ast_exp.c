@@ -65,8 +65,9 @@ exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CAST, pos);
 
-    exp->u_cast.type = type;
     exp->u_cast.val_exp = val_exp;
+
+    meta_set(&exp->u_cast.to_meta, type);
 
     return exp;
 }
@@ -194,8 +195,8 @@ exp_clone(ast_exp_t *exp)
                              &exp->pos);
 
     case EXP_CAST:
-        return exp_new_cast(exp->u_cast.type, exp_clone(exp->u_cast.val_exp),
-                             &exp->pos);
+        return exp_new_cast(exp->u_cast.to_meta.type, exp_clone(exp->u_cast.val_exp),
+                            &exp->pos);
 
     case EXP_UNARY:
         return exp_new_unary(exp->u_un.kind, exp_clone(exp->u_un.val_exp), &exp->pos);

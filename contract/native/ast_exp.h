@@ -61,8 +61,8 @@ typedef struct exp_array_s {
 
 /* (type)val */
 typedef struct exp_cast_s {
-    type_t type;
     ast_exp_t *val_exp;
+    meta_t to_meta;
 } exp_cast_t;
 
 /* id(param, ...) */
