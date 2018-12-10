@@ -2,6 +2,8 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
+	"math"
 
 	"github.com/aergoio/aergo/internal/common"
 )
@@ -9,10 +11,21 @@ import (
 const (
 	// DefaultSeed is temporary const to create same genesis block with no configuration
 	DefaultSeed = 1530838800
+
+	blockVersionNil = math.MinInt32
 )
 
 var (
+	nilChainID = ChainID{
+		Version:   blockVersionNil,
+		Magic:     "",
+		PublicNet: false,
+		MainNet:   false,
+		Consensus: "",
+	}
+
 	defaultChainID = ChainID{
+		Version:   0,
 		Magic:     "AREGO.IO",
 		PublicNet: true,
 		MainNet:   false,
@@ -29,18 +42,37 @@ const (
 
 // ChainID represents the identity of the chain.
 type ChainID struct {
+	Version   int32  `json:"version"`
 	PublicNet bool   `json:"public"`
 	MainNet   bool   `json:"mainnet"`
 	Magic     string `json:"magic"`
 	Consensus string `json:"consensus"`
 }
 
-// Bytes returns the binary representation of g.ID.
+// NewChainID returns a new ChainID which initialized as its nil value.
+func NewChainID() *ChainID {
+	nilCID := nilChainID
+
+	return &nilCID
+}
+
+// Bytes returns the binary representation of cid.
 func (cid *ChainID) Bytes() []byte {
-	if b, err := common.GobEncode(cid); err == nil {
-		return b
+	var w bytes.Buffer
+	if err := binary.Write(&w, binary.LittleEndian, *cid); err != nil {
+		return nil
 	}
-	return nil
+	return w.Bytes()
+}
+
+// Read deserialize data as a ChainID.
+func (cid *ChainID) Read(data []byte) error {
+	return binary.Read(bytes.NewBuffer(data), binary.LittleEndian, cid)
+}
+
+// AsDefault set *cid to the default chaind id (cid must be a valid pointer).
+func (cid *ChainID) AsDefault() {
+	*cid = defaultChainID
 }
 
 // Equals reports wheter cid equals rhs or not.

@@ -46,3 +46,11 @@ func TestGenesisBytes(t *testing.T) {
 	fmt.Println(spew.Sdump(g2))
 	a.Nil(g2.Balance)
 }
+
+func TestCodecChainID(t *testing.T) {
+	a := assert.New(t)
+	g := NewChainID()
+
+	g.AsDefault()
+	a.True(g.Equals(&defaultChainID))
+}
