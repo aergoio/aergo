@@ -170,7 +170,7 @@ func syncVoteResult(scs *state.ContractState, voteResult *map[string]*big.Int) e
 	return scs.SetData(sortedlistkey, data)
 }
 
-func GetVoteResult(scs *state.ContractState) (*types.VoteList, error) {
+func GetVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err
@@ -180,6 +180,9 @@ func GetVoteResult(scs *state.ContractState) (*types.VoteList, error) {
 	err = common.GobDecode(data, voteList)
 	if err != nil {
 		return nil, err
+	}
+	if n < len(voteList.Votes) {
+		voteList.Votes = voteList.Votes[:n]
 	}
 	return voteList, nil
 }

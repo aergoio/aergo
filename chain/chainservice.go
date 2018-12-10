@@ -336,7 +336,7 @@ func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
 	if err != nil {
 		return nil, err
 	}
-	return system.GetVoteResult(scs)
+	return system.GetVoteResult(scs, n)
 }
 
 func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
