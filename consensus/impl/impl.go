@@ -25,10 +25,12 @@ func New(cfg *config.Config, cs *chain.ChainService, hub *component.ComponentHub
 		c, err = sbp.New(cfg, hub)
 	}
 
-	// Link mutual references.
-	cs.SetChainConsensus(c)
-	c.SetStateDB(cs.SDB())
-	c.SetChainAccessor(cs)
+	if err == nil {
+		// Link mutual references.
+		cs.SetChainConsensus(c)
+		c.SetStateDB(cs.SDB())
+		c.SetChainAccessor(cs)
+	}
 
 	return c, err
 }

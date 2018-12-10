@@ -43,10 +43,10 @@ func TestVoteResult(t *testing.T) {
 	defer deinitTest()
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	assert.NoError(t, err, "could not open contract state")
-	testResult := &map[string]*big.Int{}
+	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		(*testResult)[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
+		testResult[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
 	assert.NotNil(t, err, "argument should not nil")

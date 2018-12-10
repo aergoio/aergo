@@ -82,7 +82,7 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 	return NewStateDB(&sdb.store, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, []string) error) error {
+func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {
 	block := genesis.Block()
 	stateDB := sdb.OpenNewStateDB(sdb.GetRoot())
 
@@ -92,7 +92,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
 		// pointer.
-		if err := bpInit(stateDB, genesis.BPs); err != nil {
+		if err := bpInit(stateDB, genesis); err != nil {
 			return err
 		}
 

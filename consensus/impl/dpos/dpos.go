@@ -84,6 +84,9 @@ func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.Compone
 		// Prefer BPs from the GenesisInfo. Overwrite.
 		if bpCount > 0 {
 			logger.Debug().Msg("use BPs from the genesis info")
+			for i, bp := range genesis.BPs {
+				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
+			}
 			cfg.Consensus.BpIds = genesis.BPs
 			cfg.Consensus.DposBpNumber = uint16(bpCount)
 		}
