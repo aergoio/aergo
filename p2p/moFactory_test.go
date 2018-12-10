@@ -74,12 +74,29 @@ func (_m *MockMoFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol
 }
 
 // newMsgTxBroadcastOrder provides a mock function with given fields: message
-func (_m *MockMoFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder {
-	ret := _m.Called(message)
+func (_m *MockMoFactory) newMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) msgOrder {
+	ret := _m.Called(noticeMsg)
 
 	var r0 msgOrder
 	if rf, ok := ret.Get(0).(func(*types.NewTransactionsNotice) msgOrder); ok {
-		r0 = rf(message)
+		r0 = rf(noticeMsg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(msgOrder)
+		}
+	}
+
+	return r0
+}
+
+
+// newMsgBPBroadcastOrder provides a mock function with given fields: message
+func (_m *MockMoFactory) newMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) msgOrder {
+	ret := _m.Called(noticeMsg)
+
+	var r0 msgOrder
+	if rf, ok := ret.Get(0).(func(*types.BlockProducedNotice) msgOrder); ok {
+		r0 = rf(noticeMsg)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(msgOrder)
