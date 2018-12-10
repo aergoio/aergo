@@ -106,3 +106,14 @@ func (op *OrphanPool) removeOrphan(id types.BlockID) {
 	delete(op.cache, id)
 	op.curCnt--
 }
+
+func (op *OrphanPool) getOrphan(hash []byte) *types.Block {
+	prevID := types.ToBlockID(hash)
+
+	orphan, exists := op.cache[prevID]
+	if !exists {
+		return nil
+	} else {
+		return orphan.block
+	}
+}
