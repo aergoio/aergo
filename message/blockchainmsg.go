@@ -60,8 +60,9 @@ type GetState struct {
 	Account []byte
 }
 type GetStateRsp struct {
-	State *types.State
-	Err   error
+	Account []byte
+	State   *types.State
+	Err     error
 }
 type GetStateAndProof struct {
 	Account    []byte
@@ -146,6 +147,15 @@ type GetStaking struct {
 type GetStakingRsp struct {
 	Staking *types.Staking
 	Err     error
+}
+
+type GetNameInfo struct {
+	Name []byte
+}
+
+type GetNameInfoRsp struct {
+	Owner *types.Name
+	Err   error
 }
 
 type GetAnchors struct{}

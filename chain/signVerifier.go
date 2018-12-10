@@ -1,13 +1,12 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/types"
-
 	"errors"
 	"runtime"
 
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
 )
 
 type SignVerifier struct {
@@ -77,13 +76,12 @@ func verifyTx(tx *types.Tx) error {
 	if account == nil {
 		return ErrTxFormatInvalid
 	}
-
-	err := key.VerifyTx(tx)
-
-	if err != nil {
-		return err
+	if !tx.NeedNameVerify() {
+		err := key.VerifyTx(tx)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 

@@ -15,8 +15,8 @@ import (
 
 const FutureBlockNo = math.MaxUint64
 
-func ExecuteSystemTx(txBody *types.TxBody, senderState *types.State,
-	scs *state.ContractState, blockNo types.BlockNo) error {
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, senderState *types.State,
+	blockNo types.BlockNo) error {
 
 	systemCmd, err := getSystemCmd(txBody.GetPayload())
 

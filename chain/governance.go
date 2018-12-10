@@ -9,12 +9,13 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, receiver *state.V,
+func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) error {
 
 	if len(txBody.Payload) <= 0 {
@@ -22,23 +23,25 @@ func executeGovernanceTx(states *state.StateDB, txBody *types.TxBody, sender, re
 	}
 
 	governance := string(txBody.Recipient)
-	if governance != types.AergoSystem {
+	if governance != types.AergoSystem && governance != types.AergoName {
 		return errors.New("receive unknown recipient")
 	}
 
-	scs, err := states.OpenContractState(receiver.AccountID(), receiver.State())
+	scs, err := bs.StateDB.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return err
 	}
 	switch governance {
 	case types.AergoSystem:
-		err = system.ExecuteSystemTx(txBody, sender.State(), scs, blockNo)
-		if err == nil {
-			err = states.StageContractState(scs)
-		}
+		err = system.ExecuteSystemTx(scs, txBody, sender.State(), blockNo)
+	case types.AergoName:
+		err = name.ExecuteNameTx(scs, txBody)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient
+	}
+	if err == nil {
+		err = bs.StateDB.StageContractState(scs)
 	}
 
 	return err

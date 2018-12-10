@@ -15,6 +15,7 @@ import (
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -528,7 +529,8 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	}
 	txBody := tx.GetBody()
 
-	sender, err := bs.GetAccountStateV(txBody.Account)
+	account := name.Resolve(bs, txBody.Account)
+	sender, err := bs.GetAccountStateV(account)
 	if err != nil {
 		return err
 	}
@@ -538,7 +540,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	recipient := txBody.Recipient
+	recipient := name.Resolve(bs, txBody.Recipient)
 	var receiver *state.V
 	if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
@@ -558,7 +560,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
+		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

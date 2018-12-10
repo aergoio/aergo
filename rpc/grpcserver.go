@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"github.com/aergoio/aergo/p2p/metric"
 	"reflect"
 	"sync"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -47,15 +47,14 @@ const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 
-
 func (rpc *AergoRPCService) Metric(ctx context.Context, req *types.MetricsRequest) (*types.Metrics, error) {
 	result := &types.Metrics{}
 	processed := make(map[types.MetricType]interface{})
 	for _, mt := range req.Types {
-		if _,found := processed[mt]; found {
+		if _, found := processed[mt]; found {
 			continue
 		}
-		processed[mt]=mt
+		processed[mt] = mt
 
 		switch mt {
 		case types.MetricType_P2P_NETWORK:
@@ -78,8 +77,8 @@ func (rpc *AergoRPCService) fillPeerMetrics(result *types.Metrics) {
 	metrics := presult.([]*metric.PeerMetric)
 	mets := make([]*types.PeerMetric, len(metrics))
 	for i, met := range metrics {
-		rMet := &types.PeerMetric{PeerID:[]byte(met.PeerID), SumIn:met.TotalIn(), AvrIn:met.InMetric.APS(),
-			SumOut:met.TotalOut(), AvrOut:met.OutMetric.APS()}
+		rMet := &types.PeerMetric{PeerID: []byte(met.PeerID), SumIn: met.TotalIn(), AvrIn: met.InMetric.APS(),
+			SumOut: met.TotalOut(), AvrOut: met.OutMetric.APS()}
 		mets[i] = rMet
 	}
 
@@ -334,7 +333,7 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.SignTx{Tx: tx}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
+		&message.SignTx{Tx: tx, Requester: getStateRsp.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
@@ -646,7 +645,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 
 	logger.Debug().Str("comp", component).Int64("timeout", timeout).Msg("nodestate")
 
-	statics, err := rpc.hub.Statistics(time.Duration(timeout) * time.Second, component)
+	statics, err := rpc.hub.Statistics(time.Duration(timeout)*time.Second, component)
 	if err != nil {
 		return nil, err
 	}
@@ -703,6 +702,19 @@ func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleByte
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Staking, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.SingleBytes) (*types.Name, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetNameInfo{Name: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetNameInfoRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Owner, nil
 }
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {

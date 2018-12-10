@@ -128,7 +128,7 @@ func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 		t.FailNow()
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.ks.SignTx(tx)
+	err = as.ks.SignTx(tx, nil)
 	assert.NoError(t, err, "failed to sign")
 	assert.NotNil(t, tx.Body.Sign, "failed to sign")
 
@@ -151,7 +151,7 @@ func TestVerfiyFail(t *testing.T) {
 	}
 
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.ks.SignTx(tx)
+	err = as.ks.SignTx(tx, nil)
 	assert.NoError(t, err, "failed to sign")
 	assert.NotNil(t, tx.Body.Sign, "failed to sign")
 
