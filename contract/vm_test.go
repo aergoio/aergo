@@ -2428,7 +2428,7 @@ abi.register(CreateDate, Extract, Difftime)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"09/17/98 02:48:10"`)
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"1998-09-17 02:48:10"`)
 	if err != nil {
 		t.Error(err)
 	}
