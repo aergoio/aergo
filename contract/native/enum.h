@@ -37,6 +37,7 @@ typedef enum errlvl_e {
 
 #define TYPE_NAME(type)         type_names_[(type)]
 #define TYPE_SIZE(type)         type_sizes_[(type)]
+#define TYPE_ALIGN(type)        type_aligns_[(type)]
 
 #define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
 
@@ -74,6 +75,7 @@ typedef enum type_e {
 
 extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];
+extern int type_aligns_[TYPE_MAX];
 
 #define ID_KIND(id)             id_kinds_[(id)->kind]
 

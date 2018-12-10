@@ -61,67 +61,10 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
     return NO_ERROR;
 }
 
-#if 0
-static ast_exp_t *
-id_gen_dflt_exp(meta_t *meta)
-{
-    int i, j;
-    ast_exp_t *dflt_exp;
-
-    if (is_bool_type(meta)) {
-        dflt_exp = exp_new_lit(&meta->pos);
-        value_set_bool(&dflt_exp->u_lit.val, false);
-    }
-    else if (is_integer_type(meta)) {
-        dflt_exp = exp_new_lit(&meta->pos);
-        value_set_i64(&dflt_exp->u_lit.val, 0);
-    }
-    else if (is_fpoint_type(meta)) {
-        dflt_exp = exp_new_lit(&meta->pos);
-        value_set_f64(&dflt_exp->u_lit.val, 0.0);
-    }
-    else if (is_string_type(meta) || is_map_type(meta) || is_object_type(meta)) {
-        dflt_exp = exp_new_lit(&meta->pos);
-        value_set_null(&dflt_exp->u_lit.val);
-    }
-    else {
-        array_t *exps = array_new();
-
-        ASSERT1(is_struct_type(meta), meta->type);
-
-        for (i = 0; i < meta->elem_cnt; i++) {
-            exp_add_last(exps, id_gen_dflt_exp(meta->elems[i]));
-        }
-
-        dflt_exp = exp_new_tuple(exps, &meta->pos);
-    }
-
-    if (is_array_type(meta)) {
-        ASSERT1(meta->arr_dim > 0, meta->arr_dim);
-
-        for (i = meta->arr_dim - 1; i >= 0; i--) {
-            array_t *exps = array_new();
-
-            for (j = 0; j < meta->arr_size[i]; j++) {
-                exp_add_last(exps, dflt_exp);
-            }
-
-            dflt_exp = exp_new_tuple(exps, &meta->pos);
-        }
-    }
-
-    return dflt_exp;
-}
-#endif
-
 static int
 id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
-    /*
-    ast_exp_t *dflt_exp;
-    meta_t *init_meta;
-    */
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->u_var.type_meta != NULL);
@@ -139,11 +82,6 @@ id_check_var(check_t *check, ast_id_t *id)
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, false));
-
-    /*
-    if (id->u_var.dflt_exp == NULL)
-        id->u_var.dflt_exp = id_gen_dflt_exp(&id->meta);
-        */
 
     if (id->u_var.dflt_exp != NULL) {
         /* TODO: named initializer */

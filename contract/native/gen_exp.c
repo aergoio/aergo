@@ -246,9 +246,9 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
         if (id->idx >= 0)
             ref_exp = BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, &id->meta));
         else
-            ref_exp = BinaryenLoad(gen->module, meta_size(&id->meta), 
-                                   is_signed_type(&id->meta), 
-                                   BinaryenConstGetValueI32(val_exp), 0, 
+            ref_exp = BinaryenLoad(gen->module, meta_size(&id->meta),
+                                   is_signed_type(&id->meta),
+                                   BinaryenConstGetValueI32(val_exp), 0,
                                    meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
 
         if (is_int64_type(meta) || is_uint64_type(meta)) {
@@ -265,8 +265,8 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
                 return BinaryenSetLocal(gen->module, id->idx, add_exp);
             else
                 return BinaryenStore(gen->module, meta_size(meta),
-                                     BinaryenConstGetValueI32(val_exp), 0, 
-                                     gen_i32(gen, id->addr), add_exp, 
+                                     BinaryenConstGetValueI32(val_exp), 0,
+                                     gen_i32(gen, id->addr), add_exp,
                                      meta_gen(gen, meta));
         }
         else {
@@ -286,7 +286,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
                                   val_exp);
 
     case OP_NOT:
-        return BinaryenSelect(gen->module, 
+        return BinaryenSelect(gen->module,
                               BinaryenUnary(gen->module, BinaryenEqZInt32(), val_exp),
                               gen_i32(gen, 1), gen_i32(gen, 0));
 
@@ -516,64 +516,75 @@ exp_gen_ternary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
-    /*
-    struct {
-        int x;
-        string y;
-    };
-    struct a;
-    struct b;
-        // a, b should has address of memory
-
-    a.x = 1;
-        if (a is struct) {
-            value = BinaryenConst(module, BinaryenLiteralInt32(1));
-            BinaryenStore(module, size, offset of x, align, base address of a, value, type);
-        }
-        else if (a is contract) {
-        }
-
-    a.x = p1;
-        value = BinaryenGetLocal(module, index of p1);
-        BinaryenStore(module, size, offset of x, align, base address of a, value, type);
-
-    a.y = "abc";
-        value = address of "abc";
-        BinaryenStore(module, size, offset of y, align, base address of a, value, type);
-
-    a.y = b.y;
-        value = BinaryenLoad(module, size, signed, offset of y, align, type, base address of b);
-        BinaryenStore(module, size, offset of x, align, base address of a, value, type);
-    */
     ast_id_t *qual_id = exp->u_acc.id_exp->id;
     ast_id_t *fld_id = exp->id;
     meta_t *fld_meta = &exp->meta;
 
+    if (is_func_id(fld_id))
+        return NULL;
+
+    ASSERT1(is_var_id(fld_id), fld_id->kind);
+
     if (is_ref) {
-    }
-    else {
-        return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
-                            fld_id->offset, 0, meta_gen(gen, fld_meta), 
-                            gen_i32(gen, qual_id->addr));
+        /* TODO: We need variable's address not struct.
+         * But, this is little bit weird... T_T */
+        exp->id = qual_id;
+        ASSERT1(fld_id->idx < 0, fld_id);
+
+        return gen_i32(gen, fld_id->offset);
     }
 
-    return NULL;
+    return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
+                        fld_id->offset, 0, meta_gen(gen, fld_meta),
+                        gen_i32(gen, qual_id->addr));
 }
 
 static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
-    return BinaryenNop(gen->module);
+    int i, j = 0;
+    int arg_cnt;
+    ast_id_t *func_id = exp->id;
+    array_t *param_ids = func_id->u_func.param_ids;
+    array_t *ret_ids = func_id->u_func.ret_ids;
+    array_t *param_exps = exp->u_call.param_exps;
+    BinaryenExpressionRef *arg_exps;
+
+    arg_cnt = array_size(param_exps) + array_size(ret_ids);
+    arg_exps = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
+
+    for (i = 0; i < array_size(param_exps); i++) {
+        ast_exp_t *param_exp = array_get(param_exps, i, ast_exp_t);
+        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+
+        arg_exps[j++] = exp_gen(gen, param_exp, &param_id->meta, false);
+    }
+
+    for (i = 0; i < array_size(ret_ids); i++) {
+        ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
+
+        arg_exps[j++] = gen_i32(gen, ret_id->addr);
+    }
+
+    return BinaryenCall(gen->module, func_id->name, arg_exps, arg_cnt,
+                        BinaryenTypeNone());
 }
 
 static BinaryenExpressionRef
 exp_gen_sql(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
-    return NULL;
+    return BinaryenNop(gen->module);
 }
 
 static BinaryenExpressionRef
 exp_gen_tuple(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
+{
+    ASSERT(!"invalid tuple expression");
+    return NULL;
+}
+
+static BinaryenExpressionRef
+exp_gen_init(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
     return NULL;
 }
@@ -619,6 +630,9 @@ exp_gen(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 
     case EXP_TUPLE:
         return exp_gen_tuple(gen, exp, meta, is_ref);
+
+    case EXP_INIT:
+        return exp_gen_init(gen, exp, meta, is_ref);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

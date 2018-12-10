@@ -110,11 +110,17 @@ id_gen_func(gen_t *gen, ast_id_t *id)
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
     for (i = 0; i < array_size(param_ids); i++) {
-        params[gen->id_idx++] = meta_gen(gen, &array_get(param_ids, i, ast_id_t)->meta);
+        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+
+        params[gen->id_idx++] = meta_gen(gen, &param_id->meta);
     }
 
     for (i = 0; i < array_size(ret_ids); i++) {
-        params[gen->id_idx++] = meta_gen(gen, &array_get(ret_ids, i, ast_id_t)->meta);
+        ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
+
+        params[gen->id_idx++] = meta_gen(gen, &ret_id->meta);
+
+        ret_id->addr = dsgmt_occupy(gen->dsgmt, meta_size(&ret_id->meta));
     }
 
     spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta),

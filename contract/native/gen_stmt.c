@@ -44,7 +44,6 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         return NULL;
     }
 
-    id = l_exp->id;
     meta = &l_exp->meta;
 
     var_exp = exp_gen(gen, l_exp, meta, true);
@@ -53,6 +52,9 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
             BinaryenExpressionGetId(var_exp), BinaryenConstId());
 
     val_exp = exp_gen(gen, r_exp, meta, false);
+
+    id = l_exp->id;
+    ASSERT(id != NULL);
 
     if (id->idx >= 0)
         /* var_exp == index of variable */

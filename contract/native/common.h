@@ -31,8 +31,9 @@
 #define FILENAME(f)         strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)
 #define __SOURCE__          FILENAME(__FILE__), __LINE__
 
-#define ALIGN32(v)          (((v) + 3) & ~3)
-#define ALIGN64(v)          (((v) + 7) & ~7)
+#define ALIGN(v, n)         (((v) + ((n) - 1)) & ~((n) - 1))
+#define ALIGN32(v)          ALIGN(v, 4)
+#define ALIGN64(v)          ALIGN(v, 8)
 
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 typedef unsigned char bool;

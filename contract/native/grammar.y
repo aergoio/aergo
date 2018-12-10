@@ -658,14 +658,9 @@ return_decl:
     {
         char name[256];
 
-        snprintf(name, sizeof(name), "__return_var_%d", node_num_);
+        snprintf(name, sizeof(name), "__return_var_%d", $1->num);
 
         $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
-        $$->u_var.type_meta = $1;
-    }
-|   var_spec declarator
-    {
-        $$ = $2;
         $$->u_var.type_meta = $1;
     }
 ;
