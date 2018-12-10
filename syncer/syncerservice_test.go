@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
@@ -14,10 +15,10 @@ func TestSyncer_sync1000(t *testing.T) {
 	localChainLen := 10
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen-1)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	testCfg := *SyncerCfg
@@ -31,7 +32,7 @@ func TestSyncer_sync1000(t *testing.T) {
 
 	syncer.waitStop()
 
-	assert.Equal(t, int(targetNo), syncer.localChain.best, "sync failed")
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
 func TestSyncer_sync10000(t *testing.T) {
@@ -40,10 +41,10 @@ func TestSyncer_sync10000(t *testing.T) {
 	targetNo := uint64(10000)
 	ancestorNo := 100
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:ancestorNo+1], localChainLen-(ancestorNo+1))
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:ancestorNo+1], localChainLen-(ancestorNo+1))
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	testCfg := *SyncerCfg
@@ -57,7 +58,7 @@ func TestSyncer_sync10000(t *testing.T) {
 
 	syncer.waitStop()
 
-	assert.Equal(t, int(targetNo), syncer.localChain.best, "sync failed")
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
 func TestSyncer_sync_multiPeer(t *testing.T) {
@@ -65,10 +66,10 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 	localChainLen := 10
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen-1)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
 
-	remoteChains := []*StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	testCfg := *SyncerCfg
@@ -87,7 +88,7 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 		assert.True(t, peer.blockFetched, fmt.Sprintf("%d is not used", i))
 	}
 
-	assert.Equal(t, int(targetNo), syncer.localChain.best, "sync failed")
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
 //case : peer1 is slow (timeout)
@@ -96,10 +97,10 @@ func TestSyncer_sync_slowPeer(t *testing.T) {
 	localChainLen := 10
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen-1)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
 
-	remoteChains := []*StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	testCfg := *SyncerCfg
@@ -125,7 +126,7 @@ func TestSyncer_sync_slowPeer(t *testing.T) {
 	//check bad peer
 	assert.True(t, testCfg.debugContext.logBadPeers[expBadPeer], "check bad peer")
 
-	assert.Equal(t, int(targetNo), syncer.localChain.best, "sync failed")
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
 func TestSyncer_sync_allPeerBad(t *testing.T) {
@@ -133,10 +134,10 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 	localChainLen := 10
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen-1)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
 
-	remoteChains := []*StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain, remoteChain, remoteChain, remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	testCfg := *SyncerCfg
@@ -166,5 +167,5 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 		assert.True(t, testCfg.debugContext.logBadPeers[peerNo], "check bad peer")
 	}
 
-	assert.NotEqual(t, int(targetNo), syncer.localChain.best, "sync must fail")
+	assert.NotEqual(t, int(targetNo), syncer.localChain.Best, "sync must fail")
 }

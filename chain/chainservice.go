@@ -200,13 +200,15 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
 	}
 
-	top, err := cs.getVotes(1)
-	if err != nil {
-		logger.Debug().Err(err).Msg("failed to get elected BPs")
-	} else {
-		for _, res := range top.Votes {
-			logger.Debug().Str("BP", enc.ToString(res.Candidate)).
-				Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
+	if cfg.Consensus.EnableDpos == true {
+		top, err := cs.getVotes(1)
+		if err != nil {
+			logger.Debug().Err(err).Msg("failed to get elected BPs")
+		} else {
+			for _, res := range top.Votes {
+				logger.Debug().Str("BP", enc.ToString(res.Candidate)).
+					Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
+			}
 		}
 	}
 

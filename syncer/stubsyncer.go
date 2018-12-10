@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"reflect"
 	"strings"
 	"sync"
@@ -18,8 +19,8 @@ type StubSyncer struct {
 	realSyncer    *Syncer
 	stubRequester *StubRequester
 
-	localChain  *StubBlockChain
-	remoteChain *StubBlockChain
+	localChain  *chain.StubBlockChain
+	remoteChain *chain.StubBlockChain
 
 	stubPeers []*StubPeer
 
@@ -38,17 +39,17 @@ var (
 	targetPeerID = peer.ID([]byte(fmt.Sprintf("peer-%d", 0)))
 )
 
-func makeStubPeerSet(remoteChains []*StubBlockChain) []*StubPeer {
+func makeStubPeerSet(remoteChains []*chain.StubBlockChain) []*StubPeer {
 	stubPeers := make([]*StubPeer, len(remoteChains))
 
 	for i, chain := range remoteChains {
-		stubPeers[i] = NewStubPeer(i, uint64(chain.best), chain)
+		stubPeers[i] = NewStubPeer(i, uint64(chain.Best), chain)
 	}
 
 	return stubPeers
 }
 
-func NewTestSyncer(t *testing.T, localChain *StubBlockChain, remoteChain *StubBlockChain, peers []*StubPeer, cfg *SyncerConfig) *StubSyncer {
+func NewTestSyncer(t *testing.T, localChain *chain.StubBlockChain, remoteChain *chain.StubBlockChain, peers []*StubPeer, cfg *SyncerConfig) *StubSyncer {
 	syncer := NewSyncer(nil, localChain, cfg)
 	testsyncer := &StubSyncer{realSyncer: syncer, localChain: localChain, remoteChain: remoteChain, stubPeers: peers, cfg: cfg, t: t}
 
@@ -264,7 +265,7 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 
 //ChainService
 func (syncer *StubSyncer) AddBlock(msg *message.AddBlock, responseErr error) {
-	err := syncer.localChain.addBlock(msg.Block)
+	err := syncer.localChain.AddBlock(msg.Block)
 
 	rsp := &message.AddBlockRsp{BlockNo: msg.Block.GetHeader().BlockNo, BlockHash: msg.Block.GetHash(), Err: err}
 	logger.Debug().Uint64("no", msg.Block.GetHeader().BlockNo).Msg("add block succeed")
