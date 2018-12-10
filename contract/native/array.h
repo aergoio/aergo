@@ -15,6 +15,11 @@
 #define array_size(array)               ((array) == NULL ? 0 : (array)->size)
 #define array_get(array, idx, type)     ((type *)((array)->items[idx]))
 
+#define array_get_first(array, type)                                                     \
+    (array_size(array) > 0 ? (type *)((array)->items[0]) : NULL)
+#define array_get_last(array, type)                                                      \
+    (array_size(array) > 0 ? (type *)((array)->items[(array)->size - 1]) : NULL)
+
 #define array_add_first(array, item)    array_add((array), 0, (item))
 #define array_add_last(array, item)     array_add((array), (array)->size, (item))
 

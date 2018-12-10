@@ -737,8 +737,15 @@ if_stmt:
     }
 |   if_stmt K_ELSE block
     {
+        ast_stmt_t *stmt;
+
         $$ = $1;
-        $$->u_if.else_blk = $3;
+        stmt = array_get_last(&$$->u_if.elif_stmts, ast_stmt_t);
+
+        if (stmt == NULL)
+            $$->u_if.else_blk = $3;
+        else
+            stmt->u_if.else_blk = $3;
     }
 |   K_IF error '}'
     {

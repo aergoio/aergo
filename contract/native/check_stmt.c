@@ -96,11 +96,14 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
     elif_stmts = &stmt->u_if.elif_stmts;
 
     for (i = 0; i < array_size(elif_stmts); i++) {
-        stmt_check(check, array_get(elif_stmts, i, ast_stmt_t));
+        stmt_check_if(check, array_get(elif_stmts, i, ast_stmt_t));
     }
 
-    if (stmt->u_if.else_blk != NULL)
+    if (stmt->u_if.else_blk != NULL) {
+        ASSERT1(array_size(elif_stmts) == 0, array_size(elif_stmts));
+
         blk_check(check, stmt->u_if.else_blk);
+    }
 
     return NO_ERROR;
 }
