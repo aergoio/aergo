@@ -1,13 +1,10 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/types"
-
 	"errors"
-	"runtime"
-
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
 )
 
 type SignVerifier struct {
@@ -28,8 +25,6 @@ type VerifyResult struct {
 
 var (
 	ErrTxFormatInvalid = errors.New("tx invalid format")
-
-	DefaultVerifierCnt = runtime.NumCPU()
 
 	//logger = log.NewLogger("signverifier")
 )

@@ -20,7 +20,7 @@ type Config struct {
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
-	Monitor    *MonitorConfig	 `mapstructure:"monitor"`
+	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -73,6 +73,7 @@ type BlockchainConfig struct {
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
+	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -92,8 +93,8 @@ type ConsensusConfig struct {
 }
 
 type MonitorConfig struct {
-	ServerProtocol string  `mapstructure:"protocol" description:"Protocol is one of next: http, https or kafka"`
-	ServerEndpoint string  `mapstructure:"endpoint" description:"Endpoint to send"`
+	ServerProtocol string `mapstructure:"protocol" description:"Protocol is one of next: http, https or kafka"`
+	ServerEndpoint string `mapstructure:"endpoint" description:"Endpoint to send"`
 }
 
 /*
@@ -155,6 +156,7 @@ maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
+verifiercount = "{{.Blockchain.VerifierCount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

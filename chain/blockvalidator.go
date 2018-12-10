@@ -27,7 +27,7 @@ var (
 
 func NewBlockValidator(sdb *state.ChainStateDB) *BlockValidator {
 	bv := BlockValidator{
-		signVerifier: NewSignVerifier(DefaultVerifierCnt),
+		signVerifier: NewSignVerifier(VerifierCount),
 		sdb:          sdb,
 	}
 

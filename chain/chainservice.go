@@ -181,7 +181,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer); err != nil {
+		cfg.Blockchain.UseFastSyncer,
+		cfg.Blockchain.VerifierCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
