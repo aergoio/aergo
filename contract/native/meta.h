@@ -93,7 +93,6 @@ struct meta_s {
     AST_NODE_DECL;
 
     type_t type;
-    int size;               /* size of type */
 
     char *name;             /* name of struct or contract */
 
@@ -107,8 +106,9 @@ struct meta_s {
     meta_t **elems;         /* metas of elements */
 
     /* memory properties */
+    int size;               /* size of type */
+    int addr;               /* base address */
     int offset;             /* relative offset of field */
-    int align;              /* maximum alignment */
 };
 
 char *meta_to_str(meta_t *x);

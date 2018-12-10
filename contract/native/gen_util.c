@@ -22,4 +22,19 @@ gen_add_local(gen_t *gen, meta_t *meta)
     return gen->id_idx++;
 }
 
+void
+gen_add_instr(gen_t *gen, BinaryenExpressionRef instr)
+{
+    if (instr == NULL)
+        return;
+
+    if (gen->instrs == NULL)
+        gen->instrs = xmalloc(sizeof(BinaryenExpressionRef));
+    else
+        gen->instrs = xrealloc(gen->instrs,
+                               sizeof(BinaryenExpressionRef) * (gen->instr_cnt + 1));
+
+    gen->instrs[gen->instr_cnt++] = instr;
+}
+
 /* end of gen_util.c */

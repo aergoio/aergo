@@ -39,6 +39,9 @@ gen_init(gen_t *gen, ast_t *ast, flag_t flag, char *path)
     gen->local_cnt = 0;
     gen->locals = NULL;
 
+    gen->instr_cnt = 0;
+    gen->instrs = NULL;
+
     gen->buf_size = WASM_MAX_LEN * 2;
     gen->buf = xmalloc(gen->buf_size);
 }

@@ -9,6 +9,7 @@
 #include "gen_exp.h"
 #include "gen_blk.h"
 #include "gen_meta.h"
+#include "gen_util.h"
 
 #include "gen_stmt.h"
 
@@ -63,8 +64,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         /* var_exp == offset of variable */
         return BinaryenStore(gen->module, meta_size(meta),
                              BinaryenConstGetValueI32(var_exp), 0,
-                             BinaryenConst(gen->module, BinaryenLiteralInt32(id->addr)),
-                             val_exp, meta_gen(gen, meta));
+                             gen_i32(gen, id->meta.addr), val_exp, meta_gen(gen, meta));
 }
 
 static BinaryenExpressionRef

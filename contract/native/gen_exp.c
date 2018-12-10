@@ -29,7 +29,8 @@ exp_gen_id(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
             return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
 
         return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
-                            id->offset, 0, meta_gen(gen, meta), gen_i32(gen, id->addr));
+                            id->offset, 0, meta_gen(gen, meta),
+                            gen_i32(gen, id->meta.addr));
     }
 }
 
@@ -124,7 +125,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
             BinaryenExpressionRef addr_exp;
 
             idx_exp = exp_gen(gen, exp->u_arr.idx_exp, &exp->u_arr.idx_exp->meta, false);
-            addr_exp = gen_i32(gen, id->addr);
+            addr_exp = gen_i32(gen, id->meta.addr);
 
             if (BinaryenExpressionGetId(idx_exp) == BinaryenConstId())
                 offset = BinaryenConstGetValueI64(idx_exp) * ALIGN64(meta_size(meta));
@@ -249,7 +250,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
             ref_exp = BinaryenLoad(gen->module, meta_size(&id->meta),
                                    is_signed_type(&id->meta),
                                    BinaryenConstGetValueI32(val_exp), 0,
-                                   meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
+                                   meta_gen(gen, &id->meta), gen_i32(gen, id->meta.addr));
 
         if (is_int64_type(meta) || is_uint64_type(meta)) {
             add_exp = BinaryenBinary(gen->module, BinaryenAddInt64(), ref_exp,
@@ -266,7 +267,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
             else
                 return BinaryenStore(gen->module, meta_size(meta),
                                      BinaryenConstGetValueI32(val_exp), 0,
-                                     gen_i32(gen, id->addr), add_exp,
+                                     gen_i32(gen, id->meta.addr), add_exp,
                                      meta_gen(gen, meta));
         }
         else {
@@ -526,17 +527,18 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     ASSERT1(is_var_id(fld_id), fld_id->kind);
 
     if (is_ref) {
+        ASSERT1(fld_id->idx < 0, fld_id);
+
         /* TODO: We need variable's address not struct.
          * But, this is little bit weird... T_T */
         exp->id = qual_id;
-        ASSERT1(fld_id->idx < 0, fld_id);
 
         return gen_i32(gen, fld_id->offset);
     }
 
     return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
                         fld_id->offset, 0, meta_gen(gen, fld_meta),
-                        gen_i32(gen, qual_id->addr));
+                        gen_i32(gen, qual_id->meta.addr));
 }
 
 static BinaryenExpressionRef
@@ -563,7 +565,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     for (i = 0; i < array_size(ret_ids); i++) {
         ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
 
-        arg_exps[j++] = gen_i32(gen, ret_id->addr);
+        arg_exps[j++] = gen_i32(gen, ret_id->meta.addr);
     }
 
     return BinaryenCall(gen->module, func_id->name, arg_exps, arg_cnt,
@@ -586,6 +588,44 @@ exp_gen_tuple(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 static BinaryenExpressionRef
 exp_gen_init(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
+    int i;
+    array_t *elem_exps = exp->u_init.exps;
+    BinaryenExpressionRef val_exp;
+
+    ASSERT1(is_array_type(meta) || is_struct_type(meta), meta->type);
+
+    if (is_array_type(meta)) {
+        int offset = 0;
+
+        for (i = 0; i < array_size(elem_exps); i++) {
+            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+
+            val_exp = exp_gen(gen, elem_exp, meta, false);
+
+            gen_add_instr(gen, BinaryenStore(gen->module, meta_size(meta), offset, 0,
+                                             gen_i32(gen, meta->addr), val_exp,
+                                             meta_gen(gen, meta)));
+
+            offset += ALIGN64(meta_size(meta));
+        }
+    }
+    else {
+        ASSERT2(array_size(elem_exps) == meta->elem_cnt,
+                array_size(elem_exps), meta->elem_cnt);
+
+        for (i = 0; i < array_size(elem_exps); i++) {
+            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+            meta_t *elem_meta = meta->elems[i];
+
+            val_exp = exp_gen(gen, elem_exp, elem_meta, false);
+
+            gen_add_instr(gen, BinaryenStore(gen->module, meta_size(elem_meta),
+                                             elem_meta->offset, 0,
+                                             gen_i32(gen, meta->addr), val_exp,
+                                             meta_gen(gen, elem_meta)));
+        }
+    }
+
     return NULL;
 }
 

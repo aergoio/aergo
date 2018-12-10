@@ -16,6 +16,9 @@ xmalloc(size_t size)
 {
     void *mem;
 
+    if (size == 0)
+        return NULL;
+
     mem = malloc(size);
     if (mem == NULL)
         FATAL(ERROR_OUT_OF_MEM, strerror(errno));
@@ -28,6 +31,9 @@ xcalloc(size_t size)
 {
     void *mem;
 
+    if (size == 0)
+        return NULL;
+
     mem = calloc(1, size);
     if (mem == NULL)
         FATAL(ERROR_OUT_OF_MEM, strerror(errno));
@@ -39,6 +45,9 @@ void *
 xrealloc(void *ptr, size_t size)
 {
     void *mem;
+
+    if (size == 0)
+        return NULL;
 
     mem = realloc(ptr, size);
     if (mem == NULL)

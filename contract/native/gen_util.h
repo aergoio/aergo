@@ -13,6 +13,8 @@
 
 uint32_t gen_add_local(gen_t *gen, meta_t *meta);
 
+void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
+
 static inline BinaryenExpressionRef
 gen_i32(gen_t *gen, int32_t v)
 {

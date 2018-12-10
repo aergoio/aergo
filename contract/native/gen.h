@@ -30,6 +30,9 @@ typedef struct gen_s {
     int local_cnt;
     BinaryenType *locals;
 
+    int instr_cnt;
+    BinaryenExpressionRef *instrs;
+
     int buf_size;
     char *buf;
 } gen_t;

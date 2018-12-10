@@ -94,7 +94,6 @@ struct ast_id_s {
     meta_t meta;        /* identifier metadata */
     value_t *val;       /* constant value */
 
-    int addr;           /* base address */
     int idx;            /* local index */
     int offset;         /* relative offset */
 };
