@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,10 +14,10 @@ func TestBlockFetcher_simple(t *testing.T) {
 	targetNo := uint64(5)
 
 	//ancestor = 0
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], 0)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], 0)
 
-	remoteChains := []*StubBlockChain{remoteChain, remoteChain} //peer count = 2
+	remoteChains := []*chain.StubBlockChain{remoteChain, remoteChain} //peer count = 2
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property
@@ -29,8 +30,8 @@ func TestBlockFetcher_simple(t *testing.T) {
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
 	//set ctx manually because finder will be skipped
-	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
-	ancestor := remoteChain.blocks[0]
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.Best))
+	ancestor := remoteChain.Blocks[0]
 	ctx.SetAncestor(ancestor)
 
 	//run blockFetcher direct
