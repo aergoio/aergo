@@ -39,6 +39,7 @@ type GetAddressesMsg struct {
 // NotifyNewBlock send types.NewBlockNotice to other peers. The receiving peer will send GetBlockHeadersRequest or GetBlockRequest if needed.
 // The actor returns true if sending is successful.
 type NotifyNewBlock struct {
+	Produced bool
 	BlockNo uint64
 	Block   *types.Block
 }

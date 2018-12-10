@@ -141,6 +141,26 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 	return true
 }
 
+// NotifyNewBlock send notice message of new block to a peer
+func (p2ps *P2P) NotifyBlockProduced(newBlock message.NotifyNewBlock) bool {
+	// TODO fill producerID
+	req := &types.BlockProducedNotice{ProducerID:nil, BlockNo:newBlock.BlockNo, Block:newBlock.Block}
+	msg := p2ps.mf.newMsgBPBroadcastOrder(req)
+
+	skipped, sent := 0, 0
+	// TODO filter to only contain bp and trusted node.
+	for _, neighbor := range p2ps.pm.GetPeers() {
+		if neighbor != nil && neighbor.State() == types.RUNNING {
+			sent++
+			neighbor.sendMessage(msg)
+		} else {
+			skipped++
+		}
+	}
+	p2ps.Debug().Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Uint64("block_no",req.BlockNo).Msg("Notifying block produced")
+	return true
+}
+
 // GetMissingBlocks send request message to peer about blocks which my local peer doesn't have
 func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)

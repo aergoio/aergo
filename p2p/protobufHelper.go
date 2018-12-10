@@ -7,12 +7,12 @@ package p2p
 
 import (
 	"bufio"
+	"github.com/aergoio/aergo/internal/enc"
 	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
-	"github.com/gofrs/uuid"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
@@ -129,6 +129,26 @@ func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
 	return nil
 }
 
+
+type pbBpNoticeOrder struct {
+	pbMessageOrder
+	block *types.Block
+}
+
+func (pr *pbBpNoticeOrder) SendTo(p *remotePeerImpl) error {
+	var blkhash BlkHash
+	copy(blkhash[:], pr.block.Hash)
+	p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder)
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		return err
+	}
+	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		Str(LogMsgID, pr.GetMsgID().String()).Str(LogBlkHash,enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+	return nil
+}
+
 type pbTxNoticeOrder struct {
 	pbMessageOrder
 	txHashes [][]byte
@@ -168,96 +188,4 @@ func UnmarshalMessage(data []byte, msgData proto.Message) error {
 
 func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, error) {
 	return msgData, proto.Unmarshal(data, msgData)
-}
-
-
-type pbMOFactory struct {
-	signer msgSigner
-}
-
-func (mf *pbMOFactory) newMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message pbMessage) msgOrder {
-	rmo := &pbRequestOrder{}
-	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", protocolID, message, mf.signer) {
-		return rmo
-	}
-	return nil
-}
-
-func (mf *pbMOFactory) newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder {
-	rmo := &pbRequestOrder{}
-	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, "", protocolID, message, mf.signer) {
-		rmo.respReceiver = respReceiver
-		return rmo
-	}
-	return nil
-}
-
-func (mf *pbMOFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
-	rmo := &pbResponseOrder{}
-	msgID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, msgID, reqID.String(), protocolID, message, mf.signer) {
-		return rmo
-	}
-	return nil
-}
-
-func (mf *pbMOFactory) newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder {
-	rmo := &pbBlkNoticeOrder{}
-	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", NewBlockNotice, noticeMsg, mf.signer) {
-		rmo.blkHash = noticeMsg.BlockHash
-		return rmo
-	}
-	return nil
-}
-
-func (mf *pbMOFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder {
-	rmo := &pbTxNoticeOrder{}
-	reqID := uuid.Must(uuid.NewV4()).String()
-	if newPbMsgOrder(&rmo.pbMessageOrder, reqID, "", NewTxNotice, message, mf.signer) {
-		rmo.txHashes = message.TxHashes
-		return rmo
-	}
-	return nil
-}
-
-func (mf *pbMOFactory) newHandshakeMessage(protocolID SubProtocol, message pbMessage) Message {
-	// TODO define handshake specific datatype
-	rmo := &pbRequestOrder{}
-	msgID := uuid.Must(uuid.NewV4())
-	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
-		return rmo.message
-	}
-	return nil
-}
-
-// newPbMsgOrder is base form of making sendrequest struct
-// TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
-func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
-	bytes, err := MarshalMessage(message)
-	if err != nil {
-		return false
-	}
-
-	p2pmsg := &types.P2PMessage{Header: &types.MsgHeader{}}
-	p2pmsg.Data = bytes
-	request := false
-	setupMessageData(p2pmsg.Header, reqID, ClientVersion, time.Now().Unix())
-	p2pmsg.Header.Length = uint32(len(bytes))
-	p2pmsg.Header.Subprotocol = protocolID.Uint32()
-	// pubKey and peerID will be set soon before signing process
-	err = signer.signMsg(p2pmsg)
-	if err != nil {
-		panic("Failed to sign data " + err.Error())
-		return false
-	}
-
-	mo.request = request
-	mo.protocolID = protocolID
-	mo.needSign = true
-	mo.message = NewV020Wrapper(p2pmsg, orgID)
-
-	return true
 }

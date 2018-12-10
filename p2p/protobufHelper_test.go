@@ -16,7 +16,7 @@ import (
 
 func Test_pbRequestOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &pbMOFactory{signer: &dummySigner{}}
+	factory := &v030MOFactory{}
 
 	tests := []struct {
 		name     string
@@ -58,7 +58,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 func Test_pbMessageOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &pbMOFactory{signer: &dummySigner{}}
+	factory :=&v030MOFactory{}
 
 	tests := []struct {
 		name     string
@@ -97,7 +97,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &pbMOFactory{signer: &dummySigner{}}
+	factory := &v030MOFactory{}
 
 	tests := []struct {
 		name     string
@@ -137,7 +137,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			if tt.keyExist {
 				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
 			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V020Wrapper"))
+				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V030Message"))
 
 			}
 			// not affect any cache
@@ -150,7 +150,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &pbMOFactory{signer: &dummySigner{}}
+	factory := &v030MOFactory{}
 
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
@@ -192,7 +192,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			if tt.keyExist == len(sampleHashes) {
 				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
 			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V020Wrapper"))
+				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V030Message"))
 			}
 			// not affect any cache
 			assert.Equal(t, prevCacheSize, len(peer.requests))
