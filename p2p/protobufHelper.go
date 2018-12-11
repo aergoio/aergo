@@ -158,11 +158,11 @@ func SendProtoMessage(data proto.Message, rw *bufio.Writer) error {
 	return nil
 }
 
-func marshalMessage(message proto.Message) ([]byte, error) {
+func MarshalMessage(message proto.Message) ([]byte, error) {
 	return proto.Marshal(message)
 }
 
-func unmarshalMessage(data []byte, msgData proto.Message) error {
+func UnmarshalMessage(data []byte, msgData proto.Message) error {
 	return proto.Unmarshal(data, msgData)
 }
 
@@ -236,7 +236,7 @@ func (mf *pbMOFactory) newHandshakeMessage(protocolID SubProtocol, message pbMes
 // newPbMsgOrder is base form of making sendrequest struct
 // TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
 func newPbMsgOrder(mo *pbMessageOrder, reqID string, orgID string, protocolID SubProtocol, message pbMessage, signer msgSigner) bool {
-	bytes, err := marshalMessage(message)
+	bytes, err := MarshalMessage(message)
 	if err != nil {
 		return false
 	}
