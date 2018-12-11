@@ -385,6 +385,7 @@ type blockExecutor struct {
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec TxExecFn
+	var validateSignWait ValidateSignWaitFn
 
 	commitOnly := false
 
@@ -400,18 +401,17 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
 		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), contract.ChainService)
+
+		if len(block.GetBody().Txs) > 0 {
+			validateSignWait = func() error {
+				return cs.validator.WaitVerifyDone()
+			}
+		}
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
 		// executed by the block factory.
 		commitOnly = true
-	}
-
-	var validateSignWait ValidateSignWaitFn
-	if len(block.GetBody().Txs) > 0 {
-		validateSignWait = func() error {
-			return cs.validator.WaitVerifyDone()
-		}
 	}
 
 	return &blockExecutor{
