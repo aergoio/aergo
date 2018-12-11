@@ -269,9 +269,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
                                   val_exp);
 
     case OP_NOT:
-        return BinaryenSelect(gen->module,
-                              BinaryenUnary(gen->module, BinaryenEqZInt32(), val_exp),
-                              gen_i32(gen, 1), gen_i32(gen, 0));
+        return BinaryenUnary(gen->module, BinaryenEqZInt32(), val_exp);
 
     default:
         ASSERT1(!"invalid operator", exp->u_un.kind);

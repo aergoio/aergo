@@ -127,20 +127,13 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
      */
 
     if (cond_exp != NULL) {
-        ast_blk_t *if_blk;
-        ast_stmt_t *break_stmt;
         ast_exp_t *not_exp;
-        ast_stmt_t *if_stmt;
-
-        if_blk = blk_new_normal(&cond_exp->pos);
-
-        break_stmt = stmt_new_jump(STMT_BREAK, &cond_exp->pos);
-        array_add_last(&if_blk->stmts, break_stmt);
+        ast_stmt_t *break_stmt;
 
         not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
 
-        if_stmt = stmt_new_if(not_exp, if_blk, &cond_exp->pos);
-        array_add_first(&blk->stmts, if_stmt);
+        break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
+        array_add_first(&blk->stmts, break_stmt);
     }
 
     if (stmt->u_loop.init_ids != NULL) {
@@ -391,9 +384,21 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_jump(check_t *check, ast_stmt_t *stmt)
 {
+    ast_exp_t *cond_exp;
     ast_blk_t *blk;
 
     ASSERT1(is_continue_stmt(stmt) || is_break_stmt(stmt), stmt->kind);
+
+    cond_exp = stmt->u_jump.cond_exp;
+
+    if (cond_exp != NULL) {
+        meta_t *cond_meta = &cond_exp->meta;
+
+        CHECK(exp_check(check, cond_exp));
+
+        if (!is_bool_type(cond_meta))
+            RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
+    }
 
     blk = blk_search_loop(check->blk);
     if (!check->is_in_switch && (blk == NULL || blk->name[0] == '\0'))

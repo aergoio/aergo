@@ -39,6 +39,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
             return NULL;
         }
 
+        /* XXX */
         for (i = 0; i < array_size(l_exps); i++) {
         }
 
@@ -101,6 +102,15 @@ stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_loop(gen_t *gen, ast_stmt_t *stmt)
 {
+    ast_blk_t *blk = stmt->u_loop.blk;
+
+    if (stmt->u_loop.kind == LOOP_FOR) {
+        if (stmt->u_loop.init_stmt != NULL)
+            gen_add_instr(gen, stmt_gen(gen, stmt->u_loop.init_stmt));
+
+        return BinaryenLoop(gen->module, blk->name, blk_gen(gen, blk));
+    }
+
     return NULL;
 }
 
@@ -117,9 +127,21 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 }
 
 static BinaryenExpressionRef
-stmt_gen_jump(gen_t *gen, ast_stmt_t *stmt)
+stmt_gen_continue(gen_t *gen, ast_stmt_t *stmt)
 {
     return NULL;
+}
+
+static BinaryenExpressionRef
+stmt_gen_break(gen_t *gen, ast_stmt_t *stmt)
+{
+    ast_exp_t *cond_exp = stmt->u_jump.cond_exp;
+    BinaryenExpressionRef cond = NULL;
+
+    if (cond_exp != NULL)
+        cond = exp_gen(gen, cond_exp, &cond_exp->meta, false);
+
+    return BinaryenBreak(gen->module, stmt->u_jump.label, cond, NULL);
 }
 
 static BinaryenExpressionRef
@@ -166,11 +188,10 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return stmt_gen_return(gen, stmt);
 
     case STMT_CONTINUE:
-        return stmt_gen_jump(gen, stmt);
+        return stmt_gen_continue(gen, stmt);
 
     case STMT_BREAK:
-        /* TODO: because of switch statement, we will handle this later */
-        return NULL;
+        return stmt_gen_break(gen, stmt);
 
     case STMT_GOTO:
         return stmt_gen_goto(gen, stmt);

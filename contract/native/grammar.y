@@ -863,11 +863,11 @@ stmt_list:
 jump_stmt:
     K_CONTINUE ';'
     {
-        $$ = stmt_new_jump(STMT_CONTINUE, &@$);
+        $$ = stmt_new_jump(STMT_CONTINUE, NULL, &@$);
     }
 |   K_BREAK ';'
     {
-        $$ = stmt_new_jump(STMT_BREAK, &@$);
+        $$ = stmt_new_jump(STMT_BREAK, NULL, &@$);
     }
 |   K_RETURN ';'
     {

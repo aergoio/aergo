@@ -89,6 +89,7 @@ typedef struct stmt_return_s {
 } stmt_return_t;
 
 typedef struct stmt_jump_s {
+    ast_exp_t *cond_exp;
     char *label;
 } stmt_jump_t;
 
@@ -135,7 +136,7 @@ ast_stmt_t *stmt_new_switch(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t 
 ast_stmt_t *stmt_new_case(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos);
 ast_stmt_t *stmt_new_return(ast_exp_t *arg_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_goto(char *label, src_pos_t *pos);
-ast_stmt_t *stmt_new_jump(stmt_kind_t kind, src_pos_t *pos);
+ast_stmt_t *stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_ddl(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_new_blk(ast_blk_t *blk, src_pos_t *pos);
 
