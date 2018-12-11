@@ -199,9 +199,9 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 func pushValue(L *LState, v interface{}) error {
 	switch arg := v.(type) {
 	case string:
-		argC := C.CString(arg)
-		C.lua_pushstring(L, argC)
-		C.free(unsafe.Pointer(argC))
+		argC := C.CBytes([]byte(arg))
+		C.lua_pushlstring(L, (*C.char)(argC), C.ulong(len(arg)))
+		C.free(argC)
 	case float64:
 		if arg == float64(int64(arg)) {
 			C.lua_pushinteger(L, C.lua_Integer(arg))
@@ -217,9 +217,15 @@ func pushValue(L *LState, v interface{}) error {
 	case nil:
 		C.lua_pushnil(L)
 	case []interface{}:
-		toLuaArray(L, arg)
+		err := toLuaArray(L, arg)
+		if err != nil {
+			return err
+		}
 	case map[string]interface{}:
-		toLuaTable(L, arg)
+		err := toLuaTable(L, arg)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.New("unsupported type:" + reflect.TypeOf(v).Name())
 	}
@@ -545,7 +551,10 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		return "", err
 	}
-	contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	if err != nil {
+		return "", err
+	}
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
 		err = json.Unmarshal(code[codeLen:], &ci.Args)
@@ -677,7 +686,7 @@ func codeLength(val []byte) uint32 {
 	return binary.LittleEndian.Uint32(val[0:])
 }
 
-func (re *recoveryEntry) recovery() {
+func (re *recoveryEntry) recovery() error {
 	var zero big.Int
 	callState := re.callState
 	if re.amount.Cmp(&zero) > 0 {
@@ -685,15 +694,25 @@ func (re *recoveryEntry) recovery() {
 		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
 	if re.sqlSaveName == nil && re.stateRevision == 0 {
-		return
+		return nil
 	}
-	callState.ctrState.Rollback(re.stateRevision)
+	err := callState.ctrState.Rollback(re.stateRevision)
+	if err != nil {
+		return DbSystemError(err)
+	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
-			callState.tx.RollbackToSavepoint()
+			err = callState.tx.RollbackToSavepoint()
+			if err != nil {
+				return DbSystemError(err)
+			}
 			callState.tx = nil
 		} else {
-			callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			err = callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			if err != nil {
+				return DbSystemError(err)
+			}
 		}
 	}
+	return nil
 }

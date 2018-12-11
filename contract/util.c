@@ -44,38 +44,47 @@ static void add_escape (sbuff_t *sbuf, char ch)
 
 static void copy_str_to_buffer(char *src, int len, sbuff_t *sbuf)
 {
-    int i;
+	int i;
 
-    char *end = src + len;
+	char *end = src + len;
 
 	for (; src < end; ++src) {
-	    switch(*src) {
-	    case '"':
-	    case '\\':
-	        add_escape(sbuf, *src);
-	        break;
-	    case '\t':
-	        add_escape(sbuf, 't');
-	        break;
-	    case '\n':
-	        add_escape(sbuf, 'n');
-	        break;
-	    case '\b':
-	        add_escape(sbuf, 'b');
-	        break;
+		if (*src >= 0x00 && *src <= 0x1f) {
+			if (sbuf->idx + 6 >= sbuf->buf_len) {
+				sbuf->buf_len = sbuf->buf_len * 2 + 6;
+				sbuf->buf = realloc (sbuf->buf, sbuf->buf_len);
+			}
+			sprintf(sbuf->buf + sbuf->idx, "\\u00%02x", *src);
+			sbuf->idx = sbuf->idx + 6;
+			continue;
+		}
+		switch(*src) {
+		case '"':
+		case '\\':
+			add_escape(sbuf, *src);
+			break;
+		case '\t':
+			add_escape(sbuf, 't');
+			break;
+		case '\n':
+			add_escape(sbuf, 'n');
+			break;
+		case '\b':
+			add_escape(sbuf, 'b');
+			break;
 		case '\f':
-	        add_escape(sbuf, 'f');
-	        break;
-	    case '\r':
-	    	add_escape(sbuf, 'r');
-	        break;
-	    default:
-	    	if (sbuf->idx + 1 >= sbuf->buf_len) {
-		        sbuf->buf_len *= 2;
-		        sbuf->buf = realloc (sbuf->buf, sbuf->buf_len);
-	        }
-	        sbuf->buf[sbuf->idx++] = *src;
-	    }
+			add_escape(sbuf, 'f');
+			break;
+		case '\r':
+			add_escape(sbuf, 'r');
+			break;
+		default:
+			if (sbuf->idx + 1 >= sbuf->buf_len) {
+				sbuf->buf_len *= 2;
+				sbuf->buf = realloc (sbuf->buf, sbuf->buf_len);
+			}
+			sbuf->buf[sbuf->idx++] = *src;
+		}
 	}
 }
 static callinfo_t *callinfo_new()
@@ -155,9 +164,10 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 			src_val = "null,";
 		break;
 	case LUA_TSTRING: {
-		src_val = (char *)lua_tostring(L, idx);
+		size_t len;
+		src_val = (char *)lua_tolstring(L, idx, &len);
 		copy_to_buffer ("\"", 1, sbuf);
-		copy_str_to_buffer (src_val, strlen (src_val), sbuf);
+		copy_str_to_buffer (src_val, len, sbuf);
 		src_val = "\",";
 		break;
 	}
@@ -265,11 +275,11 @@ static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 	while(*json != ']') {
 		lua_pushnumber(L, index++);
 		if (json_to_lua (L, &json, check) != 0)
-		    return -1;
+			return -1;
 		if (*json == ',')
-		    ++json;
+			++json;
 		else if(*json != ']')
-		    return -1;
+			return -1;
 		lua_rawset(L, -3);
 	}
 	*start = json + 1;
@@ -284,68 +294,124 @@ static int json_to_lua_table(lua_State *L, char **start, bool check) {
 	while(*json != '}') {
 		lua_pushnumber(L, index++);
 		if (json_to_lua (L, &json, check) != 0)
-		    return -1;
+			return -1;
 		if (*json == ':') {
-		    lua_remove(L, -2);
-		    --index;
-		    if (check && !lua_isstring(L, -1)) {
-		        return -1;
-		    }
-		    ++json;
+			lua_remove(L, -2);
+			--index;
+			if (check && !lua_isstring(L, -1)) {
+				return -1;
+			}
+			++json;
 			if (json_to_lua (L, &json, check) != 0)
-			    return -1;
+				return -1;
 		}
 		if (*json == ',')
-		    ++json;
+			++json;
 		else if (*json != '}')
-		    return -1;
+			return -1;
 		lua_rawset(L, -3);
 	}
 	*start = json + 1;
 	return 0;
 }
 
-static int json_to_lua (lua_State *L, char **start, bool check) {
-    char *json = *start;
+#define UTF8_MAX 8
 
+static int utf8_encode(char *s, unsigned ch) {
+    if (ch < 0x80) {
+        s[0] = (char)ch;
+        return 1;
+    }
+    if (ch <= 0x7FF) {
+        s[1] = (char) ((ch | 0x80) & 0xBF);
+        s[0] = (char) ((ch >> 6) | 0xC0);
+        return 2;
+    }
+    if (ch <= 0xFFFF) {
+	    s[2] = (char) ((ch | 0x80) & 0xBF);
+	    s[1] = (char) (((ch >> 6) | 0x80) & 0xBF);
+	    s[0] = (char) ((ch >> 12) | 0xE0);
+	    return 3;
+    }
+    {
+	    char buff[UTF8_MAX];
+	    unsigned mfb = 0x3F;
+	    int n = 1;
+	    do {
+	        if (n > 6)
+	            return -1;
+	        buff[UTF8_MAX - (n++)] = 0x80 | (ch&0x3F);
+	        ch >>= 6;
+	        mfb >>= 1;
+	    } while (ch > mfb);
+	    buff[UTF8_MAX - n] = (~mfb << 1) | ch;
+	    memcpy(s, &buff[UTF8_MAX - n], n);
+	    return n;
+    }
+}
+
+static int json_to_lua (lua_State *L, char **start, bool check) {
+	char *json = *start;
+	char special[5];
+
+	special[4] = '\0';
 	while(isspace(*json)) ++json;
 	if (*json == '"') {
-	    char *end = json + 1;
-	    char *target = end;
-	    while ((*end) != '"') {
-            if ((*end) == '\\') {
-                end++;
-                switch(*end) {
-                case 't':
-                    *target = '\t';
-	                break;
-	            case 'n':
-                    *target = '\n';
-	                break;
-		        case 'b':
-                    *target = '\b';
-	                break;
-        		case 'f':
-                    *target = '\f';
-	                break;
-        		case 'r':
-                    *target = '\r';
-	                break;
-	            default :
-	                *target = *end;
-	            }
-            }
-            else if (end != target)
-                *target = *end;
-            end++;
-            target++;
-        }
+		char *end = json + 1;
+		char *target = end;
+		while ((*end) != '"') {
+			if (*end == '\0')
+				return -1;
+			if ((*end) == '\\') {
+				end++;
+				switch(*end) {
+				case 't':
+					*target = '\t';
+					break;
+				case 'n':
+					*target = '\n';
+					break;
+				case 'b':
+					*target = '\b';
+					break;
+				case 'f':
+					*target = '\f';
+					break;
+				case 'r':
+					*target = '\r';
+					break;
+				case 'u': {
+					int i;
+					unsigned ch;
+					int out;
+					for (i = 1; i < 5; ++i) {
+						if (!isxdigit(*(end + i)))
+							return -1;
+					}
+					memcpy (special, end+1, 4);
+					ch = strtol(special, NULL, 16);
+					out = utf8_encode(target, ch);
+					if (out < 0)
+						return -1;
+					target = target + out - 1;
+					end += 4;
+					break;
+				}
+				default :
+					*target = *end;
+				}
+			}
+			else if (end != target)
+				*target = *end;
+			end++;
+			target++;
+		}
 		*target = '\0';
-		lua_pushstring(L, json + 1);
+		lua_pushlstring(L, json + 1, target - json - 1);
 		json = end + 1;
 	} else if (isdigit(*json) || *json == '-' || *json == '+') {
 		double d;
-	    char *end = json + 1;
+		char *end = json + 1;
 		while(*end != '\0') {
 			if (!isdigit(*end) && *end != '-' && *end != '.' &&
 				*end != 'e' && *end != 'E' && *end != '+') {
@@ -381,11 +447,11 @@ static int json_to_lua (lua_State *L, char **start, bool check) {
 
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)
 {
-    if (json_to_lua (L, &json, check) != 0)
-        return -1;
-    if (check && *json != '\0')
-        return -1;
-    return 0;
+	if (json_to_lua (L, &json, check) != 0)
+		return -1;
+	if (check && *json != '\0')
+		return -1;
+	return 0;
 }
 
 char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_form)
@@ -406,7 +472,7 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 			return NULL;
 		}
 	}
-    callinfo_del(callinfo);
+	callinfo_del(callinfo);
 	if (sbuf.idx != start_idx)
 		sbuf.idx--;
 	if (!json_form || start < end) {
