@@ -1,12 +1,13 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 package main
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/pmap"
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/message"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -26,7 +27,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
-	"github.com/aergoio/aergo/syncer"
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
@@ -40,9 +40,9 @@ func main() {
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "aergosvr",
-		Short: "Aergo Server",
-		Long:  "Aergo Server Full-node implementation",
+		Use:   "aergomap",
+		Short: "Aergo Map service",
+		Long:  "Aergo peer map service for providing peer addresses to connect.",
 		Run:   rootRun,
 	}
 	homePath       string
@@ -72,6 +72,7 @@ func initConfig() {
 	if enableTestmode {
 		cfg.EnableTestmode = true
 	}
+	cfg.Consensus.EnableBp = false
 }
 
 func configureZipkin() {
@@ -106,7 +107,7 @@ func configureZipkin() {
 func rootRun(cmd *cobra.Command, args []string) {
 
 	svrlog = log.NewLogger("asvr")
-	svrlog.Info().Msg("AERGO SVR STARTED")
+	svrlog.Info().Msg("AERGO MAP STARTED")
 
 	configureZipkin()
 
@@ -130,13 +131,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
-	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
+	syncSvc := NewRedirectService(cfg, message.SyncerSvc)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
-	pmapSvc := pmap.NewMapService(cfg.P2P, p2pSvc)
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
-		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
+		accountSvc = account.NewAccountService(cfg)
 	}
 
 	var restSvc component.IComponent
@@ -149,9 +149,9 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc, pmapSvc)
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
 
-	consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
+	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)
@@ -176,4 +176,20 @@ func rootRun(cmd *cobra.Command, args []string) {
 	for {
 		time.Sleep(time.Minute)
 	}
+}
+
+type RedirectService struct {
+	*component.BaseComponent
+}
+
+func NewRedirectService(cfg *config.Config, svcPid string) *RedirectService {
+	logger :=  log.NewLogger(svcPid)
+	rs := &RedirectService{}
+	rs.BaseComponent = component.NewBaseComponent(svcPid, rs, logger)
+
+	return rs
+}
+
+func (rs *RedirectService) Receive(context actor.Context) {
+	// ignore for now
 }

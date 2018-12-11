@@ -27,7 +27,7 @@ func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
 	dummyStatusMsg := &types.Status{}
-	statusBytes, _ := marshalMessage(dummyStatusMsg)
+	statusBytes, _ := MarshalMessage(dummyStatusMsg)
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -85,7 +85,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
 	dummyStatusMsg := &types.Status{}
-	statusBytes, _ := marshalMessage(dummyStatusMsg)
+	statusBytes, _ := MarshalMessage(dummyStatusMsg)
 	tests := []struct {
 		name       string
 		readReturn *types.Status

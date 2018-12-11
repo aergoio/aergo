@@ -54,6 +54,7 @@ type RESTConfig struct {
 
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
+
 	// N2N (peer-to-peer) network
 	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
 	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
@@ -65,6 +66,8 @@ type P2PConfig struct {
 	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect with at startup"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
+
+	NPAddMapServers []string `mapstructure:"npaddmapservers" description:"Max peer pool size"`
 }
 
 // BlockchainConfig defines configurations for blockchain service

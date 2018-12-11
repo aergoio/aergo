@@ -75,9 +75,8 @@ func (mf *v030MOFactory) newHandshakeMessage(protocolID SubProtocol, message pbM
 }
 
 // newPbMsgOrder is base form of making sendrequest struct
-// TODO: It seems to have redundant parameter. reqID, expecteResponse and gossip param seems to be compacted to one or two parameters.
 func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID SubProtocol, message pbMessage) bool {
-	bytes, err := marshalMessage(message)
+	bytes, err := MarshalMessage(message)
 	if err != nil {
 		return false
 	}
