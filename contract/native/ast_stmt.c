@@ -74,7 +74,7 @@ stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
     stmt->u_loop.blk = blk;
 
     if (stmt->u_loop.blk != NULL)
-        stmt->u_loop.blk->kind = BLK_LOOP;
+        blk_set_loop(stmt->u_loop.blk);
 
     return stmt;
 }

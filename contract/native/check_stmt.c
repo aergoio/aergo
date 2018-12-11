@@ -117,46 +117,29 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 
     /* for-loop is converted like this:
      *
-     *      init_exp;
-     *
-     *  for_loop_xxx:
+     *  init_stmt;
+     *  loop {
      *      if (!cond_exp)
-     *          goto for_exit_xxx;
-     *
+     *          break;
      *      ...
-     *
-     *  for_cont_xxx:
      *      loop_exp;
-     *      goto for_loop_xxx;
-     *
-     *  for_exit_xxx:
-     *      ;
+     *  }
      */
 
-    if (cond_exp == NULL) {
-        ast_stmt_t *null_stmt;
-
-        null_stmt = stmt_new_null(&stmt->pos);
-        null_stmt->label = blk->loop_label;
-
-        array_add_first(&blk->stmts, null_stmt);
-    }
-    else {
+    if (cond_exp != NULL) {
         ast_blk_t *if_blk;
-        ast_stmt_t *goto_stmt;
+        ast_stmt_t *break_stmt;
         ast_exp_t *not_exp;
         ast_stmt_t *if_stmt;
 
-        goto_stmt = stmt_new_goto(blk->exit_label, &cond_exp->pos);
-
         if_blk = blk_new_normal(&cond_exp->pos);
-        array_add_last(&if_blk->stmts, goto_stmt);
+
+        break_stmt = stmt_new_jump(STMT_BREAK, &cond_exp->pos);
+        array_add_last(&if_blk->stmts, break_stmt);
 
         not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
 
         if_stmt = stmt_new_if(not_exp, if_blk, &cond_exp->pos);
-        if_stmt->label = blk->loop_label;
-
         array_add_first(&blk->stmts, if_stmt);
     }
 
@@ -165,17 +148,11 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         id_join_first(&blk->ids, stmt->u_loop.init_ids);
     }
     else if (stmt->u_loop.init_stmt != NULL) {
-        array_add_first(&blk->stmts, stmt->u_loop.init_stmt);
+        stmt_check(check, stmt->u_loop.init_stmt);
     }
 
-    if (loop_exp != NULL) {
-        ast_stmt_t *exp_stmt;
-
-        exp_stmt = stmt_new_exp(loop_exp, &loop_exp->pos);
-        exp_stmt->label = blk->cont_label;
-
-        array_add_last(&blk->stmts, exp_stmt);
-    }
+    if (loop_exp != NULL)
+        array_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
 
     return NO_ERROR;
 }
@@ -286,20 +263,10 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 {
-    ast_stmt_t *goto_stmt;
-    ast_stmt_t *null_stmt;
-    ast_blk_t *blk;
-
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
 
     if (stmt->u_loop.blk == NULL)
         stmt->u_loop.blk = blk_new_loop(&stmt->pos);
-
-    blk = stmt->u_loop.blk;
-
-    snprintf(blk->loop_label, sizeof(blk->loop_label), "for_loop_%d", blk->num);
-    snprintf(blk->cont_label, sizeof(blk->cont_label), "for_cont_%d", blk->num);
-    snprintf(blk->exit_label, sizeof(blk->exit_label), "for_exit_%d", blk->num);
 
     switch (stmt->u_loop.kind) {
     case LOOP_FOR:
@@ -314,14 +281,7 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
         ASSERT1(!"invalid loop", stmt->u_loop.kind);
     }
 
-    goto_stmt = stmt_new_goto(blk->loop_label, &stmt->pos);
-    array_add_last(&blk->stmts, goto_stmt);
-
-    null_stmt = stmt_new_null(&stmt->pos);
-    null_stmt->label = blk->exit_label;
-    array_add_last(&blk->stmts, null_stmt);
-
-    blk_check(check, blk);
+    blk_check(check, stmt->u_loop.blk);
 
     return NO_ERROR;
 }
@@ -383,9 +343,13 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 
     case_stmts = stmt->u_sw.case_stmts;
 
+    check->is_in_switch = true;
+
     for (i = 0; i < array_size(case_stmts); i++) {
         stmt_check_case(check, array_get(case_stmts, i, ast_stmt_t), cond_meta);
     }
+
+    check->is_in_switch = false;
 
     return NO_ERROR;
 }
@@ -432,15 +396,10 @@ stmt_check_jump(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_continue_stmt(stmt) || is_break_stmt(stmt), stmt->kind);
 
     blk = blk_search_loop(check->blk);
-    if (blk == NULL)
+    if (!check->is_in_switch && (blk == NULL || blk->name[0] == '\0'))
         RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
 
-    stmt->kind = STMT_GOTO;
-
-    if (is_continue_stmt(stmt))
-        stmt->u_goto.label = blk->cont_label;
-    else
-        stmt->u_goto.label = blk->exit_label;
+    stmt->u_jump.label = blk->name;
 
     return NO_ERROR;
 }
@@ -532,7 +491,7 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
         break;
 
     case STMT_BREAK:
-        /* TODO: because of switch statement, we will handle this later */
+        stmt_check_jump(check, stmt);
         break;
 
     case STMT_GOTO:

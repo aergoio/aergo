@@ -29,6 +29,8 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
     check->cont_id = NULL;
     check->qual_id = NULL;
     check->func_id = NULL;
+
+    check->is_in_switch = false;
 }
 
 void

@@ -11,8 +11,6 @@
 #include "ast.h"
 #include "array.h"
 
-#define LABEL_MAX_SIZE              128
-
 #define is_normal_blk(blk)          ((blk)->kind == BLK_NORMAL)
 #define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
 #define is_contract_blk(blk)        ((blk)->kind == BLK_CONTRACT)
@@ -29,21 +27,20 @@ struct ast_blk_s {
 
     blk_kind_t kind;
 
+    char name[AST_NODE_NAME_SIZE + 1];
+
     array_t ids;
     array_t stmts;
 
     /* results of semantic checker */
     ast_blk_t *up;
-
-    char loop_label[LABEL_MAX_SIZE + 1];
-    char cont_label[LABEL_MAX_SIZE + 1];
-    char exit_label[LABEL_MAX_SIZE + 1];
 };
 
 ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
 
+void blk_set_loop(ast_blk_t *blk);
 ast_blk_t *blk_search_loop(ast_blk_t *blk);
 
 void ast_blk_dump(ast_blk_t *blk, int indent);

@@ -88,6 +88,10 @@ typedef struct stmt_return_s {
     ast_exp_t *arg_exp;
 } stmt_return_t;
 
+typedef struct stmt_jump_s {
+    char *label;
+} stmt_jump_t;
+
 typedef struct stmt_goto_s {
     char *label;
 } stmt_goto_t;
@@ -114,6 +118,7 @@ struct ast_stmt_s {
         stmt_switch_t u_sw;
         stmt_case_t u_case;
         stmt_return_t u_ret;
+        stmt_jump_t u_jump;
         stmt_goto_t u_goto;
         stmt_ddl_t u_ddl;
         stmt_blk_t u_blk;

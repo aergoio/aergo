@@ -87,6 +87,7 @@ char *id_kinds_[ID_MAX] = {
 char *stmt_kinds_[STMT_MAX] = {
     "null",
     "exp",
+    "assign",
     "if",
     "loop",
     "switch",
