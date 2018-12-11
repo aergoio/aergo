@@ -25,7 +25,9 @@ typedef struct gen_s {
     BinaryenModuleRef module;
 
     dsgmt_t *dsgmt;
+
     int id_idx;
+    int ret_idx;
 
     int local_cnt;
     BinaryenType *locals;

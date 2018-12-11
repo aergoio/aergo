@@ -111,6 +111,7 @@ stmt_gen_loop(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenLoop(gen->module, blk->name, blk_gen(gen, blk));
     }
 
+    /* XXX */
     return NULL;
 }
 
@@ -123,7 +124,38 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 {
-    return BinaryenNop(gen->module);
+    ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
+    meta_t *arg_meta;
+    BinaryenExpressionRef value;
+
+    if (arg_exp == NULL)
+        return BinaryenReturn(gen->module, NULL);
+
+    if (is_tuple_exp(arg_exp)) {
+        int i;
+        array_t *elem_exps = arg_exp->u_tup.exps;
+
+        for (i = 0; i < array_size(elem_exps); i++) {
+            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+            meta_t *elem_meta = &elem_exp->meta;
+
+            value = exp_gen(gen, elem_exp, elem_meta, false);
+
+            gen_add_instr(gen,
+                BinaryenStore(gen->module, meta_size(elem_meta), elem_meta->offset, 0,
+                    BinaryenGetLocal(gen->module, gen->ret_idx, BinaryenTypeInt32()),
+                    value, meta_gen(gen, elem_meta)));
+        }
+
+        return NULL;
+    }
+
+    arg_meta = &arg_exp->meta;
+    value = exp_gen(gen, arg_exp, arg_meta, false);
+
+    return BinaryenStore(gen->module, meta_size(arg_meta), arg_meta->offset, 0,
+                         BinaryenGetLocal(gen->module, gen->ret_idx, BinaryenTypeInt32()),
+                         value, meta_gen(gen, arg_meta));
 }
 
 static BinaryenExpressionRef

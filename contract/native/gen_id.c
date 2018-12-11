@@ -90,6 +90,8 @@ id_gen_func(gen_t *gen, ast_id_t *id)
         params[param_id->idx] = meta_gen(gen, &param_id->meta);
     }
 
+    gen->ret_idx = gen->id_idx;
+
     for (i = 0; i < array_size(ret_ids); i++) {
         ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
 
@@ -99,13 +101,14 @@ id_gen_func(gen_t *gen, ast_id_t *id)
         ret_id->meta.addr = dsgmt_occupy(gen->dsgmt, meta_size(&ret_id->meta));
     }
 
-    spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta),
+    spec = BinaryenAddFunctionType(gen->module, id->name, BinaryenTypeNone(),
                                    params, param_cnt);
 
     func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
                                blk_gen(gen, id->u_func.blk));
 
     gen->id_idx = 0;
+    gen->ret_idx = 0;
     gen->local_cnt = 0;
     gen->locals = NULL;
 
