@@ -36,7 +36,7 @@ func _itobU32(argv uint32) []byte {
 
 func beforeTest(txCount int) error {
 	if verifier == nil {
-		verifier = NewSignVerifier(types.DefaultVerifierCnt)
+		verifier = NewSignVerifier(nil /*types.DefaultVerifierCnt*/, 4, false)
 	}
 
 	for i := 0; i < maxAccount; i++ {
@@ -98,15 +98,15 @@ func TestInvalidTransactions(t *testing.T) {
 	txslice = append(txslice, tx)
 
 	verifier.RequestVerifyTxs(&types.TxList{Txs: txslice})
-	failed, errors := verifier.WaitDone()
+	failed, errs := verifier.WaitDone()
 
 	assert.Equal(t, failed, true)
 
 	if failed {
-		for i, error := range errors {
-			if error != nil {
+		for i, err := range errs {
+			if err != nil {
 				assert.Equal(t, i, 0)
-				assert.Equal(t, error, types.ErrSignNotMatch)
+				assert.Equal(t, err, types.ErrSignNotMatch)
 			}
 		}
 	}
@@ -122,12 +122,12 @@ func TestVerifyValidTxs(t *testing.T) {
 	t.Logf("len=%d", len(txs))
 
 	verifier.RequestVerifyTxs(&types.TxList{Txs: txs})
-	failed, errors := verifier.WaitDone()
+	failed, errs := verifier.WaitDone()
 
 	if failed {
-		for i, error := range errors {
-			if error != nil {
-				t.Fatalf("failed tx %d:%s", i, error.Error())
+		for i, err := range errs {
+			if err != nil {
+				t.Fatalf("failed tx %d:%s", i, err.Error())
 			}
 		}
 	}
@@ -147,12 +147,12 @@ func BenchmarkVerify10000tx(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		verifier.RequestVerifyTxs(&types.TxList{Txs: txslice})
-		failed, errors := verifier.WaitDone()
+		failed, errs := verifier.WaitDone()
 
 		if failed {
-			for i, error := range errors {
-				if error != nil {
-					b.Errorf("failed tx %d:%s", i, error.Error())
+			for i, err := range errs {
+				if err != nil {
+					b.Errorf("failed tx %d:%s", i, err.Error())
 				}
 			}
 		}
@@ -172,11 +172,11 @@ func BenchmarkVerify10000txSerial(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		failed, errors := verifier.verifyTxsInplace(&types.TxList{Txs: txslice})
+		failed, errs := verifier.verifyTxsInplace(&types.TxList{Txs: txslice})
 		if failed {
-			for i, error := range errors {
-				if error != nil {
-					b.Errorf("failed tx %d:%s", i, error.Error())
+			for i, err := range errs {
+				if err != nil {
+					b.Errorf("failed tx %d:%s", i, err.Error())
 				}
 			}
 		}

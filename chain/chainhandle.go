@@ -402,10 +402,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), contract.ChainService)
 
-		if len(block.GetBody().Txs) > 0 {
-			validateSignWait = func() error {
-				return cs.validator.WaitVerifyDone()
-			}
+		validateSignWait = func() error {
+			return cs.validator.WaitVerifyDone()
 		}
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
