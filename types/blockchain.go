@@ -9,8 +9,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math"
 	"math/big"
 	"reflect"
+	"runtime"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
@@ -24,9 +26,10 @@ const (
 	DefaultMaxBlockSize = 1 << 20
 	DefaultCoinbaseFee  = 1
 	lastFieldOfBH       = "Sign"
+)
 
-	//DefaultVerifierCnt = runtime.NumCPU()
-	DefaultVerifierCnt = 1
+var (
+	DefaultVerifierCnt = int(math.Max(float64(runtime.NumCPU() / 2), float64(1)))
 )
 
 //MaxAER is maximum value of aergo

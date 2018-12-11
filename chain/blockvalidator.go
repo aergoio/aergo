@@ -85,10 +85,20 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 		return nil
 	}
 
-	failed, _ := bv.signVerifier.VerifyTxs(&types.TxList{Txs: txs})
+	bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs})
 
+	/*
 	if failed {
 		logger.Error().Str("block", block.ID()).Msg("sign of txs validation failed")
+		return ErrorBlockVerifySign
+	} */
+
+	return nil
+}
+
+func (bv *BlockValidator) WaitVerifyDone() error {
+	if failed, _ := bv.signVerifier.WaitDone(); failed == true {
+		logger.Error().Msg("sign of txs validation failed")
 		return ErrorBlockVerifySign
 	}
 

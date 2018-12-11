@@ -370,6 +370,7 @@ func (cs *ChainService) CountTxsInChain() int {
 
 type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
 type ValidatePostFn func() error
+type ValidateSignWaitFn func() error
 
 type blockExecutor struct {
 	*state.BlockState
@@ -379,6 +380,7 @@ type blockExecutor struct {
 	validatePost     ValidatePostFn
 	coinbaseAcccount []byte
 	commitOnly       bool
+	validateSignWait ValidateSignWaitFn
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
@@ -405,6 +407,13 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		commitOnly = true
 	}
 
+	var validateSignWait ValidateSignWaitFn
+	if len(block.GetBody().Txs) > 0 {
+		validateSignWait = func() error {
+			return cs.validator.WaitVerifyDone()
+		}
+	}
+
 	return &blockExecutor{
 		BlockState:       bState,
 		sdb:              cs.sdb,
@@ -415,6 +424,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
 		commitOnly: commitOnly,
+		validateSignWait: validateSignWait,
 	}, nil
 }
 
@@ -455,6 +465,13 @@ func (e *blockExecutor) execute() error {
 			contract.SetPreloadTx(preLoadTx, contract.ChainService)
 		}
 
+		if e.validateSignWait != nil {
+			if err := e.validateSignWait(); err != nil {
+				return err
+			}
+		}
+
+		//TODO check result of verifing txs
 		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
 			return err
 		}

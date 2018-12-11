@@ -10,7 +10,9 @@ import (
 type SignVerifier struct {
 	workerCnt int
 	workCh    chan verifyWork
-	doneCh    chan VerifyResult
+	doneCh    chan verifyWorkRes
+
+	resultCh  chan *VerifyResult
 }
 
 type verifyWork struct {
@@ -18,9 +20,14 @@ type verifyWork struct {
 	tx  *types.Tx
 }
 
-type VerifyResult struct {
+type verifyWorkRes struct {
 	work *verifyWork
 	err  error
+}
+
+type VerifyResult struct {
+	failed bool
+	errors []error
 }
 
 var (
@@ -33,7 +40,8 @@ func NewSignVerifier(workerCnt int) *SignVerifier {
 	sv := &SignVerifier{
 		workerCnt: workerCnt,
 		workCh:    make(chan verifyWork, workerCnt),
-		doneCh:    make(chan VerifyResult, workerCnt),
+		doneCh:    make(chan verifyWorkRes, workerCnt),
+		resultCh:  make(chan *VerifyResult, 1),
 	}
 
 	for i := 0; i < workerCnt; i++ {
@@ -60,11 +68,10 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 				Err(err).Msg("error verify tx")
 		}
 
-		sv.doneCh <- VerifyResult{work: &txWork, err: err}
+		sv.doneCh <- verifyWorkRes{work: &txWork, err: err}
 	}
 
 	logger.Debug().Int("worker", workerNo).Msg("verify worker stop")
-
 }
 
 func verifyTx(tx *types.Tx) error {
@@ -82,12 +89,13 @@ func verifyTx(tx *types.Tx) error {
 	return nil
 }
 
-func (sv *SignVerifier) VerifyTxs(txlist *types.TxList) (bool, []error) {
+func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 	txs := txlist.GetTxs()
 	txLen := len(txs)
 
 	if txLen == 0 {
-		return false, nil
+		sv.resultCh <- &VerifyResult{ failed: false, errors: nil }
+		return
 	}
 
 	errors := make([]error, txLen, txLen)
@@ -101,37 +109,48 @@ func (sv *SignVerifier) VerifyTxs(txlist *types.TxList) (bool, []error) {
 		}
 	}()
 
-	var doneCnt = 0
-	failed := false
+	go func() {
+		var doneCnt= 0
+		failed := false
 
-LOOP:
-	for {
-		select {
-		case result := <-sv.doneCh:
-			doneCnt++
-			//logger.Debug().Int("donecnt", doneCnt).Msg("verify tx done")
+	LOOP:
+		for {
+			select {
+			case result := <-sv.doneCh:
+				doneCnt++
+				//logger.Debug().Int("donecnt", doneCnt).Msg("verify tx done")
 
-			if result.work.idx < 0 || result.work.idx >= txLen {
-				logger.Error().Int("idx", result.work.idx).Msg("Invalid Verify Result Index")
-				continue
-			}
+				if result.work.idx < 0 || result.work.idx >= txLen {
+					logger.Error().Int("idx", result.work.idx).Msg("Invalid Verify Result Index")
+					continue
+				}
 
-			errors[result.work.idx] = result.err
+				errors[result.work.idx] = result.err
 
-			if result.err != nil {
-				logger.Error().Err(result.err).Int("txno", result.work.idx).
-					Msg("verifing tx failed")
-				failed = true
-			}
+				if result.err != nil {
+					logger.Error().Err(result.err).Int("txno", result.work.idx).
+						Msg("verifing tx failed")
+					failed = true
+				}
 
-			if doneCnt == txLen {
-				break LOOP
+				if doneCnt == txLen {
+					break LOOP
+				}
 			}
 		}
-	}
 
-	logger.Debug().Msg("verify tx done")
-	return failed, errors
+		sv.resultCh <- &VerifyResult{ failed: failed, errors: errors }
+		logger.Debug().Msg("verify tx done")
+	} ()
+	return
+}
+
+func (sv *SignVerifier) WaitDone() (bool, []error) {
+	select {
+	case res := <- sv.resultCh:
+		logger.Debug().Msg("wait verify tx")
+		return res.failed, res.errors
+	}
 }
 
 func (bv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
