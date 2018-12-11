@@ -9,7 +9,7 @@
 
 #include "value.h"
 
-#define i64_fit_signed(val, max)                                                            \
+#define i64_fit_signed(val, max)                                                         \
     (((val)->is_neg && (val)->i64 <= (uint64_t)(max) + 1) ||                             \
      (!(val)->is_neg && (val)->i64 <= (uint64_t)(max)))
 
@@ -71,7 +71,7 @@
         ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
         switch (x->type) {                                                               \
         case TYPE_UINT64:                                                                \
-            value_set_i64(res, val_i64(x) op val_i64(y));                         \
+            value_set_i64(res, val_i64(x) op val_i64(y));                                \
             break;                                                                       \
         default:                                                                         \
             ASSERT1(!"invalid value", (x)->type);                                        \

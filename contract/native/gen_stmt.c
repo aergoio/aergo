@@ -70,7 +70,32 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
 {
-    return NULL;
+    ast_exp_t *cond_exp = stmt->u_if.cond_exp;
+    BinaryenExpressionRef cond;
+    BinaryenExpressionRef if_body, else_body;
+
+    cond = exp_gen(gen, cond_exp, &cond_exp->meta, false);
+
+    if_body = blk_gen(gen, stmt->u_if.if_blk);
+
+    if (stmt->u_if.else_blk != NULL) {
+        else_body = blk_gen(gen, stmt->u_if.else_blk);
+    }
+    else {
+        int i, j = 0;
+        array_t *elif_stmts = &stmt->u_if.elif_stmts;
+        BinaryenExpressionRef *instrs;
+
+        instrs = xmalloc(sizeof(BinaryenExpressionRef) * array_size(elif_stmts));
+
+        for (i = 0; i < array_size(elif_stmts); i++) {
+            instrs[j++] = stmt_gen_if(gen, array_get(elif_stmts, i, ast_stmt_t));
+        }
+
+        else_body = BinaryenBlock(gen->module, NULL, instrs, j, BinaryenTypeNone());
+    }
+
+    return BinaryenIf(gen->module, cond, if_body, else_body);
 }
 
 static BinaryenExpressionRef

@@ -15,25 +15,34 @@ BinaryenExpressionRef
 blk_gen(gen_t *gen, ast_blk_t *blk)
 {
     int i;
-    BinaryenExpressionRef instr;
+    int instr_cnt;
+    BinaryenExpressionRef *instrs;
+    BinaryenExpressionRef block;
 
-    ASSERT(blk != NULL);
+    if (blk == NULL)
+        return BinaryenNop(gen->module);
+
+    instr_cnt = gen->instr_cnt;
+    instrs = gen->instrs;
+
+    gen->instr_cnt = 0;
+    gen->instrs = NULL;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        instr = id_gen(gen, array_get(&blk->ids, i, ast_id_t));
-
-        if (!is_contract_blk(blk))
-            gen_add_instr(gen, instr);
+        gen_add_instr(gen, id_gen(gen, array_get(&blk->ids, i, ast_id_t)));
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        instr = stmt_gen(gen, array_get(&blk->stmts, i, ast_stmt_t));
-
-        if (!is_contract_blk(blk))
-            gen_add_instr(gen, instr);
+        gen_add_instr(gen, stmt_gen(gen, array_get(&blk->stmts, i, ast_stmt_t)));
     }
 
-    return NULL;
+    block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
+                          BinaryenTypeNone());
+
+    gen->instr_cnt = instr_cnt;
+    gen->instrs = instrs;
+
+    return block;
 }
 
 /* end of gen_blk.c */

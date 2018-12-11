@@ -40,50 +40,32 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     int addr;
     value_t *val = &exp->u_lit.val;
 
-    switch (meta->type) {
+    switch (val->type) {
     case TYPE_BOOL:
-        ASSERT1(val->type == TYPE_BOOL, val->type);
         return gen_i32(gen, val_bool(val) ? 1 : 0);
 
-    case TYPE_BYTE:
-    case TYPE_INT8:
-    case TYPE_UINT8:
-    case TYPE_INT16:
-    case TYPE_UINT16:
-    case TYPE_INT32:
-    case TYPE_UINT32:
-        ASSERT1(val->type == TYPE_UINT64, val->type);
+    case TYPE_UINT64:
+        if (is_int64_type(meta) || is_uint64_type(meta))
+            return gen_i64(gen, val_i64(val));
+
         return gen_i32(gen, val_i64(val));
 
-    case TYPE_INT64:
-    case TYPE_UINT64:
-        ASSERT1(val->type == TYPE_UINT64, val->type);
-        return gen_i64(gen, val_i64(val));
+    case TYPE_DOUBLE:
+        if (is_double_type(meta))
+            return gen_f64(gen, val_f64(val));
 
-    case TYPE_FLOAT:
-        ASSERT1(val->type == TYPE_DOUBLE, val->type);
         return gen_f32(gen, val_f64(val));
 
-    case TYPE_DOUBLE:
-        ASSERT1(val->type == TYPE_DOUBLE, val->type);
-        return gen_f64(gen, val_f64(val));
-
     case TYPE_STRING:
-        ASSERT1(val->type == TYPE_STRING, val->type);
         addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val) + 1);
         return gen_i32(gen, addr);
 
     case TYPE_OBJECT:
-    case TYPE_TUPLE:
-        ASSERT1(val->type == TYPE_OBJECT, val->type);
-        if (is_null_val(val)) {
+        if (is_null_val(val)) 
             return gen_i32(gen, 0);
-        }
-        else {
-            addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val));
-            return gen_i32(gen, addr);
-        }
-        break;
+
+        addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val));
+        return gen_i32(gen, addr);
 
     default:
         ASSERT1(!"invalid value", meta->type);

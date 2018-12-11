@@ -29,6 +29,10 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         }
     }
 
+    if (is_global_id(id))
+        /* TODO: save to the storage */
+        return NULL;
+
     id->idx = gen_add_local(gen, meta);
 
     if (dflt_exp != NULL) {
@@ -40,7 +44,10 @@ id_gen_var(gen_t *gen, ast_id_t *id)
             ASSERT2(BinaryenExpressionGetId(val_exp) == BinaryenConstId(),
                     BinaryenExpressionGetId(val_exp), BinaryenConstId());
 
-            meta->addr = BinaryenConstGetValueI32(val_exp);
+            if (BinaryenExpressionGetType(val_exp) == BinaryenTypeInt32())
+                meta->addr = BinaryenConstGetValueI32(val_exp);
+            else
+                meta->addr = BinaryenConstGetValueI64(val_exp);
 
             return BinaryenSetLocal(gen->module, id->idx, val_exp);
         }
@@ -59,36 +66,6 @@ id_gen_var(gen_t *gen, ast_id_t *id)
             meta->addr = dsgmt_occupy(gen->dsgmt, size);
     }
 
-    /*
-    if (is_primitive_type(meta) && !is_array_type(meta)) {
-        id->idx = gen_add_local(gen, meta);
-
-        if (dflt_exp != NULL)
-            return BinaryenSetLocal(gen->module, id->idx,
-                                    exp_gen(gen, dflt_exp, meta, false));
-    }
-    else {
-        if (dflt_exp == NULL) {
-            meta->addr = dsgmt_occupy(gen->dsgmt, size);
-        }
-        else if (is_lit_exp(dflt_exp)) {
-            BinaryenExpressionRef value = exp_gen(gen, dflt_exp, &dflt_exp->meta, false);
-
-            ASSERT2(BinaryenExpressionGetId(value) == BinaryenConstId(),
-                    BinaryenExpressionGetId(value), BinaryenConstId());
-
-            meta->addr = BinaryenConstGetValueI32(value);
-        }
-        else {
-            ASSERT1(is_init_exp(dflt_exp), dflt_exp->kind);
-
-            meta->addr = dsgmt_occupy(gen->dsgmt, size);
-
-            return exp_gen(gen, dflt_exp, meta, false);
-        }
-    }
-    */
-
     return NULL;
 }
 
@@ -100,7 +77,6 @@ id_gen_func(gen_t *gen, ast_id_t *id)
     BinaryenType *params;
     BinaryenFunctionTypeRef spec;
     BinaryenFunctionRef func;
-    BinaryenExpressionRef body = NULL;
     array_t *param_ids = id->u_func.param_ids;
     array_t *ret_ids = id->u_func.ret_ids;
 
@@ -126,24 +102,12 @@ id_gen_func(gen_t *gen, ast_id_t *id)
     spec = BinaryenAddFunctionType(gen->module, id->name, meta_gen(gen, &id->meta),
                                    params, param_cnt);
 
-    if (id->u_func.blk != NULL) {
-        blk_gen(gen, id->u_func.blk);
-
-        body = BinaryenBlock(gen->module, id->name, gen->instrs, gen->instr_cnt,
-                             BinaryenTypeNone());
-    }
-    else {
-        body = BinaryenNop(gen->module);
-    }
-
     func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
-                               body);
+                               blk_gen(gen, id->u_func.blk));
 
     gen->id_idx = 0;
     gen->local_cnt = 0;
     gen->locals = NULL;
-    gen->instr_cnt = 0;
-    gen->instrs = NULL;
 
     return func;
 }
@@ -151,10 +115,7 @@ id_gen_func(gen_t *gen, ast_id_t *id)
 static BinaryenExpressionRef
 id_gen_contract(gen_t *gen, ast_id_t *id)
 {
-    if (id->u_cont.blk != NULL)
-        return blk_gen(gen, id->u_cont.blk);
-
-    return NULL;
+    return blk_gen(gen, id->u_cont.blk);
 }
 
 BinaryenExpressionRef

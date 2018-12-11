@@ -27,6 +27,9 @@
 #define is_const_id(id)             flag_on((id)->mod, MOD_CONST)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
+#define is_global_id(id)            ((id)->scope == SCOPE_GLOBAL)
+#define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
+
 #define id_new_ctor(name, pos)                                                           \
     id_new_func((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
 
