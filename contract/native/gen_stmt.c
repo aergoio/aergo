@@ -137,7 +137,7 @@ stmt_gen_ddl(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_blk(gen_t *gen, ast_stmt_t *stmt)
 {
-    return NULL;
+    return blk_gen(gen, stmt->u_blk.blk);
 }
 
 BinaryenExpressionRef
