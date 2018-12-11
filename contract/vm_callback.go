@@ -10,6 +10,8 @@ package contract
 */
 import "C"
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -18,6 +20,8 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/minio/sha256-simd"
 )
 
 func luaPushStr(L *LState, str string) {
@@ -161,7 +165,11 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		}
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
+		if err != nil {
+			stateSet.dbSystemError = true
+			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+		}
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 		callState.curState.SqlRecoveryPoint, amountBig)
@@ -219,7 +227,12 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	if stateSet.lastRecoveryEntry != nil {
 		callState := stateSet.curContract.callState
-		setRecoveryPoint(aid, stateSet, nil, callState, big.NewInt(0), callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, nil, callState, big.NewInt(0), callState.ctrState.Snapshot())
+		if err != nil {
+			stateSet.dbSystemError = true
+			luaPushStr(L, "[System.LuaDelegateCallContract] DB err:"+err.Error())
+			return -1
+		}
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
@@ -254,7 +267,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64)
 
 		prevState, err := bs.GetAccountState(aid)
 		if err != nil {
-			luaPushStr(L, "[System.LuaGetContract]getAccount Error :"+err.Error())
+			luaPushStr(L, "[System.LuaSendAmount]getAccount Error :"+err.Error())
 			return -1
 		}
 
@@ -269,7 +282,12 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64)
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, 0)
+		err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, 0)
+		if err != nil {
+			stateSet.dbSystemError = true
+			luaPushStr(L, "[Contract.LuaSendAmount]DB error"+err.Error())
+			return -1
+		}
 	}
 	return 0
 }
@@ -297,7 +315,7 @@ func LuaPrint(service *C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
-	callState *CallState, amount *big.Int, snapshot state.Snapshot) {
+	callState *CallState, amount *big.Int, snapshot state.Snapshot) error {
 	var seq int
 	prev := stateSet.lastRecoveryEntry
 	if prev != nil {
@@ -317,10 +335,14 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 	tx := callState.tx
 	if tx != nil {
 		saveName := fmt.Sprintf("%s_%p", aid.String(), &recoveryEntry)
-		tx.SubSavepoint(saveName)
+		err := tx.SubSavepoint(saveName)
+		if err != nil {
+			return err
+		}
 		recoveryEntry.sqlSaveName = &saveName
 	}
 	stateSet.lastRecoveryEntry = recoveryEntry
+	return nil
 }
 
 //export LuaSetRecoveryPoint
@@ -334,8 +356,13 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 		return 0
 	}
 	curContract := stateSet.curContract
-	setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
+	err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
 		curContract.callState, big.NewInt(0), curContract.callState.ctrState.Snapshot())
+	if err != nil {
+		luaPushStr(L, "[Contract.pcall]DB error"+err.Error())
+		stateSet.dbSystemError = true
+		return -1
+	}
 	return C.int(stateSet.lastRecoveryEntry.seq)
 }
 
@@ -349,7 +376,11 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 	item := stateSet.lastRecoveryEntry
 	for {
 		if error {
-			item.recovery()
+			if item.recovery() != nil {
+				stateSet.dbSystemError = true
+				luaPushStr(L, "[Contract.pcall]DB Error")
+				return -1
+			}
 		}
 		if item.seq == start {
 			if error || item.prev == nil {
@@ -358,8 +389,11 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 			return 0
 		}
 		item = item.prev
+		if item == nil {
+			luaPushStr(L, "[Contract.pcall]internal Error")
+			return -1
+		}
 	}
-	return 0
 }
 
 //export LuaGetBalance
@@ -474,4 +508,99 @@ func LuaGetDbHandle(service *C.int) *C.sqlite3 {
 	}
 	callState.tx = tx
 	return callState.tx.GetHandle()
+}
+
+//export LuaCryptoSha256
+func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) {
+	h := sha256.New()
+	h.Write(C.GoBytes(arg, argLen))
+	resultHash := h.Sum(nil)
+	C.lua_pushlstring(L, (*C.char)(unsafe.Pointer(&resultHash[0])), C.ulong(len(resultHash)))
+}
+
+func decodeHex(hexStr string) ([]byte, error) {
+	if len(hexStr) >= 2 && hexStr[0] == '0' && (hexStr[1] == 'x' || hexStr[1] == 'X') {
+		hexStr = hexStr[2:]
+	}
+	return hex.DecodeString(hexStr)
+}
+
+//export LuaECVerify
+func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
+	bMsg, err := decodeHex(C.GoString(msg))
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaEcVerify]invalid message format:"+err.Error())
+		return -1
+	}
+	bSig, err := decodeHex(C.GoString(sig))
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaEcVerify]invalid signature format:"+err.Error())
+		return -1
+	}
+	address := C.GoString(addr)
+
+	var pubKey *btcec.PublicKey
+	var verifyResult bool
+	isAergo := len(address) == 52
+
+	/*Aergo Address*/
+	if isAergo {
+		bAddress, err := types.DecodeAddress(address)
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaEcVerify]invalid aergo address:"+err.Error())
+			return -1
+		}
+		pubKey, err = btcec.ParsePubKey(bAddress, btcec.S256())
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaEcVerify]Error parse pubKey:"+err.Error())
+			return -1
+		}
+	}
+
+	// CompactSign
+	if len(bSig) == 65 {
+		// ethereum
+		if !isAergo {
+			btcsig := make([]byte, 65)
+			btcsig[0] = bSig[64] + 27
+			copy(btcsig[1:], bSig)
+			bSig = btcsig
+		}
+		pub, _, err := btcec.RecoverCompact(btcec.S256(), bSig, bMsg)
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaEcVerify]Error recoverCompact:"+err.Error())
+			return -1
+		}
+		if pubKey != nil {
+			verifyResult = pubKey.IsEqual(pub)
+		} else {
+			bAddress, err := decodeHex(address)
+			if err != nil {
+				luaPushStr(L, "[Contract.LuaEcVerify]invalid ethereum address:"+err.Error())
+				return -1
+			}
+			bPub := pub.SerializeUncompressed()
+			h := sha256.New()
+			h.Write(bPub[1:])
+			signAddress := h.Sum(nil)[12:]
+			verifyResult = bytes.Equal(bAddress, signAddress)
+		}
+	} else {
+		sign, err := btcec.ParseSignature(bSig, btcec.S256())
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaEcVerify]Error signature parsing:"+err.Error())
+			return -1
+		}
+		if pubKey == nil {
+			luaPushStr(L, "[Contract.LuaEcVerify]not supported")
+			return -1
+		}
+		verifyResult = sign.Verify(bMsg, pubKey)
+	}
+	if verifyResult {
+		C.lua_pushboolean(L, 1)
+	} else {
+		C.lua_pushboolean(L, C.int(0))
+	}
+	return 0
 }

@@ -5,6 +5,7 @@
 #include "contract_module.h"
 #include "db_module.h"
 #include "state_module.h"
+#include "crypto_module.h"
 #include "util.h"
 #include "_cgo_export.h"
 
@@ -17,6 +18,7 @@ static void preloadModules(lua_State *L)
     luaopen_db(L);
 	luaopen_state(L);
 	luaopen_json(L);
+	luaopen_crypto(L);
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
