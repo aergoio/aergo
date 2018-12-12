@@ -54,7 +54,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         else {
             ASSERT1(is_init_exp(dflt_exp), dflt_exp->kind);
 
-            meta->addr = dsgmt_occupy(gen->dsgmt, size);
+            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
 
             gen_add_instr(gen, exp_gen(gen, dflt_exp, meta, false));
 
@@ -63,7 +63,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     }
     else {
         if (!is_primitive_type(meta) || is_array_type(meta))
-            meta->addr = dsgmt_occupy(gen->dsgmt, size);
+            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
     }
 
     return NULL;
@@ -98,7 +98,8 @@ id_gen_func(gen_t *gen, ast_id_t *id)
         ret_id->idx = gen->id_idx++;
         params[ret_id->idx] = meta_gen(gen, &ret_id->meta);
 
-        ret_id->meta.addr = dsgmt_occupy(gen->dsgmt, meta_size(&ret_id->meta));
+        ret_id->meta.addr = 
+            dsgmt_occupy(gen->dsgmt, gen->module, meta_size(&ret_id->meta));
     }
 
     spec = BinaryenAddFunctionType(gen->module, id->name, BinaryenTypeNone(),

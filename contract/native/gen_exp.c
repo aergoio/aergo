@@ -57,14 +57,14 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
         return gen_f32(gen, val_f64(val));
 
     case TYPE_STRING:
-        addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val) + 1);
+        addr = dsgmt_add(gen->dsgmt, gen->module, val_ptr(val), val_size(val) + 1);
         return gen_i32(gen, addr);
 
     case TYPE_OBJECT:
         if (is_null_val(val)) 
             return gen_i32(gen, 0);
 
-        addr = dsgmt_add(gen->dsgmt, val_ptr(val), val_size(val));
+        addr = dsgmt_add(gen->dsgmt, gen->module, val_ptr(val), val_size(val));
         return gen_i32(gen, addr);
 
     default:
