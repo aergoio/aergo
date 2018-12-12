@@ -401,10 +401,21 @@ stmt_check_jump(check_t *check, ast_stmt_t *stmt)
     }
 
     blk = blk_search_loop(check->blk);
-    if (!check->is_in_switch && (blk == NULL || blk->name[0] == '\0'))
-        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
 
-    stmt->u_jump.label = blk->name;
+    if (!check->is_in_switch) {
+        if (blk == NULL)
+            RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
+
+        if (is_continue_stmt(stmt)) {
+            stmt->u_jump.label = blk->name;
+        }
+        else {
+            char label[128];
+
+            snprintf(label, sizeof(label), "normal_blk_%d", blk->num);
+            stmt->u_jump.label = xstrdup(label);
+        }
+    }
 
     return NO_ERROR;
 }

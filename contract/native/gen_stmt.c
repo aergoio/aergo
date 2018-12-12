@@ -105,10 +105,18 @@ stmt_gen_loop(gen_t *gen, ast_stmt_t *stmt)
     ast_blk_t *blk = stmt->u_loop.blk;
 
     if (stmt->u_loop.kind == LOOP_FOR) {
+        char label[128];
+        BinaryenExpressionRef loop_ref;
+
         if (stmt->u_loop.init_stmt != NULL)
             gen_add_instr(gen, stmt_gen(gen, stmt->u_loop.init_stmt));
 
-        return BinaryenLoop(gen->module, blk->name, blk_gen(gen, blk));
+        snprintf(label, sizeof(label), "normal_blk_%d", blk->num);
+
+        loop_ref = BinaryenLoop(gen->module, blk->name, blk_gen(gen, blk));
+
+        return BinaryenBlock(gen->module, xstrdup(label), &loop_ref, 1,
+                             BinaryenTypeNone());
     }
 
     /* XXX */
@@ -159,13 +167,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 }
 
 static BinaryenExpressionRef
-stmt_gen_continue(gen_t *gen, ast_stmt_t *stmt)
-{
-    return NULL;
-}
-
-static BinaryenExpressionRef
-stmt_gen_break(gen_t *gen, ast_stmt_t *stmt)
+stmt_gen_jump(gen_t *gen, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp = stmt->u_jump.cond_exp;
     BinaryenExpressionRef cond = NULL;
@@ -220,10 +222,8 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return stmt_gen_return(gen, stmt);
 
     case STMT_CONTINUE:
-        return stmt_gen_continue(gen, stmt);
-
     case STMT_BREAK:
-        return stmt_gen_break(gen, stmt);
+        return stmt_gen_jump(gen, stmt);
 
     case STMT_GOTO:
         return stmt_gen_goto(gen, stmt);
