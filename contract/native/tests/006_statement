@@ -312,6 +312,33 @@ contract test {
     }
 }
 
+@test(duplicated_case_value)
+@error(ERROR_DUPLICATED_VALUE)
+contract test {
+    int i;
+
+    test() {
+        switch (i) {
+        case 1: break;
+        case 1: i++;
+        }
+    }
+}
+
+@test(duplicated_default)
+@error(ERROR_DUPLICATED_LABEL)
+contract test {
+    int i;
+
+    test() {
+        switch (i) {
+        case 1: break;
+        default: i++; break;
+        default: i--; break;
+        }
+    }
+}
+
 @test(without_switch_variable)
 contract test {
     int i;
@@ -321,6 +348,20 @@ contract test {
         switch {
         case i == 1: { } break;
         case s == "second": break;
+        }
+    }
+}
+
+@test(duplicated_case_expression)
+@error(ERROR_DUPLICATED_VALUE)
+contract test {
+    int i;
+    string s;
+
+    test() {
+        switch {
+        case i == 1: { } break;
+        case i == 1: break;
         }
     }
 }

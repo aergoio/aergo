@@ -188,7 +188,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                     value_t *val_prev = &prev_id->u_var.dflt_exp->u_lit.val;
 
                     if (value_cmp(init_val, val_prev) == 0)
-                        RETURN(ERROR_DUPLICATED_ENUM_VAL, &dflt_exp->pos);
+                        RETURN(ERROR_DUPLICATED_VALUE, &dflt_exp->pos, "enumerator");
                 }
             }
 

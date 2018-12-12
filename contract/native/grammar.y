@@ -201,7 +201,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    init_stmt
 %type <exp>     cond_exp
 %type <stmt>    switch_stmt
-%type <array>   case_list
+%type <blk>     case_blk
 %type <stmt>    case_stmt
 %type <array>   stmt_list
 %type <stmt>    jump_stmt
@@ -737,10 +737,9 @@ if_stmt:
     }
 |   if_stmt K_ELSE block
     {
-        ast_stmt_t *stmt;
+        ast_stmt_t *stmt = array_get_last(&$1->u_if.elif_stmts, ast_stmt_t);
 
         $$ = $1;
-        stmt = array_get_last(&$$->u_if.elif_stmts, ast_stmt_t);
 
         if (stmt == NULL)
             $$->u_if.else_blk = $3;
@@ -809,11 +808,11 @@ cond_exp:
 ;
 
 switch_stmt:
-    K_SWITCH '{' case_list '}'
+    K_SWITCH '{' case_blk '}'
     {
         $$ = stmt_new_switch(NULL, $3, &@$);
     }
-|   K_SWITCH '(' expression ')' '{' case_list '}'
+|   K_SWITCH '(' expression ')' '{' case_blk '}'
     {
         $$ = stmt_new_switch($3, $6, &@$);
     }
@@ -823,16 +822,16 @@ switch_stmt:
     }
 ;
 
-case_list:
+case_blk:
     case_stmt
     {
-        $$ = array_new();
-        stmt_add_last($$, $1);
+        $$ = blk_new_switch(&@$);
+        stmt_add_last(&$$->stmts, $1);
     }
-|   case_list case_stmt
+|   case_blk case_stmt
     {
         $$ = $1;
-        stmt_add_last($$, $2);
+        stmt_add_last(&$$->stmts, $2);
     }
 ;
 

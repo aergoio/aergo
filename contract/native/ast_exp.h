@@ -156,6 +156,8 @@ ast_exp_t *exp_new_init(array_t *exps, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 
+bool exp_equals(ast_exp_t *e1, ast_exp_t *e2);
+
 void ast_exp_dump(ast_exp_t *exp, int indent);
 
 #endif /* ! _AST_EXP_H */

@@ -39,9 +39,11 @@ struct ast_blk_s {
 ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
+ast_blk_t *blk_new_switch(src_pos_t *pos);
 
 void blk_set_loop(ast_blk_t *blk);
-ast_blk_t *blk_search_loop(ast_blk_t *blk);
+
+ast_blk_t *blk_search(ast_blk_t *blk, blk_kind_t kind);
 
 void ast_blk_dump(ast_blk_t *blk, int indent);
 

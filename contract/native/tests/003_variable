@@ -193,7 +193,7 @@ contract test {
 }
 
 @test(duplicated_enumerator)
-@error(ERROR_DUPLICATED_ENUM_VAL)
+@error(ERROR_DUPLICATED_VALUE)
 contract test {
     enum e1 {
         a,

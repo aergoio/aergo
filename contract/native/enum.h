@@ -140,6 +140,7 @@ typedef enum blk_kind_e {
     BLK_CONTRACT,
     BLK_FUNC,
     BLK_LOOP,
+    BLK_SWITCH,
     BLK_MAX
 } blk_kind_t;
 

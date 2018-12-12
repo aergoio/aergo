@@ -80,12 +80,12 @@ stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
 }
 
 ast_stmt_t *
-stmt_new_switch(ast_exp_t *cond_exp, array_t *case_stmts, src_pos_t *pos)
+stmt_new_switch(ast_exp_t *cond_exp, ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_SWITCH, pos);
 
     stmt->u_sw.cond_exp = cond_exp;
-    stmt->u_sw.case_stmts = case_stmts;
+    stmt->u_sw.blk = blk;
 
     return stmt;
 }

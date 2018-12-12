@@ -280,49 +280,18 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_check_case(check_t *check, ast_stmt_t *stmt, meta_t *meta)
-{
-    int i;
-    ast_exp_t *val_exp;
-    array_t *stmts;
-
-    ASSERT1(is_case_stmt(stmt), stmt->kind);
-
-    val_exp = stmt->u_case.val_exp;
-
-    if (val_exp != NULL) {
-        meta_t *val_meta = &val_exp->meta;
-
-        exp_check(check, val_exp);
-
-        if (meta == NULL) {
-            if (!is_bool_type(val_meta))
-                RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
-        }
-        else {
-            meta_cmp(meta, val_meta);
-        }
-    }
-
-    stmts = stmt->u_case.stmts;
-
-    for (i = 0; i < array_size(stmts); i++) {
-        stmt_check(check, array_get(stmts, i, ast_stmt_t));
-    }
-
-    return NO_ERROR;
-}
-
-static int
 stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 {
-    int i;
+    int i, j;
+    bool has_default = false;
+    ast_blk_t *blk;
     ast_exp_t *cond_exp;
     meta_t *cond_meta = NULL;
-    array_t *case_stmts;
 
     ASSERT1(is_switch_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_sw.blk != NULL);
 
+    blk = stmt->u_sw.blk;
     cond_exp = stmt->u_sw.cond_exp;
 
     if (cond_exp != NULL) {
@@ -334,15 +303,67 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
     }
 
-    case_stmts = stmt->u_sw.case_stmts;
+    for (i = 0; i < array_size(&blk->stmts); i++) {
+        ast_stmt_t *case_stmt = array_get(&blk->stmts, i, ast_stmt_t);
+        ast_exp_t *val_exp = case_stmt->u_case.val_exp;
 
-    check->is_in_switch = true;
+        ASSERT1(is_case_stmt(case_stmt), case_stmt->kind);
 
-    for (i = 0; i < array_size(case_stmts); i++) {
-        stmt_check_case(check, array_get(case_stmts, i, ast_stmt_t), cond_meta);
+        if (val_exp == NULL) {
+            if (has_default)
+                RETURN(ERROR_DUPLICATED_LABEL, &case_stmt->pos, "default");
+
+            has_default = true;
+        }
+        else {
+            for (j = i + 1; j < array_size(&blk->stmts); j++) {
+                ast_stmt_t *next_case = array_get(&blk->stmts, j, ast_stmt_t);
+                ast_exp_t *next_val = next_case->u_case.val_exp;
+
+                if (next_val != NULL && exp_equals(val_exp, next_val))
+                    RETURN(ERROR_DUPLICATED_VALUE, &next_val->pos, "case");
+            }
+        }
+
+        case_stmt->u_case.cond_meta = cond_meta;
     }
 
-    check->is_in_switch = false;
+    blk_check(check, blk);
+
+    return NO_ERROR;
+}
+
+static int
+stmt_check_case(check_t *check, ast_stmt_t *stmt)
+{
+    int i;
+    ast_exp_t *val_exp;
+    array_t *stmts;
+
+    ASSERT1(is_case_stmt(stmt), stmt->kind);
+
+    val_exp = stmt->u_case.val_exp;
+
+    if (val_exp != NULL) {
+        meta_t *val_meta = &val_exp->meta;
+        meta_t *cond_meta = stmt->u_case.cond_meta;
+
+        exp_check(check, val_exp);
+
+        if (cond_meta == NULL) {
+            if (!is_bool_type(val_meta))
+                RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
+        }
+        else {
+            meta_cmp(cond_meta, val_meta);
+        }
+    }
+
+    stmts = stmt->u_case.stmts;
+
+    for (i = 0; i < array_size(stmts); i++) {
+        stmt_check(check, array_get(stmts, i, ast_stmt_t));
+    }
 
     return NO_ERROR;
 }
@@ -382,12 +403,29 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 }
 
 static int
-stmt_check_jump(check_t *check, ast_stmt_t *stmt)
+stmt_check_continue(check_t *check, ast_stmt_t *stmt)
+{
+    ast_blk_t *blk;
+
+    ASSERT1(is_continue_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_jump.cond_exp == NULL);
+
+    blk = blk_search(check->blk, BLK_LOOP);
+    if (blk == NULL)
+        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
+
+    stmt->u_jump.label = blk->name;
+
+    return NO_ERROR;
+}
+
+static int
+stmt_check_break(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp;
     ast_blk_t *blk;
 
-    ASSERT1(is_continue_stmt(stmt) || is_break_stmt(stmt), stmt->kind);
+    ASSERT1(is_break_stmt(stmt), stmt->kind);
 
     cond_exp = stmt->u_jump.cond_exp;
 
@@ -400,22 +438,14 @@ stmt_check_jump(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
     }
 
-    blk = blk_search_loop(check->blk);
-
-    if (!check->is_in_switch) {
+    blk = blk_search(check->blk, BLK_LOOP);
+    if (blk == NULL) {
+        blk = blk_search(check->blk, BLK_SWITCH);
         if (blk == NULL)
             RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
-
-        if (is_continue_stmt(stmt)) {
-            stmt->u_jump.label = blk->name;
-        }
-        else {
-            char label[128];
-
-            snprintf(label, sizeof(label), "normal_blk_%d", blk->num);
-            stmt->u_jump.label = xstrdup(label);
-        }
     }
+
+    stmt->u_jump.label = blk->name;
 
     return NO_ERROR;
 }
@@ -498,16 +528,20 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
         stmt_check_switch(check, stmt);
         break;
 
+    case STMT_CASE:
+        stmt_check_case(check, stmt);
+        break;
+
     case STMT_RETURN:
         stmt_check_return(check, stmt);
         break;
 
     case STMT_CONTINUE:
-        stmt_check_jump(check, stmt);
+        stmt_check_continue(check, stmt);
         break;
 
     case STMT_BREAK:
-        stmt_check_jump(check, stmt);
+        stmt_check_break(check, stmt);
         break;
 
     case STMT_GOTO:

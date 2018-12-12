@@ -240,6 +240,87 @@ exp_clone(ast_exp_t *exp)
     return NULL;
 }
 
+bool
+exp_equals(ast_exp_t *e1, ast_exp_t *e2)
+{
+    int i;
+
+    if (e1 == NULL && e2 == NULL)
+        return true;
+
+    if (e1 == NULL || e2 == NULL || e1->kind != e2->kind)
+        return false;
+
+    switch (e1->kind) {
+    case EXP_NULL:
+        return true;
+
+    case EXP_REF:
+        return strcmp(e1->u_ref.name, e2->u_ref.name) == 0;
+
+    case EXP_LIT:
+        return e1->u_lit.val.type == e2->u_lit.val.type &&
+            value_cmp(&e1->u_lit.val, &e2->u_lit.val) == 0;
+
+    case EXP_ARRAY:
+        return exp_equals(e1->u_arr.id_exp, e2->u_arr.id_exp) &&
+            exp_equals(e1->u_arr.idx_exp, e2->u_arr.idx_exp);
+
+    case EXP_CAST:
+        return e1->u_cast.to_meta.type == e2->u_cast.to_meta.type &&
+            exp_equals(e1->u_cast.val_exp, e2->u_cast.val_exp);
+
+    case EXP_UNARY:
+        return e1->u_un.kind == e2->u_un.kind &&
+            exp_equals(e1->u_un.val_exp, e2->u_un.val_exp);
+
+    case EXP_BINARY:
+        return e1->u_bin.kind == e2->u_bin.kind &&
+            exp_equals(e1->u_bin.l_exp, e2->u_bin.l_exp) &&
+            exp_equals(e1->u_bin.r_exp, e2->u_bin.r_exp);
+
+    case EXP_TERNARY:
+        return exp_equals(e1->u_tern.pre_exp, e2->u_tern.pre_exp) &&
+            exp_equals(e1->u_tern.in_exp, e2->u_tern.in_exp) &&
+            exp_equals(e1->u_tern.post_exp, e2->u_tern.post_exp);
+
+    case EXP_ACCESS:
+        return exp_equals(e1->u_acc.id_exp, e2->u_acc.id_exp) &&
+            exp_equals(e1->u_acc.fld_exp, e2->u_acc.fld_exp);
+
+    case EXP_CALL:
+        if (array_size(e1->u_call.param_exps) != array_size(e2->u_call.param_exps))
+            return false;
+
+        for (i = 0; i < array_size(e1->u_call.param_exps); i++) {
+            if (!exp_equals(array_get(e1->u_call.param_exps, i, ast_exp_t),
+                            array_get(e2->u_call.param_exps, i, ast_exp_t)))
+                return false;
+        }
+        return exp_equals(e1->u_acc.id_exp, e2->u_acc.id_exp);
+
+    case EXP_SQL:
+        return e1->u_sql.kind == e2->u_sql.kind &&
+            strcmp(e1->u_sql.sql, e2->u_sql.sql) == 0;
+
+    case EXP_TUPLE:
+        if (array_size(e1->u_tup.exps) != array_size(e2->u_tup.exps))
+            return false;
+
+        for (i = 0; i < array_size(e1->u_tup.exps); i++) {
+            if (!exp_equals(array_get(e1->u_tup.exps, i, ast_exp_t),
+                            array_get(e2->u_tup.exps, i, ast_exp_t)))
+                return false;
+        }
+        return true;
+
+    default:
+        ASSERT1(!"invalid expression", e1->kind);
+    }
+
+    return false;
+}
+
 void
 ast_exp_dump(ast_exp_t *exp, int indent)
 {

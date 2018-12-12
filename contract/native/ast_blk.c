@@ -46,6 +46,12 @@ blk_new_loop(src_pos_t *pos)
     return ast_blk_new(BLK_LOOP, "loop", pos);
 }
 
+ast_blk_t *
+blk_new_switch(src_pos_t *pos)
+{
+    return ast_blk_new(BLK_SWITCH, "switch", pos);
+}
+
 void
 blk_set_loop(ast_blk_t *blk)
 {
@@ -55,12 +61,12 @@ blk_set_loop(ast_blk_t *blk)
 }
 
 ast_blk_t *
-blk_search_loop(ast_blk_t *blk)
+blk_search(ast_blk_t *blk, blk_kind_t kind)
 {
     ASSERT(blk != NULL);
 
     do {
-        if (blk->kind == BLK_LOOP)
+        if (blk->kind == kind)
             return blk;
     } while ((blk = blk->up) != NULL);
 
