@@ -27,8 +27,9 @@ var (
 	logger = log.NewLogger("dpos")
 
 	// blockProducers is the number of block producers
-	blockProducers        uint16
-	defaultConsensusCount uint16
+	blockProducers          uint16
+	defaultConsensusCount   uint16
+	initialBpElectionPeriod types.BlockNo
 
 	lastJob = &lastSlot{}
 )
@@ -85,19 +86,9 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
-	genesis := cdb.GetGenesisInfo()
-	if genesis != nil {
-		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
-		bpCount := len(genesis.BPs)
-		// Prefer BPs from the GenesisInfo. Overwrite.
-		if bpCount > 0 {
-			logger.Debug().Msg("use BPs from the genesis info")
-			for i, bp := range genesis.BPs {
-				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
-			}
-			cfg.Consensus.BpIds = genesis.BPs
-			cfg.Consensus.DposBpNumber = uint16(bpCount)
-		}
+	if bps := getBpList(cdb); len(bps) > 0 {
+		cfg.Consensus.BpIds = bps
+		cfg.Consensus.DposBpNumber = uint16(len(bps))
 	}
 
 	Init(cfg.Consensus)
@@ -118,12 +109,32 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbR
 	}, nil
 }
 
+func getBpList(cdb consensus.ChainDbReader) []string {
+	// TODO: Read the lastest BP list from BP election info, first.
+	genesis := cdb.GetGenesisInfo()
+	if genesis != nil {
+		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
+
+		// Prefer BPs from the GenesisInfo. Overwrite.
+		if len(genesis.BPs) > 0 {
+			logger.Debug().Msg("use BPs from the genesis info")
+			for i, bp := range genesis.BPs {
+				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
+			}
+			return genesis.BPs
+		}
+	}
+	return nil
+}
+
 // Init initilizes the DPoS parameters.
 func Init(cfg *config.ConsensusConfig) {
 	consensus.InitBlockInterval(cfg.BlockInterval)
 
 	blockProducers = cfg.DposBpNumber
 	defaultConsensusCount = blockProducers*2/3 + 1
+	// Collect voting for BPs during 10 rounds.
+	initialBpElectionPeriod = types.BlockNo(blockProducers) * 10
 	slot.Init(cfg.BlockInterval, blockProducers)
 }
 

@@ -42,14 +42,14 @@ const (
 
 // ChainID represents the identity of the chain.
 type ChainID struct {
-	Version   int32  `json:"version"`
+	Version   int32  `json:"-"`
 	PublicNet bool   `json:"public"`
 	MainNet   bool   `json:"mainnet"`
 	Magic     string `json:"magic"`
 	Consensus string `json:"consensus"`
 }
 
-// NewChainID returns a new ChainID which initialized as its nil value.
+// NewChainID returns a new ChainID initialized as nilChainID.
 func NewChainID() *ChainID {
 	nilCID := nilChainID
 
