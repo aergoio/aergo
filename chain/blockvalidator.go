@@ -94,9 +94,12 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 }
 
 func (bv *BlockValidator) WaitVerifyDone() error {
+	logger.Debug().Bool("need", bv.isNeedWait).Msg("wait to verify tx")
+
 	if !bv.isNeedWait {
 		return nil
 	}
+	bv.isNeedWait = false
 
 	if failed, _ := bv.signVerifier.WaitDone(); failed == true {
 		logger.Error().Msg("sign of txs validation failed")
