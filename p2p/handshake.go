@@ -13,14 +13,39 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
 const aergoP2PSub protocol.ID = "/aergop2p/0.2"
+
+
+type HSHandlerFactory interface {
+	CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler
+}
+
+// HSHandler will do handshake with remote peer
+type HSHandler interface {
+	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
+	Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error)
+}
+
+type InboundHSHandler struct {
+	*PeerHandshaker
+}
+
+func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
+	return ih.handshakeInboundPeerTimeout(r,w,ttl)
+}
+
+type OutboundHSHandler struct {
+	*PeerHandshaker
+}
+
+func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
+	return oh.handshakeOutboundPeerTimeout(r,w,ttl)
+}
 
 // PeerHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.
@@ -143,21 +168,6 @@ func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error
 		offset += read
 	}
 	return offset, nil
-}
-
-// doPostHandshake is additional work after peer is added.
-func (h *PeerHandshaker) doInitialSync() {
-
-	if chain.UseFastSyncer {
-		h.logger.Debug().Uint64("target", h.remoteStatus.BestHeight).Msg("request new syncer")
-		h.actorServ.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: h.peerID, TargetNo: h.remoteStatus.BestHeight})
-	} else {
-		// sync block infos
-		h.actorServ.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: h.peerID, BlockNo: h.remoteStatus.BestHeight, BlockHash: h.remoteStatus.BestBlockHash})
-	}
-
-	// sync mempool tx infos
-	// TODO add tx handling
 }
 
 func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, error) {

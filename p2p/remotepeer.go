@@ -475,7 +475,7 @@ func (p *remotePeerImpl) getStreamForWriting(msgID string, protocol protocol.ID,
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *remotePeerImpl) sendPing() {
 	// find my best block
-	//bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
+	//bestBlock, err := extractBlockFromRequest(p.actorService.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	//if err != nil {
 	//	p.logger.Error().Err(err).Msg("Failed to get best block")
 	//	return

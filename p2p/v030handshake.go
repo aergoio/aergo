@@ -92,7 +92,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 	return statusResp, nil
 }
 
-// onHandshake is handle handshake from inbound peer
+// onConnect is handle handshake from inbound peer
 func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	rw := h.msgRW
 	peerID := h.peerID

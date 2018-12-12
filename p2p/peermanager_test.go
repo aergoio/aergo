@@ -29,7 +29,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	mockMF := new(MockMoFactory)
-	target := NewPeerManager(nil, mockActor,
+	target := NewPeerManager(nil, nil, mockActor,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, new(MockReconnectManager), nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
@@ -58,7 +58,7 @@ func FailTestGetPeers(t *testing.T) {
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	mockMF := new(MockMoFactory)
-	target := NewPeerManager(nil, mockActorServ,
+	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, new(MockReconnectManager), nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
@@ -98,7 +98,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	InitNodeInfo(tConfig.P2P, tLogger)
-	target := NewPeerManager(nil, mockActorServ,
+	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
 		nil, new(MockReconnectManager), nil,
 		tLogger, mockMF).(*peerManager)
@@ -205,6 +205,19 @@ func TestPeerManager_init(t *testing.T) {
 
 				pm.init()
 			}
+		})
+	}
+}
+
+func TestPeerManager_addOutboundPeer(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		// TODO: test cases
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			
 		})
 	}
 }
