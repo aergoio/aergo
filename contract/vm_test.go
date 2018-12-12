@@ -1772,12 +1772,12 @@ func TestArray(t *testing.T) {
 	end
 
 	function len()
-		return #counts
+		return counts:length()
 	end
 
 	function iter()
 		local rv = {}
-		for i, v in state.array_pairs(counts) do
+		for i, v in counts:ipairs() do 
 			if v == nil then
 				rv[i] = "nil"
 			else
@@ -1787,19 +1787,7 @@ func TestArray(t *testing.T) {
 		return rv
 	end
 
-	function iter2()
-		local rv = {}
-		for i, v in counts:ipairs() do
-			if v == nil then
-				rv[i] = "nil"
-			else
-				rv[i] = v
-			end
-		end
-		return rv
-	end
-
-	abi.register(inc,get,set,len,iter,iter2)`
+	abi.register(inc,get,set,len,iter)`
 
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -1839,10 +1827,6 @@ func TestArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.Query("array", `{"Name":"iter2"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2460,7 +2444,7 @@ state.var {
 }
 
 function Length()
-	return #fixedArray
+	return fixedArray:length()
 end
 
 abi.register(Length)
@@ -2485,7 +2469,7 @@ state.var {
 }
 
 function Append(val)
-	dArr.append(val)
+	dArr:append(val)
 end
 
 function Get(idx)
@@ -2497,7 +2481,7 @@ function Set(idx, val)
 end
 
 function Length()
-	return #dArr
+	return dArr:length()
 end
 
 abi.register(Append, Get, Set, Length)
