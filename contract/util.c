@@ -139,13 +139,13 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 			if (luaL_isinteger(L, idx))
 				len = sprintf (tmp, "\"%ld\",", lua_tointeger(L, idx));
 			else
-				len = sprintf (tmp, "\"%g\",", lua_tonumber(L, idx));
+				len = sprintf (tmp, "\"%.14g\",", lua_tonumber(L, idx));
 		}
 		else {
 			if (luaL_isinteger(L, idx))
 				len = sprintf (tmp, "%ld,", lua_tointeger(L, idx));
 			else
-				len = sprintf (tmp, "%g,", lua_tonumber(L, idx));
+				len = sprintf (tmp, "%.14g,", lua_tonumber(L, idx));
 		}
 		src_val = tmp;
 		break;
