@@ -35,24 +35,11 @@ type blockProducer struct {
 // NewCluster returns a new bp.Cluster.
 func NewCluster(ids []string, blockProducers uint16) (*Cluster, error) {
 	c := &Cluster{
-		size:   blockProducers,
-		member: make(map[uint16]*blockProducer),
-		index:  make(map[peer.ID]uint16),
+		size: blockProducers,
 	}
 
-	for i, id := range ids {
-		bpID, err := peer.IDB58Decode(id)
-		if err != nil {
-			return nil, fmt.Errorf("invalid node ID[%d]: %s", i, err.Error())
-		}
-
-		index := uint16(i)
-		c.member[index] = newBlockProducer(bpID)
-		c.index[bpID] = index
-	}
-
-	if len(c.index) != int(blockProducers) {
-		return nil, errBpSize{required: blockProducers, given: uint16(len(ids))}
+	if err := c.Update(ids); err != nil {
+		return nil, err
 	}
 
 	return c, nil
@@ -60,6 +47,29 @@ func NewCluster(ids []string, blockProducers uint16) (*Cluster, error) {
 
 func newBlockProducer(id peer.ID) *blockProducer {
 	return &blockProducer{id: id}
+}
+
+// Update updates old cluster index by using ids.
+func (c *Cluster) Update(ids []string) error {
+	c.member = make(map[uint16]*blockProducer)
+	c.index = make(map[peer.ID]uint16)
+
+	for i, id := range ids {
+		bpID, err := peer.IDB58Decode(id)
+		if err != nil {
+			return fmt.Errorf("invalid node ID[%d]: %s", i, err.Error())
+		}
+
+		index := uint16(i)
+		c.member[index] = newBlockProducer(bpID)
+		c.index[bpID] = index
+	}
+
+	if len(c.index) != int(c.size) {
+		return errBpSize{required: c.size, given: uint16(len(ids))}
+	}
+
+	return nil
 }
 
 // BpIndex2ID returns the ID correspinding to idx.
