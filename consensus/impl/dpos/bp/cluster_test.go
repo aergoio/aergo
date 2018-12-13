@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/aergoio/aergo/config"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestNewClusterInvalid(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		bpc, err := NewCluster(tc.ids, BlockProducers)
+		bpc, err := NewCluster(newConfig(tc.ids), nil)
 		fmt.Println(tc.name, "--> ", err.Error())
 		assert.NotNil(t, err)
 		assert.Nil(t, bpc)
@@ -57,7 +58,14 @@ func TestNewCluster(t *testing.T) {
 		return ids
 	}
 
-	bpc, err := NewCluster(genIds(), BlockProducers)
+	bpc, err := NewCluster(newConfig(genIds()), nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, bpc, "Cluster alloc failed")
+}
+
+func newConfig(ids []string) *config.ConsensusConfig {
+	return &config.ConsensusConfig{
+		BpIds:        ids,
+		DposBpNumber: uint16(len(ids)),
+	}
 }

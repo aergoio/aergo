@@ -19,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -86,17 +85,12 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
-	if bps := getBpList(cdb); len(bps) > 0 {
-		cfg.Consensus.BpIds = bps
-		cfg.Consensus.DposBpNumber = uint16(len(bps))
-	}
-
-	Init(cfg.Consensus)
-
-	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
+	bpc, err := bp.NewCluster(cfg.Consensus, cdb)
 	if err != nil {
 		return nil, err
 	}
+
+	Init(cfg.Consensus)
 
 	quitC := make(chan interface{})
 
@@ -107,24 +101,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbR
 		bf:           NewBlockFactory(hub, quitC),
 		quit:         quitC,
 	}, nil
-}
-
-func getBpList(cdb consensus.ChainDbReader) []string {
-	// TODO: Read the lastest BP list from BP election info, first.
-	genesis := cdb.GetGenesisInfo()
-	if genesis != nil {
-		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
-
-		// Prefer BPs from the GenesisInfo. Overwrite.
-		if len(genesis.BPs) > 0 {
-			logger.Debug().Msg("use BPs from the genesis info")
-			for i, bp := range genesis.BPs {
-				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
-			}
-			return genesis.BPs
-		}
-	}
-	return nil
 }
 
 // Init initilizes the DPoS parameters.
