@@ -177,7 +177,7 @@ func (bf *BlockFactory) worker() {
 					// block, there may be still some remaining time to produce
 					// block in the current slot, though. Thus retry block
 					// production by reseting lastJob to nil.
-					lastJob.setIf(nil, func(lhs, rhs *slot.Slot) bool { return lhs == rhs })
+					lastJob.setIf(nil, func(s *slot.Slot) bool { return slot.Equal(s, bpi.slot) })
 
 					logger.Info().Err(err).Msg("retry block production")
 				} else {

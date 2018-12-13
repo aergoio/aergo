@@ -51,10 +51,11 @@ func (l *lastSlot) set(s *slot.Slot) {
 	l.s = s
 }
 
-func (l *lastSlot) setIf(s *slot.Slot, cond func(lhs, rhs *slot.Slot) bool) {
+func (l *lastSlot) setIf(s *slot.Slot, cond func(*slot.Slot) bool) {
 	l.Lock()
 	defer l.Unlock()
-	if cond(l.s, s) {
+	if cond(l.s) {
+		logger.Debug().Msg("last job reset")
 		l.s = s
 	}
 }
