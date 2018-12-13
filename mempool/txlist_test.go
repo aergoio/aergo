@@ -88,12 +88,12 @@ func TestListDel(t *testing.T) {
 	defer deinitTest()
 	mpl := NewTxList(nil, NewState(0, 0))
 
-	ret, txs := mpl.FilterByState(NewState(2, 100))
+	ret, txs := mpl.FilterByState(NewState(2, 100), 1)
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(0, 100))
+	ret, txs = mpl.FilterByState(NewState(0, 100), 1)
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -108,27 +108,27 @@ func TestListDel(t *testing.T) {
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
 	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
-	ret, txs = mpl.FilterByState(NewState(0, 100))
+	ret, txs = mpl.FilterByState(NewState(0, 100), 1)
 	if ret != 0 || mpl.Len() != 3 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(1, 100))
+	ret, txs = mpl.FilterByState(NewState(1, 100), 1)
 	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(3, 100))
+	ret, txs = mpl.FilterByState(NewState(3, 100), 1)
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(7, 100))
+	ret, txs = mpl.FilterByState(NewState(7, 100), 1)
 	if ret != 2 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(14, 100))
+	ret, txs = mpl.FilterByState(NewState(14, 100), 1)
 	if ret != 92 || mpl.Len() != count-14 || len(txs) != 6 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -152,11 +152,11 @@ func TestListDelMiddle(t *testing.T) {
 	if mpl.Len() != 3 {
 		t.Error("should be 3 not ", len(mpl.list))
 	}
-	ret, txs := mpl.FilterByState(NewState(1, 100))
+	ret, txs := mpl.FilterByState(NewState(1, 100), 1)
 	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
-	ret, txs = mpl.FilterByState(NewState(4, 100))
+	ret, txs = mpl.FilterByState(NewState(4, 100), 1)
 	if ret != 3 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
