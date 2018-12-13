@@ -82,8 +82,6 @@ typedef struct stmt_switch_s {
 typedef struct stmt_case_s {
     ast_exp_t *val_exp;
     array_t *stmts;
-
-    meta_t *cond_meta;
 } stmt_case_t;
 
 typedef struct stmt_return_s {

@@ -286,22 +286,12 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     bool has_default = false;
     ast_blk_t *blk;
     ast_exp_t *cond_exp;
-    meta_t *cond_meta = NULL;
 
     ASSERT1(is_switch_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_sw.blk != NULL);
 
     blk = stmt->u_sw.blk;
     cond_exp = stmt->u_sw.cond_exp;
-
-    if (cond_exp != NULL) {
-        cond_meta = &cond_exp->meta;
-
-        exp_check(check, cond_exp);
-
-        if (!is_comparable_type(cond_meta))
-            RETURN(ERROR_NOT_COMPARABLE_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
-    }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
         ast_stmt_t *case_stmt = array_get(&blk->stmts, i, ast_stmt_t);
@@ -323,9 +313,11 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
                 if (next_val != NULL && exp_equals(val_exp, next_val))
                     RETURN(ERROR_DUPLICATED_VALUE, &next_val->pos, "case");
             }
-        }
 
-        case_stmt->u_case.cond_meta = cond_meta;
+            if (cond_exp != NULL)
+                case_stmt->u_case.val_exp = 
+                    exp_new_binary(OP_EQ, cond_exp, val_exp, &val_exp->pos);
+        }
     }
 
     blk_check(check, blk);
@@ -346,17 +338,11 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
 
     if (val_exp != NULL) {
         meta_t *val_meta = &val_exp->meta;
-        meta_t *cond_meta = stmt->u_case.cond_meta;
 
         exp_check(check, val_exp);
 
-        if (cond_meta == NULL) {
-            if (!is_bool_type(val_meta))
-                RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
-        }
-        else {
-            meta_cmp(cond_meta, val_meta);
-        }
+        if (!is_bool_type(val_meta))
+            RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
     }
 
     stmts = stmt->u_case.stmts;

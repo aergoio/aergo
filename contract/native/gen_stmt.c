@@ -126,7 +126,72 @@ stmt_gen_loop(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
 {
-    return NULL;
+    int i, j;
+    char label[AST_NODE_NAME_SIZE + 1];
+    array_t *case_stmts;
+    ast_stmt_t *dflt_stmt = NULL;
+    int instr_cnt;
+    BinaryenExpressionRef *instrs;
+    BinaryenExpressionRef block_ref = NULL;
+
+    instr_cnt = gen->instr_cnt;
+    instrs = gen->instrs;
+
+    case_stmts = &stmt->u_sw.blk->stmts;
+
+    for (i = 0; i < array_size(case_stmts); i++) {
+        ast_stmt_t *case_stmt = array_get(case_stmts, i, ast_stmt_t);
+        BinaryenExpressionRef cond_ref;
+
+        if (case_stmt->u_case.val_exp == NULL) {
+            dflt_stmt = case_stmt;
+            continue;
+        }
+
+        gen->instr_cnt = 0;
+        gen->instrs = NULL;
+
+        if (block_ref != NULL)
+            gen_add_instr(gen, block_ref);
+
+        snprintf(label, sizeof(label), "case_blk_%d", case_stmt->num);
+
+        /* break current case block if val_exp is false */
+        cond_ref = BinaryenUnary(gen->module, BinaryenEqZInt32(),
+                                 exp_gen(gen, case_stmt->u_case.val_exp,
+                                         &case_stmt->u_case.val_exp->meta, false));
+
+        gen_add_instr(gen, BinaryenBreak(gen->module, label, cond_ref, NULL));
+
+        for (j = 0; j < array_size(case_stmt->u_case.stmts); j++) {
+            gen_add_instr(gen,
+                stmt_gen(gen, array_get(case_stmt->u_case.stmts, j, ast_stmt_t)));
+        }
+
+        block_ref = BinaryenBlock(gen->module, label, gen->instrs, gen->instr_cnt,
+                                  BinaryenTypeNone());
+    }
+
+    gen->instr_cnt = 0;
+    gen->instrs = NULL;
+
+    if (block_ref != NULL)
+        gen_add_instr(gen, block_ref);
+
+    if (dflt_stmt != NULL) {
+        for (i = 0; i < array_size(dflt_stmt->u_case.stmts); i++) {
+            gen_add_instr(gen,
+                stmt_gen(gen, array_get(dflt_stmt->u_case.stmts, i, ast_stmt_t)));
+        }
+    }
+
+    block_ref = BinaryenBlock(gen->module, stmt->u_sw.blk->name, gen->instrs, 
+                              gen->instr_cnt, BinaryenTypeNone());
+
+    gen->instr_cnt = instr_cnt;
+    gen->instrs = instrs;
+
+    return block_ref;
 }
 
 static BinaryenExpressionRef
