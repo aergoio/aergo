@@ -515,7 +515,7 @@ func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) {
 	h := sha256.New()
 	h.Write(C.GoBytes(arg, argLen))
 	resultHash := h.Sum(nil)
-	C.lua_pushlstring(L, (*C.char)(unsafe.Pointer(&resultHash[0])), C.ulong(len(resultHash)))
+	C.lua_pushlstring(L, (*C.char)(unsafe.Pointer(&resultHash[0])), C.size_t(len(resultHash)))
 }
 
 func decodeHex(hexStr string) ([]byte, error) {

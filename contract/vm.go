@@ -200,7 +200,7 @@ func pushValue(L *LState, v interface{}) error {
 	switch arg := v.(type) {
 	case string:
 		argC := C.CBytes([]byte(arg))
-		C.lua_pushlstring(L, (*C.char)(argC), C.ulong(len(arg)))
+		C.lua_pushlstring(L, (*C.char)(argC), C.size_t(len(arg)))
 		C.free(argC)
 	case float64:
 		if arg == float64(int64(arg)) {
