@@ -53,6 +53,7 @@ type MemPool struct {
 	pool        map[types.AccountID]*TxList
 	dumpPath    string
 	status      int32
+	coinbasefee uint64
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -61,13 +62,14 @@ type MemPool struct {
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
 	actor := &MemPool{
-		cfg:      cfg,
-		sdb:      sdb,
-		cache:    map[types.TxID]*types.Tx{},
-		pool:     map[types.AccountID]*TxList{},
-		dumpPath: cfg.Mempool.DumpFilePath,
-		status:   initial,
-		verifier: nil,
+		cfg:         cfg,
+		sdb:         sdb,
+		cache:       map[types.TxID]*types.Tx{},
+		pool:        map[types.AccountID]*TxList{},
+		dumpPath:    cfg.Mempool.DumpFilePath,
+		coinbasefee: cfg.Blockchain.CoinbaseFee,
+		status:      initial,
+		verifier:    nil,
 		//testConfig:    true, // FIXME test config should be removed
 	}
 
@@ -94,7 +96,7 @@ func (mp *MemPool) BeforeStart() {
 }
 func (mp *MemPool) AfterStart() {
 
-	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
+	mp.Info().Uint64("coinbase fee", mp.coinbasefee).Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
 		WithInstance(NewTxVerifier(mp)))
 
@@ -296,7 +298,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			// TODO : ????
 			continue
 		}
-		diff, delTxs := list.FilterByState(ns)
+		diff, delTxs := list.FilterByState(ns, mp.coinbasefee)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
 			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
@@ -345,7 +347,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns)
+	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
 	if err != nil {
 		return err
 	}

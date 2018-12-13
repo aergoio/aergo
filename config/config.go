@@ -95,6 +95,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
 		MaxBlockSize:    types.DefaultMaxBlockSize,
 		CoinbaseAccount: "",
+		CoinbaseFee:     types.DefaultCoinbaseFee,
 		MaxAnchorCount:  20,
 		UseFastSyncer:   false,
 		VerifierCount:   types.DefaultVerifierCnt,

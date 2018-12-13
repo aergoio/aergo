@@ -476,7 +476,7 @@ func (tx *Tx) Validate() error {
 	return nil
 }
 
-func (tx *Tx) ValidateWithSenderState(senderState *State) error {
+func (tx *Tx) ValidateWithSenderState(senderState *State, coinbaseFee uint64) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
@@ -484,7 +484,7 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		fee := new(big.Int).SetInt64(DefaultCoinbaseFee)
+		fee := new(big.Int).SetUint64(coinbaseFee)
 		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance

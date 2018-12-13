@@ -71,6 +71,7 @@ type P2PConfig struct {
 type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
+	CoinbaseFee     uint64 `mapstructure:"coinbasefee" description:"fixed fee per transaction for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
 	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
@@ -154,6 +155,7 @@ nppeerpool = "{{.P2P.NPPeerPool}}"
 # blockchain configurations
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
+coinbasefee = {{.Blockchain.CoinbaseFee}}
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"

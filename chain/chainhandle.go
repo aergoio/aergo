@@ -551,7 +551,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State())
+	err = tx.ValidateWithSenderState(sender.State(), CoinbaseFee)
 	if err != nil {
 		return err
 	}
