@@ -20,7 +20,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
 	"github.com/stretchr/testify/assert"
@@ -236,40 +235,6 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
-		})
-	}
-}
-
-func TestRemotePeer_tryGetStream(t *testing.T) {
-	mockStream := new(MockStream)
-	type args struct {
-		msgID    string
-		protocol protocol.ID
-		timeout  time.Duration
-	}
-	tests := []struct {
-		name    string
-		args    args
-		timeout bool
-		want    inet.Stream
-	}{
-		{"TN", args{"m1", "p1", time.Millisecond * 100}, false, mockStream},
-		{"TTimeout", args{"m1", "p1", time.Millisecond * 100}, true, nil},
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockPeerManager)
-		if tt.timeout {
-			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).After(time.Second).Return(mockStream, nil)
-		} else {
-			mockPeerManager.On("NewStream", mock.Anything, mock.Anything, mock.Anything).Return(mockStream, nil)
-		}
-		t.Run(tt.name, func(t *testing.T) {
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
-			got := p.tryGetStream(tt.args.msgID, tt.args.protocol, tt.args.timeout)
-
-			assert.Equal(t, got, tt.want)
 		})
 	}
 }

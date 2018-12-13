@@ -33,6 +33,7 @@ type nodeInfo struct {
 type P2P struct {
 	*component.BaseComponent
 
+	nt 	NetworkTransport
 	pm     PeerManager
 	sm     SyncManager
 	rm     ReconnectManager
@@ -124,6 +125,7 @@ func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
+	p2ps.nt.Start()
 	if err := p2ps.pm.Start(); err != nil {
 		panic("Failed to start p2p component")
 	}
@@ -136,6 +138,7 @@ func (p2ps *P2P) BeforeStop() {
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
 	}
+	p2ps.nt.Stop()
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
@@ -146,17 +149,19 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
 
+	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, reconMan, metricMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, reconMan, metricMan, p2ps.Logger, mf)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 
 	// connect managers each other
 	reconMan.pm = peerMan
 
 	p2ps.signer = signer
+	p2ps.nt = netTransport
 	p2ps.mf = mf
 	p2ps.pm = peerMan
 	p2ps.sm = syncMan

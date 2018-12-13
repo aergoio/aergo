@@ -59,7 +59,11 @@ func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int(LogBlkCount, len(blockHashes)).Msg("Sending Get block request")
+	if len(blockHashes) == 0 {
+		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(GetBlocksRequest)).Msg("meaningless GetBlocks request with zero hash")
+		return false
+	}
+	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int(LogBlkCount, len(blockHashes)).Str("first_hash", enc.ToString(blockHashes[0])).Msg("Sending Get block request")
 
 	hashes := make([][]byte, len(blockHashes))
 	for i, hash := range blockHashes {

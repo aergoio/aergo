@@ -6,52 +6,18 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"strconv"
 	"sync"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	pstore "github.com/libp2p/go-libp2p-peerstore"
 )
-
-// Ignoring test for now, for lack of abstraction on AergoPeer struct
-func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
-	mockActor := new(MockActorService)
-	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActor.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	mockMF := new(MockMoFactory)
-	target := NewPeerManager(nil, nil, mockActor,
-		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		nil, new(MockReconnectManager), nil,
-		log.NewLogger("test.p2p"), mockMF).(*peerManager)
-
-	target.Host = &mockHost{pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
-	target.selfMeta.ID = peer.ID("gwegw")
-	go target.runManagePeers()
-
-	sampleAddr1 := PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
-	sampleAddr2 := PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
-	target.AddNewPeer(sampleAddr1)
-	target.AddNewPeer(sampleAddr1)
-	time.Sleep(time.Second)
-	if len(target.Peerstore().Peers()) != 1 {
-		t.Errorf("Peer count : Expected %d, Actually %d", 1, len(target.Peerstore().Peers()))
-	}
-	target.AddNewPeer(sampleAddr2)
-	time.Sleep(time.Second * 1)
-	if len(target.Peerstore().Peers()) != 2 {
-		t.Errorf("Peer count : Expected %d, Actually %d", 2, len(target.Peerstore().Peers()))
-	}
-}
 
 func FailTestGetPeers(t *testing.T) {
 	mockActorServ := &MockActorService{}
@@ -60,7 +26,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockMF := new(MockMoFactory)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		nil, new(MockReconnectManager), nil,
+		nil, nil, new(MockReconnectManager), nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	iterSize := 500
@@ -100,7 +66,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	InitNodeInfo(tConfig.P2P, tLogger)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
-		nil, new(MockReconnectManager), nil,
+		nil, nil, new(MockReconnectManager), nil,
 		tLogger, mockMF).(*peerManager)
 
 	iterSize := 500
