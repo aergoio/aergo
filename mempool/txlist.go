@@ -123,7 +123,7 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
+func (tl *TxList) FilterByState(st *types.State, coinbasefee uint64) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -143,7 +143,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	var left []*types.Tx
 	removed := tl.list[:0]
 	for i, x := range tl.list {
-		err := x.ValidateWithSenderState(st)
+		err := x.ValidateWithSenderState(st, coinbasefee)
 		if err == nil || err == types.ErrTxNonceToohigh {
 			if err != nil && !balCheck {
 				left = append(left, tl.list[i:]...)
