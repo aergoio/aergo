@@ -79,7 +79,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 	if data.Subprotocol() != StatusRequest {
 		// TODO: parse message and return
 		// h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
-		return nil, fmt.Errorf("Unexpected message type")
+		return nil, fmt.Errorf("unexpected message type")
 	}
 	statusResp := &types.Status{}
 	err = unmarshalMessage(data.Payload(), statusResp)
@@ -108,20 +108,20 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 
 	if data.Subprotocol() != StatusRequest {
 		// TODO: parse message and return
-		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("Unexpected message type")
-		return nil, fmt.Errorf("Unexpected message type")
+		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+		return nil, fmt.Errorf("unexpected message type")
 	}
 
 	statusMsg := &types.Status{}
 	if err := unmarshalMessage(data.Payload(), statusMsg); err != nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message")
+		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message.")
 		return nil, err
 	}
 
 	// send my status message as response
 	statusResp, err := createStatusMsg(h.pm, h.actorServ)
 	if err != nil {
-		h.logger.Warn().Err(err).Msg("failed to create status message")
+		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		return nil, err
 	}
 	moFactory := &v030MOFactory{}

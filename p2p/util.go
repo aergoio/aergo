@@ -18,11 +18,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
-	uuid "github.com/satori/go.uuid"
+	"github.com/libp2p/go-libp2p-peer"
+	"github.com/satori/go.uuid"
 )
 
-// constants for indicating logitem of p2p
+// frequently used constants for indicating p2p log category
 const (
 	LogPeerID  = "peer_id"
 	LogProtoID = "protocol_id"

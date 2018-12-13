@@ -32,22 +32,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// TODO this value better related to max peer and block produce interval, not constant
-const (
-	DefaultGlobalBlockCacheSize = 300
-	DefaultPeerBlockCacheSize   = 100
-
-	DefaultGlobalTxCacheSize = 50000
-	DefaultPeerTxCacheSize   = 2000
-	// DefaultPeerTxQueueSize is maximum size of hashes in a single tx notice message
-	DefaultPeerTxQueueSize = 40000
-
-	defaultTTL          = time.Second * 4
-	defaultHandshakeTTL = time.Second * 20
-
-	cachePlaceHolder = true
-)
-
 // PeerManager is internal service that provide peer management
 type PeerManager interface {
 	host.Host
@@ -609,13 +593,13 @@ func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
 	if pm.hasEnoughPeers() {
 		return
 	}
-	peer, ok := pm.GetPeer(ID)
+	rPeer, ok := pm.GetPeer(ID)
 	if !ok {
 		//pm.logger.Warnf("invalid peer id %s", ID.Pretty())
 		pm.logger.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
-	pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.ID(), Size: 20, Offset: 0})
+	pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: rPeer.ID(), Size: 20, Offset: 0})
 }
 
 func (pm *peerManager) hasEnoughPeers() bool {
@@ -715,8 +699,9 @@ func (pm *peerManager) deletePeer(ID peer.ID) {
 
 func (pm *peerManager) updatePeerCache() {
 	newSlice := make([]RemotePeer, 0, len(pm.remotePeers))
-	for _, peer := range pm.remotePeers {
-		newSlice = append(newSlice, peer)
+	for _, rPeer := range pm.remotePeers {
+		newSlice = append(newSlice, rPeer)
 	}
 	pm.peerCache = newSlice
 }
+

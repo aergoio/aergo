@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // ReconnectManager manage reconnect job schedule

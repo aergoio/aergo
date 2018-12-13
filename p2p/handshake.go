@@ -15,11 +15,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/libp2p/go-libp2p-protocol"
 )
-
-const aergoP2PSub protocol.ID = "/aergop2p/0.2"
-
 
 type HSHandlerFactory interface {
 	CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler
