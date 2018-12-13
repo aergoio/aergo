@@ -29,8 +29,6 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const constructorName = "constructor"
-
 var (
 	ctrLog      *log.Logger
 	curStateSet [2]*StateSet
@@ -266,6 +264,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		return 0
 	}
 
+	C.vm_remove_constructor(ce.L)
 	abiName := C.CString(ci.Name)
 	C.vm_get_abi_function(ce.L, abiName)
 	C.free(unsafe.Pointer(abiName))
@@ -301,10 +300,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	if ce.err != nil {
 		return
 	}
-	initName := C.CString(constructorName)
-	defer C.free(unsafe.Pointer(initName))
-
-	C.vm_getfield(ce.L, initName)
+	C.vm_get_constructor(ce.L)
 	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
 		return
 	}

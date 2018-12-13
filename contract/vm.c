@@ -10,6 +10,7 @@
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
+const char *construct_name= "constructor";
 
 static void preloadModules(lua_State *L)
 {
@@ -88,7 +89,12 @@ int vm_isnil(lua_State *L, int idx)
 	return lua_isnil(L, idx);
 }
 
-void vm_remove_construct(lua_State *L, const char *construct_name)
+void vm_get_constructor(lua_State *L)
+{
+    lua_getfield(L, LUA_GLOBALSINDEX, construct_name);
+}
+
+void vm_remove_constructor(lua_State *L)
 {
 	lua_pushnil(L);
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
