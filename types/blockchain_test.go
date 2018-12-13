@@ -1,11 +1,11 @@
 package types
 
 import (
-	sha256 "github.com/minio/sha256-simd"
-
+	"github.com/minio/sha256-simd"
 	"testing"
+	"time"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,4 +90,61 @@ func TestBlockSign(t *testing.T) {
 	valid, err := block.VerifySign()
 	signAssert.Nil(err)
 	signAssert.True(valid)
+}
+
+func TestMovingAverage(t *testing.T) {
+	size := int64(10)
+	mv := NewMovingAverage(int(size))
+
+	assert.Equal(t, int64(0), mv.calculateAvg())
+
+	var sum = int64(0)
+	var expAvg int64
+	for i := int64(1); i <= size; i++ {
+		avg := mv.Add(int64(i))
+		assert.Equal(t, i, int64(mv.count))
+
+		sum += i
+		expAvg = sum / i
+		assert.Equal(t, expAvg, avg)
+	}
+
+	for i := int64(size + 1); i <= (size + 10); i++ {
+		avg := mv.Add(int64(i))
+		assert.Equal(t, size, int64(mv.count))
+
+		sum = sum + i - (i - size)
+		expAvg = sum / size
+		assert.Equal(t, expAvg, avg)
+	}
+}
+
+func TestUpdateAvgVerifyTime(t *testing.T) {
+	var size = int64(10)
+	avgTime := NewAvgTime(int(size))
+
+	val := avgTime.Get()
+
+	assert.Equal(t, int64(0), int64(val))
+
+	var sum = int64(0)
+	var expAvg int64
+
+	for i := int64(1); i <= size; i++ {
+		avgTime.UpdateAverage(time.Duration(i))
+		newAvg := avgTime.Get()
+
+		sum += i
+		expAvg = sum / i
+		assert.Equal(t, expAvg, int64(newAvg))
+	}
+
+	for i := int64(size + 1); i <= (size + 10); i++ {
+		avgTime.UpdateAverage(time.Duration(i))
+		newAvg := avgTime.Get()
+
+		sum = sum + i - (i - size)
+		expAvg = sum / size
+		assert.Equal(t, expAvg, int64(newAvg))
+	}
 }

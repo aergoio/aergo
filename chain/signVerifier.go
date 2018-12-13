@@ -151,6 +151,7 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 		failed := false
 		sv.totalHit = 0
 
+		start := time.Now()
 	LOOP:
 		for {
 			select {
@@ -180,9 +181,13 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 				}
 			}
 		}
-
 		sv.resultCh <- &VerifyResult{failed: failed, errs: errs}
-		logger.Debug().Int("hit", sv.totalHit).Msg("verify tx done")
+
+		end := time.Now()
+		avg := end.Sub(start) / time.Duration(txLen)
+		newAvg := types.AvgTxVerifyTime.UpdateAverage(avg)
+
+		logger.Debug().Int("hit", sv.totalHit).Int64("curavg", avg.Nanoseconds()).Int64("newavg", newAvg.Nanoseconds()).Msg("verify tx done")
 	}()
 	return
 }

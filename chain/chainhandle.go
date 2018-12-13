@@ -270,6 +270,9 @@ func (cp *chainProcessor) reorganize() {
 }
 
 func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+	//XXX only debug
+	logger.Debug().Int64("newavg", types.AvgTxVerifyTime.Get().Nanoseconds()).Msg("avg tx time in chain")
+
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -421,7 +424,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		validatePost: func() error {
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
-		commitOnly: commitOnly,
+		commitOnly:       commitOnly,
 		validateSignWait: validateSignWait,
 	}, nil
 }
