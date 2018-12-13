@@ -48,6 +48,7 @@ type HandlerFactory interface {
 
 var (
 	_  ActorService = (*P2P)(nil)
+	_ HSHandlerFactory = (*P2P)(nil)
 	ni *nodeInfo
 )
 
@@ -149,7 +150,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	mf := &pbMOFactory{signer: signer}
 	reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, signer, reconMan, metricMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, reconMan, metricMan, p2ps.Logger, mf)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 
 	// connect managers each other
@@ -217,7 +218,7 @@ func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Durat
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return p2ps.RequestToFuture(actor, msg, defaultTTL)
+	return p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -228,7 +229,7 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duratio
 
 // CallRequest implement interface method of ActorService
 func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, defaultTTL)
+	future := p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
 	return future.Result()
 }
 
@@ -265,4 +266,13 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+}
+
+func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
+	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, peerID: pid}
+	if outbound {
+		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
+	} else {
+		return &InboundHSHandler{PeerHandshaker: handshakeHandler}
+	}
 }

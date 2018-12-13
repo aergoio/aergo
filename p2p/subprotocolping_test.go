@@ -60,7 +60,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 	p := &PingProtocol{
-			// 		actorServ: tt.fields.actorServ,
+			// 		actorService: tt.fields.actorService,
 			// 		ps:        tt.fields.ps,
 			// 		log:       tt.fields.logger,
 			// 	}
