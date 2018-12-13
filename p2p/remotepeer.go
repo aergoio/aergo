@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"context"
 	"fmt"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -19,9 +18,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/libp2p/go-libp2p-protocol"
 )
 
 var TimeoutError error
@@ -437,28 +434,6 @@ func (p *remotePeerImpl) sendTxNotices() {
 	}
 }
 
-func (p *remotePeerImpl) tryGetStream(msgID string, protocol protocol.ID, timeout time.Duration) inet.Stream {
-	streamChannel := make(chan inet.Stream)
-	var s inet.Stream = nil
-	go p.getStreamForWriting(msgID, protocol, streamChannel)
-	select {
-	case s = <-streamChannel:
-		return s
-	case <-time.After(timeout):
-		p.logger.Warn().Str(LogMsgID, msgID).Msg("stream get timeout")
-	}
-	return s
-}
-
-func (p *remotePeerImpl) getStreamForWriting(msgID string, protocol protocol.ID, schannel chan inet.Stream) {
-	ctx := context.Background()
-	s, err := p.pm.NewStream(ctx, p.meta.ID, protocol)
-	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, string(protocol)).Msg("Error while get stream")
-		schannel <- nil
-	}
-	schannel <- s
-}
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *remotePeerImpl) sendPing() {

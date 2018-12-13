@@ -215,7 +215,7 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			dummyRsp := message.AddBlockRsp{BlockNo:1, Err:nil}
+			dummyRsp := &message.AddBlockRsp{BlockNo:1, Err:nil}
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
 			mockActor.On("TellRequest", message.P2PSvc, mock.AnythingOfType("*message.GetMissingRequest"))

@@ -67,7 +67,7 @@ func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 }
 
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	selfPeerID := ph.pm.ID()
+	selfPeerID := ph.pm.SelfNodeID()
 	peerMetas := make([]PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
