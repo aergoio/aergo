@@ -127,7 +127,7 @@ func TestSyncWorker_putAddBlock(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			dummyRsp := message.AddBlockRsp{BlockNo:1, Err:nil}
+			dummyRsp := &message.AddBlockRsp{BlockNo:1, Err:nil}
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
 			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
