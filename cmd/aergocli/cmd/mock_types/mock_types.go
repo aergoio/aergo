@@ -180,13 +180,13 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockTX(arg0, arg1 interface
 }
 
 // GetNameInfo mocks base method
-func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.Name, error) {
+func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *types.Name, arg2 ...grpc.CallOption) (*types.NameInfo, error) {
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetNameInfo", varargs...)
-	ret0, _ := ret[0].(*types.Name)
+	ret0, _ := ret[0].(*types.NameInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
