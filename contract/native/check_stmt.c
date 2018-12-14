@@ -315,8 +315,9 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
             }
 
             if (cond_exp != NULL)
-                case_stmt->u_case.val_exp = 
-                    exp_new_binary(OP_EQ, cond_exp, val_exp, &val_exp->pos);
+                case_stmt->u_case.val_exp =
+                    exp_new_binary(i == 0 ? OP_NE : OP_EQ, cond_exp, val_exp,
+                                   &val_exp->pos);
         }
     }
 

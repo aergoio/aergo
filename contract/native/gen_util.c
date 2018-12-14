@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "gen_meta.h"
+#include "gen_stmt.h"
 
 #include "gen_util.h"
 
@@ -35,6 +36,16 @@ gen_add_instr(gen_t *gen, BinaryenExpressionRef instr)
                                sizeof(BinaryenExpressionRef) * (gen->instr_cnt + 1));
 
     gen->instrs[gen->instr_cnt++] = instr;
+}
+
+void
+gen_stmt_array(gen_t *gen, array_t *stmts)
+{
+    int i;
+
+    for (i = 0; i < array_size(stmts); i++) {
+        gen_add_instr(gen, stmt_gen(gen, array_get(stmts, i, ast_stmt_t)));
+    }
 }
 
 /* end of gen_util.c */

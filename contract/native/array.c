@@ -95,4 +95,23 @@ array_join(array_t *dest, int idx, array_t *src)
     dest->size += src->size;
 }
 
+void *
+array_del(array_t *array, int idx)
+{
+    void *item;
+
+    if (idx < 0 || idx >= array->size)
+        return NULL;
+
+    item = array->items[idx];
+
+    if (idx < array->size - 1)
+        memmove(&array->items[idx], &array->items[idx + 1], 
+                sizeof(void *) * array->size - idx - 1);
+
+    array->size--;
+
+    return item;
+}
+
 /* end of array.c */
