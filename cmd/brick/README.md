@@ -140,19 +140,35 @@ Number before cursor is a block height. Each block contains one tx. So after res
 
 ### batch in command line
 
-In command line, users can run a brick batch file.
+In command line, users can run a brick batch file. A running result contains line numbers and original texts for debugging purpose.
 
 ``` bash
 $ ./brick ./example/hello.brick
+  0 # create an account and deposit coin
+  1 inject bj 100
   INF inject an account successfully cmd=inject module=brick
-  INF 100 cmd=getstate module=brick
+  2
+  3 # check balance
+  4 getstate bj
+  INF AmgiDbXB3x5Zv5cBBcmyzSJiqMbLXG1yZN2xE4gUuXMBaXPfGoun=[100] cmd=getstate module=brick
+  5
+  6 # delpoy helloworld smart contract
+  7 deploy bj 1 helloctr `./example/hello.lua`
   INF deploy a smart contract successfully cmd=deploy module=brick
+  8
+  9 # query to contract, this will print "hello world"
+ 10 query helloctr hello `[]` `"hello world"`
   INF query compare successfully cmd=query module=brick
+ 11
+ 12 # call and execute contract
+ 13 call bj 1 helloctr set_name `["aergo"]`
   INF call a smart contract successfully cmd=call module=brick
+ 14
+ 15 # query again, this now will print "hello aergo"
+ 16 query helloctr hello `[]` `"hello aergo"`
   INF query compare successfully cmd=query module=brick
   INF batch exec is finished cmd=batch module=brick
 ```
-
 
 ## Debugging
 
