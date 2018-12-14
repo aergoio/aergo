@@ -83,6 +83,21 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	})
 }
 
+// LockChain aquires the chain lock in a non-blocking mode.
+func LockChain() error {
+	select {
+	case chain.InAddBlock <- struct{}{}:
+		return nil
+	default:
+		return ErrBestBlock
+	}
+}
+
+// UnlockChain release the chain lock.
+func UnlockChain() {
+	<-chain.InAddBlock
+}
+
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
 func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, error) {
@@ -95,14 +110,10 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		logger.Debug().Msg("start gathering tx")
 	}
 
-	select {
-	case chain.InAddBlock <- struct{}{}:
-	default:
+	if err := LockChain(); err != nil {
 		return nil, ErrBestBlock
 	}
-	defer func() {
-		<-chain.InAddBlock
-	}()
+	defer UnlockChain()
 
 	txIn := FetchTXs(hs, maxBlockBodySize)
 	nCand = len(txIn)
