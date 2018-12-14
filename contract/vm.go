@@ -289,16 +289,34 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	return nil
 }
 
+func checkPayable(L *LState, fname *C.char, amount *big.Int) error {
+	if amount.Cmp(big.NewInt(0)) > 0 && C.vm_is_payable_function(L, fname) == C.int(0) {
+		return fmt.Errorf("'%s' is not payable", C.GoString(fname))
+	}
+	return nil
+}
+
 func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
 
 	C.vm_remove_constructor(ce.L)
-	abiName := C.CString(ci.Name)
-	C.vm_get_abi_function(ce.L, abiName)
-	C.free(unsafe.Pointer(abiName))
+	fname := C.CString(ci.Name)
+	defer C.free(unsafe.Pointer(fname))
 
+	resolvedName := C.vm_resolve_function(ce.L, fname)
+	if resolvedName == nil {
+		ce.err = fmt.Errorf("attempt to call global '%s' (a nil value)", ci.Name)
+		return 0
+	}
+
+	if err := checkPayable(ce.L, resolvedName, ce.stateSet.curContract.amount); err != nil {
+		ce.err = err
+		return 0
+	}
+
+	C.vm_get_abi_function(ce.L, resolvedName)
 	ce.processArgs(ci)
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
@@ -330,11 +348,15 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	if ce.err != nil {
 		return
 	}
+	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
+		ce.err = types.ErrVmConstructorIsNotPayable
+		return
+	}
+
 	C.vm_get_constructor(ce.L)
 	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
 		return
 	}
-
 	ce.processArgs(ci)
 	if ce.err != nil {
 		return
@@ -440,7 +462,9 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
-		err = getCallInfo(&ci, code, contractAddress)
+		if len(code) > 0 {
+			err = getCallInfo(&ci, code, contractAddress)
+		}
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
@@ -527,7 +551,9 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 
 	if contractCode != nil {
-		err = getCallInfo(&ci, code, contractAddress)
+		if len(code) > 0 {
+			err = getCallInfo(&ci, code, contractAddress)
+		}
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
@@ -576,6 +602,10 @@ func setContract(contractState *state.ContractState, contractAddress, code []byt
 func Create(contractState *state.ContractState, code, contractAddress []byte,
 	stateSet *StateSet) (string, error) {
 
+	if len(code) == 0 {
+		return "", errors.New("contract code is required")
+	}
+
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
@@ -619,6 +649,9 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 			return string(ret), dbErr
 		}
 		if err == types.ErrVmStart {
+			return string(ret), err
+		}
+		if err == types.ErrVmConstructorIsNotPayable {
 			return string(ret), err
 		}
 		return string(ret), nil

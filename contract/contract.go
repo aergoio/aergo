@@ -59,12 +59,8 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	if txBody.Payload == nil {
+	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
 		return "", nil
-	}
-
-	if !receiver.IsNew() && len(receiver.State().CodeHash) == 0 {
-		return "", errors.New("account is not a contract")
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
