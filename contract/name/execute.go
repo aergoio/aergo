@@ -48,14 +48,19 @@ func validateAllowedChar(param []byte) error {
 	return nil
 }
 
-func ValidateNameTx(tx *types.TxBody) error {
+func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 	switch tx.Payload[0] {
 	case 'c':
 		name := tx.Payload[1:]
 		if len(name) > types.NameLength {
 			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
 		}
-		return validateAllowedChar(name)
+		if err := validateAllowedChar(name); err != nil {
+			return err
+		}
+		if len(getAddress(scs, name)) > types.NameLength {
+			return fmt.Errorf("aleady occupied %s", string(name))
+		}
 
 	case 'u':
 		name, to := parseUpdatePayload(tx.Payload[1:])

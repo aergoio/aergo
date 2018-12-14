@@ -409,7 +409,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 				return err
 			}
 		case types.AergoName:
-			err = name.ValidateNameTx(tx.Body)
+			err = name.ValidateNameTx(tx.Body, scs)
 			if err != nil {
 				return err
 			}

@@ -16,7 +16,7 @@ type Owner struct {
 }
 
 func CreateName(scs *state.ContractState, tx *types.TxBody) error {
-	if err := ValidateNameTx(tx); err != nil {
+	if err := ValidateNameTx(tx, scs); err != nil {
 		return err
 	}
 	if len(tx.Payload[1:]) != types.NameLength {
@@ -26,15 +26,12 @@ func CreateName(scs *state.ContractState, tx *types.TxBody) error {
 }
 
 func createName(scs *state.ContractState, name []byte, owner []byte) error {
-	if len(getAddress(scs, name)) > types.NameLength {
-		return fmt.Errorf("aleady occupied %s", string(name))
-	}
 	return setAddress(scs, name, owner)
 }
 
 //UpdateName is avaliable after bid implement
 func UpdateName(scs *state.ContractState, tx *types.TxBody) error {
-	if err := ValidateNameTx(tx); err != nil {
+	if err := ValidateNameTx(tx, scs); err != nil {
 		return err
 	}
 	name, to := parseUpdatePayload(tx.Payload[1:])
