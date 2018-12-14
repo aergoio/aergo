@@ -114,15 +114,15 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func execNameOwner(cmd *cobra.Command, args []string) error {
-	msg, err := client.GetNameInfo(context.Background(), &types.SingleBytes{Value: []byte(name)})
+	msg, err := client.GetNameInfo(context.Background(), &types.Name{Name: name})
 	if err != nil {
 		return errors.New("Failed request to aergo sever\n" + err.Error())
 	}
 	owner := msg.Owner
 	if len(owner) > types.NameLength {
-		cmd.Println(string(msg.Name), types.EncodeAddress(owner))
+		cmd.Println(msg.Name.Name, types.EncodeAddress(owner))
 	} else {
-		cmd.Println(string(msg.Name), string(msg.Owner))
+		cmd.Println(msg.Name.Name, string(msg.Owner))
 	}
 	return nil
 }

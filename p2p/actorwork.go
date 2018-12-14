@@ -196,10 +196,10 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	// create message data
 	skipped, sent := 0, 0
 	// send to peers
-	for _, peer := range p2ps.pm.GetPeers() {
-		if peer != nil && peer.State() == types.RUNNING {
+	for _, rPeer := range p2ps.pm.GetPeers() {
+		if rPeer != nil && rPeer.State() == types.RUNNING {
 			sent++
-			peer.pushTxsNotice(hashes)
+			rPeer.pushTxsNotice(hashes)
 		} else {
 			skipped++
 		}

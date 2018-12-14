@@ -45,7 +45,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
-		Monitor:	ctx.GetDefaultMonitorConfig(),
+		Monitor:    ctx.GetDefaultMonitorConfig(),
 	}
 }
 
@@ -97,6 +97,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		CoinbaseAccount: "",
 		MaxAnchorCount:  20,
 		UseFastSyncer:   false,
+		VerifierCount:   types.DefaultVerifierCnt,
 	}
 }
 

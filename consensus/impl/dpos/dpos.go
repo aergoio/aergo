@@ -51,10 +51,11 @@ func (l *lastSlot) set(s *slot.Slot) {
 	l.s = s
 }
 
-func (l *lastSlot) setIf(s *slot.Slot, cond func(lhs, rhs *slot.Slot) bool) {
+func (l *lastSlot) setIf(s *slot.Slot, cond func(*slot.Slot) bool) {
 	l.Lock()
 	defer l.Unlock()
-	if cond(l.s, s) {
+	if cond(l.s) {
+		logger.Debug().Msg("last job reset")
 		l.s = s
 	}
 }
@@ -84,6 +85,9 @@ func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.Compone
 		// Prefer BPs from the GenesisInfo. Overwrite.
 		if bpCount > 0 {
 			logger.Debug().Msg("use BPs from the genesis info")
+			for i, bp := range genesis.BPs {
+				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
+			}
 			cfg.Consensus.BpIds = genesis.BPs
 			cfg.Consensus.DposBpNumber = uint16(bpCount)
 		}

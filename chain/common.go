@@ -18,6 +18,7 @@ var (
 	CoinbaseFee     uint64
 	MaxAnchorCount  int
 	UseFastSyncer   bool
+	VerifierCount   int
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(maxBlockSize uint32, coinbaseAccountStr string, coinbaseFee uint64, isBp bool, maxAnchorCount int, useFastSyncer bool) error {
+func Init(maxBlockSize uint32, coinbaseAccountStr string, coinbaseFee uint64, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
 	var err error
 
 	MaxBlockSize = maxBlockSize
@@ -46,5 +47,6 @@ func Init(maxBlockSize uint32, coinbaseAccountStr string, coinbaseFee uint64, is
 	CoinbaseFee = coinbaseFee
 	MaxAnchorCount = maxAnchorCount
 	UseFastSyncer = useFastSyncer
+	VerifierCount = verifierCount
 	return nil
 }

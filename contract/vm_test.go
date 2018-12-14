@@ -3,10 +3,9 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"strings"
 	"testing"
-
-	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -1724,15 +1723,15 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\t","2",3]`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\u0009","2",3]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\t",4]`)
+	err = bc.Query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\u0009",4]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\t\",\"2\",3]"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\u0009\",\"2\",3]"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1773,12 +1772,12 @@ func TestArray(t *testing.T) {
 	end
 
 	function len()
-		return #counts
+		return counts:length()
 	end
 
 	function iter()
 		local rv = {}
-		for i, v in state.array_pairs(counts) do
+		for i, v in counts:ipairs() do 
 			if v == nil then
 				rv[i] = "nil"
 			else
@@ -1788,19 +1787,7 @@ func TestArray(t *testing.T) {
 		return rv
 	end
 
-	function iter2()
-		local rv = {}
-		for i, v in counts:ipairs() do
-			if v == nil then
-				rv[i] = "nil"
-			else
-				rv[i] = v
-			end
-		end
-		return rv
-	end
-
-	abi.register(inc,get,set,len,iter,iter2)`
+	abi.register(inc,get,set,len,iter)`
 
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -1840,10 +1827,6 @@ func TestArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.Query("array", `{"Name":"iter2"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2461,7 +2444,7 @@ state.var {
 }
 
 function Length()
-	return #fixedArray
+	return fixedArray:length()
 end
 
 abi.register(Length)
@@ -2486,7 +2469,7 @@ state.var {
 }
 
 function Append(val)
-	dArr.append(val)
+	dArr:append(val)
 end
 
 function Get(idx)
@@ -2498,7 +2481,7 @@ function Set(idx, val)
 end
 
 function Length()
-	return #dArr
+	return dArr:length()
 end
 
 abi.register(Append, Get, Set, Length)
@@ -2600,9 +2583,48 @@ abi.register(GetVar1, Work)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "dupVar1", 1, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
 	)
+
 	if err != nil {
 		t.Error(err)
 	}
 }
 
+func TestCrypto(t *testing.T) {
+	src := `
+function get(a)
+	return string.byte(crypto.sha256(a), 1,100)
+end
+
+function checkEther()
+	return crypto.ecverify("0xce0677bb30baa8cf067c88db9811f4333d131bf8bcf12fe7065d211dce971008",
+"0x90f27b8b488db00b00606796d2987f6a5f59ae62ea05effe84fef5b8b0e549984a691139ad57a3f0b906637673aa2f63d1f55cb1a69199d4009eea23ceaddc9301",
+"0xbcf9061f21320aa7e824b00d0152398b2d7a6e44")
+end
+
+function checkAergo()
+	return crypto.ecverify("11e96f2b58622a0ce815b81f94da04ae7a17ba17602feb1fd5afa4b9f2467960",
+"304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
+"AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
+end
+abi.register(get, checkEther, checkAergo)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "crypto", 1, src),
+	)
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `[197,143,109,202,19,228,187,169,10,50,109,134,5,4,40,98,254,135,198,58,100,169,221,14,149,96,138,46,230,141,198,240]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("crypto", `{"Name": "checkEther", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("crypto", `{"Name": "checkAergo", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

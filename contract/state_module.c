@@ -125,6 +125,13 @@ static int state_array(lua_State *L)
     return 1;
 }
 
+static int state_array_len(lua_State *L)
+{
+    state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
+    lua_pushinteger(L, arr->len);
+    return 1;
+}
+
 static state_array_t *state_array_checkarg(lua_State *L)
 {
     int idx = luaL_checkint(L, -1) - 1;             /* a i */
@@ -142,17 +149,16 @@ static int state_array_get(lua_State *L)
 
     method = lua_tostring(L, 2);
     if (method != NULL) {                           /* methods */
-        luaL_checkudata(L, 1, STATE_ARRAY_ID);
-        lua_pushvalue(L, 1);
         if (strcmp(method, "append") == 0) {
-            lua_pushcclosure(L, state_array_append, 1);
+            lua_pushcfunction(L, state_array_append);
+            return 1;
+        } else if (strcmp(method, "ipairs") == 0) {
+            lua_pushcfunction(L, state_array_pairs);
+            return 1;
+        } else if (strcmp(method, "length") == 0) {
+            lua_pushcfunction(L, state_array_len);
             return 1;
         }
-        if (strcmp(method, "ipairs") == 0) {
-            lua_pushcclosure(L, state_array_pairs, 1);
-            return 1;
-        }
-        lua_pop(L, 1);
     }
     arr = state_array_checkarg(L);                  /* a i */
     lua_pushcfunction(L, getItemWithPrefix);        /* a i f */
@@ -193,16 +199,16 @@ static int state_array_set(lua_State *L)
 
 static int state_array_append(lua_State *L)
 {
-    state_array_t *arr = (state_array_t *)lua_touserdata(L, lua_upvalueindex(1));
-    luaL_argcheck(L, arr != NULL, 1, "’state.array’ expected");
+    state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
+    luaL_checkany(L, 2);
     if (arr->is_fixed) {
         return luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
     }
     arr->len++;
-    lua_pushcfunction(L, state_array_set);          /* a | v f */
-    lua_pushvalue(L, lua_upvalueindex(1));          /* a | v f a */
-    lua_pushinteger(L, arr->len);                   /* a | v f a i */
-    lua_pushvalue(L, 1);                            /* a | v f a i v */
+    lua_pushcfunction(L, state_array_set);          /* a v f */
+    lua_pushvalue(L, 1);                            /* a v f a */
+    lua_pushinteger(L, arr->len);                   /* a v f a i */
+    lua_pushvalue(L, 2);                            /* a v f a i v */
     lua_call(L, 3, 0);
     lua_pushcfunction(L, setItemWithPrefix);
     lua_pushstring(L, arr->id);
@@ -210,13 +216,6 @@ static int state_array_append(lua_State *L)
     lua_pushstring(L, STATE_VAR_META_LEN);
     lua_call(L, 3, 0);
     return 0;
-}
-
-static int state_array_len(lua_State *L)
-{
-    state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
-    lua_pushinteger(L, arr->len);
-    return 1;
 }
 
 static int state_array_gc(lua_State *L)
@@ -381,7 +380,6 @@ int luaopen_state(lua_State *L)
         {"array", state_array},
         {"value", state_value},
         {"var", state_var},
-        {"array_pairs", state_array_pairs},
         {NULL, NULL}
     };
 

@@ -142,7 +142,7 @@ type IChainHandler interface {
 	getVote(addr []byte) (*types.VoteList, error)
 	getVotes(n int) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
-	getNameInfo(name []byte) (*types.Name, error)
+	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
@@ -183,12 +183,13 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer); err != nil {
+		cfg.Blockchain.UseFastSyncer,
+		cfg.Blockchain.VerifierCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
 
-	cs.validator = NewBlockValidator(cs.sdb)
+	cs.validator = NewBlockValidator(cs, cs.sdb)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
@@ -377,13 +378,13 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	return staking, nil
 }
 
-func (cs *ChainService) getNameInfo(qname []byte) (*types.Name, error) {
+func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
 	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 	if err != nil {
 		return nil, err
 	}
-	owner := name.GetOwner(scs, qname)
-	return &types.Name{Name: qname, Owner: owner.Address}, nil
+	owner := name.GetOwner(scs, []byte(qname))
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, nil
 }
 
 type ChainManager struct {

@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"github.com/aergoio/aergo/pkg/component"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -17,6 +18,7 @@ import (
 type BlockValidator struct {
 	signVerifier *SignVerifier
 	sdb          *state.ChainStateDB
+	isNeedWait   bool
 }
 
 var (
@@ -25,9 +27,9 @@ var (
 	ErrorBlockVerifyStateRoot = errors.New("Block verify failed, because state root hash is not equal")
 )
 
-func NewBlockValidator(sdb *state.ChainStateDB) *BlockValidator {
+func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainStateDB) *BlockValidator {
 	bv := BlockValidator{
-		signVerifier: NewSignVerifier(DefaultVerifierCnt),
+		signVerifier: NewSignVerifier(comm, VerifierCount, dfltUseMempool),
 		sdb:          sdb,
 	}
 
@@ -85,10 +87,22 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 		return nil
 	}
 
-	failed, _ := bv.signVerifier.VerifyTxs(&types.TxList{Txs: txs})
+	bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs})
+	bv.isNeedWait = true
 
-	if failed {
-		logger.Error().Str("block", block.ID()).Msg("sign of txs validation failed")
+	return nil
+}
+
+func (bv *BlockValidator) WaitVerifyDone() error {
+	logger.Debug().Bool("need", bv.isNeedWait).Msg("wait to verify tx")
+
+	if !bv.isNeedWait {
+		return nil
+	}
+	bv.isNeedWait = false
+
+	if failed, _ := bv.signVerifier.WaitDone(); failed == true {
+		logger.Error().Msg("sign of txs validation failed")
 		return ErrorBlockVerifySign
 	}
 

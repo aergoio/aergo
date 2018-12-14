@@ -150,11 +150,11 @@ type GetStakingRsp struct {
 }
 
 type GetNameInfo struct {
-	Name []byte
+	Name string
 }
 
 type GetNameInfoRsp struct {
-	Owner *types.Name
+	Owner *types.NameInfo
 	Err   error
 }
 

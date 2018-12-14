@@ -8,6 +8,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"net"
@@ -29,22 +30,6 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
-)
-
-// TODO this value better related to max peer and block produce interval, not constant
-const (
-	DefaultGlobalBlockCacheSize = 300
-	DefaultPeerBlockCacheSize   = 100
-
-	DefaultGlobalTxCacheSize = 50000
-	DefaultPeerTxCacheSize   = 2000
-	// DefaultPeerTxQueueSize is maximum size of hashes in a single tx notice message
-	DefaultPeerTxQueueSize = 40000
-
-	defaultTTL          = time.Second * 4
-	defaultHandshakeTTL = time.Second * 20
-
-	cachePlaceHolder = true
 )
 
 // PeerManager is internal service that provide peer management
@@ -82,8 +67,9 @@ type peerManager struct {
 	bindPort    int
 	selfMeta    PeerMeta
 
+	hsFactory HSHandlerFactory
 	handlerFactory HandlerFactory
-	actorServ      ActorService
+	actorService   ActorService
 	signer         msgSigner
 	mf             moFactory
 	rm             ReconnectManager
@@ -120,12 +106,13 @@ func init() {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory HandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, mm metric.MetricsManager, logger *log.Logger, mf moFactory) PeerManager {
+func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, rm ReconnectManager, mm metric.MetricsManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		handlerFactory: handlerFactory,
-		actorServ:      iServ,
+		hsFactory: hsFactory,
+		actorService:   iServ,
 		conf:           p2pConf,
 		signer:         signer,
 		mf:             mf,
@@ -337,7 +324,7 @@ func (pm *peerManager) logPeerMetrics() {
 }
 
 // addOutboundPeer try to connect and handshake to remote peer. it can be called after peermanager is inited.
-// It return true if peer is added or already exist, or return false if failed to add peer.
+// It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
 func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
@@ -368,60 +355,107 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		return false
 	}
 
-	rd := metric.NewReader(s)
-	wt := metric.NewWriter(s)
-	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-	rw, remoteStatus, err := h.handshakeOutboundPeerTimeout(rd, wt, defaultHandshakeTTL)
-	if err != nil {
-		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		//pm.sendGoAway(rw, "Failed to handshake")
+	completeMeta, added := pm.tryAddPeer(true, meta, s)
+	if !added {
 		s.Close()
 		return false
+	} else {
+		if meta.IPAddress != completeMeta.IPAddress {
+			pm.logger.Debug().Str("before",meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
+		}
+	}
+	return true
+}
+
+// tryAddPeer will do check connecting peer and add. it will return peer meta information received from
+// remote peer setup some
+func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (PeerMeta, bool) {
+	var peerID = meta.ID
+	rd := metric.NewReader(s)
+	wt := metric.NewWriter(s)
+	h := pm.hsFactory.CreateHSHandler(outbound, pm, pm.actorService, pm.logger, peerID)
+	rw, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
+	if err != nil {
+		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
+		pm.sendGoAway(rw, "Failed to handshake")
+		return meta, false
+	}
+	// update peer meta info using sent information from remote peer
+	receivedMeta := FromPeerAddress(remoteStatus.Sender)
+	if receivedMeta.ID != peerID {
+		pm.logger.Debug().Str("received_peer_id", receivedMeta.ID.Pretty()).Str(LogPeerID, meta.ID.Pretty()).Msg("Inconsistent peerID")
+		pm.sendGoAway(rw, "Inconsistent peerID")
+		return meta, false
+	}
+	receivedMeta.Outbound = outbound
+	_, receivedMeta.Designated = pm.designatedPeers[peerID]
+
+	// adding peer to peer list
+	newPeer, err := pm.registerPeer(peerID, receivedMeta, rw)
+	if err != nil {
+			pm.sendGoAway(rw, err.Error() )
+			return meta, false
+	}
+	newPeer.metric = pm.mm.Add(peerID, rd, wt)
+
+	if pm.logger.IsDebugEnabled() {
+		addrs := pm.Peerstore().Addrs(peerID)
+		addrStrs := make([]string, len(addrs))
+		for i, addr := range addrs {
+			addrStrs[i] = addr.String()
+		}
+		pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, newPeer.meta.ID.Pretty()).Msg("addresses of peer")
 	}
 
+	pm.doPostHandshake(peerID, remoteStatus)
+	// notice to p2pmanager that handshaking is finished
+	pm.NotifyPeerHandshake(peerID)
+
+	return receivedMeta, true
+}
+
+func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw MsgReadWriter) (*remotePeerImpl, error) {
 	pm.mutex.Lock()
-	inboundPeer, ok = pm.remotePeers[peerID]
+	defer pm.mutex.Unlock()
+	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
-		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("Inbound connection was already handshaked while handshaking outbound connection, and remote peer is higher priority so closing this outbound connection.")
-			pm.mutex.Unlock()
-			pm.sendGoAway(rw, "Already handshaked")
-			s.Close()
-			return true
+		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Peer add collision. Outbound connection of higher hash will survive.")
+		iAmLower := ComparePeerID(pm.selfMeta.ID, receivedMeta.ID) <= 0
+		if iAmLower == receivedMeta.Outbound {
+			pm.logger.Info().Str("local_peer_id",pm.selfMeta.ID.Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound",receivedMeta.Outbound).Msg("Close connection and keep earlier handshake connection.")
+			return nil, fmt.Errorf("Already handshake peer %s ",peerID.Pretty())
 		} else {
-			pm.logger.Info().Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("Inbound connection was already handshaked while handshaking outbound connection, but local peer is higher priority so closing that inbound connection")
+			pm.logger.Info().Str("local_peer_id",pm.selfMeta.ID.Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound",receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			// TODO send goaway messge to pre-exist peer
 			// disconnect lower valued connection
-			pm.deletePeer(meta.ID)
-			inboundPeer.stop()
+			pm.deletePeer(receivedMeta.ID)
+			preExistPeer.stop()
 		}
 	}
 
-	// update peer info to remote sent infor
-	meta = FromPeerAddress(remoteStatus.Sender)
-
-	outboundPeer := newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
+	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, rw)
 	// insert Handlers
 	pm.handlerFactory.insertHandlers(outboundPeer)
 	go outboundPeer.runPeer()
 	pm.insertPeer(peerID, outboundPeer)
-	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("Outbound peer is  added to peerService")
-	outboundPeer.metric = pm.mm.Add(peerID, rd, wt)
-	pm.mutex.Unlock()
+	pm.logger.Info().Bool("outbound",receivedMeta.Outbound).Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is  added to peerService")
 
-	addrs := pm.Peerstore().Addrs(peerID)
-	addrStrs := make([]string, len(addrs))
-	for i, addr := range addrs {
-		addrStrs[i] = addr.String()
+	return outboundPeer, nil
+}
+
+// doPostHandshake is additional work after peer is added.
+func (pm *peerManager) doPostHandshake(peerID peer.ID, remoteStatus *types.Status) {
+
+	if chain.UseFastSyncer {
+		pm.logger.Debug().Uint64("target", remoteStatus.BestHeight).Msg("request new syncer")
+		pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: remoteStatus.BestHeight})
+	} else {
+		// sync block infos
+		pm.actorService.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
 	}
-	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, outboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
 
-	// peer is ready
-	h.doInitialSync()
-
-	// notice to p2pmanager that handshaking is finished
-	pm.NotifyPeerHandshake(peerID)
-
-	return true
+	// sync mempool tx infos
+	// TODO add tx handling
 }
 
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
@@ -513,71 +547,20 @@ func (pm *peerManager) startListener() {
 		Msg("Set self node's pid, and listening for connections")
 	pm.Host = newHost
 
-	pm.SetStreamHandler(aergoP2PSub, pm.onHandshake)
+	pm.SetStreamHandler(aergoP2PSub, pm.onConnect)
 }
 
-func (pm *peerManager) onHandshake(s inet.Stream) {
+func (pm *peerManager) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	h := newHandshaker(pm, pm.actorServ, pm.logger, peerID)
-	rd := metric.NewReader(s)
-	wt := metric.NewWriter(s)
-	rw, statusMsg, err := h.handshakeInboundPeer(rd, wt)
-	if err != nil {
-		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("fail to handshake")
+	tempMeta := PeerMeta{ID:peerID}
+	completeMeta, added := pm.tryAddPeer(false, tempMeta, s)
+	if !added {
 		s.Close()
-		return
-	}
-	// TODO: check status
-	meta := FromPeerAddress(statusMsg.Sender)
-	// try Add peer
-	if inboundPeer, success := pm.tryAddInboundPeer(meta, rw); !success {
-		// failed to add
-		pm.sendGoAway(rw, "Concurrent handshake")
-		s.Close()
-		return
 	} else {
-		inboundPeer.metric = pm.mm.Add(peerID, rd, wt)
-	}
-
-
-	h.doInitialSync()
-	// notice to p2pmanager that handshaking is finished
-	pm.NotifyPeerHandshake(peerID)
-}
-
-func (pm *peerManager) tryAddInboundPeer(meta PeerMeta, rw MsgReadWriter) (*remotePeerImpl, bool) {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-	peerID := meta.ID
-	outboundPeer, found := pm.remotePeers[peerID]
-
-	if found {
-		if ComparePeerID(pm.selfMeta.ID, meta.ID) <= 0 {
-			pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Outbound connection was already handshaked while handshaking inbound connection, and remote peer is higher priority so closing that outbound connection.")
-			pm.sendGoAway(rw, "Already handshaked")
-			pm.deletePeer(meta.ID)
-			outboundPeer.stop()
-		} else {
-			pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Outbound connection  was already handshaked while handshaking inbound connection, but local peer is higher priority and closing this inbound connection.")
-			// disconnect lower valued connection
-			return nil, false
+		if tempMeta.IPAddress != completeMeta.IPAddress {
+			pm.logger.Debug().Str("after", completeMeta.IPAddress).Msg("IP address of remote peer")
 		}
 	}
-	inboundPeer := newRemotePeer(meta, pm, pm.actorServ, pm.logger, pm.mf, pm.signer, rw)
-	pm.handlerFactory.insertHandlers(inboundPeer)
-	go inboundPeer.runPeer()
-	pm.insertPeer(peerID, inboundPeer)
-	peerAddr := meta.ToPeerAddress()
-
-	addrs := pm.Peerstore().Addrs(peerID)
-	addrStrs := make([]string, len(addrs))
-	for i, addr := range addrs {
-		addrStrs[i] = addr.String()
-	}
-	pm.logger.Debug().Strs("addrs", addrStrs).Str(LogPeerID, inboundPeer.meta.ID.Pretty()).Msg("addresses of peer")
-	pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", getIP(&peerAddr).String()+":"+strconv.Itoa(int(peerAddr.Port))).Msg("Inbound peer is  added to peerService")
-
-	return inboundPeer, true
 }
 
 func (pm *peerManager) Start() error {
@@ -602,7 +585,7 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 		return
 	}
 	for _, remotePeer := range pm.remotePeers {
-		pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
+		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
 	}
 }
 
@@ -610,13 +593,13 @@ func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
 	if pm.hasEnoughPeers() {
 		return
 	}
-	peer, ok := pm.GetPeer(ID)
+	rPeer, ok := pm.GetPeer(ID)
 	if !ok {
 		//pm.logger.Warnf("invalid peer id %s", ID.Pretty())
 		pm.logger.Warn().Str(LogPeerID, ID.Pretty()).Msg("invalid peer id")
 		return
 	}
-	pm.actorServ.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: peer.ID(), Size: 20, Offset: 0})
+	pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: rPeer.ID(), Size: 20, Offset: 0})
 }
 
 func (pm *peerManager) hasEnoughPeers() bool {
@@ -716,8 +699,9 @@ func (pm *peerManager) deletePeer(ID peer.ID) {
 
 func (pm *peerManager) updatePeerCache() {
 	newSlice := make([]RemotePeer, 0, len(pm.remotePeers))
-	for _, peer := range pm.remotePeers {
-		newSlice = append(newSlice, peer)
+	for _, rPeer := range pm.remotePeers {
+		newSlice = append(newSlice, rPeer)
 	}
 	pm.peerCache = newSlice
 }
+

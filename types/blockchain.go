@@ -9,8 +9,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math"
 	"math/big"
 	"reflect"
+	"runtime"
+	"sync/atomic"
+	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
@@ -24,6 +28,18 @@ const (
 	DefaultMaxBlockSize = 1 << 20
 	DefaultCoinbaseFee  = 1
 	lastFieldOfBH       = "Sign"
+	DefaultTxVerifyTime = time.Microsecond * 200
+)
+
+type AvgTime struct {
+	val  atomic.Value
+	mavg *MovingAverage
+}
+
+var (
+	DefaultVerifierCnt          = int(math.Max(float64(runtime.NumCPU()/2), float64(1)))
+	DefaultAvgTimeSize          = 60 * 60 * 24
+	AvgTxVerifyTime    *AvgTime = NewAvgTime(DefaultAvgTimeSize)
 )
 
 //MaxAER is maximum value of aergo
@@ -40,6 +56,35 @@ func init() {
 	StakingMinimum = new(big.Int)
 	StakingMinimum.SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
+}
+
+func NewAvgTime(sizeMavg int) *AvgTime {
+	avgTime := &AvgTime{}
+	avgTime.mavg = NewMovingAverage(sizeMavg)
+	avgTime.val.Store(time.Duration(0))
+	return avgTime
+}
+
+func (avgTime *AvgTime) Get() time.Duration {
+	var avg time.Duration
+	aopv := avgTime.val.Load()
+	if aopv != nil {
+		avg = aopv.(time.Duration)
+	} else {
+		panic("AvgTxSignTime is not set")
+	}
+	return avg
+}
+
+func (avgTime *AvgTime) UpdateAverage(cur time.Duration) time.Duration {
+	newAvg := time.Duration(avgTime.mavg.Add(int64(cur)))
+	avgTime.set(newAvg)
+
+	return newAvg
+}
+
+func (avgTime *AvgTime) set(val time.Duration) {
+	avgTime.val.Store(val)
 }
 
 func getLastIndexOfBH() (lastIndex int) {
@@ -519,4 +564,50 @@ func (b *TxBody) GetAmountBigInt() *big.Int {
 
 func (b *TxBody) GetPriceBigInt() *big.Int {
 	return new(big.Int).SetBytes(b.GetPrice())
+}
+
+type MovingAverage struct {
+	values []int64
+	size   int
+	count  int
+
+	sum        int64
+	removedVal int64
+	curPos     int
+}
+
+func NewMovingAverage(size int) *MovingAverage {
+	return &MovingAverage{
+		values:     make([]int64, size),
+		size:       size,
+		removedVal: 0,
+		sum:        0,
+		curPos:     -1,
+		count:      0,
+	}
+}
+
+func (ma *MovingAverage) Add(val int64) int64 {
+	ma.curPos = (ma.curPos + 1) % ma.size
+	ma.removedVal = ma.values[ma.curPos]
+	ma.values[ma.curPos] = val
+
+	if ma.count != ma.size {
+		ma.count++
+	}
+
+	return ma.calculateAvg()
+}
+
+func (ma *MovingAverage) calculateAvg() int64 {
+	//values is empty
+	if ma.count == 0 {
+		return 0
+	}
+
+	ma.sum = ma.sum - ma.removedVal + ma.values[ma.curPos]
+
+	// Finalize average and return
+	avg := ma.sum / int64(ma.count)
+	return avg
 }

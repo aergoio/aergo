@@ -24,13 +24,6 @@ import (
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
-const (
-	defaultPingInterval = time.Second * 60
-
-	writeChannelTimeout = time.Second * 2
-	writeMsgBufferSize = 20
-)
-
 var TimeoutError error
 func init() {
 	TimeoutError = fmt.Errorf("timeout")
@@ -117,14 +110,9 @@ type remotePeerImpl struct {
 
 var _ RemotePeer = (*remotePeerImpl)(nil)
 
-const (
-	cleanRequestInterval = time.Hour
-	txNoticeInterval     = time.Second * 1
-)
-
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, rw MsgReadWriter) *remotePeerImpl {
-	peer := &remotePeerImpl{
+	rPeer := &remotePeerImpl{
 		meta: meta, pm: pm, actorServ: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
@@ -141,20 +129,20 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		txNoticeQueue: p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 	}
-	//peer.write =make(chan msgp2putil.NewDefaultChannelPipe(20, newHangresolver(peer, log))
-	peer.dWrite = make(chan msgOrder, writeMsgBufferSize)
+	//rPeer.write =make(chan msgp2putil.NewDefaultChannelPipe(20, newHangresolver(rPeer, log))
+	rPeer.dWrite = make(chan msgOrder, writeMsgBufferSize)
 
 	var err error
-	peer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
+	rPeer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
-	peer.txHashCache, err = lru.New(DefaultPeerTxCacheSize)
+	rPeer.txHashCache, err = lru.New(DefaultPeerTxCacheSize)
 	if err != nil {
 		panic("Failed to create remotepeer " + err.Error())
 	}
 
-	return peer
+	return rPeer
 }
 
 // ID return id of peer, same as peer.meta.ID
@@ -289,33 +277,33 @@ func (p *remotePeerImpl) runRead() {
 
 func (p *remotePeerImpl) handleMsg(msg Message) error {
 	var err error
-	proto := msg.Subprotocol()
+	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler")
+			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
 
-	handler, found := p.handlers[proto]
+	handler, found := p.handlers[subProto]
 	if !found {
-		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Invalid protocol")
-		return fmt.Errorf("invalid protocol %s", proto)
+		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("invalid protocol")
+		return fmt.Errorf("invalid protocol %s", subProto)
 	}
 	payload, err := handler.parsePayload(msg.Payload())
 	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Invalid message data")
-		return fmt.Errorf("Invalid message data")
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("invalid message data")
+		return fmt.Errorf("invalid message data")
 	}
 	//err = p.signer.verifyMsg(msg, p.meta.ID)
 	//if err != nil {
-	//	p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Failed to check signature")
+	//	p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("Failed to check signature")
 	//	return fmt.Errorf("Failed to check signature")
 	//}
 	err = handler.checkAuth(msg, payload)
 	if err != nil {
-		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, proto.String()).Msg("Failed to authenticate message")
-		return fmt.Errorf("Failed to authenticate message")
+		p.logger.Warn().Err(err).Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("Failed to authenticate message")
+		return fmt.Errorf("Failed to authenticate message.")
 	}
 
 	handler.handle(msg, payload)
@@ -475,7 +463,7 @@ func (p *remotePeerImpl) getStreamForWriting(msgID string, protocol protocol.ID,
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *remotePeerImpl) sendPing() {
 	// find my best block
-	//bestBlock, err := extractBlockFromRequest(p.actorServ.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
+	//bestBlock, err := extractBlockFromRequest(p.actorService.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
 	//if err != nil {
 	//	p.logger.Error().Err(err).Msg("Failed to get best block")
 	//	return
