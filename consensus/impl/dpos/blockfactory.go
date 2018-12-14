@@ -170,28 +170,20 @@ func (bf *BlockFactory) worker() {
 			block, blockState, err := bf.generateBlock(bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
-			} else if err != nil {
-				if err == chain.ErrBestBlock {
-					err = bf.lockChainWait()
-					if err != nil {
-						if err == chain.ErrQuit {
-							return
-						}
-						continue
-					}
+			}
 
-					// This means the best block is beging changed by the chain
-					// service. If the chain service quickly executes the
-					// block, there may be still some remaining time to produce
-					// block in the current slot, though. Thus retry block
-					// production.
-					logger.Info().Err(err).Msg("retry block production")
-					bpi.updateBestBLock()
-					bf.unlockChain()
-					goto retry
-				} else {
-					logger.Info().Err(err).Msg("failed to produce block")
-				}
+			if err == chain.ErrBestBlock {
+				time.Sleep(tickDuration())
+				// This means the best block is beging changed by the chain
+				// service. If the chain service quickly executes the
+				// block, there may be still some remaining time to produce
+				// block in the current slot, though. Thus retry block
+				// production.
+				logger.Info().Err(err).Msg("retry block production")
+				bpi.updateBestBLock()
+				goto retry
+			} else if err != nil {
+				logger.Info().Err(err).Msg("failed to produce block")
 				continue
 			}
 
@@ -206,25 +198,6 @@ func (bf *BlockFactory) worker() {
 			return
 		}
 	}
-}
-
-func (bf *BlockFactory) lockChainWait() error {
-	for {
-		// BP timeout & shutdown check
-		if err := bf.checkBpTimeout(); err != nil {
-			return err
-		}
-
-		if err := chain.LockChain(); err != nil {
-			time.Sleep(tickDuration())
-		} else {
-			return nil
-		}
-	}
-}
-
-func (bf *BlockFactory) unlockChain() {
-	chain.UnlockChain()
 }
 
 func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
