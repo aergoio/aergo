@@ -31,7 +31,10 @@ var (
 			} else if len(args) < 1 {
 				cmd.Usage()
 			} else {
-				C.compile(C.CString(args[0]), C.FLAG_NONE)
+				err := C.compile(C.CString(args[0]), C.FLAG_NONE)
+				if err != 0 {
+					os.Exit(1)
+				}
 			}
 		},
 	}

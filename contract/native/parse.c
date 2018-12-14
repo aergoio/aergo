@@ -58,6 +58,7 @@ parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast)
         yydebug = 1;
 
     yyparse(&parse, scanner);
+
     yylex_destroy(scanner);
 }
 

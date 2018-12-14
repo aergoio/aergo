@@ -14,7 +14,7 @@
 
 #include "compile.h"
 
-void
+int
 compile(char *path, flag_t flag)
 {
     strbuf_t src;
@@ -35,6 +35,8 @@ compile(char *path, flag_t flag)
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();
+
+    return is_no_error() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 /* end of compile.c */
