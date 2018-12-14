@@ -32,9 +32,10 @@ powered by [go-prompt](https://github.com/c-bata/go-prompt)
 
 1. git clone and build aergo in debug mode (release is ok, but you cannot debug contracts), unix & mac: `make debug`, windows + mingw64: `mingw32-make debug`
 2. create a directory, where you want
-3. copy binary `brick` and log config file `cmd/brick/arglog.toml` to the directory
+3. copy binary `brick` to the directory, or add aergo's `bin` folder to system PATH
 4. move to the directory
 5. run `brick`
+6. (optional) copy log config file `cmd/brick/arglog.toml` to the directory, and adjust levels to get for more detailed info
 
 ## Usage
 
