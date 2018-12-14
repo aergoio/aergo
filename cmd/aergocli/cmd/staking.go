@@ -68,6 +68,6 @@ func sendStaking(cmd *cobra.Command, s bool) error {
 	if err != nil {
 		return err
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error)
+	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
 	return nil
 }

@@ -35,6 +35,7 @@ var (
 	to     string
 	amount string
 	unit   string
+	name   string
 
 	address    string
 	stateroot  string

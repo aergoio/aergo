@@ -29,6 +29,8 @@ var (
 
 	ErrTxInvalidType = errors.New("tx invalid type")
 
+	ErrTxInvalidAccount = errors.New("tx invalid account")
+
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 

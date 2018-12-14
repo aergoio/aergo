@@ -33,9 +33,12 @@ func SignTx(tx *types.Tx, key *aergokey) error {
 	return nil
 }
 
-//SignTx return transaction which signed with unlocked key
-func (ks *Store) SignTx(tx *types.Tx) error {
+//SignTx return transaction which signed with unlocked key. if requester is nil, requester is assumed to tx.Account
+func (ks *Store) SignTx(tx *types.Tx, requester []byte) error {
 	addr := tx.Body.Account
+	if requester != nil {
+		addr = requester
+	}
 	key, exist := ks.unlocked[types.EncodeAddress(addr)]
 	if !exist {
 		return types.ErrShouldUnlockAccount
@@ -45,14 +48,17 @@ func (ks *Store) SignTx(tx *types.Tx) error {
 
 //VerifyTx return result to varify sign
 func VerifyTx(tx *types.Tx) error {
+	return VerifyTxWithAddress(tx, tx.Body.Account)
+}
+
+func VerifyTxWithAddress(tx *types.Tx, address []byte) error {
 	txBody := tx.Body
 	hash := CalculateHashWithoutSign(txBody)
 	sign, err := btcec.ParseSignature(txBody.Sign, btcec.S256())
 	if err != nil {
 		return err
 	}
-	account := tx.Body.Account
-	pubkey, err := btcec.ParsePubKey(account, btcec.S256())
+	pubkey, err := btcec.ParsePubKey(address, btcec.S256())
 	if err != nil {
 		return err
 	}

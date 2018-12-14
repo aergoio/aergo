@@ -466,9 +466,17 @@ func (tx *Tx) Validate() error {
 		if len(tx.Body.Payload) <= 0 {
 			return ErrTxFormatInvalid
 		}
-		if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
-			amount.Cmp(StakingMinimum) < 0 {
-			return ErrTooSmallAmount
+		switch string(tx.GetBody().GetRecipient()) {
+		case AergoSystem:
+			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
+				amount.Cmp(StakingMinimum) < 0 {
+				return ErrTooSmallAmount
+			}
+		case AergoName:
+			if tx.GetBody().GetPayload()[0] != 'c' && tx.GetBody().GetPayload()[0] != 'u' {
+				return ErrTxFormatInvalid
+			}
+		default:
 		}
 	default:
 		return ErrTxInvalidType
@@ -484,18 +492,20 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		fee := new(big.Int).SetInt64(DefaultCoinbaseFee)
+		fee := new(big.Int).SetUint64(DefaultCoinbaseFee)
 		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
 	case TxType_GOVERNANCE:
-		if string(tx.GetBody().GetRecipient()) == AergoSystem {
+		switch string(tx.GetBody().GetRecipient()) {
+		case AergoSystem:
 			if tx.GetBody().GetPayload()[0] == 's' &&
 				amount.Cmp(balance) > 0 {
 				return ErrInsufficientBalance
 			}
-		} else {
+		case AergoName:
+		default:
 			return ErrTxInvalidRecipient
 		}
 	}
@@ -508,7 +518,19 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 //TODO : refoctor after ContractState move to types
 func (tx *Tx) ValidateWithContractState(contractState *State) error {
 	//in system.ValidateSystemTx
+	//in name.ValidateNameTx
 	return nil
+}
+
+func (tx *Tx) NeedNameVerify() bool {
+	return tx.HasNameAccount()
+}
+
+func (tx *Tx) HasNameAccount() bool {
+	return len(tx.Body.Account) <= NameLength
+}
+func (tx *Tx) HasNameRecipient() bool {
+	return tx.Body.Recipient != nil && len(tx.Body.Recipient) <= NameLength
 }
 
 func (tx *Tx) Clone() *Tx {

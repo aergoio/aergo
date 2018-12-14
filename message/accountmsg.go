@@ -43,7 +43,8 @@ type UnlockAccountRsp struct {
 */
 
 type SignTx struct {
-	Tx *types.Tx
+	Tx        *types.Tx
+	Requester []byte
 }
 type SignTxRsp struct {
 	Tx  *types.Tx

@@ -34,19 +34,19 @@ func TestBasicExecute(t *testing.T) {
 	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
 
 	emptytx := &types.TxBody{}
-	err = ExecuteSystemTx(emptytx, senderState, scs, 0)
+	err = ExecuteSystemTx(scs, emptytx, senderState, 0)
 	assert.EqualError(t, types.ErrTxFormatInvalid, err.Error(), "Execute system tx failed")
 
-	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, 0)
+	err = ExecuteSystemTx(scs, tx.GetBody(), senderState, 0)
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, senderState.GetBalanceBigInt().Uint64(), uint64(0), "sender.GetBalanceBigInt() should be 0 after staking")
 
 	tx.Body.Payload = []byte{'v'}
-	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay)
+	err = ExecuteSystemTx(scs, tx.GetBody(), senderState, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 
 	tx.Body.Payload = []byte{'u'}
-	err = ExecuteSystemTx(tx.GetBody(), senderState, scs, VotingDelay+StakingDelay)
+	err = ExecuteSystemTx(scs, tx.GetBody(), senderState, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "Execute system tx failed in unstaking")
 	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), types.StakingMinimum.Bytes(),
 		"sender.GetBalanceBigInt() should be turn back")
@@ -108,7 +108,7 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 		},
 	}
 	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
-	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, 0)
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), senderState, 0)
 	assert.NoError(t, err, "could not execute system tx")
 
 	tx.Body.Amount = types.StakingMinimum.Bytes()
@@ -150,7 +150,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 		},
 	}
 	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
-	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, 0)
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), senderState, 0)
 	assert.NoError(t, err, "could not execute system tx")
 
 	tx.Body.Payload = append(tx.Body.Payload, candidates...)
@@ -162,10 +162,10 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	assert.NoError(t, err, "failed to validate system tx for voting")
 
 	tx.Body.Payload[0] = 'v'
-	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, VotingDelay)
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), senderState, VotingDelay)
 	assert.NoError(t, err, "could not execute system tx")
 
-	err = ExecuteSystemTx(stakingTx.GetBody(), senderState, scs, VotingDelay+StakingDelay)
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), senderState, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "could not execute system tx")
 
 	err = ValidateSystemTx(tx.GetBody(), scs, VotingDelay+StakingDelay+1)

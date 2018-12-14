@@ -179,6 +179,24 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockTX(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlockTX), varargs...)
 }
 
+// GetNameInfo mocks base method
+func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *types.Name, arg2 ...grpc.CallOption) (*types.NameInfo, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetNameInfo", varargs...)
+	ret0, _ := ret[0].(*types.NameInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNameInfo indicates an expected call of GetNameInfo
+func (mr *MockAergoRPCServiceClientMockRecorder) GetNameInfo(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNameInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetNameInfo), varargs...)
+}
+
 // GetPeers mocks base method
 func (m *MockAergoRPCServiceClient) GetPeers(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.PeerList, error) {
 	varargs := []interface{}{arg0, arg1}

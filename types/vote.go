@@ -3,6 +3,7 @@ package types
 import "math/big"
 
 const AergoSystem = "aergo.system"
+const AergoName = "aergo.name"
 
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {

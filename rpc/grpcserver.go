@@ -398,7 +398,7 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.SignTx{Tx: tx}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
+		&message.SignTx{Tx: tx, Requester: getStateRsp.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
@@ -767,6 +767,19 @@ func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleByte
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Staking, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*types.NameInfo, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetNameInfo{Name: in.Name}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetNameInfoRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Owner, nil
 }
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {

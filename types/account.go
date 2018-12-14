@@ -4,11 +4,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/anaskhan96/base58check"
 )
 
 const AddressLength = 33
+const NameLength = 12
 
 //NewAccount alloc new account object
 func NewAccount(addr []byte) *Account {
@@ -44,11 +46,25 @@ const AddressVersion = 0x42
 const PrivKeyVersion = 0xAA
 
 func EncodeAddress(addr Address) string {
+	if len(addr) <= NameLength {
+		return string(addr)
+	}
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
 	return encoded
 }
 
+const allowed = "abcdefghijklmnopqrstuvwxyz1234567890."
+
 func DecodeAddress(encodedAddr string) (Address, error) {
+	if len(encodedAddr) <= NameLength {
+		name := encodedAddr
+		for _, char := range string(name) {
+			if !strings.Contains(allowed, strings.ToLower(string(char))) {
+				return nil, fmt.Errorf("not allowed character in %s", string(name))
+			}
+		}
+		return []byte(name), nil
+	}
 	decodedString, err := base58check.Decode(encodedAddr)
 	if err != nil {
 		return nil, err

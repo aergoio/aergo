@@ -97,7 +97,7 @@ func TestSignTx(t *testing.T) {
 			t.Errorf("invalid unlock address : length = %d", len(unlocked))
 		}
 		tx := &types.Tx{Body: &types.TxBody{Account: addr}}
-		err = ks.SignTx(tx) //TODO : improve
+		err = ks.SignTx(tx, nil) //TODO : improve
 		if err != nil {
 			t.Errorf("could not sign : %s", err.Error())
 		}

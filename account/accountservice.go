@@ -3,11 +3,9 @@ package account
 import (
 	"sync"
 
-	"github.com/aergoio/aergo/account/key"
-
 	"github.com/aergoio/aergo-actor/actor"
-
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -79,7 +77,7 @@ func (as *AccountService) Receive(context actor.Context) {
 		wif, err := as.exportAccount(msg.Account.Address, msg.Pass)
 		context.Respond(&message.ExportAccountRsp{Wif: wif, Err: err})
 	case *message.SignTx:
-		err := as.signTx(context, msg.Tx)
+		err := as.signTx(context, msg)
 		if err != nil {
 			context.Respond(&message.SignTxRsp{Tx: nil, Err: err})
 		}
@@ -156,11 +154,11 @@ func (as *AccountService) lockAccount(address []byte, passphrase string) (*types
 	return &types.Account{Address: addr}, nil
 }
 
-func (as *AccountService) signTx(c actor.Context, tx *types.Tx) error {
+func (as *AccountService) signTx(c actor.Context, msg *message.SignTx) error {
 	//sign tx
 	prop := actor.FromInstance(NewSigner(as.ks))
 	signer := c.Spawn(prop)
-	signer.Request(tx, c.Sender())
+	signer.Request(msg, c.Sender())
 	return nil
 }
 

@@ -2,12 +2,13 @@ package chain
 
 import (
 	"errors"
+	"time"
+
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"time"
 )
 
 type SignVerifier struct {
@@ -116,13 +117,12 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	if hit {
 		return hit, nil
 	}
-
-	err = key.VerifyTx(tx)
-
-	if err != nil {
-		return false, err
+	if !tx.NeedNameVerify() {
+		err := key.VerifyTx(tx)
+		if err != nil {
+			return false, err
+		}
 	}
-
 	return false, nil
 }
 

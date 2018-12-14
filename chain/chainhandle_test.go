@@ -48,7 +48,7 @@ func makeTestAddress(t *testing.T) []byte {
 func signTestAddress(t *testing.T, tx *types.Tx) {
 	_, err := keystore.Unlock(tx.GetBody().GetAccount(), "test")
 	assert.NoError(t, err, "could not unlock key")
-	err = keystore.SignTx(tx)
+	err = keystore.SignTx(tx, nil)
 	assert.NoError(t, err, "could not sign key")
 }
 

@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -190,6 +191,12 @@ Gather:
 func (mp *MemPool) put(tx *types.Tx) error {
 	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
+	if tx.NeedNameVerify() {
+		acc = mp.getAddress(acc)
+		if acc == nil {
+			return types.ErrTxInvalidAccount
+		}
+	}
 
 	mp.Lock()
 	defer mp.Unlock()
@@ -281,8 +288,16 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		mp.Debug().Int("cnt", len(mp.pool)).Msg("going to check all account's state")
 	} else {
 		for _, tx := range block.GetBody().GetTxs() {
-			dirty[types.ToAccountID(tx.GetBody().GetAccount())] = true
-			dirty[types.ToAccountID(tx.GetBody().GetRecipient())] = true
+			account := tx.GetBody().GetAccount()
+			recipient := tx.GetBody().GetRecipient()
+			if tx.HasNameAccount() {
+				account = mp.getAddress(account)
+			}
+			if tx.HasNameRecipient() {
+				recipient = mp.getAddress(recipient)
+			}
+			dirty[types.ToAccountID(account)] = true
+			dirty[types.ToAccountID(recipient)] = true
 		}
 	}
 
@@ -329,11 +344,30 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	err = key.VerifyTx(tx)
-	if err != nil {
-		return err
+	if !tx.NeedNameVerify() {
+		err = key.VerifyTx(tx)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+func (mp *MemPool) getAddress(account []byte) []byte {
+	if mp.testConfig {
+		return account
+	}
+
+	nameState, err := mp.getAccountState([]byte(types.AergoName))
+	if err != nil {
+		mp.Error().Str("for name", string(account)).Msgf("failed to get state %s", types.AergoName)
+		return nil
+	}
+	scs, err := mp.stateDB.OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
+	if err != nil {
+		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
+		return nil
+	}
+	return name.GetAddress(scs, account)
 }
 
 // check tx sanity
@@ -341,6 +375,13 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx *types.Tx) error {
 	account := tx.GetBody().GetAccount()
+	if tx.NeedNameVerify() {
+		account = mp.getAddress(account)
+		err := key.VerifyTxWithAddress(tx, account)
+		if err != nil {
+			return err
+		}
+	}
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
@@ -352,18 +393,26 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 	switch tx.GetBody().GetType() {
 	//case types.TxType_NORMAL:
 	case types.TxType_GOVERNANCE:
-		aergoSystemState, err := mp.getAccountState(tx.GetBody().GetRecipient())
+		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
 		if err != nil {
 			return err
 		}
 		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := mp.stateDB.OpenContractState(aid, aergoSystemState)
+		scs, err := mp.stateDB.OpenContractState(aid, aergoState)
 		if err != nil {
 			return err
 		}
-		err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
-		if err != nil {
-			return err
+		switch string(tx.GetBody().GetRecipient()) {
+		case types.AergoSystem:
+			err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
+			if err != nil {
+				return err
+			}
+		case types.AergoName:
+			err = name.ValidateNameTx(tx.Body, scs)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
