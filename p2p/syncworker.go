@@ -135,7 +135,7 @@ func (sw *syncWorker) putAddBlock(msg Message, blocks []*types.Block, hasNext bo
 				sw.Cancel()
 				return
 			}
-			addblockRsp, ok := rsp.(message.AddBlockRsp)
+			addblockRsp, ok := rsp.(*message.AddBlockRsp)
 			if ok == false {
 				sw.sm.logger.Error().Str("actual_type", reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
 				sw.Cancel()

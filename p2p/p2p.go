@@ -195,7 +195,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
 		p2ps.NotifyNewTX(*msg)
-	case message.AddBlockRsp:
+	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
