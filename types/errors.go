@@ -56,4 +56,7 @@ var (
 
 	//ErrVmStart
 	ErrVmStart = errors.New("cannot start a VM")
+
+	//ErrVmConstructorIsNotPayable
+	ErrVmConstructorIsNotPayable = errors.New("constructor is not payable")
 )

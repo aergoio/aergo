@@ -52,6 +52,10 @@ const char *vm_compile(lua_State *L, const char *code, const char *byte, const c
 		   return lua_tostring(L, -1);
 		}
 		lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+		lua_getfield(L, -1, "autoload");
+		if (lua_pcall(L, 0, 0, 0) != 0) {
+		    return lua_tostring(L, -1);
+		}
 		lua_getfield(L, -1, "generate");
 		if (lua_pcall(L, 0, 1, 0) != 0) {
 		    return lua_tostring(L, -1);

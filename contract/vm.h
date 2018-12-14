@@ -6,6 +6,8 @@
 #include <luajit.h>
 #include "sqlite3-binding.h"
 
+extern const char *construct_name;
+
 typedef struct blockchain_ctx {
 	char *stateKey;
 	char *sender;
@@ -37,5 +39,7 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt);
 void bc_ctx_delete(bc_ctx_t *bcctx);
 sqlite3 *vm_get_db(lua_State *L);
 void vm_get_abi_function(lua_State *L, char *fname);
+int vm_is_payable_function(lua_State *L, char *fname);
+char *vm_resolve_function(lua_State *L, char *fname);
 
 #endif /* _VM_H */

@@ -260,12 +260,12 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 		return err
 	}
 
+	creatorState.SubBalance(l.amount)
+	contractState.AddBalance(l.amount)
 	err = run(creatorState, contractState, contractId, eContractState)
 	if err != nil {
 		return err
 	}
-	creatorState.SubBalance(l.amount)
-	contractState.AddBalance(l.amount)
 
 	bs.PutState(creatorId, creatorState.State())
 	bs.PutState(contractId, contractState.State())
@@ -339,10 +339,7 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			rv, err := Call(eContractState, l.code, l.contract, stateSet)
-			if err != nil {
-				return err
-			}
-			err = bs.StageContractState(eContractState)
+			_ = bs.StageContractState(eContractState)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				b, _ := r.MarshalBinary()
