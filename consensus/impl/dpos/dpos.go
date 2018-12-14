@@ -7,7 +7,6 @@ package dpos
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -35,29 +34,20 @@ var (
 )
 
 type lastSlot struct {
-	sync.Mutex
+	//	sync.Mutex
 	s *slot.Slot
 }
 
 func (l *lastSlot) get() *slot.Slot {
-	l.Lock()
-	defer l.Unlock()
+	//	l.Lock()
+	//	defer l.Unlock()
 	return l.s
 }
 
 func (l *lastSlot) set(s *slot.Slot) {
-	l.Lock()
-	defer l.Unlock()
+	//	l.Lock()
+	//	defer l.Unlock()
 	l.s = s
-}
-
-func (l *lastSlot) setIf(s *slot.Slot, cond func(*slot.Slot) bool) {
-	l.Lock()
-	defer l.Unlock()
-	if cond(l.s) {
-		logger.Debug().Msg("last job reset")
-		l.s = s
-	}
 }
 
 // DPoS is the main data structure of DPoS consensus
@@ -74,6 +64,16 @@ type DPoS struct {
 type bpInfo struct {
 	bestBlock *types.Block
 	slot      *slot.Slot
+	ca        types.ChainAccessor
+}
+
+func (bi *bpInfo) updateBestBLock() *types.Block {
+	block, _ := bi.ca.GetBestBlock()
+	if block != nil {
+		bi.bestBlock = block
+	}
+
+	return block
 }
 
 // New returns a new DPos object
@@ -126,7 +126,11 @@ func consensusBlockCount() uint64 {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval / 100)
+	return time.NewTicker(tickDuration())
+}
+
+func tickDuration() time.Duration {
+	return consensus.BlockInterval / 100
 }
 
 // QueueJob send a block triggering information to jq.
@@ -232,6 +236,7 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	return &bpInfo{
 		bestBlock: block,
 		slot:      s,
+		ca:        dpos.ca,
 	}
 }
 

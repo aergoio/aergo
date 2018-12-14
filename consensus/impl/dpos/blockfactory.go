@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
@@ -167,22 +166,24 @@ func (bf *BlockFactory) worker() {
 	for {
 		select {
 		case bpi := <-bf.workerQueue:
+		retry:
 			block, blockState, err := bf.generateBlock(bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
-			} else if err != nil {
-				if err == chain.ErrBestBlock {
-					// This means the best block is beging changed by the chain
-					// service. If the chain service quickly executes the
-					// block, there may be still some remaining time to produce
-					// block in the current slot, though. Thus retry block
-					// production by reseting lastJob to nil.
-					lastJob.setIf(nil, func(s *slot.Slot) bool { return slot.Equal(s, bpi.slot) })
+			}
 
-					logger.Info().Err(err).Msg("retry block production")
-				} else {
-					logger.Info().Err(err).Msg("failed to produce block")
-				}
+			if err == chain.ErrBestBlock {
+				time.Sleep(tickDuration())
+				// This means the best block is beging changed by the chain
+				// service. If the chain service quickly executes the
+				// block, there may be still some remaining time to produce
+				// block in the current slot, though. Thus retry block
+				// production.
+				logger.Info().Err(err).Msg("retry block production")
+				bpi.updateBestBLock()
+				goto retry
+			} else if err != nil {
+				logger.Info().Err(err).Msg("failed to produce block")
 				continue
 			}
 
