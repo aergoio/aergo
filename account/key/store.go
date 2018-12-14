@@ -79,6 +79,11 @@ func (ks *Store) ExportKey(addr Address, pass string) ([]byte, error) {
 	if key == nil {
 		return nil, err
 	}
+	return EncryptKey(key, pass)
+}
+
+// EncryptKey encrypts a key with a given export for exporting
+func EncryptKey(key []byte, pass string) ([]byte, error) {
 	hash := hashBytes([]byte(pass), nil)
 	rehash := hashBytes([]byte(pass), hash)
 	return encrypt(hash, rehash, key)
