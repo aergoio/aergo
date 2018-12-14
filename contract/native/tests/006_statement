@@ -439,9 +439,20 @@ contract test {
     test() { continue; }
 }
 
-@test(goto_label)
+@test(goto_backward_label)
 contract test {
     test() { here: goto here; }
+}
+
+@test(goto_forward_label)
+contract test {
+    test() { goto here; here: ; }
+}
+
+@test(duplicated_label)
+@error(ERROR_DUPLICATED_ID)
+contract test {
+    test() { here: ; here: ; goto here; }
 }
 
 @test(undefined_label)

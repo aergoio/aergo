@@ -30,6 +30,13 @@ contract test {
     int 1v;
 }
 
+@test(duplicated_identifier)
+@error(ERROR_DUPLICATED_ID)
+contract test {
+    int v;
+    string v;
+}
+
 @test(constant_qualifier)
 contract test {
     const int v1 = 0;

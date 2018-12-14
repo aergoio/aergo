@@ -11,6 +11,19 @@
 #include "check_blk.h"
 
 static void
+add_label_ids(ast_blk_t *blk)
+{
+    int i;
+
+    for (i = 0; i < array_size(&blk->stmts); i++) {
+        ast_stmt_t *stmt = array_get(&blk->stmts, i, ast_stmt_t);
+
+        if (stmt->label_id != NULL)
+            id_add_last(&blk->ids, stmt->label_id);
+    }
+}
+
+static void
 check_unused_ids(array_t *ids)
 {
     int i, j;
@@ -43,6 +56,8 @@ blk_check(check_t *check, ast_blk_t *blk)
 
     blk->up = check->blk;
     check->blk = blk;
+
+    add_label_ids(blk);
 
     for (i = 0; i < array_size(&blk->ids); i++) {
         ast_id_t *id = array_get(&blk->ids, i, ast_id_t);

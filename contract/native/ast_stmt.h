@@ -109,7 +109,7 @@ struct ast_stmt_s {
     AST_NODE_DECL;
 
     stmt_kind_t kind;
-    char *label;
+    ast_id_t *label_id;
 
     union {
         stmt_exp_t u_exp;

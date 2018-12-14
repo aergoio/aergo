@@ -23,6 +23,20 @@ contract test {
     payable public func f1() { }
 }
 
+@test(duplicated_function)
+@error(ERROR_DUPLICATED_ID)
+contract test {
+    func f1() { }
+    func f1() { }
+}
+
+@test(duplicated_name_with_variable)
+@error(ERROR_DUPLICATED_ID)
+contract test {
+    int f;
+    func f() { }
+}
+
 @test(parameter_declaration)
 contract test {
     func f1(int p1) { }

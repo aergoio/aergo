@@ -81,7 +81,8 @@ char *id_kinds_[ID_MAX] = {
     "struct",
     "enumeration",
     "function",
-    "contract"
+    "contract",
+    "label"
 };
 
 char *stmt_kinds_[STMT_MAX] = {

@@ -440,29 +440,13 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_goto(check_t *check, ast_stmt_t *stmt)
 {
-    int i;
-    int stmt_cnt;
-    bool has_found = false;
-    ast_blk_t *blk = check->blk;
+    ast_id_t *label_id;
 
     ASSERT1(is_goto_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_goto.label != NULL);
-    ASSERT(blk != NULL);
 
-    do {
-        stmt_cnt = array_size(&blk->stmts);
-
-        for (i = 0; i < stmt_cnt; i++) {
-            ast_stmt_t *prev = array_get(&blk->stmts, i, ast_stmt_t);
-
-            if (prev->label != NULL && strcmp(prev->label, stmt->u_goto.label) == 0) {
-                has_found = true;
-                break;
-            }
-        }
-    } while ((blk = blk->up) != NULL);
-
-    if (!has_found)
+    label_id = id_search_label(check->blk, stmt->u_goto.label);
+    if (label_id == NULL)
         RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 
     return NO_ERROR;

@@ -721,7 +721,7 @@ label_stmt:
     identifier ':' statement
     {
         $$ = $3;
-        $$->label = $1;
+        $$->label_id = id_new_label($1, $3, &@1);
     }
 ;
 

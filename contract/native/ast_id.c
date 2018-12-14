@@ -91,6 +91,16 @@ id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_id_t *
+id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_LABEL, MOD_PUBLIC, name, pos);
+
+    id->u_label.stmt = stmt;
+
+    return id;
+}
+
+ast_id_t *
 id_search_name(ast_blk_t *blk, char *name, int num)
 {
     int i;
@@ -105,7 +115,7 @@ id_search_name(ast_blk_t *blk, char *name, int num)
         for (i = 0; i < array_size(&blk->ids); i++) {
             ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
 
-            if (id->num < num && strcmp(id->name, name) == 0)
+            if (!is_label_id(id) && id->num < num && strcmp(id->name, name) == 0)
                 return id;
         }
     } while ((blk = blk->up) != NULL);
@@ -158,6 +168,28 @@ id_search_param(ast_id_t *id, char *name)
         if (strcmp(param_id->name, name) == 0)
             return param_id;
     }
+
+    return NULL;
+}
+
+ast_id_t *
+id_search_label(ast_blk_t *blk, char *name)
+{
+    int i;
+
+    ASSERT(name != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        for (i = 0; i < array_size(&blk->ids); i++) {
+            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+
+            if (is_label_id(id) && strcmp(id->name, name) == 0)
+                return id;
+        }
+    } while ((blk = blk->up) != NULL);
 
     return NULL;
 }

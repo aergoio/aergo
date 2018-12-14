@@ -341,6 +341,9 @@ id_check(check_t *check, ast_id_t *id)
         id_check_contract(check, id);
         break;
 
+    case ID_LABEL:
+        break;
+
     default:
         ASSERT1(!"invalid identifier", id->kind);
     }
