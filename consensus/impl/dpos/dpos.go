@@ -22,6 +22,9 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+// DefaultDposBpNumber is the default number of block producers.
+const DefaultDposBpNumber = 23
+
 var (
 	logger = log.NewLogger("dpos")
 
@@ -77,20 +80,20 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
+func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
 		return New(cfg, hub, cdb)
 	}
 }
 
 // New returns a new DPos object
-func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
-	bpc, err := bp.NewCluster(cfg.Consensus, cdb)
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
+	bpc, err := bp.NewCluster(cfg, cdb)
 	if err != nil {
 		return nil, err
 	}
 
-	Init(bpc.Size(), cfg.Consensus.BlockInterval)
+	Init(bpc.Size(), cfg.BlockInterval)
 
 	quitC := make(chan interface{})
 
@@ -105,8 +108,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbR
 
 // Init initilizes the DPoS parameters.
 func Init(bpCount uint16, blockInterval int64) {
-	consensus.InitBlockInterval(blockInterval)
-
 	blockProducers = bpCount
 	defaultConsensusCount = blockProducers*2/3 + 1
 	// Collect voting for BPs during 10 rounds.

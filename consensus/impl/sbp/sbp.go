@@ -59,16 +59,14 @@ type SimpleBlockFactory struct {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
+func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
 		return New(cfg, hub)
 	}
 }
 
 // New returns a SimpleBlockFactory.
-func New(cfg *config.Config, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
-	consensus.InitBlockInterval(cfg.Consensus.BlockInterval)
-
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),

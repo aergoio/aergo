@@ -15,11 +15,13 @@ import (
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error
 	)
+
+	consensus.InitBlockInterval(cfg.BlockInterval)
 
 	if c, err = newConsensus(cfg, hub, cs.CDBReader()); err == nil {
 		// Link mutual references.
@@ -31,11 +33,12 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 	return c, err
 }
 
-func newConsensus(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
+func newConsensus(cfg *config.ConsensusConfig, hub *component.ComponentHub,
+	cdb consensus.ChainDbReader) (consensus.Consensus, error) {
 	impl := map[string]consensus.Constructor{
 		"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
 		"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP
 	}
 
-	return impl[cdb.GetGenesisInfo().Consensus()]()
+	return impl[cdb.GetGenesisInfo().ConsensusType()]()
 }

@@ -149,7 +149,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// function skips nil parameters.
 	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
 
-	consensusSvc, err := impl.New(cfg, compMng, chainSvc)
+	consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)

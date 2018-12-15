@@ -15,13 +15,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const (
-	// DefaultBlockIntervalSec  is the default block generation interval in seconds.
-	DefaultBlockIntervalSec = int64(1) // block production interval in sec
-
-	// DefaultDposBpNumber is the default number of block producers.
-	DefaultDposBpNumber = 23
-)
+// DefaultBlockIntervalSec  is the default block generation interval in seconds.
+const DefaultBlockIntervalSec = int64(1)
 
 var (
 	// BlockIntervalSec is the block genration interval in seconds.
