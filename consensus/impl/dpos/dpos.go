@@ -90,7 +90,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbR
 		return nil, err
 	}
 
-	Init(cfg.Consensus)
+	Init(bpc.Size(), cfg.Consensus.BlockInterval)
 
 	quitC := make(chan interface{})
 
@@ -104,14 +104,14 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbR
 }
 
 // Init initilizes the DPoS parameters.
-func Init(cfg *config.ConsensusConfig) {
-	consensus.InitBlockInterval(cfg.BlockInterval)
+func Init(bpCount uint16, blockInterval int64) {
+	consensus.InitBlockInterval(blockInterval)
 
-	blockProducers = cfg.DposBpNumber
+	blockProducers = bpCount
 	defaultConsensusCount = blockProducers*2/3 + 1
 	// Collect voting for BPs during 10 rounds.
 	initialBpElectionPeriod = types.BlockNo(blockProducers) * 10
-	slot.Init(cfg.BlockInterval, blockProducers)
+	slot.Init(blockInterval, blockProducers)
 }
 
 func consensusBlockCount() uint64 {

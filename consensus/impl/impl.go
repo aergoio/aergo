@@ -17,23 +17,11 @@ import (
 // New returns consensus.Consensus based on the configuration parameters.
 func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
 	var (
-		cdb  = cs.CDBReader()
-		impl = map[string]consensus.Constructor{
-			"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
-			"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP
-		}
-
 		c   consensus.Consensus
 		err error
 	)
 
-	if cfg.Consensus.EnableDpos {
-		c, err = impl["dpos"]()
-	} else {
-		c, err = impl["sbp"]()
-	}
-
-	if err == nil {
+	if c, err = newConsensus(cfg, hub, cs.CDBReader()); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
 		c.SetStateDB(cs.SDB())
@@ -41,4 +29,13 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 	}
 
 	return c, err
+}
+
+func newConsensus(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
+	impl := map[string]consensus.Constructor{
+		"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
+		"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP
+	}
+
+	return impl[cdb.GetGenesisInfo().Consensus()]()
 }

@@ -6,6 +6,7 @@
 package bp
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -19,6 +20,8 @@ import (
 
 var (
 	logger = log.NewLogger("bp")
+
+	errNoBP = errors.New("no block producers found from the block chain")
 )
 
 type errBpSize struct {
@@ -44,16 +47,17 @@ type blockProducer struct {
 
 // NewCluster returns a new bp.Cluster.
 func NewCluster(cfg *config.ConsensusConfig, cdb consensus.ChainDbReader) (*Cluster, error) {
-	if bps := bpList(cdb); len(bps) > 0 {
-		cfg.BpIds = bps
-		cfg.DposBpNumber = uint16(len(bps))
+	var bps []string
+
+	if bps = bpList(cdb); len(bps) == 0 {
+		return nil, errNoBP
 	}
 
 	c := &Cluster{
-		size: cfg.DposBpNumber,
+		size: uint16(len(bps)),
 	}
 
-	if err := c.Update(cfg.BpIds); err != nil {
+	if err := c.Update(bps); err != nil {
 		return nil, err
 	}
 
@@ -117,6 +121,11 @@ func (c *Cluster) Update(ids []string) error {
 	}
 
 	return nil
+}
+
+// Size returns c.size.
+func (c *Cluster) Size() uint16 {
+	return c.size
 }
 
 // BpIndex2ID returns the ID correspinding to idx.

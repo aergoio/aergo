@@ -1,19 +1,10 @@
 package bp
 
-import (
-	"fmt"
-	"math/rand"
-	"testing"
-
-	"github.com/aergoio/aergo/config"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
-	"github.com/stretchr/testify/assert"
-)
-
 const (
 	BlockProducers = 32
 )
+
+/* TODO: BP-related paramters eliminated. Rewrite test!
 
 func TestNewClusterInvalid(t *testing.T) {
 	randIds := func() []string {
@@ -64,8 +55,6 @@ func TestNewCluster(t *testing.T) {
 }
 
 func newConfig(ids []string) *config.ConsensusConfig {
-	return &config.ConsensusConfig{
-		BpIds:        ids,
-		DposBpNumber: uint16(len(ids)),
-	}
+	return &config.ConsensusConfig{}
 }
+*/

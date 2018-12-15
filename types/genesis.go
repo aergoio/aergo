@@ -27,9 +27,9 @@ var (
 	defaultChainID = ChainID{
 		Version:   0,
 		Magic:     "AREGO.IO",
-		PublicNet: true,
+		PublicNet: false,
 		MainNet:   false,
-		Consensus: "dpos",
+		Consensus: "sbp",
 	}
 )
 
@@ -112,6 +112,11 @@ func (g Genesis) Bytes() []byte {
 		return b
 	}
 	return nil
+}
+
+// Consensus retruns g.ID.Consensus.
+func (g Genesis) Consensus() string {
+	return g.ID.Consensus
 }
 
 // GetDefaultGenesis returns default genesis structure

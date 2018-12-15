@@ -9,7 +9,6 @@ import (
 	"runtime"
 
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -111,10 +110,7 @@ func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 
 func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		EnableBp:      true,
-		BlockInterval: consensus.DefaultBlockIntervalSec,
-		DposBpNumber:  consensus.DefaultDposBpNumber,
-		BpIds:         nil,
+		BlockInterval: 1,
 	}
 }
 
