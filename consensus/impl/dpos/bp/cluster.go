@@ -21,7 +21,7 @@ import (
 var (
 	logger = log.NewLogger("bp")
 
-	errNoBP = errors.New("no block producers found from the block chain")
+	errNoBP = errors.New("no block producers found in the block chain")
 )
 
 type errBpSize struct {
@@ -38,6 +38,8 @@ type Cluster struct {
 	size   uint16
 	member map[uint16]*blockProducer
 	index  map[peer.ID]uint16
+
+	cdb consensus.ChainDbReader
 }
 
 // blockProducer represents one member in the block producer cluster.
@@ -47,17 +49,9 @@ type blockProducer struct {
 
 // NewCluster returns a new bp.Cluster.
 func NewCluster(cfg *config.ConsensusConfig, cdb consensus.ChainDbReader) (*Cluster, error) {
-	var bps []string
+	c := &Cluster{cdb: cdb}
 
-	if bps = bpList(cdb); len(bps) == 0 {
-		return nil, errNoBP
-	}
-
-	c := &Cluster{
-		size: uint16(len(bps)),
-	}
-
-	if err := c.Update(bps); err != nil {
+	if err := c.init(); err != nil {
 		return nil, err
 	}
 
@@ -68,24 +62,53 @@ func newBlockProducer(id peer.ID) *blockProducer {
 	return &blockProducer{id: id}
 }
 
-func bpList(cdb consensus.ChainDbReader) []string {
-	var bps []string
-
-	if cdb == nil {
-		return nil
+func (c *Cluster) init() error {
+	if c.cdb == nil {
+		return errNoBP
 	}
 
-	// TODO: Read the lastest BP list from BP election info, first.
+	var bps0, bps []string
 
-	if bps = genesisBpList(cdb); len(bps) > 0 {
-		return bps
+	if bps0 = c.genesisBpList(); len(bps0) == 0 {
+		return errNoBP
+	}
+
+	// The total BP count is determined by the genesis info and afterwards it
+	// remains the same.
+	c.size = uint16(len(bps0))
+
+	var (
+		bestBlock *types.Block
+		err       error
+	)
+
+	if bestBlock, err = c.cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	// During the initial boostrapping period, the BPs given by the genesis
+	// info is used.
+	if bestBlock.BlockNo() <= c.bootstrapHeight() {
+		bps = bps0
+	}
+
+	bps = c.currentBpList()
+
+	if err := c.Update(bps); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func genesisBpList(cdb consensus.ChainDbReader) []string {
-	genesis := cdb.GetGenesisInfo()
+func (c Cluster) bootstrapHeight() types.BlockNo {
+	const period = 10
+
+	return types.BlockNo(c.Size()) * period
+}
+
+func (c *Cluster) genesisBpList() []string {
+	genesis := c.cdb.GetGenesisInfo()
 	if genesis != nil {
 		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
 		// Prefer BPs from the GenesisInfo. Overwrite.
@@ -98,6 +121,11 @@ func genesisBpList(cdb consensus.ChainDbReader) []string {
 		}
 	}
 	return nil
+}
+
+func (c *Cluster) currentBpList() []string {
+	// TODO: Get the elected BPs instead of the genesis BPs.
+	return c.genesisBpList()
 }
 
 // Update updates old cluster index by using ids.
