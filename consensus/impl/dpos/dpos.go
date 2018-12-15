@@ -30,7 +30,7 @@ var (
 
 	// blockProducers is the number of block producers
 	blockProducers          uint16
-	defaultConsensusCount   uint16
+	majorityCount           uint16
 	initialBpElectionPeriod types.BlockNo
 
 	lastJob = &lastSlot{}
@@ -98,7 +98,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(defaultConsensusCount, cdb),
+		Status:       NewStatus(consensusBlockCount(), cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -109,14 +109,14 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 // Init initilizes the DPoS parameters.
 func Init(bpCount uint16, blockInterval int64) {
 	blockProducers = bpCount
-	defaultConsensusCount = blockProducers*2/3 + 1
+	majorityCount = blockProducers*2/3 + 1
 	// Collect voting for BPs during 10 rounds.
 	initialBpElectionPeriod = types.BlockNo(blockProducers) * 10
 	slot.Init(blockInterval, blockProducers)
 }
 
-func consensusBlockCount() uint64 {
-	return uint64(defaultConsensusCount)
+func consensusBlockCount() uint16 {
+	return majorityCount
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.

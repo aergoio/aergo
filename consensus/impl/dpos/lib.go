@@ -144,7 +144,7 @@ func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 }
 
 func (ls *libStatus) begRecoBlockNo(endBlockNo types.BlockNo) types.BlockNo {
-	offset := 3 * consensusBlockCount()
+	offset := 3 * types.BlockNo(consensusBlockCount())
 
 	libBlockNo := ls.Lib.BlockNo
 
@@ -345,7 +345,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 }
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
-	pls := newLibStatus(defaultConsensusCount)
+	pls := newLibStatus(consensusBlockCount())
 	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
 		return nil
 	}
@@ -380,7 +380,7 @@ func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
 		begBlockNo = 1
 	}
 
-	pls := newLibStatus(defaultConsensusCount)
+	pls := newLibStatus(consensusBlockCount())
 	pls.genesisInfo = newBlockInfo(bsLoader.genesis)
 
 	logger.Debug().Uint64("beginning", begBlockNo).Uint64("ending", endBlockNo).

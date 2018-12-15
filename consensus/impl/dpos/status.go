@@ -146,7 +146,7 @@ func (s *Status) init(cdb consensus.ChainDbReader) {
 	}
 
 	bsLoader = &bootLoader{
-		ls:      newLibStatus(defaultConsensusCount),
+		ls:      newLibStatus(consensusBlockCount()),
 		best:    best,
 		genesis: genesis,
 		cdb:     cdb,
