@@ -6,6 +6,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -14,21 +15,25 @@ var bsLoader *bootLoader
 // Status manages DPoS-related infomations like LIB.
 type Status struct {
 	sync.RWMutex
+	done      bool
 	bestBlock *types.Block
 	libState  *libStatus
 	bps       *bp.Snapshots
-	done      bool
 }
 
 // NewStatus returns a newly allocated Status.
 func NewStatus(bpCount uint16, cdb consensus.ChainDbReader) *Status {
 	s := &Status{
 		libState: newLibStatus(consensusBlockCount(bpCount)),
-		bps:      bp.NewSnapshots(bpCount),
+		bps:      bp.NewSnapshots(bpCount, cdb),
 	}
 	s.init(cdb)
 
 	return s
+}
+
+func (s *Status) setStateDB(sdb *state.ChainStateDB) {
+	s.bps.SetStateDB(sdb)
 }
 
 // load restores the last LIB status by using the informations loaded from the

@@ -77,6 +77,11 @@ func (sdb *ChainStateDB) GetStateDB() *StateDB {
 	return sdb.states
 }
 
+// GetSystemAccountState returns the state of the aergo system account.
+func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
+	return sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+}
+
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 	return NewStateDB(&sdb.store, root, sdb.testmode)

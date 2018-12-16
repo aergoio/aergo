@@ -336,15 +336,11 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 }
 
 func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	if err != nil {
-		return nil, err
-	}
-	return system.GetVoteResult(scs, n)
+	return system.GetVoteResult(cs.sdb, n)
 }
 
 func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	scs, err := cs.sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}

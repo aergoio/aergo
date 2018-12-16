@@ -12,7 +12,10 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/libp2p/go-libp2p-peer"
@@ -183,9 +186,9 @@ type Snapshot struct {
 }
 
 // NewSnapshot returns a Snapshot corresponding to blockNo and period.
-func NewSnapshot(blockNo, period types.BlockNo, bps []string) (*Snapshot, error) {
-	if blockNo%period != 0 {
-		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, period)
+func NewSnapshot(blockNo, bpCount types.BlockNo, bps []string) (*Snapshot, error) {
+	if blockNo%bpCount != 0 {
+		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, bpCount)
 	}
 	return &Snapshot{refBlockNo: blockNo, list: bps}, nil
 }
@@ -214,29 +217,57 @@ func (s *Snapshot) Value() []byte {
 type Snapshots struct {
 	snaps         map[types.BlockNo]*Snapshot
 	savedSnapshot types.BlockNo
-	period        types.BlockNo
+	bpCount       types.BlockNo
+	cdb           consensus.ChainDbReader
+	sdb           *state.ChainStateDB
 }
 
 // NewSnapshots returns a new Snapshots.
-func NewSnapshots(period uint16) *Snapshots {
+func NewSnapshots(bpCount uint16, cdb consensus.ChainDbReader) *Snapshots {
 	return &Snapshots{
-		snaps:  make(map[types.BlockNo]*Snapshot),
-		period: types.BlockNo(period),
+		snaps:   make(map[types.BlockNo]*Snapshot),
+		bpCount: types.BlockNo(bpCount),
+		cdb:     cdb,
 	}
 }
 
-// Add adds a new BP snapshot to snap.
-func (sn *Snapshots) Add(refBlockNo types.BlockNo, bps []string) error {
+// SetStateDB sets sdb to sn.sdb.
+func (sn *Snapshots) SetStateDB(sdb *state.ChainStateDB) {
+	sn.sdb = sdb
+}
+
+// AddSnapshot add a new BP list corresponding to refBlockNO to sn.
+func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
+	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
+	if err != nil {
+		return err
+	}
+
+	bps := make([]string, 0, sn.bpCount)
+	for _, v := range vl.Votes {
+		bps = append(bps, enc.ToString(v.Candidate))
+	}
+
+	if err := sn.add(refBlockNo, bps); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// add adds a new BP snapshot to snap.
+func (sn *Snapshots) add(refBlockNo types.BlockNo, bps []string) error {
 	var (
 		s   *Snapshot
 		err error
 	)
 
-	if s, err = NewSnapshot(refBlockNo, sn.period, bps); err != nil {
+	if s, err = NewSnapshot(refBlockNo, sn.bpCount, bps); err != nil {
 		return err
 	}
 
 	sn.snaps[refBlockNo] = s
+	logger.Debug().Uint64("ref block no", refBlockNo).Msgf("BP snapshot added: %v", bps)
 
 	return nil
 }

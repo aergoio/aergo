@@ -151,6 +151,7 @@ func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
 // called only once during the boot sequence.
 func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
 	dpos.bf.sdb = sdb
+	dpos.Status.setStateDB(sdb)
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction
