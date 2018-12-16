@@ -98,7 +98,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(consensusBlockCount(), cdb),
+		Status:       NewStatus(bpc.Size(), cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -115,8 +115,8 @@ func Init(bpCount uint16, blockInterval int64) {
 	slot.Init(blockInterval, blockProducers)
 }
 
-func consensusBlockCount() uint16 {
-	return majorityCount
+func consensusBlockCount(bpCount uint16) uint16 {
+	return bpCount*2/3 + 1
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.

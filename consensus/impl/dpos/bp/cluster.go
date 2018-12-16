@@ -183,11 +183,11 @@ type Snapshot struct {
 }
 
 // NewSnapshot returns a Snapshot corresponding to blockNo and period.
-func NewSnapshot(blockNo, period types.BlockNo, list []string) (*Snapshot, error) {
+func NewSnapshot(blockNo, period types.BlockNo, bps []string) (*Snapshot, error) {
 	if blockNo%period != 0 {
 		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, period)
 	}
-	return &Snapshot{refBlockNo: blockNo, list: list}, nil
+	return &Snapshot{refBlockNo: blockNo, list: bps}, nil
 }
 
 // Key returns the properly prefixed key corresponding to s.
@@ -208,4 +208,52 @@ func (s *Snapshot) Value() []byte {
 		return nil
 	}
 	return b
+}
+
+// Snapshots is a map from block no to *Snapshot.
+type Snapshots struct {
+	snaps         map[types.BlockNo]*Snapshot
+	savedSnapshot types.BlockNo
+	period        types.BlockNo
+}
+
+// NewSnapshots returns a new Snapshots.
+func NewSnapshots(period uint16) *Snapshots {
+	return &Snapshots{
+		snaps:  make(map[types.BlockNo]*Snapshot),
+		period: types.BlockNo(period),
+	}
+}
+
+// Add adds a new BP snapshot to snap.
+func (sn *Snapshots) Add(refBlockNo types.BlockNo, bps []string) error {
+	var (
+		s   *Snapshot
+		err error
+	)
+
+	if s, err = NewSnapshot(refBlockNo, sn.period, bps); err != nil {
+		return err
+	}
+
+	sn.snaps[refBlockNo] = s
+
+	return nil
+}
+
+// Del removes a snapshot corresponding to refBlockNo from sn.snaps.
+func (sn *Snapshots) Del(refBlockNo types.BlockNo) error {
+	if _, exist := sn.snaps[refBlockNo]; !exist {
+		logger.Debug().Uint64("ref block no", refBlockNo).Msg("no such an entry in BP snapshots. ignored.")
+		return nil
+	}
+
+	if refBlockNo > sn.savedSnapshot {
+		logger.Debug().Uint64("ref block no", refBlockNo).Msg("no such an entry in BP snapshots. ignored.")
+		return fmt.Errorf("invalid snapshot deletion: requested=%v, saved=%v", refBlockNo, sn.savedSnapshot)
+	}
+
+	delete(sn.snaps, refBlockNo)
+
+	return nil
 }

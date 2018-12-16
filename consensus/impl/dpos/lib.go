@@ -144,7 +144,7 @@ func (ls *libStatus) getPreLIB() (bpID string, pl *plInfo) {
 }
 
 func (ls *libStatus) begRecoBlockNo(endBlockNo types.BlockNo) types.BlockNo {
-	offset := 3 * types.BlockNo(consensusBlockCount())
+	offset := 3 * types.BlockNo(ls.confirmsRequired)
 
 	libBlockNo := ls.Lib.BlockNo
 
@@ -190,7 +190,7 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 
 	// Rebuild confirms info & pre-LIB map from LIB + 1 and block based on
 	// the blocks.
-	if tmp := loadPlibStatus(begBlockNo, endBlockNo); tmp != nil {
+	if tmp := loadPlibStatus(begBlockNo, endBlockNo, ls.confirmsRequired); tmp != nil {
 		if tmp.confirms.Len() > 0 {
 			ls.confirms = tmp.confirms
 		}
@@ -345,7 +345,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 }
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
-	pls := newLibStatus(consensusBlockCount())
+	pls := newLibStatus(bs.confirmsRequired)
 	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
 		return nil
 	}
@@ -369,7 +369,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 	return nil
 }
 
-func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
+func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo, confirmsRequired uint16) *libStatus {
 	if begBlockNo == endBlockNo {
 		return nil
 	} else if begBlockNo > endBlockNo {
@@ -380,7 +380,7 @@ func loadPlibStatus(begBlockNo, endBlockNo types.BlockNo) *libStatus {
 		begBlockNo = 1
 	}
 
-	pls := newLibStatus(consensusBlockCount())
+	pls := newLibStatus(confirmsRequired)
 	pls.genesisInfo = newBlockInfo(bsLoader.genesis)
 
 	logger.Debug().Uint64("beginning", begBlockNo).Uint64("ending", endBlockNo).

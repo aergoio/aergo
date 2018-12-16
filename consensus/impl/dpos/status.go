@@ -5,6 +5,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -15,13 +16,15 @@ type Status struct {
 	sync.RWMutex
 	bestBlock *types.Block
 	libState  *libStatus
+	bps       *bp.Snapshots
 	done      bool
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(confirmsRequired uint16, cdb consensus.ChainDbReader) *Status {
+func NewStatus(bpCount uint16, cdb consensus.ChainDbReader) *Status {
 	s := &Status{
-		libState: newLibStatus(confirmsRequired),
+		libState: newLibStatus(consensusBlockCount(bpCount)),
+		bps:      bp.NewSnapshots(bpCount),
 	}
 	s.init(cdb)
 
@@ -57,6 +60,7 @@ func (s *Status) Update(block *types.Block) {
 	s.Lock()
 	defer s.Unlock()
 
+	// TODO: move the lib status loading to dpos.NewStatus.
 	s.load()
 
 	curBestID := s.bestBlock.ID()
@@ -73,6 +77,7 @@ func (s *Status) Update(block *types.Block) {
 			s.updateLIB(lib)
 		}
 	} else {
+		// Rollback resulting from a reorganization.
 		logger.Debug().
 			Str("block hash", block.ID()).
 			Uint64("target block no", block.BlockNo()).
@@ -146,21 +151,23 @@ func (s *Status) init(cdb consensus.ChainDbReader) {
 	}
 
 	bsLoader = &bootLoader{
-		ls:      newLibStatus(consensusBlockCount()),
-		best:    best,
-		genesis: genesis,
-		cdb:     cdb,
+		ls:               newLibStatus(s.libState.confirmsRequired),
+		best:             best,
+		genesis:          genesis,
+		cdb:              cdb,
+		confirmsRequired: s.libState.confirmsRequired,
 	}
 
 	bsLoader.load()
 }
 
 type bootLoader struct {
-	ls      *libStatus
-	best    *types.Block
-	genesis *types.Block
-	bpIDs   []string
-	cdb     consensus.ChainDbReader
+	ls               *libStatus
+	best             *types.Block
+	genesis          *types.Block
+	bpIDs            []string
+	cdb              consensus.ChainDbReader
+	confirmsRequired uint16
 }
 
 func (bs *bootLoader) load() {
