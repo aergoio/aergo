@@ -81,6 +81,8 @@ func (s *Status) Update(block *types.Block) {
 		if lib := s.libState.update(); lib != nil {
 			s.updateLIB(lib)
 		}
+
+		s.bps.AddSnapshot(block.BlockNo())
 	} else {
 		// Rollback resulting from a reorganization.
 		logger.Debug().
@@ -112,7 +114,16 @@ func (s *Status) updateLIB(lib *blockInfo) {
 
 // Save saves the consensus status information for the later recovery.
 func (s *Status) Save(tx db.Transaction) error {
-	return s.libState.save(tx)
+	s.Lock()
+	defer s.Unlock()
+
+	if err := s.libState.save(tx); err != nil {
+		return err
+	}
+
+	s.bps.Save(tx)
+
+	return nil
 }
 
 // NeedReorganization reports whether reorganization is needed or not.
@@ -170,7 +181,6 @@ type bootLoader struct {
 	ls               *libStatus
 	best             *types.Block
 	genesis          *types.Block
-	bpIDs            []string
 	cdb              consensus.ChainDbReader
 	confirmsRequired uint16
 }
@@ -189,17 +199,4 @@ func (bs *bootLoader) load() {
 				Msg("pre-LIB entry")
 		}
 	}
-
-	if gi := bs.cdb.GetGenesisInfo(); gi != nil {
-		bs.bpIDs = gi.BPs
-		for i, bp := range bs.bpIDs {
-			logger.Info().Int("index", i).Str("BPID", bp).Msg("initial BP")
-		}
-	}
-}
-
-// GetInitialBPs returns the initial BP IDs, which are loaded from Genesis
-// info in the chain DB.
-func GetInitialBPs() []string {
-	return bsLoader.bpIDs
 }

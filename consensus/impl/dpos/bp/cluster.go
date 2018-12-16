@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
@@ -187,10 +188,15 @@ type Snapshot struct {
 
 // NewSnapshot returns a Snapshot corresponding to blockNo and period.
 func NewSnapshot(blockNo, bpCount types.BlockNo, bps []string) (*Snapshot, error) {
-	if blockNo%bpCount != 0 {
+	if !isSnapPeriod(blockNo, bpCount) {
 		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, bpCount)
 	}
 	return &Snapshot{refBlockNo: blockNo, list: bps}, nil
+}
+
+func isSnapPeriod(blockNo, period types.BlockNo) bool {
+	// The current snapshot period is the total BP count.
+	return blockNo%period == 0
 }
 
 // Key returns the properly prefixed key corresponding to s.
@@ -208,18 +214,30 @@ func buildKey(blockNo types.BlockNo) []byte {
 func (s *Snapshot) Value() []byte {
 	b, err := common.GobEncode(s.list)
 	if err != nil {
+		logger.Debug().Err(err).Msg("value encoding failed")
 		return nil
 	}
 	return b
 }
 
+const (
+	opNil = iota
+	opAdd
+	opDel
+)
+
+type journal struct {
+	op      int
+	blockNo types.BlockNo
+}
+
 // Snapshots is a map from block no to *Snapshot.
 type Snapshots struct {
-	snaps         map[types.BlockNo]*Snapshot
-	savedSnapshot types.BlockNo
-	bpCount       types.BlockNo
-	cdb           consensus.ChainDbReader
-	sdb           *state.ChainStateDB
+	snaps   map[types.BlockNo]*Snapshot
+	bpCount types.BlockNo
+	cdb     consensus.ChainDbReader
+	sdb     *state.ChainStateDB
+	log     []*journal
 }
 
 // NewSnapshots returns a new Snapshots.
@@ -228,6 +246,7 @@ func NewSnapshots(bpCount uint16, cdb consensus.ChainDbReader) *Snapshots {
 		snaps:   make(map[types.BlockNo]*Snapshot),
 		bpCount: types.BlockNo(bpCount),
 		cdb:     cdb,
+		log:     make([]*journal, 0, 2),
 	}
 }
 
@@ -238,6 +257,11 @@ func (sn *Snapshots) SetStateDB(sdb *state.ChainStateDB) {
 
 // AddSnapshot add a new BP list corresponding to refBlockNO to sn.
 func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
+	// Add BP list every 'sn.bpCount'rd block.
+	if sn.sdb == nil || !isSnapPeriod(refBlockNo, sn.bpCount) {
+		return nil
+
+	}
 	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
 	if err != nil {
 		return err
@@ -251,6 +275,8 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
 	if err := sn.add(refBlockNo, bps); err != nil {
 		return err
 	}
+
+	sn.GC(refBlockNo)
 
 	return nil
 }
@@ -267,6 +293,8 @@ func (sn *Snapshots) add(refBlockNo types.BlockNo, bps []string) error {
 	}
 
 	sn.snaps[refBlockNo] = s
+	sn.journal(opAdd, refBlockNo)
+
 	logger.Debug().Uint64("ref block no", refBlockNo).Msgf("BP snapshot added: %v", bps)
 
 	return nil
@@ -279,12 +307,65 @@ func (sn *Snapshots) Del(refBlockNo types.BlockNo) error {
 		return nil
 	}
 
-	if refBlockNo > sn.savedSnapshot {
-		logger.Debug().Uint64("ref block no", refBlockNo).Msg("no such an entry in BP snapshots. ignored.")
-		return fmt.Errorf("invalid snapshot deletion: requested=%v, saved=%v", refBlockNo, sn.savedSnapshot)
-	}
-
 	delete(sn.snaps, refBlockNo)
+	sn.journal(opDel, refBlockNo)
+
+	logger.Debug().Uint64("block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP snaphost removed")
 
 	return nil
+}
+
+// GC remove all the snapshots less than blockNo
+func (sn *Snapshots) GC(blockNo types.BlockNo) {
+	gcPeriod := sn.gcPeriod()
+
+	var gcBlockNo types.BlockNo
+	if blockNo > gcPeriod {
+		gcBlockNo = blockNo - gcPeriod
+	}
+
+	for h := range sn.snaps {
+		if h < gcBlockNo {
+			sn.Del(h)
+		}
+	}
+
+}
+
+func (sn Snapshots) period() types.BlockNo {
+	return sn.bpCount
+}
+
+func (sn Snapshots) gcPeriod() types.BlockNo {
+	return 2 * sn.period()
+}
+
+func (sn *Snapshots) journal(op int, refBlockNo types.BlockNo) {
+	sn.log = append(sn.log, &journal{op: op, blockNo: refBlockNo})
+	logger.Debug().Int("op", op).Uint64("ref block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP journal added")
+}
+
+func (sn *Snapshots) journalClear() {
+	sn.log = sn.log[:0]
+	logger.Debug().Msg("BP journal log cleared")
+}
+
+// Save applies BP list changes to DB.
+func (sn *Snapshots) Save(tx db.Transaction) {
+	for _, j := range sn.log {
+		switch j.op {
+		case opAdd:
+			s := sn.snaps[j.blockNo]
+			key := s.Key()
+			tx.Set(key, s.Value())
+			logger.Debug().Str("key", string(key)).Msg("BP list added to DB")
+		case opDel:
+			key := buildKey(j.blockNo)
+			tx.Delete(key)
+			logger.Debug().Str("key", string(key)).Msg("BP list deleted from DB")
+		default:
+			// Do nothing. Such a journal entry impossible!!!
+		}
+	}
+	sn.journalClear()
 }
