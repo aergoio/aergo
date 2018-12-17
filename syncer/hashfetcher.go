@@ -50,8 +50,7 @@ type HashRequest struct {
 
 var (
 	dfltTimeout     = time.Second * 180
-	DfltHashReqSize = uint64(100)
-	//DfltHashReqSize = uint64(10)
+	DfltHashReqSize = uint64(1000)
 )
 
 var (

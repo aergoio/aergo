@@ -115,7 +115,7 @@ type PeerSet struct {
 var (
 	schedTick            = time.Millisecond * 100
 	DfltFetchTimeOut     = time.Second * 30
-	DfltBlockFetchSize   = 20
+	DfltBlockFetchSize   = 100
 	MaxPeerFailCount     = 3
 	DfltBlockFetchTasks  = 5
 	MaxBlockPendingTasks = 10
