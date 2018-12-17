@@ -32,18 +32,6 @@ func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB) *Status {
 	return s
 }
 
-func (s *Status) getBpList(blockNo types.BlockNo) []string {
-	s.RLock()
-	s.RUnlock()
-
-	bpSnap, err := s.bps.GetSnapshot(blockNo)
-	if err != nil {
-		logger.Debug().Err(err).Uint64("block no", blockNo).Msg("failed to get BP list")
-		return nil
-	}
-	return bpSnap.List
-}
-
 func (s *Status) setStateDB(sdb *state.ChainStateDB) {
 	s.bps.SetStateDB(sdb)
 }
@@ -185,23 +173,6 @@ func (s *Status) init(cdb consensus.ChainDB) {
 	}
 
 	bsLoader.load()
-}
-
-func (s *Status) bpSnapshot(blockNo types.BlockNo) *bp.Snapshot {
-	s.RLock()
-	defer s.RUnlock()
-
-	var (
-		bs  *bp.Snapshot
-		err error
-	)
-
-	if bs, err = s.bps.GetSnapshot(blockNo); err == nil {
-		logger.Debug().Err(err).Msg("failed to get the BP list")
-		return bs
-	}
-
-	return nil
 }
 
 type bootLoader struct {

@@ -80,8 +80,6 @@ func (c *Cluster) init() error {
 		return errNoBP
 	}
 
-	var bps []string
-
 	if genesisBpList = c.genesisBpList(); len(genesisBpList) == 0 {
 		return errNoBP
 	}
@@ -99,13 +97,24 @@ func (c *Cluster) init() error {
 		return err
 	}
 
+	var bps []string
+
 	// During the initial boostrapping period, the BPs given by the genesis
 	// info is used.
 	if bestBlock.BlockNo() <= bootstrapHeight(c.Size()) {
 		bps = genesisBpList
 	}
 
-	bps = c.currentBpList()
+	// Use genesis BP list before the issue described below is fixe.
+	bps = genesisBpList
+
+	/* FIXME: currently, the best block may not be consistent with the stored
+	/* BP list. Check the order - BP list must be committed first!
+		bps, err = loadCluster(c.cdb, bestBlock.BlockNo())
+		if err != nil {
+			return err
+		}
+	*/
 
 	if err := c.Update(bps); err != nil {
 		return err
@@ -215,16 +224,16 @@ func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot
 	return &Snapshot{RefBlockNo: blockNo, List: bps}, nil
 }
 
-func loadSnapshot(cdb consensus.ChainDB, blockNo types.BlockNo, bpCount uint16) (*Snapshot, error) {
+func loadCluster(cdb consensus.ChainDB, blockNo types.BlockNo) ([]string, error) {
 	key := buildKey(blockNo)
 	var bps []string
 
 	if err := common.GobDecode(cdb.Get(key), &bps); err != nil {
-		logger.Debug().Err(err).Str("key", string(key)).Msg("BP list lookup failed")
+		logger.Debug().Err(err).Str("key", string(key)).Msg("BP list DB lookup failed")
 		return nil, err
 	}
 
-	return NewSnapshot(blockNo, bpCount, bps)
+	return bps, nil
 }
 
 func isSnapPeriod(blockNo, period types.BlockNo) bool {
@@ -309,6 +318,31 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 		return nil, nil
 	}
 
+	var (
+		bps []string
+		err error
+	)
+
+	if bps, err = sn.gatherRankers(); err != nil {
+		return nil, err
+	}
+
+	if err := sn.add(refBlockNo, bps); err != nil {
+		return nil, err
+	}
+
+	sn.updateCluster(refBlockNo)
+
+	sn.GC(refBlockNo)
+
+	tx := sn.cdb.NewTx()
+	sn.save(tx)
+	tx.Commit()
+
+	return bps, nil
+}
+
+func (sn *Snapshots) gatherRankers() ([]string, error) {
 	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
 	if err != nil {
 		return nil, err
@@ -319,34 +353,25 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
 
-	if err := sn.add(refBlockNo, bps); err != nil {
-		return nil, err
-	}
+	return bps, nil
+}
 
-	sn.GC(refBlockNo)
-
-	if sn.NeedToRefresh(refBlockNo) {
+func (sn *Snapshots) updateCluster(blockNo types.BlockNo) {
+	if sn.NeedToRefresh(blockNo) {
 		var (
 			err error
-			s   *Snapshot
+			s   []string
 		)
 
-		if s, err = sn.GetSnapshot(refBlockNo); err == nil {
-			logger.Debug().Uint64("ref block no", s.RefBlockNo).
-				Uint64("cur block no", refBlockNo).Msg("get BP list snapshot")
-			err = sn.cm.Update(s.List)
+		if s, err = sn.getCurrentCluster(blockNo); err == nil {
+			logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
+			err = sn.cm.Update(s)
 		}
 
 		if err != nil {
 			logger.Debug().Err(err).Msg("skip BP member update")
 		}
 	}
-
-	tx := sn.cdb.NewTx()
-	sn.save(tx)
-	tx.Commit()
-
-	return bps, nil
 }
 
 func (sn *Snapshots) reset() {
@@ -425,8 +450,8 @@ func (sn *Snapshots) journalClear() {
 	logger.Debug().Msg("BP journal log cleared")
 }
 
-// GetSnapshot returns the BP snapshot corresponding to blockNo.
-func (sn *Snapshots) GetSnapshot(blockNo types.BlockNo) (*Snapshot, error) {
+// getCurrentCluster returns the BP snapshot corresponding to blockNo.
+func (sn *Snapshots) getCurrentCluster(blockNo types.BlockNo) ([]string, error) {
 	snapBlockNo := func() types.BlockNo {
 		if blockNo < bootstrapHeight(sn.bpCount) {
 			return 0
@@ -436,14 +461,14 @@ func (sn *Snapshots) GetSnapshot(blockNo types.BlockNo) (*Snapshot, error) {
 
 	refBlockNo := snapBlockNo()
 	if refBlockNo == 0 {
-		return NewSnapshot(0, sn.bpCount, genesisBpList)
+		return genesisBpList, nil
 	}
 
 	if s, exist := sn.snaps[refBlockNo]; exist {
-		return s, nil
+		return s.List, nil
 	}
 
-	return loadSnapshot(sn.cdb, refBlockNo, sn.bpCount)
+	return loadCluster(sn.cdb, refBlockNo)
 }
 
 // Save applies BP list changes to DB.
