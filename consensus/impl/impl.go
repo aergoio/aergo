@@ -34,7 +34,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.Cha
 }
 
 func newConsensus(cfg *config.ConsensusConfig, hub *component.ComponentHub,
-	cdb consensus.ChainDbReader) (consensus.Consensus, error) {
+	cdb consensus.ChainDB) (consensus.Consensus, error) {
 	impl := map[string]consensus.Constructor{
 		"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
 		"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP

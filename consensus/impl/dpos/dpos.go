@@ -67,6 +67,7 @@ type DPoS struct {
 type bpInfo struct {
 	bestBlock *types.Block
 	slot      *slot.Slot
+	bps       []string
 	ca        types.ChainAccessor
 }
 
@@ -80,14 +81,14 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDbReader) consensus.Constructor {
+func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
 		return New(cfg, hub, cdb)
 	}
 }
 
 // New returns a new DPos object
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDbReader) (consensus.Consensus, error) {
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
 	bpc, err := bp.NewCluster(cfg, cdb)
 	if err != nil {
 		return nil, err
@@ -229,9 +230,18 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 		return nil
 	}
 
+	// Next block
+	blockNo := block.BlockNo() + 1
+	var bps []string
+	if dpos.isRegimeChangePoint(blockNo) {
+		bps = dpos.getBpList(blockNo)
+		logger.Debug().Msgf("get BP list %v for a new regime", bps)
+	}
+
 	return &bpInfo{
 		bestBlock: block,
 		slot:      s,
+		bps:       bps,
 		ca:        dpos.ca,
 	}
 }

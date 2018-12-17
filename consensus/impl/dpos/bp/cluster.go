@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	logger = log.NewLogger("bp")
-
+	logger  = log.NewLogger("bp")
 	errNoBP = errors.New("no block producers found in the block chain")
+
+	genesisBpList []string
 )
 
 type errBpSize struct {
@@ -43,7 +44,7 @@ type Cluster struct {
 	member map[uint16]*blockProducer
 	index  map[peer.ID]uint16
 
-	cdb consensus.ChainDbReader
+	cdb consensus.ChainDB
 }
 
 // blockProducer represents one member in the block producer cluster.
@@ -52,7 +53,7 @@ type blockProducer struct {
 }
 
 // NewCluster returns a new bp.Cluster.
-func NewCluster(cfg *config.ConsensusConfig, cdb consensus.ChainDbReader) (*Cluster, error) {
+func NewCluster(cfg *config.ConsensusConfig, cdb consensus.ChainDB) (*Cluster, error) {
 	c := &Cluster{cdb: cdb}
 
 	if err := c.init(); err != nil {
@@ -71,15 +72,15 @@ func (c *Cluster) init() error {
 		return errNoBP
 	}
 
-	var bps0, bps []string
+	var bps []string
 
-	if bps0 = c.genesisBpList(); len(bps0) == 0 {
+	if genesisBpList = c.genesisBpList(); len(genesisBpList) == 0 {
 		return errNoBP
 	}
 
 	// The total BP count is determined by the genesis info and afterwards it
 	// remains the same.
-	c.size = uint16(len(bps0))
+	c.size = uint16(len(genesisBpList))
 
 	var (
 		bestBlock *types.Block
@@ -92,8 +93,8 @@ func (c *Cluster) init() error {
 
 	// During the initial boostrapping period, the BPs given by the genesis
 	// info is used.
-	if bestBlock.BlockNo() <= c.bootstrapHeight() {
-		bps = bps0
+	if bestBlock.BlockNo() <= bootstrapHeight(c.Size()) {
+		bps = genesisBpList
 	}
 
 	bps = c.currentBpList()
@@ -105,10 +106,10 @@ func (c *Cluster) init() error {
 	return nil
 }
 
-func (c Cluster) bootstrapHeight() types.BlockNo {
+func bootstrapHeight(bpCount uint16) types.BlockNo {
 	const period = 10
 
-	return types.BlockNo(c.Size()) * period
+	return types.BlockNo(bpCount) * period
 }
 
 func (c *Cluster) genesisBpList() []string {
@@ -182,16 +183,27 @@ func (c *Cluster) Has(id peer.ID) bool {
 
 // Snapshot represents the set of the elected BP at refBlockNo.
 type Snapshot struct {
-	refBlockNo types.BlockNo
-	list       []string
+	RefBlockNo types.BlockNo
+	List       []string
 }
 
 // NewSnapshot returns a Snapshot corresponding to blockNo and period.
-func NewSnapshot(blockNo, bpCount types.BlockNo, bps []string) (*Snapshot, error) {
-	if !isSnapPeriod(blockNo, bpCount) {
+func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot, error) {
+	if !isSnapPeriod(blockNo, types.BlockNo(bpCount)) {
 		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, bpCount)
 	}
-	return &Snapshot{refBlockNo: blockNo, list: bps}, nil
+	return &Snapshot{RefBlockNo: blockNo, List: bps}, nil
+}
+
+func loadSnapshot(cdb consensus.ChainDB, blockNo types.BlockNo, bpCount uint16) (*Snapshot, error) {
+	key := buildKey(blockNo)
+	bps := make([]string, 0, bpCount)
+
+	if err := common.GobDecode(cdb.Get(key), bps); err != nil {
+		return nil, err
+	}
+
+	return NewSnapshot(blockNo, bpCount, bps)
 }
 
 func isSnapPeriod(blockNo, period types.BlockNo) bool {
@@ -201,7 +213,7 @@ func isSnapPeriod(blockNo, period types.BlockNo) bool {
 
 // Key returns the properly prefixed key corresponding to s.
 func (s *Snapshot) Key() []byte {
-	return buildKey(s.refBlockNo)
+	return buildKey(s.RefBlockNo)
 }
 
 func buildKey(blockNo types.BlockNo) []byte {
@@ -212,7 +224,7 @@ func buildKey(blockNo types.BlockNo) []byte {
 
 // Value returns s.list.
 func (s *Snapshot) Value() []byte {
-	b, err := common.GobEncode(s.list)
+	b, err := common.GobEncode(s.List)
 	if err != nil {
 		logger.Debug().Err(err).Msg("value encoding failed")
 		return nil
@@ -233,21 +245,28 @@ type journal struct {
 
 // Snapshots is a map from block no to *Snapshot.
 type Snapshots struct {
-	snaps   map[types.BlockNo]*Snapshot
-	bpCount types.BlockNo
-	cdb     consensus.ChainDbReader
-	sdb     *state.ChainStateDB
-	log     []*journal
+	snaps         map[types.BlockNo]*Snapshot
+	bpCount       uint16
+	maxRefBlockNo types.BlockNo
+	cdb           consensus.ChainDB
+	sdb           *state.ChainStateDB
+	log           []*journal
 }
 
 // NewSnapshots returns a new Snapshots.
-func NewSnapshots(bpCount uint16, cdb consensus.ChainDbReader) *Snapshots {
+func NewSnapshots(bpCount uint16, cdb consensus.ChainDB) *Snapshots {
 	return &Snapshots{
 		snaps:   make(map[types.BlockNo]*Snapshot),
-		bpCount: types.BlockNo(bpCount),
+		bpCount: bpCount,
 		cdb:     cdb,
 		log:     make([]*journal, 0, 2),
 	}
+}
+
+// NeedToRefresh reports whether blockNo corresponds to a BP regime change
+// point.
+func (sn *Snapshots) NeedToRefresh(blockNo types.BlockNo) bool {
+	return blockNo%types.BlockNo(sn.bpCount) == 1
 }
 
 // SetStateDB sets sdb to sn.sdb.
@@ -257,11 +276,16 @@ func (sn *Snapshots) SetStateDB(sdb *state.ChainStateDB) {
 
 // AddSnapshot add a new BP list corresponding to refBlockNO to sn.
 func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
-	// Add BP list every 'sn.bpCount'rd block.
-	if sn.sdb == nil || !isSnapPeriod(refBlockNo, sn.bpCount) {
-		return nil
-
+	// Reorganization!!!
+	if sn.maxRefBlockNo > refBlockNo {
+		sn.reset()
 	}
+
+	// Add BP list every 'sn.bpCount'rd block.
+	if sn.sdb == nil || !isSnapPeriod(refBlockNo, types.BlockNo(sn.bpCount)) || refBlockNo == 0 {
+		return nil
+	}
+
 	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
 	if err != nil {
 		return err
@@ -278,7 +302,17 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
 
 	sn.GC(refBlockNo)
 
+	tx := sn.cdb.NewTx()
+	sn.save(tx)
+	tx.Commit()
+
 	return nil
+}
+
+func (sn *Snapshots) reset() {
+	sn.snaps = make(map[types.BlockNo]*Snapshot)
+	sn.log = sn.log[:0]
+	sn.maxRefBlockNo = 0
 }
 
 // add adds a new BP snapshot to snap.
@@ -308,7 +342,8 @@ func (sn *Snapshots) Del(refBlockNo types.BlockNo) error {
 	}
 
 	delete(sn.snaps, refBlockNo)
-	sn.journal(opDel, refBlockNo)
+	// TODO: purge BP snapshots.
+	// sn.journal(opDel, refBlockNo)
 
 	logger.Debug().Uint64("block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP snaphost removed")
 
@@ -333,7 +368,7 @@ func (sn *Snapshots) GC(blockNo types.BlockNo) {
 }
 
 func (sn Snapshots) period() types.BlockNo {
-	return sn.bpCount
+	return types.BlockNo(sn.bpCount)
 }
 
 func (sn Snapshots) gcPeriod() types.BlockNo {
@@ -350,9 +385,31 @@ func (sn *Snapshots) journalClear() {
 	logger.Debug().Msg("BP journal log cleared")
 }
 
+// GetSnapshot returns the BP snapshot corresponding to blockNo.
+func (sn *Snapshots) GetSnapshot(blockNo types.BlockNo) (*Snapshot, error) {
+	snapBlockNo := func() types.BlockNo {
+		if blockNo < bootstrapHeight(sn.bpCount) {
+			return 0
+		}
+		return (blockNo/sn.period() - 1) * sn.period()
+	}
+
+	refBlockNo := snapBlockNo()
+	if refBlockNo == 0 {
+		return NewSnapshot(0, sn.bpCount, genesisBpList)
+	}
+
+	if s, exist := sn.snaps[refBlockNo]; exist {
+		return s, nil
+	}
+
+	return loadSnapshot(sn.cdb, refBlockNo, sn.bpCount)
+}
+
 // Save applies BP list changes to DB.
-func (sn *Snapshots) Save(tx db.Transaction) {
+func (sn *Snapshots) save(tx db.Transaction) {
 	for _, j := range sn.log {
+		logger.Debug().Str("op", spew.Sdump(j)).Str("snaps", spew.Sdump(sn.snaps)).Msg("apply BP snapshot op")
 		switch j.op {
 		case opAdd:
 			s := sn.snaps[j.blockNo]
@@ -362,7 +419,7 @@ func (sn *Snapshots) Save(tx db.Transaction) {
 		case opDel:
 			key := buildKey(j.blockNo)
 			tx.Delete(key)
-			logger.Debug().Str("key", string(key)).Msg("BP list deleted from DB")
+
 		default:
 			// Do nothing. Such a journal entry impossible!!!
 		}

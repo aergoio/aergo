@@ -64,12 +64,13 @@ type Consensus interface {
 	SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
-// ChainDbReader is a reader interface for the ChainDB.
-type ChainDbReader interface {
+// ChainDB is a reader interface for the ChainDB.
+type ChainDB interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
+	NewTx() db.Transaction
 }
 
 // ChainConsensus includes chainstatus and validation API.

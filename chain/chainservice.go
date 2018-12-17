@@ -218,7 +218,7 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 }
 
 // CDBReader returns cs.sdb as a consensus.ChainDbReader.
-func (cs *ChainService) CDBReader() consensus.ChainDbReader {
+func (cs *ChainService) CDBReader() consensus.ChainDB {
 	return cs.cdb
 }
 

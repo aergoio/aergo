@@ -75,6 +75,11 @@ func NewChainDB() *ChainDB {
 	return cdb
 }
 
+// NewTx returns a new chain DB Transaction.
+func (cdb *ChainDB) NewTx() db.Transaction {
+	return cdb.store.NewTx()
+}
+
 func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)

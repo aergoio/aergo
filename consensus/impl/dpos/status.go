@@ -22,7 +22,7 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(bpCount uint16, cdb consensus.ChainDbReader) *Status {
+func NewStatus(bpCount uint16, cdb consensus.ChainDB) *Status {
 	s := &Status{
 		libState: newLibStatus(consensusBlockCount(bpCount)),
 		bps:      bp.NewSnapshots(bpCount, cdb),
@@ -30,6 +30,22 @@ func NewStatus(bpCount uint16, cdb consensus.ChainDbReader) *Status {
 	s.init(cdb)
 
 	return s
+}
+
+func (s *Status) isRegimeChangePoint(blockNo types.BlockNo) bool {
+	return s.bps.NeedToRefresh(blockNo)
+}
+
+func (s *Status) getBpList(blockNo types.BlockNo) []string {
+	s.RLock()
+	s.RUnlock()
+
+	bpSnap, err := s.bps.GetSnapshot(blockNo)
+	if err != nil {
+		logger.Debug().Err(err).Uint64("block no", blockNo).Msg("failed to get BP list")
+		return nil
+	}
+	return bpSnap.List
 }
 
 func (s *Status) setStateDB(sdb *state.ChainStateDB) {
@@ -121,8 +137,6 @@ func (s *Status) Save(tx db.Transaction) error {
 		return err
 	}
 
-	s.bps.Save(tx)
-
 	return nil
 }
 
@@ -151,7 +165,7 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 
 // init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) init(cdb consensus.ChainDbReader) {
+func (s *Status) init(cdb consensus.ChainDB) {
 	if cdb == nil {
 		return
 	}
@@ -177,11 +191,28 @@ func (s *Status) init(cdb consensus.ChainDbReader) {
 	bsLoader.load()
 }
 
+func (s *Status) bpSnapshot(blockNo types.BlockNo) *bp.Snapshot {
+	s.RLock()
+	defer s.RUnlock()
+
+	var (
+		bs  *bp.Snapshot
+		err error
+	)
+
+	if bs, err = s.bps.GetSnapshot(blockNo); err == nil {
+		logger.Debug().Err(err).Msg("failed to get the BP list")
+		return bs
+	}
+
+	return nil
+}
+
 type bootLoader struct {
 	ls               *libStatus
 	best             *types.Block
 	genesis          *types.Block
-	cdb              consensus.ChainDbReader
+	cdb              consensus.ChainDB
 	confirmsRequired uint16
 }
 
