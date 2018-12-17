@@ -371,7 +371,11 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	if err != nil {
 		return nil, err
 	}
-	staking, err := system.GetStaking(scs, addr)
+	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	staking, err := system.GetStaking(scs, name.GetAddress(namescs, addr))
 	if err != nil {
 		return nil, err
 	}

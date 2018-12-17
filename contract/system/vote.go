@@ -26,8 +26,8 @@ var sortedlistkey = []byte("sortedlist")
 const PeerIDLength = 39
 const VotingDelay = 5
 
-func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockNo) error {
-	staked, err := getStaking(scs, txBody.Account)
+func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
+	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
 	}
@@ -35,11 +35,11 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 		return types.ErrLessTimeHasPassed
 	}
 	staked.When = blockNo
-	err = setStaking(scs, txBody.Account, staked)
+	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return err
 	}
-	oldvote, err := getVote(scs, txBody.Account)
+	oldvote, err := getVote(scs, sender.ID())
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 
 	if txBody.Payload[0] != 'v' { //called from unstaking
 		oldvote.Amount = staked.GetAmount()
-		err = setVote(scs, txBody.Account, oldvote)
+		err = setVote(scs, sender.ID(), oldvote)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func voting(txBody *types.TxBody, scs *state.ContractState, blockNo types.BlockN
 			return types.ErrMustStakeBeforeVote
 		}
 		vote := &types.Vote{Candidate: txBody.Payload[1:], Amount: staked.GetAmount()}
-		err = setVote(scs, txBody.Account, vote)
+		err = setVote(scs, sender.ID(), vote)
 		if err != nil {
 			return err
 		}

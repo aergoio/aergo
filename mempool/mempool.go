@@ -404,7 +404,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(tx.GetBody(), scs, system.FutureBlockNo)
+			err = system.ValidateSystemTx(account, tx.GetBody(), scs, system.FutureBlockNo)
 			if err != nil {
 				return err
 			}

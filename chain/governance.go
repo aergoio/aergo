@@ -33,7 +33,7 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 	}
 	switch governance {
 	case types.AergoSystem:
-		err = system.ExecuteSystemTx(scs, txBody, sender.State(), blockNo)
+		err = system.ExecuteSystemTx(scs, txBody, sender, blockNo)
 	case types.AergoName:
 		err = name.ExecuteNameTx(scs, txBody)
 	default:

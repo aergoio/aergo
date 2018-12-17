@@ -15,18 +15,18 @@ import (
 
 const FutureBlockNo = math.MaxUint64
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, senderState *types.State,
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, sender *state.V,
 	blockNo types.BlockNo) error {
 
 	systemCmd, err := getSystemCmd(txBody.GetPayload())
 
 	switch systemCmd {
 	case 's':
-		err = staking(txBody, senderState, scs, blockNo)
+		err = staking(txBody, sender, scs, blockNo)
 	case 'v':
-		err = voting(txBody, scs, blockNo)
+		err = voting(txBody, sender, scs, blockNo)
 	case 'u':
-		err = unstaking(txBody, senderState, scs, blockNo)
+		err = unstaking(txBody, sender, scs, blockNo)
 	}
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, senderState
 	return nil
 }
 
-func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
+func ValidateSystemTx(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
 	systemCmd, err := getSystemCmd(txBody.GetPayload())
 	switch systemCmd {
 	case 's':
@@ -50,7 +50,7 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 				return err
 			}
 		}
-		staked, err := getStaking(scs, txBody.Account)
+		staked, err := getStaking(scs, account)
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func ValidateSystemTx(txBody *types.TxBody, scs *state.ContractState, blockNo ui
 			return types.ErrLessTimeHasPassed
 		}
 	case 'u':
-		_, err = validateForUnstaking(txBody, scs, blockNo)
+		_, err = validateForUnstaking(account, txBody, scs, blockNo)
 	}
 	if err != nil {
 		return err
@@ -78,12 +78,12 @@ func validateForStaking(txBody *types.TxBody, scs *state.ContractState, blockNo 
 	return nil
 }
 
-func validateForUnstaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
+func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
 	amount := txBody.GetAmountBigInt()
 	if amount.Cmp(types.StakingMinimum) < 0 {
 		return nil, types.ErrTooSmallAmount
 	}
-	staked, err := getStaking(scs, txBody.Account)
+	staked, err := getStaking(scs, account)
 	if err != nil {
 		return nil, err
 	}

@@ -59,7 +59,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			return
 		}
 		cmd.Printf("{account:%s, staked:%s, when:%d}\n",
-			address, amount, msg.GetWhen())
+			addr, amount, msg.GetWhen())
 
 		return
 	}

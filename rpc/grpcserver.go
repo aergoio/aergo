@@ -755,7 +755,7 @@ func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleByte
 	var err error
 	var result interface{}
 
-	if len(in.Value) == types.AddressLength {
+	if len(in.Value) <= types.AddressLength {
 		result, err = rpc.hub.RequestFuture(message.ChainSvc,
 			&message.GetStaking{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStaking").Result()
 		if err != nil {
