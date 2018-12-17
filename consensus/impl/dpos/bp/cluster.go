@@ -8,6 +8,7 @@ package bp
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
@@ -38,8 +39,15 @@ func (e errBpSize) Error() string {
 	return fmt.Sprintf("insufficient or redundant block producers  - %v (required - %v)", e.given, e.required)
 }
 
+// ClusterMember is an interface which corresponds to BP member udpate.
+type ClusterMember interface {
+	Size() uint16
+	Update(ids []string) error
+}
+
 // Cluster represents a cluster of block producers.
 type Cluster struct {
+	sync.Mutex
 	size   uint16
 	member map[uint16]*blockProducer
 	index  map[peer.ID]uint16
@@ -135,6 +143,9 @@ func (c *Cluster) currentBpList() []string {
 
 // Update updates old cluster index by using ids.
 func (c *Cluster) Update(ids []string) error {
+	c.Lock()
+	defer c.Unlock()
+
 	c.member = make(map[uint16]*blockProducer)
 	c.index = make(map[peer.ID]uint16)
 
@@ -153,6 +164,8 @@ func (c *Cluster) Update(ids []string) error {
 		return errBpSize{required: c.size, given: uint16(len(ids))}
 	}
 
+	logger.Debug().Msgf("BP list updated. member: %v", ids)
+
 	return nil
 }
 
@@ -163,6 +176,9 @@ func (c *Cluster) Size() uint16 {
 
 // BpIndex2ID returns the ID correspinding to idx.
 func (c *Cluster) BpIndex2ID(idx uint16) (peer.ID, bool) {
+	c.Lock()
+	defer c.Unlock()
+
 	if bp, exist := c.member[idx]; exist {
 		return bp.id, exist
 	}
@@ -171,12 +187,16 @@ func (c *Cluster) BpIndex2ID(idx uint16) (peer.ID, bool) {
 
 // BpID2Index returns the index corresponding to id.
 func (c *Cluster) BpID2Index(id peer.ID) (uint16, bool) {
+	c.Lock()
+	defer c.Unlock()
 	idx, exist := c.index[id]
 	return idx, exist
 }
 
 // Has reports whether c includes id or not
 func (c *Cluster) Has(id peer.ID) bool {
+	c.Lock()
+	defer c.Unlock()
 	_, exist := c.index[id]
 	return exist
 }
@@ -197,9 +217,10 @@ func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot
 
 func loadSnapshot(cdb consensus.ChainDB, blockNo types.BlockNo, bpCount uint16) (*Snapshot, error) {
 	key := buildKey(blockNo)
-	bps := make([]string, 0, bpCount)
+	var bps []string
 
-	if err := common.GobDecode(cdb.Get(key), bps); err != nil {
+	if err := common.GobDecode(cdb.Get(key), &bps); err != nil {
+		logger.Debug().Err(err).Str("key", string(key)).Msg("BP list lookup failed")
 		return nil, err
 	}
 
@@ -226,7 +247,7 @@ func buildKey(blockNo types.BlockNo) []byte {
 func (s *Snapshot) Value() []byte {
 	b, err := common.GobEncode(s.List)
 	if err != nil {
-		logger.Debug().Err(err).Msg("value encoding failed")
+		logger.Debug().Err(err).Msg("BP list encoding failed")
 		return nil
 	}
 	return b
@@ -248,16 +269,18 @@ type Snapshots struct {
 	snaps         map[types.BlockNo]*Snapshot
 	bpCount       uint16
 	maxRefBlockNo types.BlockNo
+	cm            ClusterMember
 	cdb           consensus.ChainDB
 	sdb           *state.ChainStateDB
 	log           []*journal
 }
 
 // NewSnapshots returns a new Snapshots.
-func NewSnapshots(bpCount uint16, cdb consensus.ChainDB) *Snapshots {
+func NewSnapshots(c ClusterMember, cdb consensus.ChainDB) *Snapshots {
 	return &Snapshots{
 		snaps:   make(map[types.BlockNo]*Snapshot),
-		bpCount: bpCount,
+		bpCount: c.Size(),
+		cm:      c,
 		cdb:     cdb,
 		log:     make([]*journal, 0, 2),
 	}
@@ -266,7 +289,7 @@ func NewSnapshots(bpCount uint16, cdb consensus.ChainDB) *Snapshots {
 // NeedToRefresh reports whether blockNo corresponds to a BP regime change
 // point.
 func (sn *Snapshots) NeedToRefresh(blockNo types.BlockNo) bool {
-	return blockNo%types.BlockNo(sn.bpCount) == 1
+	return blockNo%types.BlockNo(sn.bpCount) == 0
 }
 
 // SetStateDB sets sdb to sn.sdb.
@@ -275,7 +298,7 @@ func (sn *Snapshots) SetStateDB(sdb *state.ChainStateDB) {
 }
 
 // AddSnapshot add a new BP list corresponding to refBlockNO to sn.
-func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
+func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 	// Reorganization!!!
 	if sn.maxRefBlockNo > refBlockNo {
 		sn.reset()
@@ -283,12 +306,12 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
 
 	// Add BP list every 'sn.bpCount'rd block.
 	if sn.sdb == nil || !isSnapPeriod(refBlockNo, types.BlockNo(sn.bpCount)) || refBlockNo == 0 {
-		return nil
+		return nil, nil
 	}
 
 	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	bps := make([]string, 0, sn.bpCount)
@@ -297,16 +320,33 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) error {
 	}
 
 	if err := sn.add(refBlockNo, bps); err != nil {
-		return err
+		return nil, err
 	}
 
 	sn.GC(refBlockNo)
+
+	if sn.NeedToRefresh(refBlockNo) {
+		var (
+			err error
+			s   *Snapshot
+		)
+
+		if s, err = sn.GetSnapshot(refBlockNo); err == nil {
+			logger.Debug().Uint64("ref block no", s.RefBlockNo).
+				Uint64("cur block no", refBlockNo).Msg("get BP list snapshot")
+			err = sn.cm.Update(s.List)
+		}
+
+		if err != nil {
+			logger.Debug().Err(err).Msg("skip BP member update")
+		}
+	}
 
 	tx := sn.cdb.NewTx()
 	sn.save(tx)
 	tx.Commit()
 
-	return nil
+	return bps, nil
 }
 
 func (sn *Snapshots) reset() {

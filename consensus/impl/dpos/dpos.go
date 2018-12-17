@@ -67,7 +67,6 @@ type DPoS struct {
 type bpInfo struct {
 	bestBlock *types.Block
 	slot      *slot.Slot
-	bps       []string
 	ca        types.ChainAccessor
 }
 
@@ -99,7 +98,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(bpc.Size(), cdb),
+		Status:       NewStatus(bpc, cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -230,18 +229,9 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 		return nil
 	}
 
-	// Next block
-	blockNo := block.BlockNo() + 1
-	var bps []string
-	if dpos.isRegimeChangePoint(blockNo) {
-		bps = dpos.getBpList(blockNo)
-		logger.Debug().Msgf("get BP list %v for a new regime", bps)
-	}
-
 	return &bpInfo{
 		bestBlock: block,
 		slot:      s,
-		bps:       bps,
 		ca:        dpos.ca,
 	}
 }

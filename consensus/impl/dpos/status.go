@@ -22,18 +22,14 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(bpCount uint16, cdb consensus.ChainDB) *Status {
+func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB) *Status {
 	s := &Status{
-		libState: newLibStatus(consensusBlockCount(bpCount)),
-		bps:      bp.NewSnapshots(bpCount, cdb),
+		libState: newLibStatus(consensusBlockCount(c.Size())),
+		bps:      bp.NewSnapshots(c, cdb),
 	}
 	s.init(cdb)
 
 	return s
-}
-
-func (s *Status) isRegimeChangePoint(blockNo types.BlockNo) bool {
-	return s.bps.NeedToRefresh(blockNo)
 }
 
 func (s *Status) getBpList(blockNo types.BlockNo) []string {
