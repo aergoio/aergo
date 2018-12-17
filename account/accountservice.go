@@ -7,14 +7,17 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 type AccountService struct {
 	*component.BaseComponent
 	cfg         *cfg.Config
+	sdb         *state.ChainStateDB
 	ks          *key.Store
 	accountLock sync.RWMutex
 	accounts    []*types.Account
@@ -22,9 +25,10 @@ type AccountService struct {
 }
 
 //NewAccountService create account service
-func NewAccountService(cfg *cfg.Config) *AccountService {
+func NewAccountService(cfg *cfg.Config, sdb *state.ChainStateDB) *AccountService {
 	actor := &AccountService{
 		cfg: cfg,
+		sdb: sdb,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.AccountsSvc, actor, log.NewLogger("account"))
 
@@ -54,6 +58,13 @@ func (as *AccountService) BeforeStop() {
 func (as *AccountService) Statistics() *map[string]interface{} {
 	return nil
 }
+func (as *AccountService) resolveName(namedAddress []byte) ([]byte, error) {
+	scs, err := as.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	return name.GetAddress(scs, namedAddress), nil
+}
 
 func (as *AccountService) Receive(context actor.Context) {
 
@@ -65,10 +76,32 @@ func (as *AccountService) Receive(context actor.Context) {
 		account, _ := as.createAccount(msg.Passphrase)
 		context.Respond(&message.CreateAccountRsp{Account: account})
 	case *message.LockAccount:
-		account, err := as.lockAccount(msg.Account.Address, msg.Passphrase)
+		actualAddress := msg.Account.Address
+		var err error
+		if len(actualAddress) == types.NameLength {
+			actualAddress, err = as.resolveName(actualAddress)
+			if err != nil {
+				context.Respond(&message.AccountRsp{
+					Account: &types.Account{Address: actualAddress},
+					Err:     err,
+				})
+			}
+		}
+		account, err := as.lockAccount(actualAddress, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
 	case *message.UnlockAccount:
-		account, err := as.unlockAccount(msg.Account.Address, msg.Passphrase)
+		actualAddress := msg.Account.Address
+		var err error
+		if len(actualAddress) == types.NameLength {
+			actualAddress, err = as.resolveName(actualAddress)
+			if err != nil {
+				context.Respond(&message.AccountRsp{
+					Account: &types.Account{Address: actualAddress},
+					Err:     err,
+				})
+			}
+		}
+		account, err := as.unlockAccount(actualAddress, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
 	case *message.ImportAccount:
 		account, err := as.importAccount(msg.Wif, msg.OldPass, msg.NewPass)
@@ -77,7 +110,16 @@ func (as *AccountService) Receive(context actor.Context) {
 		wif, err := as.exportAccount(msg.Account.Address, msg.Pass)
 		context.Respond(&message.ExportAccountRsp{Wif: wif, Err: err})
 	case *message.SignTx:
-		err := as.signTx(context, msg)
+		var err error
+		actualAddress := msg.Tx.GetBody().GetAccount()
+		if len(actualAddress) == types.NameLength {
+			actualAddress, err = as.resolveName(msg.Tx.GetBody().GetAccount())
+			if err != nil {
+				context.Respond(&message.SignTxRsp{Tx: nil, Err: err})
+			}
+			msg.Requester = actualAddress
+		}
+		err = as.signTx(context, msg)
 		if err != nil {
 			context.Respond(&message.SignTxRsp{Tx: nil, Err: err})
 		}
