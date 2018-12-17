@@ -13,10 +13,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"unsafe"
 
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -91,7 +93,12 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
 	amountBig := new(big.Int).SetUint64(amount)
-	cid, err := types.DecodeAddress(C.GoString(contractId))
+	ecid := C.GoString(contractId)
+	if len(ecid) != types.EncodedAddressLength {
+		luaPushStr(L, "[System.LuaCallContract]invalid contractId length :"+ecid)
+		return -1
+	}
+	cid, err := types.DecodeAddress(ecid)
 	if err != nil {
 		luaPushStr(L, "[System.LuaCallContract]invalid contractId :"+err.Error())
 		return -1
@@ -189,7 +196,10 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
-
+	if len(contractIdStr) != types.EncodedAddressLength {
+		luaPushStr(L, "[System.LuaDelegateCallContract]invalid contractId length :"+contractIdStr)
+		return -1
+	}
 	cid, err := types.DecodeAddress(contractIdStr)
 	if err != nil {
 		luaPushStr(L, "[System.LuaDelegateCallContract]invalid contractId :"+err.Error())
@@ -245,11 +255,6 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 //export LuaSendAmount
 func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64) C.int {
 	amountBig := new(big.Int).SetUint64(amount)
-	cid, err := types.DecodeAddress(C.GoString(contractId))
-	if err != nil {
-		luaPushStr(L, "[Contract.LuaSendAmount]invalid contractId :"+err.Error())
-		return -1
-	}
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
@@ -258,6 +263,24 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount uint64)
 	}
 	if stateSet.isQuery == true {
 		luaPushStr(L, "[Contract.LuaSendAmount]send not permitted in query")
+	}
+
+	ecid := C.GoString(contractId)
+	var cid []byte
+	var err error
+	if len(ecid) == types.EncodedAddressLength {
+		cid, err = types.DecodeAddress(C.GoString(contractId))
+	} else if len(ecid) == types.NameLength {
+		cid = name.Resolve(stateSet.bs, []byte(ecid))
+		if cid == nil {
+			err = errors.New("name not founded :" + ecid)
+		}
+	} else {
+		err = errors.New("invalid account length:" + ecid)
+	}
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaSendAmount]invalid contractId :"+err.Error())
+		return -1
 	}
 
 	aid := types.ToAccountID(cid)
@@ -403,7 +426,13 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 		luaPushStr(L, stateSet.curContract.callState.ctrState.GetBalanceBigInt().String())
 		return 0
 	}
-	cid, err := types.DecodeAddress(C.GoString(contractId))
+	ecid := C.GoString(contractId)
+	if len(ecid) != types.EncodedAddressLength {
+		luaPushStr(L, "[System.LuaCallContract]invalid contractId length :"+ecid)
+		return -1
+	}
+
+	cid, err := types.DecodeAddress(ecid)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaGetBalance]invalid contractId :"+err.Error())
 		return -1
@@ -541,7 +570,7 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 
 	var pubKey *btcec.PublicKey
 	var verifyResult bool
-	isAergo := len(address) == 52
+	isAergo := len(address) == types.EncodedAddressLength
 
 	/*Aergo Address*/
 	if isAergo {

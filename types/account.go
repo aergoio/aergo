@@ -11,6 +11,7 @@ import (
 
 const AddressLength = 33
 const NameLength = 12
+const EncodedAddressLength = 52
 
 //NewAccount alloc new account object
 func NewAccount(addr []byte) *Account {
