@@ -10,6 +10,7 @@ import (
 )
 
 var nameTable map[string]*Owner
+var prefix = []byte("name")
 
 type Owner struct {
 	Address []byte
@@ -47,7 +48,7 @@ func updateName(scs *state.ContractState, name []byte, from []byte, to []byte) e
 
 //Resolve is resolve name for chain
 func Resolve(bs *state.BlockState, name []byte) []byte {
-	if len(name) != types.NameLength {
+	if len(name) != types.NameLength || bytes.Equal(name, []byte(types.AergoSystem)) {
 		return name
 	}
 	scs, err := openContract(bs)
@@ -90,7 +91,8 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 }
 
 func GetOwner(scs *state.ContractState, name []byte) *Owner {
-	ownergob, err := scs.GetData(name)
+	key := append(prefix, name...)
+	ownergob, err := scs.GetData(key)
 	if err != nil {
 		return nil
 	}
@@ -115,5 +117,6 @@ func setOwner(scs *state.ContractState, name []byte, owner *Owner) error {
 	if err != nil {
 		return err
 	}
-	return scs.SetData(name, data.Bytes())
+	key := append(prefix, name...)
+	return scs.SetData(key, data.Bytes())
 }
