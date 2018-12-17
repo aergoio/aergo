@@ -41,19 +41,19 @@ var keygenCmd = &cobra.Command{
 	Use:   "keygen [flags] <prefix>",
 	Short: "Generate private key",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("Failed: no prefix")
-			return
-		}
-		prefix := args[0]
-		if prefix == "" {
-			fmt.Printf("Failed: invalid prefix %s\n", prefix)
-			return
-		}
 		var err error
 		if genJSON {
 			err = generateKeyJson()
 		} else {
+			if len(args) < 1 {
+				fmt.Println("Failed: no prefix")
+				return
+			}
+			prefix := args[0]
+			if prefix == "" {
+				fmt.Printf("Failed: invalid prefix %s\n", prefix)
+				return
+			}
 			err = generateKeyFiles(prefix)
 		}
 		if err != nil {
@@ -103,6 +103,8 @@ func generateKeyFiles(prefix string) error {
 	idBytes := []byte(peer.IDB58Encode(pid))
 	idf.Write(idBytes)
 	idf.Sync()
+
+	fmt.Printf("Wrote files %s.{key,pub,id}.\n", prefix)
 	return nil
 }
 
