@@ -84,7 +84,7 @@ func (hub *ComponentHub) DestroySpan(id string) {
 	span := hub.spans[id]
 	if nil != span {
 		(*span).Finish()
-		//delete(hub.spans, id)
+		delete(hub.spans, id)
 	}
 }
 
