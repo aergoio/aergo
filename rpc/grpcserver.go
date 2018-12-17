@@ -121,11 +121,13 @@ func (rpc *AergoRPCService) ListBlockMetadata(ctx context.Context, in *types.Lis
 	if err != nil {
 		return nil, err
 	}
-	metas := make([]*types.BlockMetadata, len(blocks))
-	for i, block := range blocks {
-		metas[i].Hash = block.BlockHash()
-		metas[i].Header = block.GetHeader()
-		metas[i].Txcount = int32(len(block.GetBody().GetTxs()))
+	var metas []*types.BlockMetadata
+	for _, block := range blocks {
+		metas = append(metas, &types.BlockMetadata{
+			Hash:    block.BlockHash(),
+			Header:  block.GetHeader(),
+			Txcount: int32(len(block.GetBody().GetTxs())),
+		})
 	}
 	return &types.BlockMetadataList{Blocks: metas}, nil
 }
