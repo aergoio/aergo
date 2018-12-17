@@ -31,19 +31,21 @@ func TestBasicStakingUnstaking(t *testing.T) {
 			Payload: []byte{'s'},
 		},
 	}
-	senderState := &types.State{Balance: types.StakingMinimum.Bytes()}
+	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
+	senderState := &types.State{Balance: minplusmin.Bytes()}
 	err = staking(tx.Body, senderState, scs, 0)
-	assert.Equal(t, err, nil, "staking failed")
-	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), new(big.Int).SetUint64(0).Bytes(), "sender.GetBalanceBigInt() should be 0 after staking")
-
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, senderState.GetBalanceBigInt(), types.StakingMinimum, "sender.GetBalanceBigInt() should be 0 after staking")
+	saved, err := getStaking(scs, tx.Body.Account)
+	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
 	tx.Body.Payload = []byte{'u'}
 	err = unstaking(tx.Body, senderState, scs, StakingDelay-1)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
-	assert.Equal(t, senderState.GetBalanceBigInt().Uint64(), uint64(0), "sender.GetBalanceBigInt() should be 0 after staking")
+	assert.Equal(t, types.StakingMinimum, senderState.GetBalanceBigInt(), "sender.GetBalanceBigInt() should be 0 after staking")
 
 	err = unstaking(tx.Body, senderState, scs, StakingDelay)
 	assert.NoError(t, err, "should be success")
-	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), types.StakingMinimum.Bytes(), "sender.GetBalanceBigInt() cacluation failed")
+	assert.Equal(t, senderState.GetBalanceBigInt(), minplusmin, "sender.GetBalanceBigInt() cacluation failed")
 }
 
 func TestStaking1Unstaking2(t *testing.T) {
