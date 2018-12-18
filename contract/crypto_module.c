@@ -23,7 +23,9 @@ static int crypto_ecverify(lua_State *L)
     sig = (char *)lua_tostring(L, 2);
     addr = (char *)lua_tostring(L, 3);
 
-    LuaECVerify(L, msg, sig, addr);
+    if (LuaECVerify(L, msg, sig, addr) < 0)
+        lua_error(L);
+
 	return 1;
 }
 

@@ -1,5 +1,5 @@
 #ifndef _LBC_H_
-#define _LBC_H
+#define _LBC_H_
 
 #include "lua.h"
 #include "number.h"
@@ -9,4 +9,4 @@ void Bset(lua_State *L, char *s);
 bc_num Bgetbnum(lua_State *L, int i);
 int lua_isbignumber(lua_State *L, int i);
 
-#endif /* _LBC_H */
+#endif /* _LBC_H_ */
