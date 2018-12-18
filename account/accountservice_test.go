@@ -6,7 +6,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,11 +23,18 @@ var (
 	conf           *config.Config
 )
 
+var sdb *state.ChainStateDB
+
 func initTest() {
 	serverCtx := config.NewServerContext("", "")
 	conf := serverCtx.GetDefaultConfig().(*config.Config)
 	conf.DataDir, _ = ioutil.TempDir("", "test")
-	as = NewAccountService(conf)
+
+	sdb = state.NewChainStateDB()
+	testmode := true
+	sdb.Init(string(db.BadgerImpl), conf.DataDir, nil, testmode)
+
+	as = NewAccountService(conf, sdb)
 	as.testConfig = true
 	as.BeforeStart()
 }
@@ -128,7 +137,7 @@ func TestNewAccountUnlockSignVerfiy(t *testing.T) {
 		t.FailNow()
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.ks.SignTx(tx)
+	err = as.ks.SignTx(tx, nil)
 	assert.NoError(t, err, "failed to sign")
 	assert.NotNil(t, tx.Body.Sign, "failed to sign")
 
@@ -151,7 +160,7 @@ func TestVerfiyFail(t *testing.T) {
 	}
 
 	tx := &types.Tx{Body: &types.TxBody{Account: account.Address}}
-	err = as.ks.SignTx(tx)
+	err = as.ks.SignTx(tx, nil)
 	assert.NoError(t, err, "failed to sign")
 	assert.NotNil(t, tx.Body.Sign, "failed to sign")
 

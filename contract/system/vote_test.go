@@ -19,21 +19,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var sdb *state.ChainStateDB
+var cdb *state.ChainStateDB
+var sdb *state.StateDB
 
 func initTest(t *testing.T) {
-	sdb = state.NewChainStateDB()
-	sdb.Init(string(db.BadgerImpl), "test", nil, false)
+	cdb = state.NewChainStateDB()
+	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
-
-	err := sdb.SetGenesis(genesis, nil)
+	sdb = cdb.OpenNewStateDB(cdb.GetRoot())
+	err := cdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 }
 
 func deinitTest() {
-	sdb.Close()
+	cdb.Close()
 	os.RemoveAll("test")
 }
 
@@ -41,20 +42,19 @@ func TestVoteResult(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	assert.NoError(t, err, "could not open contract state")
-	testResult := &map[string]*big.Int{}
+	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		(*testResult)[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
+		testResult[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
 	assert.NotNil(t, err, "argument should not nil")
 	err = InitVoteResult(scs, testResult)
 	assert.NoError(t, err, "failed to InitVoteResult")
 
-	const getTestSize = 23
-	result, err := GetVoteResult(scs)
+	result, err := GetVoteResult(scs, 23)
 	assert.NoError(t, err, "could not get vote result")
 
 	oldAmount := new(big.Int).SetUint64((uint64)(math.MaxUint64))
@@ -71,7 +71,7 @@ func TestVoteData(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
 	assert.NoError(t, err, "could not open contract state")
 
 	for i := 0; i < testSize; i++ {
@@ -100,7 +100,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)
@@ -112,34 +112,37 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 			Amount:  types.StakingMinimum.Bytes(),
 		},
 	}
-	senderState := &types.State{Balance: types.MaxAER.Bytes()}
+	sender, err := sdb.GetAccountStateV(tx.Body.Account)
+	assert.NoError(t, err, "could not get test address state")
+	sender.AddBalance(types.MaxAER)
+
 	tx.Body.Payload = buildStakingPayload(true)
-	err = staking(tx.Body, senderState, scs, 0)
+	err = staking(tx.Body, sender, scs, 0)
 	assert.NoError(t, err, "staking failed")
-	assert.Equal(t, senderState.GetBalanceBigInt().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
-		"sender.GetBalanceBigInt() should be reduced after staking")
+	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
+		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	err = voting(tx.Body, scs, VotingDelay-1)
+	err = voting(tx.Body, sender, scs, VotingDelay-1)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "voting failed")
 
-	err = voting(tx.Body, scs, VotingDelay)
+	err = voting(tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 
-	result, err := GetVoteResult(scs)
+	result, err := GetVoteResult(scs, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	err = unstaking(tx.Body, senderState, scs, VotingDelay)
+	err = unstaking(tx.Body, sender, scs, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	err = unstaking(tx.Body, senderState, scs, VotingDelay+StakingDelay)
+	err = unstaking(tx.Body, sender, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
 
-	result2, err := GetVoteResult(scs)
+	result2, err := GetVoteResult(scs, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")

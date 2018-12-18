@@ -23,8 +23,8 @@ type Syncer struct {
 	syncerCfg *SyncerConfig
 	chain     types.ChainAccessor
 
-	isstartning bool
-	ctx         *types.SyncContext
+	isRunning bool
+	ctx       *types.SyncContext
 
 	finder       *Finder
 	hashFetcher  *HashFetcher
@@ -114,14 +114,14 @@ func (syncer *Syncer) AfterStart() {
 }
 
 func (syncer *Syncer) BeforeStop() {
-	if syncer.isstartning {
+	if syncer.isRunning {
 		logger.Info().Msg("syncer BeforeStop")
 		syncer.Reset()
 	}
 }
 
 func (syncer *Syncer) Reset() {
-	if syncer.isstartning {
+	if syncer.isRunning {
 		logger.Info().Msg("syncer stop#1")
 
 		syncer.finder.stop()
@@ -131,7 +131,7 @@ func (syncer *Syncer) Reset() {
 		syncer.finder = nil
 		syncer.hashFetcher = nil
 		syncer.blockFetcher = nil
-		syncer.isstartning = false
+		syncer.isRunning = false
 		syncer.ctx = nil
 	}
 
@@ -154,7 +154,7 @@ func (syncer *Syncer) SetRequester(stubRequester component.IComponentRequester) 
 // Receive actor message
 func (syncer *Syncer) Receive(context actor.Context) {
 	//drop garbage message
-	if !syncer.isstartning {
+	if !syncer.isRunning {
 		switch context.Message().(type) {
 		case *message.GetSyncAncestorRsp:
 			return
@@ -241,7 +241,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 
 	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
 
-	if syncer.isstartning {
+	if syncer.isRunning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
 		return nil
 	}
@@ -265,7 +265,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 
 	//TODO BP stop
 	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
-	syncer.isstartning = true
+	syncer.isRunning = true
 
 	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
 	syncer.finder.start()
@@ -331,9 +331,12 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 		}
 	} else {
 		return &map[string]interface{}{
-			"startning": syncer.isstartning,
-			"total":     0,
-			"remain":    0,
+			"running":       syncer.isRunning,
+			"total":         total,
+			"start":         start,
+			"end":           end,
+			"block_added":   added,
+			"block_fetched": blockfetched,
 		}
 	}
 
@@ -346,12 +349,12 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 	}
 
 	return &map[string]interface{}{
-		"startning":    syncer.isstartning,
-		"total":        total,
-		"start":        start,
-		"end":          end,
-		"added":        added,
-		"blockfetched": blockfetched,
+		"running":       syncer.isRunning,
+		"total":         total,
+		"start":         start,
+		"end":           end,
+		"block_added":   added,
+		"block_fetched": blockfetched,
 	}
 }
 

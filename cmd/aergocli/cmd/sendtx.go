@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 	"errors"
-	"math/big"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -41,9 +41,9 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --to flag\n" + err.Error())
 	}
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
-		return errors.New("failed to parse --amount flag\n" + err.Error())
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
+		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
 	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amountBigInt.Bytes()}}
 	msg, err := client.SendTX(context.Background(), tx)

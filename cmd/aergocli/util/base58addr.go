@@ -42,14 +42,17 @@ type InOutTxInBlock struct {
 }
 
 type InOutBlockHeader struct {
-	PrevBlockHash string
-	BlockNo       uint64
-	Timestamp     int64
-	BlockRootHash string
-	TxRootHash    string
-	Confirms      uint64
-	PubKey        string
-	Sign          string
+	ChainID          string
+	PrevBlockHash    string
+	BlockNo          uint64
+	Timestamp        int64
+	BlockRootHash    string
+	TxRootHash       string
+	ReceiptsRootHash string
+	Confirms         uint64
+	PubKey           string
+	Sign             string
+	CoinbaseAccount  string
 }
 
 type InOutBlockBody struct {
@@ -98,9 +101,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 	}
 	if source.Amount != "" {
-		amount, ok := new(big.Int).SetString(source.Amount, 10)
-		if !ok {
-			return errors.New("failed to parse amount")
+		amount, err := ParseUnit(source.Amount)
+		if err != nil {
+			return err
 		}
 		target.Amount = amount.Bytes()
 	}
@@ -112,9 +115,9 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	}
 	target.Limit = source.Limit
 	if source.Price != "" {
-		price, ok := new(big.Int).SetString(source.Price, 10)
-		if !ok {
-			return errors.New("failed to parse price")
+		price, err := ParseUnit(source.Price)
+		if err != nil {
+			return err
 		}
 		target.Price = price.Bytes()
 	}
@@ -209,13 +212,17 @@ func ConvBlock(b *types.Block) *InOutBlock {
 	out := &InOutBlock{}
 	if b != nil {
 		out.Hash = base58.Encode(b.Hash)
+		out.Header.ChainID = base58.Encode(b.GetHeader().GetChainID())
 		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
 		out.Header.BlockNo = b.GetHeader().GetBlockNo()
 		out.Header.Timestamp = b.GetHeader().GetTimestamp()
+		out.Header.BlockRootHash = base58.Encode(b.GetHeader().GetBlocksRootHash())
 		out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
+		out.Header.ReceiptsRootHash = base58.Encode(b.GetHeader().GetReceiptsRootHash())
 		out.Header.Confirms = b.GetHeader().GetConfirms()
 		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
 		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
+		out.Header.CoinbaseAccount = base58.Encode(b.GetHeader().GetCoinbaseAccount())
 		if b.Body != nil {
 			for _, tx := range b.Body.Txs {
 				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))

@@ -30,8 +30,25 @@ var (
 	blockProducers        uint16
 	defaultConsensusCount uint16
 
-	lastJob *slot.Slot
+	lastJob = &lastSlot{}
 )
+
+type lastSlot struct {
+	//	sync.Mutex
+	s *slot.Slot
+}
+
+func (l *lastSlot) get() *slot.Slot {
+	//	l.Lock()
+	//	defer l.Unlock()
+	return l.s
+}
+
+func (l *lastSlot) set(s *slot.Slot) {
+	//	l.Lock()
+	//	defer l.Unlock()
+	l.s = s
+}
 
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
@@ -47,6 +64,16 @@ type DPoS struct {
 type bpInfo struct {
 	bestBlock *types.Block
 	slot      *slot.Slot
+	ca        types.ChainAccessor
+}
+
+func (bi *bpInfo) updateBestBLock() *types.Block {
+	block, _ := bi.ca.GetBestBlock()
+	if block != nil {
+		bi.bestBlock = block
+	}
+
+	return block
 }
 
 // New returns a new DPos object
@@ -58,6 +85,9 @@ func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.Compone
 		// Prefer BPs from the GenesisInfo. Overwrite.
 		if bpCount > 0 {
 			logger.Debug().Msg("use BPs from the genesis info")
+			for i, bp := range genesis.BPs {
+				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
+			}
 			cfg.Consensus.BpIds = genesis.BPs
 			cfg.Consensus.DposBpNumber = uint16(bpCount)
 		}
@@ -96,15 +126,19 @@ func consensusBlockCount() uint64 {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval / 100)
+	return time.NewTicker(tickDuration())
+}
+
+func tickDuration() time.Duration {
+	return consensus.BlockInterval / 100
 }
 
 // QueueJob send a block triggering information to jq.
 func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
-	bpi := dpos.getBpInfo(now, lastJob)
+	bpi := dpos.getBpInfo(now)
 	if bpi != nil {
 		jq <- bpi
-		lastJob = bpi.slot
+		lastJob.set(bpi.slot)
 	}
 }
 
@@ -176,7 +210,7 @@ func (dpos *DPoS) bpIdx() uint16 {
 	return idx
 }
 
-func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
+func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	s := slot.Time(now)
 
 	if !s.IsFor(dpos.bpIdx()) {
@@ -184,7 +218,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 	}
 
 	// already queued slot.
-	if slot.Equal(s, slotQueued) {
+	if slot.Equal(s, lastJob.get()) {
 		return nil
 	}
 
@@ -202,6 +236,7 @@ func (dpos *DPoS) getBpInfo(now time.Time, slotQueued *slot.Slot) *bpInfo {
 	return &bpInfo{
 		bestBlock: block,
 		slot:      s,
+		ca:        dpos.ca,
 	}
 }
 

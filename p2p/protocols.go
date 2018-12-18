@@ -8,8 +8,9 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
-	"time"
+	"github.com/libp2p/go-libp2p-protocol"
 )
+
 
 // constants of p2p protocol since v0.3
 const (
@@ -26,15 +27,17 @@ const (
 
 	MaxBlockHeaderResponseCount = 10000
 	MaxBlockResponseCount       = 2000
-	MaxResponseSplitCount = 5
+)
 
-	SyncWorkTTL = time.Second * 30
-	AddBlockCheckpoint = 100
-	AddBlockWaitTime = time.Second * 10
+// context of multiaddr, as higher type of p2p message
+const (
+
+	aergoP2PSub protocol.ID = "/aergop2p/0.2"
+
 )
 
 
-// SubProtocol identifies the type of p2p message
+// SubProtocol identifies the lower type of p2p message
 type SubProtocol uint32
 
 //
@@ -70,8 +73,8 @@ const (
 
 //go:generate stringer -type=SubProtocol
 
-func (sp SubProtocol) Uint32() uint32 {
-	return uint32(sp)
+func (i SubProtocol) Uint32() uint32 {
+	return uint32(i)
 }
 
 

@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 	"errors"
-	"math/big"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -38,7 +38,7 @@ func execUnstaking(cmd *cobra.Command, args []string) error {
 func sendStaking(cmd *cobra.Command, s bool) error {
 	account, err := types.DecodeAddress(address)
 	if err != nil {
-		return errors.New("failed to parse --address flag (" + address + ")\n" + err.Error())
+		return errors.New("Failed to parse --address flag (" + address + ")\n" + err.Error())
 	}
 	payload := make([]byte, 1)
 	if s {
@@ -46,9 +46,9 @@ func sendStaking(cmd *cobra.Command, s bool) error {
 	} else {
 		payload[0] = 'u'
 	}
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
-		return errors.New("failed to parse --amount flag\n" + err.Error())
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
+		return errors.New("Failed to parse --amount flag\n" + err.Error())
 	}
 	if amountBigInt.Cmp(types.StakingMinimum) < 0 {
 		return errors.New("Failed: minimum staking value is " + types.StakingMinimum.String())
@@ -68,6 +68,6 @@ func sendStaking(cmd *cobra.Command, s bool) error {
 	if err != nil {
 		return err
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error)
+	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
 	return nil
 }

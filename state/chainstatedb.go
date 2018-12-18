@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+	"math/big"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -80,24 +82,17 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
 	return NewStateDB(&sdb.store, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, []string) error) error {
+func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {
 	block := genesis.Block()
 	stateDB := sdb.OpenNewStateDB(sdb.GetRoot())
 
 	// create state of genesis block
 	gbState := sdb.NewBlockState(stateDB.GetRoot())
-	for address, balance := range genesis.Balance {
-		bytes := types.ToAddress(address)
-		id := types.ToAccountID(bytes)
-		if err := gbState.PutState(id, balance); err != nil {
-			return err
-		}
-	}
 
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
 		// pointer.
-		if err := bpInit(stateDB, genesis.BPs); err != nil {
+		if err := bpInit(stateDB, genesis); err != nil {
 			return err
 		}
 
@@ -109,6 +104,18 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 
 		if err := gbState.PutState(aid, scs.State); err != nil {
 			return err
+		}
+	}
+
+	for address, balance := range genesis.Balance {
+		bytes := types.ToAddress(address)
+		id := types.ToAccountID(bytes)
+		if v, ok := new(big.Int).SetString(balance, 10); ok {
+			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("balance conversion failed for %s (address: %s)", balance, address)
 		}
 	}
 

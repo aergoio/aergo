@@ -3,10 +3,9 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"strings"
 	"testing"
-
-	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -1724,15 +1723,15 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\t","2",3]`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `["\"hh\u0009","2",3]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\t",4]`)
+	err = bc.Query("json", `{"Name":"getlen", "Args":[]}`, "", `["\"hh\u0009",4]`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\t\",\"2\",3]"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"[\"\\\"hh\\u0009\",\"2\",3]"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1773,12 +1772,12 @@ func TestArray(t *testing.T) {
 	end
 
 	function len()
-		return #counts
+		return counts:length()
 	end
 
 	function iter()
 		local rv = {}
-		for i, v in state.array_pairs(counts) do
+		for i, v in counts:ipairs() do 
 			if v == nil then
 				rv[i] = "nil"
 			else
@@ -2258,7 +2257,10 @@ func TestMapKey(t *testing.T) {
 	function getCount(key)
 		return counts[key]
 	end
-	abi.register(setCount, getCount)
+	function delCount(key)
+		counts:delete(key)
+	end
+	abi.register(setCount, getCount, delCount)
 `
 	bc, _ := LoadDummyChain()
 	_ = bc.ConnectBlock(
@@ -2291,6 +2293,20 @@ func TestMapKey(t *testing.T) {
 			`{"Name":"setCount", "Args":[true, 40]}`,
 		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 1, `{"Name":"delCount", "Args":[1.1]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2364,7 +2380,6 @@ state.var {
 
 function constructor()
 	cdate:set(906000490)
-	--cdate:set(1)
 end
 
 function CreateDate()
@@ -2396,7 +2411,7 @@ abi.register(CreateDate, Extract, Difftime)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"Thu Sep 17 02:48:10 1998"`)
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"1998-09-17 02:48:10"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2405,6 +2420,10 @@ abi.register(CreateDate, Extract, Difftime)
 		t.Error(err)
 	}
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%X"]}`, "", `"02:48:10"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%A"]}`, "", `"Thursday"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2418,4 +2437,194 @@ abi.register(CreateDate, Extract, Difftime)
 	}
 }
 
+func TestDynamicArray(t *testing.T) {
+	zeroLen := `
+state.var {
+    fixedArray = state.array(0)
+}
+
+function Length()
+	return fixedArray:length()
+end
+
+abi.register(Length)
+`
+	bc, _ := LoadDummyChain()
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+	)
+	err := bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "zeroLen", 1, zeroLen),
+	)
+	if err == nil {
+		t.Error("expected: the array length must be greater than zero")
+	}
+	if !strings.Contains(err.Error(), "the array length must be greater than zero") {
+		t.Errorf(err.Error())
+	}
+
+	dArr := `
+state.var {
+    dArr = state.array()
+}
+
+function Append(val)
+	dArr:append(val)
+end
+
+function Get(idx)
+	return dArr[idx]
+end
+
+function Set(idx, val)
+	dArr[idx] = val
+end
+
+function Length()
+	return dArr:length()
+end
+
+abi.register(Append, Get, Set, Length)
+`
+	tx := NewLuaTxDef("ktlee", "dArr", 1, dArr)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "0")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [10]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [20]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [2]}`, "", "20")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "index out of range", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "2")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [30]}`),
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [40]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Length"}`, "", "4")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Set", "Args": [3, 50]}`),
+	)
+	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "", "50")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDupVar(t *testing.T) {
+	dupVar := `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+state.var{
+	Var1 = state.value(),
+}
+abi.register(GetVar1)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "dupVar", 1, dupVar),
+	)
+	if err == nil {
+		t.Error("duplicated variable: 'Var1'")
+	}
+	if !strings.Contains(err.Error(), "duplicated variable: 'Var1'") {
+		t.Error(err)
+	}
+
+	dupVar = `
+state.var{
+	Var1 = state.value(),
+}
+function GetVar1()
+	return Var1:get()
+end
+function Work()
+	state.var{
+		Var1 = state.value(),
+	}
+end
+abi.register(GetVar1, Work)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "dupVar1", 1, dupVar),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "dupVar1", 1, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
+	)
+
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCrypto(t *testing.T) {
+	src := `
+function get(a)
+	return string.byte(crypto.sha256(a), 1,100)
+end
+
+function checkEther()
+	return crypto.ecverify("0xce0677bb30baa8cf067c88db9811f4333d131bf8bcf12fe7065d211dce971008",
+"0x90f27b8b488db00b00606796d2987f6a5f59ae62ea05effe84fef5b8b0e549984a691139ad57a3f0b906637673aa2f63d1f55cb1a69199d4009eea23ceaddc9301",
+"0xbcf9061f21320aa7e824b00d0152398b2d7a6e44")
+end
+
+function checkAergo()
+	return crypto.ecverify("11e96f2b58622a0ce815b81f94da04ae7a17ba17602feb1fd5afa4b9f2467960",
+"304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
+"AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
+end
+abi.register(get, checkEther, checkAergo)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "crypto", 1, src),
+	)
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `[197,143,109,202,19,228,187,169,10,50,109,134,5,4,40,98,254,135,198,58,100,169,221,14,149,96,138,46,230,141,198,240]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("crypto", `{"Name": "checkEther", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("crypto", `{"Name": "checkAergo", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

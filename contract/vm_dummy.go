@@ -226,7 +226,7 @@ func (l *luaTxDef) hash() []byte {
 
 func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	argsLen := len([]byte(args))
-	if argsLen == 0 {
+	if argsLen == 0 || l.cErr != nil {
 		return l
 	}
 

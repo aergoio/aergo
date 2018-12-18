@@ -18,7 +18,7 @@ var stakingkey = []byte("staking")
 
 const StakingDelay = 10
 
-func staking(txBody *types.TxBody, senderState *types.State,
+func staking(txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) error {
 
 	err := validateForStaking(txBody, scs, blockNo)
@@ -26,7 +26,7 @@ func staking(txBody *types.TxBody, senderState *types.State,
 		return err
 	}
 
-	staked, err := getStaking(scs, txBody.Account)
+	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
 	}
@@ -34,17 +34,16 @@ func staking(txBody *types.TxBody, senderState *types.State,
 	amount := txBody.GetAmountBigInt()
 	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
 	staked.When = blockNo
-	err = setStaking(scs, txBody.Account, staked)
+	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return err
 	}
-
-	senderState.Balance = new(big.Int).Sub(senderState.GetBalanceBigInt(), amount).Bytes()
+	sender.SubBalance(amount)
 	return nil
 }
 
-func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.ContractState, blockNo types.BlockNo) error {
-	staked, err := validateForUnstaking(txBody, scs, blockNo)
+func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
+	staked, err := validateForUnstaking(sender.ID(), txBody, scs, blockNo)
 	if err != nil {
 		return err
 	}
@@ -61,16 +60,15 @@ func unstaking(txBody *types.TxBody, senderState *types.State, scs *state.Contra
 	//blockNo will be updated in voting
 	staked.When = 0 /*blockNo*/
 
-	err = setStaking(scs, txBody.Account, staked)
+	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return err
 	}
-	err = voting(txBody, scs, blockNo)
+	err = voting(txBody, sender, scs, blockNo)
 	if err != nil {
 		return err
 	}
-
-	senderState.Balance = new(big.Int).Add(senderState.GetBalanceBigInt(), backToBalance).Bytes()
+	sender.AddBalance(backToBalance)
 	return nil
 }
 

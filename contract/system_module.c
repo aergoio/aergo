@@ -5,6 +5,8 @@
 #include "util.h"
 #include "_cgo_export.h"
 
+#define STATE_DB_KEY_PREFIX "_"
+
 extern const int *getLuaExecContext(lua_State *L);
 
 static int systemPrint(lua_State *L)
@@ -21,40 +23,51 @@ static int systemPrint(lua_State *L)
 	return 0;
 }
 
-int setItem(lua_State *L)
+static char *getDbKey(lua_State *L)
 {
-	const char *key;
-	char *jsonValue;
+	lua_pushvalue(L, 1);    /* prefix key */
+	lua_concat(L, 2);       /* dbKey(prefix..key) */
+	return (char *)lua_tostring(L, -1);
+}
+
+int setItemWithPrefix(lua_State *L)
+{
 	char *dbKey;
+	char *jsonValue;
 	int *service = (int *)getLuaExecContext(L);
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
+	luaL_checkstring(L, 1);
 	luaL_checkany(L, 2);
-	key = luaL_checkstring(L, 1);
-
-	jsonValue = lua_util_get_json (L, -1, false);
+	luaL_checkstring(L, 3);
+	dbKey = getDbKey(L);
+	jsonValue = lua_util_get_json (L, 2, false);
 	if (jsonValue == NULL) {
 		lua_error(L);
 	}
 
-	dbKey = lua_util_get_db_key(key);
 	if (LuaSetDB(L, service, dbKey, jsonValue) != 0) {
 		free(jsonValue);
-		free(dbKey);
 		lua_error(L);
 	}
 	free(jsonValue);
-	free(dbKey);
 
 	return 0;
 }
 
-int getItem(lua_State *L)
+int setItem(lua_State *L)
 {
-	const char *key;
+	luaL_checkstring(L, 1);
+	luaL_checkany(L, 2);
+	lua_pushstring(L, STATE_DB_KEY_PREFIX);
+	return setItemWithPrefix(L);
+}
+
+int getItemWithPrefix(lua_State *L)
+{
 	char *dbKey;
 	int *service = (int *)getLuaExecContext(L);
 	char *jsonValue;
@@ -63,12 +76,10 @@ int getItem(lua_State *L)
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	key = luaL_checkstring(L, 1);
-	dbKey = lua_util_get_db_key(key);
-
+	luaL_checkstring(L, 1);
+	luaL_checkstring(L, 2);
+	dbKey = getDbKey(L);
 	ret = LuaGetDB(L, service, dbKey);
-
-	free(dbKey);
 	if (ret < 0) {
 		lua_error(L);
 	}
@@ -81,6 +92,33 @@ int getItem(lua_State *L)
 		luaL_error(L, "getItem error : can't convert %s", jsonValue);
 	}
 	return 1;
+}
+
+int getItem(lua_State *L)
+{
+	luaL_checkstring(L, 1);
+	lua_pushstring(L, STATE_DB_KEY_PREFIX);
+	return getItemWithPrefix(L);
+}
+
+int delItemWithPrefix(lua_State *L)
+{
+	char *dbKey;
+	int *service = (int *)getLuaExecContext(L);
+	char *jsonValue;
+	int ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	luaL_checkstring(L, 1);
+	luaL_checkstring(L, 2);
+	dbKey = getDbKey(L);
+	ret = LuaDelDB(L, service, dbKey);
+	if (ret < 0) {
+		lua_error(L);
+	}
+    return 0;
 }
 
 static int getSender(lua_State *L)
@@ -261,7 +299,11 @@ static int os_date(lua_State *L)
                 size_t reslen;
                 char buff[200];  /* Should be big enough for any conversion result. */
                 cc[1] = *(++s);
-                reslen = strftime(buff, sizeof(buff), cc, stm);
+                if (cc[1] == 'c') {
+                    reslen = strftime(buff, sizeof(buff), "%F %T", stm);
+                } else {
+                    reslen = strftime(buff, sizeof(buff), cc, stm);
+                }
                 luaL_addlstring(&b, buff, reslen);
             }
         }
@@ -286,7 +328,11 @@ static int os_time(lua_State *L)
         ts.tm_mon = getfield(L, "month", -1) - 1;
         ts.tm_year = getfield(L, "year", -1) - 1900;
         ts.tm_isdst = getboolfield(L, "isdst");
+#if LJ_TARGET_POSIX
         t = timegm(&ts);
+#else
+        t = _mkgmtime(&ts);
+#endif
     }
     if (t == (time_t)(-1))
         lua_pushnil(L);

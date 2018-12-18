@@ -12,13 +12,7 @@ import (
 	"strconv"
 
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
-)
-
-// TTLs are node ttl
-const (
-	DesignatedNodeTTL time.Duration = time.Minute * 60
-	DefaultNodeTTL    time.Duration = time.Minute * 10
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // PeerMeta contains non changeable information of peer node during connected state

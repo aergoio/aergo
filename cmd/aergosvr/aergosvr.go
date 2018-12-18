@@ -134,7 +134,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
-		accountSvc = account.NewAccountService(cfg)
+		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
 	}
 
 	var restSvc component.IComponent

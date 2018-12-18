@@ -29,8 +29,6 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const constructorName = "constructor"
-
 var (
 	ctrLog      *log.Logger
 	curStateSet [2]*StateSet
@@ -199,9 +197,9 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 func pushValue(L *LState, v interface{}) error {
 	switch arg := v.(type) {
 	case string:
-		argC := C.CString(arg)
-		C.lua_pushstring(L, argC)
-		C.free(unsafe.Pointer(argC))
+		argC := C.CBytes([]byte(arg))
+		C.lua_pushlstring(L, (*C.char)(argC), C.size_t(len(arg)))
+		C.free(argC)
 	case float64:
 		if arg == float64(int64(arg)) {
 			C.lua_pushinteger(L, C.lua_Integer(arg))
@@ -217,9 +215,15 @@ func pushValue(L *LState, v interface{}) error {
 	case nil:
 		C.lua_pushnil(L)
 	case []interface{}:
-		toLuaArray(L, arg)
+		err := toLuaArray(L, arg)
+		if err != nil {
+			return err
+		}
 	case map[string]interface{}:
-		toLuaTable(L, arg)
+		err := toLuaTable(L, arg)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.New("unsupported type:" + reflect.TypeOf(v).Name())
 	}
@@ -260,6 +264,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		return 0
 	}
 
+	C.vm_remove_constructor(ce.L)
 	abiName := C.CString(ci.Name)
 	C.vm_get_abi_function(ce.L, abiName)
 	C.free(unsafe.Pointer(abiName))
@@ -295,10 +300,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 	if ce.err != nil {
 		return
 	}
-	initName := C.CString(constructorName)
-	defer C.free(unsafe.Pointer(initName))
-
-	C.vm_getfield(ce.L, initName)
+	C.vm_get_constructor(ce.L)
 	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
 		return
 	}
@@ -412,10 +414,10 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
 
+	curStateSet[stateSet.service] = stateSet
 	ce := newExecutor(contract, stateSet)
 	defer ce.close()
 
-	curStateSet[stateSet.service] = stateSet
 	ce.call(&ci, nil)
 	err = ce.err
 	if err == nil {
@@ -545,7 +547,10 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		return "", err
 	}
-	contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	if err != nil {
+		return "", err
+	}
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
 		err = json.Unmarshal(code[codeLen:], &ci.Args)
@@ -556,11 +561,11 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return string(errMsg), nil
 	}
 
+	curStateSet[stateSet.service] = stateSet
 	var ce *Executor
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 
-	curStateSet[stateSet.service] = stateSet
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
@@ -616,6 +621,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
+	curStateSet[stateSet.service] = stateSet
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 	defer func() {
@@ -623,7 +629,6 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 			err = dbErr
 		}
 	}()
-	curStateSet[stateSet.service] = stateSet
 	ce.call(&ci, nil)
 	return []byte(ce.jsonRet), ce.err
 }
@@ -677,7 +682,7 @@ func codeLength(val []byte) uint32 {
 	return binary.LittleEndian.Uint32(val[0:])
 }
 
-func (re *recoveryEntry) recovery() {
+func (re *recoveryEntry) recovery() error {
 	var zero big.Int
 	callState := re.callState
 	if re.amount.Cmp(&zero) > 0 {
@@ -685,15 +690,25 @@ func (re *recoveryEntry) recovery() {
 		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
 	if re.sqlSaveName == nil && re.stateRevision == 0 {
-		return
+		return nil
 	}
-	callState.ctrState.Rollback(re.stateRevision)
+	err := callState.ctrState.Rollback(re.stateRevision)
+	if err != nil {
+		return DbSystemError(err)
+	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
-			callState.tx.RollbackToSavepoint()
+			err = callState.tx.RollbackToSavepoint()
+			if err != nil {
+				return DbSystemError(err)
+			}
 			callState.tx = nil
 		} else {
-			callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			err = callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			if err != nil {
+				return DbSystemError(err)
+			}
 		}
 	}
+	return nil
 }

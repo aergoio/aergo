@@ -179,6 +179,24 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockTX(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlockTX), varargs...)
 }
 
+// GetNameInfo mocks base method
+func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *types.Name, arg2 ...grpc.CallOption) (*types.NameInfo, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetNameInfo", varargs...)
+	ret0, _ := ret[0].(*types.NameInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNameInfo indicates an expected call of GetNameInfo
+func (mr *MockAergoRPCServiceClientMockRecorder) GetNameInfo(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNameInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetNameInfo), varargs...)
+}
+
 // GetPeers mocks base method
 func (m *MockAergoRPCServiceClient) GetPeers(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.PeerList, error) {
 	varargs := []interface{}{arg0, arg1}
@@ -341,6 +359,42 @@ func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockHeaders(arg0, arg1 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockHeaders", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockHeaders), varargs...)
 }
 
+// ListBlockMetadata mocks base method
+func (m *MockAergoRPCServiceClient) ListBlockMetadata(arg0 context.Context, arg1 *types.ListParams, arg2 ...grpc.CallOption) (*types.BlockMetadataList, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListBlockMetadata", varargs...)
+	ret0, _ := ret[0].(*types.BlockMetadataList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBlockMetadata indicates an expected call of ListBlockMetadata
+func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockMetadata(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockMetadata", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockMetadata), varargs...)
+}
+
+// ListBlockMetadataStream mocks base method
+func (m *MockAergoRPCServiceClient) ListBlockMetadataStream(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (types.AergoRPCService_ListBlockMetadataStreamClient, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListBlockMetadataStream", varargs...)
+	ret0, _ := ret[0].(types.AergoRPCService_ListBlockMetadataStreamClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBlockMetadataStream indicates an expected call of ListBlockMetadataStream
+func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockMetadataStream(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockMetadataStream", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockMetadataStream), varargs...)
+}
+
 // ListBlockStream mocks base method
 func (m *MockAergoRPCServiceClient) ListBlockStream(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (types.AergoRPCService_ListBlockStreamClient, error) {
 	varargs := []interface{}{arg0, arg1}
@@ -396,7 +450,7 @@ func (mr *MockAergoRPCServiceClientMockRecorder) Metric(arg0, arg1 interface{}, 
 }
 
 // NodeState mocks base method
-func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.NodeReq, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)

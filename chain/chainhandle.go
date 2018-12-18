@@ -15,6 +15,7 @@ import (
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -270,6 +271,9 @@ func (cp *chainProcessor) reorganize() {
 }
 
 func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+	//XXX only debug
+	logger.Debug().Int64("newavg", types.AvgTxVerifyTime.Get().Nanoseconds()).Msg("avg tx time in chain")
+
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -370,6 +374,7 @@ func (cs *ChainService) CountTxsInChain() int {
 
 type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
 type ValidatePostFn func() error
+type ValidateSignWaitFn func() error
 
 type blockExecutor struct {
 	*state.BlockState
@@ -379,10 +384,12 @@ type blockExecutor struct {
 	validatePost     ValidatePostFn
 	coinbaseAcccount []byte
 	commitOnly       bool
+	validateSignWait ValidateSignWaitFn
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
 	var exec TxExecFn
+	var validateSignWait ValidateSignWaitFn
 
 	commitOnly := false
 
@@ -398,6 +405,10 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
 		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), contract.ChainService)
+
+		validateSignWait = func() error {
+			return cs.validator.WaitVerifyDone()
+		}
 	} else {
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
@@ -414,7 +425,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		validatePost: func() error {
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
-		commitOnly: commitOnly,
+		commitOnly:       commitOnly,
+		validateSignWait: validateSignWait,
 	}, nil
 }
 
@@ -455,6 +467,13 @@ func (e *blockExecutor) execute() error {
 			contract.SetPreloadTx(preLoadTx, contract.ChainService)
 		}
 
+		if e.validateSignWait != nil {
+			if err := e.validateSignWait(); err != nil {
+				return err
+			}
+		}
+
+		//TODO check result of verifing txs
 		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
 			return err
 		}
@@ -528,7 +547,8 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	}
 	txBody := tx.GetBody()
 
-	sender, err := bs.GetAccountStateV(txBody.Account)
+	account := name.Resolve(bs, txBody.Account)
+	sender, err := bs.GetAccountStateV(account)
 	if err != nil {
 		return err
 	}
@@ -538,7 +558,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	recipient := txBody.Recipient
+	recipient := name.Resolve(bs, txBody.Recipient)
 	var receiver *state.V
 	if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
@@ -558,7 +578,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		err = executeGovernanceTx(&bs.StateDB, txBody, sender, receiver, blockNo)
+		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

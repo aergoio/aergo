@@ -5,10 +5,12 @@
 #include "contract_module.h"
 #include "db_module.h"
 #include "state_module.h"
+#include "crypto_module.h"
 #include "util.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
+const char *construct_name= "constructor";
 
 static void preloadModules(lua_State *L)
 {
@@ -17,6 +19,7 @@ static void preloadModules(lua_State *L)
     luaopen_db(L);
 	luaopen_state(L);
 	luaopen_json(L);
+	luaopen_crypto(L);
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
@@ -86,7 +89,12 @@ int vm_isnil(lua_State *L, int idx)
 	return lua_isnil(L, idx);
 }
 
-void vm_remove_construct(lua_State *L, const char *construct_name)
+void vm_get_constructor(lua_State *L)
+{
+    lua_getfield(L, LUA_GLOBALSINDEX, construct_name);
+}
+
+void vm_remove_constructor(lua_State *L)
 {
 	lua_pushnil(L);
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);

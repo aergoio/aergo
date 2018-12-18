@@ -13,14 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
@@ -46,8 +45,9 @@ type RPC struct {
 // NewRPC create an rpc service
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
-		msgHelper:   message.GetHelper(),
-		blockstream: []types.AergoRPCService_ListBlockStreamServer{},
+		msgHelper:           message.GetHelper(),
+		blockStream:         []types.AergoRPCService_ListBlockStreamServer{},
+		blockMetadataStream: []types.AergoRPCService_ListBlockMetadataStreamServer{},
 	}
 
 	tracer := opentracing.GlobalTracer()
@@ -119,6 +119,12 @@ func (ns *RPC) Receive(context actor.Context) {
 	case *types.Block:
 		server := ns.actualServer
 		server.BroadcastToListBlockStream(msg)
+		meta := &types.BlockMetadata{
+			Hash:    msg.BlockHash(),
+			Header:  msg.GetHeader(),
+			Txcount: int32(len(msg.GetBody().GetTxs())),
+		}
+		server.BroadcastToListBlockMetadataStream(meta)
 	case *actor.Started:
 	case *actor.Stopping:
 	case *actor.Stopped:

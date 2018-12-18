@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/mattn/go-colorable"
 )
 
 func init() {
@@ -69,8 +70,20 @@ func (c *batch) Run(args string) (string, error) {
 
 	batchFile.Close()
 
-	for _, line := range cmdLines {
+	for i, line := range cmdLines {
+		stdOut := colorable.NewColorableStdout()
+		cmd, args := context.ParseFirstWord(line)
+		if len(cmd) == 0 {
+			fmt.Fprintf(stdOut, "\x1B[0;37m%3d\x1B[0m\n", i)
+			continue
+		} else if context.Comment == cmd {
+			fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[32m%s\x1B[0m\n", i, line)
+			continue
+		}
+
+		fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[34;1m%s \x1B[0m%s\n", i, cmd, args)
 		Broker(line)
+
 	}
 
 	return "batch exec is finished", nil

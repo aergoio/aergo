@@ -115,6 +115,14 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 	if found {
 		worker.putAddBlock(msg, blocks, resp.HasNext)
 	} else {
+		// TODO need to refactor this codes
+		// getblockresponse with bulky blocks is only called in worker since aergosvr 0.8.x
+		// if bulky hashes on this condition block, it is probably sync timeout or bug.
+		//if len(blocks) == 1 {
+		//} else {
+		//	sm.logger.Info().Str(LogMsgID,msg.ID().String()).Msg("Unexpected getBlockResponse")
+		//}
+
 		// send to chainservice directly if no actor is found.
 		// and only continue to append if added block is not orphan
 		for _, block := range blocks {
@@ -128,9 +136,9 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 				sm.logger.Info().Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Nil returned while adding single block")
 				break
 			}
-			addblockRsp, ok := rsp.(message.AddBlockRsp)
+			addblockRsp, ok := rsp.(*message.AddBlockRsp)
 			if ok == false {
-				sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected message.AddBlockRsp but not")
+				sm.logger.Error().Str("actual_type",reflect.TypeOf(rsp).Name()).Str(LogBlkHash, enc.ToString(block.Hash)).Msg("Unexpected response type, expected *message.AddBlockRsp but not")
 				break
 			}
 			if addblockRsp.BlockNo < 0 {

@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/json"
 	fmt "fmt"
-	"math/big"
 	"testing"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -20,6 +19,7 @@ func TestDefaultGenesis(t *testing.T) {
 func TestGenesisJSON(t *testing.T) {
 	a := assert.New(t)
 	g := GetDefaultGenesis()
+	g.Balance = map[string]string{"abc": "1234"}
 	b, err := json.Marshal(g)
 	a.Nil(err)
 	fmt.Println(string(b))
@@ -37,7 +37,7 @@ func TestGenesisChainID(t *testing.T) {
 func TestGenesisBytes(t *testing.T) {
 	a := assert.New(t)
 	g1 := GetDefaultGenesis()
-	g1.Balance = map[string]*State{"abc": &State{Balance: new(big.Int).SetUint64(1234).Bytes()}}
+	g1.Balance = map[string]string{"abc": "1234"}
 	g1.BPs = []string{"xxx", "yyy", "zzz"}
 	b := g1.Bytes()
 	fmt.Println(spew.Sdump(g1))

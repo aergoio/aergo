@@ -18,6 +18,7 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
@@ -141,6 +142,7 @@ type IChainHandler interface {
 	getVote(addr []byte) (*types.VoteList, error)
 	getVotes(n int) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
+	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
@@ -181,12 +183,13 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer); err != nil {
+		cfg.Blockchain.UseFastSyncer,
+		cfg.Blockchain.VerifierCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
 	}
 
-	cs.validator = NewBlockValidator(cs.sdb)
+	cs.validator = NewBlockValidator(cs, cs.sdb)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
@@ -289,7 +292,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.SyncBlockState,
 		*message.GetElected,
 		*message.GetVote,
-		*message.GetStaking:
+		*message.GetStaking,
+		*message.GetNameInfo:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -336,7 +340,7 @@ func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
 	if err != nil {
 		return nil, err
 	}
-	return system.GetVoteResult(scs)
+	return system.GetVoteResult(scs, n)
 }
 
 func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
@@ -367,11 +371,24 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	if err != nil {
 		return nil, err
 	}
-	staking, err := system.GetStaking(scs, addr)
+	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	staking, err := system.GetStaking(scs, name.GetAddress(namescs, addr))
 	if err != nil {
 		return nil, err
 	}
 	return staking, nil
+}
+
+func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
+	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	owner := name.GetOwner(scs, []byte(qname))
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, nil
 }
 
 type ChainManager struct {
@@ -506,14 +523,29 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetState:
-		id := types.ToAccountID(msg.Account)
+		var account []byte
+		if len(msg.Account) <= types.NameLength {
+			nameState, err := cw.sdb.GetStateDB().GetAccountState(types.ToAccountID([]byte(types.AergoName)))
+			if err != nil {
+				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+			}
+			scs, err := cw.sdb.GetStateDB().OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
+			if err != nil {
+				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+			}
+			account = name.GetAddress(scs, msg.Account)
+		} else {
+			account = msg.Account
+		}
+		id := types.ToAccountID(account)
 		accState, err := cw.sdb.GetStateDB().GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
 		context.Respond(message.GetStateRsp{
-			State: accState,
-			Err:   err,
+			Account: account,
+			State:   accState,
+			Err:     err,
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
@@ -563,9 +595,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
-			varId := bytes.NewBufferString("_")
+			varId := bytes.NewBufferString("_sv_")
 			varId.WriteString(msg.VarName)
-			varId.WriteString(msg.VarIndex)
+			if len(msg.VarIndex) != 0 {
+				varId.WriteString(msg.VarIndex)
+				varId.WriteString("_s")
+			}
 			varTrieKey := common.Hasher(varId.Bytes())
 			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
 			if err != nil {
@@ -599,6 +634,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(&message.GetStakingRsp{
 			Staking: staking,
 			Err:     err,
+		})
+	case *message.GetNameInfo:
+		owner, err := cw.getNameInfo(msg.Name)
+		context.Respond(&message.GetNameInfoRsp{
+			Owner: owner,
+			Err:   err,
 		})
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)

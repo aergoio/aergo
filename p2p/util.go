@@ -18,11 +18,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
-	uuid "github.com/satori/go.uuid"
+	"github.com/libp2p/go-libp2p-peer"
+	"github.com/satori/go.uuid"
 )
 
-// constants for indicating logitem of p2p
+// frequently used constants for indicating p2p log category
 const (
 	LogPeerID  = "peer_id"
 	LogProtoID = "protocol_id"
@@ -223,4 +223,17 @@ func bytesArrToStringWithLimit(bbarray [][]byte, limit int) string {
 	}
 	buf.WriteByte(']')
 	return buf.String()
+}
+
+func PrintHashList(blocks []*types.Block) string {
+	l := len(blocks)
+	switch l {
+	case 0:
+		return "blk_cnt=0"
+	case 1:
+		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)",enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo)
+	default:
+		return fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d)", l, enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo, enc.ToString(blocks[l-1].Hash), blocks[l-1].Header.BlockNo)
+	}
+
 }
