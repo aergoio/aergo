@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "system_module.h"
-#include "lbc.h"
 
 #define STATE_MAP_ID            "__state_map__"
 #define STATE_ARRAY_ID          "__state_array__"
@@ -40,8 +39,7 @@ static int state_map(lua_State *L)
 static int state_map_check_index(lua_State *L, int index)
 {
     int type = lua_type(L, index);
-    luaL_argcheck(L, (type == LUA_TNUMBER || type == LUA_TSTRING ||
-        lua_isbignumber(L, index)),
+    luaL_argcheck(L, (type == LUA_TNUMBER || type == LUA_TSTRING),
                   index, "number or string expected");
     return type;
 }
@@ -53,7 +51,7 @@ static void state_map_push_key(lua_State *L, int type)
         luaL_error(L, "the value is not a state.map type");
     }
     lua_pushvalue(L, 2);                            /* m key value f id key */
-    if (type == LUA_TNUMBER || type == LUA_TUSERDATA) {
+    if (type == LUA_TNUMBER) {
         lua_pushstring(L, "_n");
     } else {
         lua_pushstring(L, "_s");

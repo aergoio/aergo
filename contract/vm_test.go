@@ -681,32 +681,32 @@ abi.register(init, add, addFail, get)`
 	bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[1]}`),
 	)
-	/*
-		err = bc.ConnectBlock(
-			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
-			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
-				fail(`near "set": syntax error`),
-			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
-		)
-		if err != nil {
-			t.Error(err)
-		}
 
-		bc.ConnectBlock(
-			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
-		)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
+			fail(`near "set": syntax error`),
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
 
-		err = bc.Query("fail", `{"Name":"get"}`, "", "12")
-		if err != nil {
-			t.Error(err)
-		}
+	bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
+	)
 
-		bc.DisConnectBlock()
+	err = bc.Query("fail", `{"Name":"get"}`, "", "12")
+	if err != nil {
+		t.Error(err)
+	}
 
-		err = bc.Query("fail", `{"Name":"get"}`, "", "7")
-		if err != nil {
-			t.Error(err)
-		}*/
+	bc.DisConnectBlock()
+
+	err = bc.Query("fail", `{"Name":"get"}`, "", "7")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmDateTime(t *testing.T) {
@@ -1628,10 +1628,7 @@ func TestJson(t *testing.T) {
 	}
 
 	function set(val)
-		a = "9999999999999999999999999999"
-		b = json.decode(a)
-		system.print(b)
-		table:set(json.decode(a))
+		table:set(json.decode(val))
 	end
 
 	function get()
@@ -2592,7 +2589,6 @@ abi.register(GetVar1, Work)
 	}
 }
 
-<<<<<<< HEAD
 func TestCrypto(t *testing.T) {
 	src := `
 function get(a)
