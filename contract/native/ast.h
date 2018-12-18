@@ -8,8 +8,6 @@
 
 #include "common.h"
 
-#define AST_NODE_NAME_SIZE          128
-
 #define AST_NODE_DECL                                                                    \
     int num;                                                                             \
     src_pos_t pos

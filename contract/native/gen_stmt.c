@@ -127,7 +127,7 @@ static BinaryenExpressionRef
 stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
 {
     int i;
-    char label[AST_NODE_NAME_SIZE + 1];
+    char label[NAME_MAX_LEN + 1];
     int instr_cnt;
     BinaryenExpressionRef *instrs;
     BinaryenExpressionRef block_ref = NULL;

@@ -25,6 +25,8 @@
 #define ANSI_PURPLE         "\x1b[35m"
 #define ANSI_WHITE          "\x1b[37m"
 
+#define NAME_MAX_LEN        128
+
 #define PATH_MAX_LEN        256
 #define PATH_DELIM          '/'
 

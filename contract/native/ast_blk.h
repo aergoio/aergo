@@ -32,7 +32,7 @@ struct ast_blk_s {
 
     blk_kind_t kind;
 
-    char name[AST_NODE_NAME_SIZE + 1];
+    char name[NAME_MAX_LEN + 1];
 
     array_t ids;
     array_t stmts;
