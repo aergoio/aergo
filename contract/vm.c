@@ -7,6 +7,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
+#include "lbc.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -20,6 +21,7 @@ static void preloadModules(lua_State *L)
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
+	luaopen_bc(L);
 }
 
 static void setLuaExecContext(lua_State *L, int *service)

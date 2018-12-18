@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "util.h"
+#include "lbc.h"
+#include "config.h"
 #include "_cgo_export.h"
 
 extern const int *getLuaExecContext(lua_State *L);
@@ -28,17 +30,28 @@ static void reset_amount_info (lua_State *L)
 
 static int call_value(lua_State *L)
 {
-	lua_Integer value;
-
 	set_call_obj(L, call_str);
 	if (lua_isnil(L, 1)) {
 		return 1;
 	}
-	value = luaL_checkinteger(L, 1);
-	if (value < 0) {
-		luaL_error(L, "invalid number");
+	switch(lua_type(L, 1)) {
+	case LUA_TNUMBER: {
+	    const char *str = lua_tostring(L, 1);
+	    lua_pushstring(L, str);
+	    break;
 	}
-	lua_pushinteger(L, value);
+	case LUA_TSTRING:
+	    lua_pushvalue(L, 1);
+	    break;
+	case LUA_TUSERDATA: {
+	    char *str = bc_num2str(*((void **)luaL_checkudata(L, 1, MYTYPE)));
+	    lua_pushstring(L, str);
+	    free (str);
+	    break;
+	}
+	default:
+		luaL_error(L, "invalid input");
+	}
 	lua_setfield(L, -2, amount_str);
 	return 1;
 }
@@ -67,7 +80,8 @@ static int moduleCall(lua_State *L)
 	char *json_args;
 	int ret;
 	int *service = (int *)getLuaExecContext(L);
-	lua_Integer amount, gas;
+	lua_Integer gas;
+	char *amount;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -75,9 +89,9 @@ static int moduleCall(lua_State *L)
 
 	lua_getfield(L, 1, amount_str);
 	if (lua_isnil(L, -1))
-		amount= 0;
+		amount = NULL;
 	else
-		amount = luaL_checkinteger(L, -1);
+		amount = (char *)luaL_checkstring(L, -1);
 
 	lua_getfield(L, 1, fee_str);
 	if (lua_isnil(L, -1))
@@ -92,6 +106,7 @@ static int moduleCall(lua_State *L)
 	if (json_args == NULL) {
 		lua_error(L);
 	}
+
 	if ((ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas)) < 0) {
 		free(json_args);
 		lua_error(L);
@@ -159,17 +174,35 @@ static int moduleSend(lua_State *L)
 	char *contract;
 	int ret;
 	int *service = (int *)getLuaExecContext(L);
-	lua_Integer amount;
+	char *amount;
+	bool needfree = false;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 	contract = (char *)luaL_checkstring(L, 1);
-	amount = luaL_checkinteger(L, 2);
-	if ((ret = LuaSendAmount(L, service, contract, amount)) < 0) {
-		lua_error(L);
-	}
+	if (lua_isnil(L, 2))
+	    return 0;
 
+	switch(lua_type(L, 2)) {
+    case LUA_TNUMBER:
+        amount = (char *)lua_tostring(L, 2);
+        break;
+    case LUA_TSTRING:
+        amount = (char *)lua_tostring(L, 2);
+        break;
+    case LUA_TUSERDATA:
+        amount = bc_num2str(*((void **)luaL_checkudata(L, 2, MYTYPE)));
+        needfree = true;
+        break;
+    default:
+		luaL_error(L, "invalid input");
+	}
+	ret = LuaSendAmount(L, service, contract, amount);
+	if (needfree)
+	    free(amount);
+	if (ret < 0)
+		lua_error(L);
 	return 0;
 }
 
@@ -186,9 +219,9 @@ static int moduleBalance(lua_State *L)
 
     if (lua_gettop(L) == 0 || lua_isnil(L, 1))
         contract = NULL;
-    else
+    else {
 	    contract = (char *)luaL_checkstring(L, 1);
-
+	}
 	if ((ret = LuaGetBalance(L, service, contract)) < 0) {
 		lua_error(L);
 	}

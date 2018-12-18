@@ -5,6 +5,7 @@
 #include "util.h"
 #include "vm.h"
 #include "math.h"
+#include "lbc.h"
 
 typedef struct tcall {
 	void **ptrs;
@@ -255,6 +256,16 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		unregister_tcall(callinfo);
 		break;
 	}
+	case LUA_TUSERDATA: {
+	    if (lua_isbignumber(L, idx)) {
+	        bc_num bnum = Bgetbnum(L, idx);
+	        char *s = bc_num2str(bnum);
+	        copy_str_to_buffer (s, strlen (s), sbuf);
+	        free(s);
+		    src_val = ",";
+		    break;
+	    }
+	}
 	default:
 		lua_pushfstring(L, "unsupport type: %s", lua_typename (L, lua_type(L, idx)));
 		return false;
@@ -419,8 +430,13 @@ static int json_to_lua (lua_State *L, char **start, bool check) {
 			}
 			++end;
 		}
-		sscanf(json, "%lf", &d);
-		lua_pushnumber(L, d);
+		if (json + 14 < end) {
+            Bset(L, json);
+        }
+        else {
+            sscanf(json, "%lf", &d);
+            lua_pushnumber(L, d);
+        }
 		json = end;
 	} else if (*json == '{') {
 		if (json_to_lua_table(L, &json, check) != 0)

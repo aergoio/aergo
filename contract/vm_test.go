@@ -681,32 +681,32 @@ abi.register(init, add, addFail, get)`
 	bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[1]}`),
 	)
+	/*
+		err = bc.ConnectBlock(
+			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
+			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
+				fail(`near "set": syntax error`),
+			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
+		)
+		if err != nil {
+			t.Error(err)
+		}
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
-			fail(`near "set": syntax error`),
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+		bc.ConnectBlock(
+			NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
+		)
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
-	)
+		err = bc.Query("fail", `{"Name":"get"}`, "", "12")
+		if err != nil {
+			t.Error(err)
+		}
 
-	err = bc.Query("fail", `{"Name":"get"}`, "", "12")
-	if err != nil {
-		t.Error(err)
-	}
+		bc.DisConnectBlock()
 
-	bc.DisConnectBlock()
-
-	err = bc.Query("fail", `{"Name":"get"}`, "", "7")
-	if err != nil {
-		t.Error(err)
-	}
+		err = bc.Query("fail", `{"Name":"get"}`, "", "7")
+		if err != nil {
+			t.Error(err)
+		}*/
 }
 
 func TestSqlVmDateTime(t *testing.T) {
@@ -1628,7 +1628,10 @@ func TestJson(t *testing.T) {
 	}
 
 	function set(val)
-		table:set(json.decode(val))
+		a = "9999999999999999999999999999"
+		b = json.decode(a)
+		system.print(b)
+		table:set(json.decode(a))
 	end
 
 	function get()
@@ -1741,7 +1744,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `"100"` {
+	if receipt.GetRet() != `100` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
@@ -2024,7 +2027,7 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "\"18\"")
+	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "18")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2589,6 +2592,7 @@ abi.register(GetVar1, Work)
 	}
 }
 
+<<<<<<< HEAD
 func TestCrypto(t *testing.T) {
 	src := `
 function get(a)
@@ -2625,6 +2629,64 @@ abi.register(get, checkEther, checkAergo)
 	err = bc.Query("crypto", `{"Name": "checkAergo", "Args" : []}`, "", `true`)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBignum(t *testing.T) {
+	bigNum := `
+function test(addr)
+	bal = contract.balance()
+	contract.send(addr, bal / 2)
+	return contract.balance()
+end
+
+function sendS(addr)
+	contract.send(addr, "1 gaer 99999")
+	return contract.balance()
+end
+
+function testBignum()
+	bg = bignum.number("999999999999999999999999999999")
+	system.setItem("big", bg)
+	return system.getItem("big")
+end
+
+abi.register(test, sendS, testBignum)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxDef("ktlee", "bigNum", 50000000000, bigNum),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `25000000000` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `23999900001` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, `{"Name":"testBignum", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `999999999999999999999999999999` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
 // end of test-cases
