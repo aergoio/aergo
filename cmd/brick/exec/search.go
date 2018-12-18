@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -148,6 +149,10 @@ func searchInPath(chunk context.Chunk) map[string]string {
 	for _, file := range fileInfo {
 		// generate suggestion text
 		fullPath := currentDir + file.Name()
+
+		if file.IsDir() {
+			fullPath += string(os.PathSeparator)
+		}
 		if chunk.Accent {
 			fullPath = "`" + fullPath // attach accent again
 		}
