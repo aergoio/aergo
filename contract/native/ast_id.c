@@ -101,29 +101,6 @@ id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos)
 }
 
 ast_id_t *
-id_search_name(ast_blk_t *blk, char *name, int num)
-{
-    int i;
-
-    ASSERT(name != NULL);
-
-    if (blk == NULL)
-        return NULL;
-
-    do {
-        /* TODO: better to skip if it is equal to the current contract id */
-        for (i = 0; i < array_size(&blk->ids); i++) {
-            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
-
-            if (!is_label_id(id) && id->num < num && strcmp(id->name, name) == 0)
-                return id;
-        }
-    } while ((blk = blk->up) != NULL);
-
-    return NULL;
-}
-
-ast_id_t *
 id_search_fld(ast_id_t *id, char *name, bool is_self)
 {
     int i;
@@ -168,28 +145,6 @@ id_search_param(ast_id_t *id, char *name)
         if (strcmp(param_id->name, name) == 0)
             return param_id;
     }
-
-    return NULL;
-}
-
-ast_id_t *
-id_search_label(ast_blk_t *blk, char *name)
-{
-    int i;
-
-    ASSERT(name != NULL);
-
-    if (blk == NULL)
-        return NULL;
-
-    do {
-        for (i = 0; i < array_size(&blk->ids); i++) {
-            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
-
-            if (is_label_id(id) && strcmp(id->name, name) == 0)
-                return id;
-        }
-    } while ((blk = blk->up) != NULL);
 
     return NULL;
 }

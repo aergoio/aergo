@@ -22,6 +22,11 @@
 typedef struct ast_blk_s ast_blk_t;
 #endif /* ! _AST_BLK_T */
 
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
+
 struct ast_blk_s {
     AST_NODE_DECL;
 
@@ -44,6 +49,9 @@ ast_blk_t *blk_new_switch(src_pos_t *pos);
 void blk_set_loop(ast_blk_t *blk);
 
 ast_blk_t *blk_search(ast_blk_t *blk, blk_kind_t kind);
+
+ast_id_t *blk_search_id(ast_blk_t *blk, char *name, int num);
+ast_id_t *blk_search_label(ast_blk_t *blk, char *name);
 
 void ast_blk_dump(ast_blk_t *blk, int indent);
 

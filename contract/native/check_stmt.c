@@ -445,7 +445,7 @@ stmt_check_goto(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_goto_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_goto.label != NULL);
 
-    label_id = id_search_label(check->blk, stmt->u_goto.label);
+    label_id = blk_search_label(check->blk, stmt->u_goto.label);
     if (label_id == NULL)
         RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 

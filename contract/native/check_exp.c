@@ -30,11 +30,11 @@ exp_check_id(check_t *check, ast_exp_t *exp)
             id = id_search_param(check->func_id, exp->u_ref.name);
 
         if (id == NULL) {
-            id = id_search_name(check->blk, exp->u_ref.name, exp->num);
+            id = blk_search_id(check->blk, exp->u_ref.name, exp->num);
 
             if (id != NULL && is_contract_id(id))
                 /* search constructor */
-                id = id_search_name(id->u_cont.blk, exp->u_ref.name, exp->num);
+                id = blk_search_id(id->u_cont.blk, exp->u_ref.name, exp->num);
         }
     }
 
@@ -518,7 +518,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     }
 
     if (type_meta != NULL && type_meta->name != NULL)
-        id = id_search_name(check->blk, type_meta->name, type_meta->num);
+        id = blk_search_id(check->blk, type_meta->name, type_meta->num);
 
     if (id == NULL ||
         (!is_struct_id(id) && !is_enum_id(id) && !is_contract_id(id)))

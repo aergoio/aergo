@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ast_blk.h"
 
 #include "check_meta.h"
 
@@ -24,7 +25,7 @@ meta_check(check_t *check, meta_t *meta)
             id = id_search_fld(check->qual_id, meta->name,
                                check->qual_id == check->cont_id);
         else
-            id = id_search_name(check->blk, meta->name, meta->num);
+            id = blk_search_id(check->blk, meta->name, meta->num);
 
         if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, &meta->pos, meta->name);

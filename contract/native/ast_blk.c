@@ -73,6 +73,51 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
     return NULL;
 }
 
+ast_id_t *
+blk_search_id(ast_blk_t *blk, char *name, int num)
+{
+    int i;
+
+    ASSERT(name != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        /* TODO: better to skip if it is equal to the current contract id */
+        for (i = 0; i < array_size(&blk->ids); i++) {
+            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+
+            if (!is_label_id(id) && id->num < num && strcmp(id->name, name) == 0)
+                return id;
+        }
+    } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
+ast_id_t *
+blk_search_label(ast_blk_t *blk, char *name)
+{
+    int i;
+
+    ASSERT(name != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        for (i = 0; i < array_size(&blk->ids); i++) {
+            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+
+            if (is_label_id(id) && strcmp(id->name, name) == 0)
+                return id;
+        }
+    } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
 void
 ast_blk_dump(ast_blk_t *blk, int indent)
 {
