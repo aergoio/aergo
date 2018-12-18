@@ -13,9 +13,11 @@ package contract
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
+#include "lbc.h"
 */
 import "C"
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -212,6 +214,26 @@ func pushValue(L *LState, v interface{}) error {
 			b = 1
 		}
 		C.lua_pushboolean(L, C.int(b))
+
+	case json.Number:
+		str := arg.String()
+		if len(str) > 14 {
+			argC := C.CString(arg.String())
+			C.Bset(L, argC)
+			C.free(unsafe.Pointer(argC))
+		} else {
+			intVal, err := arg.Int64()
+			if err == nil {
+				C.lua_pushinteger(L, C.lua_Integer(intVal))
+			} else {
+				ftVal, err := arg.Float64()
+				if err != nil {
+					return errors.New("unsupported number type:" + str)
+				}
+				C.lua_pushnumber(L, C.double(ftVal))
+			}
+		}
+
 	case nil:
 		C.lua_pushnil(L)
 	case []interface{}:
@@ -392,6 +414,17 @@ func (ce *Executor) close() {
 	}
 }
 
+func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
+	d := json.NewDecoder(bytes.NewReader(args))
+	d.UseNumber()
+	d.DisallowUnknownFields()
+	err := d.Decode(ci)
+	if err != nil {
+		ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
+	return err
+}
+
 func Call(contractState *state.ContractState, code, contractAddress []byte,
 	stateSet *StateSet) (string, error) {
 
@@ -399,10 +432,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
-		err = json.Unmarshal(code, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		}
+		err = getCallInfo(&ci, code, contractAddress)
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
@@ -488,10 +518,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 
 	if contractCode != nil {
-		err = json.Unmarshal(code, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		}
+		err = getCallInfo(&ci, code, contractAddress)
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
@@ -553,12 +580,12 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
-		err = json.Unmarshal(code[codeLen:], &ci.Args)
-	}
-	if err != nil {
-		logger.Warn().Err(err).Msg("invalid constructor argument")
-		errMsg, _ := json.Marshal("constructor call error:" + err.Error())
-		return string(errMsg), nil
+		err = getCallInfo(&ci.Args, code[codeLen:], contractAddress)
+		if err != nil {
+			logger.Warn().Err(err).Msg("invalid constructor argument")
+			errMsg, _ := json.Marshal("constructor call error:" + err.Error())
+			return string(errMsg), nil
+		}
 	}
 
 	curStateSet[stateSet.service] = stateSet
@@ -601,10 +628,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
-		err = json.Unmarshal(queryInfo, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		}
+		err = getCallInfo(&ci, queryInfo, contractAddress)
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
