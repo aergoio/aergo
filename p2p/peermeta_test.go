@@ -1,17 +1,14 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
- */
 package p2p
 
 import (
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -85,6 +82,45 @@ func TestPeerMeta_String(t *testing.T) {
 			m3 := m
 			m3.Outbound = true
 			assert.Equal(t, actual, m3.String())
+		})
+	}
+}
+
+func TestFromMultiAddr(t *testing.T) {
+	tests := []struct {
+		name    string
+		str    string
+		wantIp  net.IP // verify one of them
+		wantPort int
+		wantErr bool
+	}{
+		{"TIP4peerAddr","/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh",net.ParseIP("192.168.0.58"), 11002, false},
+		{"TIP4MissingID","/ip4/192.168.0.58/tcp/11002",net.ParseIP("192.168.0.58"), -1, true},
+		{"TIP4MissingPort","/ip4/192.168.0.58/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh",net.ParseIP("192.168.0.58"), 11002, true},
+		{"TIP6peerAddr","/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh",net.ParseIP("FE80::0202:B3FF:FE1E:8329"), 11003, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ma, _ := ParseMultiaddrWithResolve(tt.str)
+			got, err := FromMultiAddr(ma)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FromMultiAddr() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				ip := net.ParseIP(got.IPAddress)
+				if !reflect.DeepEqual(ip, tt.wantIp) {
+					t.Errorf("FromMultiAddr() = %v, want %v", ip.String(), tt.wantIp)
+				}
+				if !reflect.DeepEqual(got.Port, uint32(tt.wantPort)) {
+					t.Errorf("FromMultiAddr() = %v, want %v", got.Port, tt.wantPort)
+				}
+			}
+
+			got2, err := FromMultiAddrString(tt.str)
+			if !reflect.DeepEqual(got2, got) {
+				t.Errorf("result of FromMultiAddr and FromMultiAddrString differ %v, want %v", got2, got)
+			}
 		})
 	}
 }

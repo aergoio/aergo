@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // PeerManager is internal service that provide peer management
@@ -197,41 +195,15 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		// go-multiaddr implementation does not support recent p2p protocol yet, but deprecated name ipfs.
-		// This adhoc will be removed when go-multiaddr is patched.
-		target = strings.Replace(target, "/p2p/", "/ipfs/", 1)
-		targetAddr, err := ma.NewMultiaddr(target)
+		peerMeta,err := FromMultiAddrString(target)
 		if err != nil {
-			pm.logger.Warn().Err(err).Str("target", target).Msg("invalid NPAddPeer address")
+			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue
 		}
-		splitted := strings.Split(targetAddr.String(), "/")
-		if len(splitted) != 7 {
-			pm.logger.Warn().Str("target", target).Msg("invalid NPAddPeer address")
-			continue
-		}
-		peerAddrString := splitted[2]
-		peerPortString := splitted[4]
-		peerPort, err := strconv.Atoi(peerPortString)
-		if err != nil {
-			pm.logger.Warn().Str("port", peerPortString).Msg("invalid Peer port")
-			continue
-		}
-		peerIDString := splitted[6]
-		peerID, err := peer.IDB58Decode(peerIDString)
-		if err != nil {
-			pm.logger.Warn().Str(LogPeerID, peerIDString).Msg("invalid PeerID")
-			continue
-		}
-		peerMeta := PeerMeta{
-			ID:         peerID,
-			Port:       uint32(peerPort),
-			IPAddress:  peerAddrString,
-			Designated: true,
-			Outbound:   true,
-		}
-		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Designated peer")
-		pm.designatedPeers[peerID] = peerMeta
+		peerMeta.Designated=true
+		peerMeta.Outbound=true
+		pm.logger.Info().Str(LogPeerID, peerMeta.ID.Pretty()).Str("addr", peerMeta.IPAddress).Uint32("port", peerMeta.Port).Msg("Adding Designated peer")
+		pm.designatedPeers[peerMeta.ID] = peerMeta
 	}
 }
 

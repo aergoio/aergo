@@ -146,6 +146,11 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	return nil
 }
 
+
+func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
+	return p2ps.nt
+}
+
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
 
