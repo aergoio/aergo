@@ -101,20 +101,14 @@ func (c *Cluster) init() error {
 
 	// During the initial boostrapping period, the BPs given by the genesis
 	// info is used.
-	if bestBlock.BlockNo() <= bootstrapHeight(c.Size()) {
+	if bestBlock.BlockNo() <= bootstrapHeight(types.BlockNo(c.Size())) {
 		bps = genesisBpList
-	}
-
-	// Use genesis BP list before the issue described below is fixe.
-	bps = genesisBpList
-
-	/* FIXME: currently, the best block may not be consistent with the stored
-	/* BP list. Check the order - BP list must be committed first!
-		bps, err = loadCluster(c.cdb, bestBlock.BlockNo())
+	} else {
+		bps, err = loadCluster(c.cdb, bestBlock.BlockNo(), types.BlockNo(c.Size()))
 		if err != nil {
 			return err
 		}
-	*/
+	}
 
 	if err := c.Update(bps); err != nil {
 		return err
@@ -123,10 +117,9 @@ func (c *Cluster) init() error {
 	return nil
 }
 
-func bootstrapHeight(bpCount uint16) types.BlockNo {
-	const period = 10
-
-	return types.BlockNo(bpCount) * period
+func bootstrapHeight(bpCount types.BlockNo) types.BlockNo {
+	const bootRound = 10
+	return bpCount * bootRound
 }
 
 func (c *Cluster) genesisBpList() []string {
@@ -224,8 +217,10 @@ func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot
 	return &Snapshot{RefBlockNo: blockNo, List: bps}, nil
 }
 
-func loadCluster(cdb consensus.ChainDB, blockNo types.BlockNo) ([]string, error) {
-	key := buildKey(blockNo)
+func loadCluster(cdb consensus.ChainDB, blockNo, bpCount types.BlockNo) ([]string, error) {
+	refBlockNo := snapBlockNo(blockNo, bpCount)
+
+	key := buildKey(refBlockNo)
 	var bps []string
 
 	if err := common.GobDecode(cdb.Get(key), &bps); err != nil {
@@ -234,6 +229,13 @@ func loadCluster(cdb consensus.ChainDB, blockNo types.BlockNo) ([]string, error)
 	}
 
 	return bps, nil
+}
+
+func snapBlockNo(blockNo types.BlockNo, bpCount types.BlockNo) types.BlockNo {
+	if blockNo < bootstrapHeight(bpCount) {
+		return 0
+	}
+	return (blockNo/bpCount - 1) * bpCount
 }
 
 func isSnapPeriod(blockNo, period types.BlockNo) bool {
@@ -452,14 +454,7 @@ func (sn *Snapshots) journalClear() {
 
 // getCurrentCluster returns the BP snapshot corresponding to blockNo.
 func (sn *Snapshots) getCurrentCluster(blockNo types.BlockNo) ([]string, error) {
-	snapBlockNo := func() types.BlockNo {
-		if blockNo < bootstrapHeight(sn.bpCount) {
-			return 0
-		}
-		return (blockNo/sn.period() - 1) * sn.period()
-	}
-
-	refBlockNo := snapBlockNo()
+	refBlockNo := snapBlockNo(blockNo, sn.period())
 	if refBlockNo == 0 {
 		return genesisBpList, nil
 	}
@@ -468,7 +463,7 @@ func (sn *Snapshots) getCurrentCluster(blockNo types.BlockNo) ([]string, error) 
 		return s.List, nil
 	}
 
-	return loadCluster(sn.cdb, refBlockNo)
+	return loadCluster(sn.cdb, blockNo, sn.period())
 }
 
 // Save applies BP list changes to DB.
