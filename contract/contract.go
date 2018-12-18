@@ -45,7 +45,7 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
+func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
 	sender, receiver *state.V, preLoadService int) (string, error) {
 
 	txBody := tx.GetBody()
@@ -91,10 +91,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if ex != nil {
-		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP())
+		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
 		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), blockNo, ts, "", true,
+			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
@@ -165,7 +165,7 @@ func preLoadWorker() {
 			continue
 		}
 		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), 0, 0, "", false,
+			tx.GetHash(), 0, 0, nil, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)

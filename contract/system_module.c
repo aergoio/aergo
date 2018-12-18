@@ -209,6 +209,15 @@ static int getOrigin(lua_State *L)
 	return 1;
 }
 
+static int getPrevBlockHash(lua_State *L)
+{
+	int *service = (int *)getLuaExecContext(L);
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+	LuaGetPrevBlockHash(L, service);
+	return 1;
+}
 /* datetime-related functions from lib_os.c. time(NULL) is replaced by blocktime(L) */
 
 static void setfield(lua_State *L, const char *key, int value)
@@ -362,6 +371,7 @@ static const luaL_Reg sys_lib[] = {
 	{"getContractID", getContractID},
 	{"getOrigin", getOrigin},
 	{"getAmount", getAmount},
+	{"getPrevBlockHash", getPrevBlockHash},
 	{"date", os_date},
 	{"time", os_time},
 	{"difftime", os_difftime},

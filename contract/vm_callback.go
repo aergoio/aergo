@@ -535,6 +535,13 @@ func LuaGetOrigin(L *LState, service *C.int) {
 	luaPushStr(L, types.EncodeAddress(stateSet.origin))
 }
 
+//export LuaGetPrevBlockHash
+func LuaGetPrevBlockHash(L *LState, service *C.int) {
+	stateSet := curStateSet[*service]
+
+	luaPushStr(L, enc.ToString(stateSet.prevBlockHash))
+}
+
 //export LuaGetDbHandle
 func LuaGetDbHandle(service *C.int) *C.sqlite3 {
 	stateSet := curStateSet[*service]
@@ -574,7 +581,8 @@ func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) {
 	h := sha256.New()
 	h.Write(C.GoBytes(arg, argLen))
 	resultHash := h.Sum(nil)
-	C.lua_pushlstring(L, (*C.char)(unsafe.Pointer(&resultHash[0])), C.size_t(len(resultHash)))
+
+	luaPushStr(L, hex.EncodeToString(resultHash))
 }
 
 func decodeHex(hexStr string) ([]byte, error) {

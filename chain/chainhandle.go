@@ -404,7 +404,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
-		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), contract.ChainService)
+		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -431,7 +431,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(blockNo types.BlockNo, ts int64, preLoadService int) TxExecFn {
+func NewTxExecutor(blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int) TxExecFn {
 	return func(bState *state.BlockState, tx *types.Tx) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -439,7 +439,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64, preLoadService int) TxExecFn
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(bState, tx, blockNo, ts, preLoadService)
+		err := executeTx(bState, tx, blockNo, ts, prevBlockHash, preLoadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -540,7 +540,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, preLoadService int) error {
+func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
 	err := tx.Validate()
 	if err != nil {
 		return err
@@ -575,7 +575,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	case types.TxType_NORMAL:
 		txFee = new(big.Int).SetUint64(CoinbaseFee)
 		sender.SubBalance(txFee)
-		rv, err = contract.Execute(bs, tx, blockNo, ts, sender, receiver, preLoadService)
+		rv, err = contract.Execute(bs, tx, blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)

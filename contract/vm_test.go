@@ -2592,7 +2592,7 @@ abi.register(GetVar1, Work)
 func TestCrypto(t *testing.T) {
 	src := `
 function get(a)
-	return string.byte(crypto.sha256(a), 1,100)
+	return crypto.sha256(a)
 end
 
 function checkEther()
@@ -2613,7 +2613,7 @@ abi.register(get, checkEther, checkAergo)
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "crypto", 1, src),
 	)
-	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `[197,143,109,202,19,228,187,169,10,50,109,134,5,4,40,98,254,135,198,58,100,169,221,14,149,96,138,46,230,141,198,240]`)
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `"c58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2685,4 +2685,5 @@ abi.register(test, sendS, testBignum)
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
+
 // end of test-cases

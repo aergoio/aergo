@@ -61,6 +61,7 @@ type StateSet struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
+	prevBlockHash     []byte
 	service           C.int
 	transferFailed    bool
 	dbSystemError     bool
@@ -106,22 +107,23 @@ func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64,
 
 func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
-	timestamp int64, node string, confirmed bool,
+	timestamp int64, prevBlockHash []byte, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
 	stateSet := &StateSet{
-		curContract: newContractInfo(callState, senderID, reciever.ID(), rp, amount),
-		bs:          blockState,
-		origin:      senderID,
-		txHash:      txHash,
-		node:        node,
-		confirmed:   confirmed,
-		isQuery:     query,
-		blockHeight: blockHeight,
-		timestamp:   timestamp,
-		service:     C.int(service),
+		curContract:   newContractInfo(callState, senderID, reciever.ID(), rp, amount),
+		bs:            blockState,
+		origin:        senderID,
+		txHash:        txHash,
+		node:          node,
+		confirmed:     confirmed,
+		isQuery:       query,
+		blockHeight:   blockHeight,
+		timestamp:     timestamp,
+		prevBlockHash: prevBlockHash,
+		service:       C.int(service),
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
@@ -466,7 +468,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 }
 
 func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState *state.ContractState,
-	blockNo uint64, ts int64, rp uint64) (string, error) {
+	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, error) {
 	var err error
 
 	defer ce.close()
@@ -481,6 +483,7 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.blockHeight = blockNo
 	stateSet.timestamp = ts
 	stateSet.curContract.rp = rp
+	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
 	ce.call(ce.args, nil)
