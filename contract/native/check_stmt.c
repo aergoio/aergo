@@ -358,22 +358,22 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_return(check_t *check, ast_stmt_t *stmt)
 {
-    ast_id_t *func_id;
+    ast_id_t *fn_id;
     meta_t *fn_meta;
     ast_exp_t *arg_exp;
 
     ASSERT1(is_return_stmt(stmt), stmt->kind);
-    ASSERT(check->func_id != NULL);
+    ASSERT(check->fn_id != NULL);
 
-    func_id = check->func_id;
-    fn_meta = &func_id->meta;
+    fn_id = check->fn_id;
+    fn_meta = &fn_id->meta;
 
-    ASSERT1(is_func_id(func_id), func_id->kind);
+    ASSERT1(is_fn_id(fn_id), fn_id->kind);
 
     arg_exp = stmt->u_ret.arg_exp;
 
     if (arg_exp != NULL) {
-        if (is_void_type(fn_meta) || is_ctor_id(func_id))
+        if (is_void_type(fn_meta) || is_ctor_id(fn_id))
             RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "argument", 0,
                    meta_cnt(&arg_exp->meta));
 
@@ -381,7 +381,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
         return meta_cmp(fn_meta, &arg_exp->meta);
     }
-    else if (!is_void_type(fn_meta) && !is_ctor_id(func_id)) {
+    else if (!is_void_type(fn_meta) && !is_ctor_id(fn_id)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument",
                meta_cnt(fn_meta), 0);
     }

@@ -93,6 +93,8 @@ array_join(array_t *dest, int idx, array_t *src)
     }
 
     dest->size += src->size;
+
+    array_reset(src);
 }
 
 void *

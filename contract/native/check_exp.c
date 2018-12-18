@@ -26,13 +26,13 @@ exp_check_id(check_t *check, ast_exp_t *exp)
                            check->cont_id == check->qual_id);
     }
     else {
-        if (check->func_id != NULL)
-            id = id_search_param(check->func_id, exp->u_ref.name);
+        if (check->fn_id != NULL)
+            id = id_search_param(check->fn_id, exp->u_ref.name);
 
         if (id == NULL) {
             id = blk_search_id(check->blk, exp->u_ref.name, exp->num);
 
-            if (id != NULL && is_contract_id(id))
+            if (id != NULL && is_cont_id(id))
                 /* search constructor */
                 id = blk_search_id(id->u_cont.blk, exp->u_ref.name, exp->num);
         }
@@ -504,13 +504,13 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     if (is_var_id(id)) {
         type_meta = id->u_var.type_meta;
     }
-    else if (is_func_id(id)) {
+    else if (is_fn_id(id)) {
         array_t *ret_ids;
 
         if (!is_struct_type(id_meta) && !is_object_type(id_meta))
             RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-        ret_ids = id->u_func.ret_ids;
+        ret_ids = id->u_fn.ret_ids;
         ASSERT(ret_ids != NULL);
         ASSERT1(array_size(ret_ids) == 1, array_size(ret_ids));
 
@@ -521,7 +521,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         id = blk_search_id(check->blk, type_meta->name, type_meta->num);
 
     if (id == NULL ||
-        (!is_struct_id(id) && !is_enum_id(id) && !is_contract_id(id)))
+        (!is_struct_id(id) && !is_enum_id(id) && !is_cont_id(id)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     fld_exp = exp->u_acc.fld_exp;
@@ -572,10 +572,10 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, id_exp));
 
     id = id_exp->id;
-    if (id == NULL || !is_func_id(id))
+    if (id == NULL || !is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
-    param_ids = id->u_func.param_ids;
+    param_ids = id->u_fn.param_ids;
 
     if (array_size(param_ids) != array_size(param_exps))
         RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", array_size(param_ids),

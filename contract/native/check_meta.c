@@ -27,7 +27,7 @@ meta_check(check_t *check, meta_t *meta)
         else
             id = blk_search_id(check->blk, meta->name, meta->num);
 
-        if (id == NULL || (!is_struct_id(id) && !is_contract_id(id)))
+        if (id == NULL || (!is_struct_id(id) && !is_cont_id(id)))
             RETURN(ERROR_UNDEFINED_TYPE, &meta->pos, meta->name);
 
         id->is_used = true;

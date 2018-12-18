@@ -535,7 +535,7 @@ comma_opt:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_new_func($1, MOD_PUBLIC | MOD_CTOR, $3, NULL, $5, &@$);
+        $$ = id_new_fn($1, MOD_PUBLIC | MOD_CTOR, $3, NULL, $5, &@$);
     }
 ;
 
@@ -607,7 +607,7 @@ blk_decl:
 function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
-        $$ = id_new_func($3, $1, $5, $7, $8, &@3);
+        $$ = id_new_fn($3, $1, $5, $7, $8, &@3);
     }
 ;
 

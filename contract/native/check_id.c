@@ -231,18 +231,18 @@ id_check_param(check_t *check, ast_id_t *id)
 }
 
 static int
-id_check_func(check_t *check, ast_id_t *id)
+id_check_fn(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *param_ids;
     array_t *ret_ids;
     meta_t *id_meta;
 
-    ASSERT1(is_func_id(id), id->kind);
+    ASSERT1(is_fn_id(id), id->kind);
 
     id->is_checked = true;
 
-    param_ids = id->u_func.param_ids;
+    param_ids = id->u_fn.param_ids;
 
     for (i = 0; i < array_size(param_ids); i++) {
         ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
@@ -251,7 +251,7 @@ id_check_func(check_t *check, ast_id_t *id)
     }
 
     id_meta = &id->meta;
-    ret_ids = id->u_func.ret_ids;
+    ret_ids = id->u_fn.ret_ids;
 
     if (ret_ids != NULL) {
         ast_id_t *ret_id;
@@ -284,12 +284,12 @@ id_check_func(check_t *check, ast_id_t *id)
         meta_set_void(id_meta);
     }
 
-    if (id->u_func.blk != NULL) {
-        check->func_id = id;
+    if (id->u_fn.blk != NULL) {
+        check->fn_id = id;
 
-        blk_check(check, id->u_func.blk);
+        blk_check(check, id->u_fn.blk);
 
-        check->func_id = NULL;
+        check->fn_id = NULL;
     }
 
     return NO_ERROR;
@@ -298,7 +298,7 @@ id_check_func(check_t *check, ast_id_t *id)
 static int
 id_check_contract(check_t *check, ast_id_t *id)
 {
-    ASSERT1(is_contract_id(id), id->kind);
+    ASSERT1(is_cont_id(id), id->kind);
 
     id->is_checked = true;
 
@@ -333,8 +333,8 @@ id_check(check_t *check, ast_id_t *id)
         id_check_enum(check, id);
         break;
 
-    case ID_FUNC:
-        id_check_func(check, id);
+    case ID_FN:
+        id_check_fn(check, id);
         break;
 
     case ID_CONTRACT:

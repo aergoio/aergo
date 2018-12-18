@@ -17,8 +17,8 @@
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
 #define is_enum_id(id)              ((id)->kind == ID_ENUM)
-#define is_func_id(id)              ((id)->kind == ID_FUNC)
-#define is_contract_id(id)          ((id)->kind == ID_CONTRACT)
+#define is_fn_id(id)                ((id)->kind == ID_FN)
+#define is_cont_id(id)              ((id)->kind == ID_CONTRACT)
 #define is_label_id(id)             ((id)->kind == ID_LABEL)
 
 #define is_public_id(id)            flag_on((id)->mod, MOD_PUBLIC)
@@ -32,7 +32,7 @@
 #define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
 
 #define id_new_ctor(name, pos)                                                           \
-    id_new_func((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
+    id_new_fn((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
 
 #define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
 #define id_add_last(ids, new_id)    id_add((ids), array_size(ids), (new_id))
@@ -69,11 +69,11 @@ typedef struct id_enum_s {
     array_t *elem_ids;
 } id_enum_t;
 
-typedef struct id_func_s {
+typedef struct id_fn_s {
     array_t *param_ids;
     array_t *ret_ids;
     ast_blk_t *blk;
-} id_func_t;
+} id_fn_t;
 
 typedef struct id_cont_s {
     ast_blk_t *blk;
@@ -94,7 +94,7 @@ struct ast_id_s {
         id_var_t u_var;
         id_struct_t u_struc;
         id_enum_t u_enum;
-        id_func_t u_func;
+        id_fn_t u_fn;
         id_cont_t u_cont;
         id_label_t u_label;
     };
@@ -115,8 +115,8 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
-                      ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+                    ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
 

@@ -501,7 +501,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     ast_id_t *fld_id = exp->id;
     meta_t *fld_meta = &exp->meta;
 
-    if (is_func_id(fld_id))
+    if (is_fn_id(fld_id))
         return NULL;
 
     ASSERT1(is_var_id(fld_id), fld_id->kind);
@@ -526,9 +526,9 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
 {
     int i, j = 0;
     int arg_cnt;
-    ast_id_t *func_id = exp->id;
-    array_t *param_ids = func_id->u_func.param_ids;
-    array_t *ret_ids = func_id->u_func.ret_ids;
+    ast_id_t *fn_id = exp->id;
+    array_t *param_ids = fn_id->u_fn.param_ids;
+    array_t *ret_ids = fn_id->u_fn.ret_ids;
     array_t *param_exps = exp->u_call.param_exps;
     BinaryenExpressionRef *arg_exps;
 
@@ -548,7 +548,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
         arg_exps[j++] = gen_i32(gen, ret_id->meta.addr);
     }
 
-    return BinaryenCall(gen->module, func_id->name, arg_exps, arg_cnt,
+    return BinaryenCall(gen->module, fn_id->name, arg_exps, arg_cnt,
                         BinaryenTypeNone());
 }
 

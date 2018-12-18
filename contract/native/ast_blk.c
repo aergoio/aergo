@@ -118,9 +118,4 @@ blk_search_label(ast_blk_t *blk, char *name)
     return NULL;
 }
 
-void
-ast_blk_dump(ast_blk_t *blk, int indent)
-{
-}
-
 /* end of ast_blk.c */

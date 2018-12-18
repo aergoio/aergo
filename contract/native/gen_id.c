@@ -70,15 +70,15 @@ id_gen_var(gen_t *gen, ast_id_t *id)
 }
 
 static BinaryenExpressionRef
-id_gen_func(gen_t *gen, ast_id_t *id)
+id_gen_fn(gen_t *gen, ast_id_t *id)
 {
     int i;
     int param_cnt;
     BinaryenType *params;
     BinaryenFunctionTypeRef spec;
     BinaryenFunctionRef func;
-    array_t *param_ids = id->u_func.param_ids;
-    array_t *ret_ids = id->u_func.ret_ids;
+    array_t *param_ids = id->u_fn.param_ids;
+    array_t *ret_ids = id->u_fn.ret_ids;
 
     param_cnt = array_size(param_ids) + array_size(ret_ids);
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
@@ -106,7 +106,7 @@ id_gen_func(gen_t *gen, ast_id_t *id)
                                    params, param_cnt);
 
     func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
-                               blk_gen(gen, id->u_func.blk));
+                               blk_gen(gen, id->u_fn.blk));
 
     gen->id_idx = 0;
     gen->ret_idx = 0;
@@ -133,8 +133,8 @@ id_gen(gen_t *gen, ast_id_t *id)
     case ID_ENUM:
         break;
 
-    case ID_FUNC:
-        return id_gen_func(gen, id);
+    case ID_FN:
+        return id_gen_fn(gen, id);
 
     case ID_CONTRACT:
         return id_gen_contract(gen, id);

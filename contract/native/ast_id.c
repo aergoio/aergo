@@ -62,17 +62,17 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
             ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_FUNC, mod, name, pos);
+    ast_id_t *id = ast_id_new(ID_FN, mod, name, pos);
 
-    id->u_func.param_ids = param_ids;
-    id->u_func.ret_ids = ret_ids;
-    id->u_func.blk = blk;
+    id->u_fn.param_ids = param_ids;
+    id->u_fn.ret_ids = ret_ids;
+    id->u_fn.blk = blk;
 
-    if (id->u_func.blk != NULL)
-        id->u_func.blk->kind = BLK_FUNC;
+    if (id->u_fn.blk != NULL)
+        id->u_fn.blk->kind = BLK_FN;
 
     return id;
 }
@@ -113,7 +113,7 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
         fld_ids = id->u_struc.fld_ids;
     else if (is_enum_id(id))
         fld_ids = id->u_enum.elem_ids;
-    else if (is_contract_id(id) && id->u_cont.blk != NULL)
+    else if (is_cont_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
     else
         return NULL;
@@ -136,11 +136,11 @@ id_search_param(ast_id_t *id, char *name)
     int i;
 
     ASSERT(id != NULL);
-    ASSERT1(is_func_id(id), id->kind);
+    ASSERT1(is_fn_id(id), id->kind);
     ASSERT(name != NULL);
 
-    for (i = 0; i < array_size(id->u_func.param_ids); i++) {
-        ast_id_t *param_id = array_get(id->u_func.param_ids, i, ast_id_t);
+    for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
+        ast_id_t *param_id = array_get(id->u_fn.param_ids, i, ast_id_t);
 
         if (strcmp(param_id->name, name) == 0)
             return param_id;
