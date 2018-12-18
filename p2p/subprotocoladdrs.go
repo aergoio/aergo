@@ -66,6 +66,7 @@ func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), AddressesResponse, resp))
 }
 
+// TODO need refactoring. This code is not bounded to a specific peer but rather whole peer pool, and cause code duplication in p2p.go
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := ph.pm.SelfNodeID()
 	peerMetas := make([]PeerMeta, 0, len(peers))
