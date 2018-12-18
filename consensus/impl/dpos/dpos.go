@@ -19,16 +19,19 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/davecgh/go-spew/spew"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
+
+// DefaultDposBpNumber is the default number of block producers.
+const DefaultDposBpNumber = 23
 
 var (
 	logger = log.NewLogger("dpos")
 
 	// blockProducers is the number of block producers
-	blockProducers        uint16
-	defaultConsensusCount uint16
+	blockProducers          uint16
+	majorityCount           uint16
+	initialBpElectionPeriod types.BlockNo
 
 	lastJob = &lastSlot{}
 )
@@ -76,34 +79,26 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 	return block
 }
 
-// New returns a new DPos object
-func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.ComponentHub) (consensus.Consensus, error) {
-	genesis := cdb.GetGenesisInfo()
-	if genesis != nil {
-		logger.Debug().Str("genesis", spew.Sdump(genesis)).Msg("genesis info loaded")
-		bpCount := len(genesis.BPs)
-		// Prefer BPs from the GenesisInfo. Overwrite.
-		if bpCount > 0 {
-			logger.Debug().Msg("use BPs from the genesis info")
-			for i, bp := range genesis.BPs {
-				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
-			}
-			cfg.Consensus.BpIds = genesis.BPs
-			cfg.Consensus.DposBpNumber = uint16(bpCount)
-		}
+// GetConstructor build and returns consensus.Constructor from New function.
+func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+	return func() (consensus.Consensus, error) {
+		return New(cfg, hub, cdb)
 	}
+}
 
-	Init(cfg.Consensus)
-
-	bpc, err := bp.NewCluster(cfg.Consensus.BpIds, blockProducers)
+// New returns a new DPos object
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
+	bpc, err := bp.NewCluster(cfg, cdb)
 	if err != nil {
 		return nil, err
 	}
 
+	Init(bpc.Size(), cfg.BlockInterval)
+
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(defaultConsensusCount, cdb),
+		Status:       NewStatus(bpc, cdb),
 		ComponentHub: hub,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
@@ -112,16 +107,16 @@ func New(cfg *config.Config, cdb consensus.ChainDbReader, hub *component.Compone
 }
 
 // Init initilizes the DPoS parameters.
-func Init(cfg *config.ConsensusConfig) {
-	consensus.InitBlockInterval(cfg.BlockInterval)
-
-	blockProducers = cfg.DposBpNumber
-	defaultConsensusCount = blockProducers*2/3 + 1
-	slot.Init(cfg.BlockInterval, blockProducers)
+func Init(bpCount uint16, blockInterval int64) {
+	blockProducers = bpCount
+	majorityCount = blockProducers*2/3 + 1
+	// Collect voting for BPs during 10 rounds.
+	initialBpElectionPeriod = types.BlockNo(blockProducers) * 10
+	slot.Init(blockInterval, blockProducers)
 }
 
-func consensusBlockCount() uint64 {
-	return uint64(defaultConsensusCount)
+func consensusBlockCount(bpCount uint16) uint16 {
+	return bpCount*2/3 + 1
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.
@@ -156,6 +151,7 @@ func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
 // called only once during the boot sequence.
 func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
 	dpos.bf.sdb = sdb
+	dpos.Status.setStateDB(sdb)
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction

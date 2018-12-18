@@ -54,7 +54,7 @@ func TestVoteResult(t *testing.T) {
 	err = InitVoteResult(scs, testResult)
 	assert.NoError(t, err, "failed to InitVoteResult")
 
-	result, err := GetVoteResult(scs, 23)
+	result, err := getVoteResult(scs, 23)
 	assert.NoError(t, err, "could not get vote result")
 
 	oldAmount := new(big.Int).SetUint64((uint64)(math.MaxUint64))
@@ -129,7 +129,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	err = voting(tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 
-	result, err := GetVoteResult(scs, 23)
+	result, err := getVoteResult(scs, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
@@ -142,7 +142,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	err = unstaking(tx.Body, sender, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
 
-	result2, err := GetVoteResult(scs, 23)
+	result2, err := getVoteResult(scs, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")

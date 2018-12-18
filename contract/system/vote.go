@@ -191,7 +191,21 @@ func buildVoteList(vote map[string]*big.Int) *types.VoteList {
 	return &voteList
 }
 
-func GetVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
+// AccountStateReader is an interface for getting a system account state.
+type AccountStateReader interface {
+	GetSystemAccountState() (*state.ContractState, error)
+}
+
+// GetVoteResult returns the top n voting result from the system account state.
+func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
+	scs, err := ar.GetSystemAccountState()
+	if err != nil {
+		return nil, err
+	}
+	return getVoteResult(scs, n)
+}
+
+func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err

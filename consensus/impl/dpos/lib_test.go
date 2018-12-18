@@ -21,9 +21,19 @@ type testChain struct {
 	bpClusterSize uint16
 }
 
-func newTestChain(clusterSize uint16) (*testChain, error) {
-	consensusCount := clusterSize*2/3 + 1
+type testCluster struct {
+	size uint16
+}
 
+func (c *testCluster) Size() uint16 {
+	return c.size
+}
+
+func (c *testCluster) Update(ids []string) error {
+	return nil
+}
+
+func newTestChain(clusterSize uint16) (*testChain, error) {
 	bpKey := make([]crypto.PrivKey, int(clusterSize))
 	for i := 0; i < int(clusterSize); i++ {
 		var err error
@@ -40,7 +50,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 
 	tc := &testChain{
 		chain:         make([]*types.Block, 0),
-		status:        NewStatus(consensusCount, nil),
+		status:        NewStatus(&testCluster{size: clusterSize}, nil),
 		bpid:          enc.ToString(b),
 		lpb:           make(map[string]types.BlockNo),
 		bpKey:         bpKey,
