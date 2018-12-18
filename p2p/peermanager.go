@@ -111,7 +111,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 
 		addPeerChannel:    make(chan PeerMeta, 2),
 		removePeerChannel: make(chan peer.ID),
-		fillPoolChannel:   make(chan []PeerMeta),
+		fillPoolChannel:   make(chan []PeerMeta, 2),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
 	}
@@ -208,9 +208,10 @@ func (pm *peerManager) initDesignatedPeerList() {
 }
 
 func (pm *peerManager) runManagePeers() {
-	addrDuration := time.Minute * 3
+	initialAddrDelay := time.Second * 20
+	initialTimer := time.NewTimer(initialAddrDelay)
+	addrDuration := time.Minute * 5
 	addrTicker := time.NewTicker(addrDuration)
-	// reconnectRunners := make(map[peer.ID]*reconnectRunner)
 MANLOOP:
 	for {
 		select {
@@ -226,6 +227,9 @@ MANLOOP:
 					pm.rm.AddJob(meta)
 				}
 			}
+		case <-initialTimer.C:
+			initialTimer.Stop()
+			pm.checkAndCollectPeerListFromAll()
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
 		    pm.logPeerMetrics()
@@ -424,6 +428,9 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 	if pm.hasEnoughPeers() {
 		return
 	}
+	pm.logger.Debug().Msg("Sending map query to aergomap")
+	pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: 100})
+
 	for _, remotePeer := range pm.remotePeers {
 		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
 	}

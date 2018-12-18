@@ -68,6 +68,7 @@ type P2PConfig struct {
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 
 	NPAddMapServers []string `mapstructure:"npaddmapservers" description:"Max peer pool size"`
+	NPPrivateNet    bool
 }
 
 // BlockchainConfig defines configurations for blockchain service

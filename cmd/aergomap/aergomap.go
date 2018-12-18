@@ -7,7 +7,7 @@ package main
 import (
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/pmap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -16,17 +16,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account"
-	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl"
 	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	rest "github.com/aergoio/aergo/rest"
-	"github.com/aergoio/aergo/rpc"
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
@@ -127,48 +120,26 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	chainSvc := chain.NewChainService(cfg)
-
-	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
-	rpcSvc := rpc.NewRPC(cfg, chainSvc)
-	syncSvc := NewRedirectService(cfg, message.SyncerSvc)
-	p2pSvc := p2p.NewP2P(cfg, chainSvc)
-
-	var accountSvc component.IComponent
-	if cfg.Personal {
-		accountSvc = account.NewAccountService(cfg)
-	}
-
-	var restSvc component.IComponent
-	if cfg.EnableRest {
-		svrlog.Info().Msg("Start REST server")
-		restSvc = rest.NewRestService(cfg, chainSvc)
-	} else {
-		svrlog.Info().Msg("Do not start REST server")
-	}
+	lntc := p2p.NewNTContainer(cfg)
+	pmapSvc := pmap.NewMapService(cfg.P2P, lntc, true)
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
+	compMng.Register(lntc, pmapSvc)
 
-	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
-	if err != nil {
-		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
-		os.Exit(1)
-	}
+	//consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
+	//if err != nil {
+	//	svrlog.Error().Err(err).Msg("Failed to start consensus service.")
+	//	os.Exit(1)
+	//}
 
 	// All the services objects including Consensus must be created before the
 	// actors are started.
 	compMng.Start()
 
-	if cfg.Consensus.EnableBp {
-		// Warning: The consensus service must start after all the other
-		// services.
-		consensus.Start(consensusSvc)
-	}
 
 	common.HandleKillSig(func() {
-		consensus.Stop(consensusSvc)
+		//consensus.Stop(consensusSvc)
 		compMng.Stop()
 	}, svrlog)
 
@@ -192,4 +163,14 @@ func NewRedirectService(cfg *config.Config, svcPid string) *RedirectService {
 
 func (rs *RedirectService) Receive(context actor.Context) {
 	// ignore for now
+}
+
+func (rs *RedirectService)  BeforeStart() {}
+func (rs *RedirectService) AfterStart() {}
+func (rs *RedirectService) BeforeStop() {}
+
+
+func (rs *RedirectService) Statistics() *map[string]interface{} {
+	dummy := make(map[string]interface{})
+	return &dummy
 }

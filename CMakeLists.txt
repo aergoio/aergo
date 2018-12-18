@@ -24,6 +24,10 @@ add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergosvr
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
+add_custom_target(aergomap GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergomap/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS vendor libtool)
+
 add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
