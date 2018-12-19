@@ -13,7 +13,6 @@ import "C"
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"index/suffixarray"
@@ -174,7 +173,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 
 	var ci types.CallInfo
 	ci.Name = fnameStr
-	err = json.Unmarshal([]byte(argsStr), &ci.Args)
+	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaCallContract] invalid args:"+err.Error())
 		return -1
@@ -248,7 +247,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	var ci types.CallInfo
 	ci.Name = fnameStr
-	err = json.Unmarshal([]byte(argsStr), &ci.Args)
+	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid args:"+err.Error())
 		return -1
