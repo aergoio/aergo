@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	fmt "fmt"
 	"math"
 	"strings"
@@ -198,6 +199,14 @@ func (cid *ChainID) Equals(rhs *ChainID) bool {
 	return bytes.Compare(lVal, rVal) == 0
 }
 
+// ToJSON returns a JSON encoded string of cid.
+func (cid ChainID) ToJSON() string {
+	if b, err := json.Marshal(cid); err == nil {
+		return string(b)
+	}
+	return ""
+}
+
 // Genesis represents genesis block
 type Genesis struct {
 	ID        ChainID           `json:"chain_id,omitempty"`
@@ -213,6 +222,9 @@ type Genesis struct {
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
 		g.block = NewBlock(nil, nil, nil, nil, nil, g.Timestamp)
+		if id, err := g.ID.Bytes(); err == nil {
+			g.block.SetChainID(id)
+		}
 	}
 	return g.block
 }
