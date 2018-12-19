@@ -27,7 +27,8 @@ var (
 	ErrorNoAncestor = errors.New("not found ancestor")
 	ErrBlockOrphan  = errors.New("block is ohphan, so not connected in chain")
 
-	errBlockStale = errors.New("produced block becomes stale")
+	errBlockStale     = errors.New("produced block becomes stale")
+	errInvalidChainID = errors.New("invalid chain id")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -297,6 +298,11 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 				No:   newBlock.BlockNo(),
 			},
 		}
+	}
+
+	if !newBlock.ValidChildOf(bestBlock) {
+		return fmt.Errorf("invalid chain id - best: %v, current: %v",
+			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID())
 	}
 
 	// Check consensus header validity
