@@ -67,7 +67,8 @@ type P2PConfig struct {
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 
-	NPAddMapServers []string `mapstructure:"npaddmapservers" description:"Max peer pool size"`
+	NPUsePolaris  bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
+	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 	NPPrivateNet    bool
 }
 
@@ -150,6 +151,10 @@ npaddpeers = [{{range .P2P.NPAddPeers}}
 ]
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
+npusepolaris= "{{.P2P.NPUsePolaris}}"
+npaddpolarises = [{{range .P2P.NPAddPolarises}}
+"{{.}}", {{end}}
+]
 
 [blockchain]
 # blockchain configurations

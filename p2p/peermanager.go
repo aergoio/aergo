@@ -170,7 +170,6 @@ func (pm *peerManager) Start() error {
 	// FIXME: adhoc code
 	go func() {
 		time.Sleep(time.Second * 3)
-		// TODO sl을 독립시켜야 aergomap에서도 사용할 수 있음.
 		pm.nt.SetStreamHandler(aergoP2PSub, pm.onConnect)
 
 		// addition should start after all modules are started
@@ -210,8 +209,7 @@ func (pm *peerManager) initDesignatedPeerList() {
 func (pm *peerManager) runManagePeers() {
 	initialAddrDelay := time.Second * 20
 	initialTimer := time.NewTimer(initialAddrDelay)
-	addrDuration := time.Minute * 5
-	addrTicker := time.NewTicker(addrDuration)
+	addrTicker := time.NewTicker(DiscoveryQueryInterval)
 MANLOOP:
 	for {
 		select {
@@ -428,11 +426,13 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 	if pm.hasEnoughPeers() {
 		return
 	}
-	pm.logger.Debug().Msg("Sending map query to aergomap")
-	pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: 100})
+	if pm.conf.NPUsePolaris {
+		pm.logger.Debug().Msg("Sending map query to polaris")
+		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
+	}
 
 	for _, remotePeer := range pm.remotePeers {
-		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
+		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: MaxAddrListSizePeer, Offset: 0})
 	}
 }
 

@@ -23,23 +23,26 @@ import (
 	"time"
 )
 
-// subprotocol for aergomap
+// subprotocol for polaris
 const (
 	MapQuery p2p.SubProtocol = 0x0100 + iota
 	MapResponse
 )
 
 const (
-	DefaultMaxLimit = 100
+	DefaultMaxLimit = 500
+
 )
 
 var (
+	// 89.15 is floor of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/main.map.aergo.io/tcp/7846/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/polaris.aergo.io/tcp/8915/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
 
+	// 89.16 is ceiling of declination of Polaris
 	TestnetMapServer = []string{
-		"/dns/test.map.aergo.io/tcp/7846/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
 )
 
@@ -80,30 +83,34 @@ func NewMapService(cfg *config.P2PConfig, ntc p2p.NTContainer, listen bool) *Pee
 }
 
 func (pms *PeerMapService) initializeMapServers(cfg *config.P2PConfig) {
-	// private network use custom aergomap only
-	if !pms.PrivateNet {
-		// TODO select default built-in servers
-		servers := TestnetMapServer
-		for _, addrStr := range servers {
+	if cfg.NPUsePolaris {
+		// private network does not use public polaris
+		if !pms.PrivateNet {
+			// TODO select default built-in servers
+			servers := TestnetMapServer
+			for _, addrStr := range servers {
+				meta, err := p2p.FromMultiAddrString(addrStr)
+				if err != nil {
+					pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in base setting ")
+					continue
+				}
+				pms.mapServers = append(pms.mapServers, meta)
+			}
+		}
+		for _, addrStr := range cfg.NPAddPolarises {
 			meta, err := p2p.FromMultiAddrString(addrStr)
 			if err != nil {
-				pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid aergomap server address in base setting ")
+				pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in config file ")
 				continue
 			}
 			pms.mapServers = append(pms.mapServers, meta)
 		}
-	}
-	for _, addrStr := range cfg.NPAddMapServers {
-		meta, err := p2p.FromMultiAddrString(addrStr)
-		if err != nil {
-			pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid aergomap server address in config file ")
-			continue
-		}
-		pms.mapServers = append(pms.mapServers, meta)
-	}
 
-	if len(pms.mapServers) == 0 {
-		pms.Logger.Warn().Msg("no active aergomap server found. using map service is disabled")
+		if len(pms.mapServers) == 0 {
+			pms.Logger.Warn().Msg("no active polaris server found. node discovery by polaris is disabled")
+		}
+	} else {
+		pms.Logger.Info().Msg("node discovery by polaris is disabled configuration.")
 	}
 }
 
@@ -112,14 +119,14 @@ func (pms *PeerMapService) BeforeStart() {}
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
 	if pms.listen {
-		pms.nt.SetStreamHandler(p2p.AergoMapSub, pms.onConnect)
+		pms.nt.SetStreamHandler(p2p.PolarisMapSub, pms.onConnect)
 	}
 }
 
 func (pms *PeerMapService) BeforeStop() {
 	if pms.listen {
 		if pms.nt != nil {
-			pms.nt.RemoveStreamHandler(p2p.AergoMapSub)
+			pms.nt.RemoveStreamHandler(p2p.PolarisMapSub)
 		}
 	}
 }
@@ -281,7 +288,7 @@ func (pms *PeerMapService) queryPeers(msg *message.MapQueryMsg) *message.MapQuer
 	}
 	err := error(nil)
 	if succ == 0 {
-		err = fmt.Errorf("all aergomap are down")
+		err = fmt.Errorf("all servers of polaris are down")
 	}
 	pms.Logger.Debug().Int("peer_cnt",len(resultPeers)).Msg("Got map response and send back")
 	resp := &message.MapQueryRsp{Peers: resultPeers, Err: err}
@@ -289,7 +296,7 @@ func (pms *PeerMapService) queryPeers(msg *message.MapQueryMsg) *message.MapQuer
 }
 
 func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pms.nt.GetOrCreateStream(mapServerMeta, p2p.AergoMapSub)
+	s, err := pms.nt.GetOrCreateStream(mapServerMeta, p2p.PolarisMapSub)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +330,7 @@ func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash 
 func (pms *PeerMapService) sendRequest(status *types.Status, mapServerMeta p2p.PeerMeta, register bool, size int, wt p2p.MsgWriter) error {
 	msgID := p2p.NewMsgID()
 	queryReq := &types.MapQuery{Status:status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
-	respMsg, err := createV030Message(msgID, p2p.MsgID(uuid.Nil), MapResponse, queryReq)
+	respMsg, err := createV030Message(msgID, p2p.MsgID(uuid.Nil), MapQuery, queryReq)
 	if err != nil {
 		return err
 	}

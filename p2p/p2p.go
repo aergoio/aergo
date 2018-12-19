@@ -230,7 +230,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		}
 	case *message.MapQueryRsp:
 		if msg.Err != nil {
-			p2ps.Logger.Info().Err(msg.Err).Msg("Aergomap returned error")
+			p2ps.Logger.Info().Err(msg.Err).Msg("polaris returned error")
 		} else {
 			if len(msg.Peers) > 0 {
 				p2ps.checkAndAddPeerAddresses(msg.Peers)
