@@ -444,9 +444,7 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if contractId == nil {
-		cStr := C.CString(stateSet.curContract.callState.ctrState.GetBalanceBigInt().String())
-		C.Bset(L, cStr)
-		C.free(unsafe.Pointer(cStr))
+		luaPushStr(L, stateSet.curContract.callState.ctrState.GetBalanceBigInt().String())
 		return 0
 	}
 	ecid := C.GoString(contractId)
@@ -471,13 +469,9 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 			luaPushStr(L, "[Contract.LuaGetBalance]getAccount Error :"+err.Error())
 			return -1
 		}
-		cStr := C.CString(as.GetBalanceBigInt().String())
-		C.Bset(L, cStr)
-		C.free(unsafe.Pointer(cStr))
+		luaPushStr(L, as.GetBalanceBigInt().String())
 	} else {
-		cStr := C.CString(callState.curState.GetBalanceBigInt().String())
-		C.Bset(L, cStr)
-		C.free(unsafe.Pointer(cStr))
+		luaPushStr(L, callState.curState.GetBalanceBigInt().String())
 	}
 
 	return 0
@@ -522,9 +516,7 @@ func LuaGetContractId(L *LState, service *C.int) {
 func LuaGetAmount(L *LState, service *C.int) {
 	stateSet := curStateSet[*service]
 
-	cStr := C.CString(stateSet.curContract.amount.String())
-	C.Bset(L, cStr)
-	C.free(unsafe.Pointer(cStr))
+	luaPushStr(L, stateSet.curContract.amount.String())
 }
 
 //export LuaGetOrigin
