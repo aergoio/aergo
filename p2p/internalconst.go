@@ -36,6 +36,13 @@ const (
 	AddBlockWaitTime = time.Second * 10
 )
 
+// constants for node discovery
+const (
+	DiscoveryQueryInterval = time.Minute*5
+
+	MaxAddrListSizePolaris = 200
+	MaxAddrListSizePeer = 50
+)
 
 // constants for peer internal operations
 const (

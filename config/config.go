@@ -87,6 +87,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPAddPeers:      nil,
 		NPMaxPeers:      100,
 		NPPeerPool:      100,
+		NPUsePolaris:    true,
 	}
 }
 

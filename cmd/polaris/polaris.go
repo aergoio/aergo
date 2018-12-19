@@ -33,9 +33,9 @@ func main() {
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "aergomap",
-		Short: "Aergo Map service",
-		Long:  "Aergo peer map service for providing peer addresses to connect.",
+		Use:   "polaris",
+		Short: "Polaris node discovery service",
+		Long:  "Polaris node discovery service for providing peer addresses to connect.",
 		Run:   rootRun,
 	}
 	homePath       string
@@ -99,8 +99,8 @@ func configureZipkin() {
 
 func rootRun(cmd *cobra.Command, args []string) {
 
-	svrlog = log.NewLogger("asvr")
-	svrlog.Info().Msg("AERGO MAP STARTED")
+	svrlog = log.NewLogger("polaris")
+	svrlog.Info().Msg("POLARIS STARTED")
 
 	configureZipkin()
 
