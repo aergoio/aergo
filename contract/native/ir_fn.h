@@ -27,7 +27,11 @@ struct ir_fn_s {
 
     array_t params;
     array_t locals;
+
     array_t bbs;
+
+    ir_bb_t *entry_bb;
+    ir_bb_t *exit_bb;
 };
 
 ir_fn_t *fn_new(ast_id_t *id);

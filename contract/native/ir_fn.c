@@ -18,6 +18,9 @@ fn_new(ast_id_t *id)
     array_init(&fn->locals);
     array_init(&fn->bbs);
 
+    fn->entry_bb = NULL;
+    fn->exit_bb = NULL;
+
     return fn;
 }
 

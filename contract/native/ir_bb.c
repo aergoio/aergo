@@ -12,16 +12,16 @@ bb_new(void)
 {
     ir_bb_t *bb = xmalloc(sizeof(ir_bb_t));
 
-    array_init(&bb->instrs);
+    array_init(&bb->stmts);
     array_init(&bb->brs);
 
     return bb;
 }
 
 void
-bb_add_instr(ir_bb_t *bb, ast_stmt_t *stmt)
+bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
 {
-    array_add_last(&bb->instrs, stmt);
+    array_add_last(&bb->stmts, stmt);
 }
 
 static ir_br_t *

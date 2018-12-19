@@ -21,7 +21,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         return;
     }
 
-    bb_add_instr(trans->bb, stmt);
+    bb_add_stmt(trans->bb, stmt);
 }
 
 static void
@@ -170,7 +170,7 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
-    bb_add_instr(trans->bb, stmt);
+    bb_add_stmt(trans->bb, stmt);
     bb_add_branch(trans->bb, NULL, trans->exit_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
@@ -215,7 +215,7 @@ stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_ddl(trans_t *trans, ast_stmt_t *stmt)
 {
-    bb_add_instr(trans->bb, stmt);
+    bb_add_stmt(trans->bb, stmt);
 }
 
 static void
@@ -245,7 +245,7 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
         break;
 
     case STMT_EXP:
-        bb_add_instr(trans->bb, stmt);
+        bb_add_stmt(trans->bb, stmt);
         break;
 
     case STMT_ASSIGN:

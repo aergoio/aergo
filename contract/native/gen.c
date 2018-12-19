@@ -20,7 +20,9 @@ gen_init(gen_t *gen, BinaryenModuleRef module, ir_t *ir, flag_t flag, char *path
     char *ptr;
 
     gen->flag = flag;
+
     gen->module = module;
+    gen->relooper = NULL;
 
     strcpy(gen->path, path);
 

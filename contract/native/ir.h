@@ -10,6 +10,7 @@
 
 #include "array.h"
 #include "ast_id.h"
+#include "binaryen-c.h"
 
 typedef struct ir_s {
     array_t globals;

@@ -40,6 +40,7 @@ set(libascl_SRCS
     trans_stmt.c
     gen.c
     gen_fn.c
+    gen_bb.c
     gen_id.c
     gen_blk.c
     gen_stmt.c
