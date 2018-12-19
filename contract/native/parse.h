@@ -33,6 +33,9 @@ typedef struct parse_s {
 
     /* string literal buffer */
     strbuf_t buf;
+
+    /* array of label identifier */
+    array_t labels;
 } parse_t;
 
 #define YYLTYPE             src_pos_t

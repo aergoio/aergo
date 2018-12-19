@@ -16,6 +16,7 @@
 
 #define AST             (*parse->ast)
 #define ROOT            AST->root
+#define LABELS          (&parse->labels)
 
 extern int yylex(YYSTYPE *yylval, YYLTYPE *yylloc, void *yyscanner);
 extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
@@ -536,6 +537,11 @@ constructor:
     identifier '(' param_list_opt ')' block
     {
         $$ = id_new_fn($1, MOD_PUBLIC | MOD_CTOR, $3, NULL, $5, &@$);
+
+        if ($5 != NULL && !is_empty_array(LABELS)) {
+            id_join_last(&$5->ids, LABELS);
+            array_reset(LABELS);
+        }
     }
 ;
 
@@ -608,6 +614,11 @@ function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
         $$ = id_new_fn($3, $1, $5, $7, $8, &@3);
+
+        if ($8 != NULL && !is_empty_array(LABELS)) {
+            id_join_last(&$8->ids, LABELS);
+            array_reset(LABELS);
+        }
     }
 ;
 
@@ -722,6 +733,8 @@ label_stmt:
     {
         $$ = $3;
         $$->label_id = id_new_label($1, $3, &@1);
+
+        array_add_last(LABELS, $$->label_id);
     }
 ;
 

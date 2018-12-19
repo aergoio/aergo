@@ -157,3 +157,12 @@ contract test {
     }
     func f1() int { return 1; }
 }
+
+@test(goto_across_function)
+@error(ERROR_UNDEFINED_LABEL)
+contract test {
+    test() { }
+    func f1() { here: ; }
+    func f2() { goto here; }
+}
+

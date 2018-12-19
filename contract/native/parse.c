@@ -38,6 +38,7 @@ parse_init(parse_t *parse, char *path, flag_t flag, strbuf_t *src, ast_t **ast)
     src_pos_init(&parse->adj_pos, parse->src, path);
 
     strbuf_init(&parse->buf);
+    array_init(&parse->labels);
 }
 
 void

@@ -449,6 +449,11 @@ contract test {
     test() { goto here; here: ; }
 }
 
+@test(goto_innermost_block)
+contract test {
+    test() { goto here; { here: ; } }
+}
+
 @test(duplicated_label)
 @error(ERROR_DUPLICATED_ID)
 contract test {
