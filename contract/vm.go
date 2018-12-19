@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -31,9 +33,13 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const MaxStateSet = 20
+
 var (
-	ctrLog      *log.Logger
-	curStateSet [2]*StateSet
+	ctrLog         *log.Logger
+	curStateSet    [MaxStateSet]*StateSet
+	lastQueryIndex int
+	querySync      sync.Mutex
 )
 
 type CallState struct {
@@ -93,6 +99,7 @@ type Executor struct {
 
 func init() {
 	ctrLog = log.NewLogger("contract")
+	lastQueryIndex = ChainService
 }
 
 func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64, amount *big.Int) *ContractInfo {
@@ -136,7 +143,7 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 
 func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 	contractState *state.ContractState, node string, confirmed bool,
-	rp uint64, service int) *StateSet {
+	rp uint64) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: contractState.State}
 
@@ -146,7 +153,6 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 		node:        node,
 		confirmed:   confirmed,
 		isQuery:     true,
-		service:     C.int(service),
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[types.ToAccountID(receiverId)] = callState
@@ -627,6 +633,30 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 
 }
 
+func setQueryContext(stateSet *StateSet) {
+	querySync.Lock()
+	defer querySync.Unlock()
+	startIndex := lastQueryIndex
+	index := startIndex
+	for {
+		index++
+		if index == MaxStateSet {
+			index = ChainService + 1
+		}
+		if curStateSet[index] == nil {
+			stateSet.service = C.int(index)
+			curStateSet[index] = stateSet
+			lastQueryIndex = index
+			return
+		}
+		if index == startIndex {
+			querySync.Unlock()
+			time.Sleep(100 * time.Millisecond)
+			querySync.Lock()
+		}
+	}
+}
+
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
@@ -643,12 +673,12 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	var ce *Executor
 
 	stateSet := NewContextQuery(bs, contractAddress, contractState, "", true,
-		contractState.SqlRecoveryPoint, ChainService)
+		contractState.SqlRecoveryPoint)
 
+	setQueryContext(stateSet)
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
-	curStateSet[stateSet.service] = stateSet
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 	defer func() {
@@ -657,6 +687,8 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 		}
 	}()
 	ce.call(&ci, nil)
+
+	curStateSet[stateSet.service] = nil
 	return []byte(ce.jsonRet), ce.err
 }
 
