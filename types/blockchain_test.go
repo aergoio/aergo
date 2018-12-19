@@ -1,9 +1,13 @@
 package types
 
 import (
-	"github.com/minio/sha256-simd"
+	fmt "fmt"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/minio/sha256-simd"
 
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/stretchr/testify/assert"
@@ -147,4 +151,13 @@ func TestUpdateAvgVerifyTime(t *testing.T) {
 		expAvg = sum / size
 		assert.Equal(t, expAvg, int64(newAvg))
 	}
+}
+
+func TestSignFieldPosition(t *testing.T) {
+	signIdx := getLastIndexOfBH()
+
+	bh := &BlockHeader{}
+	v := reflect.Indirect(reflect.ValueOf(bh))
+	fmt.Println("field next to sign:", v.Type().Field(signIdx+1).Name)
+	assert.True(t, strings.Contains(v.Type().Field(signIdx+1).Name, "XXX"))
 }
