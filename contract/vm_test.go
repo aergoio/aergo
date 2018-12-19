@@ -1741,7 +1741,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `100` {
+	if receipt.GetRet() != `"100"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
@@ -2024,7 +2024,7 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "18")
+	err = bc.Query("counter", `{"Name":"getBalance", "Args":[]}`, "", "\"18\"")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2663,7 +2663,7 @@ abi.register(test, sendS, testBignum)
 		t.Error(err)
 	}
 	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `25000000000` {
+	if receipt.GetRet() != `"25000000000"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
@@ -2672,7 +2672,7 @@ abi.register(test, sendS, testBignum)
 		t.Error(err)
 	}
 	receipt = bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `23999900001` {
+	if receipt.GetRet() != `"23999900001"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	tx = NewLuaTxCall("ktlee", "bigNum", 0, `{"Name":"testBignum", "Args":[]}`)
