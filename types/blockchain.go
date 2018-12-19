@@ -279,6 +279,20 @@ func (block *Block) SetChainID(id []byte) {
 	block.Header.ChainID = id
 }
 
+// ValidChildOf reports whether block is a varid child of parent.
+func (block *Block) ValidChildOf(parent *Block) bool {
+	parChainID := parent.GetHeader().GetChainID()
+	curChainID := block.GetHeader().GetChainID()
+
+	// empty chain id case: an older verion of block has no chain id in its
+	// block header.
+	if len(parChainID) == 0 && len(curChainID) == 0 {
+		return true
+	}
+
+	return bytes.Compare(parChainID, curChainID) == 0
+}
+
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed
 // by block.
 func (block *Block) Confirms() BlockNo {
