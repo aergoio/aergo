@@ -32,6 +32,9 @@ trans(ast_t *ast, flag_t flag, ir_t **ir)
     int i;
     trans_t trans;
 
+    if (has_error())
+        return;
+
     trans_init(&trans, flag);
 
     for (i = 0; i < array_size(&ast->root->ids); i++) {

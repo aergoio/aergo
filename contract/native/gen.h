@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "ast.h"
+#include "ir.h"
 #include "dsgmt.h"
 #include "binaryen-c.h"
 
@@ -21,7 +21,6 @@ typedef struct gen_s {
     flag_t flag;
     char path[PATH_MAX_LEN + 5];
 
-    ast_blk_t *root;
     BinaryenModuleRef module;
 
     dsgmt_t *dsgmt;
@@ -39,6 +38,6 @@ typedef struct gen_s {
     char *buf;
 } gen_t;
 
-void gen(ast_t *ast, flag_t flag, char *path);
+void gen(ir_t *ir, flag_t flag, char *path);
 
 #endif /* ! _GEN_H */

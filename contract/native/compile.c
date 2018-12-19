@@ -9,6 +9,8 @@
 #include "ast.h"
 #include "parse.h"
 #include "check.h"
+#include "ir.h"
+#include "trans.h"
 #include "gen.h"
 #include "strbuf.h"
 
@@ -27,16 +29,18 @@ compile(char *path, flag_t flag)
 
     if (ast != NULL) {
         /* empty contract can be null */
-        check(ast, flag);
+        ir_t *ir = NULL;
 
-        if (is_no_error())
-            gen(ast, flag, path);
+        check(ast, flag);
+        trans(ast, flag, &ir);
+
+        gen(ir, flag, path);
     }
 
     if (flag_off(flag, FLAG_TEST))
         error_dump();
 
-    return is_no_error() ? EXIT_SUCCESS : EXIT_FAILURE;
+    return has_error();
 }
 
 /* end of compile.c */

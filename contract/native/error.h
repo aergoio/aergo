@@ -22,7 +22,7 @@
 #define error_first()           error_item(0)
 #define error_last()            error_item(error_size())
 
-#define is_no_error()           (error_size() == 0)
+#define has_error()             (error_size() > 0)
 
 typedef struct error_s {
     ec_t code;

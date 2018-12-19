@@ -6,10 +6,8 @@
 #include "common.h"
 
 #include "util.h"
-#include "ast_blk.h"
-#include "gen_id.h"
-#include "gen_meta.h"
-#include "gen_util.h"
+#include "ir.h"
+#include "gen_fn.h"
 
 #include "gen.h"
 
@@ -17,12 +15,11 @@
 #define WASM_MAX_LEN    1024 * 1024
 
 static void
-gen_init(gen_t *gen, BinaryenModuleRef module, ast_t *ast, flag_t flag, char *path)
+gen_init(gen_t *gen, BinaryenModuleRef module, ir_t *ir, flag_t flag, char *path)
 {
     char *ptr;
 
     gen->flag = flag;
-    gen->root = ast->root;
     gen->module = module;
 
     strcpy(gen->path, path);
@@ -49,18 +46,18 @@ gen_init(gen_t *gen, BinaryenModuleRef module, ast_t *ast, flag_t flag, char *pa
 }
 
 void
-gen(ast_t *ast, flag_t flag, char *path)
+gen(ir_t *ir, flag_t flag, char *path)
 {
     int i, n;
     gen_t gen;
     BinaryenModuleRef module;
 
-    if (ast == NULL)
+    if (ir == NULL)
         return;
 
     module = BinaryenModuleCreate();
 
-    gen_init(&gen, module, ast, flag, path);
+    gen_init(&gen, module, ir, flag, path);
 
     BinaryenSetDebugInfo(1);
     //BinaryenSetAPITracing(1);
@@ -70,8 +67,8 @@ gen(ast_t *ast, flag_t flag, char *path)
         //BinaryenModuleInterpret(gen.module);
     }
     else {
-        for (i = 0; i < array_size(&gen.root->ids); i++) {
-            id_gen(&gen, array_get(&gen.root->ids, i, ast_id_t));
+        for (i = 0; i < array_size(&ir->fns); i++) {
+            fn_gen(&gen, array_get(&ir->fns, i, ir_fn_t));
         }
 
         BinaryenSetMemory(module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",

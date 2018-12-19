@@ -127,13 +127,12 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
      */
 
     if (cond_exp != NULL) {
-        ast_exp_t *not_exp;
-        ast_stmt_t *break_stmt;
+        meta_t *cond_meta = &cond_exp->meta;
 
-        not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
+        CHECK(exp_check(check, cond_exp));
 
-        break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
-        array_add_first(&blk->stmts, break_stmt);
+        if (!is_bool_type(cond_meta))
+            RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
     }
 
     if (stmt->u_loop.init_ids != NULL) {
@@ -316,8 +315,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 
             if (cond_exp != NULL)
                 case_stmt->u_case.val_exp =
-                    exp_new_binary(i == 0 ? OP_NE : OP_EQ, cond_exp, val_exp,
-                                   &val_exp->pos);
+                    exp_new_binary(OP_EQ, cond_exp, val_exp, &val_exp->pos);
         }
     }
 

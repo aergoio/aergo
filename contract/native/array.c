@@ -75,9 +75,11 @@ array_sadd(array_t *array, void *item, int (*cmp_fn)(const void *, const void *)
 void
 array_join(array_t *dest, int idx, array_t *src)
 {
-    ASSERT(src != NULL);
     ASSERT(dest != NULL);
     ASSERT2(idx >= 0 && idx <= dest->size, idx, dest->size);
+
+    if (src == NULL)
+        return;
 
     if (src->size + dest->size > dest->cap)
         array_extend(dest, src->cap);
