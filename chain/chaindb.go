@@ -206,7 +206,8 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 
 	tx.Commit()
 
-	logger.Info().Msg("Genesis Block Added")
+	logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("chain id (raw)",
+		enc.ToString(block.GetHeader().GetChainID())).Msg("Genesis Block Added")
 	return nil
 }
 

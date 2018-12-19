@@ -171,18 +171,23 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 
 // NewBlock represents to create a block to store transactions.
 func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
-	var prevBlockHash []byte
-	var blockNo BlockNo
+	var (
+		chainID       []byte
+		prevBlockHash []byte
+		blockNo       BlockNo
+	)
 
 	if prevBlock != nil {
 		prevBlockHash = prevBlock.BlockHash()
 		blockNo = prevBlock.Header.BlockNo + 1
+		chainID = prevBlock.GetHeader().GetChainID()
 	}
 
 	body := BlockBody{
 		Txs: txs,
 	}
 	header := BlockHeader{
+		ChainID:         chainID,
 		PrevBlockHash:   prevBlockHash,
 		BlockNo:         blockNo,
 		Timestamp:       ts,
@@ -267,6 +272,11 @@ func (block *Block) BlockID() BlockID {
 // PrevBlockID converts parent block hash ([]byte) to BlockID.
 func (block *Block) PrevBlockID() BlockID {
 	return ToBlockID(block.GetHeader().GetPrevBlockHash())
+}
+
+// SetChainID sets id to block.ChainID
+func (block *Block) SetChainID(id []byte) {
+	block.Header.ChainID = id
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed
