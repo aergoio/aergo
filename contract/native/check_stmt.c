@@ -440,13 +440,16 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_goto(check_t *check, ast_stmt_t *stmt)
 {
-    ast_id_t *label_id;
+    ast_id_t *fn_id;
 
     ASSERT1(is_goto_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_goto.label != NULL);
 
-    label_id = blk_search_label(check->blk, stmt->u_goto.label);
-    if (label_id == NULL)
+    fn_id = check->fn_id;
+    ASSERT(fn_id != NULL);
+
+    stmt->u_goto.jump_id = blk_search_label(fn_id->u_fn.blk, stmt->u_goto.label);
+    if (stmt->u_goto.jump_id == NULL)
         RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 
     return NO_ERROR;

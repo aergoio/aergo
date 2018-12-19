@@ -171,7 +171,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     bb_add_branch(trans->bb, NULL, trans->exit_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
-    trans->bb = bb_new();
+    trans->bb = NULL;
 }
 
 static void
@@ -182,7 +182,7 @@ stmt_trans_continue(trans_t *trans, ast_stmt_t *stmt)
     bb_add_branch(trans->bb, NULL, trans->cont_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
-    trans->bb = bb_new();
+    trans->bb = NULL;
 }
 
 static void
@@ -193,13 +193,20 @@ stmt_trans_break(trans_t *trans, ast_stmt_t *stmt)
     bb_add_branch(trans->bb, NULL, trans->break_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
-    trans->bb = bb_new();
+    trans->bb = NULL;
 }
 
 static void
 stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
 {
-    /* XXX: branch to label_bb */
+    ast_id_t *jump_id = stmt->u_goto.jump_id;
+
+    ASSERT(jump_id->stmt->label_bb != NULL);
+
+    bb_add_branch(trans->bb, NULL, jump_id->stmt->label_bb);
+
+    fn_add_basic_blk(trans->fn, trans->bb);
+    trans->bb = NULL;
 }
 
 static void
@@ -218,18 +225,17 @@ stmt_trans_blk(trans_t *trans, ast_stmt_t *stmt)
 void
 stmt_trans(trans_t *trans, ast_stmt_t *stmt)
 {
-    if (stmt->label_id != NULL) {
-        ir_bb_t *next_bb = bb_new();
-
+    if (stmt->label_bb != NULL) {
         if (trans->bb != NULL) {
-            bb_add_branch(trans->bb, NULL, next_bb);
+            bb_add_branch(trans->bb, NULL, stmt->label_bb);
             fn_add_basic_blk(trans->fn, trans->bb);
         }
 
-        trans->bb = next_bb;
+        trans->bb = stmt->label_bb;
     }
-
-    ASSERT(trans->bb != NULL);
+    else if (trans->bb == NULL) {
+        trans->bb = bb_new();
+    }
 
     switch (stmt->kind) {
     case STMT_NULL:

@@ -296,7 +296,7 @@ id_check_fn(check_t *check, ast_id_t *id)
 }
 
 static int
-id_check_contract(check_t *check, ast_id_t *id)
+id_check_cont(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_cont_id(id), id->kind);
 
@@ -311,6 +311,15 @@ id_check_contract(check_t *check, ast_id_t *id)
     id->meta.name = id->name;
 
     check->cont_id = NULL;
+
+    return NO_ERROR;
+}
+
+static int
+id_check_label(check_t *check, ast_id_t *id)
+{
+    ASSERT1(is_label_id(id), id->kind);
+    ASSERT(id->u_label.stmt != NULL);
 
     return NO_ERROR;
 }
@@ -338,10 +347,11 @@ id_check(check_t *check, ast_id_t *id)
         break;
 
     case ID_CONTRACT:
-        id_check_contract(check, id);
+        id_check_cont(check, id);
         break;
 
     case ID_LABEL:
+        id_check_label(check, id);
         break;
 
     default:

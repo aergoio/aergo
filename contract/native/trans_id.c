@@ -49,6 +49,12 @@ id_trans_cont(trans_t *trans, ast_id_t *id)
         blk_trans(trans, id->u_cont.blk);
 }
 
+static void
+id_trans_label(trans_t *trans, ast_id_t *id)
+{
+    id->u_label.stmt->label_bb = bb_new();
+}
+
 void
 id_trans(trans_t *trans, ast_id_t *id)
 {
@@ -74,6 +80,7 @@ id_trans(trans_t *trans, ast_id_t *id)
         break;
 
     case ID_LABEL:
+        id_trans_label(trans, id);
         break;
 
     default:

@@ -732,9 +732,7 @@ label_stmt:
     identifier ':' statement
     {
         $$ = $3;
-        $$->label_id = id_new_label($1, $3, &@1);
-
-        array_add_last(LABELS, $$->label_id);
+        array_add_last(LABELS, id_new_label($1, $3, &@1));
     }
 ;
 

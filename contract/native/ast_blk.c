@@ -106,14 +106,12 @@ blk_search_label(ast_blk_t *blk, char *name)
     if (blk == NULL)
         return NULL;
 
-    do {
-        for (i = 0; i < array_size(&blk->ids); i++) {
-            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+    for (i = 0; i < array_size(&blk->ids); i++) {
+        ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
 
-            if (is_label_id(id) && strcmp(id->name, name) == 0)
-                return id;
-        }
-    } while ((blk = blk->up) != NULL);
+        if (is_label_id(id) && strcmp(id->name, name) == 0)
+            return id;
+    }
 
     return NULL;
 }

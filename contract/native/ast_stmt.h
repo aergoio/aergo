@@ -47,6 +47,11 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
+#ifndef _IR_BB_T
+#define _IR_BB_T
+typedef struct ir_bb_s ir_bb_t;
+#endif /* ! _IR_BB_T */
+
 typedef struct stmt_exp_s {
     ast_exp_t *exp;
 } stmt_exp_t;
@@ -95,6 +100,7 @@ typedef struct stmt_jump_s {
 
 typedef struct stmt_goto_s {
     char *label;
+    ast_id_t *jump_id;
 } stmt_goto_t;
 
 typedef struct stmt_ddl_s {
@@ -109,7 +115,6 @@ struct ast_stmt_s {
     AST_NODE_DECL;
 
     stmt_kind_t kind;
-    ast_id_t *label_id;
 
     union {
         stmt_exp_t u_exp;
@@ -124,6 +129,8 @@ struct ast_stmt_s {
         stmt_ddl_t u_ddl;
         stmt_blk_t u_blk;
     };
+
+    ir_bb_t *label_bb;
 };
 
 ast_stmt_t *stmt_new_null(src_pos_t *pos);
