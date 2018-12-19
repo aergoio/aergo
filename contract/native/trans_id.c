@@ -6,7 +6,8 @@
 #include "common.h"
 
 #include "array.h"
-
+#include "ir_fn.h"
+#include "ir_bb.h"
 #include "trans_blk.h"
 
 #include "trans_id.h"

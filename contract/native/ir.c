@@ -21,7 +21,7 @@ ir_new(void)
 void 
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
-    array_add_tail(&ir->globals, id);
+    array_add_last(&ir->globals, id);
 }
 
 /* end of ir.c */

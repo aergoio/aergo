@@ -31,6 +31,13 @@ set(libascl_SRCS
     check_stmt.c
     check_exp.c
     check_meta.c
+    ir.c
+    ir_fn.c
+    ir_bb.c
+    trans.c
+    trans_id.c
+    trans_blk.c
+    trans_stmt.c
     gen.c
     gen_id.c
     gen_blk.c

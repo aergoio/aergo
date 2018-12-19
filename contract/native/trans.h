@@ -11,6 +11,16 @@
 #include "ast.h"
 #include "ir.h"
 
+#ifndef _IR_FN_T
+#define _IR_FN_T
+typedef struct ir_fn_s ir_fn_t;
+#endif /* ! _IR_FN_T */
+
+#ifndef _IR_BB_T
+#define _IR_BB_T
+typedef struct ir_bb_s ir_bb_t;
+#endif /* ! _IR_BB_T */
+
 typedef struct trans_s {
     flag_t flag;
 

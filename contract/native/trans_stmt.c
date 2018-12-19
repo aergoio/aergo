@@ -5,8 +5,10 @@
 
 #include "common.h"
 
+#include "ast_exp.h"
+#include "ir_bb.h"
+#include "ir_fn.h"
 #include "trans_id.h"
-#include "trans_exp.h"
 #include "trans_blk.h"
 
 #include "trans_stmt.h"
@@ -14,7 +16,7 @@
 static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
-    if (is_tuple_exp(l_exp)) {
+    if (is_tuple_exp(stmt->u_assign.l_exp)) {
         ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
         return;
     }
@@ -28,6 +30,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     int i;
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
+    array_t *elif_stmts = &stmt->u_if.elif_stmts;
 
     trans->bb = bb_new();
 
@@ -201,9 +204,9 @@ stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_id_t *jump_id = stmt->u_goto.jump_id;
 
-    ASSERT(jump_id->stmt->label_bb != NULL);
+    ASSERT(jump_id->u_label.stmt->label_bb != NULL);
 
-    bb_add_branch(trans->bb, NULL, jump_id->stmt->label_bb);
+    bb_add_branch(trans->bb, NULL, jump_id->u_label.stmt->label_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
     trans->bb = NULL;
@@ -262,7 +265,6 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
         break;
 
     case STMT_CASE:
-        stmt_trans_case(trans, stmt);
         break;
 
     case STMT_RETURN:
