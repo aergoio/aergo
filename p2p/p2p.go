@@ -8,6 +8,7 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -41,6 +42,8 @@ type P2P struct {
 	mf     moFactory
 	signer msgSigner
 	ca     types.ChainAccessor
+
+	mutex sync.Mutex
 }
 
 type HandlerFactory interface {
@@ -125,7 +128,10 @@ func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
-	p2ps.nt.Start()
+	p2ps.mutex.Lock()
+	nt := p2ps.nt
+	nt.Start()
+	p2ps.mutex.Unlock()
 	if err := p2ps.pm.Start(); err != nil {
 		panic("Failed to start p2p component")
 	}
@@ -138,7 +144,10 @@ func (p2ps *P2P) BeforeStop() {
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
 	}
-	p2ps.nt.Stop()
+	p2ps.mutex.Lock()
+	nt := p2ps.nt
+	p2ps.mutex.Unlock()
+	nt.Stop()
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
@@ -148,6 +157,8 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 
 
 func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
+	p2ps.mutex.Lock()
+	defer p2ps.mutex.Unlock()
 	return p2ps.nt
 }
 
@@ -165,6 +176,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	// connect managers each other
 	reconMan.pm = peerMan
 
+	p2ps.mutex.Lock()
 	p2ps.signer = signer
 	p2ps.nt = netTransport
 	p2ps.mf = mf
@@ -172,6 +184,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	p2ps.mutex.Unlock()
 }
 
 // Receive got actor message and then handle it.
@@ -208,6 +221,39 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks: lastBlks, States: states})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
+
+	case *message.MapQueryMsg:
+		bestBlock, err := p2ps.GetChainAccessor().GetBestBlock()
+		if err == nil {
+			msg.BestBlock=bestBlock
+			p2ps.SendRequest(message.MapSvc, msg)
+		}
+	case *message.MapQueryRsp:
+		if msg.Err != nil {
+			p2ps.Logger.Info().Err(msg.Err).Msg("polaris returned error")
+		} else {
+			if len(msg.Peers) > 0 {
+				p2ps.checkAndAddPeerAddresses(msg.Peers)
+			}
+		}
+	}
+}
+
+
+// TODO need refactoring. this code is copied from subprotcoladdrs.go
+func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
+	selfPeerID := p2ps.pm.SelfNodeID()
+	peerMetas := make([]PeerMeta, 0, len(peers))
+	for _, rPeerAddr := range peers {
+		rPeerID := peer.ID(rPeerAddr.PeerID)
+		if selfPeerID == rPeerID {
+			continue
+		}
+		meta := FromPeerAddress(rPeerAddr)
+		peerMetas = append(peerMetas, meta)
+	}
+	if len(peerMetas) > 0 {
+		p2ps.pm.NotifyPeerAddressReceived(peerMetas)
 	}
 }
 

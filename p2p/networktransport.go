@@ -25,6 +25,11 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+// NTContainer can provide NetworkTransport interface.
+type NTContainer interface {
+	GetNetworkTransport() NetworkTransport
+}
+
 // NetworkTransport do manager network connection
 // TODO need refactoring. it has other role, pk management of self peer
 type NetworkTransport interface {
@@ -145,6 +150,7 @@ func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPor
 }
 
 func (sl *networkTransport) Start() error {
+	//sl.logger.Debug().Msg("Starting network transport")
 	sl.startListener()
 	return nil
 }
@@ -220,7 +226,6 @@ func (sl *networkTransport) startListener() {
 	sl.logger.Info().Str("pid", sl.SelfNodeID().Pretty()).Str("addr[0]", listens[0].String()).
 		Msg("Set self node's pid, and listening for connections")
 	sl.Host = newHost
-
 }
 
 

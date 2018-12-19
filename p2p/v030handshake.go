@@ -82,7 +82,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 		return nil, fmt.Errorf("unexpected message type")
 	}
 	statusResp := &types.Status{}
-	err = unmarshalMessage(data.Payload(), statusResp)
+	err = UnmarshalMessage(data.Payload(), statusResp)
 	if err != nil {
 		// h.logger.Warn().Err(err).Msg("Failed to decode status message")
 		return nil, err
@@ -113,7 +113,7 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	}
 
 	statusMsg := &types.Status{}
-	if err := unmarshalMessage(data.Payload(), statusMsg); err != nil {
+	if err := UnmarshalMessage(data.Payload(), statusMsg); err != nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message.")
 		return nil, err
 	}

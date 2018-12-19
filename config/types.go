@@ -54,6 +54,7 @@ type RESTConfig struct {
 
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
+
 	// N2N (peer-to-peer) network
 	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
 	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
@@ -65,6 +66,10 @@ type P2PConfig struct {
 	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect with at startup"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
+
+	NPUsePolaris  bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
+	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
+	NPPrivateNet    bool
 }
 
 // BlockchainConfig defines configurations for blockchain service
@@ -146,6 +151,10 @@ npaddpeers = [{{range .P2P.NPAddPeers}}
 ]
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
+npusepolaris= "{{.P2P.NPUsePolaris}}"
+npaddpolarises = [{{range .P2P.NPAddPolarises}}
+"{{.}}", {{end}}
+]
 
 [blockchain]
 # blockchain configurations
