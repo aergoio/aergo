@@ -90,7 +90,13 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 
     if (stmt->u_loop.blk != NULL) {
         trans->bb = loop_bb;
+        trans->cont_bb = cond_bb;
+        trans->break_bb = next_bb;
+
         blk_trans(trans, stmt->u_loop.blk);
+
+        trans->cont_bb = NULL;
+        trans->break_bb = NULL;
     }
 
     /* make loop */
@@ -137,6 +143,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
     fn_add_basic_blk(trans->fn, prev_bb);
 
+    trans->break_bb = next_bb;
+
     for (i = 0; i < array_size(&blk->stmts); i++) {
         ast_stmt_t *case_stmt = array_get(&blk->stmts, i, ast_stmt_t);
 
@@ -151,6 +159,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
         fn_add_basic_blk(trans->fn, trans->bb);
     }
 
+    trans->break_bb = NULL;
+
     trans->bb = next_bb;
 }
 
@@ -158,72 +168,38 @@ static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
     bb_add_instr(trans->bb, stmt);
+    bb_add_branch(trans->bb, NULL, trans->exit_bb);
+
+    fn_add_basic_blk(trans->fn, trans->bb);
+    trans->bb = bb_new();
 }
 
 static void
 stmt_trans_continue(trans_t *trans, ast_stmt_t *stmt)
 {
-    /* XXX: branch to cond_bb */
-    ast_blk_t *blk;
+    ASSERT(trans->cont_bb != NULL);
 
-    ASSERT1(is_continue_stmt(stmt), stmt->kind);
-    ASSERT(stmt->u_jump.cond_exp == NULL);
+    bb_add_branch(trans->bb, NULL, trans->cont_bb);
 
-    blk = blk_search(trans->blk, BLK_LOOP);
-    if (blk == NULL)
-        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
-
-    stmt->u_jump.label = blk->name;
-
-    return NO_ERROR;
+    fn_add_basic_blk(trans->fn, trans->bb);
+    trans->bb = bb_new();
 }
 
 static void
 stmt_trans_break(trans_t *trans, ast_stmt_t *stmt)
 {
-    /* XXX: branch to next_bb */
-    ast_exp_t *cond_exp;
-    ast_blk_t *blk;
+    ASSERT(trans->break_bb != NULL);
 
-    ASSERT1(is_break_stmt(stmt), stmt->kind);
+    bb_add_branch(trans->bb, NULL, trans->break_bb);
 
-    cond_exp = stmt->u_jump.cond_exp;
-
-    if (cond_exp != NULL) {
-        meta_t *cond_meta = &cond_exp->meta;
-
-        CHECK(exp_trans(trans, cond_exp));
-
-        if (!is_bool_type(cond_meta))
-            RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
-    }
-
-    blk = blk_search(trans->blk, BLK_LOOP);
-    if (blk == NULL) {
-        blk = blk_search(trans->blk, BLK_SWITCH);
-        if (blk == NULL)
-            RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
-    }
-
-    stmt->u_jump.label = blk->name;
-
-    return NO_ERROR;
+    fn_add_basic_blk(trans->fn, trans->bb);
+    trans->bb = bb_new();
 }
 
 static void
 stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
 {
     /* XXX: branch to label_bb */
-    ast_id_t *label_id;
-
-    ASSERT1(is_goto_stmt(stmt), stmt->kind);
-    ASSERT(stmt->u_goto.label != NULL);
-
-    label_id = id_search_label(trans->blk, stmt->u_goto.label);
-    if (label_id == NULL)
-        RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
-
-    return NO_ERROR;
 }
 
 static void
