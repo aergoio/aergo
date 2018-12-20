@@ -279,7 +279,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 			return err
 		}
 	*/
-	err := mp.validateTx(tx)
+	err := mp.validateTx(tx, acc)
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
@@ -419,6 +419,12 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		account := mp.getAddress(tx.GetBody().GetAccount())
+		err = key.VerifyTxWithAddress(tx, account)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -443,15 +449,7 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check tx sanity
 // check if sender has enough balance
 // check tx account is lower than known value
-func (mp *MemPool) validateTx(tx *types.Tx) error {
-	account := tx.GetBody().GetAccount()
-	if tx.NeedNameVerify() {
-		account = mp.getAddress(account)
-		err := key.VerifyTxWithAddress(tx, account)
-		if err != nil {
-			return err
-		}
-	}
+func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
