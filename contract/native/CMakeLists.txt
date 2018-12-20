@@ -45,7 +45,6 @@ set(libascl_SRCS
     gen_blk.c
     gen_stmt.c
     gen_exp.c
-    gen_meta.c
     gen_util.c
     assert.c
     error.c

@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
+#include "array.h"
 
 #define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
 #define is_exp_stmt(stmt)           ((stmt)->kind == STMT_EXP)

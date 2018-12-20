@@ -15,7 +15,7 @@
 #define WASM_MAX_LEN    1024 * 1024
 
 static void
-gen_init(gen_t *gen, BinaryenModuleRef module, ir_t *ir, flag_t flag, char *path)
+gen_init(gen_t *gen, BinaryenModuleRef module, flag_t flag, char *path)
 {
     char *ptr;
 
@@ -59,7 +59,7 @@ gen(ir_t *ir, flag_t flag, char *path)
 
     module = BinaryenModuleCreate();
 
-    gen_init(&gen, module, ir, flag, path);
+    gen_init(&gen, module, flag, path);
 
     BinaryenSetDebugInfo(1);
     //BinaryenSetAPITracing(1);
@@ -69,12 +69,14 @@ gen(ir_t *ir, flag_t flag, char *path)
         //BinaryenModuleInterpret(gen.module);
     }
     else {
+        // XXX: handle globals
+
         for (i = 0; i < array_size(&ir->fns); i++) {
             fn_gen(&gen, array_get(&ir->fns, i, ir_fn_t));
         }
 
         BinaryenSetMemory(module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
-                          (const char **)gen.dsgmt->datas, gen.dsgmt->addrs, 
+                          (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
                           gen.dsgmt->lens, gen.dsgmt->size, 0);
 
         BinaryenModuleValidate(module);
