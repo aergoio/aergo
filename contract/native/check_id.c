@@ -263,17 +263,20 @@ id_check_fn(check_t *check, ast_id_t *id)
             meta_copy(id_meta, &ret_id->meta);
         }
         else {
-            /* TODO: add API for meta_set_tuple() from ids */
+            /* TODO: add API for meta_set_tuple() from ids or do something PLZ... */
             meta_set(id_meta, TYPE_TUPLE);
 
             id_meta->elem_cnt = array_size(ret_ids);
             id_meta->elems = xmalloc(sizeof(meta_t *) * id_meta->elem_cnt);
+            id_meta->size = 0;
 
             for (i = 0; i < array_size(ret_ids); i++) {
                 ret_id = array_get(ret_ids, i, ast_id_t);
 
                 id_check_var(check, ret_id);
+
                 id_meta->elems[i] = &ret_id->meta;
+                id_meta->size += ALIGN64(ret_id->meta.size);
             }
         }
     }

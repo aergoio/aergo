@@ -139,6 +139,26 @@ contract test {
     }
 }
 
+@test(return_value_assignment)
+contract test {
+    struct s {
+        int a;
+        string b;
+    }
+
+    func f1(int x) int, double { return x + 1, (double)x; }
+    func f2(int x, string y) s { return new { x, y }; }
+
+    test() {
+        int i;
+        double d;
+        i, d = f1(0);
+
+        s v;
+        i, d, v = f1(1), f2(3, "3");
+    }
+}
+
 @test(function_as_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {

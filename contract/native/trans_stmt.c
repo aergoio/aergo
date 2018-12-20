@@ -20,30 +20,51 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
-        /*
-        int i;
         array_t *var_exps = l_exp->u_tup.exps;
         array_t *val_exps = r_exp->u_tup.exps;
 
-
         if (array_size(var_exps) == array_size(val_exps)) {
+            int i;
+
             for (i = 0; i < array_size(val_exps); i++) {
+                ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
+                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+
+                ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
+
+                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
             }
         }
+        else {
+            int i, j;
+            int var_idx = 0;
+            ast_exp_t *var_exp;
 
-        for (i = 0; i < array_size(val_exps); i++) {
-            ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
-            meta_t *val_meta = &val_exp->meta;
+            for (i = 0; i < array_size(val_exps); i++) {
+                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+                meta_t *val_meta = &val_exp->meta;
 
-            if (is_tuple_type(val_meta)) {
-            }
-            else {
-                ast_stmt_t *assign_stmt;
+                if (is_tuple_type(val_meta)) {
+                    array_t *exps = array_new();
+
+                    for (j = 0; j < val_meta->elem_cnt; j++) {
+                        array_add_last(exps, array_get(var_exps, var_idx + j, ast_exp_t));
+                    }
+
+                    var_exp = exp_new_tuple(exps, &stmt->pos);
+                    meta_set_tuple(&var_exp->meta, exps);
+
+                    var_idx += val_meta->elem_cnt;
+                }
+                else {
+                    var_exp = array_get(var_exps, var_idx++, ast_exp_t);
+                }
+
+                ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
+
+                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
             }
         }
-        */
-
-        ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
     }
     else {
         bb_add_stmt(trans->bb, stmt);

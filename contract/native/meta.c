@@ -127,11 +127,45 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
     if (!is_tuple_type(y))
         RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
 
-    if (x->elem_cnt != y->elem_cnt)
-        RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y->elem_cnt);
+    if (x->elem_cnt != y->elem_cnt) {
+        int y_elem_cnt = 0;
 
-    for (i = 0; i < x->elem_cnt; i++) {
-        CHECK(meta_cmp(x->elems[i], y->elems[i]));
+        if (x->elem_cnt < y->elem_cnt)
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y->elem_cnt);
+
+        for (i = 0; i < y->elem_cnt; i++) {
+            if (is_tuple_type(y->elems[i]))
+                y_elem_cnt += y->elems[i]->elem_cnt;
+            else
+                y_elem_cnt++;
+        }
+
+        if (x->elem_cnt != y_elem_cnt)
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y_elem_cnt);
+    }
+
+    if (x->elem_cnt == y->elem_cnt) {
+        for (i = 0; i < x->elem_cnt; i++) {
+            CHECK(meta_cmp(x->elems[i], y->elems[i]));
+        }
+    }
+    else {
+        int j;
+        int x_idx = 0;
+
+        for (i = 0; i < y->elem_cnt; i++) {
+            meta_t *y_elem = y->elems[i];
+
+            if (is_tuple_type(y_elem)) {
+                for (j = 0; j < y_elem->elem_cnt; j++) {
+                    CHECK(meta_cmp(x->elems[x_idx + j], y_elem->elems[j]));
+                }
+                x_idx += y_elem->elem_cnt;
+            }
+            else {
+                CHECK(meta_cmp(x->elems[x_idx++], y_elem));
+            }
+        }
     }
 
     return NO_ERROR;
