@@ -63,7 +63,6 @@ type StateSet struct {
 	isQuery           bool
 	prevBlockHash     []byte
 	service           C.int
-	transferFailed    bool
 	dbSystemError     bool
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
@@ -317,9 +316,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.transferFailed == true {
-			ce.err = types.ErrInsufficientBalance
-		} else if ce.stateSet.dbSystemError == true {
+		if ce.stateSet.dbSystemError == true {
 			ce.err = newDbSystemError(errMsg)
 		} else {
 			ce.err = errors.New(errMsg)
@@ -360,9 +357,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.transferFailed == true {
-			ce.err = types.ErrInsufficientBalance
-		} else if ce.stateSet.dbSystemError == true {
+		if ce.stateSet.dbSystemError == true {
 			ce.err = newDbSystemError(errMsg)
 		} else {
 			ce.err = errors.New(errMsg)

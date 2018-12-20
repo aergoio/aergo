@@ -185,7 +185,6 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 			return -1
 		}
 		if sendBalance(L, senderState, callState.curState, amountBig) == false {
-			stateSet.transferFailed = true
 			return -1
 		}
 	}
@@ -322,7 +321,6 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 	}
 	senderState := stateSet.curContract.callState.curState
 	if sendBalance(L, senderState, callState.curState, amountBig) == false {
-		stateSet.transferFailed = true
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
@@ -341,7 +339,7 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 		return true
 	}
 	if sender.GetBalanceBigInt().Cmp(amount) < 0 {
-		luaPushStr(L, "[Contract.sendBalance]insuficient balance"+
+		luaPushStr(L, "[Contract.sendBalance]insufficient balance"+
 			sender.GetBalanceBigInt().String()+" : "+amount.String())
 		return false
 	} else {
