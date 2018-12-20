@@ -24,14 +24,24 @@ import (
 )
 
 var (
-	ErrorNoAncestor = errors.New("not found ancestor")
-	ErrBlockOrphan  = errors.New("block is ohphan, so not connected in chain")
+	ErrorNoAncestor          = errors.New("not found ancestor")
+	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
+	ErrBlockCachedErrLRU     = errors.New("block is stored in errored blocks cache")
+	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 
 	errBlockStale     = errors.New("produced block becomes stale")
 	errInvalidChainID = errors.New("invalid chain id")
 
 	InAddBlock = make(chan struct{}, 1)
 )
+
+type ErrReorg struct {
+	err error
+}
+
+func (ec *ErrReorg) Error() string {
+	return fmt.Sprintf("reorg failed. maybe need reconfiguration. error: %s", ec.err.Error())
+}
 
 type ErrBlock struct {
 	err   error
@@ -255,26 +265,26 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	return oldLatest, nil
 }
 
-func (cp *chainProcessor) reorganize() {
+func (cp *chainProcessor) reorganize() error {
 	// - Reorganize if new bestblock then process Txs
 	// - Add block if new bestblock then update context connect next orphan
 	if cp.needReorg(cp.lastBlock) {
 		err := cp.reorg(cp.lastBlock)
 		if e, ok := err.(consensus.ErrorConsensus); ok {
-			logger.Info().Err(e).Msg("stop reorganization")
-			return
+			logger.Info().Err(e).Msg("reorg stopped by consensus error")
+			return nil
 		}
 
 		if err != nil {
-			panic(err)
+			logger.Info().Err(err).Msg("reorg stopped by unexpected error")
+			return &ErrReorg{err: err}
 		}
 	}
+
+	return nil
 }
 
-func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
-	//XXX only debug
-	logger.Debug().Int64("newavg", types.AvgTxVerifyTime.Get().Nanoseconds()).Msg("avg tx time in chain")
-
+func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
@@ -344,9 +354,50 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	// TODO: reorganization should be done before chain execution to avoid an
 	// unnecessary chain execution & rollback.
-	cp.reorganize()
+	if err := cp.reorganize(); err != nil {
+		return err
+	}
 
 	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("Block added successfully")
+
+	return nil
+}
+
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+	// check if block has already saved and has occurred error before
+	checkSideChainBlock := func() error {
+		best, err := cs.GetBestBlock()
+		if err != nil {
+			return err
+		}
+
+		if best.BlockNo() < newBlock.BlockNo() {
+			return ErrBlockTooHighSideChain
+		}
+		return nil
+	}
+
+	hashID := types.ToHashID(newBlock.BlockHash())
+
+	if cs.errBlocks.Contains(hashID) {
+		return ErrBlockCachedErrLRU
+	}
+
+	_, err := cs.getBlock(newBlock.BlockHash())
+	if err == nil {
+		logger.Debug().Str("hash", newBlock.ID()).Msg("already exist")
+		if err := checkSideChainBlock(); err != nil {
+			return err
+		}
+		return ErrBlockExist
+	}
+
+	err = cs.addBlockInternal(newBlock, usedBstate, peerID)
+	if err != nil && err != ErrBlockOrphan {
+		evicted := cs.errBlocks.Add(hashID, newBlock)
+		logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
+		return err
+	}
 
 	return nil
 }
@@ -529,9 +580,6 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	// contract & state DB update is done during execution.
 	if err := ex.execute(); err != nil {
-		// FIXME: is that enough?
-		logger.Error().Err(err).Str("hash", block.ID()).Msg("failed to execute block")
-
 		return err
 	}
 

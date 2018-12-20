@@ -22,9 +22,11 @@ type BlockValidator struct {
 }
 
 var (
-	ErrorBlockVerifySign      = errors.New("Block verify failed, because Tx sign is invalid")
-	ErrorBlockVerifyTxRoot    = errors.New("Block verify failed, because Tx root hash is invaild")
-	ErrorBlockVerifyStateRoot = errors.New("Block verify failed, because state root hash is not equal")
+	ErrorBlockVerifySign           = errors.New("Block verify failed")
+	ErrorBlockVerifyTxRoot         = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifyExistStateRoot = errors.New("Block verify failed, because state root hash is already exist")
+	ErrorBlockVerifyStateRoot      = errors.New("Block verify failed, because state root hash is not equal")
+	ErrorBlockVerifyReceiptRoot    = errors.New("Block verify failed, because receipt root hash is not equal")
 )
 
 func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainStateDB) *BlockValidator {
@@ -60,7 +62,7 @@ func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	//	ChainVersion
 	//	StateRootHash
 	if bv.sdb.IsExistState(header.GetBlocksRootHash()) {
-		return ErrorBlockVerifyStateRoot
+		return ErrorBlockVerifyExistStateRoot
 	}
 
 	return nil
@@ -117,7 +119,7 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts types.Receipts, 
 			Str("hdrroot", enc.ToString(hdrRoot)).
 			Str("sdbroot", enc.ToString(sdbRoot)).
 			Msg("block root hash validation failed")
-		return ErrorBlockVerifySign
+		return ErrorBlockVerifyStateRoot
 	}
 
 	logger.Debug().Str("block", block.ID()).
@@ -132,7 +134,7 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts types.Receipts, 
 			Str("hdrroot", enc.ToString(hdrRoot)).
 			Str("receipts_root", enc.ToString(receiptsRoot)).
 			Msg("receipts root hash validation failed")
-		return ErrorBlockVerifySign
+		return ErrorBlockVerifyReceiptRoot
 	}
 	logger.Debug().Str("block", block.ID()).
 		Str("hdrroot", enc.ToString(hdrRoot)).
