@@ -15,6 +15,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 
@@ -50,6 +51,7 @@ type NetworkTransport interface {
 
 
 	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
+	GetOrCreateStreamWithTTL(meta PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error)
 
 	FindPeer(peerID peer.ID) bool
 	ClosePeerConnection(peerID peer.ID) bool
@@ -162,7 +164,7 @@ func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPor
 }
 
 func (sl *networkTransport) Start() error {
-	//sl.logger.Debug().Msg("Starting network transport")
+	sl.logger.Debug().Msg("Starting network transport")
 	sl.startListener()
 	sl.hostInited.Done()
 	return nil
@@ -175,7 +177,7 @@ func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.Strea
 
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
-func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protocol.ID) (inet.Stream, error) {
+func (sl *networkTransport) GetOrCreateStreamWithTTL(meta PeerMeta, protocolID  protocol.ID, ttl time.Duration) (inet.Stream, error) {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
 	if err != nil {
@@ -183,7 +185,7 @@ func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protoco
 		return nil,fmt.Errorf("invalid IP address %s:%d",meta.IPAddress,meta.Port)
 	}
 	var peerID = meta.ID
-	sl.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
+	sl.Peerstore().AddAddr(peerID, peerAddr,ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, meta.ID, protocolID)
 	if err != nil {
@@ -191,6 +193,10 @@ func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protoco
 		return nil,err
 	}
 	return s, nil
+}
+
+func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protocol.ID) (inet.Stream, error) {
+	return sl.GetOrCreateStreamWithTTL(meta, protocolID, meta.TTL())
 }
 
 func (sl *networkTransport) FindPeer(peerID peer.ID) bool {
