@@ -154,23 +154,17 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     ast_exp_t *exp;
     ast_stmt_t *stmt;
     meta_t *meta;
-
-    struct {
-        modifier_t mod;
-        meta_t *meta;
-    } spec;
 }
 
 %type <id>      contract_decl
 %type <blk>     contract_body
 %type <array>   variable
+%type <array>   var_qual
 %type <array>   var_decl
-%type <array>   var_init_decl
-%type <spec>    var_type
-%type <spec>    var_qual
-%type <meta>    var_spec
+%type <array>   var_spec
+%type <meta>    var_type
 %type <type>    prim_type
-%type <array>   var_name_list
+%type <array>   declarator_list
 %type <id>      declarator
 %type <exp>     size_opt
 %type <array>   var_init_list
@@ -317,52 +311,71 @@ contract_body:
 ;
 
 variable:
-    var_decl ';'
-|   var_init_decl ';'
-|   var_type error ';'
-    {
-        $$ = NULL;
-    }
-;
-
-var_decl:
-    var_type var_name_list
+    var_qual
+|   K_PUBLIC var_qual
     {
         int i;
 
         for (i = 0; i < array_size($2); i++) {
             ast_id_t *id = array_get($2, i, ast_id_t);
 
-            id->mod = $1.mod;
-            id->u_var.type_meta = $1.meta;
+            id->mod |= MOD_PUBLIC;
+        }
+        $$ = $2;
+    }
+;
+
+var_qual:
+    var_decl
+|   K_CONST var_decl
+    {
+        int i;
+
+        for (i = 0; i < array_size($2); i++) {
+            ast_id_t *id = array_get($2, i, ast_id_t);
+
+            id->mod |= MOD_CONST;
+        }
+        $$ = $2;
+    }
+;
+
+var_decl:
+    var_spec ';'
+|   var_spec '=' var_init_list ';'
+    {
+        int i;
+
+        if (array_size($1) != array_size($3)) {
+            ERROR(ERROR_MISMATCHED_COUNT, &@3, "declaration", array_size($1),
+                  array_size($3));
+        }
+        else {
+            for (i = 0; i < array_size($1); i++) {
+                ast_id_t *id = array_get($1, i, ast_id_t);
+
+                id->u_var.dflt_exp = array_get($3, i, ast_exp_t);
+            }
+        }
+        $$ = $1;
+    }
+;
+
+var_spec:
+    var_type declarator_list 
+    {
+        int i;
+
+        for (i = 0; i < array_size($2); i++) {
+            ast_id_t *id = array_get($2, i, ast_id_t);
+
+            id->u_var.type_meta = $1;
         }
         $$ = $2;
     }
 ;
 
 var_type:
-    var_qual
-|   K_PUBLIC var_type
-    {
-        $$ = $2;
-        flag_set($$.mod, MOD_PUBLIC);
-    }
-;
-
-var_qual:
-    var_spec
-    {
-        $$.mod = MOD_PRIVATE;
-        $$.meta = $1;
-    }
-|   K_CONST var_spec
-    {
-        $$.mod = MOD_CONST;
-        $$.meta = $2;
-    }
-;
-
-var_spec:
     prim_type
     {
         $$ = meta_new($1, &@1);
@@ -372,7 +385,7 @@ var_spec:
         $$ = meta_new(TYPE_STRUCT, &@1);
         $$->name = $1;
     }
-|   K_MAP '(' var_spec ',' var_spec ')'
+|   K_MAP '(' var_type ',' var_type ')'
     {
         $$ = meta_new(TYPE_MAP, &@1);
         meta_set_map($$, $3, $5);
@@ -398,13 +411,13 @@ prim_type:
 |   K_UINT8             { $$ = TYPE_UINT8; }
 ;
 
-var_name_list:
+declarator_list:
     declarator
     {
         $$ = array_new();
         id_add_last($$, $1);
     }
-|   var_name_list ',' declarator
+|   declarator_list ',' declarator
     {
         $$ = $1;
         id_add_last($$, $3);
@@ -430,26 +443,6 @@ declarator:
 size_opt:
     /* empty */         { $$ = exp_new_null(&@$); }
 |   add_exp
-;
-
-var_init_decl:
-    var_decl '=' var_init_list
-    {
-        int i;
-
-        if (array_size($1) != array_size($3)) {
-            ERROR(ERROR_MISMATCHED_COUNT, &@3, "declaration", array_size($1),
-                  array_size($3));
-        }
-        else {
-            for (i = 0; i < array_size($1); i++) {
-                ast_id_t *id = array_get($1, i, ast_id_t);
-
-                id->u_var.dflt_exp = array_get($3, i, ast_exp_t);
-            }
-        }
-        $$ = $1;
-    }
 ;
 
 var_init_list:
@@ -484,8 +477,8 @@ struct:
 ;
 
 field_list:
-    var_decl ';'
-|   field_list var_decl ';'
+    var_decl 
+|   field_list var_decl
     {
         $$ = $1;
         id_join_last($$, $2);
@@ -564,11 +557,10 @@ param_list:
 ;
 
 param_decl:
-    var_qual declarator
+    var_type declarator
     {
         $$ = $2;
-        $$->mod = $1.mod;
-        $$->u_var.type_meta = $1.meta;
+        $$->u_var.type_meta = $1;
     }
 ;
 
@@ -578,7 +570,7 @@ block:
 ;
 
 blk_decl:
-    variable
+    var_qual
     {
         $$ = blk_new_normal(&@$);
         id_join_last(&$$->ids, $1);
@@ -588,17 +580,27 @@ blk_decl:
         $$ = blk_new_normal(&@$);
         id_add_last(&$$->ids, $1);
     }
+|   enumeration
+    {
+        $$ = blk_new_normal(&@$);
+        id_add_last(&$$->ids, $1);
+    }
 |   statement
     {
         $$ = blk_new_normal(&@$);
         stmt_add_last(&$$->stmts, $1);
     }
-|   blk_decl variable
+|   blk_decl var_qual
     {
         $$ = $1;
         id_join_last(&$$->ids, $2);
     }
 |   blk_decl struct
+    {
+        $$ = $1;
+        id_add_last(&$$->ids, $2);
+    }
+|   blk_decl enumeration
     {
         $$ = $1;
         id_add_last(&$$->ids, $2);
@@ -665,7 +667,7 @@ return_list:
 ;
 
 return_decl:
-    var_spec
+    var_type
     {
         char name[256];
 
@@ -762,7 +764,7 @@ loop_stmt:
     {
         $$ = stmt_new_loop(LOOP_FOR, NULL, NULL, $2, &@$);
     }
-|   K_FOR '(' or_exp ')' block
+|   K_FOR '(' ternary_exp ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $3, NULL, $5, &@$);
     }
@@ -776,12 +778,12 @@ loop_stmt:
         $$ = stmt_new_loop(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_stmt = $3;
     }
-|   K_FOR '(' variable cond_exp ')' block
+|   K_FOR '(' var_decl cond_exp ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $4, NULL, $6, &@$);
         $$->u_loop.init_ids = $3;
     }
-|   K_FOR '(' variable cond_exp expression ')' block
+|   K_FOR '(' var_decl cond_exp expression ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $4, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
@@ -791,7 +793,7 @@ loop_stmt:
         $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
         $$->u_loop.init_stmt = stmt_new_exp($3, &@3);
     }
-|   K_FOR '(' var_decl K_IN post_exp ')' block
+|   K_FOR '(' var_spec K_IN post_exp ')' block
     {
         $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
         $$->u_loop.init_ids = $3;
@@ -809,7 +811,7 @@ init_stmt:
 
 cond_exp:
     ';'                 { $$ = NULL; }
-|   expression ';'
+|   ternary_exp ';'
 ;
 
 switch_stmt:
