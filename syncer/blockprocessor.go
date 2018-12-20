@@ -103,7 +103,6 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 		}
 
 		if msg.Err != nil && !isAvailErr(msg.Err) {
-			logger.Error().Err(msg.Err).Msg("connect block failed")
 			return msg.Err
 		}
 

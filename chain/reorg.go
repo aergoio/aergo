@@ -103,6 +103,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
+	//it's possible to occur error while executing branch block (forgery)
 	if err := reorg.rollforwardChain(); err != nil {
 		return err
 	}

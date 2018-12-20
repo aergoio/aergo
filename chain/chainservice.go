@@ -26,11 +26,14 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
 	logger = log.NewLogger("chain")
+
+	dfltErrBlocks = 128
 
 	ErrBlockExist = errors.New("block already exist")
 )
@@ -158,8 +161,9 @@ type ChainService struct {
 	consensus.ChainConsensus
 	*Core
 
-	cfg *cfg.Config
-	op  *OrphanPool
+	cfg       *cfg.Config
+	op        *OrphanPool
+	errBlocks *lru.Cache
 
 	validator *BlockValidator
 
@@ -194,6 +198,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+
+	cs.errBlocks, err = lru.New(dfltErrBlocks)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to init lru")
+		return nil
+	}
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil); err != nil {
@@ -427,24 +437,15 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		bid := msg.Block.BlockID()
 		block := msg.Block
-		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
-		_, err := cm.getBlock(bid[:])
-		if err == nil {
-			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = ErrBlockExist
-		} else {
-			var bstate *state.BlockState
-			if msg.Bstate != nil {
-				bstate = msg.Bstate.(*state.BlockState)
-			}
-			err = cm.addBlock(block, bstate, msg.PeerID)
-			if err != nil && err != ErrBlockOrphan {
-				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
-			}
+		logger.Debug().Str("hash", block.ID()).
+			Uint64("blockNo", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+
+		var bstate *state.BlockState
+		if msg.Bstate != nil {
+			bstate = msg.Bstate.(*state.BlockState)
 		}
+		err := cm.addBlock(block, bstate, msg.PeerID)
 
 		rsp := message.AddBlockRsp{
 			BlockNo:   block.GetHeader().GetBlockNo(),

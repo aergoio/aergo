@@ -198,6 +198,28 @@ func TestSideChainReorg(t *testing.T) {
 	assert.Equal(t, sideBestBlock.BlockHash(), mainBestBlock.BlockHash())
 }
 
+func TestAddErroredBlock(t *testing.T) {
+	// make chain
+	cs, stubChain := testAddBlock(t, 10)
+
+	// add block which occur validation error
+	stubChain.GenAddBlock()
+
+	newBlock, _ := stubChain.GetBestBlock()
+	newBlock.SetBlocksRootHash([]byte("xxx"))
+
+	err := cs.addBlock(newBlock, nil, testPeer)
+	assert.Equal(t, ErrorBlockVerifyStateRoot, err)
+
+	err = cs.addBlock(newBlock, nil, testPeer)
+	assert.Equal(t, ErrBlockCachedErrLRU, err)
+
+	cs.errBlocks.Purge()
+	// check error when server is rebooted
+	err = cs.addBlock(newBlock, nil, testPeer)
+	assert.Equal(t, ErrBlockTooHighSideChain, err)
+}
+
 //TODO
 func TestParallelAccess(t *testing.T) {
 
