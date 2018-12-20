@@ -1,0 +1,23 @@
+#################################################################################
+#
+# TODO (short-term)
+#
+#################################################################################
+
+* change ASSERT() -> assert(...)
+
+* add 'size' field to array_init(), array_new()
+
+* change variable declaration -> symbol + assign stmt
+  (consequently
+    remove init_exp from ast_id_t
+    ast_id_t -> symbol_t
+   )
+
+#################################################################################
+#
+# TODO (long-term)
+#
+#################################################################################
+
+* implement interface
