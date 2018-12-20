@@ -218,15 +218,23 @@ type Genesis struct {
 	block *Block
 }
 
-// Block returns Block corresponding to g.
+// Block returns Block corresponding to g. If g.block == nil, it genreates a
+// genesis block before it returns.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
-		g.block = NewBlock(nil, nil, nil, nil, nil, g.Timestamp)
+		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, g.Timestamp))
 		if id, err := g.ID.Bytes(); err == nil {
 			g.block.SetChainID(id)
 		}
 	}
 	return g.block
+}
+
+// SetBlock sets g.block to block if g.block == nil.
+func (g *Genesis) SetBlock(block *Block) {
+	if g.block == nil {
+		g.block = block
+	}
 }
 
 // ChainID returns the binary representation of g.ID.
@@ -246,6 +254,16 @@ func (g Genesis) Bytes() []byte {
 
 // ConsensusType retruns g.ID.ConsensusType.
 func (g Genesis) ConsensusType() string {
+	rawCid := g.Block().GetHeader().GetChainID()
+	if len(rawCid) > 0 {
+		cid := NewChainID()
+		// First, try to use the chain id in the genesis block header.
+		if err := cid.Read(rawCid); err == nil {
+			return cid.Consensus
+		}
+	}
+
+	// Use genesis info queried from DB.
 	return g.ID.Consensus
 }
 
