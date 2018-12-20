@@ -16,12 +16,18 @@ ir_new(void)
     array_init(&ir->fns);
 
     return ir;
-} 
+}
 
-void 
+void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
     array_add_last(&ir->globals, id);
+}
+
+void
+ir_add_fn(ir_t *ir, ir_fn_t *fn)
+{
+    array_add_last(&ir->fns, fn);
 }
 
 /* end of ir.c */

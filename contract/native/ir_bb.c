@@ -21,6 +21,8 @@ bb_new(void)
 void
 bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
 {
+    ASSERT(bb != NULL);
+
     array_add_last(&bb->stmts, stmt);
 }
 
@@ -38,6 +40,8 @@ br_new(ast_exp_t *cond, ir_bb_t *bb)
 void
 bb_add_branch(ir_bb_t *bb, ast_exp_t *br_cd, ir_bb_t *br_bb)
 {
+    ASSERT(bb != NULL);
+
     array_add_last(&bb->brs, br_new(br_cd, br_bb));
 }
 

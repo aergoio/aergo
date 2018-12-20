@@ -22,6 +22,9 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
     for (i = 0; i < array_size(&blk->stmts); i++) {
         stmt_trans(trans, array_get(&blk->stmts, i, ast_stmt_t));
     }
+
+    /* Since there is no relation between general blocks and basic blocks,
+     * we deliberately do not do anything about basic blocks here. */
 }
 
 /* end of trans_blk.c */

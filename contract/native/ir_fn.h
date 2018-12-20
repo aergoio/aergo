@@ -25,10 +25,10 @@ typedef struct ir_bb_s ir_bb_t;
 struct ir_fn_s {
     ast_id_t *id;
 
-    array_t params;
-    array_t locals;
+    array_t params;     /* parameters (including return) */
+    array_t locals;     /* entire local variables */
 
-    array_t bbs;
+    array_t bbs;        /* basic blocks */
 
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;

@@ -9,8 +9,16 @@
 #include "common.h"
 
 #include "array.h"
-#include "ast_id.h"
-#include "binaryen-c.h"
+
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
+
+#ifndef _IR_FN_T
+#define _IR_FN_T
+typedef struct ir_fn_s ir_fn_t;
+#endif /* ! _IR_FN_T */
 
 typedef struct ir_s {
     array_t globals;
@@ -20,5 +28,6 @@ typedef struct ir_s {
 ir_t *ir_new(void);
 
 void ir_add_global(ir_t *ir, ast_id_t *id);
+void ir_add_fn(ir_t *ir, ir_fn_t *fn);
 
 #endif /* no _IR_H */

@@ -11,6 +11,7 @@
 #include "ast_exp.h"
 #include "ast_stmt.h"
 #include "ir.h"
+#include "binaryen-c.h"
 
 #ifndef _IR_BB_T
 #define _IR_BB_T

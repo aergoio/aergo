@@ -21,7 +21,6 @@ trans_init(trans_t *trans, flag_t flag)
     trans->fn = NULL;
     trans->bb = NULL;
 
-    trans->exit_bb = bb_new();
     trans->cont_bb = NULL;
     trans->break_bb = NULL;
 }

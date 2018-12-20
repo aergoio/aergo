@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "ir_bb.h"
+
 #include "ir_fn.h"
 
 ir_fn_t *
@@ -18,8 +20,8 @@ fn_new(ast_id_t *id)
     array_init(&fn->locals);
     array_init(&fn->bbs);
 
-    fn->entry_bb = NULL;
-    fn->exit_bb = NULL;
+    fn->entry_bb = bb_new();
+    fn->exit_bb = bb_new();
 
     return fn;
 }

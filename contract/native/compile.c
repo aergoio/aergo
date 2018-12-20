@@ -27,8 +27,8 @@ compile(char *path, flag_t flag)
 
     parse(path, flag, &src, &ast);
 
+    /* empty contract can be null */
     if (ast != NULL) {
-        /* empty contract can be null */
         ir_t *ir = NULL;
 
         check(ast, flag);

@@ -26,12 +26,11 @@ typedef struct trans_s {
 
     ir_t *ir;
 
-    ir_fn_t *fn;
-    ir_bb_t *bb;
+    ir_fn_t *fn;            /* current function */
+    ir_bb_t *bb;            /* current basic block */
 
-    ir_bb_t *exit_bb;
-    ir_bb_t *cont_bb;
-    ir_bb_t *break_bb;
+    ir_bb_t *cont_bb;       /* for continue */
+    ir_bb_t *break_bb;      /* for break */
 } trans_t;
 
 void trans(ast_t *ast, flag_t flag, ir_t **ir);
