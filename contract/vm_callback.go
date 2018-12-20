@@ -565,17 +565,35 @@ func LuaGetDbHandle(service *C.int) *C.sqlite3 {
 	return callState.tx.GetHandle()
 }
 
+func checkHexString(data string) bool {
+	if len(data) >= 2 && data[0] == '0' && (data[1] == 'x' || data[1] == 'X') {
+		return true
+	}
+	return false
+}
+
 //export LuaCryptoSha256
-func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) {
+func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) C.int {
+	data := C.GoBytes(arg, argLen)
+	if checkHexString(string(data)) {
+		dataStr := data[2:]
+		var err error
+		data, err = hex.DecodeString(string(dataStr))
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaCryptoSha256]Hex Decoding error:"+err.Error())
+			return -1
+		}
+	}
 	h := sha256.New()
-	h.Write(C.GoBytes(arg, argLen))
+	h.Write(data)
 	resultHash := h.Sum(nil)
 
-	luaPushStr(L, hex.EncodeToString(resultHash))
+	luaPushStr(L, "0x"+hex.EncodeToString(resultHash))
+	return 0
 }
 
 func decodeHex(hexStr string) ([]byte, error) {
-	if len(hexStr) >= 2 && hexStr[0] == '0' && (hexStr[1] == 'x' || hexStr[1] == 'X') {
+	if checkHexString(hexStr) {
 		hexStr = hexStr[2:]
 	}
 	return hex.DecodeString(hexStr)

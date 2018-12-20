@@ -8,7 +8,8 @@ static int crypto_sha256(lua_State *L)
     luaL_checktype(L, 1, LUA_TSTRING);
     arg = (char *)lua_tolstring(L, 1, &len);
 
-    LuaCryptoSha256(L, arg, len);
+    if (LuaCryptoSha256(L, arg, len) < 0)
+        lua_error(L);
 	return 1;
 }
 

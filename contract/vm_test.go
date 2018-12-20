@@ -2662,7 +2662,11 @@ abi.register(get, checkEther, checkAergo)
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "crypto", 0, src),
 	)
-	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `"c58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `"0xc58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["0x616200e490aa"]}`, "", `"0xc58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
 	if err != nil {
 		t.Error(err)
 	}
