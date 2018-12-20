@@ -107,6 +107,8 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	}
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
+	initChainEnv(core.cdb.GetGenesisInfo())
+
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
@@ -178,8 +180,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic(err)
 	}
 
-	if err = Init(cfg.Blockchain.MaxBlockSize,
-		cfg.Blockchain.CoinbaseAccount,
+	if err = Init(cfg.Blockchain.CoinbaseAccount,
 		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
@@ -217,8 +218,8 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 	return cs.sdb
 }
 
-// CDBReader returns cs.sdb as a consensus.ChainDbReader.
-func (cs *ChainService) CDBReader() consensus.ChainDB {
+// CDB returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 

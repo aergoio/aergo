@@ -254,17 +254,12 @@ func (g Genesis) Bytes() []byte {
 
 // ConsensusType retruns g.ID.ConsensusType.
 func (g Genesis) ConsensusType() string {
-	rawCid := g.Block().GetHeader().GetChainID()
-	if len(rawCid) > 0 {
-		cid := NewChainID()
-		// First, try to use the chain id in the genesis block header.
-		if err := cid.Read(rawCid); err == nil {
-			return cid.Consensus
-		}
-	}
-
-	// Use genesis info queried from DB.
 	return g.ID.Consensus
+}
+
+// PublicNet reports whether g corresponds to PublicNet.
+func (g Genesis) PublicNet() bool {
+	return g.ID.PublicNet
 }
 
 // GetDefaultGenesis returns default genesis structure
