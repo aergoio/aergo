@@ -2,6 +2,7 @@ package exec
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -57,5 +58,5 @@ func (c *getStateAccount) Run(args string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s=%d", contract.StrToAddress(accountName), state.GetBalance()), nil
+	return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), nil
 }
