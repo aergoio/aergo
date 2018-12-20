@@ -17,6 +17,7 @@ import (
 	go_multiaddr "github.com/multiformats/go-multiaddr"
 	go_multistream "github.com/multiformats/go-multistream"
 	reflect "reflect"
+	time "time"
 )
 
 // MockNTContainer is a mock of NTContainer interface
@@ -326,6 +327,19 @@ func (m *MockNetworkTransport) GetOrCreateStream(meta p2p.PeerMeta, protocolID g
 // GetOrCreateStream indicates an expected call of GetOrCreateStream
 func (mr *MockNetworkTransportMockRecorder) GetOrCreateStream(meta, protocolID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateStream", reflect.TypeOf((*MockNetworkTransport)(nil).GetOrCreateStream), meta, protocolID)
+}
+
+// GetOrCreateStreamWithTTL mocks base method
+func (m *MockNetworkTransport) GetOrCreateStreamWithTTL(meta p2p.PeerMeta, protocolID go_libp2p_protocol.ID, ttl time.Duration) (go_libp2p_net.Stream, error) {
+	ret := m.ctrl.Call(m, "GetOrCreateStreamWithTTL", meta, protocolID, ttl)
+	ret0, _ := ret[0].(go_libp2p_net.Stream)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrCreateStreamWithTTL indicates an expected call of GetOrCreateStreamWithTTL
+func (mr *MockNetworkTransportMockRecorder) GetOrCreateStreamWithTTL(meta, protocolID, ttl interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateStreamWithTTL", reflect.TypeOf((*MockNetworkTransport)(nil).GetOrCreateStreamWithTTL), meta, protocolID, ttl)
 }
 
 // FindPeer mocks base method
