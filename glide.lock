@@ -1,5 +1,5 @@
 hash: 78db53e1f61004f4e3b33faa0789d9c2c2538cbfe4ddb331bfaf2424cf5cae8c
-updated: 2018-12-14T14:11:30.3977183+09:00
+updated: 2018-12-18T21:43:32.2959695+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 4424ea594ae4917c6c7da300b98f92dd9ed260cb
@@ -11,7 +11,7 @@ imports:
   - mailbox
   - router
 - name: github.com/aergoio/aergo-lib
-  version: fb7110635543134cfbb12752ea0a7a53d164c6e5
+  version: f68c8dc4917fb08d72787cf271cbedc714e979de
   subpackages:
   - config
   - db
@@ -26,7 +26,7 @@ imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
 - name: github.com/apache/thrift
-  version: 2b7365c54f823013cc6a4760798051b22743c103
+  version: 56ac72e74ae354c286c41f5d5a3c0b8723feb587
   subpackages:
   - lib/go/thrift
 - name: github.com/btcsuite/btcd
@@ -34,11 +34,12 @@ imports:
   subpackages:
   - btcec
 - name: github.com/c-bata/go-prompt
-  version: 6d81ea6f261017d0646abd696455e4f5520b6604
+  version: 422a0f0d6a614708c8b0b5251eb0c3ce14e2a354
   subpackages:
   - internal/bisect
   - internal/debug
   - internal/strings
+  - internal/term
 - name: github.com/coreos/go-semver
   version: e214231b295a8ea9479f11b70b35d5acf3556d9b
   subpackages:
@@ -54,7 +55,7 @@ imports:
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
 - name: github.com/eapache/go-resiliency
-  version: ea41b0fad31007accc7f806884dcdf3da98b79ce
+  version: 487be0453c7b062bff8dcd0ca2570f09e780a9e2
   subpackages:
   - breaker
 - name: github.com/eapache/go-xerial-snappy
@@ -234,7 +235,7 @@ imports:
 - name: github.com/libp2p/go-maddr-filter
   version: 9e2c18e714b119399bf9ba45cd26805321bf22b5
 - name: github.com/libp2p/go-mplex
-  version: f6e0e0f222d6bcd9638a5ca0ccce45fa8ce7a274
+  version: a678489fb8cd50f1b0735c98cab46409fb0ba4be
 - name: github.com/libp2p/go-msgio
   version: 031a413e66129d593337a3f5948d9364e7fc6d43
 - name: github.com/libp2p/go-reuseport
@@ -263,7 +264,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: 3fb116b820352b7f0c281308a4d6250c22d94e27
 - name: github.com/mattn/go-runewidth
-  version: 3ee7d812e62a0804a7d0a324e0249ca2db3476d3
+  version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
 - name: github.com/mattn/go-tty
   version: e4f871175a2f903ed2e6353334fdccb507c1d09e
 - name: github.com/minio/blake2b-simd
@@ -342,13 +343,13 @@ imports:
 - name: github.com/serialx/hashring
   version: 49a4782e9908fe098c907022a1bd7519c79803d6
 - name: github.com/Shopify/sarama
-  version: 97315fefd9d1a91fbc682c52c44fcb490fa5c6e7
+  version: 94536b3e82d393e4b5dfa36475b40fc668e9486f
 - name: github.com/soheilhy/cmux
   version: e09e9389d85d8492d313d73d1469c029e710623f
 - name: github.com/spaolacci/murmur3
   version: f09979ecbc725b9e6d41a297405f65e7e8804acc
 - name: github.com/spf13/afero
-  version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
+  version: a5d6946387efe7d64d09dcba68cdd523dc1273a3
   subpackages:
   - mem
 - name: github.com/spf13/cast
@@ -419,7 +420,7 @@ imports:
   - sha3
   - ssh/terminal
 - name: golang.org/x/net
-  version: 891ebc4b82d6e74f468c533b06f983c7be918a96
+  version: e147a9138326bc0e9d4e179541ffd8af41cff8a9
   subpackages:
   - context
   - html
@@ -432,7 +433,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 4d1cda033e0619309c606fc686de3adcf599539e
+  version: dcdaa6325bcb8d3c07805583fe12153f08a41e2b
   subpackages:
   - cpu
   - unix
@@ -461,7 +462,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: bd91e49a0898e27abb88c339b432fa53d7497ac0
+  version: 67d6565462c5a0d99b88193d59fefa10ca7e3010
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
