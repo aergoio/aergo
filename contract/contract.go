@@ -100,7 +100,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 		}
 	}
 	if err != nil {
-		if err == types.ErrInsufficientBalance || err == types.ErrVmStart {
+		if err == types.ErrVmStart {
 			return "", err
 		} else if _, ok := err.(DbSystemError); ok {
 			return "", err
