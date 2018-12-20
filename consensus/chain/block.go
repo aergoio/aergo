@@ -59,7 +59,7 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 //
 // TODO: This is not an exact size. Let's make it exact!
 func MaxBlockBodySize() uint32 {
-	return chain.MaxBlockSize - uint32(proto.Size(&types.BlockHeader{}))
+	return chain.MaxBlockSize() - uint32(proto.Size(&types.BlockHeader{}))
 }
 
 // GenerateBlock generate & return a new block

@@ -218,15 +218,23 @@ type Genesis struct {
 	block *Block
 }
 
-// Block returns Block corresponding to g.
+// Block returns Block corresponding to g. If g.block == nil, it genreates a
+// genesis block before it returns.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
-		g.block = NewBlock(nil, nil, nil, nil, nil, g.Timestamp)
+		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, g.Timestamp))
 		if id, err := g.ID.Bytes(); err == nil {
 			g.block.SetChainID(id)
 		}
 	}
 	return g.block
+}
+
+// SetBlock sets g.block to block if g.block == nil.
+func (g *Genesis) SetBlock(block *Block) {
+	if g.block == nil {
+		g.block = block
+	}
 }
 
 // ChainID returns the binary representation of g.ID.
@@ -247,6 +255,11 @@ func (g Genesis) Bytes() []byte {
 // ConsensusType retruns g.ID.ConsensusType.
 func (g Genesis) ConsensusType() string {
 	return g.ID.Consensus
+}
+
+// PublicNet reports whether g corresponds to PublicNet.
+func (g Genesis) PublicNet() bool {
+	return g.ID.PublicNet
 }
 
 // GetDefaultGenesis returns default genesis structure

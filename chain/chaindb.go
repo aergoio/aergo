@@ -211,10 +211,27 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	return nil
 }
 
-// GetGenesisInfo returns Genesis info from cdb.
+// GetGenesisInfo returns Genesis info, which is read from cdb.
 func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
-		return types.GetGenesisFromBytes(b)
+		genesis := types.GetGenesisFromBytes(b)
+		if block, err := cdb.GetBlockByNo(0); err != nil {
+			genesis.SetBlock(block)
+
+			// genesis.ID is overwritten by the xgenesis block's chain
+			// id. Prefer the latter since it is sort of protected the block
+			// chain system (all the chaild blocks connected to the genesis
+			// block).
+			rawCid := genesis.Block().GetHeader().GetChainID()
+			if len(rawCid) > 0 {
+				cid := types.NewChainID()
+				if err := cid.Read(rawCid); err == nil {
+					genesis.ID = *cid
+				}
+			}
+
+		}
+		return genesis
 	}
 	return nil
 }

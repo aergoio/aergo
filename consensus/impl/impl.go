@@ -19,11 +19,19 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.Cha
 	var (
 		c   consensus.Consensus
 		err error
+
+		blockInterval int64
 	)
 
-	consensus.InitBlockInterval(cfg.BlockInterval)
+	if chain.IsPublic() {
+		blockInterval = 1
+	} else {
+		blockInterval = cfg.BlockInterval
+	}
 
-	if c, err = newConsensus(cfg, hub, cs.CDBReader()); err == nil {
+	consensus.InitBlockInterval(blockInterval)
+
+	if c, err = newConsensus(cfg, hub, cs.CDB()); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
 		c.SetStateDB(cs.SDB())
