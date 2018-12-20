@@ -29,24 +29,22 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 {
     ir_fn_t *fn = fn_new(id);
 
-    /* TODO: we have to use this */
-    array_join_last(&fn->params, id->u_fn.param_ids);
-    array_join_last(&fn->params, id->u_fn.ret_ids);
-
     if (id->u_fn.blk != NULL) {
         trans->fn = fn;
         trans->bb = fn->entry_bb;
 
         blk_trans(trans, id->u_fn.blk);
 
-        if (trans->bb != NULL)
+        if (trans->bb != NULL) {
+            bb_add_branch(trans->bb, NULL, fn->exit_bb);
             fn_add_basic_blk(fn, trans->bb);
+        }
+
+        fn_add_basic_blk(fn, fn->exit_bb);
 
         trans->fn = NULL;
         trans->bb = NULL;
     }
-
-    fn_add_basic_blk(fn, fn->exit_bb);
 
     ir_add_fn(trans->ir, fn);
 }

@@ -33,9 +33,7 @@ gen_init(gen_t *gen, BinaryenModuleRef module, flag_t flag, char *path)
         strcpy(ptr, WASM_EXT);
 
     gen->dsgmt = dsgmt_new();
-
     gen->id_idx = 0;
-    gen->ret_idx = 0;
 
     gen->local_cnt = 0;
     gen->locals = NULL;

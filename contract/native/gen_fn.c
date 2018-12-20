@@ -18,34 +18,22 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     int param_cnt;
     BinaryenType *params;
     BinaryenFunctionTypeRef spec;
-    ast_id_t *id = fn->id;
-    array_t *param_ids = id->u_fn.param_ids;
-    array_t *ret_ids = id->u_fn.ret_ids;
 
-    param_cnt = array_size(param_ids) + array_size(ret_ids);
+    param_cnt = array_size(&fn->params);
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
-    for (i = 0; i < array_size(param_ids); i++) {
-        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
-
-        param_id->idx = gen->id_idx++;
-        params[param_id->idx] = meta_gen(gen, &param_id->meta);
+    for (i = 0; i < param_cnt; i++) {
+        params[i] = meta_gen(gen, &array_get(&fn->params, i, ast_id_t)->meta);
     }
 
-    gen->ret_idx = gen->id_idx;
-
-    for (i = 0; i < array_size(ret_ids); i++) {
-        ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
-
-        ret_id->idx = gen->id_idx++;
-        params[ret_id->idx] = meta_gen(gen, &ret_id->meta);
-
-        ret_id->meta.addr = 
-            dsgmt_occupy(gen->dsgmt, gen->module, meta_size(&ret_id->meta));
-    }
-
-    spec = BinaryenAddFunctionType(gen->module, id->name, BinaryenTypeNone(),
+    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(),
                                    params, param_cnt);
+
+    /* local-0 for base stack address */
+    gen_add_local(gen, TYPE_INT32);
+
+    /* local-1 for relooper */
+    gen_add_local(gen, TYPE_INT32);
 
     for (i = 0; i < array_size(&fn->locals); i++) {
         gen_add_instr(gen, id_gen(gen, array_get(&fn->locals, i, ast_id_t)));
@@ -61,14 +49,14 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, array_get(&fn->bbs, i, ir_bb_t));
     }
 
-    gen_add_instr(gen, RelooperRenderAndDispose(gen->relooper, fn->entry_bb, 0, gen->module));
+    gen_add_instr(gen,
+                  RelooperRenderAndDispose(gen->relooper, fn->entry_bb, 1, gen->module));
 
-    BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
-                        BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt, 
+    BinaryenAddFunction(gen->module, fn->name, spec, gen->locals, gen->local_cnt,
+                        BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
                                       BinaryenTypeNone()));
 
     gen->id_idx = 0;
-    gen->ret_idx = 0;
     gen->local_cnt = 0;
     gen->locals = NULL;
 }

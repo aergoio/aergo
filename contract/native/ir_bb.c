@@ -15,6 +15,8 @@ bb_new(void)
     array_init(&bb->stmts);
     array_init(&bb->brs);
 
+    bb->rb = NULL;
+
     return bb;
 }
 

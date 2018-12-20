@@ -48,11 +48,11 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
     CHECK(meta_cmp(l_meta, r_meta));
 
-    if (is_tuple_exp(l_exp)) {
+    if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
         array_t *val_exps = r_exp->u_tup.exps;
 
-        if (is_tuple_exp(r_exp) && array_size(var_exps) == array_size(val_exps)) {
+        if (array_size(var_exps) == array_size(val_exps)) {
             for (i = 0; i < array_size(var_exps); i++) {
                 ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
                 ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
@@ -124,12 +124,13 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
      */
 
     if (cond_exp != NULL) {
-        meta_t *cond_meta = &cond_exp->meta;
+        ast_exp_t *not_exp;
+        ast_stmt_t *break_stmt;
 
-        CHECK(exp_check(check, cond_exp));
+        not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
 
-        if (!is_bool_type(cond_meta))
-            RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
+        break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
+        array_add_first(&blk->stmts, break_stmt);
     }
 
     if (stmt->u_loop.init_ids != NULL) {
@@ -374,12 +375,14 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
         exp_check(check, arg_exp);
 
-        return meta_cmp(fn_meta, &arg_exp->meta);
+        CHECK(meta_cmp(fn_meta, &arg_exp->meta));
     }
     else if (!is_void_type(fn_meta) && !is_ctor_id(fn_id)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument",
                meta_cnt(fn_meta), 0);
     }
+
+    stmt->u_ret.ret_ids = fn_id->u_fn.ret_ids;
 
     return NO_ERROR;
 }

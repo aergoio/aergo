@@ -32,7 +32,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         /* TODO: save to the storage */
         return NULL;
 
-    id->idx = gen_add_local(gen, meta);
+    id->idx = gen_add_local(gen, meta->type);
 
     if (dflt_exp != NULL) {
         BinaryenExpressionRef val_exp;
@@ -89,8 +89,6 @@ id_gen_fn(gen_t *gen, ast_id_t *id)
         params[param_id->idx] = meta_gen(gen, &param_id->meta);
     }
 
-    gen->ret_idx = gen->id_idx;
-
     for (i = 0; i < array_size(ret_ids); i++) {
         ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
 
@@ -108,7 +106,6 @@ id_gen_fn(gen_t *gen, ast_id_t *id)
                                blk_gen(gen, id->u_fn.blk));
 
     gen->id_idx = 0;
-    gen->ret_idx = 0;
     gen->local_cnt = 0;
     gen->locals = NULL;
 

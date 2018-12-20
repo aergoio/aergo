@@ -27,7 +27,7 @@ struct ir_bb_s {
     array_t stmts;
     array_t brs;
 
-    RelooperBlockRef block;
+    RelooperBlockRef rb;
 };
 
 ir_bb_t *bb_new(void);

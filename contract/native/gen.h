@@ -25,9 +25,7 @@ typedef struct gen_s {
     RelooperRef relooper;
 
     dsgmt_t *dsgmt;
-
     int id_idx;
-    int ret_idx;
 
     int local_cnt;
     BinaryenType *locals;

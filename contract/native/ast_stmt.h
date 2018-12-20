@@ -92,6 +92,7 @@ typedef struct stmt_case_s {
 
 typedef struct stmt_return_s {
     ast_exp_t *arg_exp;
+    array_t *ret_ids;
 } stmt_return_t;
 
 typedef struct stmt_jump_s {

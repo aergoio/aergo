@@ -10,14 +10,14 @@
 #include "gen_util.h"
 
 uint32_t
-gen_add_local(gen_t *gen, meta_t *meta)
+gen_add_local(gen_t *gen, type_t type)
 {
     if (gen->locals == NULL)
         gen->locals = xmalloc(sizeof(BinaryenType));
     else
         gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
 
-    gen->locals[gen->local_cnt++] = meta_gen(gen, meta);
+    gen->locals[gen->local_cnt++] = type_gen(gen, type);
 
     return gen->id_idx++;
 }

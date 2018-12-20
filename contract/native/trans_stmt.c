@@ -16,12 +16,38 @@
 static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
-    if (is_tuple_exp(stmt->u_assign.l_exp)) {
-        ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
-        return;
-    }
+    ast_exp_t *l_exp = stmt->u_assign.l_exp;
+    ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
-    bb_add_stmt(trans->bb, stmt);
+    if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
+        /*
+        int i;
+        array_t *var_exps = l_exp->u_tup.exps;
+        array_t *val_exps = r_exp->u_tup.exps;
+
+
+        if (array_size(var_exps) == array_size(val_exps)) {
+            for (i = 0; i < array_size(val_exps); i++) {
+            }
+        }
+
+        for (i = 0; i < array_size(val_exps); i++) {
+            ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+            meta_t *val_meta = &val_exp->meta;
+
+            if (is_tuple_type(val_meta)) {
+            }
+            else {
+                ast_stmt_t *assign_stmt;
+            }
+        }
+        */
+
+        ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
+    }
+    else {
+        bb_add_stmt(trans->bb, stmt);
+    }
 }
 
 static void
@@ -90,9 +116,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 {
-    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ir_bb_t *cond_bb = bb_new();
-    ir_bb_t *loop_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
     /* for-loop statements were transformed like this:
@@ -102,12 +126,12 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
      *         '---------------------'
      *                    |
      *              .-----------.
-     *              |  cond_bb  |<--------.
-     *              '-----------'         |
-     *                  /   \             |
-     *       .-----------. .-----------.  |
-     *       |  next_bb  | |  loop_bb  |--'
-     *       '-----------' '-----------'
+     *              |  cond_bb  |<---------.
+     *              '-----------'          |
+     *                  /   \              |
+     *       .-----------. .------------.  |
+     *       |  next_bb  | |  loop blk  |--'
+     *       '-----------' '------------'
      */
 
     if (stmt->u_loop.init_stmt != NULL)
@@ -115,30 +139,29 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 
     /* previous basic block */
     bb_add_branch(trans->bb, NULL, cond_bb);
+
     fn_add_basic_blk(trans->fn, trans->bb);
 
     trans->bb = cond_bb;
 
-    if (cond_exp != NULL) {
-        bb_add_branch(cond_bb, cond_exp, loop_bb);
-        bb_add_branch(cond_bb, NULL, next_bb);
+    trans->cont_bb = cond_bb;
+    trans->break_bb = next_bb;
+
+    blk_trans(trans, stmt->u_loop.blk);
+
+    trans->cont_bb = NULL;
+    trans->break_bb = NULL;
+
+    if (trans->bb != NULL) {
+        /* make loop using last block and entry block */
+        bb_add_branch(trans->bb, NULL, cond_bb);
+
+        fn_add_basic_blk(trans->fn, trans->bb);
     }
-
-    if (stmt->u_loop.blk != NULL) {
-        trans->bb = loop_bb;
-        trans->cont_bb = cond_bb;
-        trans->break_bb = next_bb;
-
-        blk_trans(trans, stmt->u_loop.blk);
-
-        trans->cont_bb = NULL;
-        trans->break_bb = NULL;
+    else {
+        /* make loop using self block in case of an empty loop without loop_exp */
+        bb_add_branch(cond_bb, NULL, cond_bb);
     }
-
-    /* make loop using last block and entry block */
-    bb_add_branch(trans->bb, NULL, cond_bb);
-
-    fn_add_basic_blk(trans->fn, trans->bb);
 
     /* If there is no branch in the loop, cond_bb and trans-> bb may be the same */
     if (cond_bb != trans->bb)

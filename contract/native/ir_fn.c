@@ -12,9 +12,10 @@
 ir_fn_t *
 fn_new(ast_id_t *id)
 {
+    int i, j = 0;
     ir_fn_t *fn = xmalloc(sizeof(ir_fn_t));
 
-    fn->id = id;
+    fn->name = id->name;
 
     array_init(&fn->params);
     array_init(&fn->locals);
@@ -23,12 +24,29 @@ fn_new(ast_id_t *id)
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
 
+    for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
+        ast_id_t *param_id = array_get(id->u_fn.param_ids, i, ast_id_t);
+
+        array_add_last(&fn->params, param_id);
+        param_id->idx = j++;
+    }
+
+    for (i = 0; i < array_size(id->u_fn.ret_ids); i++) {
+        ast_id_t *ret_id = array_get(id->u_fn.ret_ids, i, ast_id_t);
+
+        array_add_last(&fn->params, ret_id);
+        ret_id->idx = j++;
+    }
+
     return fn;
 }
 
 void
 fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
+    /* reserved for two internal variables (e.g, base stack address, relooper) */
+    id->idx = array_size(&fn->locals) + 2;
+
     array_add_last(&fn->locals, id);
 }
 
