@@ -211,10 +211,14 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	return nil
 }
 
-// GetGenesisInfo returns Genesis info from cdb.
+// GetGenesisInfo returns Genesis info, which is read from cdb.
 func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
-		return types.GetGenesisFromBytes(b)
+		genesis := types.GetGenesisFromBytes(b)
+		if block, err := cdb.GetBlockByNo(0); err != nil {
+			genesis.SetBlock(block)
+		}
+		return genesis
 	}
 	return nil
 }
