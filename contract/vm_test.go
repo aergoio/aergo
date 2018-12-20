@@ -2692,7 +2692,7 @@ end
 abi.register(load)
 abi.payable(save)
 `
-	bc , _ := LoadDummyChain()
+	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
@@ -2743,7 +2743,7 @@ function default()
 end
 abi.register(default)
 `
-	bc , _ := LoadDummyChain()
+	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "default", 0, src),
@@ -2765,7 +2765,6 @@ abi.register(default)
 	}
 }
 
-
 func TestBignum(t *testing.T) {
 	bigNum := `
 function test(addr)
@@ -2782,7 +2781,8 @@ end
 function testBignum()
 	bg = bignum.number("999999999999999999999999999999")
 	system.setItem("big", bg)
-	return system.getItem("big")
+	bi = system.getItem("big")
+	return tostring(bi)
 end
 
 function constructor()
@@ -2823,7 +2823,7 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	receipt = bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `999999999999999999999999999999` {
+	if receipt.GetRet() != `"999999999999999999999999999999"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
