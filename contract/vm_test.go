@@ -1924,16 +1924,32 @@ function testBignum()
 	return tostring(bi)
 end
 
+function argBignum(a)
+	b = a + 1
+	return tostring(b)
+end
+
+function calladdBignum(addr, a)
+	return tostring(contract.call(addr, "add", a, 2) + 3)
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum)
 abi.payable(constructor)
 `
+	callee := `
+	function add(a, b)
+		return a + b
+	end
+	abi.register(add)
+	`
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 1000000000000),
 		NewLuaTxDef("ktlee", "bigNum", 50000000000, bigNum),
+		NewLuaTxDef("ktlee", "add", 0, callee),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1964,6 +1980,14 @@ abi.payable(constructor)
 	receipt = bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `"999999999999999999999999999999"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("bigNum", `{"Name":"argBignum", "Args":[{"_bignum":999999999999999999}]}`, "", `"1000000000000000000"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":999999999999999999}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
