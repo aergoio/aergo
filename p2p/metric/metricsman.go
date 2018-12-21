@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/libp2p/go-libp2p-peer"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,21 +25,26 @@ type MetricsManager interface {
 	Metric(pid peer.ID) (*PeerMetric, bool)
 	Metrics() []*PeerMetric
 
-	Summary() string
+	Summary() map[string]interface{}
+	PrintMetrics() string
 }
 
 type metricsManager struct {
 	logger *log.Logger
+	startTime time.Time
 
 	metricsMap map[peer.ID]*PeerMetric
 
 	interval int
 	ticker *time.Ticker
 	mutex sync.RWMutex
+
+	deadTotalIn int64
+	deadTotalOut int64
 }
 
 func NewMetricManager(interval int) *metricsManager {
-	mm := &metricsManager{logger:log.NewLogger("p2p"), metricsMap:make(map[peer.ID]*PeerMetric), interval:interval}
+	mm := &metricsManager{logger:log.NewLogger("p2p"), metricsMap:make(map[peer.ID]*PeerMetric), interval:interval, startTime:time.Now()}
 
 	return mm
 }
@@ -84,6 +90,8 @@ func (mm *metricsManager) Remove(pid peer.ID) *PeerMetric {
 		mm.logger.Warn().Str("peer_id", pid.Pretty()).Msg("metric for to remove peer is not exist.")
 		return nil
 	} else {
+		atomic.AddInt64(&mm.deadTotalIn, metric.totalIn)
+		atomic.AddInt64(&mm.deadTotalOut, metric.totalOut)
 		delete(mm.metricsMap,pid)
 		return metric
 	}
@@ -108,7 +116,29 @@ func (mm *metricsManager) Metrics() []*PeerMetric {
 	return view
 }
 
-func (mm *metricsManager) Summary() string {
+
+func (mm *metricsManager) Summary() (map[string] interface{}) {
+	// There can be a liitle error
+	sum := make(map[string] interface{})
+	sum["since"] = mm.startTime
+	var totalIn, totalOut int64
+	if len(mm.Metrics()) > 0 {
+		var cnt = 0
+		//var inAps, inLoad, outAps, outLoad int64
+		for _, met := range mm.Metrics() {
+			cnt++
+			totalIn += met.totalIn
+			totalOut += met.totalOut
+		}
+	}
+	totalIn += atomic.LoadInt64(&mm.deadTotalIn)
+	totalOut += atomic.LoadInt64(&mm.deadTotalOut)
+	sum["in"] = totalIn
+	sum["out"] = totalOut
+	return sum
+}
+
+func (mm *metricsManager) PrintMetrics() string {
 	sb := bytes.Buffer{}
 	sb.WriteString("p2p metric summary \n")
 	if len(mm.Metrics()) > 0 {
