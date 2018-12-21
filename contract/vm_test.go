@@ -2871,11 +2871,11 @@ abi.payable(constructor)
 	if receipt.GetRet() != `"999999999999999999999999999999"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	err = bc.Query("bigNum", `{"Name":"argBignum", "Args":[{"_bignum":999999999999999999}]}`, "", `"1000000000000000000"`)
+	err = bc.Query("bigNum", `{"Name":"argBignum", "Args":[{"_bignum":"99999999999999999999999999"}]}`, "", `"100000000000000000000000000"`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":999999999999999999}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
 	if err != nil {
 		t.Error(err)
 	}
