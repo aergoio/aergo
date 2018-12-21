@@ -514,7 +514,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         ASSERT(ret_ids != NULL);
         ASSERT1(array_size(ret_ids) == 1, array_size(ret_ids));
 
-        type_meta = &array_get(ret_ids, 0, ast_id_t)->meta;
+        type_meta = &array_get_id(ret_ids, 0)->meta;
     }
 
     if (type_meta != NULL && type_meta->name != NULL)
@@ -557,7 +557,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             ast_exp_t *param_exp;
 
             ASSERT1(array_size(param_exps) == 1, array_size(param_exps));
-            param_exp = array_get(param_exps, 0, ast_exp_t);
+            param_exp = array_get_exp(param_exps, 0);
 
             CHECK(exp_check(check, param_exp));
             ASSERT1(is_integer_type(&param_exp->meta), param_exp->meta.type);
@@ -582,8 +582,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
                array_size(param_exps));
 
     for (i = 0; i < array_size(param_exps); i++) {
-        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
-        ast_exp_t *param_exp = array_get(param_exps, i, ast_exp_t);
+        ast_id_t *param_id = array_get_id(param_ids, i);
+        ast_exp_t *param_exp = array_get_exp(param_exps, i);
 
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
@@ -634,7 +634,7 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
     ASSERT(exps != NULL);
 
     for (i = 0; i < array_size(exps); i++) {
-        CHECK(exp_check(check, array_get(exps, i, ast_exp_t)));
+        CHECK(exp_check(check, array_get_exp(exps, i)));
     }
 
     meta_set_tuple(&exp->meta, exps);
@@ -653,7 +653,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     ASSERT(exps != NULL);
 
     for (i = 0; i < array_size(exps); i++) {
-        ast_exp_t *elem_exp = array_get(exps, i, ast_exp_t);
+        ast_exp_t *elem_exp = array_get_exp(exps, i);
 
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
 
@@ -670,7 +670,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
         char *raw = xmalloc(meta_size(&exp->meta));
 
         for (i = 0; i < array_size(exps); i++) {
-            ast_exp_t *elem_exp = array_get(exps, i, ast_exp_t);
+            ast_exp_t *elem_exp = array_get_exp(exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
             memcpy(raw + offset, val_ptr(elem_val), val_size(elem_val));

@@ -27,8 +27,8 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             int i;
 
             for (i = 0; i < array_size(val_exps); i++) {
-                ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
-                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+                ast_exp_t *var_exp = array_get_exp(var_exps, i);
+                ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
                 ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
 
@@ -41,14 +41,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             ast_exp_t *var_exp;
 
             for (i = 0; i < array_size(val_exps); i++) {
-                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+                ast_exp_t *val_exp = array_get_exp(val_exps, i);
                 meta_t *val_meta = &val_exp->meta;
 
                 if (is_tuple_type(val_meta)) {
                     array_t *exps = array_new();
 
                     for (j = 0; j < val_meta->elem_cnt; j++) {
-                        array_add_last(exps, array_get(var_exps, var_idx + j, ast_exp_t));
+                        array_add_last(exps, array_get_exp(var_exps, var_idx + j));
                     }
 
                     var_exp = exp_new_tuple(exps, &stmt->pos);
@@ -57,7 +57,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_idx += val_meta->elem_cnt;
                 }
                 else {
-                    var_exp = array_get(var_exps, var_idx++, ast_exp_t);
+                    var_exp = array_get_exp(var_exps, var_idx++);
                 }
 
                 ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
@@ -107,7 +107,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     fn_add_basic_blk(trans->fn, trans->bb);
 
     for (i = 0; i < array_size(elif_stmts); i++) {
-        ast_stmt_t *elif_stmt = array_get(elif_stmts, i, ast_stmt_t);
+        ast_stmt_t *elif_stmt = array_get_stmt(elif_stmts, i);
 
         trans->bb = bb_new();
 
@@ -245,12 +245,12 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     trans->bb = bb_new();
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        ast_stmt_t *case_stmt = array_get(&blk->stmts, i, ast_stmt_t);
+        ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
 
         bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
 
         for (j = 0; j < array_size(case_stmt->u_case.stmts); j++) {
-            stmt_trans(trans, array_get(case_stmt->u_case.stmts, j, ast_stmt_t));
+            stmt_trans(trans, array_get_stmt(case_stmt->u_case.stmts, j));
         }
 
         if (trans->bb != NULL) {

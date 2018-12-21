@@ -23,7 +23,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
     for (i = 0; i < param_cnt; i++) {
-        params[i] = meta_gen(gen, &array_get(&fn->params, i, ast_id_t)->meta);
+        params[i] = meta_gen(gen, &array_get_id(&fn->params, i)->meta);
     }
 
     spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(),
@@ -36,17 +36,17 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     gen_add_local(gen, TYPE_INT32);
 
     for (i = 0; i < array_size(&fn->locals); i++) {
-        gen_add_instr(gen, id_gen(gen, array_get(&fn->locals, i, ast_id_t)));
+        gen_add_instr(gen, id_gen(gen, array_get_id(&fn->locals, i)));
     }
 
     gen->relooper = RelooperCreate();
 
     for (i = 0; i < array_size(&fn->bbs); i++) {
-        bb_gen(gen, array_get(&fn->bbs, i, ir_bb_t));
+        bb_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
     for (i = 0; i < array_size(&fn->bbs); i++) {
-        br_gen(gen, array_get(&fn->bbs, i, ir_bb_t));
+        br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
     gen_add_instr(gen,

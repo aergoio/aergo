@@ -89,7 +89,7 @@ stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
         instrs = xmalloc(sizeof(BinaryenExpressionRef) * array_size(elif_stmts));
 
         for (i = 0; i < array_size(elif_stmts); i++) {
-            instrs[j++] = stmt_gen_if(gen, array_get(elif_stmts, i, ast_stmt_t));
+            instrs[j++] = stmt_gen_if(gen, array_get_stmt(elif_stmts, i));
         }
 
         else_body = BinaryenBlock(gen->module, NULL, instrs, j, BinaryenTypeNone());
@@ -141,7 +141,7 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
     gen->instrs = NULL;
 
     for (i = array_size(case_stmts) - 1; i >= 0; i--) {
-        ast_stmt_t *case_stmt = array_get(case_stmts, i, ast_stmt_t);
+        ast_stmt_t *case_stmt = array_get_stmt(case_stmts, i);
         BinaryenExpressionRef cond_ref, break_ref;
 
         if (case_stmt->u_case.val_exp == NULL) {
@@ -155,7 +155,7 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
         if (i == 0) {
             if (dflt_idx > 0) {
                 snprintf(label, sizeof(label), "case_blk_%d",
-                         array_get(case_stmts, dflt_idx - 1, ast_stmt_t)->num);
+                         array_get_stmt(case_stmts, dflt_idx - 1)->num);
 
                 break_ref = BinaryenBreak(gen->module, label, cond_ref, NULL);
             }
@@ -166,7 +166,7 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
         else {
             /* previous statement will be inner block */
             snprintf(label, sizeof(label), "case_blk_%d",
-                     array_get(case_stmts, i - 1, ast_stmt_t)->num);
+                     array_get_stmt(case_stmts, i - 1)->num);
 
             break_ref = BinaryenBreak(gen->module, label, cond_ref, NULL);
         }
@@ -175,7 +175,7 @@ stmt_gen_switch(gen_t *gen, ast_stmt_t *stmt)
     }
 
     for (i = 0; i < array_size(case_stmts); i++) {
-        ast_stmt_t *case_stmt = array_get(case_stmts, i, ast_stmt_t);
+        ast_stmt_t *case_stmt = array_get_stmt(case_stmts, i);
 
         if (block_ref != NULL)
             gen_add_instr(gen, block_ref);
@@ -220,11 +220,11 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
         array_t *elem_exps = arg_exp->u_tup.exps;
 
         for (i = 0; i < array_size(elem_exps); i++) {
-            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             meta_t *elem_meta = &elem_exp->meta;
 
             value = exp_gen(gen, elem_exp, elem_meta, false);
-            ret_id = array_get(ret_ids, i, ast_id_t);
+            ret_id = array_get_id(ret_ids, i);
 
             gen_add_instr(gen,
                 BinaryenStore(gen->module, meta_size(elem_meta), elem_meta->offset, 0,
@@ -237,7 +237,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 
     arg_meta = &arg_exp->meta;
     value = exp_gen(gen, arg_exp, arg_meta, false);
-    ret_id = array_get(ret_ids, 0, ast_id_t);
+    ret_id = array_get_id(ret_ids, 0);
 
     return BinaryenStore(gen->module, meta_size(arg_meta), arg_meta->offset, 0,
                          BinaryenGetLocal(gen->module, ret_id->idx, BinaryenTypeInt32()),

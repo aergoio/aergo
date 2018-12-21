@@ -43,7 +43,7 @@ gen_stmt_array(gen_t *gen, array_t *stmts)
     int i;
 
     for (i = 0; i < array_size(stmts); i++) {
-        gen_add_instr(gen, stmt_gen(gen, array_get(stmts, i, ast_stmt_t)));
+        gen_add_instr(gen, stmt_gen(gen, array_get_stmt(stmts, i)));
     }
 }
 

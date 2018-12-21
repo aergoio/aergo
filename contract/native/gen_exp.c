@@ -535,14 +535,14 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
     arg_exps = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
 
     for (i = 0; i < array_size(param_exps); i++) {
-        ast_exp_t *param_exp = array_get(param_exps, i, ast_exp_t);
-        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+        ast_exp_t *param_exp = array_get_exp(param_exps, i);
+        ast_id_t *param_id = array_get_id(param_ids, i);
 
         arg_exps[j++] = exp_gen(gen, param_exp, &param_id->meta, false);
     }
 
     for (i = 0; i < array_size(ret_ids); i++) {
-        ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
+        ast_id_t *ret_id = array_get_id(ret_ids, i);
 
         arg_exps[j++] = gen_i32(gen, ret_id->meta.addr);
     }
@@ -577,7 +577,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
         int offset = 0;
 
         for (i = 0; i < array_size(elem_exps); i++) {
-            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
 
             val_exp = exp_gen(gen, elem_exp, meta, false);
 
@@ -593,7 +593,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp, meta_t *meta, bool is_ref)
                 array_size(elem_exps), meta->elem_cnt);
 
         for (i = 0; i < array_size(elem_exps); i++) {
-            ast_exp_t *elem_exp = array_get(elem_exps, i, ast_exp_t);
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             meta_t *elem_meta = meta->elems[i];
 
             val_exp = exp_gen(gen, elem_exp, elem_meta, false);

@@ -24,7 +24,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
     meta_set_array(&id->meta, array_size(size_exps));
 
     for (i = 0; i < array_size(size_exps); i++) {
-        ast_exp_t *size_exp = array_get(size_exps, i, ast_exp_t);
+        ast_exp_t *size_exp = array_get_exp(size_exps, i);
 
         CHECK(exp_check(check, size_exp));
 
@@ -125,7 +125,7 @@ id_check_struct(check_t *check, ast_id_t *id)
     ASSERT(fld_ids != NULL);
 
     for (i = 0; i < array_size(fld_ids); i++) {
-        ast_id_t *fld_id = array_get(fld_ids, i, ast_id_t);
+        ast_id_t *fld_id = array_get_id(fld_ids, i);
 
         CHECK(id_check_var(check, fld_id));
 
@@ -155,7 +155,7 @@ id_check_enum(check_t *check, ast_id_t *id)
     ASSERT(elem_ids != NULL);
 
     for (i = 0; i < array_size(elem_ids); i++) {
-        ast_id_t *elem_id = array_get(elem_ids, i, ast_id_t);
+        ast_id_t *elem_id = array_get_id(elem_ids, i);
         ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
         elem_id->is_checked = true;
@@ -182,7 +182,7 @@ id_check_enum(check_t *check, ast_id_t *id)
             ASSERT1(is_i64_val(init_val), init_val->type);
 
             for (j = 0; j < i; j++) {
-                ast_id_t *prev_id = array_get(elem_ids, j, ast_id_t);
+                ast_id_t *prev_id = array_get_id(elem_ids, j);
 
                 if (prev_id->u_var.dflt_exp != NULL) {
                     value_t *val_prev = &prev_id->u_var.dflt_exp->u_lit.val;
@@ -245,7 +245,7 @@ id_check_fn(check_t *check, ast_id_t *id)
     param_ids = id->u_fn.param_ids;
 
     for (i = 0; i < array_size(param_ids); i++) {
-        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+        ast_id_t *param_id = array_get_id(param_ids, i);
 
         id_check_param(check, param_id);
     }
@@ -257,7 +257,7 @@ id_check_fn(check_t *check, ast_id_t *id)
         ast_id_t *ret_id;
 
         if (array_size(ret_ids) == 1) {
-            ret_id = array_get(ret_ids, 0, ast_id_t);
+            ret_id = array_get_id(ret_ids, 0);
 
             id_check_var(check, ret_id);
             meta_copy(id_meta, &ret_id->meta);
@@ -271,7 +271,7 @@ id_check_fn(check_t *check, ast_id_t *id)
             id_meta->size = 0;
 
             for (i = 0; i < array_size(ret_ids); i++) {
-                ret_id = array_get(ret_ids, i, ast_id_t);
+                ret_id = array_get_id(ret_ids, i);
 
                 id_check_var(check, ret_id);
 

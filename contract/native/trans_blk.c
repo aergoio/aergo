@@ -16,11 +16,11 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
     int i;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        id_trans(trans, array_get(&blk->ids, i, ast_id_t));
+        id_trans(trans, array_get_id(&blk->ids, i));
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        stmt_trans(trans, array_get(&blk->stmts, i, ast_stmt_t));
+        stmt_trans(trans, array_get_stmt(&blk->stmts, i));
     }
 
     /* Since there is no relation between general blocks and basic blocks,

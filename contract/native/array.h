@@ -11,9 +11,16 @@
 #define ARRAY_INIT_CAPACITY             4
 
 #define is_empty_array(array)           ((array) == NULL ? true : (array)->size == 0)
-
 #define array_size(array)               ((array) == NULL ? 0 : (array)->size)
+
 #define array_get(array, idx, type)     ((type *)((array)->items[idx]))
+
+#define array_get_id(array, idx)        array_get(array, idx, ast_id_t)
+#define array_get_exp(array, idx)       array_get(array, idx, ast_exp_t)
+#define array_get_stmt(array, idx)      array_get(array, idx, ast_stmt_t)
+#define array_get_fn(array, idx)        array_get(array, idx, ir_fn_t)
+#define array_get_bb(array, idx)        array_get(array, idx, ir_bb_t)
+#define array_get_br(array, idx)        array_get(array, idx, ir_br_t)
 
 #define array_get_first(array, type)                                                     \
     (array_size(array) > 0 ? (type *)((array)->items[0]) : NULL)

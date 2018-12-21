@@ -83,14 +83,14 @@ id_gen_fn(gen_t *gen, ast_id_t *id)
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
     for (i = 0; i < array_size(param_ids); i++) {
-        ast_id_t *param_id = array_get(param_ids, i, ast_id_t);
+        ast_id_t *param_id = array_get_id(param_ids, i);
 
         param_id->idx = gen->id_idx++;
         params[param_id->idx] = meta_gen(gen, &param_id->meta);
     }
 
     for (i = 0; i < array_size(ret_ids); i++) {
-        ast_id_t *ret_id = array_get(ret_ids, i, ast_id_t);
+        ast_id_t *ret_id = array_get_id(ret_ids, i);
 
         ret_id->idx = gen->id_idx++;
         params[ret_id->idx] = meta_gen(gen, &ret_id->meta);

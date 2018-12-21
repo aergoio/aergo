@@ -29,11 +29,11 @@ blk_gen(gen_t *gen, ast_blk_t *blk)
     gen->instrs = NULL;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        gen_add_instr(gen, id_gen(gen, array_get(&blk->ids, i, ast_id_t)));
+        gen_add_instr(gen, id_gen(gen, array_get_id(&blk->ids, i)));
     }
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        gen_add_instr(gen, stmt_gen(gen, array_get(&blk->stmts, i, ast_stmt_t)));
+        gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&blk->stmts, i)));
     }
 
     block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,

@@ -40,7 +40,7 @@ check(ast_t *ast, flag_t flag)
     check_init(&check, ast, flag);
 
     for (i = 0; i < array_size(&ast->root->ids); i++) {
-        ast_id_t *id = array_get(&ast->root->ids, i, ast_id_t);
+        ast_id_t *id = array_get_id(&ast->root->ids, i);
 
         ASSERT1(is_cont_id(id), id->kind);
 

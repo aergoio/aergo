@@ -70,7 +70,7 @@ gen(ir_t *ir, flag_t flag, char *path)
         // XXX: handle globals
 
         for (i = 0; i < array_size(&ir->fns); i++) {
-            fn_gen(&gen, array_get(&ir->fns, i, ir_fn_t));
+            fn_gen(&gen, array_get_fn(&ir->fns, i));
         }
 
         BinaryenSetMemory(module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",

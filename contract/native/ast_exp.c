@@ -218,7 +218,7 @@ exp_clone(ast_exp_t *exp)
         exps = exp->u_call.param_exps;
         res_exps = array_new();
         for (i = 0; i < array_size(exps); i++) {
-            array_add_last(res_exps, exp_clone(array_get(exps, i, ast_exp_t)));
+            array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
         return exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
 
@@ -229,7 +229,7 @@ exp_clone(ast_exp_t *exp)
         exps = exp->u_tup.exps;
         res_exps = array_new();
         for (i = 0; i < array_size(exps); i++) {
-            array_add_last(res_exps, exp_clone(array_get(exps, i, ast_exp_t)));
+            array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
         return exp_new_tuple(res_exps, &exp->pos);
 
@@ -293,8 +293,8 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
             return false;
 
         for (i = 0; i < array_size(e1->u_call.param_exps); i++) {
-            if (!exp_equals(array_get(e1->u_call.param_exps, i, ast_exp_t),
-                            array_get(e2->u_call.param_exps, i, ast_exp_t)))
+            if (!exp_equals(array_get_exp(e1->u_call.param_exps, i),
+                            array_get_exp(e2->u_call.param_exps, i)))
                 return false;
         }
         return exp_equals(e1->u_acc.id_exp, e2->u_acc.id_exp);
@@ -308,8 +308,8 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
             return false;
 
         for (i = 0; i < array_size(e1->u_tup.exps); i++) {
-            if (!exp_equals(array_get(e1->u_tup.exps, i, ast_exp_t),
-                            array_get(e2->u_tup.exps, i, ast_exp_t)))
+            if (!exp_equals(array_get_exp(e1->u_tup.exps, i),
+                            array_get_exp(e2->u_tup.exps, i)))
                 return false;
         }
         return true;

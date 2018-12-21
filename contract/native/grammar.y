@@ -268,7 +268,7 @@ contract_decl:
         bool exist_ctor = false;
 
         for (i = 0; i < array_size(&$4->ids); i++) {
-            ast_id_t *id = array_get(&$4->ids, i, ast_id_t);
+            ast_id_t *id = array_get_id(&$4->ids, i);
 
             if (is_ctor_id(id)) {
                 if (strcmp($2, id->name) != 0)
@@ -317,7 +317,7 @@ variable:
         int i;
 
         for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_get($2, i, ast_id_t);
+            ast_id_t *id = array_get_id($2, i);
 
             id->mod |= MOD_PUBLIC;
         }
@@ -332,7 +332,7 @@ var_qual:
         int i;
 
         for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_get($2, i, ast_id_t);
+            ast_id_t *id = array_get_id($2, i);
 
             id->mod |= MOD_CONST;
         }
@@ -352,9 +352,9 @@ var_decl:
         }
         else {
             for (i = 0; i < array_size($1); i++) {
-                ast_id_t *id = array_get($1, i, ast_id_t);
+                ast_id_t *id = array_get_id($1, i);
 
-                id->u_var.dflt_exp = array_get($3, i, ast_exp_t);
+                id->u_var.dflt_exp = array_get_exp($3, i);
             }
         }
         $$ = $1;
@@ -367,7 +367,7 @@ var_spec:
         int i;
 
         for (i = 0; i < array_size($2); i++) {
-            ast_id_t *id = array_get($2, i, ast_id_t);
+            ast_id_t *id = array_get_id($2, i);
 
             id->u_var.type_meta = $1;
         }

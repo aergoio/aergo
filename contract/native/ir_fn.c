@@ -25,14 +25,14 @@ fn_new(ast_id_t *id)
     fn->exit_bb = bb_new();
 
     for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
-        ast_id_t *param_id = array_get(id->u_fn.param_ids, i, ast_id_t);
+        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
         array_add_last(&fn->params, param_id);
         param_id->idx = j++;
     }
 
     for (i = 0; i < array_size(id->u_fn.ret_ids); i++) {
-        ast_id_t *ret_id = array_get(id->u_fn.ret_ids, i, ast_id_t);
+        ast_id_t *ret_id = array_get_id(id->u_fn.ret_ids, i);
 
         array_add_last(&fn->params, ret_id);
         ret_id->idx = j++;

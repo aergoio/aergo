@@ -84,7 +84,7 @@ meta_set_struct(meta_t *meta, char *name, array_t *ids)
     meta->size = 0;
 
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta_t *elem_meta = &array_get(ids, i, ast_id_t)->meta;
+        meta_t *elem_meta = &array_get_id(ids, i)->meta;
 
         ASSERT(elem_meta->size > 0);
 
@@ -108,7 +108,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
     meta->size = 0;
 
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta_t *elem_meta = &array_get(exps, i, ast_exp_t)->meta;
+        meta_t *elem_meta = &array_get_exp(exps, i)->meta;
 
         ASSERT(elem_meta->size > 0);
 

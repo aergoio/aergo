@@ -121,7 +121,7 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
     ASSERT(fld_ids != NULL);
 
     for (i = 0; i < array_size(fld_ids); i++) {
-        ast_id_t *fld_id = array_get(fld_ids, i, ast_id_t);
+        ast_id_t *fld_id = array_get_id(fld_ids, i);
 
         if ((is_self || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
             return fld_id;
@@ -140,7 +140,7 @@ id_search_param(ast_id_t *id, char *name)
     ASSERT(name != NULL);
 
     for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
-        ast_id_t *param_id = array_get(id->u_fn.param_ids, i, ast_id_t);
+        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
         if (strcmp(param_id->name, name) == 0)
             return param_id;
@@ -158,7 +158,7 @@ id_add(array_t *ids, int idx, ast_id_t *new_id)
         return;
 
     for (i = 0; i < array_size(ids); i++) {
-        ast_id_t *id = array_get(ids, i, ast_id_t);
+        ast_id_t *id = array_get_id(ids, i);
 
         if (strcmp(id->name, new_id->name) == 0) {
             ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
@@ -178,7 +178,7 @@ id_join(array_t *ids, int idx, array_t *new_ids)
         return;
 
     for (i = 0; i < array_size(new_ids); i++) {
-        id_add(ids, idx + i, array_get(new_ids, i, ast_id_t));
+        id_add(ids, idx + i, array_get_id(new_ids, i));
     }
 }
 

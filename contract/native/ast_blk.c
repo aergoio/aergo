@@ -86,7 +86,7 @@ blk_search_id(ast_blk_t *blk, char *name, int num)
     do {
         /* TODO: better to skip if it is equal to the current contract id */
         for (i = 0; i < array_size(&blk->ids); i++) {
-            ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+            ast_id_t *id = array_get_id(&blk->ids, i);
 
             if (!is_label_id(id) && id->num < num && strcmp(id->name, name) == 0)
                 return id;
@@ -107,7 +107,7 @@ blk_search_label(ast_blk_t *blk, char *name)
         return NULL;
 
     for (i = 0; i < array_size(&blk->ids); i++) {
-        ast_id_t *id = array_get(&blk->ids, i, ast_id_t);
+        ast_id_t *id = array_get_id(&blk->ids, i);
 
         if (is_label_id(id) && strcmp(id->name, name) == 0)
             return id;

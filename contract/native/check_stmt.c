@@ -36,7 +36,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         array_t *var_exps = l_exp->u_tup.exps;
 
         for (i = 0; i < array_size(var_exps); i++) {
-            ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
+            ast_exp_t *var_exp = array_get_exp(var_exps, i);
 
             if (!is_usable_lval(var_exp))
                 RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
@@ -54,8 +54,8 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
         if (array_size(var_exps) == array_size(val_exps)) {
             for (i = 0; i < array_size(var_exps); i++) {
-                ast_exp_t *var_exp = array_get(var_exps, i, ast_exp_t);
-                ast_exp_t *val_exp = array_get(val_exps, i, ast_exp_t);
+                ast_exp_t *var_exp = array_get_exp(var_exps, i);
+                ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
                 if (is_lit_exp(val_exp) &&
                     !value_fit(&val_exp->u_lit.val, &var_exp->meta))
@@ -96,7 +96,7 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
     elif_stmts = &stmt->u_if.elif_stmts;
 
     for (i = 0; i < array_size(elif_stmts); i++) {
-        stmt_check_if(check, array_get(elif_stmts, i, ast_stmt_t));
+        stmt_check_if(check, array_get_stmt(elif_stmts, i));
     }
 
     if (stmt->u_if.else_blk != NULL)
@@ -212,11 +212,11 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
         array_t *var_ids = stmt->u_loop.init_ids;
 
         if (array_size(var_ids) > 1)
-            RETURN(ERROR_NOT_SUPPORTED, &array_get(var_ids, 1, ast_id_t)->pos);
+            RETURN(ERROR_NOT_SUPPORTED, &array_get_id(var_ids, 1)->pos);
 
         /* make "variable = loop_exp[i++]" */
         for (i = 0; i < array_size(var_ids); i++) {
-            ast_id_t *var_id = array_get(var_ids, i, ast_id_t);
+            ast_id_t *var_id = array_get_id(var_ids, i);
             ast_exp_t *id_exp;
 
             id_exp = exp_new_ref(var_id->name, pos);
@@ -291,7 +291,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     cond_exp = stmt->u_sw.cond_exp;
 
     for (i = 0; i < array_size(&blk->stmts); i++) {
-        ast_stmt_t *case_stmt = array_get(&blk->stmts, i, ast_stmt_t);
+        ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
         ast_exp_t *val_exp = case_stmt->u_case.val_exp;
 
         ASSERT1(is_case_stmt(case_stmt), case_stmt->kind);
@@ -304,7 +304,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
         }
         else {
             for (j = i + 1; j < array_size(&blk->stmts); j++) {
-                ast_stmt_t *next_case = array_get(&blk->stmts, j, ast_stmt_t);
+                ast_stmt_t *next_case = array_get_stmt(&blk->stmts, j);
                 ast_exp_t *next_val = next_case->u_case.val_exp;
 
                 if (next_val != NULL && exp_equals(val_exp, next_val))
@@ -345,7 +345,7 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
     stmts = stmt->u_case.stmts;
 
     for (i = 0; i < array_size(stmts); i++) {
-        stmt_check(check, array_get(stmts, i, ast_stmt_t));
+        stmt_check(check, array_get_stmt(stmts, i));
     }
 
     return NO_ERROR;
