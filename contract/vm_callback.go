@@ -87,7 +87,11 @@ func LuaGetDB(L *LState, service *C.int, key *C.char) C.int {
 func LuaDelDB(L *LState, service *C.int, key *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[System.LuaGetDB]not found contract state")
+		luaPushStr(L, "[System.LuaDelDB]not found contract state")
+		return -1
+	}
+	if stateSet.isQuery {
+		luaPushStr(L, "[System.LuaDelDB]delete not permitted in query")
 		return -1
 	}
 	err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key)))
