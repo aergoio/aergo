@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -224,21 +225,15 @@ func pushValue(L *LState, v interface{}) error {
 
 	case json.Number:
 		str := arg.String()
-		if len(str) > 14 {
-			argC := C.CString(arg.String())
-			C.Bset(L, argC)
-			C.free(unsafe.Pointer(argC))
+		intVal, err := arg.Int64()
+		if err == nil {
+			C.lua_pushinteger(L, C.lua_Integer(intVal))
 		} else {
-			intVal, err := arg.Int64()
-			if err == nil {
-				C.lua_pushinteger(L, C.lua_Integer(intVal))
-			} else {
-				ftVal, err := arg.Float64()
-				if err != nil {
-					return errors.New("unsupported number type:" + str)
-				}
-				C.lua_pushnumber(L, C.double(ftVal))
+			ftVal, err := arg.Float64()
+			if err != nil {
+				return errors.New("unsupported number type:" + str)
 			}
+			C.lua_pushnumber(L, C.double(ftVal))
 		}
 
 	case nil:
@@ -276,6 +271,15 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	n := C.lua_gettop(L)
 	for k, v := range tab {
 		// push a key
+		if len(tab) == 1 && strings.EqualFold(k, "_bignum") {
+			if arg, ok := v.(json.Number); ok {
+				C.lua_settop(L, -2)
+				argC := C.CString(arg.String())
+				C.Bset(L, argC)
+				C.free(unsafe.Pointer(argC))
+				return nil
+			}
+		}
 		key := C.CString(k)
 		C.lua_pushstring(L, key)
 		C.free(unsafe.Pointer(key))
