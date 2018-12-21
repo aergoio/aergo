@@ -123,6 +123,7 @@ type chainProcessor struct {
 	lastBlock *types.Block
 	state     *state.BlockState
 	mainChain *list.List
+	isByBP    bool
 
 	add func(blk *types.Block) error
 }
@@ -139,6 +140,7 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 		ChainService: cs,
 		block:        block,
 		state:        state,
+		isByBP:       (state != nil),
 	}
 
 	if isMainChain {
@@ -186,10 +188,18 @@ func (cp *chainProcessor) prepare() error {
 	var err error
 
 	blk := cp.block
+
+	cp.notifyBlockByBP(blk)
+
 	for blk != nil {
 		// Add blk to the corresponding block chain.
 		if err := cp.add(blk); err != nil {
 			return err
+		}
+
+		//block created by BP must not have orphan
+		if cp.isByBP {
+			return nil
 		}
 
 		// Remove a block depnding on blk from the orphan cache.
@@ -199,6 +209,18 @@ func (cp *chainProcessor) prepare() error {
 	}
 
 	return nil
+}
+
+func (cp *chainProcessor) notifyBlockByBP(block *types.Block) {
+	if cp.isByBP {
+		cp.notifyBlock(block, true)
+	}
+}
+
+func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
+	if !cp.isByBP {
+		cp.notifyBlock(block, false)
+	}
 }
 
 func (cp *chainProcessor) isMain() bool {
@@ -235,7 +257,9 @@ func (cp *chainProcessor) execute() error {
 		if oldLatest, err = cp.connectToChain(block); err != nil {
 			return err
 		}
-		cp.notifyBlock(block)
+
+		cp.notifyBlockByOther(block)
+
 		blockNo := block.BlockNo()
 		if logger.IsDebugEnabled() {
 			logger.Debug().
