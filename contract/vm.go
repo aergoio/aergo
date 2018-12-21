@@ -32,6 +32,11 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const (
+	callMaxInstLimit  = C.int(5000000)
+	queryMaxInstLimit = callMaxInstLimit * C.int(10)
+)
+
 var (
 	ctrLog      *log.Logger
 	curStateSet [2]*StateSet
@@ -431,6 +436,16 @@ func (ce *Executor) rollbackToSavepoint() error {
 	return nil
 }
 
+func (ce *Executor) setCountHook(limit C.int) {
+	if ce == nil || ce.L == nil {
+		return
+	}
+	if ce.err != nil {
+		return
+	}
+	C.vm_set_count_hook(ce.L, limit)
+}
+
 func (ce *Executor) close() {
 	if ce != nil {
 		FreeLState(ce.L)
@@ -473,6 +488,8 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	ce := newExecutor(contract, stateSet)
 	defer ce.close()
 
+	ce.setCountHook(callMaxInstLimit)
+
 	ce.call(&ci, nil)
 	err = ce.err
 	if err == nil {
@@ -509,6 +526,7 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
+	ce.setCountHook(callMaxInstLimit)
 	ce.call(ce.args, nil)
 	err = ce.err
 	if err == nil {
@@ -631,6 +649,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return "", newDbSystemError("can't open a database connection")
 	}
 
+	ce.setCountHook(callMaxInstLimit)
 	ce.constructCall(&ci)
 	err = ce.err
 
@@ -688,6 +707,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 			err = dbErr
 		}
 	}()
+	ce.setCountHook(queryMaxInstLimit)
 	ce.call(&ci, nil)
 	return []byte(ce.jsonRet), ce.err
 }
