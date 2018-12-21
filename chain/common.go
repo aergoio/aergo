@@ -31,9 +31,10 @@ var (
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(coinbaseAccountStr string, coinbaseFee uint64, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
+func Init(maxBlkSize uint32, coinbaseAccountStr string, coinbaseFee uint64, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
 	var err error
 
+	maxBlockSize = maxBlkSize
 	if isBp {
 		if len(coinbaseAccountStr) != 0 {
 			CoinbaseAccount, err = types.DecodeAddress(coinbaseAccountStr)
