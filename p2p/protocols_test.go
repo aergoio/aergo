@@ -13,7 +13,7 @@ import (
 
 func TestParseSubProtocol(t *testing.T) {
 	lastVal := 0x50 // TODO should change value if protocol is changed.
-	expectedProtocolCount := 22
+	expectedProtocolCount := 23
 	actualCount := 0
 
 	for i:=0 ; i < lastVal ; i++ {

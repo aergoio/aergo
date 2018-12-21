@@ -8,6 +8,7 @@ const (
 	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
 	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
 	_SubProtocol_name_2 = "GetTXsRequestGetTxsResponseNewTxNotice"
+	_SubProtocol_name_3 = "BlockProducedNotice"
 )
 
 var (
@@ -27,6 +28,8 @@ func (i SubProtocol) String() string {
 	case 32 <= i && i <= 34:
 		i -= 32
 		return _SubProtocol_name_2[_SubProtocol_index_2[i]:_SubProtocol_index_2[i+1]]
+	case i == 48:
+		return _SubProtocol_name_3
 	default:
 		return "SubProtocol(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

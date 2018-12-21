@@ -27,5 +27,6 @@ type moFactory interface {
 	newMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message pbMessage) msgOrder
 	newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder
 	newMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) msgOrder
-	newMsgTxBroadcastOrder(message *types.NewTransactionsNotice) msgOrder
+	newMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) msgOrder
+	newMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) msgOrder
 }

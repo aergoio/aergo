@@ -64,6 +64,17 @@ func (mf *v030MOFactory) newMsgTxBroadcastOrder(message *types.NewTransactionsNo
 	return nil
 }
 
+func (mf *v030MOFactory) newMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) msgOrder {
+	rmo := &pbBpNoticeOrder{}
+	msgID := uuid.Must(uuid.NewV4())
+	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, BlockProducedNotice, noticeMsg) {
+		rmo.block = noticeMsg.Block
+		return rmo
+	}
+	return nil
+}
+
+
 func (mf *v030MOFactory) newHandshakeMessage(protocolID SubProtocol, message pbMessage) Message {
 	// TODO define handshake specific datatype
 	rmo := &pbRequestOrder{}

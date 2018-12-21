@@ -273,11 +273,12 @@ func (cs *ChainService) BeforeStop() {
 	cs.validator.Stop()
 }
 
-func (cs *ChainService) notifyBlock(block *types.Block) {
+func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
-			BlockNo: block.Header.BlockNo,
-			Block:   block,
+			Produced: isByBP,
+			BlockNo:  block.Header.BlockNo,
+			Block:    block,
 		})
 }
 

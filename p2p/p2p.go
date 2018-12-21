@@ -169,7 +169,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
-	mf := &pbMOFactory{signer: signer}
+	mf := &v030MOFactory{}
 	reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, reconMan, metricMan, p2ps.Logger, mf)
@@ -208,7 +208,11 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetHashByNo:
 		p2ps.GetBlockHashByNo(context, msg)
 	case *message.NotifyNewBlock:
-		p2ps.NotifyNewBlock(*msg)
+		if msg.Produced {
+			p2ps.NotifyBlockProduced(*msg)
+		} else {
+			p2ps.NotifyNewBlock(*msg)
+		}
 	case *message.GetMissingBlocks:
 		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetTransactions:
@@ -324,6 +328,10 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+
+	// BP protocol handlers
+	peer.handlers[BlockProducedNotice] = newBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
