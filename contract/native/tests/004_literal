@@ -127,7 +127,7 @@ contract test {
 }
 
 @test(non_array_initializer)
-@error(ERROR_NOT_ALLOWED_INIT)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
     int i = new { 1, 2 };
 }

@@ -82,7 +82,8 @@ char *id_kinds_[ID_MAX] = {
     "enumeration",
     "function",
     "contract",
-    "label"
+    "label",
+    "tuple"
 };
 
 char *stmt_kinds_[STMT_MAX] = {

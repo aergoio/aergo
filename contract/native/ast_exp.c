@@ -146,10 +146,7 @@ exp_new_tuple(array_t *exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
-    if (exps == NULL)
-        exp->u_tup.exps = array_new();
-    else
-        exp->u_tup.exps = exps;
+    exp->u_tup.exps = exps;
 
     return exp;
 }

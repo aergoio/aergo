@@ -47,7 +47,7 @@ contract test {
 }
 
 @test(not_allowed_initializer)
-@error(ERROR_NOT_ALLOWED_INIT)
+@error(ERROR_MISMATCHED_TYPE)
 contract callee { int a; }
 
 contract test {

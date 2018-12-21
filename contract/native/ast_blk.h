@@ -27,6 +27,11 @@ typedef struct ast_blk_s ast_blk_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
+#ifndef _AST_STMT_T
+#define _AST_STMT_T
+typedef struct ast_stmt_s ast_stmt_t;
+#endif /* ! _AST_STMT_T */
+
 struct ast_blk_s {
     AST_NODE_DECL;
 

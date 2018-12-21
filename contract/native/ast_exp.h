@@ -27,11 +27,10 @@
 #define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
 
 #define is_usable_lval(exp)                                                              \
-    ((exp)->id != NULL && !is_const_id((exp)->id) &&                                     \
+    ((exp)->id != NULL && (!is_const_id((exp)->id) || ((exp)->id->val == NULL)) &&       \
      (is_ref_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
-#define exp_add_first               array_add_first
-#define exp_add_last                array_add_last
+#define exp_add                     array_add_last
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T

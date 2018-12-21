@@ -9,6 +9,7 @@
 #include "ir_fn.h"
 #include "ir_bb.h"
 #include "trans_blk.h"
+#include "trans_stmt.h"
 
 #include "trans_id.h"
 
@@ -19,9 +20,14 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         ir_add_global(trans->ir, id);
     }
     else {
+        /* XXX: need start_fn for globals
         ASSERT(trans->fn != NULL);
         fn_add_local(trans->fn, id);
+        */
     }
+
+    if (id->u_var.dflt_stmt != NULL)
+        stmt_trans(trans, id->u_var.dflt_stmt);
 }
 
 static void
@@ -50,7 +56,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 }
 
 static void
-id_trans_cont(trans_t *trans, ast_id_t *id)
+id_trans_contract(trans_t *trans, ast_id_t *id)
 {
     if (id->u_cont.blk != NULL)
         blk_trans(trans, id->u_cont.blk);
@@ -59,7 +65,20 @@ id_trans_cont(trans_t *trans, ast_id_t *id)
 static void
 id_trans_label(trans_t *trans, ast_id_t *id)
 {
-    id->u_label.stmt->label_bb = bb_new();
+    id->u_lab.stmt->label_bb = bb_new();
+}
+
+static void
+id_trans_tuple(trans_t *trans, ast_id_t *id)
+{
+    int i;
+
+    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+        id_trans_var(trans, array_get_id(&id->u_tup.var_ids, i));
+    }
+
+    if (id->u_tup.dflt_stmt != NULL)
+        stmt_trans(trans, id->u_tup.dflt_stmt);
 }
 
 void
@@ -75,11 +94,15 @@ id_trans(trans_t *trans, ast_id_t *id)
         break;
 
     case ID_CONTRACT:
-        id_trans_cont(trans, id);
+        id_trans_contract(trans, id);
         break;
 
     case ID_LABEL:
         id_trans_label(trans, id);
+        break;
+
+    case ID_TUPLE:
+        id_trans_tuple(trans, id);
         break;
 
     case ID_STRUCT:

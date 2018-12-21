@@ -86,6 +86,7 @@ typedef enum id_kind_e {
     ID_FN,
     ID_CONTRACT,
     ID_LABEL,
+    ID_TUPLE,
     ID_MAX
 } id_kind_t;
 

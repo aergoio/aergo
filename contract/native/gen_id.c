@@ -17,7 +17,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     int i;
     uint32_t size;
     meta_t *meta = &id->meta;
-    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+    //ast_stmt_t *dflt_stmt = id->u_var.dflt_stmt;
 
     size = meta_size(meta);
 
@@ -34,6 +34,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
 
     id->idx = gen_add_local(gen, meta->type);
 
+    /*
     if (dflt_exp != NULL) {
         BinaryenExpressionRef val_exp;
 
@@ -64,6 +65,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         if (!is_primitive_type(meta) || is_array_type(meta))
             meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
     }
+    */
 
     return NULL;
 }
@@ -118,6 +120,12 @@ id_gen_contract(gen_t *gen, ast_id_t *id)
     return blk_gen(gen, id->u_cont.blk);
 }
 
+static BinaryenExpressionRef
+id_gen_tuple(gen_t *gen, ast_id_t *id)
+{
+    return NULL;
+}
+
 BinaryenExpressionRef
 id_gen(gen_t *gen, ast_id_t *id)
 {
@@ -127,6 +135,7 @@ id_gen(gen_t *gen, ast_id_t *id)
 
     case ID_STRUCT:
     case ID_ENUM:
+    case ID_LABEL:
         break;
 
     case ID_FN:
@@ -134,6 +143,9 @@ id_gen(gen_t *gen, ast_id_t *id)
 
     case ID_CONTRACT:
         return id_gen_contract(gen, id);
+
+    case ID_TUPLE:
+        return id_gen_tuple(gen, id);
 
     default:
         ASSERT1(!"invalid identifier", id->kind);

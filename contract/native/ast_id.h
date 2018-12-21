@@ -20,6 +20,7 @@
 #define is_fn_id(id)                ((id)->kind == ID_FN)
 #define is_cont_id(id)              ((id)->kind == ID_CONTRACT)
 #define is_label_id(id)             ((id)->kind == ID_LABEL)
+#define is_tuple_id(id)             ((id)->kind == ID_TUPLE)
 
 #define is_public_id(id)            flag_on((id)->mod, MOD_PUBLIC)
 #define is_private_id(id)           flag_on((id)->mod, MOD_PRIVATE)
@@ -33,12 +34,6 @@
 
 #define id_new_ctor(name, pos)                                                           \
     id_new_fn((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
-
-#define id_add_first(ids, new_id)   id_add((ids), 0, (new_id))
-#define id_add_last(ids, new_id)    id_add((ids), array_size(ids), (new_id))
-
-#define id_join_first(ids, new_ids) id_join((ids), 0, (new_ids))
-#define id_join_last(ids, new_ids)  id_join((ids), array_size(ids), (new_ids))
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -57,8 +52,8 @@ typedef struct ast_stmt_s ast_stmt_t;
 
 typedef struct id_var_s {
     meta_t *type_meta;
-    ast_exp_t *dflt_exp;
     array_t *size_exps;
+    ast_stmt_t *dflt_stmt;
 } id_var_t;
 
 typedef struct id_struct_s {
@@ -83,6 +78,12 @@ typedef struct id_label_s {
     ast_stmt_t *stmt;
 } id_label_t;
 
+typedef struct id_tuple_s {
+    meta_t *type_meta;
+    array_t var_ids;
+    ast_stmt_t *dflt_stmt;
+} id_tuple_t;
+
 struct ast_id_s {
     AST_NODE_DECL;
 
@@ -96,7 +97,8 @@ struct ast_id_s {
         id_enum_t u_enum;
         id_fn_t u_fn;
         id_cont_t u_cont;
-        id_label_t u_label;
+        id_label_t u_lab;
+        id_tuple_t u_tup;
     };
 
     // results of semantic checker
@@ -119,12 +121,15 @@ ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret
                     ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
+ast_id_t *id_new_tuple(src_pos_t *pos);
 
 ast_id_t *id_search_fld(ast_id_t *id, char *name, bool is_self);
 ast_id_t *id_search_param(ast_id_t *id, char *name);
 
-void id_add(array_t *ids, int idx, ast_id_t *new_id);
-void id_join(array_t *ids, int idx, array_t *new_ids);
+void id_add(array_t *ids, ast_id_t *new_id);
+void id_join(array_t *ids, array_t *new_ids);
+
+array_t *id_strip(ast_id_t *id);
 
 void ast_id_dump(ast_id_t *id, int indent);
 

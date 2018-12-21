@@ -25,8 +25,7 @@
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
-#define stmt_add_first              array_add_first
-#define stmt_add_last               array_add_last
+#define stmt_add                    array_add_last
 
 #ifndef _AST_STMT_T
 #define _AST_STMT_T
@@ -72,7 +71,7 @@ typedef struct stmt_if_s {
 typedef struct stmt_loop_s {
     loop_kind_t kind;
 
-    array_t *init_ids;
+    ast_id_t *init_id;
     ast_stmt_t *init_stmt;
     ast_exp_t *cond_exp;
     ast_exp_t *loop_exp;

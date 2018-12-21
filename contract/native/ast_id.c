@@ -16,8 +16,6 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 {
     ast_id_t *id = xcalloc(sizeof(ast_id_t));
 
-    ASSERT(name != NULL);
-
     ast_node_init(id, pos);
 
     id->kind = kind;
@@ -93,9 +91,19 @@ id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
 ast_id_t *
 id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_LABEL, MOD_PUBLIC, name, pos);
+    ast_id_t *id = ast_id_new(ID_LABEL, MOD_PRIVATE, name, pos);
 
-    id->u_label.stmt = stmt;
+    id->u_lab.stmt = stmt;
+
+    return id;
+}
+
+ast_id_t *
+id_new_tuple(src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_TUPLE, MOD_PRIVATE, NULL, pos);
+
+    array_init(&id->u_tup.var_ids);
 
     return id;
 }
@@ -149,28 +157,55 @@ id_search_param(ast_id_t *id, char *name)
     return NULL;
 }
 
+static bool
+check_dup(array_t *ids, ast_id_t *new_id)
+{
+    int i, j;
+
+    for (i = 0; i < array_size(ids); i++) {
+        ast_id_t *id = array_get_id(ids, i);
+
+        if (is_tuple_id(id)) {
+            for (j = 0; j < array_size(&id->u_tup.var_ids); j++) {
+                ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, j);
+
+                if (strcmp(var_id->name, new_id->name) == 0) {
+                    ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
+                    return false;
+                }
+            }
+        }
+        else if (strcmp(id->name, new_id->name) == 0) {
+            ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void
-id_add(array_t *ids, int idx, ast_id_t *new_id)
+id_add(array_t *ids, ast_id_t *new_id)
 {
     int i;
 
     if (new_id == NULL)
         return;
 
-    for (i = 0; i < array_size(ids); i++) {
-        ast_id_t *id = array_get_id(ids, i);
-
-        if (strcmp(id->name, new_id->name) == 0) {
-            ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
-            return;
+    if (is_tuple_id(new_id)) {
+        for (i = 0; i < array_size(&new_id->u_tup.var_ids); i++) {
+            check_dup(ids, array_get_id(&new_id->u_tup.var_ids, i));
         }
     }
+    else if (!check_dup(ids, new_id)) {
+        return;
+    }
 
-    array_add(ids, idx, new_id);
+    array_add_last(ids, new_id);
 }
 
 void
-id_join(array_t *ids, int idx, array_t *new_ids)
+id_join(array_t *ids, array_t *new_ids)
 {
     int i;
 
@@ -178,8 +213,29 @@ id_join(array_t *ids, int idx, array_t *new_ids)
         return;
 
     for (i = 0; i < array_size(new_ids); i++) {
-        id_add(ids, idx + i, array_get_id(new_ids, i));
+        id_add(ids, array_get_id(new_ids, i));
     }
+}
+
+array_t *
+id_strip(ast_id_t *id)
+{
+    int i;
+    array_t *ids = array_new();
+
+    ASSERT1(is_tuple_id(id), id->kind);
+    ASSERT(id->u_tup.dflt_stmt == NULL);
+
+    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+        ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, i);
+
+        var_id->mod = id->mod;
+        var_id->u_var.type_meta = id->u_tup.type_meta;
+
+        array_add_last(ids, var_id);
+    }
+
+    return ids;
 }
 
 void

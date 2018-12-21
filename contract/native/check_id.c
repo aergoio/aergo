@@ -7,10 +7,12 @@
 
 #include "array.h"
 #include "ast_exp.h"
+#include "ast_stmt.h"
 
 #include "check_exp.h"
 #include "check_blk.h"
 #include "check_meta.h"
+#include "check_stmt.h"
 
 #include "check_id.h"
 
@@ -29,7 +31,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!is_param && id->u_var.dflt_exp == NULL)
+            if (!is_param && id->u_var.dflt_stmt == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             id->meta.arr_size[i] = -1;
@@ -65,46 +67,32 @@ static int
 id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
+    ast_stmt_t *dflt_stmt;
 
     ASSERT1(is_var_id(id), id->kind);
+    ASSERT(id->name != NULL);
     ASSERT(id->u_var.type_meta != NULL);
 
     id->is_checked = true;
 
     type_meta = id->u_var.type_meta;
+    dflt_stmt = id->u_var.dflt_stmt;
 
     CHECK(meta_check(check, type_meta));
 
     meta_copy(&id->meta, type_meta);
 
-    if (is_const_id(id) && id->u_var.dflt_exp == NULL)
+    if (is_const_id(id) && dflt_stmt == NULL)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_var_array(check, id, false));
 
-    if (id->u_var.dflt_exp != NULL) {
+    if (dflt_stmt != NULL) {
         /* TODO: named initializer */
-        ast_exp_t *dflt_exp = id->u_var.dflt_exp;
-        meta_t *init_meta = &dflt_exp->meta;
+        ASSERT1(is_assign_stmt(dflt_stmt), dflt_stmt->kind);
 
-        CHECK(exp_check(check, dflt_exp));
-
-        /* This might be a duplicate check because it will be checked by meta_cmp(),
-         * but is done to show more specific error not just mismatch error. */
-        if (is_tuple_type(init_meta) && !is_array_type(&id->meta) &&
-            !is_map_type(type_meta) && !is_struct_type(type_meta))
-            /* not allowed static initializer except map or struct */
-            RETURN(ERROR_NOT_ALLOWED_INIT, &dflt_exp->pos);
-
-        CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
-
-        if (is_lit_exp(dflt_exp)) {
-            if (!value_fit(&dflt_exp->u_lit.val, &id->meta))
-                RETURN(ERROR_NUMERIC_OVERFLOW, &dflt_exp->pos, meta_to_str(&id->meta));
-
-            id->val = &dflt_exp->u_lit.val;
-        }
+        CHECK(stmt_check(check, dflt_stmt));
     }
 
     return NO_ERROR;
@@ -118,6 +106,7 @@ id_check_struct(check_t *check, ast_id_t *id)
     array_t *fld_ids;
 
     ASSERT1(is_struct_id(id), id->kind);
+    ASSERT(id->name != NULL);
 
     id->is_checked = true;
 
@@ -148,6 +137,7 @@ id_check_enum(check_t *check, ast_id_t *id)
     array_t *elem_ids;
 
     ASSERT1(is_enum_id(id), id->kind);
+    ASSERT(id->name != NULL);
 
     id->is_checked = true;
 
@@ -156,49 +146,40 @@ id_check_enum(check_t *check, ast_id_t *id)
 
     for (i = 0; i < array_size(elem_ids); i++) {
         ast_id_t *elem_id = array_get_id(elem_ids, i);
-        ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
+        ast_stmt_t *dflt_stmt = elem_id->u_var.dflt_stmt;
 
         elem_id->is_checked = true;
 
-        if (dflt_exp == NULL) {
-            dflt_exp = exp_new_lit(&elem_id->pos);
+        meta_set_int32(&elem_id->meta);
 
-            value_set_i64(&dflt_exp->u_lit.val, enum_val);
+        if (dflt_stmt == NULL) {
+            elem_id->val = xmalloc(sizeof(value_t));
 
-            CHECK(exp_check(check, dflt_exp));
-
-            elem_id->u_var.dflt_exp = dflt_exp;
+            value_init(elem_id->val);
+            value_set_i64(elem_id->val, enum_val);
         }
         else {
-            meta_t *init_meta = &dflt_exp->meta;
-            value_t *init_val;
+            ast_exp_t *dflt_exp = dflt_stmt->u_assign.r_exp;
+
+            ASSERT1(is_assign_stmt(dflt_stmt), dflt_stmt->kind);
 
             CHECK(exp_check(check, dflt_exp));
 
-            if (!is_lit_exp(dflt_exp) || !is_integer_type(init_meta))
-                RETURN(ERROR_INVALID_ENUM_VAL, &dflt_exp->pos);
+            if (!is_lit_exp(dflt_exp) || !is_i64_val(&dflt_exp->u_lit.val))
+                RETURN(ERROR_INVALID_ENUM_VAL, &dflt_stmt->pos);
 
-            init_val = &dflt_exp->u_lit.val;
-            ASSERT1(is_i64_val(init_val), init_val->type);
+            elem_id->val = &dflt_exp->u_lit.val;
 
             for (j = 0; j < i; j++) {
                 ast_id_t *prev_id = array_get_id(elem_ids, j);
 
-                if (prev_id->u_var.dflt_exp != NULL) {
-                    value_t *val_prev = &prev_id->u_var.dflt_exp->u_lit.val;
-
-                    if (value_cmp(init_val, val_prev) == 0)
-                        RETURN(ERROR_DUPLICATED_VALUE, &dflt_exp->pos, "enumerator");
-                }
+                if (value_cmp(elem_id->val, prev_id->val) == 0)
+                    RETURN(ERROR_DUPLICATED_VALUE, &dflt_stmt->pos, "enumerator");
             }
 
-            enum_val = val_i64(init_val);
+            enum_val = val_i64(elem_id->val);
         }
 
-        elem_id->val = &dflt_exp->u_lit.val;
-        meta_set_int32(&elem_id->meta);
-
-        flag_set(elem_id->mod, MOD_PUBLIC);
         enum_val++;
     }
 
@@ -213,8 +194,9 @@ id_check_param(check_t *check, ast_id_t *id)
     meta_t *type_meta;
 
     ASSERT1(is_var_id(id), id->kind);
+    ASSERT(id->name != NULL);
     ASSERT(id->u_var.type_meta != NULL);
-    ASSERT(id->u_var.dflt_exp == NULL);
+    ASSERT(id->u_var.dflt_stmt == NULL);
 
     id->is_checked = true;
 
@@ -239,6 +221,7 @@ id_check_fn(check_t *check, ast_id_t *id)
     meta_t *id_meta;
 
     ASSERT1(is_fn_id(id), id->kind);
+    ASSERT(id->name != NULL);
 
     id->is_checked = true;
 
@@ -299,9 +282,10 @@ id_check_fn(check_t *check, ast_id_t *id)
 }
 
 static int
-id_check_cont(check_t *check, ast_id_t *id)
+id_check_contract(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_cont_id(id), id->kind);
+    ASSERT(id->name != NULL);
 
     id->is_checked = true;
 
@@ -322,7 +306,30 @@ static int
 id_check_label(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_label_id(id), id->kind);
-    ASSERT(id->u_label.stmt != NULL);
+    ASSERT(id->name != NULL);
+    ASSERT(id->u_lab.stmt != NULL);
+
+    return NO_ERROR;
+}
+
+static int
+id_check_tuple(check_t *check, ast_id_t *id)
+{
+    int i;
+    array_t *var_ids = &id->u_tup.var_ids;
+
+    ASSERT1(is_tuple_id(id), id->kind);
+    ASSERT(id->u_tup.type_meta != NULL);
+    ASSERT(!is_empty_array(var_ids));
+
+    for (i = 0; i < array_size(var_ids); i++) {
+        ast_id_t *var_id = array_get_id(var_ids, i);
+
+        var_id->mod = id->mod;
+        var_id->u_var.type_meta = id->u_tup.type_meta;
+
+        id_check_var(check, var_id);
+    }
 
     return NO_ERROR;
 }
@@ -330,8 +337,6 @@ id_check_label(check_t *check, ast_id_t *id)
 void
 id_check(check_t *check, ast_id_t *id)
 {
-    ASSERT(id->name != NULL);
-
     switch (id->kind) {
     case ID_VAR:
         id_check_var(check, id);
@@ -350,11 +355,15 @@ id_check(check_t *check, ast_id_t *id)
         break;
 
     case ID_CONTRACT:
-        id_check_cont(check, id);
+        id_check_contract(check, id);
         break;
 
     case ID_LABEL:
         id_check_label(check, id);
+        break;
+
+    case ID_TUPLE:
+        id_check_tuple(check, id);
         break;
 
     default:

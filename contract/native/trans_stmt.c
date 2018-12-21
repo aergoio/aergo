@@ -315,9 +315,9 @@ stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_id_t *jump_id = stmt->u_goto.jump_id;
 
-    ASSERT(jump_id->u_label.stmt->label_bb != NULL);
+    ASSERT(jump_id->u_lab.stmt->label_bb != NULL);
 
-    bb_add_branch(trans->bb, NULL, jump_id->u_label.stmt->label_bb);
+    bb_add_branch(trans->bb, NULL, jump_id->u_lab.stmt->label_bb);
     fn_add_basic_blk(trans->fn, trans->bb);
 
     trans->bb = NULL;

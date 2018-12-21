@@ -57,15 +57,21 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *var_exp = array_get_exp(var_exps, i);
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
-                if (is_lit_exp(val_exp) &&
-                    !value_fit(&val_exp->u_lit.val, &var_exp->meta))
-                    RETURN(ERROR_NUMERIC_OVERFLOW, &val_exp->pos,
-                           meta_to_str(&var_exp->meta));
+                if (is_lit_exp(val_exp)) {
+                    if (!value_fit(&val_exp->u_lit.val, &var_exp->meta))
+                        RETURN(ERROR_NUMERIC_OVERFLOW, &val_exp->pos,
+                               meta_to_str(&var_exp->meta));
+
+                    var_exp->id->val = &val_exp->u_lit.val;
+                }
             }
         }
     }
-    else if (is_lit_exp(r_exp) && !value_fit(&r_exp->u_lit.val, l_meta)) {
-        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
+    else if (is_lit_exp(r_exp)) {
+        if (!value_fit(&r_exp->u_lit.val, l_meta))
+            RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
+
+        l_exp->id->val = &r_exp->u_lit.val;
     }
 
     return NO_ERROR;
@@ -133,9 +139,9 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         array_add_first(&blk->stmts, break_stmt);
     }
 
-    if (stmt->u_loop.init_ids != NULL) {
+    if (stmt->u_loop.init_id != NULL) {
         ASSERT(stmt->u_loop.init_stmt == NULL);
-        id_join_first(&blk->ids, stmt->u_loop.init_ids);
+        array_add_first(&blk->ids, stmt->u_loop.init_id);
     }
     else if (stmt->u_loop.init_stmt != NULL) {
         stmt_check(check, stmt->u_loop.init_stmt);
@@ -473,64 +479,54 @@ stmt_check_blk(check_t *check, ast_stmt_t *stmt)
     return NO_ERROR;
 }
 
-void
+int
 stmt_check(check_t *check, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
     case STMT_NULL:
-        break;
+        return NO_ERROR;
 
     case STMT_EXP:
-        exp_check(check, stmt->u_exp.exp);
-        break;
+        return exp_check(check, stmt->u_exp.exp);
 
     case STMT_ASSIGN:
-        stmt_check_assign(check, stmt);
-        break;
+        return stmt_check_assign(check, stmt);
 
     case STMT_IF:
-        stmt_check_if(check, stmt);
-        break;
+        return stmt_check_if(check, stmt);
 
     case STMT_LOOP:
-        stmt_check_loop(check, stmt);
-        break;
+        return stmt_check_loop(check, stmt);
 
     case STMT_SWITCH:
-        stmt_check_switch(check, stmt);
-        break;
+        return stmt_check_switch(check, stmt);
 
     case STMT_CASE:
-        stmt_check_case(check, stmt);
-        break;
+        return stmt_check_case(check, stmt);
 
     case STMT_RETURN:
-        stmt_check_return(check, stmt);
-        break;
+        return stmt_check_return(check, stmt);
 
     case STMT_CONTINUE:
-        stmt_check_continue(check, stmt);
-        break;
+        return stmt_check_continue(check, stmt);
 
     case STMT_BREAK:
-        stmt_check_break(check, stmt);
-        break;
+        return stmt_check_break(check, stmt);
 
     case STMT_GOTO:
-        stmt_check_goto(check, stmt);
-        break;
+        return stmt_check_goto(check, stmt);
 
     case STMT_DDL:
-        stmt_check_ddl(check, stmt);
-        break;
+        return stmt_check_ddl(check, stmt);
 
     case STMT_BLK:
-        stmt_check_blk(check, stmt);
-        break;
+        return stmt_check_blk(check, stmt);
 
     default:
         ASSERT1(!"invalid statement", stmt->kind);
     }
+
+    return NO_ERROR;
 }
 
 /* end of check_stmt.c */
