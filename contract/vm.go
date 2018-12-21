@@ -269,16 +269,16 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	C.lua_createtable(L, C.int(0), C.int(len(tab)))
 	n := C.lua_gettop(L)
 	for k, v := range tab {
-		// push a key
 		if len(tab) == 1 && strings.EqualFold(k, "_bignum") {
-			if arg, ok := v.(json.Number); ok {
+			if arg, ok := v.(string); ok {
 				C.lua_settop(L, -2)
-				argC := C.CString(arg.String())
+				argC := C.CString(arg)
 				C.Bset(L, argC)
 				C.free(unsafe.Pointer(argC))
 				return nil
 			}
 		}
+		// push a key
 		key := C.CString(k)
 		C.lua_pushstring(L, key)
 		C.free(unsafe.Pointer(key))
