@@ -67,9 +67,9 @@ type P2PConfig struct {
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 
-	NPUsePolaris  bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
+	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
-	NPPrivateNet    bool
+	NPPrivateNet   bool
 }
 
 // BlockchainConfig defines configurations for blockchain service
@@ -84,6 +84,8 @@ type BlockchainConfig struct {
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
 	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	EnableFadeout  bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
+	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
 	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
 	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
@@ -166,6 +168,8 @@ verifiercount = "{{.Blockchain.VerifierCount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
+enablefadeout = {{.Mempool.EnableFadeout}}
+fadeoutperiod = {{.Mempool.FadeoutPeriod}}
 verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
 

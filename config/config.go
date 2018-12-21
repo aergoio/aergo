@@ -104,6 +104,8 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
 		ShowMetrics:    false,
+		EnableFadeout:  false,
+		FadeoutPeriod:  12,
 		VerifierNumber: runtime.NumCPU(),
 		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}

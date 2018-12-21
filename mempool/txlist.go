@@ -8,6 +8,7 @@ package mempool
 import (
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -15,10 +16,11 @@ import (
 // TxList is internal struct for transactions per account
 type TxList struct {
 	sync.RWMutex
-	base    *types.State
-	account []byte
-	ready   int
-	list    []*types.Tx // nonce-ordered tx list
+	base     *types.State
+	lastTime time.Time
+	account  []byte
+	ready    int
+	list     []*types.Tx // nonce-ordered tx list
 }
 
 // NewTxList creates new TxList with given State
@@ -29,6 +31,9 @@ func NewTxList(acc []byte, st *types.State) *TxList {
 	}
 }
 
+func (tl *TxList) GetLastModifiedTime() time.Time {
+	return tl.lastTime
+}
 func (tl *TxList) GetAccount() []byte {
 	return tl.account
 }
@@ -112,6 +117,7 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	}
 	newCnt := len(tl.list) - tl.ready
 
+	tl.lastTime = time.Now()
 	return oldCnt - newCnt, nil
 }
 
@@ -159,6 +165,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	}
 	newCnt := len(tl.list) - tl.ready
 
+	tl.lastTime = time.Now()
 	return oldCnt - newCnt, removed
 }
 
