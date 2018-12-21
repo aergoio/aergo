@@ -519,9 +519,13 @@ abi.register(infiniteLoop)`
 			"loop",
 			0,
 			`{"Name":"infiniteLoop"}`,
-		).fail("exceeded the maximum instruction count"),
+		),
 	)
-	if err != nil {
+	errMsg := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
 }
