@@ -152,7 +152,9 @@ func (p2ps *P2P) BeforeStop() {
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statistics() *map[string]interface{} {
-	return nil
+	stmap := make(map[string]interface{})
+	stmap["netstat"] = p2ps.mm.Summary()
+	return &stmap
 }
 
 

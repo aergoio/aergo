@@ -131,6 +131,12 @@ func (pms *PeerMapService) BeforeStop() {
 	}
 }
 
+func (pms *PeerMapService) Statistics() *map[string]interface{} {
+	return nil
+	//dummy := make(map[string]interface{})
+	//return &dummy
+}
+
 func (pms *PeerMapService) onConnect(s net.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remotePeerMeta := p2p.PeerMeta{ID: peerID}

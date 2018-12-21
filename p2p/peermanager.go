@@ -230,7 +230,7 @@ MANLOOP:
 			pm.checkAndCollectPeerListFromAll()
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
-		    pm.logPeerMetrics()
+		    //pm.logPeerMetrics()
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
@@ -250,7 +250,7 @@ MANLOOP:
 
 func (pm *peerManager) logPeerMetrics() {
 	if pm.logger.IsDebugEnabled() {
-		pm.logger.Debug().Msg(pm.mm.Summary())
+		pm.logger.Debug().Msg(pm.mm.PrintMetrics())
 	}
 }
 
