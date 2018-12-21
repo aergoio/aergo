@@ -106,7 +106,7 @@ contract test {
 
 @test(struct_assignment)
 contract test {
-    struct s1 { int a, b; }
+    type s1 struct { int a, b; }
     test() {
         s1 v1, v2;
         v1 = v2;
@@ -116,7 +116,7 @@ contract test {
 
 @test(struct_array_assignment)
 contract test {
-    struct s1 { int a, b; }
+    type s1 struct { int a, b; }
     test() {
         s1 v1[2][2];
         s1 v2[2][2];
@@ -138,7 +138,7 @@ contract test {
 
         map(int, string) m2 = m1;
 
-        struct s {
+        type s struct {
             int a;
             string b;
         }
@@ -173,8 +173,8 @@ contract test {
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
     test() {
-        struct s1 { int a; }
-        struct s2 { string a; }
+        type s1 struct { int a; }
+        type s2 struct { string a; }
         s2 v = new { "2" };
 
         map(int, s1) m;
@@ -208,7 +208,7 @@ contract test {
 
 @test(struct_access)
 contract test {
-    struct s {
+    type s struct {
         int a;
         string b;
         map(int, bool) c;

@@ -244,6 +244,7 @@ id                          {L}({L}|{D})*
 "struct"                    yy_return(K_STRUCT);
 "switch"                    yy_return(K_SWITCH);
 "true"                      yy_return(K_TRUE);
+"type"                      yy_return(K_TYPE);
 "uint"                      yy_return(K_UINT);
 "uint16"                    yy_return(K_UINT16);
 "uint32"                    yy_return(K_UINT32);

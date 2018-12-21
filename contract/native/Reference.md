@@ -176,6 +176,7 @@ break       case        const       continue    contract    default
 else        enum        false       for         func        goto
 if          import      in          new         null        payable
 public      readonly    return      struct      switch      true
+type
 ```
 
 ```
@@ -332,10 +333,10 @@ string v = "This is a string";
 
 #### Struct type
 
-struct type은 1개 이상의 field들의 집합으로 다음과 같이 선언한다. struct type은 중첩하여 정의할 수 있다.
+struct type은 1개 이상의 field들의 집합으로 다음과 같이 선언한다. struct type은 다른 struct type을 field로 사용할 수 있다.
 
 <pre>
-<a name="struct_decl">StructDecl</a> = "struct" <a href="#identifier">identifier</a> "{" { <a href="#field_decl">FieldDecl</a> ";" } "}" ;
+<a name="struct_decl">StructDecl</a> = "type" <a href="#identifier">identifier</a> "struct" "{" { <a href="#field_decl">FieldDecl</a> ";" } "}" ;
 <a name="field_decl">FieldDecl</a>  = <a href="#type">Type</a> <a href="#identifier">identifier</a> ;
 </pre>
 

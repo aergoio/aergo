@@ -114,6 +114,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_SWITCH        "switch"
         K_TABLE         "table"
         K_TRUE          "true"
+        K_TYPE          "type"
         K_UINT          "uint"
         K_UINT16        "uint16"
         K_UINT32        "uint32"
@@ -466,11 +467,11 @@ compound:
 ;
 
 struct:
-    K_STRUCT identifier '{' field_list '}'
+    K_TYPE identifier K_STRUCT '{' field_list '}'
     {
-        $$ = id_new_struct($2, $4, &@$);
+        $$ = id_new_struct($2, $5, &@$);
     }
-|   K_STRUCT error '}'
+|   K_TYPE error '}'
     {
         $$ = NULL;
     }

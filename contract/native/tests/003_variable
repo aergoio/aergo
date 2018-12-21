@@ -145,14 +145,14 @@ contract test {
 
 @test(struct_type)
 contract test {
-    struct s1 {
+    type s1 struct {
         int a;
         byte b;
         bool c[10];
     }
     s1 v1;
 
-    struct s2 {
+    type s2 struct {
         s1 a;
         string b;
     }
@@ -160,7 +160,7 @@ contract test {
 
 @test(struct_array)
 contract test {
-    struct s {
+    type s struct {
         int a, b;
         string c;
     }
@@ -171,15 +171,15 @@ contract test {
 @test(empty_struct)
 @error(ERROR_SYNTAX)
 contract test {
-    struct s {
+    type s struct {
     }
 }
 
 @test(struct_of_struct)
 @error(ERROR_SYNTAX)
 contract test {
-    struct outer {
-        struct inner {
+    type outer struct {
+        type inner struct {
             int a;
         }
     }
@@ -239,7 +239,7 @@ contract test {
     map(string, string) m14;
     map(int, int) m15, m16;
 
-    struct x {
+    type x struct {
         int a;
     }
     map(int, x) m17;

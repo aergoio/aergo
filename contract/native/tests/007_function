@@ -47,7 +47,7 @@ contract test {
 
 @test(access_parameters)
 contract test {
-    struct s {
+    type s struct {
         int a;
         string b;
     }
@@ -102,7 +102,7 @@ contract test {
 
 @test(return_composite_value)
 contract test {
-    struct s {
+    type s struct {
         int a;
         string b;
     }
@@ -141,7 +141,7 @@ contract test {
 
 @test(return_value_assignment)
 contract test {
-    struct s {
+    type s struct {
         int a;
         string b;
     }
