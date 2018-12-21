@@ -8,10 +8,12 @@ package trie
 import (
 	"bytes"
 	"runtime"
+
 	//"io/ioutil"
 	"os"
 	"path"
 	"time"
+
 	//"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -326,7 +328,7 @@ func TestTrieStageUpdates(t *testing.T) {
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
 	txn := st.NewTx()
-	smt.StageUpdates(&txn)
+	smt.StageUpdates(txn.(DbTx))
 	txn.Commit()
 	// liveCache is deleted so the key is fetched in badger db
 	smt.db.liveCache = make(map[Hash][][]byte)
