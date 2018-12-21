@@ -130,9 +130,9 @@ func (s *Trie) Commit() error {
 		return fmt.Errorf("DB not connected to trie")
 	}
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
-	txn := s.db.Store.NewTx()
-	s.StageUpdates(&txn)
-	txn.Commit()
+	txn := s.db.Store.NewTx().(DbTx)
+	s.StageUpdates(txn)
+	txn.(db.Transaction).Commit()
 	return nil
 }
 
@@ -140,7 +140,7 @@ func (s *Trie) Commit() error {
 // Unlike Commit(), it doesnt commit the transaction
 // the database transaction MUST be commited otherwise the
 // state ROOT will not exist.
-func (s *Trie) StageUpdates(txn *db.Transaction) {
+func (s *Trie) StageUpdates(txn DbTx) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	// Commit the new nodes to database, clear updatedNodes and store the Root in pastTries for reverts.
@@ -148,7 +148,7 @@ func (s *Trie) StageUpdates(txn *db.Transaction) {
 		// if previously AtomicUpdate was called, then past tries is already updated
 		s.updatePastTries()
 	}
-	s.db.commit(txn)
+	s.db.commit(&txn)
 
 	s.db.updatedNodes = make(map[Hash][][]byte)
 	s.prevRoot = s.Root

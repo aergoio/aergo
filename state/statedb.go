@@ -473,19 +473,29 @@ func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 
-	dbtx := (*states.store).NewTx()
-	if err := states.stage(&dbtx); err != nil {
-		dbtx.Discard()
-		return err
+	singleTxMode := false
+	if singleTxMode {
+		dbtx := (*states.store).NewTx()
+		if err := states.stage(dbtx.(trie.DbTx)); err != nil {
+			dbtx.Discard()
+			return err
+		}
+		dbtx.Commit()
+	} else {
+		bulk := (*states.store).NewBulk()
+		if err := states.stage(bulk.(trie.DbTx)); err != nil {
+			bulk.DiscardLast()
+			return err
+		}
+		bulk.Flush()
 	}
-	dbtx.Commit()
 	return nil
 }
 
-func (states *StateDB) stage(dbtx *db.Transaction) error {
+func (states *StateDB) stage(txn trie.DbTx) error {
 	// stage trie and buffer
-	states.trie.StageUpdates(dbtx)
-	if err := states.buffer.stage(dbtx); err != nil {
+	states.trie.StageUpdates(txn)
+	if err := states.buffer.stage(txn); err != nil {
 		return err
 	}
 	// reset buffer
