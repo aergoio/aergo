@@ -2317,15 +2317,20 @@ func TestMapKey(t *testing.T) {
 		NewLuaTxDef("ktlee", "a", 0, definition),
 	)
 
-	err := bc.ConnectBlock(
+	err := bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).fail("number expected, got string)"),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "", "20")
+	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "(number expected, got string)", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2340,7 +2345,7 @@ func TestMapKey(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
+		).fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2356,6 +2361,26 @@ func TestMapKey(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "x", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["1", 10]}`),
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":[1, 20]}`).fail("string expected, got number)"),
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["third", 30]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("x", `{"Name":"getCount", "Args":["1"]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("x", `{"Name":"getCount", "Args":["third"]}`, "", "30")
 	if err != nil {
 		t.Error(err)
 	}
