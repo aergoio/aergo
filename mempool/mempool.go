@@ -37,6 +37,11 @@ const (
 	running = iota
 )
 
+var (
+	evictInterval  = time.Minute
+	metricInterval = time.Second
+)
+
 // MemPool is main structure of mempool service
 type MemPool struct {
 	*component.BaseComponent
@@ -57,6 +62,9 @@ type MemPool struct {
 	// followings are for test
 	testConfig bool
 	deadtx     int
+
+	quit chan bool
+	wg   sync.WaitGroup // wait for internal loop
 }
 
 // NewMemPoolService create and return new MemPool
@@ -69,6 +77,7 @@ func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
+		quit:     make(chan bool),
 		//testConfig:    true, // FIXME test config should be removed
 	}
 
@@ -83,16 +92,9 @@ func (mp *MemPool) BeforeStart() {
 		initStubData()
 		mp.bestBlockID = getCurrentBestBlockNoMock()
 	}
-	if mp.cfg.Mempool.ShowMetrics {
-		go func() {
-			for range time.Tick(1e9) {
-				l, o := mp.Size()
-				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
-			}
-		}()
-	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
+
 func (mp *MemPool) AfterStart() {
 
 	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
@@ -106,6 +108,9 @@ func (mp *MemPool) AfterStart() {
 	}
 	bestblock := rsp.(message.GetBestBlockRsp).Block
 	mp.setStateDB(bestblock) // nolint: errcheck
+
+	mp.wg.Add(1)
+	go mp.monitor()
 }
 
 // Stop handles clean-up for mempool service
@@ -114,6 +119,64 @@ func (mp *MemPool) BeforeStop() {
 		mp.verifier.GracefulStop()
 	}
 	mp.dumpTxsToFile()
+	mp.quit <- true
+	mp.wg.Wait()
+}
+
+func (mp *MemPool) monitor() {
+	defer mp.wg.Done()
+
+	evict := time.NewTicker(evictInterval)
+	defer evict.Stop()
+
+	showmetric := time.NewTicker(metricInterval)
+	defer showmetric.Stop()
+
+	for {
+		select {
+		// Log current counts on mempool
+		case <-showmetric.C:
+			if mp.cfg.Mempool.ShowMetrics {
+				l, o := mp.Size()
+				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
+			}
+			// Evict old enough transactions
+		case <-evict.C:
+			if mp.cfg.Mempool.EnableFadeout {
+				mp.evictTransactions()
+			}
+
+			// Graceful quit
+		case <-mp.quit:
+			return
+		}
+	}
+
+}
+
+func (mp *MemPool) evictTransactions() {
+	mp.Lock()
+	defer mp.Unlock()
+
+	total := 0
+	for acc, list := range mp.pool {
+		if time.Since(list.GetLastModifiedTime()) <
+			time.Duration(mp.cfg.Mempool.FadeoutPeriod)*time.Hour {
+			continue
+		}
+		txs := list.GetAll()
+		total += len(txs)
+		orphan := len(txs) - list.Len()
+
+		for _, tx := range txs {
+			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
+		}
+		mp.orphan -= orphan
+		delete(mp.pool, acc)
+	}
+	if total > 0 {
+		mp.Info().Int("num", total).Msg("evict transactions")
+	}
 }
 
 // Size returns current maintaining number of transactions
