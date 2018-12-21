@@ -29,6 +29,7 @@ const (
 	DefaultCoinbaseFee  = 1
 	lastFieldOfBH       = "Sign"
 	DefaultTxVerifyTime = time.Microsecond * 200
+	DefaultEvictPeriod  = 12
 )
 
 type AvgTime struct {

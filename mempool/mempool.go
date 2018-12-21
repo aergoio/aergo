@@ -39,6 +39,7 @@ const (
 
 var (
 	evictInterval  = time.Minute
+	evictPeriod    = time.Hour * types.DefaultEvictPeriod
 	metricInterval = time.Second
 )
 
@@ -81,6 +82,9 @@ func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
 		//testConfig:    true, // FIXME test config should be removed
 	}
 
+	if cfg.Mempool.FadeoutPeriod > 0 {
+		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
+	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
 	return actor
@@ -97,7 +101,11 @@ func (mp *MemPool) BeforeStart() {
 
 func (mp *MemPool) AfterStart() {
 
-	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
+	mp.Info().Bool("showmetric", mp.cfg.Mempool.ShowMetrics).
+		Bool("fadeout", mp.cfg.Mempool.EnableFadeout).
+		Str("evict period", evictPeriod.String()).
+		Int("number of verifier", mp.cfg.Mempool.VerifierNumber).
+		Msg("mempool init")
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
 		WithInstance(NewTxVerifier(mp)))
 
@@ -160,8 +168,7 @@ func (mp *MemPool) evictTransactions() {
 
 	total := 0
 	for acc, list := range mp.pool {
-		if time.Since(list.GetLastModifiedTime()) <
-			time.Duration(mp.cfg.Mempool.FadeoutPeriod)*time.Hour {
+		if time.Since(list.GetLastModifiedTime()) < evictPeriod {
 			continue
 		}
 		txs := list.GetAll()

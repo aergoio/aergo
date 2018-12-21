@@ -105,7 +105,7 @@ func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
 		ShowMetrics:    false,
 		EnableFadeout:  false,
-		FadeoutPeriod:  12,
+		FadeoutPeriod:  types.DefaultEvictPeriod,
 		VerifierNumber: runtime.NumCPU(),
 		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}
