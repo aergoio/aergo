@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/types"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 

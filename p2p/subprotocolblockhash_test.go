@@ -10,7 +10,7 @@ import (
 	"crypto/sha256"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -23,9 +23,9 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 	sideChainHashes := make([][]byte, sampleSize)
 	digest := sha256.New()
 	for i:=0;i<sampleSize; i++ {
-		digest.Write(uuid.Must(uuid.NewUUID()).NodeID())
+		digest.Write(uuid.Must(uuid.NewV4()).Bytes())
 		mainChainHashes[i] = digest.Sum(nil)
-		digest.Write(uuid.Must(uuid.NewUUID()).NodeID())
+		digest.Write(uuid.Must(uuid.NewV4()).Bytes())
 		sideChainHashes[i] = digest.Sum(nil)
 	}
 	tests := []struct {

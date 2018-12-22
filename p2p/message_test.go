@@ -6,13 +6,13 @@
 package p2p
 
 import (
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/magiconair/properties/assert"
 	"testing"
 )
 
 func TestMustParseBytes(t *testing.T) {
-	sampleUUID := uuid.Must(uuid.NewRandom())
+	sampleUUID := uuid.Must(uuid.NewV4())
 	tests := []struct {
 		name string
 		in []byte
