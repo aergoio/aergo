@@ -20,10 +20,11 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         ir_add_global(trans->ir, id);
     }
     else {
-        /* XXX: need start_fn for globals
         ASSERT(trans->fn != NULL);
         fn_add_local(trans->fn, id);
-        */
+
+        ASSERT(trans->bb != NULL);
+        bb_add_id(trans->bb, id);
     }
 
     if (id->u_var.dflt_stmt != NULL)

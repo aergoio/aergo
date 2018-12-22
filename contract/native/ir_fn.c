@@ -19,10 +19,6 @@ fn_new(ast_id_t *id)
 
     array_init(&fn->params);
     array_init(&fn->locals);
-    array_init(&fn->bbs);
-
-    fn->entry_bb = bb_new();
-    fn->exit_bb = bb_new();
 
     for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
         ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
@@ -38,6 +34,11 @@ fn_new(ast_id_t *id)
         ret_id->idx = j++;
     }
 
+    array_init(&fn->bbs);
+
+    fn->entry_bb = bb_new();
+    fn->exit_bb = bb_new();
+
     return fn;
 }
 
@@ -45,7 +46,7 @@ void
 fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
     /* reserved for two internal variables (e.g, base stack address, relooper) */
-    id->idx = array_size(&fn->locals) + 2;
+    id->idx = array_size(&fn->params) + array_size(&fn->locals) + 2;
 
     array_add_last(&fn->locals, id);
 }

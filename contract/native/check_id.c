@@ -326,6 +326,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
         ast_id_t *var_id = array_get_id(var_ids, i);
 
         var_id->mod = id->mod;
+        var_id->scope = id->scope;
         var_id->u_var.type_meta = id->u_tup.type_meta;
 
         id_check_var(check, var_id);

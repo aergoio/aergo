@@ -681,7 +681,7 @@ return_decl:
     {
         char name[256];
 
-        snprintf(name, sizeof(name), "$$rv_%d", $1->num);
+        snprintf(name, sizeof(name), "$return_%d", $1->num);
 
         $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
         $$->u_var.type_meta = $1;

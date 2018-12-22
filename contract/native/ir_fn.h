@@ -10,7 +10,6 @@
 
 #include "array.h"
 #include "ast_id.h"
-#include "ir.h"
 
 #ifndef _IR_FN_T
 #define _IR_FN_T

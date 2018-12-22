@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "gen_id.h"
 #include "gen_stmt.h"
 #include "gen_exp.h"
 #include "gen_util.h"
@@ -17,19 +18,23 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     int i;
     int instr_cnt = gen->instr_cnt;
     BinaryenExpressionRef *instrs = gen->instrs;
-    BinaryenExpressionRef code;
+    BinaryenExpressionRef body;
 
     gen->instr_cnt = 0;
     gen->instrs = NULL;
+
+    for (i = 0; i < array_size(&bb->ids); i++) {
+        gen_add_instr(gen, id_gen(gen, array_get_id(&bb->ids, i)));
+    }
 
     for (i = 0; i < array_size(&bb->stmts); i++) {
         gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
     }
 
-    code = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
+    body = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
                          BinaryenTypeNone());
 
-    bb->rb = RelooperAddBlock(gen->relooper, code);
+    bb->rb = RelooperAddBlock(gen->relooper, body);
 
     gen->instr_cnt = instr_cnt;
     gen->instrs = instrs;
@@ -48,8 +53,8 @@ br_gen(gen_t *gen, ir_bb_t *bb)
 
         ASSERT(br->bb->rb != NULL);
 
-        if (br->cond != NULL)
-            cond = exp_gen(gen, br->cond, &br->cond->meta, false);
+        if (br->cond_exp != NULL)
+            cond = exp_gen(gen, br->cond_exp, &br->cond_exp->meta, false);
 
         RelooperAddBranch(bb->rb, br->bb->rb, cond, NULL);
     }
