@@ -1,5 +1,5 @@
-hash: 78db53e1f61004f4e3b33faa0789d9c2c2538cbfe4ddb331bfaf2424cf5cae8c
-updated: 2018-12-18T21:43:32.2959695+09:00
+hash: 28691f6ca181ff86e3e1ede2dd1c40ce8089af78497722be6e5c2abf05036994
+updated: 2018-12-22T17:46:40.304887+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 4424ea594ae4917c6c7da300b98f92dd9ed260cb
@@ -81,6 +81,8 @@ imports:
   - threadlocal
 - name: github.com/go-logfmt/logfmt
   version: 07c9b44f60d7ffdfb7d8efe1ad539965737836dc
+- name: github.com/gofrs/uuid
+  version: 7077aa61129615a0d7f45c49101cd011ab221c27
 - name: github.com/gogo/protobuf
   version: 636bf0302bc95575d69441b25a2603156ffdddf1
   subpackages:
@@ -338,8 +340,6 @@ imports:
   subpackages:
   - internal/cbor
   - internal/json
-- name: github.com/satori/go.uuid
-  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/serialx/hashring
   version: 49a4782e9908fe098c907022a1bd7519c79803d6
 - name: github.com/Shopify/sarama

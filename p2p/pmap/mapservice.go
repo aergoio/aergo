@@ -18,7 +18,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"sync"
 	"time"
 )

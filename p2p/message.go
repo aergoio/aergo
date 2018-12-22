@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 // MsgID is
@@ -10,7 +10,7 @@ type MsgID [IDLength]byte
 
 // NewMsgID return random id
 func NewMsgID() (m MsgID) {
-	uid := uuid.Must(uuid.NewRandom())
+	uid := uuid.Must(uuid.NewV4())
 	return MsgID(uid)
 }
 
