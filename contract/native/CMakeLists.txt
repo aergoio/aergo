@@ -42,7 +42,6 @@ set(libascl_SRCS
     gen_fn.c
     gen_bb.c
     gen_id.c
-    gen_blk.c
     gen_stmt.c
     gen_exp.c
     gen_util.c
@@ -51,7 +50,6 @@ set(libascl_SRCS
     strbuf.c
     array.c
     stack.c
-    symtab.c
     src_pos.c
     enum.c
     meta.c

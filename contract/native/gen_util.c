@@ -37,16 +37,6 @@ gen_add_instr(gen_t *gen, BinaryenExpressionRef instr)
     gen->instrs[gen->instr_cnt++] = instr;
 }
 
-void
-gen_stmt_array(gen_t *gen, array_t *stmts)
-{
-    int i;
-
-    for (i = 0; i < array_size(stmts); i++) {
-        gen_add_instr(gen, stmt_gen(gen, array_get_stmt(stmts, i)));
-    }
-}
-
 BinaryenType
 type_gen(gen_t *gen, type_t type)
 {

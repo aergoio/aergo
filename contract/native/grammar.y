@@ -259,7 +259,7 @@ contract_decl:
         ast_blk_t *blk = blk_new_normal(&@3);
 
         /* add default constructor */
-        id_add(&blk->ids, id_new_ctor($2, &@2));
+        id_add(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
 
         $$ = id_new_contract($2, blk, &@$);
     }
@@ -282,7 +282,7 @@ contract_decl:
 
         if (!exist_ctor)
             /* add default constructor */
-            id_add(&$4->ids, id_new_ctor($2, &@2));
+            id_add(&$4->ids, id_new_ctor($2, NULL, NULL, &@2));
 
         $$ = id_new_contract($2, $4, &@$);
     }
@@ -537,7 +537,7 @@ comma_opt:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_new_fn($1, MOD_PUBLIC | MOD_CTOR, $3, NULL, $5, &@$);
+        $$ = id_new_ctor($1, $3, $5, &@$);
 
         if (!is_empty_array(LABELS)) {
             ASSERT($5 != NULL);
@@ -624,7 +624,7 @@ blk_decl:
 function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
-        $$ = id_new_fn($3, $1, $5, $7, $8, &@3);
+        $$ = id_new_func($3, $1, $5, $7, $8, &@3);
 
         if (!is_empty_array(LABELS)) {
             ASSERT($8 != NULL);

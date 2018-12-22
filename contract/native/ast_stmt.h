@@ -96,7 +96,6 @@ typedef struct stmt_return_s {
 
 typedef struct stmt_jump_s {
     ast_exp_t *cond_exp;
-    char *label;
 } stmt_jump_t;
 
 typedef struct stmt_goto_s {

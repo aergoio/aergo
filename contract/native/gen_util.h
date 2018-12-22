@@ -17,8 +17,6 @@ uint32_t gen_add_local(gen_t *gen, type_t type);
 
 void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
 
-void gen_stmt_array(gen_t *gen, array_t *stmts);
-
 BinaryenType type_gen(gen_t *gen, type_t type);
 
 static inline BinaryenExpressionRef

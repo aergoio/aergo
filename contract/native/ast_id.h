@@ -32,9 +32,6 @@
 #define is_global_id(id)            ((id)->scope == SCOPE_GLOBAL)
 #define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
 
-#define id_new_ctor(name, pos)                                                           \
-    id_new_fn((name), MOD_PUBLIC | MOD_CTOR, NULL, NULL, NULL, (pos))
-
 #ifndef _AST_ID_T
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;
@@ -117,8 +114,9 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
-                    ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+                      ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
 ast_id_t *id_new_tuple(src_pos_t *pos);

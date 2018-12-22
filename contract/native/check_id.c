@@ -213,7 +213,7 @@ id_check_param(check_t *check, ast_id_t *id)
 }
 
 static int
-id_check_fn(check_t *check, ast_id_t *id)
+id_check_func(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *param_ids;
@@ -352,7 +352,7 @@ id_check(check_t *check, ast_id_t *id)
         break;
 
     case ID_FN:
-        id_check_fn(check, id);
+        id_check_func(check, id);
         break;
 
     case ID_CONTRACT:

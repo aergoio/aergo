@@ -5,8 +5,8 @@
 
 #include "common.h"
 
-#include "gen_blk.h"
 #include "gen_exp.h"
+#include "gen_stmt.h"
 #include "gen_util.h"
 
 #include "gen_id.h"
@@ -32,9 +32,9 @@ id_gen_var(gen_t *gen, ast_id_t *id)
         /* TODO: save to the storage */
         return NULL;
 
+    /*
     id->idx = gen_add_local(gen, meta->type);
 
-    /*
     if (dflt_exp != NULL) {
         BinaryenExpressionRef val_exp;
 
@@ -70,6 +70,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     return NULL;
 }
 
+    /*
 static BinaryenExpressionRef
 id_gen_fn(gen_t *gen, ast_id_t *id)
 {
@@ -113,16 +114,20 @@ id_gen_fn(gen_t *gen, ast_id_t *id)
 
     return func;
 }
-
-static BinaryenExpressionRef
-id_gen_contract(gen_t *gen, ast_id_t *id)
-{
-    return blk_gen(gen, id->u_cont.blk);
-}
+    */
 
 static BinaryenExpressionRef
 id_gen_tuple(gen_t *gen, ast_id_t *id)
 {
+    int i;
+
+    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+        id_gen_var(gen, array_get_id(&id->u_tup.var_ids, i));
+    }
+
+    if (id->u_tup.dflt_stmt != NULL)
+        stmt_gen(gen, id->u_tup.dflt_stmt);
+
     return NULL;
 }
 
@@ -133,20 +138,16 @@ id_gen(gen_t *gen, ast_id_t *id)
     case ID_VAR:
         return id_gen_var(gen, id);
 
-    case ID_STRUCT:
-    case ID_ENUM:
-    case ID_LABEL:
-        break;
-
-    case ID_FN:
-        return id_gen_fn(gen, id);
-
-    case ID_CONTRACT:
-        return id_gen_contract(gen, id);
-
     case ID_TUPLE:
         return id_gen_tuple(gen, id);
 
+    case ID_STRUCT:
+    case ID_ENUM:
+    case ID_LABEL:
+    case ID_FN:
+        break;
+
+    case ID_CONTRACT:
     default:
         ASSERT1(!"invalid identifier", id->kind);
     }

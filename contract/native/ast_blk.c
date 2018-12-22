@@ -13,14 +13,13 @@
 #include "ast_blk.h"
 
 static ast_blk_t *
-ast_blk_new(blk_kind_t kind, char *prefix, src_pos_t *pos)
+ast_blk_new(blk_kind_t kind, src_pos_t *pos)
 {
     ast_blk_t *blk = xcalloc(sizeof(ast_blk_t));
 
     ast_node_init(blk, pos);
 
     blk->kind = kind;
-    snprintf(blk->name, sizeof(blk->name), "%s_blk_%d", prefix, blk->num);
 
     array_init(&blk->ids);
     array_init(&blk->stmts);
@@ -31,33 +30,25 @@ ast_blk_new(blk_kind_t kind, char *prefix, src_pos_t *pos)
 ast_blk_t *
 blk_new_normal(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_NORMAL, "normal", pos);
+    return ast_blk_new(BLK_NORMAL, pos);
 }
 
 ast_blk_t *
 blk_new_root(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_ROOT, "root", pos);
+    return ast_blk_new(BLK_ROOT, pos);
 }
 
 ast_blk_t *
 blk_new_loop(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_LOOP, "loop", pos);
+    return ast_blk_new(BLK_LOOP, pos);
 }
 
 ast_blk_t *
 blk_new_switch(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_SWITCH, "switch", pos);
-}
-
-void
-blk_set_loop(ast_blk_t *blk)
-{
-    blk->kind = BLK_LOOP;
-
-    snprintf(blk->name, sizeof(blk->name), "loop_blk_%d", blk->num);
+    return ast_blk_new(BLK_SWITCH, pos);
 }
 
 ast_blk_t *

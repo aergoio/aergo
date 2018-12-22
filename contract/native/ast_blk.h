@@ -37,8 +37,6 @@ struct ast_blk_s {
 
     blk_kind_t kind;
 
-    char name[NAME_MAX_LEN + 1];
-
     array_t ids;
     array_t stmts;
 
@@ -50,8 +48,6 @@ ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
 ast_blk_t *blk_new_switch(src_pos_t *pos);
-
-void blk_set_loop(ast_blk_t *blk);
 
 ast_blk_t *blk_search(ast_blk_t *blk, blk_kind_t kind);
 

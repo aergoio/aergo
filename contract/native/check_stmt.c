@@ -405,8 +405,6 @@ stmt_check_continue(check_t *check, ast_stmt_t *stmt)
     if (blk == NULL)
         RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
 
-    stmt->u_jump.label = blk->name;
-
     return NO_ERROR;
 }
 
@@ -435,8 +433,6 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
         if (blk == NULL)
             RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
     }
-
-    stmt->u_jump.label = blk->name;
 
     return NO_ERROR;
 }

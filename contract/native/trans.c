@@ -6,7 +6,6 @@
 #include "common.h"
 
 #include "ast_blk.h"
-#include "ir_bb.h"
 #include "trans_id.h"
 
 #include "trans.h"
@@ -39,6 +38,8 @@ trans(ast_t *ast, flag_t flag, ir_t **ir)
     for (i = 0; i < array_size(&ast->root->ids); i++) {
         id_trans(&trans, array_get_id(&ast->root->ids, i));
     }
+
+    *ir = trans.ir;
 }
 
 /* end of trans.c */
