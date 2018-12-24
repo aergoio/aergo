@@ -28,12 +28,12 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
     meta = &l_exp->meta;
 
-    var_exp = exp_gen(gen, l_exp, meta, true);
+    var_exp = exp_gen(gen, l_exp);
 
     ASSERT2(BinaryenExpressionGetId(var_exp) == BinaryenConstId(),
             BinaryenExpressionGetId(var_exp), BinaryenConstId());
 
-    val_exp = exp_gen(gen, r_exp, meta, false);
+    val_exp = exp_gen(gen, r_exp);
 
     id = l_exp->id;
     ASSERT(id != NULL);
@@ -68,7 +68,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             meta_t *elem_meta = &elem_exp->meta;
 
-            value = exp_gen(gen, elem_exp, elem_meta, false);
+            value = exp_gen(gen, elem_exp);
             ret_id = array_get_id(ret_ids, i);
 
             gen_add_instr(gen,
@@ -81,7 +81,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
     }
 
     arg_meta = &arg_exp->meta;
-    value = exp_gen(gen, arg_exp, arg_meta, false);
+    value = exp_gen(gen, arg_exp);
     ret_id = array_get_id(ret_ids, 0);
 
     return BinaryenStore(gen->module, meta_size(arg_meta), arg_meta->offset, 0,
@@ -103,7 +103,7 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenNop(gen->module);
 
     case STMT_EXP:
-        return exp_gen(gen, stmt->u_exp.exp, &stmt->u_exp.exp->meta, true);
+        return exp_gen(gen, stmt->u_exp.exp);
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);

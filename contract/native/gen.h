@@ -12,11 +12,6 @@
 #include "dsgmt.h"
 #include "binaryen-c.h"
 
-#ifndef _META_T
-#define _META_T
-typedef struct meta_s meta_t;
-#endif /* ! _META_T */
-
 typedef struct gen_s {
     flag_t flag;
     char path[PATH_MAX_LEN + 5];
@@ -24,17 +19,13 @@ typedef struct gen_s {
     BinaryenModuleRef module;
     RelooperRef relooper;
 
-    dsgmt_t *dsgmt;
-    int id_idx;
-
     int local_cnt;
     BinaryenType *locals;
 
     int instr_cnt;
     BinaryenExpressionRef *instrs;
 
-    int buf_size;
-    char *buf;
+    dsgmt_t *dsgmt;
 } gen_t;
 
 void gen(ir_t *ir, flag_t flag, char *path);

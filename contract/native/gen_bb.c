@@ -23,10 +23,6 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     gen->instr_cnt = 0;
     gen->instrs = NULL;
 
-    for (i = 0; i < array_size(&bb->ids); i++) {
-        gen_add_instr(gen, id_gen(gen, array_get_id(&bb->ids, i)));
-    }
-
     for (i = 0; i < array_size(&bb->stmts); i++) {
         gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
     }
@@ -54,7 +50,7 @@ br_gen(gen_t *gen, ir_bb_t *bb)
         ASSERT(br->bb->rb != NULL);
 
         if (br->cond_exp != NULL)
-            cond = exp_gen(gen, br->cond_exp, &br->cond_exp->meta, false);
+            cond = exp_gen(gen, br->cond_exp);
 
         RelooperAddBranch(bb->rb, br->bb->rb, cond, NULL);
     }

@@ -120,7 +120,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         flag_set(fld_id->mod, MOD_PUBLIC);
 
-        fld_id->offset = offset;
+        fld_id->meta.offset = offset;
         offset += ALIGN64(fld_id->meta.size);
     }
 
@@ -277,6 +277,10 @@ id_check_func(check_t *check, ast_id_t *id)
 
         check->fn_id = NULL;
     }
+
+    ASSERT(check->cont_id != NULL);
+
+    id->u_fn.cont_id = check->cont_id;
 
     return NO_ERROR;
 }

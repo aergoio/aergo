@@ -9,7 +9,7 @@
 
 #include "gen_util.h"
 
-uint32_t
+void
 gen_add_local(gen_t *gen, type_t type)
 {
     if (gen->locals == NULL)
@@ -18,8 +18,6 @@ gen_add_local(gen_t *gen, type_t type)
         gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
 
     gen->locals[gen->local_cnt++] = type_gen(gen, type);
-
-    return gen->id_idx++;
 }
 
 void

@@ -13,8 +13,7 @@
 
 #define meta_gen(gen, meta)         type_gen((gen), (meta)->type)
 
-uint32_t gen_add_local(gen_t *gen, type_t type);
-
+void gen_add_local(gen_t *gen, type_t type);
 void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
 
 BinaryenType type_gen(gen_t *gen, type_t type);

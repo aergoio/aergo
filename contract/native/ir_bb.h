@@ -24,7 +24,6 @@ typedef struct ir_br_s {
 } ir_br_t;
 
 struct ir_bb_s {
-    array_t ids;
     array_t stmts;
     array_t brs;
 
@@ -33,7 +32,6 @@ struct ir_bb_s {
 
 ir_bb_t *bb_new(void);
 
-void bb_add_id(ir_bb_t *bb, ast_id_t *id);
 void bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt);
 void bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb);
 

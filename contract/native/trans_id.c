@@ -17,15 +17,14 @@ static void
 id_trans_var(trans_t *trans, ast_id_t *id)
 {
     if (is_global_id(id)) {
+        /* Initialization of the global variable will be done in the constructor */
         ir_add_global(trans->ir, id);
+        return;
     }
-    else {
-        ASSERT(trans->fn != NULL);
-        fn_add_local(trans->fn, id);
 
-        ASSERT(trans->bb != NULL);
-        bb_add_id(trans->bb, id);
-    }
+    ASSERT(trans->fn != NULL);
+
+    fn_add_local(trans->fn, id);
 
     if (id->u_var.dflt_stmt != NULL)
         stmt_trans(trans, id->u_var.dflt_stmt);
@@ -36,10 +35,27 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 {
     ir_fn_t *fn = fn_new(id);
 
-    if (id->u_fn.blk != NULL) {
-        trans->fn = fn;
-        trans->bb = fn->entry_bb;
+    trans->fn = fn;
+    trans->bb = fn->entry_bb;
 
+    if (is_ctor_id(id)) {
+        int i;
+        ast_id_t *cont_id = id->u_fn.cont_id;
+
+        ASSERT(cont_id != NULL);
+        ASSERT1(is_cont_id(cont_id), cont_id->kind);
+
+        for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
+            ast_id_t *mem_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+
+            if (is_var_id(mem_id) && mem_id->u_var.dflt_stmt != NULL)
+                stmt_trans(trans, mem_id->u_var.dflt_stmt);
+        }
+
+        ASSERT(trans->bb == fn->entry_bb);
+    }
+
+    if (id->u_fn.blk != NULL) {
         blk_trans(trans, id->u_fn.blk);
 
         if (trans->bb != NULL) {
@@ -48,10 +64,13 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         }
 
         fn_add_basic_blk(fn, fn->exit_bb);
-
-        trans->fn = NULL;
-        trans->bb = NULL;
     }
+    else {
+        fn_add_basic_blk(fn, fn->entry_bb);
+    }
+
+    trans->fn = NULL;
+    trans->bb = NULL;
 
     ir_add_fn(trans->ir, fn);
 }
@@ -59,8 +78,9 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
-    if (id->u_cont.blk != NULL)
-        blk_trans(trans, id->u_cont.blk);
+    ASSERT(id->u_cont.blk != NULL);
+
+    blk_trans(trans, id->u_cont.blk);
 }
 
 static void

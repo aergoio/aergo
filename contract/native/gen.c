@@ -15,13 +15,13 @@
 #define WASM_MAX_LEN    1024 * 1024
 
 static void
-gen_init(gen_t *gen, BinaryenModuleRef module, flag_t flag, char *path)
+gen_init(gen_t *gen, flag_t flag, char *path)
 {
     char *ptr;
 
     gen->flag = flag;
 
-    gen->module = module;
+    gen->module = BinaryenModuleCreate();
     gen->relooper = NULL;
 
     strcpy(gen->path, path);
@@ -33,16 +33,12 @@ gen_init(gen_t *gen, BinaryenModuleRef module, flag_t flag, char *path)
         strcpy(ptr, WASM_EXT);
 
     gen->dsgmt = dsgmt_new();
-    gen->id_idx = 0;
 
     gen->local_cnt = 0;
     gen->locals = NULL;
 
     gen->instr_cnt = 0;
     gen->instrs = NULL;
-
-    gen->buf_size = WASM_MAX_LEN * 2;
-    gen->buf = xmalloc(gen->buf_size);
 }
 
 void
@@ -50,14 +46,11 @@ gen(ir_t *ir, flag_t flag, char *path)
 {
     int i, n;
     gen_t gen;
-    BinaryenModuleRef module;
 
     if (ir == NULL)
         return;
 
-    module = BinaryenModuleCreate();
-
-    gen_init(&gen, module, flag, path);
+    gen_init(&gen, flag, path);
 
     BinaryenSetDebugInfo(1);
     //BinaryenSetAPITracing(1);
@@ -67,26 +60,32 @@ gen(ir_t *ir, flag_t flag, char *path)
         //BinaryenModuleInterpret(gen.module);
     }
     else {
+        int buf_size;
+        char *buf;
+
         // XXX: handle globals
 
         for (i = 0; i < array_size(&ir->fns); i++) {
             fn_gen(&gen, array_get_fn(&ir->fns, i));
         }
 
-        BinaryenSetMemory(module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
+        BinaryenSetMemory(gen.module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
                           (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
                           gen.dsgmt->lens, gen.dsgmt->size, 0);
 
-        BinaryenModuleValidate(module);
+        BinaryenModuleValidate(gen.module);
 
-        n = BinaryenModuleWrite(module, gen.buf, gen.buf_size);
+        buf_size = WASM_MAX_LEN * 2;
+        buf = xmalloc(buf_size);
+
+        n = BinaryenModuleWrite(gen.module, buf, buf_size);
         if (n <= WASM_MAX_LEN)
-            write_file(gen.path, gen.buf, n);
+            write_file(path, buf, n);
         else
             FATAL(ERROR_BINARY_OVERFLOW, n);
     }
 
-    BinaryenModuleDispose(module);
+    BinaryenModuleDispose(gen.module);
 }
 
 /* end of gen.c */

@@ -48,8 +48,6 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
             fprintf(stderr, "%"PRId64" = %"PRIu64" = 0x%"PRIx64"\n", 
                     (int64_t)i64, i64, i64);
             break;
-        default:
-            break;
         }
     }
 

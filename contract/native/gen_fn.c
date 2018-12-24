@@ -18,6 +18,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     int param_cnt;
     BinaryenType *params;
     BinaryenFunctionTypeRef spec;
+    BinaryenExpressionRef body;
 
     param_cnt = array_size(&fn->params);
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
@@ -26,17 +27,17 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         params[i] = meta_gen(gen, &array_get_id(&fn->params, i)->meta);
     }
 
-    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(),
-                                   params, param_cnt);
+    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(), params, 
+                                   param_cnt);
 
-    /* local-0 for base stack address */
+    /* 1st local for base stack address */
     gen_add_local(gen, TYPE_INT32);
 
-    /* local-1 for relooper */
+    /* 2nd local for relooper */
     gen_add_local(gen, TYPE_INT32);
 
     for (i = 0; i < array_size(&fn->locals); i++) {
-        gen_add_instr(gen, id_gen(gen, array_get_id(&fn->locals, i)));
+        id_gen(gen, array_get_id(&fn->locals, i));
     }
 
     gen->relooper = RelooperCreate();
@@ -49,14 +50,12 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    gen_add_instr(gen,
-                  RelooperRenderAndDispose(gen->relooper, fn->entry_bb, 1, gen->module));
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb, param_cnt + 1, 
+                                    gen->module);
 
     BinaryenAddFunction(gen->module, fn->name, spec, gen->locals, gen->local_cnt,
-                        BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
-                                      BinaryenTypeNone()));
+                        BinaryenBlock(gen->module, NULL, &body, 1, BinaryenTypeNone()));
 
-    gen->id_idx = 0;
     gen->local_cnt = 0;
     gen->locals = NULL;
 }

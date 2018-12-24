@@ -65,6 +65,8 @@ typedef struct id_fn_s {
     array_t *param_ids;
     array_t *ret_ids;
     ast_blk_t *blk;
+
+    ast_id_t *cont_id;
 } id_fn_t;
 
 typedef struct id_cont_s {
@@ -108,7 +110,6 @@ struct ast_id_s {
     value_t *val;       /* constant value */
 
     int idx;            /* local index */
-    int offset;         /* relative offset */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);

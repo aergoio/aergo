@@ -11,26 +11,35 @@
 
 #include "gen_id.h"
 
-static BinaryenExpressionRef
+static void
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
-    int i;
     uint32_t size;
     meta_t *meta = &id->meta;
-    //ast_stmt_t *dflt_stmt = id->u_var.dflt_stmt;
 
     size = meta_size(meta);
 
     if (is_array_type(meta)) {
+        int i;
+
         for (i = 0; i < id->meta.arr_dim; i++) {
             ASSERT(id->meta.arr_size[i] > 0);
             size *= id->meta.arr_size[i];
         }
     }
 
-    if (is_global_id(id))
-        /* TODO: save to the storage */
-        return NULL;
+    if (is_global_id(id)) {
+        if (!is_primitive_type(meta) || is_array_type(meta))
+            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
+        else
+            BinaryenAddGlobal(gen->module, id->name, meta_gen(gen, meta), 1, NULL);
+    }
+    else {
+        if (!is_primitive_type(meta) || is_array_type(meta))
+            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
+
+        gen_add_local(gen, meta->type);
+    }
 
     /*
     id->idx = gen_add_local(gen, meta->type);
@@ -66,57 +75,9 @@ id_gen_var(gen_t *gen, ast_id_t *id)
             meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
     }
     */
-
-    return NULL;
 }
 
-    /*
-static BinaryenExpressionRef
-id_gen_fn(gen_t *gen, ast_id_t *id)
-{
-    int i;
-    int param_cnt;
-    BinaryenType *params;
-    BinaryenFunctionTypeRef spec;
-    BinaryenFunctionRef func;
-    array_t *param_ids = id->u_fn.param_ids;
-    array_t *ret_ids = id->u_fn.ret_ids;
-
-    param_cnt = array_size(param_ids) + array_size(ret_ids);
-    params = xmalloc(sizeof(BinaryenType) * param_cnt);
-
-    for (i = 0; i < array_size(param_ids); i++) {
-        ast_id_t *param_id = array_get_id(param_ids, i);
-
-        param_id->idx = gen->id_idx++;
-        params[param_id->idx] = meta_gen(gen, &param_id->meta);
-    }
-
-    for (i = 0; i < array_size(ret_ids); i++) {
-        ast_id_t *ret_id = array_get_id(ret_ids, i);
-
-        ret_id->idx = gen->id_idx++;
-        params[ret_id->idx] = meta_gen(gen, &ret_id->meta);
-
-        ret_id->meta.addr = 
-            dsgmt_occupy(gen->dsgmt, gen->module, meta_size(&ret_id->meta));
-    }
-
-    spec = BinaryenAddFunctionType(gen->module, id->name, BinaryenTypeNone(),
-                                   params, param_cnt);
-
-    func = BinaryenAddFunction(gen->module, id->name, spec, gen->locals, gen->local_cnt,
-                               blk_gen(gen, id->u_fn.blk));
-
-    gen->id_idx = 0;
-    gen->local_cnt = 0;
-    gen->locals = NULL;
-
-    return func;
-}
-    */
-
-static BinaryenExpressionRef
+static void
 id_gen_tuple(gen_t *gen, ast_id_t *id)
 {
     int i;
@@ -124,35 +85,21 @@ id_gen_tuple(gen_t *gen, ast_id_t *id)
     for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
         id_gen_var(gen, array_get_id(&id->u_tup.var_ids, i));
     }
-
-    if (id->u_tup.dflt_stmt != NULL)
-        stmt_gen(gen, id->u_tup.dflt_stmt);
-
-    return NULL;
 }
 
-BinaryenExpressionRef
+void
 id_gen(gen_t *gen, ast_id_t *id)
 {
     switch (id->kind) {
     case ID_VAR:
-        return id_gen_var(gen, id);
+        id_gen_var(gen, id);
 
     case ID_TUPLE:
-        return id_gen_tuple(gen, id);
+        id_gen_tuple(gen, id);
 
-    case ID_STRUCT:
-    case ID_ENUM:
-    case ID_LABEL:
-    case ID_FN:
-        break;
-
-    case ID_CONTRACT:
     default:
         ASSERT1(!"invalid identifier", id->kind);
     }
-
-    return NULL;
 }
 
 /* end of gen_id.c */
