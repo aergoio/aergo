@@ -504,11 +504,11 @@ func TestInfiniteLoop(t *testing.T) {
 
 	definition := `
 function infiniteLoop()
-    db.exec("create table if not exists dual(dummy int)")
-	for i = 1, 100000000000000 do
-		system.setItem("key_"..i, "value_"..i)
-		db.exec("insert into dual values ("..tostring(i)..")")
+    local t = 0
+	while true do
+	    t = t + 1
 	end
+	return t
 end
 abi.register(infiniteLoop)`
 
