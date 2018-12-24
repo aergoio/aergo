@@ -254,7 +254,7 @@ func (_m *MockPeerManager) GetPeers() []RemotePeer {
 }
 
 // GetPeerAddresses provides a mock function with given fields:
-func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState) {
+func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState) {
 	ret := _m.Called()
 
 	var r0 []*types.PeerAddress
@@ -266,21 +266,28 @@ func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.Ne
 		}
 	}
 
-	var r1 []*types.NewBlockNotice
-	if rf, ok := ret.Get(1).(func() []*types.NewBlockNotice); ok {
+	var r1 []bool
+	if rf, ok := ret.Get(1).(func() []bool); ok {
 		r1 = rf()
 	} else {
-		r1 = ret.Get(1).([]*types.NewBlockNotice)
+		r1 = ret.Get(1).([]bool)
 	}
 
-	var r2 []types.PeerState
-	if rf, ok := ret.Get(1).(func() []types.PeerState); ok {
+	var r2 []*types.NewBlockNotice
+	if rf, ok := ret.Get(2).(func() []*types.NewBlockNotice); ok {
 		r2 = rf()
 	} else {
-		r2 = ret.Get(1).([]types.PeerState)
+		r2 = ret.Get(2).([]*types.NewBlockNotice)
+	}
+	
+	var r3 []types.PeerState
+	if rf, ok := ret.Get(3).(func() []types.PeerState); ok {
+		r3 = rf()
+	} else {
+		r3 = ret.Get(3).([]types.PeerState)
 	}
 
-	return r0, r1, r2
+	return r0, r1, r2, r3
 }
 
 // GetStatus provides a mock function with given fields:
