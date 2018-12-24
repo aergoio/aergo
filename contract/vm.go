@@ -35,6 +35,7 @@ import (
 const (
 	callMaxInstLimit  = C.int(5000000)
 	queryMaxInstLimit = callMaxInstLimit * C.int(10)
+	dbUpdateMaxLimit  = int64(10 * 1024 * 1024)
 )
 
 var (
@@ -72,6 +73,7 @@ type StateSet struct {
 	dbSystemError     bool
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
+	dbUpdateTotalSize int64
 }
 
 type recoveryEntry struct {
@@ -85,7 +87,6 @@ type recoveryEntry struct {
 }
 
 type LState = C.struct_lua_State
-type LBlockchainCtx = C.struct_blockchain_ctx
 
 type Executor struct {
 	L        *LState
