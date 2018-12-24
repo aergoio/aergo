@@ -170,7 +170,7 @@ func (pm *peerManager) Start() error {
 	// FIXME: adhoc code
 	go func() {
 		time.Sleep(time.Second * 3)
-		pm.nt.SetStreamHandler(aergoP2PSub, pm.onConnect)
+		pm.nt.AddStreamHandler(aergoP2PSub, pm.onConnect)
 
 		// addition should start after all modules are started
 		go func() {

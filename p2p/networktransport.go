@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-protocol"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
 
@@ -44,6 +45,10 @@ type NetworkTransport interface {
 
 	GetAddressesOfPeer(peerID peer.ID) []string
 
+	// AddStreamHandler wrapper function which call host.SetStreamHandler after transport is initialized, this method is for preventing nil error.
+	AddStreamHandler(pid protocol.ID, handler inet.StreamHandler)
+
+
 	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
 
 	FindPeer(peerID peer.ID) bool
@@ -61,6 +66,9 @@ type networkTransport struct {
 	bindAddress net.IP
 	bindPort    int
 	selfMeta    PeerMeta
+
+	// hostInited is
+	hostInited *sync.WaitGroup
 
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
@@ -85,6 +93,8 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransp
 	nt := &networkTransport{
 		conf:           conf,
 		logger:         logger,
+
+		hostInited: &sync.WaitGroup{},
 	}
 	nt.init()
 
@@ -122,6 +132,8 @@ func (sl *networkTransport) init() {
 		sl.bindPort = peerPort
 	}
 
+	sl.hostInited.Add(1)
+
 	// set meta info
 	// TODO more survey libp2p NAT configuration
 }
@@ -152,9 +164,14 @@ func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPor
 func (sl *networkTransport) Start() error {
 	//sl.logger.Debug().Msg("Starting network transport")
 	sl.startListener()
+	sl.hostInited.Done()
 	return nil
 }
 
+func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.StreamHandler) {
+	sl.hostInited.Wait()
+	sl.SetStreamHandler(pid, handler)
+}
 
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
