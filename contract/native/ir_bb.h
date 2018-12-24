@@ -27,6 +27,8 @@ struct ir_bb_s {
     array_t stmts;
     array_t brs;
 
+    ast_stmt_t *pgback;
+
     RelooperBlockRef rb;
 };
 
@@ -34,5 +36,7 @@ ir_bb_t *bb_new(void);
 
 void bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt);
 void bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb);
+
+void bb_set_piggyback(ir_bb_t *bb, ast_stmt_t *stmt);
 
 #endif /* no _IR_BB_H */

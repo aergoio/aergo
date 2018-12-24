@@ -336,7 +336,7 @@ var_decl:
         $$ = $1;
 
         if (is_var_id($$)) {
-            $$->u_var.dflt_stmt = stmt_new_assign(exp_new_ref($$->name, &@1), $3, &@2);
+            $$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($$->name, &@1), $3, &@2);
         }
         else {
             int i;
@@ -345,7 +345,7 @@ var_decl:
             for (i = 0; i < array_size(&$$->u_tup.var_ids); i++) {
                 ast_id_t *var_id = array_get_id(&$$->u_tup.var_ids, i);
 
-                array_add_last(exps, exp_new_ref(var_id->name, &var_id->pos));
+                array_add_last(exps, exp_new_id_ref(var_id->name, &var_id->pos));
             }
             $$->u_tup.dflt_stmt = stmt_new_assign(exp_new_tuple(exps, &@1), $3, &@2);
         }
@@ -525,7 +525,7 @@ enumerator:
 |   identifier '=' or_exp
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
-        $$->u_var.dflt_stmt = stmt_new_assign(exp_new_ref($1, &@1), $3, &@2);
+        $$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($1, &@1), $3, &@2);
     }
 ;
 
@@ -624,7 +624,7 @@ blk_decl:
 function:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
     {
-        $$ = id_new_func($3, $1, $5, $7, $8, &@3);
+        $$ = id_new_fn($3, $1, $5, $7, $8, &@3);
 
         if (!is_empty_array(LABELS)) {
             ASSERT($8 != NULL);
@@ -1129,7 +1129,7 @@ post_exp:
     }
 |   post_exp '.' identifier
     {
-        $$ = exp_new_access($1, exp_new_ref($3, &@3), &@$);
+        $$ = exp_new_access($1, exp_new_id_ref($3, &@3), &@$);
     }
 |   post_exp UNARY_INC
     {
@@ -1163,11 +1163,11 @@ new_exp:
     prim_exp
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_ref($2, &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_id_ref($2, &@2), $4, &@$);
     }
 |   K_NEW K_MAP '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_ref(xstrdup("map"), &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_id_ref(xstrdup("map"), &@2), $4, &@$);
     }
 |   K_NEW initializer
     {
@@ -1208,7 +1208,7 @@ prim_exp:
     literal
 |   identifier
     {
-        $$ = exp_new_ref($1, &@$);
+        $$ = exp_new_id_ref($1, &@$);
     }
 |   '(' expression ')'
     {

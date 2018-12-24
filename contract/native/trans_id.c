@@ -46,10 +46,10 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
         for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
-            ast_id_t *mem_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+            ast_id_t *fld_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
-            if (is_var_id(mem_id) && mem_id->u_var.dflt_stmt != NULL)
-                stmt_trans(trans, mem_id->u_var.dflt_stmt);
+            if (is_var_id(fld_id) && fld_id->u_var.dflt_stmt != NULL)
+                stmt_trans(trans, fld_id->u_var.dflt_stmt);
         }
 
         ASSERT(trans->bb == fn->entry_bb);

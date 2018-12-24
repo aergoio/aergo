@@ -90,7 +90,7 @@ meta_set_struct(meta_t *meta, char *name, array_t *ids)
 
         meta->elems[i] = elem_meta;
 
-        elem_meta->offset = meta->size;
+        // FIXME elem_meta->offset = meta->size;
         meta->size += ALIGN64(elem_meta->size);
     }
 }
@@ -114,7 +114,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
 
         meta->elems[i] = elem_meta;
 
-        elem_meta->offset = meta->size;
+        // FIXME elem_meta->offset = meta->size;
         meta->size += ALIGN64(elem_meta->size);
     }
 }

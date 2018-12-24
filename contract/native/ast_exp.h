@@ -14,7 +14,7 @@
 
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
-#define is_ref_exp(exp)             ((exp)->kind == EXP_REF)
+#define is_id_ref_exp(exp)          ((exp)->kind == EXP_ID_REF)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_unary_exp(exp)           ((exp)->kind == EXP_UNARY)
@@ -25,10 +25,12 @@
 #define is_sql_exp(exp)             ((exp)->kind == EXP_SQL)
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 #define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
+#define is_local_ref_exp(exp)       ((exp)->kind == EXP_LOCAL_REF)
+#define is_stack_ref_exp(exp)       ((exp)->kind == EXP_STACK_REF)
 
 #define is_usable_lval(exp)                                                              \
     ((exp)->id != NULL && (!is_const_id((exp)->id) || ((exp)->id->val == NULL)) &&       \
-     (is_ref_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
+     (is_id_ref_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
 
 #define exp_add                     array_add_last
 
@@ -48,9 +50,9 @@ typedef struct exp_lit_s {
 } exp_lit_t;
 
 /* name */
-typedef struct exp_ref_s {
+typedef struct exp_id_ref_s {
     char *name;
-} exp_ref_t;
+} exp_id_ref_t;
 
 /* id[idx] */
 typedef struct exp_array_s {
@@ -113,6 +115,15 @@ typedef struct exp_init_s {
     array_t *exps;
 } exp_init_t;
 
+typedef struct exp_local_ref_s {
+    uint32_t index;
+} exp_local_ref_t;
+
+typedef struct exp_stack_ref_s {
+    uint32_t addr;
+    uint32_t offset;
+} exp_stack_ref_t;
+
 struct ast_exp_s {
     AST_NODE_DECL;
 
@@ -120,7 +131,7 @@ struct ast_exp_s {
 
     union {
         exp_lit_t u_lit;
-        exp_ref_t u_ref;
+        exp_id_ref_t u_id;
         exp_array_t u_arr;
         exp_cast_t u_cast;
         exp_call_t u_call;
@@ -131,6 +142,8 @@ struct ast_exp_s {
         exp_sql_t u_sql;
         exp_tuple_t u_tup;
         exp_init_t u_init;
+        exp_local_ref_t u_lo;
+        exp_stack_ref_t u_st;
     };
 
     /* results of semantic checker */
@@ -140,12 +153,12 @@ struct ast_exp_s {
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
 ast_exp_t *exp_new_lit(src_pos_t *pos);
-ast_exp_t *exp_new_ref(char *name, src_pos_t *pos);
+ast_exp_t *exp_new_id_ref(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
-ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, 
+ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp,
                          src_pos_t *pos);
 ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                           src_pos_t *pos);
@@ -154,6 +167,8 @@ ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *pos
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *exps, src_pos_t *pos);
+ast_exp_t *exp_new_local_ref(uint32_t index, src_pos_t *pos);
+ast_exp_t *exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

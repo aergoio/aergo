@@ -30,13 +30,13 @@ id_gen_var(gen_t *gen, ast_id_t *id)
 
     if (is_global_id(id)) {
         if (!is_primitive_type(meta) || is_array_type(meta))
-            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
+            id->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
         else
             BinaryenAddGlobal(gen->module, id->name, meta_gen(gen, meta), 1, NULL);
     }
     else {
         if (!is_primitive_type(meta) || is_array_type(meta))
-            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
+            id->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
 
         gen_add_local(gen, meta->type);
     }

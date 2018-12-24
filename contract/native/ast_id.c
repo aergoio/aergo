@@ -60,7 +60,7 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
             ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FN, mod, name, pos);
@@ -78,7 +78,7 @@ id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
 ast_id_t *
 id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 {
-    return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids, NULL, blk, pos);
+    return id_new_fn(name, MOD_PUBLIC | MOD_CTOR, param_ids, NULL, blk, pos);
 }
 
 ast_id_t *

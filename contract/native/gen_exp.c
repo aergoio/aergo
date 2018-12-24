@@ -16,12 +16,14 @@ exp_gen_id(gen_t *gen, ast_exp_t *exp)
     ast_id_t *id = exp->id;
     meta_t *meta = &id->meta;
 
+    /* XXX
     if (id->idx >= 0)
         return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
+        */
 
     return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
-                        meta->offset, 0, meta_gen(gen, meta),
-                        gen_i32(gen, id->meta.addr));
+                        id->offset, 0, meta_gen(gen, meta),
+                        gen_i32(gen, id->addr));
 }
 
 static BinaryenExpressionRef
@@ -98,11 +100,11 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     else {
         */
         if (is_array_type(meta)) {
-            uint32_t offset = meta->offset;
+            uint32_t offset = id->offset;
             BinaryenExpressionRef addr_exp;
 
             idx_exp = exp_gen(gen, exp->u_arr.idx_exp);
-            addr_exp = gen_i32(gen, id->meta.addr);
+            addr_exp = gen_i32(gen, id->addr);
 
             if (BinaryenExpressionGetId(idx_exp) == BinaryenConstId())
                 offset = BinaryenConstGetValueI64(idx_exp) * ALIGN64(meta_size(meta));
@@ -218,16 +220,17 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
     switch (exp->u_un.kind) {
     case OP_INC:
     case OP_DEC:
-        /* XXX: handle postfix */
         id = exp->u_un.val_exp->id;
         meta = &id->meta;
 
-        if (id->idx >= 0)
+        //if (id->idx >= 0)
             ref_exp = BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
+        /* XXX
         else
             ref_exp = BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
                                    BinaryenConstGetValueI32(val_exp), 0,
                                    meta_gen(gen, meta), gen_i32(gen, meta->addr));
+                                   */
 
         if (is_int64_type(meta) || is_uint64_type(meta))
             add_exp = BinaryenBinary(gen->module, BinaryenAddInt64(), ref_exp,
@@ -243,7 +246,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
             else
                 return BinaryenStore(gen->module, meta_size(meta),
                                      BinaryenConstGetValueI32(val_exp), 0,
-                                     gen_i32(gen, id->meta.addr), add_exp,
+                                     gen_i32(gen, id->addr), add_exp,
                                      meta_gen(gen, meta));
         }
         else {
@@ -521,8 +524,8 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
 #endif
 
     return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
-                        fld_meta->offset, 0, meta_gen(gen, fld_meta),
-                        gen_i32(gen, qual_id->meta.addr));
+                        fld_id->offset, 0, meta_gen(gen, fld_meta),
+                        gen_i32(gen, qual_id->addr));
 }
 
 static BinaryenExpressionRef
@@ -543,7 +546,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     }
 
     for (i = 0; i < array_size(ret_ids); i++) {
-        arg_exps[j++] = gen_i32(gen, array_get_id(ret_ids, i)->meta.addr);
+        arg_exps[j++] = gen_i32(gen, array_get_id(ret_ids, i)->addr);
     }
 
     return BinaryenCall(gen->module, fn_id->name, arg_exps, arg_cnt, BinaryenTypeNone());
@@ -573,9 +576,11 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             val_exp = exp_gen(gen, elem_exp);
 
+            /* XXX
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(meta), offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
                                              meta_gen(gen, meta)));
+                                             */
 
             offset += ALIGN64(meta_size(meta));
         }
@@ -586,14 +591,16 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
         for (i = 0; i < array_size(elem_exps); i++) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
-            meta_t *elem_meta = meta->elems[i];
+            //meta_t *elem_meta = meta->elems[i];
 
             val_exp = exp_gen(gen, elem_exp);
 
+            /* XXX
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(elem_meta),
                                              elem_meta->offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
                                              meta_gen(gen, elem_meta)));
+                                             */
         }
     }
 
@@ -609,7 +616,7 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_NULL:
         return NULL;
 
-    case EXP_REF:
+    case EXP_ID_REF:
         return exp_gen_id(gen, exp);
 
     case EXP_LIT:

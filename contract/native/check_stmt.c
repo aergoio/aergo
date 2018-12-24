@@ -210,7 +210,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     id_add_last(&blk->ids, id);
 
-    inc_exp = exp_new_op(OP_INC, exp_new_ref(xstrdup(name), pos), NULL, pos);
+    inc_exp = exp_new_op(OP_INC, exp_new_id_ref(xstrdup(name), pos), NULL, pos);
     arr_exp = exp_new_array(loop_exp, inc_exp, &loop_exp->pos);
 
     if (stmt->u_loop.init_ids != NULL) {
@@ -225,7 +225,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
             ast_id_t *var_id = array_get_id(var_ids, i);
             ast_exp_t *id_exp;
 
-            id_exp = exp_new_ref(var_id->name, pos);
+            id_exp = exp_new_id_ref(var_id->name, pos);
             assign_exp = exp_new_op(OP_ASSIGN, id_exp, arr_exp, &loop_exp->pos);
 
             array_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));

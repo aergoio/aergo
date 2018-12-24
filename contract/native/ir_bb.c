@@ -5,6 +5,9 @@
 
 #include "common.h"
 
+#include "ast_exp.h"
+#include "ast_stmt.h"
+
 #include "ir_bb.h"
 
 ir_bb_t *
@@ -14,6 +17,8 @@ bb_new(void)
 
     array_init(&bb->stmts);
     array_init(&bb->brs);
+
+    bb->pgback = NULL;
 
     bb->rb = NULL;
 
@@ -26,6 +31,11 @@ bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
     ASSERT(bb != NULL);
 
     array_add_last(&bb->stmts, stmt);
+
+    if (bb->pgback != NULL) {
+        array_add_last(&bb->stmts, bb->pgback);
+        bb->pgback = NULL;
+    }
 }
 
 static ir_br_t *
@@ -45,6 +55,14 @@ bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb)
     ASSERT(bb != NULL);
 
     array_add_last(&bb->brs, br_new(cond_exp, br_bb));
+}
+
+void
+bb_set_piggyback(ir_bb_t *bb, ast_stmt_t *stmt)
+{
+    ASSERT(bb->pgback == NULL);
+
+    bb->pgback = stmt;
 }
 
 /* end of ir_bb.c */

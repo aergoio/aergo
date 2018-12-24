@@ -95,13 +95,14 @@ extern char *id_kinds_[ID_MAX];
 typedef enum scope_e {
     SCOPE_LOCAL     = 0,
     SCOPE_GLOBAL,
+    SCOPE_STACK,
     SCOPE_MAX
 } scope_t;
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
     EXP_LIT,
-    EXP_REF,
+    EXP_ID_REF,
     EXP_ARRAY,
     EXP_CAST,
     EXP_UNARY,
@@ -112,6 +113,8 @@ typedef enum exp_kind_e {
     EXP_SQL,
     EXP_TUPLE,
     EXP_INIT,
+    EXP_LOCAL_REF,
+    EXP_STACK_REF,
     EXP_MAX
 } exp_kind_t;
 

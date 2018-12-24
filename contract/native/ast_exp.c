@@ -40,11 +40,11 @@ exp_new_lit(src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_ref(char *name, src_pos_t *pos)
+exp_new_id_ref(char *name, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_REF, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_ID_REF, pos);
 
-    exp->u_ref.name = name;
+    exp->u_id.name = name;
 
     return exp;
 }
@@ -166,6 +166,27 @@ exp_new_init(array_t *exps, src_pos_t *pos)
 }
 
 ast_exp_t *
+exp_new_local_ref(uint32_t index, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_LOCAL_REF, pos);
+
+    exp->u_lo.index = index;
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_STACK_REF, pos);
+
+    exp->u_st.addr = addr;
+    exp->u_st.offset = offset;
+
+    return exp;
+}
+
+ast_exp_t *
 exp_clone(ast_exp_t *exp)
 {
     int i;
@@ -180,8 +201,8 @@ exp_clone(ast_exp_t *exp)
     case EXP_NULL:
         return exp_new_null(&exp->pos);
 
-    case EXP_REF:
-        return exp_new_ref(exp->u_ref.name, &exp->pos);
+    case EXP_ID_REF:
+        return exp_new_id_ref(exp->u_id.name, &exp->pos);
 
     case EXP_LIT:
         res = exp_new_lit(&exp->pos);
@@ -254,8 +275,8 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
     case EXP_NULL:
         return true;
 
-    case EXP_REF:
-        return strcmp(e1->u_ref.name, e2->u_ref.name) == 0;
+    case EXP_ID_REF:
+        return strcmp(e1->u_id.name, e2->u_id.name) == 0;
 
     case EXP_LIT:
         return e1->u_lit.val.type == e2->u_lit.val.type &&

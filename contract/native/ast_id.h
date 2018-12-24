@@ -31,6 +31,7 @@
 
 #define is_global_id(id)            ((id)->scope == SCOPE_GLOBAL)
 #define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
+#define is_stack_id(id)             ((id)->scope == SCOPE_STACK)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -87,7 +88,10 @@ struct ast_id_s {
     AST_NODE_DECL;
 
     id_kind_t kind;
-    modifier_t mod;
+
+    modifier_t mod;     /* public or const */
+    scope_t scope;      /* global, local or stack */
+
     char *name;
 
     union {
@@ -100,23 +104,22 @@ struct ast_id_s {
         id_tuple_t u_tup;
     };
 
-    // results of semantic checker
     bool is_used;       /* whether it is referenced */
     bool is_checked;    /* whether it is checked */
 
-    scope_t scope;      /* local or global */
-
-    meta_t meta;        /* identifier metadata */
+    meta_t meta;
     value_t *val;       /* constant value */
 
-    int idx;            /* local index */
+    uint32_t idx;       /* local index */
+    uint32_t addr;      /* relative address */
+    uint32_t offset;    /* offset (from addr) */
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
-                      ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+                    ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
