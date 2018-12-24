@@ -59,9 +59,10 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 			pms := NewMapService(pmapDummyCfg, pmapDummyNTC, tt.fields.listen)
 
 			if tt.fields.listen {
-				mockNT.EXPECT().SetStreamHandler(p2p.PolarisMapSub, gomock.Any()).Times(1)
+				mockNT.EXPECT().AddStreamHandler(p2p.PolarisMapSub, gomock.Any()).Times(1)
 				mockNT.EXPECT().RemoveStreamHandler(p2p.PolarisMapSub).Times(1)
 			}
+
 			pms.AfterStart()
 
 			pms.BeforeStop()
