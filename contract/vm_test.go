@@ -503,9 +503,11 @@ func TestInfiniteLoop(t *testing.T) {
 
 	definition := `
 function infiniteLoop()
-	for i = 1, 100000000000000 do
-		system.getItem("key_"..i)
+    local t = 0
+	while true do
+	    t = t + 1
 	end
+	return t
 end
 abi.register(infiniteLoop)`
 
