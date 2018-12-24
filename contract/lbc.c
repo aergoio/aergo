@@ -318,7 +318,7 @@ static const luaL_Reg R[] =
 	{ "__unm",	Bneg	},		/** __unm(x) */
 	{ "add",	Badd	},
 	{ "compare",	Bcompare},
-	{ "digits",	Bdigits	},
+/*	{ "digits",	Bdigits	},  */
 	{ "div",	Bdiv	},
 	{ "divmod",	Bdivmod	},
 	{ "isneg",	Bisneg	},
@@ -333,7 +333,7 @@ static const luaL_Reg R[] =
 	{ "sub",	Bsub	},
 	{ "tonumber",	Btonumber},
 	{ "tostring",	Btostring},
-	{ "trunc",	Btrunc	},
+/*	{ "trunc",	Btrunc	}, */
 	{ NULL,		NULL	}
 };
 
