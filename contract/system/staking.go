@@ -16,7 +16,7 @@ import (
 
 var stakingkey = []byte("staking")
 
-const StakingDelay = 10
+const StakingDelay = 60 * 60 * 24 //block interval
 
 func staking(txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) error {

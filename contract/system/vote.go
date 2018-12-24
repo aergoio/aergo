@@ -24,7 +24,7 @@ var totalkey = []byte("totalvote")
 var sortedlistkey = []byte("sortedlist")
 
 const PeerIDLength = 39
-const VotingDelay = 5
+const VotingDelay = 60 * 60 * 24 //block interval
 
 func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
 	staked, err := getStaking(scs, sender.ID())

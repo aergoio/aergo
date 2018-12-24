@@ -53,6 +53,7 @@ type MemPool struct {
 	//curBestBlockHash
 	sdb         *state.ChainStateDB
 	bestBlockID types.BlockID
+	bestBlockNo types.BlockNo
 	stateDB     *state.StateDB
 	verifier    *actor.PID
 	orphan      int
@@ -326,7 +327,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 			normal = false
 		}
 		mp.bestBlockID = newBlockID
-
+		mp.bestBlockNo = block.GetHeader().GetBlockNo()
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
@@ -472,7 +473,7 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(account, tx.GetBody(), scs, system.FutureBlockNo)
+			err = system.ValidateSystemTx(account, tx.GetBody(), scs, mp.bestBlockNo+1)
 			if err != nil {
 				return err
 			}
