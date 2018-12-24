@@ -31,10 +31,7 @@ const (
 
 // context of multiaddr, as higher type of p2p message
 const (
-
 	aergoP2PSub   protocol.ID = "/aergop2p/0.3"
-	PolarisMapSub protocol.ID = "/polaris/0.1"
-
 )
 
 

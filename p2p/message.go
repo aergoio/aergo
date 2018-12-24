@@ -14,6 +14,11 @@ func NewMsgID() (m MsgID) {
 	return MsgID(uid)
 }
 
+var (
+	EmptyID = MsgID(uuid.Nil)
+
+)
+
 func ParseBytesToMsgID(b []byte) (MsgID, error) {
 	var m MsgID
 	if b == nil || len(b) != IDLength {
