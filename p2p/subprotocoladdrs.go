@@ -54,6 +54,10 @@ func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 		if aPeer.ID() == peerID {
 			continue
 		}
+		if aPeer.Meta().Hidden {
+			continue
+		}
+
 		pAddr := aPeer.Meta().ToPeerAddress()
 		addrList = append(addrList, &pAddr)
 		addrCount++

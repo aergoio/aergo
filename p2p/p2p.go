@@ -223,8 +223,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
-		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks: lastBlks, States: states})
+		peers, hiddens, lastBlks, states := p2ps.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, Hiddens:hiddens, LastBlks: lastBlks, States: states})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
 

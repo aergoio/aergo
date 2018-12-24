@@ -126,6 +126,7 @@ type GetPeers struct {
 // GetPeersRsp contains peer meta information and current states.
 type GetPeersRsp struct {
 	Peers []*types.PeerAddress
+	Hiddens []bool
 	// last received block notice
 	LastBlks []*types.NewBlockNotice
 	States   []types.PeerState
