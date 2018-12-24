@@ -326,7 +326,7 @@ func (l *luaTxCall) hash() []byte {
 	return b
 }
 
-func (l *luaTxCall) fail(expectedErr string) *luaTxCall {
+func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	l.expectedErr = expectedErr
 	return l
 }

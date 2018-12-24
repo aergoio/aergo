@@ -3,9 +3,10 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -699,7 +700,7 @@ abi.register(init, add, addFail, get)`
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[2]}`),
 		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"addFail", "Args":[3]}`).
-			fail(`near "set": syntax error`),
+			Fail(`near "set": syntax error`),
 		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[4]}`),
 	)
 	if err != nil {
@@ -840,31 +841,31 @@ abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 			"constraint",
 			0,
 			`{"Name":"pkFail"}`,
-		).fail("UNIQUE constraint failed: r.id"),
+		).Fail("UNIQUE constraint failed: r.id"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			0,
 			`{"Name":"checkFail"}`,
-		).fail("CHECK constraint failed: r"),
+		).Fail("CHECK constraint failed: r"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			0,
 			`{"Name":"fkFail"}`,
-		).fail("FOREIGN KEY constraint failed"),
+		).Fail("FOREIGN KEY constraint failed"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			0,
 			`{"Name":"notNullFail"}`,
-		).fail("NOT NULL constraint failed: r.nonull"),
+		).Fail("NOT NULL constraint failed: r.nonull"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
 			0,
 			`{"Name":"uniqueFail"}`,
-		).fail("UNIQUE constraint failed: r.only"),
+		).Fail("UNIQUE constraint failed: r.only"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1782,7 +1783,7 @@ func TestJson(t *testing.T) {
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "json", 0,
-			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).fail("not proper json format"),
+			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).Fail("not proper json format"),
 	)
 }
 
@@ -1839,7 +1840,7 @@ func TestArray(t *testing.T) {
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
-		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).fail("index out of range"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
 	)
@@ -2328,7 +2329,7 @@ func TestMapKey(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).fail("number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("number expected, got string)"),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
@@ -2349,7 +2350,7 @@ func TestMapKey(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
+		).Fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2374,7 +2375,7 @@ func TestMapKey(t *testing.T) {
 	)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["1", 10]}`),
-		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":[1, 20]}`).fail("string expected, got number)"),
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":[1, 20]}`).Fail("string expected, got number)"),
 		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["third", 30]}`),
 	)
 	if err != nil {
@@ -2659,7 +2660,7 @@ abi.register(GetVar1, Work)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "dupVar1", 0, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
+		NewLuaTxCall("ktlee", "dupVar1", 0, `{"Name": "Work"}`).Fail("duplicated variable: 'Var1'"),
 	)
 
 	if err != nil {
@@ -2741,14 +2742,14 @@ abi.payable(save)
 		}
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "payable", 0, src),
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2791,7 +2792,7 @@ abi.register(default)
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "default", 1, "").fail(`'default' is not payable`),
+		NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`),
 	)
 	if err != nil {
 		t.Error(err)
