@@ -607,7 +607,9 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
-	cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
+	if len(ex.BlockState.Receipts()) != 0 {
+		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
+	}
 
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		Block: block,
