@@ -19,6 +19,41 @@ import (
 	reflect "reflect"
 )
 
+// MockNTContainer is a mock of NTContainer interface
+type MockNTContainer struct {
+	ctrl     *gomock.Controller
+	recorder *MockNTContainerMockRecorder
+}
+
+// MockNTContainerMockRecorder is the mock recorder for MockNTContainer
+type MockNTContainerMockRecorder struct {
+	mock *MockNTContainer
+}
+
+// NewMockNTContainer creates a new mock instance
+func NewMockNTContainer(ctrl *gomock.Controller) *MockNTContainer {
+	mock := &MockNTContainer{ctrl: ctrl}
+	mock.recorder = &MockNTContainerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockNTContainer) EXPECT() *MockNTContainerMockRecorder {
+	return m.recorder
+}
+
+// GetNetworkTransport mocks base method
+func (m *MockNTContainer) GetNetworkTransport() p2p.NetworkTransport {
+	ret := m.ctrl.Call(m, "GetNetworkTransport")
+	ret0, _ := ret[0].(p2p.NetworkTransport)
+	return ret0
+}
+
+// GetNetworkTransport indicates an expected call of GetNetworkTransport
+func (mr *MockNTContainerMockRecorder) GetNetworkTransport() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkTransport", reflect.TypeOf((*MockNTContainer)(nil).GetNetworkTransport))
+}
+
 // MockNetworkTransport is a mock of NetworkTransport interface
 type MockNetworkTransport struct {
 	ctrl     *gomock.Controller
@@ -268,6 +303,16 @@ func (m *MockNetworkTransport) GetAddressesOfPeer(peerID go_libp2p_peer.ID) []st
 // GetAddressesOfPeer indicates an expected call of GetAddressesOfPeer
 func (mr *MockNetworkTransportMockRecorder) GetAddressesOfPeer(peerID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAddressesOfPeer", reflect.TypeOf((*MockNetworkTransport)(nil).GetAddressesOfPeer), peerID)
+}
+
+// AddStreamHandler mocks base method
+func (m *MockNetworkTransport) AddStreamHandler(pid go_libp2p_protocol.ID, handler go_libp2p_net.StreamHandler) {
+	m.ctrl.Call(m, "AddStreamHandler", pid, handler)
+}
+
+// AddStreamHandler indicates an expected call of AddStreamHandler
+func (mr *MockNetworkTransportMockRecorder) AddStreamHandler(pid, handler interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddStreamHandler", reflect.TypeOf((*MockNetworkTransport)(nil).AddStreamHandler), pid, handler)
 }
 
 // GetOrCreateStream mocks base method

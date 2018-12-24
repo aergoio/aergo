@@ -119,7 +119,7 @@ func (pms *PeerMapService) BeforeStart() {}
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
 	if pms.listen {
-		pms.nt.SetStreamHandler(p2p.PolarisMapSub, pms.onConnect)
+		pms.nt.AddStreamHandler(p2p.PolarisMapSub, pms.onConnect)
 	}
 }
 
