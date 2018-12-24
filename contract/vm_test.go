@@ -531,6 +531,39 @@ abi.register(infiniteLoop)`
 	}
 }
 
+func TestUpdateSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function infiniteLoop()
+	for i = 1, 100000000000000 do
+		system.setItem("key_"..i, "value_"..i)
+	end
+end
+abi.register(infiniteLoop)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteLoop"}`,
+		),
+	)
+	errMsg := "exceeded size of updates in the state database"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+}
+
 func TestSqlVmSimple(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {

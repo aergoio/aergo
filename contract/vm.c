@@ -40,17 +40,6 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
-void bc_ctx_delete(bc_ctx_t *bc_ctx) {
-	if (bc_ctx == NULL)
-		return;
-	if (bc_ctx->stateKey)
-	    free(bc_ctx->stateKey);
-	free(bc_ctx->sender);
-	free(bc_ctx->txHash);
-	free(bc_ctx->contractId);
-	free(bc_ctx->node);
-}
-
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();

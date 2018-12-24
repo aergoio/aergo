@@ -43,6 +43,14 @@ func luaPushStr(L *LState, str string) {
 	C.free(unsafe.Pointer(cStr))
 }
 
+func addUpdateSize(s *StateSet, updateSize int64) error {
+	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+		return errors.New("exceeded size of updates in the state database")
+	}
+	s.dbUpdateTotalSize += updateSize
+	return nil
+}
+
 //export LuaSetDB
 func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 	stateSet := curStateSet[*service]
@@ -54,8 +62,12 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 		luaPushStr(L, "[System.LuaSetDB]set not permitted in query")
 		return -1
 	}
-	err := stateSet.curContract.callState.ctrState.SetData([]byte(C.GoString(key)), []byte(C.GoString(value)))
-	if err != nil {
+	val := []byte(C.GoString(value))
+	if err := stateSet.curContract.callState.ctrState.SetData([]byte(C.GoString(key)), val); err != nil {
+		luaPushStr(L, err.Error())
+		return -1
+	}
+	if err := addUpdateSize(stateSet, int64(3*32+len(val))); err != nil {
 		luaPushStr(L, err.Error())
 		return -1
 	}
@@ -94,8 +106,11 @@ func LuaDelDB(L *LState, service *C.int, key *C.char) C.int {
 		luaPushStr(L, "[System.LuaDelDB]delete not permitted in query")
 		return -1
 	}
-	err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key)))
-	if err != nil {
+	if err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key))); err != nil {
+		luaPushStr(L, err.Error())
+		return -1
+	}
+	if err := addUpdateSize(stateSet, int64(32)); err != nil {
 		luaPushStr(L, err.Error())
 		return -1
 	}
