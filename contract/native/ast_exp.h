@@ -79,6 +79,7 @@ typedef struct exp_access_s {
 /* val kind */
 typedef struct exp_unary_s {
     op_kind_t kind;
+    bool is_prefix;
     ast_exp_t *val_exp;
 } exp_unary_t;
 
@@ -144,7 +145,8 @@ ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
-ast_exp_t *exp_new_unary(op_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos);
+ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, 
+                         src_pos_t *pos);
 ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
                           src_pos_t *pos);
 ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,

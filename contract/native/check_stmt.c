@@ -133,7 +133,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         ast_exp_t *not_exp;
         ast_stmt_t *break_stmt;
 
-        not_exp = exp_new_unary(OP_NOT, cond_exp, &cond_exp->pos);
+        not_exp = exp_new_unary(OP_NOT, true, cond_exp, &cond_exp->pos);
 
         break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
         array_add_first(&blk->stmts, break_stmt);

@@ -204,7 +204,6 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
     switch (op) {
     case OP_INC:
     case OP_DEC:
-        /* XXX: need position information (prefix or postfix) */
         if (!is_usable_lval(val_exp))
             RETURN(ERROR_INVALID_LVALUE, &val_exp->pos);
 

@@ -1102,7 +1102,7 @@ unary_exp:
     post_exp
 |   unary_op unary_exp
     {
-        $$ = exp_new_unary($1, $2, &@$);
+        $$ = exp_new_unary($1, true, $2, &@$);
     }
 |   '+' unary_exp
     {
@@ -1133,11 +1133,11 @@ post_exp:
     }
 |   post_exp UNARY_INC
     {
-        $$ = exp_new_unary(OP_INC, $1, &@$);
+        $$ = exp_new_unary(OP_INC, false, $1, &@$);
     }
 |   post_exp UNARY_DEC
     {
-        $$ = exp_new_unary(OP_DEC, $1, &@$);
+        $$ = exp_new_unary(OP_DEC, false, $1, &@$);
     }
 ;
 

@@ -95,11 +95,12 @@ exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_unary(op_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos)
+exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_UNARY, pos);
 
     exp->u_un.kind = kind;
+    exp->u_un.is_prefix = is_prefix;
     exp->u_un.val_exp = val_exp;
 
     return exp;
@@ -196,7 +197,8 @@ exp_clone(ast_exp_t *exp)
                             &exp->pos);
 
     case EXP_UNARY:
-        return exp_new_unary(exp->u_un.kind, exp_clone(exp->u_un.val_exp), &exp->pos);
+        return exp_new_unary(exp->u_un.kind, exp->u_un.is_prefix,
+                             exp_clone(exp->u_un.val_exp), &exp->pos);
 
     case EXP_BINARY:
         return exp_new_binary(exp->u_bin.kind, exp_clone(exp->u_bin.l_exp),
