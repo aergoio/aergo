@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	fmt "fmt"
 	"math"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/internal/common"
@@ -13,35 +14,31 @@ import (
 
 const (
 	// DefaultSeed is temporary const to create same genesis block with no configuration
-	DefaultSeed = 1530838800
-
+	DefaultSeed     = 1530838800
 	blockVersionNil = math.MinInt32
 )
 
 var (
 	nilChainID = ChainID{
-		Version:   blockVersionNil,
-		Magic:     "",
-		PublicNet: false,
-		MainNet:   false,
-		Consensus: "",
+		Version:     blockVersionNil,
+		Magic:       "",
+		PublicNet:   false,
+		MainNet:     false,
+		Consensus:   "",
+		CoinbaseFee: DefaultCoinbaseFee,
 	}
 
 	defaultChainID = ChainID{
-		Version:   0,
-		Magic:     "AREGO.IO",
-		PublicNet: false,
-		MainNet:   false,
-		Consensus: "sbp",
+		Version:     0,
+		Magic:       "AREGO.IO",
+		PublicNet:   false,
+		MainNet:     false,
+		Consensus:   "sbp",
+		CoinbaseFee: DefaultCoinbaseFee,
 	}
 )
 
 const (
-	// MagicMax is the max size of the Magic field of ChainID.
-	MagicMax = 10
-	// ConsensusMax is the max size of the Consensus field of ChainID.
-	ConsensusMax = 10
-
 	cidMarshal = iota
 	cidUnmarshal
 )
@@ -62,11 +59,12 @@ func (e errCidCodec) Error() string {
 
 // ChainID represents the identity of the chain.
 type ChainID struct {
-	Version   int32  `json:"-"`
-	PublicNet bool   `json:"public"`
-	MainNet   bool   `json:"mainnet"`
-	Magic     string `json:"magic"`
-	Consensus string `json:"consensus"`
+	Version     int32  `json:"-"`
+	PublicNet   bool   `json:"public"`
+	MainNet     bool   `json:"mainnet"`
+	CoinbaseFee string `json:"coinbasefee"`
+	Magic       string `json:"magic"`
+	Consensus   string `json:"consensus"`
 }
 
 // NewChainID returns a new ChainID initialized as nilChainID.
@@ -103,19 +101,25 @@ func (cid *ChainID) Bytes() ([]byte, error) {
 			err:   err,
 		}
 	}
-
-	if len(cid.Magic) > MagicMax || len(cid.Consensus) > ConsensusMax {
+	if n, ok := cid.GetCoinbaseFee(); !ok || n.Sign() < 0 {
 		return nil, errCidCodec{
 			codec: cidMarshal,
-			field: "magic/consensus",
+			field: "coinbasefee",
 			err: fmt.Errorf(
-				"too large magic or consensus (size limit: magic <= %v, consensus <= %v)",
-				MagicMax, ConsensusMax),
+				"coinbasefee is not proper number(%s)", cid.CoinbaseFee),
+		}
+	}
+	if cid.PublicNet && cid.CoinbaseFee != DefaultCoinbaseFee {
+		return nil, errCidCodec{
+			codec: cidMarshal,
+			field: "coinbasefee",
+			err: fmt.Errorf(
+				"coinbasefee for mainnet should be %s not %s", DefaultCoinbaseFee, cid.CoinbaseFee),
 		}
 	}
 
-	magicConsensus := fmt.Sprintf("%s/%s", cid.Magic, cid.Consensus)
-	if err := binary.Write(&w, binary.LittleEndian, []byte(magicConsensus)); err != nil {
+	others := fmt.Sprintf("%s/%s/%s", cid.CoinbaseFee, cid.Magic, cid.Consensus)
+	if err := binary.Write(&w, binary.LittleEndian, []byte(others)); err != nil {
 		return nil, errCidCodec{
 			codec: cidMarshal,
 			field: "magic/consensus",
@@ -153,24 +157,22 @@ func (cid *ChainID) Read(data []byte) error {
 			err:   err,
 		}
 	}
-
 	mc := strings.Split(string(r.Bytes()), "/")
-	if len(mc) != 2 {
+	if len(mc) != 3 {
 		return errCidCodec{
 			codec: cidUnmarshal,
-			field: "magic/consensus",
-			err:   fmt.Errorf("too many fields: %s", mc),
+			field: "coinbasefee/magic/consensus",
+			err:   fmt.Errorf("wrong number of fields: %s", mc),
 		}
 	}
-	cid.Magic, cid.Consensus = mc[0], mc[1]
+	cid.CoinbaseFee, cid.Magic, cid.Consensus = mc[0], mc[1], mc[2]
 
-	if len(cid.Magic) > MagicMax || len(cid.Consensus) > ConsensusMax {
+	if _, ok := cid.GetCoinbaseFee(); !ok {
 		return errCidCodec{
-			codec: cidUnmarshal,
-			field: "magic/consensus",
+			codec: cidMarshal,
+			field: "coinbasefee",
 			err: fmt.Errorf(
-				"too large magic or consensus (size limit: magic <= %v, consensus <= %v)",
-				MagicMax, ConsensusMax),
+				"coinbasefee is not proper number(%s)", cid.CoinbaseFee),
 		}
 	}
 
@@ -199,6 +201,10 @@ func (cid *ChainID) Equals(rhs *ChainID) bool {
 	return bytes.Compare(lVal, rVal) == 0
 }
 
+func (cid *ChainID) GetCoinbaseFee() (*big.Int, bool) {
+	return new(big.Int).SetString(cid.CoinbaseFee, 10)
+}
+
 // ToJSON returns a JSON encoded string of cid.
 func (cid ChainID) ToJSON() string {
 	if b, err := json.Marshal(cid); err == nil {
@@ -220,6 +226,16 @@ type Genesis struct {
 
 // Block returns Block corresponding to g. If g.block == nil, it genreates a
 // genesis block before it returns.
+func (g *Genesis) Validate() error {
+	_, err := g.ChainID()
+	if err != nil {
+		return err
+	}
+	//TODO check BP count
+	return nil
+}
+
+// Block returns Block corresponding to g.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
 		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, g.Timestamp))

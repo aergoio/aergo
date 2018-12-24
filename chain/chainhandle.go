@@ -609,7 +609,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), CoinbaseFee)
+	err = tx.ValidateWithSenderState(sender.State(), CoinbaseFee())
 	if err != nil {
 		return err
 	}
@@ -629,7 +629,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	var rv string
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		txFee = new(big.Int).SetUint64(CoinbaseFee)
+		txFee = CoinbaseFee()
 		sender.SubBalance(txFee)
 		rv, err = contract.Execute(bs, tx, blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:

@@ -186,7 +186,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
 		cfg.Blockchain.CoinbaseAccount,
-		cfg.Blockchain.CoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
 		cfg.Blockchain.UseFastSyncer,

@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/chain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
@@ -50,7 +51,6 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	//curBestBlockHash
 	sdb         *state.ChainStateDB
 	bestBlockID types.BlockID
 	bestBlockNo types.BlockNo
@@ -61,7 +61,7 @@ type MemPool struct {
 	pool        map[types.AccountID]*TxList
 	dumpPath    string
 	status      int32
-	coinbasefee uint64
+	coinbasefee *big.Int
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -71,25 +71,37 @@ type MemPool struct {
 }
 
 // NewMemPoolService create and return new MemPool
-func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
+func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
+
+	var fee *big.Int
+	var sdb *state.ChainStateDB
+	if cs != nil {
+		cidFee, ok := cs.CDB().GetGenesisInfo().ID.GetCoinbaseFee()
+		if !ok {
+			panic("CoinbaseFee is not set during mempool init")
+		}
+		fee = cidFee
+		sdb = cs.SDB()
+	} else {
+		fee = new(big.Int).SetUint64(0)
+	}
+
 	actor := &MemPool{
 		cfg:         cfg,
 		sdb:         sdb,
 		cache:       map[types.TxID]*types.Tx{},
 		pool:        map[types.AccountID]*TxList{},
 		dumpPath:    cfg.Mempool.DumpFilePath,
-		coinbasefee: cfg.Blockchain.CoinbaseFee,
+		coinbasefee: fee,
 		status:      initial,
 		verifier:    nil,
 		quit:        make(chan bool),
-		//testConfig:    true, // FIXME test config should be removed
 	}
+	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
 	if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
-	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
-
 	return actor
 }
 
@@ -108,7 +120,7 @@ func (mp *MemPool) AfterStart() {
 		Bool("fadeout", mp.cfg.Mempool.EnableFadeout).
 		Str("evict period", evictPeriod.String()).
 		Int("number of verifier", mp.cfg.Mempool.VerifierNumber).
-		Uint64("coinbase fee", mp.coinbasefee).
+		Str("coinbase fee", mp.coinbasefee.String()).
 		Msg("mempool init")
 
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).

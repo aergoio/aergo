@@ -26,7 +26,7 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultCoinbaseFee  = 1
+	DefaultCoinbaseFee  = "1000000000"
 	lastFieldOfBH       = "Sign"
 	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
@@ -509,7 +509,7 @@ func (tx *Tx) Validate() error {
 	return nil
 }
 
-func (tx *Tx) ValidateWithSenderState(senderState *State, coinbaseFee uint64) error {
+func (tx *Tx) ValidateWithSenderState(senderState *State, fee *big.Int) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
@@ -517,7 +517,6 @@ func (tx *Tx) ValidateWithSenderState(senderState *State, coinbaseFee uint64) er
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		fee := new(big.Int).SetUint64(coinbaseFee)
 		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
