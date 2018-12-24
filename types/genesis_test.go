@@ -63,14 +63,3 @@ func TestCodecChainID(t *testing.T) {
 	a.Nil(err)
 	a.True(id1.Equals(id2))
 }
-
-func TestMagicConsensusLimit(t *testing.T) {
-	a := assert.New(t)
-	id := NewChainID()
-
-	id.AsDefault()
-	id.Consensus = "너무_장황한_컨센서스_으아아아"
-	_, err := id.Bytes()
-	a.NotNil(err)
-	fmt.Println(err)
-}

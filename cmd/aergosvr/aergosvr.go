@@ -6,13 +6,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/pmap"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/pmap"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
@@ -128,7 +129,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	chainSvc := chain.NewChainService(cfg)
 
-	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
+	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc)
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)

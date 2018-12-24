@@ -33,6 +33,8 @@ func initTest(t *testing.T, testmode bool) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
+
+	coinbaseFee, _ = genesis.ID.GetCoinbaseFee()
 }
 
 func deinitTest() {
