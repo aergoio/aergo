@@ -51,6 +51,8 @@ var (
 	//ErrTooSmallAmount
 	ErrTooSmallAmount = errors.New("too small amount to influence")
 
+	ErrNameNotFound = errors.New("could not find name")
+
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
 
