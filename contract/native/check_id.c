@@ -95,6 +95,9 @@ id_check_var(check_t *check, ast_id_t *id)
         CHECK(stmt_check(check, dflt_stmt));
     }
 
+    if (is_array_type(&id->meta) || !is_primitive_type(&id->meta))
+        id->scope = SCOPE_STACK;
+
     return NO_ERROR;
 }
 

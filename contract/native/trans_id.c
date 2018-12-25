@@ -24,7 +24,10 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-    fn_add_local(trans->fn, id);
+    if (is_local_id(id))
+        fn_add_local(trans->fn, id);
+    else
+        fn_add_stack(trans->fn, id);
 
     if (id->u_var.dflt_stmt != NULL)
         stmt_trans(trans, id->u_var.dflt_stmt);

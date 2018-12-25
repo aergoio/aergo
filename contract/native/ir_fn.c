@@ -51,6 +51,14 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
     array_add_last(&fn->locals, id);
 }
 
+void
+fn_add_stack(ir_fn_t *fn, ast_id_t *id)
+{
+    id->addr = fn->usage;
+
+    fn->usage += ALIGN64(meta_size(&id->meta));
+}
+
 void 
 fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 {

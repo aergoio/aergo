@@ -27,6 +27,8 @@ struct ir_fn_s {
     array_t params;     /* parameters (including return) */
     array_t locals;     /* entire local variables */
 
+    uint32_t usage;     /* stack usage */
+
     array_t bbs;        /* basic blocks */
 
     ir_bb_t *entry_bb;
@@ -36,6 +38,7 @@ struct ir_fn_s {
 ir_fn_t *fn_new(ast_id_t *id);
 
 void fn_add_local(ir_fn_t *fn, ast_id_t *id);
+void fn_add_stack(ir_fn_t *fn, ast_id_t *id);
 void fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb);
 
 #endif /* no _IR_FN_H */
