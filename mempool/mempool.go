@@ -465,6 +465,7 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 
 // check tx sanity
 // check if sender has enough balance
+// check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 	ns, err := mp.getAccountState(account)
@@ -476,7 +477,14 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		return err
 	}
 	switch tx.GetBody().GetType() {
-	//case types.TxType_NORMAL:
+	case types.TxType_NORMAL:
+		if tx.HasNameRecipient() {
+			recipient := tx.GetBody().GetRecipient()
+			recipientAddr := mp.getAddress(recipient)
+			if recipientAddr == nil {
+				return types.ErrTxInvalidRecipient
+			}
+		}
 	case types.TxType_GOVERNANCE:
 		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
 		if err != nil {
