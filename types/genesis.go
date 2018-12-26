@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	// DefaultSeed is temporary const to create same genesis block with no configuration
-	DefaultSeed     = 1530838800
+	// DefaultSeed is temporary const to create same genesis block with no
+	// configuration. This is a UNIX timestamp (2018-07-06 10:00:00 +0900 KST)
+	// in nanoseconds.
+	DefaultSeed     = 1530838800000000000
 	blockVersionNil = math.MinInt32
 )
 

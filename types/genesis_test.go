@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	fmt "fmt"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/davecgh/go-spew/spew"
@@ -19,6 +20,8 @@ func TestDefaultGenesis(t *testing.T) {
 func TestGenesisJSON(t *testing.T) {
 	a := assert.New(t)
 	g := GetDefaultGenesis()
+	d := time.Unix(0, g.Timestamp)
+	fmt.Println("timestamp", d)
 	g.Balance = map[string]string{"abc": "1234"}
 	b, err := json.Marshal(g)
 	a.Nil(err)
