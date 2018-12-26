@@ -15,23 +15,41 @@ import (
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
+	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/satori/go.uuid"
+	"github.com/libp2p/go-libp2p-protocol"
 	"sync"
 	"time"
 )
 
 // subprotocol for polaris
 const (
+	PolarisMapSub  protocol.ID = "/polaris/0.1"
+	PolarisPingSub protocol.ID = "/ping/0.1"
+)
+const (
 	MapQuery p2p.SubProtocol = 0x0100 + iota
 	MapResponse
 )
 
+// internal
 const (
-	DefaultMaxLimit = 500
+	PolarisConnectionTTL = time.Second * 30
 
+	// polaris will return peers list at most this number
+	ResponseMaxPeerLimit = 500
+	// libp2p internal library is not always send message instantly, so closing socket soon after sent a message will cause packet loss and read error, us walkaround here till finding the real reason and fix it.
+	MsgSendDelay = time.Second * 1
+
+	PeerHealthcheckInterval = time.Minute
+	//PeerHealthcheckInterval = time.Minute * 5
+	ConcurrentHealthCheckCount = 20
+)
+
+var (
+	EmptyMsgID = p2p.MsgID(uuid.Nil)
 )
 
 var (
@@ -46,6 +64,18 @@ var (
 	}
 )
 
+type mapService interface {
+	getPeerCheckers() []peerChecker
+	registerPeer(receivedMeta p2p.PeerMeta) error
+	unregisterPeer(peerID peer.ID)
+}
+
+type peerChecker interface {
+	lastCheck() time.Time
+	// check checks peer. it will stop check at best effort when timeout is exceeded. and wg done.
+	check(wg *sync.WaitGroup, timeout time.Duration)
+}
+
 // PeerMapService is
 type PeerMapService struct {
 	*component.BaseComponent
@@ -55,29 +85,32 @@ type PeerMapService struct {
 
 	mapServers []p2p.PeerMeta
 
-	ntc          p2p.NTContainer
-	listen       bool
-	nt           p2p.NetworkTransport
-	mutex        *sync.Mutex
-	peerRegistry map[peer.ID]p2p.PeerMeta
+	ntc    p2p.NTContainer
+	listen bool
+	nt     p2p.NetworkTransport
+	hc     HealthCheckManager
+
+	rwmutex *sync.RWMutex
+	peerRegistry map[peer.ID]*peerState
 }
 
 func NewMapServiceCli(cfg *config.P2PConfig, ntc p2p.NTContainer) *PeerMapService {
 	return NewMapService(cfg, ntc, false)
 }
 func NewMapService(cfg *config.P2PConfig, ntc p2p.NTContainer, listen bool) *PeerMapService {
-
 	pms := &PeerMapService{
-		mutex:        &sync.Mutex{},
-		peerRegistry: make(map[peer.ID]p2p.PeerMeta),
+		rwmutex:      &sync.RWMutex{},
+		peerRegistry: make(map[peer.ID]*peerState),
 		PrivateNet:   cfg.NPPrivateNet,
 		listen:       listen,
 	}
 	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
 
+
 	// init
 	pms.ntc = ntc
 	pms.initializeMapServers(cfg)
+	pms.hc= NewHCM(pms, pms.nt)
 	// initialize map Servers
 	return pms
 }
@@ -119,14 +152,19 @@ func (pms *PeerMapService) BeforeStart() {}
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
 	if pms.listen {
-		pms.nt.AddStreamHandler(p2p.PolarisMapSub, pms.onConnect)
+		pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
+		pms.hc.Start()
 	}
+	pms.nt.AddStreamHandler(PolarisPingSub, pms.onPing)
+
 }
 
 func (pms *PeerMapService) BeforeStop() {
+	pms.nt.RemoveStreamHandler(PolarisPingSub)
 	if pms.listen {
 		if pms.nt != nil {
-			pms.nt.RemoveStreamHandler(p2p.PolarisMapSub)
+			pms.hc.Stop()
+			pms.nt.RemoveStreamHandler(PolarisMapSub)
 		}
 	}
 }
@@ -163,10 +201,10 @@ func (pms *PeerMapService) onConnect(s net.Stream) {
 		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, peerID.String()).Msg("failed to write query")
 		return
 	}
-	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Int("peer_cnt",len(resp.Addresses)).Msg("Sent map response")
+	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
 
 	// TODO send goodbye message.
-	time.Sleep(time.Second*3)
+	time.Sleep(time.Second * 3)
 
 	// disconnect!
 }
@@ -195,9 +233,9 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 	maxPeers := int(query.Size)
 	if maxPeers <= 0 {
 		return nil, fmt.Errorf("invalid argument count %d", maxPeers)
-	} else if maxPeers > DefaultMaxLimit {
-		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Int("req_size", maxPeers).Int("clipped", DefaultMaxLimit).Msg("Clipping too high count of query ")
-		maxPeers = DefaultMaxLimit
+	} else if maxPeers > ResponseMaxPeerLimit {
+		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Int("req_size", maxPeers).Int("clipped", ResponseMaxPeerLimit).Msg("Clipping too high count of query ")
+		maxPeers = ResponseMaxPeerLimit
 	}
 
 	pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("Handling query.")
@@ -219,14 +257,13 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 
 func (pms *PeerMapService) retrieveList(maxPeers int, exclude peer.ID) []*types.PeerAddress {
 	list := make([]*types.PeerAddress, 0, maxPeers)
-	pms.mutex.Lock()
-	defer pms.mutex.Unlock()
-	for _, meta := range pms.peerRegistry {
-		if meta.ID == exclude {
+	pms.rwmutex.Lock()
+	defer pms.rwmutex.Unlock()
+	for id, ps := range pms.peerRegistry {
+		if id == exclude {
 			continue
 		}
-		addr := meta.ToPeerAddress()
-		list = append(list, &addr)
+		list = append(list, &ps.addr)
 		if len(list) >= maxPeers {
 			return list
 		}
@@ -236,16 +273,26 @@ func (pms *PeerMapService) retrieveList(maxPeers int, exclude peer.ID) []*types.
 
 func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 	peerID := receivedMeta.ID
-	pms.mutex.Lock()
-	defer pms.mutex.Unlock()
+	pms.rwmutex.Lock()
+	defer pms.rwmutex.Unlock()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		pms.peerRegistry[peerID] = receivedMeta
+		newState := &peerState{PeerMapService:pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
+		pms.peerRegistry[peerID] = newState
 	} else {
-		pms.Logger.Info().Str("meta", prev.String()).Msg("Replacing previous peer info")
-		pms.peerRegistry[peerID] = receivedMeta
+		pms.Logger.Info().Str("meta", prev.meta.String()).Msg("Replacing previous peer info")
+		newState := &peerState{PeerMapService:pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
+		pms.peerRegistry[peerID] = newState
 	}
 	return nil
+}
+
+func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
+	pms.rwmutex.Lock()
+	defer pms.rwmutex.Unlock()
+	pms.Logger.Info().Str(p2p.LogPeerID, peerID.Pretty()).Msg("Unregister bad peer")
+	delete(pms.peerRegistry, peerID)
+
 }
 
 func (pms *PeerMapService) writeResponse(reqContainer p2p.Message, meta p2p.PeerMeta, resp *types.MapResponse, wt p2p.MsgWriter) error {
@@ -296,13 +343,13 @@ func (pms *PeerMapService) queryPeers(msg *message.MapQueryMsg) *message.MapQuer
 	if succ == 0 {
 		err = fmt.Errorf("all servers of polaris are down")
 	}
-	pms.Logger.Debug().Int("peer_cnt",len(resultPeers)).Msg("Got map response and send back")
+	pms.Logger.Debug().Int("peer_cnt", len(resultPeers)).Msg("Got map response and send back")
 	resp := &message.MapQueryRsp{Peers: resultPeers, Err: err}
 	return resp
 }
 
 func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pms.nt.GetOrCreateStream(mapServerMeta, p2p.PolarisMapSub)
+	s, err := pms.nt.GetOrCreateStreamWithTTL(mapServerMeta, PolarisMapSub, PolarisConnectionTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -325,9 +372,11 @@ func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash 
 	}
 	_, resp, err := pms.readResponse(mapServerMeta, rw)
 	if err != nil {
+		pms.SendGoAwayMsg(err.Error(), rw)
 		return nil, err
 	}
 	if resp.Status == types.ResultStatus_OK {
+		pms.SendGoAwayMsg("response is jot ok", rw)
 		return resp.Addresses, nil
 	}
 	return nil, fmt.Errorf("remote error %s", resp.Status.String())
@@ -335,8 +384,8 @@ func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash 
 
 func (pms *PeerMapService) sendRequest(status *types.Status, mapServerMeta p2p.PeerMeta, register bool, size int, wt p2p.MsgWriter) error {
 	msgID := p2p.NewMsgID()
-	queryReq := &types.MapQuery{Status:status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
-	respMsg, err := createV030Message(msgID, p2p.MsgID(uuid.Nil), MapQuery, queryReq)
+	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
+	respMsg, err := createV030Message(msgID, EmptyMsgID, MapQuery, queryReq)
 	if err != nil {
 		return err
 	}
@@ -356,7 +405,65 @@ func (pms *PeerMapService) readResponse(mapServerMeta p2p.PeerMeta, rd p2p.MsgRe
 	if err != nil {
 		return data, nil, err
 	}
-	pms.Logger.Debug().Str(p2p.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt",len(queryResp.Addresses)).Msg("Received map query response")
+	pms.Logger.Debug().Str(p2p.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")
 
 	return data, queryResp, nil
+}
+
+func (pms *PeerMapService) onPing(s net.Stream) {
+	peerID := s.Conn().RemotePeer()
+	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
+
+	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	defer s.Close()
+
+	req, err := rw.ReadMsg()
+	if err != nil {
+		return
+	}
+	pingReq := &types.Ping{}
+	err = p2p.UnmarshalMessage(req.Payload(), pingReq)
+	if err != nil {
+		return
+	}
+	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
+	pingResp := &types.Ping{}
+	msgID := p2p.NewMsgID()
+	respMsg, err := createV030Message(msgID, req.ID(), p2p.PingResponse, pingResp)
+	if err != nil {
+		return
+	}
+
+	err = rw.WriteMsg(respMsg)
+	if err != nil {
+		return
+	}
+
+}
+
+func (pms *PeerMapService) getPeerCheckers() []peerChecker {
+	pms.rwmutex.Lock()
+	pms.rwmutex.Unlock()
+	newSlice := make([]peerChecker, 0, len(pms.peerRegistry))
+	for _, rPeer := range pms.peerRegistry {
+		newSlice = append(newSlice, rPeer)
+	}
+	return newSlice
+}
+
+func makeGoAwayMsg(message string) (p2p.Message, error) {
+	awayMsg := &types.GoAwayNotice{Message: message}
+	msgID := p2p.NewMsgID()
+	return createV030Message(msgID, EmptyMsgID, p2p.GoAway, awayMsg)
+}
+
+// send notice message and then disconnect. this routine should only run in RunPeer go routine
+func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2p.MsgWriter) error {
+	msg, err := makeGoAwayMsg(message)
+	if err != nil {
+		return err
+	}
+	wt.WriteMsg(msg)
+	time.Sleep(MsgSendDelay)
+	return nil
 }

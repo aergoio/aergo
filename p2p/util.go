@@ -21,7 +21,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 // frequently used constants for indicating p2p log category

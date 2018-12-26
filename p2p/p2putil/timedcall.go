@@ -30,3 +30,4 @@ func InvokeWithTimer(m Callable, timer *time.Timer) (interface{}, error) {
 		return nil, fmt.Errorf("timeout")
 	}
 }
+

@@ -12,7 +12,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built

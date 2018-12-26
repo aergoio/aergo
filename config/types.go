@@ -64,6 +64,7 @@ type P2PConfig struct {
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
 	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect with at startup"`
+	NPHiddenPeers   []string `mapstructure:"nphiddenpeers" description:"List of peerids which will not show to other peers"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 

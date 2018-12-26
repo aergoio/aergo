@@ -12,7 +12,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
@@ -31,7 +31,7 @@ func init() {
 
 func Test_ReadWrite(t *testing.T) {
 	var sampleID MsgID
-	sampleUUID, _ := uuid.NewRandom()
+	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 
 	tests := []struct {
@@ -96,7 +96,7 @@ func TestV030Writer_WriteError(t *testing.T) {
 
 func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 	var sampleID MsgID
-	sampleUUID, _ := uuid.NewRandom()
+	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 	timestamp := time.Now().Unix()
 
@@ -142,7 +142,7 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 
 func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	var sampleID MsgID
-	sampleUUID, _ := uuid.NewRandom()
+	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 	timestamp := time.Now().Unix()
 

@@ -7,7 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/types"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 type V020Wrapper struct {
@@ -47,7 +47,7 @@ func (m *V020Wrapper) Payload() []byte {
 var _ Message = (*V020Wrapper)(nil)
 
 func uuidStrToMsgID(str string) (id MsgID) {
-	uuid, err := uuid.Parse(str)
+	uuid, err := uuid.FromString(str)
 	if err != nil {
 		return
 	}

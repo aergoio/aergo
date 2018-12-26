@@ -42,7 +42,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
-	GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState)
+	GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState)
 }
 
 /**
@@ -60,6 +60,7 @@ type peerManager struct {
 	mm             metric.MetricsManager
 
 	designatedPeers map[peer.ID]PeerMeta
+	hiddenPeerSet map[peer.ID]bool
 
 	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
@@ -104,6 +105,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		mutex:          &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
+		hiddenPeerSet: make(map[peer.ID]bool,len(cfg.P2P.NPHiddenPeers)),
 
 		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
@@ -138,6 +140,14 @@ func (pm *peerManager) RegisterEventListener(listener PeerEventListener) {
 func (pm *peerManager) init() {
 	// set designated peers
 	pm.initDesignatedPeerList()
+	// init hidden peers
+	for _, pidStr := range pm.conf.NPHiddenPeers {
+		pid, err := peer.IDB58Decode(pidStr)
+		if err != nil {
+			panic("Invalid pid in NPHiddenPeers : "+pidStr+" err "+err.Error())
+		}
+		pm.hiddenPeerSet[pid] = true
+	}
 }
 
 func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
@@ -518,21 +528,26 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
-func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState) {
+func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState) {
 	peers := make([]*types.PeerAddress, 0, len(pm.remotePeers))
+	hiddens := make([]bool, 0, len(pm.remotePeers))
 	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
 	states := make([]types.PeerState, 0, len(pm.remotePeers))
 	for _, aPeer := range pm.remotePeers {
 		addr := aPeer.meta.ToPeerAddress()
+		hiddens = append(hiddens, aPeer.meta.Hidden)
 		peers = append(peers, &addr)
 		blks = append(blks, aPeer.lastNotice)
 		states = append(states, aPeer.state)
 	}
-	return peers, blks, states
+	return peers, hiddens, blks, states
 }
 
 // this method should be called inside pm.mutex
 func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
+	if _,exist := pm.hiddenPeerSet[ID]; exist {
+		peer.meta.Hidden = true
+	}
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }
