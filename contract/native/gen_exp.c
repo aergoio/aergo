@@ -142,6 +142,7 @@ static BinaryenExpressionRef
 exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 {
     meta_t *to_meta = &exp->u_cast.to_meta;
+	/* XXX */
     BinaryenOp op;
     BinaryenExpressionRef val_exp;
 

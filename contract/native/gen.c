@@ -48,7 +48,7 @@ gen(ir_t *ir, flag_t flag, char *path)
     int i, n;
     gen_t gen;
 
-    if (ir == NULL)
+    if (ir == NULL || has_error())
         return;
 
     gen_init(&gen, flag, path);

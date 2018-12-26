@@ -22,10 +22,11 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     exp_trans(trans, l_exp);
     exp_trans(trans, r_exp);
 
-    if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
+    if (is_tuple_exp(l_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
         array_t *val_exps = r_exp->u_tup.exps;
 
+        ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
         ASSERT2(array_size(var_exps) == array_size(val_exps),
                 array_size(var_exps), array_size(val_exps));
 

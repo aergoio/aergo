@@ -51,7 +51,7 @@ typedef struct ast_stmt_s ast_stmt_t;
 typedef struct id_var_s {
     meta_t *type_meta;
     array_t *size_exps;
-    ast_stmt_t *dflt_stmt;
+    ast_exp_t *dflt_exp;
 } id_var_t;
 
 typedef struct id_struct_s {
@@ -81,7 +81,7 @@ typedef struct id_label_s {
 typedef struct id_tuple_s {
     meta_t *type_meta;
     array_t var_ids;
-    ast_stmt_t *dflt_stmt;
+    ast_exp_t *dflt_exp;
 } id_tuple_t;
 
 struct ast_id_s {

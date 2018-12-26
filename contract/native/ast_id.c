@@ -230,7 +230,7 @@ id_strip(ast_id_t *id)
     array_t *ids = array_new();
 
     ASSERT1(is_tuple_id(id), id->kind);
-    ASSERT(id->u_tup.dflt_stmt == NULL);
+    ASSERT(id->u_tup.dflt_exp == NULL);
 
     for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
         ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, i);

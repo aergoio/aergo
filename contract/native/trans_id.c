@@ -10,12 +10,15 @@
 #include "ir_bb.h"
 #include "trans_blk.h"
 #include "trans_stmt.h"
+#include "trans_exp.h"
 
 #include "trans_id.h"
 
 static void
 id_trans_var(trans_t *trans, ast_id_t *id)
 {
+	ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+
     if (is_global_id(id)) {
         /* Initialization of the global variable will be done in the constructor */
         ir_add_global(trans->ir, id);
@@ -29,8 +32,18 @@ id_trans_var(trans_t *trans, ast_id_t *id)
     else
         fn_add_stack(trans->fn, id);
 
+    if (dflt_exp != NULL) {
+        ast_exp_t *id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
+
+        ASSERT2(meta_cmp(&id->meta, &dflt_exp->meta), id->meta.type, dflt_exp->meta.type);
+
+        stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
+	}
+
+	/*
     if (id->u_var.dflt_stmt != NULL)
         stmt_trans(trans, id->u_var.dflt_stmt);
+		*/
 }
 
 static void
@@ -50,9 +63,17 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
         for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
             ast_id_t *fld_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+			ast_exp_t *dflt_exp = fld_id->u_var.dflt_exp;
 
-            if (is_var_id(fld_id) && fld_id->u_var.dflt_stmt != NULL)
-                stmt_trans(trans, fld_id->u_var.dflt_stmt);
+            if (is_var_id(fld_id) && dflt_exp != NULL) {
+                ast_exp_t *id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
+
+                ASSERT2(meta_cmp(&id->meta, &dflt_exp->meta), id->meta.type,
+                        dflt_exp->meta.type);
+
+                stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
+                //stmt_trans(trans, fld_id->u_var.dflt_stmt);
+			}
         }
 
         ASSERT(trans->bb == fn->entry_bb);
@@ -96,13 +117,29 @@ static void
 id_trans_tuple(trans_t *trans, ast_id_t *id)
 {
     int i;
+	ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
+
+    if (dflt_exp != NULL) {
+        exp_trans(trans, dflt_exp);
+
+		ASSERT1(is_tuple_exp(dflt_exp), dflt_exp->kind);
+		ASSERT2(array_size(dflt_exp->u_tup.exps) == array_size(&id->u_tup.var_ids),
+				array_size(dflt_exp->u_tup.exps), array_size(&id->u_tup.var_ids));
+	}
 
     for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
-        id_trans_var(trans, array_get_id(&id->u_tup.var_ids, i));
+		ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, i);
+
+		if (dflt_exp != NULL)
+			var_id->u_var.dflt_exp = array_get_exp(dflt_exp->u_tup.exps, i);
+
+        id_trans_var(trans, var_id);
     }
 
+	/*
     if (id->u_tup.dflt_stmt != NULL)
         stmt_trans(trans, id->u_tup.dflt_stmt);
+		*/
 }
 
 void

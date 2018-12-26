@@ -336,9 +336,11 @@ var_decl:
         $$ = $1;
 
         if (is_var_id($$)) {
-            $$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($$->name, &@1), $3, &@2);
+            $$->u_var.dflt_exp = $3;
+            //$$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($$->name, &@1), $3, &@2);
         }
         else {
+			/*
             int i;
             array_t *exps = array_new();
 
@@ -348,6 +350,8 @@ var_decl:
                 array_add_last(exps, exp_new_id_ref(var_id->name, &var_id->pos));
             }
             $$->u_tup.dflt_stmt = stmt_new_assign(exp_new_tuple(exps, &@1), $3, &@2);
+			*/
+            $$->u_tup.dflt_exp = $3;
         }
     }
 ;
@@ -525,7 +529,8 @@ enumerator:
 |   identifier '=' or_exp
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
-        $$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($1, &@1), $3, &@2);
+        $$->u_var.dflt_exp = $3;
+        //$$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($1, &@1), $3, &@2);
     }
 ;
 
