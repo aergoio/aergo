@@ -17,9 +17,10 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-net"
+	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
+	"net"
 	"sync"
 	"time"
 )
@@ -86,7 +87,6 @@ type PeerMapService struct {
 	mapServers []p2p.PeerMeta
 
 	ntc    p2p.NTContainer
-	listen bool
 	nt     p2p.NetworkTransport
 	hc     HealthCheckManager
 
@@ -94,15 +94,11 @@ type PeerMapService struct {
 	peerRegistry map[peer.ID]*peerState
 }
 
-func NewMapServiceCli(cfg *config.P2PConfig, ntc p2p.NTContainer) *PeerMapService {
-	return NewMapService(cfg, ntc, false)
-}
-func NewMapService(cfg *config.P2PConfig, ntc p2p.NTContainer, listen bool) *PeerMapService {
+func NewPolarisService(cfg *config.P2PConfig, ntc p2p.NTContainer) *PeerMapService {
 	pms := &PeerMapService{
 		rwmutex:      &sync.RWMutex{},
 		peerRegistry: make(map[peer.ID]*peerState),
-		PrivateNet:   cfg.NPPrivateNet,
-		listen:       listen,
+		PrivateNet:   cfg.NPPrivateChain,
 	}
 	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
 
@@ -151,21 +147,14 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
-	if pms.listen {
-		pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
-		pms.hc.Start()
-	}
-	pms.nt.AddStreamHandler(PolarisPingSub, pms.onPing)
-
+	pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
+	pms.hc.Start()
 }
 
 func (pms *PeerMapService) BeforeStop() {
-	pms.nt.RemoveStreamHandler(PolarisPingSub)
-	if pms.listen {
-		if pms.nt != nil {
-			pms.hc.Stop()
-			pms.nt.RemoveStreamHandler(PolarisMapSub)
-		}
+	if pms.nt != nil {
+		pms.hc.Stop()
+		pms.nt.RemoveStreamHandler(PolarisMapSub)
 	}
 }
 
@@ -175,7 +164,7 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 	//return &dummy
 }
 
-func (pms *PeerMapService) onConnect(s net.Stream) {
+func (pms *PeerMapService) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remotePeerMeta := p2p.PeerMeta{ID: peerID}
 	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
@@ -239,11 +228,16 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 	}
 
 	pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("Handling query.")
-	// TODO check more varification or request peer
-	// must check peer is really capable to aergosvr
 
 	// make response
 	resp := &types.MapResponse{}
+	// check Sender
+	if !isExternalAddr(receivedMeta.IPAddress) {
+		resp.Status = types.ResultStatus_INVALID_ARGUMENT
+		return resp, nil
+	}
+	// TODO check more varification or request peer
+	// must check peer is really capable to aergosvr
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
 
@@ -319,98 +313,13 @@ func createV030Message(msgID, orgID p2p.MsgID, subProtocol p2p.SubProtocol, inne
 func (pms *PeerMapService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-	case *message.MapQueryMsg:
-		pms.Hub().Tell(message.P2PSvc, pms.queryPeers(msg))
 	default:
-		//		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
+				pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
 	}
 }
 
-func (pms *PeerMapService) queryPeers(msg *message.MapQueryMsg) *message.MapQueryRsp {
-	succ := 0
-	resultPeers := make([]*types.PeerAddress, 0, msg.Count)
-	for _, meta := range pms.mapServers {
-		addrs, err := pms.connectAndQuery(meta, msg.BestBlock.Hash, msg.BestBlock.Header.BlockNo)
-		if err != nil {
-			pms.Logger.Warn().Err(err).Str("map_id", meta.ID.Pretty()).Msg("faild to get peer addresses")
-			continue
-		}
-		// FIXME delete duplicated peers
-		resultPeers = append(resultPeers, addrs...)
-		succ++
-	}
-	err := error(nil)
-	if succ == 0 {
-		err = fmt.Errorf("all servers of polaris are down")
-	}
-	pms.Logger.Debug().Int("peer_cnt", len(resultPeers)).Msg("Got map response and send back")
-	resp := &message.MapQueryRsp{Peers: resultPeers, Err: err}
-	return resp
-}
 
-func (pms *PeerMapService) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pms.nt.GetOrCreateStreamWithTTL(mapServerMeta, PolarisMapSub, PolarisConnectionTTL)
-	if err != nil {
-		return nil, err
-	}
-	defer s.Close()
-
-	peerID := s.Conn().RemotePeer()
-	if peerID != mapServerMeta.ID {
-		return nil, fmt.Errorf("internal error peerid mismatch, exp %s, actual %s", mapServerMeta.ID.Pretty(), peerID.Pretty())
-	}
-	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Msg("Sending map query")
-
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
-
-	peerAddress := pms.nt.SelfMeta().ToPeerAddress()
-	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight}
-	// receive input
-	err = pms.sendRequest(peerStatus, mapServerMeta, true, 100, rw)
-	if err != nil {
-		return nil, err
-	}
-	_, resp, err := pms.readResponse(mapServerMeta, rw)
-	if err != nil {
-		pms.SendGoAwayMsg(err.Error(), rw)
-		return nil, err
-	}
-	if resp.Status == types.ResultStatus_OK {
-		pms.SendGoAwayMsg("response is jot ok", rw)
-		return resp.Addresses, nil
-	}
-	return nil, fmt.Errorf("remote error %s", resp.Status.String())
-}
-
-func (pms *PeerMapService) sendRequest(status *types.Status, mapServerMeta p2p.PeerMeta, register bool, size int, wt p2p.MsgWriter) error {
-	msgID := p2p.NewMsgID()
-	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
-	respMsg, err := createV030Message(msgID, EmptyMsgID, MapQuery, queryReq)
-	if err != nil {
-		return err
-	}
-
-	return wt.WriteMsg(respMsg)
-}
-
-// tryAddPeer will do check connecting peer and add. it will return peer meta information received from
-// remote peer setup some
-func (pms *PeerMapService) readResponse(mapServerMeta p2p.PeerMeta, rd p2p.MsgReader) (p2p.Message, *types.MapResponse, error) {
-	data, err := rd.ReadMsg()
-	if err != nil {
-		return nil, nil, err
-	}
-	queryResp := &types.MapResponse{}
-	err = p2p.UnmarshalMessage(data.Payload(), queryResp)
-	if err != nil {
-		return data, nil, err
-	}
-	pms.Logger.Debug().Str(p2p.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")
-
-	return data, queryResp, nil
-}
-
-func (pms *PeerMapService) onPing(s net.Stream) {
+func (pms *PeerMapService) onPing(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
@@ -466,4 +375,38 @@ func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2p.MsgWriter) error
 	wt.WriteMsg(msg)
 	time.Sleep(MsgSendDelay)
 	return nil
+}
+
+func isExternalAddr(addrStr string) bool {
+	parced := net.ParseIP(addrStr)
+	if parced == nil {
+		return false
+	}
+	return !isPrivateIP(parced)
+}
+
+var privateIPBlocks []*net.IPNet
+
+func init() {
+	for _, cidr := range []string{
+		"127.0.0.0/8",    // IPv4 loopback
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",      // IPv6 link-local
+	} {
+		_, block, _ := net.ParseCIDR(cidr)
+		privateIPBlocks = append(privateIPBlocks, block)
+	}
+}
+
+func isPrivateIP(ip net.IP) bool {
+	for _, block := range privateIPBlocks {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

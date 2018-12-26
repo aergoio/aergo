@@ -86,9 +86,11 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPCert:          "",
 		NPKey:           "",
 		NPAddPeers:      nil,
+		NPDiscoverPeers: true,
 		NPMaxPeers:      100,
 		NPPeerPool:      100,
 		NPUsePolaris:    true,
+		NPExposeSelf:    true,
 	}
 }
 
