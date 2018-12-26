@@ -16,24 +16,22 @@ void
 bb_gen(gen_t *gen, ir_bb_t *bb)
 {
     int i;
-    int instr_cnt = gen->instr_cnt;
-    BinaryenExpressionRef *instrs = gen->instrs;
-    BinaryenExpressionRef body;
+    BinaryenExpressionRef block;
 
-    gen->instr_cnt = 0;
-    gen->instrs = NULL;
+    ASSERT1(gen->instr_cnt == 0, gen->instr_cnt);
+    ASSERT(gen->instrs == NULL);
 
     for (i = 0; i < array_size(&bb->stmts); i++) {
         gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
     }
 
-    body = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
-                         BinaryenTypeNone());
+    block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
+                          BinaryenTypeNone());
 
-    bb->rb = RelooperAddBlock(gen->relooper, body);
+    bb->rb = RelooperAddBlock(gen->relooper, block);
 
-    gen->instr_cnt = instr_cnt;
-    gen->instrs = instrs;
+    gen->instr_cnt = 0;
+    gen->instrs = NULL;
 }
 
 void

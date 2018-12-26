@@ -19,10 +19,7 @@ check_unused_ids(check_t *check, array_t *ids)
         ast_id_t *id = array_get_id(ids, i);
 
         if (!is_ctor_id(id) && !id->is_used) {
-            if (flag_on(check->flag, FLAG_TEST))
-                WARN(ERROR_UNUSED_ID, &id->pos, id->name);
-            else
-                ERROR(ERROR_UNUSED_ID, &id->pos, id->name);
+            WARN(ERROR_UNUSED_ID, &id->pos, id->name);
         }
         else if (is_fn_id(id)) {
             array_t *param_ids = id->u_fn.param_ids;
@@ -30,12 +27,8 @@ check_unused_ids(check_t *check, array_t *ids)
             for (j = 0; j < array_size(param_ids); j++) {
                 ast_id_t *param_id = array_get_id(param_ids, j);
 
-                if (!param_id->is_used) {
-                    if (flag_on(check->flag, FLAG_TEST))
-                        WARN(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
-                    else
-                        ERROR(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
-                }
+                if (!param_id->is_used)
+                    WARN(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
             }
         }
     }

@@ -16,8 +16,10 @@ exp_gen_id_ref(gen_t *gen, ast_exp_t *exp)
     ast_id_t *id = exp->id;
 
     ASSERT1(is_global_id(id), id->scope);
+    ASSERT1(id->offset == 0, id->offset);
 
-    return BinaryenGetGlobal(gen->module, id->name, meta_gen(gen, &id->meta));
+    return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
+                        0, 0, meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
 }
 
 static BinaryenExpressionRef

@@ -18,7 +18,9 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
 
-    if (!is_var_id(id) || is_global_id(id))
+    ASSERT(id != NULL);
+
+    if (!is_var_id(id))
         /* nothing to do */
         return;
 
@@ -26,7 +28,7 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
         exp->kind = EXP_LOCAL_REF;
         exp->u_lo.index = id->idx;
     }
-    else {
+    else if (is_stack_id(id)) {
         exp->kind = EXP_STACK_REF;
         exp->u_st.addr = id->addr;
         exp->u_st.offset = id->offset;
@@ -243,39 +245,50 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
 
     case EXP_ID_REF:
         exp_trans_id_ref(trans, exp);
+        break;
 
     case EXP_LIT:
         return;
 
     case EXP_ARRAY:
         exp_trans_array(trans, exp);
+        break;
 
     case EXP_CAST:
         exp_trans_cast(trans, exp);
+        break;
 
     case EXP_UNARY:
         exp_trans_unary(trans, exp);
+        break;
 
     case EXP_BINARY:
         exp_trans_binary(trans, exp);
+        break;
 
     case EXP_TERNARY:
         exp_trans_ternary(trans, exp);
+        break;
 
     case EXP_ACCESS:
         exp_trans_access(trans, exp);
+        break;
 
     case EXP_CALL:
         exp_trans_call(trans, exp);
+        break;
 
     case EXP_SQL:
         exp_trans_sql(trans, exp);
+        break;
 
     case EXP_TUPLE:
         exp_trans_tuple(trans, exp);
+        break;
 
     case EXP_INIT:
         exp_trans_init(trans, exp);
+        break;
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

@@ -27,7 +27,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         params[i] = meta_gen(gen, &array_get_id(&fn->params, i)->meta);
     }
 
-    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(), params, 
+    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(), params,
                                    param_cnt);
 
     /* 1st local for base stack address */
@@ -50,7 +50,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb, param_cnt + 1, 
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, param_cnt + 1,
                                     gen->module);
 
     BinaryenAddFunction(gen->module, fn->name, spec, gen->locals, gen->local_cnt,

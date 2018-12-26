@@ -23,11 +23,12 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
     value = exp_gen(gen, stmt->u_assign.r_exp);
 
-    if (is_id_ref_exp(l_exp))
-        return BinaryenSetGlobal(gen->module, id->name, value);
-
     if (is_local_ref_exp(l_exp))
         return BinaryenSetLocal(gen->module, id->idx, value);
+
+    if (is_id_ref_exp(l_exp))
+        return BinaryenStore(gen->module, sizeof(int32_t), id->offset, 0,
+                             gen_i32(gen, id->addr), value, BinaryenTypeInt32());
 
     ASSERT1(is_stack_ref_exp(l_exp), l_exp->kind);
 

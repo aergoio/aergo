@@ -68,7 +68,7 @@ gen(ir_t *ir, flag_t flag, char *path)
                       (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
                       gen.dsgmt->lens, gen.dsgmt->size, 0);
 
-    BinaryenModuleValidate(gen.module);
+    ASSERT(BinaryenModuleValidate(gen.module));
 
     if (flag_on(flag, FLAG_TEST)) {
         // XXX: temporary

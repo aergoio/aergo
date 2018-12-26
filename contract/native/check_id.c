@@ -95,7 +95,7 @@ id_check_var(check_t *check, ast_id_t *id)
         CHECK(stmt_check(check, dflt_stmt));
     }
 
-    if (is_array_type(&id->meta) || !is_primitive_type(&id->meta))
+    if (is_local_id(id) && (is_array_type(&id->meta) || !is_primitive_type(&id->meta)))
         id->scope = SCOPE_STACK;
 
     return NO_ERROR;
@@ -324,6 +324,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
 {
     int i;
     array_t *var_ids = &id->u_tup.var_ids;
+    ast_stmt_t *dflt_stmt = id->u_tup.dflt_stmt;
 
     ASSERT1(is_tuple_id(id), id->kind);
     ASSERT(id->u_tup.type_meta != NULL);
@@ -337,6 +338,13 @@ id_check_tuple(check_t *check, ast_id_t *id)
         var_id->u_var.type_meta = id->u_tup.type_meta;
 
         id_check_var(check, var_id);
+    }
+
+    if (dflt_stmt != NULL) {
+        /* TODO: named initializer */
+        ASSERT1(is_assign_stmt(dflt_stmt), dflt_stmt->kind);
+
+        CHECK(stmt_check(check, dflt_stmt));
     }
 
     return NO_ERROR;

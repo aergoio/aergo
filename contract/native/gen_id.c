@@ -17,6 +17,9 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     uint32_t size;
     meta_t *meta = &id->meta;
 
+    if (is_stack_id(id))
+        return;
+
     size = meta_size(meta);
 
     if (is_array_type(meta)) {
@@ -29,12 +32,9 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     }
 
     if (is_global_id(id)) {
-        if (is_primitive_type(meta) && !is_array_type(meta))
-            id->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
-        else
-            BinaryenAddGlobal(gen->module, id->name, meta_gen(gen, meta), 1, NULL);
+        //if (is_array_type(meta) || !is_primitive_type(meta))
     }
-    else if (is_local_id(id)) {
+    else {
         gen_add_local(gen, meta->type);
     }
 
@@ -90,9 +90,11 @@ id_gen(gen_t *gen, ast_id_t *id)
     switch (id->kind) {
     case ID_VAR:
         id_gen_var(gen, id);
+        break;
 
     case ID_TUPLE:
         id_gen_tuple(gen, id);
+        break;
 
     default:
         ASSERT1(!"invalid identifier", id->kind);
