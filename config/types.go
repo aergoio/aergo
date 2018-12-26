@@ -17,6 +17,7 @@ type Config struct {
 	RPC        *RPCConfig        `mapstructure:"rpc"`
 	REST       *RESTConfig       `mapstructure:"rest"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
+	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
@@ -64,14 +65,22 @@ type P2PConfig struct {
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
-	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect with at startup"`
+	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect to at startup"`
 	NPHiddenPeers   []string `mapstructure:"nphiddenpeers" description:"List of peerids which will not show to other peers"`
+	NPDiscoverPeers bool     `mapstructure:"npdiscoverpeers" description:"Whether to discover from polaris or other nodes and connects"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
 
+	NPExposeSelf   bool     `mapstructure:"npexposeself" description:"Whether to request expose self to polaris and other connected node"`
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
-	NPPrivateNet   bool
+	// NPPrivateChain is not set from configfile, it must be got from genesis block
+	NPPrivateChain bool
+}
+
+// PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
+type PolarisConfig struct {
+	GenesisFile    string        `mapstructure:"genesisfile" description:"json file containing informations of genesisblock to which polaris refer "`
 }
 
 // BlockchainConfig defines configurations for blockchain service
@@ -158,9 +167,11 @@ npkey = "{{.P2P.NPKey}}"
 npaddpeers = [{{range .P2P.NPAddPeers}}
 "{{.}}", {{end}}
 ]
+npdiscoverpeers = true
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
-npusepolaris= "{{.P2P.NPUsePolaris}}"
+npexposeself = true
+npusepolaris= {{.P2P.NPUsePolaris}}
 npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]

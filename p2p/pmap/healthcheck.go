@@ -59,17 +59,16 @@ func (hcm *healthCheckManager) runHCM() {
 }
 
 func (hcm *healthCheckManager) checkPeers() {
-	pStates := hcm.ms.getPeerCheckers()
+	checkers := hcm.ms.getPeerCheckers()
 	thresholdTime := time.Now().Add(PeerHealthcheckInterval)
-	toCheck := make([]peerChecker,0,len(pStates)>>2)
-	// TODO should make other goroutines,
-	for _, ps  := range pStates {
+	toCheck := make([]peerChecker,0,len(checkers)>>2)
+	for _, ps  := range checkers {
 		if ps.lastCheck().Before(thresholdTime) {
 			toCheck = append(toCheck, ps)
 		}
 	}
 
-	hcm.logger.Debug().Int("all_peers",len(pStates)).Int("check_peers",len(toCheck)).Msg("Starting peers health check")
+	hcm.logger.Debug().Int("all_peers",len(checkers)).Int("check_peers",len(toCheck)).Msg("Starting peers health check")
 	wg := &sync.WaitGroup{}
 	wg.Add(len(toCheck))
 	for _, ps := range toCheck {

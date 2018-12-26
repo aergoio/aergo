@@ -133,7 +133,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
-	pmapSvc := pmap.NewMapServiceCli(cfg.P2P, p2pSvc)
+	pmapSvc := pmap.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
