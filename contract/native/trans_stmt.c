@@ -5,11 +5,11 @@
 
 #include "common.h"
 
-#include "ast_exp.h"
 #include "ir_bb.h"
 #include "ir_fn.h"
 #include "trans_id.h"
 #include "trans_blk.h"
+#include "trans_exp.h"
 
 #include "trans_stmt.h"
 
@@ -19,9 +19,15 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
+    exp_trans(trans, l_exp);
+    exp_trans(trans, r_exp);
+
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
         array_t *val_exps = r_exp->u_tup.exps;
+
+        ASSERT2(array_size(var_exps) == array_size(val_exps),
+                array_size(var_exps), array_size(val_exps));
 
         if (array_size(var_exps) == array_size(val_exps)) {
             int i;
@@ -97,11 +103,13 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     fn_add_basic_blk(trans->fn, prev_bb);
 
     trans->bb = bb_new();
+    bb_add_branch(prev_bb, stmt->u_if.cond_exp, trans->bb);
+
+    exp_trans(trans, stmt->u_if.cond_exp);
 
     if (stmt->u_if.if_blk != NULL)
         blk_trans(trans, stmt->u_if.if_blk);
 
-    bb_add_branch(prev_bb, stmt->u_if.cond_exp, trans->bb);
     bb_add_branch(trans->bb, NULL, next_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
@@ -110,11 +118,13 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
         ast_stmt_t *elif_stmt = array_get_stmt(elif_stmts, i);
 
         trans->bb = bb_new();
+        bb_add_branch(prev_bb, elif_stmt->u_if.cond_exp, trans->bb);
+
+        exp_trans(trans, elif_stmt->u_if.cond_exp);
 
         if (elif_stmt->u_if.if_blk != NULL)
             blk_trans(trans, elif_stmt->u_if.if_blk);
 
-        bb_add_branch(prev_bb, elif_stmt->u_if.cond_exp, trans->bb);
         bb_add_branch(trans->bb, NULL, next_bb);
 
         fn_add_basic_blk(trans->fn, trans->bb);
@@ -122,10 +132,10 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 
     if (stmt->u_if.else_blk != NULL) {
         trans->bb = bb_new();
+        bb_add_branch(prev_bb, NULL, trans->bb);
 
         blk_trans(trans, stmt->u_if.else_blk);
 
-        bb_add_branch(prev_bb, NULL, trans->bb);
         bb_add_branch(trans->bb, NULL, next_bb);
 
         fn_add_basic_blk(trans->fn, trans->bb);
@@ -249,6 +259,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
         bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
 
+        exp_trans(trans, case_stmt->u_case.val_exp);
+
         for (j = 0; j < array_size(case_stmt->u_case.stmts); j++) {
             stmt_trans(trans, array_get_stmt(case_stmt->u_case.stmts, j));
         }
@@ -280,6 +292,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
+    exp_trans(trans, stmt->u_ret.arg_exp);
+
     bb_add_stmt(trans->bb, stmt);
 
     bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);

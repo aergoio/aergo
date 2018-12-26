@@ -54,9 +54,19 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 void
 fn_add_stack(ir_fn_t *fn, ast_id_t *id)
 {
+    int i;
+    uint32_t size = meta_size(&id->meta);
+
     id->addr = fn->usage;
 
-    fn->usage += ALIGN64(meta_size(&id->meta));
+    if (is_array_type(&id->meta)) {
+        for (i = 0; i < id->meta.arr_dim; i++) {
+            ASSERT1(id->meta.arr_size[i] > 0, id->meta.arr_size[i]);
+            size *= id->meta.arr_size[i];
+        }
+    }
+
+    fn->usage += ALIGN64(size);
 }
 
 void 

@@ -11,23 +11,38 @@
 #include "gen_exp.h"
 
 static BinaryenExpressionRef
-exp_gen_id(gen_t *gen, ast_exp_t *exp)
+exp_gen_id_ref(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
-    meta_t *meta = &id->meta;
 
-    /* XXX
-    if (id->idx >= 0)
-        return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
-        */
+    ASSERT1(is_global_id(id), id->scope);
 
-    return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
-                        id->offset, 0, meta_gen(gen, meta),
-                        gen_i32(gen, id->addr));
+    return BinaryenGetGlobal(gen->module, id->name, meta_gen(gen, &id->meta));
 }
 
 static BinaryenExpressionRef
-exp_gen_val(gen_t *gen, ast_exp_t *exp)
+exp_gen_local_ref(gen_t *gen, ast_exp_t *exp)
+{
+    ast_id_t *id = exp->id;
+
+    ASSERT1(is_local_id(id), id->scope);
+
+    return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, &id->meta));
+}
+
+static BinaryenExpressionRef
+exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
+{
+    ast_id_t *id = exp->id;
+
+    ASSERT1(is_stack_id(id), id->scope);
+
+    return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
+                        id->offset, 0, meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
+}
+
+static BinaryenExpressionRef
+exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 {
     int addr;
     value_t *val = &exp->u_lit.val;
@@ -54,7 +69,7 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
         return gen_i32(gen, addr);
 
     case TYPE_OBJECT:
-        if (is_null_val(val)) 
+        if (is_null_val(val))
             return gen_i32(gen, 0);
 
         addr = dsgmt_add(gen->dsgmt, gen->module, val_ptr(val), val_size(val));
@@ -67,6 +82,7 @@ exp_gen_val(gen_t *gen, ast_exp_t *exp)
     return NULL;
 }
 
+#if 0
 static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
@@ -75,7 +91,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     BinaryenExpressionRef idx_exp;
 
         /* XXX
-         * we need id address + offset 
+         * we need id address + offset
          * offset = meta_size() * index value */
     /*
     if (is_ref) {
@@ -118,6 +134,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         }
     //}
 }
+#endif
 
 static BinaryenExpressionRef
 exp_gen_cast(gen_t *gen, ast_exp_t *exp)
@@ -210,66 +227,26 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 {
-    ast_id_t *id;
-    meta_t *meta;
-    BinaryenExpressionRef val_exp, ref_exp;
-    BinaryenExpressionRef add_exp;
+    meta_t *meta = &exp->meta;
+    BinaryenExpressionRef value;
 
-    val_exp = exp_gen(gen, exp->u_un.val_exp);
+    value = exp_gen(gen, exp->u_un.val_exp);
 
     switch (exp->u_un.kind) {
-    case OP_INC:
-    case OP_DEC:
-        id = exp->u_un.val_exp->id;
-        meta = &id->meta;
-
-        //if (id->idx >= 0)
-            ref_exp = BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, meta));
-        /* XXX
-        else
-            ref_exp = BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
-                                   BinaryenConstGetValueI32(val_exp), 0,
-                                   meta_gen(gen, meta), gen_i32(gen, meta->addr));
-                                   */
-
-        if (is_int64_type(meta) || is_uint64_type(meta))
-            add_exp = BinaryenBinary(gen->module, BinaryenAddInt64(), ref_exp,
-                                     gen_i64(gen, 1));
-        else
-            add_exp = BinaryenBinary(gen->module, BinaryenAddInt32(), ref_exp,
-                                     gen_i32(gen, 1));
-
-        /* XXX:
-        if (is_ref) {
-            if (id->idx >= 0)
-                return BinaryenSetLocal(gen->module, id->idx, add_exp);
-            else
-                return BinaryenStore(gen->module, meta_size(meta),
-                                     BinaryenConstGetValueI32(val_exp), 0,
-                                     gen_i32(gen, id->addr), add_exp,
-                                     meta_gen(gen, meta));
-        }
-        else {
-        */
-            return add_exp;
-        //}
-
     case OP_NEG:
-        meta = &exp->meta;
-
         if (is_int64_type(meta) || is_uint64_type(meta))
             return BinaryenBinary(gen->module, BinaryenSubInt64(), gen_i64(gen, 0),
-                                  val_exp);
+                                  value);
         else if (is_float_type(meta))
-            return BinaryenUnary(gen->module, BinaryenNegFloat32(), val_exp);
+            return BinaryenUnary(gen->module, BinaryenNegFloat32(), value);
         else if (is_double_type(meta))
-            return BinaryenUnary(gen->module, BinaryenNegFloat64(), val_exp);
+            return BinaryenUnary(gen->module, BinaryenNegFloat64(), value);
         else
             return BinaryenBinary(gen->module, BinaryenSubInt32(), gen_i32(gen, 0),
-                                  val_exp);
+                                  value);
 
     case OP_NOT:
-        return BinaryenUnary(gen->module, BinaryenEqZInt32(), val_exp);
+        return BinaryenUnary(gen->module, BinaryenEqZInt32(), value);
 
     default:
         ASSERT1(!"invalid operator", exp->u_un.kind);
@@ -495,6 +472,7 @@ exp_gen_ternary(gen_t *gen, ast_exp_t *exp)
                           exp_gen(gen, exp->u_tern.post_exp));
 }
 
+#if 0
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp)
 {
@@ -509,7 +487,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     ASSERT1(is_var_id(fld_id), fld_id->kind);
 
     /* XXX:
-     * we need qual_id address + offset 
+     * we need qual_id address + offset
      * offset = fld_id's offset */
 #if 0
     if (is_ref) {
@@ -527,6 +505,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
                         fld_id->offset, 0, meta_gen(gen, fld_meta),
                         gen_i32(gen, qual_id->addr));
 }
+#endif
 
 static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
@@ -561,11 +540,15 @@ exp_gen_sql(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_init(gen_t *gen, ast_exp_t *exp)
 {
+    /*
     int i;
     meta_t *meta = &exp->meta;
     array_t *elem_exps = exp->u_init.exps;
     BinaryenExpressionRef val_exp;
+    */
 
+    ASSERT(false);
+    /*
     ASSERT1(is_array_type(meta) || is_struct_type(meta), meta->type);
 
     if (is_array_type(meta)) {
@@ -576,11 +559,9 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             val_exp = exp_gen(gen, elem_exp);
 
-            /* XXX
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(meta), offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
                                              meta_gen(gen, meta)));
-                                             */
 
             offset += ALIGN64(meta_size(meta));
         }
@@ -595,14 +576,13 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             val_exp = exp_gen(gen, elem_exp);
 
-            /* XXX
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(elem_meta),
                                              elem_meta->offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
                                              meta_gen(gen, elem_meta)));
-                                             */
         }
     }
+    */
 
     return NULL;
 }
@@ -617,13 +597,21 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
         return NULL;
 
     case EXP_ID_REF:
-        return exp_gen_id(gen, exp);
+        return exp_gen_id_ref(gen, exp);
+
+    case EXP_LOCAL_REF:
+        return exp_gen_local_ref(gen, exp);
+
+    case EXP_STACK_REF:
+        return exp_gen_stack_ref(gen, exp);
 
     case EXP_LIT:
-        return exp_gen_val(gen, exp);
+        return exp_gen_lit(gen, exp);
 
+        /*
     case EXP_ARRAY:
         return exp_gen_array(gen, exp);
+        */
 
     case EXP_CAST:
         return exp_gen_cast(gen, exp);
@@ -637,8 +625,10 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_TERNARY:
         return exp_gen_ternary(gen, exp);
 
+        /*
     case EXP_ACCESS:
         return exp_gen_access(gen, exp);
+        */
 
     case EXP_CALL:
         return exp_gen_call(gen, exp);

@@ -7,6 +7,9 @@
 
 #include "ast_id.h"
 #include "ast_blk.h"
+#include "ast_stmt.h"
+#include "ir_bb.h"
+#include "ir_fn.h"
 
 #include "trans_exp.h"
 
@@ -38,7 +41,30 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_arr.id_exp);
     exp_trans(trans, exp->u_arr.idx_exp);
 
-    if (!is_array_type(&id->meta)) {
+    if (is_array_type(&id->meta)) {
+        int i;
+        int arr_size = 1;
+        uint32_t offset = 0;
+        ast_exp_t *id_exp = exp->u_arr.id_exp;
+        ast_exp_t *idx_exp = exp->u_arr.idx_exp;
+
+        if (!is_lit_exp(idx_exp))
+            return;
+
+        if (is_stack_ref_exp(id_exp))
+            offset += id_exp->u_st.offset;
+
+        for (i = 0; i < exp->meta.arr_dim; i++) {
+            arr_size *= exp->meta.arr_size[i];
+        }
+
+        offset += val_i64(&idx_exp->u_lit.val) * arr_size * meta_size(&exp->meta);
+
+        exp->kind = EXP_STACK_REF;
+        exp->u_st.addr = id->addr;
+        exp->u_st.offset = offset;
+    }
+    else {
         /* TODO 
          * int addr = fn_add_stack_var(trans->fn);
          * ast_exp_t *call_exp = exp_new_call("$map_get", &exp->pos);
@@ -68,17 +94,28 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 {
-    exp_trans(trans, exp->u_un.val_exp);
+    ast_exp_t *val_exp = exp->u_un.val_exp;
+    ast_exp_t *bi_exp, *lit_exp;
+
+    exp_trans(trans, val_exp);
 
     switch (exp->u_un.kind) {
     case OP_INC:
     case OP_DEC:
-        if (exp->u_un.is_prefix)
-            bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
-        else
-            bb_set_piggyback(trans->bb, stmt_new_exp(exp, &exp->pos));
+        lit_exp = exp_new_lit(&exp->pos);
+        value_set_i64(&lit_exp->u_lit.val, 1);
 
-        *exp = *exp->u_un.val_exp;
+        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp, 
+                                lit_exp, &exp->pos);
+
+        meta_copy(&bi_exp->meta, &val_exp->meta);
+
+        bb_set_piggyback(trans->bb, stmt_new_assign(val_exp, bi_exp, &exp->pos));
+
+        if (exp->u_un.is_prefix)
+            *exp = *bi_exp;
+        else
+            *exp = *val_exp;
         break;
 
     case OP_NEG:
@@ -114,7 +151,8 @@ exp_trans_ternary(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_tern.post_exp);
 
     if (is_lit_exp(exp->u_tern.pre_exp)) {
-        if (val_bool(&pre_exp->u_lit.val))
+        /* Maybe we do this in optimizer */
+        if (val_bool(&exp->u_tern.pre_exp->u_lit.val))
             *exp = *exp->u_tern.in_exp;
         else
             *exp = *exp->u_tern.post_exp;
@@ -124,27 +162,47 @@ exp_trans_ternary(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_access(trans_t *trans, ast_exp_t *exp)
 {
+    ast_id_t *qual_id = exp->u_acc.id_exp->id;
+    ast_id_t *fld_id = exp->id;
+
     exp_trans(trans, exp->u_acc.id_exp);
     exp_trans(trans, exp->u_acc.fld_exp);
 
-    if (is_fn_id(exp->id))
+    if (is_fn_id(fld_id))
+        /* we will transform this in call expression */
         return;
 
-    /*
-    ASSERT1(is_stack_exp(exp->u_acc.id_exp), exp->u_acc.id_exp->kind);
+    ASSERT(qual_id != NULL);
 
-    exp->u_acc.id_exp->offset = exp->u_acc.fld_exp->offset;
-
-    return exp->u_acc.id_exp;
-    */
-
-    return exp;
+    exp->kind = EXP_STACK_REF;
+    exp->u_st.addr = qual_id->addr;
+    exp->u_st.offset = fld_id->offset;
 }
 
 static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
-    bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
+    ast_id_t *id = exp->id;
+
+    // FIXME bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
+
+    if (array_size(id->u_fn.ret_ids) > 0) {
+        int i;
+        array_t *exps = array_new();
+
+        ASSERT(trans->fn != NULL);
+
+        for (i = 0; i < array_size(id->u_fn.ret_ids); i++) {
+            ast_id_t *ret_id = array_get_id(id->u_fn.ret_ids, i);
+
+            fn_add_stack(trans->fn, ret_id);
+
+            array_add_last(exps, exp_new_stack_ref(ret_id->addr, 0, &exp->pos));
+        }
+
+        exp->kind = EXP_TUPLE;
+        exp->u_tup.exps = exps;
+    }
 }
 
 static void
@@ -155,11 +213,23 @@ exp_trans_sql(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
 {
+    int i;
+    array_t *exps = exp->u_tup.exps;
+
+    for (i = 0; i < array_size(exps); i++) {
+        exp_trans(trans, array_get_exp(exps, i));
+    }
 }
 
 static void
 exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
+    int i;
+    array_t *exps = exp->u_init.exps;
+
+    for (i = 0; i < array_size(exps); i++) {
+        exp_trans(trans, array_get_exp(exps, i));
+    }
 }
 
 void
@@ -175,7 +245,7 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_id_ref(trans, exp);
 
     case EXP_LIT:
-        exp;
+        return;
 
     case EXP_ARRAY:
         exp_trans_array(trans, exp);

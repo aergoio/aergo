@@ -38,6 +38,7 @@ set(libascl_SRCS
     trans_id.c
     trans_blk.c
     trans_stmt.c
+    trans_exp.c
     gen.c
     gen_fn.c
     gen_bb.c

@@ -7,6 +7,7 @@
 
 #include "util.h"
 #include "ir.h"
+#include "gen_id.h"
 #include "gen_fn.h"
 
 #include "gen.h"
@@ -55,28 +56,27 @@ gen(ir_t *ir, flag_t flag, char *path)
     BinaryenSetDebugInfo(1);
     //BinaryenSetAPITracing(1);
 
+    for (i = 0; i < array_size(&ir->globals); i++) {
+        id_gen(&gen, array_get_id(&ir->globals, i));
+    }
+
+    for (i = 0; i < array_size(&ir->fns); i++) {
+        fn_gen(&gen, array_get_fn(&ir->fns, i));
+    }
+
+    BinaryenSetMemory(gen.module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
+                      (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
+                      gen.dsgmt->lens, gen.dsgmt->size, 0);
+
+    BinaryenModuleValidate(gen.module);
+
     if (flag_on(flag, FLAG_TEST)) {
         // XXX: temporary
         //BinaryenModuleInterpret(gen.module);
     }
     else {
-        int buf_size;
-        char *buf;
-
-        // XXX: handle globals
-
-        for (i = 0; i < array_size(&ir->fns); i++) {
-            fn_gen(&gen, array_get_fn(&ir->fns, i));
-        }
-
-        BinaryenSetMemory(gen.module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
-                          (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
-                          gen.dsgmt->lens, gen.dsgmt->size, 0);
-
-        BinaryenModuleValidate(gen.module);
-
-        buf_size = WASM_MAX_LEN * 2;
-        buf = xmalloc(buf_size);
+        int buf_size = WASM_MAX_LEN * 2;
+        char *buf = xmalloc(buf_size);
 
         n = BinaryenModuleWrite(gen.module, buf, buf_size);
         if (n <= WASM_MAX_LEN)

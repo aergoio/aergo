@@ -665,19 +665,19 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     meta_set_tuple(&exp->meta, exps);
 
     if (is_aggr_lit) {
-        int offset = 0;
+        int size = 0;
         char *raw = xmalloc(meta_size(&exp->meta));
 
         for (i = 0; i < array_size(exps); i++) {
             ast_exp_t *elem_exp = array_get_exp(exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
-            memcpy(raw + offset, val_ptr(elem_val), val_size(elem_val));
-            offset += meta_size(&elem_exp->meta);
+            memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
+            size += meta_size(&elem_exp->meta);
         }
 
         exp->kind = EXP_LIT;
-        value_set_ptr(&exp->u_lit.val, raw, offset);
+        value_set_ptr(&exp->u_lit.val, raw, size);
     }
 
     return NO_ERROR;
