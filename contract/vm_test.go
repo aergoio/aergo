@@ -563,6 +563,41 @@ abi.register(infiniteLoop)`
 	}
 }
 
+func TestMemSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function infiniteLoop()
+	local s = "hello world"
+	while true do
+		s = s .. s
+	end
+	return s
+end
+abi.register(infiniteLoop)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteLoop"}`,
+		),
+	)
+	errMsg := "not enough memory"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+}
+
 func TestRecursiveData(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
