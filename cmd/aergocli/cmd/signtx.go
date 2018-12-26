@@ -72,7 +72,7 @@ var signCmd = &cobra.Command{
 			}
 
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			addr, err := types.DecodeAddress(address)
 			if err != nil {

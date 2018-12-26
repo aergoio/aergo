@@ -6,29 +6,35 @@ import (
 	"crypto/cipher"
 	"errors"
 	"path"
-
-	sha256 "github.com/minio/sha256-simd"
+	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 type aergokey = btcec.PrivateKey
 
+type keyPair struct {
+	key   *aergokey
+	timer *time.Timer
+}
+
 // Store stucture of keystore
 type Store struct {
-	unlocked map[string]*aergokey
+	timeout  time.Duration
+	unlocked map[string]*keyPair
 	storage  db.DB
 }
 
 // NewStore make new instance of keystore
-func NewStore(storePath string) *Store {
+func NewStore(storePath string, unlockTimeout uint) *Store {
 	const dbName = "account"
 	dbPath := path.Join(storePath, dbName)
-
 	return &Store{
-		unlocked: map[string]*aergokey{},
+		timeout:  time.Duration(unlockTimeout) * time.Second,
+		unlocked: map[string]*keyPair{},
 		storage:  db.NewDB(db.LevelImpl, dbPath),
 	}
 }
@@ -95,7 +101,25 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	if key == nil {
 		return nil, err
 	}
-	ks.unlocked[types.EncodeAddress(addr)], _ = btcec.PrivKeyFromBytes(btcec.S256(), key)
+	pk, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
+	addrKey := types.EncodeAddress(addr)
+	unlockedKeyPair, exist := ks.unlocked[addrKey]
+
+	if ks.timeout == 0 {
+		ks.unlocked[addrKey] = &keyPair{key: pk, timer: nil}
+		return addr, nil
+	}
+
+	if exist {
+		unlockedKeyPair.timer.Reset(ks.timeout)
+	} else {
+		lockTimer := time.AfterFunc(ks.timeout,
+			func() {
+				ks.Lock(addr, pass)
+			},
+		)
+		ks.unlocked[addrKey] = &keyPair{key: pk, timer: lockTimer}
+	}
 	return addr, nil
 }
 
@@ -106,8 +130,10 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 		return nil, err
 	}
 	b58addr := types.EncodeAddress(addr)
-	ks.unlocked[b58addr] = nil
-	delete(ks.unlocked, b58addr)
+	if _, exist := ks.unlocked[b58addr]; exist {
+		ks.unlocked[b58addr] = nil
+		delete(ks.unlocked, b58addr)
+	}
 	return addr, nil
 }
 

@@ -39,11 +39,11 @@ func (ks *Store) SignTx(tx *types.Tx, requester []byte) error {
 	if requester != nil {
 		addr = requester
 	}
-	key, exist := ks.unlocked[types.EncodeAddress(addr)]
+	keyPair, exist := ks.unlocked[types.EncodeAddress(addr)]
 	if !exist {
 		return types.ErrShouldUnlockAccount
 	}
-	return SignTx(tx, key)
+	return SignTx(tx, keyPair.key)
 }
 
 //VerifyTx return result to varify sign

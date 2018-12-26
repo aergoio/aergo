@@ -45,6 +45,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
 		Monitor:    ctx.GetDefaultMonitorConfig(),
+		Account:    ctx.GetDefaultAccountConfig(),
 	}
 }
 
@@ -122,5 +123,10 @@ func (ctx *ServerContext) GetDefaultMonitorConfig() *MonitorConfig {
 		ServerProtocol: "",
 		ServerEndpoint: "",
 	}
+}
 
+func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
+	return &AccountConfig{
+		UnlockTimeout: 60,
+	}
 }

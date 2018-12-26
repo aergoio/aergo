@@ -36,7 +36,7 @@ func NewAccountService(cfg *cfg.Config, sdb *state.ChainStateDB) *AccountService
 }
 
 func (as *AccountService) BeforeStart() {
-	as.ks = key.NewStore(as.cfg.DataDir)
+	as.ks = key.NewStore(as.cfg.DataDir, as.cfg.Account.UnlockTimeout)
 
 	as.accounts = []*types.Account{}
 	addresses, err := as.ks.GetAddresses()
