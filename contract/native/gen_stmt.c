@@ -33,7 +33,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     ASSERT1(is_stack_ref_exp(l_exp), l_exp->kind);
 
     return BinaryenStore(gen->module, meta_size(&id->meta), id->offset, 0,
-                         gen_i32(gen, id->addr), value, meta_gen(gen, &id->meta));
+                         gen_i32(gen, id->addr), value, meta_gen(&id->meta));
 }
 
 static BinaryenExpressionRef
@@ -62,7 +62,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
             gen_add_instr(gen,
                 BinaryenStore(gen->module, meta_size(elem_meta), ret_id->offset, 0,
                     BinaryenGetLocal(gen->module, ret_id->idx, BinaryenTypeInt32()),
-                    value, meta_gen(gen, elem_meta)));
+                    value, meta_gen(elem_meta)));
         }
 
         return NULL;
@@ -74,7 +74,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 
     return BinaryenStore(gen->module, meta_size(arg_meta), ret_id->offset, 0,
                          BinaryenGetLocal(gen->module, ret_id->idx, BinaryenTypeInt32()),
-                         value, meta_gen(gen, arg_meta));
+                         value, meta_gen(arg_meta));
 }
 
 static BinaryenExpressionRef

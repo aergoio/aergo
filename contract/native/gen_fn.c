@@ -24,7 +24,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     params = xmalloc(sizeof(BinaryenType) * param_cnt);
 
     for (i = 0; i < param_cnt; i++) {
-        params[i] = meta_gen(gen, &array_get_id(&fn->params, i)->meta);
+        params[i] = meta_gen(&array_get_id(&fn->params, i)->meta);
     }
 
     spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(), params,

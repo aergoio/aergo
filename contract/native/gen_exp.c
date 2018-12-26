@@ -19,7 +19,7 @@ exp_gen_id_ref(gen_t *gen, ast_exp_t *exp)
     ASSERT1(id->offset == 0, id->offset);
 
     return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
-                        0, 0, meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
+                        0, 0, meta_gen(&id->meta), gen_i32(gen, id->addr));
 }
 
 static BinaryenExpressionRef
@@ -29,7 +29,7 @@ exp_gen_local_ref(gen_t *gen, ast_exp_t *exp)
 
     ASSERT1(is_local_id(id), id->scope);
 
-    return BinaryenGetLocal(gen->module, id->idx, meta_gen(gen, &id->meta));
+    return BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
 }
 
 static BinaryenExpressionRef
@@ -40,7 +40,7 @@ exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
     ASSERT1(is_stack_id(id), id->scope);
 
     return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
-                        id->offset, 0, meta_gen(gen, &id->meta), gen_i32(gen, id->addr));
+                        id->offset, 0, meta_gen(&id->meta), gen_i32(gen, id->addr));
 }
 
 static BinaryenExpressionRef
@@ -128,7 +128,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
                 offset = BinaryenConstGetValueI64(idx_exp) * ALIGN64(meta_size(meta));
 
             return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta),
-                                offset, 0, meta_gen(gen, meta), addr_exp);
+                                offset, 0, meta_gen(meta), addr_exp);
         }
         else {
             ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
@@ -505,7 +505,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
 #endif
 
     return BinaryenLoad(gen->module, meta_size(fld_meta), is_signed_type(fld_meta),
-                        fld_id->offset, 0, meta_gen(gen, fld_meta),
+                        fld_id->offset, 0, meta_gen(fld_meta),
                         gen_i32(gen, qual_id->addr));
 }
 #endif
@@ -564,7 +564,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(meta), offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
-                                             meta_gen(gen, meta)));
+                                             meta_gen(meta)));
 
             offset += ALIGN64(meta_size(meta));
         }
@@ -582,7 +582,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             gen_add_instr(gen, BinaryenStore(gen->module, meta_size(elem_meta),
                                              elem_meta->offset, 0,
                                              gen_i32(gen, meta->addr), val_exp,
-                                             meta_gen(gen, elem_meta)));
+                                             meta_gen(elem_meta)));
         }
     }
     */

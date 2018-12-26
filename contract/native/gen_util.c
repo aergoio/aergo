@@ -17,7 +17,7 @@ gen_add_local(gen_t *gen, type_t type)
     else
         gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
 
-    gen->locals[gen->local_cnt++] = type_gen(gen, type);
+    gen->locals[gen->local_cnt++] = type_gen(type);
 }
 
 void
@@ -36,7 +36,16 @@ gen_add_instr(gen_t *gen, BinaryenExpressionRef instr)
 }
 
 BinaryenType
-type_gen(gen_t *gen, type_t type)
+meta_gen(meta_t *meta)
+{
+    if (is_array_type(meta))
+        return BinaryenTypeInt32();
+
+    return type_gen(meta->type);
+}
+
+BinaryenType
+type_gen(type_t type)
 {
     switch (type) {
     case TYPE_NONE:

@@ -679,8 +679,10 @@ exp_check_init(check_t *check, ast_exp_t *exp)
             value_t *elem_val = &elem_exp->u_lit.val;
 
             memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
-            size += meta_size(&elem_exp->meta);
+            size += ALIGN64(meta_size(&elem_exp->meta));
         }
+
+        ASSERT2(size == meta_size(&exp->meta), size, meta_size(&exp->meta));
 
         exp->kind = EXP_LIT;
         value_set_ptr(&exp->u_lit.val, raw, size);

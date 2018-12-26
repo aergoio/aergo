@@ -43,11 +43,6 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
         stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
 	}
-
-	/*
-    if (id->u_var.dflt_stmt != NULL)
-        stmt_trans(trans, id->u_var.dflt_stmt);
-		*/
 }
 
 static void
@@ -79,7 +74,6 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
                         dflt_exp->meta.type);
 
                 stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
-                //stmt_trans(trans, fld_id->u_var.dflt_stmt);
 			}
         }
 
@@ -142,11 +136,6 @@ id_trans_tuple(trans_t *trans, ast_id_t *id)
 
         id_trans_var(trans, var_id);
     }
-
-	/*
-    if (id->u_tup.dflt_stmt != NULL)
-        stmt_trans(trans, id->u_tup.dflt_stmt);
-		*/
 }
 
 void

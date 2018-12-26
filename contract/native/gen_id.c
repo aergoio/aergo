@@ -32,7 +32,8 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     }
 
     if (is_global_id(id)) {
-        //if (is_array_type(meta) || !is_primitive_type(meta))
+        BinaryenAddGlobal(gen->module, id->name, meta_gen(&id->meta), 1,
+                          exp_gen(gen, id->u_var.dflt_exp));
     }
     else {
         gen_add_local(gen, meta->type);

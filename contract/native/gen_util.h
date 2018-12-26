@@ -11,12 +11,11 @@
 #include "gen.h"
 #include "meta.h"
 
-#define meta_gen(gen, meta)         type_gen((gen), (meta)->type)
-
 void gen_add_local(gen_t *gen, type_t type);
 void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
 
-BinaryenType type_gen(gen_t *gen, type_t type);
+BinaryenType meta_gen(meta_t *meta);
+BinaryenType type_gen(type_t type);
 
 static inline BinaryenExpressionRef
 gen_i32(gen_t *gen, int32_t v)
