@@ -25,7 +25,7 @@ var keystore *key.Store
 func initTest(t *testing.T, testmode bool) {
 	sdb = state.NewChainStateDB()
 	tmpdir, _ := ioutil.TempDir("", "test")
-	keystore = key.NewStore(tmpdir)
+	keystore = key.NewStore(tmpdir, 0)
 	sdb.Init(string(db.BadgerImpl), tmpdir, nil, testmode)
 	genesis := types.GetTestGenesis()
 

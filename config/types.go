@@ -21,6 +21,7 @@ type Config struct {
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
+	Account    *AccountConfig    `mapstructure:"account"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -102,6 +103,11 @@ type MonitorConfig struct {
 	ServerEndpoint string `mapstructure:"endpoint" description:"Endpoint to send"`
 }
 
+// Account defines configurations for account service
+type AccountConfig struct {
+	UnlockTimeout uint `mapstructure:"unlocktimeout" description:"lock automatically after timeout (sec)"`
+}
+
 /*
 How to write this template
 =======================================
@@ -181,4 +187,7 @@ blockinterval = {{.Consensus.BlockInterval}}
 [monitor]
 protocol = "{{.Monitor.ServerProtocol}}"
 endpoint = "{{.Monitor.ServerEndpoint}}"
+
+[account]
+unlocktimeout = "{{.Account.UnlockTimeout}}"
 `
