@@ -528,8 +528,14 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     check->qual_id = id;
 
     if (exp_check(check, fld_exp) == NO_ERROR) {
-        exp->id = fld_exp->id;
-        meta_copy(&exp->meta, &fld_exp->meta);
+        if (is_lit_exp(fld_exp)) {
+            /* enum or contract constant */
+            *exp = *fld_exp;
+        }
+        else {
+            exp->id = fld_exp->id;
+            meta_copy(&exp->meta, &fld_exp->meta);
+        }
     }
 
     check->qual_id = NULL;

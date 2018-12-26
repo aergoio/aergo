@@ -94,7 +94,14 @@ id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
         /* TODO: named initializer */
         CHECK(exp_check(check, dflt_exp));
         CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
-	}
+
+        if (is_lit_exp(dflt_exp)) {
+            if (!value_fit(&dflt_exp->u_lit.val, &id->meta))
+                RETURN(ERROR_NUMERIC_OVERFLOW, &dflt_exp->pos, meta_to_str(&id->meta));
+
+            id->val = &dflt_exp->u_lit.val;
+        }
+    }
 #if 0
     if (dflt_stmt != NULL) {
         /* TODO: named initializer */
@@ -337,9 +344,9 @@ id_check_tuple(check_t *check, ast_id_t *id)
     ASSERT(id->u_tup.type_meta != NULL);
     ASSERT(!is_empty_array(var_ids));
 
-	id->meta.type = TYPE_TUPLE;
-	id->meta.elem_cnt = array_size(var_ids);
-	id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
+    id->meta.type = TYPE_TUPLE;
+    id->meta.elem_cnt = array_size(var_ids);
+    id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
     for (i = 0; i < array_size(var_ids); i++) {
         ast_id_t *var_id = array_get_id(var_ids, i);
@@ -350,7 +357,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         id_check_var(check, var_id, true);
 
-        id->meta.elems[i] = &id->meta;
+        id->meta.elems[i] = &var_id->meta;
 
         if (is_const_id(var_id) && dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &var_id->pos);

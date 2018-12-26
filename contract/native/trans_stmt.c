@@ -27,15 +27,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         array_t *val_exps = r_exp->u_tup.exps;
 
         ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
-        ASSERT2(array_size(var_exps) == array_size(val_exps),
-                array_size(var_exps), array_size(val_exps));
 
         if (array_size(var_exps) == array_size(val_exps)) {
             int i;
+            ast_exp_t *var_exp, *val_exp;
 
             for (i = 0; i < array_size(val_exps); i++) {
-                ast_exp_t *var_exp = array_get_exp(var_exps, i);
-                ast_exp_t *val_exp = array_get_exp(val_exps, i);
+                var_exp = array_get_exp(var_exps, i);
+                val_exp = array_get_exp(val_exps, i);
 
                 ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
 
@@ -47,29 +46,32 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             int var_idx = 0;
             ast_exp_t *var_exp;
 
+            ASSERT2(array_size(var_exps) > array_size(val_exps),
+                    array_size(var_exps), array_size(val_exps));
+
             for (i = 0; i < array_size(val_exps); i++) {
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
                 meta_t *val_meta = &val_exp->meta;
 
                 if (is_tuple_type(val_meta)) {
-                    array_t *exps = array_new();
-
                     for (j = 0; j < val_meta->elem_cnt; j++) {
-                        array_add_last(exps, array_get_exp(var_exps, var_idx + j));
+                        ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
+                        ast_exp_t *elem_exp = array_get_exp(val_exp->u_tup.exps, j);
+
+                        ASSERT(meta_cmp(&var_exp->meta, &elem_exp->meta) == 0);
+
+                        bb_add_stmt(trans->bb, 
+                                    stmt_new_assign(var_exp, elem_exp, &stmt->pos));
                     }
-
-                    var_exp = exp_new_tuple(exps, &stmt->pos);
-                    meta_set_tuple(&var_exp->meta, exps);
-
-                    var_idx += val_meta->elem_cnt;
                 }
                 else {
                     var_exp = array_get_exp(var_exps, var_idx++);
+                    ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
+
+                    bb_add_stmt(trans->bb, 
+                                stmt_new_assign(array_get_exp(var_exps, var_idx++),
+                                                val_exp, &stmt->pos));
                 }
-
-                ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
-
-                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
             }
         }
     }
@@ -260,7 +262,9 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
         bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
 
-        exp_trans(trans, case_stmt->u_case.val_exp);
+        if (case_stmt->u_case.val_exp != NULL)
+            /* default can be NULL */
+            exp_trans(trans, case_stmt->u_case.val_exp);
 
         for (j = 0; j < array_size(case_stmt->u_case.stmts); j++) {
             stmt_trans(trans, array_get_stmt(case_stmt->u_case.stmts, j));
@@ -293,7 +297,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
-    exp_trans(trans, stmt->u_ret.arg_exp);
+    if (stmt->u_ret.arg_exp != NULL)
+        exp_trans(trans, stmt->u_ret.arg_exp);
 
     bb_add_stmt(trans->bb, stmt);
 

@@ -80,7 +80,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
-    exp_trans(trans, exp->u_un.val_exp);
+    exp_trans(trans, exp->u_cast.val_exp);
 
     if (!is_primitive_type(&exp->meta) || !is_primitive_type(&exp->u_cast.to_meta)) {
         /* TODO
@@ -188,6 +188,9 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
     // FIXME bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
 
+    if (is_map_type(&exp->meta))
+        return;
+
     if (array_size(id->u_fn.ret_ids) > 0) {
         int i;
         array_t *exps = array_new();
@@ -196,10 +199,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         for (i = 0; i < array_size(id->u_fn.ret_ids); i++) {
             ast_id_t *ret_id = array_get_id(id->u_fn.ret_ids, i);
+            ast_exp_t *ret_exp;
 
             fn_add_stack(trans->fn, ret_id);
 
-            array_add_last(exps, exp_new_stack_ref(ret_id->addr, 0, &exp->pos));
+            ret_exp = exp_new_stack_ref(ret_id->addr, 0, &exp->pos);
+            meta_copy(&ret_exp->meta, &ret_id->meta);
+
+            array_add_last(exps, ret_exp);
         }
 
         exp->kind = EXP_TUPLE;
@@ -247,6 +254,8 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_id_ref(trans, exp);
         break;
 
+    case EXP_LOCAL_REF:
+    case EXP_STACK_REF:
     case EXP_LIT:
         return;
 
