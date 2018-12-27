@@ -50,5 +50,7 @@ func init() {
 }
 
 func main() {
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
