@@ -7,6 +7,7 @@ package mock_p2p
 import (
 	context "context"
 	p2p "github.com/aergoio/aergo/p2p"
+	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	go_libp2p_crypto "github.com/libp2p/go-libp2p-crypto"
 	go_libp2p_interface_connmgr "github.com/libp2p/go-libp2p-interface-connmgr"
@@ -53,6 +54,18 @@ func (m *MockNTContainer) GetNetworkTransport() p2p.NetworkTransport {
 // GetNetworkTransport indicates an expected call of GetNetworkTransport
 func (mr *MockNTContainerMockRecorder) GetNetworkTransport() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkTransport", reflect.TypeOf((*MockNTContainer)(nil).GetNetworkTransport))
+}
+
+// ChainID mocks base method
+func (m *MockNTContainer) ChainID() *types.ChainID {
+	ret := m.ctrl.Call(m, "ChainID")
+	ret0, _ := ret[0].(*types.ChainID)
+	return ret0
+}
+
+// ChainID indicates an expected call of ChainID
+func (mr *MockNTContainerMockRecorder) ChainID() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainID", reflect.TypeOf((*MockNTContainer)(nil).ChainID))
 }
 
 // MockNetworkTransport is a mock of NetworkTransport interface

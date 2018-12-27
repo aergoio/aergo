@@ -34,6 +34,8 @@ type nodeInfo struct {
 type P2P struct {
 	*component.BaseComponent
 
+	// caching data from genesis block
+	chainID *types.ChainID
 	nt 	NetworkTransport
 	pm     PeerManager
 	sm     SyncManager
@@ -166,6 +168,10 @@ func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
 	return p2ps.nt
 }
 
+func (p2ps *P2P) ChainID() *types.ChainID {
+	return p2ps.chainID
+}
+
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
 
@@ -180,9 +186,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	if err != nil {
 		panic("invalid chainid: "+err.Error())
 	}
-
-	cfg.P2P.NPPrivateChain = !chainID.PublicNet
-	cfg.P2P.NPMainNet = chainID.MainNet
+	p2ps.chainID = chainID
 
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
@@ -297,7 +301,7 @@ func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Durat
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	return p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -308,7 +312,7 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duratio
 
 // CallRequest implement interface method of ActorService
 func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	future := p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
 	return future.Result()
 }
 
@@ -352,7 +356,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
-	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, peerID: pid}
+	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID:p2ps.chainID, peerID: pid}
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
 	} else {

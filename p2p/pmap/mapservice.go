@@ -81,7 +81,6 @@ type peerChecker interface {
 type PeerMapService struct {
 	*component.BaseComponent
 
-	ChainID    []byte
 	PrivateNet bool
 	allowPrivate bool
 
@@ -97,15 +96,16 @@ func NewPolarisService(cfg *config.Config, ntc p2p.NTContainer) *PeerMapService 
 	pms := &PeerMapService{
 		rwmutex:      &sync.RWMutex{},
 		peerRegistry: make(map[peer.ID]*peerState),
-		PrivateNet:   cfg.P2P.NPPrivateChain,
 		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
 
 	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
 
-	// init
 	pms.ntc = ntc
 	pms.hc = NewHCM(pms, pms.nt)
+
+	pms.PrivateNet = !ntc.ChainID().MainNet
+
 	// initialize map Servers
 	return pms
 }
@@ -157,7 +157,7 @@ func (pms *PeerMapService) onConnect(s inet.Stream) {
 		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, peerID.String()).Msg("failed to write query")
 		return
 	}
-	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
+	pms.Logger.Debug().Str("status", resp.Status.String()).Str(p2p.LogPeerID, peerID.String()).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
 
 	// TODO send goodbye message.
 	time.Sleep(time.Second * 3)
@@ -199,6 +199,18 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 	// make response
 	resp := &types.MapResponse{}
 	// TODO check more varification or request peer
+
+	// compare chainID
+	sameChain, err := pms.checkChain(query.Status.ChainID)
+	if err != nil {
+		resp.Status = types.ResultStatus_INVALID_ARGUMENT
+		resp.Message = "invalid chainid"
+		return resp, nil
+	} else if !sameChain {
+		resp.Status = types.ResultStatus_UNAUTHENTICATED
+		resp.Message = "different chain"
+		return resp, nil
+	}
 	// must check peer is really capable to aergosvr
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
@@ -341,6 +353,16 @@ func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2p.MsgWriter) error
 	wt.WriteMsg(msg)
 	time.Sleep(MsgSendDelay)
 	return nil
+}
+
+//
+func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
+	chainID := types.NewChainID()
+	if err := chainID.Read(chainIDBytes); err != nil {
+		return false, err
+	}
+	sameChain := pms.ntc.ChainID().Equals(chainID)
+	return sameChain, nil
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {

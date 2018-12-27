@@ -10,7 +10,7 @@ import "time"
 // constants for inter-communication of aergosvr
 const (
 	// other actor
-	defaultActorMsgTTL  = time.Second * 4
+	DefaultActorMsgTTL = time.Second * 4
 )
 // constants for peer communicating
 const (
