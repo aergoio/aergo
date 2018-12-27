@@ -57,7 +57,11 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, scs *state.ContractS
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return types.ErrMustStakeBeforeVote
 		}
-		if staked.GetWhen()+VotingDelay > blockNo {
+		oldvote, err := getVote(scs, account)
+		if err != nil {
+			return err
+		}
+		if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
 			//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
 			return types.ErrLessTimeHasPassed
 		}
