@@ -75,8 +75,6 @@ type P2PConfig struct {
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
-	NPPrivateChain bool
-	NPMainNet      bool
 }
 
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
@@ -177,6 +175,10 @@ npusepolaris= {{.P2P.NPUsePolaris}}
 npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
+
+[polaris]
+allowprivate = {{.Polaris.AllowPrivate}}
+genesisfile = "{{.Polaris.GenesisFile}}"
 
 [blockchain]
 # blockchain configurations

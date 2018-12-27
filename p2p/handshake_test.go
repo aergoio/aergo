@@ -81,7 +81,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
+			h := newHandshaker(mockPM, mockActor, logger, myChainID, samplePeerID)
 			mockReader := new(MockReader)
 			mockWriter := new(MockWriter)
 			mockReader.On("Read", mock.Anything).After(tt.delay).Return(0, fmt.Errorf("must not reach"))
@@ -118,7 +118,7 @@ func TestPeerHandshaker_Select(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockReader := new(MockReader)
 			mockWriter := new(MockWriter)
-			h := newHandshaker(mockPM, mockActor, logger, samplePeerID)
+			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 
 			actual, err := h.selectProtocolVersion(test.hsheader, bufio.NewReader(mockReader),
 				bufio.NewWriter(mockWriter))

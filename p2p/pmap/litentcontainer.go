@@ -3,9 +3,10 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package pmap
 
 import (
+	"github.com/aergoio/aergo/p2p"
 	"sync"
 	"time"
 
@@ -22,8 +23,8 @@ import (
 type LiteContainerService struct {
 	*component.BaseComponent
 
-	nt     NetworkTransport
-	signer msgSigner
+	chainID *types.ChainID
+	nt     p2p.NetworkTransport
 
 	mutex sync.Mutex
 }
@@ -63,18 +64,38 @@ func (lntc *LiteContainerService) Statistics() *map[string]interface{} {
 	return nil
 }
 
-func (lntc *LiteContainerService) GetNetworkTransport() NetworkTransport {
+func (lntc *LiteContainerService) GetNetworkTransport() p2p.NetworkTransport {
 	lntc.mutex.Lock()
 	defer lntc.mutex.Unlock()
 	return lntc.nt
 }
 
+func (lntc *LiteContainerService) ChainID() *types.ChainID {
+	return lntc.chainID
+}
+
 func (lntc *LiteContainerService) init(cfg *config.Config) {
-	netTransport := NewNetworkTransport(cfg.P2P, lntc.Logger)
-	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
+	// load genesis file
+	// init from genesis file
+	// TODO code duplication. refactor to delete dupplicate with p2p.go
+	genesis, err := readGenesis(cfg.Polaris.GenesisFile)
+	if err != nil {
+		panic(err.Error())
+	}
+	chainIdBytes, err := genesis.ChainID()
+	if err != nil {
+		panic("genesis block is not set properly: "+err.Error())
+	}
+	chainID := types.NewChainID()
+	err = chainID.Read(chainIdBytes)
+	if err != nil {
+		panic("invalid chainid: "+err.Error())
+	}
+	lntc.chainID = chainID
+
+	netTransport := p2p.NewNetworkTransport(cfg.P2P, lntc.Logger)
 
 	lntc.mutex.Lock()
-	lntc.signer = signer
 	lntc.nt = netTransport
 	lntc.mutex.Unlock()
 }
@@ -93,13 +114,13 @@ func (lntc *LiteContainerService) Receive(context actor.Context) {
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := lntc.nt.SelfNodeID()
-	peerMetas := make([]PeerMeta, 0, len(peers))
+	peerMetas := make([]p2p.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
-		meta := FromPeerAddress(rPeerAddr)
+		meta := p2p.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 }
@@ -121,7 +142,7 @@ func (lntc *LiteContainerService) FutureRequest(actor string, msg interface{}, t
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (lntc *LiteContainerService) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return lntc.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	return lntc.RequestToFuture(actor, msg, p2p.DefaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -132,6 +153,6 @@ func (lntc *LiteContainerService) CallRequest(actor string, msg interface{}, tim
 
 // CallRequest implement interface method of ActorService
 func (lntc *LiteContainerService) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := lntc.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	future := lntc.RequestToFuture(actor, msg, p2p.DefaultActorMsgTTL)
 	return future.Result()
 }

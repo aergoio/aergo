@@ -17,14 +17,12 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-net"
 	"sync"
-	"time"
 )
 
 // PeerMapService is
 type PolarisConnectSvc struct {
 	*component.BaseComponent
 
-	ChainID      []byte
 	PrivateChain bool
 
 	mapServers []p2p.PeerMeta
@@ -39,7 +37,6 @@ type PolarisConnectSvc struct {
 func NewPolarisConnectSvc(cfg *config.P2PConfig, ntc p2p.NTContainer) *PolarisConnectSvc {
 	pcs := &PolarisConnectSvc{
 		rwmutex:      &sync.RWMutex{},
-		PrivateChain: cfg.NPPrivateChain,
 		exposeself: cfg.NPExposeSelf,
 	}
 	pcs.BaseComponent = component.NewBaseComponent(message.MapSvc, pcs, log.NewLogger("pcs"))
@@ -47,18 +44,20 @@ func NewPolarisConnectSvc(cfg *config.P2PConfig, ntc p2p.NTContainer) *PolarisCo
 	// init
 	pcs.ntc = ntc
 	pcs.initSvc(cfg)
-	// initialize map Servers
+	// TODO need more pretty way to get chainID
+
 	return pcs
 }
 
 func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
+	pcs.PrivateChain= !pcs.ntc.ChainID().PublicNet
 	if cfg.NPUsePolaris {
 		// private network does not use public polaris
 		if !pcs.PrivateChain {
 			pcs.Logger.Info().Msg("chain is public so use default polaris for testnet.")
 			// TODO select default built-in servers
 			servers := TestnetMapServer
-			if cfg.NPMainNet {
+			if pcs.ntc.ChainID().MainNet {
 				servers = MainnetMapServer
 			}
 			for _, addrStr := range servers {
@@ -155,7 +154,8 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHa
 	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
 	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
-	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight}
+	chainBytes, _ := pcs.ntc.ChainID().Bytes()
+	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID:chainBytes}
 	// receive input
 	err = pcs.sendRequest(peerStatus, mapServerMeta, pcs.exposeself, 100, rw)
 	if err != nil {
@@ -163,11 +163,9 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHa
 	}
 	_, resp, err := pcs.readResponse(mapServerMeta, rw)
 	if err != nil {
-		pcs.SendGoAwayMsg(err.Error(), rw)
 		return nil, err
 	}
 	if resp.Status == types.ResultStatus_OK {
-		pcs.SendGoAwayMsg("response is not ok", rw)
 		return resp.Addresses, nil
 	}
 	return nil, fmt.Errorf("remote error %s", resp.Status.String())
@@ -229,15 +227,4 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 	if err != nil {
 		return
 	}
-}
-
-// send notice message and then disconnect. this routine should only run in RunPeer go routine
-func (pcs *PolarisConnectSvc) SendGoAwayMsg(message string, wt p2p.MsgWriter) error {
-	msg, err := makeGoAwayMsg(message)
-	if err != nil {
-		return err
-	}
-	wt.WriteMsg(msg)
-	time.Sleep(MsgSendDelay)
-	return nil
 }

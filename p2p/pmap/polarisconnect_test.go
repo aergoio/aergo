@@ -102,7 +102,6 @@ func TestPeerMapService_onPing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PolarisConnectSvc{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateChain:  tt.fields.PrivateNet,
 				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
@@ -146,7 +145,6 @@ func TestPeerMapService_connectAndQuery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PolarisConnectSvc{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateChain:  tt.fields.PrivateNet,
 				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
@@ -197,7 +195,6 @@ func TestPeerMapService_sendRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PolarisConnectSvc{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateChain:  tt.fields.PrivateNet,
 				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
@@ -242,7 +239,6 @@ func TestPeerMapService_readResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PolarisConnectSvc{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateChain:  tt.fields.PrivateNet,
 				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,

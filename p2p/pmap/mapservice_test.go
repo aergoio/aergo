@@ -26,15 +26,19 @@ import (
 
 type dummyNTC struct {
 	nt p2p.NetworkTransport
+	chainID *types.ChainID
 }
 
 func (dntc *dummyNTC) GetNetworkTransport() p2p.NetworkTransport {
 	return dntc.nt
 }
+func (dntc *dummyNTC) ChainID() *types.ChainID {
+	return dntc.chainID
+}
 
 var (
-	pmapDummyCfg = &config.Config{P2P:&config.P2PConfig{},Polaris:&config.PolarisConfig{}}
-	pmapDummyNTC = &dummyNTC{}
+	pmapDummyCfg = &config.Config{P2P:&config.P2PConfig{},Polaris:&config.PolarisConfig{GenesisFile:"../../examples/genesis.json"}}
+	pmapDummyNTC = &dummyNTC{chainID:&types.ChainID{}}
 )
 
 func TestPeerMapService_BeforeStop(t *testing.T) {
@@ -141,6 +145,7 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 		want    *types.MapResponse
 		wantErr bool
 	}{
+		//
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -332,7 +337,7 @@ func TestNewMapService(t *testing.T) {
 func TestPeerMapService_BeforeStart(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		ChainID       []byte
+		ChainID       *types.ChainID
 		PrivateNet    bool
 		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
@@ -352,7 +357,6 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PeerMapService{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
@@ -368,7 +372,7 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 func TestPeerMapService_AfterStart(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		ChainID       []byte
+		ChainID       *types.ChainID
 		PrivateNet    bool
 		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
@@ -388,7 +392,6 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PeerMapService{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
@@ -401,49 +404,10 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 	}
 }
 
-func TestPeerMapService_Statistics(t *testing.T) {
-	type fields struct {
-		BaseComponent *component.BaseComponent
-		ChainID       []byte
-		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
-		listen        bool
-		nt            p2p.NetworkTransport
-		hc            HealthCheckManager
-		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *map[string]interface{}
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pms := &PeerMapService{
-				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
-				PrivateNet:    tt.fields.PrivateNet,
-				ntc:           tt.fields.ntc,
-				nt:            tt.fields.nt,
-				hc:            tt.fields.hc,
-				rwmutex:       tt.fields.rwmutex,
-				peerRegistry:  tt.fields.peerRegistry,
-			}
-			if got := pms.Statistics(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PeerMapService.Statistics() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestPeerMapService_onConnect(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		ChainID       []byte
+		ChainID       *types.ChainID
 		PrivateNet    bool
 		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
@@ -467,7 +431,6 @@ func TestPeerMapService_onConnect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PeerMapService{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
@@ -483,7 +446,7 @@ func TestPeerMapService_onConnect(t *testing.T) {
 func TestPeerMapService_retrieveList(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		ChainID       []byte
+		ChainID       *types.ChainID
 		PrivateNet    bool
 		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
@@ -509,7 +472,6 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PeerMapService{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
@@ -556,7 +518,7 @@ func Test_createV030Message(t *testing.T) {
 func TestPeerMapService_getPeerCheckers(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		ChainID       []byte
+		ChainID       *types.ChainID
 		PrivateNet    bool
 		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
@@ -577,7 +539,6 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pms := &PeerMapService{
 				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
@@ -613,49 +574,6 @@ func Test_makeGoAwayMsg(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("makeGoAwayMsg() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPeerMapService_SendGoAwayMsg(t *testing.T) {
-	type fields struct {
-		BaseComponent *component.BaseComponent
-		ChainID       []byte
-		PrivateNet    bool
-		ntc           p2p.NTContainer
-		listen        bool
-		nt            p2p.NetworkTransport
-		hc            HealthCheckManager
-		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
-	}
-	type args struct {
-		message string
-		wt      p2p.MsgWriter
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pms := &PeerMapService{
-				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
-				PrivateNet:    tt.fields.PrivateNet,
-				ntc:           tt.fields.ntc,
-				nt:            tt.fields.nt,
-				hc:            tt.fields.hc,
-				rwmutex:       tt.fields.rwmutex,
-				peerRegistry:  tt.fields.peerRegistry,
-			}
-			if err := pms.SendGoAwayMsg(tt.args.message, tt.args.wt); (err != nil) != tt.wantErr {
-				t.Errorf("PeerMapService.SendGoAwayMsg() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

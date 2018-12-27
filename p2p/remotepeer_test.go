@@ -165,52 +165,6 @@ func TestePeer_sendPing(t *testing.T) {
 	}
 }
 
-// TODO sendStatus will be deleted
-func IgnoreTestRemotePeer_sendStatus(t *testing.T) {
-	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
-
-	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
-	type wants struct {
-		wantWrite bool
-	}
-	tests := []struct {
-		name        string
-		getBlockErr error
-		wants       wants
-	}{
-		{"TN", nil, wants{wantWrite: true}},
-		{"TF", sampleErr, wants{wantWrite: false}},
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-
-			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
-			mockPeerManager.On("SelfMeta").Return(sampleSelf)
-
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil)
-			p.state.SetAndGet(types.RUNNING)
-
-			go p.sendStatus()
-
-			time.Sleep(200 * time.Millisecond)
-
-			actualWrite := false
-			select {
-			case msg := <-p.dWrite:
-				assert.Equal(t, StatusRequest, msg.(msgOrder).GetProtocolID())
-				actualWrite = true
-			default:
-			}
-			assert.Equal(t, tt.wants.wantWrite, actualWrite)
-			mockActorServ.AssertNumberOfCalls(t, "CallRequest", 1)
-		})
-	}
-}
-
 func TestRemotePeer_pruneRequests(t *testing.T) {
 	tests := []struct {
 		name     string
