@@ -129,9 +129,11 @@ func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
 	p2ps.mutex.Lock()
+
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.mutex.Unlock()
+
 	if err := p2ps.pm.Start(); err != nil {
 		panic("Failed to start p2p component")
 	}
@@ -166,6 +168,21 @@ func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
+
+	// check genesis block and get meta informations from it
+	genesis := chainsvc.CDB().GetGenesisInfo()
+	chainIdBytes, err := genesis.ChainID()
+	if err != nil {
+		panic("genesis block is not set properly: "+err.Error())
+	}
+	chainID := types.NewChainID()
+	err = chainID.Read(chainIdBytes)
+	if err != nil {
+		panic("invalid chainid: "+err.Error())
+	}
+
+	cfg.P2P.NPPrivateChain = !chainID.PublicNet
+	cfg.P2P.NPMainNet = chainID.MainNet
 
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)

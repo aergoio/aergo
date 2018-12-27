@@ -33,7 +33,7 @@ func (dntc *dummyNTC) GetNetworkTransport() p2p.NetworkTransport {
 }
 
 var (
-	pmapDummyCfg = &config.P2PConfig{}
+	pmapDummyCfg = &config.Config{P2P:&config.P2PConfig{},Polaris:&config.PolarisConfig{}}
 	pmapDummyNTC = &dummyNTC{}
 )
 
@@ -309,7 +309,7 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 
 func TestNewMapService(t *testing.T) {
 	type args struct {
-		cfg    *config.P2PConfig
+		cfg    *config.Config
 		ntc    p2p.NTContainer
 		listen bool
 	}
@@ -325,47 +325,6 @@ func TestNewMapService(t *testing.T) {
 			if got := NewPolarisService(tt.args.cfg, tt.args.ntc); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPolarisService() = %v, want %v", got, tt.want)
 			}
-		})
-	}
-}
-
-func TestPeerMapService_initializeMapServers(t *testing.T) {
-	type fields struct {
-		BaseComponent *component.BaseComponent
-		ChainID       []byte
-		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
-		listen        bool
-		nt            p2p.NetworkTransport
-		hc            HealthCheckManager
-		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
-	}
-	type args struct {
-		cfg *config.P2PConfig
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pms := &PeerMapService{
-				BaseComponent: tt.fields.BaseComponent,
-				ChainID:       tt.fields.ChainID,
-				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
-				ntc:           tt.fields.ntc,
-				nt:            tt.fields.nt,
-				hc:            tt.fields.hc,
-				rwmutex:       tt.fields.rwmutex,
-				peerRegistry:  tt.fields.peerRegistry,
-			}
-			pms.initializeMapServers(tt.args.cfg)
 		})
 	}
 }
@@ -395,7 +354,6 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -432,7 +390,6 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -470,7 +427,6 @@ func TestPeerMapService_Statistics(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -513,7 +469,6 @@ func TestPeerMapService_onConnect(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -556,7 +511,6 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -625,7 +579,6 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,
@@ -670,7 +623,6 @@ func TestPeerMapService_SendGoAwayMsg(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -696,7 +648,6 @@ func TestPeerMapService_SendGoAwayMsg(t *testing.T) {
 				BaseComponent: tt.fields.BaseComponent,
 				ChainID:       tt.fields.ChainID,
 				PrivateNet:    tt.fields.PrivateNet,
-				mapServers:    tt.fields.mapServers,
 				ntc:           tt.fields.ntc,
 				nt:            tt.fields.nt,
 				hc:            tt.fields.hc,

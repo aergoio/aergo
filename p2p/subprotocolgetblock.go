@@ -140,8 +140,8 @@ func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {
 		additional := fmt.Sprintf("hashNext=%t,%s", data.HasNext,PrintHashList(data.Blocks))
-		debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, additional )
-	}
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, additional )
+}
 
 	// locate request data and remove it if found
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {

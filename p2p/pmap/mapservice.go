@@ -20,7 +20,6 @@ import (
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
-	"net"
 	"sync"
 	"time"
 )
@@ -38,6 +37,7 @@ const (
 // internal
 const (
 	PolarisConnectionTTL = time.Second * 30
+	PolarisPingTTL = PolarisConnectionTTL >> 1
 
 	// polaris will return peers list at most this number
 	ResponseMaxPeerLimit = 500
@@ -83,64 +83,31 @@ type PeerMapService struct {
 
 	ChainID    []byte
 	PrivateNet bool
+	allowPrivate bool
 
-	mapServers []p2p.PeerMeta
+	ntc p2p.NTContainer
+	nt  p2p.NetworkTransport
+	hc  HealthCheckManager
 
-	ntc    p2p.NTContainer
-	nt     p2p.NetworkTransport
-	hc     HealthCheckManager
-
-	rwmutex *sync.RWMutex
+	rwmutex      *sync.RWMutex
 	peerRegistry map[peer.ID]*peerState
 }
 
-func NewPolarisService(cfg *config.P2PConfig, ntc p2p.NTContainer) *PeerMapService {
+func NewPolarisService(cfg *config.Config, ntc p2p.NTContainer) *PeerMapService {
 	pms := &PeerMapService{
 		rwmutex:      &sync.RWMutex{},
 		peerRegistry: make(map[peer.ID]*peerState),
-		PrivateNet:   cfg.NPPrivateChain,
+		PrivateNet:   cfg.P2P.NPPrivateChain,
+		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
-	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
 
+	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
 
 	// init
 	pms.ntc = ntc
-	pms.initializeMapServers(cfg)
-	pms.hc= NewHCM(pms, pms.nt)
+	pms.hc = NewHCM(pms, pms.nt)
 	// initialize map Servers
 	return pms
-}
-
-func (pms *PeerMapService) initializeMapServers(cfg *config.P2PConfig) {
-	if cfg.NPUsePolaris {
-		// private network does not use public polaris
-		if !pms.PrivateNet {
-			// TODO select default built-in servers
-			servers := TestnetMapServer
-			for _, addrStr := range servers {
-				meta, err := p2p.FromMultiAddrString(addrStr)
-				if err != nil {
-					pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in base setting ")
-					continue
-				}
-				pms.mapServers = append(pms.mapServers, meta)
-			}
-		}
-		for _, addrStr := range cfg.NPAddPolarises {
-			meta, err := p2p.FromMultiAddrString(addrStr)
-			if err != nil {
-				pms.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in config file ")
-				continue
-			}
-			pms.mapServers = append(pms.mapServers, meta)
-		}
-
-		if len(pms.mapServers) == 0 {
-			pms.Logger.Warn().Msg("no active polaris server found. node discovery by polaris is disabled")
-		}
-	} else {
-		pms.Logger.Info().Msg("node discovery by polaris is disabled configuration.")
-	}
 }
 
 func (pms *PeerMapService) BeforeStart() {}
@@ -231,17 +198,17 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 
 	// make response
 	resp := &types.MapResponse{}
-	// check Sender
-	if !isExternalAddr(receivedMeta.IPAddress) {
-		resp.Status = types.ResultStatus_INVALID_ARGUMENT
-		return resp, nil
-	}
 	// TODO check more varification or request peer
 	// must check peer is really capable to aergosvr
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
 
 	if query.AddMe {
+		// check Sender
+		if !pms.checkConnectness(receivedMeta) {
+			resp.Status = types.ResultStatus_INVALID_ARGUMENT
+			return resp, nil
+		}
 		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, and register peer to peer registry")
 		pms.registerPeer(receivedMeta)
 	}
@@ -271,11 +238,11 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 	defer pms.rwmutex.Unlock()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		newState := &peerState{PeerMapService:pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
+		newState := &peerState{PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
 		pms.peerRegistry[peerID] = newState
 	} else {
 		pms.Logger.Info().Str("meta", prev.meta.String()).Msg("Replacing previous peer info")
-		newState := &peerState{PeerMapService:pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
+		newState := &peerState{PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
 		pms.peerRegistry[peerID] = newState
 	}
 	return nil
@@ -314,10 +281,9 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
 	default:
-				pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
+		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
 	}
 }
-
 
 func (pms *PeerMapService) onPing(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
@@ -377,36 +343,18 @@ func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2p.MsgWriter) error
 	return nil
 }
 
-func isExternalAddr(addrStr string) bool {
-	parced := net.ParseIP(addrStr)
-	if parced == nil {
+func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
+	if !pms.allowPrivate && !isExternalAddr(meta.IPAddress) {
+		pms.Logger.Debug().Str("addr",meta.IPAddress).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("peer is private address")
 		return false
 	}
-	return !isPrivateIP(parced)
-}
-
-var privateIPBlocks []*net.IPNet
-
-func init() {
-	for _, cidr := range []string{
-		"127.0.0.0/8",    // IPv4 loopback
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"::1/128",        // IPv6 loopback
-		"fe80::/10",      // IPv6 link-local
-		"fc00::/7",      // IPv6 link-local
-	} {
-		_, block, _ := net.ParseCIDR(cidr)
-		privateIPBlocks = append(privateIPBlocks, block)
+	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary:true}
+	_, err := tempState.checkConnect(PolarisPingTTL )
+	if err != nil {
+		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check was failed.")
+		return false
+	} else {
+		pms.Logger.Debug().Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check is succeeded.")
+		return true
 	}
-}
-
-func isPrivateIP(ip net.IP) bool {
-	for _, block := range privateIPBlocks {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }
