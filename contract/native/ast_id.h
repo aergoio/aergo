@@ -31,7 +31,9 @@
 
 #define is_global_id(id)            ((id)->scope == SCOPE_GLOBAL)
 #define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
-#define is_stack_id(id)             ((id)->scope == SCOPE_STACK)
+
+#define is_stack_id(id)                                                                  \
+    (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta))
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -64,7 +66,7 @@ typedef struct id_enum_s {
 
 typedef struct id_fn_s {
     array_t *param_ids;
-    array_t *ret_ids;
+    ast_id_t *ret_id;
     ast_blk_t *blk;
 
     ast_id_t *cont_id;
@@ -110,7 +112,7 @@ struct ast_id_s {
     meta_t meta;
     value_t *val;       /* constant value */
 
-    uint32_t idx;       /* local index */
+    int idx;            /* local index */
     uint32_t addr;      /* relative address */
     uint32_t offset;    /* offset (from addr) */
 };
@@ -118,7 +120,7 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, array_t *ret_ids,
+ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
                     ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos);

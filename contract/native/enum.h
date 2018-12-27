@@ -81,12 +81,12 @@ extern int type_aligns_[TYPE_MAX];
 
 typedef enum id_kind_e {
     ID_VAR          = 0,
+    ID_TUPLE,
     ID_STRUCT,
     ID_ENUM,
     ID_FN,
     ID_CONTRACT,
     ID_LABEL,
-    ID_TUPLE,
     ID_MAX
 } id_kind_t;
 
@@ -95,7 +95,6 @@ extern char *id_kinds_[ID_MAX];
 typedef enum scope_e {
     SCOPE_LOCAL     = 0,
     SCOPE_GLOBAL,
-    SCOPE_STACK,
     SCOPE_MAX
 } scope_t;
 

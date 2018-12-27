@@ -119,7 +119,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
     if (is_array_type(id_meta)) {
         ASSERT(id_meta->arr_dim > 0);
-        ASSERT(id_meta->arr_size != NULL);
+        ASSERT(id_meta->dim_sizes != NULL);
 
         if (!is_integer_type(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
@@ -127,21 +127,16 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta);
 
         if (is_lit_exp(idx_exp)) {
-            ASSERT(id_meta->arr_size != NULL);
+            ASSERT(id_meta->dim_sizes != NULL);
 
-            /* arr_size[0] can be negative if array is used as a parameter */
-            if (id_meta->arr_size[0] > 0 &&
-                val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->arr_size[0])
+            /* dim_sizes[0] can be negative if array is used as a parameter */
+            if (id_meta->dim_sizes[0] > 0 &&
+                val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
-        exp->meta.arr_dim--;
-        ASSERT(exp->meta.arr_dim >= 0);
-
-        if (exp->meta.arr_dim == 0)
-            exp->meta.arr_size = NULL;
-        else
-            exp->meta.arr_size = &exp->meta.arr_size[1];
+        /* Whenever an array element is accessed, strip it by one dimension */
+        meta_strip_arr_dim(&exp->meta);
     }
     else {
         if (!is_map_type(id_meta))
@@ -504,16 +499,15 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         type_meta = id->u_var.type_meta;
     }
     else if (is_fn_id(id)) {
-        array_t *ret_ids;
+        ast_id_t *ret_id = id->u_fn.ret_id;
 
         if (!is_struct_type(id_meta) && !is_object_type(id_meta))
             RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-        ret_ids = id->u_fn.ret_ids;
-        ASSERT(ret_ids != NULL);
-        ASSERT1(array_size(ret_ids) == 1, array_size(ret_ids));
+        ASSERT(ret_id != NULL);
+        ASSERT(!is_tuple_id(ret_id));
 
-        type_meta = &array_get_id(ret_ids, 0)->meta;
+        type_meta = &ret_id->meta;
     }
 
     if (type_meta != NULL && type_meta->name != NULL)
@@ -558,6 +552,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     param_exps = exp->u_call.param_exps;
 
     if (is_id_ref_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
+        /* In case of new map() */
         if (param_exps != NULL) {
             ast_exp_t *param_exp;
 
@@ -672,17 +667,19 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
     if (is_aggr_lit) {
         int size = 0;
-        char *raw = xmalloc(meta_size(&exp->meta));
+        char *raw = xcalloc(meta_size(&exp->meta));
 
         for (i = 0; i < array_size(exps); i++) {
             ast_exp_t *elem_exp = array_get_exp(exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
+            size = ALIGN(size, TYPE_ALIGN(elem_exp->meta.type));
+
             memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
-            size += ALIGN64(meta_size(&elem_exp->meta));
+            size += meta_size(&elem_exp->meta);
         }
 
-        ASSERT2(size == meta_size(&exp->meta), size, meta_size(&exp->meta));
+        ASSERT2(ALIGN64(size) == meta_size(&exp->meta), size, meta_size(&exp->meta));
 
         exp->kind = EXP_LIT;
         value_set_ptr(&exp->u_lit.val, raw, size);

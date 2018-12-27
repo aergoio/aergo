@@ -156,6 +156,7 @@ contract test {
         s1 a;
         string b;
     }
+    s2 v2;
 }
 
 @test(struct_array)

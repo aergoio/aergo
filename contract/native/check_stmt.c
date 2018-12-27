@@ -388,7 +388,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
                meta_cnt(fn_meta), 0);
     }
 
-    stmt->u_ret.ret_ids = fn_id->u_fn.ret_ids;
+    stmt->u_ret.ret_id = fn_id->u_fn.ret_id;
 
     return NO_ERROR;
 }

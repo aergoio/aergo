@@ -183,8 +183,8 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <blk>     blk_decl
 %type <id>      function
 %type <mod>     modifier_opt
-%type <array>   return_opt
-%type <array>   return_list
+%type <id>      return_opt
+%type <id>      return_list
 %type <id>      return_decl
 %type <stmt>    statement
 %type <stmt>    empty_stmt
@@ -335,24 +335,10 @@ var_decl:
     {
         $$ = $1;
 
-        if (is_var_id($$)) {
+        if (is_var_id($$))
             $$->u_var.dflt_exp = $3;
-            //$$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($$->name, &@1), $3, &@2);
-        }
-        else {
-			/*
-            int i;
-            array_t *exps = array_new();
-
-            for (i = 0; i < array_size(&$$->u_tup.var_ids); i++) {
-                ast_id_t *var_id = array_get_id(&$$->u_tup.var_ids, i);
-
-                array_add_last(exps, exp_new_id_ref(var_id->name, &var_id->pos));
-            }
-            $$->u_tup.dflt_stmt = stmt_new_assign(exp_new_tuple(exps, &@1), $3, &@2);
-			*/
+        else
             $$->u_tup.dflt_exp = $3;
-        }
     }
 ;
 
@@ -530,7 +516,6 @@ enumerator:
     {
         $$ = id_new_var($1, MOD_PUBLIC | MOD_CONST, &@1);
         $$->u_var.dflt_exp = $3;
-        //$$->u_var.dflt_stmt = stmt_new_assign(exp_new_id_ref($1, &@1), $3, &@2);
     }
 ;
 
@@ -670,14 +655,16 @@ return_opt:
 
 return_list:
     return_decl
-    {
-        $$ = array_new();
-        id_add($$, $1);
-    }
 |   return_list ',' return_decl
     {
-        $$ = $1;
-        id_add($$, $3);
+        if (is_tuple_id($1)) {
+            $$ = $1;
+        }
+        else {
+            $$ = id_new_tuple(&@1);
+            id_add(&$$->u_tup.var_ids, $1);
+        }
+        id_add(&$$->u_tup.var_ids, $3);
     }
 ;
 
@@ -686,7 +673,7 @@ return_decl:
     {
         char name[256];
 
-        snprintf(name, sizeof(name), "$return_%d", $1->num);
+        snprintf(name, sizeof(name), "$retvar_%d", $1->num);
 
         $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
         $$->u_var.type_meta = $1;

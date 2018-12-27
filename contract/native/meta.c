@@ -89,10 +89,18 @@ meta_set_struct(meta_t *meta, char *name, array_t *ids)
         ASSERT(elem_meta->size > 0);
 
         meta->elems[i] = elem_meta;
+        meta->size = ALIGN(meta->size, TYPE_ALIGN(elem_meta->type));
 
-        // FIXME elem_meta->offset = meta->size;
-        meta->size += ALIGN64(elem_meta->size);
+        if (is_array_type(elem_meta)) {
+            ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
+            meta->size += elem_meta->arr_size;
+        }
+        else {
+            meta->size += elem_meta->size;
+        }
     }
+
+    meta->size = ALIGN64(meta->size);
 }
 
 void
@@ -113,10 +121,18 @@ meta_set_tuple(meta_t *meta, array_t *exps)
         ASSERT(elem_meta->size > 0);
 
         meta->elems[i] = elem_meta;
+        meta->size = ALIGN(meta->size, TYPE_ALIGN(elem_meta->type));
 
-        // FIXME elem_meta->offset = meta->size;
-        meta->size += ALIGN64(elem_meta->size);
+        if (is_array_type(elem_meta)) {
+            ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
+            meta->size += elem_meta->arr_size;
+        }
+        else {
+            meta->size += elem_meta->size;
+        }
     }
+
+    meta->size = ALIGN64(meta->size);
 }
 
 static int
@@ -268,16 +284,16 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
             RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
 
         for (i = 0; i < x->arr_dim; i++) {
-            if (x->arr_size[i] != y->arr_size[i])
-                RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->arr_size[i],
-                       y->arr_size[i]);
+            if (x->dim_sizes[i] != y->dim_sizes[i])
+                RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->dim_sizes[i],
+                       y->dim_sizes[i]);
         }
     }
     else if (is_tuple_type(y)) {
-        if (x->arr_size[idx] == -1)
-            x->arr_size[idx] = y->elem_cnt;
-        else if (x->arr_size[idx] != y->elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->arr_size[idx],
+        if (x->dim_sizes[idx] == -1)
+            meta_set_dim_size(x, idx, y->elem_cnt);
+        else if (x->dim_sizes[idx] != y->elem_cnt)
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->dim_sizes[idx],
                    y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {

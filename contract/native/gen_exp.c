@@ -16,10 +16,10 @@ exp_gen_id_ref(gen_t *gen, ast_exp_t *exp)
     ast_id_t *id = exp->id;
 
     ASSERT1(is_global_id(id), id->scope);
+    ASSERT1(id->addr == 0, id->offset);
     ASSERT1(id->offset == 0, id->offset);
 
-    return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
-                        0, 0, meta_gen(&id->meta), gen_i32(gen, id->addr));
+    return BinaryenGetGlobal(gen->module, id->name, meta_gen(&id->meta));
 }
 
 static BinaryenExpressionRef
@@ -142,8 +142,7 @@ static BinaryenExpressionRef
 exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 {
     meta_t *to_meta = &exp->u_cast.to_meta;
-	/* XXX */
-    BinaryenOp op;
+    BinaryenOp op = 0;
     BinaryenExpressionRef val_exp;
 
     val_exp = exp_gen(gen, exp->u_cast.val_exp);
@@ -515,23 +514,44 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i, j = 0;
     int arg_cnt;
-    ast_id_t *fn_id = exp->id;
-    array_t *ret_ids = fn_id->u_fn.ret_ids;
+    ast_id_t *id = exp->id;
     array_t *param_exps = exp->u_call.param_exps;
+    ast_id_t *ret_id;
     BinaryenExpressionRef *arg_exps;
 
-    arg_cnt = array_size(param_exps) + array_size(ret_ids);
+    if (is_map_type(&exp->meta))
+        /* TODO */
+        return gen_i32(gen, 0);
+
+    arg_cnt = array_size(param_exps);
+    ret_id = id->u_fn.ret_id;
+
+    if (ret_id != NULL) {
+        if (is_tuple_id(ret_id))
+            arg_cnt += array_size(&ret_id->u_tup.var_ids);
+        else
+            arg_cnt++;
+    }
+
     arg_exps = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
 
     for (i = 0; i < array_size(param_exps); i++) {
         arg_exps[j++] = exp_gen(gen, array_get_exp(param_exps, i));
     }
 
-    for (i = 0; i < array_size(ret_ids); i++) {
-        arg_exps[j++] = gen_i32(gen, array_get_id(ret_ids, i)->addr);
+    if (ret_id != NULL) {
+        if (is_tuple_id(ret_id)) {
+            for (i = 0; i < array_size(&ret_id->u_tup.var_ids); i++) {
+                arg_exps[j++] =
+                    gen_i32(gen, array_get_id(&ret_id->u_tup.var_ids, i)->addr);
+            }
+        }
+        else {
+            arg_exps[j++] = gen_i32(gen, ret_id->addr);
+        }
     }
 
-    return BinaryenCall(gen->module, fn_id->name, arg_exps, arg_cnt, BinaryenTypeNone());
+    return BinaryenCall(gen->module, id->name, arg_exps, arg_cnt, BinaryenTypeNone());
 }
 
 static BinaryenExpressionRef

@@ -93,12 +93,13 @@ struct meta_s {
     AST_NODE_DECL;
 
     type_t type;
-    int size;               /* size of type */
+    int size;               /* unit size of type */
 
     char *name;             /* name of struct or contract */
 
     int arr_dim;            /* dimension of array */
-    int *arr_size;          /* size of each dimension */
+    int arr_size;           /* total size of array */
+    int *dim_sizes;         /* size of each dimension */
 
     bool is_undef;          /* whether it is literal */
 
@@ -131,9 +132,9 @@ meta_init(meta_t *meta, src_pos_t *pos)
 static inline meta_t *
 meta_new(type_t type, src_pos_t *pos)
 {
-    meta_t *meta = xcalloc(sizeof(meta_t));
+    meta_t *meta = xmalloc(sizeof(meta_t));
 
-    ast_node_init(meta, pos);
+    meta_init(meta, pos);
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
@@ -157,12 +158,39 @@ meta_set_undef(meta_t *meta)
 }
 
 static inline void
-meta_set_array(meta_t *meta, int arr_dim)
+meta_set_arr_dim(meta_t *meta, int arr_dim)
 {
-    ASSERT(arr_dim >= 0);
+    ASSERT(arr_dim > 0);
 
     meta->arr_dim = arr_dim;
-    meta->arr_size = xcalloc(sizeof(int) * arr_dim);
+    meta->arr_size = ALIGN(meta->size, TYPE_ALIGN(meta->type));
+    meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
+}
+
+static inline void
+meta_set_dim_size(meta_t *meta, int dim, int size)
+{
+    ASSERT(meta->arr_dim > 0);
+
+    meta->dim_sizes[dim] = size;
+
+    if (size > 0)
+        meta->arr_size *= size;
+}
+
+static inline void
+meta_strip_arr_dim(meta_t *meta)
+{
+    ASSERT1(meta->arr_dim > 0, meta->arr_dim);
+    ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
+
+    meta->arr_dim--;
+    meta->arr_size /= meta->dim_sizes[0];
+
+    if (meta->arr_dim == 0)
+        meta->dim_sizes = NULL;
+    else
+        meta->dim_sizes = &meta->dim_sizes[1];
 }
 
 static inline void

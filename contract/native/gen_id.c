@@ -14,65 +14,21 @@
 static void
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
-    uint32_t size;
     meta_t *meta = &id->meta;
 
-    if (is_stack_id(id))
-        return;
-
-    size = meta_size(meta);
-
-    if (is_array_type(meta)) {
-        int i;
-
-        for (i = 0; i < id->meta.arr_dim; i++) {
-            ASSERT(id->meta.arr_size[i] > 0);
-            size *= id->meta.arr_size[i];
-        }
-    }
-
     if (is_global_id(id)) {
-        BinaryenAddGlobal(gen->module, id->name, meta_gen(&id->meta), 1,
-                          exp_gen(gen, id->u_var.dflt_exp));
+        ASSERT(id->u_var.dflt_exp != NULL);
+
+        if (is_stack_id(id))
+            /* 0 is a temporary address. We will set an actual address in constructor */
+            BinaryenAddGlobal(gen->module, id->name, meta_gen(meta), 1, gen_i32(gen, 0));
+        else
+            BinaryenAddGlobal(gen->module, id->name, meta_gen(meta), 1,
+                              exp_gen(gen, id->u_var.dflt_exp));
     }
-    else {
+    else if (!is_stack_id(id)) {
         gen_add_local(gen, meta->type);
     }
-
-    /*
-    id->idx = gen_add_local(gen, meta->type);
-
-    if (dflt_exp != NULL) {
-        BinaryenExpressionRef val_exp;
-
-        if (is_lit_exp(dflt_exp)) {
-            val_exp = exp_gen(gen, dflt_exp, &dflt_exp->meta, false);
-
-            ASSERT2(BinaryenExpressionGetId(val_exp) == BinaryenConstId(),
-                    BinaryenExpressionGetId(val_exp), BinaryenConstId());
-
-            if (BinaryenExpressionGetType(val_exp) == BinaryenTypeInt32())
-                meta->addr = BinaryenConstGetValueI32(val_exp);
-            else
-                meta->addr = BinaryenConstGetValueI64(val_exp);
-
-            return BinaryenSetLocal(gen->module, id->idx, val_exp);
-        }
-        else {
-            ASSERT1(is_init_exp(dflt_exp), dflt_exp->kind);
-
-            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
-
-            gen_add_instr(gen, exp_gen(gen, dflt_exp, meta, false));
-
-            return BinaryenSetLocal(gen->module, id->idx, gen_i32(gen, meta->addr));
-        }
-    }
-    else {
-        if (!is_primitive_type(meta) || is_array_type(meta))
-            meta->addr = dsgmt_occupy(gen->dsgmt, gen->module, size);
-    }
-    */
 }
 
 static void

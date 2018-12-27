@@ -56,7 +56,6 @@ gen(ir_t *ir, flag_t flag, char *path)
     BinaryenSetDebugInfo(1);
     //BinaryenSetAPITracing(1);
 
-    /*
     for (i = 0; i < array_size(&ir->globals); i++) {
         id_gen(&gen, array_get_id(&ir->globals, i));
     }
@@ -70,7 +69,6 @@ gen(ir_t *ir, flag_t flag, char *path)
                       gen.dsgmt->lens, gen.dsgmt->size, 0);
 
     ASSERT(BinaryenModuleValidate(gen.module));
-    */
 
     if (flag_on(flag, FLAG_TEST)) {
         // XXX: temporary

@@ -28,7 +28,7 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
         exp->kind = EXP_LOCAL_REF;
         exp->u_lo.index = id->idx;
     }
-    else if (is_stack_id(id)) {
+    else {
         exp->kind = EXP_STACK_REF;
         exp->u_st.addr = id->addr;
         exp->u_st.offset = id->offset;
@@ -44,8 +44,6 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_arr.idx_exp);
 
     if (is_array_type(&id->meta)) {
-        int i;
-        int arr_size = 1;
         uint32_t offset = 0;
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
@@ -53,14 +51,13 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         if (!is_lit_exp(idx_exp))
             return;
 
-        if (is_stack_ref_exp(id_exp))
+        if (is_stack_ref_exp(id_exp)) {
+            ASSERT(is_array_type(&exp->meta));
             offset += id_exp->u_st.offset;
-
-        for (i = 0; i < exp->meta.arr_dim; i++) {
-            arr_size *= exp->meta.arr_size[i];
         }
 
-        offset += val_i64(&idx_exp->u_lit.val) * arr_size * meta_size(&exp->meta);
+        /* The following arr_size is stripped arr_size */
+        offset += val_i64(&idx_exp->u_lit.val) * exp->meta.arr_size;
 
         exp->kind = EXP_STACK_REF;
         exp->u_st.addr = id->addr;
@@ -191,26 +188,42 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     if (is_map_type(&exp->meta))
         return;
 
-    if (array_size(id->u_fn.ret_ids) > 0) {
-        int i;
-        array_t *exps = array_new();
+    if (id->u_fn.ret_id != NULL) {
+        ast_id_t *ret_id = id->u_fn.ret_id;
 
-        ASSERT(trans->fn != NULL);
+        if (is_tuple_id(ret_id)) {
+            int i;
+            array_t *exps = array_new();
+            array_t *var_ids = &ret_id->u_tup.var_ids;
 
-        for (i = 0; i < array_size(id->u_fn.ret_ids); i++) {
-            ast_id_t *ret_id = array_get_id(id->u_fn.ret_ids, i);
-            ast_exp_t *ret_exp;
+            ASSERT(trans->fn != NULL);
 
+            for (i = 0; i < array_size(var_ids); i++) {
+                ast_id_t *var_id = array_get_id(var_ids, i);
+                ast_exp_t *ref_exp;
+
+                ASSERT1(var_id->offset == 0, var_id->offset);
+
+                fn_add_stack(trans->fn, var_id);
+
+                ref_exp = exp_new_stack_ref(var_id->addr, 0, &exp->pos);
+                meta_copy(&ref_exp->meta, &var_id->meta);
+
+                array_add_last(exps, ref_exp);
+            }
+
+            exp->kind = EXP_TUPLE;
+            exp->u_tup.exps = exps;
+        }
+        else {
             fn_add_stack(trans->fn, ret_id);
 
-            ret_exp = exp_new_stack_ref(ret_id->addr, 0, &exp->pos);
-            meta_copy(&ret_exp->meta, &ret_id->meta);
+            ASSERT1(ret_id->offset == 0, ret_id->offset);
 
-            array_add_last(exps, ret_exp);
+            exp->kind = EXP_STACK_REF;
+            exp->u_st.addr = ret_id->addr;
+            exp->u_st.offset = 0;
         }
-
-        exp->kind = EXP_TUPLE;
-        exp->u_tup.exps = exps;
     }
 }
 

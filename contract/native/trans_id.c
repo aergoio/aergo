@@ -27,10 +27,13 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-    if (is_local_id(id))
+    if (is_local_id(id)) {
         fn_add_local(trans->fn, id);
-    else
+    }
+    else {
+        ASSERT2(is_stack_id(id), id->meta.type, id->meta.arr_dim);
         fn_add_stack(trans->fn, id);
+    }
 
     if (dflt_exp != NULL) {
         ast_exp_t *id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
@@ -38,11 +41,62 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         id_exp->id = id;
         meta_copy(&id_exp->meta, &id->meta);
 
-        ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type, 
+        ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type,
                 dflt_exp->meta.type);
 
         stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
 	}
+}
+
+static ast_exp_t *
+gen_dflt_exp(meta_t *meta)
+{
+    ast_exp_t *dflt_exp = exp_new_lit(&meta->pos);
+
+    if (is_array_type(meta)) {
+        value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);
+    }
+    else if (is_bool_type(meta)) {
+        value_set_bool(&dflt_exp->u_lit.val, false);
+    }
+    else if (is_fpoint_type(meta)) {
+        value_set_f64(&dflt_exp->u_lit.val, 0.0);
+    }
+    else if (is_integer_type(meta) || is_pointer_type(meta)) {
+        value_set_i64(&dflt_exp->u_lit.val, 0);
+    }
+    else {
+        ASSERT1(is_struct_type(meta), meta->type);
+        value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta_size(meta)), meta_size(meta));
+    }
+
+    meta_copy(&dflt_exp->meta, meta);
+    meta_set_undef(&dflt_exp->meta);
+
+    return dflt_exp;
+}
+
+static void
+gen_init_stmt(trans_t *trans, ast_id_t *id)
+{
+    ast_exp_t *dflt_exp, *id_exp;
+
+    ASSERT1(is_global_id(id), id->scope);
+
+    if (id->u_var.dflt_exp == NULL)
+        id->u_var.dflt_exp = gen_dflt_exp(&id->meta);
+
+    dflt_exp = id->u_var.dflt_exp;
+
+    id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
+
+    id_exp->id = id;
+    meta_copy(&id_exp->meta, &id->meta);
+
+    ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type,
+            dflt_exp->meta.type);
+
+    stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
 }
 
 static void
@@ -62,19 +116,17 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
         for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
             ast_id_t *fld_id = array_get_id(&cont_id->u_cont.blk->ids, i);
-            ast_exp_t *dflt_exp = fld_id->u_var.dflt_exp;
 
-            if (is_var_id(fld_id) && dflt_exp != NULL) {
-                ast_exp_t *id_exp = exp_new_id_ref(fld_id->name, &dflt_exp->pos);
+            if (is_var_id(fld_id)) {
+                gen_init_stmt(trans, fld_id);
+            }
+            else if (is_tuple_id(fld_id)) {
+                int i;
 
-                id_exp->id = fld_id;
-                meta_copy(&id_exp->meta, &fld_id->meta);
-
-                ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type,
-                        dflt_exp->meta.type);
-
-                stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
-			}
+                for (i = 0; i < array_size(&fld_id->u_tup.var_ids); i++) {
+                    gen_init_stmt(trans, array_get_id(&fld_id->u_tup.var_ids, i));
+                }
+            }
         }
 
         ASSERT(trans->bb == fn->entry_bb);
