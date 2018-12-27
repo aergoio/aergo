@@ -452,20 +452,6 @@ func (p *remotePeerImpl) sendPing() {
 	p.sendMessage(p.mf.newMsgRequestOrder(true, PingRequest, pingMsg))
 }
 
-// sendStatus is called once when a peer is added.()
-func (p *remotePeerImpl) sendStatus() {
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Sending status message for handshaking")
-
-	// create message data
-	statusMsg, err := createStatusMsg(p.pm, p.actorServ)
-	if err != nil {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Err(err).Msg("Cancel sending status")
-		return
-	}
-
-	p.sendMessage(p.mf.newMsgRequestOrder(false, StatusRequest, statusMsg))
-}
-
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *remotePeerImpl) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")

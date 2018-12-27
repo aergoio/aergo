@@ -8,6 +8,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
@@ -30,6 +31,9 @@ import (
 // NTContainer can provide NetworkTransport interface.
 type NTContainer interface {
 	GetNetworkTransport() NetworkTransport
+
+	// ChainID return id of current chain.
+	ChainID() *types.ChainID
 }
 
 // NetworkTransport do manager network connection
@@ -67,6 +71,7 @@ type networkTransport struct {
 	publicKey   crypto.PubKey
 	bindAddress net.IP
 	bindPort    int
+
 	selfMeta    PeerMeta
 
 	// hostInited is

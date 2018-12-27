@@ -295,7 +295,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	rw, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		pm.sendGoAway(rw, "Failed to handshake")
+		pm.sendGoAway(rw, err.Error())
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer

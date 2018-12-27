@@ -120,8 +120,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	lntc := p2p.NewNTContainer(cfg)
-	pmapSvc := pmap.NewMapService(cfg.P2P, lntc, true)
+	lntc := pmap.NewNTContainer(cfg)
+	pmapSvc := pmap.NewPolarisService(cfg, lntc)
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.

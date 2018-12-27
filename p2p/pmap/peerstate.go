@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,8 +21,8 @@ type PeerHealth int
 // PeersState
 const (
 	PeerHealth_GOOD PeerHealth = 0
-	PeerHealth_MID PeerHealth = 1
-	PeerHealth_BAD PeerHealth = 2
+	PeerHealth_MID  PeerHealth = 1
+	PeerHealth_BAD  PeerHealth = 2
 )
 
 type peerState struct {
@@ -31,6 +30,8 @@ type peerState struct {
 
 	meta p2p.PeerMeta
 	addr types.PeerAddress
+	// temporary means it does not affect current peerregistry. TODO refactor more pretty way
+	temporary bool
 
 	bestHash   []byte
 	bestNo     int64
@@ -41,9 +42,9 @@ type peerState struct {
 func (hc *peerState) health() PeerHealth {
 	// TODO make more robust if needed
 	switch {
-	case atomic.LoadInt32(&hc.contFail) == 0 :
+	case atomic.LoadInt32(&hc.contFail) == 0:
 		return PeerHealth_GOOD
-	default :
+	default:
 		return PeerHealth_BAD
 	}
 }
@@ -54,24 +55,39 @@ func (hc *peerState) lastCheck() time.Time {
 
 func (hc *peerState) check(wg *sync.WaitGroup, timeout time.Duration) {
 	defer wg.Done()
+	success, err := hc.checkConnect(timeout)
+
+	if !hc.temporary {
+		if success == nil || err != nil {
+			hc.unregisterPeer(hc.meta.ID)
+		} else if hc.health() == PeerHealth_BAD {
+			hc.unregisterPeer(hc.meta.ID)
+		}
+	}
+}
+
+func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	hc.Logger.Debug().Str(p2p.LogPeerID, hc.meta.ID.Pretty()).Msg("staring up healthcheck")
 	hc.lCheckTime = time.Now()
-	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingSub, PolarisConnectionTTL)
+	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingSub, PolarisPingTTL)
 	if err != nil {
 		hc.contFail++
 		hc.Logger.Debug().Err(err).Msg("Healthcheck failed to get network stream")
 		hc.unregisterPeer(hc.meta.ID)
-		return
+		return nil, err
 	}
 	defer s.Close()
 
-	pc := &pingChecker{peerState:hc,s:s}
-	_, err = p2putil.InvokeWithTimer(pc, time.NewTimer(timeout))
-	if err != nil {
-		hc.unregisterPeer(hc.meta.ID)
-	} else if pc.health() == PeerHealth_BAD {
-		hc.unregisterPeer(hc.meta.ID)
+	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	pc := &pingChecker{peerState: hc, rw: rw}
+	pingResp, err := p2putil.InvokeWithTimer(pc, time.NewTimer(timeout))
+	if pingResp.(*types.Ping) == nil {
+		return nil, fmt.Errorf("ping error")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return pingResp.(*types.Ping), nil
 }
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
@@ -113,41 +129,43 @@ func (hc *peerState) receivePingResp(reqID p2p.MsgID, rd p2p.MsgReader) (p2p.Mes
 	return resp, pingResp, nil
 }
 
-
 // pingChecker has ttl and will try to
 type pingChecker struct {
 	*peerState
-	s net.Stream
+	rw      p2p.MsgReadWriter
 	cancel int32
 }
 
 func (pc *pingChecker) DoCall(done chan<- interface{}) {
-	defer func(){done<-struct{}{} }()
+	var pingResp *types.Ping = nil
+	defer func() {
+		if pingResp != nil {
+			atomic.StoreInt32(&pc.contFail, 0)
+		} else {
+			atomic.AddInt32(&pc.contFail, 1)
+		}
+		done <- pingResp
+	}()
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(pc.s), bufio.NewWriter(pc.s))
-	reqID, err := pc.sendPing(rw)
+	reqID, err := pc.sendPing(pc.rw)
 	if err != nil {
-		atomic.AddInt32(&pc.contFail,1)
 		pc.Logger.Debug().Err(err).Msg("Healthcheck failed to send ping message")
 		return
 	}
 	if atomic.LoadInt32(&pc.cancel) != 0 {
-		atomic.AddInt32(&pc.contFail,1)
 		return
 	}
-	_, pingResp, err := pc.receivePingResp(reqID, rw)
+	_, pingResp, err = pc.receivePingResp(reqID, pc.rw)
 	if err != nil {
-		atomic.AddInt32(&pc.contFail,1)
 		pc.Logger.Debug().Err(err).Msg("Healthcheck failed to receive ping response")
 		return
 	}
 	if atomic.LoadInt32(&pc.cancel) != 0 {
-		atomic.AddInt32(&pc.contFail,1)
+		pingResp = nil
 		return
 	}
 
 	pc.Logger.Debug().Str(p2p.LogPeerID, pc.meta.ID.Pretty()).Interface("ping_resp", pingResp).Msg("Healthcheck finished successful")
-	atomic.StoreInt32(&pc.contFail,0)
 	return
 
 }
