@@ -55,7 +55,7 @@ You can see the current pre-testnet via aergoscan service: [aergoscan](https://a
     * Launch the pre-testnet to monitor operation environment.
     * We provide https://aergoscan.io.
 
-### 2nd: Aergo Testnet (planned in Dec, 2018)
+### 2nd: Aergo Testnet (28, Dec, 2018)
 * BFT-dPOS with Voting
   * The pre-test net has the function of agreeing blocks among the set BPs. TestNet has a function to select BP through voting.
 * Named Account
