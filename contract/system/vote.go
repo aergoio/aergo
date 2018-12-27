@@ -27,19 +27,22 @@ const PeerIDLength = 39
 const VotingDelay = 60 * 60 * 24 //block interval
 
 func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
+	oldvote, err := getVote(scs, sender.ID())
+	if err != nil {
+		return err
+	}
+
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
 	}
-	if staked.GetWhen()+VotingDelay > blockNo {
+
+	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
 		return types.ErrLessTimeHasPassed
 	}
+
 	staked.When = blockNo
 	err = setStaking(scs, sender.ID(), staked)
-	if err != nil {
-		return err
-	}
-	oldvote, err := getVote(scs, sender.ID())
 	if err != nil {
 		return err
 	}
