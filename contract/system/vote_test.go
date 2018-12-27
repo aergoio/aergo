@@ -123,8 +123,6 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	err = voting(tx.Body, sender, scs, VotingDelay-1)
-	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "voting failed")
 
 	err = voting(tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
