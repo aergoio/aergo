@@ -104,5 +104,5 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 	if address != nil {
 		return getStaking(scs, address)
 	}
-	return nil, errors.New("invalid argument : address should not nil")
+	return nil, errors.New("invalid argument: address should not be nil")
 }
