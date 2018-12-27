@@ -17,7 +17,7 @@ We are developing the most practical and powerful platform for blockchain busine
 3. Scalable architecture
 4. Connect with the world
 
-You can see the current pre-testnet via aergoscan service: [aergoscan](https://aergoscan.io)
+You can see the current testnet via aergoscan service: [aergoscan](https://aergoscan.io)
 
 ## Roadmaps
 
