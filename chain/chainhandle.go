@@ -13,6 +13,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -628,6 +629,16 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	txBody := tx.GetBody()
 
 	account := name.Resolve(bs, txBody.Account)
+
+	//TODO : after make named account cache remove below
+	if tx.NeedNameVerify() {
+		err = key.VerifyTxWithAddress(tx, account)
+		if err != nil {
+			return err
+		}
+	}
+	//TODO : remove above
+
 	sender, err := bs.GetAccountStateV(account)
 	if err != nil {
 		return err
