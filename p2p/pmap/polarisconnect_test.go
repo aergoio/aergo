@@ -60,7 +60,7 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 
 			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
-			pms := NewPolarisConnectSvc(pmapDummyCfg, pmapDummyNTC)
+			pms := NewPolarisConnectSvc(pmapDummyCfg.P2P, pmapDummyNTC)
 
 			mockNT.EXPECT().AddStreamHandler(PolarisPingSub, gomock.Any()).Times(1)
 			mockNT.EXPECT().RemoveStreamHandler(PolarisPingSub).Times(1)

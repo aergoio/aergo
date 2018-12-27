@@ -55,8 +55,12 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 	if cfg.NPUsePolaris {
 		// private network does not use public polaris
 		if !pcs.PrivateChain {
+			pcs.Logger.Info().Msg("chain is public so use default polaris for testnet.")
 			// TODO select default built-in servers
 			servers := TestnetMapServer
+			if cfg.NPMainNet {
+				servers = MainnetMapServer
+			}
 			for _, addrStr := range servers {
 				meta, err := p2p.FromMultiAddrString(addrStr)
 				if err != nil {
@@ -65,6 +69,8 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 				}
 				pcs.mapServers = append(pcs.mapServers, meta)
 			}
+		} else {
+			pcs.Logger.Info().Msg("chain is private so only using polaris in config file")
 		}
 		for _, addrStr := range cfg.NPAddPolarises {
 			meta, err := p2p.FromMultiAddrString(addrStr)
