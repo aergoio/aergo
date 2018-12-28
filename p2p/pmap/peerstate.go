@@ -30,6 +30,8 @@ type peerState struct {
 
 	meta p2p.PeerMeta
 	addr types.PeerAddress
+	connected time.Time
+
 	// temporary means it does not affect current peerregistry. TODO refactor more pretty way
 	temporary bool
 

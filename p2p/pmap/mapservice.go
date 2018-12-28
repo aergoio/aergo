@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -99,7 +100,7 @@ func NewPolarisService(cfg *config.Config, ntc p2p.NTContainer) *PeerMapService 
 		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
 
-	pms.BaseComponent = component.NewBaseComponent(message.MapSvc, pms, log.NewLogger("map"))
+	pms.BaseComponent = component.NewBaseComponent(message.PolarisSvc, pms, log.NewLogger("polaris"))
 
 	pms.ntc = ntc
 	pms.hc = NewHCM(pms, pms.nt)
@@ -108,6 +109,11 @@ func NewPolarisService(cfg *config.Config, ntc p2p.NTContainer) *PeerMapService 
 
 	// initialize map Servers
 	return pms
+}
+
+
+func (pms *PeerMapService) SetHub(hub *component.ComponentHub) {
+	pms.BaseComponent.SetHub(hub)
 }
 
 func (pms *PeerMapService) BeforeStart() {}
@@ -253,14 +259,18 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 	peerID := receivedMeta.ID
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
+	now := time.Now()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		newState := &peerState{PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
+		newState := &peerState{connected:now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
 		pms.peerRegistry[peerID] = newState
 	} else {
-		pms.Logger.Info().Str("meta", prev.meta.String()).Msg("Replacing previous peer info")
-		newState := &peerState{PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: time.Now()}
-		pms.peerRegistry[peerID] = newState
+		if prev.meta != receivedMeta {
+			pms.Logger.Info().Str("meta", prev.meta.String()).Msg("Replacing previous peer info")
+			prev.meta = receivedMeta
+			prev.addr = receivedMeta.ToPeerAddress()
+		}
+		prev.lCheckTime = now
 	}
 	return nil
 }
@@ -297,6 +307,15 @@ func createV030Message(msgID, orgID p2p.MsgID, subProtocol p2p.SubProtocol, inne
 func (pms *PeerMapService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
+	case *message.CurrentListMsg:
+		pms.Logger.Debug().Msg("Got current message")
+		context.Respond(pms.getCurrentPeers(msg))
+	case *message.WhiteListMsg:
+		pms.Logger.Debug().Msg("Got whitelist message")
+		context.Respond(pms.getWhiteList(msg))
+	case *message.BlackListMsg:
+		pms.Logger.Debug().Msg("Got blacklist message")
+		context.Respond(pms.getBlackList(msg))
 	default:
 		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
 	}
@@ -333,6 +352,48 @@ func (pms *PeerMapService) onPing(s inet.Stream) {
 
 }
 
+func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types.PolarisPeerList {
+	retSize := int(param.Size)
+	totalSize := len(pms.peerRegistry)
+	listSize := calcMinimum(retSize, totalSize, ResponseMaxPeerLimit)
+	pList := make([]*types.PolarisPeer, listSize)
+	addSize := 0
+	pms.rwmutex.Lock()
+	pms.rwmutex.Unlock()
+	for _, rPeer := range pms.peerRegistry {
+		pList[addSize] = &types.PolarisPeer{Address:&rPeer.addr, Connected:rPeer.connected.Unix(), LastCheck:rPeer.lastCheck().Unix()}
+		addSize++
+		if addSize >= listSize {
+			break
+		}
+	}
+	if addSize < listSize {
+		pList = pList[:addSize]
+	}
+	result := &types.PolarisPeerList{Peers:pList,HasNext:false, Total:uint32(totalSize)}
+	return result
+}
+
+func (pms *PeerMapService) getWhiteList(param *message.WhiteListMsg) *types.PolarisPeerList {
+	// TODO implement!
+	return &types.PolarisPeerList{}
+}
+
+func (pms *PeerMapService) getBlackList(param *message.BlackListMsg) *types.PolarisPeerList {
+	// TODO implement!
+	return &types.PolarisPeerList{}
+}
+
+
+func calcMinimum(values... int) int {
+	min := math.MaxUint32
+	for _, val := range values {
+		if min > val {
+			min = val
+		}
+	}
+	return min
+}
 func (pms *PeerMapService) getPeerCheckers() []peerChecker {
 	pms.rwmutex.Lock()
 	pms.rwmutex.Unlock()

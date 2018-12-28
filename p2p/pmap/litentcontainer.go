@@ -41,6 +41,11 @@ func NewNTContainer(cfg *config.Config) *LiteContainerService {
 	return lntc
 }
 
+
+func (lntc *LiteContainerService) SetHub(hub *component.ComponentHub) {
+	lntc.BaseComponent.SetHub(hub)
+}
+
 // BeforeStart starts p2p service.
 func (lntc *LiteContainerService) BeforeStart() {}
 
@@ -106,7 +111,8 @@ func (lntc *LiteContainerService) init(cfg *config.Config) {
 func (lntc *LiteContainerService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-
+	case time.Time:
+		lntc.Logger.Debug().Interface("time", msg.String()).Msg("why time is came?")
 	default:
 		lntc.Logger.Debug().Interface("type", msg).Msg("unexpected msg was sent")
 		// do nothing
