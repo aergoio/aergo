@@ -156,19 +156,15 @@ func (syncer *Syncer) Receive(context actor.Context) {
 	//drop garbage message
 	if !syncer.isRunning {
 		switch context.Message().(type) {
-		case *message.GetSyncAncestorRsp:
-			return
-		case *message.FinderResult:
-			return
-		case *message.GetHashesRsp:
-			return
-		case *message.GetHashByNoRsp:
-			return
-		case *message.GetBlockChunks:
-			return
-		case *message.AddBlockRsp:
-			return
-		case *message.SyncStop:
+		case *message.GetSyncAncestorRsp,
+			*message.FinderResult,
+			*message.GetHashesRsp,
+			*message.GetHashByNoRsp,
+			*message.GetBlockChunks,
+			*message.GetBlockChunksRsp,
+			*message.AddBlockRsp,
+			*message.SyncStop,
+			*message.CloseFetcher:
 			return
 		}
 	}
