@@ -22,7 +22,7 @@ const (
 
 var (
 	nilChainID = ChainID{
-		Version:     blockVersionNil,
+		Version:     0,
 		Magic:       "",
 		PublicNet:   false,
 		MainNet:     false,
