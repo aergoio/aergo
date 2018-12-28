@@ -470,9 +470,6 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 
-	if proto.Size(tx) > txMaxSize {
-		return types.ErrTxSizeExceedLimit
-	}
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
