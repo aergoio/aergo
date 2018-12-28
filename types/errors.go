@@ -34,6 +34,8 @@ var (
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 
+	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
+
 	ErrSignNotMatch = errors.New("signature not matched")
 
 	ErrCouldNotRecoverPubKey = errors.New("could not recover pubkey from sign")

@@ -42,6 +42,7 @@ var (
 	evictInterval  = time.Minute
 	evictPeriod    = time.Hour * types.DefaultEvictPeriod
 	metricInterval = time.Second
+	txMaxSize      = 200 * 1024
 )
 
 // MemPool is main structure of mempool service
@@ -468,6 +469,10 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
+
+	if proto.Size(tx) > txMaxSize {
+		return types.ErrTxSizeExceedLimit
+	}
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err

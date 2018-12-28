@@ -125,6 +125,29 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 	return &tx
 }
 
+func TestTxSize(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	var b []byte
+
+	b = make([]byte, txMaxSize)
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Nonce:     1,
+			Account:   accs[0],
+			Recipient: recipient[0],
+			Amount:    new(big.Int).SetUint64(1).Bytes(),
+			Payload:   b,
+		},
+	}
+
+	tx.Hash = tx.CalculateTxHash()
+	err := pool.put(tx)
+
+	assert.EqualError(t, err, types.ErrTxSizeExceedLimit.Error(), "wrong err")
+
+}
 func TestInvalidTransaction(t *testing.T) {
 
 	initTest(t)
