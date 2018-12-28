@@ -309,14 +309,13 @@ func (cp *chainProcessor) reorganize() error {
 	return nil
 }
 
-func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
 
 	var bestBlock *types.Block
-	var err error
 
 	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
-		return err
+		return err, false
 	}
 
 	// The newly produced block becomes stale because the more block(s) are
@@ -332,29 +331,29 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 				Hash: newBlock.BlockHash(),
 				No:   newBlock.BlockNo(),
 			},
-		}
+		}, false
 	}
 
 	if !newBlock.ValidChildOf(bestBlock) {
 		return fmt.Errorf("invalid chain id - best: %v, current: %v",
-			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID())
+			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID()), false
 	}
 
 	// Check consensus header validity
 	if err := cs.IsBlockValid(newBlock, bestBlock); err != nil {
-		return err
+		return err, false
 	}
 
 	// handle orphan
 	if cs.isOrphan(newBlock) {
 		if usedBstate != nil {
-			return fmt.Errorf("block received from BP can not be orphan")
+			return fmt.Errorf("block received from BP can not be orphan"), false
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		if err == nil {
-			return ErrBlockOrphan
+			return ErrBlockOrphan, false
 		} else {
-			return err
+			return err, false
 		}
 	}
 
@@ -367,25 +366,25 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 
 	cp, err := newChainProcessor(newBlock, usedBstate, cs)
 	if err != nil {
-		return err
+		return err, true
 	}
 
 	if err := cp.prepare(); err != nil {
-		return err
+		return err, true
 	}
 	if err := cp.execute(); err != nil {
-		return err
+		return err, true
 	}
 
 	// TODO: reorganization should be done before chain execution to avoid an
 	// unnecessary chain execution & rollback.
 	if err := cp.reorganize(); err != nil {
-		return err
+		return err, true
 	}
 
 	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("Block added successfully")
 
-	return nil
+	return nil, true
 }
 
 func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
@@ -417,8 +416,9 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return ErrBlockExist
 	}
 
-	err = cs.addBlockInternal(newBlock, usedBstate, peerID)
-	if err != nil && err != ErrBlockOrphan {
+	var needCache bool
+	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
+	if err != nil && needCache {
 		evicted := cs.errBlocks.Add(hashID, newBlock)
 		logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
 		return err
