@@ -56,22 +56,22 @@ func (l *lastSlot) set(s *slot.Slot) {
 // DPoS is the main data structure of DPoS consensus
 type DPoS struct {
 	*Status
+	consensus.ChainDB
 	*component.ComponentHub
 	bpc  *bp.Cluster
 	bf   *BlockFactory
 	quit chan interface{}
-	ca   types.ChainAccessor
 }
 
 // Status shows DPoS consensus's current status
 type bpInfo struct {
+	consensus.ChainDB
 	bestBlock *types.Block
 	slot      *slot.Slot
-	ca        types.ChainAccessor
 }
 
 func (bi *bpInfo) updateBestBLock() *types.Block {
-	block, _ := bi.ca.GetBestBlock()
+	block, _ := bi.GetBestBlock()
 	if block != nil {
 		bi.bestBlock = block
 	}
@@ -100,6 +100,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	return &DPoS{
 		Status:       NewStatus(bpc, cdb),
 		ComponentHub: hub,
+		ChainDB:      cdb,
 		bpc:          bpc,
 		bf:           NewBlockFactory(hub, quitC),
 		quit:         quitC,
@@ -140,11 +141,6 @@ func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 // BlockFactory returns the BlockFactory interface in dpos.
 func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
-}
-
-// SetChainAccessor sets dpost.ca to chainAccessor
-func (dpos *DPoS) SetChainAccessor(chainAccessor types.ChainAccessor) {
-	dpos.ca = chainAccessor
 }
 
 // SetStateDB sets sdb to the corresponding field of DPoS. This method is
@@ -218,7 +214,7 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 		return nil
 	}
 
-	block, _ := dpos.ca.GetBestBlock()
+	block, _ := dpos.GetBestBlock()
 	logger.Debug().Str("best", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).
 		Msg("GetBestBlock from BP")
 	if block == nil {
@@ -230,9 +226,9 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	}
 
 	return &bpInfo{
+		ChainDB:   dpos.ChainDB,
 		bestBlock: block,
 		slot:      s,
-		ca:        dpos.ca,
 	}
 }
 

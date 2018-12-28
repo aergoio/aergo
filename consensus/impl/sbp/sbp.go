@@ -48,27 +48,28 @@ func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
 // This can be used for testing purpose.
 type SimpleBlockFactory struct {
 	*component.ComponentHub
+	consensus.ChainDB
 	jobQueue         chan interface{}
 	blockInterval    time.Duration
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
-	ca               types.ChainAccessor
 	prevBlock        *types.Block
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub)
+		return New(cfg, hub, cdb)
 	}
 }
 
 // New returns a SimpleBlockFactory.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub) (*SimpleBlockFactory, error) {
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (*SimpleBlockFactory, error) {
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
+		ChainDB:          cdb,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
@@ -96,7 +97,7 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
-	if b, _ := s.ca.GetBestBlock(); b != nil {
+	if b, _ := s.GetBestBlock(); b != nil {
 		if s.prevBlock != nil && s.prevBlock.BlockNo() == b.BlockNo() {
 			logger.Debug().Msg("previous block not connected. skip to generate block")
 			return
@@ -142,10 +143,6 @@ func (s *SimpleBlockFactory) Save(tx db.Transaction) error {
 // BlockFactory returns s itself.
 func (s *SimpleBlockFactory) BlockFactory() consensus.BlockFactory {
 	return s
-}
-
-func (s *SimpleBlockFactory) SetChainAccessor(chainAccessor types.ChainAccessor) {
-	s.ca = chainAccessor
 }
 
 // NeedReorganization has nothing to do.

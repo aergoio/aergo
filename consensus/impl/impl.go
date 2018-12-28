@@ -35,7 +35,6 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.Cha
 		// Link mutual references.
 		cs.SetChainConsensus(c)
 		c.SetStateDB(cs.SDB())
-		c.SetChainAccessor(cs)
 	}
 
 	return c, err

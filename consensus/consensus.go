@@ -61,7 +61,6 @@ type Consensus interface {
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
-	SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
 // ChainDB is a reader interface for the ChainDB.
