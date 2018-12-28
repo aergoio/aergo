@@ -93,6 +93,8 @@ func (lntc *LiteContainerService) init(cfg *config.Config) {
 	}
 	lntc.chainID = chainID
 
+	lntc.Logger.Info().Str("genesis",chainID.ToJSON()).Msg("genesis block loaded")
+
 	netTransport := p2p.NewNetworkTransport(cfg.P2P, lntc.Logger)
 
 	lntc.mutex.Lock()

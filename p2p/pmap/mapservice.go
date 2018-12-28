@@ -133,8 +133,9 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 
 func (pms *PeerMapService) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
+	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
 	remotePeerMeta := p2p.PeerMeta{ID: peerID}
-	pms.Logger.Debug().Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
+	pms.Logger.Debug().Str("addr",remoteAddrStr).Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
@@ -203,10 +204,12 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 	// compare chainID
 	sameChain, err := pms.checkChain(query.Status.ChainID)
 	if err != nil {
+		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, receivedMeta.ID.String()).Bytes("chainid", query.Status.ChainID).Msg("err parsing chainid")
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
 		resp.Message = "invalid chainid"
 		return resp, nil
 	} else if !sameChain {
+		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("err different chain")
 		resp.Status = types.ResultStatus_UNAUTHENTICATED
 		resp.Message = "different chain"
 		return resp, nil
@@ -218,7 +221,9 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 	if query.AddMe {
 		// check Sender
 		if !pms.checkConnectness(receivedMeta) {
+			pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, but cant connect back to peer")
 			resp.Status = types.ResultStatus_INVALID_ARGUMENT
+			resp.Message = "can't connect back"
 			return resp, nil
 		}
 		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, and register peer to peer registry")
@@ -362,6 +367,10 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 		return false, err
 	}
 	sameChain := pms.ntc.ChainID().Equals(chainID)
+	if !sameChain && pms.Logger.IsDebugEnabled() {
+		pms.Logger.Debug().Str("chain_id", chainID.ToJSON()).Msg("chainid differ")
+
+	}
 	return sameChain, nil
 }
 
