@@ -549,6 +549,10 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch b
 }
 
 func (bf *BlockFetcher) handleBlockRsp(msg interface{}) error {
+	if bf == nil {
+		return nil
+	}
+
 	bf.responseCh <- msg
 	return nil
 }

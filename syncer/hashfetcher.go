@@ -246,6 +246,10 @@ func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) (bool, error) 
 }
 
 func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {
+	if hf == nil {
+		return
+	}
+
 	count := len(msg.Hashes)
 	logger.Debug().Int("count", count).
 		Uint64("prev", msg.PrevInfo.No).
