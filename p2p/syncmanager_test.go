@@ -16,6 +16,46 @@ import (
 )
 
 
+func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
+	logger := log.NewLogger("test.p2p")
+	sampleBlock := &types.Block{Hash:dummyBlockHash}
+	var blkHash BlkHash
+	copy(blkHash[:], dummyBlockHash)
+	// test if new block notice comes
+	tests := []struct {
+		name string
+		put *BlkHash
+
+		wantActorCall bool
+	}{
+		// 1. Succ : valid block hash and not exist in local
+		{"TSucc", nil, true},
+		// 2. Rare case - valid block hash but already exist in local cache
+		{"TExist", &blkHash, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockActor := new(MockActorService)
+			mockActor.On("TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockPeer := new(MockRemotePeer)
+			mockPeer.On("ID").Return(sampleMeta.ID)
+
+			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
+			if test.put != nil  {
+				target.blkCache.Add(*test.put, true)
+			}
+			target.HandleBlockProducedNotice(mockPeer, blkHash, sampleBlock )
+			if test.wantActorCall {
+				mockActor.AssertCalled(t,"TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			} else {
+				mockActor.AssertNotCalled(t, "TellRequest",mock.Anything, mock.Anything)
+			}
+		})
+	}
+}
+
+
 func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash:dummyBlockHash}
