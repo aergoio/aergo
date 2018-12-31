@@ -34,6 +34,7 @@ set(libascl_SRCS
     ir.c
     ir_fn.c
     ir_bb.c
+    ir_sgmt.c
     trans.c
     trans_id.c
     trans_blk.c
@@ -55,7 +56,6 @@ set(libascl_SRCS
     enum.c
     meta.c
     value.c
-    dsgmt.c
     util.c
     xalloc.c
     ${BISON_PARSER_OUTPUTS}

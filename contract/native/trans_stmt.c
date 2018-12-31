@@ -14,13 +14,30 @@
 #include "trans_stmt.h"
 
 static void
+stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
+{
+    exp_trans_to_lval(trans, stmt->u_exp.exp);
+    trans->is_lval = false;
+
+    if (is_call_exp(stmt->u_exp.exp)) {
+        bb_add_stmt(trans->bb, stmt);
+    }
+    else if (has_piggyback(trans->bb)) {
+        ast_stmt_t *pgback = trans->bb->pgback;
+
+        trans->bb->pgback = NULL;
+        bb_add_stmt(trans->bb, pgback);
+    }
+}
+
+static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
-    exp_trans(trans, l_exp);
-    exp_trans(trans, r_exp);
+    exp_trans_to_lval(trans, l_exp);
+    exp_trans_to_rval(trans, r_exp);
 
     if (is_tuple_exp(l_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
@@ -60,7 +77,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 
                         ASSERT(meta_cmp(&var_exp->meta, &elem_exp->meta) == 0);
 
-                        bb_add_stmt(trans->bb, 
+                        bb_add_stmt(trans->bb,
                                     stmt_new_assign(var_exp, elem_exp, &stmt->pos));
                     }
                 }
@@ -68,7 +85,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_exp = array_get_exp(var_exps, var_idx++);
                     ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
 
-                    bb_add_stmt(trans->bb, 
+                    bb_add_stmt(trans->bb,
                                 stmt_new_assign(array_get_exp(var_exps, var_idx++),
                                                 val_exp, &stmt->pos));
                 }
@@ -376,7 +393,7 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
         break;
 
     case STMT_EXP:
-        bb_add_stmt(trans->bb, stmt);
+        stmt_trans_exp(trans, stmt);
         break;
 
     case STMT_ASSIGN:

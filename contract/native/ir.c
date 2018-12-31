@@ -5,6 +5,9 @@
 
 #include "common.h"
 
+#include "ast_id.h"
+#include "ir_sgmt.h"
+
 #include "ir.h"
 
 ir_t *
@@ -15,6 +18,8 @@ ir_new(void)
     array_init(&ir->globals);
     array_init(&ir->fns);
 
+    ir->sgmt = sgmt_new();
+
     return ir;
 }
 
@@ -22,6 +27,8 @@ void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
     array_add_last(&ir->globals, id);
+
+    id->addr = sgmt_add_global(ir->sgmt, id->meta.type);
 }
 
 void

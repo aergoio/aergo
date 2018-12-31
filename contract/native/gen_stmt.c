@@ -14,12 +14,9 @@
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
-    ast_id_t *id;
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
-    BinaryenExpressionRef value;
-
-    id = l_exp->id;
-    ASSERT(id != NULL);
+    ast_id_t *id = l_exp->id;
+    BinaryenExpressionRef address, value;
 
     value = exp_gen(gen, stmt->u_assign.r_exp);
 
@@ -29,15 +26,25 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 
     if (is_id_ref_exp(l_exp)) {
+        ASSERT(false);
         ASSERT1(is_global_id(id), id->scope);
         return BinaryenSetGlobal(gen->module, id->name, value);
     }
 
-    ASSERT1(is_stack_ref_exp(l_exp), l_exp->kind);
-    ASSERT2(is_stack_id(id), id->meta.type, id->meta.arr_dim);
+    ASSERT3(is_global_id(id) || is_stack_id(id), id->scope, id->meta.type, 
+            id->meta.arr_dim);
 
-    return BinaryenStore(gen->module, sizeof(int32_t), id->offset, 0,
-                         gen_i32(gen, id->addr), value, meta_gen(&id->meta));
+    if (is_stack_ref_exp(l_exp)) {
+        address = gen_i32(gen, id->addr);
+    }
+    else {
+        gen->is_lval = true;
+        address = exp_gen(gen, l_exp);
+        gen->is_lval = false;
+    }
+
+    return BinaryenStore(gen->module, sizeof(int32_t), id->offset, 0, address, value, 
+                         meta_gen(&id->meta));
 }
 
 static BinaryenExpressionRef

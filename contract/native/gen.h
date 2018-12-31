@@ -9,7 +9,6 @@
 #include "common.h"
 
 #include "ir.h"
-#include "dsgmt.h"
 #include "binaryen-c.h"
 
 typedef struct gen_s {
@@ -25,7 +24,7 @@ typedef struct gen_s {
     int instr_cnt;
     BinaryenExpressionRef *instrs;
 
-    dsgmt_t *dsgmt;
+    bool is_lval;
 } gen_t;
 
 void gen(ir_t *ir, flag_t flag, char *path);

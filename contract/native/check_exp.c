@@ -302,6 +302,9 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     case OP_BIT_XOR:
         if (!is_integer_type(r_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
+
+        /* We need to evaluate undefined type */
+        CHECK(meta_cmp(l_meta, r_meta));
         break;
 
     case OP_RSHIFT:
@@ -374,6 +377,8 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 
     if (!is_bool_type(r_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &r_exp->pos, meta_to_str(r_meta));
+
+    CHECK(meta_cmp(l_meta, r_meta));
 
     meta_set_bool(&exp->meta);
 

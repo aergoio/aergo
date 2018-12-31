@@ -199,40 +199,48 @@ exp_clone(ast_exp_t *exp)
 
     switch (exp->kind) {
     case EXP_NULL:
-        return exp_new_null(&exp->pos);
+        res = exp_new_null(&exp->pos);
+        break;
 
     case EXP_ID_REF:
-        return exp_new_id_ref(exp->u_id.name, &exp->pos);
+        res = exp_new_id_ref(exp->u_id.name, &exp->pos);
+        break;
 
     case EXP_LIT:
         res = exp_new_lit(&exp->pos);
         res->u_lit.val = exp->u_lit.val;
-        return res;
+        break;
 
     case EXP_ARRAY:
-        return exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
-                             &exp->pos);
+        res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
+                            &exp->pos);
+        break;
 
     case EXP_CAST:
-        return exp_new_cast(exp->u_cast.to_meta.type, exp_clone(exp->u_cast.val_exp),
-                            &exp->pos);
+        res = exp_new_cast(exp->u_cast.to_meta.type, exp_clone(exp->u_cast.val_exp),
+                           &exp->pos);
+        break;
 
     case EXP_UNARY:
-        return exp_new_unary(exp->u_un.kind, exp->u_un.is_prefix,
-                             exp_clone(exp->u_un.val_exp), &exp->pos);
+        res = exp_new_unary(exp->u_un.kind, exp->u_un.is_prefix,
+                            exp_clone(exp->u_un.val_exp), &exp->pos);
+        break;
 
     case EXP_BINARY:
-        return exp_new_binary(exp->u_bin.kind, exp_clone(exp->u_bin.l_exp),
-                              exp_clone(exp->u_bin.r_exp), &exp->pos);
+        res = exp_new_binary(exp->u_bin.kind, exp_clone(exp->u_bin.l_exp),
+                             exp_clone(exp->u_bin.r_exp), &exp->pos);
+        break;
 
     case EXP_TERNARY:
-        return exp_new_ternary(exp_clone(exp->u_tern.pre_exp),
-                               exp_clone(exp->u_tern.in_exp),
-                               exp_clone(exp->u_tern.post_exp), &exp->pos);
+        res = exp_new_ternary(exp_clone(exp->u_tern.pre_exp),
+                              exp_clone(exp->u_tern.in_exp),
+                              exp_clone(exp->u_tern.post_exp), &exp->pos);
+        break;
 
     case EXP_ACCESS:
-        return exp_new_access(exp_clone(exp->u_acc.id_exp),
-                              exp_clone(exp->u_acc.fld_exp), &exp->pos);
+        res = exp_new_access(exp_clone(exp->u_acc.id_exp),
+                             exp_clone(exp->u_acc.fld_exp), &exp->pos);
+        break;
 
     case EXP_CALL:
         exps = exp->u_call.param_exps;
@@ -240,10 +248,12 @@ exp_clone(ast_exp_t *exp)
         for (i = 0; i < array_size(exps); i++) {
             array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
-        return exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
+        res = exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
+        break;
 
     case EXP_SQL:
-        return exp_new_sql(exp->u_sql.kind, exp->u_sql.sql, &exp->pos);
+        res = exp_new_sql(exp->u_sql.kind, exp->u_sql.sql, &exp->pos);
+        break;
 
     case EXP_TUPLE:
         exps = exp->u_tup.exps;
@@ -251,13 +261,17 @@ exp_clone(ast_exp_t *exp)
         for (i = 0; i < array_size(exps); i++) {
             array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
-        return exp_new_tuple(res_exps, &exp->pos);
+        res = exp_new_tuple(res_exps, &exp->pos);
+        break;
 
     default:
         ASSERT1(!"invalid expression", exp->kind);
     }
 
-    return NULL;
+    res->id = exp->id;
+    meta_copy(&res->meta, &exp->meta);
+
+    return res;
 }
 
 bool

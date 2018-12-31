@@ -216,10 +216,10 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <op>      eq_op
 %type <exp>     cmp_exp
 %type <op>      cmp_op
-%type <exp>     shift_exp
-%type <op>      shift_op
 %type <exp>     add_exp
 %type <op>      add_op
+%type <exp>     shift_exp
+%type <op>      shift_op
 %type <exp>     mul_exp
 %type <op>      mul_op
 %type <exp>     cast_exp
@@ -1028,8 +1028,8 @@ eq_op:
 ;
 
 cmp_exp:
-    shift_exp
-|   cmp_exp cmp_op shift_exp
+    add_exp
+|   cmp_exp cmp_op add_exp
     {
         $$ = exp_new_binary($2, $1, $3, &@2);
     }
@@ -1042,22 +1042,9 @@ cmp_op:
 |   CMP_GE              { $$ = OP_GE; }
 ;
 
-shift_exp:
-    add_exp
-|   shift_exp shift_op add_exp
-    {
-        $$ = exp_new_binary($2, $1, $3, &@2);
-    }
-;
-
-shift_op:
-    SHIFT_R             { $$ = OP_RSHIFT; }
-|   SHIFT_L             { $$ = OP_LSHIFT; }
-;
-
 add_exp:
-    mul_exp
-|   add_exp add_op mul_exp
+    shift_exp
+|   add_exp add_op shift_exp
     {
         $$ = exp_new_binary($2, $1, $3, &@2);
     }
@@ -1066,6 +1053,19 @@ add_exp:
 add_op:
     '+'                 { $$ = OP_ADD; }
 |   '-'                 { $$ = OP_SUB; }
+;
+
+shift_exp:
+    mul_exp
+|   shift_exp shift_op mul_exp
+    {
+        $$ = exp_new_binary($2, $1, $3, &@2);
+    }
+;
+
+shift_op:
+    SHIFT_R             { $$ = OP_RSHIFT; }
+|   SHIFT_L             { $$ = OP_LSHIFT; }
 ;
 
 mul_exp:

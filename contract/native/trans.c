@@ -22,6 +22,8 @@ trans_init(trans_t *trans, flag_t flag)
 
     trans->cont_bb = NULL;
     trans->break_bb = NULL;
+
+    trans->is_lval = false;
 }
 
 void

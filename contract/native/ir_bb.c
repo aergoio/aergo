@@ -32,7 +32,7 @@ bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
 
     array_add_last(&bb->stmts, stmt);
 
-    if (bb->pgback != NULL) {
+    if (has_piggyback(bb)) {
         array_add_last(&bb->stmts, bb->pgback);
         bb->pgback = NULL;
     }

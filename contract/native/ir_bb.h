@@ -13,6 +13,8 @@
 #include "ir.h"
 #include "binaryen-c.h"
 
+#define has_piggyback(bb)           ((bb)->pgback != NULL)
+
 #ifndef _IR_BB_T
 #define _IR_BB_T
 typedef struct ir_bb_s ir_bb_t;

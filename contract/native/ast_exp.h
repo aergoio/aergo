@@ -116,10 +116,12 @@ typedef struct exp_init_s {
 } exp_init_t;
 
 typedef struct exp_local_ref_s {
+    bool is_lval;
     uint32_t index;
 } exp_local_ref_t;
 
 typedef struct exp_stack_ref_s {
+    bool is_lval;
     uint32_t addr;
     uint32_t offset;
 } exp_stack_ref_t;

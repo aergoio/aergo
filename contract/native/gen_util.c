@@ -5,8 +5,6 @@
 
 #include "common.h"
 
-#include "gen_stmt.h"
-
 #include "gen_util.h"
 
 void
@@ -85,6 +83,20 @@ type_gen(type_t type)
     }
 
     return BinaryenTypeUnreachable();
+}
+
+void
+sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
+{
+    int i;
+    BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
+
+    for (i = 0; i < sgmt->size; i++) {
+        addrs[i] = gen_i32(gen, sgmt->addrs[i]);
+    }
+
+    BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
+                      (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 }
 
 /* end of gen_util.c */

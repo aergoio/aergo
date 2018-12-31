@@ -27,13 +27,10 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-    if (is_local_id(id)) {
-        fn_add_local(trans->fn, id);
-    }
-    else {
-        ASSERT2(is_stack_id(id), id->meta.type, id->meta.arr_dim);
+    if (is_stack_id(id))
         fn_add_stack(trans->fn, id);
-    }
+    else
+        fn_add_local(trans->fn, id);
 
     if (dflt_exp != NULL) {
         ast_exp_t *id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);

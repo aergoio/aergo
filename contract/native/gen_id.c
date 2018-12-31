@@ -16,6 +16,7 @@ id_gen_var(gen_t *gen, ast_id_t *id)
 {
     meta_t *meta = &id->meta;
 
+#if 0
     if (is_global_id(id)) {
         ASSERT(id->u_var.dflt_exp != NULL);
 
@@ -29,6 +30,9 @@ id_gen_var(gen_t *gen, ast_id_t *id)
     else if (!is_stack_id(id)) {
         gen_add_local(gen, meta->type);
     }
+#endif
+    if (is_local_id(id))
+        gen_add_local(gen, meta->type);
 }
 
 static void

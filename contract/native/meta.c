@@ -244,11 +244,11 @@ meta_cmp_type(meta_t *x, meta_t *y)
             (is_fpoint_type(x) && is_fpoint_type(y)) ||
             (is_pointer_type(x) && is_pointer_type(y))) {
             if (is_undef_type(x)) {
-                *x = *y;
+                meta_copy(x, y);
                 meta_set_undef(x);
             }
             else {
-                *y = *x;
+                meta_copy(y, x);
                 meta_set_undef(y);
             }
             return NO_ERROR;

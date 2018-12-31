@@ -9,6 +9,7 @@
 #include "ir.h"
 #include "gen_id.h"
 #include "gen_fn.h"
+#include "gen_util.h"
 
 #include "gen.h"
 
@@ -32,8 +33,6 @@ gen_init(gen_t *gen, flag_t flag, char *path)
         strcat(gen->path, WASM_EXT);
     else
         strcpy(ptr, WASM_EXT);
-
-    gen->dsgmt = dsgmt_new();
 
     gen->local_cnt = 0;
     gen->locals = NULL;
@@ -64,15 +63,19 @@ gen(ir_t *ir, flag_t flag, char *path)
         fn_gen(&gen, array_get_fn(&ir->fns, i));
     }
 
-    BinaryenSetMemory(gen.module, 1, gen.dsgmt->offset / UINT16_MAX + 1, "memory",
-                      (const char **)gen.dsgmt->datas, gen.dsgmt->addrs,
-                      gen.dsgmt->lens, gen.dsgmt->size, 0);
+    sgmt_gen(&gen, ir->sgmt);
 
-    ASSERT(BinaryenModuleValidate(gen.module));
+    //BinaryenModuleAutoDrop(gen.module);
+
+    //ASSERT(BinaryenModuleValidate(gen.module));
+    //BinaryenModuleValidate(gen.module);
 
     if (flag_on(flag, FLAG_TEST)) {
         // XXX: temporary
         //BinaryenModuleInterpret(gen.module);
+
+        BinaryenModulePrint(gen.module);
+        ASSERT(BinaryenModuleValidate(gen.module));
     }
     else {
         int buf_size = WASM_MAX_LEN * 2;

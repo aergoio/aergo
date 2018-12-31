@@ -69,11 +69,11 @@ int type_aligns_[TYPE_MAX] = {
     8,                  /* TYPE_DOUBLE */
     4,                  /* TYPE_STRING */
     4,                  /* TYPE_ACCOUNT */
-    8,                  /* TYPE_STRUCT */
+    4,                  /* TYPE_STRUCT */
     4,                  /* TYPE_MAP */
     4,                  /* TYPE_OBJECT */
     -1,                 /* TYPE_VOID */
-    8                   /* TYPE_TUPLE */
+    4                   /* TYPE_TUPLE */
 };
 
 char *id_kinds_[ID_MAX] = {
