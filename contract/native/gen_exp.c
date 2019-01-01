@@ -29,23 +29,17 @@ exp_gen_id_ref(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_local_ref(gen_t *gen, ast_exp_t *exp)
 {
-    ast_id_t *id = exp->id;
-
-    ASSERT1(is_local_id(id), id->scope);
-
-    return BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
+    return BinaryenGetLocal(gen->module, exp->u_lo.idx, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef
 exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
 {
-    ast_id_t *id = exp->id;
+    meta_t *meta = &exp->meta;
 
-    ASSERT3(is_global_id(id) || is_stack_id(id), id->scope, id->meta.type,
-            id->meta.arr_dim);
-
-    return BinaryenLoad(gen->module, meta_size(&id->meta), is_signed_type(&id->meta),
-                        id->offset, 0, meta_gen(&id->meta), gen_i32(gen, id->addr));
+    return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
+                        exp->u_st.offset, 0, meta_gen(meta),
+                        gen_i32(gen, exp->u_st.addr));
 }
 
 static BinaryenExpressionRef
@@ -116,8 +110,8 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             ASSERT1(is_stack_ref_exp(exp->u_arr.id_exp), exp->u_arr.id_exp->kind);
             ASSERT(id->addr >= 0);
 
-            /* BinaryenLoad() takes an offset as uint32_t, 
-             * and if idx_exp is a local variable, we does not know the offset, 
+            /* BinaryenLoad() takes an offset as uint32_t,
+             * and if idx_exp is a local variable, we does not know the offset,
              * so we add the offset to the address and loads it */
 
             if (is_int64_type(&idx_exp->meta) || is_uint64_type(&idx_exp->meta)) {
@@ -350,6 +344,7 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
         break;
 
     case OP_BIT_AND:
+    case OP_AND:
         if (is_int64_type(meta) || is_uint64_type(meta))
             op = BinaryenAndInt64();
         else
@@ -357,6 +352,7 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
         break;
 
     case OP_BIT_OR:
+    case OP_OR:
         if (is_int64_type(meta) || is_uint64_type(meta))
             op = BinaryenOrInt64();
         else
@@ -470,12 +466,6 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
             op = BinaryenGeUInt32();
         break;
 
-    case OP_AND:
-        break;
-
-    case OP_OR:
-        break;
-
     default:
         ASSERT1(!"invalid operator", exp->u_bin.kind);
     }
@@ -574,7 +564,8 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_sql(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenNop(gen->module);
+    /* TODO */
+    return gen_i32(gen, 0);
 }
 
 static BinaryenExpressionRef

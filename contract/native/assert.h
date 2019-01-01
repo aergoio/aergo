@@ -29,7 +29,7 @@
 #define ASSERT3(cond, p1, p2, p3)                                                        \
     do {                                                                                 \
         if (!(cond))                                                                     \
-            assert_exit(#cond, __SOURCE__, 2, #p1, sizeof(p1), p1, #p2, sizeof(p2), p2,  \
+            assert_exit(#cond, __SOURCE__, 3, #p1, sizeof(p1), p1, #p2, sizeof(p2), p2,  \
                         #p3, sizeof(p3), p3);                                            \
     } while (0)
 

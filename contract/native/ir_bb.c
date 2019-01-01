@@ -17,8 +17,7 @@ bb_new(void)
 
     array_init(&bb->stmts);
     array_init(&bb->brs);
-
-    bb->pgback = NULL;
+    array_init(&bb->pgbacks);
 
     bb->rb = NULL;
 
@@ -33,8 +32,8 @@ bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
     array_add_last(&bb->stmts, stmt);
 
     if (has_piggyback(bb)) {
-        array_add_last(&bb->stmts, bb->pgback);
-        bb->pgback = NULL;
+        array_join_last(&bb->stmts, &bb->pgbacks);
+        array_reset(&bb->pgbacks);
     }
 }
 
@@ -58,11 +57,11 @@ bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb)
 }
 
 void
-bb_set_piggyback(ir_bb_t *bb, ast_stmt_t *stmt)
+bb_add_piggyback(ir_bb_t *bb, ast_stmt_t *stmt)
 {
-    ASSERT(bb->pgback == NULL);
+    ASSERT(stmt != NULL);
 
-    bb->pgback = stmt;
+    array_add_last(&bb->pgbacks, stmt);
 }
 
 /* end of ir_bb.c */

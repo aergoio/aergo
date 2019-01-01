@@ -286,7 +286,6 @@ static int
 stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 {
     int i, j;
-    bool has_default = false;
     ast_blk_t *blk;
     ast_exp_t *cond_exp;
 
@@ -303,10 +302,10 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
         ASSERT1(is_case_stmt(case_stmt), case_stmt->kind);
 
         if (val_exp == NULL) {
-            if (has_default)
+            if (stmt->u_sw.has_dflt)
                 RETURN(ERROR_DUPLICATED_LABEL, &case_stmt->pos, "default");
 
-            has_default = true;
+            stmt->u_sw.has_dflt = true;
         }
         else {
             for (j = i + 1; j < array_size(&blk->stmts); j++) {

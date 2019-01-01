@@ -23,10 +23,14 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
         bb_add_stmt(trans->bb, stmt);
     }
     else if (has_piggyback(trans->bb)) {
-        ast_stmt_t *pgback = trans->bb->pgback;
+        int i;
+        array_t *pgbacks = &trans->bb->pgbacks;
 
-        trans->bb->pgback = NULL;
-        bb_add_stmt(trans->bb, pgback);
+        for (i = 0; i < array_size(pgbacks); i++) {
+            bb_add_stmt(trans->bb, array_get_stmt(pgbacks, i));
+        }
+
+        array_reset(pgbacks);
     }
 }
 
@@ -35,6 +39,9 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
+
+    /* TODO: When assigning to a struct variable, 
+     * we must replace it with an assignment for each field */ 
 
     exp_trans_to_lval(trans, l_exp);
     exp_trans_to_rval(trans, r_exp);
@@ -160,6 +167,9 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 
         fn_add_basic_blk(trans->fn, trans->bb);
     }
+    else {
+        bb_add_branch(prev_bb, NULL, next_bb);
+    }
 
     trans->bb = next_bb;
 }
@@ -167,6 +177,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 {
+    ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *cond_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
@@ -189,9 +200,9 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
         stmt_trans(trans, stmt->u_loop.init_stmt);
 
     /* previous basic block */
-    bb_add_branch(trans->bb, NULL, cond_bb);
+    bb_add_branch(prev_bb, NULL, cond_bb);
 
-    fn_add_basic_blk(trans->fn, trans->bb);
+    fn_add_basic_blk(trans->fn, prev_bb);
 
     trans->bb = cond_bb;
 
@@ -213,10 +224,6 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
         /* make loop using self block in case of an empty loop without loop_exp */
         bb_add_branch(cond_bb, NULL, cond_bb);
     }
-
-    /* If there is no branch in the loop, cond_bb and trans-> bb may be the same */
-    if (cond_bb != trans->bb)
-        fn_add_basic_blk(trans->fn, cond_bb);
 
     trans->bb = next_bb;
 }
@@ -307,6 +314,9 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
         }
     }
 
+    if (!stmt->u_sw.has_dflt)
+        bb_add_branch(prev_bb, NULL, next_bb);
+
     trans->break_bb = NULL;
     trans->bb = next_bb;
 }
@@ -339,12 +349,23 @@ stmt_trans_continue(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_break(trans_t *trans, ast_stmt_t *stmt)
 {
+    ir_bb_t *next_bb = bb_new();
+
     ASSERT(trans->break_bb != NULL);
 
-    bb_add_branch(trans->bb, NULL, trans->break_bb);
+    if (stmt->u_jump.cond_exp != NULL) {
+        exp_trans(trans, stmt->u_jump.cond_exp);
+
+        bb_add_branch(trans->bb, stmt->u_jump.cond_exp, trans->break_bb);
+        bb_add_branch(trans->bb, NULL, next_bb);
+    }
+    else {
+        bb_add_branch(trans->bb, NULL, trans->break_bb);
+    }
+
     fn_add_basic_blk(trans->fn, trans->bb);
 
-    trans->bb = NULL;
+    trans->bb = next_bb;
 }
 
 static void

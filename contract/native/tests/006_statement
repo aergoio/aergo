@@ -249,6 +249,7 @@ contract test {
 
     test() {
         if (0 == 0) { }
+        /*
 
         if (!true) {
             v2 = "this is if";
@@ -264,6 +265,7 @@ contract test {
         } else {
             v2 = "don't care";
         }
+        */
     }
 }
 

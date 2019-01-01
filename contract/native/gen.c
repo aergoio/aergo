@@ -74,7 +74,7 @@ gen(ir_t *ir, flag_t flag, char *path)
         // XXX: temporary
         //BinaryenModuleInterpret(gen.module);
 
-        BinaryenModulePrint(gen.module);
+        //BinaryenModulePrint(gen.module);
         ASSERT(BinaryenModuleValidate(gen.module));
     }
     else {

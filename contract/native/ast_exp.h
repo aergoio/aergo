@@ -117,7 +117,7 @@ typedef struct exp_init_s {
 
 typedef struct exp_local_ref_s {
     bool is_lval;
-    uint32_t index;
+    uint32_t idx;
 } exp_local_ref_t;
 
 typedef struct exp_stack_ref_s {
@@ -169,7 +169,7 @@ ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *pos
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *exps, src_pos_t *pos);
-ast_exp_t *exp_new_local_ref(uint32_t index, src_pos_t *pos);
+ast_exp_t *exp_new_local_ref(uint32_t idx, src_pos_t *pos);
 ast_exp_t *exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);

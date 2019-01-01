@@ -38,7 +38,7 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
 
         exp->kind = EXP_LOCAL_REF;
         exp->u_lo.is_lval = trans->is_lval;
-        exp->u_lo.index = id->idx;
+        exp->u_lo.idx = id->idx;
     }
 }
 
@@ -127,39 +127,39 @@ static void
 exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 {
     bool is_lval = trans->is_lval;
-    ast_exp_t *rval_exp = exp->u_un.val_exp;
-    ast_exp_t *lval_exp, *bi_exp, *lit_exp;
+    ast_exp_t *val_exp = exp->u_un.val_exp;
+    ast_exp_t *var_exp, *bi_exp, *lit_exp;
 
     switch (exp->u_un.kind) {
     case OP_INC:
     case OP_DEC:
-        lval_exp = exp_clone(rval_exp);
+        var_exp = exp_clone(val_exp);
 
-        exp_trans_to_lval(trans, lval_exp);
-        exp_trans_to_rval(trans, rval_exp);
+        exp_trans_to_lval(trans, var_exp);
+        exp_trans_to_rval(trans, val_exp);
 
         trans->is_lval = is_lval;
 
         lit_exp = exp_new_lit(&exp->pos);
         value_set_i64(&lit_exp->u_lit.val, 1);
 
-        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, rval_exp,
+        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp,
                                 lit_exp, &exp->pos);
 
-        meta_copy(&lit_exp->meta, &rval_exp->meta);
-        meta_copy(&bi_exp->meta, &rval_exp->meta);
+        meta_copy(&lit_exp->meta, &val_exp->meta);
+        meta_copy(&bi_exp->meta, &val_exp->meta);
 
-        bb_set_piggyback(trans->bb, stmt_new_assign(lval_exp, bi_exp, &exp->pos));
+        bb_add_piggyback(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
 
         if (exp->u_un.is_prefix)
             *exp = *bi_exp;
         else
-            *exp = *rval_exp;
+            *exp = *val_exp;
         break;
 
     case OP_NEG:
     case OP_NOT:
-        exp_trans(trans, rval_exp);
+        exp_trans(trans, val_exp);
         break;
 
     default:
@@ -208,9 +208,6 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *qual_id = exp->u_acc.id_exp->id;
     ast_id_t *fld_id = exp->id;
-
-    exp_trans(trans, exp->u_acc.id_exp);
-    exp_trans(trans, exp->u_acc.fld_exp);
 
     if (is_fn_id(fld_id))
         /* we will transform this to call expression in the generator */
@@ -302,6 +299,8 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 void
 exp_trans(trans_t *trans, ast_exp_t *exp)
 {
+    ASSERT(exp != NULL);
+
     switch (exp->kind) {
     case EXP_NULL:
         return;

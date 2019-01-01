@@ -82,6 +82,7 @@ typedef struct stmt_loop_s {
 typedef struct stmt_switch_s {
     ast_exp_t *cond_exp;
     ast_blk_t *blk;
+    bool has_dflt;
 } stmt_switch_t;
 
 typedef struct stmt_case_s {

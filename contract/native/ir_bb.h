@@ -13,7 +13,7 @@
 #include "ir.h"
 #include "binaryen-c.h"
 
-#define has_piggyback(bb)           ((bb)->pgback != NULL)
+#define has_piggyback(bb)           (array_size(&(bb)->pgbacks) > 0)
 
 #ifndef _IR_BB_T
 #define _IR_BB_T
@@ -28,8 +28,7 @@ typedef struct ir_br_s {
 struct ir_bb_s {
     array_t stmts;
     array_t brs;
-
-    ast_stmt_t *pgback;
+    array_t pgbacks;
 
     RelooperBlockRef rb;
 };
@@ -39,6 +38,6 @@ ir_bb_t *bb_new(void);
 void bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt);
 void bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb);
 
-void bb_set_piggyback(ir_bb_t *bb, ast_stmt_t *stmt);
+void bb_add_piggyback(ir_bb_t *bb, ast_stmt_t *stmt);
 
 #endif /* no _IR_BB_H */

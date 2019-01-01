@@ -166,11 +166,11 @@ exp_new_init(array_t *exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_local_ref(uint32_t index, src_pos_t *pos)
+exp_new_local_ref(uint32_t idx, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LOCAL_REF, pos);
 
-    exp->u_lo.index = index;
+    exp->u_lo.idx = idx;
 
     return exp;
 }
