@@ -11,6 +11,7 @@ extern const int *getLuaExecContext(lua_State *L);
 static const char *contract_str = "contract";
 static const char *call_str = "call";
 static const char *delegatecall_str = "delegatecall";
+static const char *deploy_str = "deploy";
 static const char *amount_str = "amount";
 static const char *fee_str = "fee";
 
@@ -28,9 +29,9 @@ static void reset_amount_info (lua_State *L)
 	lua_setfield(L, 1, fee_str);
 }
 
-static int call_value(lua_State *L)
+static int set_value(lua_State *L, const char *str)
 {
-	set_call_obj(L, call_str);
+	set_call_obj(L, str);
 	if (lua_isnil(L, 1)) {
 		return 1;
 	}
@@ -53,14 +54,15 @@ static int call_value(lua_State *L)
 		luaL_error(L, "invalid input");
 	}
 	lua_setfield(L, -2, amount_str);
+
 	return 1;
 }
 
-static int call_gas(lua_State *L)
+static int set_gas(lua_State *L, const char *str)
 {
 	lua_Integer gas;
 
-	set_call_obj(L, call_str);
+	set_call_obj(L, str);
 	if (lua_isnil(L, 1)) {
 		return 1;
 	}
@@ -70,7 +72,18 @@ static int call_gas(lua_State *L)
 	}
 	lua_pushinteger(L, gas);
 	lua_setfield(L, -2, fee_str);
+
 	return 1;
+}
+
+static int call_value(lua_State *L)
+{
+    return set_value(L, call_str);
+}
+
+static int call_gas(lua_State *L)
+{
+    return set_gas(L, call_str);
 }
 
 static int moduleCall(lua_State *L)
@@ -118,19 +131,7 @@ static int moduleCall(lua_State *L)
 
 static int delegate_call_gas(lua_State *L)
 {
-	lua_Integer gas;
-
-	set_call_obj(L, delegatecall_str);
-	if (lua_isnil(L, 1)) {
-		return 1;
-	}
-	gas = luaL_checkinteger(L, 1);
-	if (gas < 0) {
-		luaL_error(L, "invalid number");
-	}
-	lua_pushinteger(L, gas);
-	lua_setfield(L, -2, fee_str);
-	return 1;
+    return set_gas(L, delegatecall_str);
 }
 
 static int moduleDelegateCall(lua_State *L)
@@ -261,6 +262,44 @@ static int modulePcall(lua_State *L)
 	return lua_gettop(L);
 }
 
+static int deploy_value(lua_State *L)
+{
+    return set_value(L, deploy_str);
+}
+
+static int moduleDeploy(lua_State *L)
+{
+	char *contract;
+	char *fname;
+	char *json_args;
+	int ret;
+	int *service = (int *)getLuaExecContext(L);
+	char *amount;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+	lua_getfield(L, 1, amount_str);
+	if (lua_isnil(L, -1))
+		amount = NULL;
+	else
+		amount = (char *)luaL_checkstring(L, -1);
+	lua_pop(L, 1);
+	contract = (char *)luaL_checkstring(L, 2);
+	json_args = lua_util_get_json_from_stack (L, 3, lua_gettop(L), false);
+	if (json_args == NULL) {
+		lua_error(L);
+	}
+	if ((ret = LuaDeployContract(L, service, contract, json_args, amount)) < 0) {
+		free(json_args);
+		lua_error(L);
+	}
+	free(json_args);
+	reset_amount_info(L);
+	return ret;
+}
+
 static const luaL_Reg call_methods[] = {
 	{"value", call_value},
 	{"gas", call_gas},
@@ -282,6 +321,16 @@ static const luaL_Reg delegate_call_meta[] = {
 	{NULL, NULL}
 };
 
+static const luaL_Reg deploy_call_methods[] = {
+	{"value", deploy_value},
+	{NULL, NULL}
+};
+
+static const luaL_Reg deploy_call_meta[] = {
+	{"__call", moduleDeploy},
+	{NULL, NULL}
+};
+
 static const luaL_Reg contract_lib[] = {
 	{"balance", moduleBalance},
 	{"send", moduleSend},
@@ -298,12 +347,20 @@ int luaopen_contract(lua_State *L)
 	luaL_register(L, NULL, call_meta);
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, call_str);
+
 	lua_createtable(L, 0, 2);
 	luaL_register(L, NULL, delegate_call_methods);
 	lua_createtable(L, 0, 1);
 	luaL_register(L, NULL, delegate_call_meta);
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, delegatecall_str);
+
+	lua_createtable(L, 0, 2);
+	luaL_register(L, NULL, deploy_call_methods);
+	lua_createtable(L, 0, 1);
+	luaL_register(L, NULL, deploy_call_meta);
+	lua_setmetatable(L, -2);
+	lua_setfield(L, -2, deploy_str);
 	lua_pop(L, 1);
 	return 1;
 }

@@ -2919,4 +2919,129 @@ abi.payable(constructor)
 	}
 }
 
+func TestDeploy(t *testing.T) {
+	deploy := `
+function hello()
+	hello = [[
+	function hello(say) 
+		return "Hello " .. say 
+	end 
+	abi.register(hello)
+	]]
+	addr = contract.deploy(hello)
+	ret = contract.call(addr, "hello", "world")
+	return addr, ret
+end
+
+function helloQuery(addr)
+	return contract.call(addr, "hello", "world")
+end
+
+function testConst()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function constructor(key, item) 
+			system.setItem(key, item)
+			return key, item
+		end 
+		abi.register(hello) 
+		abi.payable(constructor)
+	]]
+	addr, key, item = contract.deploy.value(100)(src, "key", 2)
+	ret = contract.call(addr, "hello", "world", "key")
+	return addr, ret
+end
+
+function testFail()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function constructor()
+		end 
+		abi.register(hello) 
+	]]
+	addr = contract.deploy.value(100)(src)
+	return addr
+end
+ 
+paddr = nil
+function deploy()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function getcre()
+			return system.getCreator()
+		end
+		function constructor()
+		end 
+		abi.register(hello, getcre) 
+	]]
+	paddr = contract.deploy(src)
+	system.print("addr :", paddr)
+	ret = contract.call(paddr, "hello", "world", "key")
+end
+
+function testPcall()
+	ret = contract.pcall(deploy)
+	system.print(paddr, ret)
+	system.print(contract.call(paddr, "getcre"))
+end
+function constructor()
+end
+
+abi.register(hello, helloQuery, testConst, testFail, testPcall)
+abi.payable(constructor)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf","Hello world"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("deploy", `{"Name":"helloQuery", "Args":["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"]}`, "", `"Hello world"`)
+	if err != nil {
+		t.Error(err)
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testConst"}`)
+	err = bc.ConnectBlock(tx)
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","Hello world2"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	deployAcc, err := bc.GetAccountState("deploy")
+	if err != nil {
+		t.Error(err)
+	}
+	if deployAcc.GetBalanceBigInt().Uint64() != uint64(49999999900) {
+		t.Error(deployAcc.GetBalanceBigInt().Uint64())
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testFail"}`)
+	err = bc.ConnectBlock(tx)
+	deployAcc, err = bc.GetAccountState("deploy")
+	if err != nil && deployAcc.Nonce == 2 {
+		t.Error(err)
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testPcall"}`)
+	err = bc.ConnectBlock(tx)
+	deployAcc, err = bc.GetAccountState("deploy")
+	if err != nil && deployAcc.Nonce == 2 {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
