@@ -5,7 +5,7 @@ var freeCh chan *LState
 
 const MAX_LSTATE_SIZE = 100
 
-func init() {
+func StartLStateFactory() {
 	getCh = make(chan *LState, MAX_LSTATE_SIZE)
 	freeCh = make(chan *LState, MAX_LSTATE_SIZE)
 

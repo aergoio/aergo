@@ -112,6 +112,8 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 
 	initChainEnv(core.cdb.GetGenesisInfo())
 
+	contract.StartLStateFactory()
+
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
