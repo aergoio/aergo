@@ -9,6 +9,8 @@
 #include "common.h"
 
 #define is_null_val(val)            ((val)->size == 0)
+#define is_signed_val(val)          ((val)->is_neg)
+
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
 #define is_i64_val(val)             ((val)->type == TYPE_UINT64)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)

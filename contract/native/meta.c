@@ -89,7 +89,7 @@ meta_set_struct(meta_t *meta, char *name, array_t *ids)
         ASSERT(elem_meta->size > 0);
 
         meta->elems[i] = elem_meta;
-        meta->size = ALIGN(meta->size, TYPE_ALIGN(elem_meta->type));
+        meta->size = ALIGN(meta->size, meta_align(elem_meta));
 
         if (is_array_type(elem_meta)) {
             ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
@@ -121,7 +121,7 @@ meta_set_tuple(meta_t *meta, array_t *exps)
         ASSERT(elem_meta->size > 0);
 
         meta->elems[i] = elem_meta;
-        meta->size = ALIGN(meta->size, TYPE_ALIGN(elem_meta->type));
+        meta->size = ALIGN(meta->size, meta_align(elem_meta));
 
         if (is_array_type(elem_meta)) {
             ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
@@ -136,7 +136,74 @@ meta_set_tuple(meta_t *meta, array_t *exps)
 }
 
 static int
-meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
+meta_cmp_map(meta_t *x, meta_t *y)
+{
+    ASSERT1(x->elem_cnt == 2, x->elem_cnt);
+
+    if (is_object_type(y))
+        /* TODO: null value check */
+        return NO_ERROR;
+
+    if (is_map_type(y)) {
+        CHECK(meta_cmp(x->elems[0], y->elems[0]));
+        CHECK(meta_cmp(x->elems[1], y->elems[1]));
+    }
+    else if (is_tuple_type(y)) {
+        int i, j;
+
+        /* y is a tuple of key-value pairs */
+        for (i = 0; i < y->elem_cnt; i++) {
+            meta_t *y_elem = y->elems[i];
+
+            if (!is_tuple_type(y_elem))
+                RETURN(ERROR_MISMATCHED_TYPE, &y_elem->pos, meta_to_str(x),
+                       meta_to_str(y_elem));
+
+            if (x->elem_cnt != y_elem->elem_cnt)
+                RETURN(ERROR_MISMATCHED_COUNT, &y_elem->pos, "key-value",
+                       x->elem_cnt, y_elem->elem_cnt);
+
+            for (j = 0; j < x->elem_cnt; j++) {
+                CHECK(meta_cmp(x->elems[j], y_elem->elems[j]));
+            }
+        }
+    }
+    else {
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
+    }
+
+    return NO_ERROR;
+}
+
+static int
+meta_cmp_struct(meta_t *x, meta_t *y)
+{
+    if (is_struct_type(y)) {
+        ASSERT(x->name != NULL);
+        ASSERT(y->name != NULL);
+
+        if (strcmp(x->name, y->name) != 0)
+            RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
+    }
+    else if (is_tuple_type(y)) {
+        int i;
+
+        if (x->elem_cnt != y->elem_cnt)
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "field", x->elem_cnt, y->elem_cnt);
+
+        for (i = 0; i < x->elem_cnt; i++) {
+            CHECK(meta_cmp(x->elems[i], y->elems[i]));
+        }
+    }
+    else {
+        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
+    }
+
+    return NO_ERROR;
+}
+
+static int
+meta_cmp_tuple(meta_t *x, meta_t *y)
 {
     int i;
 
@@ -147,7 +214,7 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
         int y_elem_cnt = 0;
 
         if (x->elem_cnt < y->elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y->elem_cnt);
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->elem_cnt, y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
             if (is_tuple_type(y->elems[i]))
@@ -157,7 +224,7 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
         }
 
         if (x->elem_cnt != y_elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, kind, x->elem_cnt, y_elem_cnt);
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->elem_cnt, y_elem_cnt);
     }
 
     if (x->elem_cnt == y->elem_cnt) {
@@ -188,71 +255,14 @@ meta_cmp_tuple(meta_t *x, meta_t *y, char *kind)
 }
 
 static int
-meta_cmp_map(meta_t *x, meta_t *y)
-{
-    ASSERT1(x->elem_cnt == 2, x->elem_cnt);
-
-    if (is_object_type(y))
-        /* TODO: null value check */
-        return NO_ERROR;
-
-    if (is_map_type(y)) {
-        CHECK(meta_cmp(x->elems[0], y->elems[0]));
-        CHECK(meta_cmp(x->elems[1], y->elems[1]));
-    }
-    else if (is_tuple_type(y)) {
-        int i;
-
-        /* y is a tuple of key-value pairs */
-        for (i = 0; i < y->elem_cnt; i++) {
-            CHECK(meta_cmp_tuple(x, y->elems[i], "key-value"));
-        }
-    }
-    else {
-        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
-    }
-
-    return NO_ERROR;
-}
-
-static int
-meta_cmp_struct(meta_t *x, meta_t *y)
-{
-    if (is_struct_type(y)) {
-        ASSERT(x->name != NULL);
-        ASSERT(y->name != NULL);
-
-        if (strcmp(x->name, y->name) != 0)
-            RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
-    }
-    else if (is_tuple_type(y)) {
-        return meta_cmp_tuple(x, y, "field");
-    }
-    else {
-        RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
-    }
-
-    return NO_ERROR;
-}
-
-static int
 meta_cmp_type(meta_t *x, meta_t *y)
 {
     if (is_undef_type(x) || is_undef_type(y)) {
         if (x->type == y->type ||
             (is_integer_type(x) && is_integer_type(y)) ||
             (is_fpoint_type(x) && is_fpoint_type(y)) ||
-            (is_pointer_type(x) && is_pointer_type(y))) {
-            if (is_undef_type(x)) {
-                meta_copy(x, y);
-                meta_set_undef(x);
-            }
-            else {
-                meta_copy(y, x);
-                meta_set_undef(y);
-            }
+            (is_pointer_type(x) && is_pointer_type(y)))
             return NO_ERROR;
-        }
 
         RETURN(ERROR_MISMATCHED_TYPE, &y->pos, meta_to_str(x), meta_to_str(y));
     }
@@ -261,7 +271,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
         return meta_cmp_map(x, y);
 
     if (is_tuple_type(x))
-        return meta_cmp_tuple(x, y, "element");
+        return meta_cmp_tuple(x, y);
 
     if (is_struct_type(x))
         return meta_cmp_struct(x, y);
@@ -273,7 +283,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
 }
 
 static int
-meta_cmp_array(meta_t *x, int idx, meta_t *y)
+meta_cmp_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
@@ -290,15 +300,15 @@ meta_cmp_array(meta_t *x, int idx, meta_t *y)
         }
     }
     else if (is_tuple_type(y)) {
-        if (x->dim_sizes[idx] == -1)
-            meta_set_dim_size(x, idx, y->elem_cnt);
-        else if (x->dim_sizes[idx] != y->elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->dim_sizes[idx],
+        if (x->dim_sizes[dim] == -1)
+            meta_set_dim_size(x, dim, y->elem_cnt);
+        else if (x->dim_sizes[dim] != y->elem_cnt)
+            RETURN(ERROR_MISMATCHED_COUNT, &y->pos, "element", x->dim_sizes[dim],
                    y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
-            if (idx < x->arr_dim - 1)
-                CHECK(meta_cmp_array(x, idx + 1, y->elems[i]));
+            if (dim < x->arr_dim - 1)
+                CHECK(meta_cmp_array(x, dim + 1, y->elems[i]));
             else
                 CHECK(meta_cmp_type(x, y->elems[i]));
         }
@@ -317,6 +327,71 @@ meta_cmp(meta_t *x, meta_t *y)
         return meta_cmp_array(x, 0, y);
 
     return meta_cmp_type(x, y);
+}
+
+static void
+meta_eval_undef(meta_t *x, meta_t *y)
+{
+    int i, j;
+
+    if (is_undef_type(x)) {
+        meta_copy(x, y);
+    }
+    else if (is_undef_type(y)) {
+        meta_copy(y, x);
+    }
+    else if (is_map_type(x)) {
+        if (!is_tuple_type(y))
+            return;
+
+        for (i = 0; i < y->elem_cnt; i++) {
+            for (j = 0; j < x->elem_cnt; j++) {
+                meta_eval(x->elems[j], y->elems[i]->elems[j]);
+            }
+        }
+    }
+    else if (is_tuple_type(x)) {
+        ASSERT1(is_tuple_type(y), y->type);
+
+        if (x->elem_cnt == y->elem_cnt) {
+            for (i = 0; i < x->elem_cnt; i++) {
+                meta_eval(x->elems[i], y->elems[i]);
+            }
+        }
+    }
+    else if (is_struct_type(x)) {
+        if (!is_tuple_type(y))
+            return;
+
+        for (i = 0; i < y->elem_cnt; i++) {
+            meta_eval(x->elems[i], y->elems[i]);
+        }
+    }
+}
+
+static void
+meta_eval_array(meta_t *x, int dim, meta_t *y)
+{
+    int i;
+
+    if (!is_tuple_type(y))
+        return;
+
+    for (i = 0; i < y->elem_cnt; i++) {
+        if (dim < x->arr_dim - 1)
+            meta_eval_array(x, dim + 1, y->elems[i]);
+        else
+            meta_eval_undef(x, y->elems[i]);
+    }
+}
+
+void
+meta_eval(meta_t *x, meta_t *y)
+{
+    if (is_array_type(x))
+        meta_eval_array(x, 0, y);
+    else
+        meta_eval_undef(x, y);
 }
 
 void

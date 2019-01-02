@@ -571,49 +571,49 @@ exp_gen_sql(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_init(gen_t *gen, ast_exp_t *exp)
 {
-    /*
     int i;
-    meta_t *meta = &exp->meta;
+    ast_id_t *id = exp->id;
     array_t *elem_exps = exp->u_init.exps;
-    BinaryenExpressionRef val_exp;
-    */
+    BinaryenExpressionRef value;
 
-    ASSERT(false);
-    /*
-    ASSERT1(is_array_type(meta) || is_struct_type(meta), meta->type);
+    /* XXX: address should take as an argument */
 
-    if (is_array_type(meta)) {
+    ASSERT(id != NULL);
+    ASSERT(id->addr >= 0);
+
+    if (is_array_type(&id->meta) || is_struct_type(&id->meta)) {
         int offset = 0;
 
         array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+            meta_t *elem_meta = &elem_exp->meta;
 
-            val_exp = exp_gen(gen, elem_exp);
+            value = exp_gen(gen, elem_exp);
+            offset = ALIGN(offset, meta_align(elem_meta));
 
-            gen_add_instr(gen, BinaryenStore(gen->module, meta_size(meta), offset, 0,
-                                             gen_i32(gen, meta->addr), val_exp,
-                                             meta_gen(meta)));
+            gen_add_instr(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type), 
+                                             offset, 0, gen_i32(gen, id->addr), value,
+                                             meta_gen(elem_meta)));
 
-            offset += ALIGN64(meta_size(meta));
+            offset += meta_size(elem_meta);
         }
     }
-    else {
-        ASSERT2(array_size(elem_exps) == meta->elem_cnt,
-                array_size(elem_exps), meta->elem_cnt);
+    else if (is_map_type(&id->meta)) {
+        /* elem_exps is the array of key-value pair */
+        BinaryenExpressionRef args[2];
 
         array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
-            //meta_t *elem_meta = meta->elems[i];
 
-            val_exp = exp_gen(gen, elem_exp);
+            ASSERT1(is_tuple_exp(elem_exp), elem_exp->kind);
 
-            gen_add_instr(gen, BinaryenStore(gen->module, meta_size(elem_meta),
-                                             elem_meta->offset, 0,
-                                             gen_i32(gen, meta->addr), val_exp,
-                                             meta_gen(elem_meta)));
+            args[0] = exp_gen(gen, array_get_exp(elem_exp->u_tup.exps, 0));
+            args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.exps, 1));
+
+            gen_add_instr(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
+                                            BinaryenTypeNone()));
         }
     }
-    */
 
     return NULL;
 }

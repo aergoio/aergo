@@ -60,7 +60,13 @@ contract test {
     int i6 = i5 >> i4;
 }
 
-@test(non_integer_bitwise_type)
+@test(negative_bitwise_operand)
+@error(ERROR_INVALID_OP_TYPE)
+contract test {
+    int i = 1 << -1;
+}
+
+@test(non_integer_bitwise_operand)
 @error(ERROR_INVALID_OP_TYPE)
 contract test {
     int i = 1.1 & 1.0;

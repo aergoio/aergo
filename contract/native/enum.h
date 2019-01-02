@@ -81,12 +81,12 @@ extern int type_aligns_[TYPE_MAX];
 
 typedef enum id_kind_e {
     ID_VAR          = 0,
-    ID_TUPLE,
     ID_STRUCT,
     ID_ENUM,
     ID_FN,
     ID_CONTRACT,
     ID_LABEL,
+    ID_TUPLE,
     ID_MAX
 } id_kind_t;
 

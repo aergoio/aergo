@@ -34,6 +34,12 @@
 
 #define exp_add                     array_add_last
 
+#define exp_check_overflow(exp, meta)                                                    \
+    do {                                                                                 \
+        if (is_lit_exp(exp) && !value_fit(&(exp)->u_lit.val, (meta)))                    \
+            ERROR(ERROR_NUMERIC_OVERFLOW, &(exp)->pos, meta_to_str(meta));               \
+    } while (0)
+
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;

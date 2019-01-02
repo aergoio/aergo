@@ -17,7 +17,7 @@
 #include "check_id.h"
 
 static int
-id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
+id_check_var_array(check_t *check, ast_id_t *id)
 {
     int i;
     int dim_sizes;
@@ -31,7 +31,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!is_param && id->u_var.dflt_exp == NULL)
+            if (!id->is_param && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             /* -1 means that the size is determined by the initializer */
@@ -89,12 +89,14 @@ id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_check_var_array(check, id, false));
+        CHECK(id_check_var_array(check, id));
 
     if (dflt_exp != NULL) {
         /* TODO: named initializer */
         CHECK(exp_check(check, dflt_exp));
         CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
+
+        meta_eval(&id->meta, &dflt_exp->meta);
 
         if (is_lit_exp(dflt_exp)) {
             if (!value_fit(&dflt_exp->u_lit.val, &id->meta))
@@ -115,8 +117,6 @@ id_check_tuple(check_t *check, ast_id_t *id)
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
     ASSERT1(is_tuple_id(id), id->kind);
-    ASSERT(id->u_tup.type_meta != NULL);
-    ASSERT(!is_empty_array(var_ids));
 
     id->meta.type = TYPE_TUPLE;
 
@@ -130,7 +130,9 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         var_id->mod = id->mod;
         var_id->scope = id->scope;
-        var_id->u_var.type_meta = id->u_tup.type_meta;
+
+        if (var_id->u_var.type_meta == NULL)
+            var_id->u_var.type_meta = id->u_tup.type_meta;
 
         id_check_var(check, var_id, true);
 
@@ -143,6 +145,8 @@ id_check_tuple(check_t *check, ast_id_t *id)
     if (dflt_exp != NULL) {
         CHECK(exp_check(check, dflt_exp));
         CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
+
+        meta_eval(&id->meta, &dflt_exp->meta);
     }
 
     return NO_ERROR;
@@ -171,7 +175,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         flag_set(fld_id->mod, MOD_PUBLIC);
 
-        offset = ALIGN(offset, TYPE_ALIGN(fld_meta->type));
+        offset = ALIGN(offset, meta_align(fld_meta));
 
         fld_id->offset = offset;
         offset += meta_size(fld_meta);
@@ -244,6 +248,7 @@ id_check_param(check_t *check, ast_id_t *id)
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
+    ASSERT(id->is_param);
     ASSERT(id->u_var.type_meta != NULL);
     ASSERT(id->u_var.dflt_exp == NULL);
 
@@ -256,7 +261,7 @@ id_check_param(check_t *check, ast_id_t *id)
     meta_copy(&id->meta, type_meta);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_check_var_array(check, id, true));
+        CHECK(id_check_var_array(check, id));
 
     return NO_ERROR;
 }

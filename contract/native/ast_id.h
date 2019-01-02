@@ -33,7 +33,7 @@
 #define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
 
 #define is_stack_id(id)                                                                  \
-    (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta))
+    (!(id)->is_param && (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta)))
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -108,6 +108,7 @@ struct ast_id_s {
 
     bool is_used;       /* whether it is referenced */
     bool is_checked;    /* whether it is checked */
+    bool is_param;      /* whether it is a parameter */
 
     meta_t meta;
     value_t *val;       /* constant value */

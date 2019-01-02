@@ -159,6 +159,12 @@ contract test {
     }
 }
 
+@test(return_value_overflow)
+@error(ERROR_NUMERIC_OVERFLOW)
+contract test {
+    func f1() int8 { return 1024; }
+}
+
 @test(function_as_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {

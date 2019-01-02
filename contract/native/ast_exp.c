@@ -245,7 +245,7 @@ exp_clone(ast_exp_t *exp)
     case EXP_CALL:
         exps = exp->u_call.param_exps;
         res_exps = array_new();
-        for (i = 0; i < array_size(exps); i++) {
+        array_foreach(exps, i) {
             array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
         res = exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
@@ -258,7 +258,7 @@ exp_clone(ast_exp_t *exp)
     case EXP_TUPLE:
         exps = exp->u_tup.exps;
         res_exps = array_new();
-        for (i = 0; i < array_size(exps); i++) {
+        array_foreach(exps, i) {
             array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
         }
         res = exp_new_tuple(res_exps, &exp->pos);
@@ -326,7 +326,7 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
         if (array_size(e1->u_call.param_exps) != array_size(e2->u_call.param_exps))
             return false;
 
-        for (i = 0; i < array_size(e1->u_call.param_exps); i++) {
+        array_foreach(e1->u_call.param_exps, i) {
             if (!exp_equals(array_get_exp(e1->u_call.param_exps, i),
                             array_get_exp(e2->u_call.param_exps, i)))
                 return false;
@@ -341,7 +341,7 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
         if (array_size(e1->u_tup.exps) != array_size(e2->u_tup.exps))
             return false;
 
-        for (i = 0; i < array_size(e1->u_tup.exps); i++) {
+        array_foreach(e1->u_tup.exps, i) {
             if (!exp_equals(array_get_exp(e1->u_tup.exps, i),
                             array_get_exp(e2->u_tup.exps, i)))
                 return false;

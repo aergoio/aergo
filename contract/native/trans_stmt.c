@@ -17,7 +17,6 @@ static void
 stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 {
     exp_trans_to_lval(trans, stmt->u_exp.exp);
-    trans->is_lval = false;
 
     if (is_call_exp(stmt->u_exp.exp)) {
         bb_add_stmt(trans->bb, stmt);
@@ -35,71 +34,83 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
+strip_symm_assign(trans_t *trans, array_t *var_exps, array_t *val_exps, src_pos_t *pos)
+{
+    int i;
+    ast_exp_t *var_exp, *val_exp;
+
+    array_foreach(val_exps, i) {
+        var_exp = array_get_exp(var_exps, i);
+        val_exp = array_get_exp(val_exps, i);
+
+        if (is_init_exp(val_exp))
+            val_exp->id = var_exp->id;
+
+        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
+    }
+}
+
+static void
+strip_asymm_assign(trans_t *trans, array_t *var_exps, array_t *val_exps, src_pos_t *pos)
+{
+    int i, j;
+    int var_idx = 0;
+    ast_exp_t *var_exp;
+
+    array_foreach(val_exps, i) {
+        ast_exp_t *val_exp = array_get_exp(val_exps, i);
+
+        if (is_tuple_exp(val_exp)) {
+            ast_exp_t *elem_exp;
+
+            array_foreach(val_exp->u_tup.exps, j) {
+                var_exp = array_get_exp(var_exps, var_idx++);
+                elem_exp = array_get_exp(val_exp->u_tup.exps, j);
+
+                if (is_init_exp(elem_exp))
+                    elem_exp->id = var_exp->id;
+
+                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
+            }
+        }
+        else {
+            var_exp = array_get_exp(var_exps, var_idx++);
+
+            if (is_init_exp(val_exp))
+                val_exp->id = var_exp->id;
+
+            bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
+        }
+    }
+}
+
+static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
-    /* TODO: When assigning to a struct variable, 
-     * we must replace it with an assignment for each field */ 
+    /* TODO: When assigning to a struct variable,
+     * we must replace it with an assignment for each field */
 
     exp_trans_to_lval(trans, l_exp);
     exp_trans_to_rval(trans, r_exp);
 
-    if (is_tuple_exp(l_exp)) {
+    if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
         array_t *val_exps = r_exp->u_tup.exps;
 
-        ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
-
-        if (array_size(var_exps) == array_size(val_exps)) {
-            int i;
-            ast_exp_t *var_exp, *val_exp;
-
-            array_foreach(val_exps, i) {
-                var_exp = array_get_exp(var_exps, i);
-                val_exp = array_get_exp(val_exps, i);
-
-                ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
-
-                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
-            }
-        }
-        else {
-            int i, j;
-            int var_idx = 0;
-            ast_exp_t *var_exp;
-
-            ASSERT2(array_size(var_exps) > array_size(val_exps),
-                    array_size(var_exps), array_size(val_exps));
-
-            array_foreach(val_exps, i) {
-                ast_exp_t *val_exp = array_get_exp(val_exps, i);
-                meta_t *val_meta = &val_exp->meta;
-
-                if (is_tuple_type(val_meta)) {
-                    for (j = 0; j < val_meta->elem_cnt; j++) {
-                        ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
-                        ast_exp_t *elem_exp = array_get_exp(val_exp->u_tup.exps, j);
-
-                        ASSERT(meta_cmp(&var_exp->meta, &elem_exp->meta) == 0);
-
-                        bb_add_stmt(trans->bb,
-                                    stmt_new_assign(var_exp, elem_exp, &stmt->pos));
-                    }
-                }
-                else {
-                    var_exp = array_get_exp(var_exps, var_idx++);
-                    ASSERT(meta_cmp(&var_exp->meta, &val_exp->meta) == 0);
-
-                    bb_add_stmt(trans->bb,
-                                stmt_new_assign(array_get_exp(var_exps, var_idx++),
-                                                val_exp, &stmt->pos));
-                }
-            }
-        }
+        if (array_size(var_exps) == array_size(val_exps))
+            strip_symm_assign(trans, var_exps, val_exps, &stmt->pos);
+        else
+            strip_asymm_assign(trans, var_exps, val_exps, &stmt->pos);
     }
     else {
+        ASSERT(!is_tuple_exp(l_exp));
+
+        if (is_init_exp(r_exp))
+            r_exp->id = l_exp->id;
+
         bb_add_stmt(trans->bb, stmt);
     }
 }
@@ -324,10 +335,45 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
-    if (stmt->u_ret.arg_exp != NULL)
-        exp_trans(trans, stmt->u_ret.arg_exp);
+    ast_id_t *ret_id = stmt->u_ret.ret_id;
+    ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
 
-    bb_add_stmt(trans->bb, stmt);
+    /* Each return parameter of a function corresponds to a local variable,
+     * so if there is arguments, the return statement is changed to
+     * one assignment statement per each argument */
+
+    if (arg_exp != NULL) {
+        ast_exp_t *var_exp;
+
+        if (is_tuple_id(ret_id)) {
+            /* Since the number of arg_exp may be smaller than the number of ret_id,
+             * it is made as a tuple expression for asymmetry assignment processing */
+            int i;
+            array_t *exps = array_new();
+            ast_exp_t *id_exp;
+
+            array_foreach(&ret_id->u_tup.var_ids, i) {
+                ast_id_t *type_id = array_get_id(&ret_id->u_tup.var_ids, i);
+
+                id_exp = exp_new_id_ref(type_id->name, &type_id->pos);
+
+                id_exp->id = type_id;
+                meta_copy(&id_exp->meta, &type_id->meta);
+
+                array_add_last(exps, id_exp);
+            }
+
+            var_exp = exp_new_tuple(exps, &arg_exp->pos);
+        }
+        else {
+            var_exp = exp_new_id_ref(ret_id->name, &ret_id->pos);
+
+            var_exp->id = ret_id;
+            meta_copy(&var_exp->meta, &ret_id->meta);
+        }
+
+        stmt_trans_assign(trans, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
+    }
 
     bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);
     fn_add_basic_blk(trans->fn, trans->bb);

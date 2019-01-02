@@ -54,6 +54,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 {
+    /*
     meta_t *arg_meta;
     ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
     ast_id_t *ret_id = stmt->u_ret.ret_id;
@@ -97,6 +98,9 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
     return BinaryenStore(gen->module, meta_size(arg_meta), ret_id->offset, 0,
                          BinaryenGetLocal(gen->module, ret_id->idx, BinaryenTypeInt32()),
                          value, meta_gen(arg_meta));
+                         */
+    ASSERT(false);
+    return NULL;
 }
 
 static BinaryenExpressionRef

@@ -559,6 +559,7 @@ param_decl:
     var_type declarator
     {
         $$ = $2;
+        $$->is_param = true;
         $$->u_var.type_meta = $1;
     }
 ;
@@ -657,6 +658,10 @@ return_list:
     return_decl
 |   return_list ',' return_decl
     {
+        /* The reason for making the return list tuple is because of
+         * the convenience of meta comparison. If array_t is used,
+         * it must be looped for each id and compared directly,
+         * but for tuples, meta_cmp() is sufficient */
         if (is_tuple_id($1)) {
             $$ = $1;
         }
@@ -676,6 +681,8 @@ return_decl:
         snprintf(name, sizeof(name), "$retvar_%d", $1->num);
 
         $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
+
+        $$->is_param = true;
         $$->u_var.type_meta = $1;
     }
 ;

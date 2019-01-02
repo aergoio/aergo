@@ -77,10 +77,11 @@
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
 #define meta_size(meta)             ((meta)->size)
+#define meta_align(meta)            TYPE_ALIGN((meta)->type)
 
 #define meta_cnt(meta)                                                                   \
     (is_void_type(meta) ? 0 :                                                            \
-     ((is_tuple_type(meta) || is_struct_type(meta)) ?  (meta)->elem_cnt : 1))
+     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->elem_cnt : 1))
 
 #define meta_copy(dest, src)        *(dest) = *(src)
 
@@ -115,6 +116,8 @@ void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *exps);
 
 int meta_cmp(meta_t *x, meta_t *y);
+
+void meta_eval(meta_t *x, meta_t *y);
 
 void meta_dump(meta_t *meta, int indent);
 
@@ -182,35 +185,17 @@ static inline void
 meta_strip_arr_dim(meta_t *meta)
 {
     ASSERT1(meta->arr_dim > 0, meta->arr_dim);
-    ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
 
     meta->arr_dim--;
-    meta->arr_size /= meta->dim_sizes[0];
+
+    if (meta->dim_sizes[0] > 0)
+        /* In case of a parameter, dim_size can be negative */
+        meta->arr_size /= meta->dim_sizes[0];
 
     if (meta->arr_dim == 0)
         meta->dim_sizes = NULL;
     else
         meta->dim_sizes = &meta->dim_sizes[1];
-}
-
-static inline void
-meta_eval(meta_t *meta, meta_t *x, meta_t *y)
-{
-    ASSERT(meta != NULL);
-
-    if (is_undef_type(x) && is_undef_type(y)) {
-        ASSERT1(is_builtin_type(x), x->type);
-        ASSERT1(is_builtin_type(y), y->type);
-
-        meta_set(meta, MAX(x->type, y->type));
-        meta_set_undef(meta);
-    }
-    else if (is_undef_type(x)) {
-        meta_copy(meta, y);
-    }
-    else {
-        meta_copy(meta, x);
-    }
 }
 
 #endif /* ! _META_H */

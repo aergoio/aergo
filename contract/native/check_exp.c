@@ -143,6 +143,8 @@ exp_check_array(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
 
         CHECK(meta_cmp(id_meta->elems[0], idx_meta));
+
+        meta_eval(id_meta->elems[0], idx_meta);
         meta_copy(&exp->meta, id_meta->elems[1]);
     }
 
@@ -269,7 +271,8 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, r_exp));
     CHECK(meta_cmp(l_meta, r_meta));
 
-    meta_eval(&exp->meta, l_meta, r_meta);
+    meta_eval(l_meta, r_meta);
+    meta_copy(&exp->meta, l_meta);
 
     return NO_ERROR;
 }
@@ -302,14 +305,12 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     case OP_BIT_XOR:
         if (!is_integer_type(r_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
-
-        /* We need to evaluate undefined type */
-        CHECK(meta_cmp(l_meta, r_meta));
         break;
 
     case OP_RSHIFT:
     case OP_LSHIFT:
-        if (!is_unsigned_type(r_meta))
+        if (!is_unsigned_type(r_meta) ||
+            (is_lit_exp(r_exp) && is_signed_val(&r_exp->u_lit.val)))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
@@ -317,6 +318,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid operator", exp->u_bin.kind);
     }
 
+    meta_eval(l_meta, r_meta);
     meta_copy(&exp->meta, l_meta);
 
     return NO_ERROR;
@@ -348,6 +350,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(meta_cmp(l_meta, r_meta));
 
+    meta_eval(l_meta, r_meta);
     meta_set_bool(&exp->meta);
 
     return NO_ERROR;
@@ -380,6 +383,7 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(meta_cmp(l_meta, r_meta));
 
+    meta_eval(l_meta, r_meta);
     meta_set_bool(&exp->meta);
 
     return NO_ERROR;
@@ -476,7 +480,8 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, post_exp));
     CHECK(meta_cmp(in_meta, post_meta));
 
-    meta_eval(&exp->meta, in_meta, post_meta);
+    meta_eval(in_meta, post_meta);
+    meta_copy(&exp->meta, in_meta);
 
     return NO_ERROR;
 }
@@ -593,6 +598,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
 
+        meta_eval(&param_id->meta, &param_exp->meta);
+
         if (is_lit_exp(param_exp) &&
             !value_fit(&param_exp->u_lit.val, &param_id->meta))
             RETURN(ERROR_NUMERIC_OVERFLOW, &param_exp->pos,
@@ -678,7 +685,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
             ast_exp_t *elem_exp = array_get_exp(exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
-            size = ALIGN(size, TYPE_ALIGN(elem_exp->meta.type));
+            size = ALIGN(size, meta_align(&elem_exp->meta));
 
             memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
             size += meta_size(&elem_exp->meta);

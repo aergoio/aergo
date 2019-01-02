@@ -223,12 +223,17 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
+    int i;
     ast_id_t *id = exp->id;
 
     // FIXME bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
 
     if (is_map_type(&exp->meta))
         return;
+
+    array_foreach(exp->u_call.param_exps, i) {
+        exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
+    }
 
     if (id->u_fn.ret_id != NULL) {
         ast_id_t *ret_id = id->u_fn.ret_id;
