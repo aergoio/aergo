@@ -169,3 +169,32 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 
 	assert.NotEqual(t, int(targetNo), syncer.localChain.Best, "sync must fail")
 }
+
+func TestSyncerAlreadySynched(t *testing.T) {
+	//When sync is already done before finder runs
+	remoteChainLen := 1002
+	//localChainLen := 999
+	targetNo := uint64(1000)
+
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1000], 0)
+
+	remoteChains := []*chain.StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
+
+	testCfg := *SyncerCfg
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0, expErrResult: ErrAlreadySyncDone}
+
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
+	syncer.getAnchorsHookFn = func(stubSyncer *StubSyncer) {
+		stubSyncer.localChain.AddBlock(remoteChain.Blocks[1000])
+	}
+	syncer.start()
+
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
+
+	syncer.waitStop()
+
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
+}

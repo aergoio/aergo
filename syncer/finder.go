@@ -43,6 +43,7 @@ var (
 	ErrFinderQuit               = errors.New("sync finder quit")
 	ErrorGetSyncAncestorTimeout = errors.New("timeout for GetSyncAncestor")
 	ErrFinderTimeout            = errors.New("Finder timeout")
+	ErrAlreadySyncDone          = errors.New("Already sync done")
 )
 
 func newFinder(ctx *types.SyncContext, compRequester component.IComponentRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
@@ -136,6 +137,11 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 		logger.Debug().Msg("not found ancestor in lightscan")
 	} else {
 		logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
+
+		if ancestor.No == finder.ctx.TargetNo {
+			logger.Info().Msg("already synchronized")
+			return nil, ErrAlreadySyncDone
+		}
 	}
 
 	return ancestor, err

@@ -251,6 +251,13 @@ func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {
 	}
 
 	count := len(msg.Hashes)
+
+	if count == 0 {
+		logger.Error().Int("count", count).
+			Uint64("prev", msg.PrevInfo.No).Msg("receive empty GetHashesRsp")
+		return
+	}
+
 	logger.Debug().Int("count", count).
 		Uint64("prev", msg.PrevInfo.No).
 		Str("start", enc.ToString(msg.Hashes[0])).
