@@ -333,7 +333,9 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 		return nil, err
 	}
 
-	sn.updateCluster(refBlockNo)
+	if sn.NeedToRefresh(refBlockNo) {
+		sn.UpdateCluster(refBlockNo)
+	}
 
 	sn.GC(refBlockNo)
 
@@ -358,21 +360,19 @@ func (sn *Snapshots) gatherRankers() ([]string, error) {
 	return bps, nil
 }
 
-func (sn *Snapshots) updateCluster(blockNo types.BlockNo) {
-	if sn.NeedToRefresh(blockNo) {
-		var (
-			err error
-			s   []string
-		)
+func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
+	var (
+		err error
+		s   []string
+	)
 
-		if s, err = sn.getCurrentCluster(blockNo); err == nil {
-			logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
-			err = sn.cm.Update(s)
-		}
+	if s, err = sn.getCurrentCluster(blockNo); err == nil {
+		logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
+		err = sn.cm.Update(s)
+	}
 
-		if err != nil {
-			logger.Debug().Err(err).Msg("skip BP member update")
-		}
+	if err != nil {
+		logger.Debug().Err(err).Msg("skip BP member update")
 	}
 }
 
