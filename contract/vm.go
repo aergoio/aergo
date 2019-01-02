@@ -334,7 +334,7 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
 		if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errMsg)
+			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -375,7 +375,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.stateSet.curContract.contractId))
 		if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errMsg)
+			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -408,7 +408,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.tx != nil {
 			err = v.tx.Release()
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 		if v.ctrState == rootContract {
@@ -417,7 +417,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.ctrState != nil {
 			err = bs.StageContractState(v.ctrState)
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 		/* For Sender */
@@ -426,7 +426,7 @@ func (ce *Executor) commitCalledContract() error {
 		}
 		err = bs.PutState(k, v.curState)
 		if err != nil {
-			return DbSystemError(err)
+			return newDbSystemError(err)
 		}
 	}
 	return nil
@@ -446,7 +446,7 @@ func (ce *Executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.RollbackToSavepoint()
 		if err != nil {
-			return DbSystemError(err)
+			return newDbSystemError(err)
 		}
 	}
 	return nil
@@ -662,7 +662,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
-		return "", newDbSystemError("can't open a database connection")
+		return "", newDbSystemError(errors.New("can't open a database connection"))
 	}
 
 	ce.setCountHook(callMaxInstLimit)
@@ -819,20 +819,20 @@ func (re *recoveryEntry) recovery() error {
 	if re.stateRevision != -1 {
 		err := callState.ctrState.Rollback(re.stateRevision)
 		if err != nil {
-			return DbSystemError(err)
+			return newDbSystemError(err)
 		}
 	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
 			err := callState.tx.RollbackToSavepoint()
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 			callState.tx = nil
 		} else {
 			err := callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 	}

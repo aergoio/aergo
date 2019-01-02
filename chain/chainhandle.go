@@ -676,7 +676,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	}
 
 	if err != nil {
-		if _, ok := err.(contract.VmError); ok {
+		if _, ok := err.(*contract.VmError); ok {
 			sender.Reset()
 			sender.SubBalance(txFee)
 			sender.SetNonce(txBody.Nonce)
