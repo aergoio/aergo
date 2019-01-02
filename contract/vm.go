@@ -87,6 +87,7 @@ type recoveryEntry struct {
 	senderState   *types.State
 	senderNonce   uint64
 	callState     *CallState
+	onlySend      bool
 	sqlSaveName   *string
 	stateRevision state.Snapshot
 	prev          *recoveryEntry
@@ -809,25 +810,27 @@ func (re *recoveryEntry) recovery() error {
 		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
 		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
+	if re.onlySend {
+		return nil
+	}
 	if re.senderState != nil {
 		re.senderState.Nonce = re.senderNonce
 	}
-	if re.sqlSaveName == nil && re.stateRevision == 0 {
-		return nil
-	}
-	err := callState.ctrState.Rollback(re.stateRevision)
-	if err != nil {
-		return DbSystemError(err)
+	if re.stateRevision != -1 {
+		err := callState.ctrState.Rollback(re.stateRevision)
+		if err != nil {
+			return DbSystemError(err)
+		}
 	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
-			err = callState.tx.RollbackToSavepoint()
+			err := callState.tx.RollbackToSavepoint()
 			if err != nil {
 				return DbSystemError(err)
 			}
 			callState.tx = nil
 		} else {
-			err = callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			err := callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
 			if err != nil {
 				return DbSystemError(err)
 			}

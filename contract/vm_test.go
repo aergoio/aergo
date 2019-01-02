@@ -2987,8 +2987,7 @@ end
 
 function testPcall()
 	ret = contract.pcall(deploy)
-	system.print(paddr, ret)
-	system.print(contract.call(paddr, "getcre"))
+	return contract.call(paddr, "getcre")
 end
 function constructor()
 end
@@ -3041,6 +3040,10 @@ abi.payable(constructor)
 	deployAcc, err = bc.GetAccountState("deploy")
 	if err != nil && deployAcc.Nonce == 2 {
 		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }
 

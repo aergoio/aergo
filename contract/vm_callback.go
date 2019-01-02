@@ -212,7 +212,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		}
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
 			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
@@ -288,7 +288,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	if stateSet.lastRecoveryEntry != nil {
 		callState := stateSet.curContract.callState
-		err = setRecoveryPoint(aid, stateSet, nil, callState, zeroBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, nil, callState, zeroBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
 			luaPushStr(L, "[System.LuaDelegateCallContract] DB err:"+err.Error())
@@ -348,7 +348,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, 0)
+		err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
 		if err != nil {
 			stateSet.dbSystemError = true
 			luaPushStr(L, "[Contract.LuaSendAmount]DB error"+err.Error())
@@ -381,7 +381,7 @@ func LuaPrint(service *C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
-	callState *CallState, amount *big.Int, snapshot state.Snapshot) error {
+	callState *CallState, amount *big.Int, isSend bool) error {
 	var seq int
 	prev := stateSet.lastRecoveryEntry
 	if prev != nil {
@@ -395,10 +395,16 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 		senderState,
 		senderState.GetNonce(),
 		callState,
+		isSend,
 		nil,
-		snapshot,
+		-1,
 		prev,
 	}
+	stateSet.lastRecoveryEntry = recoveryEntry
+	if isSend {
+		return nil
+	}
+	recoveryEntry.stateRevision = callState.ctrState.Snapshot()
 	tx := callState.tx
 	if tx != nil {
 		saveName := fmt.Sprintf("%s_%p", aid.String(), &recoveryEntry)
@@ -408,7 +414,6 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 		}
 		recoveryEntry.sqlSaveName = &saveName
 	}
-	stateSet.lastRecoveryEntry = recoveryEntry
 	return nil
 }
 
@@ -424,7 +429,7 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 	}
 	curContract := stateSet.curContract
 	err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
-		curContract.callState, zeroBig, curContract.callState.ctrState.Snapshot())
+		curContract.callState, zeroBig, false)
 	if err != nil {
 		luaPushStr(L, "[Contract.pcall]DB error"+err.Error())
 		stateSet.dbSystemError = true
@@ -853,7 +858,7 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	}
 
 	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
 			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
