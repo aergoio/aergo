@@ -30,6 +30,10 @@ type DummyChain struct {
 	testReceiptDB db.DB
 }
 
+func init() {
+	StartLStateFactory()
+}
+
 func LoadDummyChain() (*DummyChain, error) {
 	bc := &DummyChain{sdb: state.NewChainStateDB()}
 	dataPath, err := ioutil.TempDir("", "data")
