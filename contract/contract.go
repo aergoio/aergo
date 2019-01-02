@@ -105,10 +105,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 	if err != nil {
 		if err == types.ErrVmStart {
 			return "", err
-		} else if _, ok := err.(DbSystemError); ok {
+		} else if _, ok := err.(*DbSystemError); ok {
 			return "", err
 		}
-		return "", VmError(err)
+		return "", newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
