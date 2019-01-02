@@ -682,7 +682,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if err == types.ErrVmConstructorIsNotPayable {
 			return string(ret), err
 		}
-		return string(ret), nil
+		return string(ret), err
 	}
 	err = ce.commitCalledContract()
 	if err != nil {
@@ -690,7 +690,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Error().Err(err).Msg("constructor is failed")
 		return string(ret), err
 	}
-	return ce.jsonRet, nil
+	return ce.jsonRet, err
 
 }
 
