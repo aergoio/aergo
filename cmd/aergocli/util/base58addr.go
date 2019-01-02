@@ -80,6 +80,7 @@ type InOutPeer struct {
 	Address   InOutPeerAddress
 	BestBlock InOutBlockIdx
 	State     string
+	Hidden    bool
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -240,6 +241,7 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
 	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()
+	out.Hidden = p.Hidden
 	return out
 }
 
