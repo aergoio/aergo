@@ -85,7 +85,9 @@ type recoveryEntry struct {
 	seq           int
 	amount        *big.Int
 	senderState   *types.State
+	senderNonce   uint64
 	callState     *CallState
+	onlySend      bool
 	sqlSaveName   *string
 	stateRevision state.Snapshot
 	prev          *recoveryEntry
@@ -350,22 +352,22 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	return nret
 }
 
-func (ce *Executor) constructCall(ci *types.CallInfo) {
+func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
-		return
+		return 0
 	}
 	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
 		ce.err = types.ErrVmConstructorIsNotPayable
-		return
+		return 0
 	}
 
 	C.vm_get_constructor(ce.L)
 	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
-		return
+		return 0
 	}
 	ce.processArgs(ci)
 	if ce.err != nil {
-		return
+		return 0
 	}
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)), &nret); cErrMsg != nil {
@@ -377,10 +379,18 @@ func (ce *Executor) constructCall(ci *types.CallInfo) {
 		} else {
 			ce.err = errors.New(errMsg)
 		}
-		return
+		return 0
 	}
 
-	ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+	if target == nil {
+		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+	} else {
+		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
+			errMsg := C.GoString(cErrMsg)
+			ce.err = errors.New(errMsg)
+		}
+	}
+	return nret
 }
 
 func (ce *Executor) commitCalledContract() error {
@@ -656,7 +666,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 
 	ce.setCountHook(callMaxInstLimit)
-	ce.constructCall(&ci)
+	ce.constructCall(&ci, nil)
 	err = ce.err
 
 	if err != nil {
@@ -800,22 +810,27 @@ func (re *recoveryEntry) recovery() error {
 		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
 		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
-	if re.sqlSaveName == nil && re.stateRevision == 0 {
+	if re.onlySend {
 		return nil
 	}
-	err := callState.ctrState.Rollback(re.stateRevision)
-	if err != nil {
-		return DbSystemError(err)
+	if re.senderState != nil {
+		re.senderState.Nonce = re.senderNonce
+	}
+	if re.stateRevision != -1 {
+		err := callState.ctrState.Rollback(re.stateRevision)
+		if err != nil {
+			return DbSystemError(err)
+		}
 	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
-			err = callState.tx.RollbackToSavepoint()
+			err := callState.tx.RollbackToSavepoint()
 			if err != nil {
 				return DbSystemError(err)
 			}
 			callState.tx = nil
 		} else {
-			err = callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			err := callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
 			if err != nil {
 				return DbSystemError(err)
 			}
