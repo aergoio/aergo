@@ -15,11 +15,11 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
 {
     int i;
 
-    for (i = 0; i < array_size(&blk->ids); i++) {
+    array_foreach(&blk->ids, i) {
         id_trans(trans, array_get_id(&blk->ids, i));
     }
 
-    for (i = 0; i < array_size(&blk->stmts); i++) {
+    array_foreach(&blk->stmts, i) {
         stmt_trans(trans, array_get_stmt(&blk->stmts, i));
     }
 

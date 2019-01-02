@@ -21,7 +21,7 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     ASSERT1(gen->instr_cnt == 0, gen->instr_cnt);
     ASSERT(gen->instrs == NULL);
 
-    for (i = 0; i < array_size(&bb->stmts); i++) {
+    array_foreach(&bb->stmts, i) {
         gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
     }
 
@@ -41,7 +41,7 @@ br_gen(gen_t *gen, ir_bb_t *bb)
 
     ASSERT(bb->rb != NULL);
 
-    for (i = 0; i < array_size(&bb->brs); i++) {
+    array_foreach(&bb->brs, i) {
         ir_br_t *br = array_get_br(&bb->brs, i);
         BinaryenExpressionRef cond = NULL;
 

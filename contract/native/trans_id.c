@@ -111,7 +111,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         ASSERT(cont_id != NULL);
         ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
-        for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
+        array_foreach(&cont_id->u_cont.blk->ids, i) {
             ast_id_t *fld_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
             if (is_var_id(fld_id)) {
@@ -120,7 +120,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
             else if (is_tuple_id(fld_id)) {
                 int i;
 
-                for (i = 0; i < array_size(&fld_id->u_tup.var_ids); i++) {
+                array_foreach(&fld_id->u_tup.var_ids, i) {
                     gen_init_stmt(trans, array_get_id(&fld_id->u_tup.var_ids, i));
                 }
             }
@@ -177,7 +177,7 @@ id_trans_tuple(trans_t *trans, ast_id_t *id)
 				array_size(dflt_exp->u_tup.exps), array_size(&id->u_tup.var_ids));
 	}
 
-    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+    array_foreach(&id->u_tup.var_ids, i) {
 		ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, i);
 
 		if (dflt_exp != NULL)

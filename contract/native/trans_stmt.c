@@ -26,7 +26,7 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
         int i;
         array_t *pgbacks = &trans->bb->pgbacks;
 
-        for (i = 0; i < array_size(pgbacks); i++) {
+        array_foreach(pgbacks, i) {
             bb_add_stmt(trans->bb, array_get_stmt(pgbacks, i));
         }
 
@@ -56,7 +56,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             int i;
             ast_exp_t *var_exp, *val_exp;
 
-            for (i = 0; i < array_size(val_exps); i++) {
+            array_foreach(val_exps, i) {
                 var_exp = array_get_exp(var_exps, i);
                 val_exp = array_get_exp(val_exps, i);
 
@@ -73,7 +73,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             ASSERT2(array_size(var_exps) > array_size(val_exps),
                     array_size(var_exps), array_size(val_exps));
 
-            for (i = 0; i < array_size(val_exps); i++) {
+            array_foreach(val_exps, i) {
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
                 meta_t *val_meta = &val_exp->meta;
 
@@ -141,7 +141,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 
     fn_add_basic_blk(trans->fn, trans->bb);
 
-    for (i = 0; i < array_size(elif_stmts); i++) {
+    array_foreach(elif_stmts, i) {
         ast_stmt_t *elif_stmt = array_get_stmt(elif_stmts, i);
 
         trans->bb = bb_new();
@@ -281,7 +281,7 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
     trans->bb = bb_new();
 
-    for (i = 0; i < array_size(&blk->stmts); i++) {
+    array_foreach(&blk->stmts, i) {
         ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
 
         bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
@@ -290,7 +290,7 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
             /* default can be NULL */
             exp_trans(trans, case_stmt->u_case.val_exp);
 
-        for (j = 0; j < array_size(case_stmt->u_case.stmts); j++) {
+        array_foreach(case_stmt->u_case.stmts, j) {
             stmt_trans(trans, array_get_stmt(case_stmt->u_case.stmts, j));
         }
 

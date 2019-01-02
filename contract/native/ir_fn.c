@@ -20,7 +20,7 @@ fn_new(ast_id_t *id)
     array_init(&fn->params);
     array_init(&fn->locals);
 
-    for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
+    array_foreach(id->u_fn.param_ids, i) {
         ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
         array_add_last(&fn->params, param_id);
@@ -31,7 +31,7 @@ fn_new(ast_id_t *id)
         ast_id_t *ret_id = id->u_fn.ret_id;
 
         if (is_tuple_id(ret_id)) {
-            for (i = 0; i < array_size(&ret_id->u_tup.var_ids); i++) {
+            array_foreach(&ret_id->u_tup.var_ids, i) {
                 ast_id_t *var_id = array_get_id(&ret_id->u_tup.var_ids, i);
 
                 array_add_last(&fn->params, var_id);

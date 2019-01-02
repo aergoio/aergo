@@ -40,7 +40,7 @@ id_gen_tuple(gen_t *gen, ast_id_t *id)
 {
     int i;
 
-    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+    array_foreach(&id->u_tup.var_ids, i) {
         id_gen_var(gen, array_get_id(&id->u_tup.var_ids, i));
     }
 }

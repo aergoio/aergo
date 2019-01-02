@@ -135,7 +135,7 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
 
     ASSERT(fld_ids != NULL);
 
-    for (i = 0; i < array_size(fld_ids); i++) {
+    array_foreach(fld_ids, i) {
         ast_id_t *fld_id = array_get_id(fld_ids, i);
 
         if ((is_self || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
@@ -154,7 +154,7 @@ id_search_param(ast_id_t *id, char *name)
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(name != NULL);
 
-    for (i = 0; i < array_size(id->u_fn.param_ids); i++) {
+    array_foreach(id->u_fn.param_ids, i) {
         ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
         if (strcmp(param_id->name, name) == 0)
@@ -169,11 +169,11 @@ check_dup(array_t *ids, ast_id_t *new_id)
 {
     int i, j;
 
-    for (i = 0; i < array_size(ids); i++) {
+    array_foreach(ids, i) {
         ast_id_t *id = array_get_id(ids, i);
 
         if (is_tuple_id(id)) {
-            for (j = 0; j < array_size(&id->u_tup.var_ids); j++) {
+            array_foreach(&id->u_tup.var_ids, j) {
                 ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, j);
 
                 if (strcmp(var_id->name, new_id->name) == 0) {
@@ -200,7 +200,7 @@ id_add(array_t *ids, ast_id_t *new_id)
         return;
 
     if (is_tuple_id(new_id)) {
-        for (i = 0; i < array_size(&new_id->u_tup.var_ids); i++) {
+        array_foreach(&new_id->u_tup.var_ids, i) {
             check_dup(ids, array_get_id(&new_id->u_tup.var_ids, i));
         }
     }
@@ -219,7 +219,7 @@ id_join(array_t *ids, array_t *new_ids)
     if (new_ids == NULL)
         return;
 
-    for (i = 0; i < array_size(new_ids); i++) {
+    array_foreach(new_ids, i) {
         id_add(ids, array_get_id(new_ids, i));
     }
 }
@@ -233,7 +233,7 @@ id_strip(ast_id_t *id)
     ASSERT1(is_tuple_id(id), id->kind);
     ASSERT(id->u_tup.dflt_exp == NULL);
 
-    for (i = 0; i < array_size(&id->u_tup.var_ids); i++) {
+    array_foreach(&id->u_tup.var_ids, i) {
         ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, i);
 
         var_id->mod = id->mod;

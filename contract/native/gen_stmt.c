@@ -68,7 +68,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 
         ASSERT1(is_tuple_id(ret_id), ret_id->kind);
 
-        for (i = 0; i < array_size(elem_exps); i++) {
+        array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             meta_t *elem_meta = &elem_exp->meta;
             ast_id_t *var_id;

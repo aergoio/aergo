@@ -240,7 +240,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             ASSERT(trans->fn != NULL);
 
-            for (i = 0; i < array_size(var_ids); i++) {
+            array_foreach(var_ids, i) {
                 ast_id_t *var_id = array_get_id(var_ids, i);
                 ast_exp_t *ref_exp;
 
@@ -280,7 +280,7 @@ exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
     int i;
     array_t *exps = exp->u_tup.exps;
 
-    for (i = 0; i < array_size(exps); i++) {
+    array_foreach(exps, i) {
         exp_trans(trans, array_get_exp(exps, i));
     }
 }
@@ -291,7 +291,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     int i;
     array_t *exps = exp->u_init.exps;
 
-    for (i = 0; i < array_size(exps); i++) {
+    array_foreach(exps, i) {
         exp_trans(trans, array_get_exp(exps, i));
     }
 }

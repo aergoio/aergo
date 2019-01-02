@@ -37,7 +37,7 @@ trans(ast_t *ast, flag_t flag, ir_t **ir)
 
     trans_init(&trans, flag);
 
-    for (i = 0; i < array_size(&ast->root->ids); i++) {
+    array_foreach(&ast->root->ids, i) {
         id_trans(&trans, array_get_id(&ast->root->ids, i));
     }
 

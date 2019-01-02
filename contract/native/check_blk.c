@@ -15,7 +15,7 @@ check_unused_ids(check_t *check, array_t *ids)
 {
     int i, j;
 
-    for (i = 0; i < array_size(ids); i++) {
+    array_foreach(ids, i) {
         ast_id_t *id = array_get_id(ids, i);
 
         if (!is_ctor_id(id) && !id->is_used) {
@@ -24,7 +24,7 @@ check_unused_ids(check_t *check, array_t *ids)
         else if (is_fn_id(id)) {
             array_t *param_ids = id->u_fn.param_ids;
 
-            for (j = 0; j < array_size(param_ids); j++) {
+            array_foreach(param_ids, j) {
                 ast_id_t *param_id = array_get_id(param_ids, j);
 
                 if (!param_id->is_used)
@@ -44,7 +44,7 @@ blk_check(check_t *check, ast_blk_t *blk)
     blk->up = check->blk;
     check->blk = blk;
 
-    for (i = 0; i < array_size(&blk->ids); i++) {
+    array_foreach(&blk->ids, i) {
         ast_id_t *id = array_get_id(&blk->ids, i);
 
         if (is_cont_blk(blk))
@@ -53,7 +53,7 @@ blk_check(check_t *check, ast_blk_t *blk)
         id_check(check, id);
     }
 
-    for (i = 0; i < array_size(&blk->stmts); i++) {
+    array_foreach(&blk->stmts, i) {
         stmt_check(check, array_get_stmt(&blk->stmts, i));
     }
 

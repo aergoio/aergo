@@ -76,14 +76,14 @@ blk_search_id(ast_blk_t *blk, char *name, int num)
 
     do {
         /* TODO: better to skip if it is equal to the current contract id */
-        for (i = 0; i < array_size(&blk->ids); i++) {
+        array_foreach(&blk->ids, i) {
             ast_id_t *id = array_get_id(&blk->ids, i);
 
             if (is_label_id(id))
                 continue;
 
             if (is_tuple_id(id)) {
-                for (j = 0; j < array_size(&id->u_tup.var_ids); j++) {
+                array_foreach(&id->u_tup.var_ids, j) {
                     ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, j);
 
                     if (var_id->num < num && strcmp(var_id->name, name) == 0)
@@ -109,7 +109,7 @@ blk_search_label(ast_blk_t *blk, char *name)
     if (blk == NULL)
         return NULL;
 
-    for (i = 0; i < array_size(&blk->ids); i++) {
+    array_foreach(&blk->ids, i) {
         ast_id_t *id = array_get_id(&blk->ids, i);
 
         if (is_label_id(id) && strcmp(id->name, name) == 0)

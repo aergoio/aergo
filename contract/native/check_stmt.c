@@ -35,7 +35,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     if (is_tuple_exp(l_exp)) {
         array_t *var_exps = l_exp->u_tup.exps;
 
-        for (i = 0; i < array_size(var_exps); i++) {
+        array_foreach(var_exps, i) {
             ast_exp_t *var_exp = array_get_exp(var_exps, i);
 
             if (!is_usable_lval(var_exp))
@@ -53,7 +53,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         array_t *val_exps = r_exp->u_tup.exps;
 
         if (array_size(var_exps) == array_size(val_exps)) {
-            for (i = 0; i < array_size(var_exps); i++) {
+            array_foreach(var_exps, i) {
                 ast_exp_t *var_exp = array_get_exp(var_exps, i);
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
@@ -101,7 +101,7 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
 
     elif_stmts = &stmt->u_if.elif_stmts;
 
-    for (i = 0; i < array_size(elif_stmts); i++) {
+    array_foreach(elif_stmts, i) {
         stmt_check_if(check, array_get_stmt(elif_stmts, i));
     }
 
@@ -221,7 +221,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_NOT_SUPPORTED, &array_get_id(var_ids, 1)->pos);
 
         /* make "variable = loop_exp[i++]" */
-        for (i = 0; i < array_size(var_ids); i++) {
+        array_foreach(var_ids, i) {
             ast_id_t *var_id = array_get_id(var_ids, i);
             ast_exp_t *id_exp;
 
@@ -295,7 +295,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     blk = stmt->u_sw.blk;
     cond_exp = stmt->u_sw.cond_exp;
 
-    for (i = 0; i < array_size(&blk->stmts); i++) {
+    array_foreach(&blk->stmts, i) {
         ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
         ast_exp_t *val_exp = case_stmt->u_case.val_exp;
 
@@ -349,7 +349,7 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
 
     stmts = stmt->u_case.stmts;
 
-    for (i = 0; i < array_size(stmts); i++) {
+    array_foreach(stmts, i) {
         stmt_check(check, array_get_stmt(stmts, i));
     }
 

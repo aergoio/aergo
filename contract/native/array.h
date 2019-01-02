@@ -35,6 +35,8 @@
 
 #define array_reset(array)              ((array)->size = 0)
 
+#define array_foreach(array, i)         for ((i) = 0; (i) < array_size(array); (i)++)
+
 typedef struct array_s {
     int cap;
     int size;

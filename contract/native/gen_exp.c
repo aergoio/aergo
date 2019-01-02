@@ -542,13 +542,13 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     arg_exps = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
 
-    for (i = 0; i < array_size(param_exps); i++) {
+    array_foreach(param_exps, i) {
         arg_exps[j++] = exp_gen(gen, array_get_exp(param_exps, i));
     }
 
     if (ret_id != NULL) {
         if (is_tuple_id(ret_id)) {
-            for (i = 0; i < array_size(&ret_id->u_tup.var_ids); i++) {
+            array_foreach(&ret_id->u_tup.var_ids, i) {
                 arg_exps[j++] =
                     gen_i32(gen, array_get_id(&ret_id->u_tup.var_ids, i)->addr);
             }
@@ -585,7 +585,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     if (is_array_type(meta)) {
         int offset = 0;
 
-        for (i = 0; i < array_size(elem_exps); i++) {
+        array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
 
             val_exp = exp_gen(gen, elem_exp);
@@ -601,7 +601,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         ASSERT2(array_size(elem_exps) == meta->elem_cnt,
                 array_size(elem_exps), meta->elem_cnt);
 
-        for (i = 0; i < array_size(elem_exps); i++) {
+        array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             //meta_t *elem_meta = meta->elems[i];
 

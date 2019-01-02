@@ -25,7 +25,7 @@ id_check_var_array(check_t *check, ast_id_t *id, bool is_param)
 
     meta_set_arr_dim(&id->meta, array_size(size_exps));
 
-    for (i = 0; i < array_size(size_exps); i++) {
+    array_foreach(size_exps, i) {
         ast_exp_t *size_exp = array_get_exp(size_exps, i);
 
         CHECK(exp_check(check, size_exp));
@@ -125,7 +125,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
     /* The size of the tuple identifier is not used,
      * so we do not need to set size here */
-    for (i = 0; i < array_size(var_ids); i++) {
+    array_foreach(var_ids, i) {
         ast_id_t *var_id = array_get_id(var_ids, i);
 
         var_id->mod = id->mod;
@@ -163,7 +163,7 @@ id_check_struct(check_t *check, ast_id_t *id)
     fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
 
-    for (i = 0; i < array_size(fld_ids); i++) {
+    array_foreach(fld_ids, i) {
         ast_id_t *fld_id = array_get_id(fld_ids, i);
         meta_t *fld_meta = &fld_id->meta;
 
@@ -197,7 +197,7 @@ id_check_enum(check_t *check, ast_id_t *id)
     elem_ids = id->u_enum.elem_ids;
     ASSERT(elem_ids != NULL);
 
-    for (i = 0; i < array_size(elem_ids); i++) {
+    array_foreach(elem_ids, i) {
         ast_id_t *elem_id = array_get_id(elem_ids, i);
         ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
@@ -276,7 +276,7 @@ id_check_fn(check_t *check, ast_id_t *id)
 
     param_ids = id->u_fn.param_ids;
 
-    for (i = 0; i < array_size(param_ids); i++) {
+    array_foreach(param_ids, i) {
         ast_id_t *param_id = array_get_id(param_ids, i);
 
         id_check_param(check, param_id);

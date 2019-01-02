@@ -89,7 +89,7 @@ hash_search(hash_t *hash, char *key)
     uint32_t hashval = hash_fn(key, strlen(key));
     array_t *bucket = &hash->buckets[hashval % HASH_BUCKET_SIZE];
 
-    for (i = 0; i < array_size(bucket); i++) {
+    array_foreach(bucket, i) {
         hash_elem_t *elem = array_get(bucket, i, hash_elem_t);
 
         if (strcmp(elem->key, key) == 0)

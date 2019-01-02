@@ -36,17 +36,17 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     /* 2nd local for relooper */
     gen_add_local(gen, TYPE_INT32);
 
-    for (i = 0; i < array_size(&fn->locals); i++) {
+    array_foreach(&fn->locals, i) {
         id_gen(gen, array_get_id(&fn->locals, i));
     }
 
     gen->relooper = RelooperCreate();
 
-    for (i = 0; i < array_size(&fn->bbs); i++) {
+    array_foreach(&fn->bbs, i) {
         bb_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    for (i = 0; i < array_size(&fn->bbs); i++) {
+    array_foreach(&fn->bbs, i) {
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 

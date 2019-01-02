@@ -268,7 +268,7 @@ contract_decl:
         int i;
         bool exist_ctor = false;
 
-        for (i = 0; i < array_size(&$4->ids); i++) {
+        array_foreach(&$4->ids, i) {
             ast_id_t *id = array_get_id(&$4->ids, i);
 
             if (is_ctor_id(id)) {

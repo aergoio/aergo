@@ -586,7 +586,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", array_size(param_ids),
                array_size(param_exps));
 
-    for (i = 0; i < array_size(param_exps); i++) {
+    array_foreach(param_exps, i) {
         ast_id_t *param_id = array_get_id(param_ids, i);
         ast_exp_t *param_exp = array_get_exp(param_exps, i);
 
@@ -638,7 +638,7 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
     ASSERT1(is_tuple_exp(exp), exp->kind);
     ASSERT(exps != NULL);
 
-    for (i = 0; i < array_size(exps); i++) {
+    array_foreach(exps, i) {
         CHECK(exp_check(check, array_get_exp(exps, i)));
     }
 
@@ -657,7 +657,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     ASSERT1(is_init_exp(exp), exp->kind);
     ASSERT(exps != NULL);
 
-    for (i = 0; i < array_size(exps); i++) {
+    array_foreach(exps, i) {
         ast_exp_t *elem_exp = array_get_exp(exps, i);
 
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
@@ -674,7 +674,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
         int size = 0;
         char *raw = xcalloc(meta_size(&exp->meta));
 
-        for (i = 0; i < array_size(exps); i++) {
+        array_foreach(exps, i) {
             ast_exp_t *elem_exp = array_get_exp(exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
