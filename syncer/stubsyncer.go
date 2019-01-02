@@ -30,10 +30,12 @@ type StubSyncer struct {
 
 	cfg *SyncerConfig
 
-	checkResultFn TestResultFn
+	checkResultFn    TestResultFn
+	getAnchorsHookFn GetAnchorsHookFn
 }
 
 type TestResultFn func(stubSyncer *StubSyncer)
+type GetAnchorsHookFn func(stubSyncer *StubSyncer)
 
 var (
 	targetPeerID = peer.ID([]byte(fmt.Sprintf("peer-%d", 0)))
@@ -109,6 +111,11 @@ func isOtherActorRequest(msg interface{}) bool {
 func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
 	//prefix handle
 	switch resmsg := msg.(type) {
+	case *message.GetAnchors:
+		if stubSyncer.getAnchorsHookFn != nil {
+			stubSyncer.getAnchorsHookFn(stubSyncer)
+		}
+
 	case *message.FinderResult:
 		if resmsg.Ancestor != nil && resmsg.Err == nil && resmsg.Ancestor.No >= 0 {
 			stubSyncer.localChain.Rollback(resmsg.Ancestor)
