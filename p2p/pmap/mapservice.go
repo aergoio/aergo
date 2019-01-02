@@ -15,12 +15,12 @@ import (
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/libp2p/go-libp2p-protocol"
+	"math"
 	"sync"
 	"time"
 )
