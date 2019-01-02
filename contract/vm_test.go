@@ -3047,4 +3047,35 @@ abi.payable(constructor)
 	}
 }
 
+func TestSqlVmPubNet(t *testing.T) {
+	PubNet = true
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function createAndInsert()
+    db.exec("create table if not exists dual(dummy char(1))")
+	db.exec("insert into dual values ('X')")
+    local insertYZ = db.prepare("insert into dual values (?),(?)")
+    insertYZ:exec("Y", "Z")
+end
+abi.register(createAndInsert)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "simple-query", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).Fail(`attempt to index global 'db'`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

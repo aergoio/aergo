@@ -894,3 +894,12 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	stateSet.curContract = prevContractInfo
 	return ret + 1
 }
+
+//export IsPublic
+func IsPublic() C.int {
+	if PubNet {
+		return C.int(1)
+	} else {
+		return C.int(0)
+	}
+}

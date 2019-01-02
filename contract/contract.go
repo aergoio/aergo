@@ -27,8 +27,11 @@ type preLoadInfo struct {
 	replyCh     chan *loadedReply
 }
 
-var loadReqCh chan *preLoadReq
-var preLoadInfos [2]preLoadInfo
+var (
+	loadReqCh chan *preLoadReq
+	preLoadInfos [2]preLoadInfo
+	PubNet bool
+)
 
 const BlockFactory = 0
 const ChainService = 1

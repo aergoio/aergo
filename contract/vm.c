@@ -22,6 +22,9 @@ static void preloadModules(lua_State *L)
 	luaopen_json(L);
 	luaopen_crypto(L);
 	luaopen_bc(L);
+	if (!IsPublic()) {
+        luaopen_db(L);
+	}
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
