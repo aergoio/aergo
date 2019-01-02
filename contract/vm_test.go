@@ -2085,4 +2085,156 @@ abi.payable(constructor)
 	}
 }
 
+func TestSqlVmPubNet(t *testing.T) {
+	PubNet = true
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function createAndInsert()
+    db.exec("create table if not exists dual(dummy char(1))")
+	db.exec("insert into dual values ('X')")
+    local insertYZ = db.prepare("insert into dual values (?),(?)")
+    insertYZ:exec("Y", "Z")
+end
+abi.register(createAndInsert)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "simple-query", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).fail(`attempt to index global 'db'`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSqlVmSimple(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function createAndInsert()
+    db.exec("create table if not exists dual(dummy char(1))")
+	db.exec("insert into dual values ('X')")
+    local insertYZ = db.prepare("insert into dual values (?),(?)")
+    insertYZ:exec("Y", "Z")
+end
+function insertRollbackData()
+	db.exec("insert into dual values ('A'),('B'),('C')")
+end
+function query()
+    local rt = {}
+    local stmt = db.prepare("select ?+1, round(?, 1), dummy || ? as col3 from dual order by col3")
+    local rs = stmt:query(1, 3.14, " Hello Blockchain")
+    while rs:next() do
+        local col1, col2, col3 = rs:get()
+        table.insert(rt, col1)
+        table.insert(rt, col2)
+        table.insert(rt, col3)
+    end
+    return rt
+end
+function count()
+	local rs = db.query("select count(*) from dual")
+	if rs:next() then
+		local n = rs:get()
+		--rs:next()
+		return n
+	else
+		return "error in count()"
+	end
+end
+function all()
+    local rt = {}
+    local rs = db.query("select dummy from dual order by 1")
+    while rs:next() do
+        local col = rs:get()
+        table.insert(rt, col)
+    end
+    return rt
+end
+abi.register(createAndInsert, insertRollbackData, query, count, all)`
+
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "simple-query", 0, definition),
+	)
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`),
+	)
+	err = bc.Query(
+		"simple-query",
+		`{"Name": "query", "Args":[]}`,
+		"",
+		`[2,3.1,"X Hello Blockchain",2,3.1,"Y Hello Blockchain",2,3.1,"Z Hello Blockchain"]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query(
+		"simple-query",
+		`{"Name": "count", "Args":[]}`,
+		"",
+		`3`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`),
+	)
+	err = bc.Query(
+		"simple-query",
+		`{"Name": "count", "Args":[]}`,
+		"",
+		`6`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_ = bc.DisConnectBlock()
+
+	err = bc.Query(
+		"simple-query",
+		`{"Name": "count", "Args":[]}`,
+		"",
+		`3`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.DisConnectBlock()
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.DisConnectBlock()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// there is only a genesis block
+	err = bc.Query(
+		"simple-query",
+		`{"Name": "count", "Args":[]}`,
+		"cannot find contract",
+		"",
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

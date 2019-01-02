@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
@@ -67,6 +68,7 @@ func initChainEnv(genesis *types.Genesis) {
 	if pubNet {
 		setMaxBlockSize(pubNetMaxBlockSize)
 	}
+	contract.PubNet = pubNet
 	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
 	setCoinbaseFee(fee)
 }

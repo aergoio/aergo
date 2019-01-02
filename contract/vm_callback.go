@@ -740,3 +740,12 @@ func transformAmount(amountStr string) (*big.Int, error) {
 	}
 	return ret, nil
 }
+
+//export IsPublic
+func IsPublic() C.int {
+	if PubNet {
+		return C.int(1)
+	} else {
+		return C.int(0)
+	}
+}
