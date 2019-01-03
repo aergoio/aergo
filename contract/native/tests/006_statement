@@ -242,6 +242,16 @@ contract test {
     }
 }
 
+@test(expression_statement)
+contract test {
+    test() {
+        int x;
+        x;
+        x++;
+        x == 1 ? 1 : 0;
+    }
+}
+
 @test(if_else)
 contract test {
     int v1 = 1;

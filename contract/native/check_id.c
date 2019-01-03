@@ -89,8 +89,7 @@ id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
 
     meta_copy(&id->meta, type_meta);
 
-    /* The default expression for constant variables of type tuple is set
-     * in id_trans_tuple() */
+    /* The constant value of the tuple identifier is checked by id_check_tuple() */
     if (!is_tuple && is_const_id(id) && dflt_exp == NULL)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
@@ -328,7 +327,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
     id->meta.elem_cnt = array_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
-    /* The size of the tuple identifier is not used,
+    /* The meta size of the tuple identifier is never used,
      * so we do not need to set size here */
     array_foreach(elem_ids, i) {
         ast_id_t *elem_id = array_get_id(elem_ids, i);
@@ -337,6 +336,10 @@ id_check_tuple(check_t *check, ast_id_t *id)
         elem_id->scope = id->scope;
 
         if (is_var_id(elem_id)) {
+            /* The default expression for the tuple identifier
+             * is set in id_trans_var() */
+            ASSERT(elem_id->u_var.dflt_exp == NULL);
+
             if (elem_id->u_var.type_meta == NULL)
                 elem_id->u_var.type_meta = id->u_tup.type_meta;
 

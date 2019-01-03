@@ -121,6 +121,16 @@ contract test {
     }
 }
 
+@test(return_function_value)
+contract test {
+    func f1(double x) double { return x * 2.0; }
+    func f2(float x) double { return f1((double)x); }
+
+    test() {
+        double v = f2(1.0);
+    }
+}
+
 @test(return_contract)
 contract ref {
     public int a;
@@ -166,9 +176,17 @@ contract test {
 }
 
 @test(missing_return_statement)
-@error(ERROR_MISSING_RETURN)
+@error(ERROR_MISSING_RETURN,3)
 contract test {
     func f1() double { }
+    func f2() string {
+        return null;
+        f1();
+    }
+    func f3() int {
+        return 0;
+        int x;
+    }
 }
 
 @test(function_as_lvalue)

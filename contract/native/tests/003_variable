@@ -55,10 +55,16 @@ contract test {
     int const v = 0;
 }
 
+@test(constant_tuple_variables)
+contract test {
+    const double x, y = 0.1, 0.2;
+}
+
 @test(missing_constant_value)
-@error(ERROR_MISSING_CONST_VAL)
+@error(ERROR_MISSING_CONST_VAL,3)
 contract test {
     const int v;
+    const float f1, f2;
 }
 
 @test(type_modifier)

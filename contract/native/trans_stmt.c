@@ -14,14 +14,17 @@
 #include "trans_stmt.h"
 
 static void
-stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
+add_exp_stmt(trans_t *trans, ast_exp_t *exp)
 {
-    exp_trans(trans, stmt->u_exp.exp);
+    if (is_null_exp(exp))
+        return;
 
-    if (is_call_exp(stmt->u_exp.exp)) {
-        bb_add_stmt(trans->bb, stmt);
-    }
-    else if (has_piggyback(trans->bb)) {
+    exp_trans(trans, exp);
+
+    if (is_call_exp(exp)/* TODO: || is_sql_exp(exp) */)
+        bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
+
+    if (has_piggyback(trans->bb)) {
         int i;
         array_t *pgbacks = &trans->bb->pgbacks;
 
@@ -30,6 +33,23 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
         }
 
         array_reset(pgbacks);
+    }
+}
+
+static void
+stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
+{
+    ast_exp_t *exp = stmt->u_exp.exp;
+
+    if (is_tuple_exp(exp)) {
+        int i;
+
+        array_foreach(exp->u_tup.elem_exps, i) {
+            add_exp_stmt(trans, array_get_exp(exp->u_tup.elem_exps, i));
+        }
+    }
+    else {
+        add_exp_stmt(trans, exp);
     }
 }
 

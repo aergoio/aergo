@@ -17,8 +17,6 @@
 static void
 id_trans_var(trans_t *trans, ast_id_t *id)
 {
-	ast_exp_t *dflt_exp = id->u_var.dflt_exp;
-
     if (is_global_id(id)) {
         /* Initialization of the global variable will be done in the constructor */
         ir_add_global(trans->ir, id);
@@ -31,18 +29,6 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         fn_add_stack(trans->fn, id);
     else
         fn_add_local(trans->fn, id);
-
-    if (dflt_exp != NULL) {
-        ast_exp_t *id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
-
-        id_exp->id = id;
-        meta_copy(&id_exp->meta, &id->meta);
-
-        ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type,
-                dflt_exp->meta.type);
-
-        stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
-	}
 }
 
 static ast_exp_t *

@@ -59,6 +59,7 @@ error(ERROR_INVALID_ARR_IDX,        "array index out of bounds")
 error(ERROR_DUPLICATED_CASE,        "duplicated case condition")
 error(ERROR_DUPLICATED_ENUM,        "duplicated enumerator value")
 error(ERROR_DUPLICATED_LABEL,       "duplicated %s label")
+error(ERROR_IGNORED_STMT,           "statement is ignored")
 error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
 error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 

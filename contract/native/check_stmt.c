@@ -11,6 +11,36 @@
 
 #include "check_stmt.h"
 
+static int
+stmt_check_exp(check_t *check, ast_stmt_t *stmt)
+{
+    ast_exp_t *exp = stmt->u_exp.exp;
+
+    ASSERT1(is_exp_stmt(stmt), stmt->kind);
+    ASSERT(exp != NULL);
+
+    exp_check(check, exp);
+
+    if (is_tuple_exp(exp)) {
+        int i;
+
+        array_foreach(exp->u_tup.elem_exps, i) {
+            ast_exp_t *elem_exp = array_get_exp(exp->u_tup.elem_exps, i);
+
+            if (!is_usable_stmt(elem_exp)) {
+                elem_exp->kind = EXP_NULL;
+                WARN(ERROR_IGNORED_STMT, &elem_exp->pos);
+            }
+        }
+    }
+    else if (!is_usable_stmt(exp)) {
+        exp->kind = EXP_NULL;
+        WARN(ERROR_IGNORED_STMT, &stmt->pos);
+    }
+
+    return NO_ERROR;
+}
+
 static void
 check_symm_assign(check_t *check, array_t *var_exps, array_t *val_exps)
 {
@@ -540,7 +570,7 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
         return NO_ERROR;
 
     case STMT_EXP:
-        return exp_check(check, stmt->u_exp.exp);
+        return stmt_check_exp(check, stmt);
 
     case STMT_ASSIGN:
         return stmt_check_assign(check, stmt);

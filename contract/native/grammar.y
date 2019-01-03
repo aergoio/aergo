@@ -24,6 +24,8 @@ extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
+static void decl_add(array_t *stmts, ast_id_t *id);
+
 %}
 
 %parse-param { parse_t *parse }
@@ -574,7 +576,9 @@ blk_decl:
     var_qual
     {
         $$ = blk_new_normal(&@$);
+
         id_add(&$$->ids, $1);
+        decl_add(&$$->stmts, $1);
     }
 |   struct
     {
@@ -594,7 +598,9 @@ blk_decl:
 |   blk_decl var_qual
     {
         $$ = $1;
+
         id_add(&$$->ids, $2);
+        decl_add(&$$->stmts, $2);
     }
 |   blk_decl struct
     {
@@ -1307,6 +1313,54 @@ static void
 yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)
 {
     ERROR(ERROR_SYNTAX, yylloc, msg);
+}
+
+static void
+decl_add(array_t *stmts, ast_id_t *id)
+{
+    ast_exp_t *var_exp;
+    ast_stmt_t *decl_stmt;
+
+    if (is_const_id(id))
+        return;
+
+    if (is_var_id(id)) {
+        if (id->u_var.dflt_exp != NULL) {
+            var_exp = exp_new_id_ref(id->name, &id->pos);
+            decl_stmt = stmt_new_assign(var_exp, id->u_var.dflt_exp, &id->pos);
+
+            id->u_var.dflt_exp = NULL;
+        }
+        else {
+            decl_stmt = stmt_new_exp(exp_new_null(&id->pos), &id->pos);
+        }
+    }
+    else if (is_tuple_id(id)) {
+        if (id->u_var.dflt_exp != NULL) {
+            int i;
+            array_t *elem_ids = id->u_tup.elem_ids;
+            array_t *elem_exps = array_new();
+
+            array_foreach(elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(elem_ids, i);
+
+                exp_add(elem_exps, exp_new_id_ref(elem_id->name, &elem_id->pos));
+            }
+
+            var_exp = exp_new_tuple(elem_exps, &id->pos);
+            decl_stmt = stmt_new_assign(var_exp, id->u_tup.dflt_exp, &id->pos);
+
+            id->u_tup.dflt_exp = NULL;
+        }
+        else {
+            decl_stmt = stmt_new_exp(exp_new_null(&id->pos), &id->pos);
+        }
+    }
+    else {
+        ASSERT1(!"invalid identifier", id->kind);
+    }
+
+    stmt_add(stmts, decl_stmt);
 }
 
 /* end of grammar.y */
