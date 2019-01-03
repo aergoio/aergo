@@ -360,6 +360,8 @@ func (sn *Snapshots) gatherRankers() ([]string, error) {
 	return bps, nil
 }
 
+// UpdateCluster updates the current BP list by the ones corresponding to
+// blockNo.
 func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
 	var (
 		err error
