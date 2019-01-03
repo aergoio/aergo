@@ -165,7 +165,7 @@ contract test {
     func f1() int8 { return 1024; }
 }
 
-@test(missing_return_clause)
+@test(missing_return_statement)
 @error(ERROR_MISSING_RETURN)
 contract test {
     func f1() double { }

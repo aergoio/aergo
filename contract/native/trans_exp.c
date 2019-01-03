@@ -29,7 +29,6 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
         ASSERT(id->addr >= 0);
 
         exp->kind = EXP_STACK_REF;
-        exp->u_st.is_lval = trans->is_lval;
         exp->u_st.addr = id->addr;
         exp->u_st.offset = id->offset;
     }
@@ -37,7 +36,6 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
         ASSERT(id->idx >= 0);
 
         exp->kind = EXP_LOCAL_REF;
-        exp->u_lo.is_lval = trans->is_lval;
         exp->u_lo.idx = id->idx;
     }
 }
@@ -126,7 +124,6 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 {
-    bool is_lval = trans->is_lval;
     ast_exp_t *val_exp = exp->u_un.val_exp;
     ast_exp_t *var_exp, *bi_exp, *lit_exp;
 
@@ -135,10 +132,8 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
     case OP_DEC:
         var_exp = exp_clone(val_exp);
 
-        exp_trans_to_lval(trans, var_exp);
-        exp_trans_to_rval(trans, val_exp);
-
-        trans->is_lval = is_lval;
+        exp_trans(trans, var_exp);
+        exp_trans(trans, val_exp);
 
         lit_exp = exp_new_lit(&exp->pos);
         value_set_i64(&lit_exp->u_lit.val, 1);

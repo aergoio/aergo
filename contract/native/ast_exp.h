@@ -122,12 +122,10 @@ typedef struct exp_init_s {
 } exp_init_t;
 
 typedef struct exp_local_ref_s {
-    bool is_lval;
     uint32_t idx;
 } exp_local_ref_t;
 
 typedef struct exp_stack_ref_s {
-    bool is_lval;
     uint32_t addr;
     uint32_t offset;
 } exp_stack_ref_t;
@@ -154,7 +152,6 @@ struct ast_exp_s {
         exp_stack_ref_t u_st;
     };
 
-    /* results of semantic checker */
     ast_id_t *id;       /* referenced identifier */
     meta_t meta;
 };

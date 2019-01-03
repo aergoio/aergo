@@ -16,7 +16,7 @@
 static void
 stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 {
-    exp_trans_to_lval(trans, stmt->u_exp.exp);
+    exp_trans(trans, stmt->u_exp.exp);
 
     if (is_call_exp(stmt->u_exp.exp)) {
         bb_add_stmt(trans->bb, stmt);
@@ -93,8 +93,8 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     /* TODO: When assigning to a struct variable,
      * we must replace it with an assignment for each field */
 
-    exp_trans_to_lval(trans, l_exp);
-    exp_trans_to_rval(trans, r_exp);
+    exp_trans(trans, l_exp);
+    exp_trans(trans, r_exp);
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         array_t *var_exps = l_exp->u_tup.elem_exps;

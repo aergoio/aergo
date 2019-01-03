@@ -47,15 +47,16 @@ id_check_array(check_t *check, ast_id_t *id)
             meta_t *size_meta = &size_exp->meta;
             value_t *size_val;
 
-            if (size_id != NULL && size_id->val != NULL)
+            if (size_id != NULL && is_const_id(size_id))
                 /* constant variable */
                 size_val = size_id->val;
-            else if (is_integer_type(size_meta) && is_lit_exp(size_exp))
+            else if (is_lit_exp(size_exp) && is_integer_type(size_meta))
                 /* integer literal */
                 size_val = &size_exp->u_lit.val;
             else
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
+            ASSERT(size_val != NULL);
             ASSERT1(is_i64_val(size_val), size_val->type);
 
             dim_sizes = val_i64(size_val);

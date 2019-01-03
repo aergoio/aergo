@@ -40,7 +40,6 @@ struct ast_blk_s {
     array_t ids;
     array_t stmts;
 
-    /* results of semantic checker */
     ast_blk_t *up;
 };
 
