@@ -74,9 +74,6 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	if err = states.Update(); err != nil {
 		return err
 	}
-	if err = states.Commit(); err != nil {
-		return err
-	}
 
 	return nil
 }
