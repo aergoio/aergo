@@ -71,7 +71,7 @@ strbuf_load(strbuf_t *sb, char *path)
 }
 
 void
-strbuf_dump(strbuf_t *sb, char *path)
+strbuf_print(strbuf_t *sb, char *path)
 {
     int n;
     FILE *fp;

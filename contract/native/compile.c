@@ -38,7 +38,7 @@ compile(char *path, flag_t flag)
     }
 
     if (flag_off(flag, FLAG_TEST))
-        error_dump();
+        error_print();
 
     return has_error();
 }

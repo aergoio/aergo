@@ -54,6 +54,4 @@ ast_blk_t *blk_search(ast_blk_t *blk, blk_kind_t kind);
 ast_id_t *blk_search_id(ast_blk_t *blk, char *name, int num);
 ast_id_t *blk_search_label(ast_blk_t *blk, char *name);
 
-void ast_blk_dump(ast_blk_t *blk, int indent);
-
 #endif /* ! _AST_BLK_H */

@@ -15,7 +15,6 @@ ir_new(void)
 {
     ir_t *ir = xmalloc(sizeof(ir_t));
 
-    array_init(&ir->globals);
     array_init(&ir->fns);
 
     ir->sgmt = sgmt_new();
@@ -26,8 +25,6 @@ ir_new(void)
 void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
-    array_add_last(&ir->globals, id);
-
     id->addr = sgmt_add_global(ir->sgmt, id->meta.type);
 }
 

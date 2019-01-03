@@ -26,7 +26,7 @@ typedef struct src_pos_s {
     pos_t rel;      /* relative position */
 } src_pos_t;
 
-void src_pos_dump(src_pos_t *pos, char *buf);
+void src_pos_print(src_pos_t *pos, char *buf);
 
 static inline void
 pos_set(pos_t *pos, char *path, int line, int col, int offset)

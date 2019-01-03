@@ -8,7 +8,7 @@
 #include "src_pos.h"
 
 void
-src_pos_dump(src_pos_t *src_pos, char *buf)
+src_pos_print(src_pos_t *src_pos, char *buf)
 {
 #define SRC_POS_LINE_MAX      80
     int i;

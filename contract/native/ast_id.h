@@ -91,7 +91,7 @@ typedef struct id_label_s {
 
 typedef struct id_tuple_s {
     meta_t *type_meta;
-    array_t var_ids;
+    array_t elem_ids;
     ast_exp_t *dflt_exp;
 } id_tuple_t;
 
@@ -146,7 +146,5 @@ void id_add(array_t *ids, ast_id_t *new_id);
 void id_join(array_t *ids, array_t *new_ids);
 
 array_t *id_strip(ast_id_t *id);
-
-void ast_id_dump(ast_id_t *id, int indent);
 
 #endif /* ! _AST_ID_H */

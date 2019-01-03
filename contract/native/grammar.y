@@ -399,9 +399,9 @@ declarator_list:
         }
         else {
             $$ = id_new_tuple(&@1);
-            id_add(&$$->u_tup.var_ids, $1);
+            id_add(&$$->u_tup.elem_ids, $1);
         }
-        id_add(&$$->u_tup.var_ids, $3);
+        id_add(&$$->u_tup.elem_ids, $3);
     }
 ;
 
@@ -438,9 +438,9 @@ var_init:
         }
         else {
             $$ = exp_new_tuple(array_new(), &@1);
-            exp_add($$->u_tup.exps, $1);
+            exp_add($$->u_tup.elem_exps, $1);
         }
-        exp_add($$->u_tup.exps, $3);
+        exp_add($$->u_tup.elem_exps, $3);
     }
 ;
 
@@ -667,10 +667,10 @@ return_list:
         }
         else {
             $$ = id_new_tuple(&@1);
-            id_add(&$$->u_tup.var_ids, $1);
+            id_add(&$$->u_tup.elem_ids, $1);
         }
 
-        id_add(&$$->u_tup.var_ids, $3);
+        id_add(&$$->u_tup.elem_ids, $3);
     }
 ;
 
@@ -952,9 +952,9 @@ expression:
         }
         else {
             $$ = exp_new_tuple(array_new(), &@1);
-            exp_add($$->u_tup.exps, $1);
+            exp_add($$->u_tup.elem_exps, $1);
         }
-        exp_add($$->u_tup.exps, $3);
+        exp_add($$->u_tup.elem_exps, $3);
     }
 ;
 

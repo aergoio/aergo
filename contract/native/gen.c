@@ -7,7 +7,6 @@
 
 #include "util.h"
 #include "ir.h"
-#include "gen_id.h"
 #include "gen_fn.h"
 #include "gen_util.h"
 
@@ -47,16 +46,12 @@ gen(ir_t *ir, flag_t flag, char *path)
     int i, n;
     gen_t gen;
 
-    if (ir == NULL || has_error())
+    if (has_error())
         return;
 
     gen_init(&gen, flag, path);
 
     BinaryenSetDebugInfo(1);
-
-    array_foreach(&ir->globals, i) {
-        id_gen(&gen, array_get_id(&ir->globals, i));
-    }
 
     array_foreach(&ir->fns, i) {
         fn_gen(&gen, array_get_fn(&ir->fns, i));

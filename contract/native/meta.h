@@ -113,7 +113,7 @@ char *meta_to_str(meta_t *x);
 
 void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
 void meta_set_struct(meta_t *meta, char *name, array_t *ids);
-void meta_set_tuple(meta_t *meta, array_t *exps);
+void meta_set_tuple(meta_t *meta, array_t *elem_exps);
 
 int meta_cmp(meta_t *x, meta_t *y);
 

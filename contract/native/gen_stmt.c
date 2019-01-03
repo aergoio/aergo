@@ -45,12 +45,6 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     if (is_local_ref_exp(l_exp))
         return BinaryenSetLocal(gen->module, l_exp->u_lo.idx, value);
 
-    if (is_id_ref_exp(l_exp)) {
-        ASSERT(false);
-        //ASSERT1(is_global_id(id), id->scope);
-        return BinaryenSetGlobal(gen->module, "", value);
-    }
-
     if (is_stack_ref_exp(l_exp)) {
         address = gen_i32(gen, l_exp->u_st.addr);
         offset = l_exp->u_st.offset;
@@ -77,9 +71,6 @@ BinaryenExpressionRef
 stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
-    case STMT_NULL:
-        return BinaryenNop(gen->module);
-
     case STMT_EXP:
         return exp_gen(gen, stmt->u_exp.exp);
 

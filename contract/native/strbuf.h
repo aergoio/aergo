@@ -37,7 +37,7 @@ void strbuf_trunc(strbuf_t *sb, int n);
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
 
 void strbuf_load(strbuf_t *sb, char *path);
-void strbuf_dump(strbuf_t *sb, char *path);
+void strbuf_print(strbuf_t *sb, char *path);
 
 static inline char
 strbuf_char(strbuf_t *sb, int idx) 

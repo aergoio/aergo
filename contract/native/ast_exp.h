@@ -113,12 +113,12 @@ typedef struct exp_sql_s {
 
 /* (exp, exp, exp, ...) */
 typedef struct exp_tuple_s {
-    array_t *exps;
+    array_t *elem_exps;
 } exp_tuple_t;
 
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
-    array_t *exps;
+    array_t *elem_exps;
 } exp_init_t;
 
 typedef struct exp_local_ref_s {
@@ -173,15 +173,13 @@ ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
 ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
                            src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
-ast_exp_t *exp_new_tuple(array_t *exps, src_pos_t *pos);
-ast_exp_t *exp_new_init(array_t *exps, src_pos_t *pos);
+ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
+ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_local_ref(uint32_t idx, src_pos_t *pos);
 ast_exp_t *exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 
 bool exp_equals(ast_exp_t *e1, ast_exp_t *e2);
-
-void ast_exp_dump(ast_exp_t *exp, int indent);
 
 #endif /* ! _AST_EXP_H */

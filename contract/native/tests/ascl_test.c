@@ -71,7 +71,7 @@ print_results(env_t *env)
         printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
 
         if (ac_cnt > 0)
-            error_dump();
+            error_print();
 
         printf("Expected: <%d errors>\n"
                "Actually: <"ANSI_YELLOW"%d errors"ANSI_NONE">\n",
@@ -88,7 +88,7 @@ print_results(env_t *env)
             printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
 
             if (ac != NO_ERROR)
-                error_dump();
+                error_print();
 
             printf("Expected: <%s>\n"
                    "Actually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
@@ -102,7 +102,7 @@ print_results(env_t *env)
     printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
 
     if (flag_on(env->flag, FLAG_VERBOSE))
-        error_dump();
+        error_print();
 }
 
 static void

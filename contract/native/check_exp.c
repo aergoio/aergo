@@ -640,16 +640,16 @@ static int
 exp_check_tuple(check_t *check, ast_exp_t *exp)
 {
     int i;
-    array_t *exps = exp->u_tup.exps;
+    array_t *elem_exps = exp->u_tup.elem_exps;
 
     ASSERT1(is_tuple_exp(exp), exp->kind);
-    ASSERT(exps != NULL);
+    ASSERT(elem_exps != NULL);
 
-    array_foreach(exps, i) {
-        CHECK(exp_check(check, array_get_exp(exps, i)));
+    array_foreach(elem_exps, i) {
+        CHECK(exp_check(check, array_get_exp(elem_exps, i)));
     }
 
-    meta_set_tuple(&exp->meta, exps);
+    meta_set_tuple(&exp->meta, elem_exps);
 
     return NO_ERROR;
 }
@@ -659,13 +659,13 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 {
     int i;
     bool is_aggr_lit = true;
-    array_t *exps = exp->u_init.exps;
+    array_t *elem_exps = exp->u_init.elem_exps;
 
     ASSERT1(is_init_exp(exp), exp->kind);
-    ASSERT(exps != NULL);
+    ASSERT(elem_exps != NULL);
 
-    array_foreach(exps, i) {
-        ast_exp_t *elem_exp = array_get_exp(exps, i);
+    array_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
 
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
 
@@ -675,14 +675,14 @@ exp_check_init(check_t *check, ast_exp_t *exp)
             is_aggr_lit = false;
     }
 
-    meta_set_tuple(&exp->meta, exps);
+    meta_set_tuple(&exp->meta, elem_exps);
 
     if (is_aggr_lit) {
         int size = 0;
         char *raw = xcalloc(meta_size(&exp->meta));
 
-        array_foreach(exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(exps, i);
+        array_foreach(elem_exps, i) {
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
             size = ALIGN(size, meta_align(&elem_exp->meta));

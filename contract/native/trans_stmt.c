@@ -63,9 +63,9 @@ strip_asymm_assign(trans_t *trans, array_t *var_exps, array_t *val_exps, src_pos
         if (is_tuple_exp(val_exp)) {
             ast_exp_t *elem_exp;
 
-            array_foreach(val_exp->u_tup.exps, j) {
+            array_foreach(val_exp->u_tup.elem_exps, j) {
                 var_exp = array_get_exp(var_exps, var_idx++);
-                elem_exp = array_get_exp(val_exp->u_tup.exps, j);
+                elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
 
                 if (is_init_exp(elem_exp))
                     elem_exp->id = var_exp->id;
@@ -97,8 +97,8 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     exp_trans_to_rval(trans, r_exp);
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
-        array_t *var_exps = l_exp->u_tup.exps;
-        array_t *val_exps = r_exp->u_tup.exps;
+        array_t *var_exps = l_exp->u_tup.elem_exps;
+        array_t *val_exps = r_exp->u_tup.elem_exps;
 
         if (array_size(var_exps) == array_size(val_exps))
             strip_symm_assign(trans, var_exps, val_exps, &stmt->pos);
@@ -346,24 +346,25 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
         ast_exp_t *var_exp;
 
         if (is_tuple_id(ret_id)) {
-            /* Since the number of arg_exp may be smaller than the number of ret_id,
-             * it is made as a tuple expression for asymmetry assignment processing */
             int i;
-            array_t *exps = array_new();
+            array_t *elem_exps = array_new();
             ast_exp_t *id_exp;
 
-            array_foreach(&ret_id->u_tup.var_ids, i) {
-                ast_id_t *type_id = array_get_id(&ret_id->u_tup.var_ids, i);
+            /* Since the number of arg_exp may be smaller than the number of ret_id,
+             * it is made as a tuple expression for asymmetry assignment processing */
 
-                id_exp = exp_new_id_ref(type_id->name, &type_id->pos);
+            array_foreach(&ret_id->u_tup.elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(&ret_id->u_tup.elem_ids, i);
 
-                id_exp->id = type_id;
-                meta_copy(&id_exp->meta, &type_id->meta);
+                id_exp = exp_new_id_ref(elem_id->name, &elem_id->pos);
 
-                array_add_last(exps, id_exp);
+                id_exp->id = elem_id;
+                meta_copy(&id_exp->meta, &elem_id->meta);
+
+                array_add_last(elem_exps, id_exp);
             }
 
-            var_exp = exp_new_tuple(exps, &arg_exp->pos);
+            var_exp = exp_new_tuple(elem_exps, &arg_exp->pos);
         }
         else {
             var_exp = exp_new_id_ref(ret_id->name, &ret_id->pos);

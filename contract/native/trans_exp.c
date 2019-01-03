@@ -240,27 +240,27 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         if (is_tuple_id(ret_id)) {
             int i;
-            array_t *exps = array_new();
-            array_t *var_ids = &ret_id->u_tup.var_ids;
+            array_t *elem_exps = array_new();
+            array_t *elem_ids = &ret_id->u_tup.elem_ids;
 
             ASSERT(trans->fn != NULL);
 
-            array_foreach(var_ids, i) {
-                ast_id_t *var_id = array_get_id(var_ids, i);
+            array_foreach(elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(elem_ids, i);
                 ast_exp_t *ref_exp;
 
-                ASSERT1(var_id->offset == 0, var_id->offset);
+                ASSERT1(elem_id->offset == 0, elem_id->offset);
 
-                fn_add_stack(trans->fn, var_id);
+                fn_add_stack(trans->fn, elem_id);
 
-                ref_exp = exp_new_stack_ref(var_id->addr, 0, &exp->pos);
-                meta_copy(&ref_exp->meta, &var_id->meta);
+                ref_exp = exp_new_stack_ref(elem_id->addr, 0, &exp->pos);
+                meta_copy(&ref_exp->meta, &elem_id->meta);
 
-                array_add_last(exps, ref_exp);
+                array_add_last(elem_exps, ref_exp);
             }
 
             exp->kind = EXP_TUPLE;
-            exp->u_tup.exps = exps;
+            exp->u_tup.elem_exps = elem_exps;
         }
         else {
             fn_add_stack(trans->fn, ret_id);
@@ -283,10 +283,10 @@ static void
 exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    array_t *exps = exp->u_tup.exps;
+    array_t *elem_exps = exp->u_tup.elem_exps;
 
-    array_foreach(exps, i) {
-        exp_trans(trans, array_get_exp(exps, i));
+    array_foreach(elem_exps, i) {
+        exp_trans(trans, array_get_exp(elem_exps, i));
     }
 }
 
@@ -294,10 +294,10 @@ static void
 exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    array_t *exps = exp->u_init.exps;
+    array_t *elem_exps = exp->u_init.elem_exps;
 
-    array_foreach(exps, i) {
-        exp_trans(trans, array_get_exp(exps, i));
+    array_foreach(elem_exps, i) {
+        exp_trans(trans, array_get_exp(elem_exps, i));
     }
 }
 

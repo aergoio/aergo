@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "gen_id.h"
 #include "gen_bb.h"
 #include "gen_util.h"
 
@@ -29,7 +28,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     /* generate local variables */
     array_foreach(&fn->locals, i) {
-        id_gen(gen, array_get_id(&fn->locals, i));
+        gen_add_local(gen, array_get_id(&fn->locals, i)->meta.type);
     }
 
     gen->relooper = RelooperCreate();

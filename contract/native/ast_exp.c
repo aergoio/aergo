@@ -143,24 +143,24 @@ exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_tuple(array_t *exps, src_pos_t *pos)
+exp_new_tuple(array_t *elem_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
-    exp->u_tup.exps = exps;
+    exp->u_tup.elem_exps = elem_exps;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_init(array_t *exps, src_pos_t *pos)
+exp_new_init(array_t *elem_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_INIT, pos);
 
-    if (exps == NULL)
-        exp->u_init.exps = array_new();
+    if (elem_exps == NULL)
+        exp->u_init.elem_exps = array_new();
     else
-        exp->u_init.exps = exps;
+        exp->u_init.elem_exps = elem_exps;
 
     return exp;
 }
@@ -191,7 +191,7 @@ exp_clone(ast_exp_t *exp)
 {
     int i;
     ast_exp_t *res;
-    array_t *exps;
+    array_t *elem_exps;
     array_t *res_exps;
 
     if (exp == NULL)
@@ -251,10 +251,10 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_CALL:
-        exps = exp->u_call.param_exps;
+        elem_exps = exp->u_call.param_exps;
         res_exps = array_new();
-        array_foreach(exps, i) {
-            array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
+        array_foreach(elem_exps, i) {
+            array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
         }
         res = exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
         break;
@@ -264,10 +264,10 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_TUPLE:
-        exps = exp->u_tup.exps;
+        elem_exps = exp->u_tup.elem_exps;
         res_exps = array_new();
-        array_foreach(exps, i) {
-            array_add_last(res_exps, exp_clone(array_get_exp(exps, i)));
+        array_foreach(elem_exps, i) {
+            array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
         }
         res = exp_new_tuple(res_exps, &exp->pos);
         break;
@@ -346,12 +346,12 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
             strcmp(e1->u_sql.sql, e2->u_sql.sql) == 0;
 
     case EXP_TUPLE:
-        if (array_size(e1->u_tup.exps) != array_size(e2->u_tup.exps))
+        if (array_size(e1->u_tup.elem_exps) != array_size(e2->u_tup.elem_exps))
             return false;
 
-        array_foreach(e1->u_tup.exps, i) {
-            if (!exp_equals(array_get_exp(e1->u_tup.exps, i),
-                            array_get_exp(e2->u_tup.exps, i)))
+        array_foreach(e1->u_tup.elem_exps, i) {
+            if (!exp_equals(array_get_exp(e1->u_tup.elem_exps, i),
+                            array_get_exp(e2->u_tup.elem_exps, i)))
                 return false;
         }
         return true;
@@ -361,11 +361,6 @@ exp_equals(ast_exp_t *e1, ast_exp_t *e2)
     }
 
     return false;
-}
-
-void
-ast_exp_dump(ast_exp_t *exp, int indent)
-{
 }
 
 /* end of ast_exp.c */

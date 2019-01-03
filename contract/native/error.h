@@ -43,7 +43,7 @@ void error_push(ec_t ec, errlvl_t lvl, src_pos_t *pos, ...);
 error_t *error_pop(void);
 
 void error_clear(void);
-void error_dump(void);
+void error_print(void);
 
 void error_exit(ec_t ec, errlvl_t lvl, ...);
 

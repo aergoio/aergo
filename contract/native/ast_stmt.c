@@ -151,9 +151,4 @@ stmt_new_blk(ast_blk_t *blk, src_pos_t *pos)
     return stmt;
 }
 
-void
-ast_stmt_dump(ast_stmt_t *stmt, int indent)
-{
-}
-
 /* end of ast_stmt.c */

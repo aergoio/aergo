@@ -105,7 +105,7 @@ error_new(ec_t ec, errlvl_t lvl, src_pos_t *pos, char *desc)
     error->line = pos->rel.first_line;
     error->col = pos->rel.first_col;
 
-    src_pos_dump(pos, buf);
+    src_pos_print(pos, buf);
     snprintf(error->desc, sizeof(error->desc), "%s\n%s", desc, buf);
 
     return error;
@@ -141,7 +141,7 @@ error_clear(void)
 }
 
 void
-error_dump(void)
+error_print(void)
 {
     int i;
     array_t *array = stack_to_array(&errstack_, error_cmp);

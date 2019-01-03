@@ -459,7 +459,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     if (ret_id != NULL) {
         if (is_tuple_id(ret_id))
-            arg_cnt += array_size(&ret_id->u_tup.var_ids);
+            arg_cnt += array_size(&ret_id->u_tup.elem_ids);
         else
             arg_cnt++;
     }
@@ -472,9 +472,10 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     if (ret_id != NULL) {
         if (is_tuple_id(ret_id)) {
-            array_foreach(&ret_id->u_tup.var_ids, i) {
-                arg_exps[j++] =
-                    gen_i32(gen, array_get_id(&ret_id->u_tup.var_ids, i)->addr);
+            array_foreach(&ret_id->u_tup.elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(&ret_id->u_tup.elem_ids, i);
+
+                arg_exps[j++] = gen_i32(gen, elem_id->addr);
             }
         }
         else {
@@ -498,7 +499,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 {
     int i;
     ast_id_t *id = exp->id;
-    array_t *elem_exps = exp->u_init.exps;
+    array_t *elem_exps = exp->u_init.elem_exps;
     BinaryenExpressionRef address;
     BinaryenExpressionRef value;
 
@@ -544,8 +545,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             ASSERT1(is_tuple_exp(elem_exp), elem_exp->kind);
 
-            args[0] = exp_gen(gen, array_get_exp(elem_exp->u_tup.exps, 0));
-            args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.exps, 1));
+            args[0] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 0));
+            args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 1));
 
             gen_add_instr(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
                                             BinaryenTypeNone()));

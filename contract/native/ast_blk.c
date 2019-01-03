@@ -83,11 +83,11 @@ blk_search_id(ast_blk_t *blk, char *name, int num)
                 continue;
 
             if (is_tuple_id(id)) {
-                array_foreach(&id->u_tup.var_ids, j) {
-                    ast_id_t *var_id = array_get_id(&id->u_tup.var_ids, j);
+                array_foreach(&id->u_tup.elem_ids, j) {
+                    ast_id_t *elem_id = array_get_id(&id->u_tup.elem_ids, j);
 
-                    if (var_id->num < num && strcmp(var_id->name, name) == 0)
-                        return var_id;
+                    if (elem_id->num < num && strcmp(elem_id->name, name) == 0)
+                        return elem_id;
                 }
             }
             else if (id->num < num && strcmp(id->name, name) == 0) {

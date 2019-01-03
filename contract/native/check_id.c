@@ -317,20 +317,20 @@ static int
 id_check_tuple(check_t *check, ast_id_t *id)
 {
     int i;
-    array_t *var_ids = &id->u_tup.var_ids;
+    array_t *elem_ids = &id->u_tup.elem_ids;
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
     ASSERT1(is_tuple_id(id), id->kind);
 
     id->meta.type = TYPE_TUPLE;
 
-    id->meta.elem_cnt = array_size(var_ids);
+    id->meta.elem_cnt = array_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
     /* The size of the tuple identifier is not used,
      * so we do not need to set size here */
-    array_foreach(var_ids, i) {
-        ast_id_t *elem_id = array_get_id(var_ids, i);
+    array_foreach(elem_ids, i) {
+        ast_id_t *elem_id = array_get_id(elem_ids, i);
 
         elem_id->mod = id->mod;
         elem_id->scope = id->scope;
