@@ -97,14 +97,6 @@ type GetBlockChunks struct {
 	TTL time.Duration
 }
 
-// GetMissingBlocks send types.GetMissingRequest to dest peer.
-// The actor returns true if sending is successful.
-// Not used (need to be async operation)
-type GetMissingBlocks struct {
-	ToWhom peer.ID
-	Hashes []BlockHash
-}
-
 // BlockInfosResponse is data from other peer, as a response of types.GetBlockRequest
 // p2p module will send this to chainservice actor.
 type BlockInfosResponse struct {

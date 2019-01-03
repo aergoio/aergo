@@ -83,8 +83,8 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 		{"nil", args{PingRequest, nil}},
 		{"int", args{PingResponse, len(msgID)}},
 		{"pointer", args{StatusRequest, &logger}},
-		{"array", args{GetMissingRequest, dummyArray}},
-		{"string", args{GetMissingResponse, "string addition"}},
+		{"array", args{StatusRequest, dummyArray}},
+		{"string", args{StatusRequest, "string addition"}},
 		{"obj", args{PingRequest, P2P{}}},
 		{"lazy", args{PingRequest, log.DoLazyEval(func() string {
 			return "Length is " + strconv.Itoa(len(dummyArray))

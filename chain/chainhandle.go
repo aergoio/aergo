@@ -795,51 +795,6 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 // TODO adhoc flag refactor it
 const HashNumberUnknown = math.MaxUint64
 
-//
-func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo) {
-	// 1. check endpoint is on main chain (or, return nil)
-	logger.Debug().Str("stop_hash", enc.ToString(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
-	var stopBlock *types.Block
-	var err error
-	if stopHash == nil {
-		stopBlock, err = cs.GetBestBlock()
-	} else {
-		stopBlock, err = cs.cdb.getBlock(stopHash)
-	}
-	if err != nil {
-		return nil, HashNumberUnknown, HashNumberUnknown
-	}
-
-	var mainhash []byte
-	var mainblock *types.Block
-	// 2. get the highest block of Hashes hash on main chain
-	for _, hash := range Hashes {
-		// need to be short
-		mainblock, err = cs.cdb.getBlock(hash)
-		if err != nil {
-			continue
-		}
-		// get main hash with same block height
-		mainhash, err = cs.cdb.getHashByNo(
-			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
-		if err != nil {
-			continue
-		}
-
-		if bytes.Equal(mainhash, mainblock.BlockHash()) {
-			break
-		}
-		mainblock = nil
-	}
-
-	// TODO: handle the case that can't find the hash in main chain
-	if mainblock == nil {
-		logger.Debug().Msg("Can't search same ancestor")
-		return nil, HashNumberUnknown, HashNumberUnknown
-	}
-
-	return mainblock.BlockHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
-}
 
 func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
 	// 1. check endpoint is on main chain (or, return nil)
@@ -875,22 +830,4 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 	}
 
 	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
-}
-
-func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {
-	myBestBlock, err := cs.GetBestBlock()
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get best block")
-		return
-	}
-	sameBestHash := bytes.Equal(myBestBlock.Hash, remoteBestHash)
-	if sameBestHash {
-		// two node has exact best block.
-		// TODO: myBestBlock.GetHeader().BlockNo == remoteBestHeight
-		logger.Debug().Str("peer", peerID.Pretty()).Msg("peer is in sync status")
-	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < remoteBestHeight {
-		cs.ChainSync(peerID, remoteBestHash)
-	}
-
-	return
 }

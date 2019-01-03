@@ -371,7 +371,7 @@ func (p *remotePeerImpl) consumeRequest(originalID MsgID) {
 }
 
 func (p *remotePeerImpl)notFoundReceiver(msg Message, msgBody proto.Message) bool {
-	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
+//	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
 	return false
 }
 
