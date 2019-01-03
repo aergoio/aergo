@@ -402,7 +402,6 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     ast_id_t *fn_id;
     meta_t *fn_meta;
     ast_exp_t *arg_exp;
-    ast_id_t *ret_id;
 
     ASSERT1(is_return_stmt(stmt), stmt->kind);
     ASSERT(check->fn_id != NULL);
@@ -413,7 +412,6 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_fn_id(fn_id), fn_id->kind);
 
     arg_exp = stmt->u_ret.arg_exp;
-    ret_id = fn_id->u_fn.ret_id;
 
     if (arg_exp != NULL) {
         if (is_void_type(fn_meta) || is_ctor_id(fn_id))
@@ -428,24 +426,26 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
         if (is_tuple_exp(arg_exp)) {
             int i;
 
-            ASSERT1(is_tuple_id(ret_id), ret_id->kind);
+            ASSERT1(is_tuple_type(fn_meta), fn_meta->type);
+            ASSERT2(array_size(arg_exp->u_tup.exps) == fn_meta->elem_cnt,
+                    array_size(arg_exp->u_tup.exps), fn_meta->elem_cnt);
 
             array_foreach(arg_exp->u_tup.exps, i) {
-                ast_id_t *var_id = array_get_id(&ret_id->u_tup.var_ids, i);
+                meta_t *var_meta = fn_meta->elems[i];
                 ast_exp_t *val_exp = array_get_exp(arg_exp->u_tup.exps, i);
 
-                exp_check_overflow(val_exp, &var_id->meta);
+                exp_check_overflow(val_exp, var_meta);
             }
         }
         else {
-            exp_check_overflow(arg_exp, &ret_id->meta);
+            exp_check_overflow(arg_exp, fn_meta);
         }
     }
     else if (!is_void_type(fn_meta) && !is_ctor_id(fn_id)) {
-        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "argument", meta_cnt(fn_meta), 0);
+        RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "return", meta_cnt(fn_meta), 0);
     }
 
-    stmt->u_ret.ret_id = ret_id;
+    stmt->u_ret.ret_id = fn_id->u_fn.ret_id;
 
     return NO_ERROR;
 }

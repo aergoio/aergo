@@ -248,6 +248,10 @@ id_check_fn(check_t *check, ast_id_t *id)
         id_check(check, id->u_fn.ret_id);
 
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
+
+        if (id->u_fn.blk == NULL ||
+            !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t)))
+            ERROR(ERROR_MISSING_RETURN, &id->pos);
     }
     else if (is_ctor_id(id)) {
         meta_set_object(&id->meta);

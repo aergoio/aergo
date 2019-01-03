@@ -37,6 +37,12 @@ contract test {
     string v;
 }
 
+@test(too_long_identifier)
+@error(ERROR_TOO_LONG_ID)
+contract test {
+    int v11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
+}
+
 @test(constant_qualifier)
 contract test {
     const int v1 = 0;

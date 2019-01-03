@@ -1290,6 +1290,12 @@ non_reserved_token:
 
 identifier:
     ID
+    {
+        if (strlen($1) > NAME_MAX_LEN)
+            ERROR(ERROR_TOO_LONG_ID, &@1, NAME_MAX_LEN);
+
+        $$ = $1;
+    }
 |   non_reserved_token
 ;
 

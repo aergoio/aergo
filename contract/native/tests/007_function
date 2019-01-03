@@ -129,7 +129,7 @@ contract ref {
 }
 
 contract test {
-    func f() ref { new ref(); }
+    func f() ref { return new ref(); }
 
     test() {
         ref v = f();
@@ -163,6 +163,12 @@ contract test {
 @error(ERROR_NUMERIC_OVERFLOW)
 contract test {
     func f1() int8 { return 1024; }
+}
+
+@test(missing_return_clause)
+@error(ERROR_MISSING_RETURN)
+contract test {
+    func f1() double { }
 }
 
 @test(function_as_lvalue)
