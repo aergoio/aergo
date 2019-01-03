@@ -183,7 +183,7 @@ func (bf *BlockFetcher) Start() {
 	}
 
 	run := func() {
-		defer bf.waitGroup.Done()
+		defer RecoverSyncer(NameBlockFetcher, bf.compRequester, func() { bf.waitGroup.Done() })
 
 		logger.Debug().Msg("start block fetcher")
 

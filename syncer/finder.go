@@ -68,7 +68,7 @@ func (finder *Finder) start() {
 		var ancestor *types.BlockInfo
 		var err error
 
-		defer finder.waitGroup.Done()
+		defer RecoverSyncer(NameFinder, finder.compRequester, func() { finder.waitGroup.Done() })
 
 		logger.Debug().Msg("start to find common ancestor")
 
