@@ -810,7 +810,13 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	}
 
 	if len(code) == 0 {
-		code, err = luacUtil.Compile(contractStr)
+		l := luacUtil.NewLState()
+		if l == nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]compile error:"+err.Error())
+			return -1
+		}
+		defer luacUtil.CloseLState(l)
+		code, err = luacUtil.Compile(l, contractStr)
 		if err != nil {
 			luaPushStr(L, "[Contract.LuaDeployContract]compile error:"+err.Error())
 			return -1

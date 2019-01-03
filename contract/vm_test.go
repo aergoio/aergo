@@ -2770,7 +2770,7 @@ abi.payable(save)
 	if err == nil {
 		t.Error(err)
 	} else {
-		if !strings.Contains(err.Error(), types.ErrVmConstructorIsNotPayable.Error()) {
+		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
 			t.Error(err)
 		}
 	}

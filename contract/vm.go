@@ -185,7 +185,7 @@ func newExecutor(contract []byte, stateSet *StateSet) *Executor {
 	}
 	if ce.L == nil {
 		ctrLog.Error().Str("error", "failed: create lua state")
-		ce.err = types.ErrVmStart
+		ce.err = newVmStartError()
 		return ce
 	}
 	if cErrMsg := C.vm_loadbuff(
@@ -357,7 +357,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 		return 0
 	}
 	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
-		ce.err = types.ErrVmConstructorIsNotPayable
+		ce.err = errVmConstructorIsNotPayable
 		return 0
 	}
 
@@ -675,12 +675,6 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
 			return string(ret), dbErr
-		}
-		if err == types.ErrVmStart {
-			return string(ret), err
-		}
-		if err == types.ErrVmConstructorIsNotPayable {
-			return string(ret), err
 		}
 		return string(ret), err
 	}
