@@ -77,6 +77,7 @@ type ChainDB interface {
 type ChainConsensus interface {
 	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
+	VerifySign(block *types.Block) error
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	Update(block *types.Block)
 	Save(tx db.Transaction) error

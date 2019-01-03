@@ -2,12 +2,13 @@ package chain
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (
@@ -25,6 +26,9 @@ func (stubC *StubConsensus) SetStateDB(sdb *state.ChainStateDB) {
 }
 func (stubC *StubConsensus) IsTransactionValid(tx *types.Tx) bool {
 	return true
+}
+func (stubC *StubConsensus) VerifySign(block *types.Block) error {
+	return nil
 }
 func (stubC *StubConsensus) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	return nil
