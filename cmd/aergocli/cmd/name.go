@@ -48,7 +48,7 @@ func init() {
 	ownerCmd := &cobra.Command{
 		Use:                   "owner",
 		Short:                 "Owner of account name",
-		RunE:                  execNameOwner,
+		Run:                   execNameOwner,
 		DisableFlagsInUseLine: true,
 	}
 	ownerCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
@@ -113,10 +113,11 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execNameOwner(cmd *cobra.Command, args []string) error {
+func execNameOwner(cmd *cobra.Command, args []string) {
 	msg, err := client.GetNameInfo(context.Background(), &types.Name{Name: name})
 	if err != nil {
-		return errors.New("Failed request to aergo sever\n" + err.Error())
+		cmd.Println(err.Error())
+		return
 	}
 	owner := msg.Owner
 	if len(owner) > types.NameLength {
@@ -124,5 +125,4 @@ func execNameOwner(cmd *cobra.Command, args []string) error {
 	} else {
 		cmd.Println(msg.Name.Name, string(msg.Owner))
 	}
-	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // PeerManager is internal service that provide peer management
@@ -44,7 +42,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
-	GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState)
+	GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState)
 }
 
 /**
@@ -62,6 +60,7 @@ type peerManager struct {
 	mm             metric.MetricsManager
 
 	designatedPeers map[peer.ID]PeerMeta
+	hiddenPeerSet map[peer.ID]bool
 
 	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
@@ -106,6 +105,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		mutex:          &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
+		hiddenPeerSet: make(map[peer.ID]bool,len(cfg.P2P.NPHiddenPeers)),
 
 		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
@@ -113,7 +113,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 
 		addPeerChannel:    make(chan PeerMeta, 2),
 		removePeerChannel: make(chan peer.ID),
-		fillPoolChannel:   make(chan []PeerMeta),
+		fillPoolChannel:   make(chan []PeerMeta, 2),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
 	}
@@ -140,6 +140,14 @@ func (pm *peerManager) RegisterEventListener(listener PeerEventListener) {
 func (pm *peerManager) init() {
 	// set designated peers
 	pm.initDesignatedPeerList()
+	// init hidden peers
+	for _, pidStr := range pm.conf.NPHiddenPeers {
+		pid, err := peer.IDB58Decode(pidStr)
+		if err != nil {
+			panic("Invalid pid in NPHiddenPeers : "+pidStr+" err "+err.Error())
+		}
+		pm.hiddenPeerSet[pid] = true
+	}
 }
 
 func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
@@ -172,8 +180,7 @@ func (pm *peerManager) Start() error {
 	// FIXME: adhoc code
 	go func() {
 		time.Sleep(time.Second * 3)
-		// TODO sl을 독립시켜야 aergomap에서도 사용할 수 있음.
-		pm.nt.SetStreamHandler(aergoP2PSub, pm.onConnect)
+		pm.nt.AddStreamHandler(aergoP2PSub, pm.onConnect)
 
 		// addition should start after all modules are started
 		go func() {
@@ -197,48 +204,22 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		// go-multiaddr implementation does not support recent p2p protocol yet, but deprecated name ipfs.
-		// This adhoc will be removed when go-multiaddr is patched.
-		target = strings.Replace(target, "/p2p/", "/ipfs/", 1)
-		targetAddr, err := ma.NewMultiaddr(target)
+		peerMeta,err := FromMultiAddrString(target)
 		if err != nil {
-			pm.logger.Warn().Err(err).Str("target", target).Msg("invalid NPAddPeer address")
+			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue
 		}
-		splitted := strings.Split(targetAddr.String(), "/")
-		if len(splitted) != 7 {
-			pm.logger.Warn().Str("target", target).Msg("invalid NPAddPeer address")
-			continue
-		}
-		peerAddrString := splitted[2]
-		peerPortString := splitted[4]
-		peerPort, err := strconv.Atoi(peerPortString)
-		if err != nil {
-			pm.logger.Warn().Str("port", peerPortString).Msg("invalid Peer port")
-			continue
-		}
-		peerIDString := splitted[6]
-		peerID, err := peer.IDB58Decode(peerIDString)
-		if err != nil {
-			pm.logger.Warn().Str(LogPeerID, peerIDString).Msg("invalid PeerID")
-			continue
-		}
-		peerMeta := PeerMeta{
-			ID:         peerID,
-			Port:       uint32(peerPort),
-			IPAddress:  peerAddrString,
-			Designated: true,
-			Outbound:   true,
-		}
-		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("addr", peerAddrString).Int("port", peerPort).Msg("Adding Designated peer")
-		pm.designatedPeers[peerID] = peerMeta
+		peerMeta.Designated=true
+		peerMeta.Outbound=true
+		pm.logger.Info().Str(LogPeerID, peerMeta.ID.Pretty()).Str("addr", peerMeta.IPAddress).Uint32("port", peerMeta.Port).Msg("Adding Designated peer")
+		pm.designatedPeers[peerMeta.ID] = peerMeta
 	}
 }
 
 func (pm *peerManager) runManagePeers() {
-	addrDuration := time.Minute * 3
-	addrTicker := time.NewTicker(addrDuration)
-	// reconnectRunners := make(map[peer.ID]*reconnectRunner)
+	initialAddrDelay := time.Second * 20
+	initialTimer := time.NewTimer(initialAddrDelay)
+	addrTicker := time.NewTicker(DiscoveryQueryInterval)
 MANLOOP:
 	for {
 		select {
@@ -254,9 +235,12 @@ MANLOOP:
 					pm.rm.AddJob(meta)
 				}
 			}
+		case <-initialTimer.C:
+			initialTimer.Stop()
+			pm.checkAndCollectPeerListFromAll()
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
-		    pm.logPeerMetrics()
+		    //pm.logPeerMetrics()
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
@@ -276,7 +260,7 @@ MANLOOP:
 
 func (pm *peerManager) logPeerMetrics() {
 	if pm.logger.IsDebugEnabled() {
-		pm.logger.Debug().Msg(pm.mm.Summary())
+		pm.logger.Debug().Msg(pm.mm.PrintMetrics())
 	}
 }
 
@@ -311,7 +295,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	rw, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(LogPeerID, meta.ID.Pretty()).Msg("Failed to handshake")
-		pm.sendGoAway(rw, "Failed to handshake")
+		pm.sendGoAway(rw, err.Error())
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer
@@ -452,8 +436,13 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 	if pm.hasEnoughPeers() {
 		return
 	}
+	if pm.conf.NPUsePolaris {
+		pm.logger.Debug().Msg("Sending map query to polaris")
+		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
+	}
+
 	for _, remotePeer := range pm.remotePeers {
-		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: 20, Offset: 0})
+		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: MaxAddrListSizePeer, Offset: 0})
 	}
 }
 
@@ -539,21 +528,26 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
-func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []*types.NewBlockNotice, []types.PeerState) {
+func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState) {
 	peers := make([]*types.PeerAddress, 0, len(pm.remotePeers))
+	hiddens := make([]bool, 0, len(pm.remotePeers))
 	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
 	states := make([]types.PeerState, 0, len(pm.remotePeers))
 	for _, aPeer := range pm.remotePeers {
 		addr := aPeer.meta.ToPeerAddress()
+		hiddens = append(hiddens, aPeer.meta.Hidden)
 		peers = append(peers, &addr)
 		blks = append(blks, aPeer.lastNotice)
 		states = append(states, aPeer.state)
 	}
-	return peers, blks, states
+	return peers, hiddens, blks, states
 }
 
 // this method should be called inside pm.mutex
 func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
+	if _,exist := pm.hiddenPeerSet[ID]; exist {
+		peer.meta.Hidden = true
+	}
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }

@@ -26,9 +26,10 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultCoinbaseFee  = 1
+	DefaultCoinbaseFee  = "1000000000"
 	lastFieldOfBH       = "Sign"
 	DefaultTxVerifyTime = time.Microsecond * 200
+	DefaultEvictPeriod  = 12
 )
 
 type AvgTime struct {
@@ -171,18 +172,23 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 
 // NewBlock represents to create a block to store transactions.
 func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
-	var prevBlockHash []byte
-	var blockNo BlockNo
+	var (
+		chainID       []byte
+		prevBlockHash []byte
+		blockNo       BlockNo
+	)
 
 	if prevBlock != nil {
 		prevBlockHash = prevBlock.BlockHash()
 		blockNo = prevBlock.Header.BlockNo + 1
+		chainID = prevBlock.GetHeader().GetChainID()
 	}
 
 	body := BlockBody{
 		Txs: txs,
 	}
 	header := BlockHeader{
+		ChainID:         chainID,
 		PrevBlockHash:   prevBlockHash,
 		BlockNo:         blockNo,
 		Timestamp:       ts,
@@ -267,6 +273,25 @@ func (block *Block) BlockID() BlockID {
 // PrevBlockID converts parent block hash ([]byte) to BlockID.
 func (block *Block) PrevBlockID() BlockID {
 	return ToBlockID(block.GetHeader().GetPrevBlockHash())
+}
+
+// SetChainID sets id to block.ChainID
+func (block *Block) SetChainID(id []byte) {
+	block.Header.ChainID = id
+}
+
+// ValidChildOf reports whether block is a varid child of parent.
+func (block *Block) ValidChildOf(parent *Block) bool {
+	parChainID := parent.GetHeader().GetChainID()
+	curChainID := block.GetHeader().GetChainID()
+
+	// empty chain id case: an older verion of block has no chain id in its
+	// block header.
+	if len(parChainID) == 0 && len(curChainID) == 0 {
+		return true
+	}
+
+	return bytes.Compare(parChainID, curChainID) == 0
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed
@@ -484,7 +509,7 @@ func (tx *Tx) Validate() error {
 	return nil
 }
 
-func (tx *Tx) ValidateWithSenderState(senderState *State) error {
+func (tx *Tx) ValidateWithSenderState(senderState *State, fee *big.Int) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
@@ -492,7 +517,6 @@ func (tx *Tx) ValidateWithSenderState(senderState *State) error {
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		fee := new(big.Int).SetUint64(DefaultCoinbaseFee)
 		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance

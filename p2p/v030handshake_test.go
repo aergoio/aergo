@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
@@ -14,7 +15,38 @@ import (
 	"testing"
 )
 
-func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
+var (
+	myChainID, theirChainID * types.ChainID
+	myChainBytes, theirChainBytes []byte
+)
+
+func init() {
+	myChainID = types.NewChainID()
+	myChainID.Magic = "itSmain1"
+	myChainBytes, _ = myChainID.Bytes()
+
+	theirChainID = types.NewChainID()
+	theirChainID.Read(myChainBytes)
+	theirChainID.Magic = "itsdiff2"
+	theirChainBytes, _ = theirChainID.Bytes()
+
+}
+
+func TestDeepEqual(t *testing.T) {
+	b1, _ := myChainID.Bytes()
+	b2 := make([]byte, len(b1), len(b1)<<1 )
+	copy( b2, b1)
+
+	s1 := &types.Status{ChainID:b1}
+	s2 := &types.Status{ChainID:b2}
+
+	if !reflect.DeepEqual(s1, s2) {
+		t.Errorf("byte slice cant do DeepEqual! %v, %v", b1, b2)
+	}
+
+}
+
+func TestV030StatusHS_doForOutbound(t *testing.T) {
 	logger = log.NewLogger("test")
 	mockActor := new(MockActorService)
 	mockCA := new(MockChainAccessor)
@@ -26,8 +58,8 @@ func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
 	mockActor.On("GetChainAccessor").Return(mockCA)
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
-	dummyStatusMsg := &types.Status{}
-	statusBytes, _ := marshalMessage(dummyStatusMsg)
+	dummyStatusMsg := &types.Status{ChainID:myChainBytes}
+	diffStatusMsg := &types.Status{ChainID:theirChainBytes}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -40,6 +72,7 @@ func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
 		{"TUnexpMsg", nil, nil, nil, nil, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
 		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
+		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -47,23 +80,31 @@ func TestV030StatusHS_handshakeOutboundPeer(t *testing.T) {
 			dummyWriter := new(MockWriter)
 			mockRW := new(MockMsgReadWriter)
 
-			containerMsg := &V030Message{payload:statusBytes}
+			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
 				containerMsg.subProtocol = StatusRequest
+				statusBytes, _ := MarshalMessage(tt.readReturn)
+				containerMsg.payload = statusBytes
 			} else {
 				containerMsg.subProtocol = AddressesRequest
 			}
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
 
-			h := newV030StateHS(mockPM, mockActor, logger, samplePeerID, dummyReader, dummyWriter)
+			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
 			got, err := h.doForOutbound()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if got!=nil && tt.want!= nil {
+				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
+					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
+					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got.ChainID, tt.want.ChainID)
+				}
+			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -84,8 +125,8 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockActor.On("GetChainAccessor").Return(mockCA)
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
-	dummyStatusMsg := &types.Status{}
-	statusBytes, _ := marshalMessage(dummyStatusMsg)
+	dummyStatusMsg := &types.Status{ChainID:myChainBytes}
+	diffStatusMsg := &types.Status{ChainID:theirChainBytes}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -98,15 +139,18 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 		{"TUnexpMsg", nil, nil, nil, nil, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
 		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
+		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyReader := new(MockReader)
 			dummyWriter := new(MockWriter)
 			mockRW := new(MockMsgReadWriter)
-			containerMsg := &V030Message{payload:statusBytes}
+			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
 				containerMsg.subProtocol = StatusRequest
+				statusBytes, _ := MarshalMessage(tt.readReturn)
+				containerMsg.payload = statusBytes
 			} else {
 				containerMsg.subProtocol = AddressesRequest
 			}
@@ -114,15 +158,21 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
 
-			h := newV030StateHS(mockPM, mockActor, logger, samplePeerID, dummyReader, dummyWriter)
+			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
 			got, err := h.doForInbound()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("PeerHandshaker.handshakeInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
+			if got!=nil && tt.want!= nil {
+				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
+					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
+					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got.ChainID, tt.want.ChainID)
+				}
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PeerHandshaker.handshakeInboundPeer() = %v, want %v", got, tt.want)
 			}
 		})
 	}

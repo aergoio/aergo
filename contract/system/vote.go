@@ -24,22 +24,25 @@ var totalkey = []byte("totalvote")
 var sortedlistkey = []byte("sortedlist")
 
 const PeerIDLength = 39
-const VotingDelay = 5
+const VotingDelay = 60 * 60 * 24 //block interval
 
 func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
+	oldvote, err := getVote(scs, sender.ID())
+	if err != nil {
+		return err
+	}
+
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
 	}
-	if staked.GetWhen()+VotingDelay > blockNo {
+
+	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
 		return types.ErrLessTimeHasPassed
 	}
+
 	staked.When = blockNo
 	err = setStaking(scs, sender.ID(), staked)
-	if err != nil {
-		return err
-	}
-	oldvote, err := getVote(scs, sender.ID())
 	if err != nil {
 		return err
 	}
@@ -191,7 +194,21 @@ func buildVoteList(vote map[string]*big.Int) *types.VoteList {
 	return &voteList
 }
 
-func GetVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
+// AccountStateReader is an interface for getting a system account state.
+type AccountStateReader interface {
+	GetSystemAccountState() (*state.ContractState, error)
+}
+
+// GetVoteResult returns the top n voting result from the system account state.
+func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
+	scs, err := ar.GetSystemAccountState()
+	if err != nil {
+		return nil, err
+	}
+	return getVoteResult(scs, n)
+}
+
+func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {
 		return nil, err

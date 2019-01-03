@@ -32,7 +32,7 @@ type InboundHSHandler struct {
 }
 
 func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
-	return ih.handshakeInboundPeerTimeout(r,w,ttl)
+	return ih.handshakeInboundPeerTimeout(r, w, ttl)
 }
 
 type OutboundHSHandler struct {
@@ -40,7 +40,7 @@ type OutboundHSHandler struct {
 }
 
 func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
-	return oh.handshakeOutboundPeerTimeout(r,w,ttl)
+	return oh.handshakeOutboundPeerTimeout(r, w, ttl)
 }
 
 // PeerHandshaker works to handshake to just connected peer, it detect chain networks
@@ -50,6 +50,8 @@ type PeerHandshaker struct {
 	actorServ ActorService
 	logger    *log.Logger
 	peerID    peer.ID
+	// check if is it adhoc
+	localChainID *types.ChainID
 
 	remoteStatus *types.Status
 }
@@ -67,8 +69,8 @@ type hsResult struct {
 	err       error
 }
 
-func newHandshaker(pm PeerManager, actor ActorService, log *log.Logger, peerID peer.ID) *PeerHandshaker {
-	return &PeerHandshaker{pm: pm, actorServ: actor, logger: log, peerID: peerID}
+func newHandshaker(pm PeerManager, actor ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID) *PeerHandshaker {
+	return &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 
 func (h *PeerHandshaker) handshakeOutboundPeerTimeout(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error) {
@@ -166,16 +168,21 @@ func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error
 	return offset, nil
 }
 
-func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, error) {
+func createStatusMsg(pm PeerManager, actorServ ActorService, chainID *types.ChainID) (*types.Status, error) {
 	// find my best block
 	bestBlock, err := actorServ.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
 	selfAddr := pm.SelfMeta().ToPeerAddress()
+	chainIDbytes, err := chainID.Bytes()
+	if err != nil {
+		return nil, err
+	}
 	// create message data
 	statusMsg := &types.Status{
 		Sender:        &selfAddr,
+		ChainID:       chainIDbytes,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
@@ -186,7 +193,7 @@ func createStatusMsg(pm PeerManager, actorServ ActorService) (*types.Status, err
 func (h *PeerHandshaker) selectProtocolVersion(head HSHeader, r *bufio.Reader, w *bufio.Writer) (innerHandshaker, error) {
 	switch head.Version {
 	case P2PVersion030:
-		v030 := newV030StateHS(h.pm, h.actorServ, h.logger, h.peerID, r, w)
+		v030 := newV030StateHS(h.pm, h.actorServ, h.logger, h.localChainID, h.peerID, r, w)
 		return v030, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

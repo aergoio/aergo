@@ -43,6 +43,7 @@ var (
 	ErrFinderQuit               = errors.New("sync finder quit")
 	ErrorGetSyncAncestorTimeout = errors.New("timeout for GetSyncAncestor")
 	ErrFinderTimeout            = errors.New("Finder timeout")
+	ErrAlreadySyncDone          = errors.New("Already sync done")
 )
 
 func newFinder(ctx *types.SyncContext, compRequester component.IComponentRequester, chain types.ChainAccessor, cfg *SyncerConfig) *Finder {
@@ -88,7 +89,7 @@ func (finder *Finder) start() {
 		}
 
 		finder.compRequester.TellTo(message.SyncerSvc, &message.FinderResult{Ancestor: ancestor, Err: nil})
-		logger.Debug().Msg("stopped finder successfully")
+		logger.Info().Msg("stopped finder successfully")
 	}
 
 	go run()
@@ -135,7 +136,12 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 	if ancestor == nil {
 		logger.Debug().Msg("not found ancestor in lightscan")
 	} else {
-		logger.Debug().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("receive ancestor in lightscan")
+		logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
+
+		if ancestor.No == finder.ctx.TargetNo {
+			logger.Info().Msg("already synchronized")
+			return nil, ErrAlreadySyncDone
+		}
 	}
 
 	return ancestor, err
@@ -189,9 +195,9 @@ func (finder *Finder) fullscan() (*types.BlockInfo, error) {
 	}
 
 	if ancestor == nil {
-		logger.Info().Msg("finder failed to search ancestor in fullscan")
+		logger.Info().Msg("failed to search ancestor in fullscan")
 	} else {
-		logger.Info().Uint64("no", ancestor.No).Str("hash", enc.ToString(ancestor.Hash)).Msg("finder found ancestor")
+		logger.Info().Uint64("no", ancestor.No).Str("hash", enc.ToString(ancestor.Hash)).Msg("find ancestor in fullscan")
 	}
 
 	return ancestor, err

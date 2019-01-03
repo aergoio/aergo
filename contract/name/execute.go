@@ -78,11 +78,14 @@ func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 }
 
 func parseUpdatePayload(p []byte) ([]byte, []byte) {
-	params := strings.Split(string(p), ",")
-	if len(params) != 2 {
+	if len(p) <= types.NameLength && p[12] != ',' {
 		return nil, nil
 	}
-	name := params[0]
-	to := params[1]
+	comma := strings.IndexByte(string(p), ',')
+	if comma < 0 {
+		return nil, nil
+	}
+	name := p[:comma]
+	to := p[comma+1:]
 	return []byte(name), []byte(to)
 }

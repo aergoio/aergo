@@ -26,11 +26,14 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
 	logger = log.NewLogger("chain")
+
+	dfltErrBlocks = 128
 
 	ErrBlockExist = errors.New("block already exist")
 )
@@ -107,6 +110,10 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	}
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
+	initChainEnv(core.cdb.GetGenesisInfo())
+
+	contract.StartLStateFactory()
+
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
@@ -156,8 +163,9 @@ type ChainService struct {
 	consensus.ChainConsensus
 	*Core
 
-	cfg *cfg.Config
-	op  *OrphanPool
+	cfg       *cfg.Config
+	op        *OrphanPool
+	errBlocks *lru.Cache
 
 	validator *BlockValidator
 
@@ -180,7 +188,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
 		cfg.Blockchain.CoinbaseAccount,
-		types.DefaultCoinbaseFee,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
 		cfg.Blockchain.UseFastSyncer,
@@ -193,6 +200,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+
+	cs.errBlocks, err = lru.New(dfltErrBlocks)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to init lru")
+		return nil
+	}
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil); err != nil {
@@ -217,8 +230,8 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 	return cs.sdb
 }
 
-// CDBReader returns cs.sdb as a consensus.ChainDbReader.
-func (cs *ChainService) CDBReader() consensus.ChainDbReader {
+// CDB returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 
@@ -261,11 +274,12 @@ func (cs *ChainService) BeforeStop() {
 	cs.validator.Stop()
 }
 
-func (cs *ChainService) notifyBlock(block *types.Block) {
+func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
-			BlockNo: block.Header.BlockNo,
-			Block:   block,
+			Produced: isByBP,
+			BlockNo:  block.Header.BlockNo,
+			Block:    block,
 		})
 }
 
@@ -336,15 +350,11 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 }
 
 func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	if err != nil {
-		return nil, err
-	}
-	return system.GetVoteResult(scs, n)
+	return system.GetVoteResult(cs.sdb, n)
 }
 
 func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	scs, err := cs.sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +398,10 @@ func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
 		return nil, err
 	}
 	owner := name.GetOwner(scs, []byte(qname))
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, nil
+	if owner == nil {
+		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
+	}
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, err
 }
 
 type ChainManager struct {
@@ -430,24 +443,15 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		bid := msg.Block.BlockID()
 		block := msg.Block
-		logger.Debug().Str("hash", msg.Block.ID()).
-			Uint64("blockNo", msg.Block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
-		_, err := cm.getBlock(bid[:])
-		if err == nil {
-			logger.Debug().Str("hash", msg.Block.ID()).Msg("already exist")
-			err = ErrBlockExist
-		} else {
-			var bstate *state.BlockState
-			if msg.Bstate != nil {
-				bstate = msg.Bstate.(*state.BlockState)
-			}
-			err = cm.addBlock(block, bstate, msg.PeerID)
-			if err != nil && err != ErrBlockOrphan {
-				logger.Error().Err(err).Str("hash", msg.Block.ID()).Msg("failed add block")
-			}
+		logger.Debug().Str("hash", block.ID()).
+			Uint64("blockNo", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+
+		var bstate *state.BlockState
+		if msg.Bstate != nil {
+			bstate = msg.Bstate.(*state.BlockState)
 		}
+		err := cm.addBlock(block, bstate, msg.PeerID)
 
 		rsp := message.AddBlockRsp{
 			BlockNo:   block.GetHeader().GetBlockNo(),

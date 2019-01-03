@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aergoio/aergo/p2p/pmap"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/chain"
@@ -127,10 +129,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	chainSvc := chain.NewChainService(cfg)
 
-	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc.SDB())
+	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc)
 	rpcSvc := rpc.NewRPC(cfg, chainSvc)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
+	pmapSvc := pmap.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
@@ -147,9 +150,9 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc)
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc, pmapSvc)
 
-	consensusSvc, err := impl.New(cfg, chainSvc, compMng)
+	consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)

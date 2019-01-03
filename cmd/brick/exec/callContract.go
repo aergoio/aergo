@@ -39,25 +39,30 @@ func (c *callContract) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, _, _, _, err := c.parse(args)
+	_, _, _, _, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *callContract) parse(args string) (string, uint64, string, string, string, error) {
+func (c *callContract) parse(args string) (string, uint64, string, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
-		return "", 0, "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
+		return "", 0, "", "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
 	}
 
 	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
 	if err != nil {
-		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+		return "", 0, "", "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
 	}
 
 	callCode := "[]"
-	if len(splitArgs) == 5 {
+	if len(splitArgs) >= 5 {
 		callCode = splitArgs[4].Text
+	}
+
+	expectedResult := ""
+	if len(splitArgs) == 6 {
+		expectedResult = splitArgs[5].Text
 	}
 
 	return splitArgs[0].Text, //accountName
@@ -65,18 +70,21 @@ func (c *callContract) parse(args string) (string, uint64, string, string, strin
 		splitArgs[2].Text, //contractName
 		splitArgs[3].Text, //funcName
 		callCode, //callCode
+		expectedResult, //expectedResult
 		nil
 }
 
 func (c *callContract) Run(args string) (string, error) {
 
-	accountName, amount, contractName, funcName, callCode, _ := c.parse(args)
+	accountName, amount, contractName, funcName, callCode, expectedResult, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
-	err := context.Get().ConnectBlock(
-		contract.NewLuaTxCall(accountName, contractName, amount, formattedQuery),
-	)
+	callTx := contract.NewLuaTxCall(accountName, contractName, amount, formattedQuery)
+	if expectedResult != "" {
+		callTx.Fail(expectedResult)
+	}
+	err := context.Get().ConnectBlock(callTx)
 
 	if err != nil {
 		return "", err

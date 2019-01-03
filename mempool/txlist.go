@@ -6,8 +6,10 @@
 package mempool
 
 import (
+	"math/big"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -15,10 +17,11 @@ import (
 // TxList is internal struct for transactions per account
 type TxList struct {
 	sync.RWMutex
-	base    *types.State
-	account []byte
-	ready   int
-	list    []*types.Tx // nonce-ordered tx list
+	base     *types.State
+	lastTime time.Time
+	account  []byte
+	ready    int
+	list     []*types.Tx // nonce-ordered tx list
 }
 
 // NewTxList creates new TxList with given State
@@ -29,6 +32,9 @@ func NewTxList(acc []byte, st *types.State) *TxList {
 	}
 }
 
+func (tl *TxList) GetLastModifiedTime() time.Time {
+	return tl.lastTime
+}
 func (tl *TxList) GetAccount() []byte {
 	return tl.account
 }
@@ -112,12 +118,13 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	}
 	newCnt := len(tl.list) - tl.ready
 
+	tl.lastTime = time.Now()
 	return oldCnt - newCnt, nil
 }
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
+func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []*types.Tx) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -137,7 +144,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	var left []*types.Tx
 	removed := tl.list[:0]
 	for i, x := range tl.list {
-		err := x.ValidateWithSenderState(st)
+		err := x.ValidateWithSenderState(st, coinbasefee)
 		if err == nil || err == types.ErrTxNonceToohigh {
 			if err != nil && !balCheck {
 				left = append(left, tl.list[i:]...)
@@ -159,6 +166,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []*types.Tx) {
 	}
 	newCnt := len(tl.list) - tl.ready
 
+	tl.lastTime = time.Now()
 	return oldCnt - newCnt, removed
 }
 

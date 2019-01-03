@@ -7,18 +7,25 @@ package chain
 
 import (
 	"errors"
+	"math/big"
+
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
 
+const pubNetMaxBlockSize = 4000000
+
 var (
-	// MaxBlockSize is the maximum size of a block.
-	MaxBlockSize    uint32
 	CoinbaseAccount []byte
-	CoinbaseFee     uint64
 	MaxAnchorCount  int
 	UseFastSyncer   bool
 	VerifierCount   int
+	coinbaseFee     *big.Int
+
+	// MaxBlockSize is the upper limit of block size.
+	maxBlockSize uint32
+	pubNet       bool
 )
 
 var (
@@ -26,10 +33,10 @@ var (
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(maxBlockSize uint32, coinbaseAccountStr string, coinbaseFee uint64, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
+func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
 	var err error
 
-	MaxBlockSize = maxBlockSize
+	maxBlockSize = maxBlkSize
 	if isBp {
 		if len(coinbaseAccountStr) != 0 {
 			CoinbaseAccount, err = types.DecodeAddress(coinbaseAccountStr)
@@ -44,9 +51,41 @@ func Init(maxBlockSize uint32, coinbaseAccountStr string, coinbaseFee uint64, is
 		}
 	}
 
-	CoinbaseFee = coinbaseFee
 	MaxAnchorCount = maxAnchorCount
 	UseFastSyncer = useFastSyncer
 	VerifierCount = verifierCount
+
 	return nil
+}
+
+// IsPublic reports whether the block chain is public or not.
+func IsPublic() bool {
+	return pubNet
+}
+
+func initChainEnv(genesis *types.Genesis) {
+	pubNet = genesis.ID.PublicNet
+	if pubNet {
+		setMaxBlockSize(pubNetMaxBlockSize)
+	}
+	contract.PubNet = pubNet
+	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
+	setCoinbaseFee(fee)
+}
+
+// MaxBlockSize returns (kind of) the upper limit of block size.
+func MaxBlockSize() uint32 {
+	return maxBlockSize
+}
+
+func setMaxBlockSize(size uint32) {
+	maxBlockSize = size
+}
+
+func setCoinbaseFee(fee *big.Int) {
+	coinbaseFee = fee
+}
+
+func CoinbaseFee() *big.Int {
+	return coinbaseFee
 }

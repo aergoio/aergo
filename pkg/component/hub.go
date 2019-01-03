@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/opentracing/opentracing-go"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 var (

@@ -27,8 +27,11 @@ type preLoadInfo struct {
 	replyCh     chan *loadedReply
 }
 
-var loadReqCh chan *preLoadReq
-var preLoadInfos [2]preLoadInfo
+var (
+	loadReqCh chan *preLoadReq
+	preLoadInfos [2]preLoadInfo
+	PubNet bool
+)
 
 const BlockFactory = 0
 const ChainService = 1
@@ -45,7 +48,7 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
+func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
 	sender, receiver *state.V, preLoadService int) (string, error) {
 
 	txBody := tx.GetBody()
@@ -59,12 +62,8 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	if txBody.Payload == nil {
+	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
 		return "", nil
-	}
-
-	if !receiver.IsNew() && len(receiver.State().CodeHash) == 0 {
-		return "", errors.New("account is not a contract")
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
@@ -91,10 +90,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if ex != nil {
-		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP())
+		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
 		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), blockNo, ts, "", true,
+			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
@@ -104,12 +103,12 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64,
 		}
 	}
 	if err != nil {
-		if err == types.ErrInsufficientBalance || err == types.ErrVmStart {
+		if err == types.ErrVmStart {
 			return "", err
-		} else if _, ok := err.(DbSystemError); ok {
+		} else if _, ok := err.(*DbSystemError); ok {
 			return "", err
 		}
-		return "", VmError(err)
+		return "", newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
@@ -165,7 +164,7 @@ func preLoadWorker() {
 			continue
 		}
 		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), 0, 0, "", false,
+			tx.GetHash(), 0, 0, nil, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)

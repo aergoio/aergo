@@ -15,13 +15,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const (
-	// DefaultBlockIntervalSec  is the default block generation interval in seconds.
-	DefaultBlockIntervalSec = int64(1) // block production interval in sec
-
-	// DefaultDposBpNumber is the default number of block producers.
-	DefaultDposBpNumber = 23
-)
+// DefaultBlockIntervalSec  is the default block generation interval in seconds.
+const DefaultBlockIntervalSec = int64(1)
 
 var (
 	// BlockIntervalSec is the block genration interval in seconds.
@@ -55,6 +50,10 @@ func (e ErrorConsensus) Error() string {
 	return errMsg
 }
 
+// Constructor represents a function returning the Consensus interfactor for
+// each implementation.
+type Constructor func() (Consensus, error)
+
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainConsensus
@@ -62,15 +61,15 @@ type Consensus interface {
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
-	SetChainAccessor(chainAccessor types.ChainAccessor)
 }
 
-// ChainDbReader is a reader interface for the ChainDB.
-type ChainDbReader interface {
+// ChainDB is a reader interface for the ChainDB.
+type ChainDB interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
+	NewTx() db.Transaction
 }
 
 // ChainConsensus includes chainstatus and validation API.

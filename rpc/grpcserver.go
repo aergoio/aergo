@@ -698,6 +698,9 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 
 	ret := &types.PeerList{Peers: []*types.Peer{}}
 	for i, state := range rsp.States {
+		if rsp.Hiddens[i] {
+			continue
+		}
 		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i]}
 		ret.Peers = append(ret.Peers, peer)
 	}
@@ -781,7 +784,10 @@ func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*t
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
-	return rsp.Owner, nil
+	if rsp.Err == types.ErrNameNotFound {
+		return rsp.Owner, status.Errorf(codes.NotFound, rsp.Err.Error())
+	}
+	return rsp.Owner, rsp.Err
 }
 
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {

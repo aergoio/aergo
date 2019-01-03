@@ -13,15 +13,20 @@ package contract
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
+#include "lbc.h"
 */
 import "C"
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
+	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -29,9 +34,18 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const (
+	maxStateSet       = 20
+	callMaxInstLimit  = C.int(5000000)
+	queryMaxInstLimit = callMaxInstLimit * C.int(10)
+	dbUpdateMaxLimit  = int64(10 * 1024 * 1024)
+)
+
 var (
-	ctrLog      *log.Logger
-	curStateSet [2]*StateSet
+	ctrLog         *log.Logger
+	curStateSet    [maxStateSet]*StateSet
+	lastQueryIndex int
+	querySync      sync.Mutex
 )
 
 type CallState struct {
@@ -59,25 +73,27 @@ type StateSet struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
+	prevBlockHash     []byte
 	service           C.int
-	transferFailed    bool
 	dbSystemError     bool
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
+	dbUpdateTotalSize int64
 }
 
 type recoveryEntry struct {
 	seq           int
 	amount        *big.Int
 	senderState   *types.State
+	senderNonce   uint64
 	callState     *CallState
+	onlySend      bool
 	sqlSaveName   *string
 	stateRevision state.Snapshot
 	prev          *recoveryEntry
 }
 
 type LState = C.struct_lua_State
-type LBlockchainCtx = C.struct_blockchain_ctx
 
 type Executor struct {
 	L        *LState
@@ -90,6 +106,7 @@ type Executor struct {
 
 func init() {
 	ctrLog = log.NewLogger("contract")
+	lastQueryIndex = ChainService
 }
 
 func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64, amount *big.Int) *ContractInfo {
@@ -104,22 +121,23 @@ func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64,
 
 func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
-	timestamp int64, node string, confirmed bool,
+	timestamp int64, prevBlockHash []byte, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
 	stateSet := &StateSet{
-		curContract: newContractInfo(callState, senderID, reciever.ID(), rp, amount),
-		bs:          blockState,
-		origin:      senderID,
-		txHash:      txHash,
-		node:        node,
-		confirmed:   confirmed,
-		isQuery:     query,
-		blockHeight: blockHeight,
-		timestamp:   timestamp,
-		service:     C.int(service),
+		curContract:   newContractInfo(callState, senderID, reciever.ID(), rp, amount),
+		bs:            blockState,
+		origin:        senderID,
+		txHash:        txHash,
+		node:          node,
+		confirmed:     confirmed,
+		isQuery:       query,
+		blockHeight:   blockHeight,
+		timestamp:     timestamp,
+		prevBlockHash: prevBlockHash,
+		service:       C.int(service),
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
@@ -132,7 +150,7 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 
 func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 	contractState *state.ContractState, node string, confirmed bool,
-	rp uint64, service int) *StateSet {
+	rp uint64) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: contractState.State}
 
@@ -142,7 +160,6 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 		node:        node,
 		confirmed:   confirmed,
 		isQuery:     true,
-		service:     C.int(service),
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[types.ToAccountID(receiverId)] = callState
@@ -212,6 +229,20 @@ func pushValue(L *LState, v interface{}) error {
 			b = 1
 		}
 		C.lua_pushboolean(L, C.int(b))
+
+	case json.Number:
+		str := arg.String()
+		intVal, err := arg.Int64()
+		if err == nil {
+			C.lua_pushinteger(L, C.lua_Integer(intVal))
+		} else {
+			ftVal, err := arg.Float64()
+			if err != nil {
+				return errors.New("unsupported number type:" + str)
+			}
+			C.lua_pushnumber(L, C.double(ftVal))
+		}
+
 	case nil:
 		C.lua_pushnil(L)
 	case []interface{}:
@@ -246,6 +277,15 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	C.lua_createtable(L, C.int(0), C.int(len(tab)))
 	n := C.lua_gettop(L)
 	for k, v := range tab {
+		if len(tab) == 1 && strings.EqualFold(k, "_bignum") {
+			if arg, ok := v.(string); ok {
+				C.lua_settop(L, -2)
+				argC := C.CString(arg)
+				C.Bset(L, argC)
+				C.free(unsafe.Pointer(argC))
+				return nil
+			}
+		}
 		// push a key
 		key := C.CString(k)
 		C.lua_pushstring(L, key)
@@ -259,26 +299,42 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	return nil
 }
 
+func checkPayable(L *LState, fname *C.char, amount *big.Int) error {
+	if amount.Cmp(big.NewInt(0)) > 0 && C.vm_is_payable_function(L, fname) == C.int(0) {
+		return fmt.Errorf("'%s' is not payable", C.GoString(fname))
+	}
+	return nil
+}
+
 func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
 
 	C.vm_remove_constructor(ce.L)
-	abiName := C.CString(ci.Name)
-	C.vm_get_abi_function(ce.L, abiName)
-	C.free(unsafe.Pointer(abiName))
+	fname := C.CString(ci.Name)
+	defer C.free(unsafe.Pointer(fname))
 
+	resolvedName := C.vm_resolve_function(ce.L, fname)
+	if resolvedName == nil {
+		ce.err = fmt.Errorf("attempt to call global '%s' (a nil value)", ci.Name)
+		return 0
+	}
+
+	if err := checkPayable(ce.L, resolvedName, ce.stateSet.curContract.amount); err != nil {
+		ce.err = err
+		return 0
+	}
+
+	C.vm_get_abi_function(ce.L, resolvedName)
 	ce.processArgs(ci)
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.transferFailed == true {
-			ce.err = types.ErrInsufficientBalance
-		} else if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errMsg)
+		if ce.stateSet.dbSystemError == true {
+			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -296,35 +352,45 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	return nret
 }
 
-func (ce *Executor) constructCall(ci *types.CallInfo) {
+func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
-		return
+		return 0
 	}
-	C.vm_get_constructor(ce.L)
-	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
-		return
+	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
+		ce.err = types.ErrVmConstructorIsNotPayable
+		return 0
 	}
 
+	C.vm_get_constructor(ce.L)
+	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+		return 0
+	}
 	ce.processArgs(ci)
 	if ce.err != nil {
-		return
+		return 0
 	}
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)), &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.transferFailed == true {
-			ce.err = types.ErrInsufficientBalance
-		} else if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errMsg)
+		if ce.stateSet.dbSystemError == true {
+			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
 		}
-		return
+		return 0
 	}
 
-	ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+	if target == nil {
+		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+	} else {
+		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
+			errMsg := C.GoString(cErrMsg)
+			ce.err = errors.New(errMsg)
+		}
+	}
+	return nret
 }
 
 func (ce *Executor) commitCalledContract() error {
@@ -342,7 +408,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.tx != nil {
 			err = v.tx.Release()
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 		if v.ctrState == rootContract {
@@ -351,7 +417,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.ctrState != nil {
 			err = bs.StageContractState(v.ctrState)
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 		/* For Sender */
@@ -360,7 +426,7 @@ func (ce *Executor) commitCalledContract() error {
 		}
 		err = bs.PutState(k, v.curState)
 		if err != nil {
-			return DbSystemError(err)
+			return newDbSystemError(err)
 		}
 	}
 	return nil
@@ -380,16 +446,37 @@ func (ce *Executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.RollbackToSavepoint()
 		if err != nil {
-			return DbSystemError(err)
+			return newDbSystemError(err)
 		}
 	}
 	return nil
+}
+
+func (ce *Executor) setCountHook(limit C.int) {
+	if ce == nil || ce.L == nil {
+		return
+	}
+	if ce.err != nil {
+		return
+	}
+	C.vm_set_count_hook(ce.L, limit)
 }
 
 func (ce *Executor) close() {
 	if ce != nil {
 		FreeLState(ce.L)
 	}
+}
+
+func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
+	d := json.NewDecoder(bytes.NewReader(args))
+	d.UseNumber()
+	d.DisallowUnknownFields()
+	err := d.Decode(ci)
+	if err != nil {
+		ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+	}
+	return err
 }
 
 func Call(contractState *state.ContractState, code, contractAddress []byte,
@@ -399,9 +486,8 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
-		err = json.Unmarshal(code, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		if len(code) > 0 {
+			err = getCallInfo(&ci, code, contractAddress)
 		}
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
@@ -417,6 +503,8 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	curStateSet[stateSet.service] = stateSet
 	ce := newExecutor(contract, stateSet)
 	defer ce.close()
+
+	ce.setCountHook(callMaxInstLimit)
 
 	ce.call(&ci, nil)
 	err = ce.err
@@ -436,7 +524,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 }
 
 func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState *state.ContractState,
-	blockNo uint64, ts int64, rp uint64) (string, error) {
+	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, error) {
 	var err error
 
 	defer ce.close()
@@ -451,8 +539,10 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.blockHeight = blockNo
 	stateSet.timestamp = ts
 	stateSet.curContract.rp = rp
+	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
+	ce.setCountHook(callMaxInstLimit)
 	ce.call(ce.args, nil)
 	err = ce.err
 	if err == nil {
@@ -488,9 +578,8 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 
 	if contractCode != nil {
-		err = json.Unmarshal(code, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
+		if len(code) > 0 {
+			err = getCallInfo(&ci, code, contractAddress)
 		}
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
@@ -540,6 +629,10 @@ func setContract(contractState *state.ContractState, contractAddress, code []byt
 func Create(contractState *state.ContractState, code, contractAddress []byte,
 	stateSet *StateSet) (string, error) {
 
+	if len(code) == 0 {
+		return "", errors.New("contract code is required")
+	}
+
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("contractAddress", types.EncodeAddress(contractAddress)).Msg("new contract is deployed")
 	}
@@ -553,12 +646,12 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
-		err = json.Unmarshal(code[codeLen:], &ci.Args)
-	}
-	if err != nil {
-		logger.Warn().Err(err).Msg("invalid constructor argument")
-		errMsg, _ := json.Marshal("constructor call error:" + err.Error())
-		return string(errMsg), nil
+		err = getCallInfo(&ci.Args, code[codeLen:], contractAddress)
+		if err != nil {
+			logger.Warn().Err(err).Msg("invalid constructor argument")
+			errMsg, _ := json.Marshal("constructor call error:" + err.Error())
+			return string(errMsg), nil
+		}
 	}
 
 	curStateSet[stateSet.service] = stateSet
@@ -569,10 +662,11 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
-		return "", newDbSystemError("can't open a database connection")
+		return "", newDbSystemError(errors.New("can't open a database connection"))
 	}
 
-	ce.constructCall(&ci)
+	ce.setCountHook(callMaxInstLimit)
+	ce.constructCall(&ci, nil)
 	err = ce.err
 
 	if err != nil {
@@ -585,7 +679,10 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if err == types.ErrVmStart {
 			return string(ret), err
 		}
-		return string(ret), nil
+		if err == types.ErrVmConstructorIsNotPayable {
+			return string(ret), err
+		}
+		return string(ret), err
 	}
 	err = ce.commitCalledContract()
 	if err != nil {
@@ -593,18 +690,39 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Error().Err(err).Msg("constructor is failed")
 		return string(ret), err
 	}
-	return ce.jsonRet, nil
+	return ce.jsonRet, err
 
+}
+
+func setQueryContext(stateSet *StateSet) {
+	querySync.Lock()
+	defer querySync.Unlock()
+	startIndex := lastQueryIndex
+	index := startIndex
+	for {
+		index++
+		if index == maxStateSet {
+			index = ChainService + 1
+		}
+		if curStateSet[index] == nil {
+			stateSet.service = C.int(index)
+			curStateSet[index] = stateSet
+			lastQueryIndex = index
+			return
+		}
+		if index == startIndex {
+			querySync.Unlock()
+			time.Sleep(100 * time.Millisecond)
+			querySync.Lock()
+		}
+	}
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
-		err = json.Unmarshal(queryInfo, &ci)
-		if err != nil {
-			ctrLog.Warn().AnErr("error", err).Msgf("contract %s", types.EncodeAddress(contractAddress))
-		}
+		err = getCallInfo(&ci, queryInfo, contractAddress)
 	} else {
 		err = fmt.Errorf("cannot find contract %s", types.EncodeAddress(contractAddress))
 		ctrLog.Warn().AnErr("err", err)
@@ -616,12 +734,12 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	var ce *Executor
 
 	stateSet := NewContextQuery(bs, contractAddress, contractState, "", true,
-		contractState.SqlRecoveryPoint, ChainService)
+		contractState.SqlRecoveryPoint)
 
+	setQueryContext(stateSet)
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
-	curStateSet[stateSet.service] = stateSet
 	ce = newExecutor(contract, stateSet)
 	defer ce.close()
 	defer func() {
@@ -629,7 +747,10 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 			err = dbErr
 		}
 	}()
+	ce.setCountHook(queryMaxInstLimit)
 	ce.call(&ci, nil)
+
+	curStateSet[stateSet.service] = nil
 	return []byte(ce.jsonRet), ce.err
 }
 
@@ -689,24 +810,29 @@ func (re *recoveryEntry) recovery() error {
 		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
 		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
 	}
-	if re.sqlSaveName == nil && re.stateRevision == 0 {
+	if re.onlySend {
 		return nil
 	}
-	err := callState.ctrState.Rollback(re.stateRevision)
-	if err != nil {
-		return DbSystemError(err)
+	if re.senderState != nil {
+		re.senderState.Nonce = re.senderNonce
+	}
+	if re.stateRevision != -1 {
+		err := callState.ctrState.Rollback(re.stateRevision)
+		if err != nil {
+			return newDbSystemError(err)
+		}
 	}
 	if callState.tx != nil {
 		if re.sqlSaveName == nil {
-			err = callState.tx.RollbackToSavepoint()
+			err := callState.tx.RollbackToSavepoint()
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 			callState.tx = nil
 		} else {
-			err = callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
+			err := callState.tx.RollbackToSubSavepoint(*re.sqlSaveName)
 			if err != nil {
-				return DbSystemError(err)
+				return newDbSystemError(err)
 			}
 		}
 	}

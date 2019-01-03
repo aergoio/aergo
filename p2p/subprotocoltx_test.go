@@ -18,7 +18,7 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 var sampleMsgID MsgID

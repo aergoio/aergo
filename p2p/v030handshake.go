@@ -20,6 +20,7 @@ type V030Handshaker struct {
 	actorServ ActorService
 	logger    *log.Logger
 	peerID    peer.ID
+	chainID	  *types.ChainID
 
 	rd *bufio.Reader
 	wr *bufio.Writer
@@ -40,8 +41,8 @@ func (h *V030Handshaker) GetMsgRW() MsgReadWriter {
 }
 
 
-func newV030StateHS(pm PeerManager, actorServ ActorService, log *log.Logger, peerID peer.ID, rd io.Reader, wr io.Writer) *V030Handshaker {
-	h := &V030Handshaker{pm: pm, actorServ: actorServ, logger: log, peerID: peerID, rd: bufio.NewReader(rd), wr:bufio.NewWriter(wr)}
+func newV030StateHS(pm PeerManager, actorServ ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID, rd io.Reader, wr io.Writer) *V030Handshaker {
+	h := &V030Handshaker{pm: pm, actorServ: actorServ, logger: log, chainID:chainID, peerID: peerID, rd: bufio.NewReader(rd), wr:bufio.NewWriter(wr)}
 	h.msgRW = NewV030ReadWriter(h.rd, h.wr)
 	return h
 }
@@ -55,7 +56,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 
 	h.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Starting Handshake")
 	// send status
-	statusMsg, err := createStatusMsg(h.pm, h.actorServ)
+	statusMsg, err := createStatusMsg(h.pm, h.actorServ, h.chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +78,26 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 	}
 
 	if data.Subprotocol() != StatusRequest {
-		// TODO: parse message and return
-		// h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", SubProtocol(data.Header.GetSubprotocol()).String()).Msg("Unexpected handshake response")
-		return nil, fmt.Errorf("unexpected message type")
+		if data.Subprotocol() == GoAway {
+			return h.handleGoAway(peerID, data)
+		} else {
+			return nil, fmt.Errorf("unexpected message type")
+		}
 	}
 	statusResp := &types.Status{}
-	err = unmarshalMessage(data.Payload(), statusResp)
+	err = UnmarshalMessage(data.Payload(), statusResp)
 	if err != nil {
-		// h.logger.Warn().Err(err).Msg("Failed to decode status message")
 		return nil, err
+	}
+
+	// check if chainID is same or not
+	remoteChainID := types.NewChainID()
+	err = remoteChainID.Read(statusResp.ChainID)
+	if err != nil {
+		return nil, err
+	}
+	if !h.chainID.Equals(remoteChainID) {
+		return nil, fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
 
 	// check status message
@@ -107,19 +119,33 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	}
 
 	if data.Subprotocol() != StatusRequest {
-		// TODO: parse message and return
-		h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
-		return nil, fmt.Errorf("unexpected message type")
+		if data.Subprotocol() == GoAway {
+			return h.handleGoAway(peerID, data)
+		} else {
+			h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			return nil, fmt.Errorf("unexpected message type")
+		}
 	}
 
 	statusMsg := &types.Status{}
-	if err := unmarshalMessage(data.Payload(), statusMsg); err != nil {
+	if err := UnmarshalMessage(data.Payload(), statusMsg); err != nil {
 		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message.")
 		return nil, err
 	}
 
+	// check if chainID is same or not
+	remoteChainID := types.NewChainID()
+	err = remoteChainID.Read(statusMsg.ChainID)
+	if err != nil {
+		return nil, err
+	}
+	if !h.chainID.Equals(remoteChainID) {
+		return nil, fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
+	}
+
+
 	// send my status message as response
-	statusResp, err := createStatusMsg(h.pm, h.actorServ)
+	statusResp, err := createStatusMsg(h.pm, h.actorServ, h.chainID)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		return nil, err
@@ -138,3 +164,11 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 
 }
 
+func (h *V030Handshaker) handleGoAway(peerID peer.ID, data Message) (*types.Status, error) {
+	goAway := &types.GoAwayNotice{}
+	if err := UnmarshalMessage(data.Payload(), goAway); err != nil {
+		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")
+		return nil, err
+	}
+	return nil, fmt.Errorf("remote peer refuse handshake: %s",goAway.GetMessage())
+}

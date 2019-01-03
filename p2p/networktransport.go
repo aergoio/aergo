@@ -8,12 +8,15 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p-protocol"
 	"net"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 
@@ -24,6 +27,14 @@ import (
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+// NTContainer can provide NetworkTransport interface.
+type NTContainer interface {
+	GetNetworkTransport() NetworkTransport
+
+	// ChainID return id of current chain.
+	ChainID() *types.ChainID
+}
 
 // NetworkTransport do manager network connection
 // TODO need refactoring. it has other role, pk management of self peer
@@ -39,7 +50,12 @@ type NetworkTransport interface {
 
 	GetAddressesOfPeer(peerID peer.ID) []string
 
+	// AddStreamHandler wrapper function which call host.SetStreamHandler after transport is initialized, this method is for preventing nil error.
+	AddStreamHandler(pid protocol.ID, handler inet.StreamHandler)
+
+
 	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
+	GetOrCreateStreamWithTTL(meta PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error)
 
 	FindPeer(peerID peer.ID) bool
 	ClosePeerConnection(peerID peer.ID) bool
@@ -55,7 +71,11 @@ type networkTransport struct {
 	publicKey   crypto.PubKey
 	bindAddress net.IP
 	bindPort    int
+
 	selfMeta    PeerMeta
+
+	// hostInited is
+	hostInited *sync.WaitGroup
 
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
@@ -80,6 +100,8 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransp
 	nt := &networkTransport{
 		conf:           conf,
 		logger:         logger,
+
+		hostInited: &sync.WaitGroup{},
 	}
 	nt.init()
 
@@ -117,6 +139,8 @@ func (sl *networkTransport) init() {
 		sl.bindPort = peerPort
 	}
 
+	sl.hostInited.Add(1)
+
 	// set meta info
 	// TODO more survey libp2p NAT configuration
 }
@@ -145,14 +169,20 @@ func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPor
 }
 
 func (sl *networkTransport) Start() error {
+	sl.logger.Debug().Msg("Starting network transport")
 	sl.startListener()
+	sl.hostInited.Done()
 	return nil
 }
 
+func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.StreamHandler) {
+	sl.hostInited.Wait()
+	sl.SetStreamHandler(pid, handler)
+}
 
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
-func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protocol.ID) (inet.Stream, error) {
+func (sl *networkTransport) GetOrCreateStreamWithTTL(meta PeerMeta, protocolID  protocol.ID, ttl time.Duration) (inet.Stream, error) {
 	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
 	var peerAddr, err = ma.NewMultiaddr(addrString)
 	if err != nil {
@@ -160,7 +190,7 @@ func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protoco
 		return nil,fmt.Errorf("invalid IP address %s:%d",meta.IPAddress,meta.Port)
 	}
 	var peerID = meta.ID
-	sl.Peerstore().AddAddr(peerID, peerAddr, meta.TTL())
+	sl.Peerstore().AddAddr(peerID, peerAddr,ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, meta.ID, protocolID)
 	if err != nil {
@@ -168,6 +198,10 @@ func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protoco
 		return nil,err
 	}
 	return s, nil
+}
+
+func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protocol.ID) (inet.Stream, error) {
+	return sl.GetOrCreateStreamWithTTL(meta, protocolID, meta.TTL())
 }
 
 func (sl *networkTransport) FindPeer(peerID peer.ID) bool {
@@ -220,7 +254,6 @@ func (sl *networkTransport) startListener() {
 	sl.logger.Info().Str("pid", sl.SelfNodeID().Pretty()).Str("addr[0]", listens[0].String()).
 		Msg("Set self node's pid, and listening for connections")
 	sl.Host = newHost
-
 }
 
 

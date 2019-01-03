@@ -71,17 +71,18 @@ func (c *batch) Run(args string) (string, error) {
 	batchFile.Close()
 
 	for i, line := range cmdLines {
+		lineNum := i + 1
 		stdOut := colorable.NewColorableStdout()
 		cmd, args := context.ParseFirstWord(line)
 		if len(cmd) == 0 {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%3d\x1B[0m\n", i)
+			fmt.Fprintf(stdOut, "\x1B[0;37m%3d\x1B[0m\n", lineNum)
 			continue
 		} else if context.Comment == cmd {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[32m%s\x1B[0m\n", i, line)
+			fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[32m%s\x1B[0m\n", lineNum, line)
 			continue
 		}
 
-		fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[34;1m%s \x1B[0m%s\n", i, cmd, args)
+		fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[34;1m%s \x1B[0m%s\n", lineNum, cmd, args)
 		Broker(line)
 
 	}

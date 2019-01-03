@@ -34,6 +34,8 @@ var (
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 
+	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
+
 	ErrSignNotMatch = errors.New("signature not matched")
 
 	ErrCouldNotRecoverPubKey = errors.New("could not recover pubkey from sign")
@@ -51,9 +53,14 @@ var (
 	//ErrTooSmallAmount
 	ErrTooSmallAmount = errors.New("too small amount to influence")
 
+	ErrNameNotFound = errors.New("could not find name")
+
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
 
 	//ErrVmStart
 	ErrVmStart = errors.New("cannot start a VM")
+
+	//ErrVmConstructorIsNotPayable
+	ErrVmConstructorIsNotPayable = errors.New("constructor is not payable")
 )

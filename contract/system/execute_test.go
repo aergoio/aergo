@@ -192,7 +192,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, VotingDelay)
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, 1)
 	assert.EqualError(t, types.ErrMustStakeBeforeVote, err.Error(), "Execute system tx failed")
 	tx.Body.Payload = append(tx.Body.Payload, candidates...)
 
@@ -208,22 +208,48 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, VotingDelay)
+
+	unStakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: account,
+			Amount:  types.StakingMinimum.Bytes(),
+			Payload: []byte{'u'},
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	var blockNo uint64
+	blockNo = 1
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
-	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, VotingDelay+StakingDelay)
+	blockNo += StakingDelay
+	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
-	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, VotingDelay+StakingDelay+1)
-	assert.EqualError(t, types.ErrLessTimeHasPassed, err.Error(), "failed to validate system tx")
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, blockNo)
+	assert.NoError(t, err, "fisrt voting validation should success")
+
+	err = ExecuteSystemTx(scs, tx.GetBody(), sender, blockNo)
+	assert.NoError(t, err, "fisrt voting execution should success")
+
+	blockNo++
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, blockNo)
+	assert.Error(t, err, "not enough delay, voting should fail")
+
+	blockNo += VotingDelay
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, blockNo)
+	assert.NoError(t, err, "after delay, voting should success")
 
 	tx.Body.Payload[1] = '2'
-	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, VotingDelay)
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, blockNo)
 	t.Log(err.Error())
 	assert.NotNil(t, err, "failed to validate system tx for voting")
 
 	tx.Body.Payload = append(tx.Body.Payload, 'i')
-	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, VotingDelay)
+	err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), scs, blockNo)
 	assert.EqualError(t, types.ErrTxFormatInvalid, err.Error(), "failed to validate system tx for voting")
 
+	blockNo += StakingDelay
+	err = ExecuteSystemTx(scs, unStakingTx.GetBody(), sender, blockNo)
+	assert.NoError(t, err, "should execute unstaking system tx")
 }

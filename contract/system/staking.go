@@ -16,7 +16,7 @@ import (
 
 var stakingkey = []byte("staking")
 
-const StakingDelay = 10
+const StakingDelay = 60 * 60 * 24 //block interval
 
 func staking(txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) error {
@@ -104,5 +104,5 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 	if address != nil {
 		return getStaking(scs, address)
 	}
-	return nil, errors.New("invalid argument : address should not nil")
+	return nil, errors.New("invalid argument: address should not be nil")
 }

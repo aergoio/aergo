@@ -17,10 +17,12 @@ type Config struct {
 	RPC        *RPCConfig        `mapstructure:"rpc"`
 	REST       *RESTConfig       `mapstructure:"rest"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
+	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
+	Account    *AccountConfig    `mapstructure:"account"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -62,9 +64,23 @@ type P2PConfig struct {
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
-	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect with at startup"`
+	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect to at startup"`
+	NPHiddenPeers   []string `mapstructure:"nphiddenpeers" description:"List of peerids which will not show to other peers"`
+	NPDiscoverPeers bool     `mapstructure:"npdiscoverpeers" description:"Whether to discover from polaris or other nodes and connects"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
 	NPPeerPool      int      `mapstructure:"nppeerpool" description:"Max peer pool size"`
+
+	NPExposeSelf   bool     `mapstructure:"npexposeself" description:"Whether to request expose self to polaris and other connected node"`
+	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
+	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
+
+	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
+}
+
+// PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
+type PolarisConfig struct {
+	AllowPrivate bool   `mapstructure:"allowprivate" description:"allow peer to have private address. for private network and test"`
+	GenesisFile  string `mapstructure:"genesisfile" description:"json file containing informations of genesisblock to which polaris refer "`
 }
 
 // BlockchainConfig defines configurations for blockchain service
@@ -79,22 +95,26 @@ type BlockchainConfig struct {
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
 	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	EnableFadeout  bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
+	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
 	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
 	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool     `mapstructure:"enablebp" description:"enable block production"`
-	EnableDpos    bool     `mapstructure:"enabledpos" description:"enable DPoS consensus"`
-	BlockInterval int64    `mapstructure:"blockinterval" description:"block production interval (sec)"`
-	DposBpNumber  uint16   `mapstructure:"dposbps" description:"the number of DPoS block producers"`
-	BpIds         []string `mapstructure:"bpids" description:"the IDs of the block producers"`
+	EnableBp      bool  `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval int64 `mapstructure:"blockinterval" description:"block production interval (sec)"`
 }
 
 type MonitorConfig struct {
 	ServerProtocol string `mapstructure:"protocol" description:"Protocol is one of next: http, https or kafka"`
 	ServerEndpoint string `mapstructure:"endpoint" description:"Endpoint to send"`
+}
+
+// Account defines configurations for account service
+type AccountConfig struct {
+	UnlockTimeout uint `mapstructure:"unlocktimeout" description:"lock automatically after timeout (sec)"`
 }
 
 /*
@@ -147,8 +167,18 @@ npkey = "{{.P2P.NPKey}}"
 npaddpeers = [{{range .P2P.NPAddPeers}}
 "{{.}}", {{end}}
 ]
+npdiscoverpeers = true
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
+npexposeself = true
+npusepolaris= {{.P2P.NPUsePolaris}}
+npaddpolarises = [{{range .P2P.NPAddPolarises}}
+"{{.}}", {{end}}
+]
+
+[polaris]
+allowprivate = {{.Polaris.AllowPrivate}}
+genesisfile = "{{.Polaris.GenesisFile}}"
 
 [blockchain]
 # blockchain configurations
@@ -160,19 +190,19 @@ verifiercount = "{{.Blockchain.VerifierCount}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
+enablefadeout = {{.Mempool.EnableFadeout}}
+fadeoutperiod = {{.Mempool.FadeoutPeriod}}
 verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
 
 [consensus]
 enablebp = {{.Consensus.EnableBp}}
-enabledpos = {{.Consensus.EnableDpos}}
 blockinterval = {{.Consensus.BlockInterval}}
-dposbps = {{.Consensus.DposBpNumber}}
-bpids = [{{range .Consensus.BpIds}}
-"{{.}}", {{end}}
-]
 
 [monitor]
 protocol = "{{.Monitor.ServerProtocol}}"
 endpoint = "{{.Monitor.ServerEndpoint}}"
+
+[account]
+unlocktimeout = "{{.Account.UnlockTimeout}}"
 `

@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/multiformats/go-multiaddr"
 	"net"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -19,7 +21,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 // frequently used constants for indicating p2p log category
@@ -114,6 +116,50 @@ func setIP(a *types.PeerAddress, ipAddress net.IP) {
 // RandomUUID generate random UUID and return in form of string
 func RandomUUID() string {
 	return uuid.Must(uuid.NewV4()).String()
+}
+
+// ParseMultiaddrWithResolve parse string to multiaddr, additionally accept domain name with protocol /dns
+// NOTE: this function is temporarilly use until go-multiaddr start to support dns.
+func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr,error) {
+	ma, err := multiaddr.NewMultiaddr(str)
+	if err != nil {
+		// multiaddr is not support domain name yet. change domain name to ip address manually
+		splitted := strings.Split(str, "/")
+		if len(splitted) < 3 || !strings.HasPrefix(splitted[1],"dns") {
+			return nil, err
+		}
+		domainName := splitted[2]
+		ips, err := net.LookupIP(domainName)
+		if err != nil {
+			return nil, fmt.Errorf("Could not get IPs: %v\n", err)
+		}
+		// use ipv4 as possible.
+		ipSelected := false
+		for _, ip := range ips {
+			if ip.To4() != nil {
+				splitted[1] = "ip4"
+				splitted[2] = ip.To4().String()
+				ipSelected = true
+				break
+			}
+		}
+		if !ipSelected {
+			for _, ip := range ips {
+				if ip.To16() != nil {
+					splitted[1] = "ip6"
+					splitted[2] = ip.To16().String()
+					ipSelected = true
+					break
+				}
+			}
+		}
+		if !ipSelected {
+			return nil, err
+		}
+		rejoin := strings.Join(splitted,"/")
+		return  multiaddr.NewMultiaddr(rejoin)
+	}
+	return ma, nil
 }
 
 func externalIP() (net.IP, error) {

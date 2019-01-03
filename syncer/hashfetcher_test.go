@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
@@ -14,10 +15,10 @@ func TestHashFetcher_normal(t *testing.T) {
 	targetNo := uint64(99)
 
 	//ancestor = 0
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen)
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property
@@ -29,7 +30,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	testCfg.debugContext.targetNo = targetNo
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.Best))
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
@@ -50,10 +51,10 @@ func TestHashFetcher_quit(t *testing.T) {
 	targetNo := uint64(99)
 
 	//ancestor = 0
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen)
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property
@@ -65,7 +66,7 @@ func TestHashFetcher_quit(t *testing.T) {
 	testCfg.debugContext.BfWaitTime = time.Second * 1000
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.best))
+	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.Best))
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
@@ -88,7 +89,7 @@ func TestHashFetcher_ResponseError(t *testing.T) {
 	//TODO test hashfetcher error
 	/*
 		//make remoteBlockChain
-		remoteChain := initStubBlockChain(nil, 10)
+		remoteChain := chain.InitStubBlockChain(nil, 10)
 		ancestor := remoteChain.GetBlockByNo(0)
 
 		ctx := types.NewSyncCtx("p1", 5, 1)

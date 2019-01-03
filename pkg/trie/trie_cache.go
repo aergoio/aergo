@@ -11,6 +11,12 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 )
 
+// DbTx represents Set and Delete interface to store data
+type DbTx interface {
+	Set(key, value []byte)
+	Delete(key []byte)
+}
+
 type CacheDB struct {
 	// liveCache contains the first levels of the trie (nodes that have 2 non default children)
 	liveCache map[Hash][][]byte
@@ -31,7 +37,7 @@ type CacheDB struct {
 }
 
 // commit adds updatedNodes to the given database transaction.
-func (c *CacheDB) commit(txn *db.Transaction) {
+func (c *CacheDB) commit(txn *DbTx) {
 	c.updatedMux.Lock()
 	defer c.updatedMux.Unlock()
 	for key, batch := range c.updatedNodes {

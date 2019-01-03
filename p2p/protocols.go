@@ -31,16 +31,14 @@ const (
 
 // context of multiaddr, as higher type of p2p message
 const (
-
-	aergoP2PSub protocol.ID = "/aergop2p/0.2"
-
+	aergoP2PSub   protocol.ID = "/aergop2p/0.3"
 )
 
 
 // SubProtocol identifies the lower type of p2p message
 type SubProtocol uint32
 
-//
+// NOTE: change const of protocols_test.go
 const (
 	_ SubProtocol = 0x00 + iota
 	StatusRequest
@@ -69,6 +67,12 @@ const (
 	GetTXsRequest SubProtocol = 0x020 + iota
 	GetTxsResponse
 	NewTxNotice
+)
+
+// subprotocols for block producers and their own trusted nodes
+const (
+	// BlockProducedNotice from block producer to trusted nodes and other bp nodes
+	BlockProducedNotice SubProtocol = 0x030 + iota
 )
 
 //go:generate stringer -type=SubProtocol

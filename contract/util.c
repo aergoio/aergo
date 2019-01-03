@@ -5,6 +5,7 @@
 #include "util.h"
 #include "vm.h"
 #include "math.h"
+#include "lbc.h"
 
 typedef struct tcall {
 	void **ptrs;
@@ -125,6 +126,8 @@ static void unregister_tcall(callinfo_t *callinfo)
 {
 	callinfo->curidx--;
 }
+
+char *bignum_str = "{\"_bignum\":\"";
 
 static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_form, bool iskey,
 						 callinfo_t **pcallinfo)
@@ -255,6 +258,17 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		unregister_tcall(callinfo);
 		break;
 	}
+	case LUA_TUSERDATA: {
+	    if (lua_isbignumber(L, idx)) {
+	        copy_to_buffer(bignum_str,strlen(bignum_str), sbuf);
+	        bc_num bnum = Bgetbnum(L, idx);
+	        char *s = bc_num2str(bnum);
+	        copy_str_to_buffer (s, strlen (s), sbuf);
+	        free(s);
+		    src_val = "\"},";
+		    break;
+	    }
+	}
 	default:
 		lua_pushfstring(L, "unsupport type: %s", lua_typename (L, lua_type(L, idx)));
 		return false;
@@ -265,7 +279,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	return true;
 
 }
-static int json_to_lua (lua_State *L, char **start, bool check);
+static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum);
 
 static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 	char *json = (*start) + 1;
@@ -274,7 +288,7 @@ static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 	lua_newtable(L);
 	while(*json != ']') {
 		lua_pushnumber(L, index++);
-		if (json_to_lua (L, &json, check) != 0)
+		if (json_to_lua (L, &json, check, false) != 0)
 			return -1;
 		if (*json == ',')
 			++json;
@@ -289,11 +303,13 @@ static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 static int json_to_lua_table(lua_State *L, char **start, bool check) {
 	char *json = (*start) + 1;
 	int index = 1;
+	bool is_bignum = false;
+	int elem_cnt = 0;
 
 	lua_newtable(L);
 	while(*json != '}') {
 		lua_pushnumber(L, index++);
-		if (json_to_lua (L, &json, check) != 0)
+		if (json_to_lua (L, &json, check, false) != 0)
 			return -1;
 		if (*json == ':') {
 			lua_remove(L, -2);
@@ -301,15 +317,30 @@ static int json_to_lua_table(lua_State *L, char **start, bool check) {
 			if (check && !lua_isstring(L, -1)) {
 				return -1;
 			}
+			if (elem_cnt == 0 && lua_type(L, -1) == LUA_TSTRING &&
+			    strcmp(lua_tostring(L, -1), "_bignum") == 0) {
+			    is_bignum = true;
+			}
 			++json;
-			if (json_to_lua (L, &json, check) != 0)
+			if (json_to_lua (L, &json, check, is_bignum) != 0)
 				return -1;
 		}
-		if (*json == ',')
+		if (*json == ',') {
+			if (is_bignum)
+			    return -1;
 			++json;
+		}
 		else if (*json != '}')
 			return -1;
-		lua_rawset(L, -3);
+
+	    if (is_bignum) {
+	        if (!lua_isbignumber(L, -1))
+	            return -1;
+	        lua_replace(L, -3);
+	        lua_pop(L, 1);
+	    }
+	    else
+		    lua_rawset(L, -3);
 	}
 	*start = json + 1;
 	return 0;
@@ -350,68 +381,83 @@ static int utf8_encode(char *s, unsigned ch) {
     }
 }
 
-static int json_to_lua (lua_State *L, char **start, bool check) {
+static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) {
 	char *json = *start;
 	char special[5];
 
 	special[4] = '\0';
 	while(isspace(*json)) ++json;
 	if (*json == '"') {
-		char *end = json + 1;
-		char *target = end;
-		while ((*end) != '"') {
-			if (*end == '\0')
-				return -1;
-			if ((*end) == '\\') {
-				end++;
-				switch(*end) {
-				case 't':
-					*target = '\t';
-					break;
-				case 'n':
-					*target = '\n';
-					break;
-				case 'b':
-					*target = '\b';
-					break;
-				case 'f':
-					*target = '\f';
-					break;
-				case 'r':
-					*target = '\r';
-					break;
-				case 'u': {
-					int i;
-					unsigned ch;
-					int out;
-					for (i = 1; i < 5; ++i) {
-						if (!isxdigit(*(end + i)))
-							return -1;
-					}
-					memcpy (special, end+1, 4);
-					ch = strtol(special, NULL, 16);
-					out = utf8_encode(target, ch);
-					if (out < 0)
-						return -1;
-					target = target + out - 1;
-					end += 4;
-					break;
-				}
-				default :
-					*target = *end;
-				}
-			}
-			else if (end != target)
-				*target = *end;
-			end++;
-			target++;
-		}
-		*target = '\0';
-		lua_pushlstring(L, json + 1, target - json - 1);
-		json = end + 1;
+	    if (is_bignum) {
+	        char *end = strchr(json + 1, '"');
+	        if (end != NULL) {
+	            *end = '\0';
+	            Bset(L, json + 1);
+	            *end = '"';
+	            json = end + 1;
+	        }
+	        else
+	            return -1;
+	    } else {
+            char *end = json + 1;
+            char *target = end;
+            while ((*end) != '"') {
+                if (*end == '\0')
+                    return -1;
+                if ((*end) == '\\') {
+                    end++;
+                    switch(*end) {
+                    case 't':
+                        *target = '\t';
+                        break;
+                    case 'n':
+                        *target = '\n';
+                        break;
+                    case 'b':
+                        *target = '\b';
+                        break;
+                    case 'f':
+                        *target = '\f';
+                        break;
+                    case 'r':
+                        *target = '\r';
+                        break;
+                    case 'u': {
+                        int i;
+                        unsigned ch;
+                        int out;
+                        for (i = 1; i < 5; ++i) {
+                            if (!isxdigit(*(end + i)))
+                                return -1;
+                        }
+                        memcpy (special, end+1, 4);
+                        ch = strtol(special, NULL, 16);
+                        out = utf8_encode(target, ch);
+                        if (out < 0)
+                            return -1;
+                        target = target + out - 1;
+                        end += 4;
+                        break;
+                    }
+                    default :
+                        *target = *end;
+                    }
+                }
+                else if (end != target)
+                    *target = *end;
+                end++;
+                target++;
+            }
+            *target = '\0';
+            lua_pushlstring(L, json + 1, target - json - 1);
+            json = end + 1;
+        }
 	} else if (isdigit(*json) || *json == '-' || *json == '+') {
 		double d;
 		char *end = json + 1;
+
+	    if (is_bignum)
+	        return -1;
 		while(*end != '\0') {
 			if (!isdigit(*end) && *end != '-' && *end != '.' &&
 				*end != 'e' && *end != 'E' && *end != '+') {
@@ -419,8 +465,8 @@ static int json_to_lua (lua_State *L, char **start, bool check) {
 			}
 			++end;
 		}
-		sscanf(json, "%lf", &d);
-		lua_pushnumber(L, d);
+        sscanf(json, "%lf", &d);
+        lua_pushnumber(L, d);
 		json = end;
 	} else if (*json == '{') {
 		if (json_to_lua_table(L, &json, check) != 0)
@@ -447,7 +493,7 @@ static int json_to_lua (lua_State *L, char **start, bool check) {
 
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)
 {
-	if (json_to_lua (L, &json, check) != 0)
+	if (json_to_lua (L, &json, check, false) != 0)
 		return -1;
 	if (check && *json != '\0')
 		return -1;

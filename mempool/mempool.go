@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/chain"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
@@ -37,6 +38,13 @@ const (
 	running = iota
 )
 
+var (
+	evictInterval  = time.Minute
+	evictPeriod    = time.Hour * types.DefaultEvictPeriod
+	metricInterval = time.Second
+	txMaxSize      = 200 * 1024
+)
+
 // MemPool is main structure of mempool service
 type MemPool struct {
 	*component.BaseComponent
@@ -44,9 +52,9 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	//curBestBlockHash
 	sdb         *state.ChainStateDB
 	bestBlockID types.BlockID
+	bestBlockNo types.BlockNo
 	stateDB     *state.StateDB
 	verifier    *actor.PID
 	orphan      int
@@ -54,26 +62,47 @@ type MemPool struct {
 	pool        map[types.AccountID]*TxList
 	dumpPath    string
 	status      int32
+	coinbasefee *big.Int
 	// followings are for test
 	testConfig bool
 	deadtx     int
+
+	quit chan bool
+	wg   sync.WaitGroup // wait for internal loop
 }
 
 // NewMemPoolService create and return new MemPool
-func NewMemPoolService(cfg *cfg.Config, sdb *state.ChainStateDB) *MemPool {
-	actor := &MemPool{
-		cfg:      cfg,
-		sdb:      sdb,
-		cache:    map[types.TxID]*types.Tx{},
-		pool:     map[types.AccountID]*TxList{},
-		dumpPath: cfg.Mempool.DumpFilePath,
-		status:   initial,
-		verifier: nil,
-		//testConfig:    true, // FIXME test config should be removed
+func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
+
+	var fee *big.Int
+	var sdb *state.ChainStateDB
+	if cs != nil {
+		cidFee, ok := cs.CDB().GetGenesisInfo().ID.GetCoinbaseFee()
+		if !ok {
+			panic("CoinbaseFee is not set during mempool init")
+		}
+		fee = cidFee
+		sdb = cs.SDB()
+	} else {
+		fee = new(big.Int).SetUint64(0)
 	}
 
+	actor := &MemPool{
+		cfg:         cfg,
+		sdb:         sdb,
+		cache:       map[types.TxID]*types.Tx{},
+		pool:        map[types.AccountID]*TxList{},
+		dumpPath:    cfg.Mempool.DumpFilePath,
+		coinbasefee: fee,
+		status:      initial,
+		verifier:    nil,
+		quit:        make(chan bool),
+	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
+	if cfg.Mempool.FadeoutPeriod > 0 {
+		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
+	}
 	return actor
 }
 
@@ -83,19 +112,18 @@ func (mp *MemPool) BeforeStart() {
 		initStubData()
 		mp.bestBlockID = getCurrentBestBlockNoMock()
 	}
-	if mp.cfg.Mempool.ShowMetrics {
-		go func() {
-			for range time.Tick(1e9) {
-				l, o := mp.Size()
-				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
-			}
-		}()
-	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
+
 func (mp *MemPool) AfterStart() {
 
-	mp.Info().Int("number of verifier", mp.cfg.Mempool.VerifierNumber).Msg("init")
+	mp.Info().Bool("showmetric", mp.cfg.Mempool.ShowMetrics).
+		Bool("fadeout", mp.cfg.Mempool.EnableFadeout).
+		Str("evict period", evictPeriod.String()).
+		Int("number of verifier", mp.cfg.Mempool.VerifierNumber).
+		Str("coinbase fee", mp.coinbasefee.String()).
+		Msg("mempool init")
+
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
 		WithInstance(NewTxVerifier(mp)))
 
@@ -106,6 +134,9 @@ func (mp *MemPool) AfterStart() {
 	}
 	bestblock := rsp.(message.GetBestBlockRsp).Block
 	mp.setStateDB(bestblock) // nolint: errcheck
+
+	mp.wg.Add(1)
+	go mp.monitor()
 }
 
 // Stop handles clean-up for mempool service
@@ -114,6 +145,63 @@ func (mp *MemPool) BeforeStop() {
 		mp.verifier.GracefulStop()
 	}
 	mp.dumpTxsToFile()
+	mp.quit <- true
+	mp.wg.Wait()
+}
+
+func (mp *MemPool) monitor() {
+	defer mp.wg.Done()
+
+	evict := time.NewTicker(evictInterval)
+	defer evict.Stop()
+
+	showmetric := time.NewTicker(metricInterval)
+	defer showmetric.Stop()
+
+	for {
+		select {
+		// Log current counts on mempool
+		case <-showmetric.C:
+			if mp.cfg.Mempool.ShowMetrics {
+				l, o := mp.Size()
+				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
+			}
+			// Evict old enough transactions
+		case <-evict.C:
+			if mp.cfg.Mempool.EnableFadeout {
+				mp.evictTransactions()
+			}
+
+			// Graceful quit
+		case <-mp.quit:
+			return
+		}
+	}
+
+}
+
+func (mp *MemPool) evictTransactions() {
+	mp.Lock()
+	defer mp.Unlock()
+
+	total := 0
+	for acc, list := range mp.pool {
+		if time.Since(list.GetLastModifiedTime()) < evictPeriod {
+			continue
+		}
+		txs := list.GetAll()
+		total += len(txs)
+		orphan := len(txs) - list.Len()
+
+		for _, tx := range txs {
+			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
+		}
+		mp.orphan -= orphan
+		delete(mp.pool, acc)
+	}
+	if total > 0 {
+		mp.Info().Int("num", total).Msg("evict transactions")
+	}
 }
 
 // Size returns current maintaining number of transactions
@@ -209,7 +297,7 @@ func (mp *MemPool) put(tx *types.Tx) error {
 			return err
 		}
 	*/
-	err := mp.validateTx(tx)
+	err := mp.validateTx(tx, acc)
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
@@ -256,7 +344,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 			normal = false
 		}
 		mp.bestBlockID = newBlockID
-
+		mp.bestBlockNo = block.GetHeader().GetBlockNo()
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
@@ -311,7 +399,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			// TODO : ????
 			continue
 		}
-		diff, delTxs := list.FilterByState(ns)
+		diff, delTxs := list.FilterByState(ns, mp.coinbasefee)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
 			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
@@ -349,6 +437,12 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		account := mp.getAddress(tx.GetBody().GetAccount())
+		err = key.VerifyTxWithAddress(tx, account)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -372,26 +466,27 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 
 // check tx sanity
 // check if sender has enough balance
+// check if recipient is valid name
 // check tx account is lower than known value
-func (mp *MemPool) validateTx(tx *types.Tx) error {
-	account := tx.GetBody().GetAccount()
-	if tx.NeedNameVerify() {
-		account = mp.getAddress(account)
-		err := key.VerifyTxWithAddress(tx, account)
-		if err != nil {
-			return err
-		}
-	}
+func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
+
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns)
+	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
 	if err != nil {
 		return err
 	}
 	switch tx.GetBody().GetType() {
-	//case types.TxType_NORMAL:
+	case types.TxType_NORMAL:
+		if tx.HasNameRecipient() {
+			recipient := tx.GetBody().GetRecipient()
+			recipientAddr := mp.getAddress(recipient)
+			if recipientAddr == nil {
+				return types.ErrTxInvalidRecipient
+			}
+		}
 	case types.TxType_GOVERNANCE:
 		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
 		if err != nil {
@@ -404,7 +499,7 @@ func (mp *MemPool) validateTx(tx *types.Tx) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(account, tx.GetBody(), scs, system.FutureBlockNo)
+			err = system.ValidateSystemTx(account, tx.GetBody(), scs, mp.bestBlockNo+1)
 			if err != nil {
 				return err
 			}

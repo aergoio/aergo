@@ -15,7 +15,7 @@ var (
 
 func initTest() {
 	testDir, _ = ioutil.TempDir("", "test")
-	ks = NewStore(testDir)
+	ks = NewStore(testDir, 0)
 }
 
 func deinitTest() {

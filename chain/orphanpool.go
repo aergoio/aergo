@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -44,7 +43,7 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 	if exists {
 		logger.Debug().Str("hash", block.ID()).
 			Str("cached", cachedblock.block.ID()).Msg("already exist")
-		return fmt.Errorf("orphan block already exist")
+		return nil
 	}
 
 	if op.maxCnt == op.curCnt {
@@ -105,4 +104,15 @@ func (op *OrphanPool) removeOldest() {
 func (op *OrphanPool) removeOrphan(id types.BlockID) {
 	delete(op.cache, id)
 	op.curCnt--
+}
+
+func (op *OrphanPool) getOrphan(hash []byte) *types.Block {
+	prevID := types.ToBlockID(hash)
+
+	orphan, exists := op.cache[prevID]
+	if !exists {
+		return nil
+	} else {
+		return orphan.block
+	}
 }

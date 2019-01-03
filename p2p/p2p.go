@@ -8,6 +8,7 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -33,6 +34,8 @@ type nodeInfo struct {
 type P2P struct {
 	*component.BaseComponent
 
+	// caching data from genesis block
+	chainID *types.ChainID
 	nt 	NetworkTransport
 	pm     PeerManager
 	sm     SyncManager
@@ -41,6 +44,8 @@ type P2P struct {
 	mf     moFactory
 	signer msgSigner
 	ca     types.ChainAccessor
+
+	mutex sync.Mutex
 }
 
 type HandlerFactory interface {
@@ -125,7 +130,12 @@ func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
-	p2ps.nt.Start()
+	p2ps.mutex.Lock()
+
+	nt := p2ps.nt
+	nt.Start()
+	p2ps.mutex.Unlock()
+
 	if err := p2ps.pm.Start(); err != nil {
 		panic("Failed to start p2p component")
 	}
@@ -138,20 +148,49 @@ func (p2ps *P2P) BeforeStop() {
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
 	}
-	p2ps.nt.Stop()
+	p2ps.mutex.Lock()
+	nt := p2ps.nt
+	p2ps.mutex.Unlock()
+	nt.Stop()
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statistics() *map[string]interface{} {
-	return nil
+	stmap := make(map[string]interface{})
+	stmap["netstat"] = p2ps.mm.Summary()
+	return &stmap
+}
+
+
+func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
+	p2ps.mutex.Lock()
+	defer p2ps.mutex.Unlock()
+	return p2ps.nt
+}
+
+func (p2ps *P2P) ChainID() *types.ChainID {
+	return p2ps.chainID
 }
 
 func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
 
+	// check genesis block and get meta informations from it
+	genesis := chainsvc.CDB().GetGenesisInfo()
+	chainIdBytes, err := genesis.ChainID()
+	if err != nil {
+		panic("genesis block is not set properly: "+err.Error())
+	}
+	chainID := types.NewChainID()
+	err = chainID.Read(chainIdBytes)
+	if err != nil {
+		panic("invalid chainid: "+err.Error())
+	}
+	p2ps.chainID = chainID
+
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
-	mf := &pbMOFactory{signer: signer}
+	mf := &v030MOFactory{}
 	reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, reconMan, metricMan, p2ps.Logger, mf)
@@ -160,6 +199,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	// connect managers each other
 	reconMan.pm = peerMan
 
+	p2ps.mutex.Lock()
 	p2ps.signer = signer
 	p2ps.nt = netTransport
 	p2ps.mf = mf
@@ -167,6 +207,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	p2ps.mutex.Unlock()
 }
 
 // Receive got actor message and then handle it.
@@ -188,7 +229,11 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetHashByNo:
 		p2ps.GetBlockHashByNo(context, msg)
 	case *message.NotifyNewBlock:
-		p2ps.NotifyNewBlock(*msg)
+		if msg.Produced {
+			p2ps.NotifyBlockProduced(*msg)
+		} else {
+			p2ps.NotifyNewBlock(*msg)
+		}
 	case *message.GetMissingBlocks:
 		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetTransactions:
@@ -199,10 +244,43 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
-		peers, lastBlks, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, LastBlks: lastBlks, States: states})
+		peers, hiddens, lastBlks, states := p2ps.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers, Hiddens:hiddens, LastBlks: lastBlks, States: states})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
+
+	case *message.MapQueryMsg:
+		bestBlock, err := p2ps.GetChainAccessor().GetBestBlock()
+		if err == nil {
+			msg.BestBlock=bestBlock
+			p2ps.SendRequest(message.MapSvc, msg)
+		}
+	case *message.MapQueryRsp:
+		if msg.Err != nil {
+			p2ps.Logger.Info().Err(msg.Err).Msg("polaris returned error")
+		} else {
+			if len(msg.Peers) > 0 {
+				p2ps.checkAndAddPeerAddresses(msg.Peers)
+			}
+		}
+	}
+}
+
+
+// TODO need refactoring. this code is copied from subprotcoladdrs.go
+func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
+	selfPeerID := p2ps.pm.SelfNodeID()
+	peerMetas := make([]PeerMeta, 0, len(peers))
+	for _, rPeerAddr := range peers {
+		rPeerID := peer.ID(rPeerAddr.PeerID)
+		if selfPeerID == rPeerID {
+			continue
+		}
+		meta := FromPeerAddress(rPeerAddr)
+		peerMetas = append(peerMetas, meta)
+	}
+	if len(peerMetas) > 0 {
+		p2ps.pm.NotifyPeerAddressReceived(peerMetas)
 	}
 }
 
@@ -223,7 +301,7 @@ func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Durat
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	return p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -234,7 +312,7 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duratio
 
 // CallRequest implement interface method of ActorService
 func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, defaultActorMsgTTL)
+	future := p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
 	return future.Result()
 }
 
@@ -271,10 +349,14 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+
+	// BP protocol handlers
+	peer.handlers[BlockProducedNotice] = newBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
-	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, peerID: pid}
+	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID:p2ps.chainID, peerID: pid}
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
 	} else {

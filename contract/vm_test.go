@@ -3,9 +3,10 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -28,7 +29,8 @@ abi.register(testState)`
 	function query(a)
 			return system.getItem(a)
 	end
-	abi.register(inc, query)`
+	abi.register(query)
+	abi.payable(inc)`
 )
 
 func TestReturn(t *testing.T) {
@@ -37,11 +39,14 @@ func TestReturn(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "return_num", 10, "function return_num() return 10 end abi.register(return_num)"),
-		NewLuaTxCall("ktlee", "return_num", 10, `{"Name":"return_num", "Args":[]}`),
+		NewLuaTxDef("ktlee", "return_num", 0, "function return_num() return 10 end abi.register(return_num)"),
+		NewLuaTxCall("ktlee", "return_num", 0, `{"Name":"return_num", "Args":[]}`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query("return_num", `{"Name":"return_num", "Args":[]}`, "", "10")
 	if err != nil {
@@ -56,9 +61,12 @@ function foo2(bar)
 	end
 abi.register(foo,foo2)`
 
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "foo", 1, foo),
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "foo", 0, foo),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query("foo", `{"Name":"foo", "Args":[]}`, "", "[1,2,3]")
 	if err != nil {
@@ -76,14 +84,14 @@ func TestContractHello(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "hello", 1, helloCode),
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "hello", 0, helloCode),
 	)
-	tx := NewLuaTxCall("ktlee", "hello", 1, `{"Name":"hello", "Args":["World"]}`)
-	bc.ConnectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "hello", 0, `{"Name":"hello", "Args":["World"]}`)
+	_ = bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `"Hello World"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
@@ -96,14 +104,14 @@ func TestContractSystem(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "system", 1, systemCode),
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "system", 0, systemCode),
 	)
-	tx := NewLuaTxCall("ktlee", "system", 1, `{"Name":"testState", "Args":[]}`)
-	bc.ConnectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "system", 0, `{"Name":"testState", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","4huAuw28LdAg9nKji5t1EGSkZ3ScvnyZwH2KBZCKejqHJ","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
@@ -117,9 +125,9 @@ func TestGetABI(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "hello", 1,
+		NewLuaTxDef("ktlee", "hello", 0,
 			`state.var {
 	Say = state.value()
 }
@@ -149,12 +157,12 @@ func TestContractQuery(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "query", 1, queryCode),
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "query", 0, queryCode),
+		NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`),
 	)
 
 	ktlee, err := bc.GetAccountState("ktlee")
@@ -189,20 +197,20 @@ func TestRollback(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "query", 1, queryCode),
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "query", 0, queryCode),
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
 	)
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
 	)
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
 	)
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "5")
@@ -229,8 +237,8 @@ func TestRollback(t *testing.T) {
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 1, `{"Name":"inc", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
 	)
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "2")
@@ -335,9 +343,9 @@ end
 
 abi.register(addCandidate, getCandidates, registerVoter, vote)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("owner", 100),
-		NewLuaTxDef("owner", "vote", 1, definition),
+		NewLuaTxDef("owner", "vote", 0, definition),
 		NewLuaTxAccount("user1", 100),
 	)
 
@@ -345,19 +353,19 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			`{"Name":"addCandidate", "Args":["candidate1"]}`,
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			`{"Name":"addCandidate", "Args":["candidate2"]}`,
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			`{"Name":"addCandidate", "Args":["candidate3"]}`,
 		),
 	)
@@ -375,11 +383,11 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"addCandidate", "Args":["candidate4"]}`,
 		),
 	)
@@ -393,61 +401,61 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		// register voter
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user11"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
-			1,
+			0,
 			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user1"))),
 		),
 		// vote
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["user1"]}`,
 		),
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["user1"]}`,
 		),
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["user2"]}`,
 		),
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["user2"]}`,
 		),
 		NewLuaTxCall(
 			"user1",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["user3"]}`,
 		),
 	)
@@ -462,17 +470,17 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"user11",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["candidate1"]}`,
 		),
 		NewLuaTxCall(
 			"user10",
 			"vote",
-			1,
+			0,
 			`{"Name":"vote", "Args":["candidate1"]}`,
 		),
 	)
@@ -496,24 +504,64 @@ func TestInfiniteLoop(t *testing.T) {
 
 	definition := `
 function infiniteLoop()
-    db.exec("create table if not exists dual(dummy int)")
+    local t = 0
+	while true do
+	    t = t + 1
+	end
+	return t
+end
+abi.register(infiniteLoop)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteLoop"}`,
+		),
+	)
+	errMsg := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+}
+
+func TestUpdateSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function infiniteLoop()
 	for i = 1, 100000000000000 do
 		system.setItem("key_"..i, "value_"..i)
-		db.exec("insert into dual values ("..tostring(i)..")")
 	end
 end
 abi.register(infiniteLoop)`
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "loop", 1, definition),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
 			"loop",
-			1,
+			0,
 			`{"Name":"infiniteLoop"}`,
-		).fail("exceeded the maximum instruction count"),
+		),
 	)
+	errMsg := "exceeded size of updates in the state database"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
 }
 
 func TestSqlVmSimple(t *testing.T) {
@@ -570,12 +618,12 @@ end
 
 abi.register(createAndInsert, insertRollbackData, query, count, all)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "simple-query", 1, definition),
+		NewLuaTxDef("ktlee", "simple-query", 0, definition),
 	)
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`),
 	)
 	err = bc.Query(
 		"simple-query",
@@ -596,8 +644,8 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "simple-query", 1, `{"Name": "createAndInsert", "Args":[]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`),
 	)
 	err = bc.Query(
 		"simple-query",
@@ -609,7 +657,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 		t.Error(err)
 	}
 
-	bc.DisConnectBlock()
+	_ = bc.DisConnectBlock()
 
 	err = bc.Query(
 		"simple-query",
@@ -672,28 +720,28 @@ function get()
 end
 abi.register(init, add, addFail, get)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "fail", 1, definition),
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"init"}`),
+		NewLuaTxDef("ktlee", "fail", 0, definition),
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"init"}`),
 	)
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[1]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[1]}`),
 	)
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[2]}`),
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"addFail", "Args":[3]}`).
-			fail(`near "set": syntax error`),
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[4]}`),
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[2]}`),
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"addFail", "Args":[3]}`).
+			Fail(`near "set": syntax error`),
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[4]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fail", 1, `{"Name":"add", "Args":[5]}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[5]}`),
 	)
 
 	err = bc.Query("fail", `{"Name":"get"}`, "", "12")
@@ -701,7 +749,7 @@ abi.register(init, add, addFail, get)`
 		t.Error(err)
 	}
 
-	bc.DisConnectBlock()
+	_ = bc.DisConnectBlock()
 
 	err = bc.Query("fail", `{"Name":"get"}`, "", "7")
 	if err != nil {
@@ -739,18 +787,18 @@ function get()
 end
 abi.register(init, nowNull, localtimeNull, get)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "datetime", 1, definition),
-		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"init"}`),
+		NewLuaTxDef("ktlee", "datetime", 0, definition),
+		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"init"}`),
 	)
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"nowNull"}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"nowNull"}`),
 	)
 
-	bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "datetime", 1, `{"Name":"localtimeNull"}`),
+	_ = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"localtimeNull"}`),
 	)
 
 	err = bc.Query(
@@ -812,45 +860,45 @@ abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 		NewLuaTxDef(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			definition,
 		),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"init"}`,
 		),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"pkFail"}`,
-		).fail("UNIQUE constraint failed: r.id"),
+		).Fail("UNIQUE constraint failed: r.id"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"checkFail"}`,
-		).fail("CHECK constraint failed: r"),
+		).Fail("CHECK constraint failed: r"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"fkFail"}`,
-		).fail("FOREIGN KEY constraint failed"),
+		).Fail("FOREIGN KEY constraint failed"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"notNullFail"}`,
-		).fail("NOT NULL constraint failed: r.nonull"),
+		).Fail("NOT NULL constraint failed: r.nonull"),
 		NewLuaTxCall(
 			"ktlee",
 			"constraint",
-			1,
+			0,
 			`{"Name":"uniqueFail"}`,
-		).fail("UNIQUE constraint failed: r.only"),
+		).Fail("UNIQUE constraint failed: r.only"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -919,40 +967,40 @@ end
 
 abi.register(createTable, query, insert, update, delete, count)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "customer", 1, definition),
+		NewLuaTxDef("ktlee", "customer", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
 			"customer",
-			1,
+			0,
 			`{"Name":"createTable"}`,
 		),
 	)
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"customer",
-			1,
+			0,
 			`{"Name":"insert", "Args":["id1","passwd1","name1","20180524","010-1234-5678"]}`,
 		),
 	)
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"customer",
-			1,
+			0,
 			`{"Name":"insert", "Args":["id2","passwd2","name2","20180524","010-1234-5678"]}`,
 		),
 	)
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"customer",
-			1,
+			0,
 			`{"Name":"update", "Args":["id2","passwd3"]}`,
 		),
 	)
@@ -962,7 +1010,7 @@ abi.register(createTable, query, insert, update, delete, count)`
 		t.Error(err)
 	}
 
-	bc.DisConnectBlock()
+	_ = bc.DisConnectBlock()
 
 	err = bc.Query(
 		"customer",
@@ -974,11 +1022,11 @@ abi.register(createTable, query, insert, update, delete, count)`
 		t.Error(err)
 	}
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"customer",
-			1,
+			0,
 			`{"Name":"delete", "Args":["id2"]}`,
 		),
 	)
@@ -1054,43 +1102,43 @@ end
 
 abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryOrderByDesc, queryGroupByBlockheight1)`
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "datatype", 1, definition),
+		NewLuaTxDef("ktlee", "datatype", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
 			"datatype",
-			1,
+			0,
 			`{"Name":"createDataTypeTable"}`,
 		),
 	)
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"datatype",
-			1,
+			0,
 			`{"Name":"insertDataTypeTable"}`,
 		),
 		NewLuaTxCall(
 			"ktlee",
 			"datatype",
-			1,
+			0,
 			`{"Name":"insertDataTypeTable"}`,
 		),
 		NewLuaTxCall(
 			"ktlee",
 			"datatype",
-			1,
+			0,
 			`{"Name":"insertDataTypeTable"}`,
 		),
 	)
 
-	bc.ConnectBlock(
+	_ = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"datatype",
-			1,
+			0,
 			`{"Name":"insertDataTypeTable"}`,
 		),
 	)
@@ -1168,10 +1216,13 @@ end
 
 abi.register(sql_func, abs_func, typeof_func)`
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("name", 100),
-		NewLuaTxDef("ktlee", "fns", 1, definition),
+		NewLuaTxDef("ktlee", "fns", 0, definition),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
 	if err != nil {
@@ -1254,34 +1305,43 @@ end
 
 abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "book", 1, definition),
+		NewLuaTxDef("ktlee", "book", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
 			"book",
-			1,
+			0,
 			`{"Name":"createTable"}`,
 		),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"book",
-			1,
+			0,
 			`{"Name":"makeBook"}`,
 		),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"book",
-			1,
+			0,
 			`{"Name":"copyBook"}`,
 		),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query(
 		"book",
@@ -1326,16 +1386,19 @@ end
 
 abi.register(init, get)`
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef(
 			"ktlee",
 			"data_format",
-			1,
+			0,
 			definition,
 		),
-		NewLuaTxCall("ktlee", "data_format", 1, `{"Name":"init"}`),
+		NewLuaTxCall("ktlee", "data_format", 0, `{"Name":"init"}`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query(
 		"data_format",
@@ -1363,10 +1426,10 @@ function r()
 end
 abi.register(r)`
 
-	tx := NewLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
+	tx := NewLuaTxCall("ktlee", "r", 0, `{"Name":"r"}`)
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "r", 1, definition),
+		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
 	if err != nil {
@@ -1404,11 +1467,14 @@ func TestContractCall(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[1]"),
-		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxDef("ktlee", "counter", 0, definition1).Constructor("[1]"),
+		NewLuaTxCall("ktlee", "counter", 0, `{"Name":"inc", "Args":[]}`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
 	if err != nil {
@@ -1444,11 +1510,14 @@ func TestContractCall(t *testing.T) {
 	end
 	abi.register(add,dadd, get, dget, set, dset)
 	`
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "caller", 10, definition2).
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "caller", 0, definition2).
 			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
-		NewLuaTxCall("ktlee", "caller", 10, `{"Name":"add", "Args":[]}`),
+		NewLuaTxCall("ktlee", "caller", 0, `{"Name":"add", "Args":[]}`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
 	if err != nil {
 		t.Error(err)
@@ -1457,14 +1526,14 @@ func TestContractCall(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
-	bc.ConnectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `99` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	tx = NewLuaTxCall("ktlee", "caller", 10, `{"Name":"dadd", "Args":[]}`)
-	bc.ConnectBlock(tx)
+	tx = NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
 	receipt = bc.getReceipt(tx.hash())
 	if receipt.GetRet() != `100` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
@@ -1514,10 +1583,10 @@ function r()
 end
 abi.register(r)`
 
-	tx := NewLuaTxCall("ktlee", "r", 1, `{"Name":"r"}`)
+	tx := NewLuaTxCall("ktlee", "r", 0, `{"Name":"r"}`)
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "r", 1, definition),
+		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
 	if err != nil {
@@ -1568,14 +1637,14 @@ func TestKvstore(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "map", 1, definition),
+		NewLuaTxDef("ktlee", "map", 0, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
-		NewLuaTxCall("ktlee", "map", 1, `{"Name":"setname", "Args":["eve2adam"]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"setname", "Args":["eve2adam"]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1595,9 +1664,9 @@ func TestKvstore(t *testing.T) {
 	}
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["ktlee"]}`),
-		NewLuaTxCall("ktlee", "map", 1, `{"Name":"inc", "Args":["htwo"]}`),
-		NewLuaTxCall("ktlee", "map", 1, `{"Name":"set", "Args":["wook", 100]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["htwo"]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"set", "Args":["wook", 100]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1648,7 +1717,8 @@ func TestJson(t *testing.T) {
 		return system.getAmount()
 	end
 
-	abi.register(set, get, getAmount, getenc, getlen)`
+	abi.register(set, get, getenc, getlen)
+	abi.payable(getAmount)`
 
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -1657,13 +1727,13 @@ func TestJson(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "json", 1, definition),
+		NewLuaTxDef("ktlee", "json", 0, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[1,2,3]"]}`),
+		NewLuaTxCall("ktlee", "json", 0, `{"Name":"set", "Args":["[1,2,3]"]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1677,7 +1747,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1,
+		NewLuaTxCall("ktlee", "json", 0,
 			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"run\", \"key2\":5, [4,5,6]}"]}`),
 	)
 	if err != nil {
@@ -1692,7 +1762,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1,
+		NewLuaTxCall("ktlee", "json", 0,
 			`{"Name":"set", "Args":["{\"key1\":{\"arg1\": 1,\"arg2\":{}, \"arg3\":[]}, \"key2\":[5,4,3]}"]}`),
 	)
 	if err != nil {
@@ -1707,7 +1777,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1,
+		NewLuaTxCall("ktlee", "json", 0,
 			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}"]}`),
 	)
 	if err != nil {
@@ -1718,7 +1788,7 @@ func TestJson(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1, `{"Name":"set", "Args":["[\"\\\"hh\\t\",\"2\",3]"]}`),
+		NewLuaTxCall("ktlee", "json", 0, `{"Name":"set", "Args":["[\"\\\"hh\\t\",\"2\",3]"]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1745,8 +1815,8 @@ func TestJson(t *testing.T) {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "json", 1,
-			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).fail("not proper json format"),
+		NewLuaTxCall("ktlee", "json", 0,
+			`{"Name":"set", "Args":["{\"key1\":[1,2,3], \"key1\":5}}"]}`).Fail("not proper json format"),
 	)
 }
 
@@ -1796,16 +1866,16 @@ func TestArray(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "array", 1, definition),
+		NewLuaTxDef("ktlee", "array", 0, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[1]}`),
-		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[0]}`).fail("index out of range"),
-		NewLuaTxCall("ktlee", "array", 1, `{"Name":"inc", "Args":[1]}`),
-		NewLuaTxCall("ktlee", "array", 1, `{"Name":"set", "Args":[2,"ktlee"]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -1886,6 +1956,7 @@ func TestPcall(t *testing.T) {
 		system.setItem("count", val)
 	end
 	abi.register(inc,get,set, init, pkins1, pkins2, pkget, getOrigin)
+	abi.payable(constructor, inc)
 	`
 
 	bc, err := LoadDummyChain()
@@ -1896,7 +1967,7 @@ func TestPcall(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[0]"),
-		NewLuaTxCall("ktlee", "counter", 10, `{"Name":"inc", "Args":[]}`),
+		NewLuaTxCall("ktlee", "counter", 15, `{"Name":"inc", "Args":[]}`),
 	)
 
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
@@ -1949,13 +2020,17 @@ func TestPcall(t *testing.T) {
 		return contract.call(system.getItem("addr"), "getOrigin")
 	end
 	abi.register(add, dadd, get, dget, send, sql, sqlget, getOrigin)
+	abi.payable(constructor,add)
 	`
-	bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
 			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`),
-		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"sql", "Args":[]}`),
+		NewLuaTxCall("ktlee", "caller", 0, `{"Name":"sql", "Args":[]}`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
@@ -1965,8 +2040,8 @@ func TestPcall(t *testing.T) {
 		t.Error(err)
 	}
 
-	tx := NewLuaTxCall("ktlee", "caller", 5, `{"Name":"getOrigin", "Args":[]}`)
-	bc.ConnectBlock(tx)
+	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"getOrigin", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
 	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
@@ -2004,6 +2079,7 @@ func TestPcall(t *testing.T) {
 	end
 
 	abi.register(set, set2, get, getBalance)
+	abi.payable(set, set2)
 	`
 
 	bc, err = LoadDummyChain()
@@ -2014,12 +2090,17 @@ func TestPcall(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxAccount("bong", 0),
-		NewLuaTxDef("ktlee", "counter", 10, definition3),
+		NewLuaTxDef("ktlee", "counter", 0, definition3),
 	)
-	tx = NewLuaTxCall("ktlee", "counter", 10,
+	if err != nil {
+		t.Error(err)
+	}
+	tx = NewLuaTxCall("ktlee", "counter", 20,
 		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
-
-	bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
 	if err != nil {
 		t.Error(err)
@@ -2034,7 +2115,10 @@ func TestPcall(t *testing.T) {
 	}
 	tx = NewLuaTxCall("ktlee", "counter", 10,
 		fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
-	bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
 	if err != nil {
 		t.Error(err)
@@ -2073,7 +2157,7 @@ func TestPingpongCall(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "a", 10, definition1),
+		NewLuaTxDef("ktlee", "a", 0, definition1),
 	)
 
 	definition2 := `
@@ -2093,13 +2177,16 @@ func TestPingpongCall(t *testing.T) {
 
 	abi.register(called, get)
 	`
-	bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "b", 10, definition2).
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "b", 0, definition2).
 			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("a")))),
 	)
-	tx := NewLuaTxCall("ktlee", "a", 15,
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "a", 0,
 		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(strHash("b"))))
-	bc.ConnectBlock(tx)
+	_ = bc.ConnectBlock(tx)
 	err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
 	if err != nil {
 		t.Error(err)
@@ -2144,7 +2231,7 @@ func TestArrayArg(t *testing.T) {
 	bc, err := LoadDummyChain()
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "a", 10, definition1),
+		NewLuaTxDef("ktlee", "a", 0, definition1),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2204,7 +2291,7 @@ func TestAbi(t *testing.T) {
 	bc, err := LoadDummyChain()
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "a", 10, noAbi),
+		NewLuaTxDef("ktlee", "a", 0, noAbi),
 	)
 	if err == nil {
 		t.Errorf("expected: %s, but got: nil", errMsg)
@@ -2219,7 +2306,7 @@ func TestAbi(t *testing.T) {
 	abi.register()`
 
 	err = bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "a", 10, empty),
+		NewLuaTxDef("ktlee", "a", 0, empty),
 	)
 	if err == nil {
 		t.Errorf("expected: %s, but got: nil", errMsg)
@@ -2237,7 +2324,7 @@ func TestAbi(t *testing.T) {
 	abi.register(helper)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "a", 10, localFunc),
+		NewLuaTxDef("ktlee", "a", 0, localFunc),
 	)
 	if err == nil {
 		t.Errorf("expected: %s, but got: nil", errMsg)
@@ -2265,18 +2352,23 @@ func TestMapKey(t *testing.T) {
 	bc, _ := LoadDummyChain()
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "a", 10, definition),
+		NewLuaTxDef("ktlee", "a", 0, definition),
 	)
 
-	err := bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":["1", 20]}`),
-		NewLuaTxCall("ktlee", "a", 1, `{"Name":"setCount", "Args":[1.1, 30]}`),
+	err := bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "", "20")
+	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "(number expected, got string)", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2289,15 +2381,15 @@ func TestMapKey(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "a", 1,
+		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).fail(`bad argument #2 to '__newindex' (number or string expected)`),
+		).Fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "a", 1, `{"Name":"delCount", "Args":[1.1]}`),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"delCount", "Args":[1.1]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2307,6 +2399,26 @@ func TestMapKey(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_ = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "x", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["1", 10]}`),
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":[1, 20]}`).Fail("string expected, got number)"),
+		NewLuaTxCall("ktlee", "x", 0, `{"Name":"setCount", "Args":["third", 30]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("x", `{"Name":"getCount", "Args":["1"]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("x", `{"Name":"getCount", "Args":["third"]}`, "", "30")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2341,13 +2453,13 @@ abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "c", 10, src),
+		NewLuaTxDef("ktlee", "c", 0, src),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "c", 1, `{"Name":"InvalidUpdateAge", "Args":[10]}`),
+		NewLuaTxCall("ktlee", "c", 0, `{"Name":"InvalidUpdateAge", "Args":[10]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2359,7 +2471,7 @@ abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "c", 1, `{"Name":"ValidUpdateAge", "Args":[10]}`),
+		NewLuaTxCall("ktlee", "c", 0, `{"Name":"ValidUpdateAge", "Args":[10]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2406,7 +2518,7 @@ abi.register(CreateDate, Extract, Difftime)
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "datetime", 1, src),
+		NewLuaTxDef("ktlee", "datetime", 0, src),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2454,7 +2566,7 @@ abi.register(Length)
 		NewLuaTxAccount("ktlee", 100),
 	)
 	err := bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "zeroLen", 1, zeroLen),
+		NewLuaTxDef("ktlee", "zeroLen", 0, zeroLen),
 	)
 	if err == nil {
 		t.Error("expected: the array length must be greater than zero")
@@ -2486,7 +2598,7 @@ end
 
 abi.register(Append, Get, Set, Length)
 `
-	tx := NewLuaTxDef("ktlee", "dArr", 1, dArr)
+	tx := NewLuaTxDef("ktlee", "dArr", 0, dArr)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -2496,8 +2608,8 @@ abi.register(Append, Get, Set, Length)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [10]}`),
-		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [20]}`),
+		NewLuaTxCall("ktlee", "dArr", 0, `{"Name": "Append", "Args": [10]}`),
+		NewLuaTxCall("ktlee", "dArr", 0, `{"Name": "Append", "Args": [20]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2519,15 +2631,15 @@ abi.register(Append, Get, Set, Length)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [30]}`),
-		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Append", "Args": [40]}`),
+		NewLuaTxCall("ktlee", "dArr", 0, `{"Name": "Append", "Args": [30]}`),
+		NewLuaTxCall("ktlee", "dArr", 0, `{"Name": "Append", "Args": [40]}`),
 	)
 	err = bc.Query("dArr", `{"Name": "Length"}`, "", "4")
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "dArr", 1, `{"Name": "Set", "Args": [3, 50]}`),
+		NewLuaTxCall("ktlee", "dArr", 0, `{"Name": "Set", "Args": [3, 50]}`),
 	)
 	err = bc.Query("dArr", `{"Name": "Get", "Args": [3]}`, "", "50")
 	if err != nil {
@@ -2551,7 +2663,7 @@ abi.register(GetVar1)
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "dupVar", 1, dupVar),
+		NewLuaTxDef("ktlee", "dupVar", 0, dupVar),
 	)
 	if err == nil {
 		t.Error("duplicated variable: 'Var1'")
@@ -2575,13 +2687,13 @@ end
 abi.register(GetVar1, Work)
 `
 	err = bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "dupVar1", 1, dupVar),
+		NewLuaTxDef("ktlee", "dupVar1", 0, dupVar),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "dupVar1", 1, `{"Name": "Work"}`).fail("duplicated variable: 'Var1'"),
+		NewLuaTxCall("ktlee", "dupVar1", 0, `{"Name": "Work"}`).Fail("duplicated variable: 'Var1'"),
 	)
 
 	if err != nil {
@@ -2592,7 +2704,7 @@ abi.register(GetVar1, Work)
 func TestCrypto(t *testing.T) {
 	src := `
 function get(a)
-	return string.byte(crypto.sha256(a), 1,100)
+	return crypto.sha256(a)
 end
 
 function checkEther()
@@ -2611,9 +2723,13 @@ abi.register(get, checkEther, checkAergo)
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "crypto", 1, src),
+		NewLuaTxDef("ktlee", "crypto", 0, src),
 	)
-	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `[197,143,109,202,19,228,187,169,10,50,109,134,5,4,40,98,254,135,198,58,100,169,221,14,149,96,138,46,230,141,198,240]`)
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `"0xc58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("crypto", `{"Name": "get", "Args" : ["0x616200e490aa"]}`, "", `"0xc58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2627,4 +2743,339 @@ abi.register(get, checkEther, checkAergo)
 		t.Error(err)
 	}
 }
+
+func TestPayable(t *testing.T) {
+	src := `
+state.var {
+	Data = state.value()
+}
+function save(data)
+	Data:set(data)
+end
+function load()
+	return Data:get()
+end
+
+abi.register(load)
+abi.payable(save)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+	)
+
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "payable", 1, src),
+	)
+	if err == nil {
+		t.Error(err)
+	} else {
+		if !strings.Contains(err.Error(), types.ErrVmConstructorIsNotPayable.Error()) {
+			t.Error(err)
+		}
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "payable", 0, src),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("payable", `{"Name":"load"}`, "", `"blahblah"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "payable", 1, `{"Name":"save", "Args": ["payed"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("payable", `{"Name":"load"}`, "", `"payed"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDefault(t *testing.T) {
+	src := `
+function default()
+	return "default"
+end
+abi.register(default)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "default", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "default", 0, "")
+	err = bc.ConnectBlock(tx)
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `"default"` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBignum(t *testing.T) {
+	bigNum := `
+function test(addr)
+	bal = contract.balance()
+	contract.send(addr, bal / 2)
+	return contract.balance()
+end
+
+function sendS(addr)
+	contract.send(addr, "1 gaer 99999")
+	return contract.balance()
+end
+
+function testBignum()
+	bg = bignum.number("999999999999999999999999999999")
+	system.setItem("big", bg)
+	bi = system.getItem("big")
+	return tostring(bi)
+end
+
+function argBignum(a)
+	b = a + 1
+	return tostring(b)
+end
+
+function calladdBignum(addr, a)
+	return tostring(contract.call(addr, "add", a, 2) + 3)
+end
+
+function constructor()
+end
+
+abi.register(test, sendS, testBignum, argBignum, calladdBignum)
+abi.payable(constructor)
+`
+	callee := `
+	function add(a, b)
+		return a + b
+	end
+	abi.register(add)
+	`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxDef("ktlee", "bigNum", 50000000000, bigNum),
+		NewLuaTxDef("ktlee", "add", 0, callee),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `"25000000000"` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `"23999900001"` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, `{"Name":"testBignum", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `"999999999999999999999999999999"` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("bigNum", `{"Name":"argBignum", "Args":[{"_bignum":"99999999999999999999999999"}]}`, "", `"100000000000000000000000000"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeploy(t *testing.T) {
+	deploy := `
+function hello()
+	hello = [[
+	function hello(say) 
+		return "Hello " .. say 
+	end 
+	abi.register(hello)
+	]]
+	addr = contract.deploy(hello)
+	ret = contract.call(addr, "hello", "world")
+	return addr, ret
+end
+
+function helloQuery(addr)
+	return contract.call(addr, "hello", "world")
+end
+
+function testConst()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function constructor(key, item) 
+			system.setItem(key, item)
+			return key, item
+		end 
+		abi.register(hello) 
+		abi.payable(constructor)
+	]]
+	addr, key, item = contract.deploy.value(100)(src, "key", 2)
+	ret = contract.call(addr, "hello", "world", "key")
+	return addr, ret
+end
+
+function testFail()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function constructor()
+		end 
+		abi.register(hello) 
+	]]
+	addr = contract.deploy.value(100)(src)
+	return addr
+end
+ 
+paddr = nil
+function deploy()
+	src = [[
+		function hello(say, key) 
+			return "Hello " .. say .. system.getItem(key) 
+		end 
+		function getcre()
+			return system.getCreator()
+		end
+		function constructor()
+		end 
+		abi.register(hello, getcre) 
+	]]
+	paddr = contract.deploy(src)
+	system.print("addr :", paddr)
+	ret = contract.call(paddr, "hello", "world", "key")
+end
+
+function testPcall()
+	ret = contract.pcall(deploy)
+	return contract.call(paddr, "getcre")
+end
+function constructor()
+end
+
+abi.register(hello, helloQuery, testConst, testFail, testPcall)
+abi.payable(constructor)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf","Hello world"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("deploy", `{"Name":"helloQuery", "Args":["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"]}`, "", `"Hello world"`)
+	if err != nil {
+		t.Error(err)
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testConst"}`)
+	err = bc.ConnectBlock(tx)
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","Hello world2"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	deployAcc, err := bc.GetAccountState("deploy")
+	if err != nil {
+		t.Error(err)
+	}
+	if deployAcc.GetBalanceBigInt().Uint64() != uint64(49999999900) {
+		t.Error(deployAcc.GetBalanceBigInt().Uint64())
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testFail"}`)
+	err = bc.ConnectBlock(tx)
+	deployAcc, err = bc.GetAccountState("deploy")
+	if err != nil && deployAcc.Nonce == 2 {
+		t.Error(err)
+	}
+	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testPcall"}`)
+	err = bc.ConnectBlock(tx)
+	deployAcc, err = bc.GetAccountState("deploy")
+	if err != nil && deployAcc.Nonce == 2 {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+}
+
+func TestSqlVmPubNet(t *testing.T) {
+	PubNet = true
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function createAndInsert()
+    db.exec("create table if not exists dual(dummy char(1))")
+	db.exec("insert into dual values ('X')")
+    local insertYZ = db.prepare("insert into dual values (?),(?)")
+    insertYZ:exec("Y", "Z")
+end
+abi.register(createAndInsert)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "simple-query", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).Fail(`attempt to index global 'db'`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

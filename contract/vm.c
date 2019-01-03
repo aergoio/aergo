@@ -7,6 +7,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
+#include "lbc.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -20,6 +21,10 @@ static void preloadModules(lua_State *L)
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
+	luaopen_bc(L);
+	if (!IsPublic()) {
+        luaopen_db(L);
+	}
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
@@ -36,17 +41,6 @@ const int *getLuaExecContext(lua_State *L)
 	lua_pop(L, 1);
 
 	return service;
-}
-
-void bc_ctx_delete(bc_ctx_t *bc_ctx) {
-	if (bc_ctx == NULL)
-		return;
-	if (bc_ctx->stateKey)
-	    free(bc_ctx->stateKey);
-	free(bc_ctx->sender);
-	free(bc_ctx->txHash);
-	free(bc_ctx->contractId);
-	free(bc_ctx->node);
 }
 
 lua_State *vm_newstate()
@@ -100,10 +94,15 @@ void vm_remove_constructor(lua_State *L)
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
 }
 
-void count_hook(lua_State *L, lua_Debug *ar)
+static void count_hook(lua_State *L, lua_Debug *ar)
 {
 	lua_pushstring(L, "exceeded the maximum instruction count");
 	lua_error(L);
+}
+
+void vm_set_count_hook(lua_State *L, int limit)
+{
+	lua_sethook (L, count_hook, LUA_MASKCOUNT, limit);
 }
 
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
@@ -111,8 +110,6 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 	int err;
 	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
-
-	lua_sethook (L, count_hook, LUA_MASKCOUNT, 500000);
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
@@ -178,4 +175,30 @@ void vm_get_abi_function(lua_State *L, char *fname)
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");
 	lua_pushstring(L, fname);
+}
+
+int vm_is_payable_function(lua_State *L, char *fname)
+{
+    int err;
+	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+	lua_getfield(L, -1, "is_payable");
+	lua_pushstring(L, fname);
+	err = lua_pcall(L, 1, 1, 0);
+	if (err != 0) {
+	    return 0;
+	}
+	return lua_tointeger(L, -1);
+}
+
+char *vm_resolve_function(lua_State *L, char *fname)
+{
+    int err;
+	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+	lua_getfield(L, -1, "resolve");
+	lua_pushstring(L, fname);
+	err = lua_pcall(L, 1, 1, 0);
+	if (err != 0) {
+		return NULL;
+	}
+	return (char *)lua_tostring(L, -1);
 }

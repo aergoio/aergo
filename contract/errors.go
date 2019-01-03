@@ -5,12 +5,18 @@
 
 package contract
 
-import "errors"
+type VmError struct {
+	error
+}
 
-type VmError error
+func newVmError(e error) error {
+	return &VmError{e}
+}
 
-type DbSystemError error
+type DbSystemError struct {
+	error
+}
 
-func newDbSystemError(text string) error {
-	return DbSystemError(errors.New(text))
+func newDbSystemError(e error) error {
+	return &DbSystemError{e}
 }

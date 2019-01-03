@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -91,7 +92,8 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 }
 
 func GetOwner(scs *state.ContractState, name []byte) *Owner {
-	key := append(prefix, name...)
+	lowerCaseName := strings.ToLower(string(name))
+	key := append(prefix, lowerCaseName...)
 	ownergob, err := scs.GetData(key)
 	if err != nil {
 		return nil
@@ -117,6 +119,7 @@ func setOwner(scs *state.ContractState, name []byte, owner *Owner) error {
 	if err != nil {
 		return err
 	}
-	key := append(prefix, name...)
+	lowerCaseName := strings.ToLower(string(name))
+	key := append(prefix, lowerCaseName...)
 	return scs.SetData(key, data.Bytes())
 }

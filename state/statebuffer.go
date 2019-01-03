@@ -3,7 +3,6 @@ package state
 import (
 	"sort"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/pkg/trie"
 	"github.com/aergoio/aergo/types"
@@ -181,14 +180,14 @@ func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
 	return nil
 }
 
-func (buffer *stateBuffer) stage(dbtx *db.Transaction) error {
+func (buffer *stateBuffer) stage(txn trie.DbTx) error {
 	for _, v := range buffer.indexes {
 		et := buffer.entries[v.peek()]
 		buf, err := marshal(et.Value())
 		if err != nil {
 			return err
 		}
-		(*dbtx).Set(et.Hash(), buf)
+		txn.Set(et.Hash(), buf)
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ We are developing the most practical and powerful platform for blockchain busine
 3. Scalable architecture
 4. Connect with the world
 
-You can see the current pre-testnet via aergoscan service: [aergoscan](https://aergoscan.io)
+You can see the current testnet via aergoscan service: [aergoscan](https://aergoscan.io)
 
 ## Roadmaps
 
@@ -55,10 +55,27 @@ You can see the current pre-testnet via aergoscan service: [aergoscan](https://a
     * Launch the pre-testnet to monitor operation environment.
     * We provide https://aergoscan.io.
 
-### 2nd: Aergo Testnet (planned in Dec, 2018)
-* Advanced dPOS
-* Governance with DAO
-* Advanced client framework (including domain-specific parts)
+### 2nd: Aergo Testnet (28, Dec, 2018)
+* BFT-dPOS with Voting
+  * The pre-test net has the function of agreeing blocks among the set BPs. TestNet has a function to select BP through voting.
+* Named Account
+  * For user's convenience, Named Account function that can be accessed based on Name rather than Address is provided.
+* Expanded Aergo Lua
+  * The Aergo Lua feature has been extended for more convenient development.
+* Advanced Client Framework
+  * Provides a wallet interface that interacts with keystore and manages nonce.
+  * Provides the ability to make smart contracts through interface calls.
+  * Provides a contract library to issue tokens based on Aergo.
+* Hub Enterprise
+  * Enterprise customers view management and monitoring of their networks as a prerequisite.
+  * We provide Hub Enterprise control solution to solve this problem.
+* Merkle Bridge Verification
+  * StateTrie Merkle proof verifications and delegated token transfers are now implemented in the merkle-bridge.
+* Various Smart Contract Examples
+  * Provide some standard smart contracts
+* TestNet
+  * Launch the Test Network to provide network for community and experment
+  * We provide https://aergoscan.io.
 
 ### 3rd: Aergo Mainnet (planned in March, 2019)
 * Parallelism (inter-contract)

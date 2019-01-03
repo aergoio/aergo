@@ -36,8 +36,8 @@ import:
 - package: github.com/mr-tron/base58
   subpackages:
   - base58
-- package: github.com/satori/go.uuid
-  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+- package: github.com/gofrs/uuid
+  version: ~3.1.2
 - package: github.com/spf13/cobra
   version: ~0.0.3
 - package: golang.org/x/net

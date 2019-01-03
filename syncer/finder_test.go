@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
@@ -14,10 +15,10 @@ func testFullscanSucceed(t *testing.T, expAncestor uint64) {
 	localChainLen := 10
 	targetNo := uint64(11)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:expAncestor+1], localChainLen-int(expAncestor+1))
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:expAncestor+1], localChainLen-int(expAncestor+1))
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property
@@ -46,10 +47,10 @@ func TestFinder_fullscan_notfound(t *testing.T) {
 	localChainLen := 1000
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(nil, localChainLen)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(nil, localChainLen)
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property
@@ -75,10 +76,10 @@ func TestFinder_timeout(t *testing.T) {
 	localChainLen := 1000
 	targetNo := uint64(1000)
 
-	remoteChain := initStubBlockChain(nil, remoteChainLen)
-	localChain := initStubBlockChain(remoteChain.blocks[0:1], localChainLen-1)
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
 
-	remoteChains := []*StubBlockChain{remoteChain}
+	remoteChains := []*chain.StubBlockChain{remoteChain}
 	peers := makeStubPeerSet(remoteChains)
 
 	//set debug property

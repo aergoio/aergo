@@ -9,7 +9,6 @@ import (
 	"runtime"
 
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -46,6 +45,8 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
 		Monitor:    ctx.GetDefaultMonitorConfig(),
+		Account:    ctx.GetDefaultAccountConfig(),
+		Polaris:    ctx.GetDefaultPolarisConfig(),
 	}
 }
 
@@ -86,10 +87,21 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPCert:          "",
 		NPKey:           "",
 		NPAddPeers:      nil,
+		NPDiscoverPeers: true,
 		NPMaxPeers:      100,
 		NPPeerPool:      100,
+		NPUsePolaris:    true,
+		NPExposeSelf:    true,
 	}
 }
+
+func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
+	return &PolarisConfig{
+		GenesisFile: "",
+		AllowPrivate: false,
+	}
+}
+
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
@@ -104,6 +116,8 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 	return &MempoolConfig{
 		ShowMetrics:    false,
+		EnableFadeout:  false,
+		FadeoutPeriod:  types.DefaultEvictPeriod,
 		VerifierNumber: runtime.NumCPU(),
 		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 	}
@@ -111,10 +125,7 @@ func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 
 func (ctx *ServerContext) GetDefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		EnableBp:      true,
-		BlockInterval: consensus.DefaultBlockIntervalSec,
-		DposBpNumber:  consensus.DefaultDposBpNumber,
-		BpIds:         nil,
+		BlockInterval: 1,
 	}
 }
 
@@ -123,5 +134,10 @@ func (ctx *ServerContext) GetDefaultMonitorConfig() *MonitorConfig {
 		ServerProtocol: "",
 		ServerEndpoint: "",
 	}
+}
 
+func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
+	return &AccountConfig{
+		UnlockTimeout: 60,
+	}
 }

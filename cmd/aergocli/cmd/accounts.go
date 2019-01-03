@@ -85,7 +85,7 @@ var newCmd = &cobra.Command{
 			msg, err = client.CreateAccount(context.Background(), &param)
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			addr, err = ks.CreateKey(param.Passphrase)
 			if err != nil {
@@ -117,7 +117,7 @@ var listCmd = &cobra.Command{
 			msg, err = client.GetAccounts(context.Background(), &types.Empty{})
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			addrs, err = ks.GetAddresses()
 		}
@@ -218,7 +218,7 @@ var importCmd = &cobra.Command{
 			address = msg.GetAddress()
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
 			if err != nil {
@@ -249,7 +249,7 @@ var exportCmd = &cobra.Command{
 			result = msg.Value
 		} else {
 			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath)
+			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
 			if err != nil {
