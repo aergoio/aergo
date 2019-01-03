@@ -5,14 +5,18 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 type SignVerifier struct {
 	comm component.IComponentRequester
+
+	sdb *state.ChainStateDB
 
 	workerCnt int
 	workCh    chan verifyWork
@@ -45,9 +49,10 @@ var (
 	//logger = log.NewLogger("signverifier")
 )
 
-func NewSignVerifier(comm component.IComponentRequester, workerCnt int, useMempool bool) *SignVerifier {
+func NewSignVerifier(comm component.IComponentRequester, sdb *state.ChainStateDB, workerCnt int, useMempool bool) *SignVerifier {
 	sv := &SignVerifier{
 		comm:       comm,
+		sdb:        sdb,
 		workerCnt:  workerCnt,
 		workCh:     make(chan verifyWork, workerCnt),
 		doneCh:     make(chan verifyWorkRes, workerCnt),
@@ -117,7 +122,19 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	if hit {
 		return hit, nil
 	}
-	if !tx.NeedNameVerify() {
+
+	if tx.NeedNameVerify() {
+		cs, err := sv.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to get verify because of openning contract error")
+			return false, err
+		}
+		address := name.GetAddress(cs, tx.Body.Account)
+		err = key.VerifyTxWithAddress(tx, address)
+		if err != nil {
+			return false, err
+		}
+	} else {
 		err := key.VerifyTx(tx)
 		if err != nil {
 			return false, err
@@ -200,7 +217,7 @@ func (sv *SignVerifier) WaitDone() (bool, []error) {
 	}
 }
 
-func (bv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
+func (sv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
 	txs := txlist.GetTxs()
 	txLen := len(txs)
 	errs := make([]error, txLen, txLen)
@@ -210,14 +227,14 @@ func (bv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
 	logger.Debug().Int("txlen", txLen).Msg("verify tx inplace start")
 
 	for i, tx := range txs {
-		hit, errs[i] = bv.verifyTx(bv.comm, tx)
+		hit, errs[i] = sv.verifyTx(sv.comm, tx)
 		failed = true
 
 		if hit {
-			bv.totalHit++
+			sv.totalHit++
 		}
 	}
 
-	logger.Debug().Int("totalhit", bv.totalHit).Msg("verify tx inplace done")
+	logger.Debug().Int("totalhit", sv.totalHit).Msg("verify tx inplace done")
 	return failed, errs
 }

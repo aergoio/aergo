@@ -279,11 +279,8 @@ Gather:
 func (mp *MemPool) put(tx *types.Tx) error {
 	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
-	if tx.NeedNameVerify() {
-		acc = mp.getAddress(acc)
-		if acc == nil {
-			return types.ErrTxInvalidAccount
-		}
+	if tx.HasVerifedAccount() {
+		acc = tx.GetVerifedAccount()
 	}
 
 	mp.Lock()
@@ -442,6 +439,9 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 		err = key.VerifyTxWithAddress(tx, account)
 		if err != nil {
 			return err
+		}
+		if !tx.SetVerifedAccount(account) {
+			mp.Warn().Str("account", string(account)).Msg("could not set verifed account")
 		}
 	}
 	return nil

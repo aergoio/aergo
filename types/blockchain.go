@@ -445,6 +445,7 @@ func (tx *Tx) CalculateTxHash() []byte {
 	txBody := tx.Body
 	digest := sha256.New()
 	binary.Write(digest, binary.LittleEndian, txBody.Nonce)
+
 	digest.Write(txBody.Account)
 	digest.Write(txBody.Recipient)
 	digest.Write(txBody.Amount)
@@ -544,6 +545,34 @@ func (tx *Tx) ValidateWithContractState(contractState *State) error {
 	//in system.ValidateSystemTx
 	//in name.ValidateNameTx
 	return nil
+}
+
+func (tx *Tx) SetVerifedAccount(account []byte) bool {
+	if len(account) != AddressLength {
+		return false
+	}
+	tx.Body.Account = append(account, tx.GetBody().GetAccount()...)
+	return true
+}
+
+func (tx *Tx) GetVerifedAccount() []byte {
+	account := tx.GetBody().GetAccount()
+	if len(account) > AddressLength {
+		return account[:AddressLength]
+	}
+	return nil
+}
+
+func (tx *Tx) HasVerifedAccount() bool {
+	return len(tx.GetBody().GetAccount()) > AddressLength
+}
+
+func (tx *Tx) RemoveVerifedAccount() bool {
+	if len(tx.Body.Account) < AddressLength {
+		return false
+	}
+	tx.Body.Account = tx.GetBody().GetAccount()[AddressLength:]
+	return true
 }
 
 func (tx *Tx) NeedNameVerify() bool {
