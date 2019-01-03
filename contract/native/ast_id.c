@@ -120,7 +120,7 @@ id_new_tuple(src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_TUPLE, MOD_PRIVATE, NULL, pos);
 
-    array_init(&id->u_tup.elem_ids);
+    id->u_tup.elem_ids = array_new();
 
     return id;
 }
@@ -183,8 +183,8 @@ check_dup(array_t *ids, ast_id_t *new_id)
         ast_id_t *id = array_get_id(ids, i);
 
         if (is_tuple_id(id)) {
-            array_foreach(&id->u_tup.elem_ids, j) {
-                ast_id_t *var_id = array_get_id(&id->u_tup.elem_ids, j);
+            array_foreach(id->u_tup.elem_ids, j) {
+                ast_id_t *var_id = array_get_id(id->u_tup.elem_ids, j);
 
                 if (strcmp(var_id->name, new_id->name) == 0) {
                     ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
@@ -210,8 +210,8 @@ id_add(array_t *ids, ast_id_t *new_id)
         return;
 
     if (is_tuple_id(new_id)) {
-        array_foreach(&new_id->u_tup.elem_ids, i) {
-            check_dup(ids, array_get_id(&new_id->u_tup.elem_ids, i));
+        array_foreach(new_id->u_tup.elem_ids, i) {
+            check_dup(ids, array_get_id(new_id->u_tup.elem_ids, i));
         }
     }
     else if (!check_dup(ids, new_id)) {
@@ -243,8 +243,8 @@ id_strip(ast_id_t *id)
     ASSERT1(is_tuple_id(id), id->kind);
     ASSERT(id->u_tup.dflt_exp == NULL);
 
-    array_foreach(&id->u_tup.elem_ids, i) {
-        ast_id_t *var_id = array_get_id(&id->u_tup.elem_ids, i);
+    array_foreach(id->u_tup.elem_ids, i) {
+        ast_id_t *var_id = array_get_id(id->u_tup.elem_ids, i);
 
         var_id->mod = id->mod;
         var_id->u_var.type_meta = id->u_tup.type_meta;

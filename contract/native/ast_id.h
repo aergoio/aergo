@@ -91,7 +91,7 @@ typedef struct id_label_s {
 
 typedef struct id_tuple_s {
     meta_t *type_meta;
-    array_t elem_ids;
+    array_t *elem_ids;
     ast_exp_t *dflt_exp;
 } id_tuple_t;
 

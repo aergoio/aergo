@@ -83,8 +83,6 @@
     (is_void_type(meta) ? 0 :                                                            \
      ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->elem_cnt : 1))
 
-#define meta_copy(dest, src)        *(dest) = *(src)
-
 #ifndef _META_T
 #define _META_T
 typedef struct meta_s meta_t;
@@ -196,6 +194,21 @@ meta_strip_arr_dim(meta_t *meta)
         meta->dim_sizes = NULL;
     else
         meta->dim_sizes = &meta->dim_sizes[1];
+}
+
+static inline void
+meta_copy(meta_t *dest, meta_t *src)
+{
+    /* Deliberately excluded num and src_pos */
+    dest->type = src->type;
+    dest->size = src->size;
+    dest->name = src->name;
+    dest->arr_dim = src->arr_dim;
+    dest->arr_size = src->arr_size;
+    dest->dim_sizes = src->dim_sizes;
+    dest->is_undef = src->is_undef;
+    dest->elem_cnt = src->elem_cnt;
+    dest->elems = src->elems;
 }
 
 #endif /* ! _META_H */

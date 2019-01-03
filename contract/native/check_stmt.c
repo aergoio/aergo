@@ -353,7 +353,7 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *next_val = next_case->u_case.val_exp;
 
                 if (next_val != NULL && exp_equals(val_exp, next_val))
-                    RETURN(ERROR_DUPLICATED_VALUE, &next_val->pos, "case");
+                    RETURN(ERROR_DUPLICATED_CASE, &next_val->pos);
             }
 
             if (cond_exp != NULL)

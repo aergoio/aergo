@@ -42,7 +42,7 @@ contract test {
     int i;
     string s;
     test() {
-        i, s = 1, 2;
+        i, s = 1, 2.0;
     }
 }
 
@@ -315,7 +315,7 @@ contract test {
 }
 
 @test(duplicated_case_value)
-@error(ERROR_DUPLICATED_VALUE)
+@error(ERROR_DUPLICATED_CASE)
 contract test {
     int i;
 
@@ -355,7 +355,7 @@ contract test {
 }
 
 @test(duplicated_case_expression)
-@error(ERROR_DUPLICATED_VALUE)
+@error(ERROR_DUPLICATED_CASE)
 contract test {
     int i;
     string s;

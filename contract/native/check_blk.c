@@ -18,18 +18,30 @@ check_unused_ids(check_t *check, array_t *ids)
     array_foreach(ids, i) {
         ast_id_t *id = array_get_id(ids, i);
 
-        if (!is_ctor_id(id) && !id->is_used) {
-            WARN(ERROR_UNUSED_ID, &id->pos, id->name);
-        }
-        else if (is_fn_id(id)) {
-            array_t *param_ids = id->u_fn.param_ids;
+        if (is_tuple_id(id)) {
+            array_t *elem_ids = id->u_tup.elem_ids;
 
-            array_foreach(param_ids, j) {
-                ast_id_t *param_id = array_get_id(param_ids, j);
+            array_foreach(elem_ids, j) {
+                ast_id_t *elem_id = array_get_id(elem_ids, j);
 
-                if (!param_id->is_used)
-                    WARN(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
+                if (!elem_id->is_used)
+                    WARN(ERROR_UNUSED_ID, &elem_id->pos, elem_id->name);
             }
+        }
+        else {
+            if (is_fn_id(id)) {
+                array_t *param_ids = id->u_fn.param_ids;
+
+                array_foreach(param_ids, j) {
+                    ast_id_t *param_id = array_get_id(param_ids, j);
+
+                    if (!param_id->is_used)
+                        WARN(ERROR_UNUSED_ID, &param_id->pos, param_id->name);
+                }
+            }
+
+            if (!is_ctor_id(id) && !id->is_used)
+                WARN(ERROR_UNUSED_ID, &id->pos, id->name);
         }
     }
 }

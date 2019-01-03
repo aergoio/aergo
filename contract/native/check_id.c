@@ -189,7 +189,7 @@ id_check_enum(check_t *check, ast_id_t *id)
                 ast_id_t *prev_id = array_get_id(elem_ids, j);
 
                 if (value_cmp(elem_id->val, prev_id->val) == 0)
-                    RETURN(ERROR_DUPLICATED_VALUE, &dflt_exp->pos, "enumerator");
+                    RETURN(ERROR_DUPLICATED_ENUM, &dflt_exp->pos);
             }
 
             enum_val = val_i64(elem_id->val);
@@ -317,7 +317,7 @@ static int
 id_check_tuple(check_t *check, ast_id_t *id)
 {
     int i;
-    array_t *elem_ids = &id->u_tup.elem_ids;
+    array_t *elem_ids = id->u_tup.elem_ids;
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
     ASSERT1(is_tuple_id(id), id->kind);

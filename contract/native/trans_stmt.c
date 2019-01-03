@@ -353,8 +353,8 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             /* Since the number of arg_exp may be smaller than the number of ret_id,
              * it is made as a tuple expression for asymmetry assignment processing */
 
-            array_foreach(&ret_id->u_tup.elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(&ret_id->u_tup.elem_ids, i);
+            array_foreach(ret_id->u_tup.elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
 
                 id_exp = exp_new_id_ref(elem_id->name, &elem_id->pos);
 

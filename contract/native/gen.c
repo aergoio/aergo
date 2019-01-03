@@ -59,7 +59,7 @@ gen(ir_t *ir, flag_t flag, char *path)
 
     sgmt_gen(&gen, ir->sgmt);
 
-    if (flag_on(flag, FLAG_VERBOSE))
+    if (flag_on(flag, FLAG_WAT_DUMP))
         BinaryenModulePrint(gen.module);
 
     ASSERT(BinaryenModuleValidate(gen.module));

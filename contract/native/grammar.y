@@ -399,9 +399,10 @@ declarator_list:
         }
         else {
             $$ = id_new_tuple(&@1);
-            id_add(&$$->u_tup.elem_ids, $1);
+            id_add($$->u_tup.elem_ids, $1);
         }
-        id_add(&$$->u_tup.elem_ids, $3);
+
+        id_add($$->u_tup.elem_ids, $3);
     }
 ;
 
@@ -662,15 +663,16 @@ return_list:
          * the convenience of meta comparison. If array_t is used,
          * it must be looped for each id and compared directly,
          * but for tuples, meta_cmp() is sufficient */
+
         if (is_tuple_id($1)) {
             $$ = $1;
         }
         else {
             $$ = id_new_tuple(&@1);
-            id_add(&$$->u_tup.elem_ids, $1);
+            id_add($$->u_tup.elem_ids, $1);
         }
 
-        id_add(&$$->u_tup.elem_ids, $3);
+        id_add($$->u_tup.elem_ids, $3);
     }
 ;
 

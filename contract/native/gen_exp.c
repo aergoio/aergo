@@ -459,7 +459,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     if (ret_id != NULL) {
         if (is_tuple_id(ret_id))
-            arg_cnt += array_size(&ret_id->u_tup.elem_ids);
+            arg_cnt += array_size(ret_id->u_tup.elem_ids);
         else
             arg_cnt++;
     }
@@ -472,8 +472,8 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     if (ret_id != NULL) {
         if (is_tuple_id(ret_id)) {
-            array_foreach(&ret_id->u_tup.elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(&ret_id->u_tup.elem_ids, i);
+            array_foreach(ret_id->u_tup.elem_ids, i) {
+                ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
 
                 arg_exps[j++] = gen_i32(gen, elem_id->addr);
             }

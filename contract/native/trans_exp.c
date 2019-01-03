@@ -241,7 +241,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         if (is_tuple_id(ret_id)) {
             int i;
             array_t *elem_exps = array_new();
-            array_t *elem_ids = &ret_id->u_tup.elem_ids;
+            array_t *elem_ids = ret_id->u_tup.elem_ids;
 
             ASSERT(trans->fn != NULL);
 
