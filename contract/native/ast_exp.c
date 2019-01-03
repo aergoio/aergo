@@ -206,6 +206,14 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_id_ref(exp->u_id.name, &exp->pos);
         break;
 
+    case EXP_LOCAL_REF:
+        res = exp_new_local_ref(exp->u_lo.idx, &exp->pos);
+        break;
+
+    case EXP_STACK_REF:
+        res = exp_new_stack_ref(exp->u_st.addr, exp->u_st.offset, &exp->pos);
+        break;
+
     case EXP_LIT:
         res = exp_new_lit(&exp->pos);
         res->u_lit.val = exp->u_lit.val;

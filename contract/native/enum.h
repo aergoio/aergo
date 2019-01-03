@@ -10,10 +10,12 @@
 
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
-    FLAG_VERBOSE    = 0x01,
-    FLAG_LEX_DUMP   = 0x02,
-    FLAG_YACC_DUMP  = 0x04,
-    FLAG_TEST       = 0x08
+    FLAG_DEBUG      = 0x01,
+    FLAG_OPT        = 0x02,
+    FLAG_VERBOSE    = 0x04,
+    FLAG_LEX_DUMP   = 0x08,
+    FLAG_YACC_DUMP  = 0x10,
+    FLAG_TEST       = 0x20
 } flag_t;
 
 typedef enum ec_e {
@@ -83,6 +85,7 @@ typedef enum id_kind_e {
     ID_VAR          = 0,
     ID_STRUCT,
     ID_ENUM,
+    ID_RETURN,
     ID_FN,
     ID_CONTRACT,
     ID_LABEL,

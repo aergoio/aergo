@@ -17,6 +17,7 @@
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
 #define is_enum_id(id)              ((id)->kind == ID_ENUM)
+#define is_return_id(id)            ((id)->kind == ID_RETURN)
 #define is_fn_id(id)                ((id)->kind == ID_FN)
 #define is_cont_id(id)              ((id)->kind == ID_CONTRACT)
 #define is_label_id(id)             ((id)->kind == ID_LABEL)
@@ -64,7 +65,15 @@ typedef struct id_enum_s {
     array_t *elem_ids;
 } id_enum_t;
 
+typedef struct id_return_s {
+    meta_t *type_meta;
+    array_t *size_exps;
+} id_return_t;
+
 typedef struct id_fn_s {
+    /* qualified function name (e.g, contract.function) */
+    char qname[NAME_MAX_LEN * 2 + 2];
+
     array_t *param_ids;
     ast_id_t *ret_id;
     ast_blk_t *blk;
@@ -92,7 +101,7 @@ struct ast_id_s {
     id_kind_t kind;
 
     modifier_t mod;     /* public or const */
-    scope_t scope;      /* global, local or stack */
+    scope_t scope;      /* global or local */
 
     char *name;
 
@@ -100,6 +109,7 @@ struct ast_id_s {
         id_var_t u_var;
         id_struct_t u_struc;
         id_enum_t u_enum;
+        id_return_t u_ret;
         id_fn_t u_fn;
         id_cont_t u_cont;
         id_label_t u_lab;
@@ -121,6 +131,7 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
+ast_id_t *id_new_return(char *name, meta_t *type_meta, src_pos_t *pos);
 ast_id_t *id_new_fn(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
                     ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);

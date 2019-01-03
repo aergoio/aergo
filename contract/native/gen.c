@@ -53,7 +53,6 @@ gen(ir_t *ir, flag_t flag, char *path)
     gen_init(&gen, flag, path);
 
     BinaryenSetDebugInfo(1);
-    //BinaryenSetAPITracing(1);
 
     array_foreach(&ir->globals, i) {
         id_gen(&gen, array_get_id(&ir->globals, i));
@@ -65,17 +64,14 @@ gen(ir_t *ir, flag_t flag, char *path)
 
     sgmt_gen(&gen, ir->sgmt);
 
-    //BinaryenModuleAutoDrop(gen.module);
+    if (flag_on(flag, FLAG_VERBOSE))
+        BinaryenModulePrint(gen.module);
 
-    //ASSERT(BinaryenModuleValidate(gen.module));
-    //BinaryenModuleValidate(gen.module);
+    ASSERT(BinaryenModuleValidate(gen.module));
 
     if (flag_on(flag, FLAG_TEST)) {
         // XXX: temporary
         //BinaryenModuleInterpret(gen.module);
-
-        //BinaryenModulePrint(gen.module);
-        ASSERT(BinaryenModuleValidate(gen.module));
     }
     else {
         int buf_size = WASM_MAX_LEN * 2;

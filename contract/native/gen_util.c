@@ -48,7 +48,6 @@ type_gen(type_t type)
     switch (type) {
     case TYPE_NONE:
     case TYPE_VOID:
-    case TYPE_OBJECT:
         return BinaryenTypeNone();
 
     case TYPE_BOOL:
@@ -75,6 +74,7 @@ type_gen(type_t type)
     case TYPE_ACCOUNT:
     case TYPE_STRUCT:
     case TYPE_MAP:
+    case TYPE_OBJECT:
         return BinaryenTypeInt32();
 
     case TYPE_TUPLE:

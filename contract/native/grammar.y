@@ -669,6 +669,7 @@ return_list:
             $$ = id_new_tuple(&@1);
             id_add(&$$->u_tup.var_ids, $1);
         }
+
         id_add(&$$->u_tup.var_ids, $3);
     }
 ;
@@ -676,14 +677,25 @@ return_list:
 return_decl:
     var_type
     {
-        char name[256];
+        /* Later, the return statement will be transformed into
+         * an assignment statement of the form "id = value",
+         * so each return type is created with an identifier */
+        char name[NAME_MAX_LEN + 1];
 
         snprintf(name, sizeof(name), "$retvar_%d", $1->num);
 
-        $$ = id_new_var(xstrdup(name), MOD_PRIVATE, &@1);
+        $$ = id_new_return(xstrdup(name), $1, &@1);
 
         $$->is_param = true;
-        $$->u_var.type_meta = $1;
+    }
+|   return_decl '[' size_opt ']'
+    {
+        $$ = $1;
+
+        if ($$->u_ret.size_exps == NULL)
+            $$->u_ret.size_exps = array_new();
+
+        exp_add($$->u_ret.size_exps, $3);
     }
 ;
 

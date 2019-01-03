@@ -61,6 +61,16 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
+id_new_return(char *name, meta_t *type_meta, src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_RETURN, MOD_PRIVATE, name, pos);
+
+    id->u_ret.type_meta = type_meta;
+
+    return id;
+}
+
+ast_id_t *
 id_new_fn(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
             ast_blk_t *blk, src_pos_t *pos)
 {

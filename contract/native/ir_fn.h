@@ -10,6 +10,7 @@
 
 #include "array.h"
 #include "ast_id.h"
+#include "binaryen-c.h"
 
 #ifndef _IR_FN_T
 #define _IR_FN_T
@@ -24,15 +25,16 @@ typedef struct ir_bb_s ir_bb_t;
 struct ir_fn_s {
     char *name;
 
-    array_t params;     /* parameters (including return) */
-    array_t locals;     /* entire local variables */
+    int param_cnt;
+    BinaryenType *params;   /* parameter types (including return) */
 
-    uint32_t usage;     /* stack usage */
-
-    array_t bbs;        /* basic blocks */
+    array_t locals;         /* entire local variables */
+    array_t bbs;            /* basic blocks */
 
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;
+
+    uint32_t usage;         /* stack usage */
 };
 
 ir_fn_t *fn_new(ast_id_t *id);

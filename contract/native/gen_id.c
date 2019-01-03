@@ -14,25 +14,8 @@
 static void
 id_gen_var(gen_t *gen, ast_id_t *id)
 {
-    meta_t *meta = &id->meta;
-
-#if 0
-    if (is_global_id(id)) {
-        ASSERT(id->u_var.dflt_exp != NULL);
-
-        if (is_stack_id(id))
-            /* 0 is a temporary address. We will set an actual address in constructor */
-            BinaryenAddGlobal(gen->module, id->name, meta_gen(meta), 1, gen_i32(gen, 0));
-        else
-            BinaryenAddGlobal(gen->module, id->name, meta_gen(meta), 1,
-                              exp_gen(gen, id->u_var.dflt_exp));
-    }
-    else if (!is_stack_id(id)) {
-        gen_add_local(gen, meta->type);
-    }
-#endif
     if (is_local_id(id))
-        gen_add_local(gen, meta->type);
+        gen_add_local(gen, id->meta.type);
 }
 
 static void
