@@ -339,6 +339,10 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID()), false
 	}
 
+	if err := cs.VerifySign(newBlock); err != nil {
+		return err, true
+	}
+
 	// handle orphan
 	if cs.isOrphan(newBlock) {
 		if usedBstate != nil {
