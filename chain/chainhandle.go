@@ -339,9 +339,8 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID()), false
 	}
 
-	// Check consensus header validity
-	if err := cs.IsBlockValid(newBlock, bestBlock); err != nil {
-		return err, false
+	if err := cs.VerifySign(newBlock); err != nil {
+		return err, true
 	}
 
 	// handle orphan
@@ -352,9 +351,9 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		if err == nil {
 			return ErrBlockOrphan, false
-		} else {
-			return err, false
 		}
+
+		return err, false
 	}
 
 	select {
@@ -418,9 +417,12 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	var needCache bool
 	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
-	if err != nil && needCache {
-		evicted := cs.errBlocks.Add(hashID, newBlock)
-		logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
+	if err != nil {
+		if needCache {
+			evicted := cs.errBlocks.Add(hashID, newBlock)
+			logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
+		}
+		// err must be returned regardless of the value of needCache.
 		return err
 	}
 
@@ -596,8 +598,24 @@ func (e *blockExecutor) commit() error {
 	return nil
 }
 
-//TODO Refactoring: batch
+// TODO: Refactoring: batch
 func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
+	// Caution: block must belong to the main chain.
+
+	var (
+		bestBlock *types.Block
+		err       error
+	)
+
+	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	// Check consensus info validity
+	if err = cs.IsBlockValid(block, bestBlock); err != nil {
+		return err
+	}
+
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err

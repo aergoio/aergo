@@ -118,6 +118,12 @@ func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 	return true
 }
 
+// VerifySign checks the consensus level validity of a block.
+func (s *SimpleBlockFactory) VerifySign(*types.Block) error {
+	// SimpleBlockFactory has no block signature.
+	return nil
+}
+
 // IsBlockValid checks the consensus level validity of a block.
 func (s *SimpleBlockFactory) IsBlockValid(*types.Block, *types.Block) error {
 	// SimpleBlockFactory has no block valid check.

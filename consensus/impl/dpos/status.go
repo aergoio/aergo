@@ -95,6 +95,9 @@ func (s *Status) Update(block *types.Block) {
 			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
 			panic(err)
 		}
+
+		// Rollback BP list. -- BP list is alos affected by a fork.
+		s.bps.UpdateCluster(block.BlockNo())
 	}
 
 	s.libState.gc()
