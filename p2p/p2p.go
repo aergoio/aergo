@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -272,6 +273,9 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
+			continue
+		}
+		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := FromPeerAddress(rPeerAddr)

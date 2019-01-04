@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net"
 	"strconv"
 
 	"github.com/aergoio/aergo/types"
@@ -235,7 +234,7 @@ func ConvBlock(b *types.Block) *InOutBlock {
 
 func ConvPeer(p *types.Peer) *InOutPeer {
 	out := &InOutPeer{}
-	out.Address.Address = net.IP(p.GetAddress().GetAddress()).String()
+	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
 	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()

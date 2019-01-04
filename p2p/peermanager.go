@@ -149,29 +149,6 @@ func (pm *peerManager) init() {
 	}
 }
 
-func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
-	if len(pm.conf.NetProtocolAddr) != 0 {
-		protocolAddr = net.ParseIP(pm.conf.NetProtocolAddr)
-		if protocolAddr == nil {
-			panic("invalid NetProtocolAddr " + pm.conf.NetProtocolAddr)
-		}
-		if protocolAddr.IsUnspecified() {
-			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
-		}
-	} else {
-		extIP, err := externalIP()
-		if err != nil {
-			panic("error while finding IP address: " + err.Error())
-		}
-		protocolAddr = extIP
-	}
-	protocolPort = pm.conf.NetProtocolPort
-	if protocolPort <= 0 {
-		panic("invalid NetProtocolPort " + strconv.Itoa(pm.conf.NetProtocolPort))
-	}
-	return
-}
-
 func (pm *peerManager) Start() error {
 
 	go pm.runManagePeers()
@@ -202,7 +179,7 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		peerMeta, err := FromMultiAddrString(target)
+		peerMeta, err := ParseMultiAddrString(target)
 		if err != nil {
 			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue

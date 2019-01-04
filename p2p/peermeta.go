@@ -6,10 +6,6 @@
 package p2p
 
 import (
-	"fmt"
-	"github.com/multiformats/go-multiaddr"
-	"net"
-	"strings"
 	"time"
 
 	"strconv"
@@ -37,53 +33,16 @@ func (m PeerMeta) String() string {
 
 // FromPeerAddress convert PeerAddress to PeerMeta
 func FromPeerAddress(addr *types.PeerAddress) PeerMeta {
-	meta := PeerMeta{IPAddress: net.IP(addr.Address).String(),
+	meta := PeerMeta{IPAddress: addr.Address,
 		Port: addr.Port, ID: peer.ID(addr.PeerID)}
 	return meta
 }
 
 // ToPeerAddress convert PeerMeta to PeerAddress
 func (m PeerMeta) ToPeerAddress() types.PeerAddress {
-	addr := types.PeerAddress{Address: []byte(net.ParseIP(m.IPAddress)), Port: m.Port,
+	addr := types.PeerAddress{Address: m.IPAddress, Port: m.Port,
 		PeerID: []byte(m.ID)}
 	return addr
-}
-
-func FromMultiAddrString(str string)  (PeerMeta, error) {
-	ma, err := ParseMultiaddrWithResolve(str)
-	if err != nil {
-		return PeerMeta{}, err
-	}
-	return FromMultiAddr(ma)
-}
-
-func FromMultiAddr(targetAddr multiaddr.Multiaddr) (PeerMeta, error) {
-	meta := PeerMeta{}
-	splitted := strings.Split(targetAddr.String(), "/")
-	if len(splitted) != 7 {
-		return meta, fmt.Errorf("invalid NPAddPeer addr format %s", targetAddr.String())
-	}
-	addrType := splitted[1]
-	if addrType != "ip4" && addrType != "ip6" {
-		return meta, fmt.Errorf("invalid NPAddPeer addr type %s", addrType)
-	}
-	peerAddrString := splitted[2]
-	peerPortString := splitted[4]
-	peerPort, err := strconv.Atoi(peerPortString)
-	if err != nil {
-		return meta, fmt.Errorf("invalid Peer port %s", peerPortString)
-	}
-	peerIDString := splitted[6]
-	peerID, err := peer.IDB58Decode(peerIDString)
-	if err != nil {
-		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
-	}
-	meta = PeerMeta{
-		ID:         peerID,
-		Port:       uint32(peerPort),
-		IPAddress:  peerAddrString,
-	}
-	return meta, nil
 }
 
 // TTL return node's ttl

@@ -45,3 +45,4 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 		t.Errorf("Peer count : Expected %d, Actually %d", 2, len(target.Peerstore().Peers()))
 	}
 }
+

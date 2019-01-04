@@ -8,6 +8,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -69,10 +70,11 @@ type networkTransport struct {
 	host.Host
 	privateKey  crypto.PrivKey
 	publicKey   crypto.PubKey
-	bindAddress net.IP
-	bindPort    int
 
 	selfMeta    PeerMeta
+	bindAddress net.IP
+	bindPort    uint32
+
 
 	// hostInited is
 	hostInited *sync.WaitGroup
@@ -103,41 +105,23 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransp
 
 		hostInited: &sync.WaitGroup{},
 	}
-	nt.init()
+	nt.initNT()
 
 	return nt
 }
 
-func (sl *networkTransport) init() {
+func (sl *networkTransport) initNT() {
 	// check Key and address
 	priv := NodePrivKey()
 	pub := NodePubKey()
-	pid := NodeID()
-
+	peerID := NodeID()
 	sl.privateKey = priv
 	sl.publicKey = pub
+
 	// init address and port
 	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
-	peerAddr, peerPort := sl.getProtocolAddrs()
-	sl.selfMeta.IPAddress = peerAddr.String()
-	sl.selfMeta.Port = uint32(peerPort)
-	sl.selfMeta.ID = pid
-
-	// if bindAddress or bindPort is not set, it will be same as NetProtocolAddr or NetProtocolPort
-	if len(sl.conf.NPBindAddr) > 0 {
-		bindAddr := net.ParseIP(sl.conf.NPBindAddr)
-		if bindAddr == nil {
-			panic("invalid NPBindAddr " + sl.conf.NPBindAddr)
-		}
-		sl.bindAddress = bindAddr
-	} else {
-		sl.bindAddress = peerAddr
-	}
-	if sl.conf.NPBindPort > 0 {
-		sl.bindPort = sl.conf.NPBindPort
-	} else {
-		sl.bindPort = peerPort
-	}
+	sl.initSelfMeta(peerID)
+	sl.initServiceBindAddress()
 
 	sl.hostInited.Add(1)
 
@@ -145,13 +129,17 @@ func (sl *networkTransport) init() {
 	// TODO more survey libp2p NAT configuration
 }
 
-func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
+func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
+	protocolAddr := sl.conf.NetProtocolAddr
+	var ipAddress net.IP
+	var err error
+	var protocolPort int
 	if len(sl.conf.NetProtocolAddr) != 0 {
-		protocolAddr = net.ParseIP(sl.conf.NetProtocolAddr)
-		if protocolAddr == nil {
-			panic("invalid NetProtocolAddr " + sl.conf.NetProtocolAddr)
+		ipAddress, err = p2putil.GetSingleIPAddress(protocolAddr)
+		if err != nil {
+			panic("Invalid protocol address "+protocolAddr+" : "+err.Error())
 		}
-		if protocolAddr.IsUnspecified() {
+		if ipAddress.IsUnspecified() {
 			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
 		}
 	} else {
@@ -159,13 +147,36 @@ func (sl *networkTransport) getProtocolAddrs() (protocolAddr net.IP, protocolPor
 		if err != nil {
 			panic("error while finding IP address: " + err.Error())
 		}
-		protocolAddr = extIP
+		ipAddress = extIP
 	}
 	protocolPort = sl.conf.NetProtocolPort
 	if protocolPort <= 0 {
 		panic("invalid NetProtocolPort " + strconv.Itoa(sl.conf.NetProtocolPort))
 	}
-	return
+	sl.selfMeta.IPAddress = protocolAddr
+	sl.selfMeta.Port = uint32(protocolPort)
+	sl.selfMeta.ID = peerID
+
+	// bind address and port will be overriden if configuration is specified
+	sl.bindAddress = ipAddress
+	sl.bindPort = sl.selfMeta.Port
+}
+
+func (sl *networkTransport) initServiceBindAddress() {
+	bindAddr := sl.conf.NPBindAddr
+	// if bindAddress or bindPort is not set, it will be same as NetProtocolAddr or NetProtocolPort
+	if len(sl.conf.NPBindAddr) > 0 {
+		bindIP, err := p2putil.GetSingleIPAddress(bindAddr)
+		if err != nil {
+			panic("invalid NPBindAddr " + sl.conf.NPBindAddr)
+		}
+		// check address connectivity
+		sl.bindAddress = bindIP
+	}
+	if sl.conf.NPBindPort > 0 {
+		sl.bindPort = uint32(sl.conf.NPBindPort)
+	}
+
 }
 
 func (sl *networkTransport) Start() error {
@@ -183,10 +194,9 @@ func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.Strea
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta PeerMeta, protocolID  protocol.ID, ttl time.Duration) (inet.Stream, error) {
-	addrString := fmt.Sprintf("/ip4/%s/tcp/%d", meta.IPAddress, meta.Port)
-	var peerAddr, err = ma.NewMultiaddr(addrString)
+	var peerAddr, err = PeerMetaToMultiAddr(meta)
 	if err != nil {
-		sl.logger.Warn().Err(err).Str("addr", addrString).Msg("invalid NPAddPeer address")
+		sl.logger.Warn().Err(err).Str("addr", meta.IPAddress).Msg("invalid NPAddPeer address")
 		return nil,fmt.Errorf("invalid IP address %s:%d",meta.IPAddress,meta.Port)
 	}
 	var peerID = meta.ID
@@ -194,7 +204,7 @@ func (sl *networkTransport) GetOrCreateStreamWithTTL(meta PeerMeta, protocolID  
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, meta.ID, protocolID)
 	if err != nil {
-		sl.logger.Info().Err(err).Str("addr", addrString).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(protocolID)).Msg("Error while get stream")
+		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(LogPeerID, meta.ID.Pretty()).Str(LogProtoID, string(protocolID)).Msg("Error while get stream")
 		return nil,err
 	}
 	return s, nil
@@ -236,8 +246,7 @@ func (sl *networkTransport) ClosePeerConnection(peerID peer.ID) bool {
 func (sl *networkTransport) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
-	// FIXME: should also support ip6 later
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", sl.bindAddress, sl.bindPort))
+	listen, err := ToMultiAddr(sl.bindAddress, sl.bindPort)
 	if err != nil {
 		panic("Can't estabilish listening address: " + err.Error())
 	}
@@ -269,3 +278,4 @@ func (sl *networkTransport) GetAddressesOfPeer(peerID peer.ID) []string {
 		}
 		return addrStrs
 }
+

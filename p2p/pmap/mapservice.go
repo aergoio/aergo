@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
@@ -449,7 +450,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
-	if !pms.allowPrivate && !isExternalAddr(meta.IPAddress) {
+	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
 		pms.Logger.Debug().Str("addr",meta.IPAddress).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("peer is private address")
 		return false
 	}

@@ -52,14 +52,16 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID}
+	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.On("GetChainAccessor").Return(mockCA)
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
-	dummyStatusMsg := &types.Status{ChainID:myChainBytes}
-	diffStatusMsg := &types.Status{ChainID:theirChainBytes}
+	dummyStatusMsg := &types.Status{ChainID:myChainBytes, Sender:&dummyAddr}
+	nilSenderStatusMsg := &types.Status{ChainID:myChainBytes, Sender:nil}
+	diffStatusMsg := &types.Status{ChainID:theirChainBytes, Sender:&dummyAddr}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -71,6 +73,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
+		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true},
 		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
 		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
 	}
@@ -118,15 +121,17 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID}
+	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	//dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
 	mockActor.On("GetChainAccessor").Return(mockCA)
 	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
 
-	dummyStatusMsg := &types.Status{ChainID:myChainBytes}
-	diffStatusMsg := &types.Status{ChainID:theirChainBytes}
+	dummyStatusMsg := &types.Status{ChainID:myChainBytes, Sender:&dummyAddr}
+	nilSenderStatusMsg := &types.Status{ChainID:myChainBytes, Sender:nil}
+	diffStatusMsg := &types.Status{ChainID:theirChainBytes, Sender:&dummyAddr}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -138,6 +143,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
+		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true},
 		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
 		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
 	}
