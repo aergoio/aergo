@@ -282,7 +282,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid argyments: "+err.Error())
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid arguments: "+err.Error())
 		return -1
 	}
 
@@ -696,7 +696,7 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 			return -1
 		}
 		if pubKey == nil {
-			luaPushStr(L, "[Contract.LuaEcVerify] pubKey cannot be empty")
+			luaPushStr(L, "[Contract.LuaEcVerify] error recovering pubKey")
 			return -1
 		}
 		verifyResult = sign.Verify(bMsg, pubKey)
