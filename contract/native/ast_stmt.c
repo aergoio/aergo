@@ -91,12 +91,11 @@ stmt_new_switch(ast_exp_t *cond_exp, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_case(ast_exp_t *val_exp, array_t *stmts, src_pos_t *pos)
+stmt_new_case(ast_exp_t *val_exp, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_CASE, pos);
 
     stmt->u_case.val_exp = val_exp;
-    stmt->u_case.stmts = stmts;
 
     return stmt;
 }

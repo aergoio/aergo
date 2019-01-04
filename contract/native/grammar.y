@@ -199,9 +199,8 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <stmt>    init_stmt
 %type <exp>     cond_exp
 %type <stmt>    switch_stmt
+%type <blk>     switch_blk
 %type <blk>     case_blk
-%type <stmt>    case_stmt
-%type <array>   stmt_list
 %type <stmt>    jump_stmt
 %type <stmt>    ddl_stmt
 %type <stmt>    blk_stmt
@@ -765,6 +764,14 @@ label_stmt:
         $$ = $3;
         array_add_last(LABELS, id_new_label($1, $3, &@1));
     }
+|   K_CASE eq_exp ':'
+    {
+        $$ = stmt_new_case($2, &@$);
+    }
+|   K_DEFAULT ':'
+    {
+        $$ = stmt_new_case(NULL, &@$);
+    }
 ;
 
 if_stmt:
@@ -844,13 +851,13 @@ cond_exp:
 ;
 
 switch_stmt:
-    K_SWITCH '{' case_blk '}'
+    K_SWITCH switch_blk
     {
-        $$ = stmt_new_switch(NULL, $3, &@$);
+        $$ = stmt_new_switch(NULL, $2, &@$);
     }
-|   K_SWITCH '(' expression ')' '{' case_blk '}'
+|   K_SWITCH '(' expression ')' switch_blk
     {
-        $$ = stmt_new_switch($3, $6, &@$);
+        $$ = stmt_new_switch($3, $5, &@$);
     }
 |   K_SWITCH error '}'
     {
@@ -858,40 +865,21 @@ switch_stmt:
     }
 ;
 
+switch_blk:
+    '{' '}'             { $$ = NULL; }
+|   '{' case_blk '}'    { $$ = $2; }
+;
+
 case_blk:
-    case_stmt
+    label_stmt
     {
         $$ = blk_new_switch(&@$);
         stmt_add(&$$->stmts, $1);
     }
-|   case_blk case_stmt
+|   case_blk statement
     {
         $$ = $1;
         stmt_add(&$$->stmts, $2);
-    }
-;
-
-case_stmt:
-    K_CASE eq_exp ':' stmt_list
-    {
-        $$ = stmt_new_case($2, $4, &@$);
-    }
-|   K_DEFAULT ':' stmt_list
-    {
-        $$ = stmt_new_case(NULL, $3, &@$);
-    }
-;
-
-stmt_list:
-    statement
-    {
-        $$ = array_new();
-        stmt_add($$, $1);
-    }
-|   stmt_list statement
-    {
-        $$ = $1;
-        stmt_add($$, $2);
     }
 ;
 

@@ -369,7 +369,10 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
         ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
         ast_exp_t *val_exp = case_stmt->u_case.val_exp;
 
-        ASSERT1(is_case_stmt(case_stmt), case_stmt->kind);
+        if (!is_case_stmt(case_stmt)) {
+            ASSERT(i > 0);
+            continue;
+        }
 
         if (val_exp == NULL) {
             if (stmt->u_sw.has_dflt)
@@ -379,11 +382,14 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
         }
         else {
             for (j = i + 1; j < array_size(&blk->stmts); j++) {
-                ast_stmt_t *next_case = array_get_stmt(&blk->stmts, j);
-                ast_exp_t *next_val = next_case->u_case.val_exp;
+                ast_stmt_t *next_stmt = array_get_stmt(&blk->stmts, j);
+                ast_exp_t *next_exp = next_stmt->u_case.val_exp;
 
-                if (next_val != NULL && exp_equals(val_exp, next_val))
-                    RETURN(ERROR_DUPLICATED_CASE, &next_val->pos);
+                if (!is_case_stmt(next_stmt))
+                    continue;
+
+                if (next_exp != NULL && exp_equals(val_exp, next_exp))
+                    RETURN(ERROR_DUPLICATED_CASE, &next_exp->pos);
             }
 
             if (cond_exp != NULL)
@@ -400,13 +406,9 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_case(check_t *check, ast_stmt_t *stmt)
 {
-    int i;
-    ast_exp_t *val_exp;
-    array_t *stmts;
+    ast_exp_t *val_exp = stmt->u_case.val_exp;
 
     ASSERT1(is_case_stmt(stmt), stmt->kind);
-
-    val_exp = stmt->u_case.val_exp;
 
     if (val_exp != NULL) {
         meta_t *val_meta = &val_exp->meta;
@@ -415,12 +417,6 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
 
         if (!is_bool_type(val_meta))
             RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
-    }
-
-    stmts = stmt->u_case.stmts;
-
-    array_foreach(stmts, i) {
-        stmt_check(check, array_get_stmt(stmts, i));
     }
 
     return NO_ERROR;
@@ -490,7 +486,7 @@ stmt_check_continue(check_t *check, ast_stmt_t *stmt)
 
     blk = blk_search(check->blk, BLK_LOOP);
     if (blk == NULL)
-        RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
+        RETURN(ERROR_INVALID_CONTINUE, &stmt->pos);
 
     return NO_ERROR;
 }
@@ -518,7 +514,7 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
     if (blk == NULL) {
         blk = blk_search(check->blk, BLK_SWITCH);
         if (blk == NULL)
-            RETURN(ERROR_INVALID_JUMP_STMT, &stmt->pos, STMT_KIND(stmt));
+            RETURN(ERROR_INVALID_BREAK, &stmt->pos);
     }
 
     return NO_ERROR;

@@ -285,7 +285,7 @@ stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 {
-    int i, j;
+    int i;
     ast_blk_t *blk = stmt->u_sw.blk;
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
@@ -307,42 +307,37 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
     fn_add_basic_blk(trans->fn, prev_bb);
 
+    trans->bb = NULL;
     trans->cont_bb = NULL;
     trans->break_bb = next_bb;
-
-    trans->bb = bb_new();
 
     array_foreach(&blk->stmts, i) {
         ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
 
-        bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
+        if (is_case_stmt(case_stmt)) {
+            ir_bb_t *case_bb = bb_new();
 
-        if (case_stmt->u_case.val_exp != NULL)
-            /* default can be NULL */
-            exp_trans(trans, case_stmt->u_case.val_exp);
-
-        array_foreach(case_stmt->u_case.stmts, j) {
-            stmt_trans(trans, array_get_stmt(case_stmt->u_case.stmts, j));
-        }
-
-        if (trans->bb != NULL) {
-            /* There is no break statement */
-            if (i == array_size(&blk->stmts) - 1) {
-                bb_add_branch(trans->bb, NULL, next_bb);
-                fn_add_basic_blk(trans->fn, trans->bb);
-            }
-            else {
-                ir_bb_t *case_bb = bb_new();
-
+            if (trans->bb != NULL) {
                 bb_add_branch(trans->bb, NULL, case_bb);
                 fn_add_basic_blk(trans->fn, trans->bb);
-
-                trans->bb = case_bb;
             }
+
+            trans->bb = case_bb;
+
+            if (case_stmt->u_case.val_exp != NULL)
+                /* default can be NULL */
+                exp_trans(trans, case_stmt->u_case.val_exp);
+
+            bb_add_branch(prev_bb, case_stmt->u_case.val_exp, trans->bb);
         }
-        else if (i < array_size(&blk->stmts) - 1) {
-            trans->bb = bb_new();
+        else {
+            stmt_trans(trans, case_stmt);
         }
+    }
+
+    if (trans->bb != NULL) {
+        bb_add_branch(trans->bb, NULL, next_bb);
+        fn_add_basic_blk(trans->fn, trans->bb);
     }
 
     if (!stmt->u_sw.has_dflt)

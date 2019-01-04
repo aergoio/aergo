@@ -259,7 +259,6 @@ contract test {
 
     test() {
         if (0 == 0) { }
-        /*
 
         if (!true) {
             v2 = "this is if";
@@ -275,7 +274,6 @@ contract test {
         } else {
             v2 = "don't care";
         }
-        */
     }
 }
 
@@ -306,7 +304,18 @@ contract test {
         switch (i) {
         case 1: s = "case 1"; break;
         case 2: { s = "case 2"; } break;
+        case 3: case 4: s = "case unknown"; break;
         default: break;
+        }
+
+        switch (i) {
+        case 1: s = "case 1";
+        case 2: case 3: s = "case 2";
+        }
+
+        switch (i) {
+        default: return;
+        case 1: s = "fall through";
         }
     }
 }
@@ -446,7 +455,7 @@ contract test {
 }
 
 @test(jump_outside_loop)
-@error(ERROR_INVALID_JUMP_STMT)
+@error(ERROR_INVALID_CONTINUE)
 contract test {
     test() { continue; }
 }
