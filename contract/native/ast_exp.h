@@ -29,8 +29,7 @@
 #define is_stack_ref_exp(exp)       ((exp)->kind == EXP_STACK_REF)
 
 #define is_usable_lval(exp)                                                              \
-    ((exp)->id != NULL && !is_const_id((exp)->id) &&                                     \
-     (is_id_ref_exp(exp) || is_array_exp(exp) || is_access_exp(exp)))
+    ((exp)->id != NULL && !is_const_id((exp)->id) && is_var_id((exp)->id))
 
 #define is_usable_stmt(exp)                                                              \
     (is_null_exp(exp) || is_call_exp(exp) ||                                             \

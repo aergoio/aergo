@@ -227,12 +227,14 @@ id                          {L}({L}|{D})*
 "func"                      yy_return(K_FUNC);
 "goto"                      yy_return(K_GOTO);
 "if"                        yy_return(K_IF);
+"implements"                yy_return(K_IMPLEMENTS);
 "in"                        yy_return(K_IN);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
 "int8"                      yy_return(K_INT8);
+"interface"                 yy_return(K_INTERFACE);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);

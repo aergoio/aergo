@@ -330,7 +330,7 @@ meta_cmp(meta_t *x, meta_t *y)
 }
 
 static void
-meta_eval_undef(meta_t *x, meta_t *y)
+meta_eval_type(meta_t *x, meta_t *y)
 {
     int i, j;
 
@@ -367,6 +367,13 @@ meta_eval_undef(meta_t *x, meta_t *y)
             meta_eval(x->elems[i], y->elems[i]);
         }
     }
+#if 0
+    else if (is_object_type(x) && is_object_type(y)) {
+        /* override meta for interface resolution 
+         * (ref, tests/009_interface/interface_assignment) */
+        meta_copy(x, y);
+    }
+#endif
 }
 
 static void
@@ -381,7 +388,7 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
         if (dim < x->arr_dim - 1)
             meta_eval_array(x, dim + 1, y->elems[i]);
         else
-            meta_eval_undef(x, y->elems[i]);
+            meta_eval_type(x, y->elems[i]);
     }
 }
 
@@ -391,7 +398,7 @@ meta_eval(meta_t *x, meta_t *y)
     if (is_array_type(x))
         meta_eval_array(x, 0, y);
     else
-        meta_eval_undef(x, y);
+        meta_eval_type(x, y);
 }
 
 void

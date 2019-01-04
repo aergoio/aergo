@@ -14,6 +14,7 @@
 #define is_normal_blk(blk)          ((blk)->kind == BLK_NORMAL)
 #define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
 #define is_cont_blk(blk)            ((blk)->kind == BLK_CONTRACT)
+#define is_inter_blk(blk)           ((blk)->kind == BLK_INTERFACE)
 #define is_fn_blk(blk)              ((blk)->kind == BLK_FN)
 #define is_loop_blk(blk)            ((blk)->kind == BLK_LOOP)
 
@@ -45,6 +46,8 @@ struct ast_blk_s {
 
 ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
+ast_blk_t *blk_new_contract(src_pos_t *pos);
+ast_blk_t *blk_new_interface(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
 ast_blk_t *blk_new_switch(src_pos_t *pos);
 

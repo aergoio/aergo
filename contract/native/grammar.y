@@ -95,6 +95,7 @@ static void decl_add(array_t *stmts, ast_id_t *id);
         K_FUNC          "func"
         K_GOTO          "goto"
         K_IF            "if"
+        K_IMPLEMENTS    "implements"
         K_IN            "in"
         K_INDEX         "index"
         K_INSERT        "insert"
@@ -103,6 +104,7 @@ static void decl_add(array_t *stmts, ast_id_t *id);
         K_INT32         "int32"
         K_INT64         "int64"
         K_INT8          "int8"
+        K_INTERFACE     "interface"
         K_MAP           "map"
         K_NEW           "new"
         K_NULL          "null"
@@ -160,6 +162,7 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 }
 
 %type <id>      contract_decl
+%type <exp>     impl_opt
 %type <blk>     contract_body
 %type <id>      variable
 %type <id>      var_qual
@@ -184,10 +187,13 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <blk>     block
 %type <blk>     blk_decl
 %type <id>      function
+%type <id>      func_spec
 %type <mod>     modifier_opt
 %type <id>      return_opt
 %type <id>      return_list
 %type <id>      return_decl
+%type <id>      interface_decl
+%type <blk>     interface_body
 %type <stmt>    statement
 %type <stmt>    empty_stmt
 %type <stmt>    exp_stmt
@@ -248,56 +254,73 @@ smart_contract:
         AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
+|   interface_decl
+    {
+        AST = ast_new();
+        id_add(&ROOT->ids, $1);
+    }
 |   smart_contract contract_decl
+    {
+        id_add(&ROOT->ids, $2);
+    }
+|   smart_contract interface_decl
     {
         id_add(&ROOT->ids, $2);
     }
 ;
 
 contract_decl:
-    K_CONTRACT identifier '{' '}'
+    K_CONTRACT identifier impl_opt '{' '}'
     {
-        ast_blk_t *blk = blk_new_normal(&@3);
+        ast_blk_t *blk = blk_new_contract(&@4);
 
         /* add default constructor */
         id_add(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
 
-        $$ = id_new_contract($2, blk, &@$);
+        $$ = id_new_contract($2, $3, blk, &@$);
     }
-|   K_CONTRACT identifier '{' contract_body '}'
+|   K_CONTRACT identifier impl_opt '{' contract_body '}'
     {
         int i;
-        bool exist_ctor = false;
+        bool has_ctor = false;
 
-        array_foreach(&$4->ids, i) {
-            ast_id_t *id = array_get_id(&$4->ids, i);
+        array_foreach(&$5->ids, i) {
+            ast_id_t *id = array_get_id(&$5->ids, i);
 
             if (is_ctor_id(id)) {
                 if (strcmp($2, id->name) != 0)
                     ERROR(ERROR_SYNTAX, &id->pos, "syntax error, unexpected "
                           "identifier, expecting func");
                 else
-                    exist_ctor = true;
+                    has_ctor = true;
             }
         }
 
-        if (!exist_ctor)
+        if (!has_ctor)
             /* add default constructor */
-            id_add(&$4->ids, id_new_ctor($2, NULL, NULL, &@2));
+            id_add(&$5->ids, id_new_ctor($2, NULL, NULL, &@2));
 
-        $$ = id_new_contract($2, $4, &@$);
+        $$ = id_new_contract($2, $3, $5, &@$);
+    }
+;
+
+impl_opt:
+    /* empty */                 { $$ = NULL; }
+|   K_IMPLEMENTS identifier
+    {
+        $$ = exp_new_id_ref($2, &@2);
     }
 ;
 
 contract_body:
     variable
     {
-        $$ = blk_new_normal(&@$);
+        $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
     }
 |   compound
     {
-        $$ = blk_new_normal(&@$);
+        $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
     }
 |   contract_body variable
@@ -362,7 +385,7 @@ var_type:
     }
 |   identifier
     {
-        $$ = meta_new(TYPE_STRUCT, &@1);
+        $$ = meta_new(TYPE_NONE, &@1);
         $$->name = $1;
     }
 |   K_MAP '(' var_type ',' var_type ')'
@@ -619,15 +642,23 @@ blk_decl:
 ;
 
 function:
-    modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt block
+    func_spec block
     {
-        $$ = id_new_fn($3, $1, $5, $7, $8, &@3);
+        $$ = $1;
+        $$->u_fn.blk = $2;
 
         if (!is_empty_array(LABELS)) {
-            ASSERT($8 != NULL);
-            id_join(&$8->ids, LABELS);
+            ASSERT($2 != NULL);
+            id_join(&$2->ids, LABELS);
             array_reset(LABELS);
         }
+    }
+;
+
+func_spec:
+    modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt
+    {
+        $$ = id_new_fn($3, $1, $5, $7, NULL, &@3);
     }
 ;
 
@@ -703,6 +734,26 @@ return_decl:
             $$->u_ret.size_exps = array_new();
 
         exp_add($$->u_ret.size_exps, $3);
+    }
+;
+
+interface_decl:
+    K_INTERFACE identifier '{' interface_body '}'
+    {
+        $$ = id_new_interface($2, $4, &@2);
+    }
+;
+
+interface_body:
+    func_spec ';'
+    {
+        $$ = blk_new_interface(&@$);
+        id_add(&$$->ids, $1);
+    }
+|   interface_body func_spec ';'
+    {
+        $$ = $1;
+        id_add(&$$->ids, $2);
     }
 ;
 

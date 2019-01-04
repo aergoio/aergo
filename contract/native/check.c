@@ -29,6 +29,8 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
     check->cont_id = NULL;
     check->qual_id = NULL;
     check->fn_id = NULL;
+
+    check->inter_blk = NULL;
 }
 
 void
@@ -42,7 +44,7 @@ check(ast_t *ast, flag_t flag)
     array_foreach(&ast->root->ids, i) {
         ast_id_t *id = array_get_id(&ast->root->ids, i);
 
-        ASSERT1(is_cont_id(id), id->kind);
+        ASSERT1(is_cont_id(id) || is_inter_id(id), id->kind);
 
         id_check(&check, id);
     }

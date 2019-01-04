@@ -93,14 +93,24 @@ id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_contract(char *name, ast_blk_t *blk, src_pos_t *pos)
+id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_PUBLIC, name, pos);
 
+    ASSERT1(is_cont_blk(blk), blk->kind);
+
+    id->u_cont.impl_exp = impl_exp;
     id->u_cont.blk = blk;
 
-    if (id->u_cont.blk != NULL)
-        id->u_cont.blk->kind = BLK_CONTRACT;
+    return id;
+}
+
+ast_id_t *
+id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_INTERFACE, MOD_PUBLIC, name, pos);
+
+    id->u_inter.blk = blk;
 
     return id;
 }
@@ -140,6 +150,8 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
         fld_ids = id->u_enum.elem_ids;
     else if (is_cont_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
+    else if (is_inter_id(id))
+        fld_ids = &id->u_inter.blk->ids;
     else
         return NULL;
 
@@ -253,6 +265,35 @@ id_strip(ast_id_t *id)
     }
 
     return ids;
+}
+
+bool
+id_cmp(ast_id_t *x, ast_id_t *y)
+{
+    int i;
+
+    ASSERT1(is_fn_id(x), x->kind);
+    ASSERT1(is_fn_id(y), y->kind);
+
+    if (array_size(x->u_fn.param_ids) != array_size(y->u_fn.param_ids))
+        return false;
+
+    array_foreach(x->u_fn.param_ids, i) {
+        ast_id_t *x_param = array_get_id(x->u_fn.param_ids, i);
+        ast_id_t *y_param = array_get_id(y->u_fn.param_ids, i);
+
+        if (meta_cmp(&x_param->meta, &y_param->meta) != 0) {
+            error_pop();
+            return false;
+        }
+    }
+
+    if (meta_cmp(&x->meta, &y->meta) != 0) {
+        error_pop();
+        return false;
+    }
+
+    return true;
 }
 
 /* end of ast_id.c */

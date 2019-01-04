@@ -1,0 +1,112 @@
+@test(interface_decl)
+interface spec { func f(); }
+
+@test(multiple_interfaces)
+interface spec1 { func f(); }
+interface spec2 { func f(); }
+interface spec3 { func f(); }
+
+@test(duplicated_interface)
+@error(ERROR_DUPLICATED_ID)
+interface spec { func f(); }
+interface spec { func f(); }
+
+@test(empty_interface)
+@error(ERROR_SYNTAX)
+interface spec { }
+
+@test(interface_with_variable)
+@error(ERROR_SYNTAX)
+interface spec { int x; }
+
+@test(interface_with_implementation)
+@error(ERROR_SYNTAX)
+interface spec {
+    func f() { };
+}
+
+@test(undefined_interface)
+@error(ERROR_UNDEFINED_ID)
+interface spec {
+    func f();
+}
+contract test implements sped { }
+
+@test(implements_interface)
+interface spec {
+    func f();
+}
+contract test implements spec {
+    func f() { }
+}
+
+@test(not_implemented_function)
+@error(ERROR_NOT_IMPLEMENTED,3)
+interface spec {
+    func f1();
+    func f2(int16 x);
+    func f3(int16 x) float;
+}
+contract test implements spec {
+    func f2(uint16 x) { }
+    func f3(int16 x) double { return 1.0; }
+}
+
+@test(using_interface_as_type)
+interface spec {
+    func f1() int;
+}
+contract test {
+    spec x;
+}
+
+@test(interface_assignment)
+interface spec {
+    public func f() byte;
+}
+contract test implements spec {
+    public func f() byte { return 0; }
+}
+contract main {
+    spec a = new test();
+    spec b, c = new test(), new test();
+}
+
+@test(access_interface)
+interface spec {
+    public func f() double;
+}
+contract test implements spec {
+    public func f() double { return 3.14; }
+}
+contract main {
+    main() {
+        spec a = new test();
+        double b = a.f();
+
+        spec x, y = new test(), new test();
+        double z = y.f();
+    }
+}
+
+@test(inaccessble_function)
+@error(ERROR_UNDEFINED_ID)
+interface spec {
+    public func f1() uint16;
+}
+contract test implements spec {
+    public func f1() uint16 { return 32768; }
+    public func f2() int8, string { return 16, "aergo"; }
+}
+contract main {
+    main() {
+        int8 i;
+        string s;
+
+        test a = new test();
+        i, s = a.f2();
+
+        spec b = new test();
+        i, s = b.f2();
+    }
+}

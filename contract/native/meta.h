@@ -12,6 +12,7 @@
 #include "array.h"
 #include "value.h"
 
+#define is_none_type(meta)          ((meta)->type == TYPE_NONE)
 #define is_bool_type(meta)          ((meta)->type == TYPE_BOOL)
 #define is_byte_type(meta)          ((meta)->type == TYPE_BYTE)
 #define is_int8_type(meta)          ((meta)->type == TYPE_INT8)
@@ -72,7 +73,6 @@
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)
-#define meta_set_object(meta)       meta_set((meta), TYPE_OBJECT)
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
@@ -153,6 +153,13 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
+meta_set_object(meta_t *meta, char *name)
+{
+    meta_set(meta, TYPE_OBJECT);
+    meta->name = name;
+}
+
+static inline void
 meta_set_undef(meta_t *meta)
 {
     meta->is_undef = true;
@@ -199,7 +206,7 @@ meta_strip_arr_dim(meta_t *meta)
 static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
-    /* Deliberately excluded num and src_pos */
+    /* excluded num and src_pos deliberately */
     dest->type = src->type;
     dest->size = src->size;
     dest->name = src->name;

@@ -103,12 +103,10 @@ id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
 
         meta_eval(&id->meta, &dflt_exp->meta);
 
-        if (is_lit_exp(dflt_exp)) {
-            if (!value_fit(&dflt_exp->u_lit.val, &id->meta))
-                RETURN(ERROR_NUMERIC_OVERFLOW, &dflt_exp->pos, meta_to_str(&id->meta));
+        exp_check_overflow(dflt_exp, &id->meta);
 
+        if (is_const_id(id) && is_lit_exp(dflt_exp))
             id->val = &dflt_exp->u_lit.val;
-        }
     }
 
     return NO_ERROR;
@@ -243,21 +241,35 @@ id_check_fn(check_t *check, ast_id_t *id)
         ASSERT(param_id->u_var.dflt_exp == NULL);
     }
 
+    ASSERT(check->cont_id != NULL);
+
     if (id->u_fn.ret_id != NULL) {
         /* The return identifier may be a tuple */
         id_check(check, id->u_fn.ret_id);
 
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
 
-        if (id->u_fn.blk == NULL ||
-            !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t)))
+        if (!is_inter_id(check->cont_id) &&
+            (id->u_fn.blk == NULL ||
+             !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
             ERROR(ERROR_MISSING_RETURN, &id->pos);
     }
     else if (is_ctor_id(id)) {
-        meta_set_object(&id->meta);
+        meta_set_object(&id->meta, check->cont_id->name);
     }
     else {
         meta_set_void(&id->meta);
+    }
+
+    if (check->inter_blk != NULL) {
+        array_foreach(&check->inter_blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&check->inter_blk->ids, i);
+
+            if (strcmp(spec_id->name, id->name) == 0 && id_cmp(spec_id, id)) {
+                spec_id->is_used = true;
+                break;
+            }
+        }
     }
 
     if (id->u_fn.blk != NULL) {
@@ -267,8 +279,6 @@ id_check_fn(check_t *check, ast_id_t *id)
 
         check->fn_id = NULL;
     }
-
-    ASSERT(check->cont_id != NULL);
 
     id->u_fn.cont_id = check->cont_id;
 
@@ -285,20 +295,69 @@ id_check_fn(check_t *check, ast_id_t *id)
 static int
 id_check_contract(check_t *check, ast_id_t *id)
 {
+    int i;
+    ast_exp_t *impl_exp = id->u_cont.impl_exp;
+
     ASSERT1(is_cont_id(id), id->kind);
     ASSERT(id->name != NULL);
 
     id->is_checked = true;
+
+    if (impl_exp != NULL) {
+        exp_check(check, impl_exp);
+
+        if (impl_exp->id != NULL) {
+            ast_blk_t *inter_blk = impl_exp->id->u_inter.blk;
+
+            ASSERT1(is_inter_id(impl_exp->id), impl_exp->id->kind);
+
+            array_foreach(&inter_blk->ids, i) {
+                array_get_id(&inter_blk->ids, i)->is_used = false;
+            }
+
+            check->inter_blk = inter_blk;
+        }
+    }
 
     check->cont_id = id;
 
     if (id->u_cont.blk != NULL)
         blk_check(check, id->u_cont.blk);
 
-    meta_set_object(&id->meta);
-    id->meta.name = id->name;
+    check->cont_id = NULL;
+
+    if (check->inter_blk != NULL) {
+        array_foreach(&check->inter_blk->ids, i) {
+            ast_id_t *fn_id = array_get_id(&check->inter_blk->ids, i);
+
+            if (!fn_id->is_used)
+                ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, fn_id->name);
+        }
+
+        check->inter_blk = NULL;
+    }
+
+    meta_set_object(&id->meta, id->name);
+
+    return NO_ERROR;
+}
+
+static int
+id_check_interface(check_t *check, ast_id_t *id)
+{
+    ASSERT1(is_inter_id(id), id->kind);
+    ASSERT(id->name != NULL);
+    ASSERT(id->u_inter.blk != NULL);
+
+    id->is_checked = true;
+
+    check->cont_id = id;
+
+    blk_check(check, id->u_inter.blk);
 
     check->cont_id = NULL;
+
+    meta_set_object(&id->meta, id->name);
 
     return NO_ERROR;
 }
@@ -396,6 +455,10 @@ id_check(check_t *check, ast_id_t *id)
 
     case ID_CONTRACT:
         id_check_contract(check, id);
+        break;
+
+    case ID_INTERFACE:
+        id_check_interface(check, id);
         break;
 
     case ID_LABEL:

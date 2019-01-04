@@ -63,10 +63,6 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    if (is_null_val(&exp->u_lit.val)) {
-        meta_set_object(&exp->meta);
-    }
-
     switch (exp->u_lit.val.type) {
     case TYPE_BOOL:
         meta_set_bool(&exp->meta);
@@ -83,7 +79,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         meta_set_string(&exp->meta);
         break;
     case TYPE_OBJECT:
-        meta_set_object(&exp->meta);
+        meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
     default:
@@ -491,7 +487,6 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
     meta_t *id_meta;
-    meta_t *type_meta = NULL;
     ast_id_t *id;
 
     ASSERT1(is_access_exp(exp), exp->kind);
@@ -502,30 +497,17 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, id_exp));
 
     id = id_exp->id;
-    if (id == NULL || is_tuple_type(id_meta))
+
+    if (id == NULL || is_tuple_type(id_meta) ||
+        (is_fn_id(id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-    if (is_var_id(id)) {
-        type_meta = id->u_var.type_meta;
-    }
-    else if (is_fn_id(id)) {
-        ast_id_t *ret_id = id->u_fn.ret_id;
+    if (id_meta->name != NULL)
+        /* find the actual struct, contract or interface identifier */
+        id = blk_search_id(check->blk, id_meta->name, id_meta->num);
 
-        if (!is_struct_type(id_meta) && !is_object_type(id_meta))
-            RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
-
-        ASSERT(ret_id != NULL);
-        ASSERT(!is_tuple_id(ret_id));
-
-        type_meta = &ret_id->meta;
-    }
-
-    if (type_meta != NULL && type_meta->name != NULL)
-        id = blk_search_id(check->blk, type_meta->name, type_meta->num);
-
-    if (id == NULL ||
-        (!is_struct_id(id) && !is_enum_id(id) && !is_cont_id(id)))
-        RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
+    ASSERT(id != NULL);
+    ASSERT1(is_accessible_id(id), id->kind);
 
     fld_exp = exp->u_acc.fld_exp;
 
@@ -534,12 +516,14 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     if (exp_check(check, fld_exp) == NO_ERROR) {
         if (is_lit_exp(fld_exp)) {
             /* enum or contract constant */
-            *exp = *fld_exp;
+            exp->kind = EXP_LIT;
+            exp->u_lit.val = fld_exp->u_lit.val;
         }
         else {
             exp->id = fld_exp->id;
-            meta_copy(&exp->meta, &fld_exp->meta);
         }
+
+        meta_copy(&exp->meta, &fld_exp->meta);
     }
 
     check->qual_id = NULL;
@@ -600,10 +584,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
         meta_eval(&param_id->meta, &param_exp->meta);
 
-        if (is_lit_exp(param_exp) &&
-            !value_fit(&param_exp->u_lit.val, &param_id->meta))
-            RETURN(ERROR_NUMERIC_OVERFLOW, &param_exp->pos,
-                   meta_to_str(&param_id->meta));
+        exp_check_overflow(param_exp, &param_id->meta);
     }
 
     exp->id = id;

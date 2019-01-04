@@ -89,6 +89,7 @@ typedef enum id_kind_e {
     ID_RETURN,
     ID_FN,
     ID_CONTRACT,
+    ID_INTERFACE,
     ID_LABEL,
     ID_TUPLE,
     ID_MAX
@@ -146,6 +147,7 @@ typedef enum blk_kind_e {
     BLK_NORMAL      = 0,
     BLK_ROOT,
     BLK_CONTRACT,
+    BLK_INTERFACE,
     BLK_FN,
     BLK_LOOP,
     BLK_SWITCH,

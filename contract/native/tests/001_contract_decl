@@ -3,8 +3,8 @@ contract test { }
 
 @test(multiple_contracts)
 contract test1 { }
-contract text2 { }
-contract text3 { }
+contract test2 { }
+contract test3 { }
 
 @test(duplicated_contract)
 @error(ERROR_DUPLICATED_ID)

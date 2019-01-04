@@ -69,7 +69,8 @@ blk_check(check_t *check, ast_blk_t *blk)
         stmt_check(check, array_get_stmt(&blk->stmts, i));
     }
 
-    check_unused_ids(check, &blk->ids);
+    if (!is_inter_blk(blk))
+        check_unused_ids(check, &blk->ids);
 
     check->blk = blk->up;
 }

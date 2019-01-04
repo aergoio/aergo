@@ -54,57 +54,6 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-strip_symm_assign(trans_t *trans, array_t *var_exps, array_t *val_exps, src_pos_t *pos)
-{
-    int i;
-    ast_exp_t *var_exp, *val_exp;
-
-    array_foreach(val_exps, i) {
-        var_exp = array_get_exp(var_exps, i);
-        val_exp = array_get_exp(val_exps, i);
-
-        if (is_init_exp(val_exp))
-            val_exp->id = var_exp->id;
-
-        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
-    }
-}
-
-static void
-strip_asymm_assign(trans_t *trans, array_t *var_exps, array_t *val_exps, src_pos_t *pos)
-{
-    int i, j;
-    int var_idx = 0;
-    ast_exp_t *var_exp;
-
-    array_foreach(val_exps, i) {
-        ast_exp_t *val_exp = array_get_exp(val_exps, i);
-
-        if (is_tuple_exp(val_exp)) {
-            ast_exp_t *elem_exp;
-
-            array_foreach(val_exp->u_tup.elem_exps, j) {
-                var_exp = array_get_exp(var_exps, var_idx++);
-                elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
-
-                if (is_init_exp(elem_exp))
-                    elem_exp->id = var_exp->id;
-
-                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
-            }
-        }
-        else {
-            var_exp = array_get_exp(var_exps, var_idx++);
-
-            if (is_init_exp(val_exp))
-                val_exp->id = var_exp->id;
-
-            bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
-        }
-    }
-}
-
-static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
@@ -117,13 +66,54 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     exp_trans(trans, r_exp);
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
+        int i, j;
+        int var_idx = 0;
+        src_pos_t *pos = &stmt->pos;
         array_t *var_exps = l_exp->u_tup.elem_exps;
         array_t *val_exps = r_exp->u_tup.elem_exps;
+        ast_exp_t *var_exp, *val_exp;
 
-        if (array_size(var_exps) == array_size(val_exps))
-            strip_symm_assign(trans, var_exps, val_exps, &stmt->pos);
-        else
-            strip_asymm_assign(trans, var_exps, val_exps, &stmt->pos);
+        if (array_size(var_exps) == array_size(val_exps)) {
+            array_foreach(val_exps, i) {
+                var_exp = array_get_exp(var_exps, i);
+                val_exp = array_get_exp(val_exps, i);
+
+                if (is_init_exp(val_exp))
+                    /* for address resolution */
+                    val_exp->id = var_exp->id;
+
+                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
+            }
+            return;
+        }
+
+        array_foreach(val_exps, i) {
+            val_exp = array_get_exp(val_exps, i);
+
+            if (is_tuple_exp(val_exp)) {
+                ast_exp_t *elem_exp;
+
+                array_foreach(val_exp->u_tup.elem_exps, j) {
+                    var_exp = array_get_exp(var_exps, var_idx++);
+                    elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
+
+                    if (is_init_exp(elem_exp))
+                        /* for address resolution */
+                        elem_exp->id = var_exp->id;
+
+                    bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
+                }
+            }
+            else {
+                var_exp = array_get_exp(var_exps, var_idx++);
+
+                if (is_init_exp(val_exp))
+                    /* for address resolution */
+                    val_exp->id = var_exp->id;
+
+                bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
+            }
+        }
     }
     else {
         ASSERT(!is_tuple_exp(l_exp));

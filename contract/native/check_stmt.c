@@ -41,56 +41,53 @@ stmt_check_exp(check_t *check, ast_stmt_t *stmt)
     return NO_ERROR;
 }
 
+#if 0
 static void
-check_symm_assign(check_t *check, array_t *var_exps, array_t *val_exps)
+resolve_interface(ast_exp_t *l_exp, meta_t *r_meta)
 {
-    int i;
+    ast_id_t *var_id = l_exp->id;
 
-    array_foreach(var_exps, i) {
-        ast_exp_t *var_exp = array_get_exp(var_exps, i);
-        ast_exp_t *val_exp = array_get_exp(val_exps, i);
+    /* TODO: This type of processing is very redundant and not very efficient, 
+     *       so we have to find a different approach */
 
-        ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
-                var_exp->meta.type, val_exp->meta.type);
+    if (is_tuple_exp(l_exp)) {
+        int i, j;
+        int var_idx = 0;
+        array_t *var_exps = l_exp->u_tup.elem_exps;
 
-        exp_check_overflow(val_exp, &var_exp->meta);
-    }
-}
+        ASSERT1(is_tuple_type(r_meta), r_meta->type);
 
-static void
-check_asymm_assign(check_t *check, array_t *var_exps, array_t *val_exps)
-{
-    int i, j;
-    int var_idx = 0;
+        for (i = 0; i < r_meta->elem_cnt; i++) {
+            meta_t *val_meta = r_meta->elems[i];
 
-    ASSERT2(array_size(var_exps) > array_size(val_exps), array_size(var_exps),
-            array_size(val_exps));
+            /* If the value expression is a tuple, it cannot be a literal */
+            if (is_tuple_type(val_meta)) {
+                for (j = 0; j < val_meta->elem_cnt; j++) {
+                    var_id = array_get_exp(var_exps, var_idx++)->id;
+                    ASSERT(var_id != NULL);
 
-    array_foreach(val_exps, i) {
-        ast_exp_t *val_exp = array_get_exp(val_exps, i);
+                    if (is_object_type(&var_id->meta) && 
+                        is_object_type(val_meta->elems[j]))
+                        meta_copy(&var_id->meta, val_meta->elems[j]);
+                }
+            }
+            else {
+                var_id = array_get_exp(var_exps, var_idx++)->id;
+                ASSERT(var_id != NULL);
 
-        /* The number of value expressions is known only through meta.
-         * However, after the transform, we can access it in expression form.
-         * See stmt_trans_assign() */
-
-        if (is_tuple_type(&val_exp->meta)) {
-            for (j = 0; j < val_exp->meta.elem_cnt; j++) {
-                ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
-
-                ASSERT2(meta_cmp(&var_exp->meta, val_exp->meta.elems[j]) == 0,
-                        var_exp->meta.type, val_exp->meta.elems[j]->type);
+                if (is_object_type(&var_id->meta) && is_object_type(val_meta))
+                    meta_copy(&var_id->meta, val_meta);
             }
         }
-        else {
-            ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
+    }
+    else {
+        ASSERT(var_id != NULL);
 
-            ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
-                    var_exp->meta.type, val_exp->meta.type);
-
-            exp_check_overflow(val_exp, &var_exp->meta);
-        }
+        if (is_object_type(&var_id->meta) && is_object_type(r_meta))
+            meta_copy(&var_id->meta, r_meta);
     }
 }
+#endif
 
 static int
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
@@ -132,17 +129,50 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     meta_eval(l_meta, r_meta);
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
+        int i;
         array_t *var_exps = l_exp->u_tup.elem_exps;
         array_t *val_exps = r_exp->u_tup.elem_exps;
 
-        if (array_size(var_exps) == array_size(val_exps))
-            check_symm_assign(check, var_exps, val_exps);
-        else
-            check_asymm_assign(check, var_exps, val_exps);
+        if (array_size(var_exps) == array_size(val_exps)) {
+            array_foreach(var_exps, i) {
+                ast_exp_t *var_exp = array_get_exp(var_exps, i);
+                ast_exp_t *val_exp = array_get_exp(val_exps, i);
+
+                ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
+                        var_exp->meta.type, val_exp->meta.type);
+
+                exp_check_overflow(val_exp, &var_exp->meta);
+            }
+        }
+        else {
+            int var_idx = 0;
+
+            ASSERT2(array_size(var_exps) > array_size(val_exps), array_size(var_exps),
+                    array_size(val_exps));
+
+            array_foreach(val_exps, i) {
+                ast_exp_t *val_exp = array_get_exp(val_exps, i);
+
+                /* If the value expression is a tuple, it cannot be a literal */
+                if (is_tuple_type(&val_exp->meta)) {
+                    var_idx += val_exp->meta.elem_cnt;
+                }
+                else {
+                    ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
+
+                    ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
+                            var_exp->meta.type, val_exp->meta.type);
+
+                    exp_check_overflow(val_exp, &var_exp->meta);
+                }
+            }
+        }
     }
-    else if (is_lit_exp(r_exp) && !value_fit(&r_exp->u_lit.val, l_meta)) {
-        RETURN(ERROR_NUMERIC_OVERFLOW, &r_exp->pos, meta_to_str(l_meta));
+    else {
+        exp_check_overflow(r_exp, l_meta);
     }
+
+    //resolve_interface(l_exp, r_meta);
 
     return NO_ERROR;
 }

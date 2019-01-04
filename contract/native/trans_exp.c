@@ -205,7 +205,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ast_id_t *fld_id = exp->id;
 
     if (is_fn_id(fld_id))
-        /* we will transform this to call expression in the generator */
+        /* transformed to call instruction in the generator */
         return;
 
     ASSERT(qual_id != NULL);

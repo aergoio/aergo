@@ -13,25 +13,24 @@
 int
 meta_check(check_t *check, meta_t *meta)
 {
-    if (is_struct_type(meta)) {
+    if (is_none_type(meta)) {
+        char *name = meta->name;
         ast_id_t *id;
 
-        if (meta->elem_cnt > 0)
-            return NO_ERROR;
-
-        ASSERT(meta->name != NULL);
+        ASSERT(name != NULL);
 
         if (check->qual_id != NULL)
-            id = id_search_fld(check->qual_id, meta->name,
-                               check->qual_id == check->cont_id);
+            id = id_search_fld(check->qual_id, name, check->qual_id == check->cont_id);
         else
-            id = blk_search_id(check->blk, meta->name, meta->num);
+            id = blk_search_id(check->blk, name, meta->num);
 
-        if (id == NULL || (!is_struct_id(id) && !is_cont_id(id)))
-            RETURN(ERROR_UNDEFINED_TYPE, &meta->pos, meta->name);
+        if (id == NULL || (!is_struct_id(id) && !is_cont_id(id) && !is_inter_id(id)))
+            RETURN(ERROR_UNDEFINED_TYPE, &meta->pos, name);
 
         id->is_used = true;
-        *meta = id->meta;
+
+        meta_copy(meta, &id->meta);
+        meta->name = name;
     }
     else if (is_map_type(meta)) {
         meta_t *k_meta, *v_meta;
@@ -48,10 +47,6 @@ meta_check(check_t *check, meta_t *meta)
             RETURN(ERROR_NOT_COMPARABLE_TYPE, &k_meta->pos, meta_to_str(k_meta));
 
         ASSERT(!is_tuple_type(v_meta));
-    }
-    else {
-        ASSERT(meta->name == NULL);
-        ASSERT1(meta->elem_cnt == 0, meta->elem_cnt);
     }
 
     return NO_ERROR;
