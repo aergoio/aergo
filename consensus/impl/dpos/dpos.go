@@ -166,6 +166,15 @@ func (dpos *DPoS) bpid() peer.ID {
 	return p2p.NodeID()
 }
 
+// VerifySign reports the validity of the block signature.
+func (dpos *DPoS) VerifySign(block *types.Block) error {
+	valid, err := block.VerifySign()
+	if !valid || err != nil {
+		return &consensus.ErrorConsensus{Msg: "bad block signature", Err: err}
+	}
+	return nil
+}
+
 // IsBlockValid checks the DPoS consensus level validity of a block
 func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	id, err := block.BPID()
@@ -183,11 +192,6 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 			Msg: fmt.Sprintf("BP %v (idx: %v) is not permitted for the time slot %v (%v)",
 				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex()),
 		}
-	}
-
-	valid, err := block.VerifySign()
-	if !valid {
-		return &consensus.ErrorConsensus{Msg: "bad block signature", Err: err}
 	}
 
 	return nil
