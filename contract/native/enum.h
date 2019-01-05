@@ -84,14 +84,14 @@ extern int type_aligns_[TYPE_MAX];
 
 typedef enum id_kind_e {
     ID_VAR          = 0,
-    ID_STRUCT,
-    ID_ENUM,
-    ID_RETURN,
-    ID_FN,
-    ID_CONT,
-    ID_ITF,
-    ID_LABEL,
-    ID_TUPLE,
+    ID_STRUCT       = 1,
+    ID_ENUM         = 2,
+    ID_RETURN       = 3,
+    ID_FN           = 4,
+    ID_CONT         = 5,
+    ID_ITF          = 6,
+    ID_LABEL        = 7,
+    ID_TUPLE        = 8,
     ID_MAX
 } id_kind_t;
 
@@ -99,20 +99,20 @@ extern char *id_kinds_[ID_MAX];
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
-    EXP_LIT,
-    EXP_ID_REF,
-    EXP_ARRAY,
-    EXP_CAST,
-    EXP_UNARY,
-    EXP_BINARY,
-    EXP_TERNARY,
-    EXP_ACCESS,
-    EXP_CALL,
-    EXP_SQL,
-    EXP_TUPLE,
-    EXP_INIT,
-    EXP_LOCAL_REF,
-    EXP_STACK_REF,
+    EXP_LIT         = 1,
+    EXP_ID_REF      = 2,
+    EXP_ARRAY       = 3,
+    EXP_CAST        = 4,
+    EXP_UNARY       = 5,
+    EXP_BINARY      = 6,
+    EXP_TERNARY     = 7,
+    EXP_ACCESS      = 8,
+    EXP_CALL        = 9,
+    EXP_SQL         = 10,
+    EXP_TUPLE       = 11,
+    EXP_INIT        = 12,
+    EXP_LOCAL_REF   = 13,
+    EXP_STACK_REF   = 14,
     EXP_MAX
 } exp_kind_t;
 
@@ -120,18 +120,18 @@ typedef enum exp_kind_e {
 
 typedef enum stmt_kind_e {
     STMT_NULL       = 0,
-    STMT_EXP,
-    STMT_ASSIGN,
-    STMT_IF,
-    STMT_LOOP,
-    STMT_SWITCH,
-    STMT_CASE,
-    STMT_CONTINUE,
-    STMT_BREAK,
-    STMT_RETURN,
-    STMT_GOTO,
-    STMT_DDL,
-    STMT_BLK,
+    STMT_EXP        = 1,
+    STMT_ASSIGN     = 2,
+    STMT_IF         = 3,
+    STMT_LOOP       = 4,
+    STMT_SWITCH     = 5,
+    STMT_CASE       = 6,
+    STMT_CONTINUE   = 7,
+    STMT_BREAK      = 8,
+    STMT_RETURN     = 9,
+    STMT_GOTO       = 10,
+    STMT_DDL        = 11,
+    STMT_BLK        = 12,
     STMT_MAX
 } stmt_kind_t;
 
@@ -139,12 +139,12 @@ extern char *stmt_kinds_[STMT_MAX];
 
 typedef enum blk_kind_e {
     BLK_NORMAL      = 0,
-    BLK_ROOT,
-    BLK_CONT,
-    BLK_ITF,
-    BLK_FN,
-    BLK_LOOP,
-    BLK_SWITCH,
+    BLK_ROOT        = 1,
+    BLK_CONT        = 2,
+    BLK_ITF         = 3,
+    BLK_FN          = 4,
+    BLK_LOOP        = 5,
+    BLK_SWITCH      = 6,
     BLK_MAX
 } blk_kind_t;
 

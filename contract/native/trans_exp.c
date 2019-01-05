@@ -204,34 +204,47 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ast_id_t *qual_id = exp->u_acc.id_exp->id;
     ast_id_t *fld_id = exp->id;
 
-    if (is_fn_id(fld_id)) {
+    if (is_fn_id(fld_id))
         /* processed in exp_trans_call() */
-        if (is_itf_id(fld_id->up)) {
-            int i;
-            ast_id_t *cont_id = qual_id->meta.u_obj.id;
-
-            ASSERT1(is_object_type(&qual_id->meta), qual_id->meta.type);
-            ASSERT(cont_id != NULL);
-            ASSERT1(is_cont_id(cont_id), cont_id->kind);
-
-            array_foreach(&cont_id->u_cont.blk->ids, i) {
-                ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
-
-                if (is_fn_id(fn_id) && strcmp(fld_id->name, fn_id->name) == 0) {
-                    ASSERT(id_cmp(fld_id, fn_id));
-                    exp->id = fn_id;
-                    break;
-                }
-            }
-        }
         return;
-    }
 
     ASSERT(qual_id != NULL);
 
     exp->kind = EXP_STACK_REF;
     exp->u_stk.addr = qual_id->addr;
     exp->u_stk.offset = fld_id->offset;
+}
+
+static ast_id_t *
+resolve_fn(ast_id_t *spec_id, ast_exp_t *exp)
+{
+    int i;
+    ast_id_t *qual_id;
+    ast_id_t *cont_id;
+
+    ASSERT1(is_access_exp(exp), exp->kind);
+
+    qual_id = exp->u_acc.id_exp->id;
+
+    ASSERT(qual_id != NULL);
+    ASSERT1(is_object_type(&qual_id->meta), qual_id->meta.type);
+
+    cont_id = qual_id->meta.type_id;
+
+    ASSERT(cont_id != NULL);
+    ASSERT1(is_cont_id(cont_id), cont_id->kind);
+
+    array_foreach(&cont_id->u_cont.blk->ids, i) {
+        ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+
+        if (is_fn_id(fn_id) && strcmp(spec_id->name, fn_id->name) == 0) {
+            ASSERT2(id_cmp(spec_id, fn_id), spec_id->kind, fn_id->kind);
+            return fn_id;
+        }
+    }
+
+    ASSERT(!"not found function");
+    return NULL;
 }
 
 static void
@@ -247,10 +260,10 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
      *
      * As a result, the "v = f();" statement changes to "f(); v = r;" */
 
-    exp_trans(trans, exp->u_call.id_exp);
-
-    exp->id = exp->u_call.id_exp->id;
-    ASSERT1(is_cont_id(exp->id->up), exp->id->up->kind);
+    if (is_itf_id(exp->id->up)) {
+        exp->id = resolve_fn(exp->id, exp->u_call.id_exp);
+        ASSERT1(is_cont_id(exp->id->up), exp->id->up->kind);
+    }
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));

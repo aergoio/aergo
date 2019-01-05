@@ -160,7 +160,8 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
     array_foreach(fld_ids, i) {
         ast_id_t *fld_id = array_get_id(fld_ids, i);
 
-        if ((is_self || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
+        if ((is_self || is_itf_id(id) || is_public_id(fld_id)) &&
+            strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 

@@ -107,7 +107,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
                 /* If the value expression is a tuple, it cannot be a literal */
                 if (is_tuple_type(&val_exp->meta)) {
-                    var_idx += val_exp->meta.u_tup.elem_cnt;
+                    var_idx += val_exp->meta.elem_cnt;
                 }
                 else {
                     ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
@@ -433,11 +433,11 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
             int i;
 
             ASSERT1(is_tuple_type(fn_meta), fn_meta->type);
-            ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->u_tup.elem_cnt,
-                    array_size(arg_exp->u_tup.elem_exps), fn_meta->u_tup.elem_cnt);
+            ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->elem_cnt,
+                    array_size(arg_exp->u_tup.elem_exps), fn_meta->elem_cnt);
 
             array_foreach(arg_exp->u_tup.elem_exps, i) {
-                meta_t *var_meta = fn_meta->u_tup.elems[i];
+                meta_t *var_meta = fn_meta->elems[i];
                 ast_exp_t *val_exp = array_get_exp(arg_exp->u_tup.elem_exps, i);
 
                 exp_check_overflow(val_exp, var_meta);

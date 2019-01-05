@@ -63,12 +63,12 @@ resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
         val_exp->id = var_exp->id;
 
     if (val_exp->id != NULL && is_object_type(meta) &&
-        meta->u_obj.id != NULL && is_itf_id(meta->u_obj.id)) {
+        meta->type_id != NULL && is_itf_id(meta->type_id)) {
         /* override interface meta with contract meta */
         if (is_fn_id(val_exp->id))
             meta_set_object(meta, val_exp->id->up);
         else
-            meta_set_object(meta, val_exp->id->meta.u_obj.id);
+            meta_set_object(meta, val_exp->id->meta.type_id);
     }
 }
 

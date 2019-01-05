@@ -24,13 +24,11 @@ id_check_type(check_t *check, meta_t *meta)
 
         ASSERT(name != NULL);
 
-        if (check->qual_id != NULL)
-            id = id_search_fld(check->qual_id, name, check->qual_id == check->cont_id);
-        else
-            id = blk_search_id(check->blk, name, meta->num);
-
-        if (id == NULL || (!is_struct_id(id) && !is_cont_id(id) && !is_itf_id(id)))
+        id = blk_search_id(check->blk, name, meta->num, true);
+        if (id == NULL || !is_type_id(id))
             RETURN(ERROR_UNDEFINED_TYPE, meta->pos, name);
+
+        id_trycheck(check, id);
 
         id->is_used = true;
 
@@ -40,10 +38,10 @@ id_check_type(check_t *check, meta_t *meta)
     else if (is_map_type(meta)) {
         meta_t *k_meta, *v_meta;
 
-        ASSERT1(meta->u_tup.elem_cnt == 2, meta->u_tup.elem_cnt);
+        ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 
-        k_meta = meta->u_tup.elems[0];
-        v_meta = meta->u_tup.elems[1];
+        k_meta = meta->elems[0];
+        v_meta = meta->elems[1];
 
         CHECK(id_check_type(check, k_meta));
         CHECK(id_check_type(check, v_meta));
@@ -182,7 +180,7 @@ id_check_struct(check_t *check, ast_id_t *id)
         offset += meta_size(fld_meta);
     }
 
-    meta_set_struct(&id->meta, id->name, fld_ids);
+    meta_set_struct(&id->meta, id);
 
     return NO_ERROR;
 }
@@ -416,8 +414,8 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
     id->meta.type = TYPE_TUPLE;
 
-    id->meta.u_tup.elem_cnt = array_size(elem_ids);
-    id->meta.u_tup.elems = xmalloc(sizeof(meta_t *) * id->meta.u_tup.elem_cnt);
+    id->meta.elem_cnt = array_size(elem_ids);
+    id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
     /* The meta size of the tuple identifier is never used,
      * so we do not need to set size here */
@@ -443,7 +441,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         elem_id->up = id->up;
 
-        id->meta.u_tup.elems[i] = &elem_id->meta;
+        id->meta.elems[i] = &elem_id->meta;
 
         id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
         id->meta.size += meta_size(&elem_id->meta);
@@ -468,6 +466,9 @@ void
 id_check(check_t *check, ast_id_t *id)
 {
     ASSERT(id != NULL);
+
+    if (id->is_checked)
+        return;
 
     id->up = check->id;
     check->id = id;
@@ -516,6 +517,23 @@ id_check(check_t *check, ast_id_t *id)
     }
 
     check->id = id->up;
+}
+
+void
+id_trycheck(check_t *check, ast_id_t *id)
+{
+    ast_id_t *org_id = check->id;
+
+    /* TODO: Currently it can be a variable identifier due to self-reference */
+
+    if (is_cont_id(id) || is_itf_id(id))
+        check->id = NULL;
+    else if (is_fn_id(id))
+        check->id = check->cont_id;
+
+    id_check(check, id);
+
+    check->id = org_id;
 }
 
 /* end of check_id.c */

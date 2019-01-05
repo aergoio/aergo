@@ -37,8 +37,7 @@
 #define is_stack_id(id)                                                                  \
     (!(id)->is_param && (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta)))
 
-#define is_accessible_id(id)                                                             \
-    (is_struct_id(id) || is_enum_id(id) || is_cont_id(id) || is_itf_id(id))
+#define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
 
 #ifndef _AST_ID_T
 #define _AST_ID_T

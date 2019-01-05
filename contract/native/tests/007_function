@@ -79,6 +79,17 @@ contract test {
     }
 }
 
+@test(contract_as_parameter)
+contract test {
+    float v;
+    func f1(test p) {
+        p.v = p.f2();
+    }
+    func f2() float {
+        return 1.0;
+    }
+}
+
 @test(return_declaration)
 contract test {
     func f1() { return; }
@@ -200,7 +211,6 @@ contract test {
 }
 
 @test(function_declaration_order)
-@error(ERROR_UNDEFINED_ID)
 contract test {
     test() {
         int v = f1();

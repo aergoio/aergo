@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "ir_bb.h"
+#include "gen.h"
 
 #include "ir_fn.h"
 

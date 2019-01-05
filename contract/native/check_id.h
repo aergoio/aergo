@@ -13,4 +13,6 @@
 
 void id_check(check_t *check, ast_id_t *id);
 
+void id_trycheck(check_t *check, ast_id_t *id);
+
 #endif /* ! _CHECK_ID_H */

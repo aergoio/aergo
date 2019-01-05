@@ -7,6 +7,7 @@
 
 #include "ast_id.h"
 #include "ast_blk.h"
+#include "check_id.h"
 
 #include "check_exp.h"
 
@@ -29,19 +30,14 @@ exp_check_id_ref(check_t *check, ast_exp_t *exp)
         if (check->fn_id != NULL)
             id = id_search_param(check->fn_id, name);
 
-        if (id == NULL) {
-            id = blk_search_id(check->blk, name, exp->num);
-
-            if (id != NULL && is_cont_id(id))
-                /* search constructor */
-                id = blk_search_id(id->u_cont.blk, name, exp->num);
-        }
+        if (id == NULL)
+            id = blk_search_id(check->blk, name, exp->num, false);
     }
 
     if (id == NULL)
         RETURN(ERROR_UNDEFINED_ID, &exp->pos, name);
 
-    ASSERT(id->is_checked);
+    id_trycheck(check, id);
 
     id->is_used = true;
 
@@ -138,10 +134,10 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (!is_map_type(id_meta))
             RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
 
-        CHECK(meta_cmp(id_meta->u_tup.elems[0], idx_meta));
+        CHECK(meta_cmp(id_meta->elems[0], idx_meta));
 
-        meta_eval(id_meta->u_tup.elems[0], idx_meta);
-        meta_copy(&exp->meta, id_meta->u_tup.elems[1]);
+        meta_eval(id_meta->elems[0], idx_meta);
+        meta_copy(&exp->meta, id_meta->elems[1]);
     }
 
     return NO_ERROR;
@@ -502,12 +498,17 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         (is_fn_id(id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-    if ((is_var_id(id) || is_fn_id(id)) && id_meta->name != NULL)
-        /* find the actual struct, contract or interface identifier */
-        id = blk_search_id(check->blk, id_meta->name, id_meta->num);
+    /* get the actual struct, contract or interface identifier */
+    if (is_struct_type(id_meta) || is_object_type(id_meta)) {
+        /* If "this.x" is used, the id is the contract identifier */
+        ASSERT1(is_var_id(id) || is_fn_id(id) || is_cont_id(id), id->kind);
+        ASSERT(id_meta->type_id != NULL);
+
+        id = id_meta->type_id;
+    }
 
     ASSERT(id != NULL);
-    ASSERT1(is_accessible_id(id), id->kind);
+    ASSERT1(is_type_id(id) || is_enum_id(id), id->kind);
 
     fld_exp = exp->u_acc.fld_exp;
 
@@ -566,7 +567,14 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, id_exp));
 
     id = id_exp->id;
-    if (id == NULL || !is_fn_id(id))
+    if (id == NULL)
+        RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
+
+    if (is_cont_id(id))
+        /* search constructor */
+        id = blk_search_id(id->u_cont.blk, id->name, id_exp->num, false);
+
+    if (!is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
     param_ids = id->u_fn.param_ids;

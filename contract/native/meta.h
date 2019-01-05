@@ -81,7 +81,7 @@
 
 #define meta_cnt(meta)                                                                   \
     (is_void_type(meta) ? 0 :                                                            \
-     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->u_tup.elem_cnt : 1))
+     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->elem_cnt : 1))
 
 #ifndef _META_T
 #define _META_T
@@ -92,15 +92,6 @@ typedef struct meta_s meta_t;
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
-
-typedef struct meta_tuple_s {
-    int elem_cnt;
-    meta_t **elems;
-} meta_tuple_t;
-
-typedef struct meta_object_s {
-    ast_id_t *id;
-} meta_object_t;
 
 struct meta_s {
     type_t type;
@@ -114,10 +105,10 @@ struct meta_s {
 
     bool is_undef;          /* whether it is literal */
 
-    union {
-        meta_tuple_t u_tup;
-        meta_object_t u_obj;
-    };
+    int elem_cnt;
+    meta_t **elems;
+
+    ast_id_t *type_id;      /* struct, contract, interface */
 
     int num;
     src_pos_t *pos;
@@ -126,8 +117,9 @@ struct meta_s {
 char *meta_to_str(meta_t *x);
 
 void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
-void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *elem_exps);
+
+void meta_set_struct(meta_t *meta, ast_id_t *id);
 void meta_set_object(meta_t *meta, ast_id_t *id);
 
 int meta_cmp(meta_t *x, meta_t *y);
@@ -230,14 +222,9 @@ meta_copy(meta_t *dest, meta_t *src)
     dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;
-
-    if (is_tuple_type(src) || is_map_type(src) || is_struct_type(src)) {
-        dest->u_tup.elem_cnt = src->u_tup.elem_cnt;
-        dest->u_tup.elems = src->u_tup.elems;
-    }
-    else if (is_object_type(src)) {
-        dest->u_obj.id = src->u_obj.id;
-    }
+    dest->elem_cnt = src->elem_cnt;
+    dest->elems = src->elems;
+    dest->type_id = src->type_id;
 
     /* deliberately excluded num and src_pos */
 }

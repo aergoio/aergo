@@ -52,7 +52,7 @@ contract test implements spec {
     func f3(int16 x) double { return 1.0; }
 }
 
-@test(using_interface_as_type)
+@test(interface_as_variable)
 interface spec {
     func f1() int;
 }
@@ -110,3 +110,13 @@ contract main {
         i, s = b.f2();
     }
 }
+
+@test(interface_as_parameter)
+interface spec {
+    func f() int;
+}
+/*
+contract test {
+    func f(spec v) int { return v.f(); }
+}
+*/
