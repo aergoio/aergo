@@ -81,12 +81,26 @@
 
 #define meta_cnt(meta)                                                                   \
     (is_void_type(meta) ? 0 :                                                            \
-     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->elem_cnt : 1))
+     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->u_tup.elem_cnt : 1))
 
 #ifndef _META_T
 #define _META_T
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
+
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
+
+typedef struct meta_tuple_s {
+    int elem_cnt;
+    meta_t **elems;
+} meta_tuple_t;
+
+typedef struct meta_object_s {
+    ast_id_t *id;
+} meta_object_t;
 
 struct meta_s {
     AST_NODE_DECL;
@@ -102,9 +116,10 @@ struct meta_s {
 
     bool is_undef;          /* whether it is literal */
 
-    /* structured meta (map, struct or tuple) */
-    int elem_cnt;           /* count of elements */
-    meta_t **elems;         /* metas of elements */
+    union {
+        meta_tuple_t u_tup;
+        meta_object_t u_obj;
+    };
 };
 
 char *meta_to_str(meta_t *x);
@@ -112,6 +127,7 @@ char *meta_to_str(meta_t *x);
 void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
 void meta_set_struct(meta_t *meta, char *name, array_t *ids);
 void meta_set_tuple(meta_t *meta, array_t *elem_exps);
+void meta_set_object(meta_t *meta, ast_id_t *id);
 
 int meta_cmp(meta_t *x, meta_t *y);
 
@@ -150,13 +166,6 @@ meta_set(meta_t *meta, type_t type)
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
-}
-
-static inline void
-meta_set_object(meta_t *meta, char *name)
-{
-    meta_set(meta, TYPE_OBJECT);
-    meta->name = name;
 }
 
 static inline void
@@ -206,7 +215,7 @@ meta_strip_arr_dim(meta_t *meta)
 static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
-    /* excluded num and src_pos deliberately */
+    /* deliberately excluded num and src_pos */
     dest->type = src->type;
     dest->size = src->size;
     dest->name = src->name;
@@ -214,8 +223,14 @@ meta_copy(meta_t *dest, meta_t *src)
     dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;
-    dest->elem_cnt = src->elem_cnt;
-    dest->elems = src->elems;
+
+    if (is_tuple_type(src) || is_map_type(src) || is_struct_type(src)) {
+        dest->u_tup.elem_cnt = src->u_tup.elem_cnt;
+        dest->u_tup.elems = src->u_tup.elems;
+    }
+    else if (is_object_type(src)) {
+        dest->u_obj.id = src->u_obj.id;
+    }
 }
 
 #endif /* ! _META_H */

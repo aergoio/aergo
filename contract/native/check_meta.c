@@ -35,10 +35,10 @@ meta_check(check_t *check, meta_t *meta)
     else if (is_map_type(meta)) {
         meta_t *k_meta, *v_meta;
 
-        ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
+        ASSERT1(meta->u_tup.elem_cnt == 2, meta->u_tup.elem_cnt);
 
-        k_meta = meta->elems[0];
-        v_meta = meta->elems[1];
+        k_meta = meta->u_tup.elems[0];
+        v_meta = meta->u_tup.elems[1];
 
         CHECK(meta_check(check, k_meta));
         CHECK(meta_check(check, v_meta));

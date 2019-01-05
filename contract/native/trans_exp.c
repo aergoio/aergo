@@ -204,9 +204,28 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ast_id_t *qual_id = exp->u_acc.id_exp->id;
     ast_id_t *fld_id = exp->id;
 
-    if (is_fn_id(fld_id))
-        /* transformed to call instruction in the generator */
+    if (is_fn_id(fld_id)) {
+        /* processed in exp_trans_call() */
+        if (is_itf_id(fld_id->up)) {
+            int i;
+            ast_id_t *cont_id = qual_id->meta.u_obj.id;
+
+            ASSERT1(is_object_type(&qual_id->meta), qual_id->meta.type);
+            ASSERT(cont_id != NULL);
+            ASSERT1(is_cont_id(cont_id), cont_id->kind);
+
+            array_foreach(&cont_id->u_cont.blk->ids, i) {
+                ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+
+                if (is_fn_id(fn_id) && strcmp(fld_id->name, fn_id->name) == 0) {
+                    ASSERT(id_cmp(fld_id, fn_id));
+                    exp->id = fn_id;
+                    break;
+                }
+            }
+        }
         return;
+    }
 
     ASSERT(qual_id != NULL);
 
@@ -219,19 +238,30 @@ static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    ast_id_t *id = exp->id;
 
     if (is_map_type(&exp->meta))
         return;
+
+    /* Since all return values of a function are treated as parameters,
+     * the call expression is added as a separate statement.
+     *
+     * As a result, the "v = f();" statement changes to "f(); v = r;" */
+
+    exp_trans(trans, exp->u_call.id_exp);
+
+    exp->id = exp->u_call.id_exp->id;
+    ASSERT1(is_cont_id(exp->id->up), exp->id->up->kind);
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
     }
 
+    /* If there is a return value,
+     * we have to clone it because the expression itself is transformed */
     bb_add_stmt(trans->bb, stmt_new_exp(exp_clone(exp), &exp->pos));
 
-    if (id->u_fn.ret_id != NULL) {
-        ast_id_t *ret_id = id->u_fn.ret_id;
+    if (exp->id->u_fn.ret_id != NULL) {
+        ast_id_t *ret_id = exp->id->u_fn.ret_id;
 
         if (is_tuple_id(ret_id)) {
             int i;
@@ -272,6 +302,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_sql(trans_t *trans, ast_exp_t *exp)
 {
+    /* TODO */
 }
 
 static void

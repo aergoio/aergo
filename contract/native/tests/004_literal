@@ -250,3 +250,13 @@ contract test {
         { { 1, "value1" }, { 2, "value2" }, { 3, "value3" } }
     };
 }
+
+@test(contract_initializer)
+@error(ERROR_MISMATCHED_TYPE)
+contract sub {
+    int i;
+    string s;
+}
+contract test {
+    sub v = new { -1, "failure" };
+}

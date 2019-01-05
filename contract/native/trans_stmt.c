@@ -54,6 +54,25 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
+resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
+{
+    meta_t *meta = &var_exp->id->meta;
+
+    if (is_init_exp(val_exp))
+        /* for address resolution */
+        val_exp->id = var_exp->id;
+
+    if (val_exp->id != NULL && is_object_type(meta) &&
+        meta->u_obj.id != NULL && is_itf_id(meta->u_obj.id)) {
+        /* override interface meta with contract meta */
+        if (is_fn_id(val_exp->id))
+            meta_set_object(meta, val_exp->id->up);
+        else
+            meta_set_object(meta, val_exp->id->meta.u_obj.id);
+    }
+}
+
+static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
@@ -78,16 +97,15 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                 var_exp = array_get_exp(var_exps, i);
                 val_exp = array_get_exp(val_exps, i);
 
-                if (is_init_exp(val_exp))
-                    /* for address resolution */
-                    val_exp->id = var_exp->id;
-
+                resolve_rel(var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
             return;
         }
 
         array_foreach(val_exps, i) {
+            ASSERT1(var_idx < array_size(var_exps), var_idx);
+
             val_exp = array_get_exp(val_exps, i);
 
             if (is_tuple_exp(val_exp)) {
@@ -97,20 +115,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_exp = array_get_exp(var_exps, var_idx++);
                     elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
 
-                    if (is_init_exp(elem_exp))
-                        /* for address resolution */
-                        elem_exp->id = var_exp->id;
-
+                    resolve_rel(var_exp, elem_exp);
                     bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
                 }
             }
             else {
                 var_exp = array_get_exp(var_exps, var_idx++);
 
-                if (is_init_exp(val_exp))
-                    /* for address resolution */
-                    val_exp->id = var_exp->id;
-
+                resolve_rel(var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
         }
@@ -118,9 +130,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     else {
         ASSERT(!is_tuple_exp(l_exp));
 
-        if (is_init_exp(r_exp))
-            r_exp->id = l_exp->id;
-
+        resolve_rel(l_exp, r_exp);
         bb_add_stmt(trans->bb, stmt);
     }
 }

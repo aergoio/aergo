@@ -16,6 +16,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
     uint32_t offset = 0;
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
+    ast_exp_t *r_exp = stmt->u_assign.r_exp;
     ast_id_t *id = l_exp->id;
     BinaryenExpressionRef address, value;
 
@@ -26,7 +27,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
          * lvalue and rvalue must be combined into a call expression */
         return NULL;
 
-    value = exp_gen(gen, stmt->u_assign.r_exp);
+    value = exp_gen(gen, r_exp);
     if (value == NULL || is_object_type(&id->meta))
         return NULL;
 

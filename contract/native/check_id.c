@@ -249,7 +249,7 @@ id_check_fn(check_t *check, ast_id_t *id)
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
     }
     else if (is_ctor_id(id)) {
-        meta_set_object(&id->meta, id->up->name);
+        meta_set_object(&id->meta, id->up);
     }
     else {
         meta_set_void(&id->meta);
@@ -331,7 +331,7 @@ id_check_contract(check_t *check, ast_id_t *id)
         check->impl_id = NULL;
     }
 
-    meta_set_object(&id->meta, id->name);
+    meta_set_object(&id->meta, id);
 
     return NO_ERROR;
 }
@@ -346,7 +346,7 @@ id_check_interface(check_t *check, ast_id_t *id)
 
     blk_check(check, id->u_itf.blk);
 
-    meta_set_object(&id->meta, id->name);
+    meta_set_object(&id->meta, id);
 
     return NO_ERROR;
 }
@@ -373,8 +373,8 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
     id->meta.type = TYPE_TUPLE;
 
-    id->meta.elem_cnt = array_size(elem_ids);
-    id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
+    id->meta.u_tup.elem_cnt = array_size(elem_ids);
+    id->meta.u_tup.elems = xmalloc(sizeof(meta_t *) * id->meta.u_tup.elem_cnt);
 
     /* The meta size of the tuple identifier is never used,
      * so we do not need to set size here */
@@ -400,7 +400,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         elem_id->up = id->up;
 
-        id->meta.elems[i] = &elem_id->meta;
+        id->meta.u_tup.elems[i] = &elem_id->meta;
 
         id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
         id->meta.size += meta_size(&elem_id->meta);

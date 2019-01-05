@@ -41,54 +41,6 @@ stmt_check_exp(check_t *check, ast_stmt_t *stmt)
     return NO_ERROR;
 }
 
-#if 0
-static void
-resolve_interface(ast_exp_t *l_exp, meta_t *r_meta)
-{
-    ast_id_t *var_id = l_exp->id;
-
-    /* TODO: This type of processing is very redundant and not very efficient, 
-     *       so we have to find a different approach */
-
-    if (is_tuple_exp(l_exp)) {
-        int i, j;
-        int var_idx = 0;
-        array_t *var_exps = l_exp->u_tup.elem_exps;
-
-        ASSERT1(is_tuple_type(r_meta), r_meta->type);
-
-        for (i = 0; i < r_meta->elem_cnt; i++) {
-            meta_t *val_meta = r_meta->elems[i];
-
-            /* If the value expression is a tuple, it cannot be a literal */
-            if (is_tuple_type(val_meta)) {
-                for (j = 0; j < val_meta->elem_cnt; j++) {
-                    var_id = array_get_exp(var_exps, var_idx++)->id;
-                    ASSERT(var_id != NULL);
-
-                    if (is_object_type(&var_id->meta) && 
-                        is_object_type(val_meta->elems[j]))
-                        meta_copy(&var_id->meta, val_meta->elems[j]);
-                }
-            }
-            else {
-                var_id = array_get_exp(var_exps, var_idx++)->id;
-                ASSERT(var_id != NULL);
-
-                if (is_object_type(&var_id->meta) && is_object_type(val_meta))
-                    meta_copy(&var_id->meta, val_meta);
-            }
-        }
-    }
-    else {
-        ASSERT(var_id != NULL);
-
-        if (is_object_type(&var_id->meta) && is_object_type(r_meta))
-            meta_copy(&var_id->meta, r_meta);
-    }
-}
-#endif
-
 static int
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 {
@@ -155,7 +107,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 
                 /* If the value expression is a tuple, it cannot be a literal */
                 if (is_tuple_type(&val_exp->meta)) {
-                    var_idx += val_exp->meta.elem_cnt;
+                    var_idx += val_exp->meta.u_tup.elem_cnt;
                 }
                 else {
                     ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
@@ -171,8 +123,6 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     else {
         exp_check_overflow(r_exp, l_meta);
     }
-
-    //resolve_interface(l_exp, r_meta);
 
     return NO_ERROR;
 }
@@ -483,11 +433,11 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
             int i;
 
             ASSERT1(is_tuple_type(fn_meta), fn_meta->type);
-            ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->elem_cnt,
-                    array_size(arg_exp->u_tup.elem_exps), fn_meta->elem_cnt);
+            ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->u_tup.elem_cnt,
+                    array_size(arg_exp->u_tup.elem_exps), fn_meta->u_tup.elem_cnt);
 
             array_foreach(arg_exp->u_tup.elem_exps, i) {
-                meta_t *var_meta = fn_meta->elems[i];
+                meta_t *var_meta = fn_meta->u_tup.elems[i];
                 ast_exp_t *val_exp = array_get_exp(arg_exp->u_tup.elem_exps, i);
 
                 exp_check_overflow(val_exp, var_meta);

@@ -138,10 +138,10 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (!is_map_type(id_meta))
             RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
 
-        CHECK(meta_cmp(id_meta->elems[0], idx_meta));
+        CHECK(meta_cmp(id_meta->u_tup.elems[0], idx_meta));
 
-        meta_eval(id_meta->elems[0], idx_meta);
-        meta_copy(&exp->meta, id_meta->elems[1]);
+        meta_eval(id_meta->u_tup.elems[0], idx_meta);
+        meta_copy(&exp->meta, id_meta->u_tup.elems[1]);
     }
 
     return NO_ERROR;
