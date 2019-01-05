@@ -502,7 +502,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
         (is_fn_id(id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
-    if (id_meta->name != NULL)
+    if ((is_var_id(id) || is_fn_id(id)) && id_meta->name != NULL)
         /* find the actual struct, contract or interface identifier */
         id = blk_search_id(check->blk, id_meta->name, id_meta->num);
 

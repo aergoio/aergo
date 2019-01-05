@@ -311,6 +311,10 @@ id_check_contract(check_t *check, ast_id_t *id)
         }
     }
 
+    /* It can be used the contract variable in the contract block,
+     * so the meta is set before blk_check() */
+    meta_set_object(&id->meta, id);
+
     check->cont_id = id;
 
     if (id->u_cont.blk != NULL)
@@ -331,8 +335,6 @@ id_check_contract(check_t *check, ast_id_t *id)
         check->impl_id = NULL;
     }
 
-    meta_set_object(&id->meta, id);
-
     return NO_ERROR;
 }
 
@@ -344,9 +346,9 @@ id_check_interface(check_t *check, ast_id_t *id)
     ASSERT(id->up == NULL);
     ASSERT(id->u_itf.blk != NULL);
 
-    blk_check(check, id->u_itf.blk);
-
     meta_set_object(&id->meta, id);
+
+    blk_check(check, id->u_itf.blk);
 
     return NO_ERROR;
 }
