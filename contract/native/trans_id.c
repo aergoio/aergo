@@ -64,7 +64,7 @@ gen_init_stmt(trans_t *trans, ast_id_t *id)
 {
     ast_exp_t *dflt_exp, *id_exp;
 
-    ASSERT1(is_global_id(id), id->scope);
+    ASSERT1(is_global_id(id), id->up->kind);
 
     if (id->u_var.dflt_exp == NULL)
         id->u_var.dflt_exp = gen_dflt_exp(&id->meta);
@@ -92,7 +92,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     if (is_ctor_id(id)) {
         int i;
-        ast_id_t *cont_id = id->u_fn.cont_id;
+        ast_id_t *cont_id = id->up;
 
         ASSERT(cont_id != NULL);
         ASSERT1(is_cont_id(cont_id), cont_id->kind);

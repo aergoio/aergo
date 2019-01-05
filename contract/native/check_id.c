@@ -71,16 +71,15 @@ id_check_array(check_t *check, ast_id_t *id)
 }
 
 static int
-id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
+id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
     ast_exp_t *dflt_exp;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
+    ASSERT(id->up != NULL);
     ASSERT(id->u_var.type_meta != NULL);
-
-    id->is_checked = true;
 
     type_meta = id->u_var.type_meta;
     dflt_exp = id->u_var.dflt_exp;
@@ -89,8 +88,8 @@ id_check_var(check_t *check, ast_id_t *id, bool is_tuple)
 
     meta_copy(&id->meta, type_meta);
 
-    /* The constant value of the tuple identifier is checked by id_check_tuple() */
-    if (!is_tuple && is_const_id(id) && dflt_exp == NULL)
+    /* The constant value of the tuple element is checked by id_check_tuple() */
+    if (!is_tuple_id(id->up) && is_const_id(id) && dflt_exp == NULL)
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
     if (id->u_var.size_exps != NULL)
@@ -121,8 +120,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     ASSERT1(is_struct_id(id), id->kind);
     ASSERT(id->name != NULL);
-
-    id->is_checked = true;
+    ASSERT(id->up != NULL);
 
     fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
@@ -131,7 +129,9 @@ id_check_struct(check_t *check, ast_id_t *id)
         ast_id_t *fld_id = array_get_id(fld_ids, i);
         meta_t *fld_meta = &fld_id->meta;
 
-        CHECK(id_check_var(check, fld_id, false));
+        ASSERT1(is_var_id(fld_id), fld_id->kind);
+
+        id_check(check, fld_id);
 
         flag_set(fld_id->mod, MOD_PUBLIC);
 
@@ -155,8 +155,7 @@ id_check_enum(check_t *check, ast_id_t *id)
 
     ASSERT1(is_enum_id(id), id->kind);
     ASSERT(id->name != NULL);
-
-    id->is_checked = true;
+    ASSERT(id->up != NULL);
 
     elem_ids = id->u_enum.elem_ids;
     ASSERT(elem_ids != NULL);
@@ -165,6 +164,8 @@ id_check_enum(check_t *check, ast_id_t *id)
         ast_id_t *elem_id = array_get_id(elem_ids, i);
         ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
+        /* check directly for value processing in the enumerator */
+        elem_id->up = id;
         elem_id->is_checked = true;
 
         meta_set_int32(&elem_id->meta);
@@ -206,10 +207,9 @@ id_check_return(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_return_id(id), id->kind);
     ASSERT(id->name != NULL);
+    ASSERT(id->up != NULL);
     ASSERT(id->is_param);
     ASSERT(id->u_ret.type_meta != NULL);
-
-    id->is_checked = true;
 
     CHECK(meta_check(check, id->u_ret.type_meta));
 
@@ -229,41 +229,38 @@ id_check_fn(check_t *check, ast_id_t *id)
 
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->name != NULL);
-
-    id->is_checked = true;
+    ASSERT(id->up != NULL);
+    ASSERT1(is_cont_id(id->up) || is_itf_id(id->up), id->up->kind);
 
     array_foreach(param_ids, i) {
         ast_id_t *param_id = array_get_id(param_ids, i);
 
-        id_check_var(check, param_id, false);
-
+        ASSERT1(is_var_id(param_id), param_id->kind);
         ASSERT(param_id->is_param);
         ASSERT(param_id->u_var.dflt_exp == NULL);
-    }
 
-    ASSERT(check->cont_id != NULL);
+        id_check(check, param_id);
+    }
 
     if (id->u_fn.ret_id != NULL) {
         /* The return identifier may be a tuple */
         id_check(check, id->u_fn.ret_id);
 
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
-
-        if (!is_itf_id(check->cont_id) &&
-            (id->u_fn.blk == NULL ||
-             !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
-            ERROR(ERROR_MISSING_RETURN, &id->pos);
     }
     else if (is_ctor_id(id)) {
-        meta_set_object(&id->meta, check->cont_id->name);
+        meta_set_object(&id->meta, id->up->name);
     }
     else {
         meta_set_void(&id->meta);
     }
 
-    if (check->itf_blk != NULL) {
-        array_foreach(&check->itf_blk->ids, i) {
-            ast_id_t *spec_id = array_get_id(&check->itf_blk->ids, i);
+    if (check->impl_id != NULL) {
+        /* mark is_used flag */
+        ast_blk_t *blk = check->impl_id->u_itf.blk;
+
+        array_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&blk->ids, i);
 
             if (strcmp(spec_id->name, id->name) == 0 && id_cmp(spec_id, id)) {
                 spec_id->is_used = true;
@@ -272,22 +269,17 @@ id_check_fn(check_t *check, ast_id_t *id)
         }
     }
 
-    if (id->u_fn.blk != NULL) {
-        check->fn_id = id;
+    check->fn_id = id;
 
+    if (id->u_fn.blk != NULL)
         blk_check(check, id->u_fn.blk);
 
-        check->fn_id = NULL;
-    }
+    check->fn_id = NULL;
 
-    id->u_fn.cont_id = check->cont_id;
-
-    if (is_ctor_id(id))
-        snprintf(id->u_fn.qname, sizeof(id->u_fn.qname), "%s.constructor",
-                 id->u_fn.cont_id->name);
-    else
-        snprintf(id->u_fn.qname, sizeof(id->u_fn.qname), "%s.%s",
-                 id->u_fn.cont_id->name, id->name);
+    if (id->u_fn.ret_id != NULL && !is_itf_id(id->up) &&
+        (id->u_fn.blk == NULL ||
+         !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
+        RETURN(ERROR_MISSING_RETURN, &id->pos);
 
     return NO_ERROR;
 }
@@ -300,22 +292,22 @@ id_check_contract(check_t *check, ast_id_t *id)
 
     ASSERT1(is_cont_id(id), id->kind);
     ASSERT(id->name != NULL);
-
-    id->is_checked = true;
+    ASSERT(id->up == NULL);
 
     if (impl_exp != NULL) {
         exp_check(check, impl_exp);
 
         if (impl_exp->id != NULL) {
-            ast_blk_t *itf_blk = impl_exp->id->u_itf.blk;
+            /* unmark is_used flag */
+            ast_blk_t *blk = impl_exp->id->u_itf.blk;
 
             ASSERT1(is_itf_id(impl_exp->id), impl_exp->id->kind);
 
-            array_foreach(&itf_blk->ids, i) {
-                array_get_id(&itf_blk->ids, i)->is_used = false;
+            array_foreach(&blk->ids, i) {
+                array_get_id(&blk->ids, i)->is_used = false;
             }
 
-            check->itf_blk = itf_blk;
+            check->impl_id = impl_exp->id;
         }
     }
 
@@ -326,15 +318,17 @@ id_check_contract(check_t *check, ast_id_t *id)
 
     check->cont_id = NULL;
 
-    if (check->itf_blk != NULL) {
-        array_foreach(&check->itf_blk->ids, i) {
-            ast_id_t *fn_id = array_get_id(&check->itf_blk->ids, i);
+    if (check->impl_id != NULL) {
+        ast_blk_t *blk = check->impl_id->u_itf.blk;
 
-            if (!fn_id->is_used)
-                ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, fn_id->name);
+        array_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&blk->ids, i);
+
+            if (!spec_id->is_used)
+                ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, spec_id->name);
         }
 
-        check->itf_blk = NULL;
+        check->impl_id = NULL;
     }
 
     meta_set_object(&id->meta, id->name);
@@ -347,15 +341,10 @@ id_check_interface(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_itf_id(id), id->kind);
     ASSERT(id->name != NULL);
+    ASSERT(id->up == NULL);
     ASSERT(id->u_itf.blk != NULL);
 
-    id->is_checked = true;
-
-    check->cont_id = id;
-
     blk_check(check, id->u_itf.blk);
-
-    check->cont_id = NULL;
 
     meta_set_object(&id->meta, id->name);
 
@@ -367,6 +356,7 @@ id_check_label(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_label_id(id), id->kind);
     ASSERT(id->name != NULL);
+    ASSERT(id->up != NULL);
     ASSERT(id->u_lab.stmt != NULL);
 
     return NO_ERROR;
@@ -392,7 +382,6 @@ id_check_tuple(check_t *check, ast_id_t *id)
         ast_id_t *elem_id = array_get_id(elem_ids, i);
 
         elem_id->mod = id->mod;
-        elem_id->scope = id->scope;
 
         if (is_var_id(elem_id)) {
             /* The default expression for the tuple identifier
@@ -402,11 +391,14 @@ id_check_tuple(check_t *check, ast_id_t *id)
             if (elem_id->u_var.type_meta == NULL)
                 elem_id->u_var.type_meta = id->u_tup.type_meta;
 
-            id_check_var(check, elem_id, true);
+            id_check(check, elem_id);
         }
         else {
-            id_check_return(check, elem_id);
+            ASSERT1(is_return_id(elem_id), elem_id->kind);
+            id_check(check, elem_id);
         }
+
+        elem_id->up = id->up;
 
         id->meta.elems[i] = &elem_id->meta;
 
@@ -432,9 +424,16 @@ id_check_tuple(check_t *check, ast_id_t *id)
 void
 id_check(check_t *check, ast_id_t *id)
 {
+    ASSERT(id != NULL);
+
+    id->up = check->id;
+    check->id = id;
+
+    id->is_checked = true;
+
     switch (id->kind) {
     case ID_VAR:
-        id_check_var(check, id, false);
+        id_check_var(check, id);
         break;
 
     case ID_STRUCT:
@@ -472,6 +471,8 @@ id_check(check_t *check, ast_id_t *id)
     default:
         ASSERT1(!"invalid identifier", id->kind);
     }
+
+    check->id = id->up;
 }
 
 /* end of check_id.c */

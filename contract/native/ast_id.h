@@ -31,8 +31,8 @@
 #define is_const_id(id)             flag_on((id)->mod, MOD_CONST)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
-#define is_global_id(id)            ((id)->scope == SCOPE_GLOBAL)
-#define is_local_id(id)             ((id)->scope == SCOPE_LOCAL)
+#define is_global_id(id)            is_cont_id(id->up)
+#define is_local_id(id)             !is_global_id(id)
 
 #define is_stack_id(id)                                                                  \
     (!(id)->is_param && (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta)))
@@ -75,14 +75,9 @@ typedef struct id_return_s {
 } id_return_t;
 
 typedef struct id_fn_s {
-    /* qualified function name (e.g, contract.function) */
-    char qname[NAME_MAX_LEN * 2 + 2];
-
     array_t *param_ids;
     ast_id_t *ret_id;
     ast_blk_t *blk;
-
-    ast_id_t *cont_id;
 } id_fn_t;
 
 typedef struct id_cont_s {
@@ -108,9 +103,7 @@ struct ast_id_s {
     AST_NODE_DECL;
 
     id_kind_t kind;
-
     modifier_t mod;     /* public or const */
-    scope_t scope;      /* global or local */
 
     char *name;
 
@@ -136,6 +129,8 @@ struct ast_id_s {
     int idx;            /* local index */
     int addr;           /* relative address */
     int offset;         /* offset (from addr) */
+
+    ast_id_t *up;
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);

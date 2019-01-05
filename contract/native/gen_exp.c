@@ -445,6 +445,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i, j = 0;
     int arg_cnt;
+    char name[NAME_MAX_LEN * 2 + 2];
     ast_id_t *id = exp->id;
     array_t *param_exps = exp->u_call.param_exps;
     ast_id_t *ret_id;
@@ -453,6 +454,9 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     if (is_map_type(&exp->meta))
         /* TODO */
         return gen_i32(gen, 0);
+
+    ASSERT(id->up != NULL);
+    ASSERT1(is_cont_id(id->up), id->up->kind);
 
     arg_cnt = array_size(param_exps);
     ret_id = id->u_fn.ret_id;
@@ -483,7 +487,9 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         }
     }
 
-    return BinaryenCall(gen->module, id->u_fn.qname, arg_exps, arg_cnt,
+    snprintf(name, sizeof(name), "%s.%s", id->up->name, id->name);
+
+    return BinaryenCall(gen->module, xstrdup(name), arg_exps, arg_cnt,
                         BinaryenTypeNone());
 }
 
@@ -562,9 +568,6 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     ASSERT(exp != NULL);
 
     switch (exp->kind) {
-    case EXP_NULL:
-        return NULL;
-
     case EXP_LOCAL_REF:
         return exp_gen_local_ref(gen, exp);
 

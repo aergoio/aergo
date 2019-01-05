@@ -23,7 +23,8 @@ typedef struct ir_bb_s ir_bb_t;
 #endif /* ! _IR_BB_T */
 
 struct ir_fn_s {
-    char *name;
+    /* qualified function name (e.g, contract.function) */
+    char name[NAME_MAX_LEN * 2 + 2];
 
     int param_cnt;
     BinaryenType *params;   /* parameter types (including return) */

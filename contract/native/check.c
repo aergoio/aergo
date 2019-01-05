@@ -25,12 +25,13 @@ check_init(check_t *check, ast_t *ast, flag_t flag)
     check->ast = ast;
 
     check->blk = root;
+    check->id = NULL;
 
     check->cont_id = NULL;
+    check->impl_id = NULL;
+
     check->qual_id = NULL;
     check->fn_id = NULL;
-
-    check->itf_blk = NULL;
 }
 
 void

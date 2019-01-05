@@ -17,9 +17,10 @@ fn_new(ast_id_t *id)
     ast_id_t *ret_id = id->u_fn.ret_id;
     ir_fn_t *fn = xmalloc(sizeof(ir_fn_t));
 
-    ASSERT(id->u_fn.cont_id != NULL);
+    ASSERT(id->up != NULL);
+    ASSERT1(is_cont_id(id->up), id->up->kind);
 
-    fn->name = id->u_fn.qname;
+    snprintf(fn->name, sizeof(fn->name), "%s.%s", id->up->name, id->name);
 
     fn->param_cnt = array_size(id->u_fn.param_ids);
 
@@ -85,7 +86,7 @@ fn_add_stack(ir_fn_t *fn, ast_id_t *id)
     fn->usage += meta_size(&id->meta);
 }
 
-void 
+void
 fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 {
     array_add_last(&fn->bbs, bb);

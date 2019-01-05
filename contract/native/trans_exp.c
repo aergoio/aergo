@@ -303,7 +303,7 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
 
     switch (exp->kind) {
     case EXP_NULL:
-        return;
+        break;
 
     case EXP_ID_REF:
         exp_trans_id_ref(trans, exp);
@@ -311,7 +311,7 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
 
     case EXP_LOCAL_REF:
     case EXP_STACK_REF:
-        return;
+        break;
 
     case EXP_LIT:
         exp_trans_lit(trans, exp);

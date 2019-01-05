@@ -57,12 +57,7 @@ blk_check(check_t *check, ast_blk_t *blk)
     check->blk = blk;
 
     array_foreach(&blk->ids, i) {
-        ast_id_t *id = array_get_id(&blk->ids, i);
-
-        if (is_cont_blk(blk))
-            id->scope = SCOPE_GLOBAL;
-
-        id_check(check, id);
+        id_check(check, array_get_id(&blk->ids, i));
     }
 
     array_foreach(&blk->stmts, i) {

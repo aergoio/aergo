@@ -553,12 +553,10 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
 static int
 stmt_check_goto(check_t *check, ast_stmt_t *stmt)
 {
-    ast_id_t *fn_id;
+    ast_id_t *fn_id = check->fn_id;
 
     ASSERT1(is_goto_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_goto.label != NULL);
-
-    fn_id = check->fn_id;
     ASSERT(fn_id != NULL);
 
     stmt->u_goto.jump_id = blk_search_label(fn_id->u_fn.blk, stmt->u_goto.label);
@@ -574,6 +572,7 @@ stmt_check_ddl(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_ddl_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_ddl.ddl != NULL);
 
+    /* TODO */
     return NO_ERROR;
 }
 

@@ -27,12 +27,13 @@ typedef struct check_s {
 
     /* temporary context */
     ast_blk_t *blk;         /* current block */
+    ast_id_t *id;           /* current identifier */
 
     ast_id_t *cont_id;      /* current contract */
+    ast_id_t *impl_id;      /* current interface of contract */
+
     ast_id_t *qual_id;      /* current access qualifier */
     ast_id_t *fn_id;        /* current function */
-
-    ast_blk_t *itf_blk;     /* interface block */
 } check_t;
 
 void check(ast_t *ast, flag_t flag);
