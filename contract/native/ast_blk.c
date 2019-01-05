@@ -42,13 +42,13 @@ blk_new_root(src_pos_t *pos)
 ast_blk_t *
 blk_new_contract(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_CONTRACT, pos);
+    return ast_blk_new(BLK_CONT, pos);
 }
 
 ast_blk_t *
 blk_new_interface(src_pos_t *pos)
 {
-    return ast_blk_new(BLK_INTERFACE, pos);
+    return ast_blk_new(BLK_ITF, pos);
 }
 
 ast_blk_t *

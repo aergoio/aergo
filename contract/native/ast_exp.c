@@ -180,8 +180,8 @@ exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_STACK_REF, pos);
 
-    exp->u_st.addr = addr;
-    exp->u_st.offset = offset;
+    exp->u_stk.addr = addr;
+    exp->u_stk.offset = offset;
 
     return exp;
 }
@@ -211,7 +211,7 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_STACK_REF:
-        res = exp_new_stack_ref(exp->u_st.addr, exp->u_st.offset, &exp->pos);
+        res = exp_new_stack_ref(exp->u_stk.addr, exp->u_stk.offset, &exp->pos);
         break;
 
     case EXP_LIT:

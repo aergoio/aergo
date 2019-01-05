@@ -88,8 +88,8 @@ typedef enum id_kind_e {
     ID_ENUM,
     ID_RETURN,
     ID_FN,
-    ID_CONTRACT,
-    ID_INTERFACE,
+    ID_CONT,
+    ID_ITF,
     ID_LABEL,
     ID_TUPLE,
     ID_MAX
@@ -146,8 +146,8 @@ extern char *stmt_kinds_[STMT_MAX];
 typedef enum blk_kind_e {
     BLK_NORMAL      = 0,
     BLK_ROOT,
-    BLK_CONTRACT,
-    BLK_INTERFACE,
+    BLK_CONT,
+    BLK_ITF,
     BLK_FN,
     BLK_LOOP,
     BLK_SWITCH,

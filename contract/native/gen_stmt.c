@@ -46,8 +46,8 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenSetLocal(gen->module, l_exp->u_lo.idx, value);
 
     if (is_stack_ref_exp(l_exp)) {
-        address = gen_i32(gen, l_exp->u_st.addr);
-        offset = l_exp->u_st.offset;
+        address = gen_i32(gen, l_exp->u_stk.addr);
+        offset = l_exp->u_stk.offset;
     }
     else {
         gen->is_lval = true;

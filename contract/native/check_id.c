@@ -249,7 +249,7 @@ id_check_fn(check_t *check, ast_id_t *id)
 
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
 
-        if (!is_inter_id(check->cont_id) &&
+        if (!is_itf_id(check->cont_id) &&
             (id->u_fn.blk == NULL ||
              !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
             ERROR(ERROR_MISSING_RETURN, &id->pos);
@@ -261,9 +261,9 @@ id_check_fn(check_t *check, ast_id_t *id)
         meta_set_void(&id->meta);
     }
 
-    if (check->inter_blk != NULL) {
-        array_foreach(&check->inter_blk->ids, i) {
-            ast_id_t *spec_id = array_get_id(&check->inter_blk->ids, i);
+    if (check->itf_blk != NULL) {
+        array_foreach(&check->itf_blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&check->itf_blk->ids, i);
 
             if (strcmp(spec_id->name, id->name) == 0 && id_cmp(spec_id, id)) {
                 spec_id->is_used = true;
@@ -307,15 +307,15 @@ id_check_contract(check_t *check, ast_id_t *id)
         exp_check(check, impl_exp);
 
         if (impl_exp->id != NULL) {
-            ast_blk_t *inter_blk = impl_exp->id->u_inter.blk;
+            ast_blk_t *itf_blk = impl_exp->id->u_itf.blk;
 
-            ASSERT1(is_inter_id(impl_exp->id), impl_exp->id->kind);
+            ASSERT1(is_itf_id(impl_exp->id), impl_exp->id->kind);
 
-            array_foreach(&inter_blk->ids, i) {
-                array_get_id(&inter_blk->ids, i)->is_used = false;
+            array_foreach(&itf_blk->ids, i) {
+                array_get_id(&itf_blk->ids, i)->is_used = false;
             }
 
-            check->inter_blk = inter_blk;
+            check->itf_blk = itf_blk;
         }
     }
 
@@ -326,15 +326,15 @@ id_check_contract(check_t *check, ast_id_t *id)
 
     check->cont_id = NULL;
 
-    if (check->inter_blk != NULL) {
-        array_foreach(&check->inter_blk->ids, i) {
-            ast_id_t *fn_id = array_get_id(&check->inter_blk->ids, i);
+    if (check->itf_blk != NULL) {
+        array_foreach(&check->itf_blk->ids, i) {
+            ast_id_t *fn_id = array_get_id(&check->itf_blk->ids, i);
 
             if (!fn_id->is_used)
                 ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, fn_id->name);
         }
 
-        check->inter_blk = NULL;
+        check->itf_blk = NULL;
     }
 
     meta_set_object(&id->meta, id->name);
@@ -345,15 +345,15 @@ id_check_contract(check_t *check, ast_id_t *id)
 static int
 id_check_interface(check_t *check, ast_id_t *id)
 {
-    ASSERT1(is_inter_id(id), id->kind);
+    ASSERT1(is_itf_id(id), id->kind);
     ASSERT(id->name != NULL);
-    ASSERT(id->u_inter.blk != NULL);
+    ASSERT(id->u_itf.blk != NULL);
 
     id->is_checked = true;
 
     check->cont_id = id;
 
-    blk_check(check, id->u_inter.blk);
+    blk_check(check, id->u_itf.blk);
 
     check->cont_id = NULL;
 
@@ -453,11 +453,11 @@ id_check(check_t *check, ast_id_t *id)
         id_check_fn(check, id);
         break;
 
-    case ID_CONTRACT:
+    case ID_CONT:
         id_check_contract(check, id);
         break;
 
-    case ID_INTERFACE:
+    case ID_ITF:
         id_check_interface(check, id);
         break;
 

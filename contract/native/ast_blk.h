@@ -13,8 +13,8 @@
 
 #define is_normal_blk(blk)          ((blk)->kind == BLK_NORMAL)
 #define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
-#define is_cont_blk(blk)            ((blk)->kind == BLK_CONTRACT)
-#define is_inter_blk(blk)           ((blk)->kind == BLK_INTERFACE)
+#define is_cont_blk(blk)            ((blk)->kind == BLK_CONT)
+#define is_itf_blk(blk)             ((blk)->kind == BLK_ITF)
 #define is_fn_blk(blk)              ((blk)->kind == BLK_FN)
 #define is_loop_blk(blk)            ((blk)->kind == BLK_LOOP)
 

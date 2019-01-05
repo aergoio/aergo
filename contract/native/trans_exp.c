@@ -29,8 +29,8 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
         ASSERT(id->addr >= 0);
 
         exp->kind = EXP_STACK_REF;
-        exp->u_st.addr = id->addr;
-        exp->u_st.offset = id->offset;
+        exp->u_stk.addr = id->addr;
+        exp->u_stk.offset = id->offset;
     }
     else {
         ASSERT(id->idx >= 0);
@@ -85,14 +85,14 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             return;
 
         if (is_stack_ref_exp(id_exp))
-            offset += id_exp->u_st.offset;
+            offset += id_exp->u_stk.offset;
 
         /* The following arr_size is stripped arr_size */
         offset += val_i64(&idx_exp->u_lit.val) * exp->meta.arr_size;
 
         exp->kind = EXP_STACK_REF;
-        exp->u_st.addr = id->addr;
-        exp->u_st.offset = offset;
+        exp->u_stk.addr = id->addr;
+        exp->u_stk.offset = offset;
     }
     else {
         /* TODO
@@ -211,8 +211,8 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ASSERT(qual_id != NULL);
 
     exp->kind = EXP_STACK_REF;
-    exp->u_st.addr = qual_id->addr;
-    exp->u_st.offset = fld_id->offset;
+    exp->u_stk.addr = qual_id->addr;
+    exp->u_stk.offset = fld_id->offset;
 }
 
 static void
@@ -263,8 +263,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             ASSERT1(ret_id->offset == 0, ret_id->offset);
 
             exp->kind = EXP_STACK_REF;
-            exp->u_st.addr = ret_id->addr;
-            exp->u_st.offset = 0;
+            exp->u_stk.addr = ret_id->addr;
+            exp->u_stk.offset = 0;
         }
     }
 }

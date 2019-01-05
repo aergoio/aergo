@@ -171,7 +171,7 @@ id_trans(trans_t *trans, ast_id_t *id)
         id_trans_fn(trans, id);
         break;
 
-    case ID_CONTRACT:
+    case ID_CONT:
         id_trans_contract(trans, id);
         break;
 
@@ -185,7 +185,7 @@ id_trans(trans_t *trans, ast_id_t *id)
 
     case ID_STRUCT:
     case ID_ENUM:
-    case ID_INTERFACE:
+    case ID_ITF:
         break;
 
     default:

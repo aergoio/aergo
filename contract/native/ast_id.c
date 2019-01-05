@@ -71,7 +71,7 @@ id_new_return(char *name, meta_t *type_meta, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_fn(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
+id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
             ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FN, mod, name, pos);
@@ -89,13 +89,13 @@ id_new_fn(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
 ast_id_t *
 id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 {
-    return id_new_fn(name, MOD_PUBLIC | MOD_CTOR, param_ids, NULL, blk, pos);
+    return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids, NULL, blk, pos);
 }
 
 ast_id_t *
 id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_CONTRACT, MOD_PUBLIC, name, pos);
+    ast_id_t *id = ast_id_new(ID_CONT, MOD_PUBLIC, name, pos);
 
     ASSERT1(is_cont_blk(blk), blk->kind);
 
@@ -108,9 +108,9 @@ id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk, src_pos_t *pos)
 ast_id_t *
 id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos)
 {
-    ast_id_t *id = ast_id_new(ID_INTERFACE, MOD_PUBLIC, name, pos);
+    ast_id_t *id = ast_id_new(ID_ITF, MOD_PUBLIC, name, pos);
 
-    id->u_inter.blk = blk;
+    id->u_itf.blk = blk;
 
     return id;
 }
@@ -150,8 +150,8 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
         fld_ids = id->u_enum.elem_ids;
     else if (is_cont_id(id) && id->u_cont.blk != NULL)
         fld_ids = &id->u_cont.blk->ids;
-    else if (is_inter_id(id))
-        fld_ids = &id->u_inter.blk->ids;
+    else if (is_itf_id(id))
+        fld_ids = &id->u_itf.blk->ids;
     else
         return NULL;
 

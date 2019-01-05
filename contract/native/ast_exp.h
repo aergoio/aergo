@@ -153,7 +153,7 @@ struct ast_exp_s {
         exp_tuple_t u_tup;
         exp_init_t u_init;
         exp_local_ref_t u_lo;
-        exp_stack_ref_t u_st;
+        exp_stack_ref_t u_stk;
     };
 
     ast_id_t *id;       /* referenced identifier */

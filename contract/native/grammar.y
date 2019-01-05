@@ -658,7 +658,7 @@ function:
 func_spec:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt
     {
-        $$ = id_new_fn($3, $1, $5, $7, NULL, &@3);
+        $$ = id_new_func($3, $1, $5, $7, NULL, &@3);
     }
 ;
 

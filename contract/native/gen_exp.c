@@ -22,8 +22,8 @@ exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
 
     return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
-                        exp->u_st.offset, 0, meta_gen(meta),
-                        gen_i32(gen, exp->u_st.addr));
+                        exp->u_stk.offset, 0, meta_gen(meta),
+                        gen_i32(gen, exp->u_stk.addr));
 }
 
 static BinaryenExpressionRef
