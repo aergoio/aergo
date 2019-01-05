@@ -6,14 +6,13 @@
 #include "common.h"
 
 #include "ast_id.h"
-#include "gen_util.h"
 
 #include "gen_exp.h"
 
 static BinaryenExpressionRef
 exp_gen_local_ref(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetLocal(gen->module, exp->u_lo.idx, meta_gen(&exp->meta));
+    return BinaryenGetLocal(gen->module, exp->u_lo.idx, gen_meta(&exp->meta));
 }
 
 static BinaryenExpressionRef
@@ -22,7 +21,7 @@ exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
 
     return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
-                        exp->u_stk.offset, 0, meta_gen(meta),
+                        exp->u_stk.offset, 0, gen_meta(meta),
                         gen_i32(gen, exp->u_stk.addr));
 }
 
@@ -94,7 +93,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             return address;
 
         return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta), 0, 0,
-                            meta_gen(meta), address);
+                            gen_meta(meta), address);
     }
     else {
         ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
@@ -518,7 +517,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         if (is_return_id(id))
             address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
         else
-            address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
+            address = BinaryenGetLocal(gen->module, id->idx, gen_meta(&id->meta));
     }
     else {
         ASSERT(id->addr >= 0);
@@ -537,7 +536,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             gen_add_instr(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type),
                                              offset, 0, address, value,
-                                             meta_gen(elem_meta)));
+                                             gen_meta(elem_meta)));
 
             offset += meta_size(elem_meta);
         }

@@ -14,32 +14,32 @@ static int
 exp_check_id_ref(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
+    char *name = exp->u_id.name;
 
     ASSERT1(is_id_ref_exp(exp), exp->kind);
-    ASSERT(exp->u_id.name != NULL);
+    ASSERT(name != NULL);
 
-    if (strcmp(exp->u_id.name, "this") == 0) {
+    if (strcmp(name, "this") == 0) {
         id = check->cont_id;
     }
     else if (check->qual_id != NULL) {
-        id = id_search_fld(check->qual_id, exp->u_id.name,
-                           check->cont_id == check->qual_id);
+        id = id_search_fld(check->qual_id, name, check->cont_id == check->qual_id);
     }
     else {
         if (check->fn_id != NULL)
-            id = id_search_param(check->fn_id, exp->u_id.name);
+            id = id_search_param(check->fn_id, name);
 
         if (id == NULL) {
-            id = blk_search_id(check->blk, exp->u_id.name, exp->num);
+            id = blk_search_id(check->blk, name, exp->num);
 
             if (id != NULL && is_cont_id(id))
                 /* search constructor */
-                id = blk_search_id(id->u_cont.blk, exp->u_id.name, exp->num);
+                id = blk_search_id(id->u_cont.blk, name, exp->num);
         }
     }
 
     if (id == NULL)
-        RETURN(ERROR_UNDEFINED_ID, &exp->pos, exp->u_id.name);
+        RETURN(ERROR_UNDEFINED_ID, &exp->pos, name);
 
     ASSERT(id->is_checked);
 

@@ -112,8 +112,6 @@ typedef struct stmt_blk_s {
 } stmt_blk_t;
 
 struct ast_stmt_s {
-    AST_NODE_DECL;
-
     stmt_kind_t kind;
 
     union {
@@ -131,6 +129,8 @@ struct ast_stmt_s {
     };
 
     ir_bb_t *label_bb;
+
+    AST_NODE_DECL;
 };
 
 ast_stmt_t *stmt_new_null(src_pos_t *pos);

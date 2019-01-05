@@ -34,7 +34,7 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 static ast_exp_t *
 gen_dflt_exp(meta_t *meta)
 {
-    ast_exp_t *dflt_exp = exp_new_lit(&meta->pos);
+    ast_exp_t *dflt_exp = exp_new_lit(meta->pos);
 
     if (is_array_type(meta)) {
         value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);

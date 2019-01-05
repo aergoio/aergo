@@ -103,8 +103,6 @@ typedef struct meta_object_s {
 } meta_object_t;
 
 struct meta_s {
-    AST_NODE_DECL;
-
     type_t type;
     int size;               /* unit size of type */
 
@@ -120,6 +118,9 @@ struct meta_s {
         meta_tuple_t u_tup;
         meta_object_t u_obj;
     };
+
+    int num;
+    src_pos_t *pos;
 };
 
 char *meta_to_str(meta_t *x);
@@ -143,7 +144,8 @@ meta_init(meta_t *meta, src_pos_t *pos)
 
     memset(meta, 0x00, sizeof(meta_t));
 
-    ast_node_init(meta, pos);
+    meta->num = node_num_++;
+    meta->pos = pos;
 }
 
 static inline meta_t *
@@ -155,6 +157,11 @@ meta_new(type_t type, src_pos_t *pos)
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
+
+    meta->num = node_num_++;
+
+    meta->pos = xmalloc(sizeof(src_pos_t));
+    memcpy(meta->pos, pos, sizeof(src_pos_t));
 
     return meta;
 }
@@ -187,6 +194,7 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
 static inline void
 meta_set_dim_size(meta_t *meta, int dim, int size)
 {
+    ASSERT(dim >= 0);
     ASSERT(meta->arr_dim > 0);
 
     meta->dim_sizes[dim] = size;
@@ -215,7 +223,6 @@ meta_strip_arr_dim(meta_t *meta)
 static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
-    /* deliberately excluded num and src_pos */
     dest->type = src->type;
     dest->size = src->size;
     dest->name = src->name;
@@ -231,6 +238,8 @@ meta_copy(meta_t *dest, meta_t *src)
     else if (is_object_type(src)) {
         dest->u_obj.id = src->u_obj.id;
     }
+
+    /* deliberately excluded num and src_pos */
 }
 
 #endif /* ! _META_H */

@@ -34,14 +34,14 @@ typedef struct ast_stmt_s ast_stmt_t;
 #endif /* ! _AST_STMT_T */
 
 struct ast_blk_s {
-    AST_NODE_DECL;
-
     blk_kind_t kind;
 
     array_t ids;
     array_t stmts;
 
     ast_blk_t *up;
+
+    AST_NODE_DECL;
 };
 
 ast_blk_t *blk_new_normal(src_pos_t *pos);

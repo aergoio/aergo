@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "ir.h"
+#include "meta.h"
 #include "binaryen-c.h"
 
 typedef struct gen_s {
@@ -28,5 +29,34 @@ typedef struct gen_s {
 } gen_t;
 
 void gen(ir_t *ir, flag_t flag, char *path);
+
+void gen_add_local(gen_t *gen, type_t type);
+void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
+
+BinaryenType gen_meta(meta_t *meta);
+
+static inline BinaryenExpressionRef
+gen_i32(gen_t *gen, int32_t v)
+{
+    return BinaryenConst(gen->module, BinaryenLiteralInt32(v));
+}
+
+static inline BinaryenExpressionRef
+gen_i64(gen_t *gen, int64_t v)
+{
+    return BinaryenConst(gen->module, BinaryenLiteralInt64(v));
+}
+
+static inline BinaryenExpressionRef
+gen_f32(gen_t *gen, float v)
+{
+    return BinaryenConst(gen->module, BinaryenLiteralFloat32(v));
+}
+
+static inline BinaryenExpressionRef
+gen_f64(gen_t *gen, double v)
+{
+    return BinaryenConst(gen->module, BinaryenLiteralFloat64(v));
+}
 
 #endif /* ! _GEN_H */

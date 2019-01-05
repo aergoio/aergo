@@ -6,7 +6,6 @@
 #include "common.h"
 
 #include "ir_bb.h"
-#include "gen_util.h"
 
 #include "ir_fn.h"
 
@@ -36,7 +35,7 @@ fn_new(ast_id_t *id)
     array_foreach(id->u_fn.param_ids, i) {
         ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
-        fn->params[j] = meta_gen(&param_id->meta);
+        fn->params[j] = gen_meta(&param_id->meta);
         param_id->idx = j++;
     }
 

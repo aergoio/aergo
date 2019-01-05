@@ -7,7 +7,6 @@
 
 #include "ast_id.h"
 #include "gen_exp.h"
-#include "gen_util.h"
 
 #include "gen_stmt.h"
 
@@ -35,10 +34,10 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         if (is_return_id(id))
             address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
         else
-            address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
+            address = BinaryenGetLocal(gen->module, id->idx, gen_meta(&id->meta));
 
         return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0,
-                             address, value, meta_gen(&l_exp->meta));
+                             address, value, gen_meta(&l_exp->meta));
     }
 
     ASSERT1(is_var_id(id), id->kind);
@@ -58,7 +57,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 
     return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0, address,
-                         value, meta_gen(&l_exp->meta));
+                         value, gen_meta(&l_exp->meta));
 }
 
 static BinaryenExpressionRef

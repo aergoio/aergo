@@ -30,7 +30,6 @@ set(libascl_SRCS
     check_blk.c
     check_stmt.c
     check_exp.c
-    check_meta.c
     ir.c
     ir_fn.c
     ir_bb.c
@@ -45,7 +44,6 @@ set(libascl_SRCS
     gen_bb.c
     gen_stmt.c
     gen_exp.c
-    gen_util.c
     assert.c
     error.c
     strbuf.c

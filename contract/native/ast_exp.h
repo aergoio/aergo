@@ -135,8 +135,6 @@ typedef struct exp_stack_ref_s {
 } exp_stack_ref_t;
 
 struct ast_exp_s {
-    AST_NODE_DECL;
-
     exp_kind_t kind;
 
     union {
@@ -158,6 +156,8 @@ struct ast_exp_s {
 
     ast_id_t *id;       /* referenced identifier */
     meta_t meta;
+
+    AST_NODE_DECL;
 };
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
