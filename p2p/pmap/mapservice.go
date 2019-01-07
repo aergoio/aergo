@@ -64,7 +64,18 @@ var (
 	TestnetMapServer = []string{
 		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
+
+	// Hardcoded chainID of ONE MAINNET and ONE TESTNET
+	ONEMainNet types.ChainID
+	ONETestNet types.ChainID
 )
+
+func init() {
+	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet:true,CoinbaseFee:"999999999999",Consensus:"dpos",Magic:"mainnet.aergo.io"}
+
+	ONETestNet = types.ChainID{PublicNet: true, MainNet:false,CoinbaseFee:"1000000000",Consensus:"dpos",Magic:"testnet.aergo.io"}
+}
 
 type mapService interface {
 	getPeerCheckers() []peerChecker
