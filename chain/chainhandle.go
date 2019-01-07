@@ -10,7 +10,6 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/aergoio/aergo/account/key"
@@ -30,8 +29,7 @@ var (
 	ErrBlockCachedErrLRU     = errors.New("block is stored in errored blocks cache")
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 
-	errBlockStale     = errors.New("produced block becomes stale")
-	errInvalidChainID = errors.New("invalid chain id")
+	errBlockStale = errors.New("produced block becomes stale")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -810,10 +808,6 @@ func (cs *ChainService) addOrphan(block *types.Block) error {
 	return cs.op.addOrphan(block)
 }
 
-// TODO adhoc flag refactor it
-const HashNumberUnknown = math.MaxUint64
-
-
 func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
 	// 1. check endpoint is on main chain (or, return nil)
 	logger.Debug().Int("len", len(Hashes)).Msg("find ancestor")
@@ -848,4 +842,9 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 	}
 
 	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
+}
+
+func (cs *ChainService) setSync(isSync bool) {
+	//don't use mempool if sync is in progress
+	cs.validator.signVerifier.SetSkipMempool(isSync)
 }
