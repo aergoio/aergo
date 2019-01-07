@@ -22,7 +22,7 @@ var initGenesis = &cobra.Command{
 	Short: "Create genesis block based on input json file",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
-			fmt.Fprintln(os.Stderr, "Usage: aergosvr init {genesis.json} --data {target directory}")
+			fmt.Fprintln(os.Stderr, "Usage: aergosvr init {genesis.json} --dir {target directory}")
 			return
 		}
 		jsonpath := args[0]
