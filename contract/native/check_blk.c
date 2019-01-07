@@ -24,7 +24,7 @@ check_unused_ids(check_t *check, array_t *ids)
             array_foreach(elem_ids, j) {
                 ast_id_t *elem_id = array_get_id(elem_ids, j);
 
-                if (!elem_id->is_used)
+                if (!is_public_id(elem_id) && !elem_id->is_used)
                     WARN(ERROR_UNUSED_ID, &elem_id->pos, elem_id->name);
             }
         }
@@ -40,7 +40,7 @@ check_unused_ids(check_t *check, array_t *ids)
                 }
             }
 
-            if (!is_ctor_id(id) && !id->is_used)
+            if (!is_public_id(id) && !id->is_used)
                 WARN(ERROR_UNUSED_ID, &id->pos, id->name);
         }
     }

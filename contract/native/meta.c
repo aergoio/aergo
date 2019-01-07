@@ -147,6 +147,9 @@ meta_set_object(meta_t *meta, ast_id_t *id)
         meta->name = id->name;
     }
 
+    /* for base address, base table index */
+    meta->size = sizeof(int32_t) * 2;
+
     meta->type_id = id;
 }
 

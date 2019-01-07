@@ -28,7 +28,16 @@ ir_new(void)
 void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
-    id->addr = sgmt_add_global(&ir->sgmt, id->meta.type);
+    int addr;
+    ast_id_t *cont_id = id->up;
+
+    addr = sgmt_add_global(&ir->sgmt, id->meta.type);
+
+    if (cont_id->addr < 0)
+        cont_id->addr = addr;
+
+    id->addr = cont_id->addr;
+    id->offset = addr - cont_id->addr;
 }
 
 void

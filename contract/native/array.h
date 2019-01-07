@@ -48,6 +48,8 @@ void array_add(array_t *array, int idx, void *item);
 void array_sadd(array_t *array, void *item, int (*cmp_fn)(const void *, const void *));
 void array_join(array_t *dest, int idx, array_t *src);
 
+void array_move(array_t *array, int from_idx, int to_idx);
+
 void *array_del(array_t *array, int idx);
 
 static inline void

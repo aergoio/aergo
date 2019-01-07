@@ -42,6 +42,7 @@ contract callee { }
 
 contract test {
     func f() {
+        test t = new test();
         callee c = new callee();
     }
 }

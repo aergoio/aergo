@@ -99,6 +99,34 @@ array_join(array_t *dest, int idx, array_t *src)
     array_reset(src);
 }
 
+void
+array_move(array_t *array, int from_idx, int to_idx)
+{
+    int i;
+    void *item;
+
+    ASSERT(array != NULL);
+    ASSERT2(from_idx >= 0 && to_idx >= 0, from_idx, to_idx);
+
+    if (from_idx == to_idx)
+        return;
+
+    item = array->items[from_idx];
+
+    if (from_idx < to_idx) {
+        for (i = from_idx; i < to_idx; i++) {
+            array->items[i] = array->items[i + 1];
+        }
+    }
+    else {
+        for (i = from_idx; i > to_idx; i--) {
+            array->items[i] = array->items[i - 1];
+        }
+    }
+
+    array->items[to_idx] = item;
+}
+
 void *
 array_del(array_t *array, int idx)
 {
@@ -110,7 +138,7 @@ array_del(array_t *array, int idx)
     item = array->items[idx];
 
     if (idx < array->size - 1)
-        memmove(&array->items[idx], &array->items[idx + 1], 
+        memmove(&array->items[idx], &array->items[idx + 1],
                 sizeof(void *) * array->size - idx - 1);
 
     array->size--;

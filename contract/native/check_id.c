@@ -334,19 +334,18 @@ id_check_contract(check_t *check, ast_id_t *id)
     ASSERT(id->up == NULL);
 
     if (impl_exp != NULL) {
-        exp_check(check, impl_exp);
+        if (exp_check(check, impl_exp)) {
+            ast_id_t *impl_id = impl_exp->id;
 
-        if (impl_exp->id != NULL) {
             /* unmark is_used flag */
-            ast_blk_t *blk = impl_exp->id->u_itf.blk;
+            ASSERT(impl_id != NULL);
+            ASSERT1(is_itf_id(impl_id), impl_id->kind);
 
-            ASSERT1(is_itf_id(impl_exp->id), impl_exp->id->kind);
-
-            array_foreach(&blk->ids, i) {
-                array_get_id(&blk->ids, i)->is_used = false;
+            array_foreach(&impl_id->u_itf.blk->ids, i) {
+                array_get_id(&impl_id->u_itf.blk->ids, i)->is_used = false;
             }
 
-            check->impl_id = impl_exp->id;
+            check->impl_id = impl_id;
         }
     }
 
