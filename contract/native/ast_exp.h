@@ -181,6 +181,6 @@ ast_exp_t *exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 
-bool exp_equals(ast_exp_t *e1, ast_exp_t *e2);
+bool exp_equals(ast_exp_t *x, ast_exp_t *y);
 
 #endif /* ! _AST_EXP_H */

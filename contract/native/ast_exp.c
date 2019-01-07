@@ -283,81 +283,81 @@ exp_clone(ast_exp_t *exp)
 }
 
 bool
-exp_equals(ast_exp_t *e1, ast_exp_t *e2)
+exp_equals(ast_exp_t *x, ast_exp_t *y)
 {
     int i;
 
-    if (e1 == NULL && e2 == NULL)
+    if (x == NULL && y == NULL)
         return true;
 
-    if (e1 == NULL || e2 == NULL || e1->kind != e2->kind)
+    if (x == NULL || y == NULL || x->kind != y->kind)
         return false;
 
-    switch (e1->kind) {
+    switch (x->kind) {
     case EXP_NULL:
         return true;
 
     case EXP_ID_REF:
-        return strcmp(e1->u_id.name, e2->u_id.name) == 0;
+        return strcmp(x->u_id.name, y->u_id.name) == 0;
 
     case EXP_LIT:
-        return e1->u_lit.val.type == e2->u_lit.val.type &&
-            value_cmp(&e1->u_lit.val, &e2->u_lit.val) == 0;
+        return x->u_lit.val.type == y->u_lit.val.type &&
+            value_cmp(&x->u_lit.val, &y->u_lit.val) == 0;
 
     case EXP_ARRAY:
-        return exp_equals(e1->u_arr.id_exp, e2->u_arr.id_exp) &&
-            exp_equals(e1->u_arr.idx_exp, e2->u_arr.idx_exp);
+        return exp_equals(x->u_arr.id_exp, y->u_arr.id_exp) &&
+            exp_equals(x->u_arr.idx_exp, y->u_arr.idx_exp);
 
     case EXP_CAST:
-        return e1->u_cast.to_meta.type == e2->u_cast.to_meta.type &&
-            exp_equals(e1->u_cast.val_exp, e2->u_cast.val_exp);
+        return x->u_cast.to_meta.type == y->u_cast.to_meta.type &&
+            exp_equals(x->u_cast.val_exp, y->u_cast.val_exp);
 
     case EXP_UNARY:
-        return e1->u_un.kind == e2->u_un.kind &&
-            exp_equals(e1->u_un.val_exp, e2->u_un.val_exp);
+        return x->u_un.kind == y->u_un.kind &&
+            exp_equals(x->u_un.val_exp, y->u_un.val_exp);
 
     case EXP_BINARY:
-        return e1->u_bin.kind == e2->u_bin.kind &&
-            exp_equals(e1->u_bin.l_exp, e2->u_bin.l_exp) &&
-            exp_equals(e1->u_bin.r_exp, e2->u_bin.r_exp);
+        return x->u_bin.kind == y->u_bin.kind &&
+            exp_equals(x->u_bin.l_exp, y->u_bin.l_exp) &&
+            exp_equals(x->u_bin.r_exp, y->u_bin.r_exp);
 
     case EXP_TERNARY:
-        return exp_equals(e1->u_tern.pre_exp, e2->u_tern.pre_exp) &&
-            exp_equals(e1->u_tern.in_exp, e2->u_tern.in_exp) &&
-            exp_equals(e1->u_tern.post_exp, e2->u_tern.post_exp);
+        return exp_equals(x->u_tern.pre_exp, y->u_tern.pre_exp) &&
+            exp_equals(x->u_tern.in_exp, y->u_tern.in_exp) &&
+            exp_equals(x->u_tern.post_exp, y->u_tern.post_exp);
 
     case EXP_ACCESS:
-        return exp_equals(e1->u_acc.id_exp, e2->u_acc.id_exp) &&
-            exp_equals(e1->u_acc.fld_exp, e2->u_acc.fld_exp);
+        return exp_equals(x->u_acc.id_exp, y->u_acc.id_exp) &&
+            exp_equals(x->u_acc.fld_exp, y->u_acc.fld_exp);
 
     case EXP_CALL:
-        if (array_size(e1->u_call.param_exps) != array_size(e2->u_call.param_exps))
+        if (array_size(x->u_call.param_exps) != array_size(y->u_call.param_exps))
             return false;
 
-        array_foreach(e1->u_call.param_exps, i) {
-            if (!exp_equals(array_get_exp(e1->u_call.param_exps, i),
-                            array_get_exp(e2->u_call.param_exps, i)))
+        array_foreach(x->u_call.param_exps, i) {
+            if (!exp_equals(array_get_exp(x->u_call.param_exps, i),
+                            array_get_exp(y->u_call.param_exps, i)))
                 return false;
         }
-        return exp_equals(e1->u_acc.id_exp, e2->u_acc.id_exp);
+        return exp_equals(x->u_acc.id_exp, y->u_acc.id_exp);
 
     case EXP_SQL:
-        return e1->u_sql.kind == e2->u_sql.kind &&
-            strcmp(e1->u_sql.sql, e2->u_sql.sql) == 0;
+        return x->u_sql.kind == y->u_sql.kind &&
+            strcmp(x->u_sql.sql, y->u_sql.sql) == 0;
 
     case EXP_TUPLE:
-        if (array_size(e1->u_tup.elem_exps) != array_size(e2->u_tup.elem_exps))
+        if (array_size(x->u_tup.elem_exps) != array_size(y->u_tup.elem_exps))
             return false;
 
-        array_foreach(e1->u_tup.elem_exps, i) {
-            if (!exp_equals(array_get_exp(e1->u_tup.elem_exps, i),
-                            array_get_exp(e2->u_tup.elem_exps, i)))
+        array_foreach(x->u_tup.elem_exps, i) {
+            if (!exp_equals(array_get_exp(x->u_tup.elem_exps, i),
+                            array_get_exp(y->u_tup.elem_exps, i)))
                 return false;
         }
         return true;
 
     default:
-        ASSERT1(!"invalid expression", e1->kind);
+        ASSERT1(!"invalid expression", x->kind);
     }
 
     return false;

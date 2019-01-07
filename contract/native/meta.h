@@ -122,11 +122,8 @@ void meta_set_tuple(meta_t *meta, array_t *elem_exps);
 void meta_set_struct(meta_t *meta, ast_id_t *id);
 void meta_set_object(meta_t *meta, ast_id_t *id);
 
-int meta_cmp(meta_t *x, meta_t *y);
-
+bool meta_cmp(meta_t *x, meta_t *y);
 void meta_eval(meta_t *x, meta_t *y);
-
-void meta_dump(meta_t *meta, int indent);
 
 static inline void
 meta_init(meta_t *meta, src_pos_t *pos)

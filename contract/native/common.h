@@ -52,15 +52,14 @@ typedef unsigned char bool;
 
 #define CHECK(stmt)                                                                      \
     do {                                                                                 \
-        ec_t ec = (stmt);                                                                \
-        if (ec != NO_ERROR)                                                              \
-            return ec;                                                                   \
+        if (!(stmt))                                                                     \
+            return false;                                                                \
     } while (0)
 
 #define RETURN(ec, pos, ...)                                                             \
     do {                                                                                 \
         error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__);                              \
-        return (ec);                                                                     \
+        return false;                                                                    \
     } while (0)
 
 #endif /* ! _COMMON_H */

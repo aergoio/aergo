@@ -11,7 +11,7 @@
 
 #include "check_exp.h"
 
-static int
+static bool
 exp_check_id_ref(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
@@ -51,10 +51,10 @@ exp_check_id_ref(check_t *check, ast_exp_t *exp)
 
     meta_copy(&exp->meta, &id->meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
@@ -82,10 +82,10 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid value", exp->u_lit.val.type);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_array(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
@@ -140,10 +140,10 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta->elems[1]);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_cast(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *val_exp;
@@ -172,10 +172,10 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
         meta_set_undef(&exp->meta);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_unary(check_t *check, ast_exp_t *exp)
 {
     op_kind_t op = exp->u_un.kind;
@@ -227,10 +227,10 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         meta_set_undef(&exp->meta);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_op_arith(check_t *check, ast_exp_t *exp)
 {
     op_kind_t op = exp->u_bin.kind;
@@ -266,10 +266,10 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     meta_eval(l_meta, r_meta);
     meta_copy(&exp->meta, l_meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_op_bit(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
@@ -313,10 +313,10 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     meta_eval(l_meta, r_meta);
     meta_copy(&exp->meta, l_meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
@@ -345,10 +345,10 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
     meta_eval(l_meta, r_meta);
     meta_set_bool(&exp->meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
@@ -378,10 +378,10 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
     meta_eval(l_meta, r_meta);
     meta_set_bool(&exp->meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_binary(check_t *check, ast_exp_t *exp)
 {
     op_kind_t op = exp->u_bin.kind;
@@ -428,7 +428,7 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
         ast_exp_t *r_exp = exp->u_bin.r_exp;
 
         if (!is_lit_exp(r_exp))
-            return NO_ERROR;
+            return true;
 
         if ((op == OP_DIV || op == OP_MOD) && is_zero_val(&r_exp->u_lit.val))
             RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
@@ -439,10 +439,10 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
         meta_set_undef(&exp->meta);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_ternary(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *pre_exp, *in_exp, *post_exp;
@@ -475,10 +475,10 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     meta_eval(in_meta, post_meta);
     meta_copy(&exp->meta, in_meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_access(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
@@ -514,7 +514,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     check->qual_id = id;
 
-    if (exp_check(check, fld_exp) == NO_ERROR) {
+    if (exp_check(check, fld_exp)) {
         if (is_lit_exp(fld_exp)) {
             /* enum or contract constant */
             exp->kind = EXP_LIT;
@@ -529,10 +529,10 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     check->qual_id = NULL;
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_call(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -561,7 +561,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         meta_set_map(&exp->meta, NULL, NULL);
         meta_set_undef(&exp->meta);
 
-        return NO_ERROR;
+        return true;
     }
 
     CHECK(exp_check(check, id_exp));
@@ -598,10 +598,10 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     exp->id = id;
     meta_copy(&exp->meta, &id->meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_sql(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_sql_exp(exp), exp->kind);
@@ -622,10 +622,10 @@ exp_check_sql(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid sql", exp->u_sql.kind);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_tuple(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -640,10 +640,10 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
 
     meta_set_tuple(&exp->meta, elem_exps);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 exp_check_init(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -686,17 +686,17 @@ exp_check_init(check_t *check, ast_exp_t *exp)
         value_set_ptr(&exp->u_lit.val, raw, size);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-int
+bool
 exp_check(check_t *check, ast_exp_t *exp)
 {
     ASSERT(exp != NULL);
 
     switch (exp->kind) {
     case EXP_NULL:
-        return NO_ERROR;
+        return true;
 
     case EXP_ID_REF:
         return exp_check_id_ref(check, exp);
@@ -738,7 +738,7 @@ exp_check(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid expression", exp->kind);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
 /* end of check_exp.c */

@@ -11,6 +11,6 @@
 #include "ast_exp.h"
 #include "check.h"
 
-int exp_check(check_t *check, ast_exp_t *exp);
+bool exp_check(check_t *check, ast_exp_t *exp);
 
 #endif /* ! _CHECK_EXP_H */

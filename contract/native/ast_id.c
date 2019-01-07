@@ -283,13 +283,13 @@ id_cmp(ast_id_t *x, ast_id_t *y)
         ast_id_t *x_param = array_get_id(x->u_fn.param_ids, i);
         ast_id_t *y_param = array_get_id(y->u_fn.param_ids, i);
 
-        if (meta_cmp(&x_param->meta, &y_param->meta) != NO_ERROR) {
+        if (!meta_cmp(&x_param->meta, &y_param->meta)) {
             error_pop();
             return false;
         }
     }
 
-    if (meta_cmp(&x->meta, &y->meta) != NO_ERROR) {
+    if (!meta_cmp(&x->meta, &y->meta)) {
         error_pop();
         return false;
     }

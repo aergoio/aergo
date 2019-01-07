@@ -11,7 +11,7 @@
 
 #include "check_stmt.h"
 
-static int
+static bool
 stmt_check_exp(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *exp = stmt->u_exp.exp;
@@ -38,10 +38,10 @@ stmt_check_exp(check_t *check, ast_stmt_t *stmt)
         WARN(ERROR_IGNORED_STMT, &stmt->pos);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
 {
     int i;
@@ -90,7 +90,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *var_exp = array_get_exp(var_exps, i);
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
-                ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == NO_ERROR,
+                ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta),
                         var_exp->meta.type, val_exp->meta.type);
 
                 exp_check_overflow(val_exp, &var_exp->meta);
@@ -112,7 +112,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 else {
                     ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
 
-                    ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == NO_ERROR,
+                    ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta),
                             var_exp->meta.type, val_exp->meta.type);
 
                     exp_check_overflow(val_exp, &var_exp->meta);
@@ -124,10 +124,10 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         exp_check_overflow(r_exp, l_meta);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_if(check_t *check, ast_stmt_t *stmt)
 {
     int i;
@@ -158,10 +158,10 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
     if (stmt->u_if.else_blk != NULL)
         blk_check(check, stmt->u_if.else_blk);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
@@ -200,10 +200,10 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
     if (loop_exp != NULL)
         array_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 {
     /*
@@ -303,10 +303,10 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     array_add_first(&blk->stmts, null_stmt);
 #endif
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
@@ -329,10 +329,10 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 
     blk_check(check, stmt->u_loop.blk);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 {
     int i, j;
@@ -380,10 +380,10 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 
     blk_check(check, blk);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_case(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *val_exp = stmt->u_case.val_exp;
@@ -399,10 +399,10 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_return(check_t *check, ast_stmt_t *stmt)
 {
     ast_id_t *fn_id;
@@ -453,10 +453,10 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
     stmt->u_ret.ret_id = fn_id->u_fn.ret_id;
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_continue(check_t *check, ast_stmt_t *stmt)
 {
     ast_blk_t *blk;
@@ -468,10 +468,10 @@ stmt_check_continue(check_t *check, ast_stmt_t *stmt)
     if (blk == NULL)
         RETURN(ERROR_INVALID_CONTINUE, &stmt->pos);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_break(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp;
@@ -497,10 +497,10 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_INVALID_BREAK, &stmt->pos);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_goto(check_t *check, ast_stmt_t *stmt)
 {
     ast_id_t *fn_id = check->fn_id;
@@ -513,20 +513,20 @@ stmt_check_goto(check_t *check, ast_stmt_t *stmt)
     if (stmt->u_goto.jump_id == NULL)
         RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_ddl(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_ddl_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_ddl.ddl != NULL);
 
     /* TODO */
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 stmt_check_blk(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_blk_stmt(stmt), stmt->kind);
@@ -534,57 +534,67 @@ stmt_check_blk(check_t *check, ast_stmt_t *stmt)
     if (stmt->u_blk.blk != NULL)
         blk_check(check, stmt->u_blk.blk);
 
-    return NO_ERROR;
+    return true;
 }
 
-int
+void
 stmt_check(check_t *check, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
     case STMT_NULL:
-        return NO_ERROR;
+        return;
 
     case STMT_EXP:
-        return stmt_check_exp(check, stmt);
+        stmt_check_exp(check, stmt);
+        break;
 
     case STMT_ASSIGN:
-        return stmt_check_assign(check, stmt);
+        stmt_check_assign(check, stmt);
+        break;
 
     case STMT_IF:
-        return stmt_check_if(check, stmt);
+        stmt_check_if(check, stmt);
+        break;
 
     case STMT_LOOP:
-        return stmt_check_loop(check, stmt);
+        stmt_check_loop(check, stmt);
+        break;
 
     case STMT_SWITCH:
-        return stmt_check_switch(check, stmt);
+        stmt_check_switch(check, stmt);
+        break;
 
     case STMT_CASE:
-        return stmt_check_case(check, stmt);
+        stmt_check_case(check, stmt);
+        break;
 
     case STMT_RETURN:
-        return stmt_check_return(check, stmt);
+        stmt_check_return(check, stmt);
+        break;
 
     case STMT_CONTINUE:
-        return stmt_check_continue(check, stmt);
+        stmt_check_continue(check, stmt);
+        break;
 
     case STMT_BREAK:
-        return stmt_check_break(check, stmt);
+        stmt_check_break(check, stmt);
+        break;
 
     case STMT_GOTO:
-        return stmt_check_goto(check, stmt);
+        stmt_check_goto(check, stmt);
+        break;
 
     case STMT_DDL:
-        return stmt_check_ddl(check, stmt);
+        stmt_check_ddl(check, stmt);
+        break;
 
     case STMT_BLK:
-        return stmt_check_blk(check, stmt);
+        stmt_check_blk(check, stmt);
+        break;
 
     default:
         ASSERT1(!"invalid statement", stmt->kind);
     }
-
-    return NO_ERROR;
 }
 
 /* end of check_stmt.c */

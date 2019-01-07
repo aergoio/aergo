@@ -150,14 +150,14 @@ meta_set_object(meta_t *meta, ast_id_t *id)
     meta->type_id = id;
 }
 
-static int
+static bool
 meta_cmp_map(meta_t *x, meta_t *y)
 {
     ASSERT1(x->elem_cnt == 2, x->elem_cnt);
 
     if (is_object_type(y))
         /* TODO: null value check */
-        return NO_ERROR;
+        return true;
 
     if (is_map_type(y)) {
         CHECK(meta_cmp(x->elems[0], y->elems[0]));
@@ -187,10 +187,10 @@ meta_cmp_map(meta_t *x, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 meta_cmp_struct(meta_t *x, meta_t *y)
 {
     if (is_struct_type(y)) {
@@ -214,10 +214,10 @@ meta_cmp_struct(meta_t *x, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 meta_cmp_tuple(meta_t *x, meta_t *y)
 {
     int i;
@@ -266,10 +266,10 @@ meta_cmp_tuple(meta_t *x, meta_t *y)
         }
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 meta_cmp_type(meta_t *x, meta_t *y)
 {
     if (is_undef_type(x) || is_undef_type(y)) {
@@ -277,7 +277,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
             (is_integer_type(x) && is_integer_type(y)) ||
             (is_fpoint_type(x) && is_fpoint_type(y)) ||
             (is_pointer_type(x) && is_pointer_type(y)))
-            return NO_ERROR;
+            return true;
 
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
@@ -294,10 +294,10 @@ meta_cmp_type(meta_t *x, meta_t *y)
     if (x->type != y->type)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 meta_cmp_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
@@ -332,10 +332,10 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-int
+bool
 meta_cmp(meta_t *x, meta_t *y)
 {
     if (is_array_type(x))
@@ -407,11 +407,6 @@ meta_eval(meta_t *x, meta_t *y)
         meta_eval_array(x, 0, y);
     else
         meta_eval_type(x, y);
-}
-
-void
-meta_dump(meta_t *meta, int indent)
-{
 }
 
 /* end of meta.c */

@@ -15,7 +15,7 @@
 
 #include "check_id.h"
 
-static int
+static bool
 id_check_type(check_t *check, meta_t *meta)
 {
     if (is_none_type(meta)) {
@@ -52,10 +52,10 @@ id_check_type(check_t *check, meta_t *meta)
         ASSERT(!is_tuple_type(v_meta));
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
@@ -106,10 +106,10 @@ id_check_array(check_t *check, ast_id_t *id)
         }
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
     meta_t *type_meta;
@@ -147,10 +147,10 @@ id_check_var(check_t *check, ast_id_t *id)
             id->val = &dflt_exp->u_lit.val;
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
@@ -182,10 +182,10 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     meta_set_struct(&id->meta, id);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_enum(check_t *check, ast_id_t *id)
 {
     int i, j;
@@ -238,10 +238,10 @@ id_check_enum(check_t *check, ast_id_t *id)
 
     meta_set_int32(&id->meta);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_return(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_return_id(id), id->kind);
@@ -257,10 +257,10 @@ id_check_return(check_t *check, ast_id_t *id)
     if (id->u_ret.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_fn(check_t *check, ast_id_t *id)
 {
     int i;
@@ -320,10 +320,10 @@ id_check_fn(check_t *check, ast_id_t *id)
          !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
         RETURN(ERROR_MISSING_RETURN, &id->pos);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_contract(check_t *check, ast_id_t *id)
 {
     int i;
@@ -374,10 +374,10 @@ id_check_contract(check_t *check, ast_id_t *id)
         check->impl_id = NULL;
     }
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_interface(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_itf_id(id), id->kind);
@@ -389,10 +389,10 @@ id_check_interface(check_t *check, ast_id_t *id)
 
     blk_check(check, id->u_itf.blk);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_label(check_t *check, ast_id_t *id)
 {
     ASSERT1(is_label_id(id), id->kind);
@@ -400,10 +400,10 @@ id_check_label(check_t *check, ast_id_t *id)
     ASSERT(id->up != NULL);
     ASSERT(id->u_lab.stmt != NULL);
 
-    return NO_ERROR;
+    return true;
 }
 
-static int
+static bool
 id_check_tuple(check_t *check, ast_id_t *id)
 {
     int i;
@@ -459,7 +459,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
         meta_eval(&id->meta, &dflt_exp->meta);
     }
 
-    return NO_ERROR;
+    return true;
 }
 
 void
