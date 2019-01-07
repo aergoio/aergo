@@ -113,10 +113,12 @@ contract main {
 
 @test(interface_as_parameter)
 interface spec {
-    func f() int;
+    func f1() int;
 }
 /*
 contract test {
-    func f(spec v) int { return v.f(); }
+    func f1() int { return 1; }
+    func f2(spec v) int { return v.f(); }
+    func f3() int { return f2(new test()); }
 }
 */

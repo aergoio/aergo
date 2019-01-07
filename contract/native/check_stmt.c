@@ -90,7 +90,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *var_exp = array_get_exp(var_exps, i);
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
-                ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
+                ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == NO_ERROR,
                         var_exp->meta.type, val_exp->meta.type);
 
                 exp_check_overflow(val_exp, &var_exp->meta);
@@ -112,7 +112,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 else {
                     ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
 
-                    ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == 0,
+                    ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta) == NO_ERROR,
                             var_exp->meta.type, val_exp->meta.type);
 
                     exp_check_overflow(val_exp, &var_exp->meta);

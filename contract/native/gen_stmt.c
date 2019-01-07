@@ -42,10 +42,13 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
     ASSERT1(is_var_id(id), id->kind);
 
-    if (is_local_ref_exp(l_exp))
+    if (is_local_ref_exp(l_exp)) {
+        ASSERT(l_exp->u_lo.idx >= 0);
         return BinaryenSetLocal(gen->module, l_exp->u_lo.idx, value);
+    }
 
     if (is_stack_ref_exp(l_exp)) {
+        ASSERT(l_exp->u_stk.addr >= 0);
         address = gen_i32(gen, l_exp->u_stk.addr);
         offset = l_exp->u_stk.offset;
     }

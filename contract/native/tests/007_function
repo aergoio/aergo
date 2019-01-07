@@ -82,6 +82,9 @@ contract test {
 @test(contract_as_parameter)
 contract test {
     float v;
+    test() {
+        f1(this);
+    }
     func f1(test p) {
         p.v = p.f2();
     }

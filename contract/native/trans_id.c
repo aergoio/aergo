@@ -76,7 +76,7 @@ gen_init_stmt(trans_t *trans, ast_id_t *id)
     id_exp->id = id;
     meta_copy(&id_exp->meta, &id->meta);
 
-    ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == 0, id_exp->meta.type,
+    ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta) == NO_ERROR, id_exp->meta.type,
             dflt_exp->meta.type);
 
     stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));

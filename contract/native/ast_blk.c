@@ -79,17 +79,18 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
 static bool
 is_visible_id(ast_blk_t *blk, ast_id_t *id, char *name, int num, bool is_type)
 {
-    if (is_root_blk(blk) ||
-        (is_cont_blk(blk) &&
-         ((is_type && is_struct_id(id)) || (!is_type && is_fn_id(id))))) {
-        if (strcmp(name, id->name) == 0)
-            return true;
-    }
-    else if (id->num < num && strcmp(name, id->name) == 0) {
-        return true;
+    if (is_root_blk(blk))
+        return strcmp(name, id->name) == 0;
+
+    if (is_cont_blk(blk)) {
+        if (is_type)
+            return is_struct_id(id) && strcmp(name, id->name) == 0;
+
+        if (is_fn_id(id))
+            return strcmp(name, id->name) == 0;
     }
 
-    return false;
+    return id->num < num && strcmp(name, id->name) == 0;
 }
 
 ast_id_t *
