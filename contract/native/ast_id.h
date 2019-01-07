@@ -31,8 +31,8 @@
 #define is_const_id(id)             flag_on((id)->mod, MOD_CONST)
 #define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
 
-#define is_global_id(id)            is_cont_id(id->up)
-#define is_local_id(id)             !is_global_id(id)
+#define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
+#define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))
 
 #define is_stack_id(id)                                                                  \
     (!(id)->is_param && (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta)))

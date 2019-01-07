@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "ast_id.h"
 #include "gen_bb.h"
 
 #include "gen_fn.h"
@@ -13,11 +14,10 @@ void
 fn_gen(gen_t *gen, ir_fn_t *fn)
 {
     int i;
-    BinaryenFunctionTypeRef spec;
+    ir_abi_t *abi = fn->abi;
     BinaryenExpressionRef body;
 
-    spec = BinaryenAddFunctionType(gen->module, fn->name, BinaryenTypeNone(), fn->params,
-                                   fn->param_cnt);
+    ASSERT(abi != NULL);
 
     /* 1st local for base stack address */
     gen_add_local(gen, TYPE_INT32);
@@ -42,14 +42,24 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->param_cnt + 1,
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, abi->param_cnt + 1,
                                     gen->module);
 
-    BinaryenAddFunction(gen->module, fn->name, spec, gen->locals, gen->local_cnt,
+    BinaryenAddFunction(gen->module, fn->name, abi->spec, gen->locals, gen->local_cnt,
                         BinaryenBlock(gen->module, NULL, &body, 1, BinaryenTypeNone()));
+
+    if (fn->exp_name != NULL)
+        BinaryenAddFunctionExport(gen->module, fn->name, fn->exp_name);
 
     gen->local_cnt = 0;
     gen->locals = NULL;
+}
+
+void
+abi_gen(gen_t *gen, ir_abi_t *abi)
+{
+    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, BinaryenTypeNone(),
+                                        abi->params, abi->param_cnt);
 }
 
 /* end of gen_fn.c */

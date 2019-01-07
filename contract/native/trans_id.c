@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "array.h"
+#include "ir_abi.h"
 #include "ir_fn.h"
 #include "ir_bb.h"
 #include "trans_blk.h"
@@ -85,7 +86,7 @@ gen_init_stmt(trans_t *trans, ast_id_t *id)
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ir_fn_t *fn = fn_new(id);
+    ir_fn_t *fn = fn_new(id, abi_lookup(&trans->ir->abis, id));
 
     trans->fn = fn;
     trans->bb = fn->entry_bb;

@@ -7,6 +7,7 @@
 
 #include "util.h"
 #include "ir.h"
+#include "ir_abi.h"
 #include "ir_sgmt.h"
 #include "gen_fn.h"
 
@@ -66,6 +67,10 @@ gen(ir_t *ir, flag_t flag, char *path)
     gen_init(&gen, flag, path);
 
     BinaryenSetDebugInfo(1);
+
+    array_foreach(&ir->abis, i) {
+        abi_gen(&gen, array_get_abi(&ir->abis, i));
+    }
 
     array_foreach(&ir->fns, i) {
         fn_gen(&gen, array_get_fn(&ir->fns, i));

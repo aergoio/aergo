@@ -6,6 +6,8 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ir_abi.h"
+#include "ir_fn.h"
 #include "ir_sgmt.h"
 
 #include "ir.h"
@@ -15,6 +17,7 @@ ir_new(void)
 {
     ir_t *ir = xmalloc(sizeof(ir_t));
 
+    array_init(&ir->abis);
     array_init(&ir->fns);
 
     ir->sgmt = sgmt_new();

@@ -32,6 +32,7 @@ set(libascl_SRCS
     check_exp.c
     ir.c
     ir_fn.c
+    ir_abi.c
     ir_bb.c
     ir_sgmt.c
     trans.c

@@ -26,6 +26,7 @@ typedef struct ir_sgmt_s ir_sgmt_t;
 #endif /* ! _IR_SGMT_T */
 
 typedef struct ir_s {
+    array_t abis;
     array_t fns;
 
     ir_sgmt_t *sgmt;

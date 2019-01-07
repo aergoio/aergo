@@ -8,8 +8,11 @@
 
 #include "common.h"
 
+#include "ir_abi.h"
 #include "ir_fn.h"
 #include "gen.h"
+
+void abi_gen(gen_t *gen, ir_abi_t *abi);
 
 void fn_gen(gen_t *gen, ir_fn_t *fn);
 

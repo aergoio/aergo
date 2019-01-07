@@ -486,7 +486,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         }
     }
 
-    snprintf(name, sizeof(name), "%s.%s", id->up->name, id->name);
+    snprintf(name, sizeof(name), "%s$%s", id->up->name, id->name);
 
     return BinaryenCall(gen->module, xstrdup(name), arg_exps, arg_cnt,
                         BinaryenTypeNone());

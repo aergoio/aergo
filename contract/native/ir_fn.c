@@ -5,56 +5,30 @@
 
 #include "common.h"
 
+#include "ast_id.h"
 #include "ir_bb.h"
+#include "ir_abi.h"
 #include "gen.h"
 
 #include "ir_fn.h"
 
 ir_fn_t *
-fn_new(ast_id_t *id)
+fn_new(ast_id_t *id, ir_abi_t *abi)
 {
-    int i, j = 0;
-    ast_id_t *ret_id = id->u_fn.ret_id;
+    char name[NAME_MAX_LEN * 2 + 2];
     ir_fn_t *fn = xmalloc(sizeof(ir_fn_t));
 
+    ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
+    ASSERT(abi != NULL);
 
-    snprintf(fn->name, sizeof(fn->name), "%s.%s", id->up->name, id->name);
+    snprintf(name, sizeof(name), "%s$%s", id->up->name, id->name);
 
-    fn->param_cnt = array_size(id->u_fn.param_ids);
+    fn->name = xstrdup(name);
+    fn->exp_name = is_public_id(id) ? id->name : NULL;
 
-    if (ret_id != NULL) {
-        if (is_tuple_id(ret_id))
-            fn->param_cnt += array_size(ret_id->u_tup.elem_ids);
-        else
-            fn->param_cnt++;
-    }
-
-    fn->params = xmalloc(sizeof(BinaryenType) * fn->param_cnt);
-
-    array_foreach(id->u_fn.param_ids, i) {
-        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
-
-        fn->params[j] = gen_meta(&param_id->meta);
-        param_id->idx = j++;
-    }
-
-    /* The return value is always passed as an address */
-    if (ret_id != NULL) {
-        if (is_tuple_id(ret_id)) {
-            array_foreach(ret_id->u_tup.elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
-
-                fn->params[j] = BinaryenTypeInt32();
-                elem_id->idx = j++;
-            }
-        }
-        else {
-            fn->params[j] = BinaryenTypeInt32();
-            ret_id->idx = j;
-        }
-    }
+    fn->abi = abi;
 
     array_init(&fn->locals);
     array_init(&fn->bbs);
@@ -68,10 +42,13 @@ fn_new(ast_id_t *id)
 void
 fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
+    ir_abi_t *abi = fn->abi;
+
     ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    ASSERT(abi != NULL);
 
     /* reserved for two internal variables (e.g, base stack address, relooper) */
-    id->idx = fn->param_cnt + array_size(&fn->locals) + 2;
+    id->idx = abi->param_cnt + array_size(&fn->locals) + 2;
 
     array_add_last(&fn->locals, id);
 }

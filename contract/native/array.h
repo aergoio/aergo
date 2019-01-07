@@ -18,6 +18,7 @@
 #define array_get_id(array, idx)        array_get(array, idx, ast_id_t)
 #define array_get_exp(array, idx)       array_get(array, idx, ast_exp_t)
 #define array_get_stmt(array, idx)      array_get(array, idx, ast_stmt_t)
+#define array_get_abi(array, idx)       array_get(array, idx, ir_abi_t)
 #define array_get_fn(array, idx)        array_get(array, idx, ir_fn_t)
 #define array_get_bb(array, idx)        array_get(array, idx, ir_bb_t)
 #define array_get_br(array, idx)        array_get(array, idx, ir_br_t)

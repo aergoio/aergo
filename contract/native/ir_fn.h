@@ -9,25 +9,32 @@
 #include "common.h"
 
 #include "array.h"
-#include "ast_id.h"
-#include "binaryen-c.h"
 
 #ifndef _IR_FN_T
 #define _IR_FN_T
 typedef struct ir_fn_s ir_fn_t;
 #endif /* ! _IR_FN_T */
 
+#ifndef _IR_ABI_T
+#define _IR_ABI_T
+typedef struct ir_abi_s ir_abi_t;
+#endif /* ! _IR_ABI_T */
+
 #ifndef _IR_BB_T
 #define _IR_BB_T
 typedef struct ir_bb_s ir_bb_t;
 #endif /* ! _IR_BB_T */
 
-struct ir_fn_s {
-    /* qualified function name (e.g, contract.function) */
-    char name[NAME_MAX_LEN * 2 + 2];
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
 
-    int param_cnt;
-    BinaryenType *params;   /* parameter types (including return) */
+struct ir_fn_s {
+    char *name;
+    char *exp_name;
+
+    ir_abi_t *abi;
 
     array_t locals;         /* entire local variables */
     array_t bbs;            /* basic blocks */
@@ -38,7 +45,7 @@ struct ir_fn_s {
     uint32_t usage;         /* stack usage */
 };
 
-ir_fn_t *fn_new(ast_id_t *id);
+ir_fn_t *fn_new(ast_id_t *id, ir_abi_t *abi);
 
 void fn_add_local(ir_fn_t *fn, ast_id_t *id);
 void fn_add_stack(ir_fn_t *fn, ast_id_t *id);
