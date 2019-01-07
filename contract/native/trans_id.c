@@ -32,44 +32,50 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         fn_add_local(trans->fn, id);
 }
 
+static ast_exp_t *
+gen_dflt_exp(meta_t *meta)
+{
+    ast_exp_t *dflt_exp = exp_new_lit(meta->pos);
+
+    if (is_array_type(meta)) {
+        value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);
+    }
+    else if (is_bool_type(meta)) {
+        value_set_bool(&dflt_exp->u_lit.val, false);
+    }
+    else if (is_fpoint_type(meta)) {
+        value_set_f64(&dflt_exp->u_lit.val, 0.0);
+    }
+    else if (is_integer_type(meta) || is_pointer_type(meta)) {
+        value_set_i64(&dflt_exp->u_lit.val, 0);
+    }
+    else {
+        ASSERT1(is_struct_type(meta), meta->type);
+        value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta_size(meta)), meta_size(meta));
+    }
+
+    meta_copy(&dflt_exp->meta, meta);
+    meta_set_undef(&dflt_exp->meta);
+
+    return dflt_exp;
+}
+
 static void
 gen_init_stmt(trans_t *trans, ast_id_t *id)
 {
-    meta_t *meta = &id->meta;
-    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
-    ast_exp_t *id_exp;
+    ast_exp_t *dflt_exp, *id_exp;
 
     ASSERT1(is_global_id(id), id->up->kind);
 
-    if (dflt_exp == NULL) {
-        dflt_exp = exp_new_lit(meta->pos);
+    if (id->u_var.dflt_exp == NULL)
+        id->u_var.dflt_exp = gen_dflt_exp(&id->meta);
 
-        if (is_array_type(meta)) {
-            value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);
-        }
-        else if (is_bool_type(meta)) {
-            value_set_bool(&dflt_exp->u_lit.val, false);
-        }
-        else if (is_fpoint_type(meta)) {
-            value_set_f64(&dflt_exp->u_lit.val, 0.0);
-        }
-        else if (is_integer_type(meta) || is_pointer_type(meta)) {
-            value_set_i64(&dflt_exp->u_lit.val, 0);
-        }
-        else {
-            ASSERT1(is_struct_type(meta), meta->type);
-            value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta_size(meta)),
-                          meta_size(meta));
-        }
-
-        meta_copy(&dflt_exp->meta, meta);
-        meta_set_undef(&dflt_exp->meta);
-    }
+    dflt_exp = id->u_var.dflt_exp;
 
     id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
 
     id_exp->id = id;
-    meta_copy(&id_exp->meta, meta);
+    meta_copy(&id_exp->meta, &id->meta);
 
     ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta), id_exp->meta.type,
             dflt_exp->meta.type);

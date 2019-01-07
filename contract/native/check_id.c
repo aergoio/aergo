@@ -24,7 +24,7 @@ id_check_type(check_t *check, meta_t *meta)
 
         ASSERT(name != NULL);
 
-        id = blk_lookup_var(check->blk, name, meta->num);
+        id = blk_search_id(check->blk, name, meta->num, true);
         if (id == NULL || !is_type_id(id))
             RETURN(ERROR_UNDEFINED_TYPE, meta->pos, name);
 
@@ -298,8 +298,8 @@ id_check_fn(check_t *check, ast_id_t *id)
         /* mark is_used flag */
         ast_blk_t *blk = check->impl_id->u_itf.blk;
 
-        array_foreach(&blk->fns, i) {
-            ast_id_t *spec_id = array_get_id(&blk->fns, i);
+        array_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&blk->ids, i);
 
             if (strcmp(spec_id->name, id->name) == 0 && id_cmp(spec_id, id)) {
                 spec_id->is_used = true;
@@ -342,8 +342,8 @@ id_check_contract(check_t *check, ast_id_t *id)
 
             ASSERT1(is_itf_id(impl_exp->id), impl_exp->id->kind);
 
-            array_foreach(&blk->fns, i) {
-                array_get_id(&blk->fns, i)->is_used = false;
+            array_foreach(&blk->ids, i) {
+                array_get_id(&blk->ids, i)->is_used = false;
             }
 
             check->impl_id = impl_exp->id;
@@ -364,8 +364,8 @@ id_check_contract(check_t *check, ast_id_t *id)
     if (check->impl_id != NULL) {
         ast_blk_t *blk = check->impl_id->u_itf.blk;
 
-        array_foreach(&blk->fns, i) {
-            ast_id_t *spec_id = array_get_id(&blk->fns, i);
+        array_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = array_get_id(&blk->ids, i);
 
             if (!spec_id->is_used)
                 ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, spec_id->name);

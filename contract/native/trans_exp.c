@@ -234,10 +234,10 @@ resolve_fn(ast_id_t *spec_id, ast_exp_t *exp)
     ASSERT(cont_id != NULL);
     ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
-    array_foreach(&cont_id->u_cont.blk->fns, i) {
-        ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->fns, i);
+    array_foreach(&cont_id->u_cont.blk->ids, i) {
+        ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
-        if (strcmp(spec_id->name, fn_id->name) == 0) {
+        if (is_fn_id(fn_id) && strcmp(spec_id->name, fn_id->name) == 0) {
             ASSERT2(id_cmp(spec_id, fn_id), spec_id->kind, fn_id->kind);
             return fn_id;
         }

@@ -11,14 +11,18 @@
 #include "check.h"
 
 static void
-check_init(check_t *check, ast_blk_t *root, flag_t flag)
+check_init(check_t *check, ast_t *ast, flag_t flag)
 {
-    ASSERT(root != NULL);
-    ASSERT(root->up == NULL);
-    ASSERT1(is_empty_array(&root->fns), array_size(&root->fns));
-    ASSERT1(is_empty_array(&root->stmts), array_size(&root->stmts));
+    ast_blk_t *root;
 
     check->flag = flag;
+
+    root = ast->root;
+    ASSERT(root != NULL);
+    ASSERT(is_empty_array(&root->stmts));
+    ASSERT(root->up == NULL);
+
+    check->ast = ast;
 
     check->blk = root;
     check->id = NULL;
@@ -35,12 +39,11 @@ check(ast_t *ast, flag_t flag)
 {
     int i;
     check_t check;
-    ast_blk_t *root = ast->root;
 
-    check_init(&check, root, flag);
+    check_init(&check, ast, flag);
 
-    array_foreach(&root->ids, i) {
-        ast_id_t *id = array_get_id(&root->ids, i);
+    array_foreach(&ast->root->ids, i) {
+        ast_id_t *id = array_get_id(&ast->root->ids, i);
 
         ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
 

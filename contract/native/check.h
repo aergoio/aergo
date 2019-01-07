@@ -23,6 +23,8 @@ typedef struct ast_id_s ast_id_t;
 typedef struct check_s {
     flag_t flag;
 
+    ast_t *ast;
+
     /* temporary context */
     ast_blk_t *blk;         /* current block */
     ast_id_t *id;           /* current identifier */

@@ -145,8 +145,8 @@ ast_id_t *id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
 ast_id_t *id_new_tuple(src_pos_t *pos);
 
-ast_id_t *id_lookup_fld(ast_id_t *id, char *name, bool is_self);
-ast_id_t *id_lookup_param(ast_id_t *id, char *name);
+ast_id_t *id_search_fld(ast_id_t *id, char *name, bool is_self);
+ast_id_t *id_search_param(ast_id_t *id, char *name);
 
 void id_add(array_t *ids, ast_id_t *new_id);
 void id_join(array_t *ids, array_t *new_ids);
