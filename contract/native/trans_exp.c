@@ -44,7 +44,7 @@ static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
     value_t *val = &exp->u_lit.val;
-    ir_sgmt_t *sgmt = trans->ir->sgmt;
+    ir_sgmt_t *sgmt = &trans->ir->sgmt;
 
     switch (val->type) {
     case TYPE_BOOL:

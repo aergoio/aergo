@@ -276,6 +276,9 @@ id_cmp(ast_id_t *x, ast_id_t *y)
     ASSERT1(is_fn_id(x), x->kind);
     ASSERT1(is_fn_id(y), y->kind);
 
+    if (x->mod != y->mod)
+        return false;
+
     if (array_size(x->u_fn.param_ids) != array_size(y->u_fn.param_ids))
         return false;
 

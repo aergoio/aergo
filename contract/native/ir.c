@@ -20,7 +20,7 @@ ir_new(void)
     array_init(&ir->abis);
     array_init(&ir->fns);
 
-    ir->sgmt = sgmt_new();
+    sgmt_init(&ir->sgmt);
 
     return ir;
 }
@@ -28,7 +28,7 @@ ir_new(void)
 void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
-    id->addr = sgmt_add_global(ir->sgmt, id->meta.type);
+    id->addr = sgmt_add_global(&ir->sgmt, id->meta.type);
 }
 
 void

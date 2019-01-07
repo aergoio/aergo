@@ -55,6 +55,19 @@ gen_sgmt(gen_t *gen, ir_sgmt_t *sgmt)
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 }
 
+static void
+gen_table(gen_t *gen, array_t *fns)
+{
+    int i;
+    char **names = xmalloc(sizeof(char *) * array_size(fns));
+
+    array_foreach(fns, i) {
+        names[i] = array_get_fn(fns, i)->name;
+    }
+
+    BinaryenSetFunctionTable(gen->module, i, i, (const char **)names, i);
+}
+
 void
 gen(ir_t *ir, flag_t flag, char *path)
 {
@@ -76,7 +89,8 @@ gen(ir_t *ir, flag_t flag, char *path)
         fn_gen(&gen, array_get_fn(&ir->fns, i));
     }
 
-    gen_sgmt(&gen, ir->sgmt);
+    gen_sgmt(&gen, &ir->sgmt);
+    gen_table(&gen, &ir->fns);
 
     if (flag_on(flag, FLAG_WAT_DUMP))
         BinaryenModulePrint(gen.module);
