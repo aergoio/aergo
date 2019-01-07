@@ -63,6 +63,9 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
 	payload := []byte{'c'}
+	if len(name) != types.NameLength {
+		return errors.New("The name must be 12 alphabetic characters\n")
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
@@ -90,6 +93,9 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
+	if len(name) != types.NameLength {
+		return errors.New("The name must be 12 alphabetic characters\n")
+	}
 	payload := []byte{'u'}
 	payload = append(payload, []byte(name)...)
 	payload = append(payload, ',')
@@ -104,6 +110,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
+
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Printf("Failed request to aergo sever\n" + err.Error())

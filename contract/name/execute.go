@@ -61,11 +61,17 @@ func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 		if len(getAddress(scs, name)) > types.NameLength {
 			return fmt.Errorf("aleady occupied %s", string(name))
 		}
+		if len(name) != types.NameLength {
+			return fmt.Errorf("not supported yet")
+		}
 
 	case 'u':
 		name, to := parseUpdatePayload(tx.Payload[1:])
 		if len(name) > types.NameLength {
 			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+		if len(name) != types.NameLength {
+			return fmt.Errorf("not supported yet")
 		}
 		if err := validateAllowedChar(name); err != nil {
 			return err
