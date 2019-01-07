@@ -37,7 +37,7 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
-			mockActor.On("TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(sampleMeta.ID)
 
@@ -47,9 +47,9 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 			}
 			target.HandleBlockProducedNotice(mockPeer, blkHash, sampleBlock )
 			if test.wantActorCall {
-				mockActor.AssertCalled(t,"TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+				mockActor.AssertCalled(t,"SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			} else {
-				mockActor.AssertNotCalled(t, "TellRequest",mock.Anything, mock.Anything)
+				mockActor.AssertNotCalled(t, "SendRequest",mock.Anything, mock.Anything)
 			}
 		})
 	}
@@ -221,7 +221,7 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockActor := new(MockActorService)
-			mockActor.On("TellRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
+			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			mockMF := new(MockMoFactory)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
@@ -236,7 +236,7 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 			resp := &types.GetBlockResponse{Blocks:test.respBlocks}
 			target.HandleGetBlockResponse(mockPeer, msg, resp)
 
-			mockActor.AssertNumberOfCalls(t, "TellRequest", test.chainCallCnt)
+			mockActor.AssertNumberOfCalls(t, "SendRequest", test.chainCallCnt)
 		})
 	}
 }
