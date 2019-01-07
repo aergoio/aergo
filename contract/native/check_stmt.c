@@ -464,7 +464,7 @@ stmt_check_continue(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_continue_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_jump.cond_exp == NULL);
 
-    blk = blk_search(check->blk, BLK_LOOP);
+    blk = blk_lookup(check->blk, BLK_LOOP);
     if (blk == NULL)
         RETURN(ERROR_INVALID_CONTINUE, &stmt->pos);
 
@@ -490,9 +490,9 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
             RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
     }
 
-    blk = blk_search(check->blk, BLK_LOOP);
+    blk = blk_lookup(check->blk, BLK_LOOP);
     if (blk == NULL) {
-        blk = blk_search(check->blk, BLK_SWITCH);
+        blk = blk_lookup(check->blk, BLK_SWITCH);
         if (blk == NULL)
             RETURN(ERROR_INVALID_BREAK, &stmt->pos);
     }
@@ -509,7 +509,7 @@ stmt_check_goto(check_t *check, ast_stmt_t *stmt)
     ASSERT(stmt->u_goto.label != NULL);
     ASSERT(fn_id != NULL);
 
-    stmt->u_goto.jump_id = blk_search_label(fn_id->u_fn.blk, stmt->u_goto.label);
+    stmt->u_goto.jump_id = blk_lookup_label(fn_id->u_fn.blk, stmt->u_goto.label);
     if (stmt->u_goto.jump_id == NULL)
         RETURN(ERROR_UNDEFINED_LABEL, &stmt->pos, stmt->u_goto.label);
 

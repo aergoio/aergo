@@ -36,6 +36,8 @@ fn_new(ast_id_t *id, ir_abi_t *abi)
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
 
+    fn->usage = 0;
+
     return fn;
 }
 

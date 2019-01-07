@@ -23,7 +23,7 @@ typedef struct hash_s {
 
 void hash_add(hash_t *hash, char *key, void *val);
 
-void *hash_search(hash_t *hash, char *key);
+void *hash_lookup(hash_t *hash, char *key);
 
 static inline void
 hash_init(hash_t *hash)

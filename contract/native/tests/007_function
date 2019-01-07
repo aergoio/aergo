@@ -31,10 +31,10 @@ contract test {
 }
 
 @test(duplicated_name_with_variable)
-@error(ERROR_DUPLICATED_ID)
 contract test {
-    int f;
-    func f() { }
+    float f1;
+    func f1() { }
+    func f2() { f1(); }
 }
 
 @test(parameter_declaration)
@@ -226,8 +226,15 @@ contract test {
 @test(goto_across_function)
 @error(ERROR_UNDEFINED_LABEL)
 contract test {
-    test() { }
     func f1() { here: ; }
     func f2() { goto here; }
 }
 
+@test(access_private_function)
+@error(ERROR_UNDEFINED_ID)
+contract test1 {
+    func f() { }
+}
+contract test2 {
+    func f() { new test1().f(); }
+}

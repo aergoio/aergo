@@ -174,13 +174,11 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <id>      declarator
 %type <exp>     size_opt
 %type <exp>     var_init
-%type <id>      compound
 %type <id>      struct
 %type <array>   field_list
 %type <id>      enumeration
 %type <array>   enum_list
 %type <id>      enumerator
-%type <id>      constructor
 %type <array>   param_list_opt
 %type <array>   param_list
 %type <id>      param_decl
@@ -275,7 +273,7 @@ contract_decl:
         ast_blk_t *blk = blk_new_contract(&@4);
 
         /* add default constructor */
-        id_add(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
+        id_add(&blk->fns, id_new_ctor($2, NULL, NULL, &@2));
 
         $$ = id_new_contract($2, $3, blk, &@$);
     }
@@ -284,8 +282,8 @@ contract_decl:
         int i;
         bool has_ctor = false;
 
-        array_foreach(&$5->ids, i) {
-            ast_id_t *id = array_get_id(&$5->ids, i);
+        array_foreach(&$5->fns, i) {
+            ast_id_t *id = array_get_id(&$5->fns, i);
 
             if (is_ctor_id(id)) {
                 if (strcmp($2, id->name) != 0)
@@ -298,7 +296,7 @@ contract_decl:
 
         if (!has_ctor)
             /* add default constructor */
-            id_add(&$5->ids, id_new_ctor($2, NULL, NULL, &@2));
+            id_add(&$5->fns, id_new_ctor($2, NULL, NULL, &@2));
 
         $$ = id_new_contract($2, $3, $5, &@$);
     }
@@ -318,20 +316,40 @@ contract_body:
         $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
     }
-|   compound
+|   struct
     {
         $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
+    }
+|   enumeration
+    {
+        $$ = blk_new_contract(&@$);
+        id_add(&$$->ids, $1);
+    }
+|   function
+    {
+        $$ = blk_new_contract(&@$);
+        id_add(&$$->fns, $1);
     }
 |   contract_body variable
     {
         $$ = $1;
         id_add(&$$->ids, $2);
     }
-|   contract_body compound
+|   contract_body struct
     {
         $$ = $1;
         id_add(&$$->ids, $2);
+    }
+|   contract_body enumeration
+    {
+        $$ = $1;
+        id_add(&$$->ids, $2);
+    }
+|   contract_body function
+    {
+        $$ = $1;
+        id_add(&$$->fns, $2);
     }
 ;
 
@@ -469,13 +487,6 @@ var_init:
     }
 ;
 
-compound:
-    struct
-|   enumeration
-|   constructor
-|   function
-;
-
 struct:
     K_TYPE identifier K_STRUCT '{' field_list '}'
     {
@@ -549,7 +560,7 @@ comma_opt:
 |   ','
 ;
 
-constructor:
+function:
     identifier '(' param_list_opt ')' block
     {
         $$ = id_new_ctor($1, $3, $5, &@$);
@@ -557,6 +568,17 @@ constructor:
         if (!is_empty_array(LABELS)) {
             ASSERT($5 != NULL);
             id_join(&$5->ids, LABELS);
+            array_reset(LABELS);
+        }
+    }
+|   func_spec block
+    {
+        $$ = $1;
+        $$->u_fn.blk = $2;
+
+        if (!is_empty_array(LABELS)) {
+            ASSERT($2 != NULL);
+            id_join(&$2->ids, LABELS);
             array_reset(LABELS);
         }
     }
@@ -638,20 +660,6 @@ blk_decl:
     {
         $$ = $1;
         stmt_add(&$$->stmts, $2);
-    }
-;
-
-function:
-    func_spec block
-    {
-        $$ = $1;
-        $$->u_fn.blk = $2;
-
-        if (!is_empty_array(LABELS)) {
-            ASSERT($2 != NULL);
-            id_join(&$2->ids, LABELS);
-            array_reset(LABELS);
-        }
     }
 ;
 
@@ -748,12 +756,12 @@ interface_body:
     func_spec ';'
     {
         $$ = blk_new_interface(&@$);
-        id_add(&$$->ids, $1);
+        id_add(&$$->fns, $1);
     }
 |   interface_body func_spec ';'
     {
         $$ = $1;
-        id_add(&$$->ids, $2);
+        id_add(&$$->fns, $2);
     }
 ;
 

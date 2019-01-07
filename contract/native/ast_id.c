@@ -136,32 +136,16 @@ id_new_tuple(src_pos_t *pos)
 }
 
 ast_id_t *
-id_search_fld(ast_id_t *id, char *name, bool is_self)
+lookup_array(array_t *fld_ids, char *name, bool is_self)
 {
     int i;
-    array_t *fld_ids = NULL;
-
-    ASSERT(id != NULL);
-    ASSERT(name != NULL);
-
-    if (is_struct_id(id))
-        fld_ids = id->u_struc.fld_ids;
-    else if (is_enum_id(id))
-        fld_ids = id->u_enum.elem_ids;
-    else if (is_cont_id(id) && id->u_cont.blk != NULL)
-        fld_ids = &id->u_cont.blk->ids;
-    else if (is_itf_id(id))
-        fld_ids = &id->u_itf.blk->ids;
-    else
-        return NULL;
 
     ASSERT(fld_ids != NULL);
 
     array_foreach(fld_ids, i) {
         ast_id_t *fld_id = array_get_id(fld_ids, i);
 
-        if ((is_self || is_itf_id(id) || is_public_id(fld_id)) &&
-            strcmp(fld_id->name, name) == 0)
+        if ((is_self || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 
@@ -169,7 +153,40 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
 }
 
 ast_id_t *
-id_search_param(ast_id_t *id, char *name)
+id_lookup_fld(ast_id_t *id, char *name, bool is_self)
+{
+    array_t *fld_ids = NULL;
+
+    ASSERT(id != NULL);
+    ASSERT(name != NULL);
+
+    if (is_cont_id(id)) {
+        ast_id_t *fld_id;
+
+        if (id->u_cont.blk == NULL)
+            return NULL;
+
+        fld_id = lookup_array(&id->u_cont.blk->ids, name, is_self);
+        if (fld_id != NULL)
+            return fld_id;
+
+        return lookup_array(&id->u_cont.blk->fns, name, is_self);
+    }
+
+    if (is_struct_id(id))
+        fld_ids = id->u_struc.fld_ids;
+    else if (is_enum_id(id))
+        fld_ids = id->u_enum.elem_ids;
+    else if (is_itf_id(id))
+        fld_ids = &id->u_itf.blk->fns;
+    else
+        return NULL;
+
+    return lookup_array(fld_ids, name, is_self);
+}
+
+ast_id_t *
+id_lookup_param(ast_id_t *id, char *name)
 {
     int i;
 

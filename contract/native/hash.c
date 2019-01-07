@@ -83,7 +83,7 @@ hash_add(hash_t *hash, char *key, void *item)
 }
 
 void *
-hash_search(hash_t *hash, char *key)
+hash_lookup(hash_t *hash, char *key)
 {
     int i;
     uint32_t hashval = hash_fn(key, strlen(key));

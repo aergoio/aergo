@@ -24,14 +24,14 @@ exp_check_id_ref(check_t *check, ast_exp_t *exp)
         id = check->cont_id;
     }
     else if (check->qual_id != NULL) {
-        id = id_search_fld(check->qual_id, name, check->cont_id == check->qual_id);
+        id = id_lookup_fld(check->qual_id, name, check->cont_id == check->qual_id);
     }
     else {
         if (check->fn_id != NULL)
-            id = id_search_param(check->fn_id, name);
+            id = id_lookup_param(check->fn_id, name);
 
         if (id == NULL)
-            id = blk_search_id(check->blk, name, exp->num, false);
+            id = blk_lookup_id(check->blk, name, exp->num);
     }
 
     if (id == NULL)
@@ -571,8 +571,11 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
     if (is_cont_id(id))
-        /* search constructor */
-        id = blk_search_id(id->u_cont.blk, id->name, id_exp->num, false);
+        /* lookup constructor */
+        id = blk_lookup_fn(id->u_cont.blk, id->name);
+    else if (is_var_id(id))
+        /* lookup function */
+        id = blk_lookup_fn(check->blk, id->name);
 
     if (!is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
