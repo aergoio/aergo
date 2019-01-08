@@ -33,12 +33,13 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-gen_init_stmt(trans_t *trans, ast_id_t *id)
+trans_dflt_exp(trans_t *trans, ast_id_t *id)
 {
     meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp = id->u_var.dflt_exp;
     ast_exp_t *id_exp;
 
+    ASSERT(id->up != NULL);
     ASSERT1(is_global_id(id), id->up->kind);
 
     if (dflt_exp == NULL) {
@@ -86,23 +87,21 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     trans->bb = fn->entry_bb;
 
     if (is_ctor_id(id)) {
-        int i;
+        int i, j;
         ast_id_t *cont_id = id->up;
 
         ASSERT(cont_id != NULL);
         ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
         array_foreach(&cont_id->u_cont.blk->ids, i) {
-            ast_id_t *fld_id = array_get_id(&cont_id->u_cont.blk->ids, i);
+            ast_id_t *var_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
-            if (is_var_id(fld_id)) {
-                gen_init_stmt(trans, fld_id);
+            if (is_var_id(var_id)) {
+                trans_dflt_exp(trans, var_id);
             }
-            else if (is_tuple_id(fld_id)) {
-                int i;
-
-                array_foreach(fld_id->u_tup.elem_ids, i) {
-                    gen_init_stmt(trans, array_get_id(fld_id->u_tup.elem_ids, i));
+            else if (is_tuple_id(var_id)) {
+                array_foreach(var_id->u_tup.elem_ids, j) {
+                    trans_dflt_exp(trans, array_get_id(var_id->u_tup.elem_ids, j));
                 }
             }
         }
