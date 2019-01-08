@@ -15,6 +15,7 @@ var dataDir string
 func init() {
 	initGenesis.Flags().StringVar(&dataDir, "dir", "", "Data directory")
 	rootCmd.AddCommand(initGenesis)
+	rootCmd.AddCommand(versionCmd)
 }
 
 var initGenesis = &cobra.Command{
@@ -79,5 +80,16 @@ var initGenesis = &cobra.Command{
 		fmt.Fprintf(os.Stderr, "genesis block is created in (%s)\n", dataDir)
 
 		core.Close()
+	},
+}
+
+var githash = "No git hash provided"
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of Aergosvr",
+	Long:  `All software has versions. This is Aergo's`,
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Printf("Aergosvr %s\n", githash)
 	},
 }
