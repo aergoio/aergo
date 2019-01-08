@@ -573,6 +573,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (is_cont_id(id)) {
         /* search constructor */
         id = blk_search_id(id->u_cont.blk, id->name, id_exp->num, false);
+        ASSERT(id != NULL);
 
         id_trycheck(check, id);
     }

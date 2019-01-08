@@ -21,9 +21,6 @@ add_exp_stmt(trans_t *trans, ast_exp_t *exp)
 
     exp_trans(trans, exp);
 
-    if (is_call_exp(exp)/* TODO: || is_sql_exp(exp) */)
-        bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
-
     if (has_piggyback(trans->bb)) {
         int i;
         array_t *pgbacks = &trans->bb->pgbacks;
@@ -388,7 +385,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             meta_copy(&var_exp->meta, &ret_id->meta);
         }
 
-        stmt_trans_assign(trans, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
+        stmt_trans(trans, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
     }
 
     bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);

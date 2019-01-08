@@ -19,21 +19,19 @@ static bool
 id_check_type(check_t *check, meta_t *meta)
 {
     if (is_none_type(meta)) {
-        char *name = meta->name;
         ast_id_t *id;
 
-        ASSERT(name != NULL);
+        ASSERT(meta->name != NULL);
 
-        id = blk_search_id(check->blk, name, meta->num, true);
+        id = blk_search_id(check->blk, meta->name, meta->num, true);
         if (id == NULL || !is_type_id(id))
-            RETURN(ERROR_UNDEFINED_TYPE, meta->pos, name);
+            RETURN(ERROR_UNDEFINED_TYPE, meta->pos, meta->name);
 
         id_trycheck(check, id);
 
         id->is_used = true;
 
         meta_copy(meta, &id->meta);
-        meta->name = name;
     }
     else if (is_map_type(meta)) {
         meta_t *k_meta, *v_meta;
@@ -287,9 +285,6 @@ id_check_fn(check_t *check, ast_id_t *id)
 
         meta_copy(&id->meta, &id->u_fn.ret_id->meta);
     }
-    else if (is_ctor_id(id)) {
-        meta_set_object(&id->meta, id->up);
-    }
     else {
         meta_set_void(&id->meta);
     }
@@ -315,7 +310,7 @@ id_check_fn(check_t *check, ast_id_t *id)
 
     check->fn_id = NULL;
 
-    if (id->u_fn.ret_id != NULL && !is_itf_id(id->up) &&
+    if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
         (id->u_fn.blk == NULL ||
          !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
         RETURN(ERROR_MISSING_RETURN, &id->pos);

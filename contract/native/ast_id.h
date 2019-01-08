@@ -54,6 +54,11 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_stmt_s ast_stmt_t;
 #endif /* ! _AST_STMT_T */
 
+#ifndef _IR_ABI_T
+#define _IR_ABI_T
+typedef struct ir_abi_s ir_abi_t;
+#endif /* ! _IR_ABI_T */
+
 typedef struct id_var_s {
     meta_t *type_meta;
     array_t *size_exps;
@@ -128,6 +133,7 @@ struct ast_id_s {
     int offset;         /* offset (from addr) */
 
     ast_id_t *up;
+    ir_abi_t *abi;
 
     AST_NODE_DECL;
 };
@@ -135,7 +141,7 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_return(char *name, meta_t *type_meta, src_pos_t *pos);
+ast_id_t *id_new_return(meta_t *type_meta, src_pos_t *pos);
 ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
                       ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);

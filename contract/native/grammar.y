@@ -552,7 +552,7 @@ comma_opt:
 constructor:
     identifier '(' param_list_opt ')' block
     {
-        $$ = id_new_ctor($1, $3, $5, &@$);
+        $$ = id_new_ctor($1, $3, $5, &@1);
 
         if (!is_empty_array(LABELS)) {
             ASSERT($5 != NULL);
@@ -718,13 +718,7 @@ return_decl:
         /* Later, the return statement will be transformed into
          * an assignment statement of the form "id = value",
          * so each return type is created with an identifier */
-        char name[NAME_MAX_LEN + 1];
-
-        snprintf(name, sizeof(name), "$retvar_%d", $1->num);
-
-        $$ = id_new_return(xstrdup(name), $1, &@1);
-
-        $$->is_param = true;
+        $$ = id_new_return($1, &@1);
     }
 |   return_decl '[' size_opt ']'
     {

@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ir_abi.h"
 
 #include "gen_exp.h"
 
@@ -444,7 +445,6 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i, j = 0;
     int arg_cnt;
-    char name[NAME_MAX_LEN * 2 + 2];
     ast_id_t *id = exp->id;
     array_t *param_exps = exp->u_call.param_exps;
     ast_id_t *ret_id;
@@ -455,6 +455,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         return gen_i32(gen, 0);
 
     ASSERT(id->up != NULL);
+    ASSERT(id->abi != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
 
     arg_cnt = array_size(param_exps);
@@ -486,10 +487,8 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         }
     }
 
-    snprintf(name, sizeof(name), "%s$%s", id->up->name, id->name);
-
-    return BinaryenCall(gen->module, xstrdup(name), arg_exps, arg_cnt,
-                        BinaryenTypeNone());
+    return BinaryenCallIndirect(gen->module, gen_i32(gen, id->idx), arg_exps, arg_cnt,
+                                id->abi->name);
 }
 
 static BinaryenExpressionRef

@@ -21,22 +21,22 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
 
     ASSERT(id != NULL);
 
-    if (!is_var_id(id))
+    if (!is_var_id(id) && !is_cont_id(id))
         return;
 
-    if (is_global_id(id) || is_stack_id(id)) {
+    if (id->is_param || (!is_global_id(id) && !is_stack_id(id))) {
+        ASSERT(id->idx >= 0);
+
+        exp->kind = EXP_LOCAL_REF;
+        exp->u_lo.idx = id->idx;
+    }
+    else {
         /* The global variable always refers to the stack */
         ASSERT(id->addr >= 0);
 
         exp->kind = EXP_STACK_REF;
         exp->u_stk.addr = id->addr;
         exp->u_stk.offset = id->offset;
-    }
-    else {
-        ASSERT(id->idx >= 0);
-
-        exp->kind = EXP_LOCAL_REF;
-        exp->u_lo.idx = id->idx;
     }
 }
 
@@ -204,9 +204,10 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ast_id_t *qual_id = exp->u_acc.id_exp->id;
     ast_id_t *fld_id = exp->id;
 
-    if (is_fn_id(fld_id))
+    if (is_fn_id(fld_id)) {
         /* processed in exp_trans_call() */
         return;
+    }
 
     ASSERT(qual_id != NULL);
 

@@ -33,7 +33,7 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-trans_dflt_exp(trans_t *trans, ast_id_t *id)
+trans_global(trans_t *trans, ast_id_t *id)
 {
     meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp = id->u_var.dflt_exp;
@@ -97,11 +97,11 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
             ast_id_t *var_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
             if (is_var_id(var_id)) {
-                trans_dflt_exp(trans, var_id);
+                trans_global(trans, var_id);
             }
             else if (is_tuple_id(var_id)) {
                 array_foreach(var_id->u_tup.elem_ids, j) {
-                    trans_dflt_exp(trans, array_get_id(var_id->u_tup.elem_ids, j));
+                    trans_global(trans, array_get_id(var_id->u_tup.elem_ids, j));
                 }
             }
         }
@@ -127,6 +127,8 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     trans->bb = NULL;
 
     ir_add_fn(trans->ir, fn);
+
+    id->abi = fn->abi;
 }
 
 static void
