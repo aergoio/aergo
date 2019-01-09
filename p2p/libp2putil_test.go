@@ -70,7 +70,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 		{"t2", fields{"0.0.0.0", 2223, "id2223"}, false, multiaddr.P_IP4},
 		{"t3", fields{"2001:0db8:85a3:08d3:1319:8a2e:0370:7334", 444, "id0002"}, false, multiaddr.P_IP6},
 		{"t4", fields{"::ffff:192.0.1.2", 444, "id0002"}, false, multiaddr.P_IP4},
-		{"t5", fields{"iparkmac.blocko.io", 444, "id0002"}, false, multiaddr.P_IP4},
+		//{"t5", fields{"www.aergo.io", 444, "id0002"}, false, multiaddr.P_IP4},
 		{"t6", fields{"no1.blocko.com", 444, "id0002"}, true, multiaddr.P_IP4},
 		{"tErr", fields{"dw::ffff:192.0.1.2", 444, "id0002"}, true, multiaddr.P_IP4},
 		{"tErr2", fields{"dw!.com", 444, "id0002"}, true, multiaddr.P_IP4},
