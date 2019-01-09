@@ -30,6 +30,7 @@ var (
 	loadReqCh    chan *preLoadReq
 	preLoadInfos [2]preLoadInfo
 	PubNet       bool
+	GenesisHash  string
 )
 
 const BlockFactory = 0

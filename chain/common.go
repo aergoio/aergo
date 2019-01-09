@@ -67,6 +67,7 @@ func initChainEnv(genesis *types.Genesis) {
 		setMaxBlockSize(pubNetMaxBlockSize)
 	}
 	contract.PubNet = pubNet
+	contract.GenesisHash = enc.ToString(genesis.Block().BlockHash())
 	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
 	setCoinbaseFee(fee)
 }

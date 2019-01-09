@@ -669,12 +669,24 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	ce.constructCall(&ci, nil)
 	err = ce.err
 
+	const releaseTag9_10Blockno = 570000
+	const testNetGenesisBlockHash = "HpiwBvYS2s41PNJFtTiePGVePkSMxpyPqPp6Cgb2vfDy"
 	if err != nil {
 		logger.Warn().Err(err).Msg("constructor is failed")
 		ret, _ := json.Marshal("constructor call error:" + err.Error())
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
 			return string(ret), dbErr
+		}
+		if GenesisHash == testNetGenesisBlockHash &&
+			stateSet.blockHeight > releaseTag9_10Blockno {
+			if isSystemError(err) {
+				return string(ret), err
+			}
+			if err == errVmConstructorIsNotPayable {
+				return string(ret), err
+			}
+			return string(ret), nil
 		}
 		return string(ret), err
 	}
