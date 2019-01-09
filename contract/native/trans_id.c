@@ -33,11 +33,14 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-trans_global(trans_t *trans, ast_id_t *id)
+trans_global(array_t *stmts, ast_id_t *id)
 {
     meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp = id->u_var.dflt_exp;
     ast_exp_t *id_exp;
+
+    if (is_const_id(id))
+        return;
 
     ASSERT(id->up != NULL);
     ASSERT1(is_global_id(id), id->up->kind);
@@ -75,39 +78,50 @@ trans_global(trans_t *trans, ast_id_t *id)
     ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta), id_exp->meta.type,
             dflt_exp->meta.type);
 
-    stmt_trans(trans, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
+    stmt_add(stmts, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
 }
 
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ir_fn_t *fn = fn_new(id, abi_lookup(&trans->ir->abis, id));
+    ir_fn_t *fn;
+    ast_id_t *cont_id = id->up;
 
-    trans->fn = fn;
-    trans->bb = fn->entry_bb;
+    ASSERT(cont_id != NULL);
+    ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
     if (is_ctor_id(id)) {
         int i, j;
-        ast_id_t *cont_id = id->up;
+        array_t *stmts = array_new();
 
-        ASSERT(cont_id != NULL);
-        ASSERT1(is_cont_id(cont_id), cont_id->kind);
+        ASSERT(id->u_fn.ret_id != NULL);
 
+        /* constructor initializes global variables */
         array_foreach(&cont_id->u_cont.blk->ids, i) {
             ast_id_t *var_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
             if (is_var_id(var_id)) {
-                trans_global(trans, var_id);
+                trans_global(stmts, var_id);
             }
             else if (is_tuple_id(var_id)) {
                 array_foreach(var_id->u_tup.elem_ids, j) {
-                    trans_global(trans, array_get_id(var_id->u_tup.elem_ids, j));
+                    trans_global(stmts, array_get_id(var_id->u_tup.elem_ids, j));
                 }
             }
         }
 
-        ASSERT(trans->bb == fn->entry_bb);
+        if (!is_empty_array(stmts)) {
+            if (id->u_fn.blk == NULL)
+                id->u_fn.blk = blk_new_fn(&id->pos);
+
+            array_join_first(&id->u_fn.blk->stmts, stmts);
+        }
     }
+
+    fn = fn_new(id, abi_lookup(&trans->ir->abis, id));
+
+    trans->fn = fn;
+    trans->bb = fn->entry_bb;
 
     if (id->u_fn.blk != NULL) {
         blk_trans(trans, id->u_fn.blk);

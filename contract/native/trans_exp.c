@@ -247,12 +247,12 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
     }
 
-    /* if there is a return value,
-     * we have to clone it because the expression itself is transformed */
-    bb_add_stmt(trans->bb, stmt_new_exp(exp_clone(exp), &exp->pos));
-
     if (exp->id->u_fn.ret_id != NULL) {
         ast_id_t *ret_id = exp->id->u_fn.ret_id;
+
+        /* if there is a return value,
+         * we have to clone it because the expression itself is transformed */
+        bb_add_stmt(trans->bb, stmt_new_exp(exp_clone(exp), &exp->pos));
 
         if (is_tuple_id(ret_id)) {
             int i;
@@ -285,6 +285,9 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             exp_set_stack_ref(exp, ret_id->addr, 0);
         }
+    }
+    else {
+        bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
     }
 }
 
