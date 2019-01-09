@@ -226,7 +226,7 @@ ast_exp_t *
 exp_clone(ast_exp_t *exp)
 {
     int i;
-    ast_exp_t *res;
+    ast_exp_t *res = NULL;
     array_t *elem_exps;
     array_t *res_exps;
 

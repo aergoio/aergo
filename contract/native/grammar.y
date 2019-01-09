@@ -1352,7 +1352,7 @@ static void
 decl_add(array_t *stmts, ast_id_t *id)
 {
     ast_exp_t *var_exp;
-    ast_stmt_t *decl_stmt;
+    ast_stmt_t *decl_stmt = NULL;
 
     if (is_const_id(id))
         return;
