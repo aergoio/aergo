@@ -36,7 +36,7 @@ func _itobU32(argv uint32) []byte {
 
 func beforeTest(txCount int) error {
 	if verifier == nil {
-		verifier = NewSignVerifier(nil /*types.DefaultVerifierCnt*/, 4, false)
+		verifier = NewSignVerifier(nil /*types.DefaultVerifierCnt*/, nil, 4, false)
 	}
 
 	for i := 0; i < maxAccount; i++ {

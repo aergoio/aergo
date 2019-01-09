@@ -94,7 +94,7 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 func GetOwner(scs *state.ContractState, name []byte) *Owner {
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
-	ownergob, err := scs.GetData(key)
+	ownergob, err := scs.GetInitialData(key)
 	if err != nil {
 		return nil
 	}

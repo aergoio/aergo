@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -638,22 +637,25 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 }
 
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
+
+	txBody := tx.GetBody()
+
+	var account []byte
+	if tx.HasVerifedAccount() {
+		account = tx.GetVerifedAccount()
+		tx.RemoveVerifedAccount()
+		resolvedAccount := name.Resolve(bs, txBody.GetAccount())
+		if !bytes.Equal(account, resolvedAccount) {
+			return types.ErrSignNotMatch
+		}
+	} else {
+		account = name.Resolve(bs, txBody.GetAccount())
+	}
+
 	err := tx.Validate()
 	if err != nil {
 		return err
 	}
-	txBody := tx.GetBody()
-
-	account := name.Resolve(bs, txBody.Account)
-
-	//TODO : after make named account cache remove below
-	if tx.NeedNameVerify() {
-		err = key.VerifyTxWithAddress(tx, account)
-		if err != nil {
-			return err
-		}
-	}
-	//TODO : remove above
 
 	sender, err := bs.GetAccountStateV(account)
 	if err != nil {
