@@ -153,6 +153,7 @@ type IChainHandler interface {
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
+	setSync(val bool)
 }
 
 // ChainService manage connectivity of blocks

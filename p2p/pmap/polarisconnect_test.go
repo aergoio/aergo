@@ -19,22 +19,68 @@ import (
 	"testing"
 )
 
-func TestNewPolarisConnectSvc(t *testing.T) {
+// initSvc select Polarises to connect, or disable polaris
+func TestPolarisConnectSvc_initSvc(t *testing.T) {
+	polarisIDMain,_ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
+	polarisIDTest,_ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
+	dummyPeerID2, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	polar2 := "/ip4/172.21.1.2/tcp/8915/p2p/16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm"
+	dummyPeerID3, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+	polar3 := "/ip4/172.22.2.3/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"
+
+	customChainID := types.ChainID{Magic:"unittest.blocko.io"}
 	type args struct {
-		cfg *config.P2PConfig
-		ntc p2p.NTContainer
+		use bool
+		polarises []string
+
+		chainID *types.ChainID
 	}
 	tests := []struct {
 		name string
 		args args
-		want *PolarisConnectSvc
+
+		wantCnt int
+		peerIDs []peer.ID
 	}{
-		// TODO: Add test cases.
+		//
+		{"TAergoNoPolaris", args{false, nil, &ONEMainNet}, 0, []peer.ID{}},
+		{"TAergoMainDefault", args{true, nil, &ONEMainNet}, 1, []peer.ID{polarisIDMain}},
+		{"TAergoMainPlusCfg", args{true, []string{polar2,polar3},&ONEMainNet}, 3, []peer.ID{polarisIDMain,dummyPeerID2,dummyPeerID3}},
+		{"TAergoTestDefault", args{true, nil, &ONETestNet}, 1, []peer.ID{polarisIDTest}},
+		{"TAergoTestPlusCfg", args{true, []string{polar2,polar3}, &ONETestNet}, 3, []peer.ID{polarisIDTest,dummyPeerID2,dummyPeerID3}},
+		{"TCustom", args{true, nil,&customChainID}, 0, []peer.ID{}},
+		{"TCustomPlusCfg", args{true, []string{polar2,polar3},&customChainID}, 2, []peer.ID{dummyPeerID2,dummyPeerID3}},
+		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
+		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
+		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.aergo.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewPolarisConnectSvc(tt.args.cfg, tt.args.ntc); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewPolarisConnectSvc() = %v, want %v", got, tt.want)
+			ctrl := gomock.NewController(t)
+			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			pmapDummyNTC.nt = mockNT
+			pmapDummyNTC.chainID = tt.args.chainID
+
+			cfg:= config.NewServerContext("",""	).GetDefaultP2PConfig()
+			cfg.NPUsePolaris = tt.args.use
+			cfg.NPAddPolarises = tt.args.polarises
+
+			pcs :=  NewPolarisConnectSvc(cfg, pmapDummyNTC)
+
+			if len(pcs.mapServers) != tt.wantCnt {
+				t.Errorf("NewPolarisConnectSvc() = %v, want %v", len(pcs.mapServers), tt.wantCnt)
+			}
+			for _, wantPeerID := range tt.peerIDs {
+				found := false
+				for _, polarisMeta := range pcs.mapServers {
+					if wantPeerID == polarisMeta.ID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("initSvc() want exist %v but not ", wantPeerID)
+				}
 			}
 		})
 	}
@@ -75,7 +121,7 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 }
 
 
-func TestPeerMapService_onPing(t *testing.T) {
+func TestPolarisConnectSvc_onPing(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
@@ -163,7 +209,7 @@ func TestPeerMapService_connectAndQuery(t *testing.T) {
 	}
 }
 
-func TestPeerMapService_sendRequest(t *testing.T) {
+func TestPolarisConnectSvc_sendRequest(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
@@ -208,7 +254,7 @@ func TestPeerMapService_sendRequest(t *testing.T) {
 	}
 }
 
-func TestPeerMapService_readResponse(t *testing.T) {
+func TestPolarisConnectSvc_readResponse(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte

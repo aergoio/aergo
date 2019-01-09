@@ -20,7 +20,7 @@ add_custom_target(aergocli GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X 
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergosvr/...
+add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergosvr/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 

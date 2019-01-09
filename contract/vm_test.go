@@ -377,7 +377,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -395,7 +395,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -464,7 +464,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -489,7 +489,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"2","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"2","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -805,7 +805,7 @@ abi.register(init, nowNull, localtimeNull, get)`
 		"datetime",
 		`{"Name":"get"}`,
 		"",
-		`[{"bool":0},{"bool":1},{"date":"1970-01-01 02:46:40","bool":1},{"date":"2004-11-23","bool":0}]`,
+		`[{"bool":0},{"bool":1},{"bool":1,"date":"1970-01-01 02:46:40"},{"bool":0,"date":"2004-11-23"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -1016,7 +1016,7 @@ abi.register(createTable, query, insert, update, delete, count)`
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
-		`[{"passwd":"passwd2","id":"id2","birth":"20180524","name":"name2","mobile":"010-1234-5678"}]`,
+		`[{"birth":"20180524","id":"id2","mobile":"010-1234-5678","name":"name2","passwd":"passwd2"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -1768,11 +1768,11 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg1":1,"arg2":{},"arg3":{}},"key2":[5,4,3]}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg2\":{},\"arg3\":{},\"arg1\":1},\"key2\":[5,4,3]}"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg1\":1,\"arg2\":{},\"arg3\":{}},\"key2\":[5,4,3]}"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2250,7 +2250,7 @@ func TestArrayArg(t *testing.T) {
 	}
 	err = bc.Query("a", `{"Name": "mixed_args", "Args":[[1, 2, 3], {"name": "kslee", "age": 39}, 7]}`,
 		"",
-		`[[1,2,3],{"name":"kslee","age":39},7]`,
+		`[[1,2,3],{"age":39,"name":"kslee"},7]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -2261,7 +2261,6 @@ func TestArrayArg(t *testing.T) {
 "end"
 ]}`,
 		"",
-		`[[[1,2,3],["first","second"]],{"address":{"state":"XXX-do","city":"YYY-si"},"age":39,"name":"kslee"},"end"]`,
 		`[[[1,2,3],["first","second"]],{"address":{"city":"YYY-si","state":"XXX-do"},"age":39,"name":"kslee"},"end"]`,
 	)
 	if err != nil {
@@ -2273,7 +2272,7 @@ func TestArrayArg(t *testing.T) {
 "hmm..."
 ]}`,
 		"",
-		`[[{"name":"wook","age":50},{"name":"hook","age":42}],{"scores":[10,20,30,40,50],"age":39,"name":"kslee"},"hmm..."]`,
+		`[[{"age":50,"name":"wook"},{"age":42,"name":"hook"}],{"age":39,"name":"kslee","scores":[10,20,30,40,50]},"hmm..."]`,
 	)
 	if err != nil {
 		t.Error(err)

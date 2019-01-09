@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
@@ -23,13 +24,15 @@ type SignVerifier struct {
 	doneCh    chan verifyWorkRes
 	resultCh  chan *VerifyResult
 
-	useMempool bool
-	totalHit   int
+	useMempool  bool
+	skipMempool bool /* when sync */
+	totalHit    int
 }
 
 type verifyWork struct {
-	idx int
-	tx  *types.Tx
+	idx        int
+	tx         *types.Tx
+	useMempool bool // not to use aop for performance
 }
 
 type verifyWorkRes struct {
@@ -77,7 +80,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 
 	for txWork := range sv.workCh {
 		//logger.Debug().Int("worker", workerNo).Int("idx", txWork.idx).Msg("get work to verify tx")
-		hit, err := sv.verifyTx(sv.comm, txWork.tx)
+		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool)
 
 		if err != nil {
 			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", enc.ToString(txWork.tx.GetHash())).
@@ -99,6 +102,9 @@ func (sv *SignVerifier) isExistInMempool(comm component.IComponentRequester, tx 
 		"chain/signverifier/verifytx")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get verify from mempool")
+		if err == actor.ErrTimeout {
+			return false, nil
+		}
 		return false, err
 	}
 
@@ -110,17 +116,19 @@ func (sv *SignVerifier) isExistInMempool(comm component.IComponentRequester, tx 
 	return false, nil
 }
 
-func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.Tx) (hit bool, err error) {
+func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.Tx, useMempool bool) (hit bool, err error) {
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return false, ErrTxFormatInvalid
 	}
 
-	if hit, err = sv.isExistInMempool(comm, tx); err != nil {
-		return false, err
-	}
-	if hit {
-		return hit, nil
+	if useMempool {
+		if hit, err = sv.isExistInMempool(comm, tx); err != nil {
+			return false, err
+		}
+		if hit {
+			return hit, nil
+		}
 	}
 
 	if tx.NeedNameVerify() {
@@ -155,11 +163,12 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 	errs := make([]error, txLen, txLen)
 
 	//logger.Debug().Int("txlen", txLen).Msg("verify tx start")
+	useMempool := sv.useMempool && !sv.skipMempool
 
 	go func() {
 		for i, tx := range txs {
 			//logger.Debug().Int("idx", i).Msg("push tx start")
-			sv.workCh <- verifyWork{idx: i, tx: tx}
+			sv.workCh <- verifyWork{idx: i, tx: tx, useMempool: useMempool}
 		}
 	}()
 
@@ -227,7 +236,7 @@ func (sv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
 	logger.Debug().Int("txlen", txLen).Msg("verify tx inplace start")
 
 	for i, tx := range txs {
-		hit, errs[i] = sv.verifyTx(sv.comm, tx)
+		hit, errs[i] = sv.verifyTx(sv.comm, tx, false)
 		failed = true
 
 		if hit {
@@ -237,4 +246,8 @@ func (sv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
 
 	logger.Debug().Int("totalhit", sv.totalHit).Msg("verify tx inplace done")
 	return failed, errs
+}
+
+func (sv *SignVerifier) SetSkipMempool(val bool) {
+	sv.skipMempool = val
 }
