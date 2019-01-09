@@ -3077,4 +3077,35 @@ abi.register(createAndInsert)`
 	}
 }
 
+func TestReturnUData(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+	function test_die()
+	return contract.call(system.getContractID(), "return_object")
+	end
+	function return_object()
+	return db.query("select 1")
+	end
+	abi.register(test_die, return_object)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "rs-return", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "rs-return", 0, `{"Name": "test_die", "Args":[]}`).Fail(`unsupport type: userdata`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
