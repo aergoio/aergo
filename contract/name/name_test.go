@@ -39,14 +39,16 @@ func TestName(t *testing.T) {
 	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name, 'c', nil)}
 	tx.Recipient = []byte(types.AergoName)
 
+	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := CreateName(scs, tx)
+	err := CreateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx)
+	err = CreateName(scs, tx, sender, receiver)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))
@@ -70,11 +72,13 @@ func TestNameRecursive(t *testing.T) {
 	owner := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	buyer := types.ToAddress("AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay")
 
-	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name1, 'c', nil)}
+	tx := &types.TxBody{Account: owner, Recipient: []byte(types.AergoName), Payload: buildNamePayload(name1, 'c', nil)}
 
+	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	err := CreateName(scs, tx)
+	err := CreateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "create name")
 
 	tx.Account = []byte(name1)
@@ -82,7 +86,7 @@ func TestNameRecursive(t *testing.T) {
 	tx.Payload = buildNamePayload(name2, 'c', nil)
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx)
+	err = CreateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "redirect name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -112,7 +116,10 @@ func TestNameNil(t *testing.T) {
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, 'c', nil)}
-	err = CreateName(scs, tx)
+	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
+
+	err = CreateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "create name")
 }
 

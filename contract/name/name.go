@@ -17,13 +17,20 @@ type Owner struct {
 	Address []byte
 }
 
-func CreateName(scs *state.ContractState, tx *types.TxBody) error {
+func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V) error {
 	if err := ValidateNameTx(tx, scs); err != nil {
 		return err
 	}
 	if len(tx.Payload[1:]) != types.NameLength {
 		return fmt.Errorf("not supported yet")
 	}
+	amount := tx.GetAmountBigInt()
+	if sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
+		return types.ErrInsufficientBalance
+	}
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+
 	return createName(scs, tx.Payload[1:], tx.Account)
 }
 
@@ -74,7 +81,7 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 
 //GetAddress is resolve name for mempool
 func GetAddress(scs *state.ContractState, name []byte) []byte {
-	if len(name) > types.NameLength {
+	if len(name) != types.NameLength || bytes.Equal(name, []byte(types.AergoSystem)) {
 		return name
 	}
 	return getAddress(scs, name)

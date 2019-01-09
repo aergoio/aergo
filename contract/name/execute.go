@@ -9,12 +9,12 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func ExecuteNameTx(scs *state.ContractState, txBody *types.TxBody) error {
+func ExecuteNameTx(scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
 	nameCmd, err := getNameCmd(txBody.GetPayload())
 
 	switch nameCmd {
 	case 'c':
-		err = CreateName(scs, txBody)
+		err = CreateName(scs, txBody, sender, receiver)
 	case 'u':
 		err = UpdateName(scs, txBody)
 	default:

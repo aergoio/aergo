@@ -19,10 +19,12 @@ func TestExcuteNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, 'c', nil)
 
+	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := ExecuteNameTx(scs, txBody)
+	err := ExecuteNameTx(scs, txBody, sender, receiver, 0)
 	assert.NoError(t, err, "execute name tx")
 
 	commitContractState(t, bs, scs)

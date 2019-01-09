@@ -499,10 +499,16 @@ func (tx *Tx) Validate() error {
 				return ErrTooSmallAmount
 			}
 		case AergoName:
-			if tx.GetBody().GetPayload()[0] != 'c' && tx.GetBody().GetPayload()[0] != 'u' {
+			if tx.GetBody().GetPayload()[0] != 'c' &&
+				tx.GetBody().GetPayload()[0] != 'b' &&
+				tx.GetBody().GetPayload()[0] != 'u' {
 				return ErrTxFormatInvalid
 			}
+			if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetBody().GetAmountBigInt()) > 0 {
+				return ErrTooSmallAmount
+			}
 		default:
+			return ErrTxInvalidRecipient
 		}
 	default:
 		return ErrTxInvalidType
@@ -530,6 +536,11 @@ func (tx *Tx) ValidateWithSenderState(senderState *State, fee *big.Int) error {
 				return ErrInsufficientBalance
 			}
 		case AergoName:
+			if (tx.GetBody().GetPayload()[0] == 'c' ||
+				tx.GetBody().GetPayload()[0] == 'b') &&
+				amount.Cmp(balance) > 0 {
+				return ErrInsufficientBalance
+			}
 		default:
 			return ErrTxInvalidRecipient
 		}
