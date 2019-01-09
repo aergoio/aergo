@@ -19,15 +19,15 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     ASSERT(abi != NULL);
 
-    /* 1st local for base stack address */
-    gen_add_local(gen, TYPE_INT32);
+    /* for base stack address */
+    local_add(gen, TYPE_INT32);
 
-    /* 2nd local for relooper */
-    gen_add_local(gen, TYPE_INT32);
+    /* for relooper */
+    local_add(gen, TYPE_INT32);
 
     /* generate local variables */
     array_foreach(&fn->locals, i) {
-        gen_add_local(gen, array_get_id(&fn->locals, i)->meta.type);
+        local_add(gen, array_get_id(&fn->locals, i)->meta.type);
     }
 
     gen->relooper = RelooperCreate();

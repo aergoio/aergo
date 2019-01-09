@@ -15,7 +15,7 @@
 #include "trans_exp.h"
 
 static void
-exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
+exp_trans_id(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
 
@@ -23,10 +23,10 @@ exp_trans_id_ref(trans_t *trans, ast_exp_t *exp)
 
     if (is_var_id(id)) {
         if (id->is_param || (!is_global_id(id) && !is_stack_id(id)))
-            exp_set_local_ref(exp, id->idx);
+            exp_set_local(exp, id->idx);
         else
             /* the global variable always refers to the stack */
-            exp_set_stack_ref(exp, id->addr, id->offset);
+            exp_set_stack(exp, id->addr, id->offset);
     }
     else if (is_fn_id(id)) {
         exp_set_lit(exp, NULL);
@@ -79,13 +79,13 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
 
-        if (!is_stack_ref_exp(id_exp) || !is_lit_exp(idx_exp))
+        if (!is_stack_exp(id_exp) || !is_lit_exp(idx_exp))
             return;
 
         /* The following arr_size is stripped arr_size */
         offset = val_i64(&idx_exp->u_lit.val) * exp->meta.arr_size;
 
-        exp_set_stack_ref(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + offset);
+        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + offset);
     }
     else {
         /* TODO
@@ -223,8 +223,8 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
             }
         }
     }
-    else if (is_stack_ref_exp(id_exp)) {
-        exp_set_stack_ref(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->offset);
+    else if (is_stack_exp(id_exp)) {
+        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->offset);
     }
 }
 
@@ -269,7 +269,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
                 fn_add_stack(trans->fn, elem_id);
 
-                ref_exp = exp_new_stack_ref(elem_id->addr, 0, &exp->pos);
+                ref_exp = exp_new_stack(elem_id->addr, 0, &exp->pos);
                 meta_copy(&ref_exp->meta, &elem_id->meta);
 
                 array_add_last(elem_exps, ref_exp);
@@ -283,7 +283,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             ASSERT1(ret_id->offset == 0, ret_id->offset);
 
-            exp_set_stack_ref(exp, ret_id->addr, 0);
+            exp_set_stack(exp, ret_id->addr, 0);
         }
     }
     else {
@@ -328,12 +328,12 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
     case EXP_NULL:
         break;
 
-    case EXP_ID_REF:
-        exp_trans_id_ref(trans, exp);
+    case EXP_ID:
+        exp_trans_id(trans, exp);
         break;
 
-    case EXP_LOCAL_REF:
-    case EXP_STACK_REF:
+    case EXP_LOCAL:
+    case EXP_STACK:
         break;
 
     case EXP_LIT:

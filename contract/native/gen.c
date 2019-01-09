@@ -42,7 +42,7 @@ gen_init(gen_t *gen, flag_t flag, char *path)
 }
 
 static void
-gen_sgmt(gen_t *gen, ir_sgmt_t *sgmt)
+sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 {
     int i;
     BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
@@ -56,7 +56,7 @@ gen_sgmt(gen_t *gen, ir_sgmt_t *sgmt)
 }
 
 static void
-gen_table(gen_t *gen, array_t *fns)
+table_gen(gen_t *gen, array_t *fns)
 {
     int i;
     char **names = xmalloc(sizeof(char *) * array_size(fns));
@@ -89,8 +89,8 @@ gen(ir_t *ir, flag_t flag, char *path)
         fn_gen(&gen, array_get_fn(&ir->fns, i));
     }
 
-    gen_sgmt(&gen, &ir->sgmt);
-    gen_table(&gen, &ir->fns);
+    sgmt_gen(&gen, &ir->sgmt);
+    table_gen(&gen, &ir->fns);
 
     if (flag_on(flag, FLAG_WAT_DUMP))
         BinaryenModulePrint(gen.module);
@@ -116,7 +116,7 @@ gen(ir_t *ir, flag_t flag, char *path)
 }
 
 static BinaryenType
-gen_type(type_t type)
+type_gen(type_t type)
 {
     switch (type) {
     case TYPE_NONE:
@@ -159,27 +159,27 @@ gen_type(type_t type)
 }
 
 BinaryenType
-gen_meta(meta_t *meta)
+meta_gen(meta_t *meta)
 {
     if (is_array_type(meta))
         return BinaryenTypeInt32();
 
-    return gen_type(meta->type);
+    return type_gen(meta->type);
 }
 
 void
-gen_add_local(gen_t *gen, type_t type)
+local_add(gen_t *gen, type_t type)
 {
     if (gen->locals == NULL)
         gen->locals = xmalloc(sizeof(BinaryenType));
     else
         gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
 
-    gen->locals[gen->local_cnt++] = gen_type(type);
+    gen->locals[gen->local_cnt++] = type_gen(type);
 }
 
 void
-gen_add_instr(gen_t *gen, BinaryenExpressionRef instr)
+instr_add(gen_t *gen, BinaryenExpressionRef instr)
 {
     if (instr == NULL)
         return;

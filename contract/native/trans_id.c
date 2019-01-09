@@ -70,7 +70,7 @@ trans_global(array_t *stmts, ast_id_t *id)
         meta_set_undef(&dflt_exp->meta);
     }
 
-    id_exp = exp_new_id_ref(id->name, &dflt_exp->pos);
+    id_exp = exp_new_id(id->name, &dflt_exp->pos);
 
     id_exp->id = id;
     meta_copy(&id_exp->meta, meta);

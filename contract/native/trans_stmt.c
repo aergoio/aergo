@@ -368,7 +368,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             array_foreach(ret_id->u_tup.elem_ids, i) {
                 ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
 
-                id_exp = exp_new_id_ref(elem_id->name, &elem_id->pos);
+                id_exp = exp_new_id(elem_id->name, &elem_id->pos);
 
                 id_exp->id = elem_id;
                 meta_copy(&id_exp->meta, &elem_id->meta);
@@ -379,7 +379,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             var_exp = exp_new_tuple(elem_exps, &arg_exp->pos);
         }
         else {
-            var_exp = exp_new_id_ref(ret_id->name, &ret_id->pos);
+            var_exp = exp_new_id(ret_id->name, &ret_id->pos);
 
             var_exp->id = ret_id;
             meta_copy(&var_exp->meta, &ret_id->meta);

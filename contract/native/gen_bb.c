@@ -20,7 +20,7 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     ASSERT(gen->instrs == NULL);
 
     array_foreach(&bb->stmts, i) {
-        gen_add_instr(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
+        instr_add(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
     }
 
     block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,

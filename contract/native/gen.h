@@ -30,10 +30,10 @@ typedef struct gen_s {
 
 void gen(ir_t *ir, flag_t flag, char *path);
 
-void gen_add_local(gen_t *gen, type_t type);
-void gen_add_instr(gen_t *gen, BinaryenExpressionRef instr);
+void local_add(gen_t *gen, type_t type);
+void instr_add(gen_t *gen, BinaryenExpressionRef instr);
 
-BinaryenType gen_meta(meta_t *meta);
+BinaryenType meta_gen(meta_t *meta);
 
 static inline BinaryenExpressionRef
 gen_i32(gen_t *gen, int32_t v)

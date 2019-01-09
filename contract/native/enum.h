@@ -100,7 +100,7 @@ extern char *id_kinds_[ID_MAX];
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
     EXP_LIT         = 1,
-    EXP_ID_REF      = 2,
+    EXP_ID          = 2,
     EXP_ARRAY       = 3,
     EXP_CAST        = 4,
     EXP_UNARY       = 5,
@@ -111,8 +111,9 @@ typedef enum exp_kind_e {
     EXP_SQL         = 10,
     EXP_TUPLE       = 11,
     EXP_INIT        = 12,
-    EXP_LOCAL_REF   = 13,
-    EXP_STACK_REF   = 14,
+    EXP_GLOBAL      = 13,
+    EXP_LOCAL       = 14,
+    EXP_STACK       = 15,
     EXP_MAX
 } exp_kind_t;
 

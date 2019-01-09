@@ -308,7 +308,7 @@ impl_opt:
     /* empty */                 { $$ = NULL; }
 |   K_IMPLEMENTS identifier
     {
-        $$ = exp_new_id_ref($2, &@2);
+        $$ = exp_new_id($2, &@2);
     }
 ;
 
@@ -1181,7 +1181,7 @@ post_exp:
     }
 |   post_exp '.' identifier
     {
-        $$ = exp_new_access($1, exp_new_id_ref($3, &@3), &@$);
+        $$ = exp_new_access($1, exp_new_id($3, &@3), &@$);
     }
 |   post_exp UNARY_INC
     {
@@ -1215,11 +1215,11 @@ new_exp:
     prim_exp
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_id_ref($2, &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_id($2, &@2), $4, &@$);
     }
 |   K_NEW K_MAP '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(exp_new_id_ref(xstrdup("map"), &@2), $4, &@$);
+        $$ = exp_new_call(exp_new_id(xstrdup("map"), &@2), $4, &@$);
     }
 |   K_NEW initializer
     {
@@ -1260,7 +1260,7 @@ prim_exp:
     literal
 |   identifier
     {
-        $$ = exp_new_id_ref($1, &@$);
+        $$ = exp_new_id($1, &@$);
     }
 |   '(' expression ')'
     {
@@ -1359,7 +1359,7 @@ decl_add(array_t *stmts, ast_id_t *id)
 
     if (is_var_id(id)) {
         if (id->u_var.dflt_exp != NULL) {
-            var_exp = exp_new_id_ref(id->name, &id->pos);
+            var_exp = exp_new_id(id->name, &id->pos);
             decl_stmt = stmt_new_assign(var_exp, id->u_var.dflt_exp, &id->pos);
 
             id->u_var.dflt_exp = NULL;
@@ -1377,7 +1377,7 @@ decl_add(array_t *stmts, ast_id_t *id)
             array_foreach(elem_ids, i) {
                 ast_id_t *elem_id = array_get_id(elem_ids, i);
 
-                exp_add(elem_exps, exp_new_id_ref(elem_id->name, &elem_id->pos));
+                exp_add(elem_exps, exp_new_id(elem_id->name, &elem_id->pos));
             }
 
             var_exp = exp_new_tuple(elem_exps, &id->pos);

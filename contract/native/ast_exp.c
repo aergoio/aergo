@@ -40,9 +40,9 @@ exp_new_lit(src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_id_ref(char *name, src_pos_t *pos)
+exp_new_id(char *name, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ID_REF, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_ID, pos);
 
     exp->u_id.name = name;
 
@@ -166,21 +166,33 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_local_ref(int idx, src_pos_t *pos)
+exp_new_global(char *name, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_LOCAL_REF, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, pos);
 
-    ASSERT(idx >= 0);
+    ASSERT(name != NULL);
 
-    exp->u_lo.idx = idx;
+    exp->u_glob.name = name;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_stack_ref(int addr, int offset, src_pos_t *pos)
+exp_new_local(int idx, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_STACK_REF, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, pos);
+
+    ASSERT(idx >= 0);
+
+    exp->u_local.idx = idx;
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_stack(int addr, int offset, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_STACK, pos);
 
     ASSERT(addr >= 0);
     ASSERT(offset >= 0);
@@ -203,21 +215,21 @@ exp_set_lit(ast_exp_t *exp, value_t *val)
 }
 
 void
-exp_set_local_ref(ast_exp_t *exp, int idx)
+exp_set_local(ast_exp_t *exp, int idx)
 {
     ASSERT(idx >= 0);
 
-    exp->kind = EXP_LOCAL_REF;
-    exp->u_lo.idx = idx;
+    exp->kind = EXP_LOCAL;
+    exp->u_local.idx = idx;
 }
 
 void
-exp_set_stack_ref(ast_exp_t *exp, int addr, int offset)
+exp_set_stack(ast_exp_t *exp, int addr, int offset)
 {
     ASSERT(addr >= 0);
     ASSERT(offset >= 0);
 
-    exp->kind = EXP_STACK_REF;
+    exp->kind = EXP_STACK;
     exp->u_stk.addr = addr;
     exp->u_stk.offset = offset;
 }
@@ -238,16 +250,16 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_null(&exp->pos);
         break;
 
-    case EXP_ID_REF:
-        res = exp_new_id_ref(exp->u_id.name, &exp->pos);
+    case EXP_ID:
+        res = exp_new_id(exp->u_id.name, &exp->pos);
         break;
 
-    case EXP_LOCAL_REF:
-        res = exp_new_local_ref(exp->u_lo.idx, &exp->pos);
+    case EXP_LOCAL:
+        res = exp_new_local(exp->u_local.idx, &exp->pos);
         break;
 
-    case EXP_STACK_REF:
-        res = exp_new_stack_ref(exp->u_stk.addr, exp->u_stk.offset, &exp->pos);
+    case EXP_STACK:
+        res = exp_new_stack(exp->u_stk.addr, exp->u_stk.offset, &exp->pos);
         break;
 
     case EXP_LIT:
@@ -333,7 +345,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
     case EXP_NULL:
         return true;
 
-    case EXP_ID_REF:
+    case EXP_ID:
         return strcmp(x->u_id.name, y->u_id.name) == 0;
 
     case EXP_LIT:

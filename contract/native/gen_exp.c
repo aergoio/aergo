@@ -11,18 +11,18 @@
 #include "gen_exp.h"
 
 static BinaryenExpressionRef
-exp_gen_local_ref(gen_t *gen, ast_exp_t *exp)
+exp_gen_local(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetLocal(gen->module, exp->u_lo.idx, gen_meta(&exp->meta));
+    return BinaryenGetLocal(gen->module, exp->u_local.idx, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef
-exp_gen_stack_ref(gen_t *gen, ast_exp_t *exp)
+exp_gen_stack(gen_t *gen, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
 
     return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
-                        exp->u_stk.offset, 0, gen_meta(meta),
+                        exp->u_stk.offset, 0, meta_gen(meta),
                         gen_i32(gen, exp->u_stk.addr));
 }
 
@@ -66,7 +66,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
 
         ASSERT1(is_stack_id(id), id->kind);
-        ASSERT1(is_stack_ref_exp(exp->u_arr.id_exp), exp->u_arr.id_exp->kind);
+        ASSERT1(is_stack_exp(exp->u_arr.id_exp), exp->u_arr.id_exp->kind);
         ASSERT(id->addr >= 0);
 
         /* BinaryenLoad() takes an offset as uint32_t,
@@ -94,7 +94,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             return address;
 
         return BinaryenLoad(gen->module, meta_size(meta), is_signed_type(meta), 0, 0,
-                            gen_meta(meta), address);
+                            meta_gen(meta), address);
     }
     else {
         ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
@@ -448,13 +448,13 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     ast_id_t *fld_id = exp->id;
     meta_t *meta = &exp->meta;
 
-    if (is_local_ref_exp(id_exp)) {
+    if (is_local_exp(id_exp)) {
         BinaryenExpressionRef address;
 
         if (is_object_type(&qual_id->meta))
             address = BinaryenLoad(gen->module, TYPE_SIZE(qual_id->meta.type),
                                    is_signed_type(&qual_id->meta), 0, 0,
-                                   gen_meta(&qual_id->meta), exp_gen(gen, id_exp));
+                                   meta_gen(&qual_id->meta), exp_gen(gen, id_exp));
         else
             address = exp_gen(gen, id_exp);
 
@@ -463,7 +463,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
                                   gen_i32(gen, fld_id->offset));
 
         return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
-                            fld_id->offset, 0, gen_meta(meta), address);
+                            fld_id->offset, 0, meta_gen(meta), address);
     }
 
     ASSERT(false);
@@ -549,7 +549,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         if (is_return_id(id))
             address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
         else
-            address = BinaryenGetLocal(gen->module, id->idx, gen_meta(&id->meta));
+            address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
     }
     else {
         ASSERT(id->addr >= 0);
@@ -566,9 +566,9 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             value = exp_gen(gen, elem_exp);
             offset = ALIGN(offset, meta_align(elem_meta));
 
-            gen_add_instr(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type),
+            instr_add(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type),
                                              offset, 0, address, value,
-                                             gen_meta(elem_meta)));
+                                             meta_gen(elem_meta)));
 
             offset += meta_size(elem_meta);
         }
@@ -585,7 +585,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             args[0] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 0));
             args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 1));
 
-            gen_add_instr(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
+            instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
                                             BinaryenTypeNone()));
         }
     }
@@ -599,11 +599,11 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     ASSERT(exp != NULL);
 
     switch (exp->kind) {
-    case EXP_LOCAL_REF:
-        return exp_gen_local_ref(gen, exp);
+    case EXP_LOCAL:
+        return exp_gen_local(gen, exp);
 
-    case EXP_STACK_REF:
-        return exp_gen_stack_ref(gen, exp);
+    case EXP_STACK:
+        return exp_gen_stack(gen, exp);
 
     case EXP_LIT:
         return exp_gen_lit(gen, exp);

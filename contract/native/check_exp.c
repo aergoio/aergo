@@ -12,12 +12,12 @@
 #include "check_exp.h"
 
 static bool
-exp_check_id_ref(check_t *check, ast_exp_t *exp)
+exp_check_id(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
     char *name = exp->u_id.name;
 
-    ASSERT1(is_id_ref_exp(exp), exp->kind);
+    ASSERT1(is_id_exp(exp), exp->kind);
     ASSERT(name != NULL);
 
     if (strcmp(name, "this") == 0) {
@@ -541,7 +541,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     id_exp = exp->u_call.id_exp;
     param_exps = exp->u_call.param_exps;
 
-    if (is_id_ref_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
+    if (is_id_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
         /* In case of new map() */
         if (param_exps != NULL) {
             ast_exp_t *param_exp;
@@ -701,8 +701,8 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_NULL:
         return true;
 
-    case EXP_ID_REF:
-        return exp_check_id_ref(check, exp);
+    case EXP_ID:
+        return exp_check_id(check, exp);
 
     case EXP_LIT:
         return exp_check_lit(check, exp);
