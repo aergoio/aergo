@@ -69,11 +69,30 @@ contract test {
 
 @test(self_accessor)
 contract test {
+    /*
     string v;
     test(int v) {
         if (this.v == "") {
             this.v = "self";
         }
+    }
+    */
+}
+
+@test(self_accessor_as_parameter)
+@error(ERROR_NOT_ALLOWED_PARAM)
+contract test {
+    test() {
+        f(this);
+    }
+    func f (test p) { }
+}
+
+@test(self_accessor_as_lvalue)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    func f () {
+        this = new test();
     }
 }
 

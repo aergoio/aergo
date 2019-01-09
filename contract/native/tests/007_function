@@ -60,7 +60,6 @@ contract test {
         for (i = 0; i < x.a; i++) { }
         if (x.b == "b") { }
     }
-
     test() {
         f1(1, "1");
         f2(2, "2");
@@ -82,14 +81,14 @@ contract test {
 @test(contract_as_parameter)
 contract test {
     float v;
-    test() {
-        f1(this);
-    }
     func f1(test p) {
         p.v = p.f2();
     }
     func f2() float {
         return 1.0;
+    }
+    func f3() {
+        f1(new test());
     }
 }
 

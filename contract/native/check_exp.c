@@ -41,13 +41,10 @@ exp_check_id_ref(check_t *check, ast_exp_t *exp)
 
     id->is_used = true;
 
-    if (is_const_id(id) && id->val != NULL) {
-        exp->kind = EXP_LIT;
-        exp->u_lit.val = *id->val;
-    }
-    else {
+    if (is_const_id(id) && id->val != NULL)
+        exp_set_lit(exp, id->val);
+    else
         exp->id = id;
-    }
 
     meta_copy(&exp->meta, &id->meta);
 
@@ -165,11 +162,10 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
                meta_to_str(&exp->meta));
 
     if (is_lit_exp(val_exp)) {
-        exp->u_lit.val = val_exp->u_lit.val;
-        value_cast(&exp->u_lit.val, &exp->meta);
-
-        exp->kind = EXP_LIT;
+        exp_set_lit(exp, &val_exp->u_lit.val);
         meta_set_undef(&exp->meta);
+
+        value_cast(&exp->u_lit.val, &exp->meta);
     }
 
     return true;
@@ -221,10 +217,10 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
     }
 
     if (is_lit_exp(val_exp)) {
-        value_eval(op, &val_exp->u_lit.val, NULL, &exp->u_lit.val);
-
-        exp->kind = EXP_LIT;
+        exp_set_lit(exp, NULL);
         meta_set_undef(&exp->meta);
+
+        value_eval(op, &val_exp->u_lit.val, NULL, &exp->u_lit.val);
     }
 
     return true;
@@ -433,10 +429,10 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
         if ((op == OP_DIV || op == OP_MOD) && is_zero_val(&r_exp->u_lit.val))
             RETURN(ERROR_DIVIDE_BY_ZERO, &r_exp->pos);
 
-        value_eval(op, &l_exp->u_lit.val, &r_exp->u_lit.val, &exp->u_lit.val);
-
-        exp->kind = EXP_LIT;
+        exp_set_lit(exp, NULL);
         meta_set_undef(&exp->meta);
+
+        value_eval(op, &l_exp->u_lit.val, &r_exp->u_lit.val, &exp->u_lit.val);
     }
 
     return true;
@@ -483,7 +479,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp, *fld_exp;
     meta_t *id_meta;
-    ast_id_t *id;
+    ast_id_t *qual_id;
 
     ASSERT1(is_access_exp(exp), exp->kind);
 
@@ -492,37 +488,36 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, id_exp));
 
-    id = id_exp->id;
+    qual_id = id_exp->id;
 
-    if (id == NULL || is_tuple_type(id_meta) ||
-        (is_fn_id(id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
+    if (qual_id == NULL ||
+        is_tuple_type(id_meta) || /* in case of new initializer */
+        (is_fn_id(qual_id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     /* get the actual struct, contract or interface identifier */
     if (is_struct_type(id_meta) || is_object_type(id_meta)) {
-        /* If "this.x" is used, the id is the contract identifier */
-        ASSERT1(is_var_id(id) || is_fn_id(id) || is_cont_id(id), id->kind);
+        /* if "this.x" is used, "qual_id" is the contract identifier */
+        ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id),
+                qual_id->kind);
         ASSERT(id_meta->type_id != NULL);
 
-        id = id_meta->type_id;
+        qual_id = id_meta->type_id;
     }
 
-    ASSERT(id != NULL);
-    ASSERT1(is_type_id(id) || is_enum_id(id), id->kind);
+    ASSERT(qual_id != NULL);
+    ASSERT1(is_type_id(qual_id) || is_enum_id(qual_id), qual_id->kind);
 
     fld_exp = exp->u_acc.fld_exp;
 
-    check->qual_id = id;
+    check->qual_id = qual_id;
 
     if (exp_check(check, fld_exp)) {
-        if (is_lit_exp(fld_exp)) {
+        if (is_lit_exp(fld_exp))
             /* enum or contract constant */
-            exp->kind = EXP_LIT;
-            exp->u_lit.val = fld_exp->u_lit.val;
-        }
-        else {
+            exp_set_lit(exp, &fld_exp->u_lit.val);
+        else
             exp->id = fld_exp->id;
-        }
 
         meta_copy(&exp->meta, &fld_exp->meta);
     }
@@ -593,6 +588,10 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
+
+        if (param_exp->id != NULL &&
+            !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
+            ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
 
         meta_eval(&param_id->meta, &param_exp->meta);
 
@@ -686,7 +685,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         ASSERT2(ALIGN64(size) == meta_size(&exp->meta), size, meta_size(&exp->meta));
 
-        exp->kind = EXP_LIT;
+        exp_set_lit(exp, NULL);
         value_set_ptr(&exp->u_lit.val, raw, size);
     }
 

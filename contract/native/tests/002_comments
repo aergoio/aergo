@@ -11,6 +11,9 @@ a
     /******************************************************************************
      comments for title
      *****************************************************************************/
+
+    /* comments with //
+     */
 }
 
 @test(line_comment)
@@ -20,7 +23,14 @@ contract test {
     // This is /* a comment with c comment
 }
 
+@test(outside_comment)
+/* This is an outside block comment */
+// This is an outside line comment
+contract test {
+}
+
 @test(unterminated_comment)
 @error(ERROR_UNTERMINATED_COMMENT)
 contract test {
     /* This is an unterminated comment
+}

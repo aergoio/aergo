@@ -166,9 +166,11 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_local_ref(uint32_t idx, src_pos_t *pos)
+exp_new_local_ref(int idx, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LOCAL_REF, pos);
+
+    ASSERT(idx >= 0);
 
     exp->u_lo.idx = idx;
 
@@ -176,14 +178,48 @@ exp_new_local_ref(uint32_t idx, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_stack_ref(uint32_t addr, uint32_t offset, src_pos_t *pos)
+exp_new_stack_ref(int addr, int offset, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_STACK_REF, pos);
+
+    ASSERT(addr >= 0);
+    ASSERT(offset >= 0);
 
     exp->u_stk.addr = addr;
     exp->u_stk.offset = offset;
 
     return exp;
+}
+
+void
+exp_set_lit(ast_exp_t *exp, value_t *val)
+{
+    exp->kind = EXP_LIT;
+
+    if (val != NULL)
+        exp->u_lit.val = *val;
+    else
+        value_init(&exp->u_lit.val);
+}
+
+void
+exp_set_local_ref(ast_exp_t *exp, int idx)
+{
+    ASSERT(idx >= 0);
+
+    exp->kind = EXP_LOCAL_REF;
+    exp->u_lo.idx = idx;
+}
+
+void
+exp_set_stack_ref(ast_exp_t *exp, int addr, int offset)
+{
+    ASSERT(addr >= 0);
+    ASSERT(offset >= 0);
+
+    exp->kind = EXP_STACK_REF;
+    exp->u_stk.addr = addr;
+    exp->u_stk.offset = offset;
 }
 
 ast_exp_t *

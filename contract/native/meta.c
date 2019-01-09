@@ -147,16 +147,6 @@ meta_set_object(meta_t *meta, ast_id_t *id)
         meta->name = id->name;
     }
 
-    meta->elem_cnt = 2;
-    meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
-
-    /* base address */
-    meta->elems[0] = meta_new(TYPE_INT32, meta->pos);
-
-    /* base table index */
-    meta->elems[1] = meta_new(TYPE_INT32, meta->pos);
-
-    meta->size = sizeof(int32_t) * 2;
     meta->type_id = id;
 }
 
