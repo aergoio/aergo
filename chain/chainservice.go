@@ -44,13 +44,13 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core.
-func NewCore(dbType string, dataDir string, testModeOn bool) (*Core, error) {
+func NewCore(dbType string, dataDir string, testModeOn bool, resetHeight types.BlockNo) (*Core, error) {
 	core := &Core{
 		cdb: NewChainDB(),
 		sdb: state.NewChainStateDB(),
 	}
 
-	err := core.init(dbType, dataDir, testModeOn)
+	err := core.init(dbType, dataDir, testModeOn, resetHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +59,18 @@ func NewCore(dbType string, dataDir string, testModeOn bool) (*Core, error) {
 }
 
 // Init prepares Core (chain & state DB).
-func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
+func (core *Core) init(dbType string, dataDir string, testModeOn bool, resetHeight types.BlockNo) error {
 	// init chaindb
 	if err := core.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
+	}
+
+	if resetHeight > 0 {
+		if err := core.cdb.ResetBest(resetHeight); err != nil {
+			logger.Fatal().Err(err).Uint64("height", resetHeight).Msg("failed to reset chaindb")
+			return err
+		}
 	}
 
 	// init statedb
@@ -179,7 +186,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	var err error
-	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode); err != nil {
+	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ResetHeight)); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		panic(err)
 	}

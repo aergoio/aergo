@@ -224,6 +224,53 @@ func TestAddErroredBlock(t *testing.T) {
 	assert.Equal(t, ErrBlockTooHighSideChain, err)
 }
 
+func TestResetChain(t *testing.T) {
+	mainChainBest := 5
+	cs, mainChain := testAddBlock(t, mainChainBest)
+
+	resetHeight := uint64(3)
+	cs.cdb.ResetBest(resetHeight)
+
+	// check best
+	assert.Equal(t, resetHeight, cs.cdb.getBestBlockNo())
+
+	for i := uint64(mainChainBest); i > resetHeight; i-- {
+		checkBlockDropped(t, cs, mainChain.GetBlockByNo(i))
+	}
+}
+
+func checkBlockDropped(t *testing.T, cs *ChainService, dropBlock *types.Block) {
+	cdb := cs.cdb
+
+	no := dropBlock.GetHeader().GetBlockNo()
+	hash := dropBlock.GetHash()
+	txLen := len(dropBlock.GetBody().GetTxs())
+
+	//check receipt
+	var err error
+
+	if txLen > 0 {
+		_, err = cdb.getReceipt(hash, no, 0)
+		assert.NotNil(t, err)
+		_, err = cdb.getReceipt(hash, no, int32(txLen-1))
+		assert.NotNil(t, err)
+	}
+
+	//check tx
+	for _, tx := range dropBlock.GetBody().GetTxs() {
+		_, _, err = cdb.getTx(tx.GetHash())
+		assert.NotNil(t, err)
+	}
+
+	//check hash/block
+	_, err = cdb.getBlock(hash)
+	assert.NotNil(t, err)
+
+	//check no/hash
+	_, err = cdb.getHashByNo(no)
+	assert.NotNil(t, err)
+}
+
 //TODO
 func TestParallelAccess(t *testing.T) {
 

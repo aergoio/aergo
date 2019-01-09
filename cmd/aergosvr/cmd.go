@@ -68,7 +68,7 @@ var initGenesis = &cobra.Command{
 			fmt.Fprintf(os.Stderr, " %s (error:%s)\n", jsonpath, err)
 			return
 		}
-		core, err := chain.NewCore(cfg.DbType, dataDir, false)
+		core, err := chain.NewCore(cfg.DbType, dataDir, false, 0)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "fail to init a blockchain core (error:%s)\n", err)
 		}

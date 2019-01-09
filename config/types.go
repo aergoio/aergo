@@ -82,6 +82,7 @@ type BlockchainConfig struct {
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	ResetHeight     uint64 `mapstructure:"resetheight" description:"best height to reset chain manually"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -174,6 +175,8 @@ maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
+resetheight = "{{.Blockchain.ResetHeight}}"
+
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

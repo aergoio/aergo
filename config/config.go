@@ -100,6 +100,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		CoinbaseAccount: "",
 		MaxAnchorCount:  20,
 		VerifierCount:   types.DefaultVerifierCnt,
+		ResetHeight:     0,
 	}
 }
 
