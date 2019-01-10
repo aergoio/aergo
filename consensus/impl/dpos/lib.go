@@ -12,7 +12,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
-var libStatusKey = []byte("dpos.LibStatus")
+// LibStatusKey is the key when a LIB information is put into the chain DB.
+var LibStatusKey = []byte("dpos.LibStatus")
 
 type errLibUpdate struct {
 	current string
@@ -208,11 +209,15 @@ func (ls *libStatus) save(tx db.Transaction) error {
 		return err
 	}
 
-	tx.Set(libStatusKey, b)
+	tx.Set(LibStatusKey, b)
 
 	logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status stored to DB")
 
 	return nil
+}
+
+func reset(tx db.Transaction) {
+	tx.Delete(LibStatusKey)
 }
 
 func (ls *libStatus) gc() {
@@ -346,7 +351,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
 	pls := newLibStatus(bs.confirmsRequired)
-	if err := bs.decodeStatus(libStatusKey, pls); err != nil {
+	if err := bs.decodeStatus(LibStatusKey, pls); err != nil {
 		return nil
 	}
 	pls.load(bs.best.BlockNo())

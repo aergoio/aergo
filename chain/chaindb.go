@@ -102,9 +102,10 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	return nil
 }
 
-// reset best block of chain db manually
-// remove blocks from original best to resetNo
-// !this api is dangerous. it must be used for test only
+// ResetBest reset best block of chain db manually remove blocks from original
+// best to resetNo.
+//
+// *Caution*: This API is dangerous. It must be used for test blockchain only.
 func (cdb *ChainDB) ResetBest(resetNo types.BlockNo) error {
 	logger.Info().Uint64("reset height", resetNo).Msg("reset best block")
 
@@ -121,6 +122,7 @@ func (cdb *ChainDB) ResetBest(resetNo types.BlockNo) error {
 	}
 
 	logger.Info().Msg("succeed to reset best block")
+
 	return nil
 }
 

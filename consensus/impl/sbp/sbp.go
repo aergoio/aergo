@@ -59,9 +59,9 @@ type SimpleBlockFactory struct {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb)
+		return New(cfg.Consensus, hub, cdb)
 	}
 }
 

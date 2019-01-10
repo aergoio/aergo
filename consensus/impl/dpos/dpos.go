@@ -80,15 +80,15 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
 		return New(cfg, hub, cdb)
 	}
 }
 
 // New returns a new DPos object
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
-	bpc, err := bp.NewCluster(cfg, cdb)
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
+	bpc, err := bp.NewCluster(cfg.Consensus, cdb)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(bpc, cdb),
+		Status:       NewStatus(bpc, cdb, cfg.Blockchain.ForceResetHeight),
 		ComponentHub: hub,
 		ChainDB:      cdb,
 		bpc:          bpc,
