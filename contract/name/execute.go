@@ -1,6 +1,7 @@
 package name
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,7 +17,7 @@ func ExecuteNameTx(scs *state.ContractState, txBody *types.TxBody, sender, recei
 	case 'c':
 		err = CreateName(scs, txBody, sender, receiver)
 	case 'u':
-		err = UpdateName(scs, txBody)
+		err = UpdateName(scs, txBody, sender, receiver)
 	default:
 		err = errors.New("could not execute unknown cmd")
 	}
@@ -58,7 +59,8 @@ func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 		if err := validateAllowedChar(name); err != nil {
 			return err
 		}
-		if len(getAddress(scs, name)) > types.NameLength {
+		owner := getOwner(scs, name, false)
+		if owner != nil {
 			return fmt.Errorf("aleady occupied %s", string(name))
 		}
 		if len(name) != types.NameLength {
@@ -78,6 +80,10 @@ func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 		}
 		if len(to) > types.AddressLength {
 			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+		if (!bytes.Equal(tx.Account, name)) &&
+			(!bytes.Equal(tx.Account, getAddress(scs, name))) {
+			return fmt.Errorf("owner not matched : %s", name)
 		}
 	}
 	return nil

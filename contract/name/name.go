@@ -39,18 +39,24 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 }
 
 //UpdateName is avaliable after bid implement
-func UpdateName(scs *state.ContractState, tx *types.TxBody) error {
+func UpdateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V) error {
 	if err := ValidateNameTx(tx, scs); err != nil {
 		return err
 	}
 	name, to := parseUpdatePayload(tx.Payload[1:])
+	if len(getAddress(scs, name)) <= types.NameLength {
+		return fmt.Errorf("%s is not created yet", string(name))
+	}
+	amount := tx.GetAmountBigInt()
+	if sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
+		return types.ErrInsufficientBalance
+	}
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
 	return updateName(scs, name, tx.Account, to)
 }
 
 func updateName(scs *state.ContractState, name []byte, from []byte, to []byte) error {
-	if len(getAddress(scs, name)) <= types.NameLength {
-		return fmt.Errorf("%s is not created yet", string(name))
-	}
 	return setAddress(scs, name, to)
 }
 
@@ -99,9 +105,19 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 }
 
 func GetOwner(scs *state.ContractState, name []byte) *Owner {
+	return getOwner(scs, name, true)
+}
+
+func getOwner(scs *state.ContractState, name []byte, useInitial bool) *Owner {
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
-	ownergob, err := scs.GetInitialData(key)
+	var err error
+	var ownergob []byte
+	if useInitial {
+		ownergob, err = scs.GetInitialData(key)
+	} else {
+		ownergob, err = scs.GetData(key)
+	}
 	if err != nil {
 		return nil
 	}

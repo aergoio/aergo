@@ -55,7 +55,7 @@ func TestName(t *testing.T) {
 	assert.Equal(t, owner, ret, "registed owner")
 
 	tx.Payload = buildNamePayload(name, 'u', buyer)
-	err = UpdateName(scs, tx)
+	err = UpdateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "update name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -101,7 +101,7 @@ func TestNameRecursive(t *testing.T) {
 
 	tx.Payload = buildNamePayload(name1, 'u', buyer)
 
-	err = UpdateName(scs, tx)
+	err = UpdateName(scs, tx, sender, receiver)
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
