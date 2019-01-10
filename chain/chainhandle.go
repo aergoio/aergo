@@ -25,7 +25,7 @@ import (
 var (
 	ErrorNoAncestor          = errors.New("not found ancestor")
 	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
-	ErrBlockCachedErrLRU     = errors.New("block is stored in errored blocks cache")
+	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 
 	errBlockStale = errors.New("produced block becomes stale")
@@ -415,6 +415,8 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	var needCache bool
 	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
 	if err != nil {
+		logger.Error().Err(err).Msg("failed to add block")
+
 		if needCache {
 			evicted := cs.errBlocks.Add(hashID, newBlock)
 			logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")

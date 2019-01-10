@@ -124,6 +124,51 @@ func (cdb *ChainDB) ResetBest(resetNo types.BlockNo) error {
 	return nil
 }
 
+type ErrDropBlock struct {
+	pos int
+}
+
+func (err *ErrDropBlock) Error() string {
+	return fmt.Sprintf("failed to drop block: pos=%d", err.pos)
+}
+
+func (cdb *ChainDB) checkBlockDropped(dropBlock *types.Block) error {
+	no := dropBlock.GetHeader().GetBlockNo()
+	hash := dropBlock.GetHash()
+	txLen := len(dropBlock.GetBody().GetTxs())
+
+	//check receipt
+	var err error
+
+	if txLen > 0 {
+		if _, err = cdb.getReceipt(hash, no, 0); err == nil {
+			return &ErrDropBlock{pos: 0}
+		}
+		if _, err = cdb.getReceipt(hash, no, int32(txLen-1)); err == nil {
+			return &ErrDropBlock{pos: 1}
+		}
+	}
+
+	//check tx
+	for _, tx := range dropBlock.GetBody().GetTxs() {
+		if _, _, err = cdb.getTx(tx.GetHash()); err == nil {
+			return &ErrDropBlock{pos: 2}
+		}
+	}
+
+	//check hash/block
+	if _, err = cdb.getBlock(hash); err == nil {
+		return &ErrDropBlock{pos: 3}
+	}
+
+	//check no/hash
+	if _, err = cdb.getHashByNo(no); err == nil {
+		return &ErrDropBlock{pos: 4}
+	}
+
+	return nil
+}
+
 func (cdb *ChainDB) Close() {
 	if cdb.store != nil {
 		cdb.store.Close()
@@ -474,6 +519,10 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 
 	cdb.setLatest(prevBlock)
 
+	if err = cdb.checkBlockDropped(dropBlock); err != nil {
+		logger.Error().Err(err).Msg("block meta is not dropped")
+		return err
+	}
 	return nil
 }
 
