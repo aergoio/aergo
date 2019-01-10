@@ -266,10 +266,6 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	block := genesis.Block()
 
 	tx := cdb.store.NewTx()
-	if err := cdb.addBlock(&tx, block); err != nil {
-		return err
-	}
-
 	cdb.connectToChain(&tx, block)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 
@@ -320,6 +316,10 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
+
+	if err := cdb.addBlock(dbtx, block); err != nil {
+		return 0
+	}
 
 	// Update best block hash
 	(*dbtx).Set(latestKey, blockIdx)
@@ -466,6 +466,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
+		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
 		return err
 	}
 

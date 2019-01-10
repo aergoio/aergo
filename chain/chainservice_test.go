@@ -221,7 +221,7 @@ func TestAddErroredBlock(t *testing.T) {
 	cs.errBlocks.Purge()
 	// check error when server is rebooted
 	err = cs.addBlock(newBlock, nil, testPeer)
-	assert.Equal(t, ErrBlockTooHighSideChain, err)
+	assert.Equal(t, ErrorBlockVerifyStateRoot, err)
 }
 
 func TestResetChain(t *testing.T) {
