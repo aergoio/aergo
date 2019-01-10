@@ -366,19 +366,6 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 }
 
 func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
-	// check if block has already saved and has occurred error before
-	checkSideChainBlock := func() error {
-		best, err := cs.GetBestBlock()
-		if err != nil {
-			return err
-		}
-
-		if best.BlockNo() < newBlock.BlockNo() {
-			return ErrBlockTooHighSideChain
-		}
-		return nil
-	}
-
 	hashID := types.ToHashID(newBlock.BlockHash())
 
 	if cs.errBlocks.Contains(hashID) {
@@ -388,20 +375,16 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	_, err := cs.getBlock(newBlock.BlockHash())
 	if err == nil {
 		logger.Debug().Str("hash", newBlock.ID()).Msg("already exist")
-		if err := checkSideChainBlock(); err != nil {
-			return err
-		}
 		return ErrBlockExist
 	}
 
 	var needCache bool
 	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to add block")
-
 		if needCache {
 			evicted := cs.errBlocks.Add(hashID, newBlock)
-			logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
+			logger.Error().Err(err).Bool("evicted", evicted).Uint64("no", newBlock.GetHeader().BlockNo).
+				Str("hash", newBlock.ID()).Msg("add errored block to errBlocks lru")
 		}
 		// err must be returned regardless of the value of needCache.
 		return err

@@ -96,11 +96,11 @@ func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
-		MaxBlockSize:    types.DefaultMaxBlockSize,
-		CoinbaseAccount: "",
-		MaxAnchorCount:  20,
-		VerifierCount:   types.DefaultVerifierCnt,
-		ResetHeight:     0,
+		MaxBlockSize:     types.DefaultMaxBlockSize,
+		CoinbaseAccount:  "",
+		MaxAnchorCount:   20,
+		VerifierCount:    types.DefaultVerifierCnt,
+		ForceResetHeight: 0,
 	}
 }
 
