@@ -148,6 +148,7 @@ func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
 			panic("error while finding IP address: " + err.Error())
 		}
 		ipAddress = extIP
+		protocolAddr = ipAddress.String()
 	}
 	protocolPort = sl.conf.NetProtocolPort
 	if protocolPort <= 0 {
