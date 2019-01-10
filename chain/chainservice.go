@@ -576,8 +576,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			varId := bytes.NewBufferString("_sv_")
 			varId.WriteString(msg.VarName)
 			if len(msg.VarIndex) != 0 {
+				varId.WriteString("-")
 				varId.WriteString(msg.VarIndex)
-				varId.WriteString("_s")
 			}
 			varTrieKey := common.Hasher(varId.Bytes())
 			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
