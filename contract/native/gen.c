@@ -42,20 +42,6 @@ gen_init(gen_t *gen, flag_t flag, char *path)
 }
 
 static void
-sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
-{
-    int i;
-    BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
-
-    for (i = 0; i < sgmt->size; i++) {
-        addrs[i] = gen_i32(gen, sgmt->addrs[i]);
-    }
-
-    BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
-                      (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
-}
-
-static void
 table_gen(gen_t *gen, array_t *fns)
 {
     int i;
@@ -66,6 +52,30 @@ table_gen(gen_t *gen, array_t *fns)
     }
 
     BinaryenSetFunctionTable(gen->module, i, i, (const char **)names, i);
+}
+
+static void
+sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
+{
+    int i;
+    int stack_size = UINT16_MAX;
+    BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
+
+    for (i = 0; i < sgmt->size; i++) {
+        addrs[i] = gen_i32(gen, sgmt->addrs[i]);
+    }
+
+    BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
+                      (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
+
+    BinaryenAddGlobal(gen->module, "stack$high", BinaryenTypeInt32(), 1,
+                      gen_i32(gen, stack_size));
+
+    BinaryenAddGlobal(gen->module, "stack$low", BinaryenTypeInt32(), 0,
+                      gen_i32(gen, ALIGN64(sgmt->offset)));
+
+    BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
+                      gen_i32(gen, stack_size + 1));
 }
 
 void
@@ -89,8 +99,9 @@ gen(ir_t *ir, flag_t flag, char *path)
         fn_gen(&gen, array_get_fn(&ir->fns, i));
     }
 
-    sgmt_gen(&gen, &ir->sgmt);
     table_gen(&gen, &ir->fns);
+
+    sgmt_gen(&gen, &ir->sgmt);
 
     if (flag_on(flag, FLAG_WAT_DUMP))
         BinaryenModulePrint(gen.module);

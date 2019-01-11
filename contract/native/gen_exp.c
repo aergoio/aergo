@@ -11,22 +11,6 @@
 #include "gen_exp.h"
 
 static BinaryenExpressionRef
-exp_gen_local(gen_t *gen, ast_exp_t *exp)
-{
-    return BinaryenGetLocal(gen->module, exp->u_local.idx, meta_gen(&exp->meta));
-}
-
-static BinaryenExpressionRef
-exp_gen_stack(gen_t *gen, ast_exp_t *exp)
-{
-    meta_t *meta = &exp->meta;
-
-    return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
-                        exp->u_stk.offset, 0, meta_gen(meta),
-                        gen_i32(gen, exp->u_stk.addr));
-}
-
-static BinaryenExpressionRef
 exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 {
     value_t *val = &exp->u_lit.val;
@@ -593,18 +577,34 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     return NULL;
 }
 
+static BinaryenExpressionRef
+exp_gen_global(gen_t *gen, ast_exp_t *exp)
+{
+    return BinaryenGetGlobal(gen->module, exp->u_glob.name, meta_gen(&exp->meta));
+}
+
+static BinaryenExpressionRef
+exp_gen_local(gen_t *gen, ast_exp_t *exp)
+{
+    return BinaryenGetLocal(gen->module, exp->u_local.idx, meta_gen(&exp->meta));
+}
+
+static BinaryenExpressionRef
+exp_gen_stack(gen_t *gen, ast_exp_t *exp)
+{
+    meta_t *meta = &exp->meta;
+
+    return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_type(meta),
+                        exp->u_stk.offset, 0, meta_gen(meta),
+                        gen_i32(gen, exp->u_stk.addr));
+}
+
 BinaryenExpressionRef
 exp_gen(gen_t *gen, ast_exp_t *exp)
 {
     ASSERT(exp != NULL);
 
     switch (exp->kind) {
-    case EXP_LOCAL:
-        return exp_gen_local(gen, exp);
-
-    case EXP_STACK:
-        return exp_gen_stack(gen, exp);
-
     case EXP_LIT:
         return exp_gen_lit(gen, exp);
 
@@ -634,6 +634,15 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
 
     case EXP_INIT:
         return exp_gen_init(gen, exp);
+
+    case EXP_GLOBAL:
+        return exp_gen_global(gen, exp);
+
+    case EXP_LOCAL:
+        return exp_gen_local(gen, exp);
+
+    case EXP_STACK:
+        return exp_gen_stack(gen, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

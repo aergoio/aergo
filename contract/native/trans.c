@@ -17,6 +17,8 @@ trans_init(trans_t *trans, flag_t flag)
 
     trans->ir = ir_new();
 
+    trans->blk = NULL;
+
     trans->fn = NULL;
     trans->bb = NULL;
 

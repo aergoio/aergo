@@ -7,6 +7,10 @@
 
 #include "src_pos.h"
 
+src_pos_t null_src_pos_ = {
+    NULL, { NULL, 1, 1, 0, 1, 1, 0 }, { NULL, 1, 1, 0, 1, 1, 0 }
+};
+
 void
 src_pos_print(src_pos_t *src_pos, char *buf)
 {

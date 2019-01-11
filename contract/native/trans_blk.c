@@ -15,6 +15,9 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
 {
     int i;
     int idx = 0;
+    ast_blk_t *up = trans->blk;
+
+    trans->blk = blk;
 
     array_foreach(&blk->ids, i) {
         ast_id_t *id = array_get_id(&blk->ids, i);
@@ -28,6 +31,8 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
     array_foreach(&blk->stmts, i) {
         stmt_trans(trans, array_get_stmt(&blk->stmts, i));
     }
+
+    trans->blk = up;
 
     /* Since there is no relation between general blocks and basic blocks,
      * we deliberately do not do anything about basic blocks here. */

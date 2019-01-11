@@ -28,11 +28,13 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
             /* the global variable always refers to the stack */
             exp_set_stack(exp, id->addr, id->offset);
     }
+    /*
     else if (is_fn_id(id)) {
         exp_set_lit(exp, NULL);
 
         value_set_i64(&exp->u_lit.val, id->idx);
     }
+    */
 }
 
 static void
@@ -198,8 +200,6 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     ast_id_t *qual_id = id_exp->id;
     ast_id_t *fld_id = exp->id;
 
-    ASSERT(!is_fn_id(fld_id));
-
     exp_trans(trans, id_exp);
 
     if (is_fn_id(fld_id)) {
@@ -216,7 +216,6 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
                 ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
 
                 if (is_fn_id(fn_id) && strcmp(fld_id->name, fn_id->name) == 0) {
-                    ASSERT2(id_cmp(fld_id, fn_id), fld_id->kind, fn_id->kind);
                     exp->id = fn_id;
                     break;
                 }
@@ -232,6 +231,7 @@ static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
     int i;
+    ast_exp_t *id_exp = exp->u_call.id_exp;
 
     if (is_map_type(&exp->meta))
         return;
@@ -241,7 +241,30 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
      *
      * as a result, the "v = f();" statement changes to "f(); v = r;" */
 
-    //exp_trans(trans, exp->u_call.id_exp);
+    exp_trans(trans, id_exp);
+
+    if (!is_ctor_id(exp->id)) {
+        if (exp->u_call.param_exps == NULL)
+            exp->u_call.param_exps = array_new();
+
+        if (is_id_exp(id_exp)) {
+            ast_exp_t *addr_exp;
+            ir_fn_t *fn = trans->fn;
+
+            ASSERT(fn->obj_id != NULL);
+            ASSERT(fn->obj_id->idx >= 0);
+
+            addr_exp = exp_new_local(fn->obj_id->idx);
+            meta_copy(&addr_exp->meta, &fn->obj_id->meta);
+
+            array_add_first(exp->u_call.param_exps, addr_exp);
+        }
+        else {
+            array_add_first(exp->u_call.param_exps, id_exp->u_acc.id_exp);
+        }
+
+        exp->id = id_exp->id;
+    }
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
@@ -269,7 +292,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
                 fn_add_stack(trans->fn, elem_id);
 
-                ref_exp = exp_new_stack(elem_id->addr, 0, &exp->pos);
+                ref_exp = exp_new_stack(elem_id->addr, 0);
                 meta_copy(&ref_exp->meta, &elem_id->meta);
 
                 array_add_last(elem_exps, ref_exp);
@@ -332,10 +355,6 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_id(trans, exp);
         break;
 
-    case EXP_LOCAL:
-    case EXP_STACK:
-        break;
-
     case EXP_LIT:
         exp_trans_lit(trans, exp);
         break;
@@ -378,6 +397,11 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
 
     case EXP_INIT:
         exp_trans_init(trans, exp);
+        break;
+
+    case EXP_GLOBAL:
+    case EXP_LOCAL:
+    case EXP_STACK:
         break;
 
     default:

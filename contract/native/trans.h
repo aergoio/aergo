@@ -26,6 +26,8 @@ typedef struct trans_s {
 
     ir_t *ir;
 
+    ast_blk_t *blk;         /* current block */
+
     ir_fn_t *fn;            /* current function */
     ir_bb_t *bb;            /* current basic block */
 

@@ -166,9 +166,9 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_global(char *name, src_pos_t *pos)
+exp_new_global(char *name)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, &null_src_pos_);
 
     ASSERT(name != NULL);
 
@@ -178,9 +178,9 @@ exp_new_global(char *name, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_local(int idx, src_pos_t *pos)
+exp_new_local(int idx)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, &null_src_pos_);
 
     ASSERT(idx >= 0);
 
@@ -190,9 +190,9 @@ exp_new_local(int idx, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_stack(int addr, int offset, src_pos_t *pos)
+exp_new_stack(int addr, int offset)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_STACK, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_STACK, &null_src_pos_);
 
     ASSERT(addr >= 0);
     ASSERT(offset >= 0);
@@ -254,14 +254,6 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_id(exp->u_id.name, &exp->pos);
         break;
 
-    case EXP_LOCAL:
-        res = exp_new_local(exp->u_local.idx, &exp->pos);
-        break;
-
-    case EXP_STACK:
-        res = exp_new_stack(exp->u_stk.addr, exp->u_stk.offset, &exp->pos);
-        break;
-
     case EXP_LIT:
         res = exp_new_lit(&exp->pos);
         res->u_lit.val = exp->u_lit.val;
@@ -318,6 +310,18 @@ exp_clone(ast_exp_t *exp)
             array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
         }
         res = exp_new_tuple(res_exps, &exp->pos);
+        break;
+
+    case EXP_GLOBAL:
+        res = exp_new_global(exp->u_glob.name);
+        break;
+
+    case EXP_LOCAL:
+        res = exp_new_local(exp->u_local.idx);
+        break;
+
+    case EXP_STACK:
+        res = exp_new_stack(exp->u_stk.addr, exp->u_stk.offset);
         break;
 
     default:

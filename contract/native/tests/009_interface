@@ -115,10 +115,8 @@ contract main {
 interface spec {
     func f1() int;
 }
-/*
 contract test {
     func f1() int { return 1; }
-    func f2(spec v) int { return v.f(); }
+    func f2(spec v) int { return v.f1(); }
     func f3() int { return f2(new test()); }
 }
-*/

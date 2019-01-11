@@ -84,17 +84,60 @@ trans_global(array_t *stmts, ast_id_t *id)
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ir_fn_t *fn;
+    ast_id_t *tmp_id;
+    ast_exp_t *l_exp, *r_exp;
+    ast_blk_t *blk;
+    ir_fn_t *fn = fn_new(id);
     ast_id_t *cont_id = id->up;
 
     ASSERT(cont_id != NULL);
     ASSERT1(is_cont_id(cont_id), cont_id->kind);
 
+    if (id->u_fn.blk == NULL)
+        id->u_fn.blk = blk_new_fn(&id->pos);
+
+    blk = id->u_fn.blk;
+
+    tmp_id = id_new_var("stack$offset", MOD_PRIVATE, &id->pos);
+    meta_set_int32(&tmp_id->meta);
+    array_add_first(&blk->ids, tmp_id);
+
+    l_exp = exp_new_id("stack$offset", &id->pos);
+    l_exp->id = tmp_id;
+    meta_set_int32(&l_exp->meta);
+
+    r_exp = exp_new_global("stack$high");
+    meta_set_int32(&r_exp->meta);
+
+    array_add_first(&blk->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+
+    tmp_id = id_new_var("relooper$helper", MOD_PRIVATE, &id->pos);
+    meta_set_int32(&tmp_id->meta);
+    array_add_first(&blk->ids, tmp_id);
+
     if (is_ctor_id(id)) {
         int i, j;
+        ast_exp_t *l_exp, *r_exp;
+        ast_stmt_t *ret_stmt;
         array_t *stmts = array_new();
 
         ASSERT(id->u_fn.ret_id != NULL);
+        ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
+
+        tmp_id = id_new_var("object$addr", MOD_PRIVATE, &id->pos);
+        meta_set_int32(&tmp_id->meta);
+        array_add_last(&blk->ids, tmp_id);
+
+        fn->obj_id = tmp_id;
+
+        l_exp = exp_new_id("object$addr", &id->pos);
+        l_exp->id = tmp_id;
+        meta_set_int32(&l_exp->meta);
+
+        r_exp = exp_new_global("heap$offset");
+        meta_set_int32(&r_exp->meta);
+
+        stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
 
         /* constructor initializes global variables */
         array_foreach(&cont_id->u_cont.blk->ids, i) {
@@ -110,32 +153,40 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
             }
         }
 
-        if (!is_empty_array(stmts)) {
-            if (id->u_fn.blk == NULL)
-                id->u_fn.blk = blk_new_fn(&id->pos);
+        array_join_first(&blk->stmts, stmts);
 
-            array_join_first(&id->u_fn.blk->stmts, stmts);
-        }
+        ret_stmt = stmt_new_return(l_exp, &id->pos);
+        ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
+
+        stmt_add(&blk->stmts, ret_stmt);
+    }
+    else {
+        tmp_id = id_new_var("object$addr", MOD_CONST, &id->pos);
+        tmp_id->is_param = true;
+        tmp_id->up = id;
+        meta_set_object(&tmp_id->meta, cont_id);
+
+        if (id->u_fn.param_ids == NULL)
+            id->u_fn.param_ids = array_new();
+
+        array_add_first(id->u_fn.param_ids, tmp_id);
+
+        fn->obj_id = tmp_id;
     }
 
-    fn = fn_new(id, abi_lookup(&trans->ir->abis, id));
+    fn->abi = abi_lookup(&trans->ir->abis, id);
 
     trans->fn = fn;
     trans->bb = fn->entry_bb;
 
-    if (id->u_fn.blk != NULL) {
-        blk_trans(trans, id->u_fn.blk);
+    blk_trans(trans, id->u_fn.blk);
 
-        if (trans->bb != NULL) {
-            bb_add_branch(trans->bb, NULL, fn->exit_bb);
-            fn_add_basic_blk(fn, trans->bb);
-        }
+    if (trans->bb != NULL) {
+        bb_add_branch(trans->bb, NULL, fn->exit_bb);
+        fn_add_basic_blk(fn, trans->bb);
+    }
 
-        fn_add_basic_blk(fn, fn->exit_bb);
-    }
-    else {
-        fn_add_basic_blk(fn, fn->entry_bb);
-    }
+    fn_add_basic_blk(fn, fn->exit_bb);
 
     trans->fn = NULL;
     trans->bb = NULL;

@@ -19,12 +19,6 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     ASSERT(abi != NULL);
 
-    /* for base stack address */
-    local_add(gen, TYPE_INT32);
-
-    /* for relooper */
-    local_add(gen, TYPE_INT32);
-
     /* generate local variables */
     array_foreach(&fn->locals, i) {
         local_add(gen, array_get_id(&fn->locals, i)->meta.type);
@@ -42,7 +36,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, abi->param_cnt + 1,
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, abi->param_cnt,
                                     gen->module);
 
     BinaryenAddFunction(gen->module, fn->name, abi->spec, gen->locals, gen->local_cnt,

@@ -182,9 +182,10 @@ ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *pos
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
-ast_exp_t *exp_new_global(char *name, src_pos_t *pos);
-ast_exp_t *exp_new_local(int idx, src_pos_t *pos);
-ast_exp_t *exp_new_stack(int addr, int offset, src_pos_t *pos);
+
+ast_exp_t *exp_new_global(char *name);
+ast_exp_t *exp_new_local(int idx);
+ast_exp_t *exp_new_stack(int addr, int offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
 void exp_set_local(ast_exp_t *exp, int idx);

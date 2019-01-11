@@ -13,7 +13,7 @@
 #include "ir_fn.h"
 
 ir_fn_t *
-fn_new(ast_id_t *id, ir_abi_t *abi)
+fn_new(ast_id_t *id)
 {
     char name[NAME_MAX_LEN * 2 + 2];
     ir_fn_t *fn = xmalloc(sizeof(ir_fn_t));
@@ -21,14 +21,14 @@ fn_new(ast_id_t *id, ir_abi_t *abi)
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
-    ASSERT(abi != NULL);
 
     snprintf(name, sizeof(name), "%s$%s", id->up->name, id->name);
 
     fn->name = xstrdup(name);
     fn->exp_name = is_public_id(id) ? id->name : NULL;
 
-    fn->abi = abi;
+    fn->obj_id = NULL;
+    fn->abi = NULL;
 
     array_init(&fn->locals);
     array_init(&fn->bbs);
@@ -49,8 +49,7 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
     ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
     ASSERT(abi != NULL);
 
-    /* reserved for two internal variables (e.g, base stack address, relooper) */
-    id->idx = abi->param_cnt + array_size(&fn->locals) + 2;
+    id->idx = abi->param_cnt + array_size(&fn->locals);
 
     array_add_last(&fn->locals, id);
 }

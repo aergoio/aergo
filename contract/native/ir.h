@@ -11,6 +11,10 @@
 #include "array.h"
 #include "ir_sgmt.h"
 
+#define LOCAL_HEAP_IDX          0
+#define LOCAL_STACK_IDX         1
+#define LOCAL_RELOOPER_IDX      2
+
 #ifndef _AST_ID_T
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;

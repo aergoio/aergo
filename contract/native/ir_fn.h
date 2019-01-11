@@ -34,6 +34,8 @@ struct ir_fn_s {
     char *name;
     char *exp_name;
 
+    ast_id_t *obj_id;
+
     ir_abi_t *abi;
 
     array_t locals;         /* entire local variables */
@@ -45,7 +47,7 @@ struct ir_fn_s {
     uint32_t usage;         /* stack usage */
 };
 
-ir_fn_t *fn_new(ast_id_t *id, ir_abi_t *abi);
+ir_fn_t *fn_new(ast_id_t *id);
 
 void fn_add_local(ir_fn_t *fn, ast_id_t *id);
 void fn_add_stack(ir_fn_t *fn, ast_id_t *id);
