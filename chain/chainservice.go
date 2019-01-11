@@ -586,7 +586,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		contractProof.Key = msg.ContractAddress
 		stateQuery := &types.StateQueryProof{
 			ContractProof: contractProof,
-			VarProof:      varProofs,
+			VarProofs:     varProofs,
 		}
 		context.Respond(message.GetStateQueryRsp{
 			Result: stateQuery,

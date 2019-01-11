@@ -270,13 +270,13 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetState(arg0, arg1 interface{}
 }
 
 // GetStateAndProof mocks base method
-func (m *MockAergoRPCServiceClient) GetStateAndProof(arg0 context.Context, arg1 *types.AccountAndRoot, arg2 ...grpc.CallOption) (*types.StateProof, error) {
+func (m *MockAergoRPCServiceClient) GetStateAndProof(arg0 context.Context, arg1 *types.AccountAndRoot, arg2 ...grpc.CallOption) (*types.AccountProof, error) {
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetStateAndProof", varargs...)
-	ret0, _ := ret[0].(*types.StateProof)
+	ret0, _ := ret[0].(*types.AccountProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
