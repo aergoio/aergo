@@ -321,10 +321,10 @@ func (states *StateDB) TrieQuery(id []byte, root []byte, compressed bool) ([]byt
 
 	if len(root) != 0 {
 		if compressed {
-			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressedCustomized(id, root)
+			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressedR(id, root)
 		} else {
 			// Get the state and proof of the account for a past state
-			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCustomized(id, root)
+			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofR(id, root)
 		}
 	} else {
 		// Get the state and proof of the account at the latest trie
@@ -342,21 +342,23 @@ func (states *StateDB) TrieQuery(id []byte, root []byte, compressed bool) ([]byt
 // GetVarAndProof gets the value of a variable in the given contract trie root.
 func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (*types.ContractVarProof, error) {
 	var value []byte
-	bitmap, ap, height, isIncluded, proofKey, proofVal, err := states.TrieQuery(id, root, compressed)
+	bitmap, ap, height, isIncluded, proofKey, dbKey, err := states.TrieQuery(id, root, compressed)
 	if err != nil {
 		return nil, err
 	}
 	if isIncluded {
 		value = []byte{}
-		if err := loadData(states.store, proofVal, &value); err != nil {
+		if err := loadData(states.store, dbKey, &value); err != nil {
 			return nil, err
 		}
+		// proofKey and proofVal are only not nil for prooving exclusion with another leaf on the path
+		dbKey = nil
 	}
 	contractVarProof := &types.ContractVarProof{
 		Value:     value,
 		Inclusion: isIncluded,
 		ProofKey:  proofKey,
-		ProofVal:  proofVal,
+		ProofVal:  dbKey,
 		Bitmap:    bitmap,
 		Height:    uint32(height),
 		AuditPath: ap,
@@ -366,32 +368,33 @@ func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (
 
 }
 
-// GetStateAndProof gets the state and associated proof of an account
+// GetAccountAndProof gets the state and associated proof of an account
 // in the given trie root. If the account doesnt exist, a proof of
 // non existence is returned.
-func (states *StateDB) GetStateAndProof(id []byte, root []byte, compressed bool) (*types.StateProof, error) {
+func (states *StateDB) GetAccountAndProof(id []byte, root []byte, compressed bool) (*types.AccountProof, error) {
 	var state *types.State
-	bitmap, ap, height, isIncluded, proofKey, proofVal, err := states.TrieQuery(id, root, compressed)
+	bitmap, ap, height, isIncluded, proofKey, dbKey, err := states.TrieQuery(id, root, compressed)
 	if err != nil {
 		return nil, err
 	}
 	if isIncluded {
-		state, err = states.loadStateData(proofVal)
+		state, err = states.loadStateData(dbKey)
 		if err != nil {
 			return nil, err
 		}
+		dbKey = nil
 	}
-	stateProof := &types.StateProof{
+	accountProof := &types.AccountProof{
 		State:     state,
 		Inclusion: isIncluded,
 		ProofKey:  proofKey,
-		ProofVal:  proofVal,
+		ProofVal:  dbKey,
 		Bitmap:    bitmap,
 		Height:    uint32(height),
 		AuditPath: ap,
 	}
-	logger.Debug().Str("state root : ", enc.ToString(root)).Msg("Get State and Proof")
-	return stateProof, nil
+	logger.Debug().Str("state root : ", enc.ToString(root)).Msg("Get Account and Proof")
+	return accountProof, nil
 }
 
 // Snapshot represents revision number of statedb

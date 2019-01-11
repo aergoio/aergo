@@ -59,7 +59,7 @@ type GetStateAndProof struct {
 	Compressed bool
 }
 type GetStateAndProofRsp struct {
-	StateProof *types.StateProof
+	StateProof *types.AccountProof
 	Err        error
 }
 type GetTx struct {
@@ -97,8 +97,7 @@ type GetQueryRsp struct {
 }
 type GetStateQuery struct {
 	ContractAddress []byte
-	VarName         string
-	VarIndex        string
+	StorageKeys     []string
 	Root            []byte
 	Compressed      bool
 }

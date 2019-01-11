@@ -499,7 +499,7 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 }
 
 // GetStateAndProof handle rpc request getstateproof
-func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.StateProof, error) {
+func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.AccountProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetStateAndProof{Account: in.Account, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
 	if err != nil {
@@ -698,7 +698,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 
 	ret := &types.PeerList{Peers: []*types.Peer{}}
 	for i, state := range rsp.States {
-		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i], Hidden:rsp.Hiddens[i]}
+		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i], Hidden: rsp.Hiddens[i]}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -829,7 +829,7 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 // QueryContractState queries the state of a contract state variable without executing a contract function.
 func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.StateQuery) (*types.StateQueryProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetStateQuery{ContractAddress: in.ContractAddress, VarName: in.VarName, VarIndex: in.VarIndex, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
+		&message.GetStateQuery{ContractAddress: in.ContractAddress, StorageKeys: in.StorageKeys, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -527,10 +526,11 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
-		stateProof, err := cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		stateProof, err := cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
+		stateProof.Key = msg.Account
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
 			Err:        err,
@@ -563,31 +563,30 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetStateQuery:
-		var varProof *types.ContractVarProof
-		var contractProof *types.StateProof
+		var varProofs []*types.ContractVarProof
+		var contractProof *types.AccountProof
 		var err error
 
 		id := types.ToAccountID(msg.ContractAddress)
-		contractProof, err = cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		contractProof, err = cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
-			varId := bytes.NewBufferString("_sv_")
-			varId.WriteString(msg.VarName)
-			if len(msg.VarIndex) != 0 {
-				varId.WriteString("-")
-				varId.WriteString(msg.VarIndex)
-			}
-			varTrieKey := common.Hasher(varId.Bytes())
-			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
-			if err != nil {
-				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+			for _, storageKey := range msg.StorageKeys {
+				trieKey := common.Hasher([]byte(storageKey))
+				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(trieKey, contractTrieRoot, msg.Compressed)
+				varProof.Key = storageKey
+				varProofs = append(varProofs, varProof)
+				if err != nil {
+					logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+				}
 			}
 		}
+		contractProof.Key = msg.ContractAddress
 		stateQuery := &types.StateQueryProof{
 			ContractProof: contractProof,
-			VarProof:      varProof,
+			VarProof:      varProofs,
 		}
 		context.Respond(message.GetStateQueryRsp{
 			Result: stateQuery,
