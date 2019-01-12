@@ -70,11 +70,14 @@ abi_lookup(array_t *abis, ast_id_t *id)
 
         if (abi->param_cnt == new_abi->param_cnt &&
             memcmp(abi->params, new_abi->params,
-                   sizeof(BinaryenType) * abi->param_cnt) == 0)
+                   sizeof(BinaryenType) * abi->param_cnt) == 0) {
+            id->abi = abi;
             return abi;
+        }
     }
 
     array_add_last(abis, new_abi);
+    id->abi = new_abi;
 
     return new_abi;
 }

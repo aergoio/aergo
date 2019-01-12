@@ -248,16 +248,13 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             exp->u_call.param_exps = array_new();
 
         if (is_id_exp(id_exp)) {
-            ast_exp_t *addr_exp;
             ir_fn_t *fn = trans->fn;
 
-            ASSERT(fn->obj_id != NULL);
-            ASSERT(fn->obj_id->idx >= 0);
+            ASSERT(fn->heap_id != NULL);
+            ASSERT(fn->heap_id->idx >= 0);
 
-            addr_exp = exp_new_local(fn->obj_id->idx);
-            meta_copy(&addr_exp->meta, &fn->obj_id->meta);
-
-            array_add_first(exp->u_call.param_exps, addr_exp);
+            array_add_first(exp->u_call.param_exps,
+                            exp_new_local(TYPE_INT32, fn->heap_id->idx));
         }
         else {
             array_add_first(exp->u_call.param_exps, id_exp->u_acc.id_exp);

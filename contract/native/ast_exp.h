@@ -127,10 +127,12 @@ typedef struct exp_init_s {
 } exp_init_t;
 
 typedef struct exp_global_s {
+    type_t type;
     char *name;
 } exp_global_t;
 
 typedef struct exp_local_s {
+    type_t type;
     uint32_t idx;
 } exp_local_t;
 
@@ -183,8 +185,8 @@ ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
 
-ast_exp_t *exp_new_global(char *name);
-ast_exp_t *exp_new_local(int idx);
+ast_exp_t *exp_new_global(type_t type, char *name);
+ast_exp_t *exp_new_local(type_t type, int idx);
 ast_exp_t *exp_new_stack(int addr, int offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);

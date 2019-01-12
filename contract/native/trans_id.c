@@ -33,7 +33,7 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-trans_global(array_t *stmts, ast_id_t *id)
+gen_init_stmt(array_t *stmts, ast_id_t *id)
 {
     meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp = id->u_var.dflt_exp;
@@ -82,101 +82,99 @@ trans_global(array_t *stmts, ast_id_t *id)
 }
 
 static void
+id_trans_ctor(trans_t *trans, ast_id_t *id)
+{
+    int i, j;
+    ast_id_t *addr_id;
+    ast_exp_t *l_exp, *r_exp;
+    ast_stmt_t *ret_stmt;
+    array_t *stmts = array_new();
+    ir_fn_t *fn = trans->fn;
+
+    ASSERT(id->u_fn.ret_id != NULL);
+    ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
+
+    // 모든 전역 변수는 이 값을 기준으로 relative offset으로 접근한다.
+    addr_id = id_new_tmp_var("cont$addr", TYPE_INT32);
+    fn_add_local(fn, addr_id);
+
+    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+    r_exp = exp_new_global(TYPE_INT32, "heap$offset");
+
+    stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+
+    fn->heap_id = addr_id;
+
+    /* constructor initializes global variables */
+    // 변수의 선언 순서를 지키기 위해 별도의 array_t에 담아서 join한다.
+    array_foreach(&id->up->u_cont.blk->ids, i) {
+        ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
+
+        if (is_var_id(var_id)) {
+            gen_init_stmt(stmts, var_id);
+        }
+        else if (is_tuple_id(var_id)) {
+            array_foreach(var_id->u_tup.elem_ids, j) {
+                gen_init_stmt(stmts, array_get_id(var_id->u_tup.elem_ids, j));
+            }
+        }
+    }
+
+    array_join_first(&id->u_fn.blk->stmts, stmts);
+
+    ret_stmt = stmt_new_return(l_exp, &id->pos);
+    ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
+
+    stmt_add(&id->u_fn.blk->stmts, ret_stmt);
+}
+
+static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ast_id_t *tmp_id;
-    ast_exp_t *l_exp, *r_exp;
-    ast_blk_t *blk;
+    ast_id_t *addr_id;
+    ast_exp_t *l_exp, *r_exp, *v_exp;
     ir_fn_t *fn = fn_new(id);
-    ast_id_t *cont_id = id->up;
 
-    ASSERT(cont_id != NULL);
-    ASSERT1(is_cont_id(cont_id), cont_id->kind);
+    ASSERT(id->up != NULL);
+    ASSERT1(is_cont_id(id->up), id->up->kind);
+
+    trans->fn = fn;
 
     if (id->u_fn.blk == NULL)
         id->u_fn.blk = blk_new_fn(&id->pos);
 
-    blk = id->u_fn.blk;
+    // binaryen 내부 용도로 사용
+    fn_add_local(fn, id_new_tmp_var("relooper$helper", TYPE_INT32));
 
-    tmp_id = id_new_var("stack$offset", MOD_PRIVATE, &id->pos);
-    meta_set_int32(&tmp_id->meta);
-    array_add_first(&blk->ids, tmp_id);
+    // 모든 스택 변수는 이 값을 기준으로 relative offset으로 접근한다.
+    addr_id = id_new_tmp_var("stack$addr", TYPE_INT32);
 
-    l_exp = exp_new_id("stack$offset", &id->pos);
-    l_exp->id = tmp_id;
-    meta_set_int32(&l_exp->meta);
-
-    r_exp = exp_new_global("stack$high");
-    meta_set_int32(&r_exp->meta);
-
-    array_add_first(&blk->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
-    tmp_id = id_new_var("relooper$helper", MOD_PRIVATE, &id->pos);
-    meta_set_int32(&tmp_id->meta);
-    array_add_first(&blk->ids, tmp_id);
+    fn_add_local(fn, addr_id);
+    fn->stack_id = addr_id;
 
     if (is_ctor_id(id)) {
-        int i, j;
-        ast_exp_t *l_exp, *r_exp;
-        ast_stmt_t *ret_stmt;
-        array_t *stmts = array_new();
-
-        ASSERT(id->u_fn.ret_id != NULL);
-        ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
-
-        tmp_id = id_new_var("object$addr", MOD_PRIVATE, &id->pos);
-        meta_set_int32(&tmp_id->meta);
-        array_add_last(&blk->ids, tmp_id);
-
-        fn->obj_id = tmp_id;
-
-        l_exp = exp_new_id("object$addr", &id->pos);
-        l_exp->id = tmp_id;
-        meta_set_int32(&l_exp->meta);
-
-        r_exp = exp_new_global("heap$offset");
-        meta_set_int32(&r_exp->meta);
-
-        stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
-        /* constructor initializes global variables */
-        array_foreach(&cont_id->u_cont.blk->ids, i) {
-            ast_id_t *var_id = array_get_id(&cont_id->u_cont.blk->ids, i);
-
-            if (is_var_id(var_id)) {
-                trans_global(stmts, var_id);
-            }
-            else if (is_tuple_id(var_id)) {
-                array_foreach(var_id->u_tup.elem_ids, j) {
-                    trans_global(stmts, array_get_id(var_id->u_tup.elem_ids, j));
-                }
-            }
-        }
-
-        array_join_first(&blk->stmts, stmts);
-
-        ret_stmt = stmt_new_return(l_exp, &id->pos);
-        ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
-
-        stmt_add(&blk->stmts, ret_stmt);
+        id_trans_ctor(trans, id);
     }
     else {
-        tmp_id = id_new_var("object$addr", MOD_CONST, &id->pos);
-        tmp_id->is_param = true;
-        tmp_id->up = id;
-        meta_set_object(&tmp_id->meta, cont_id);
+        // constructor가 아닌 함수들은 모두 contract base address를 인자로 추가하고,
+        // abi에도 반영하기 위해 param_ids에 추가한다. */
+        addr_id = id_new_tmp_var("cont$addr", TYPE_OBJECT);
+
+        addr_id->is_param = true;
+        addr_id->up = id;
+
+        meta_set_object(&addr_id->meta, id->up);
 
         if (id->u_fn.param_ids == NULL)
             id->u_fn.param_ids = array_new();
 
-        array_add_first(id->u_fn.param_ids, tmp_id);
+        array_add_first(id->u_fn.param_ids, addr_id);
 
-        fn->obj_id = tmp_id;
+        fn->heap_id = addr_id;
     }
 
     fn->abi = abi_lookup(&trans->ir->abis, id);
 
-    trans->fn = fn;
     trans->bb = fn->entry_bb;
 
     blk_trans(trans, id->u_fn.blk);
@@ -188,25 +186,43 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
+    // 현재의 stack 사용량을 이용하여 stack address를 설정한다.
+    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+
+    v_exp = exp_new_lit(&id->pos);
+    value_set_i64(&v_exp->u_lit.val, ALIGN64(fn->usage));
+
+    r_exp = exp_new_binary(OP_SUB, exp_new_global(TYPE_INT32, "stack$high"), v_exp,
+                           &id->pos);
+
+    array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+
     trans->fn = NULL;
     trans->bb = NULL;
 
     ir_add_fn(trans->ir, fn);
-
-    id->abi = fn->abi;
 }
 
 static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
     int i, j;
+    ir_t *ir = trans->ir;
     ast_blk_t *blk = id->u_cont.blk;
 
     ASSERT(blk != NULL);
+    ASSERT1(ir->offset == 0, ir->offset);
 
     if (id->u_cont.impl_exp != NULL) {
         /* rearrange functions according to the order in the interface */
+        // 함수의 순서를 재조정하는 이유는 함수의 parameter로 interface를 사용하고,
+        // 해당 interface를 implement한 contract가 여러개 있는 상황에서 argument로
+        // 사용된 contract에 속한 함수의 위치를 알 수 있는 방법이 없기 때문에 함수
+        // index를 동일하게 맞춤으로써 interface function의 index를 통해 함수를
+        // 호출하기 위해서다.
         ast_id_t *itf_id = id->u_cont.impl_exp->id;
+
+        ASSERT1(is_itf_id(itf_id), itf_id->kind);
 
         array_foreach(&itf_id->u_itf.blk->ids, i) {
             ast_id_t *spec_id = array_get_id(&itf_id->u_itf.blk->ids, i);
@@ -222,9 +238,12 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         }
     }
 
-    id->idx = array_size(&trans->ir->fns);
+    /* 이 값은 함수 인자가 interface이고, argument로 contract 변수가 전달될때 사용된다 */
+    id->idx = array_size(&ir->fns);
 
     blk_trans(trans, id->u_cont.blk);
+
+    ir->offset = 0;
 }
 
 static void

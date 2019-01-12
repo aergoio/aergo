@@ -32,9 +32,7 @@ typedef struct ast_id_s ast_id_t;
 
 struct ir_fn_s {
     char *name;
-    char *exp_name;
-
-    ast_id_t *obj_id;
+    char *exp_name;         /* name to export */
 
     ir_abi_t *abi;
 
@@ -43,6 +41,9 @@ struct ir_fn_s {
 
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;
+
+    ast_id_t *stack_id;
+    ast_id_t *heap_id;
 
     uint32_t usage;         /* stack usage */
 };

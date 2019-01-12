@@ -149,6 +149,16 @@ id_new_tuple(src_pos_t *pos)
 }
 
 ast_id_t *
+id_new_tmp_var(char *name, type_t type)
+{
+    ast_id_t *id = ast_id_new(ID_VAR, MOD_PRIVATE, name, &null_src_pos_);
+
+    meta_set(&id->meta, type);
+
+    return id;
+}
+
+ast_id_t *
 id_search_fld(ast_id_t *id, char *name, bool is_self)
 {
     int i;

@@ -22,12 +22,15 @@ ir_new(void)
 
     sgmt_init(&ir->sgmt);
 
+    ir->offset = 0;
+
     return ir;
 }
 
 void
 ir_add_global(ir_t *ir, ast_id_t *id)
 {
+    /*
     int addr;
     ast_id_t *cont_id = id->up;
 
@@ -38,6 +41,14 @@ ir_add_global(ir_t *ir, ast_id_t *id)
 
     id->addr = cont_id->addr;
     id->offset = addr - cont_id->addr;
+    */
+    // 전역변수는 constructor에서 설정한 heap$offset을 기반으로 relative offset을
+    // 사용한다.
+    ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
+
+    id->offset = ir->offset;
+
+    ir->offset += meta_size(&id->meta);
 }
 
 void

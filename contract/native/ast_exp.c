@@ -166,24 +166,26 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_global(char *name)
+exp_new_global(type_t type, char *name)
 {
     ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, &null_src_pos_);
 
     ASSERT(name != NULL);
 
+    exp->u_glob.type = type;
     exp->u_glob.name = name;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_local(int idx)
+exp_new_local(type_t type, int idx)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LOCAL, &null_src_pos_);
 
     ASSERT(idx >= 0);
 
+    exp->u_local.type = type;
     exp->u_local.idx = idx;
 
     return exp;
@@ -313,11 +315,11 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_GLOBAL:
-        res = exp_new_global(exp->u_glob.name);
+        res = exp_new_global(exp->u_glob.type, exp->u_glob.name);
         break;
 
     case EXP_LOCAL:
-        res = exp_new_local(exp->u_local.idx);
+        res = exp_new_local(exp->u_local.type, exp->u_local.idx);
         break;
 
     case EXP_STACK:

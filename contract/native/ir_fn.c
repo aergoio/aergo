@@ -27,7 +27,6 @@ fn_new(ast_id_t *id)
     fn->name = xstrdup(name);
     fn->exp_name = is_public_id(id) ? id->name : NULL;
 
-    fn->obj_id = NULL;
     fn->abi = NULL;
 
     array_init(&fn->locals);
@@ -35,6 +34,9 @@ fn_new(ast_id_t *id)
 
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
+
+    fn->stack_id = NULL;
+    fn->heap_id = NULL;
 
     fn->usage = 0;
 
@@ -46,8 +48,8 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
     ir_abi_t *abi = fn->abi;
 
-    ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
     ASSERT(abi != NULL);
+    ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
 
     id->idx = abi->param_cnt + array_size(&fn->locals);
 
