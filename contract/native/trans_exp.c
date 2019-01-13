@@ -261,14 +261,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         exp->u_call.param_exps = array_new();
 
     if (is_local_exp(id_exp)) {
-        /* If the call expression is of type x(),
+        /* If the call expression is of type "x()",
          * pass the first parameter as the first argument */
         ASSERT(trans->fn->heap_idx == 0);
 
         array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
     }
     else {
-        /* If the call expression is of type x.y(), pass x as the first argument */
+        /* If the call expression is of type "x.y()", pass x as the first argument */
         ASSERT1(is_access_exp(id_exp), id_exp->kind);
         ASSERT1(is_object_meta(&id_exp->meta), id_exp->meta.type);
 

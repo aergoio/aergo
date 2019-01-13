@@ -12,10 +12,10 @@
     int num;                                                                             \
     src_pos_t pos
 
-#define ast_node_init(node, pos)                                                         \
+#define ast_node_init(node, npos)                                                        \
     do {                                                                                 \
-        (node)->num = node_num_++;                                                       \
-        (node)->pos = *(pos);                                                            \
+        (node)->num = node_num_;                                                         \
+        (node)->pos = (npos);                                                            \
     } while (0)
 
 #ifndef _AST_BLK_T

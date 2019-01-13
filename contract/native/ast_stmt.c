@@ -15,7 +15,7 @@ ast_stmt_new(stmt_kind_t kind, src_pos_t *pos)
 {
     ast_stmt_t *stmt = xcalloc(sizeof(ast_stmt_t));
 
-    ast_node_init(stmt, pos);
+    ast_node_init(stmt, *pos);
 
     stmt->kind = kind;
 

@@ -28,7 +28,7 @@ ir_new(void)
 }
 
 void
-ir_add_global(ir_t *ir, ast_id_t *id)
+ir_add_global(ir_t *ir, ast_id_t *id, int idx)
 {
     /*
     int addr;
@@ -42,10 +42,14 @@ ir_add_global(ir_t *ir, ast_id_t *id)
     id->addr = cont_id->addr;
     id->offset = addr - cont_id->addr;
     */
-    // 전역변수는 constructor에서 설정한 heap$addr을 기반으로 relative offset을
-    // 사용한다.
+    ASSERT(idx >= 0);
+
     ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 
+    /* The global variable does not use "addr",
+     * but uses the local variable set to "idx" as the address */
+    id->idx = idx;
+    id->addr = 0;
     id->offset = ir->offset;
 
     ir->offset += meta_size(&id->meta);

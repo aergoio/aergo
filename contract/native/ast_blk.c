@@ -17,7 +17,7 @@ ast_blk_new(blk_kind_t kind, src_pos_t *pos)
 {
     ast_blk_t *blk = xcalloc(sizeof(ast_blk_t));
 
-    ast_node_init(blk, pos);
+    ast_node_init(blk, *pos);
 
     blk->kind = kind;
 

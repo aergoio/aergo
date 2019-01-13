@@ -36,7 +36,7 @@ typedef struct ir_s {
 
 ir_t *ir_new(void);
 
-void ir_add_global(ir_t *ir, ast_id_t *id);
+void ir_add_global(ir_t *ir, ast_id_t *id, int idx);
 void ir_add_fn(ir_t *ir, ir_fn_t *fn);
 
 #endif /* no _IR_H */

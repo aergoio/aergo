@@ -17,6 +17,9 @@
 #define f32_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat32(v))
 #define f64_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
 
+#define meta_gen(meta)                                                                   \
+    (is_array_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
+
 typedef struct gen_s {
     flag_t flag;
     char path[PATH_MAX_LEN + 5];
@@ -38,6 +41,6 @@ void gen(ir_t *ir, flag_t flag, char *path);
 void local_add(gen_t *gen, type_t type);
 void instr_add(gen_t *gen, BinaryenExpressionRef instr);
 
-BinaryenType meta_gen(meta_t *meta);
+BinaryenType type_gen(type_t type);
 
 #endif /* ! _GEN_H */

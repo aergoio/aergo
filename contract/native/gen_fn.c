@@ -40,7 +40,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
                                     gen->module);
 
     BinaryenAddFunction(gen->module, fn->name, abi->spec, gen->locals, gen->local_cnt,
-                        BinaryenBlock(gen->module, NULL, &body, 1, BinaryenTypeNone()));
+                        BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
 
     if (fn->exp_name != NULL)
         BinaryenAddFunctionExport(gen->module, fn->name, fn->exp_name);
@@ -52,7 +52,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 void
 abi_gen(gen_t *gen, ir_abi_t *abi)
 {
-    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, abi->result, abi->params, 
+    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, abi->result, abi->params,
                                         abi->param_cnt);
 }
 

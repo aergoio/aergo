@@ -55,12 +55,15 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 static void
 resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
-    meta_t *meta = &var_exp->id->meta;
+    meta_t *meta = &var_exp->meta;
 
-    if (is_init_exp(val_exp))
+    if (is_init_exp(val_exp)) {
+        ASSERT(var_exp->id != NULL);
+
         /* This is set here because we need the base address to store
          * each value of the initializer expression */
         val_exp->id = var_exp->id;
+    }
 
     if (val_exp->id != NULL && is_object_meta(meta) &&
         meta->type_id != NULL && is_itf_id(meta->type_id)) {
@@ -303,8 +306,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
 
-    /* In a switch-case statement, each case block is transformed to 
-     * a single basic block, and the switch condition and the case value are 
+    /* In a switch-case statement, each case block is transformed to
+     * a single basic block, and the switch condition and the case value are
      * compared and used as a branch condition
      *
      *         .---------------------------.
@@ -370,13 +373,29 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     ast_id_t *ret_id = stmt->u_ret.ret_id;
     ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
 
-    /* Each return expression of a function corresponds to a local variable,
-     * so if there is return arguments, the return statement is transformed to 
-     * an assign statement using the address value of each return argument */
+    ASSERT(ret_id->up != NULL);
+    ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
 
-    if (arg_exp != NULL) {
+    if (is_ctor_id(ret_id->up)) {
+        if (arg_exp != NULL) {
+            /* If "arg_exp" is not null, the "stmt" is added to exit_bb because
+             * it is a return statement for contract address added forced by
+             * id_trans_ctor() */
+            ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
+
+            bb_add_stmt(trans->fn->exit_bb, stmt);
+        }
+        else {
+            /* The constructor uses the return statement as is */
+            bb_add_stmt(trans->bb, stmt);
+        }
+    }
+    else if (arg_exp != NULL) {
         ast_exp_t *var_exp;
 
+        /* Each return expression of a function corresponds to a local variable,
+         * so if there is return arguments, the return statement is transformed to
+         * an assign statement using the address value of each return argument */
         if (is_tuple_id(ret_id)) {
             int i;
             array_t *elem_exps = array_new();

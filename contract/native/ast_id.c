@@ -17,7 +17,7 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 {
     ast_id_t *id = xcalloc(sizeof(ast_id_t));
 
-    ast_node_init(id, pos);
+    ast_node_init(id, *pos);
 
     id->kind = kind;
     id->mod = mod;
@@ -64,10 +64,11 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 ast_id_t *
 id_new_return(meta_t *type_meta, src_pos_t *pos)
 {
+    static int ret_num = 1;
     char name[NAME_MAX_LEN + 1];
     ast_id_t *id;
 
-    snprintf(name, sizeof(name), "return$%d", type_meta->num);
+    snprintf(name, sizeof(name), "return$%d", ret_num++);
 
     id = ast_id_new(ID_RETURN, MOD_PRIVATE, xstrdup(name), pos);
 

@@ -126,7 +126,35 @@ gen(ir_t *ir, flag_t flag, char *path)
     BinaryenModuleDispose(gen.module);
 }
 
-static BinaryenType
+void
+local_add(gen_t *gen, type_t type)
+{
+    /* TODO: need to improve */
+    if (gen->locals == NULL)
+        gen->locals = xmalloc(sizeof(BinaryenType));
+    else
+        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
+
+    gen->locals[gen->local_cnt++] = type_gen(type);
+}
+
+void
+instr_add(gen_t *gen, BinaryenExpressionRef instr)
+{
+    if (instr == NULL)
+        return;
+
+    /* TODO: need to improve */
+    if (gen->instrs == NULL)
+        gen->instrs = xmalloc(sizeof(BinaryenExpressionRef));
+    else
+        gen->instrs = xrealloc(gen->instrs,
+                               sizeof(BinaryenExpressionRef) * (gen->instr_cnt + 1));
+
+    gen->instrs[gen->instr_cnt++] = instr;
+}
+
+BinaryenType
 type_gen(type_t type)
 {
     switch (type) {
@@ -167,43 +195,6 @@ type_gen(type_t type)
     }
 
     return BinaryenTypeUnreachable();
-}
-
-BinaryenType
-meta_gen(meta_t *meta)
-{
-    if (is_array_meta(meta))
-        return BinaryenTypeInt32();
-
-    return type_gen(meta->type);
-}
-
-void
-local_add(gen_t *gen, type_t type)
-{
-    /* TODO: need to improve */
-    if (gen->locals == NULL)
-        gen->locals = xmalloc(sizeof(BinaryenType));
-    else
-        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
-
-    gen->locals[gen->local_cnt++] = type_gen(type);
-}
-
-void
-instr_add(gen_t *gen, BinaryenExpressionRef instr)
-{
-    if (instr == NULL)
-        return;
-
-    /* TODO: need to improve */
-    if (gen->instrs == NULL)
-        gen->instrs = xmalloc(sizeof(BinaryenExpressionRef));
-    else
-        gen->instrs = xrealloc(gen->instrs,
-                               sizeof(BinaryenExpressionRef) * (gen->instr_cnt + 1));
-
-    gen->instrs[gen->instr_cnt++] = instr;
 }
 
 /* end of gen.c */

@@ -157,8 +157,7 @@ meta_init(meta_t *meta, src_pos_t *pos)
 
     memset(meta, 0x00, sizeof(meta_t));
 
-    meta->num = node_num_++;
-    meta->pos = pos;
+    ast_node_init(meta, pos);
 }
 
 static inline meta_t *
@@ -170,8 +169,6 @@ meta_new(type_t type, src_pos_t *pos)
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
-
-    meta->num = node_num_++;
 
     meta->pos = xmalloc(sizeof(src_pos_t));
     memcpy(meta->pos, pos, sizeof(src_pos_t));

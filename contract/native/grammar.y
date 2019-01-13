@@ -354,8 +354,8 @@ var_qual:
 ;
 
 var_decl:
-    var_spec ';'
-|   var_spec '=' var_init ';'
+    var_spec semicolon
+|   var_spec '=' var_init semicolon
     {
         $$ = $1;
 
@@ -480,6 +480,10 @@ struct:
     K_TYPE identifier K_STRUCT '{' field_list '}'
     {
         $$ = id_new_struct($2, $5, &@$);
+        /* TODO: In the current structure, since identifier and statement are
+         * separated, we have to manage node_num heuristically. However, if the two
+         * nodes are merged in the future, they can be processed more consistently */
+        node_num_++;
     }
 |   K_TYPE error '}'
     {
@@ -488,7 +492,7 @@ struct:
 ;
 
 field_list:
-    var_spec ';'
+    var_spec semicolon
     {
         $$ = array_new();
 
@@ -497,7 +501,7 @@ field_list:
         else
             id_join($$, id_strip($1));
     }
-|   field_list var_spec ';'
+|   field_list var_spec semicolon
     {
         $$ = $1;
 
@@ -512,6 +516,7 @@ enumeration:
     K_ENUM identifier '{' enum_list comma_opt '}'
     {
         $$ = id_new_enum($2, $4, &@$);
+        node_num_++;
     }
 |   K_ENUM error '}'
     {
@@ -695,7 +700,7 @@ return_list:
     return_decl
 |   return_list ',' return_decl
     {
-        /* The reason for making the return list tuple is because of
+        /* The reason for making the return list as tuple is because of
          * the convenience of meta comparison. If array_t is used,
          * it must be looped for each id and compared directly,
          * but for tuples, meta_cmp() is sufficient */
@@ -739,12 +744,12 @@ interface_decl:
 ;
 
 interface_body:
-    func_spec ';'
+    func_spec semicolon
     {
         $$ = blk_new_interface(&@$);
         id_add(&$$->ids, $1);
     }
-|   interface_body func_spec ';'
+|   interface_body func_spec semicolon
     {
         $$ = $1;
         id_add(&$$->ids, $2);
@@ -765,26 +770,26 @@ statement:
 ;
 
 empty_stmt:
-    ';'
+    semicolon
     {
         $$ = stmt_new_null(&@$);
     }
 ;
 
 exp_stmt:
-    expression ';'
+    expression semicolon
     {
         $$ = stmt_new_exp($1, &@$);
     }
-|   error ';'           { $$ = NULL; }
+|   error semicolon     { $$ = NULL; }
 ;
 
 assign_stmt:
-    expression '=' expression ';'
+    expression '=' expression semicolon
     {
         $$ = stmt_new_assign($1, $3, &@2);
     }
-|   unary_exp assign_op expression ';'
+|   unary_exp assign_op expression semicolon
     {
         $$ = stmt_new_assign($1, exp_new_binary($2, $1, $3, &@2), &@2);
     }
@@ -891,8 +896,8 @@ init_stmt:
 ;
 
 cond_exp:
-    ';'                 { $$ = NULL; }
-|   ternary_exp ';'
+    semicolon           { $$ = NULL; }
+|   ternary_exp semicolon
 ;
 
 switch_stmt:
@@ -929,30 +934,30 @@ case_blk:
 ;
 
 jump_stmt:
-    K_CONTINUE ';'
+    K_CONTINUE semicolon
     {
         $$ = stmt_new_jump(STMT_CONTINUE, NULL, &@$);
     }
-|   K_BREAK ';'
+|   K_BREAK semicolon
     {
         $$ = stmt_new_jump(STMT_BREAK, NULL, &@$);
     }
-|   K_RETURN ';'
+|   K_RETURN semicolon
     {
         $$ = stmt_new_return(NULL, &@$);
     }
-|   K_RETURN expression ';'
+|   K_RETURN expression semicolon
     {
         $$ = stmt_new_return($2, &@$);
     }
-|   K_GOTO identifier ';'
+|   K_GOTO identifier semicolon
     {
         $$ = stmt_new_goto($2, &@2);
     }
 ;
 
 ddl_stmt:
-    ddl_prefix error ';'
+    ddl_prefix error semicolon
     {
         int len;
         char *ddl;
@@ -1001,7 +1006,7 @@ expression:
 
 sql_exp:
     ternary_exp
-|   sql_prefix error ';'
+|   sql_prefix error semicolon
     {
         int len;
         char *sql;
@@ -1338,6 +1343,10 @@ identifier:
         $$ = $1;
     }
 |   non_reserved_token
+;
+
+semicolon:
+    ';'                 { node_num_++; }
 ;
 
 %%

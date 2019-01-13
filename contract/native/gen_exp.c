@@ -576,23 +576,29 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_global(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetGlobal(gen->module, exp->u_glob.name, meta_gen(&exp->meta));
+    return BinaryenGetGlobal(gen->module, exp->u_glob.name, type_gen(exp->u_glob.type));
 }
 
 static BinaryenExpressionRef
 exp_gen_local(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetLocal(gen->module, exp->u_local.idx, meta_gen(&exp->meta));
+    return BinaryenGetLocal(gen->module, exp->u_local.idx, type_gen(exp->u_local.type));
 }
 
 static BinaryenExpressionRef
 exp_gen_stack(gen_t *gen, ast_exp_t *exp)
 {
-    meta_t *meta = &exp->meta;
+    type_t type = exp->u_stk.type;
+    BinaryenExpressionRef address;
 
-    return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_meta(meta),
-                        exp->u_stk.offset, 0, meta_gen(meta),
-                        i32_gen(gen, exp->u_stk.addr));
+    address = BinaryenGetLocal(gen->module, exp->u_stk.base, type_gen(type));
+
+    if (exp->u_stk.addr > 0)
+        address = BinaryenBinary(gen->module, BinaryenTypeInt32(), address,
+                                 i32_gen(gen, exp->u_stk.addr));
+
+    return BinaryenLoad(gen->module, TYPE_SIZE(type), is_signed_type(type),
+                        exp->u_stk.offset, 0, type_gen(type), address);
 }
 
 BinaryenExpressionRef

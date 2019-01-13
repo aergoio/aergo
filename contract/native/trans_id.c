@@ -47,9 +47,7 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 
     ASSERT1(is_var_id(id), id->kind);
 
-    ir_add_global(trans->ir, id);
-
-    id->idx = trans->fn->heap_idx;
+    ir_add_global(trans->ir, id, trans->fn->heap_idx);
 
     if (id->u_var.dflt_exp == NULL)
         return;
@@ -99,36 +97,29 @@ static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
-    ast_id_t *addr_id;
+    ast_id_t *tmp_id;
     ast_exp_t *l_exp, *r_exp;
     ast_stmt_t *ret_stmt;
     array_t *stmts = array_new();
     ir_fn_t *fn = trans->fn;
+    ir_t *ir = trans->ir;
 
     ASSERT(id->u_fn.ret_id != NULL);
     ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
 
+    /* The parameter of the constructor is immutable */
+    fn->abi = abi_lookup(&ir->abis, id);
+
     /* All global variables access memory by adding relative offset to this value */
-    addr_id = id_new_tmp_var("cont$addr", TYPE_INT32);
+    tmp_id = id_new_tmp_var("cont$addr", TYPE_INT32);
 
-    fn_add_local(fn, addr_id);
-    fn->heap_idx = addr_id->idx;
+    fn_add_local(fn, tmp_id);
+    fn->heap_idx = tmp_id->idx;
 
-    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+    l_exp = exp_new_local(TYPE_INT32, tmp_id->idx);
     r_exp = exp_new_global(TYPE_INT32, "heap$offset");
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
-    /* This value, like any other global variable, is stored in the heap area
-     * used by the contract, and is stored in the first 4 bytes of the area.
-     * All functions also access table by adding relative index to this value */
-    addr_id = id_new_tmp_var("cont$idx", TYPE_INT32);
-
-    addr_id->up = id->up;
-    addr_id->u_var.dflt_exp = exp_new_lit(&addr_id->pos);
-    value_set_i64(&addr_id->u_var.dflt_exp->u_lit.val, id->up->idx);
-
-    array_add_first(&id->up->u_cont.blk->ids, addr_id);
 
     /* We use new array to keep the declaration order of variables */
     array_foreach(&id->up->u_cont.blk->ids, i) {
@@ -153,7 +144,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     /* Since the constructor can be called from any location,
      * it should always be accessed with an absolute index */
-    id->idx = array_size(&trans->ir->fns);
+    id->idx = array_size(&ir->fns);
 }
 
 static void
@@ -161,6 +152,7 @@ id_trans_param(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *param_id;
     ir_fn_t *fn = trans->fn;
+    ir_t *ir = trans->ir;
 
     /* All functions that are not constructors must be added the contract address
      * as the first argument, and must also be added to the param_ids to reflect
@@ -176,6 +168,8 @@ id_trans_param(trans_t *trans, ast_id_t *id)
         id->u_fn.param_ids = array_new();
 
     array_add_first(id->u_fn.param_ids, param_id);
+
+    fn->abi = abi_lookup(&ir->abis, id);
 
     /* The "heap_idx" is always 0 because it is prepended to parameters */
     fn->heap_idx = 0;
@@ -204,8 +198,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     else
         id_trans_param(trans, id);
 
-    id->abi = abi_lookup(&ir->abis, id);
-    fn->abi = id->abi;
+    id->abi = fn->abi;
 
     /* It is used internally for binaryen, not for us (see fn_gen()) */
     fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
@@ -246,8 +239,9 @@ static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
     int i, j;
-    ir_t *ir = trans->ir;
+    ast_id_t *tmp_id;
     ast_blk_t *blk = id->u_cont.blk;
+    ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
     ASSERT1(ir->offset == 0, ir->offset);
@@ -281,9 +275,22 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         }
     }
 
+#if 0
     /* This value is used when the function argument is interface and
      * the contract variable is passed as an argument */
     id->idx = array_size(&ir->fns);
+#endif
+
+    /* This value, like any other global variable, is stored in the heap area
+     * used by the contract, and is stored in the first 4 bytes of the area.
+     * All functions also access table by adding relative index to this value */
+    tmp_id = id_new_tmp_var("cont$idx", TYPE_INT32);
+
+    tmp_id->up = id;
+    tmp_id->u_var.dflt_exp = exp_new_lit(&tmp_id->pos);
+    value_set_i64(&tmp_id->u_var.dflt_exp->u_lit.val, array_size(&ir->fns));
+
+    array_add_first(&id->u_cont.blk->ids, tmp_id);
 
     blk_trans(trans, id->u_cont.blk);
 

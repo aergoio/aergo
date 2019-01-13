@@ -13,15 +13,13 @@
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
-    uint32_t offset = 0;
+    //uint32_t offset = 0;
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
     ast_id_t *id = l_exp->id;
     BinaryenExpressionRef address, value;
 
-    ASSERT(id != NULL);
-
-    if (is_map_meta(&id->meta))
+    if (is_map_meta(&l_exp->meta))
         /* TODO: If the type of identifier is map,
          * lvalue and rvalue must be combined into a call expression */
         return NULL;
@@ -30,13 +28,6 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     //if (value == NULL || is_object_meta(&id->meta))
     if (value == NULL)
         return NULL;
-
-    if (is_return_id(id)) {
-        ASSERT(id->idx >= 0);
-        return BinaryenStore(gen->module, sizeof(int32_t), 0, 0,
-                             BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
-                             value, meta_gen(&l_exp->meta));
-    }
 
 #if 0
     if (id->is_param) {
@@ -56,8 +47,6 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 #endif
 
-    ASSERT1(is_var_id(id), id->kind);
-
     if (is_local_exp(l_exp)) {
         ASSERT(l_exp->u_local.idx >= 0);
         return BinaryenSetLocal(gen->module, l_exp->u_local.idx, value);
@@ -74,12 +63,19 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
             address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                      i32_gen(gen, l_exp->u_stk.addr));
 
-        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type),
+        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->u_stk.type),
                              l_exp->u_stk.offset, 0, address, value,
-                             meta_gen(&l_exp->meta));
+                             type_gen(l_exp->u_stk.type));
     }
 
-    ASSERT(false);
+    ASSERT(id != NULL);
+    ASSERT(id->idx >= 0);
+    ASSERT1(is_return_id(id), id->kind);
+
+    return BinaryenStore(gen->module, sizeof(int32_t), 0, 0,
+                         BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
+                         value, meta_gen(&l_exp->meta));
+#if 0
     gen->is_lval = true;
     address = exp_gen(gen, l_exp);
     offset = 0;
@@ -87,6 +83,13 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
     return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0, address,
                          value, meta_gen(&l_exp->meta));
+#endif
+}
+
+static BinaryenExpressionRef
+stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
+{
+    return BinaryenReturn(gen->module, exp_gen(gen, stmt->u_ret.arg_exp));
 }
 
 static BinaryenExpressionRef
@@ -105,6 +108,9 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);
+
+    case STMT_RETURN:
+        return stmt_gen_return(gen, stmt);
 
     case STMT_DDL:
         return stmt_gen_ddl(gen, stmt);

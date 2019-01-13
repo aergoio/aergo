@@ -14,7 +14,7 @@ ast_exp_new(exp_kind_t kind, src_pos_t *pos)
 {
     ast_exp_t *exp = xcalloc(sizeof(ast_exp_t));
 
-    ast_node_init(exp, pos);
+    ast_node_init(exp, *pos);
 
     exp->kind = kind;
 

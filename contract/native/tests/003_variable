@@ -87,6 +87,7 @@ contract test {
 }
 
 @test(self_reference)
+@error(ERROR_UNDEFINED_ID)
 contract test {
     int i = i;
 }
