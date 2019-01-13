@@ -168,7 +168,7 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 ast_exp_t *
 exp_new_global(type_t type, char *name)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, &null_src_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, &src_pos_null_);
 
     ASSERT(name != NULL);
 
@@ -181,7 +181,7 @@ exp_new_global(type_t type, char *name)
 ast_exp_t *
 exp_new_local(type_t type, int idx)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, &null_src_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, &src_pos_null_);
 
     ASSERT(idx >= 0);
 
@@ -192,13 +192,16 @@ exp_new_local(type_t type, int idx)
 }
 
 ast_exp_t *
-exp_new_stack(int addr, int offset)
+exp_new_stack(type_t type, int base, int addr, int offset)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_STACK, &null_src_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_STACK, &src_pos_null_);
 
+    ASSERT(base >= 0);
     ASSERT(addr >= 0);
     ASSERT(offset >= 0);
 
+    exp->u_stk.type = type;
+    exp->u_stk.base = base;
     exp->u_stk.addr = addr;
     exp->u_stk.offset = offset;
 
@@ -222,16 +225,20 @@ exp_set_local(ast_exp_t *exp, int idx)
     ASSERT(idx >= 0);
 
     exp->kind = EXP_LOCAL;
+    exp->u_local.type = exp->meta.type;
     exp->u_local.idx = idx;
 }
 
 void
-exp_set_stack(ast_exp_t *exp, int addr, int offset)
+exp_set_stack(ast_exp_t *exp, int base, int addr, int offset)
 {
+    ASSERT(base >= 0);
     ASSERT(addr >= 0);
     ASSERT(offset >= 0);
 
     exp->kind = EXP_STACK;
+    exp->u_stk.type = exp->meta.type;
+    exp->u_stk.base = base;
     exp->u_stk.addr = addr;
     exp->u_stk.offset = offset;
 }
@@ -323,7 +330,8 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_STACK:
-        res = exp_new_stack(exp->u_stk.addr, exp->u_stk.offset);
+        res = exp_new_stack(exp->u_stk.type, exp->u_stk.base, exp->u_stk.addr,
+                            exp->u_stk.offset);
         break;
 
     default:

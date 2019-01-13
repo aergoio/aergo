@@ -62,20 +62,20 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
     BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
     for (i = 0; i < sgmt->size; i++) {
-        addrs[i] = gen_i32(gen, sgmt->addrs[i]);
+        addrs[i] = i32_gen(gen, sgmt->addrs[i]);
     }
 
     BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
     BinaryenAddGlobal(gen->module, "stack$high", BinaryenTypeInt32(), 1,
-                      gen_i32(gen, stack_size));
+                      i32_gen(gen, stack_size));
 
     BinaryenAddGlobal(gen->module, "stack$low", BinaryenTypeInt32(), 0,
-                      gen_i32(gen, ALIGN64(sgmt->offset)));
+                      i32_gen(gen, ALIGN64(sgmt->offset)));
 
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
-                      gen_i32(gen, stack_size + 1));
+                      i32_gen(gen, stack_size + 1));
 }
 
 void
@@ -181,6 +181,7 @@ meta_gen(meta_t *meta)
 void
 local_add(gen_t *gen, type_t type)
 {
+    /* TODO: need to improve */
     if (gen->locals == NULL)
         gen->locals = xmalloc(sizeof(BinaryenType));
     else
@@ -195,6 +196,7 @@ instr_add(gen_t *gen, BinaryenExpressionRef instr)
     if (instr == NULL)
         return;
 
+    /* TODO: need to improve */
     if (gen->instrs == NULL)
         gen->instrs = xmalloc(sizeof(BinaryenExpressionRef));
     else

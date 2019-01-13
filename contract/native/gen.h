@@ -12,6 +12,11 @@
 #include "meta.h"
 #include "binaryen-c.h"
 
+#define i32_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralInt32(v))
+#define i64_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralInt64(v))
+#define f32_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat32(v))
+#define f64_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
+
 typedef struct gen_s {
     flag_t flag;
     char path[PATH_MAX_LEN + 5];
@@ -34,29 +39,5 @@ void local_add(gen_t *gen, type_t type);
 void instr_add(gen_t *gen, BinaryenExpressionRef instr);
 
 BinaryenType meta_gen(meta_t *meta);
-
-static inline BinaryenExpressionRef
-gen_i32(gen_t *gen, int32_t v)
-{
-    return BinaryenConst(gen->module, BinaryenLiteralInt32(v));
-}
-
-static inline BinaryenExpressionRef
-gen_i64(gen_t *gen, int64_t v)
-{
-    return BinaryenConst(gen->module, BinaryenLiteralInt64(v));
-}
-
-static inline BinaryenExpressionRef
-gen_f32(gen_t *gen, float v)
-{
-    return BinaryenConst(gen->module, BinaryenLiteralFloat32(v));
-}
-
-static inline BinaryenExpressionRef
-gen_f64(gen_t *gen, double v)
-{
-    return BinaryenConst(gen->module, BinaryenLiteralFloat64(v));
-}
 
 #endif /* ! _GEN_H */

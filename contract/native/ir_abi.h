@@ -23,6 +23,8 @@ typedef struct ir_abi_s {
     int param_cnt;
     BinaryenType *params;
 
+    BinaryenType result;
+
     BinaryenFunctionTypeRef spec;
 } ir_abi_t;
 

@@ -34,8 +34,11 @@
 #define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))
 
+/* The object type is a local variable that stores the address */
 #define is_stack_id(id)                                                                  \
-    (!(id)->is_param && (is_array_type(&(id)->meta) || !is_primitive_type(&(id)->meta)))
+    (!(id)->is_param &&                                                                  \
+     (is_array_type(&(id)->meta) ||                                                      \
+      (!is_object_type(&(id)->meta) && !is_primitive_type(&(id)->meta))))
 
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
 
@@ -128,7 +131,7 @@ struct ast_id_s {
     meta_t meta;
     value_t *val;       /* constant value */
 
-    int idx;            /* local index */
+    int idx;            /* local or function index */
     int addr;           /* relative address */
     int offset;         /* offset (from addr) */
 

@@ -14,18 +14,13 @@ void
 blk_trans(trans_t *trans, ast_blk_t *blk)
 {
     int i;
-    int idx = 0;
     ast_blk_t *up = trans->blk;
 
     trans->blk = blk;
+    trans->fn_idx = 0;
 
     array_foreach(&blk->ids, i) {
-        ast_id_t *id = array_get_id(&blk->ids, i);
-
-        id_trans(trans, id);
-
-        if (is_fn_id(id))
-            id->idx = idx++;
+        id_trans(trans, array_get_id(&blk->ids, i));
     }
 
     array_foreach(&blk->stmts, i) {

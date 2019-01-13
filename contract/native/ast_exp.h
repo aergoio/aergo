@@ -137,6 +137,8 @@ typedef struct exp_local_s {
 } exp_local_t;
 
 typedef struct exp_stack_s {
+    type_t type;
+    uint32_t base;
     uint32_t addr;
     uint32_t offset;
 } exp_stack_t;
@@ -187,11 +189,11 @@ ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(type_t type, char *name);
 ast_exp_t *exp_new_local(type_t type, int idx);
-ast_exp_t *exp_new_stack(int addr, int offset);
+ast_exp_t *exp_new_stack(type_t type, int base, int addr, int offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
 void exp_set_local(ast_exp_t *exp, int idx);
-void exp_set_stack(ast_exp_t *exp, int addr, int offset);
+void exp_set_stack(ast_exp_t *exp, int base, int addr, int offset);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

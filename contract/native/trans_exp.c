@@ -22,19 +22,20 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
-        if (id->is_param || (!is_global_id(id) && !is_stack_id(id)))
-            exp_set_local(exp, id->idx);
-        else
-            /* the global variable always refers to the stack */
-            exp_set_stack(exp, id->addr, id->offset);
-    }
-    /*
-    else if (is_fn_id(id)) {
-        exp_set_lit(exp, NULL);
+        /* The "id->idx" is the index of the local variable itself or
+         * the index of the local variable storing the stack base address */
+        ASSERT(id->idx >= 0);
 
-        value_set_i64(&exp->u_lit.val, id->idx);
+        if (is_global_id(id) || is_stack_id(id))
+            /* The global variable always refers to the memory */
+            exp_set_stack(exp, id->idx, id->addr, id->offset);
+        else
+            exp_set_local(exp, id->idx);
     }
-    */
+    else if (is_fn_id(id)) {
+        /* The "id->idx" is the relative index of the function */
+        exp_set_local(exp, id->idx);
+    }
 }
 
 static void
@@ -82,12 +83,14 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
 
         if (!is_stack_exp(id_exp) || !is_lit_exp(idx_exp))
+            /* We must dynamically determine the address and offset */
             return;
 
         /* The following arr_size is stripped arr_size */
         offset = val_i64(&idx_exp->u_lit.val) * exp->meta.arr_size;
 
-        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + offset);
+        exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
+                      id_exp->u_stk.offset + offset);
     }
     else {
         /* TODO
@@ -125,6 +128,7 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
     switch (exp->u_un.kind) {
     case OP_INC:
     case OP_DEC:
+        /* Clone value expression because we have to transform it to "x op 1" */
         var_exp = exp_clone(val_exp);
 
         exp_trans(trans, var_exp);
@@ -139,12 +143,14 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
         meta_copy(&lit_exp->meta, &val_exp->meta);
         meta_copy(&bi_exp->meta, &val_exp->meta);
 
-        bb_add_piggyback(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
-
         if (exp->u_un.is_prefix)
-            *exp = *bi_exp;
+            bb_add_stmt(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
         else
-            *exp = *val_exp;
+            /* The postfix operator is added as a piggybacked statement
+             * since it must be executed after the current statement is executed */
+            bb_add_piggyback(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
+
+        *exp = *val_exp;
         break;
 
     case OP_NEG:
@@ -181,7 +187,7 @@ exp_trans_ternary(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_tern.post_exp);
 
     if (is_lit_exp(exp->u_tern.pre_exp)) {
-        /* maybe we should do this in optimizer */
+        /* Maybe we should do this in optimizer (if exists) */
         meta_t meta = exp->meta;
 
         if (val_bool(&exp->u_tern.pre_exp->u_lit.val))
@@ -197,11 +203,16 @@ static void
 exp_trans_access(trans_t *trans, ast_exp_t *exp)
 {
     ast_exp_t *id_exp = exp->u_acc.id_exp;
-    ast_id_t *qual_id = id_exp->id;
+    //ast_id_t *qual_id = id_exp->id;
     ast_id_t *fld_id = exp->id;
 
     exp_trans(trans, id_exp);
 
+    if (is_stack_exp(id_exp))
+        exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
+                      id_exp->u_stk.offset + fld_id->offset);
+
+#if 0
     if (is_fn_id(fld_id)) {
         if (is_itf_id(fld_id->up)) {
             int i;
@@ -225,6 +236,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     else if (is_stack_exp(id_exp)) {
         exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->offset);
     }
+#endif
 }
 
 static void
@@ -234,76 +246,90 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     ast_exp_t *id_exp = exp->u_call.id_exp;
 
     if (is_map_type(&exp->meta))
+        /* TODO */
         return;
-
-    /* since all return values of a function are treated as parameters,
-     * the call expression is added as a separate statement.
-     *
-     * as a result, the "v = f();" statement changes to "f(); v = r;" */
 
     exp_trans(trans, id_exp);
 
-    if (!is_ctor_id(exp->id)) {
-        if (exp->u_call.param_exps == NULL)
-            exp->u_call.param_exps = array_new();
+    if (is_ctor_id(exp->id))
+        /* The constructor does not have a parameter and returns a contract address */
+        return;
 
-        if (is_id_exp(id_exp)) {
-            ir_fn_t *fn = trans->fn;
+    /* Since non-constructor functions are added the contract base address as
+     * a first argument, we must also add the address as a call argument here */
+    if (exp->u_call.param_exps == NULL)
+        exp->u_call.param_exps = array_new();
 
-            ASSERT(fn->heap_id != NULL);
-            ASSERT(fn->heap_id->idx >= 0);
+    if (is_local_exp(id_exp)) {
+        /* If the call expression is of type x(),
+         * pass the first parameter as the first argument */
+        ASSERT(trans->fn->heap_idx == 0);
 
-            array_add_first(exp->u_call.param_exps,
-                            exp_new_local(TYPE_INT32, fn->heap_id->idx));
-        }
-        else {
-            array_add_first(exp->u_call.param_exps, id_exp->u_acc.id_exp);
-        }
+        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
+    }
+    else {
+        /* If the call expression is of type x.y(), pass x as the first argument */
+        ASSERT1(is_access_exp(id_exp), id_exp->kind);
+        ASSERT1(is_object_type(&id_exp->meta), id_exp->meta.type);
 
-        exp->id = id_exp->id;
+        array_add_first(exp->u_call.param_exps, id_exp->u_acc.id_exp);
     }
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
     }
 
+    /* Since all return values of a function are treated as parameters,
+     * each return value is added as a separate statement
+     *
+     * As a result, "x, y = f();" is tranformed to "f(); x = r1; y = r2;"
+     * in the assignment statement */
+
     if (exp->id->u_fn.ret_id != NULL) {
+        ir_fn_t *fn = trans->fn;
         ast_id_t *ret_id = exp->id->u_fn.ret_id;
 
-        /* if there is a return value,
-         * we have to clone it because the expression itself is transformed */
+        ASSERT(fn != NULL);
+
+        /* if there is a return value, we have to clone it 
+         * because the call expression itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_exp(exp_clone(exp), &exp->pos));
 
+        /* The return value is always stored in stack memory */
         if (is_tuple_id(ret_id)) {
             int i;
             array_t *elem_exps = array_new();
             array_t *elem_ids = ret_id->u_tup.elem_ids;
 
-            ASSERT(trans->fn != NULL);
-
             array_foreach(elem_ids, i) {
                 ast_id_t *elem_id = array_get_id(elem_ids, i);
-                ast_exp_t *ref_exp;
+                //ast_exp_t *ref_exp;
 
                 ASSERT1(elem_id->offset == 0, elem_id->offset);
 
-                fn_add_stack(trans->fn, elem_id);
+                fn_add_stack(fn, elem_id);
 
-                ref_exp = exp_new_stack(elem_id->addr, 0);
+                /*
+                ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
+                                        elem_id->addr, 0);
                 meta_copy(&ref_exp->meta, &elem_id->meta);
 
                 array_add_last(elem_exps, ref_exp);
+                */
+                array_add_last(elem_exps,
+                               exp_new_stack(elem_id->meta.type, fn->stack_idx,
+                                             elem_id->addr, 0));
             }
 
             exp->kind = EXP_TUPLE;
             exp->u_tup.elem_exps = elem_exps;
         }
         else {
-            fn_add_stack(trans->fn, ret_id);
-
             ASSERT1(ret_id->offset == 0, ret_id->offset);
 
-            exp_set_stack(exp, ret_id->addr, 0);
+            fn_add_stack(fn, ret_id);
+
+            exp_set_stack(exp, fn->stack_idx, ret_id->addr, 0);
         }
     }
     else {

@@ -19,24 +19,24 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     ASSERT(abi != NULL);
 
-    /* generate local variables */
+    /* local variables */
     array_foreach(&fn->locals, i) {
         local_add(gen, array_get_id(&fn->locals, i)->meta.type);
     }
 
     gen->relooper = RelooperCreate();
 
-    /* generate basic blocks */
+    /* basic blocks */
     array_foreach(&fn->bbs, i) {
         bb_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    /* generate branches */
+    /* branches */
     array_foreach(&fn->bbs, i) {
         br_gen(gen, array_get_bb(&fn->bbs, i));
     }
 
-    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, abi->param_cnt,
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx,
                                     gen->module);
 
     BinaryenAddFunction(gen->module, fn->name, abi->spec, gen->locals, gen->local_cnt,
@@ -52,8 +52,8 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 void
 abi_gen(gen_t *gen, ir_abi_t *abi)
 {
-    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, BinaryenTypeNone(),
-                                        abi->params, abi->param_cnt);
+    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, abi->result, abi->params, 
+                                        abi->param_cnt);
 }
 
 /* end of gen_fn.c */

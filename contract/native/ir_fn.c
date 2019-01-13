@@ -35,8 +35,9 @@ fn_new(ast_id_t *id)
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
 
-    fn->stack_id = NULL;
-    fn->heap_id = NULL;
+    fn->heap_idx = -1;
+    fn->stack_idx = -1;
+    fn->reloop_idx = -1;
 
     fn->usage = 0;
 
@@ -60,9 +61,11 @@ void
 fn_add_stack(ir_fn_t *fn, ast_id_t *id)
 {
     ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    ASSERT(fn->stack_idx >= 0);
 
     fn->usage = ALIGN(fn->usage, meta_align(&id->meta));
 
+    id->idx = fn->stack_idx;
     id->addr = fn->usage;
 
     fn->usage += meta_size(&id->meta);
@@ -72,6 +75,18 @@ void
 fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 {
     array_add_last(&fn->bbs, bb);
+}
+
+int
+fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
+{
+    ir_abi_t *abi = fn->abi;
+
+    ASSERT(abi != NULL);
+
+    array_add_last(&fn->locals, id_new_tmp_var(name, type));
+
+    return abi->param_cnt + array_size(&fn->locals) - 1;
 }
 
 /* end of ir_fn.c */

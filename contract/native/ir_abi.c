@@ -22,36 +22,52 @@ abi_new(ast_id_t *id)
 
     abi->param_cnt = array_size(id->u_fn.param_ids);
 
-    if (ret_id != NULL) {
-        if (is_tuple_id(ret_id))
-            abi->param_cnt += array_size(ret_id->u_tup.elem_ids);
-        else
-            abi->param_cnt++;
+    if (is_ctor_id(id)) {
+        abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
+
+        array_foreach(id->u_fn.param_ids, i) {
+            ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+
+            abi->params[j] = meta_gen(&param_id->meta);
+            param_id->idx = j++;
+        }
+
+        abi->result = meta_gen(&ret_id->meta);
     }
+    else {
+        if (ret_id != NULL) {
+            if (is_tuple_id(ret_id))
+                abi->param_cnt += array_size(ret_id->u_tup.elem_ids);
+            else
+                abi->param_cnt++;
+        }
 
-    abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
+        abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
-    array_foreach(id->u_fn.param_ids, i) {
-        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+        array_foreach(id->u_fn.param_ids, i) {
+            ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
 
-        abi->params[j] = meta_gen(&param_id->meta);
-        param_id->idx = j++;
-    }
+            abi->params[j] = meta_gen(&param_id->meta);
+            param_id->idx = j++;
+        }
 
-    /* The return value is always passed as an address */
-    if (ret_id != NULL) {
-        if (is_tuple_id(ret_id)) {
-            array_foreach(ret_id->u_tup.elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
+        /* The return value is always passed as an address */
+        if (ret_id != NULL) {
+            if (is_tuple_id(ret_id)) {
+                array_foreach(ret_id->u_tup.elem_ids, i) {
+                    ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
 
+                    abi->params[j] = BinaryenTypeInt32();
+                    elem_id->idx = j++;
+                }
+            }
+            else {
                 abi->params[j] = BinaryenTypeInt32();
-                elem_id->idx = j++;
+                ret_id->idx = j;
             }
         }
-        else {
-            abi->params[j] = BinaryenTypeInt32();
-            ret_id->idx = j;
-        }
+
+        abi->result = BinaryenTypeNone();
     }
 
     abi->spec = NULL;
@@ -70,14 +86,11 @@ abi_lookup(array_t *abis, ast_id_t *id)
 
         if (abi->param_cnt == new_abi->param_cnt &&
             memcmp(abi->params, new_abi->params,
-                   sizeof(BinaryenType) * abi->param_cnt) == 0) {
-            id->abi = abi;
+                   sizeof(BinaryenType) * abi->param_cnt) == 0)
             return abi;
-        }
     }
 
     array_add_last(abis, new_abi);
-    id->abi = new_abi;
 
     return new_abi;
 }

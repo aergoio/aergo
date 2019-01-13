@@ -42,7 +42,7 @@ ir_add_global(ir_t *ir, ast_id_t *id)
     id->addr = cont_id->addr;
     id->offset = addr - cont_id->addr;
     */
-    // 전역변수는 constructor에서 설정한 heap$offset을 기반으로 relative offset을
+    // 전역변수는 constructor에서 설정한 heap$addr을 기반으로 relative offset을
     // 사용한다.
     ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 

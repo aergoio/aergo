@@ -18,13 +18,15 @@
 static void
 id_trans_var(trans_t *trans, ast_id_t *id)
 {
-    if (is_global_id(id)) {
+    if (is_global_id(id))
         /* Initialization of the global variable will be done in the constructor */
-        ir_add_global(trans->ir, id);
         return;
-    }
 
     ASSERT(trans->fn != NULL);
+
+    /* The stack id satisfies all of the following conditions.
+     * 1. Not a parameter
+     * 2. An array or (not an object type nor a primitive type) */
 
     if (is_stack_id(id))
         fn_add_stack(trans->fn, id);
@@ -33,18 +35,26 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-gen_init_stmt(array_t *stmts, ast_id_t *id)
+add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 {
-    meta_t *meta = &id->meta;
-    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
-    ast_exp_t *id_exp;
+    //meta_t *meta = &id->meta;
+    ast_exp_t *l_exp;
 
     if (is_const_id(id))
+        /* The constant is assumed to have already been
+         * replaced by a literal expression */
         return;
 
-    ASSERT(id->up != NULL);
-    ASSERT1(is_global_id(id), id->up->kind);
+    ASSERT1(is_var_id(id), id->kind);
 
+    ir_add_global(trans->ir, id);
+
+    id->idx = trans->fn->heap_idx;
+
+    if (id->u_var.dflt_exp == NULL)
+        return;
+
+    /* FIXME
     if (dflt_exp == NULL) {
         dflt_exp = exp_new_lit(meta->pos);
 
@@ -69,7 +79,10 @@ gen_init_stmt(array_t *stmts, ast_id_t *id)
         meta_copy(&dflt_exp->meta, meta);
         meta_set_undef(&dflt_exp->meta);
     }
+    */
 
+    l_exp = exp_new_stack(id->meta.type, id->idx, 0, id->offset);
+    /*
     id_exp = exp_new_id(id->name, &dflt_exp->pos);
 
     id_exp->id = id;
@@ -77,8 +90,9 @@ gen_init_stmt(array_t *stmts, ast_id_t *id)
 
     ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta), id_exp->meta.type,
             dflt_exp->meta.type);
+            */
 
-    stmt_add(stmts, stmt_new_assign(id_exp, dflt_exp, &dflt_exp->pos));
+    stmt_add(stmts, stmt_new_assign(l_exp, id->u_var.dflt_exp, &id->pos));
 }
 
 static void
@@ -94,28 +108,38 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     ASSERT(id->u_fn.ret_id != NULL);
     ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
 
-    // 모든 전역 변수는 이 값을 기준으로 relative offset으로 접근한다.
+    /* All global variables access memory by adding relative offset to this value */
     addr_id = id_new_tmp_var("cont$addr", TYPE_INT32);
+
     fn_add_local(fn, addr_id);
+    fn->heap_idx = addr_id->idx;
 
     l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
     r_exp = exp_new_global(TYPE_INT32, "heap$offset");
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
 
-    fn->heap_id = addr_id;
+    /* This value, like any other global variable, is stored in the heap area
+     * used by the contract, and is stored in the first 4 bytes of the area.
+     * All functions also access table by adding relative index to this value */
+    addr_id = id_new_tmp_var("cont$idx", TYPE_INT32);
 
-    /* constructor initializes global variables */
-    // 변수의 선언 순서를 지키기 위해 별도의 array_t에 담아서 join한다.
+    addr_id->up = id->up;
+    addr_id->u_var.dflt_exp = exp_new_lit(&addr_id->pos);
+    value_set_i64(&addr_id->u_var.dflt_exp->u_lit.val, id->up->idx);
+
+    array_add_first(&id->up->u_cont.blk->ids, addr_id);
+
+    /* We use new array to keep the declaration order of variables */
     array_foreach(&id->up->u_cont.blk->ids, i) {
         ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
 
         if (is_var_id(var_id)) {
-            gen_init_stmt(stmts, var_id);
+            add_init_stmt(trans, var_id, stmts);
         }
         else if (is_tuple_id(var_id)) {
             array_foreach(var_id->u_tup.elem_ids, j) {
-                gen_init_stmt(stmts, array_get_id(var_id->u_tup.elem_ids, j));
+                add_init_stmt(trans, array_get_id(var_id->u_tup.elem_ids, j), stmts);
             }
         }
     }
@@ -126,14 +150,46 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
 
     stmt_add(&id->u_fn.blk->stmts, ret_stmt);
+
+    /* Since the constructor can be called from any location,
+     * it should always be accessed with an absolute index */
+    id->idx = array_size(&trans->ir->fns);
+}
+
+static void
+id_trans_param(trans_t *trans, ast_id_t *id)
+{
+    ast_id_t *param_id;
+    ir_fn_t *fn = trans->fn;
+
+    /* All functions that are not constructors must be added the contract address
+     * as the first argument, and must also be added to the param_ids to reflect
+     * the abi */
+    param_id = id_new_tmp_var("cont$addr", TYPE_OBJECT);
+
+    param_id->is_param = true;
+    param_id->up = id;
+
+    meta_set_object(&param_id->meta, id->up);
+
+    if (id->u_fn.param_ids == NULL)
+        id->u_fn.param_ids = array_new();
+
+    array_add_first(id->u_fn.param_ids, param_id);
+
+    /* The "heap_idx" is always 0 because it is prepended to parameters */
+    fn->heap_idx = 0;
+
+    /* The "idx" is the relative index within the contract */
+    id->idx = trans->fn_idx++;
 }
 
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ast_id_t *addr_id;
     ast_exp_t *l_exp, *r_exp, *v_exp;
     ir_fn_t *fn = fn_new(id);
+    ir_t *ir = trans->ir;
 
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
@@ -143,37 +199,19 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     if (id->u_fn.blk == NULL)
         id->u_fn.blk = blk_new_fn(&id->pos);
 
-    // binaryen 내부 용도로 사용
-    fn_add_local(fn, id_new_tmp_var("relooper$helper", TYPE_INT32));
-
-    // 모든 스택 변수는 이 값을 기준으로 relative offset으로 접근한다.
-    addr_id = id_new_tmp_var("stack$addr", TYPE_INT32);
-
-    fn_add_local(fn, addr_id);
-    fn->stack_id = addr_id;
-
-    if (is_ctor_id(id)) {
+    if (is_ctor_id(id))
         id_trans_ctor(trans, id);
-    }
-    else {
-        // constructor가 아닌 함수들은 모두 contract base address를 인자로 추가하고,
-        // abi에도 반영하기 위해 param_ids에 추가한다. */
-        addr_id = id_new_tmp_var("cont$addr", TYPE_OBJECT);
+    else
+        id_trans_param(trans, id);
 
-        addr_id->is_param = true;
-        addr_id->up = id;
+    id->abi = abi_lookup(&ir->abis, id);
+    fn->abi = id->abi;
 
-        meta_set_object(&addr_id->meta, id->up);
+    /* It is used internally for binaryen, not for us (see fn_gen()) */
+    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
-        if (id->u_fn.param_ids == NULL)
-            id->u_fn.param_ids = array_new();
-
-        array_add_first(id->u_fn.param_ids, addr_id);
-
-        fn->heap_id = addr_id;
-    }
-
-    fn->abi = abi_lookup(&trans->ir->abis, id);
+    /* All stack variables access memory by adding relative offset to this value */
+    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
 
     trans->bb = fn->entry_bb;
 
@@ -186,8 +224,9 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
-    // 현재의 stack 사용량을 이용하여 stack address를 설정한다.
-    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+    /* This statement does not require transformation and
+     * sets the base address using the current stack usage */
+    l_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
 
     v_exp = exp_new_lit(&id->pos);
     value_set_i64(&v_exp->u_lit.val, ALIGN64(fn->usage));
@@ -200,7 +239,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     trans->fn = NULL;
     trans->bb = NULL;
 
-    ir_add_fn(trans->ir, fn);
+    ir_add_fn(ir, fn);
 }
 
 static void
@@ -214,12 +253,16 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     ASSERT1(ir->offset == 0, ir->offset);
 
     if (id->u_cont.impl_exp != NULL) {
-        /* rearrange functions according to the order in the interface */
-        // 함수의 순서를 재조정하는 이유는 함수의 parameter로 interface를 사용하고,
-        // 해당 interface를 implement한 contract가 여러개 있는 상황에서 argument로
-        // 사용된 contract에 속한 함수의 위치를 알 수 있는 방법이 없기 때문에 함수
-        // index를 동일하게 맞춤으로써 interface function의 index를 통해 함수를
-        // 호출하기 위해서다.
+        /* Reorder functions according to the order in the interface
+         *
+         * The reason for reordering the functions is that if the parameter of
+         * the function is an interface and there are several contracts that
+         * implement the interface, there is no way to know the location of
+         * the function belonging to the contract used as the argument.
+         *
+         * By making the index of the function equal between the interface and
+         * the contract, the function can be called through the index of
+         * the interface function */
         ast_id_t *itf_id = id->u_cont.impl_exp->id;
 
         ASSERT1(is_itf_id(itf_id), itf_id->kind);
@@ -238,12 +281,39 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         }
     }
 
-    /* 이 값은 함수 인자가 interface이고, argument로 contract 변수가 전달될때 사용된다 */
+    /* This value is used when the function argument is interface and
+     * the contract variable is passed as an argument */
     id->idx = array_size(&ir->fns);
 
     blk_trans(trans, id->u_cont.blk);
 
     ir->offset = 0;
+}
+
+static void
+id_trans_interface(trans_t *trans, ast_id_t *id)
+{
+    int i;
+    ast_blk_t *blk = id->u_itf.blk;
+    ir_t *ir = trans->ir;
+
+    ASSERT(blk != NULL);
+
+    trans->fn_idx = 0;
+
+    array_foreach(&blk->ids, i) {
+        ast_id_t *fn_id = array_get_id(&blk->ids, i);
+
+        ASSERT1(is_fn_id(fn_id), fn_id->kind);
+        ASSERT(!is_ctor_id(fn_id));
+
+        /* If the interface type is used as a parameter, we can invoke it with 
+         * the interface function, so transform the parameter here and set abi */
+
+        id_trans_param(trans, fn_id);
+
+        fn_id->abi = abi_lookup(&ir->abis, fn_id);
+    }
 }
 
 static void
@@ -278,6 +348,10 @@ id_trans(trans_t *trans, ast_id_t *id)
         id_trans_contract(trans, id);
         break;
 
+    case ID_ITF:
+        id_trans_interface(trans, id);
+        break;
+
     case ID_LABEL:
         id_trans_label(trans, id);
         break;
@@ -288,7 +362,6 @@ id_trans(trans_t *trans, ast_id_t *id)
 
     case ID_STRUCT:
     case ID_ENUM:
-    case ID_ITF:
         break;
 
     default:

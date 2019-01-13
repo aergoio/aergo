@@ -27,18 +27,34 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         return NULL;
 
     value = exp_gen(gen, r_exp);
-    if (value == NULL || is_object_type(&id->meta))
+    //if (value == NULL || is_object_type(&id->meta))
+    if (value == NULL)
         return NULL;
 
-    if (id->is_param) {
-        if (is_return_id(id))
-            address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
-        else
-            address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
-
-        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0,
-                             address, value, meta_gen(&l_exp->meta));
+    if (is_return_id(id)) {
+        ASSERT(id->idx >= 0);
+        return BinaryenStore(gen->module, sizeof(int32_t), 0, 0,
+                             BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
+                             value, meta_gen(&l_exp->meta));
     }
+
+#if 0
+    if (id->is_param) {
+        uint32_t bytes;
+
+        if (is_return_id(id)) {
+            address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
+            bytes = sizeof(int32_t);
+        }
+        else {
+            address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
+            bytes = TYPE_SIZE(id->meta.type);
+        }
+
+        return BinaryenStore(gen->module, bytes, offset, 0, address, value,
+                             meta_gen(&l_exp->meta));
+    }
+#endif
 
     ASSERT1(is_var_id(id), id->kind);
 
@@ -48,16 +64,26 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 
     if (is_stack_exp(l_exp)) {
+        ASSERT(l_exp->u_stk.base >= 0);
         ASSERT(l_exp->u_stk.addr >= 0);
-        address = gen_i32(gen, l_exp->u_stk.addr);
-        offset = l_exp->u_stk.offset;
+
+        address = BinaryenGetLocal(gen->module, l_exp->u_stk.base,
+                                   BinaryenTypeInt32());
+
+        if (l_exp->u_stk.addr > 0)
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                                     i32_gen(gen, l_exp->u_stk.addr));
+
+        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type),
+                             l_exp->u_stk.offset, 0, address, value,
+                             meta_gen(&l_exp->meta));
     }
-    else {
-        gen->is_lval = true;
-        address = exp_gen(gen, l_exp);
-        offset = 0;
-        gen->is_lval = false;
-    }
+
+    ASSERT(false);
+    gen->is_lval = true;
+    address = exp_gen(gen, l_exp);
+    offset = 0;
+    gen->is_lval = false;
 
     return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0, address,
                          value, meta_gen(&l_exp->meta));

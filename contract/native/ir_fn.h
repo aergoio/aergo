@@ -42,8 +42,9 @@ struct ir_fn_s {
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;
 
-    ast_id_t *stack_id;
-    ast_id_t *heap_id;
+    int heap_idx;           /* local index of heap base address */
+    int stack_idx;          /* local index of stack base address */
+    int reloop_idx;         /* local index of relooper variable */
 
     uint32_t usage;         /* stack usage */
 };
@@ -53,5 +54,7 @@ ir_fn_t *fn_new(ast_id_t *id);
 void fn_add_local(ir_fn_t *fn, ast_id_t *id);
 void fn_add_stack(ir_fn_t *fn, ast_id_t *id);
 void fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb);
+
+int fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type);
 
 #endif /* no _IR_FN_H */
