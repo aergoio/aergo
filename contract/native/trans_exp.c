@@ -77,7 +77,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_arr.id_exp);
     exp_trans(trans, exp->u_arr.idx_exp);
 
-    if (is_array_type(&id->meta)) {
+    if (is_array_meta(&id->meta)) {
         uint32_t offset;
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
@@ -108,7 +108,7 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
     exp_trans(trans, exp->u_cast.val_exp);
 
-    if (!is_primitive_type(&exp->meta) || !is_primitive_type(&exp->u_cast.to_meta)) {
+    if (!is_primitive_meta(&exp->meta) || !is_primitive_meta(&exp->u_cast.to_meta)) {
         /* TODO
          * int addr = fn_add_stack_var(trans->fn);
          * ast_exp_t *call_exp = exp_new_call("$concat", &exp->pos);
@@ -169,7 +169,7 @@ exp_trans_binary(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_bin.l_exp);
     exp_trans(trans, exp->u_bin.r_exp);
 
-    if (exp->u_bin.kind == OP_ADD && is_string_type(&exp->meta)) {
+    if (exp->u_bin.kind == OP_ADD && is_string_meta(&exp->meta)) {
         /* TODO
          * int addr = fn_add_stack();
          * ast_exp_t *call exp = exp_new_call("$concat", &exp->pos);
@@ -218,7 +218,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
             int i;
             ast_id_t *cont_id = qual_id->meta.type_id;
 
-            ASSERT1(is_object_type(&qual_id->meta), qual_id->meta.type);
+            ASSERT1(is_object_meta(&qual_id->meta), qual_id->meta.type);
 
             ASSERT(cont_id != NULL);
             ASSERT1(is_cont_id(cont_id), cont_id->kind);
@@ -245,7 +245,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     int i;
     ast_exp_t *id_exp = exp->u_call.id_exp;
 
-    if (is_map_type(&exp->meta))
+    if (is_map_meta(&exp->meta))
         /* TODO */
         return;
 
@@ -270,7 +270,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     else {
         /* If the call expression is of type x.y(), pass x as the first argument */
         ASSERT1(is_access_exp(id_exp), id_exp->kind);
-        ASSERT1(is_object_type(&id_exp->meta), id_exp->meta.type);
+        ASSERT1(is_object_meta(&id_exp->meta), id_exp->meta.type);
 
         array_add_first(exp->u_call.param_exps, id_exp->u_acc.id_exp);
     }

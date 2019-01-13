@@ -18,7 +18,7 @@
 static bool
 id_check_type(check_t *check, meta_t *meta)
 {
-    if (is_none_type(meta)) {
+    if (is_none_meta(meta)) {
         ast_id_t *id;
 
         ASSERT(meta->name != NULL);
@@ -33,7 +33,7 @@ id_check_type(check_t *check, meta_t *meta)
 
         meta_copy(meta, &id->meta);
     }
-    else if (is_map_type(meta)) {
+    else if (is_map_meta(meta)) {
         meta_t *k_meta, *v_meta;
 
         ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
@@ -44,10 +44,10 @@ id_check_type(check_t *check, meta_t *meta)
         CHECK(id_check_type(check, k_meta));
         CHECK(id_check_type(check, v_meta));
 
-        if (!is_comparable_type(k_meta))
+        if (!is_comparable_meta(k_meta))
             RETURN(ERROR_NOT_COMPARABLE_TYPE, k_meta->pos, meta_to_str(k_meta));
 
-        ASSERT(!is_tuple_type(v_meta));
+        ASSERT(!is_tuple_meta(v_meta));
     }
 
     return true;
@@ -87,7 +87,7 @@ id_check_array(check_t *check, ast_id_t *id)
             if (size_id != NULL && is_const_id(size_id))
                 /* constant variable */
                 size_val = size_id->val;
-            else if (is_lit_exp(size_exp) && is_integer_type(size_meta))
+            else if (is_lit_exp(size_exp) && is_integer_meta(size_meta))
                 /* integer literal */
                 size_val = &size_exp->u_lit.val;
             else

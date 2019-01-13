@@ -21,13 +21,13 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
     ASSERT(id != NULL);
 
-    if (is_map_type(&id->meta))
+    if (is_map_meta(&id->meta))
         /* TODO: If the type of identifier is map,
          * lvalue and rvalue must be combined into a call expression */
         return NULL;
 
     value = exp_gen(gen, r_exp);
-    //if (value == NULL || is_object_type(&id->meta))
+    //if (value == NULL || is_object_meta(&id->meta))
     if (value == NULL)
         return NULL;
 

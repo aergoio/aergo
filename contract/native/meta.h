@@ -12,53 +12,77 @@
 #include "array.h"
 #include "value.h"
 
-#define is_none_type(meta)          ((meta)->type == TYPE_NONE)
-#define is_bool_type(meta)          ((meta)->type == TYPE_BOOL)
-#define is_byte_type(meta)          ((meta)->type == TYPE_BYTE)
-#define is_int8_type(meta)          ((meta)->type == TYPE_INT8)
-#define is_uint8_type(meta)         ((meta)->type == TYPE_UINT8)
-#define is_int16_type(meta)         ((meta)->type == TYPE_INT16)
-#define is_uint16_type(meta)        ((meta)->type == TYPE_UINT16)
-#define is_int32_type(meta)         ((meta)->type == TYPE_INT32)
-#define is_uint32_type(meta)        ((meta)->type == TYPE_UINT32)
-#define is_int64_type(meta)         ((meta)->type == TYPE_INT64)
-#define is_uint64_type(meta)        ((meta)->type == TYPE_UINT64)
-#define is_float_type(meta)         ((meta)->type == TYPE_FLOAT)
-#define is_double_type(meta)        ((meta)->type == TYPE_DOUBLE)
-#define is_string_type(meta)        ((meta)->type == TYPE_STRING)
-#define is_account_type(meta)       ((meta)->type == TYPE_ACCOUNT)
-#define is_struct_type(meta)        ((meta)->type == TYPE_STRUCT)
-#define is_map_type(meta)           ((meta)->type == TYPE_MAP)
-#define is_object_type(meta)        ((meta)->type == TYPE_OBJECT)
-#define is_void_type(meta)          ((meta)->type == TYPE_VOID)
-#define is_tuple_type(meta)         ((meta)->type == TYPE_TUPLE)
+#define is_none_type(type)          ((type) == TYPE_NONE)
+#define is_bool_type(type)          ((type) == TYPE_BOOL)
+#define is_byte_type(type)          ((type) == TYPE_BYTE)
+#define is_int8_type(type)          ((type) == TYPE_INT8)
+#define is_uint8_type(type)         ((type) == TYPE_UINT8)
+#define is_int16_type(type)         ((type) == TYPE_INT16)
+#define is_uint16_type(type)        ((type) == TYPE_UINT16)
+#define is_int32_type(type)         ((type) == TYPE_INT32)
+#define is_uint32_type(type)        ((type) == TYPE_UINT32)
+#define is_int64_type(type)         ((type) == TYPE_INT64)
+#define is_uint64_type(type)        ((type) == TYPE_UINT64)
+#define is_float_type(type)         ((type) == TYPE_FLOAT)
+#define is_double_type(type)        ((type) == TYPE_DOUBLE)
+#define is_string_type(type)        ((type) == TYPE_STRING)
+#define is_account_type(type)       ((type) == TYPE_ACCOUNT)
+#define is_struct_type(type)        ((type) == TYPE_STRUCT)
+#define is_map_type(type)           ((type) == TYPE_MAP)
+#define is_object_type(type)        ((type) == TYPE_OBJECT)
+#define is_void_type(type)          ((type) == TYPE_VOID)
+#define is_tuple_type(type)         ((type) == TYPE_TUPLE)
 
-#define is_signed_type(meta)                                                             \
-    (is_int8_type(meta) || is_int16_type(meta) || is_int32_type(meta) ||                 \
-     is_int64_type(meta))
-#define is_unsigned_type(meta)                                                           \
-    (is_byte_type(meta) ||   is_uint8_type(meta) ||  is_uint16_type(meta) ||             \
-     is_uint32_type(meta) || is_uint64_type(meta))
+#define is_signed_type(type)                                                             \
+    (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                 \
+     is_int64_type(type))
+#define is_unsigned_type(type)                                                           \
+    (is_byte_type(type) ||   is_uint8_type(type) ||  is_uint16_type(type) ||             \
+     is_uint32_type(type) || is_uint64_type(type))
 
-#define is_integer_type(meta)       (is_signed_type(meta) || is_unsigned_type(meta))
-#define is_fpoint_type(meta)        (is_float_type(meta) || is_double_type(meta))
-#define is_numeric_type(meta)       (is_integer_type(meta) || is_fpoint_type(meta))
+#define is_none_meta(meta)          is_none_type((meta)->type)
+#define is_bool_meta(meta)          is_bool_type((meta)->type)
+#define is_byte_meta(meta)          is_byte_type((meta)->type)
+#define is_int8_meta(meta)          is_int8_type((meta)->type)
+#define is_uint8_meta(meta)         is_uint8_type((meta)->type)
+#define is_int16_meta(meta)         is_int16_type((meta)->type)
+#define is_uint16_meta(meta)        is_uint16_type((meta)->type)
+#define is_int32_meta(meta)         is_int32_type((meta)->type)
+#define is_uint32_meta(meta)        is_uint32_type((meta)->type)
+#define is_int64_meta(meta)         is_int64_type((meta)->type)
+#define is_uint64_meta(meta)        is_uint64_type((meta)->type)
+#define is_float_meta(meta)         is_float_type((meta)->type)
+#define is_double_meta(meta)        is_double_type((meta)->type)
+#define is_string_meta(meta)        is_string_type((meta)->type)
+#define is_account_meta(meta)       is_account_type((meta)->type)
+#define is_struct_meta(meta)        is_struct_type((meta)->type)
+#define is_map_meta(meta)           is_map_type((meta)->type)
+#define is_object_meta(meta)        is_object_type((meta)->type)
+#define is_void_meta(meta)          is_void_type((meta)->type)
+#define is_tuple_meta(meta)         is_tuple_type((meta)->type)
 
-#define is_pointer_type(meta)                                                            \
-    (is_string_type(meta) || is_map_type(meta) || is_object_type(meta))
+#define is_signed_meta(meta)        is_signed_type((meta)->type)
+#define is_unsigned_meta(meta)      is_unsigned_type((meta)->type)
 
-#define is_primitive_type(meta)                                                          \
+#define is_integer_meta(meta)       (is_signed_meta(meta) || is_unsigned_meta(meta))
+#define is_fpoint_meta(meta)        (is_float_meta(meta) || is_double_meta(meta))
+#define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
+
+#define is_pointer_meta(meta)                                                            \
+    (is_string_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
+
+#define is_primitive_meta(meta)                                                          \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
-#define is_builtin_type(meta)                                                            \
+#define is_builtin_meta(meta)                                                            \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
-#define is_comparable_type(meta)                                                         \
+#define is_comparable_meta(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
-#define is_compatible_type(x, y)                                                         \
+#define is_compatible_meta(x, y)                                                         \
     ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
      (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
-#define is_array_type(meta)         ((meta)->arr_dim > 0)
-#define is_undef_type(meta)         (meta)->is_undef
+#define is_array_meta(meta)         ((meta)->arr_dim > 0)
+#define is_undef_meta(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -80,8 +104,8 @@
 #define meta_align(meta)            TYPE_ALIGN((meta)->type)
 
 #define meta_cnt(meta)                                                                   \
-    (is_void_type(meta) ? 0 :                                                            \
-     ((is_tuple_type(meta) || is_struct_type(meta)) ? (meta)->elem_cnt : 1))
+    (is_void_meta(meta) ? 0 :                                                            \
+     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1))
 
 #ifndef _META_T
 #define _META_T

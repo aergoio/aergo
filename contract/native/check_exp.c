@@ -106,11 +106,11 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, idx_exp));
 
-    if (is_array_type(id_meta)) {
+    if (is_array_meta(id_meta)) {
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->dim_sizes != NULL);
 
-        if (!is_integer_type(idx_meta))
+        if (!is_integer_meta(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
 
         meta_copy(&exp->meta, id_meta);
@@ -128,7 +128,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_strip_arr_dim(&exp->meta);
     }
     else {
-        if (!is_map_type(id_meta))
+        if (!is_map_meta(id_meta))
             RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
 
         CHECK(meta_cmp(id_meta->elems[0], idx_meta));
@@ -157,7 +157,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 
     meta_copy(&exp->meta, &exp->u_cast.to_meta);
 
-    if (is_array_type(val_meta) || !is_compatible_type(&exp->meta, val_meta))
+    if (is_array_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
@@ -192,21 +192,21 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         if (!is_usable_lval(val_exp))
             RETURN(ERROR_INVALID_LVALUE, &val_exp->pos);
 
-        if (!is_integer_type(val_meta))
+        if (!is_integer_meta(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
         break;
 
     case OP_NEG:
-        if (!is_numeric_type(val_meta))
+        if (!is_numeric_meta(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
         break;
 
     case OP_NOT:
-        if (!is_bool_type(val_meta))
+        if (!is_bool_meta(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
@@ -242,14 +242,14 @@ exp_check_op_arith(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, l_exp));
 
     if (op == OP_ADD) {
-        if (!is_numeric_type(l_meta) && !is_string_type(l_meta))
+        if (!is_numeric_meta(l_meta) && !is_string_meta(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
     else if (op == OP_MOD) {
-        if (!is_integer_type(l_meta))
+        if (!is_integer_meta(l_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
-    else if (!is_numeric_type(l_meta)) {
+    else if (!is_numeric_meta(l_meta)) {
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     }
 
@@ -279,7 +279,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, l_exp));
 
-    if (!is_integer_type(l_meta))
+    if (!is_integer_meta(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
     r_exp = exp->u_bin.r_exp;
@@ -291,13 +291,13 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
-        if (!is_integer_type(r_meta))
+        if (!is_integer_meta(r_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
     case OP_RSHIFT:
     case OP_LSHIFT:
-        if (!is_unsigned_type(r_meta) ||
+        if (!is_unsigned_meta(r_meta) ||
             (is_lit_exp(r_exp) && is_signed_val(&r_exp->u_lit.val)))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
@@ -331,9 +331,9 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, r_exp));
 
-    if (is_tuple_type(l_meta))
+    if (is_tuple_meta(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
-    else if (is_tuple_type(r_meta))
+    else if (is_tuple_meta(r_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
     CHECK(meta_cmp(l_meta, r_meta));
@@ -358,7 +358,7 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, l_exp));
 
-    if (!is_bool_type(l_meta))
+    if (!is_bool_meta(l_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &l_exp->pos, meta_to_str(l_meta));
 
     r_exp = exp->u_bin.r_exp;
@@ -366,7 +366,7 @@ exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, r_exp));
 
-    if (!is_bool_type(r_meta))
+    if (!is_bool_meta(r_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &r_exp->pos, meta_to_str(r_meta));
 
     CHECK(meta_cmp(l_meta, r_meta));
@@ -454,7 +454,7 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, pre_exp));
 
-    if (!is_bool_type(pre_meta))
+    if (!is_bool_meta(pre_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &pre_exp->pos, meta_to_str(pre_meta));
 
     in_exp = exp->u_tern.in_exp;
@@ -491,12 +491,12 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     qual_id = id_exp->id;
 
     if (qual_id == NULL ||
-        is_tuple_type(id_meta) || /* in case of new initializer */
-        (is_fn_id(qual_id) && !is_struct_type(id_meta) && !is_object_type(id_meta)))
+        is_tuple_meta(id_meta) || /* in case of new initializer */
+        (is_fn_id(qual_id) && !is_struct_meta(id_meta) && !is_object_meta(id_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
 
     /* get the actual struct, contract or interface identifier */
-    if (is_struct_type(id_meta) || is_object_type(id_meta)) {
+    if (is_struct_meta(id_meta) || is_object_meta(id_meta)) {
         /* if "this.x" is used, "qual_id" is the contract identifier */
         ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id),
                 qual_id->kind);
@@ -550,7 +550,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
             param_exp = array_get_exp(param_exps, 0);
 
             CHECK(exp_check(check, param_exp));
-            ASSERT1(is_integer_type(&param_exp->meta), param_exp->meta.type);
+            ASSERT1(is_integer_meta(&param_exp->meta), param_exp->meta.type);
         }
 
         meta_set_map(&exp->meta, NULL, NULL);

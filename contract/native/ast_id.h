@@ -37,8 +37,8 @@
 /* The object type is a local variable that stores the address */
 #define is_stack_id(id)                                                                  \
     (!(id)->is_param &&                                                                  \
-     (is_array_type(&(id)->meta) ||                                                      \
-      (!is_object_type(&(id)->meta) && !is_primitive_type(&(id)->meta))))
+     (is_array_meta(&(id)->meta) ||                                                      \
+      (!is_object_meta(&(id)->meta) && !is_primitive_meta(&(id)->meta))))
 
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
 

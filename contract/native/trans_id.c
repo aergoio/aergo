@@ -58,20 +58,20 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
     if (dflt_exp == NULL) {
         dflt_exp = exp_new_lit(meta->pos);
 
-        if (is_array_type(meta)) {
+        if (is_array_meta(meta)) {
             value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);
         }
-        else if (is_bool_type(meta)) {
+        else if (is_bool_meta(meta)) {
             value_set_bool(&dflt_exp->u_lit.val, false);
         }
-        else if (is_fpoint_type(meta)) {
+        else if (is_fpoint_meta(meta)) {
             value_set_f64(&dflt_exp->u_lit.val, 0.0);
         }
-        else if (is_integer_type(meta) || is_pointer_type(meta)) {
+        else if (is_integer_meta(meta) || is_pointer_meta(meta)) {
             value_set_i64(&dflt_exp->u_lit.val, 0);
         }
         else {
-            ASSERT1(is_struct_type(meta), meta->type);
+            ASSERT1(is_struct_meta(meta), meta->type);
             value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta_size(meta)),
                           meta_size(meta));
         }

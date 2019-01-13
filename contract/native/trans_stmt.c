@@ -62,7 +62,7 @@ resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
          * each value of the initializer expression */
         val_exp->id = var_exp->id;
 
-    if (val_exp->id != NULL && is_object_type(meta) &&
+    if (val_exp->id != NULL && is_object_meta(meta) &&
         meta->type_id != NULL && is_itf_id(meta->type_id)) {
         /* Override the meta of the variable declared as the interface type
          * with the rvalue (== contract) meta */

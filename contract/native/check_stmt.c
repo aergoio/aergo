@@ -106,7 +106,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
                 ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
                 /* If the value expression is a tuple, it cannot be a literal */
-                if (is_tuple_type(&val_exp->meta)) {
+                if (is_tuple_meta(&val_exp->meta)) {
                     var_idx += val_exp->meta.elem_cnt;
                 }
                 else {
@@ -143,7 +143,7 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
 
     CHECK(exp_check(check, cond_exp));
 
-    if (!is_bool_type(cond_meta))
+    if (!is_bool_meta(cond_meta))
         RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
 
     if (stmt->u_if.if_blk != NULL)
@@ -395,7 +395,7 @@ stmt_check_case(check_t *check, ast_stmt_t *stmt)
 
         exp_check(check, val_exp);
 
-        if (!is_bool_type(val_meta))
+        if (!is_bool_meta(val_meta))
             RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
     }
 
@@ -420,7 +420,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
     arg_exp = stmt->u_ret.arg_exp;
 
     if (arg_exp != NULL) {
-        if (is_void_type(fn_meta) || is_ctor_id(fn_id))
+        if (is_void_meta(fn_meta) || is_ctor_id(fn_id))
             RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "return", 0,
                    meta_cnt(&arg_exp->meta));
 
@@ -432,7 +432,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
         if (is_tuple_exp(arg_exp)) {
             int i;
 
-            ASSERT1(is_tuple_type(fn_meta), fn_meta->type);
+            ASSERT1(is_tuple_meta(fn_meta), fn_meta->type);
             ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->elem_cnt,
                     array_size(arg_exp->u_tup.elem_exps), fn_meta->elem_cnt);
 
@@ -447,7 +447,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
             exp_check_overflow(arg_exp, fn_meta);
         }
     }
-    else if (!is_void_type(fn_meta) && !is_ctor_id(fn_id)) {
+    else if (!is_void_meta(fn_meta) && !is_ctor_id(fn_id)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "return", meta_cnt(fn_meta), 0);
     }
 
@@ -486,7 +486,7 @@ stmt_check_break(check_t *check, ast_stmt_t *stmt)
 
         CHECK(exp_check(check, cond_exp));
 
-        if (!is_bool_type(cond_meta))
+        if (!is_bool_meta(cond_meta))
             RETURN(ERROR_INVALID_COND_TYPE, &cond_exp->pos, meta_to_str(cond_meta));
     }
 

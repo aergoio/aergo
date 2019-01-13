@@ -172,7 +172,7 @@ type_gen(type_t type)
 BinaryenType
 meta_gen(meta_t *meta)
 {
-    if (is_array_type(meta))
+    if (is_array_meta(meta))
         return BinaryenTypeInt32();
 
     return type_gen(meta->type);

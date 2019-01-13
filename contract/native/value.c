@@ -81,15 +81,15 @@
 bool
 value_fit(value_t *val, meta_t *meta)
 {
-    ASSERT1(!is_undef_type(meta), meta->type);
+    ASSERT1(!is_undef_meta(meta), meta->type);
 
     switch (val->type) {
     case TYPE_BOOL:
-        ASSERT1(is_bool_type(meta), meta->type);
+        ASSERT1(is_bool_meta(meta), meta->type);
         break;
 
     case TYPE_UINT64:
-        ASSERT1(is_integer_type(meta), meta->type);
+        ASSERT1(is_integer_meta(meta), meta->type);
         if ((meta->type == TYPE_BYTE && !i64_fit_unsigned(val, UINT8_MAX)) ||
             (meta->type == TYPE_INT8 && !i64_fit_signed(val, INT8_MAX)) ||
             (meta->type == TYPE_UINT8 && !i64_fit_unsigned(val, UINT8_MAX)) ||
@@ -103,19 +103,19 @@ value_fit(value_t *val, meta_t *meta)
         break;
 
     case TYPE_DOUBLE:
-        ASSERT1(is_fpoint_type(meta), meta->type);
+        ASSERT1(is_fpoint_meta(meta), meta->type);
         if (meta->type == TYPE_FLOAT && 
             ((float)val->d > FLT_MAX || (float)val->d < -FLT_MAX))
             return false;
         break;
 
     case TYPE_STRING:
-        ASSERT1(is_string_type(meta), meta->type);
+        ASSERT1(is_string_meta(meta), meta->type);
         break;
 
     case TYPE_OBJECT:
         if (is_null_val(val))
-            ASSERT1(is_pointer_type(meta), meta->type);
+            ASSERT1(is_pointer_meta(meta), meta->type);
         break;
 
     default:
