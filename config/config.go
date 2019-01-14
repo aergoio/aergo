@@ -39,7 +39,6 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 	return &Config{
 		BaseConfig: ctx.GetDefaultBaseConfig(),
 		RPC:        ctx.GetDefaultRPCConfig(),
-		REST:       ctx.GetDefaultRESTConfig(),
 		P2P:        ctx.GetDefaultP2PConfig(),
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
@@ -56,7 +55,6 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		DbType:         "badgerdb",
 		EnableProfile:  false,
 		ProfilePort:    6060,
-		EnableRest:     false,
 		EnableTestmode: false,
 		Personal:       true,
 	}
@@ -68,12 +66,6 @@ func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 		NetServicePort:  7845,
 		NetServiceTrace: false,
 		NSKey:           "",
-	}
-}
-
-func (ctx *ServerContext) GetDefaultRESTConfig() *RESTConfig {
-	return &RESTConfig{
-		RestPort: 8080,
 	}
 }
 

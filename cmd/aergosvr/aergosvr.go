@@ -25,7 +25,6 @@ import (
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/opentracing/opentracing-go"
@@ -140,17 +139,9 @@ func rootRun(cmd *cobra.Command, args []string) {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
 	}
 
-	var restSvc component.IComponent
-	if cfg.EnableRest {
-		svrlog.Info().Msg("Start REST server")
-		restSvc = rest.NewRestService(cfg, chainSvc)
-	} else {
-		svrlog.Info().Msg("Do not start REST server")
-	}
-
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc, pmapSvc)
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
 
 	consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
 	if err != nil {

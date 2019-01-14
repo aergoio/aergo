@@ -15,7 +15,6 @@ const (
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
-	REST       *RESTConfig       `mapstructure:"rest"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
@@ -31,7 +30,6 @@ type BaseConfig struct {
 	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
-	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
 	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
 }
@@ -47,11 +45,6 @@ type RPCConfig struct {
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
-}
-
-// RESTConfig defines configurations for rest server
-type RESTConfig struct {
-	RestPort int `mapstructure:"restport" description:"Rest port(default:8080)"`
 }
 
 // P2PConfig defines configurations for p2p service
@@ -136,7 +129,6 @@ datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
-enablerest = {{.BaseConfig.EnableRest}}
 enabletestmode = {{.BaseConfig.EnableTestmode}}
 personal = {{.BaseConfig.Personal}}
 
@@ -148,9 +140,6 @@ nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
-
-[rest]
-restport = "{{.REST.RestPort}}"
 
 [p2p]
 # Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
