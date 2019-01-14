@@ -11,6 +11,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	inet "github.com/libp2p/go-libp2p-net"
@@ -33,7 +34,8 @@ type PeerManager interface {
 	SelfNodeID() peer.ID
 
 	AddNewPeer(peer PeerMeta)
-	RemovePeer(peerID peer.ID)
+	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
+	RemovePeer(peer RemotePeer)
 	// NotifyPeerHandshake is called after remote peer is completed handshake and ready to receive or send
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
@@ -61,6 +63,7 @@ type peerManager struct {
 	designatedPeers map[peer.ID]PeerMeta
 	hiddenPeerSet   map[peer.ID]bool
 
+	manageNumber uint32
 	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
 	conf        *cfg.P2PConfig
@@ -69,7 +72,7 @@ type peerManager struct {
 	peerCache   []RemotePeer
 
 	addPeerChannel    chan PeerMeta
-	removePeerChannel chan peer.ID
+	removePeerChannel chan RemotePeer
 	fillPoolChannel   chan []PeerMeta
 	finishChannel     chan struct{}
 	eventListeners    []PeerEventListener
@@ -111,7 +114,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		addPeerChannel:    make(chan PeerMeta, 2),
-		removePeerChannel: make(chan peer.ID),
+		removePeerChannel: make(chan RemotePeer, 4),
 		fillPoolChannel:   make(chan []PeerMeta, 2),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
@@ -204,9 +207,9 @@ MANLOOP:
 					pm.rm.CancelJob(meta.ID)
 				}
 			}
-		case id := <-pm.removePeerChannel:
-			if pm.removePeer(id) {
-				if meta, found := pm.designatedPeers[id]; found {
+		case peer := <-pm.removePeerChannel:
+			if pm.removePeer(peer) {
+				if meta, found := pm.designatedPeers[peer.ID()]; found {
 					pm.rm.AddJob(meta)
 				}
 			}
@@ -220,16 +223,32 @@ MANLOOP:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
 			addrTicker.Stop()
-			pm.nt.RemoveStreamHandler(aergoP2PSub)
-			pm.rm.Stop()
-			// TODO need to keep loop till all remote peer objects are removed, otherwise panic or channel deadlock can come.
 			break MANLOOP
 		}
 	}
+	//
+	pm.rm.Stop()
+	pm.nt.RemoveStreamHandler(aergoP2PSub)
+	pm.logger.Debug().Msg("Finishing peerManager")
 
-	// cleanup peers
-	for peerID := range pm.remotePeers {
-		pm.removePeer(peerID)
+	go func() {
+		// closing all peer connections
+		for _, peer := range pm.remotePeers {
+			peer.stop()
+		}
+	}()
+	timer := time.NewTimer(time.Second*30)
+	CLEANUPLOOP:
+	for {
+		select {
+		case peer := <-pm.removePeerChannel:
+			pm.removePeer(peer)
+			if len(pm.remotePeers) == 0 {
+				break CLEANUPLOOP
+			}
+			case <-timer.C:
+				break CLEANUPLOOP
+		}
 	}
 }
 
@@ -261,7 +280,7 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 }
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
-// remote peer setup some
+// remote peer. stream s will be owned to remotePeer if succeed to add perr.
 func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (PeerMeta, bool) {
 	var peerID = meta.ID
 	rd := metric.NewReader(s)
@@ -284,7 +303,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	_, receivedMeta.Designated = pm.designatedPeers[peerID]
 
 	// adding peer to peer list
-	newPeer, err := pm.registerPeer(peerID, receivedMeta, rw)
+	newPeer, err := pm.registerPeer(peerID, receivedMeta, s, rw)
 	if err != nil {
 		pm.sendGoAway(rw, err.Error())
 		return meta, false
@@ -303,7 +322,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	return receivedMeta, true
 }
 
-func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw MsgReadWriter) (*remotePeerImpl, error) {
+func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, s inet.Stream, rw MsgReadWriter) (*remotePeerImpl, error) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	preExistPeer, ok := pm.remotePeers[peerID]
@@ -315,19 +334,19 @@ func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw Ms
 			return nil, fmt.Errorf("Already handshake peer %s ", peerID.Pretty())
 		} else {
 			pm.logger.Info().Str("local_peer_id", pm.SelfNodeID().Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound", receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
-			// TODO send goaway messge to pre-exist peer
-			// disconnect lower valued connection
-			pm.deletePeer(receivedMeta.ID)
+			// stopping lower valued connection
 			preExistPeer.stop()
 		}
 	}
 
-	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, rw)
+	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, s, rw)
+	outboundPeer.manageNum = pm.GetNextManageNum()
 	// insert Handlers
 	pm.handlerFactory.insertHandlers(outboundPeer)
+
 	go outboundPeer.runPeer()
 	pm.insertPeer(peerID, outboundPeer)
-	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is  added to peerService")
+	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(LogPeerID, peerID.Pretty()).Uint32("manage_num",outboundPeer.ManageNumber()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is  added to peerService")
 
 	return outboundPeer, nil
 }
@@ -342,6 +361,9 @@ func (pm *peerManager) doPostHandshake(peerID peer.ID, remoteStatus *types.Statu
 	// TODO add tx handling
 }
 
+func (pm *peerManager) GetNextManageNum() uint32 {
+	return atomic.AddUint32(&pm.manageNumber,1)
+}
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting.
@@ -355,8 +377,8 @@ func (pm *peerManager) AddNewPeer(peer PeerMeta) {
 	pm.addPeerChannel <- peer
 }
 
-func (pm *peerManager) RemovePeer(peerID peer.ID) {
-	pm.removePeerChannel <- peerID
+func (pm *peerManager) RemovePeer(peer RemotePeer) {
+	pm.removePeerChannel <- peer
 }
 
 func (pm *peerManager) NotifyPeerHandshake(peerID peer.ID) {
@@ -367,25 +389,31 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []PeerMeta) {
 	pm.fillPoolChannel <- metas
 }
 
-// removePeer remove and disconnect managed remote peer connection
+// removePeer unregister managed remote peer connection
 // It return true if peer is exist and managed by peermanager
-func (pm *peerManager) removePeer(peerID peer.ID) bool {
+func (pm *peerManager) removePeer(peer RemotePeer) bool {
+	peerID := peer.ID()
 	pm.mutex.Lock()
 	target, ok := pm.remotePeers[peerID]
 	if !ok {
 		pm.mutex.Unlock()
 		return false
 	}
+	if target.manageNum != peer.ManageNumber() {
+		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Str(LogPeerID, target.ID().Pretty()).Msg("remove peer is requested but already removed and other instance is on")
+		pm.mutex.Unlock()
+		return false
+	}
+	if target.State() == types.RUNNING {
+		pm.logger.Warn().Str(LogPeerID, target.ID().Pretty()).Msg("remove peer is requested but peer is still running")
+	}
 	pm.deletePeer(peerID)
-	// No internal module access this peer anymore, but remote message can be received.
-	target.stop()
+	pm.logger.Info().Uint32("manage_num",peer.ManageNumber()).Str(LogPeerID, target.ID().Pretty()).Msg("removed peer in peermanager")
 	pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
 	}
 
-	// also disconnect connection
-	pm.nt.ClosePeerConnection(peerID)
 	return true
 }
 
@@ -508,7 +536,7 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*type
 		hiddens = append(hiddens, aPeer.meta.Hidden)
 		peers = append(peers, &addr)
 		blks = append(blks, aPeer.lastNotice)
-		states = append(states, aPeer.state)
+		states = append(states, aPeer.State())
 	}
 	return peers, hiddens, blks, states
 }

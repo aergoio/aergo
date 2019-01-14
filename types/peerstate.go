@@ -13,10 +13,12 @@ const (
 	HANDSHAKING
 	// RUNNING means complete handshake (i.e. exchanged status message) and can communicate each other
 	RUNNING
+	// STOPPING means peer was received stop signal and working in termination process. No new message is sent and receiving message is ignored.
+	STOPPING
+	// STOPPED means peer was tatally finished.
+	STOPPED
 	// DOWN means server can't communicate to remote peer. peer will be delete after TTL or
 	DOWN
-	// STOPPED is totally finished peer, and maybe local server is shutting down.
-	STOPPED
 )
 
 // Get returns current state with concurrent manner
@@ -27,10 +29,6 @@ func (s *PeerState) Get() PeerState {
 // SetAndGet change state in atomic manner
 func (s *PeerState) SetAndGet(ns PeerState) PeerState {
 	return PeerState(atomic.SwapInt32((*int32)(s), int32(ns)))
-}
-
-func (s *PeerState) IncreaseAndGet() PeerState {
-	return PeerState(atomic.AddInt32((*int32)(s), 1))
 }
 
 //go:generate stringer -type=PeerState
