@@ -268,7 +268,6 @@ Gather:
 		}
 	}
 	elapsed := time.Since(start)
-	mp.Debug().Int("size", size).Uint32("max", maxBlockBodySize).Msg("chris2nd")
 	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
