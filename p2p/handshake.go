@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+// HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
 	CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler
 }
