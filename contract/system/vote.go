@@ -6,16 +6,14 @@
 package system
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 	"github.com/mr-tron/base58"
 )
 
@@ -107,8 +105,7 @@ func getVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
 	}
 	var vote types.Vote
 	if len(data) != 0 {
-		dec := gob.NewDecoder(bytes.NewBuffer(data))
-		err = dec.Decode(&vote)
+		err = proto.Unmarshal(data, &vote)
 		if err != nil {
 			return nil, err
 		}
@@ -118,14 +115,12 @@ func getVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
 }
 
 func setVote(scs *state.ContractState, voter []byte, vote *types.Vote) error {
-	var data bytes.Buffer
 	key := append(votingkey, voter...)
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(vote)
+	data, err := proto.Marshal(vote)
 	if err != nil {
 		return err
 	}
-	return scs.SetData(key, data.Bytes())
+	return scs.SetData(key, data)
 }
 
 func loadVoteResult(scs *state.ContractState) (map[string]*big.Int, error) {
@@ -135,9 +130,8 @@ func loadVoteResult(scs *state.ContractState) (map[string]*big.Int, error) {
 		return nil, err
 	}
 	if len(data) != 0 {
-		dec := gob.NewDecoder(bytes.NewBuffer(data))
 		var voteList types.VoteList
-		err = dec.Decode(&voteList)
+		err = proto.Unmarshal(data, &voteList)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +153,7 @@ func syncVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	voteList := buildVoteList(voteResult)
 
 	//logger.Info().Msgf("VOTE set list %v", voteList.Votes)
-	data, err := common.GobEncode(voteList)
+	data, err := proto.Marshal(voteList)
 	if err != nil {
 		return err
 	}
@@ -214,13 +208,13 @@ func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 		return nil, err
 	}
 
-	voteList := &types.VoteList{}
-	err = common.GobDecode(data, voteList)
+	var voteList types.VoteList
+	err = proto.Unmarshal(data, &voteList)
 	if err != nil {
 		return nil, err
 	}
 	if n < len(voteList.Votes) {
 		voteList.Votes = voteList.Votes[:n]
 	}
-	return voteList, nil
+	return &voteList, nil
 }

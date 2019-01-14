@@ -50,7 +50,7 @@ func TestVoteResult(t *testing.T) {
 		testResult[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
-	assert.NotNil(t, err, "argument should not nil")
+	assert.NotNil(t, err, "argument should not be nil")
 	err = InitVoteResult(scs, testResult)
 	assert.NoError(t, err, "failed to InitVoteResult")
 
