@@ -60,6 +60,7 @@ type peerManager struct {
 	rm             ReconnectManager
 	mm             metric.MetricsManager
 
+	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
 	designatedPeers map[peer.ID]PeerMeta
 	hiddenPeerSet   map[peer.ID]bool
 
@@ -69,10 +70,10 @@ type peerManager struct {
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
 	mutex       *sync.Mutex
+	// peerCache is copy-on-write style
 	peerCache   []RemotePeer
 
 	addPeerChannel    chan PeerMeta
-	removePeerChannel chan RemotePeer
 	fillPoolChannel   chan []PeerMeta
 	finishChannel     chan struct{}
 	eventListeners    []PeerEventListener
@@ -114,7 +115,6 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		addPeerChannel:    make(chan PeerMeta, 2),
-		removePeerChannel: make(chan RemotePeer, 4),
 		fillPoolChannel:   make(chan []PeerMeta, 2),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
@@ -207,12 +207,6 @@ MANLOOP:
 					pm.rm.CancelJob(meta.ID)
 				}
 			}
-		case peer := <-pm.removePeerChannel:
-			if pm.removePeer(peer) {
-				if meta, found := pm.designatedPeers[peer.ID()]; found {
-					pm.rm.AddJob(meta)
-				}
-			}
 		case <-initialTimer.C:
 			initialTimer.Stop()
 			pm.checkAndCollectPeerListFromAll()
@@ -226,27 +220,32 @@ MANLOOP:
 			break MANLOOP
 		}
 	}
-	//
+	// guarrenty no new peer connection will be made
 	pm.rm.Stop()
 	pm.nt.RemoveStreamHandler(aergoP2PSub)
-	pm.logger.Debug().Msg("Finishing peerManager")
+	pm.logger.Info().Msg("Finishing peerManager")
 
 	go func() {
 		// closing all peer connections
-		for _, peer := range pm.remotePeers {
+		for _, peer := range pm.peerCache {
 			peer.stop()
 		}
 	}()
 	timer := time.NewTimer(time.Second*30)
+	finishPoll := time.NewTicker(time.Second)
 	CLEANUPLOOP:
 	for {
 		select {
-		case peer := <-pm.removePeerChannel:
-			pm.removePeer(peer)
-			if len(pm.remotePeers) == 0 {
-				break CLEANUPLOOP
-			}
+			case <-finishPoll.C:
+				pm.mutex.Lock()
+				if len(pm.remotePeers) == 0 {
+					pm.mutex.Unlock()
+					pm.logger.Debug().Msg("All peers were finished peerManager")
+					break CLEANUPLOOP
+				}
+				pm.mutex.Unlock()
 			case <-timer.C:
+				pm.logger.Warn().Int("remained",len(pm.peerCache)).Msg("peermanager stop timeout. some peers were not finished.")
 				break CLEANUPLOOP
 		}
 	}
@@ -378,7 +377,7 @@ func (pm *peerManager) AddNewPeer(peer PeerMeta) {
 }
 
 func (pm *peerManager) RemovePeer(peer RemotePeer) {
-	pm.removePeerChannel <- peer
+	pm.removePeer(peer)
 }
 
 func (pm *peerManager) NotifyPeerHandshake(peerID peer.ID) {
@@ -414,6 +413,9 @@ func (pm *peerManager) removePeer(peer RemotePeer) bool {
 		listener.OnRemovePeer(peerID)
 	}
 
+	if meta, found := pm.designatedPeers[peer.ID()]; found {
+		pm.rm.AddJob(meta)
+	}
 	return true
 }
 
@@ -439,8 +441,9 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
 	}
 
-	for _, remotePeer := range pm.remotePeers {
-		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: MaxAddrListSizePeer, Offset: 0})
+	// not strictly need to check peers. so use cache instead
+	for _, remotePeer := range pm.peerCache {
+		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.ID(), Size: MaxAddrListSizePeer, Offset: 0})
 	}
 }
 
@@ -531,11 +534,12 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*type
 	hiddens := make([]bool, 0, len(pm.remotePeers))
 	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
 	states := make([]types.PeerState, 0, len(pm.remotePeers))
-	for _, aPeer := range pm.remotePeers {
-		addr := aPeer.meta.ToPeerAddress()
-		hiddens = append(hiddens, aPeer.meta.Hidden)
+	for _, aPeer := range pm.peerCache {
+		meta := aPeer.Meta()
+		addr := meta.ToPeerAddress()
+		hiddens = append(hiddens, meta.Hidden)
 		peers = append(peers, &addr)
-		blks = append(blks, aPeer.lastNotice)
+		blks = append(blks, aPeer.LastNotice())
 		states = append(states, aPeer.State())
 	}
 	return peers, hiddens, blks, states
