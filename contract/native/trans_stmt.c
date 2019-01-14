@@ -361,9 +361,32 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
-    ast_id_t *ret_id = stmt->u_ret.ret_id;
     ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
 
+    if (arg_exp != NULL) {
+        ast_id_t *ret_id = stmt->u_ret.ret_id;
+
+        ASSERT(ret_id != NULL);
+        ASSERT(ret_id->up != NULL);
+        ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
+
+        if (is_ctor_id(ret_id->up)) {
+            /* If "arg_exp" is not null and "stmt" is constructor's return statement,
+             * the "stmt" is added to exit_bb because it is a statement to return the
+             * contract address added forced by id_trans_ctor() */
+            ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
+
+            bb_add_stmt(trans->fn->exit_bb, stmt);
+        }
+        else {
+            /* Each return expression of a function corresponds to a local variable,
+             * so if there is return arguments, the return statement is transformed to
+             * an assign statement using the address value of each return argument */
+            stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
+        }
+    }
+
+#if 0
     ASSERT(ret_id->up != NULL);
     ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
 
@@ -375,13 +398,11 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
 
             bb_add_stmt(trans->fn->exit_bb, stmt);
-#if 0
         }
         else {
             /* The constructor uses the return statement as is */
             bb_add_stmt(trans->bb, stmt);
         }
-#endif
     }
     else if (arg_exp != NULL) {
         /* Each return expression of a function corresponds to a local variable,
@@ -389,6 +410,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
          * an assign statement using the address value of each return argument */
         stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
     }
+#endif
 
     /* The current basic block branches directly to the exit block */
     bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);

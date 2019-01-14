@@ -47,8 +47,8 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
     ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 
     /* The global variable does not use "addr",
-     * but uses the local variable set to "idx" as the address */
-    id->idx = idx;
+     * but uses the local variable set to "base" as the address */
+    id->base = idx;
     id->addr = 0;
     id->offset = ir->offset;
 

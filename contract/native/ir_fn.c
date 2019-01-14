@@ -65,7 +65,7 @@ fn_add_stack(ir_fn_t *fn, ast_id_t *id)
 
     fn->usage = ALIGN(fn->usage, meta_align(&id->meta));
 
-    id->idx = fn->stack_idx;
+    id->base = fn->stack_idx;
     id->addr = fn->usage;
 
     fn->usage += meta_size(&id->meta);

@@ -327,7 +327,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         if (is_ctor_id(fn_id))
             /* Since the constructor can be called from any location (including another
              * contracts), it should always be accessed with an absolute index */
-            id->idx = array_size(&ir->fns);
+            fn_id->idx = array_size(&ir->fns);
         else if (is_fn_id(fn_id))
             /* The "idx" is the relative index within the contract */
             fn_id->idx = fn_idx++;

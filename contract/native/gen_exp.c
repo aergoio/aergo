@@ -490,6 +490,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         arguments[j++] = exp_gen(gen, array_get_exp(exp->u_call.param_exps, i));
     }
 
+    /*
     if (!is_ctor_id(id) && id->u_fn.ret_id != NULL) {
         ast_id_t *ret_id = id->u_fn.ret_id;
 
@@ -504,6 +505,11 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
             arguments[j++] = i32_gen(gen, ret_id->addr);
         }
     }
+    */
+
+    if (is_ctor_id(id))
+        return BinaryenCallIndirect(gen->module, i32_gen(gen, id->idx), arguments,
+                                    id->abi->param_cnt, id->abi->name);
 
     return BinaryenCallIndirect(gen->module, exp_gen(gen, exp->u_call.id_exp), arguments,
                                 id->abi->param_cnt, id->abi->name);

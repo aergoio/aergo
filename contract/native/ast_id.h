@@ -132,6 +132,7 @@ struct ast_id_s {
     value_t *val;       /* constant value */
 
     int idx;            /* local or function index */
+    int base;           /* base address index */
     int addr;           /* relative address */
     int offset;         /* offset (from addr) */
 

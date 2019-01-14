@@ -177,6 +177,11 @@ stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
 
         var_exp = exp_new_tuple(elem_exps, &val_exp->pos);
     }
+    /*
+    else if (is_return_id(var_id)) {
+        var_exp = exp_new_local(TYPE_INT32, var_id->idx);
+    }
+    */
     else {
         var_exp = exp_new_id(var_id->name, &var_id->pos);
 

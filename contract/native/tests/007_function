@@ -155,10 +155,14 @@ contract test {
     func f() ref { return new ref(); }
 
     test() {
+        /*
         ref v = f();
+        */
         int a = f().a;
+        /*
         string b = f().b;
         int c = f().f();
+        */
     }
 }
 
