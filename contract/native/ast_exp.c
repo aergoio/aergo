@@ -243,6 +243,17 @@ exp_set_stack(ast_exp_t *exp, int base, int addr, int offset)
     exp->u_stk.offset = offset;
 }
 
+void
+exp_set_fn(ast_exp_t *exp, int base, int idx)
+{
+    ASSERT(base >= 0);
+    ASSERT(idx >= 0);
+
+    exp->kind = EXP_FN;
+    exp->u_fn.base = base;
+    exp->u_fn.idx = idx;
+}
+
 ast_exp_t *
 exp_clone(ast_exp_t *exp)
 {

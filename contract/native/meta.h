@@ -100,7 +100,6 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_size(meta)             ((meta)->size)
 #define meta_align(meta)            TYPE_ALIGN((meta)->type)
 
 #define meta_cnt(meta)                                                                   \
@@ -119,12 +118,11 @@ typedef struct ast_id_s ast_id_t;
 
 struct meta_s {
     type_t type;
-    int size;               /* unit size of type */
 
     char *name;             /* name of struct or contract */
 
     int arr_dim;            /* dimension of array */
-    int arr_size;           /* total size of array */
+    //int arr_size;           /* total size of array */
     int *dim_sizes;         /* size of each dimension */
 
     bool is_undef;          /* whether it is literal */
@@ -168,7 +166,7 @@ meta_new(type_t type, src_pos_t *pos)
     meta_init(meta, pos);
 
     meta->type = type;
-    meta->size = TYPE_SIZE(type);
+    //meta->size = TYPE_SIZE(type);
 
     meta->pos = xmalloc(sizeof(src_pos_t));
     memcpy(meta->pos, pos, sizeof(src_pos_t));
@@ -182,7 +180,7 @@ meta_set(meta_t *meta, type_t type)
     ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
-    meta->size = TYPE_SIZE(type);
+    //meta->size = TYPE_SIZE(type);
 }
 
 static inline void
@@ -197,7 +195,7 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
     ASSERT(arr_dim > 0);
 
     meta->arr_dim = arr_dim;
-    meta->arr_size = ALIGN(meta->size, TYPE_ALIGN(meta->type));
+    //meta->arr_size = ALIGN(meta->size, TYPE_ALIGN(meta->type));
     meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
 }
 
@@ -209,8 +207,10 @@ meta_set_dim_size(meta_t *meta, int dim, int size)
 
     meta->dim_sizes[dim] = size;
 
+    /*
     if (size > 0)
         meta->arr_size *= size;
+        */
 }
 
 static inline void
@@ -220,9 +220,11 @@ meta_strip_arr_dim(meta_t *meta)
 
     meta->arr_dim--;
 
+#if 0
     if (meta->dim_sizes[0] > 0)
         /* In case of a parameter, dim_size can be negative */
         meta->arr_size /= meta->dim_sizes[0];
+#endif
 
     if (meta->arr_dim == 0)
         meta->dim_sizes = NULL;
@@ -230,14 +232,68 @@ meta_strip_arr_dim(meta_t *meta)
         meta->dim_sizes = &meta->dim_sizes[1];
 }
 
+#if 0
+static inline uint32_t
+meta_unit_size(meta_t *meta)
+{
+    /* Because of the undefined type, the size of the meta is computed dynamically */
+    if (is_struct_meta(meta) || is_tuple_meta(meta)) {
+        int i;
+        uint32_t size = 0;
+
+        for (i = 0; i < meta->elem_cnt; i++) {
+            size = ALIGN(size, meta_align(meta->elems[i]));
+            size += meta_size(meta->elems[i]);
+        }
+
+        return size;
+    }
+
+    return TYPE_SIZE(meta->type);
+}
+#endif
+
+static inline uint32_t
+meta_size(meta_t *meta)
+{
+    /* Because of the undefined type, the size of the meta is computed dynamically */
+    int i;
+    uint32_t size = 0;
+
+    if (is_struct_meta(meta) || is_tuple_meta(meta)) {
+        for (i = 0; i < meta->elem_cnt; i++) {
+            size = ALIGN(size, meta_align(meta->elems[i]));
+            size += meta_size(meta->elems[i]);
+        }
+
+        if (is_array_meta(meta))
+            size = ALIGN(size, meta_align(meta->elems[0]));
+    }
+    else {
+        size = TYPE_SIZE(meta->type);
+
+        if (is_array_meta(meta))
+            size = ALIGN(size, meta_align(meta));
+    }
+
+    if (is_array_meta(meta)) {
+        for (i = 0; i < meta->arr_dim; i++) {
+            ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
+            size *= meta->dim_sizes[i];
+        }
+    }
+
+    return size;
+}
+
 static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
     dest->type = src->type;
-    dest->size = src->size;
+    //dest->size = src->size;
     dest->name = src->name;
     dest->arr_dim = src->arr_dim;
-    dest->arr_size = src->arr_size;
+    //dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;
     dest->elem_cnt = src->elem_cnt;

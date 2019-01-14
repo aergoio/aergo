@@ -32,6 +32,9 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 
         return f32_gen(gen, val_f64(val));
 
+    case TYPE_OBJECT:
+        return i32_gen(gen, sgmt_add_raw(&gen->ir->sgmt, val_ptr(val), val_size(val)));
+
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
     }
@@ -46,44 +49,46 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &id->meta;
 
     if (is_array_meta(meta)) {
-        BinaryenExpressionRef address, offset;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
+        BinaryenExpressionRef address;
 
         ASSERT1(is_stack_id(id), id->kind);
         ASSERT1(is_stack_exp(exp->u_arr.id_exp), exp->u_arr.id_exp->kind);
         ASSERT(id->addr >= 0);
 
-        /* BinaryenLoad() takes an offset as uint32_t,
-         * and if idx_exp is a local variable, we does not know the offset,
-         * so we add the offset to the address and use BinaryenLoad() */
+        /* BinaryenLoad() takes an offset as uint32_t, and if idx_exp is a
+         * local or stack variable, we does not know the offset, so we add
+         * the offset to the address and use BinaryenLoad() */
 
         if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta)) {
-            offset = BinaryenBinary(gen->module, BinaryenMulInt64(),
-                                    exp_gen(gen, idx_exp),
-                                    i64_gen(gen, ALIGN64(meta_size(meta))));
+            address = BinaryenBinary(gen->module, BinaryenMulInt64(),
+                                     exp_gen(gen, idx_exp),
+                                     i64_gen(gen, meta_size(&exp->meta)));
 
-            address = BinaryenBinary(gen->module, BinaryenAddInt64(),
-                                     i64_gen(gen, id->addr), offset);
+            if (id->addr > 0)
+                address = BinaryenBinary(gen->module, BinaryenAddInt64(),
+                                         i64_gen(gen, id->addr), address);
         }
         else {
-            offset = BinaryenBinary(gen->module, BinaryenMulInt32(),
-                                    exp_gen(gen, idx_exp),
-                                    i32_gen(gen, ALIGN64(meta_size(meta))));
+            address = BinaryenBinary(gen->module, BinaryenMulInt32(),
+                                     exp_gen(gen, idx_exp),
+                                     i32_gen(gen, meta_size(&exp->meta)));
 
-            address = BinaryenBinary(gen->module, BinaryenAddInt32(),
-                                     i32_gen(gen, id->addr), offset);
+            if (id->addr > 0)
+                address = BinaryenBinary(gen->module, BinaryenAddInt32(),
+                                         i32_gen(gen, id->addr), address);
         }
 
         if (gen->is_lval)
             return address;
 
-        return BinaryenLoad(gen->module, meta_size(meta), is_signed_meta(meta), 0, 0,
-                            meta_gen(meta), address);
+        return BinaryenLoad(gen->module, TYPE_SIZE(meta->type), is_signed_meta(meta),
+                            0, 0, meta_gen(meta), address);
     }
-    else {
-        ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
-        return NULL;
-    }
+
+    ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
+
+    return NULL;
 }
 
 static BinaryenExpressionRef
@@ -546,9 +551,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             value = exp_gen(gen, elem_exp);
             offset = ALIGN(offset, meta_align(elem_meta));
 
-            instr_add(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type),
-                                             offset, 0, address, value,
-                                             meta_gen(elem_meta)));
+            instr_add(gen, BinaryenStore(gen->module, TYPE_SIZE(elem_meta->type), offset,
+                                         0, address, value, meta_gen(elem_meta)));
 
             offset += meta_size(elem_meta);
         }
@@ -566,7 +570,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 1));
 
             instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
-                                            BinaryenTypeNone()));
+                                        BinaryenTypeNone()));
         }
     }
 
@@ -591,14 +595,30 @@ exp_gen_stack(gen_t *gen, ast_exp_t *exp)
     type_t type = exp->u_stk.type;
     BinaryenExpressionRef address;
 
-    address = BinaryenGetLocal(gen->module, exp->u_stk.base, type_gen(type));
+    address = BinaryenGetLocal(gen->module, exp->u_stk.base, BinaryenTypeInt32());
 
     if (exp->u_stk.addr > 0)
-        address = BinaryenBinary(gen->module, BinaryenTypeInt32(), address,
+        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->u_stk.addr));
 
     return BinaryenLoad(gen->module, TYPE_SIZE(type), is_signed_type(type),
                         exp->u_stk.offset, 0, type_gen(type), address);
+}
+
+static BinaryenExpressionRef
+exp_gen_fn(gen_t *gen, ast_exp_t *exp)
+{
+    BinaryenExpressionRef target;
+
+    target = BinaryenLoad(gen->module, sizeof(int32_t), 0, 0, 0, BinaryenTypeInt32(),
+                          BinaryenGetLocal(gen->module, exp->u_fn.base,
+                                           BinaryenTypeInt32()));
+
+    if (exp->u_fn.idx > 0)
+        return BinaryenBinary(gen->module, BinaryenAddInt32(), target,
+                              i32_gen(gen, exp->u_fn.idx));
+
+    return target;
 }
 
 BinaryenExpressionRef
@@ -645,6 +665,9 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
 
     case EXP_STACK:
         return exp_gen_stack(gen, exp);
+
+    case EXP_FN:
+        return exp_gen_fn(gen, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

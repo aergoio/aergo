@@ -28,6 +28,7 @@
 #define is_global_exp(exp)          ((exp)->kind == EXP_GLOBAL)
 #define is_local_exp(exp)           ((exp)->kind == EXP_LOCAL)
 #define is_stack_exp(exp)           ((exp)->kind == EXP_STACK)
+#define is_fn_exp(exp)              ((exp)->kind == EXP_FN)
 
 #define is_usable_lval(exp)                                                              \
     ((exp)->id != NULL && !is_const_id((exp)->id) && is_var_id((exp)->id))
@@ -143,6 +144,11 @@ typedef struct exp_stack_s {
     uint32_t offset;
 } exp_stack_t;
 
+typedef struct exp_fn_s {
+    uint32_t base;
+    uint32_t idx;
+} exp_fn_t;
+
 struct ast_exp_s {
     exp_kind_t kind;
 
@@ -162,6 +168,7 @@ struct ast_exp_s {
         exp_global_t u_glob;
         exp_local_t u_local;
         exp_stack_t u_stk;
+        exp_fn_t u_fn;
     };
 
     ast_id_t *id;       /* referenced identifier */
@@ -194,6 +201,7 @@ ast_exp_t *exp_new_stack(type_t type, int base, int addr, int offset);
 void exp_set_lit(ast_exp_t *exp, value_t *val);
 void exp_set_local(ast_exp_t *exp, int idx);
 void exp_set_stack(ast_exp_t *exp, int base, int addr, int offset);
+void exp_set_fn(ast_exp_t *exp, int base, int idx);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

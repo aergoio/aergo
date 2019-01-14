@@ -437,14 +437,9 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         id->meta.elems[i] = &elem_id->meta;
 
-        id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
-        id->meta.size += meta_size(&elem_id->meta);
-
         if (is_const_id(elem_id) && dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
-
-    id->meta.size = ALIGN64(id->meta.size);
 
     if (dflt_exp != NULL) {
         CHECK(exp_check(check, dflt_exp));

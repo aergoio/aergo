@@ -17,22 +17,13 @@
 #define WASM_MAX_LEN    1024 * 1024
 
 static void
-gen_init(gen_t *gen, flag_t flag, char *path)
+gen_init(gen_t *gen, flag_t flag, ir_t *ir)
 {
-    char *ptr;
-
     gen->flag = flag;
+    gen->ir = ir;
 
     gen->module = BinaryenModuleCreate();
     gen->relooper = NULL;
-
-    strcpy(gen->path, path);
-
-    ptr = strrchr(gen->path, '.');
-    if (ptr == NULL)
-        strcat(gen->path, WASM_EXT);
-    else
-        strcpy(ptr, WASM_EXT);
 
     gen->local_cnt = 0;
     gen->locals = NULL;
@@ -79,7 +70,7 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 }
 
 void
-gen(ir_t *ir, flag_t flag, char *path)
+gen(ir_t *ir, flag_t flag, char *infile)
 {
     int i, n;
     gen_t gen;
@@ -87,7 +78,7 @@ gen(ir_t *ir, flag_t flag, char *path)
     if (has_error())
         return;
 
-    gen_init(&gen, flag, path);
+    gen_init(&gen, flag, ir);
 
     BinaryenSetDebugInfo(1);
 
@@ -117,10 +108,23 @@ gen(ir_t *ir, flag_t flag, char *path)
         char *buf = xmalloc(buf_size);
 
         n = BinaryenModuleWrite(gen.module, buf, buf_size);
-        if (n <= WASM_MAX_LEN)
-            write_file(path, buf, n);
-        else
+        if (n <= WASM_MAX_LEN) {
+            char *ptr;
+            char outfile[PATH_MAX_LEN + 5];
+
+            strcpy(outfile, infile);
+
+            ptr = strrchr(outfile, '.');
+            if (ptr == NULL)
+                strcat(outfile, WASM_EXT);
+            else
+                strcpy(ptr, WASM_EXT);
+
+            write_file(outfile, buf, n);
+        }
+        else {
             FATAL(ERROR_BINARY_OVERFLOW, n);
+        }
     }
 
     BinaryenModuleDispose(gen.module);

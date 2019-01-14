@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ast_exp.h"
 #include "ast_blk.h"
 
 #include "ast_stmt.h"
@@ -148,6 +149,42 @@ stmt_new_blk(ast_blk_t *blk, src_pos_t *pos)
     stmt->u_blk.blk = blk;
 
     return stmt;
+}
+
+ast_stmt_t *
+stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
+{
+    ast_exp_t *var_exp;
+
+    if (is_tuple_id(var_id)) {
+        int i;
+        array_t *elem_exps = array_new();
+        ast_exp_t *id_exp;
+
+        /* Since the number of elements in "val_exp" may be smaller than
+         * the number of elements in "var_id", it is made as a tuple expression
+         * for asymmetry assignment processing */
+        array_foreach(var_id->u_tup.elem_ids, i) {
+            ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, i);
+
+            id_exp = exp_new_id(elem_id->name, &elem_id->pos);
+
+            id_exp->id = elem_id;
+            meta_copy(&id_exp->meta, &elem_id->meta);
+
+            array_add_last(elem_exps, id_exp);
+        }
+
+        var_exp = exp_new_tuple(elem_exps, &val_exp->pos);
+    }
+    else {
+        var_exp = exp_new_id(var_id->name, &var_id->pos);
+
+        var_exp->id = var_id;
+        meta_copy(&var_exp->meta, &var_id->meta);
+    }
+
+    return stmt_new_assign(var_exp, val_exp, &val_exp->pos);
 }
 
 /* end of ast_stmt.c */

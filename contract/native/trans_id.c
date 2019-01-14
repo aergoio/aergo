@@ -34,20 +34,17 @@ id_trans_var(trans_t *trans, ast_id_t *id)
         fn_add_local(trans->fn, id);
 }
 
+#if 0
 static void
 add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 {
     //meta_t *meta = &id->meta;
     ast_exp_t *l_exp;
-
-    if (is_const_id(id))
-        /* The constant is assumed to have already been
-         * replaced by a literal expression */
-        return;
+    ir_fn_t *fn = trans->fn;
 
     ASSERT1(is_var_id(id), id->kind);
 
-    ir_add_global(trans->ir, id, trans->fn->heap_idx);
+    ir_add_global(trans->ir, id, fn->heap_idx);
 
     if (id->u_var.dflt_exp == NULL)
         return;
@@ -92,14 +89,14 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 
     stmt_add(stmts, stmt_new_assign(l_exp, id->u_var.dflt_exp, &id->pos));
 }
+#endif
 
 static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
     ast_id_t *tmp_id;
-    ast_exp_t *l_exp, *r_exp;
-    ast_stmt_t *ret_stmt;
+    ast_exp_t *l_exp, *r_exp, *v_exp;
     array_t *stmts = array_new();
     ir_fn_t *fn = trans->fn;
     ir_t *ir = trans->ir;
@@ -121,30 +118,48 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
 
-    /* We use new array to keep the declaration order of variables */
+    /* We use the "stmts" array to keep the declaration order of variables */
     array_foreach(&id->up->u_cont.blk->ids, i) {
         ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
+        ast_exp_t *dflt_exp = NULL;
+
+        if (is_const_id(id))
+            /* The constant is assumed to have already been replaced by a literal
+             * expression */
+            continue;
 
         if (is_var_id(var_id)) {
-            add_init_stmt(trans, var_id, stmts);
+            ir_add_global(trans->ir, var_id, fn->heap_idx);
+
+            dflt_exp = var_id->u_var.dflt_exp;
         }
         else if (is_tuple_id(var_id)) {
             array_foreach(var_id->u_tup.elem_ids, j) {
-                add_init_stmt(trans, array_get_id(var_id->u_tup.elem_ids, j), stmts);
+                ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
+
+                ir_add_global(trans->ir, elem_id, fn->heap_idx);
             }
+
+            dflt_exp = var_id->u_tup.dflt_exp;
         }
+
+        if (dflt_exp != NULL)
+            stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
     }
 
+    /* Increase "heap$offset" by the amount of memory used by the global variables
+     * defined in the contract */
+    l_exp = exp_new_global(TYPE_INT32, "heap$offset");
+
+    v_exp = exp_new_lit(&id->pos);
+    value_set_i64(&v_exp->u_lit.val, ir->offset);
+    meta_set_int32(&v_exp->meta);
+
+    r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
+
+    stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+
     array_join_first(&id->u_fn.blk->stmts, stmts);
-
-    ret_stmt = stmt_new_return(l_exp, &id->pos);
-    ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
-
-    stmt_add(&id->u_fn.blk->stmts, ret_stmt);
-
-    /* Since the constructor can be called from any location,
-     * it should always be accessed with an absolute index */
-    id->idx = array_size(&ir->fns);
 }
 
 static void
@@ -154,9 +169,9 @@ id_trans_param(trans_t *trans, ast_id_t *id)
     ir_fn_t *fn = trans->fn;
     ir_t *ir = trans->ir;
 
-    /* All functions that are not constructors must be added the contract address
-     * as the first argument, and must also be added to the param_ids to reflect
-     * the abi */
+    /* All functions that are not constructors must be added the contract address as
+     * the first argument, and must also be added to the param_ids to reflect the abi */
+
     param_id = id_new_tmp_var("cont$addr", TYPE_OBJECT);
 
     param_id->is_param = true;
@@ -173,9 +188,6 @@ id_trans_param(trans_t *trans, ast_id_t *id)
 
     /* The "heap_idx" is always 0 because it is prepended to parameters */
     fn->heap_idx = 0;
-
-    /* The "idx" is the relative index within the contract */
-    id->idx = trans->fn_idx++;
 }
 
 static void
@@ -217,17 +229,38 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
-    /* This statement does not require transformation and
-     * sets the base address using the current stack usage */
+    /* The following statements do not require transformation */
+
+    /* At the beginning of "entry_bb", set the current stack usage to the local
+     * variable */
     l_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
 
     v_exp = exp_new_lit(&id->pos);
+
     value_set_i64(&v_exp->u_lit.val, ALIGN64(fn->usage));
+    meta_set_int32(&v_exp->meta);
 
     r_exp = exp_new_binary(OP_SUB, exp_new_global(TYPE_INT32, "stack$high"), v_exp,
                            &id->pos);
 
     array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+
+    // TODO
+#if 0
+    /* If there is a call expression in the function, it restores the original value
+     * at the end of "exit_bb" because "stack$high" has been changed */
+    l_exp = exp_new_global(TYPE_INT32, "stack$high");
+    r_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
+
+    array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+#endif
+
+    if (is_ctor_id(id)) {
+        /* The contract address is returned at the end of "exit_bb" */
+        l_exp = exp_new_local(TYPE_INT32, fn->heap_idx);
+
+        array_add_last(&fn->exit_bb->stmts, stmt_new_return(l_exp, &id->pos));
+    }
 
     trans->fn = NULL;
     trans->bb = NULL;
@@ -239,6 +272,7 @@ static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
     int i, j;
+    int fn_idx = 1;
     ast_id_t *tmp_id;
     ast_blk_t *blk = id->u_cont.blk;
     ir_t *ir = trans->ir;
@@ -249,14 +283,14 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     if (id->u_cont.impl_exp != NULL) {
         /* Reorder functions according to the order in the interface
          *
-         * The reason for reordering the functions is that if the parameter of
-         * the function is an interface and there are several contracts that
-         * implement the interface, there is no way to know the location of
-         * the function belonging to the contract used as the argument.
+         * The reason for reordering the functions is that if the parameter of the
+         * function is an interface and there are several contracts that implement the
+         * interface, there is no way to know the location of the function belonging to
+         * the contract used as the argument.
          *
-         * By making the index of the function equal between the interface and
-         * the contract, the function can be called through the index of
-         * the interface function */
+         * By making the index of the function equal between the interface and the
+         * contract, the function can be called through the index of the interface
+         * function */
         ast_id_t *itf_id = id->u_cont.impl_exp->id;
 
         ASSERT1(is_itf_id(itf_id), itf_id->kind);
@@ -275,15 +309,39 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         }
     }
 
+    /* Move the constructor to the first position because it handles the memory
+     * allocation of global variables. Even if the contract implements interface,
+     * there is no problem because index 0 is empty. (see id_trans_interface()) */
+    array_foreach(&blk->ids, i) {
+        if (is_ctor_id(array_get_id(&blk->ids, i))) {
+            array_move(&blk->ids, i, 0);
+            break;
+        }
+    }
+
+    /* Because the cross-reference is possible within the function, the index of the
+     * function is numbered before transformation */
+    array_foreach(&blk->ids, i) {
+        ast_id_t *fn_id = array_get_id(&blk->ids, i);
+
+        if (is_ctor_id(fn_id))
+            /* Since the constructor can be called from any location (including another
+             * contracts), it should always be accessed with an absolute index */
+            id->idx = array_size(&ir->fns);
+        else if (is_fn_id(fn_id))
+            /* The "idx" is the relative index within the contract */
+            fn_id->idx = fn_idx++;
+    }
+
 #if 0
     /* This value is used when the function argument is interface and
      * the contract variable is passed as an argument */
     id->idx = array_size(&ir->fns);
 #endif
 
-    /* This value, like any other global variable, is stored in the heap area
-     * used by the contract, and is stored in the first 4 bytes of the area.
-     * All functions also access table by adding relative index to this value */
+    /* This value, like any other global variable, is stored in the heap area used by
+     * the contract, and is stored in the first 4 bytes of the area. All functions
+     * also access table by adding relative index to this value */
     tmp_id = id_new_tmp_var("cont$idx", TYPE_INT32);
 
     tmp_id->up = id;
@@ -301,12 +359,12 @@ static void
 id_trans_interface(trans_t *trans, ast_id_t *id)
 {
     int i;
+    /* Index 0 is reserved for the constructor */
+    int fn_idx = 1;
     ast_blk_t *blk = id->u_itf.blk;
     ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
-
-    trans->fn_idx = 0;
 
     array_foreach(&blk->ids, i) {
         ast_id_t *fn_id = array_get_id(&blk->ids, i);
@@ -314,11 +372,12 @@ id_trans_interface(trans_t *trans, ast_id_t *id)
         ASSERT1(is_fn_id(fn_id), fn_id->kind);
         ASSERT(!is_ctor_id(fn_id));
 
-        /* If the interface type is used as a parameter, we can invoke it with 
-         * the interface function, so transform the parameter here and set abi */
+        /* If the interface type is used as a parameter, we can invoke it with the
+         * interface function, so transform the parameter here and set abi */
 
         id_trans_param(trans, fn_id);
 
+        fn_id->idx = fn_idx++;
         fn_id->abi = abi_lookup(&ir->abis, fn_id);
     }
 }

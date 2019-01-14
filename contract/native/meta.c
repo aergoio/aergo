@@ -81,26 +81,9 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
     meta->elem_cnt = array_size(id->u_struc.fld_ids);
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
-    meta->size = 0;
-
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta_t *elem_meta = &array_get_id(id->u_struc.fld_ids, i)->meta;
-
-        ASSERT(elem_meta->size > 0);
-
-        meta->elems[i] = elem_meta;
-        meta->size = ALIGN(meta->size, meta_align(elem_meta));
-
-        if (is_array_meta(elem_meta)) {
-            ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
-            meta->size += elem_meta->arr_size;
-        }
-        else {
-            meta->size += elem_meta->size;
-        }
+        meta->elems[i] = &array_get_id(id->u_struc.fld_ids, i)->meta;
     }
-
-    meta->size = ALIGN64(meta->size);
 
     meta->type_id = id;
 }
@@ -115,26 +98,9 @@ meta_set_tuple(meta_t *meta, array_t *elem_exps)
     meta->elem_cnt = array_size(elem_exps);
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
-    meta->size = 0;
-
     for (i = 0; i < meta->elem_cnt; i++) {
-        meta_t *elem_meta = &array_get_exp(elem_exps, i)->meta;
-
-        ASSERT(elem_meta->size > 0);
-
-        meta->elems[i] = elem_meta;
-        meta->size = ALIGN(meta->size, meta_align(elem_meta));
-
-        if (is_array_meta(elem_meta)) {
-            ASSERT2(elem_meta->arr_size >= meta->size, elem_meta->arr_size, meta->size);
-            meta->size += elem_meta->arr_size;
-        }
-        else {
-            meta->size += elem_meta->size;
-        }
+        meta->elems[i] = &array_get_exp(elem_exps, i)->meta;
     }
-
-    meta->size = ALIGN64(meta->size);
 }
 
 void
@@ -350,10 +316,12 @@ meta_eval_type(meta_t *x, meta_t *y)
     int i, j;
 
     if (is_undef_meta(x)) {
-        meta_copy(x, y);
+        x->type = y->type;
+        x->is_undef = y->is_undef;
     }
     else if (is_undef_meta(y)) {
-        meta_copy(y, x);
+        y->type = x->type;
+        y->is_undef = x->is_undef;
     }
     else if (is_map_meta(x)) {
         if (!is_tuple_meta(y))

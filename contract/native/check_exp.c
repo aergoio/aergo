@@ -652,7 +652,6 @@ static bool
 exp_check_init(check_t *check, ast_exp_t *exp)
 {
     int i;
-    bool is_aggr_lit = true;
     array_t *elem_exps = exp->u_init.elem_exps;
 
     ASSERT1(is_init_exp(exp), exp->kind);
@@ -664,32 +663,9 @@ exp_check_init(check_t *check, ast_exp_t *exp)
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
 
         CHECK(exp_check(check, elem_exp));
-
-        if (!is_lit_exp(elem_exp))
-            is_aggr_lit = false;
     }
 
     meta_set_tuple(&exp->meta, elem_exps);
-
-    if (is_aggr_lit) {
-        int size = 0;
-        char *raw = xcalloc(meta_size(&exp->meta));
-
-        array_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
-            value_t *elem_val = &elem_exp->u_lit.val;
-
-            size = ALIGN(size, meta_align(&elem_exp->meta));
-
-            memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
-            size += meta_size(&elem_exp->meta);
-        }
-
-        ASSERT2(ALIGN64(size) == meta_size(&exp->meta), size, meta_size(&exp->meta));
-
-        exp_set_lit(exp, NULL);
-        value_set_ptr(&exp->u_lit.val, raw, size);
-    }
 
     return true;
 }

@@ -23,16 +23,7 @@ add_exp_stmt(trans_t *trans, ast_exp_t *exp)
 
     /* For unary increase/decrease expressions, which are postfixes,
      * add them as piggybacked statements */
-    if (has_piggyback(trans->bb)) {
-        int i;
-        array_t *pgbacks = &trans->bb->pgbacks;
-
-        array_foreach(pgbacks, i) {
-            bb_add_stmt(trans->bb, array_get_stmt(pgbacks, i));
-        }
-
-        array_reset(pgbacks);
-    }
+    bb_add_stmt(trans->bb, NULL);
 }
 
 static void
@@ -82,7 +73,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
-    /* TODO: When assigning to a struct variable,
+    /* TODO: When assigning to a struct or array variable,
      * we must replace it with an assignment for each field */
 
     exp_trans(trans, l_exp);
@@ -376,54 +367,27 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     ASSERT(ret_id->up != NULL);
     ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
 
-    if (is_ctor_id(ret_id->up)) {
-        if (arg_exp != NULL) {
+    if (is_ctor_id(ret_id->up) && arg_exp != NULL) {
+        //if (arg_exp != NULL) {
             /* If "arg_exp" is not null, the "stmt" is added to exit_bb because
              * it is a return statement for contract address added forced by
              * id_trans_ctor() */
             ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
 
             bb_add_stmt(trans->fn->exit_bb, stmt);
+#if 0
         }
         else {
             /* The constructor uses the return statement as is */
             bb_add_stmt(trans->bb, stmt);
         }
+#endif
     }
     else if (arg_exp != NULL) {
-        ast_exp_t *var_exp;
-
         /* Each return expression of a function corresponds to a local variable,
          * so if there is return arguments, the return statement is transformed to
          * an assign statement using the address value of each return argument */
-        if (is_tuple_id(ret_id)) {
-            int i;
-            array_t *elem_exps = array_new();
-            ast_exp_t *id_exp;
-
-            /* Since the number of arg_exp may be smaller than the number of ret_id,
-             * it is made as a tuple expression for asymmetry assignment processing */
-            array_foreach(ret_id->u_tup.elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
-
-                id_exp = exp_new_id(elem_id->name, &elem_id->pos);
-
-                id_exp->id = elem_id;
-                meta_copy(&id_exp->meta, &elem_id->meta);
-
-                array_add_last(elem_exps, id_exp);
-            }
-
-            var_exp = exp_new_tuple(elem_exps, &arg_exp->pos);
-        }
-        else {
-            var_exp = exp_new_id(ret_id->name, &ret_id->pos);
-
-            var_exp->id = ret_id;
-            meta_copy(&var_exp->meta, &ret_id->meta);
-        }
-
-        stmt_trans(trans, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
+        stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
     }
 
     /* The current basic block branches directly to the exit block */

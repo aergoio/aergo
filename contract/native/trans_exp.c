@@ -22,8 +22,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
-        /* The "id->idx" is the index of the local variable itself or
-         * the index of the local variable storing the stack base address */
+        /* The "id->idx" is the index of the local variable itself, the index of the
+         * parameter, or the index of the local variable storing the stack address */
         ASSERT(id->idx >= 0);
 
         if (is_global_id(id) || is_stack_id(id))
@@ -34,7 +34,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id)) {
         /* The "id->idx" is the relative index of the function */
-        exp_set_local(exp, id->idx);
+        exp_set_fn(exp, trans->fn->heap_idx, id->idx);
     }
 }
 
@@ -57,11 +57,15 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
+        ASSERT(is_null_val(val));
+        value_set_i64(val, sgmt_add_raw(sgmt, "\0\0\0\0", 4));
+        /*
         if (is_null_val(val))
             addr = 0;
         else
-            addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val) + 1);
+            addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val));
         value_set_i64(val, addr);
+        */
         break;
 
     default:
@@ -86,8 +90,8 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        /* The following arr_size is stripped arr_size */
-        offset = val_i64(&idx_exp->u_lit.val) * exp->meta.arr_size;
+        /* The following meta_size() is stripped size of array */
+        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&exp->meta);
 
         exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
                       id_exp->u_stk.offset + offset);
@@ -208,9 +212,13 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 
     exp_trans(trans, id_exp);
 
-    if (is_stack_exp(id_exp))
+    if (is_fn_id(fld_id)) {
+        ASSERT1(is_local_exp(id_exp), id_exp->kind);
+    }
+    else if (is_stack_exp(id_exp)) {
         exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
                       id_exp->u_stk.offset + fld_id->offset);
+    }
 
 #if 0
     if (is_fn_id(fld_id)) {
@@ -255,14 +263,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         /* The constructor does not have a parameter and returns a contract address */
         return;
 
-    /* Since non-constructor functions are added the contract base address as
-     * a first argument, we must also add the address as a call argument here */
+    /* Since non-constructor functions are added the contract base address as a first
+     * argument, we must also add the address as a call argument here */
     if (exp->u_call.param_exps == NULL)
         exp->u_call.param_exps = array_new();
 
-    if (is_local_exp(id_exp)) {
-        /* If the call expression is of type "x()",
-         * pass the first parameter as the first argument */
+    if (is_fn_exp(id_exp)) {
+        /* If the call expression is of type "x()", pass the first parameter as the
+         * first argument */
         ASSERT(trans->fn->heap_idx == 0);
 
         array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
@@ -291,7 +299,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         ASSERT(fn != NULL);
 
-        /* if there is a return value, we have to clone it 
+        /* if there is a return value, we have to clone it
          * because the call expression itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_exp(exp_clone(exp), &exp->pos));
 
@@ -358,10 +366,36 @@ static void
 exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
+    bool is_aggr_lit = true;
     array_t *elem_exps = exp->u_init.elem_exps;
 
     array_foreach(elem_exps, i) {
-        exp_trans(trans, array_get_exp(elem_exps, i));
+        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+
+        exp_trans(trans, elem_exp);
+
+        if (!is_lit_exp(elem_exp))
+            is_aggr_lit = false;
+    }
+
+    if (is_aggr_lit) {
+        int size = 0;
+        char *raw = xcalloc(meta_size(&exp->meta));
+
+        array_foreach(elem_exps, i) {
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+            value_t *elem_val = &elem_exp->u_lit.val;
+
+            size = ALIGN(size, meta_align(&elem_exp->meta));
+
+            memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
+            size += meta_size(&elem_exp->meta);
+        }
+
+        ASSERT2(size <= meta_size(&exp->meta), size, meta_size(&exp->meta));
+
+        exp_set_lit(exp, NULL);
+        value_set_ptr(&exp->u_lit.val, raw, size);
     }
 }
 

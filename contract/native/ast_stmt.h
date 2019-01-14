@@ -147,4 +147,6 @@ ast_stmt_t *stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos)
 ast_stmt_t *stmt_new_ddl(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_new_blk(ast_blk_t *blk, src_pos_t *pos);
 
+ast_stmt_t *stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp);
+
 #endif /* ! _AST_STMT_H */

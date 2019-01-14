@@ -22,7 +22,8 @@
 
 typedef struct gen_s {
     flag_t flag;
-    char path[PATH_MAX_LEN + 5];
+
+    ir_t *ir;
 
     BinaryenModuleRef module;
     RelooperRef relooper;

@@ -19,7 +19,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     ast_id_t *id = l_exp->id;
     BinaryenExpressionRef address, value;
 
-    if (is_map_meta(&l_exp->meta))
+    if (id != NULL && is_map_meta(&id->meta))
         /* TODO: If the type of identifier is map,
          * lvalue and rvalue must be combined into a call expression */
         return NULL;
@@ -47,6 +47,11 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 #endif
 
+    if (is_global_exp(l_exp)) {
+        ASSERT(l_exp->u_glob.name != NULL);
+        return BinaryenSetGlobal(gen->module, l_exp->u_glob.name, value);
+    }
+
     if (is_local_exp(l_exp)) {
         ASSERT(l_exp->u_local.idx >= 0);
         return BinaryenSetLocal(gen->module, l_exp->u_local.idx, value);
@@ -69,21 +74,23 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     }
 
     ASSERT(id != NULL);
-    ASSERT(id->idx >= 0);
-    ASSERT1(is_return_id(id), id->kind);
 
-    return BinaryenStore(gen->module, sizeof(int32_t), 0, 0,
-                         BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
-                         value, meta_gen(&l_exp->meta));
-#if 0
+    if (is_return_id(id)) {
+        ASSERT(id->idx >= 0);
+        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), 0, 0,
+                             BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
+                             value, meta_gen(&l_exp->meta));
+    }
+
+    /* For an array whose index is a variable, we must dynamically determine the offset */
+    ASSERT1(is_array_meta(&id->meta), id->meta.type);
+
     gen->is_lval = true;
     address = exp_gen(gen, l_exp);
-    offset = 0;
     gen->is_lval = false;
 
-    return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), offset, 0, address,
+    return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), 0, 0, address,
                          value, meta_gen(&l_exp->meta));
-#endif
 }
 
 static BinaryenExpressionRef
