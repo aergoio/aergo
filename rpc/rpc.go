@@ -125,9 +125,7 @@ func (ns *RPC) Receive(context actor.Context) {
 			Txcount: int32(len(msg.GetBody().GetTxs())),
 		}
 		server.BroadcastToListBlockMetadataStream(meta)
-	case *actor.Started:
-	case *actor.Stopping:
-	case *actor.Stopped:
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 		// Ignore actor lfiecycle messages
 	default:
 		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())

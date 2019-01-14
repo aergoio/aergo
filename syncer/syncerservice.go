@@ -1,10 +1,11 @@
 package syncer
 
 import (
+	"runtime/debug"
+
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/pkg/component"
-	"runtime/debug"
 
 	"fmt"
 	"reflect"
@@ -228,7 +229,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 		actor.NotInfluenceReceiveTimeout:
 		str := fmt.Sprintf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(str)
-
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(str)

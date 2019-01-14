@@ -471,6 +471,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
@@ -616,6 +617,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Owner: owner,
 			Err:   err,
 		})
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
