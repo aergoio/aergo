@@ -148,6 +148,19 @@ func (_m *MockRemotePeer) Meta() PeerMeta {
 	return r0
 }
 
+func (_m *MockRemotePeer) ManageNumber() uint32 {
+	ret := _m.Called()
+
+	var r0 uint32
+	if rf, ok := ret.Get(0).(func() uint32); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint32)
+	}
+
+	return r0
+}
+
 // State provides a mock function with given fields:
 func (_m *MockRemotePeer) State() types.PeerState {
 	ret := _m.Called()

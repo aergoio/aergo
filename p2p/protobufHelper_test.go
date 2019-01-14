@@ -35,7 +35,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
@@ -76,7 +76,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgResponseOrder(NewMsgID(), PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
@@ -118,7 +118,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			mockPeerManager := new(MockPeerManager)
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			target := factory.newMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash})
 			msgID := sampleMsgID
@@ -172,7 +172,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()
