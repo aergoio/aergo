@@ -5,13 +5,12 @@
 package system
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 )
 
 var stakingkey = []byte("staking")
@@ -74,13 +73,11 @@ func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState, 
 
 func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
 	key := append(stakingkey, who...)
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(staking)
+	data, err := proto.Marshal(staking)
 	if err != nil {
 		return err
 	}
-	return scs.SetData(key, data.Bytes())
+	return scs.SetData(key, data)
 }
 
 func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
@@ -91,8 +88,7 @@ func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
 	}
 	var staking types.Staking
 	if len(data) != 0 {
-		dec := gob.NewDecoder(bytes.NewBuffer(data))
-		err = dec.Decode(&staking)
+		err := proto.Unmarshal(data, &staking)
 		if err != nil {
 			return nil, err
 		}
