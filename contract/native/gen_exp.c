@@ -33,6 +33,9 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
         return f32_gen(gen, val_f64(val));
 
     case TYPE_OBJECT:
+        /* If there is a variable at some point in the initializer, some elements are
+         * represented by literal, and some elements may not. Therefore, the object
+         * literal is processed by the generator */
         return i32_gen(gen, sgmt_add_raw(&gen->ir->sgmt, val_ptr(val), val_size(val)));
 
     default:
@@ -432,13 +435,13 @@ exp_gen_ternary(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp)
 {
-    ast_exp_t *id_exp = exp->u_acc.id_exp;
-    //ast_id_t *qual_id = id_exp->id;
+    ast_exp_t *qual_exp = exp->u_acc.qual_exp;
+    //ast_id_t *qual_id = qual_exp->id;
     ast_id_t *fld_id = exp->id;
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
-    ASSERT1(is_local_exp(id_exp), id_exp->kind);
+    ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
 
     if (is_fn_id(fld_id)) {
         BinaryenExpressionRef index;
@@ -446,7 +449,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
         ASSERT(fld_id->idx >= 0);
 
         index = BinaryenLoad(gen->module, sizeof(int32_t), 1, 0, 0, BinaryenTypeInt32(),
-                             exp_gen(gen, id_exp));
+                             exp_gen(gen, qual_exp));
 
         return BinaryenBinary(gen->module, BinaryenAddInt32(), index,
                               i32_gen(gen, fld_id->idx));
@@ -456,11 +459,11 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     if (is_object_meta(&qual_id->meta))
         address = BinaryenLoad(gen->module, TYPE_SIZE(qual_id->meta.type),
                                is_signed_meta(&qual_id->meta), 0, 0,
-                               meta_gen(&qual_id->meta), exp_gen(gen, id_exp));
+                               meta_gen(&qual_id->meta), exp_gen(gen, qual_exp));
     else
-        address = exp_gen(gen, id_exp);
+        address = exp_gen(gen, qual_exp);
 #endif
-    address = exp_gen(gen, id_exp);
+    address = exp_gen(gen, qual_exp);
 
     if (gen->is_lval)
         return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
@@ -484,6 +487,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     ASSERT(id->abi != NULL);
     ASSERT(id->idx >= 0);
 
+    /* Return values have already been added to "param_exps" in exp_trans_call() */
     arguments = xmalloc(sizeof(BinaryenExpressionRef) * id->abi->param_cnt);
 
     array_foreach(exp->u_call.param_exps, i) {
@@ -586,7 +590,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_global(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetGlobal(gen->module, exp->u_glob.name, type_gen(exp->u_glob.type));
+    return BinaryenGetGlobal(gen->module, exp->u_glob.name, BinaryenTypeInt32());
 }
 
 static BinaryenExpressionRef

@@ -27,6 +27,11 @@ id_trans_var(trans_t *trans, ast_id_t *id)
     /* The stack id satisfies all of the following conditions.
      * 1. Not a parameter
      * 2. An array or (not an object type nor a primitive type) */
+#if 0
+    /* The stack id satisfies all of the following conditions.
+     * 1. Not a parameter
+     * 2. An array or not a primitive type */
+#endif
 
     if (is_stack_id(id))
         fn_add_stack(trans->fn, id);
@@ -92,15 +97,35 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 #endif
 
 static void
+add_tmp_vars(ir_fn_t *fn)
+{
+    ASSERT(fn->abi != NULL);
+
+    /* It is used internally for binaryen, not for us (see fn_gen()) */
+    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
+
+    /* All stack variables access memory by adding relative offset to this value */
+    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
+}
+
+static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
-    ast_id_t *tmp_id;
-    ast_exp_t *l_exp, *r_exp, *v_exp;
+    //ast_id_t *tmp_id;
+    //ast_exp_t *l_exp, *r_exp, *v_exp;
     array_t *stmts = array_new();
     ir_fn_t *fn = trans->fn;
     ir_t *ir = trans->ir;
 
+    if (id->u_fn.blk == NULL)
+        id->u_fn.blk = blk_new_fn(&id->pos);
+
+    /* The parameter of the constructor is immutable */
+    fn->abi = abi_lookup(&ir->abis, id);
+
+    add_tmp_vars(fn);
+#if 0
     ASSERT(id->u_fn.ret_id != NULL);
     ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
 
@@ -117,6 +142,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     r_exp = exp_new_global(TYPE_INT32, "heap$offset");
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+#endif
 
     /* We use the "stmts" array to keep the declaration order of variables */
     array_foreach(&id->up->u_cont.blk->ids, i) {
@@ -129,7 +155,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             continue;
 
         if (is_var_id(var_id)) {
-            ir_add_global(trans->ir, var_id, fn->heap_idx);
+            fn_add_stack(fn, var_id);
+            //ir_add_global(trans->ir, var_id, fn->heap_idx);
 
             dflt_exp = var_id->u_var.dflt_exp;
         }
@@ -137,7 +164,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             array_foreach(var_id->u_tup.elem_ids, j) {
                 ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
 
-                ir_add_global(trans->ir, elem_id, fn->heap_idx);
+                fn_add_stack(fn, elem_id);
+                //ir_add_global(trans->ir, elem_id, fn->heap_idx);
             }
 
             dflt_exp = var_id->u_tup.dflt_exp;
@@ -147,6 +175,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
     }
 
+#if 0
     /* Increase "heap$offset" by the amount of memory used by the global variables
      * defined in the contract */
     l_exp = exp_new_global(TYPE_INT32, "heap$offset");
@@ -158,6 +187,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+#endif
 
     array_join_first(&id->u_fn.blk->stmts, stmts);
 }
@@ -166,13 +196,13 @@ static void
 id_trans_param(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *param_id;
-    ir_fn_t *fn = trans->fn;
-    ir_t *ir = trans->ir;
+    //ir_fn_t *fn = trans->fn;
+    //ir_t *ir = trans->ir;
 
     /* All functions that are not constructors must be added the contract address as
      * the first argument, and must also be added to the param_ids to reflect the abi */
 
-    param_id = id_new_tmp_var("cont$addr", TYPE_OBJECT);
+    param_id = id_new_tmp_var("cont$addr");
 
     param_id->is_param = true;
     param_id->up = id;
@@ -183,17 +213,40 @@ id_trans_param(trans_t *trans, ast_id_t *id)
         id->u_fn.param_ids = array_new();
 
     array_add_first(id->u_fn.param_ids, param_id);
-
-    fn->abi = abi_lookup(&ir->abis, id);
-
+#if 0
     /* The "heap_idx" is always 0 because it is prepended to parameters */
     fn->heap_idx = 0;
+#endif
+}
+
+static void
+set_stack_addr(trans_t *trans, src_pos_t *pos)
+{
+    ast_exp_t *l_exp, *r_exp, *v_exp;
+    ir_fn_t *fn = trans->fn;
+
+    /* At the beginning of "entry_bb", set the current stack offset to the local
+     * variable */
+    l_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
+
+    v_exp = exp_new_lit_i64(ALIGN64(fn->usage), pos);
+    meta_set_int32(&v_exp->meta);
+
+    r_exp = exp_new_binary(OP_SUB, exp_new_global("stack$offset"), v_exp, pos);
+
+    array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+
+    /* If there is any stack variable in the function, it has to be restored to the
+     * original value at the end of "exit_bb" because "stack$offset" has been changed */
+    l_exp = exp_new_global("stack$offset");
+    r_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
+
+    array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
 }
 
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    ast_exp_t *l_exp, *r_exp, *v_exp;
     ir_fn_t *fn = fn_new(id);
     ir_t *ir = trans->ir;
 
@@ -202,25 +255,38 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     trans->fn = fn;
 
+    /*
     if (id->u_fn.blk == NULL)
         id->u_fn.blk = blk_new_fn(&id->pos);
+        */
 
-    if (is_ctor_id(id))
+    if (is_ctor_id(id)) {
         id_trans_ctor(trans, id);
-    else
+    }
+    else {
         id_trans_param(trans, id);
+
+        fn->abi = abi_lookup(&ir->abis, id);
+        add_tmp_vars(fn);
+    }
 
     id->abi = fn->abi;
 
+#if 0
     /* It is used internally for binaryen, not for us (see fn_gen()) */
     fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
     /* All stack variables access memory by adding relative offset to this value */
     fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
+#endif
 
     trans->bb = fn->entry_bb;
 
-    blk_trans(trans, id->u_fn.blk);
+    if (id->u_fn.blk != NULL)
+        blk_trans(trans, id->u_fn.blk);
+
+    if (fn->usage > 0)
+        set_stack_addr(trans, &id->pos);
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, fn->exit_bb);
@@ -229,38 +295,14 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
-    /* The following statements do not require transformation */
-
-    /* At the beginning of "entry_bb", set the current stack usage to the local
-     * variable */
-    l_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
-
-    v_exp = exp_new_lit(&id->pos);
-
-    value_set_i64(&v_exp->u_lit.val, ALIGN64(fn->usage));
-    meta_set_int32(&v_exp->meta);
-
-    r_exp = exp_new_binary(OP_SUB, exp_new_global(TYPE_INT32, "stack$high"), v_exp,
-                           &id->pos);
-
-    array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
-    // TODO
 #if 0
-    /* If there is a call expression in the function, it restores the original value
-     * at the end of "exit_bb" because "stack$high" has been changed */
-    l_exp = exp_new_global(TYPE_INT32, "stack$high");
-    r_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
-
-    array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-#endif
-
     if (is_ctor_id(id)) {
         /* The contract address is returned at the end of "exit_bb" */
         l_exp = exp_new_local(TYPE_INT32, fn->heap_idx);
 
         array_add_last(&fn->exit_bb->stmts, stmt_new_return(l_exp, &id->pos));
     }
+#endif
 
     trans->fn = NULL;
     trans->bb = NULL;
@@ -273,12 +315,12 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
 {
     int i, j;
     int fn_idx = 1;
-    ast_id_t *tmp_id;
+    ast_id_t *idx_id;
     ast_blk_t *blk = id->u_cont.blk;
     ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
-    ASSERT1(ir->offset == 0, ir->offset);
+    //ASSERT1(ir->offset == 0, ir->offset);
 
     if (id->u_cont.impl_exp != NULL) {
         /* Reorder functions according to the order in the interface
@@ -319,7 +361,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         }
     }
 
-    /* Because the cross-reference is possible within the function, the index of the
+    /* Because the cross-reference is possible between functions, the index of the
      * function is numbered before transformation */
     array_foreach(&blk->ids, i) {
         ast_id_t *fn_id = array_get_id(&blk->ids, i);
@@ -339,20 +381,22 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     id->idx = array_size(&ir->fns);
 #endif
 
-    /* This value, like any other global variable, is stored in the heap area used by
+    /* This value, like any other global variable, is stored in the stack area used by
      * the contract, and is stored in the first 4 bytes of the area. All functions
      * also access table by adding relative index to this value */
-    tmp_id = id_new_tmp_var("cont$idx", TYPE_INT32);
+    idx_id = id_new_tmp_var("cont$idx");
 
-    tmp_id->up = id;
-    tmp_id->u_var.dflt_exp = exp_new_lit(&tmp_id->pos);
-    value_set_i64(&tmp_id->u_var.dflt_exp->u_lit.val, array_size(&ir->fns));
+    idx_id->up = id;
+    idx_id->u_var.dflt_exp = exp_new_lit_i64(array_size(&ir->fns), &idx_id->pos);
 
-    array_add_first(&id->u_cont.blk->ids, tmp_id);
+    meta_set_int32(&idx_id->u_var.dflt_exp->meta);
+    meta_set_int32(&idx_id->meta);
+
+    array_add_first(&id->u_cont.blk->ids, idx_id);
 
     blk_trans(trans, id->u_cont.blk);
 
-    ir->offset = 0;
+    //ir->offset = 0;
 }
 
 static void

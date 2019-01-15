@@ -8,6 +8,7 @@
 #include "strbuf.h"
 #include "ast_id.h"
 #include "ast_exp.h"
+#include "ast_blk.h"
 
 #include "meta.h"
 
@@ -77,14 +78,19 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
     meta_set(meta, TYPE_STRUCT);
 
     meta->name = id->name;
+    meta->size = 0;
 
     meta->elem_cnt = array_size(id->u_struc.fld_ids);
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
     for (i = 0; i < meta->elem_cnt; i++) {
         meta->elems[i] = &array_get_id(id->u_struc.fld_ids, i)->meta;
+
+        meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
+        meta->size += meta_size(meta->elems[i]);
     }
 
+    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
     meta->type_id = id;
 }
 
@@ -95,12 +101,19 @@ meta_set_tuple(meta_t *meta, array_t *elem_exps)
 
     meta_set(meta, TYPE_TUPLE);
 
+    meta->size = 0;
+
     meta->elem_cnt = array_size(elem_exps);
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
     for (i = 0; i < meta->elem_cnt; i++) {
         meta->elems[i] = &array_get_exp(elem_exps, i)->meta;
+
+        meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
+        meta->size += meta_size(meta->elems[i]);
     }
+
+    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
 }
 
 void
@@ -111,6 +124,29 @@ meta_set_object(meta_t *meta, ast_id_t *id)
     if (id != NULL) {
         ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
         meta->name = id->name;
+        /*
+        meta->size = 0;
+
+        if (is_cont_id(id)) {
+            int i, align = 0;
+
+            for (i = 0; i < array_size(&id->u_cont.blk->ids); i++) {
+                ast_id_t *elem_id = array_get_id(&id->u_cont.blk->ids, i);
+
+                if (is_const_id(elem_id) || !is_var_id(elem_id))
+                    continue;
+
+                meta->size = ALIGN(meta->size, meta_align(&elem_id->meta));
+                meta->size += meta_size(&elem_id->meta);
+
+                if (align == 0)
+                    align = meta_align(&elem_id->meta);
+            }
+
+            if (align > 0)
+                meta->size = ALIGN(meta->size, align);
+        }
+        */
     }
 
     meta->type_id = id;
@@ -317,10 +353,12 @@ meta_eval_type(meta_t *x, meta_t *y)
 
     if (is_undef_meta(x)) {
         x->type = y->type;
+        x->size = TYPE_SIZE(x->type);
         x->is_undef = y->is_undef;
     }
     else if (is_undef_meta(y)) {
         y->type = x->type;
+        y->size = TYPE_SIZE(y->type);
         y->is_undef = x->is_undef;
     }
     else if (is_map_meta(x)) {
@@ -368,6 +406,26 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
     }
 }
 
+static void
+meta_eval_size(meta_t *meta)
+{
+    int i;
+
+    meta->size = 0;
+
+    for (i = 0; i < meta->elem_cnt; i++) {
+        meta_t *elem_meta = meta->elems[i];
+
+        if (is_tuple_meta(elem_meta))
+            meta_eval_size(elem_meta);
+
+        meta->size = ALIGN(meta->size, meta_align(elem_meta));
+        meta->size += meta_size(elem_meta);
+    }
+
+    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
+}
+
 void
 meta_eval(meta_t *x, meta_t *y)
 {
@@ -375,6 +433,13 @@ meta_eval(meta_t *x, meta_t *y)
         meta_eval_array(x, 0, y);
     else
         meta_eval_type(x, y);
+
+    if (is_tuple_meta(y)) {
+        meta_eval_size(y);
+
+        if (!is_map_meta(x))
+            ASSERT2(x->size == y->size, x->size, y->size);
+    }
 }
 
 /* end of meta.c */

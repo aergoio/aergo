@@ -39,6 +39,10 @@
     (!(id)->is_param &&                                                                  \
      (is_array_meta(&(id)->meta) ||                                                      \
       (!is_object_meta(&(id)->meta) && !is_primitive_meta(&(id)->meta))))
+#if 0
+#define is_stack_id(id)                                                                  \
+    (!(id)->is_param && (is_array_meta(&(id)->meta) || !is_primitive_meta(&(id)->meta)))
+#endif
 
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
 #define is_param_id(id)             ((id)->is_param)
@@ -153,7 +157,7 @@ ast_id_t *id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
 ast_id_t *id_new_tuple(src_pos_t *pos);
 
-ast_id_t *id_new_tmp_var(char *name, type_t type);
+ast_id_t *id_new_tmp_var(char *name);
 
 ast_id_t *id_search_fld(ast_id_t *id, char *name, bool is_self);
 ast_id_t *id_search_param(ast_id_t *id, char *name);

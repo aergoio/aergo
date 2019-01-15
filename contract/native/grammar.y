@@ -1276,55 +1276,47 @@ prim_exp:
 literal:
     K_NULL
     {
-        $$ = exp_new_lit(&@$);
-        value_set_null(&$$->u_lit.val);
+        $$ = exp_new_lit_null(&@$);
     }
 |   K_TRUE
     {
-        $$ = exp_new_lit(&@$);
-        value_set_bool(&$$->u_lit.val, true);
+        $$ = exp_new_lit_bool(true, &@$);
     }
 |   K_FALSE
     {
-        $$ = exp_new_lit(&@$);
-        value_set_bool(&$$->u_lit.val, false);
+        $$ = exp_new_lit_bool(false, &@$);
     }
 |   L_INT
     {
         uint64_t v;
 
-        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNu64, &v);
-        value_set_i64(&$$->u_lit.val, v);
+        $$ = exp_new_lit_i64(v, &@$);
     }
 |   L_OCTAL
     {
         uint64_t v;
 
-        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNo64, &v);
-        value_set_i64(&$$->u_lit.val, v);
+        $$ = exp_new_lit_i64(v, &@$);
     }
 |   L_HEX
     {
         uint64_t v;
 
-        $$ = exp_new_lit(&@$);
         sscanf($1, "%"SCNx64, &v);
-        value_set_i64(&$$->u_lit.val, v);
+        $$ = exp_new_lit_i64(v, &@$);
     }
 |   L_FLOAT
     {
         double v;
 
-        $$ = exp_new_lit(&@$);
         sscanf($1, "%lf", &v);
-        value_set_f64(&$$->u_lit.val, v);
+        $$ = exp_new_lit_f64(v, &@$);
     }
 |   L_STR
     {
-        $$ = exp_new_lit(&@$);
-        value_set_str(&$$->u_lit.val, $1);
+        $$ = exp_new_lit_str($1, &@$);
     }
 ;
 

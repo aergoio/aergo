@@ -49,8 +49,8 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
     ir_abi_t *abi = fn->abi;
 
-    ASSERT(abi != NULL);
     ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    ASSERT(abi != NULL);
 
     id->idx = abi->param_cnt + array_size(&fn->locals);
 
@@ -80,11 +80,15 @@ fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 int
 fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
 {
+    ast_id_t *tmp_id;
     ir_abi_t *abi = fn->abi;
 
     ASSERT(abi != NULL);
 
-    array_add_last(&fn->locals, id_new_tmp_var(name, type));
+    tmp_id = id_new_tmp_var(name);
+    meta_set(&tmp_id->meta, type);
+
+    array_add_last(&fn->locals, tmp_id);
 
     return abi->param_cnt + array_size(&fn->locals) - 1;
 }

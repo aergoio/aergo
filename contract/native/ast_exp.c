@@ -29,12 +29,62 @@ exp_new_null(src_pos_t *pos)
     return ast_exp_new(EXP_NULL, pos);
 }
 
-ast_exp_t *
+static ast_exp_t *
 exp_new_lit(src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_LIT, pos);
 
     value_init(&exp->u_lit.val);
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_lit_null(src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_null(&exp->u_lit.val);
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_lit_bool(bool v, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_bool(&exp->u_lit.val, v);
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_lit_i64(uint64_t v, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_i64(&exp->u_lit.val, v);
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_lit_f64(double v, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_f64(&exp->u_lit.val, v);
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_lit_str(char *v, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_str(&exp->u_lit.val, v);
 
     return exp;
 }
@@ -84,11 +134,11 @@ exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos)
+exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ACCESS, pos);
 
-    exp->u_acc.id_exp = id_exp;
+    exp->u_acc.qual_exp = qual_exp;
     exp->u_acc.fld_exp = fld_exp;
 
     return exp;
@@ -166,13 +216,12 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_global(type_t type, char *name)
+exp_new_global(char *name)
 {
     ast_exp_t *exp = ast_exp_new(EXP_GLOBAL, &src_pos_null_);
 
     ASSERT(name != NULL);
 
-    exp->u_glob.type = type;
     exp->u_glob.name = name;
 
     return exp;
@@ -320,7 +369,7 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_ACCESS:
-        res = exp_new_access(exp_clone(exp->u_acc.id_exp),
+        res = exp_new_access(exp_clone(exp->u_acc.qual_exp),
                              exp_clone(exp->u_acc.fld_exp), &exp->pos);
         break;
 
@@ -347,7 +396,7 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_GLOBAL:
-        res = exp_new_global(exp->u_glob.type, exp->u_glob.name);
+        res = exp_new_global(exp->u_glob.name);
         break;
 
     case EXP_LOCAL:
@@ -418,7 +467,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             exp_equals(x->u_tern.post_exp, y->u_tern.post_exp);
 
     case EXP_ACCESS:
-        return exp_equals(x->u_acc.id_exp, y->u_acc.id_exp) &&
+        return exp_equals(x->u_acc.qual_exp, y->u_acc.qual_exp) &&
             exp_equals(x->u_acc.fld_exp, y->u_acc.fld_exp);
 
     case EXP_CALL:
@@ -430,7 +479,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
                             array_get_exp(y->u_call.param_exps, i)))
                 return false;
         }
-        return exp_equals(x->u_acc.id_exp, y->u_acc.id_exp);
+        return exp_equals(x->u_acc.qual_exp, y->u_acc.qual_exp);
 
     case EXP_SQL:
         return x->u_sql.kind == y->u_sql.kind &&

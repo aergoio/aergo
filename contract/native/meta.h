@@ -100,6 +100,7 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
+#define meta_size(meta)             (meta)->size
 #define meta_align(meta)            TYPE_ALIGN((meta)->type)
 
 #define meta_cnt(meta)                                                                   \
@@ -121,11 +122,12 @@ typedef struct mem_info_s {
 
 struct meta_s {
     type_t type;
-
-    bool is_undef;          /* whether it is literal */
+    int size;
 
     char *name;             /* name of struct, contract or interface */
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
+
+    bool is_undef;          /* whether it is literal */
 
     /* array specifications */
     int arr_dim;            /* dimension of array */
@@ -176,7 +178,7 @@ meta_new(type_t type, src_pos_t *pos)
     meta_init(meta, pos);
 
     meta->type = type;
-    //meta->size = TYPE_SIZE(type);
+    meta->size = TYPE_SIZE(type);
 
     meta->pos = xmalloc(sizeof(src_pos_t));
     memcpy(meta->pos, pos, sizeof(src_pos_t));
@@ -190,7 +192,7 @@ meta_set(meta_t *meta, type_t type)
     ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
-    //meta->size = TYPE_SIZE(type);
+    meta->size = TYPE_SIZE(type);
 }
 
 static inline void
@@ -217,10 +219,8 @@ meta_set_dim_size(meta_t *meta, int dim, int size)
 
     meta->dim_sizes[dim] = size;
 
-    /*
     if (size > 0)
-        meta->arr_size *= size;
-        */
+        meta->size *= size;
 }
 
 static inline void
@@ -230,11 +230,9 @@ meta_strip_arr_dim(meta_t *meta)
 
     meta->arr_dim--;
 
-#if 0
     if (meta->dim_sizes[0] > 0)
         /* In case of a parameter, dim_size can be negative */
-        meta->arr_size /= meta->dim_sizes[0];
-#endif
+        meta->size /= meta->dim_sizes[0];
 
     if (meta->arr_dim == 0)
         meta->dim_sizes = NULL;
@@ -242,6 +240,15 @@ meta_strip_arr_dim(meta_t *meta)
         meta->dim_sizes = &meta->dim_sizes[1];
 }
 
+static inline void
+meta_set_rel_offset(meta_t *meta, uint32_t *offset)
+{
+    meta->rel_offset = ALIGN(*offset, meta_align(meta));
+
+    *offset = meta->rel_offset + meta_size(meta);
+}
+
+#if 0
 static inline uint32_t
 meta_size(meta_t *meta)
 {
@@ -271,6 +278,7 @@ meta_size(meta_t *meta)
 
     return size;
 }
+#endif
 
 static inline uint32_t
 meta_unit(meta_t *meta)
@@ -292,7 +300,7 @@ static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
     dest->type = src->type;
-    //dest->size = src->size;
+    dest->size = src->size;
     dest->name = src->name;
     dest->arr_dim = src->arr_dim;
     //dest->arr_size = src->arr_size;

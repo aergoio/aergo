@@ -477,32 +477,32 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
 static bool
 exp_check_access(check_t *check, ast_exp_t *exp)
 {
-    ast_exp_t *id_exp, *fld_exp;
-    meta_t *id_meta;
+    ast_exp_t *qual_exp, *fld_exp;
+    meta_t *qual_meta;
     ast_id_t *qual_id;
 
     ASSERT1(is_access_exp(exp), exp->kind);
 
-    id_exp = exp->u_acc.id_exp;
-    id_meta = &id_exp->meta;
+    qual_exp = exp->u_acc.qual_exp;
+    qual_meta = &qual_exp->meta;
 
-    CHECK(exp_check(check, id_exp));
+    CHECK(exp_check(check, qual_exp));
 
-    qual_id = id_exp->id;
+    qual_id = qual_exp->id;
 
     if (qual_id == NULL ||
-        is_tuple_meta(id_meta) || /* in case of new initializer */
-        (is_fn_id(qual_id) && !is_struct_meta(id_meta) && !is_object_meta(id_meta)))
-        RETURN(ERROR_INACCESSIBLE_TYPE, &id_exp->pos, meta_to_str(id_meta));
+        is_tuple_meta(qual_meta) || /* in case of new initializer */
+        (is_fn_id(qual_id) && !is_struct_meta(qual_meta) && !is_object_meta(qual_meta)))
+        RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
     /* get the actual struct, contract or interface identifier */
-    if (is_struct_meta(id_meta) || is_object_meta(id_meta)) {
+    if (is_struct_meta(qual_meta) || is_object_meta(qual_meta)) {
         /* if "this.x" is used, "qual_id" is the contract identifier */
         ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id),
                 qual_id->kind);
-        ASSERT(id_meta->type_id != NULL);
+        ASSERT(qual_meta->type_id != NULL);
 
-        qual_id = id_meta->type_id;
+        qual_id = qual_meta->type_id;
     }
 
     ASSERT(qual_id != NULL);

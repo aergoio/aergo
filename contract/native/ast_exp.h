@@ -86,7 +86,7 @@ typedef struct exp_call_s {
 
 /* id.fld */
 typedef struct exp_access_s {
-    ast_exp_t *id_exp;
+    ast_exp_t *qual_exp;
     ast_exp_t *fld_exp;
 } exp_access_t;
 
@@ -128,7 +128,6 @@ typedef struct exp_init_s {
 } exp_init_t;
 
 typedef struct exp_global_s {
-    type_t type;
     char *name;
 } exp_global_t;
 
@@ -178,12 +177,16 @@ struct ast_exp_s {
 };
 
 ast_exp_t *exp_new_null(src_pos_t *pos);
-ast_exp_t *exp_new_lit(src_pos_t *pos);
+ast_exp_t *exp_new_lit_null(src_pos_t *pos);
+ast_exp_t *exp_new_lit_bool(bool v, src_pos_t *pos);
+ast_exp_t *exp_new_lit_i64(uint64_t v, src_pos_t *pos);
+ast_exp_t *exp_new_lit_f64(double v, src_pos_t *pos);
+ast_exp_t *exp_new_lit_str(char *v, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
-ast_exp_t *exp_new_access(ast_exp_t *id_exp, ast_exp_t *fld_exp, src_pos_t *pos);
+ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp,
                          src_pos_t *pos);
 ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
@@ -194,7 +197,7 @@ ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
 
-ast_exp_t *exp_new_global(type_t type, char *name);
+ast_exp_t *exp_new_global(char *name);
 ast_exp_t *exp_new_local(type_t type, int idx);
 ast_exp_t *exp_new_stack(type_t type, int base, int addr, int offset);
 ast_exp_t *exp_new_fn(int base, int idx);

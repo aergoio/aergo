@@ -142,6 +142,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
             address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                      i32_gen(gen, l_exp->u_stk.addr));
 
+        /* TODO: need to impose some nice STORE instruction */
         if (is_array_meta(&l_exp->meta)) {
             store_array(gen, address, l_exp->u_stk.offset, &l_exp->meta, value, 0, 
                         &r_exp->meta);

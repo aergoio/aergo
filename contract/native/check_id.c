@@ -152,7 +152,7 @@ static bool
 id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
-    int offset = 0;
+    uint32_t offset = 0;
     array_t *fld_ids;
 
     ASSERT1(is_struct_id(id), id->kind);
@@ -164,7 +164,6 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     array_foreach(fld_ids, i) {
         ast_id_t *fld_id = array_get_id(fld_ids, i);
-        meta_t *fld_meta = &fld_id->meta;
 
         ASSERT1(is_var_id(fld_id), fld_id->kind);
 
@@ -172,10 +171,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         flag_set(fld_id->mod, MOD_PUBLIC);
 
-        offset = ALIGN(offset, meta_align(fld_meta));
-
-        fld_id->meta.rel_offset = offset;
-        offset += meta_size(fld_meta);
+        meta_set_rel_offset(&fld_id->meta, &offset);
     }
 
     meta_set_struct(&id->meta, id);
@@ -400,7 +396,7 @@ id_check_label(check_t *check, ast_id_t *id)
 static bool
 id_check_tuple(check_t *check, ast_id_t *id)
 {
-    int i;
+    int i, align = 0;
     array_t *elem_ids = id->u_tup.elem_ids;
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
@@ -411,16 +407,17 @@ id_check_tuple(check_t *check, ast_id_t *id)
     id->meta.elem_cnt = array_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
-    /* The meta size of the tuple identifier is never used,
-     * so we do not need to set size here */
+    id->meta.size = 0;
+
+    /* The meta size of the tuple identifier is never used, so we do not need to set
+     * size here */
     array_foreach(elem_ids, i) {
         ast_id_t *elem_id = array_get_id(elem_ids, i);
 
         elem_id->mod = id->mod;
 
         if (is_var_id(elem_id)) {
-            /* The default expression for the tuple identifier
-             * is set in id_trans_var() */
+            /* The default expression for the tuple identifier is set in id_trans_var() */
             ASSERT(elem_id->u_var.dflt_exp == NULL);
 
             if (elem_id->u_var.type_meta == NULL)
@@ -437,9 +434,17 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
         id->meta.elems[i] = &elem_id->meta;
 
+        id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
+        id->meta.size += meta_size(&elem_id->meta);
+
+        if (align == 0)
+            align = meta_align(&elem_id->meta);
+
         if (is_const_id(elem_id) && dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
+
+    id->meta.size = ALIGN(id->meta.size, align);
 
     if (dflt_exp != NULL) {
         CHECK(exp_check(check, dflt_exp));

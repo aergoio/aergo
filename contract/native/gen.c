@@ -59,14 +59,16 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
     BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
-    BinaryenAddGlobal(gen->module, "stack$high", BinaryenTypeInt32(), 1,
+    BinaryenAddGlobal(gen->module, "stack$offset", BinaryenTypeInt32(), 1,
                       i32_gen(gen, stack_size));
 
+    /*
     BinaryenAddGlobal(gen->module, "stack$low", BinaryenTypeInt32(), 0,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
 
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
                       i32_gen(gen, stack_size + 1));
+                      */
 }
 
 void

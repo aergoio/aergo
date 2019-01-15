@@ -21,8 +21,8 @@ add_exp_stmt(trans_t *trans, ast_exp_t *exp)
 
     exp_trans(trans, exp);
 
-    /* For unary increase/decrease expressions, which are postfixes,
-     * add them as piggybacked statements */
+    /* For unary increase/decrease expressions, which are postfixes, add them as
+     * piggybacked statements */
     bb_add_stmt(trans->bb, NULL);
 }
 
@@ -51,15 +51,15 @@ resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
     if (is_init_exp(val_exp)) {
         ASSERT(var_exp->id != NULL);
 
-        /* This is set here because we need the base address to store
-         * each value of the initializer expression */
+        /* This is set here because we need the base address to store each value of
+         * the initializer expression */
         val_exp->id = var_exp->id;
     }
 
     if (val_exp->id != NULL && is_object_meta(meta) &&
         meta->type_id != NULL && is_itf_id(meta->type_id)) {
-        /* Override the meta of the variable declared as the interface type
-         * with the rvalue (== contract) meta */
+        /* Override the meta of the variable declared as the interface type with the
+         * rvalue (== contract) meta */
         if (is_fn_id(val_exp->id))
             meta_set_object(meta, val_exp->id->up);
         else
@@ -80,8 +80,8 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     exp_trans(trans, r_exp);
 
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
-        /* Separate combinations of each expression made up of tuples
-         * into separate assign statements */
+        /* Separate combinations of each expression made up of tuples into separate
+         * assignment statements */
         int i, j;
         int var_idx = 0;
         src_pos_t *pos = &stmt->pos;
@@ -89,8 +89,8 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         array_t *val_exps = r_exp->u_tup.elem_exps;
         ast_exp_t *var_exp, *val_exp;
 
-        /* If rvalue has a function that returns multiple values,
-         * the number of left and right expressions may be different */
+        /* If rvalue has a function that returns multiple values, the number of left
+         * and right expressions may be different */
         if (array_size(var_exps) == array_size(val_exps)) {
             array_foreach(val_exps, i) {
                 var_exp = array_get_exp(var_exps, i);
@@ -102,9 +102,9 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             return;
         }
 
-        /* For a function that returns the multiple value mentioned above,
-         * an expression is generated for each value in the transformer and
-         * finally a tuple expression is created. (see exp_trans_call()) */
+        /* For a function that returns the multiple value mentioned above, an expression
+         * is generated for each right value in the transformer and finally a tuple
+         * expression is created. (see exp_trans_call()) */
         array_foreach(val_exps, i) {
             ASSERT1(var_idx < array_size(var_exps), var_idx);
 
@@ -145,9 +145,9 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *next_bb = bb_new();
     array_t *elif_stmts = &stmt->u_if.elif_stmts;
 
-    /* The if statement is transformed to a combination of basic blocks,
-     * each condition is used as a branch condition, and the else block is
-     * transformed by an unconditional branch
+    /* The if statement is transformed to a combination of basic blocks, each condition
+     * is used as a branch condition, and the else block is transformed by an
+     * unconditional branch
      *
      *         .---------------------------.
      *         |         prev_bb           |
@@ -216,10 +216,10 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *cond_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
-    /* Each expression of the for-loop statement is separated,
-     * the initial expression is added to the end of prev_bb,
-     * the conditional expression is added at the beginning of cond_bb,
-     * and the afterthought expression is added at the end of the loop block
+    /* Each expression of the for-loop statement is separated, the initial expression
+     * is added to the end of prev_bb, the conditional expression is added at the
+     * beginning of cond_bb, and the afterthought expression is added at the end of
+     * the loop block
      *
      *         .---------------------.
      *         | prev_bb + init_stmt |
@@ -297,9 +297,9 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
 
-    /* In a switch-case statement, each case block is transformed to
-     * a single basic block, and the switch condition and the case value are
-     * compared and used as a branch condition
+    /* In a switch-case statement, each case block is transformed to a single basic
+     * block, and the switch condition and the case value are compared and used as
+     * a branch condition
      *
      *         .---------------------------.
      *         |         prev_bb           |
@@ -370,6 +370,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
         ASSERT(ret_id->up != NULL);
         ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
 
+#if 0
         if (is_ctor_id(ret_id->up)) {
             /* If "arg_exp" is not null and "stmt" is constructor's return statement,
              * the "stmt" is added to exit_bb because it is a statement to return the
@@ -379,11 +380,12 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             bb_add_stmt(trans->fn->exit_bb, stmt);
         }
         else {
+#endif
             /* Each return expression of a function corresponds to a local variable,
              * so if there is return arguments, the return statement is transformed to
              * an assign statement using the address value of each return argument */
             stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
-        }
+        //}
     }
 
 #if 0
