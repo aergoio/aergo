@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -200,24 +201,32 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.Block, *state.BlockState, error) {
+func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *types.Block, bs *state.BlockState, err error) {
+	defer func() {
+		if panicMsg := recover(); panicMsg != nil {
+			block = nil
+			bs = nil
+			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
+		}
+	}()
+
 	ts := bpi.slot.UnixNano()
 
-	blockState := bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
+	bs = bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
 		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.GetHeader().GetPrevBlockHash()),
 	)
 
-	block, err := chain.GenerateBlock(bf, bpi.bestBlock, blockState, txOp, ts)
+	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	block.SetConfirms(block.BlockNo() - lpbNo)
 
-	if err := block.Sign(bf.privKey); err != nil {
+	if err = block.Sign(bf.privKey); err != nil {
 		return nil, nil, err
 	}
 
@@ -228,7 +237,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (*types.
 		Uint64("lpb", lpbNo).
 		Msg("block produced")
 
-	return block, blockState, nil
+	return
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {
