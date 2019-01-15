@@ -22,18 +22,14 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, resetHeight types.BlockNo) *Status {
+func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateDB, resetHeight types.BlockNo) *Status {
 	s := &Status{
 		libState: newLibStatus(consensusBlockCount(c.Size())),
-		bps:      bp.NewSnapshots(c, cdb),
+		bps:      bp.NewSnapshots(c, cdb, sdb),
 	}
 	s.init(cdb, resetHeight)
 
 	return s
-}
-
-func (s *Status) setStateDB(sdb *state.ChainStateDB) {
-	s.bps.SetStateDB(sdb)
 }
 
 // load restores the last LIB status by using the informations loaded from the

@@ -80,15 +80,17 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb)
+		return New(cfg, hub, cdb, sdb)
 	}
 }
 
 // New returns a new DPos object
-func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
-	bpc, err := bp.NewCluster(cfg.Consensus, cdb)
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) (consensus.Consensus, error) {
+	bpc, err := bp.NewCluster(cdb)
 	if err != nil {
 		return nil, err
 	}
@@ -98,11 +100,11 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB)
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(bpc, cdb, cfg.Blockchain.ForceResetHeight),
+		Status:       NewStatus(bpc, cdb, sdb, cfg.Blockchain.ForceResetHeight),
 		ComponentHub: hub,
 		ChainDB:      cdb,
 		bpc:          bpc,
-		bf:           NewBlockFactory(hub, quitC),
+		bf:           NewBlockFactory(hub, sdb, quitC),
 		quit:         quitC,
 	}, nil
 }
@@ -141,13 +143,6 @@ func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 // BlockFactory returns the BlockFactory interface in dpos.
 func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
-}
-
-// SetStateDB sets sdb to the corresponding field of DPoS. This method is
-// called only once during the boot sequence.
-func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
-	dpos.bf.sdb = sdb
-	dpos.Status.setStateDB(sdb)
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction

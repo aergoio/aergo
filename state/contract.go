@@ -37,6 +37,11 @@ func (states *StateDB) StageContractState(st *ContractState) error {
 	return nil
 }
 
+// GetSystemAccountState returns the ContractState of the AERGO system account.
+func (states *StateDB) GetSystemAccountState() (*ContractState, error) {
+	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+}
+
 type ContractState struct {
 	*types.State
 	account types.AccountID

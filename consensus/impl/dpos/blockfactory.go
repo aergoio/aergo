@@ -58,7 +58,7 @@ type BlockFactory struct {
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *BlockFactory {
+func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC <-chan interface{}) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
@@ -68,6 +68,7 @@ func NewBlockFactory(hub *component.ComponentHub, quitC <-chan interface{}) *Blo
 		quit:             quitC,
 		ID:               p2p.NodeSID(),
 		privKey:          p2p.NodePrivKey(),
+		sdb:              sdb,
 	}
 
 	bf.txOp = chain.NewCompTxOp(

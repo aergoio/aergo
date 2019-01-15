@@ -12,11 +12,9 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
@@ -61,7 +59,7 @@ type blockProducer struct {
 }
 
 // NewCluster returns a new bp.Cluster.
-func NewCluster(cfg *config.ConsensusConfig, cdb consensus.ChainDB) (*Cluster, error) {
+func NewCluster(cdb consensus.ChainDB) (*Cluster, error) {
 	c := &Cluster{cdb: cdb}
 
 	if err := c.init(); err != nil {
@@ -88,31 +86,33 @@ func (c *Cluster) init() error {
 	// remains the same.
 	c.size = uint16(len(genesisBpList))
 
-	var (
-		bestBlock *types.Block
-		err       error
-	)
+	/*
+		var (
+			bestBlock *types.Block
+			err       error
+		)
 
-	if bestBlock, err = c.cdb.GetBestBlock(); err != nil {
-		return err
-	}
-
-	var bps []string
-
-	// During the initial boostrapping period, the BPs given by the genesis
-	// info is used.
-	if bestBlock.BlockNo() <= bootstrapHeight(types.BlockNo(c.Size())) {
-		bps = genesisBpList
-	} else {
-		bps, err = loadCluster(c.cdb, bestBlock.BlockNo(), types.BlockNo(c.Size()))
-		if err != nil {
+		if bestBlock, err = c.cdb.GetBestBlock(); err != nil {
 			return err
 		}
-	}
 
-	if err := c.Update(bps); err != nil {
-		return err
-	}
+		var bps []string
+
+		// During the initial boostrapping period, the BPs given by the genesis
+		// info is used.
+		if bestBlock.BlockNo() <= bootstrapHeight(types.BlockNo(c.Size())) {
+			bps = genesisBpList
+		} else {
+				bps, err = loadCluster(c.cdb, bestBlock.BlockNo(), types.BlockNo(c.Size()))
+				if err != nil {
+					return err
+				}
+		}
+
+		if err := c.Update(bps); err != nil {
+			return err
+		}
+	*/
 
 	return nil
 }
@@ -217,20 +217,6 @@ func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot
 	return &Snapshot{RefBlockNo: blockNo, List: bps}, nil
 }
 
-func loadCluster(cdb consensus.ChainDB, blockNo, bpCount types.BlockNo) ([]string, error) {
-	refBlockNo := snapBlockNo(blockNo, bpCount)
-
-	key := buildKey(refBlockNo)
-	var bps []string
-
-	if err := common.GobDecode(cdb.Get(key), &bps); err != nil {
-		logger.Debug().Err(err).Str("key", string(key)).Msg("BP list DB lookup failed")
-		return nil, err
-	}
-
-	return bps, nil
-}
-
 func snapBlockNo(blockNo types.BlockNo, bpCount types.BlockNo) types.BlockNo {
 	if blockNo < bootstrapHeight(bpCount) {
 		return 0
@@ -287,25 +273,34 @@ type Snapshots struct {
 }
 
 // NewSnapshots returns a new Snapshots.
-func NewSnapshots(c ClusterMember, cdb consensus.ChainDB) *Snapshots {
-	return &Snapshots{
+func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateDB) *Snapshots {
+	snap := &Snapshots{
 		snaps:   make(map[types.BlockNo]*Snapshot),
 		bpCount: c.Size(),
 		cm:      c,
 		cdb:     cdb,
+		sdb:     sdb,
 		log:     make([]*journal, 0, 2),
 	}
+
+	// To avoid a unit test failure.
+	if cdb == nil {
+		return snap
+	}
+
+	if block, err := cdb.GetBestBlock(); err == nil {
+		snap.UpdateCluster(block.BlockNo())
+	} else {
+		panic(err.Error())
+	}
+
+	return snap
 }
 
 // NeedToRefresh reports whether blockNo corresponds to a BP regime change
 // point.
 func (sn *Snapshots) NeedToRefresh(blockNo types.BlockNo) bool {
 	return blockNo%types.BlockNo(sn.bpCount) == 0
-}
-
-// SetStateDB sets sdb to sn.sdb.
-func (sn *Snapshots) SetStateDB(sdb *state.ChainStateDB) {
-	sn.sdb = sdb
 }
 
 // AddSnapshot add a new BP list corresponding to refBlockNO to sn.
@@ -347,17 +342,7 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 }
 
 func (sn *Snapshots) gatherRankers() ([]string, error) {
-	vl, err := system.GetVoteResult(sn.sdb, int(sn.bpCount))
-	if err != nil {
-		return nil, err
-	}
-
-	bps := make([]string, 0, sn.bpCount)
-	for _, v := range vl.Votes {
-		bps = append(bps, enc.ToString(v.Candidate))
-	}
-
-	return bps, nil
+	return system.GetRankers(sn.sdb, int(sn.bpCount))
 }
 
 // UpdateCluster updates the current BP list by the ones corresponding to
@@ -465,7 +450,23 @@ func (sn *Snapshots) getCurrentCluster(blockNo types.BlockNo) ([]string, error) 
 		return s.List, nil
 	}
 
-	return loadCluster(sn.cdb, blockNo, sn.period())
+	return sn.loadClusterSnapshot(blockNo)
+}
+
+func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error) {
+	var (
+		block *types.Block
+		err   error
+	)
+
+	block, err = sn.cdb.GetBlockByNo(snapBlockNo(blockNo, types.BlockNo(sn.bpCount)))
+	if err != nil {
+		return nil, err
+	}
+
+	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+
+	return system.GetRankers(stateDB, int(sn.bpCount))
 }
 
 // Save applies BP list changes to DB.
