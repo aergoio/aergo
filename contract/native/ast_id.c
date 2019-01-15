@@ -26,8 +26,6 @@ ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
     meta_init(&id->meta, &id->pos);
 
     id->idx = -1;
-    id->base = -1;
-    id->addr = -1;
 
     return id;
 }

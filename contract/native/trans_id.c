@@ -76,7 +76,7 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
     }
     */
 
-    l_exp = exp_new_stack(id->meta.type, id->idx, 0, id->offset);
+    l_exp = exp_new_stack(id->meta.type, id->idx, 0, id->meta.rel_offset);
     /*
     id_exp = exp_new_id(id->name, &dflt_exp->pos);
 

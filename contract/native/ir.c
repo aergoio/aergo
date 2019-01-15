@@ -36,11 +36,11 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
 
     addr = sgmt_add_global(&ir->sgmt, id->meta.type);
 
-    if (cont_id->addr < 0)
-        cont_id->addr = addr;
+    if (cont_id->meta.rel_addr < 0)
+        cont_id->meta.rel_addr = addr;
 
-    id->addr = cont_id->addr;
-    id->offset = addr - cont_id->addr;
+    id->meta.rel_addr = cont_id->meta.rel_addr;
+    id->meta.rel_offset = addr - cont_id->meta.rel_addr;
     */
     ASSERT(idx >= 0);
 
@@ -48,9 +48,9 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
 
     /* The global variable does not use "addr",
      * but uses the local variable set to "base" as the address */
-    id->base = idx;
-    id->addr = 0;
-    id->offset = ir->offset;
+    id->meta.base_idx = idx;
+    id->meta.rel_addr = 0;
+    id->meta.rel_offset = ir->offset;
 
     ir->offset += meta_size(&id->meta);
 }

@@ -73,7 +73,7 @@ id_check_array(check_t *check, ast_id_t *id)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!id->is_param && is_var_id(id) && id->u_var.dflt_exp == NULL)
+            if (!is_param_id(id) && is_var_id(id) && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             /* -1 means that the size is determined by the initializer */
@@ -174,7 +174,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         offset = ALIGN(offset, meta_align(fld_meta));
 
-        fld_id->offset = offset;
+        fld_id->meta.rel_offset = offset;
         offset += meta_size(fld_meta);
     }
 
@@ -245,7 +245,7 @@ id_check_return(check_t *check, ast_id_t *id)
     ASSERT1(is_return_id(id), id->kind);
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
-    ASSERT(id->is_param);
+    ASSERT(is_param_id(id));
     ASSERT(id->u_ret.type_meta != NULL);
 
     CHECK(id_check_type(check, id->u_ret.type_meta));
@@ -273,7 +273,7 @@ id_check_fn(check_t *check, ast_id_t *id)
         ast_id_t *param_id = array_get_id(param_ids, i);
 
         ASSERT1(is_var_id(param_id), param_id->kind);
-        ASSERT(param_id->is_param);
+        ASSERT(is_param_id(param_id));
         ASSERT(param_id->u_var.dflt_exp == NULL);
 
         id_check(check, param_id);

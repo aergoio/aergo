@@ -116,21 +116,28 @@ typedef struct meta_s meta_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
+typedef struct mem_info_s {
+} mem_info_t;
+
 struct meta_s {
     type_t type;
 
-    char *name;             /* name of struct or contract */
+    bool is_undef;          /* whether it is literal */
 
+    char *name;             /* name of struct, contract or interface */
+    ast_id_t *type_id;      /* identifier of struct, contract, interface */
+
+    /* array specifications */
     int arr_dim;            /* dimension of array */
-    //int arr_size;           /* total size of array */
     int *dim_sizes;         /* size of each dimension */
 
-    bool is_undef;          /* whether it is literal */
+    /* memory location to be stored */
+    int base_idx;           /* variable index having base address */
+    int rel_addr;           /* relative address */
+    int rel_offset;         /* relative offset from "rel_addr" */
 
     int elem_cnt;
     meta_t **elems;
-
-    ast_id_t *type_id;      /* struct, contract, interface */
 
     int num;
     src_pos_t *pos;
@@ -156,6 +163,9 @@ meta_init(meta_t *meta, src_pos_t *pos)
     memset(meta, 0x00, sizeof(meta_t));
 
     ast_node_init(meta, pos);
+
+    meta->base_idx = -1;
+    meta->rel_addr = -1;
 }
 
 static inline meta_t *
@@ -232,54 +242,46 @@ meta_strip_arr_dim(meta_t *meta)
         meta->dim_sizes = &meta->dim_sizes[1];
 }
 
-#if 0
-static inline uint32_t
-meta_unit_size(meta_t *meta)
-{
-    /* Because of the undefined type, the size of the meta is computed dynamically */
-    if (is_struct_meta(meta) || is_tuple_meta(meta)) {
-        int i;
-        uint32_t size = 0;
-
-        for (i = 0; i < meta->elem_cnt; i++) {
-            size = ALIGN(size, meta_align(meta->elems[i]));
-            size += meta_size(meta->elems[i]);
-        }
-
-        return size;
-    }
-
-    return TYPE_SIZE(meta->type);
-}
-#endif
-
 static inline uint32_t
 meta_size(meta_t *meta)
 {
-    /* Because of the undefined type, the size of the meta is computed dynamically */
     int i;
     uint32_t size = 0;
 
     if (is_struct_meta(meta) || is_tuple_meta(meta)) {
+        int i;
+
         for (i = 0; i < meta->elem_cnt; i++) {
             size = ALIGN(size, meta_align(meta->elems[i]));
             size += meta_size(meta->elems[i]);
         }
 
-        if (is_array_meta(meta))
-            size = ALIGN(size, meta_align(meta->elems[0]));
+        size = ALIGN(size, meta_align(meta->elems[0]));
     }
     else {
-        size = TYPE_SIZE(meta->type);
-
-        if (is_array_meta(meta))
-            size = ALIGN(size, meta_align(meta));
+        size = ALIGN(TYPE_SIZE(meta->type), meta_align(meta));
     }
 
     if (is_array_meta(meta)) {
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size *= meta->dim_sizes[i];
+        }
+    }
+
+    return size;
+}
+
+static inline uint32_t
+meta_unit(meta_t *meta)
+{
+    int i;
+    uint32_t size = meta_size(meta);
+
+    if (is_array_meta(meta)) {
+        for (i = 0; i < meta->arr_dim; i++) {
+            ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
+            size /= meta->dim_sizes[i];
         }
     }
 

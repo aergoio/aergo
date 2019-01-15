@@ -24,7 +24,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     if (is_var_id(id)) {
         if (is_global_id(id) || is_stack_id(id))
             /* The global variable always refers to the memory */
-            exp_set_stack(exp, id->base, id->addr, id->offset);
+            exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
         else
             exp_set_local(exp, id->idx);
     }
@@ -234,13 +234,13 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     }
 
     if (is_local_exp(id_exp)) {
-        exp_set_stack(exp, id_exp->u_local.idx, 0, fld_id->offset);
+        exp_set_stack(exp, id_exp->u_local.idx, 0, fld_id->meta.rel_offset);
     }
     else {
         ASSERT1(is_stack_exp(id_exp), id_exp->kind);
 
         exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
-                      id_exp->u_stk.offset + fld_id->offset);
+                      id_exp->u_stk.offset + fld_id->meta.rel_offset);
     }
 
 #if 0
@@ -265,7 +265,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         }
     }
     else if (is_stack_exp(id_exp)) {
-        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->offset);
+        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->meta.rel_offset);
     }
 #endif
 }
@@ -275,10 +275,10 @@ make_return_addr(ast_id_t *ret_id, int stack_idx)
 {
     ast_exp_t *addr_exp = exp_new_local(TYPE_INT32, stack_idx);
 
-    if (ret_id->addr > 0) {
+    if (ret_id->meta.rel_addr > 0) {
         ast_exp_t *v_exp = exp_new_lit(&ret_id->pos);
 
-        value_set_i64(&v_exp->u_lit.val, ret_id->addr);
+        value_set_i64(&v_exp->u_lit.val, ret_id->meta.rel_addr);
         meta_set_int32(&v_exp->meta);
 
         addr_exp = exp_new_binary(OP_ADD, addr_exp, v_exp, &ret_id->pos);
@@ -357,13 +357,13 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 ast_id_t *elem_id = array_get_id(elem_ids, i);
                 //ast_exp_t *ref_exp;
 
-                ASSERT1(elem_id->offset == 0, elem_id->offset);
+                ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
 
                 fn_add_stack(fn, elem_id);
 
                 /*
                 ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
-                                        elem_id->addr, 0);
+                                        elem_id->meta.rel_addr, 0);
                 meta_copy(&ref_exp->meta, &elem_id->meta);
 
                 array_add_last(elem_exps, ref_exp);
@@ -373,21 +373,21 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
                 array_add_last(elem_exps,
                                exp_new_stack(elem_id->meta.type, fn->stack_idx,
-                                             elem_id->addr, 0));
+                                             elem_id->meta.rel_addr, 0));
             }
 
             exp->kind = EXP_TUPLE;
             exp->u_tup.elem_exps = elem_exps;
         }
         else {
-            ASSERT1(ret_id->offset == 0, ret_id->offset);
+            ASSERT1(ret_id->meta.rel_offset == 0, ret_id->meta.rel_offset);
 
             fn_add_stack(fn, ret_id);
 
             array_add_last(call_exp->u_call.param_exps,
                            make_return_addr(ret_id, fn->stack_idx));
 
-            exp_set_stack(exp, fn->stack_idx, ret_id->addr, 0);
+            exp_set_stack(exp, fn->stack_idx, ret_id->meta.rel_addr, 0);
         }
 
         bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &call_exp->pos));
@@ -431,20 +431,21 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     }
 
     if (is_aggr_lit) {
-        int size = 0;
-        char *raw = xcalloc(meta_size(&exp->meta));
+        int offset = 0;
+        uint32_t size = meta_size(&exp->meta);
+        char *raw = xcalloc(size);
 
         array_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
-            size = ALIGN(size, meta_align(&elem_exp->meta));
+            offset = ALIGN(offset, meta_align(&elem_exp->meta));
 
-            memcpy(raw + size, val_ptr(elem_val), val_size(elem_val));
-            size += meta_size(&elem_exp->meta);
+            memcpy(raw + offset, val_ptr(elem_val), val_size(elem_val));
+            offset += meta_size(&elem_exp->meta);
         }
 
-        ASSERT2(size <= meta_size(&exp->meta), size, meta_size(&exp->meta));
+        ASSERT2(offset <= size, offset, size);
 
         exp_set_lit(exp, NULL);
         value_set_ptr(&exp->u_lit.val, raw, size);

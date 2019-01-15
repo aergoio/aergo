@@ -41,6 +41,7 @@
       (!is_object_meta(&(id)->meta) && !is_primitive_meta(&(id)->meta))))
 
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
+#define is_param_id(id)             ((id)->is_param)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -132,9 +133,6 @@ struct ast_id_s {
     value_t *val;       /* constant value */
 
     int idx;            /* local or function index */
-    int base;           /* base address index */
-    int addr;           /* relative address */
-    int offset;         /* offset (from addr) */
 
     ast_id_t *up;
     ir_abi_t *abi;

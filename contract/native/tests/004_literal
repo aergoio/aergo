@@ -160,7 +160,7 @@ contract test {
 contract test {
     type s1 struct {
         int a;
-        int b;
+        byte b;
         string c;
     }
     s1 v1 = new { 1, 0x01, "a" };

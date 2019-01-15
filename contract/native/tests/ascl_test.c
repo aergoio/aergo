@@ -110,12 +110,14 @@ run_test(env_t *env, char *path)
 {
     int i = 0;
 
-    if (env->needle != NULL &&
-        strstr(env->path, env->needle) == NULL &&
-        strstr(env->title, env->needle) == NULL) {
-        unlink(path);
-        env_reset(env);
-        return;
+    if (env->needle != NULL) {
+        if ((env->needle[0] == '^' && 
+             strncmp(env->title, env->needle + 1, strlen(env->needle + 1)) != 0) ||
+            (env->needle[0] != '^' && strstr(env->title, env->needle) == NULL)) {
+            unlink(path);
+            env_reset(env);
+            return;
+        }
     }
 
     env->total_cnt++;
