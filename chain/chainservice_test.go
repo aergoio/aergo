@@ -221,7 +221,23 @@ func TestAddErroredBlock(t *testing.T) {
 	cs.errBlocks.Purge()
 	// check error when server is rebooted
 	err = cs.addBlock(newBlock, nil, testPeer)
-	assert.Equal(t, ErrBlockTooHighSideChain, err)
+	assert.Equal(t, ErrorBlockVerifyStateRoot, err)
+}
+
+func TestResetChain(t *testing.T) {
+	mainChainBest := 5
+	cs, mainChain := testAddBlock(t, mainChainBest)
+
+	resetHeight := uint64(3)
+	cs.cdb.ResetBest(resetHeight)
+
+	// check best
+	assert.Equal(t, resetHeight, cs.cdb.getBestBlockNo())
+
+	for i := uint64(mainChainBest); i > resetHeight; i-- {
+		err := cs.cdb.checkBlockDropped(mainChain.GetBlockByNo(i))
+		assert.NoError(t, err)
+	}
 }
 
 //TODO

@@ -15,7 +15,7 @@ import (
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error
@@ -26,7 +26,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.Cha
 	if chain.IsPublic() {
 		blockInterval = 1
 	} else {
-		blockInterval = cfg.BlockInterval
+		blockInterval = cfg.Consensus.BlockInterval
 	}
 
 	consensus.InitBlockInterval(blockInterval)
@@ -40,7 +40,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cs *chain.Cha
 	return c, err
 }
 
-func newConsensus(cfg *config.ConsensusConfig, hub *component.ComponentHub,
+func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 	cdb consensus.ChainDB) (consensus.Consensus, error) {
 	impl := map[string]consensus.Constructor{
 		"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS

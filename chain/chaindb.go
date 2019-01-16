@@ -31,8 +31,10 @@ const (
 
 var (
 	// ErrNoChainDB reports chaindb is not prepared.
-	ErrNoChainDB       = fmt.Errorf("chaindb not prepared")
-	ErrorLoadBestBlock = errors.New("failed to load latest block from DB")
+	ErrNoChainDB         = fmt.Errorf("chaindb not prepared")
+	ErrorLoadBestBlock   = errors.New("failed to load latest block from DB")
+	ErrCantDropGenesis   = errors.New("can't drop genesis block")
+	ErrTooBigResetHeight = errors.New("reset height is too big")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
@@ -97,6 +99,76 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	// if cdb.getBestBlockNo() == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
+	return nil
+}
+
+// ResetBest reset best block of chain db manually remove blocks from original
+// best to resetNo.
+//
+// *Caution*: This API is dangerous. It must be used for test blockchain only.
+func (cdb *ChainDB) ResetBest(resetNo types.BlockNo) error {
+	logger.Info().Uint64("reset height", resetNo).Msg("reset best block")
+
+	best := cdb.getBestBlockNo()
+	if best <= resetNo {
+		logger.Error().Uint64("best", best).Uint64("reset", resetNo).Msg("too big reset height")
+		return ErrTooBigResetHeight
+	}
+
+	for curNo := best; curNo > resetNo; curNo-- {
+		if err := cdb.dropBlock(curNo); err != nil {
+			logger.Error().Err(err).Uint64("no", curNo).Msg("failed to drop block")
+			return err
+		}
+	}
+
+	logger.Info().Msg("succeed to reset best block")
+
+	return nil
+}
+
+type ErrDropBlock struct {
+	pos int
+}
+
+func (err *ErrDropBlock) Error() string {
+	return fmt.Sprintf("failed to drop block: pos=%d", err.pos)
+}
+
+func (cdb *ChainDB) checkBlockDropped(dropBlock *types.Block) error {
+	no := dropBlock.GetHeader().GetBlockNo()
+	hash := dropBlock.GetHash()
+	txLen := len(dropBlock.GetBody().GetTxs())
+
+	//check receipt
+	var err error
+
+	if txLen > 0 {
+		if _, err = cdb.getReceipt(hash, no, 0); err == nil {
+			return &ErrDropBlock{pos: 0}
+		}
+		if _, err = cdb.getReceipt(hash, no, int32(txLen-1)); err == nil {
+			return &ErrDropBlock{pos: 1}
+		}
+	}
+
+	//check tx
+	for _, tx := range dropBlock.GetBody().GetTxs() {
+		if _, _, err = cdb.getTx(tx.GetHash()); err == nil {
+			return &ErrDropBlock{pos: 2}
+		}
+	}
+
+	//check hash/block
+	if _, err = cdb.getBlock(hash); err == nil {
+		return &ErrDropBlock{pos: 3}
+	}
+
+	//check no/hash
+	if _, err = cdb.getHashByNo(no); err == nil {
+		return &ErrDropBlock{pos: 4}
+	}
+
 	return nil
 }
 
@@ -197,10 +269,6 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	block := genesis.Block()
 
 	tx := cdb.store.NewTx()
-	if err := cdb.addBlock(&tx, block); err != nil {
-		return err
-	}
-
 	cdb.connectToChain(&tx, block)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 
@@ -251,6 +319,10 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
+
+	if err := cdb.addBlock(dbtx, block); err != nil {
+		return 0
+	}
 
 	// Update best block hash
 	(*dbtx).Set(latestKey, blockIdx)
@@ -397,12 +469,64 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
+		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
 		return err
 	}
 
 	//add block
 	(*dbtx).Set(block.BlockHash(), blockBytes)
 
+	return nil
+}
+
+// drop block from DB
+func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
+	logger.Info().Uint64("no", dropNo).Msg("drop block")
+
+	dbTx := cdb.NewTx()
+	defer dbTx.Discard()
+
+	if dropNo <= 0 {
+		return ErrCantDropGenesis
+	}
+
+	dropBlock, err := cdb.GetBlockByNo(dropNo)
+	if err != nil {
+		return err
+	}
+
+	// remove tx mapping
+	for _, tx := range dropBlock.GetBody().GetTxs() {
+		cdb.deleteTx(&dbTx, tx)
+	}
+
+	// remove receipt
+	cdb.deleteReceipts(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
+
+	// remove (hash/block)
+	dbTx.Delete(dropBlock.BlockHash())
+
+	// remove (no/hash)
+	dropIdx := types.BlockNoToBytes(dropNo)
+	newLatestIdx := types.BlockNoToBytes(dropNo - 1)
+	dbTx.Delete(dropIdx)
+
+	// update latest
+	dbTx.Set(latestKey, newLatestIdx)
+
+	dbTx.Commit()
+
+	prevBlock, err := cdb.GetBlockByNo(dropNo - 1)
+	if err != nil {
+		return err
+	}
+
+	cdb.setLatest(prevBlock)
+
+	if err = cdb.checkBlockDropped(dropBlock); err != nil {
+		logger.Error().Err(err).Msg("block meta is not dropped")
+		return err
+	}
 	return nil
 }
 
@@ -527,6 +651,10 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx.Set(receiptsKey(blockHash, blockNo), val.Bytes())
 
 	dbTx.Commit()
+}
+
+func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
+	(*dbTx).Delete(receiptsKey(blockHash, blockNo))
 }
 
 func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {

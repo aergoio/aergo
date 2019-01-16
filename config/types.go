@@ -78,10 +78,11 @@ type PolarisConfig struct {
 
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
-	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
-	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
-	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
-	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	MaxBlockSize     uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	CoinbaseAccount  string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
+	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
+	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -174,6 +175,8 @@ maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
+forceresetheight = "{{.Blockchain.ForceResetHeight}}"
+
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
