@@ -111,6 +111,7 @@ func (cdb *ChainDB) ResetBest(resetNo types.BlockNo) error {
 
 	best := cdb.getBestBlockNo()
 	if best <= resetNo {
+		logger.Error().Uint64("best", best).Uint64("reset", resetNo).Msg("too big reset height")
 		return ErrTooBigResetHeight
 	}
 
