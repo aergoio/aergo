@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract/system"
@@ -86,33 +85,8 @@ func (c *Cluster) init() error {
 	// remains the same.
 	c.size = uint16(len(genesisBpList))
 
-	/*
-		var (
-			bestBlock *types.Block
-			err       error
-		)
-
-		if bestBlock, err = c.cdb.GetBestBlock(); err != nil {
-			return err
-		}
-
-		var bps []string
-
-		// During the initial boostrapping period, the BPs given by the genesis
-		// info is used.
-		if bestBlock.BlockNo() <= bootstrapHeight(types.BlockNo(c.Size())) {
-			bps = genesisBpList
-		} else {
-				bps, err = loadCluster(c.cdb, bestBlock.BlockNo(), types.BlockNo(c.Size()))
-				if err != nil {
-					return err
-				}
-		}
-
-		if err := c.Update(bps); err != nil {
-			return err
-		}
-	*/
+	// The boot time BP member update is later performed along with DPoS status
+	// initilization.
 
 	return nil
 }
@@ -334,10 +308,6 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 
 	sn.GC(refBlockNo)
 
-	tx := sn.cdb.NewTx()
-	sn.save(tx)
-	tx.Commit()
-
 	return bps, nil
 }
 
@@ -419,6 +389,7 @@ func (sn *Snapshots) GC(blockNo types.BlockNo) {
 		}
 	}
 
+	sn.journalClear()
 }
 
 func (sn Snapshots) period() types.BlockNo {
@@ -467,25 +438,4 @@ func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error
 	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
 
 	return system.GetRankers(stateDB, int(sn.bpCount))
-}
-
-// Save applies BP list changes to DB.
-func (sn *Snapshots) save(tx db.Transaction) {
-	for _, j := range sn.log {
-		logger.Debug().Str("op", spew.Sdump(j)).Str("snaps", spew.Sdump(sn.snaps)).Msg("apply BP snapshot op")
-		switch j.op {
-		case opAdd:
-			s := sn.snaps[j.blockNo]
-			key := s.Key()
-			tx.Set(key, s.Value())
-			logger.Debug().Str("key", string(key)).Msg("BP list added to DB")
-		case opDel:
-			key := buildKey(j.blockNo)
-			tx.Delete(key)
-
-		default:
-			// Do nothing. Such a journal entry impossible!!!
-		}
-	}
-	sn.journalClear()
 }
