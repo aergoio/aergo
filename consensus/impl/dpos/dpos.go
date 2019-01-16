@@ -219,8 +219,6 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	}
 
 	block, _ := dpos.GetBestBlock()
-	logger.Debug().Str("best", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).
-		Msg("GetBestBlock from BP")
 	if block == nil {
 		return nil
 	}
