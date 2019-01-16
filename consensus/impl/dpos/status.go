@@ -153,9 +153,6 @@ func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
 		return
 	}
 
-	if resetHeight > 0 {
-	}
-
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
 		panic(err)

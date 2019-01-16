@@ -104,7 +104,7 @@ func (c *Cluster) genesisBpList() []string {
 		if len(genesis.BPs) > 0 {
 			logger.Debug().Msg("use BPs from the genesis info")
 			for i, bp := range genesis.BPs {
-				logger.Debug().Int("no", i).Str("ID", bp).Msg("BP")
+				logger.Debug().Int("no", i).Str("ID", bp).Msg("Genesis BP")
 			}
 			return genesis.BPs
 		}
