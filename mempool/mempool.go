@@ -474,9 +474,14 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		return err
 	}
 	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
-	if err != nil {
+	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+
+	//NOTE: don't overwrite err, if err == ErrTxNonceToohigh
+	//because err should be ErrNonceToohigh if following validation has passed
+	//this will be refactored soon
+
 	switch tx.GetBody().GetType() {
 	case types.TxType_NORMAL:
 		if tx.HasNameRecipient() {
@@ -498,18 +503,17 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(account, tx.GetBody(), scs, mp.bestBlockNo+1)
-			if err != nil {
+			if err := system.ValidateSystemTx(account, tx.GetBody(),
+				scs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		case types.AergoName:
-			err = name.ValidateNameTx(tx.Body, scs)
-			if err != nil {
+			if err := name.ValidateNameTx(tx.Body, scs); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 func (mp *MemPool) exists(hash []byte) *types.Tx {
