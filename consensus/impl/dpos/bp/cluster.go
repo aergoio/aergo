@@ -85,8 +85,8 @@ func (c *Cluster) init() error {
 	// remains the same.
 	c.size = uint16(len(genesisBpList))
 
-	// The boot time BP member update is later performed along with DPoS status
-	// initilization.
+	// The boot time BP member loading is later performed along with DPoS
+	// status initilization.
 
 	return nil
 }
@@ -110,11 +110,6 @@ func (c *Cluster) genesisBpList() []string {
 		}
 	}
 	return nil
-}
-
-func (c *Cluster) currentBpList() []string {
-	// TODO: Get the elected BPs instead of the genesis BPs.
-	return c.genesisBpList()
 }
 
 // Update updates old cluster index by using ids.
@@ -243,7 +238,6 @@ type Snapshots struct {
 	cm            ClusterMember
 	cdb           consensus.ChainDB
 	sdb           *state.ChainStateDB
-	log           []*journal
 }
 
 // NewSnapshots returns a new Snapshots.
@@ -254,7 +248,6 @@ func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 		cm:      c,
 		cdb:     cdb,
 		sdb:     sdb,
-		log:     make([]*journal, 0, 2),
 	}
 
 	// To avoid a unit test failure.
@@ -262,6 +255,7 @@ func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 		return snap
 	}
 
+	// Initialize the BP cluster members.
 	if block, err := cdb.GetBestBlock(); err == nil {
 		snap.UpdateCluster(block.BlockNo())
 	} else {
@@ -306,7 +300,7 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 		sn.UpdateCluster(refBlockNo)
 	}
 
-	sn.GC(refBlockNo)
+	sn.gc(refBlockNo)
 
 	return bps, nil
 }
@@ -335,8 +329,6 @@ func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
 
 func (sn *Snapshots) reset() {
 	sn.snaps = make(map[types.BlockNo]*Snapshot)
-	sn.log = sn.log[:0]
-	sn.maxRefBlockNo = 0
 }
 
 // add adds a new BP snapshot to snap.
@@ -351,31 +343,28 @@ func (sn *Snapshots) add(refBlockNo types.BlockNo, bps []string) error {
 	}
 
 	sn.snaps[refBlockNo] = s
-	sn.journal(opAdd, refBlockNo)
 
 	logger.Debug().Uint64("ref block no", refBlockNo).Msgf("BP snapshot added: %v", bps)
 
 	return nil
 }
 
-// Del removes a snapshot corresponding to refBlockNo from sn.snaps.
-func (sn *Snapshots) Del(refBlockNo types.BlockNo) error {
+// del removes a snapshot corresponding to refBlockNo from sn.snaps.
+func (sn *Snapshots) del(refBlockNo types.BlockNo) error {
 	if _, exist := sn.snaps[refBlockNo]; !exist {
 		logger.Debug().Uint64("ref block no", refBlockNo).Msg("no such an entry in BP snapshots. ignored.")
 		return nil
 	}
 
 	delete(sn.snaps, refBlockNo)
-	// TODO: purge BP snapshots.
-	// sn.journal(opDel, refBlockNo)
 
 	logger.Debug().Uint64("block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP snaphost removed")
 
 	return nil
 }
 
-// GC remove all the snapshots less than blockNo
-func (sn *Snapshots) GC(blockNo types.BlockNo) {
+// gc remove all the snapshots less than blockNo
+func (sn *Snapshots) gc(blockNo types.BlockNo) {
 	gcPeriod := sn.gcPeriod()
 
 	var gcBlockNo types.BlockNo
@@ -385,11 +374,9 @@ func (sn *Snapshots) GC(blockNo types.BlockNo) {
 
 	for h := range sn.snaps {
 		if h < gcBlockNo {
-			sn.Del(h)
+			sn.del(h)
 		}
 	}
-
-	sn.journalClear()
 }
 
 func (sn Snapshots) period() types.BlockNo {
@@ -398,16 +385,6 @@ func (sn Snapshots) period() types.BlockNo {
 
 func (sn Snapshots) gcPeriod() types.BlockNo {
 	return 2 * sn.period()
-}
-
-func (sn *Snapshots) journal(op int, refBlockNo types.BlockNo) {
-	sn.log = append(sn.log, &journal{op: op, blockNo: refBlockNo})
-	logger.Debug().Int("op", op).Uint64("ref block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP journal added")
-}
-
-func (sn *Snapshots) journalClear() {
-	sn.log = sn.log[:0]
-	logger.Debug().Msg("BP journal log cleared")
 }
 
 // getCurrentCluster returns the BP snapshot corresponding to blockNo.
