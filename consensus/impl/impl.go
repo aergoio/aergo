@@ -31,20 +31,22 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 
 	consensus.InitBlockInterval(blockInterval)
 
-	if c, err = newConsensus(cfg, hub, cs.CDB()); err == nil {
+	if c, err = newConsensus(cfg, hub, cs); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
-		c.SetStateDB(cs.SDB())
 	}
 
 	return c, err
 }
 
 func newConsensus(cfg *config.Config, hub *component.ComponentHub,
-	cdb consensus.ChainDB) (consensus.Consensus, error) {
+	cs *chain.ChainService) (consensus.Consensus, error) {
+	cdb := cs.CDB()
+	sdb := cs.SDB()
+
 	impl := map[string]consensus.Constructor{
-		"dpos": dpos.GetConstructor(cfg, hub, cdb), // DPoS
-		"sbp":  sbp.GetConstructor(cfg, hub, cdb),  // Simple BP
+		"dpos": dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
+		"sbp":  sbp.GetConstructor(cfg, hub, cdb),       // Simple BP
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
