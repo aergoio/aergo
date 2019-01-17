@@ -348,6 +348,60 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 	return found, nil
 }
 
+// GetBlockMetadata handle rpc request getblock
+func (rpc *AergoRPCService) GetBlockMetadata(ctx context.Context, in *types.SingleBytes) (*types.BlockMetadata, error) {
+	block, err := rpc.GetBlock(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := &types.BlockMetadata{
+		Hash:    block.BlockHash(),
+		Header:  block.GetHeader(),
+		Txcount: int32(len(block.GetBody().GetTxs())),
+	}
+	return meta, nil
+}
+
+// GetBlockBody handle rpc request getblockbody
+func (rpc *AergoRPCService) GetBlockBody(ctx context.Context, in *types.BlockBodyParams) (*types.BlockBodyPaged, error) {
+	block, err := rpc.GetBlock(ctx, &types.SingleBytes{Value: in.Hashornumber})
+	if err != nil {
+		return nil, err
+	}
+	body := block.GetBody()
+
+	total := uint32(len(body.Txs))
+
+	var fetchSize uint32
+	if in.Paging.Size > uint32(1000) {
+		fetchSize = uint32(1000)
+	} else if in.Paging.Size == uint32(0) {
+		fetchSize = 100
+	} else {
+		fetchSize = in.Paging.Size
+	}
+
+	offset := in.Paging.Offset
+	if offset >= uint32(len(body.Txs)) {
+		body.Txs = []*types.Tx{}
+	} else {
+		limit := offset + fetchSize
+		if limit > uint32(len(body.Txs)) {
+			limit = uint32(len(body.Txs))
+		}
+		body.Txs = body.Txs[offset:limit]
+	}
+
+	response := &types.BlockBodyPaged{
+		Body:   body,
+		Total:  total,
+		Size:   fetchSize,
+		Offset: offset,
+	}
+	return response, nil
+}
+
 // GetTX handle rpc request gettx
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
 	result, err := rpc.actorHelper.CallRequestDefaultTimeout(message.MemPoolSvc,
