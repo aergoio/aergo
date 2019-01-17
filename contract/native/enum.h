@@ -59,8 +59,6 @@ typedef enum type_e {
     TYPE_UINT64     = 10,
     TYPE_FLOAT      = 11,
     TYPE_DOUBLE     = 12,
-    TYPE_PRIMITIVE  = TYPE_DOUBLE,
-
     TYPE_STRING     = 13,
     TYPE_COMPATIBLE = TYPE_STRING,
 
@@ -70,7 +68,6 @@ typedef enum type_e {
 
     TYPE_MAP        = 16,
     TYPE_OBJECT     = 17,           /* contract, interface or null */
-    TYPE_BUILTIN    = TYPE_OBJECT,
 
     TYPE_VOID       = 18,           /* return type of function */
     TYPE_TUPLE      = 19,           /* tuple expression */

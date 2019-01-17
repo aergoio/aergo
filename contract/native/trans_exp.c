@@ -22,7 +22,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
-        if (is_global_id(id) || is_stack_id(id))
+        //if (is_global_id(id) || is_stack_id(id))
+        if (is_global_id(id))
             /* The global variable always refers to the memory */
             exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
         else
@@ -57,15 +58,15 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
+        /*
         ASSERT(is_null_val(val));
         value_set_i64(val, sgmt_add_raw(sgmt, "\0\0\0\0", 4));
-        /*
+        */
         if (is_null_val(val))
-            addr = 0;
+            addr = sgmt_add_raw(sgmt, "\0\0\0\0", 4);
         else
             addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val));
         value_set_i64(val, addr);
-        */
         break;
 
     default:
@@ -86,6 +87,20 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     if (is_array_meta(&id->meta)) {
         uint32_t offset;
 
+        /* In array expression, the offset is calculated as follows:
+         *
+         * Suppose that "int i[x][y][z]" is defined.
+         *
+         * First, when we access "i[a]", the formula for calculating the offset is
+         * (a * y * z * sizeof(int)).
+         *
+         * Next, in the case of "i[a][b]",
+         * (a * y * z * sizeof(int)) + (b * z * sizeof(int)).
+         *
+         * Finally, in the case of "i[a][b][c]",
+         * (a * y * z * sizeof(int)) + (b * z * sizeof(int)) + (c * sizeof(int)). */
+
+        /* If "id_exp" is a call expression, it can be a stack expression */
         ASSERT1(is_stack_exp(id_exp) || is_local_exp(id_exp), id_exp->kind);
 
         if (!is_lit_exp(idx_exp))
@@ -129,7 +144,7 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
     exp_trans(trans, exp->u_cast.val_exp);
 
-    if (!is_primitive_meta(&exp->meta) || !is_primitive_meta(&exp->u_cast.to_meta)) {
+    if (is_string_meta(&exp->meta) || is_string_meta(&exp->u_cast.to_meta)) {
         /* TODO
          * int addr = fn_add_stack_var(trans->fn);
          * ast_exp_t *call_exp = exp_new_call("$concat", &exp->pos);

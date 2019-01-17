@@ -24,18 +24,15 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-    /* The stack id satisfies all of the following conditions.
-     * 1. Not a parameter
-     * 2. An array or (not an object type nor a primitive type) */
 #if 0
     /* The stack id satisfies all of the following conditions.
      * 1. Not a parameter
-     * 2. An array or not a primitive type */
-#endif
+     * 2. An array or (not an object type nor a primitive type) */
 
     if (is_stack_id(id))
         fn_add_stack(trans->fn, &id->meta);
     else
+#endif
         fn_add_local(trans->fn, id);
 }
 

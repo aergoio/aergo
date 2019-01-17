@@ -71,10 +71,12 @@
 #define is_pointer_meta(meta)                                                            \
     (is_string_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
 
+/*
 #define is_primitive_meta(meta)                                                          \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
 #define is_builtin_meta(meta)                                                            \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
+    */
 #define is_comparable_meta(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
 #define is_compatible_meta(x, y)                                                         \
@@ -103,9 +105,13 @@
 #define meta_size(meta)             (meta)->size
 #define meta_align(meta)            (meta)->align
 
+/*
 #define meta_cnt(meta)                                                                   \
     (is_void_meta(meta) ? 0 :                                                            \
      ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1))
+     */
+#define meta_cnt(meta)                                                                   \
+    ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
 
 #ifndef _META_T
 #define _META_T

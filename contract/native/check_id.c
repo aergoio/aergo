@@ -208,7 +208,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         else {
             CHECK(exp_check(check, dflt_exp));
 
-            if (!is_lit_exp(dflt_exp) || !is_i64_val(&dflt_exp->u_lit.val))
+            if (!is_lit_exp(dflt_exp) || !is_integer_meta(&dflt_exp->meta))
                 RETURN(ERROR_INVALID_ENUM_VAL, &dflt_exp->pos);
 
             elem_id->val = &dflt_exp->u_lit.val;

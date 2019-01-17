@@ -49,40 +49,48 @@ static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
-    meta_t *meta = &id->meta;
+    meta_t *meta = &exp->meta;
 
-    if (is_array_meta(meta)) {
+    /* This function is used when the offset value needs to be computed dynamically */
+
+    if (is_array_meta(&id->meta)) {
+        ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        BinaryenExpressionRef address;
+        BinaryenExpressionRef address, offset, index;
 
-        ASSERT1(is_stack_id(id), id->kind);
-        ASSERT1(is_stack_exp(exp->u_arr.id_exp), exp->u_arr.id_exp->kind);
-        ASSERT(id->meta.rel_addr >= 0);
+        //ASSERT1(is_stack_id(id), id->kind);
+        //ASSERT1(is_stack_exp(id_exp), id_exp->kind);
+        //ASSERT(id->meta.rel_addr >= 0);
 
-        /* BinaryenLoad() takes an offset as uint32_t, and if idx_exp is a
-         * local or stack variable, we does not know the offset, so we add
-         * the offset to the address and use BinaryenLoad() */
+        /* BinaryenLoad() takes an offset as uint32_t, and because "idx_exp" is a local
+         * or stack expression, we do not know the offset, so we add the offset to the
+         * address and use BinaryenLoad(). See exp_trans_array() for the following
+         * formula */
 
-        if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta)) {
-            address = BinaryenBinary(gen->module, BinaryenMulInt64(),
-                                     exp_gen(gen, idx_exp),
-                                     i64_gen(gen, meta_size(&exp->meta)));
+        if (is_stack_exp(id_exp))
+            address = BinaryenGetLocal(gen->module, id_exp->u_stk.base,
+                                       BinaryenTypeInt32());
+        else
+            address = BinaryenGetLocal(gen->module, id_exp->u_local.idx,
+                                       BinaryenTypeInt32());
 
-            if (id->meta.rel_addr > 0)
-                address = BinaryenBinary(gen->module, BinaryenAddInt64(),
-                                         i64_gen(gen, id->meta.rel_addr), address);
-        }
-        else {
-            address = BinaryenBinary(gen->module, BinaryenMulInt32(),
-                                     exp_gen(gen, idx_exp),
-                                     i32_gen(gen, meta_size(&exp->meta)));
+        index = exp_gen(gen, idx_exp);
 
-            if (id->meta.rel_addr > 0)
-                address = BinaryenBinary(gen->module, BinaryenAddInt32(),
-                                         i32_gen(gen, id->meta.rel_addr), address);
-        }
+        if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta))
+            /* TODO: need to check range of index in semantic checker */
+            index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
 
-        if (gen->is_lval)
+        offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
+                                i32_gen(gen, meta_size(&exp->meta)));
+
+        if (id->meta.rel_addr > 0)
+            offset = BinaryenBinary(gen->module, BinaryenAddInt32(),
+                                    i32_gen(gen, id->meta.rel_addr), offset);
+
+        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address, offset);
+
+        /* XXX: change is_array_meta() to assertion */
+        if (gen->is_lval || is_array_meta(meta))
             return address;
 
         return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta),
@@ -538,18 +546,20 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     ASSERT(id != NULL);
     ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
 
-    if (is_param_id(id)) {
+    //if (is_param_id(id)) {
         ASSERT(id->idx >= 0);
 
         if (is_return_id(id))
             address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
         else
             address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
+        /*
     }
     else {
         ASSERT(id->meta.rel_addr >= 0);
         address = i32_gen(gen, id->meta.rel_addr);
     }
+    */
 
     if (is_array_meta(&id->meta) || is_struct_meta(&id->meta)) {
         int offset = 0;
@@ -628,7 +638,7 @@ exp_gen_stack(gen_t *gen, ast_exp_t *exp)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->u_stk.addr));
 
-    if (is_array_meta(&exp->meta) || is_struct_meta(&exp->meta))
+    if (is_pointer_meta(&exp->meta))
         return address;
 
     return BinaryenLoad(gen->module, TYPE_BYTE(type), is_signed_type(type),

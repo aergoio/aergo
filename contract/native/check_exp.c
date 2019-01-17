@@ -218,7 +218,10 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
-    if (is_lit_exp(val_exp)) {
+    if (exp->meta.type == val_meta->type) {
+        *exp = *val_exp;
+    }
+    else if (is_lit_exp(val_exp)) {
         exp_set_lit(exp, &val_exp->u_lit.val);
         meta_set_undef(&exp->meta);
 

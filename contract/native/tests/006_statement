@@ -87,11 +87,12 @@ contract test {
 }
 
 @test(index_out_of_range)
-@error(ERROR_INVALID_ARR_IDX)
+@error(ERROR_INVALID_ARR_IDX,2)
 contract test {
     test() {
         int i[2];
         i[1 + 1] = 1;
+        i[1 - 2] = 1;
     }
 }
 

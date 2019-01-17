@@ -194,6 +194,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         array_add_first(&blk->ids, stmt->u_loop.init_id);
     }
     else if (stmt->u_loop.init_stmt != NULL) {
+        /* The "init_stmt" is handled by the transformer */
         stmt_check(check, stmt->u_loop.init_stmt);
     }
 
