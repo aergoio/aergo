@@ -30,7 +30,36 @@ char *type_names_[TYPE_MAX] = {
     "tuple"
 };
 
+#define I32             4
+#define I64             8
+#define F32             4
+#define F64             8
+#define ADDR            4
+
 int type_sizes_[TYPE_MAX] = {
+    0,                  /* TYPE_NONE */
+    I32,                /* TYPE_BOOL */
+    I32,                /* TYPE_BYTE */
+    I32,                /* TYPE_INT8 */
+    I32,                /* TYPE_UINT8 */
+    I32,                /* TYPE_INT16 */
+    I32,                /* TYPE_UINT16 */
+    I32,                /* TYPE_INT32 */
+    I32,                /* TYPE_UINT32 */
+    I64,                /* TYPE_INT64 */
+    I64,                /* TYPE_UINT64 */
+    F32,                /* TYPE_FLOAT */
+    F64,                /* TYPE_DOUBLE */
+    ADDR,               /* TYPE_STRING */
+    ADDR,               /* TYPE_ACCOUNT */
+    ADDR,               /* TYPE_STRUCT */
+    ADDR,               /* TYPE_MAP */
+    ADDR,               /* TYPE_OBJECT */
+    0,                  /* TYPE_VOID */
+    ADDR                /* TYPE_TUPLE */
+};
+
+int type_bytes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     sizeof(bool),
     sizeof(uint8_t),
@@ -49,31 +78,8 @@ int type_sizes_[TYPE_MAX] = {
     sizeof(int32_t),    /* TYPE_STRUCT */
     sizeof(int32_t),    /* TYPE_MAP */
     sizeof(int32_t),    /* TYPE_OBJECT */
-    -1,                 /* TYPE_VOID */
-    -1                  /* TYPE_TUPLE */
-};
-
-int type_aligns_[TYPE_MAX] = {
-    -1,                 /* TYPE_NONE */
-    4,                  /* TYPE_BOOL */
-    4,                  /* TYPE_BYTE */
-    4,                  /* TYPE_INT8 */
-    4,                  /* TYPE_UINT8 */
-    4,                  /* TYPE_INT16 */
-    4,                  /* TYPE_UINT16 */
-    4,                  /* TYPE_INT32 */
-    4,                  /* TYPE_UINT32 */
-    8,                  /* TYPE_INT64 */
-    8,                  /* TYPE_UINT64 */
-    4,                  /* TYPE_FLOAT */
-    8,                  /* TYPE_DOUBLE */
-    4,                  /* TYPE_STRING */
-    4,                  /* TYPE_ACCOUNT */
-    4,                  /* TYPE_STRUCT */
-    4,                  /* TYPE_MAP */
-    4,                  /* TYPE_OBJECT */
-    -1,                 /* TYPE_VOID */
-    4                   /* TYPE_TUPLE */
+    0,                  /* TYPE_VOID */
+    0                   /* TYPE_TUPLE */
 };
 
 char *id_kinds_[ID_MAX] = {

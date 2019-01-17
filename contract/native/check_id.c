@@ -392,7 +392,7 @@ id_check_label(check_t *check, ast_id_t *id)
 static bool
 id_check_tuple(check_t *check, ast_id_t *id)
 {
-    int i, align = 0;
+    int i;
     array_t *elem_ids = id->u_tup.elem_ids;
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
@@ -433,14 +433,14 @@ id_check_tuple(check_t *check, ast_id_t *id)
         id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
         id->meta.size += meta_size(&elem_id->meta);
 
-        if (align == 0)
-            align = meta_align(&elem_id->meta);
+        if (id->meta.align == 0)
+            id->meta.align = meta_align(&elem_id->meta);
 
         if (is_const_id(elem_id) && dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
 
-    id->meta.size = ALIGN(id->meta.size, align);
+    id->meta.size = ALIGN(id->meta.size, id->meta.align);
 
     if (dflt_exp != NULL) {
         CHECK(exp_check(check, dflt_exp));

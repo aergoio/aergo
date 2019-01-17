@@ -745,6 +745,7 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
 
     if (exp->u_alloc.size_exps != NULL) {
+        /* TODO: This is very similar to id_check_array()... */
         int i;
         int dim_size;
         array_t *size_exps = exp->u_alloc.size_exps;

@@ -101,7 +101,7 @@
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
 #define meta_size(meta)             (meta)->size
-#define meta_align(meta)            TYPE_ALIGN((meta)->type)
+#define meta_align(meta)            (meta)->align
 
 #define meta_cnt(meta)                                                                   \
     (is_void_meta(meta) ? 0 :                                                            \
@@ -128,6 +128,7 @@ struct meta_s {
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
 
     bool is_undef;          /* whether it is literal */
+    int8_t align;
 
     /* array specifications */
     int arr_dim;            /* dimension of array */
@@ -180,6 +181,7 @@ meta_new(type_t type, src_pos_t *pos)
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
+    meta->align = TYPE_ALIGN(type);
 
     meta->pos = xmalloc(sizeof(src_pos_t));
     memcpy(meta->pos, pos, sizeof(src_pos_t));
@@ -194,6 +196,7 @@ meta_set(meta_t *meta, type_t type)
 
     meta->type = type;
     meta->size = TYPE_SIZE(type);
+    meta->align = TYPE_ALIGN(type);
 }
 
 static inline void
@@ -208,7 +211,7 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
     ASSERT(arr_dim > 0);
 
     meta->arr_dim = arr_dim;
-    //meta->arr_size = ALIGN(meta->size, TYPE_ALIGN(meta->type));
+    //meta->arr_size = ALIGN(meta->size, TYPE_SIZE(meta->type));
     meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
 }
 
@@ -303,15 +306,17 @@ meta_copy(meta_t *dest, meta_t *src)
     dest->type = src->type;
     dest->size = src->size;
     //dest->name = src->name;
+    dest->type_id = src->type_id;
+    dest->is_undef = src->is_undef;
+    dest->align = src->align;
     dest->arr_dim = src->arr_dim;
     //dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;
     dest->elem_cnt = src->elem_cnt;
     dest->elems = src->elems;
-    dest->type_id = src->type_id;
 
-    /* deliberately excluded num and src_pos */
+    /* deliberately excluded src_pos */
 }
 
 #endif /* ! _META_H */

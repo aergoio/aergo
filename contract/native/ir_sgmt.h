@@ -25,7 +25,7 @@ struct ir_sgmt_s {
     char **datas;
 };
 
-int sgmt_add_global(ir_sgmt_t *sgmt, type_t type);
+//int sgmt_add_global(ir_sgmt_t *sgmt, type_t type);
 int sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, uint32_t len);
 
 static inline void

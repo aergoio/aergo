@@ -119,6 +119,12 @@ contract test {
     int i["1"];
 }
 
+@test(zero_size_value)
+@error(ERROR_INVALID_SIZE_VAL)
+contract test {
+    int i[0];
+}
+
 @test(constant_size_variable)
 contract test {
     const int i = 1;

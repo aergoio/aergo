@@ -40,7 +40,8 @@ typedef enum errlvl_e {
 
 #define TYPE_NAME(type)         type_names_[(type)]
 #define TYPE_SIZE(type)         type_sizes_[(type)]
-#define TYPE_ALIGN(type)        type_aligns_[(type)]
+#define TYPE_BYTE(type)         type_bytes_[(type)]
+#define TYPE_ALIGN              TYPE_SIZE
 
 #define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
 
@@ -68,17 +69,17 @@ typedef enum type_e {
     TYPE_COMPARABLE = TYPE_STRUCT,
 
     TYPE_MAP        = 16,
-    TYPE_OBJECT     = 17,           /* new contract() or null */
+    TYPE_OBJECT     = 17,           /* contract, interface or null */
     TYPE_BUILTIN    = TYPE_OBJECT,
 
-    TYPE_VOID       = 18,           /* for function */
-    TYPE_TUPLE      = 19,           /* for tuple expression */
+    TYPE_VOID       = 18,           /* return type of function */
+    TYPE_TUPLE      = 19,           /* tuple expression */
     TYPE_MAX
 } type_t;
 
 extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];
-extern int type_aligns_[TYPE_MAX];
+extern int type_bytes_[TYPE_MAX];
 
 #define ID_KIND(id)             id_kinds_[(id)->kind]
 

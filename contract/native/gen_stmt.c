@@ -20,10 +20,10 @@ store_element(gen_t *gen, type_t type, BinaryenExpressionRef var_addr,
 {
     BinaryenExpressionRef value;
 
-    value = BinaryenLoad(gen->module, TYPE_SIZE(type), is_signed_type(type), val_offset,
+    value = BinaryenLoad(gen->module, TYPE_BYTE(type), is_signed_type(type), val_offset,
                          0, type_gen(type), val_addr);
 
-    instr_add(gen, BinaryenStore(gen->module, TYPE_SIZE(type), var_offset, 0, var_addr,
+    instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(type), var_offset, 0, var_addr,
                                  value, type_gen(type)));
 }
 
@@ -114,7 +114,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         }
         else {
             address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
-            bytes = TYPE_SIZE(id->meta.type);
+            bytes = TYPE_BYTE(id->meta.type);
         }
 
         return BinaryenStore(gen->module, bytes, offset, 0, address, value,
@@ -155,7 +155,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
             return NULL;
         }
 
-        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->u_stk.type),
+        return BinaryenStore(gen->module, TYPE_BYTE(l_exp->u_stk.type),
                              l_exp->u_stk.offset, 0, address, value,
                              type_gen(l_exp->u_stk.type));
     }
@@ -166,7 +166,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     if (is_return_id(id)) {
         ASSERT(false);
         ASSERT(id->idx >= 0);
-        return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), 0, 0,
+        return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0,
                              BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32()),
                              value, meta_gen(&l_exp->meta));
     }
@@ -179,7 +179,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     address = exp_gen(gen, l_exp);
     gen->is_lval = false;
 
-    return BinaryenStore(gen->module, TYPE_SIZE(l_exp->meta.type), 0, 0, address,
+    return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
                          value, meta_gen(&l_exp->meta));
 }
 

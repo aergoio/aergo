@@ -106,24 +106,30 @@ contract test {
 
 @test(array_initializer)
 contract test {
-    int v1[3] = new { 1, 2, 3 };
-    int v2[3] = new { 1, 2, 3, };
-    string v3[3] = new { "a", "b", "c" };
-    int v4[1], v5[2] = new { 1 }, new { 2, 3 } ;
+    bool b1[2] = new { true, false };
+    byte b2[2] = new { 0xa, 0xb };
 
-    int v6[1 + 1] = new { 1, 2 };
-    int v7[1 * 3 - 1] = new { 3, 4 };
+    int8 i1[3] = new { -1, 0, 1, };
+    int16 i2[1], i3[2] = new { 1024 }, new { 0x0000, 0xffff } ;
 
-    int v8[2][2] = new { { 1, 1 }, { 2, 2 } };
+    int i4[1 + 1] = new { 1, 2 };
+    int i5[1 * 3 - 1] = new { 3, 4 };
 
-    int v9[] = new { 4, 5, 6 };
-    int v10[] = new { 7 };
+    int i6[2][2] = new { { 1, 1 }, { 2, 2 } };
+
+    int i7[] = new { 4, 5, 6 };
+    int i8[] = new { 7 };
+
+    uint32 u1[3] = new { 0, 1, 2, };
+    uint64 u2[1], u3[2] = new { 1 }, new { 2, 3 } ;
+
+    string s[3] = new { "a", "b", "c" };
 }
 
 @test(empty_initializer)
 @error(ERROR_SYNTAX)
 contract test {
-    int i[] = new { };
+    int i[1] = new { };
 }
 
 @test(non_array_initializer)
@@ -154,6 +160,18 @@ contract test {
 @error(ERROR_MISMATCHED_COUNT)
 contract test {
     int i[2] = new { 1 };
+}
+
+@test(array_allocator)
+contract test {
+    bool b[1] = new bool[1];
+    int64 i[2] = new int64[2];
+    double d[3] = new double[3];
+    string s[4] = new string[4];
+
+    int v1[] = new int[2];
+    int v2[][] = new int[2][2];
+    int v3[][4] = new int[2][4];
 }
 
 @test(struct_initializer)
@@ -204,6 +222,16 @@ contract test {
     s1 v1 = new { 1, "b", "c" };
 }
 
+@test(struct_allocator)
+contract test {
+    type s1 struct {
+        int a;
+        byte b;
+        string c;
+    }
+    s1 v1 = new s1;
+}
+
 @test(struct_array_initializer)
 contract test {
     type s1 struct {
@@ -232,11 +260,30 @@ contract test {
     s3 v11[2] = new { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 }
 
+@test(struct_array_allocator)
+contract test {
+    type s1 struct {
+        bool a;
+        int b;
+        string c;
+    }
+    s1 v2[2] = new s1[2];
+}
+
 @test(map_initializer)
 contract test {
+    map(int, string) m1 = new { { 1, "value1" } };
+    map(int, string) m2 = new { { 1, "value1" }, { 2, "value2" } };
+
+    map(bool, map(int, string)) m3 = 
+        new { { true, { { 3, "3" } } }, { false, { { 4, "4" } } } };
+
+    map(bool, map(int, string)) m4 = new { { true, m1 }, { false, m2 } };
+}
+
+@test(map_allocator)
+contract test {
     map(int, string) m1 = new map(int, string);
-    map(int, string) m2 = new { { 1, "value1" } };
-    map(int, string) m3 = new { { 1, "value1" }, { 2, "value2" } };
 }
 
 @test(map_array_initializer)
@@ -250,6 +297,12 @@ contract test {
     };
 }
 
+@test(map_array_allocator)
+contract test {
+    map(int, string) m1[2] = new map(int, string)[2];
+    map(int, string) m2[] = new map(int, string)[2];
+}
+
 @test(contract_initializer)
 @error(ERROR_MISMATCHED_TYPE)
 contract sub {
@@ -258,4 +311,40 @@ contract sub {
 }
 contract test {
     sub v = new { -1, "failure" };
+}
+
+@test(invalid_allocator_declaration)
+@error(ERROR_INVALID_INITIALIZER)
+contract test {
+    int i[2] = new int;
+}
+
+@test(mismatched_allocator_size)
+@error(ERROR_MISMATCHED_COUNT,5)
+contract test {
+    int i1[2] = new int[1];
+    int i2[2] = new int[3];
+    int i3[2][2] = new int[2][3];
+
+    type s1 struct {
+        int a;
+        int b;
+    }
+    s1 v[2] = new s1[1];
+
+    map(int, string) m[2] = new map(int, string)[3];
+}
+
+@test(mismatched_allocator_type)
+@error(ERROR_MISMATCHED_TYPE,3)
+contract test {
+    int i[2] = new int16[2];
+
+    type s1 struct {
+        bool a;
+        double b;
+    }
+    s1 s[1] = new s1;
+
+    map(int, string) m[2] = new map(int, string);
 }

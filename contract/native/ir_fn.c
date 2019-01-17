@@ -58,17 +58,16 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 }
 
 void
-fn_add_stack(ir_fn_t *fn, ast_id_t *id)
+fn_add_stack(ir_fn_t *fn, meta_t *meta)
 {
-    ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
     ASSERT(fn->stack_idx >= 0);
 
-    fn->usage = ALIGN(fn->usage, meta_align(&id->meta));
+    fn->usage = ALIGN(fn->usage, meta_align(meta));
 
-    id->meta.base_idx = fn->stack_idx;
-    id->meta.rel_addr = fn->usage;
+    meta->base_idx = fn->stack_idx;
+    meta->rel_addr = fn->usage;
 
-    fn->usage += meta_size(&id->meta);
+    fn->usage += meta_size(meta);
 }
 
 void

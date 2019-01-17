@@ -88,11 +88,15 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
     for (i = 0; i < meta->elem_cnt; i++) {
         meta->elems[i] = &array_get_id(id->u_struc.fld_ids, i)->meta;
 
+        ASSERT(meta_align(meta->elems[i]) > 0);
+        ASSERT(meta_size(meta->elems[i]) > 0);
+
         meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
         meta->size += meta_size(meta->elems[i]);
     }
 
-    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
+    meta->align = meta_align(meta->elems[0]);
+    meta->size = ALIGN(meta->size, meta->align);
     meta->type_id = id;
 }
 
@@ -111,11 +115,15 @@ meta_set_tuple(meta_t *meta, array_t *elem_exps)
     for (i = 0; i < meta->elem_cnt; i++) {
         meta->elems[i] = &array_get_exp(elem_exps, i)->meta;
 
+        ASSERT(meta_align(meta->elems[i]) > 0);
+        ASSERT(meta_size(meta->elems[i]) > 0);
+
         meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
         meta->size += meta_size(meta->elems[i]);
     }
 
-    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
+    meta->align = meta_align(meta->elems[0]);
+    meta->size = ALIGN(meta->size, meta->align);
 }
 
 void
@@ -320,7 +328,9 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
         for (i = 0; i < x->arr_dim; i++) {
-            if (x->dim_sizes[i] != y->dim_sizes[i])
+            if (x->dim_sizes[i] == -1)
+                meta_set_dim_size(x, i, y->dim_sizes[i]);
+            else if (x->dim_sizes[i] != y->dim_sizes[i])
                 RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i],
                        y->dim_sizes[i]);
         }
@@ -363,11 +373,13 @@ meta_eval_type(meta_t *x, meta_t *y)
     if (is_undef_meta(x)) {
         x->type = y->type;
         x->size = TYPE_SIZE(x->type);
+        x->align = TYPE_ALIGN(x->type);
         x->is_undef = y->is_undef;
     }
     else if (is_undef_meta(y)) {
         y->type = x->type;
         y->size = TYPE_SIZE(y->type);
+        y->align = TYPE_ALIGN(y->type);
         y->is_undef = x->is_undef;
     }
     else if (is_map_meta(x)) {
@@ -432,7 +444,8 @@ meta_eval_size(meta_t *meta)
         meta->size += meta_size(elem_meta);
     }
 
-    meta->size = ALIGN(meta->size, meta_align(meta->elems[0]));
+    meta->align = meta_align(meta->elems[0]);
+    meta->size = ALIGN(meta->size, meta->align);
 }
 
 void

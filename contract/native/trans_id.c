@@ -34,7 +34,7 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 #endif
 
     if (is_stack_id(id))
-        fn_add_stack(trans->fn, id);
+        fn_add_stack(trans->fn, &id->meta);
     else
         fn_add_local(trans->fn, id);
 }

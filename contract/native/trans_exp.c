@@ -324,6 +324,66 @@ make_return_exp(ast_id_t *ret_id, int stack_idx)
 }
 
 static void
+add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
+{
+    ir_fn_t *fn = trans->fn;
+    ast_id_t *ret_id = ret_exp->id->u_fn.ret_id;
+
+    /* Since all return values of a function are treated as parameters, each return
+     * value is added as a separate statement
+     *
+     * As a result, "x, y = f();" is tranformed to "f(); x = r1; y = r2;" in the
+     * assignment statement */
+
+    ASSERT(fn != NULL);
+
+    /* The return value is always stored in stack memory */
+    if (is_tuple_id(ret_id)) {
+        int i;
+        array_t *elem_exps = array_new();
+        array_t *elem_ids = ret_id->u_tup.elem_ids;
+
+        array_foreach(elem_ids, i) {
+            ast_id_t *elem_id = array_get_id(elem_ids, i);
+            //ast_exp_t *ref_exp;
+
+            ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
+
+            fn_add_stack(fn, &elem_id->meta);
+            //make_return_addr(fn, elem_id);
+
+            /*
+               ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
+               elem_id->meta.rel_addr, 0);
+               meta_copy(&ref_exp->meta, &elem_id->meta);
+
+               array_add_last(elem_exps, ref_exp);
+             */
+            array_add_last(call_exp->u_call.param_exps,
+                           make_return_exp(elem_id, fn->stack_idx));
+
+            array_add_last(elem_exps,
+                           exp_new_stack(elem_id->meta.type, fn->stack_idx,
+                                         elem_id->meta.rel_addr, 0));
+        }
+
+        ret_exp->kind = EXP_TUPLE;
+        ret_exp->u_tup.elem_exps = elem_exps;
+    }
+    else {
+        ASSERT1(ret_id->meta.rel_offset == 0, ret_id->meta.rel_offset);
+
+        fn_add_stack(fn, &ret_id->meta);
+        //make_return_addr(fn, ret_id);
+
+        array_add_last(call_exp->u_call.param_exps,
+                       make_return_exp(ret_id, fn->stack_idx));
+
+        exp_set_stack(ret_exp, fn->stack_idx, ret_id->meta.rel_addr, 0);
+    }
+}
+
+static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
     int i;
@@ -375,68 +435,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
     }
 
-    /* Since all return values of a function are treated as parameters, each return
-     * value is added as a separate statement
-     *
-     * As a result, "x, y = f();" is tranformed to "f(); x = r1; y = r2;" in the
-     * assignment statement */
-
     if (exp->id->u_fn.ret_id != NULL) {
-        ast_id_t *ret_id = exp->id->u_fn.ret_id;
-        ast_exp_t *call_exp;
+        ast_exp_t *call_exp = exp_clone(exp);
 
-        ASSERT(fn != NULL);
+        add_return_param(trans, call_exp, exp);
 
         /* if there is a return value, we have to clone it because the call expression
          * itself is transformed */
-        call_exp = exp_clone(exp);
-
-        /* The return value is always stored in stack memory */
-        if (is_tuple_id(ret_id)) {
-            int i;
-            array_t *elem_exps = array_new();
-            array_t *elem_ids = ret_id->u_tup.elem_ids;
-
-            array_foreach(elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(elem_ids, i);
-                //ast_exp_t *ref_exp;
-
-                ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
-
-                fn_add_stack(fn, elem_id);
-                //make_return_addr(fn, elem_id);
-
-                /*
-                ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
-                                        elem_id->meta.rel_addr, 0);
-                meta_copy(&ref_exp->meta, &elem_id->meta);
-
-                array_add_last(elem_exps, ref_exp);
-                */
-                array_add_last(call_exp->u_call.param_exps,
-                               make_return_exp(elem_id, fn->stack_idx));
-
-                array_add_last(elem_exps,
-                               exp_new_stack(elem_id->meta.type, fn->stack_idx,
-                                             elem_id->meta.rel_addr, 0));
-            }
-
-            exp->kind = EXP_TUPLE;
-            exp->u_tup.elem_exps = elem_exps;
-        }
-        else {
-            ASSERT1(ret_id->meta.rel_offset == 0, ret_id->meta.rel_offset);
-
-            fn_add_stack(fn, ret_id);
-            //make_return_addr(fn, ret_id);
-
-            array_add_last(call_exp->u_call.param_exps,
-                           make_return_exp(ret_id, fn->stack_idx));
-
-            exp_set_stack(exp, fn->stack_idx, ret_id->meta.rel_addr, 0);
-        }
-
-        bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &call_exp->pos));
+        bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
     }
     else {
         bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
@@ -498,6 +504,14 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     }
 }
 
+static void
+exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
+{
+    ASSERT(trans->fn != NULL);
+
+    fn_add_stack(trans->fn, &exp->meta);
+}
+
 void
 exp_trans(trans_t *trans, ast_exp_t *exp)
 {
@@ -507,12 +521,12 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
     case EXP_NULL:
         break;
 
-    case EXP_ID:
-        exp_trans_id(trans, exp);
-        break;
-
     case EXP_LIT:
         exp_trans_lit(trans, exp);
+        break;
+
+    case EXP_ID:
+        exp_trans_id(trans, exp);
         break;
 
     case EXP_ARRAY:
@@ -556,7 +570,7 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         break;
 
     case EXP_ALLOC:
-        /* TODO */
+        exp_trans_alloc(trans, exp);
         break;
 
     case EXP_GLOBAL:
