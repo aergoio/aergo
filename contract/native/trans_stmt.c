@@ -370,7 +370,6 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
         ASSERT(ret_id->up != NULL);
         ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
 
-#if 0
         if (is_ctor_id(ret_id->up)) {
             /* If "arg_exp" is not null and "stmt" is constructor's return statement,
              * the "stmt" is added to exit_bb because it is a statement to return the
@@ -380,12 +379,11 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             bb_add_stmt(trans->fn->exit_bb, stmt);
         }
         else {
-#endif
             /* Each return expression of a function corresponds to a local variable,
              * so if there is return arguments, the return statement is transformed to
              * an assign statement using the address value of each return argument */
             stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
-        //}
+        }
     }
 
 #if 0

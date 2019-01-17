@@ -22,7 +22,6 @@ abi_new(ast_id_t *id)
 
     abi->param_cnt = array_size(id->u_fn.param_ids);
 
-#if 0
     if (is_ctor_id(id)) {
         abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
@@ -33,11 +32,9 @@ abi_new(ast_id_t *id)
             param_id->idx = j++;
         }
 
-        //abi->result = meta_gen(&ret_id->meta);
-        abi->result = BinaryenTypeNone();
+        abi->result = meta_gen(&ret_id->meta);
     }
     else {
-#endif
         if (ret_id != NULL) {
             if (is_tuple_id(ret_id))
                 abi->param_cnt += array_size(ret_id->u_tup.elem_ids);
@@ -71,7 +68,7 @@ abi_new(ast_id_t *id)
         }
 
         abi->result = BinaryenTypeNone();
-    //}
+    }
 
     abi->spec = NULL;
 

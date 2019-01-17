@@ -94,7 +94,6 @@ add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
 
     stmt_add(stmts, stmt_new_assign(l_exp, id->u_var.dflt_exp, &id->pos));
 }
-#endif
 
 static void
 add_tmp_vars(ir_fn_t *fn)
@@ -107,42 +106,38 @@ add_tmp_vars(ir_fn_t *fn)
     /* All stack variables access memory by adding relative offset to this value */
     fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
 }
+#endif
 
 static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
-    //ast_id_t *tmp_id;
-    //ast_exp_t *l_exp, *r_exp, *v_exp;
+    ast_id_t *addr_id;
+    ast_exp_t *l_exp, *r_exp, *v_exp;
     array_t *stmts = array_new();
     ir_fn_t *fn = trans->fn;
     ir_t *ir = trans->ir;
 
-    if (id->u_fn.blk == NULL)
-        id->u_fn.blk = blk_new_fn(&id->pos);
-
-    /* The parameter of the constructor is immutable */
-    fn->abi = abi_lookup(&ir->abis, id);
-
-    add_tmp_vars(fn);
 #if 0
     ASSERT(id->u_fn.ret_id != NULL);
     ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
+#endif
 
     /* The parameter of the constructor is immutable */
     fn->abi = abi_lookup(&ir->abis, id);
 
     /* All global variables access memory by adding relative offset to this value */
-    tmp_id = id_new_tmp_var("cont$addr", TYPE_INT32);
+    addr_id = id_new_tmp_var("cont$addr");
+    addr_id->up = id;
+    meta_set_int32(&addr_id->meta);
 
-    fn_add_local(fn, tmp_id);
-    fn->heap_idx = tmp_id->idx;
+    fn_add_local(fn, addr_id);
+    fn->heap_idx = addr_id->idx;
 
-    l_exp = exp_new_local(TYPE_INT32, tmp_id->idx);
-    r_exp = exp_new_global(TYPE_INT32, "heap$offset");
+    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+    r_exp = exp_new_global("heap$offset");
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-#endif
 
     /* We use the "stmts" array to keep the declaration order of variables */
     array_foreach(&id->up->u_cont.blk->ids, i) {
@@ -155,8 +150,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             continue;
 
         if (is_var_id(var_id)) {
-            fn_add_stack(fn, var_id);
-            //ir_add_global(trans->ir, var_id, fn->heap_idx);
+            ir_add_global(trans->ir, var_id, fn->heap_idx);
+            //fn_add_stack(fn, var_id);
 
             dflt_exp = var_id->u_var.dflt_exp;
         }
@@ -164,8 +159,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             array_foreach(var_id->u_tup.elem_ids, j) {
                 ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
 
-                fn_add_stack(fn, elem_id);
-                //ir_add_global(trans->ir, elem_id, fn->heap_idx);
+                ir_add_global(trans->ir, elem_id, fn->heap_idx);
+                //fn_add_stack(fn, elem_id);
             }
 
             dflt_exp = var_id->u_tup.dflt_exp;
@@ -175,21 +170,23 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
     }
 
-#if 0
     /* Increase "heap$offset" by the amount of memory used by the global variables
      * defined in the contract */
-    l_exp = exp_new_global(TYPE_INT32, "heap$offset");
+    l_exp = exp_new_global("heap$offset");
 
-    v_exp = exp_new_lit(&id->pos);
-    value_set_i64(&v_exp->u_lit.val, ir->offset);
+    v_exp = exp_new_lit_i64(ir->offset, &id->pos);
     meta_set_int32(&v_exp->meta);
 
     r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-#endif
 
-    array_join_first(&id->u_fn.blk->stmts, stmts);
+    if (!is_empty_array(stmts)) {
+        if (id->u_fn.blk == NULL)
+            id->u_fn.blk = blk_new_fn(&id->pos);
+
+        array_join_first(&id->u_fn.blk->stmts, stmts);
+    }
 }
 
 static void
@@ -203,20 +200,14 @@ id_trans_param(trans_t *trans, ast_id_t *id)
      * the first argument, and must also be added to the param_ids to reflect the abi */
 
     param_id = id_new_tmp_var("cont$addr");
-
     param_id->is_param = true;
     param_id->up = id;
-
     meta_set_object(&param_id->meta, id->up);
 
     if (id->u_fn.param_ids == NULL)
         id->u_fn.param_ids = array_new();
 
     array_add_first(id->u_fn.param_ids, param_id);
-#if 0
-    /* The "heap_idx" is always 0 because it is prepended to parameters */
-    fn->heap_idx = 0;
-#endif
 }
 
 static void
@@ -266,19 +257,19 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     else {
         id_trans_param(trans, id);
 
+        /* The "heap_idx" is always 0 because it is prepended to parameters */
+        fn->heap_idx = 0;
         fn->abi = abi_lookup(&ir->abis, id);
-        add_tmp_vars(fn);
+        //add_tmp_vars(fn);
     }
 
     id->abi = fn->abi;
 
-#if 0
     /* It is used internally for binaryen, not for us (see fn_gen()) */
     fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
     /* All stack variables access memory by adding relative offset to this value */
     fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
-#endif
 
     trans->bb = fn->entry_bb;
 
@@ -295,14 +286,12 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
-#if 0
     if (is_ctor_id(id)) {
         /* The contract address is returned at the end of "exit_bb" */
-        l_exp = exp_new_local(TYPE_INT32, fn->heap_idx);
+        ast_exp_t *arg_exp = exp_new_local(TYPE_INT32, fn->heap_idx);
 
-        array_add_last(&fn->exit_bb->stmts, stmt_new_return(l_exp, &id->pos));
+        array_add_last(&fn->exit_bb->stmts, stmt_new_return(arg_exp, &id->pos));
     }
-#endif
 
     trans->fn = NULL;
     trans->bb = NULL;
@@ -385,10 +374,8 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
      * the contract, and is stored in the first 4 bytes of the area. All functions
      * also access table by adding relative index to this value */
     idx_id = id_new_tmp_var("cont$idx");
-
     idx_id->up = id;
     idx_id->u_var.dflt_exp = exp_new_lit_i64(array_size(&ir->fns), &idx_id->pos);
-
     meta_set_int32(&idx_id->u_var.dflt_exp->meta);
     meta_set_int32(&idx_id->meta);
 
@@ -396,7 +383,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
 
     blk_trans(trans, id->u_cont.blk);
 
-    //ir->offset = 0;
+    ir->offset = 0;
 }
 
 static void

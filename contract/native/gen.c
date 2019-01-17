@@ -65,10 +65,10 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
     /*
     BinaryenAddGlobal(gen->module, "stack$low", BinaryenTypeInt32(), 0,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
+                      */
 
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
                       i32_gen(gen, stack_size + 1));
-                      */
 }
 
 void

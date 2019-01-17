@@ -42,15 +42,15 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
     id->meta.rel_addr = cont_id->meta.rel_addr;
     id->meta.rel_offset = addr - cont_id->meta.rel_addr;
     */
-    ASSERT(idx == 0);
+    ASSERT(idx >= 0);
 
     ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 
     /* The global variable does not use "addr",
      * but uses the local variable set to "base" as the address */
     id->meta.base_idx = idx;
-    id->meta.rel_addr = -1;
-    id->meta.rel_offset = 0;
+    id->meta.rel_addr = 0;
+    id->meta.rel_offset = ir->offset;
 
     ir->offset += meta_size(&id->meta);
 }

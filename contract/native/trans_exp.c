@@ -30,8 +30,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id)) {
         /* The "id->idx" is the relative index of the function */
-        //exp_set_fn(exp, trans->fn->heap_idx, id->idx);
-        exp_set_fn(exp, 0, id->idx);
+        exp_set_fn(exp, trans->fn->heap_idx, id->idx);
+        //exp_set_fn(exp, 0, id->idx);
     }
     else if (is_return_id(id)) {
         exp_set_stack(exp, id->idx, 0, 0);
@@ -228,7 +228,9 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, qual_exp);
 
     if (is_fn_id(fld_id)) {
-        ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
+        //ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
+        if (is_stack_exp(qual_exp))
+            exp_set_fn(exp, qual_exp->u_stk.base, fld_id->idx);
         return;
     }
 
@@ -269,6 +271,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 #endif
 }
 
+#if 0
 static void
 make_return_addr(ir_fn_t *fn, ast_id_t *ret_id)
 {
@@ -300,6 +303,7 @@ make_return_addr(ir_fn_t *fn, ast_id_t *ret_id)
         fn_add_stack(fn, ret_id);
     }
 }
+#endif
 
 static ast_exp_t *
 make_return_exp(ast_id_t *ret_id, int stack_idx)
@@ -332,34 +336,29 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
     exp_trans(trans, id_exp);
 
-#if 0
     if (is_ctor_id(exp->id))
         /* The constructor does not have a parameter and returns a contract address */
         return;
-#endif
 
-    if (!is_ctor_id(exp->id)) {
-        /* Since non-constructor functions are added the contract base address as a
-         * first argument, we must also add the address as a call argument here */
-        if (exp->u_call.param_exps == NULL)
-            exp->u_call.param_exps = array_new();
+    /* Since non-constructor functions are added the contract base address as a first
+     * argument, we must also add the address as a call argument here */
+    if (exp->u_call.param_exps == NULL)
+        exp->u_call.param_exps = array_new();
 
-        if (is_fn_exp(id_exp)) {
-            /* If the call expression is of type "x()", pass my first parameter as
-             * the first parameter of the target */
-            //ASSERT(trans->fn->heap_idx == 0);
+    if (is_fn_exp(id_exp)) {
+        /* If the call expression is of type "x()", pass my first parameter as the first
+         * parameter of the target */
+        ASSERT(trans->fn->heap_idx == 0);
 
-            array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
-        }
-        else {
-            /* If the call expression is of type "x.y()", pass "x" as the first
-             * argument */
-            ASSERT1(is_access_exp(id_exp), id_exp->kind);
-            ASSERT1(is_object_meta(&id_exp->u_acc.qual_exp->meta),
-                    id_exp->u_acc.qual_exp->meta.type);
+        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
+    }
+    else {
+        /* If the call expression is of type "x.y()", pass "x" as the first argument */
+        ASSERT1(is_access_exp(id_exp), id_exp->kind);
+        ASSERT1(is_object_meta(&id_exp->u_acc.qual_exp->meta),
+                id_exp->u_acc.qual_exp->meta.type);
 
-            array_add_first(exp->u_call.param_exps, id_exp->u_acc.qual_exp);
-        }
+        array_add_first(exp->u_call.param_exps, id_exp->u_acc.qual_exp);
     }
 
     array_foreach(exp->u_call.param_exps, i) {
@@ -404,7 +403,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
                 ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
 
-                make_return_addr(fn, elem_id);
+                fn_add_stack(fn, elem_id);
+                //make_return_addr(fn, elem_id);
 
                 /*
                 ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
@@ -427,7 +427,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         else {
             ASSERT1(ret_id->meta.rel_offset == 0, ret_id->meta.rel_offset);
 
-            make_return_addr(fn, ret_id);
+            fn_add_stack(fn, ret_id);
+            //make_return_addr(fn, ret_id);
 
             array_add_last(call_exp->u_call.param_exps,
                            make_return_exp(ret_id, fn->stack_idx));
