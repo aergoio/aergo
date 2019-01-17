@@ -46,7 +46,7 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 
 	impl := map[string]consensus.Constructor{
 		"dpos": dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
-		"sbp":  sbp.GetConstructor(cfg, hub, cdb),       // Simple BP
+		"sbp":  sbp.GetConstructor(cfg, hub, cdb, sdb),  // Simple BP
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
