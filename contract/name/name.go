@@ -2,7 +2,6 @@ package name
 
 import (
 	"bytes"
-	"encoding/gob"
 	"fmt"
 	"strings"
 
@@ -112,22 +111,16 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) *Owner {
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
 	var err error
-	var ownergob []byte
+	var ownerdata []byte
 	if useInitial {
-		ownergob, err = scs.GetInitialData(key)
+		ownerdata, err = scs.GetInitialData(key)
 	} else {
-		ownergob, err = scs.GetData(key)
+		ownerdata, err = scs.GetData(key)
 	}
 	if err != nil {
 		return nil
 	}
-	dec := gob.NewDecoder(bytes.NewBuffer(ownergob))
-	var owner Owner
-	err = dec.Decode(&owner)
-	if err != nil {
-		return nil
-	}
-	return &owner
+	return deserializeOwner(ownerdata)
 }
 
 func setAddress(scs *state.ContractState, name []byte, address []byte) error {
@@ -136,13 +129,21 @@ func setAddress(scs *state.ContractState, name []byte, address []byte) error {
 }
 
 func setOwner(scs *state.ContractState, name []byte, owner *Owner) error {
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(owner)
-	if err != nil {
-		return err
-	}
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
-	return scs.SetData(key, data.Bytes())
+	return scs.SetData(key, serializeOwner(owner))
+}
+
+func serializeOwner(owner *Owner) []byte {
+	if owner != nil {
+		return owner.Address
+	}
+	return nil
+}
+
+func deserializeOwner(data []byte) *Owner {
+	if data != nil {
+		return &Owner{Address: data}
+	}
+	return nil
 }

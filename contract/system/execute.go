@@ -14,6 +14,8 @@ import (
 )
 
 const FutureBlockNo = math.MaxUint64
+const lsep = byte(':')
+const vsep = byte(',')
 
 func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, sender *state.V,
 	blockNo types.BlockNo) error {
