@@ -66,6 +66,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 			mockPeer.On("ID").Return(dummyPeerID2)
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("sendMessage", mock.Anything)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockMF.On("newMsgResponseOrder", mock.Anything, AddressesResponse, mock.MatchedBy(
 				func(p0 *types.AddressesResponse) bool {
 					return len(p0.Peers) == tt.wantSize

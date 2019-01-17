@@ -197,7 +197,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			mockActor := new(MockActorService)
 			mockRW := new(MockMsgReadWriter)
 			mockMF := new(MockMoFactory)
-			dummyPeer := newRemotePeer(dummyMeta, mockPM, mockActor, logger, mockMF, &dummySigner{}, nil, mockRW)
+			dummyPeer := newRemotePeer(dummyMeta, 0, mockPM, mockActor, logger, mockMF, &dummySigner{}, nil, mockRW)
 			mockMsgHelper := new(mocks.Helper)
 
 			header, body := test.setup(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
@@ -236,6 +236,7 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			mockActor := new(MockActorService)
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockPeer.On("sendMessage", mock.Anything)
 
 			validBigMempoolRsp := &message.MemPoolExistExRsp{}

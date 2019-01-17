@@ -41,6 +41,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockPeer.On("updateLastNotice",mock.Anything, mock.AnythingOfType("uint64")).Return(false)
 			mockActor := new(MockActorService)
 			mockSM := new(MockSyncManager)
