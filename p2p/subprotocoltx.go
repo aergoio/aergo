@@ -44,10 +44,9 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 
 func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 
-	peerID := th.peer.ID()
 	remotePeer := th.peer
 	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
-	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(reqHashes))
+	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, len(reqHashes))
 
 	// TODO consider to make async if deadlock with remote peer can occurs
 	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
@@ -139,9 +138,8 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 }
 
 func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
+	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
@@ -164,11 +162,11 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
+	remotePeer := th.peer
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
 	if th.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, bytesArrToString(data.TxHashes))
+		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, bytesArrToString(data.TxHashes))
 	}
 
 	if len(data.TxHashes) == 0 {

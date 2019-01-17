@@ -40,6 +40,7 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 			if test.put != nil  {
@@ -123,6 +124,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 
 			_, data := test.setup(t, mockActor, mockCA)
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)

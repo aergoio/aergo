@@ -63,7 +63,7 @@ func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, block *types.B
 	hash := MustParseBlkHash(block.GetHash())
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
-		sm.logger.Warn().Str(LogBlkHash, hash.String()).Str(LogPeerID, peer.ID().Pretty()).Msg("Duplacated blockProduced notice")
+		sm.logger.Warn().Str(LogBlkHash, hash.String()).Str(LogPeerName,peer.Name()).Msg("Duplacated blockProduced notice")
 		return
 	}
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
@@ -93,7 +93,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBloc
 	// request block info if selfnode does not have block already
 	foundBlock, _ := sm.actor.GetChainAccessor().GetBlock(data.BlockHash)
 	if foundBlock == nil {
-		sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("new block notice of unknown hash. request back to notifier")
+		sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerName,peer.Name()).Msg("new block notice of unknown hash. request back to notifier")
 		sm.actor.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}

@@ -132,6 +132,7 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
+	pms.Logger.Info().Str("version", string(PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
@@ -292,7 +293,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
-	pms.Logger.Info().Str(p2p.LogPeerID, peerID.Pretty()).Msg("Unregistering bad peer")
+	pms.Logger.Info().Str(p2p.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
 
 }
@@ -451,16 +452,16 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 
 func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
 	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
-		pms.Logger.Debug().Str("addr",meta.IPAddress).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("peer is private address")
+		pms.Logger.Debug().Str("peer_meta",meta.String()).Msg("peer is private address")
 		return false
 	}
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary:true}
 	_, err := tempState.checkConnect(PolarisPingTTL )
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check was failed.")
+		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check was failed.")
 		return false
 	} else {
-		pms.Logger.Debug().Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check is succeeded.")
+		pms.Logger.Debug().Str(p2p.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check is succeeded.")
 		return true
 	}
 }

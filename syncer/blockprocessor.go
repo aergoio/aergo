@@ -3,6 +3,7 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"sort"
 
 	"github.com/aergoio/aergo/chain"
@@ -77,13 +78,13 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 		}
 
 		if blocks == nil || len(blocks) == 0 {
-			logger.Error().Err(msg.Err).Str("peer", msg.ToWhom.Pretty()).Msg("GetBlockChunksRsp is empty")
+			logger.Error().Err(msg.Err).Str("peer", p2putil.ShortForm(msg.ToWhom)).Msg("GetBlockChunksRsp is empty")
 			return &ErrSyncMsg{msg: msg, str: "blocks is empty"}
 		}
 
 		for _, block := range blocks {
 			if prev != nil && !bytes.Equal(prev, block.GetHeader().GetPrevBlockHash()) {
-				logger.Error().Str("peer", msg.ToWhom.Pretty()).Msg("GetBlockChunksRsp hashes inconsistent")
+				logger.Error().Str("peer", p2putil.ShortForm(msg.ToWhom)).Msg("GetBlockChunksRsp hashes inconsistent")
 				return &ErrSyncMsg{msg: msg, str: "blocks hash not matched"}
 			}
 
@@ -138,12 +139,12 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 
 	bf := bproc.blockFetcher
 
-	logger.Debug().Str("peer", msg.ToWhom.Pretty()).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockChunkRsp")
+	logger.Debug().Str("peer", p2putil.ShortForm(msg.ToWhom)).Uint64("startNo", msg.Blocks[0].GetHeader().BlockNo).Int("count", len(msg.Blocks)).Msg("received GetBlockChunkRsp")
 
 	task, err := bf.findFinished(msg, false)
 	if err != nil {
 		//TODO invalid peer
-		logger.Error().Str("peer", msg.ToWhom.Pretty()).
+		logger.Error().Str("peer", p2putil.ShortForm(msg.ToWhom)).
 			Int("count", len(msg.Blocks)).
 			Str("from", enc.ToString(msg.Blocks[0].GetHash())).
 			Str("to", enc.ToString(msg.Blocks[len(msg.Blocks)-1].GetHash())).
@@ -163,12 +164,12 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRsp, err error) error {
 	bf := bproc.blockFetcher
 
-	logger.Error().Err(err).Str("peer", msg.ToWhom.Pretty()).Msg("receive GetBlockChunksRsp with error message")
+	logger.Error().Err(err).Str("peer", p2putil.ShortForm(msg.ToWhom)).Msg("receive GetBlockChunksRsp with error message")
 
 	task, err := bf.findFinished(msg, true)
 	if err != nil {
 		//TODO invalid peer
-		logger.Error().Err(err).Str("peer", msg.ToWhom.Pretty()).Msg("dropped unknown block error message")
+		logger.Error().Err(err).Str("peer", p2putil.ShortForm(msg.ToWhom)).Msg("dropped unknown block error message")
 		return nil
 	}
 

@@ -32,14 +32,13 @@ func (bh *blockProducedNoticeHandler) parsePayload(rawbytes []byte) (proto.Messa
 
 func (bh *blockProducedNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer := bh.peer
-	peerID := remotePeer.ID()
 	data := msgBody.(*types.BlockProducedNotice)
 	if data.Block == nil || len(data.Block.Hash) == 0 {
-		bh.logger.Info().Str(LogPeerID,peerID.Pretty()).Msg("invalid blockProduced notice. block is null")
+		bh.logger.Info().Str(LogPeerName,remotePeer.Name()).Msg("invalid blockProduced notice. block is null")
 		return
 	}
 	// remove to verbose log
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string {
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, log.DoLazyEval(func() string {
 		return fmt.Sprintf("bp=%s,blk_no=%d,blk_hash=%s", enc.ToString(data.ProducerID), data.BlockNo, enc.ToString(data.Block.Hash))
 	}))
 
