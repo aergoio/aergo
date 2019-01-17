@@ -555,6 +555,10 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_init(trans, exp);
         break;
 
+    case EXP_ALLOC:
+        /* TODO */
+        break;
+
     case EXP_GLOBAL:
     case EXP_LOCAL:
     case EXP_STACK:

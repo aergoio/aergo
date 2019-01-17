@@ -100,6 +100,16 @@ exp_new_id(char *name, src_pos_t *pos)
 }
 
 ast_exp_t *
+exp_new_type(type_t type, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_TYPE, pos);
+
+    exp->u_type.type = type;
+
+    return exp;
+}
+
+ast_exp_t *
 exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_ARRAY, pos);
@@ -123,10 +133,11 @@ exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos)
+exp_new_call(bool is_ctor, ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
+    exp->u_call.is_ctor = is_ctor;
     exp->u_call.id_exp = id_exp;
     exp->u_call.param_exps = param_exps;
 
@@ -211,6 +222,16 @@ exp_new_init(array_t *elem_exps, src_pos_t *pos)
         exp->u_init.elem_exps = array_new();
     else
         exp->u_init.elem_exps = elem_exps;
+
+    return exp;
+}
+
+ast_exp_t *
+exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos)
+{
+    ast_exp_t *exp = ast_exp_new(EXP_ALLOC, pos);
+
+    exp->u_alloc.type_exp = type_exp;
 
     return exp;
 }
@@ -333,13 +354,20 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_null(&exp->pos);
         break;
 
+    case EXP_LIT:
+        res = exp_new_lit(&exp->pos);
+        res->u_lit.val = exp->u_lit.val;
+        break;
+
     case EXP_ID:
         res = exp_new_id(exp->u_id.name, &exp->pos);
         break;
 
-    case EXP_LIT:
-        res = exp_new_lit(&exp->pos);
-        res->u_lit.val = exp->u_lit.val;
+    case EXP_TYPE:
+        res = exp_new_type(exp->u_type.type, &exp->pos);
+        res->u_type.name = exp->u_type.name;
+        res->u_type.k_exp = exp_clone(exp->u_type.k_exp);
+        res->u_type.v_exp = exp_clone(exp->u_type.v_exp);
         break;
 
     case EXP_ARRAY:
@@ -379,7 +407,8 @@ exp_clone(ast_exp_t *exp)
         array_foreach(elem_exps, i) {
             array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
         }
-        res = exp_new_call(exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
+        res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps,
+                           &exp->pos);
         break;
 
     case EXP_SQL:
@@ -393,6 +422,18 @@ exp_clone(ast_exp_t *exp)
             array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
         }
         res = exp_new_tuple(res_exps, &exp->pos);
+        break;
+
+    case EXP_ALLOC:
+        res = exp_new_alloc(exp->u_alloc.type_exp, &exp->pos);
+        elem_exps = exp->u_alloc.size_exps;
+        if (elem_exps != NULL) {
+            res_exps = array_new();
+            array_foreach(elem_exps, i) {
+                array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
+            }
+            res->u_alloc.size_exps = res_exps;
+        }
         break;
 
     case EXP_GLOBAL:
@@ -437,12 +478,17 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
     case EXP_NULL:
         return true;
 
-    case EXP_ID:
-        return strcmp(x->u_id.name, y->u_id.name) == 0;
-
     case EXP_LIT:
         return x->u_lit.val.type == y->u_lit.val.type &&
             value_cmp(&x->u_lit.val, &y->u_lit.val) == 0;
+
+    case EXP_ID:
+        return strcmp(x->u_id.name, y->u_id.name) == 0;
+
+    case EXP_TYPE:
+        return x->u_type.type == y->u_type.type &&
+            strcmp(x->u_type.name, y->u_type.name) == 0 &&
+            exp_equals(x->u_type.k_exp, y->u_type.k_exp);
 
     case EXP_ARRAY:
         return exp_equals(x->u_arr.id_exp, y->u_arr.id_exp) &&
@@ -482,8 +528,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
         return exp_equals(x->u_acc.qual_exp, y->u_acc.qual_exp);
 
     case EXP_SQL:
-        return x->u_sql.kind == y->u_sql.kind &&
-            strcmp(x->u_sql.sql, y->u_sql.sql) == 0;
+        return x->u_sql.kind == y->u_sql.kind && strcmp(x->u_sql.sql, y->u_sql.sql) == 0;
 
     case EXP_TUPLE:
         if (array_size(x->u_tup.elem_exps) != array_size(y->u_tup.elem_exps))
@@ -492,6 +537,17 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
         array_foreach(x->u_tup.elem_exps, i) {
             if (!exp_equals(array_get_exp(x->u_tup.elem_exps, i),
                             array_get_exp(y->u_tup.elem_exps, i)))
+                return false;
+        }
+        return true;
+
+    case EXP_INIT:
+        if (array_size(x->u_init.elem_exps) != array_size(y->u_init.elem_exps))
+            return false;
+
+        array_foreach(x->u_init.elem_exps, i) {
+            if (!exp_equals(array_get_exp(x->u_init.elem_exps, i),
+                            array_get_exp(y->u_init.elem_exps, i)))
                 return false;
         }
         return true;

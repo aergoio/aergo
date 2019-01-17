@@ -21,10 +21,12 @@ meta_to_str(meta_t *meta)
     strbuf_init(&buf);
 
     if (is_struct_meta(meta)) {
-        ASSERT(meta->name != NULL);
+        //ASSERT(meta->name != NULL);
+        ASSERT(meta->type_id != NULL);
 
         strbuf_cat(&buf, "struct ");
-        strbuf_cat(&buf, meta->name);
+        //strbuf_cat(&buf, meta->name);
+        strbuf_cat(&buf, meta->type_id->name);
     }
     else if (is_map_meta(meta)) {
         ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
@@ -77,7 +79,7 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
 
     meta_set(meta, TYPE_STRUCT);
 
-    meta->name = id->name;
+    //meta->name = id->name;
     meta->size = 0;
 
     meta->elem_cnt = array_size(id->u_struc.fld_ids);
@@ -123,7 +125,7 @@ meta_set_object(meta_t *meta, ast_id_t *id)
 
     if (id != NULL) {
         ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
-        meta->name = id->name;
+        //meta->name = id->name;
         /*
         meta->size = 0;
 
@@ -196,11 +198,18 @@ static bool
 meta_cmp_struct(meta_t *x, meta_t *y)
 {
     if (is_struct_meta(y)) {
+        ASSERT(x->type_id != NULL);
+        ASSERT(y->type_id != NULL);
+
+        if (strcmp(x->type_id->name, y->type_id->name) != 0)
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        /*
         ASSERT(x->name != NULL);
         ASSERT(y->name != NULL);
 
         if (strcmp(x->name, y->name) != 0)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+            */
     }
     else if (is_tuple_meta(y)) {
         int i;

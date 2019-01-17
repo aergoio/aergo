@@ -68,7 +68,7 @@ typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
 
 typedef struct id_var_s {
-    meta_t *type_meta;
+    ast_exp_t *type_exp;
     array_t *size_exps;
     ast_exp_t *dflt_exp;
 } id_var_t;
@@ -82,7 +82,7 @@ typedef struct id_enum_s {
 } id_enum_t;
 
 typedef struct id_return_s {
-    meta_t *type_meta;
+    ast_exp_t *type_exp;
     array_t *size_exps;
 } id_return_t;
 
@@ -106,7 +106,7 @@ typedef struct id_label_s {
 } id_label_t;
 
 typedef struct id_tuple_s {
-    meta_t *type_meta;
+    ast_exp_t *type_exp;
     array_t *elem_ids;
     ast_exp_t *dflt_exp;
 } id_tuple_t;
@@ -147,7 +147,7 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_return(meta_t *type_meta, src_pos_t *pos);
+ast_id_t *id_new_return(ast_exp_t *type_exp, src_pos_t *pos);
 ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
                       ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);

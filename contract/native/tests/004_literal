@@ -234,10 +234,9 @@ contract test {
 
 @test(map_initializer)
 contract test {
-    map(int, string) m1 = new map();
-    map(int, string) m2 = new map(10);
-    map(int, string) m3 = new { { 1, "value1" } };
-    map(int, string) m4 = new { { 1, "value1" }, { 2, "value2" } };
+    map(int, string) m1 = new map(int, string);
+    map(int, string) m2 = new { { 1, "value1" } };
+    map(int, string) m3 = new { { 1, "value1" }, { 2, "value2" } };
 }
 
 @test(map_array_initializer)

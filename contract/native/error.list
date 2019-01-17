@@ -59,6 +59,7 @@ error(ERROR_INVALID_ENUM_VAL,       "enumerator value must be an integer constan
 error(ERROR_INVALID_CONTINUE,       "continue statement must be within a loop")
 error(ERROR_INVALID_BREAK,          "break statement must be within a loop or switch")
 error(ERROR_INVALID_ARR_IDX,        "array index out of bounds")
+error(ERROR_INVALID_INITIALIZER,    "new initializer must be an array")
 error(ERROR_DUPLICATED_CASE,        "duplicated case condition")
 error(ERROR_DUPLICATED_ENUM,        "duplicated enumerator value")
 error(ERROR_DUPLICATED_LABEL,       "duplicated %s label")

@@ -15,6 +15,7 @@
 
 #include "check_id.h"
 
+#if 0
 static bool
 id_check_type(check_t *check, meta_t *meta)
 {
@@ -52,12 +53,13 @@ id_check_type(check_t *check, meta_t *meta)
 
     return true;
 }
+#endif
 
 static bool
 id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
-    int dim_sizes;
+    int dim_size;
     array_t *size_exps;
 
     if (is_var_id(id))
@@ -80,14 +82,12 @@ id_check_array(check_t *check, ast_id_t *id)
             meta_set_dim_size(&id->meta, i, -1);
         }
         else {
-            ast_id_t *size_id = size_exp->id;
-            meta_t *size_meta = &size_exp->meta;
-            value_t *size_val;
+            value_t *size_val = NULL;
 
-            if (size_id != NULL && is_const_id(size_id))
+            if (size_exp->id != NULL && is_const_id(size_exp->id))
                 /* constant variable */
-                size_val = size_id->val;
-            else if (is_lit_exp(size_exp) && is_integer_meta(size_meta))
+                size_val = size_exp->id->val;
+            else if (is_lit_exp(size_exp) && is_integer_meta(&size_exp->meta))
                 /* integer literal */
                 size_val = &size_exp->u_lit.val;
             else
@@ -96,11 +96,11 @@ id_check_array(check_t *check, ast_id_t *id)
             ASSERT(size_val != NULL);
             ASSERT1(is_i64_val(size_val), size_val->type);
 
-            dim_sizes = val_i64(size_val);
-            if (dim_sizes <= 0)
+            dim_size = val_i64(size_val);
+            if (dim_size <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_size(&id->meta, i, dim_sizes);
+            meta_set_dim_size(&id->meta, i, dim_size);
         }
     }
 
@@ -110,29 +110,21 @@ id_check_array(check_t *check, ast_id_t *id)
 static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
-    meta_t *type_meta;
-    ast_exp_t *dflt_exp;
-
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
-    ASSERT(id->u_var.type_meta != NULL);
+    ASSERT(id->u_var.type_exp != NULL);
 
-    type_meta = id->u_var.type_meta;
-    dflt_exp = id->u_var.dflt_exp;
+    CHECK(exp_check(check, id->u_var.type_exp));
 
-    CHECK(id_check_type(check, type_meta));
-
-    meta_copy(&id->meta, type_meta);
-
-    /* The constant value of the tuple element is checked by id_check_tuple() */
-    if (!is_tuple_id(id->up) && is_const_id(id) && dflt_exp == NULL)
-        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+    meta_copy(&id->meta, &id->u_var.type_exp->meta);
 
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (dflt_exp != NULL) {
+    if (id->u_var.dflt_exp != NULL) {
+        ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+
         /* TODO: named initializer */
         CHECK(exp_check(check, dflt_exp));
         CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
@@ -143,6 +135,10 @@ id_check_var(check_t *check, ast_id_t *id)
 
         if (is_const_id(id) && is_lit_exp(dflt_exp))
             id->val = &dflt_exp->u_lit.val;
+    }
+    else if (!is_tuple_id(id->up) && is_const_id(id)) {
+        /* The constant value of the tuple element is checked by id_check_tuple() */
+        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
     }
 
     return true;
@@ -242,11 +238,11 @@ id_check_return(check_t *check, ast_id_t *id)
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
     ASSERT(is_param_id(id));
-    ASSERT(id->u_ret.type_meta != NULL);
+    ASSERT(id->u_ret.type_exp != NULL);
 
-    CHECK(id_check_type(check, id->u_ret.type_meta));
+    CHECK(exp_check(check, id->u_ret.type_exp));
 
-    meta_copy(&id->meta, id->u_ret.type_meta);
+    meta_copy(&id->meta, &id->u_ret.type_exp->meta);
 
     if (id->u_ret.size_exps != NULL)
         CHECK(id_check_array(check, id));
@@ -307,7 +303,7 @@ id_check_fn(check_t *check, ast_id_t *id)
     check->fn_id = NULL;
 
     if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
-        (id->u_fn.blk == NULL ||
+        (id->u_fn.blk == NULL || is_empty_array(&id->u_fn.blk->stmts) ||
          !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
         RETURN(ERROR_MISSING_RETURN, &id->pos);
 
@@ -420,8 +416,8 @@ id_check_tuple(check_t *check, ast_id_t *id)
             /* The default expression for the tuple identifier is set in id_trans_var() */
             ASSERT(elem_id->u_var.dflt_exp == NULL);
 
-            if (elem_id->u_var.type_meta == NULL)
-                elem_id->u_var.type_meta = id->u_tup.type_meta;
+            if (elem_id->u_var.type_exp == NULL)
+                elem_id->u_var.type_exp = id->u_tup.type_exp;
 
             id_check(check, elem_id);
         }

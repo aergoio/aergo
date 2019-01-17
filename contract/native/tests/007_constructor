@@ -41,10 +41,29 @@ contract test {
 contract callee { }
 
 contract test {
-    func f() {
+    test() {
         test t = new test();
         callee c = new callee();
     }
+}
+
+@test(missing_parenthesis)
+@error(ERROR_INVALID_INITIALIZER)
+contract callee { }
+
+contract test {
+    test() {
+        callee c = new callee;
+    }
+}
+
+@test(instantiate_with_non_constructor)
+@error(ERROR_UNDEFINED_ID)
+contract test {
+    test() {
+        test c = new f();
+    }
+    func f() test { return null; }
 }
 
 @test(not_allowed_initializer)
@@ -91,37 +110,7 @@ contract test {
 @test(self_accessor_as_lvalue)
 @error(ERROR_INVALID_LVALUE)
 contract test {
-    func f () {
+    test() {
         this = new test();
-    }
-}
-
-@test(neighbor_reference)
-contract neighbor {
-    public int v;
-    neighbor(int p) {
-        v = p;
-    }
-    public func f() int {
-        return v;
-    }
-}
-
-contract test {
-    int v;
-    func f() int {
-        neighbor n = new neighbor(1);
-        v = n.v;
-        return n.f();
-    }
-}
-
-@test(missing_parenthesis)
-@error(ERROR_SYNTAX)
-contract callee { }
-
-contract test {
-    func f() {
-        callee c = new callee;
     }
 }

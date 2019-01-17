@@ -15,6 +15,7 @@
 #define is_null_exp(exp)            ((exp)->kind == EXP_NULL)
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
+#define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
 #define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_unary_exp(exp)           ((exp)->kind == EXP_UNARY)
@@ -25,6 +26,7 @@
 #define is_sql_exp(exp)             ((exp)->kind == EXP_SQL)
 #define is_tuple_exp(exp)           ((exp)->kind == EXP_TUPLE)
 #define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
+#define is_alloc_exp(exp)           ((exp)->kind == EXP_ALLOC)
 #define is_global_exp(exp)          ((exp)->kind == EXP_GLOBAL)
 #define is_local_exp(exp)           ((exp)->kind == EXP_LOCAL)
 #define is_stack_exp(exp)           ((exp)->kind == EXP_STACK)
@@ -66,6 +68,14 @@ typedef struct exp_id_s {
     char *name;
 } exp_id_t;
 
+/* primitive, struct, map */
+typedef struct exp_type_s {
+    type_t type;
+    char *name;
+    ast_exp_t *k_exp;
+    ast_exp_t *v_exp;
+} exp_type_t;
+
 /* id[idx] */
 typedef struct exp_array_s {
     ast_exp_t *id_exp;
@@ -80,6 +90,7 @@ typedef struct exp_cast_s {
 
 /* id(param, ...) */
 typedef struct exp_call_s {
+    bool is_ctor;
     ast_exp_t *id_exp;
     array_t *param_exps;
 } exp_call_t;
@@ -127,6 +138,12 @@ typedef struct exp_init_s {
     array_t *elem_exps;
 } exp_init_t;
 
+/* new type, new type[] */
+typedef struct exp_alloc_s {
+    ast_exp_t *type_exp;
+    array_t *size_exps;
+} exp_alloc_t;
+
 typedef struct exp_global_s {
     char *name;
 } exp_global_t;
@@ -154,6 +171,7 @@ struct ast_exp_s {
     union {
         exp_lit_t u_lit;
         exp_id_t u_id;
+        exp_type_t u_type;
         exp_array_t u_arr;
         exp_cast_t u_cast;
         exp_call_t u_call;
@@ -164,6 +182,7 @@ struct ast_exp_s {
         exp_sql_t u_sql;
         exp_tuple_t u_tup;
         exp_init_t u_init;
+        exp_alloc_t u_alloc;
         exp_global_t u_glob;
         exp_local_t u_local;
         exp_stack_t u_stk;
@@ -183,9 +202,11 @@ ast_exp_t *exp_new_lit_i64(uint64_t v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_f64(double v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_str(char *v, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
+ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
-ast_exp_t *exp_new_call(ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos);
+ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, array_t *param_exps,
+                        src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp,
                          src_pos_t *pos);
@@ -196,6 +217,7 @@ ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *pos
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
 ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
+ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(char *name);
 ast_exp_t *exp_new_local(type_t type, int idx);

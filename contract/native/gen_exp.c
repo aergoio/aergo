@@ -670,6 +670,10 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_INIT:
         return exp_gen_init(gen, exp);
 
+    case EXP_ALLOC:
+        /* TODO */
+        return NULL;
+
     case EXP_GLOBAL:
         return exp_gen_global(gen, exp);
 

@@ -12,6 +12,37 @@
 #include "check_exp.h"
 
 static bool
+exp_check_lit(check_t *check, ast_exp_t *exp)
+{
+    ASSERT1(is_lit_exp(exp), exp->kind);
+
+    switch (exp->u_lit.val.type) {
+    case TYPE_BOOL:
+        meta_set_bool(&exp->meta);
+        break;
+    case TYPE_UINT64:
+        meta_set_uint64(&exp->meta);
+        meta_set_undef(&exp->meta);
+        break;
+    case TYPE_DOUBLE:
+        meta_set_double(&exp->meta);
+        meta_set_undef(&exp->meta);
+        break;
+    case TYPE_STRING:
+        meta_set_string(&exp->meta);
+        break;
+    case TYPE_OBJECT:
+        meta_set_object(&exp->meta, NULL);
+        meta_set_undef(&exp->meta);
+        break;
+    default:
+        ASSERT1(!"invalid value", exp->u_lit.val.type);
+    }
+
+    return true;
+}
+
+static bool
 exp_check_id(check_t *check, ast_exp_t *exp)
 {
     ast_id_t *id = NULL;
@@ -52,31 +83,57 @@ exp_check_id(check_t *check, ast_exp_t *exp)
 }
 
 static bool
-exp_check_lit(check_t *check, ast_exp_t *exp)
+exp_check_type(check_t *check, ast_exp_t *exp)
 {
-    ASSERT1(is_lit_exp(exp), exp->kind);
+    ASSERT1(is_type_exp(exp), exp->kind);
 
-    switch (exp->u_lit.val.type) {
-    case TYPE_BOOL:
-        meta_set_bool(&exp->meta);
-        break;
-    case TYPE_UINT64:
-        meta_set_uint64(&exp->meta);
-        meta_set_undef(&exp->meta);
-        break;
-    case TYPE_DOUBLE:
-        meta_set_double(&exp->meta);
-        meta_set_undef(&exp->meta);
-        break;
-    case TYPE_STRING:
-        meta_set_string(&exp->meta);
-        break;
-    case TYPE_OBJECT:
-        meta_set_object(&exp->meta, NULL);
-        meta_set_undef(&exp->meta);
-        break;
-    default:
-        ASSERT1(!"invalid value", exp->u_lit.val.type);
+    if (exp->u_type.type == TYPE_NONE) {
+        ast_id_t *id;
+        char *name = exp->u_type.name;
+
+        ASSERT(name != NULL);
+        ASSERT(exp->u_type.k_exp == NULL);
+        ASSERT(exp->u_type.v_exp == NULL);
+
+        id = blk_search_id(check->blk, name, exp->num, true);
+        if (id == NULL || !is_type_id(id))
+            RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, name);
+
+        id_trycheck(check, id);
+
+        id->is_used = true;
+
+		exp->id = id;
+        meta_copy(&exp->meta, &id->meta);
+    }
+    else if (exp->u_type.type == TYPE_MAP) {
+        ast_exp_t *k_exp = exp->u_type.k_exp;
+        ast_exp_t *v_exp = exp->u_type.v_exp;
+        meta_t *k_meta, *v_meta;
+
+        ASSERT(exp->u_type.name == NULL);
+        ASSERT(exp->u_type.k_exp != NULL);
+        ASSERT(exp->u_type.v_exp != NULL);
+
+        k_meta = &k_exp->meta;
+        v_meta = &v_exp->meta;
+
+        CHECK(exp_check_type(check, k_exp));
+
+        if (!is_comparable_meta(k_meta))
+            RETURN(ERROR_NOT_COMPARABLE_TYPE, k_meta->pos, meta_to_str(k_meta));
+
+        CHECK(exp_check_type(check, v_exp));
+
+        ASSERT(!is_tuple_meta(v_meta));
+        meta_set_map(&exp->meta, k_meta, v_meta);
+    }
+    else {
+        ASSERT(exp->u_type.name == NULL);
+        ASSERT(exp->u_type.k_exp == NULL);
+        ASSERT(exp->u_type.v_exp == NULL);
+
+        meta_set(&exp->meta, exp->u_type.type);
     }
 
     return true;
@@ -541,6 +598,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     id_exp = exp->u_call.id_exp;
     param_exps = exp->u_call.param_exps;
 
+#if 0
     if (is_id_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
         /* In case of new map() */
         if (param_exps != NULL) {
@@ -558,6 +616,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
         return true;
     }
+#endif
 
     CHECK(exp_check(check, id_exp));
 
@@ -566,7 +625,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
     if (is_cont_id(id)) {
-        /* search constructor */
+        /* If the contract identifier is returned, it is searched by the constructor
+         * name of another contract. Therefore, the constructor is searched again in
+         * the contract block */
         id = blk_search_id(id->u_cont.blk, id->name, id_exp->num, false);
         ASSERT(id != NULL);
 
@@ -575,6 +636,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
     if (!is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
+
+    if (exp->u_call.is_ctor && !is_ctor_id(id))
+        RETURN(ERROR_UNDEFINED_ID, &id_exp->pos, id->name);
 
     ASSERT1(is_id_exp(id_exp) || is_access_exp(id_exp), id_exp->kind);
 
@@ -670,6 +734,58 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     return true;
 }
 
+static bool
+exp_check_alloc(check_t *check, ast_exp_t *exp)
+{
+    ASSERT1(is_alloc_exp(exp), exp->kind);
+    ASSERT(exp->u_alloc.type_exp != NULL);
+
+    CHECK(exp_check(check, exp->u_alloc.type_exp));
+
+    meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
+
+    if (exp->u_alloc.size_exps != NULL) {
+        int i;
+        int dim_size;
+        array_t *size_exps = exp->u_alloc.size_exps;
+
+        meta_set_arr_dim(&exp->meta, array_size(size_exps));
+
+        array_foreach(size_exps, i) {
+            value_t *size_val = NULL;
+            ast_exp_t *size_exp = array_get_exp(size_exps, i);
+
+            CHECK(exp_check(check, size_exp));
+
+            if (is_null_exp(size_exp))
+                RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
+
+            if (size_exp->id != NULL && is_const_id(size_exp->id))
+                /* constant variable */
+                size_val = size_exp->id->val;
+            else if (is_lit_exp(size_exp) && is_integer_meta(&size_exp->meta))
+                /* integer literal */
+                size_val = &size_exp->u_lit.val;
+            else
+                RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
+
+            ASSERT(size_val != NULL);
+            ASSERT1(is_i64_val(size_val), size_val->type);
+
+            dim_size = val_i64(size_val);
+            if (dim_size <= 0)
+                RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
+
+            meta_set_dim_size(&exp->meta, i, dim_size);
+        }
+    }
+    else if (exp->meta.type <= TYPE_STRING || exp->meta.type == TYPE_OBJECT) {
+        RETURN(ERROR_INVALID_INITIALIZER, &exp->pos);
+    }
+
+    return true;
+}
+
 bool
 exp_check(check_t *check, ast_exp_t *exp)
 {
@@ -679,11 +795,14 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_NULL:
         return true;
 
+    case EXP_LIT:
+        return exp_check_lit(check, exp);
+
     case EXP_ID:
         return exp_check_id(check, exp);
 
-    case EXP_LIT:
-        return exp_check_lit(check, exp);
+    case EXP_TYPE:
+        return exp_check_type(check, exp);
 
     case EXP_ARRAY:
         return exp_check_array(check, exp);
@@ -714,6 +833,9 @@ exp_check(check_t *check, ast_exp_t *exp)
 
     case EXP_INIT:
         return exp_check_init(check, exp);
+
+    case EXP_ALLOC:
+        return exp_check_alloc(check, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

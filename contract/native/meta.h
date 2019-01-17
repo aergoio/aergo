@@ -124,7 +124,7 @@ struct meta_s {
     type_t type;
     int size;
 
-    char *name;             /* name of struct, contract or interface */
+    //char *name;             /* name of struct, contract or interface */
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
 
     bool is_undef;          /* whether it is literal */
@@ -141,7 +141,7 @@ struct meta_s {
     int elem_cnt;
     meta_t **elems;
 
-    int num;
+    //int num;
     src_pos_t *pos;
 };
 
@@ -164,8 +164,9 @@ meta_init(meta_t *meta, src_pos_t *pos)
 
     memset(meta, 0x00, sizeof(meta_t));
 
-    ast_node_init(meta, pos);
+    //ast_node_init(meta, pos);
 
+    meta->pos = pos;
     meta->base_idx = -1;
     meta->rel_addr = -1;
 }
@@ -301,7 +302,7 @@ meta_copy(meta_t *dest, meta_t *src)
 {
     dest->type = src->type;
     dest->size = src->size;
-    dest->name = src->name;
+    //dest->name = src->name;
     dest->arr_dim = src->arr_dim;
     //dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;

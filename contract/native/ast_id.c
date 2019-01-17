@@ -61,7 +61,7 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_return(meta_t *type_meta, src_pos_t *pos)
+id_new_return(ast_exp_t *type_exp, src_pos_t *pos)
 {
     static int ret_num = 1;
     char name[NAME_MAX_LEN + 1];
@@ -72,7 +72,7 @@ id_new_return(meta_t *type_meta, src_pos_t *pos)
     id = ast_id_new(ID_RETURN, MOD_PRIVATE, xstrdup(name), pos);
 
     id->is_param = true;
-    id->u_ret.type_meta = type_meta;
+    id->u_ret.type_exp = type_exp;
 
     return id;
 }
@@ -96,13 +96,12 @@ id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
 ast_id_t *
 id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 {
-    meta_t *meta;
+    ast_exp_t *type_exp = exp_new_type(TYPE_NONE, pos);
 
-    meta = meta_new(TYPE_NONE, pos);
-    meta->name = name;
+    type_exp->u_type.name = name;
 
     return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
-                       id_new_return(meta, pos), blk, pos);
+                       id_new_return(type_exp, pos), blk, pos);
 }
 
 ast_id_t *
@@ -279,7 +278,7 @@ id_strip(ast_id_t *id)
         ast_id_t *var_id = array_get_id(id->u_tup.elem_ids, i);
 
         var_id->mod = id->mod;
-        var_id->u_var.type_meta = id->u_tup.type_meta;
+        var_id->u_var.type_exp = id->u_tup.type_exp;
 
         array_add_last(ids, var_id);
     }

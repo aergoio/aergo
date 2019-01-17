@@ -122,7 +122,7 @@ contract test {
 
     func f1(int x, string y) s { s v = new { x, y }; return v; }
     func f2(int x, string y) s { return new { x, y }; }
-    func f3() map(int, string) { return new map(); }
+    func f3() map(int, string) { return new map(int, string); }
 
     test() {
         s v = f1(1, "1");
@@ -234,4 +234,24 @@ contract test1 {
 }
 contract test2 {
     func f() { new test1().f(); }
+}
+
+@test(call_across_contract)
+contract neighbor {
+    public int v;
+    neighbor(int p) {
+        v = p;
+    }
+    public func f() int {
+        return v;
+    }
+}
+
+contract test {
+    int v;
+    func f() int {
+        neighbor n = new neighbor(1);
+        v = n.v;
+        return n.f();
+    }
 }

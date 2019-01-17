@@ -168,7 +168,7 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <id>      var_qual
 %type <id>      var_decl
 %type <id>      var_spec
-%type <meta>    var_type
+%type <exp>     var_type
 %type <type>    prim_type
 %type <id>      declarator_list
 %type <id>      declarator
@@ -213,6 +213,11 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <exp>     expression
 %type <exp>     sql_exp
 %type <sql>     sql_prefix
+%type <exp>     new_exp
+%type <exp>     alloc_exp
+%type <exp>     initializer
+%type <array>   elem_list
+%type <exp>     init_elem
 %type <exp>     ternary_exp
 %type <exp>     or_exp
 %type <exp>     and_exp
@@ -237,10 +242,6 @@ static void decl_add(array_t *stmts, ast_id_t *id);
 %type <array>   arg_list
 %type <exp>     prim_exp
 %type <exp>     literal
-%type <exp>     new_exp
-%type <exp>     initializer
-%type <array>   elem_list
-%type <exp>     init_elem
 %type <str>     non_reserved_token
 %type <str>     identifier
 
@@ -354,8 +355,8 @@ var_qual:
 ;
 
 var_decl:
-    var_spec semicolon
-|   var_spec '=' var_init semicolon
+    var_spec eol
+|   var_spec '=' var_init eol
     {
         $$ = $1;
 
@@ -372,26 +373,29 @@ var_spec:
         $$ = $2;
 
         if (is_var_id($$))
-            $$->u_var.type_meta = $1;
+            $$->u_var.type_exp = $1;
         else
-            $$->u_tup.type_meta = $1;
+            $$->u_tup.type_exp = $1;
     }
 ;
 
 var_type:
     prim_type
     {
-        $$ = meta_new($1, &@1);
+        $$ = exp_new_type($1, &@1);
     }
 |   identifier
     {
-        $$ = meta_new(TYPE_NONE, &@1);
-        $$->name = $1;
+        $$ = exp_new_type(TYPE_NONE, &@1);
+
+        $$->u_type.name = $1;
     }
 |   K_MAP '(' var_type ',' var_type ')'
     {
-        $$ = meta_new(TYPE_MAP, &@1);
-        meta_set_map($$, $3, $5);
+        $$ = exp_new_type(TYPE_MAP, &@1);
+
+        $$->u_type.k_exp = $3;
+        $$->u_type.v_exp = $5;
     }
 ;
 
@@ -492,7 +496,7 @@ struct:
 ;
 
 field_list:
-    var_spec semicolon
+    var_spec eol
     {
         $$ = array_new();
 
@@ -501,7 +505,7 @@ field_list:
         else
             id_join($$, id_strip($1));
     }
-|   field_list var_spec semicolon
+|   field_list var_spec eol
     {
         $$ = $1;
 
@@ -590,7 +594,7 @@ param_decl:
     {
         $$ = $2;
         $$->is_param = true;
-        $$->u_var.type_meta = $1;
+        $$->u_var.type_exp = $1;
     }
 ;
 
@@ -744,12 +748,12 @@ interface_decl:
 ;
 
 interface_body:
-    func_spec semicolon
+    func_spec eol
     {
         $$ = blk_new_interface(&@$);
         id_add(&$$->ids, $1);
     }
-|   interface_body func_spec semicolon
+|   interface_body func_spec eol
     {
         $$ = $1;
         id_add(&$$->ids, $2);
@@ -770,26 +774,26 @@ statement:
 ;
 
 empty_stmt:
-    semicolon
+    eol
     {
         $$ = stmt_new_null(&@$);
     }
 ;
 
 exp_stmt:
-    expression semicolon
+    expression eol
     {
         $$ = stmt_new_exp($1, &@$);
     }
-|   error semicolon     { $$ = NULL; }
+|   error eol           { $$ = NULL; }
 ;
 
 assign_stmt:
-    expression '=' expression semicolon
+    expression '=' expression eol
     {
         $$ = stmt_new_assign($1, $3, &@2);
     }
-|   unary_exp assign_op expression semicolon
+|   unary_exp assign_op expression eol
     {
         $$ = stmt_new_assign($1, exp_new_binary($2, $1, $3, &@2), &@2);
     }
@@ -896,8 +900,8 @@ init_stmt:
 ;
 
 cond_exp:
-    semicolon           { $$ = NULL; }
-|   ternary_exp semicolon
+    eol                 { $$ = NULL; }
+|   ternary_exp eol
 ;
 
 switch_stmt:
@@ -934,30 +938,30 @@ case_blk:
 ;
 
 jump_stmt:
-    K_CONTINUE semicolon
+    K_CONTINUE eol
     {
         $$ = stmt_new_jump(STMT_CONTINUE, NULL, &@$);
     }
-|   K_BREAK semicolon
+|   K_BREAK eol
     {
         $$ = stmt_new_jump(STMT_BREAK, NULL, &@$);
     }
-|   K_RETURN semicolon
+|   K_RETURN eol
     {
         $$ = stmt_new_return(NULL, &@$);
     }
-|   K_RETURN expression semicolon
+|   K_RETURN expression eol
     {
         $$ = stmt_new_return($2, &@$);
     }
-|   K_GOTO identifier semicolon
+|   K_GOTO identifier eol
     {
         $$ = stmt_new_goto($2, &@2);
     }
 ;
 
 ddl_stmt:
-    ddl_prefix error semicolon
+    ddl_prefix error eol
     {
         int len;
         char *ddl;
@@ -1005,8 +1009,8 @@ expression:
 ;
 
 sql_exp:
-    ternary_exp
-|   sql_prefix error semicolon
+    new_exp
+|   sql_prefix error eol
     {
         int len;
         char *sql;
@@ -1029,6 +1033,63 @@ sql_prefix:
 |   K_INSERT            { $$ = SQL_INSERT; }
 |   K_SELECT            { $$ = SQL_QUERY; }
 |   K_UPDATE            { $$ = SQL_UPDATE; }
+;
+
+new_exp:
+    ternary_exp
+|   K_NEW alloc_exp
+    {
+        $$ = $2;
+    }
+|   K_NEW initializer
+    {
+        $$ = $2;
+    }
+;
+
+alloc_exp:
+    var_type
+    {
+        $$ = exp_new_alloc($1, &@1);
+    }
+|   alloc_exp '[' add_exp ']'
+    {
+        $$ = $1;
+
+        if ($$->u_alloc.size_exps == NULL)
+            $$->u_alloc.size_exps = array_new();
+
+        array_add_last($$->u_alloc.size_exps, $3);
+    }
+;
+
+initializer:
+    '{' elem_list comma_opt '}'
+    {
+        $$ = exp_new_init($2, &@$);
+    }
+;
+
+elem_list:
+    init_elem
+    {
+        $$ = array_new();
+        exp_add($$, $1);
+    }
+|   elem_list ',' init_elem
+    {
+        $$ = $1;
+        exp_add($$, $3);
+    }
+;
+
+init_elem:
+    ternary_exp
+|   initializer
+|   identifier ':' init_elem
+    {
+        $$ = $3;
+    }
 ;
 
 ternary_exp:
@@ -1175,14 +1236,14 @@ unary_op:
 ;
 
 post_exp:
-    new_exp
+    prim_exp
 |   post_exp '[' ternary_exp ']'
     {
         $$ = exp_new_array($1, $3, &@$);
     }
 |   post_exp '(' arg_list_opt ')'
     {
-        $$ = exp_new_call($1, $3, &@$);
+        $$ = exp_new_call(false, $1, $3, &@$);
     }
 |   post_exp '.' identifier
     {
@@ -1204,60 +1265,15 @@ arg_list_opt:
 ;
 
 arg_list:
-    ternary_exp
+    new_exp
     {
         $$ = array_new();
         exp_add($$, $1);
     }
-|   arg_list ',' ternary_exp
+|   arg_list ',' new_exp
     {
         $$ = $1;
         exp_add($$, $3);
-    }
-;
-
-new_exp:
-    prim_exp
-|   K_NEW identifier '(' arg_list_opt ')'
-    {
-        $$ = exp_new_call(exp_new_id($2, &@2), $4, &@$);
-    }
-|   K_NEW K_MAP '(' arg_list_opt ')'
-    {
-        $$ = exp_new_call(exp_new_id(xstrdup("map"), &@2), $4, &@$);
-    }
-|   K_NEW initializer
-    {
-        $$ = $2;
-    }
-;
-
-initializer:
-    '{' elem_list comma_opt '}'
-    {
-        $$ = exp_new_init($2, &@$);
-    }
-;
-
-elem_list:
-    init_elem
-    {
-        $$ = array_new();
-        exp_add($$, $1);
-    }
-|   elem_list ',' init_elem
-    {
-        $$ = $1;
-        exp_add($$, $3);
-    }
-;
-
-init_elem:
-    ternary_exp
-|   initializer
-|   identifier ':' init_elem
-    {
-        $$ = $3;
     }
 ;
 
@@ -1270,6 +1286,10 @@ prim_exp:
 |   '(' expression ')'
     {
         $$ = $2;
+    }
+|   K_NEW identifier '(' arg_list_opt ')'
+    {
+        $$ = exp_new_call(true, exp_new_id($2, &@2), $4, &@$);
     }
 ;
 
@@ -1337,7 +1357,7 @@ identifier:
 |   non_reserved_token
 ;
 
-semicolon:
+eol:
     ';'                 { node_num_++; }
 ;
 
