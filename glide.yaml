@@ -79,7 +79,7 @@ import:
 - package: github.com/derekparker/trie
   version: e608c2733dc704cd4a73f825f4acab8f3c3d4d15
 - package: github.com/golang/mock
-  version: ~v1.1.1
+  version: ~v1.2.0
   subpackages:
   - gomock
 - package: github.com/openzipkin-contrib/zipkin-go-opentracing
