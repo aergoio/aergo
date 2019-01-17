@@ -5,7 +5,6 @@
 package system
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"math/big"
@@ -100,20 +99,16 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 func serializeStaking(v *types.Staking) []byte {
 	var ret []byte
 	if v != nil {
-		ret = append(ret, v.GetAmount()...)
-		ret = append(ret, vsep)
 		when := make([]byte, 8)
 		binary.LittleEndian.PutUint64(when, v.GetWhen())
 		ret = append(ret, when...)
+		ret = append(ret, v.GetAmount()...)
 	}
 	return ret
 }
 
 func deserializeStaking(data []byte) *types.Staking {
-	datas := bytes.Split(data, []byte{vsep})
-	if len(datas[1]) != 8 {
-		panic("staking data corruption")
-	}
-	when := binary.LittleEndian.Uint64(datas[1])
-	return &types.Staking{Amount: datas[0], When: when}
+	when := binary.LittleEndian.Uint64(data[:8])
+	amount := data[8:]
+	return &types.Staking{Amount: amount, When: when}
 }
