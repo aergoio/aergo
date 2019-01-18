@@ -49,6 +49,9 @@ meta_to_str(meta_t *meta)
         }
         strbuf_cat(&buf, "}");
     }
+    else if (is_object_meta(meta) && meta->type_id != NULL) {
+        strbuf_cat(&buf, meta->type_id->name);
+    }
     else {
         strbuf_cat(&buf, TYPE_NAME(meta->type));
     }
@@ -289,6 +292,28 @@ meta_cmp_tuple(meta_t *x, meta_t *y)
 }
 
 static bool
+meta_cmp_object(meta_t *x, meta_t *y)
+{
+    if (!is_object_meta(y))
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+
+    ASSERT(x->type_id != NULL);
+    ASSERT(y->type_id != NULL);
+    ASSERT1(is_cont_id(x->type_id) || is_itf_id(x->type_id), x->type_id->kind);
+    ASSERT1(is_cont_id(y->type_id) || is_itf_id(y->type_id), y->type_id->kind);
+
+    if (is_cont_id(x->type_id)) {
+        if (is_itf_id(y->type_id))
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+
+        if (x->type_id != y->type_id)
+            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+    }
+
+    return true;
+}
+
+static bool
 meta_cmp_type(meta_t *x, meta_t *y)
 {
     if (is_undef_meta(x) || is_undef_meta(y)) {
@@ -309,6 +334,9 @@ meta_cmp_type(meta_t *x, meta_t *y)
 
     if (is_struct_meta(x))
         return meta_cmp_struct(x, y);
+
+    if (is_object_meta(x))
+        return meta_cmp_object(x, y);
 
     if (x->type != y->type)
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));

@@ -1290,7 +1290,7 @@ prim_exp:
     }
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(true, exp_new_id($2, &@2), $4, &@$);
+        $$ = exp_new_call(true, exp_new_id($2, &@2), $4, &@2);
     }
 ;
 

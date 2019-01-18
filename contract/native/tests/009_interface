@@ -15,7 +15,7 @@ interface spec { func f(); }
 @error(ERROR_SYNTAX)
 interface spec { }
 
-@test(interface_with_variable)
+@test(variable_declaration)
 @error(ERROR_SYNTAX)
 interface spec { int x; }
 
@@ -52,7 +52,7 @@ contract test implements spec {
     func f3(int16 x) double { return 1.0; }
 }
 
-@test(interface_as_variable)
+@test(interface_as_type)
 interface spec {
     func f1() int;
 }
@@ -60,7 +60,7 @@ contract test {
     spec x;
 }
 
-@test(interface_assignment)
+@test(assignment_to_interface)
 interface spec {
     public func f() byte;
 }
@@ -70,6 +70,21 @@ contract test implements spec {
 contract main {
     spec a = new test();
     spec b, c = new test(), new test();
+}
+
+@test(assignment_to_contract)
+@error(ERROR_MISMATCHED_TYPE)
+interface spec {
+    public func f();
+}
+contract test implements spec {
+    public func f() { }
+}
+contract main {
+    func f() spec { return new test(); }
+    main() {
+        test a = f();
+    }
 }
 
 @test(access_interface)
@@ -86,6 +101,21 @@ contract main {
 
         spec x, y = new test(), new test();
         double z = y.f();
+    }
+}
+
+@test(return_interface)
+interface spec {
+    public func f() string;
+}
+contract test implements spec {
+    public func f() string { return "dog"; }
+}
+contract main {
+    func f() spec { return new test(); }
+    main() {
+        spec a = f();
+        string s = a.f();
     }
 }
 

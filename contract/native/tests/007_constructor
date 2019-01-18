@@ -76,6 +76,16 @@ contract test {
     }
 }
 
+@test(mismatched_constructor)
+@error(ERROR_MISMATCHED_TYPE)
+contract callee { int a; }
+
+contract test {
+    test() {
+        test c = new callee();
+    }
+}
+
 @test(compare_with_instance)
 contract callee { }
 
