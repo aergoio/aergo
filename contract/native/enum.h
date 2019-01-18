@@ -114,7 +114,6 @@ typedef enum exp_kind_e {
     EXP_GLOBAL      = 15,
     EXP_LOCAL       = 16,
     EXP_STACK       = 17,
-    EXP_FN          = 18,
     EXP_MAX
 } exp_kind_t;
 

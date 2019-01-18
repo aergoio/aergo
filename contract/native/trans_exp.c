@@ -31,8 +31,10 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id)) {
         /* The "id->idx" is the relative index of the function */
-        exp_set_fn(exp, trans->fn->heap_idx, id->idx);
-        //exp_set_fn(exp, 0, id->idx);
+        //exp_set_fn(exp, trans->fn->heap_idx, id->idx);
+        exp_set_local(exp, trans->fn->heap_idx);
+        exp->u_local.type = TYPE_INT32;
+        
     }
     else if (is_return_id(id)) {
         exp_set_stack(exp, id->idx, 0, 0);
@@ -244,8 +246,13 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 
     if (is_fn_id(fld_id)) {
         //ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
-        if (is_stack_exp(qual_exp))
-            exp_set_fn(exp, qual_exp->u_stk.base, fld_id->idx);
+        /* It may be a stack expression, in the case of an access expression to the 
+         * return value of a function */
+        if (is_stack_exp(qual_exp)) {
+            //exp_set_fn(exp, qual_exp->u_stk.base, fld_id->idx);
+            exp_set_local(exp, qual_exp->u_stk.base);
+            exp->u_local.type = TYPE_INT32;
+        }
         return;
     }
 
@@ -420,6 +427,23 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     if (exp->u_call.param_exps == NULL)
         exp->u_call.param_exps = array_new();
 
+    if (is_access_exp(id_exp)) {
+        ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
+
+        ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
+
+        /* If the call expression is of type "x.y()", pass "x" as the first argument */
+        array_add_first(exp->u_call.param_exps, qual_exp);
+    }
+    else {
+        ASSERT1(is_local_exp(id_exp), id_exp->kind);
+        ASSERT(trans->fn->heap_idx == 0);
+
+        /* If the call expression is of type "x()", pass my first parameter as the first
+         * parameter of the target */
+        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
+    }
+#if 0
     if (is_fn_exp(id_exp)) {
         /* If the call expression is of type "x()", pass my first parameter as the first
          * parameter of the target */
@@ -428,13 +452,15 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
     }
     else {
+        ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
+
         /* If the call expression is of type "x.y()", pass "x" as the first argument */
         ASSERT1(is_access_exp(id_exp), id_exp->kind);
-        ASSERT1(is_object_meta(&id_exp->u_acc.qual_exp->meta),
-                id_exp->u_acc.qual_exp->meta.type);
+        ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
 
-        array_add_first(exp->u_call.param_exps, id_exp->u_acc.qual_exp);
+        array_add_first(exp->u_call.param_exps, qual_exp);
     }
+#endif
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
@@ -591,7 +617,7 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
     case EXP_GLOBAL:
     case EXP_LOCAL:
     case EXP_STACK:
-    case EXP_FN:
+    //case EXP_FN:
         break;
 
     default:
