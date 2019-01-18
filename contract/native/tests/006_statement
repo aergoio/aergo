@@ -361,6 +361,21 @@ contract test {
     }
 }
 
+@test(non_case_statement)
+@error(ERROR_INVALID_CASE,2)
+contract test {
+    int i;
+
+    test() {
+        switch (i) {
+fake_label:
+        i = 0;
+        case 1: break;
+        i = 1;
+        }
+    }
+}
+
 @test(without_switch_variable)
 contract test {
     int i;
@@ -486,6 +501,27 @@ contract test {
 @error(ERROR_UNDEFINED_LABEL)
 contract test {
     test() { goto nowhere; }
+}
+
+@test(return_void)
+contract test {
+    string s;
+    test() {
+        if (s == null) {
+            return;
+        }
+        for (s == null) {
+            return;
+        }
+        for (s = "start"; ; ) {
+            return;
+        }
+        switch {
+        case true:
+            return;
+        }
+        return;
+    }
 }
 
 @test(inline_ddl)

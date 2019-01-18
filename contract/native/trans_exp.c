@@ -15,38 +15,6 @@
 #include "trans_exp.h"
 
 static void
-exp_trans_id(trans_t *trans, ast_exp_t *exp)
-{
-    ast_id_t *id = exp->id;
-
-    ASSERT(id != NULL);
-
-    if (is_var_id(id)) {
-        //if (is_global_id(id) || is_stack_id(id))
-        if (is_global_id(id))
-            /* The global variable always refers to the memory */
-            exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
-        else if (is_out_param(id))
-            /* The out parameters always refers to the memory */
-            exp_set_stack(exp, id->idx, 0, 0);
-        else
-            exp_set_local(exp, id->idx);
-    }
-    else if (is_fn_id(id)) {
-        /* The "id->idx" is the relative index of the function */
-        //exp_set_fn(exp, trans->fn->heap_idx, id->idx);
-        exp_set_local(exp, trans->fn->heap_idx);
-        exp->u_local.type = TYPE_INT32;
-        
-    }
-    /*
-    else if (is_return_id(id)) {
-        exp_set_stack(exp, id->idx, 0, 0);
-    }
-    */
-}
-
-static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
     int addr;
@@ -79,6 +47,40 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
     default:
         ASSERT1(!"invalid value", val->type);
     }
+}
+
+static void
+exp_trans_id(trans_t *trans, ast_exp_t *exp)
+{
+    ast_id_t *id = exp->id;
+
+    ASSERT(id != NULL);
+
+    if (is_var_id(id)) {
+        //if (is_global_id(id) || is_stack_id(id))
+        if (is_global_id(id))
+            /* The global variable always refers to the memory */
+            exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
+        else if (is_out_param(id))
+            /* The out parameters always refers to the memory */
+            exp_set_stack(exp, id->idx, 0, 0);
+        else
+            exp_set_local(exp, id->idx);
+    }
+    else if (is_fn_id(id) || is_cont_id(id)) {
+        /* In the case of a contract identifier, the "this" syntax is used */
+#if 0
+        /* The "id->idx" is the relative index of the function */
+        exp_set_fn(exp, trans->fn->heap_idx, id->idx);
+#endif
+        exp_set_local(exp, trans->fn->heap_idx);
+        exp->u_local.type = TYPE_INT32;
+    }
+    /*
+    else if (is_return_id(id)) {
+        exp_set_stack(exp, id->idx, 0, 0);
+    }
+    */
 }
 
 static void
@@ -251,7 +253,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 
     if (is_fn_id(fld_id)) {
         //ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
-        /* It may be a stack expression, in the case of an access expression to the 
+        /* It may be a stack expression, in the case of an access expression to the
          * return value of a function */
         if (is_stack_exp(qual_exp)) {
             //exp_set_fn(exp, qual_exp->u_stk.base, fld_id->idx);

@@ -172,9 +172,12 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     if (stmt->u_if.if_blk != NULL)
         blk_trans(trans, stmt->u_if.if_blk);
 
-    bb_add_branch(trans->bb, NULL, next_bb);
+    /* "trans->bb" can be null if the block ends with a return statement */
+    if (trans->bb != NULL) {
+        bb_add_branch(trans->bb, NULL, next_bb);
 
-    fn_add_basic_blk(trans->fn, trans->bb);
+        fn_add_basic_blk(trans->fn, trans->bb);
+    }
 
     array_foreach(elif_stmts, i) {
         ast_stmt_t *elif_stmt = array_get_stmt(elif_stmts, i);
@@ -249,19 +252,21 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 
     blk_trans(trans, stmt->u_loop.blk);
 
-    trans->cont_bb = NULL;
-    trans->break_bb = NULL;
-
     if (trans->bb != NULL) {
         /* Make loop using last block and entry block */
         bb_add_branch(trans->bb, NULL, cond_bb);
 
         fn_add_basic_blk(trans->fn, trans->bb);
     }
+#if 0
     else {
         /* Make loop using self block in case of an empty loop without loop_exp */
         bb_add_branch(cond_bb, NULL, cond_bb);
     }
+#endif
+
+    trans->cont_bb = NULL;
+    trans->break_bb = NULL;
 
     trans->bb = next_bb;
 }

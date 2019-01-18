@@ -111,9 +111,12 @@ run_test(env_t *env, char *path)
     int i = 0;
 
     if (env->needle != NULL) {
-        if ((env->needle[0] == '^' && 
+        if ((env->needle[0] == '^' &&
+             strncmp(env->path, env->needle + 1, strlen(env->needle + 1)) != 0 &&
              strncmp(env->title, env->needle + 1, strlen(env->needle + 1)) != 0) ||
-            (env->needle[0] != '^' && strstr(env->title, env->needle) == NULL)) {
+            (env->needle[0] != '^' &&
+             strstr(env->path, env->needle) == NULL &&
+             strstr(env->title, env->needle) == NULL)) {
             unlink(path);
             env_reset(env);
             return;
@@ -310,12 +313,12 @@ main(int argc, char **argv)
 
     printf("%s\n", delim);
     if (env.failed_cnt > 0) {
-        sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE" / "ANSI_RED"%d"ANSI_NONE" ]", 
+        sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE" / "ANSI_RED"%d"ANSI_NONE" ]",
                 env.total_cnt - env.failed_cnt, env.total_cnt);
         printf("%-66s %31s\n", "* Some tests failed with errors!!!", buf);
     }
     else {
-        sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE" / "ANSI_GREEN"%d"ANSI_NONE" ]", 
+        sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE" / "ANSI_GREEN"%d"ANSI_NONE" ]",
                 env.total_cnt - env.failed_cnt, env.total_cnt);
         printf("%-66s %31s\n", "* All tests passed!!!", buf);
     }

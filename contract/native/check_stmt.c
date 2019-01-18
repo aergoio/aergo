@@ -337,6 +337,7 @@ static bool
 stmt_check_switch(check_t *check, ast_stmt_t *stmt)
 {
     int i, j;
+    bool is_case_blk = false;
     ast_blk_t *blk;
     ast_exp_t *cond_exp;
 
@@ -347,35 +348,41 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     cond_exp = stmt->u_sw.cond_exp;
 
     array_foreach(&blk->stmts, i) {
-        ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
-        ast_exp_t *val_exp = case_stmt->u_case.val_exp;
+        ast_stmt_t *elem_stmt = array_get_stmt(&blk->stmts, i);
 
-        if (!is_case_stmt(case_stmt)) {
-            ASSERT(i > 0);
-            continue;
-        }
+        if (is_case_stmt(elem_stmt)) {
+            ast_exp_t *val_exp = elem_stmt->u_case.val_exp;
 
-        if (val_exp == NULL) {
-            if (stmt->u_sw.has_dflt)
-                RETURN(ERROR_DUPLICATED_LABEL, &case_stmt->pos, "default");
+            if (val_exp == NULL) {
+                if (stmt->u_sw.has_dflt)
+                    RETURN(ERROR_DUPLICATED_LABEL, &elem_stmt->pos, "default");
 
-            stmt->u_sw.has_dflt = true;
-        }
-        else {
-            for (j = i + 1; j < array_size(&blk->stmts); j++) {
-                ast_stmt_t *next_stmt = array_get_stmt(&blk->stmts, j);
-                ast_exp_t *next_exp = next_stmt->u_case.val_exp;
+                stmt->u_sw.has_dflt = true;
+            }
+            else {
+                for (j = i + 1; j < array_size(&blk->stmts); j++) {
+                    ast_stmt_t *next_stmt = array_get_stmt(&blk->stmts, j);
+                    ast_exp_t *next_exp = next_stmt->u_case.val_exp;
 
-                if (!is_case_stmt(next_stmt))
-                    continue;
+                    if (!is_case_stmt(next_stmt))
+                        continue;
 
-                if (next_exp != NULL && exp_equals(val_exp, next_exp))
-                    RETURN(ERROR_DUPLICATED_CASE, &next_exp->pos);
+                    if (next_exp != NULL && exp_equals(val_exp, next_exp))
+                        RETURN(ERROR_DUPLICATED_CASE, &next_exp->pos);
+                }
+
+                if (cond_exp != NULL)
+                    elem_stmt->u_case.val_exp =
+                        exp_new_binary(OP_EQ, cond_exp, val_exp, &val_exp->pos);
             }
 
-            if (cond_exp != NULL)
-                case_stmt->u_case.val_exp =
-                    exp_new_binary(OP_EQ, cond_exp, val_exp, &val_exp->pos);
+            is_case_blk = true;
+        }
+        else if (is_break_stmt(elem_stmt) || is_return_stmt(elem_stmt)) {
+            is_case_blk = false;
+        }
+        else if (!is_case_blk) {
+            ERROR(ERROR_INVALID_CASE, &elem_stmt->pos);
         }
     }
 

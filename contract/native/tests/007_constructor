@@ -17,7 +17,7 @@ contract test {
     test2() { }
 }
 
-@test(constructor_with_return)
+@test(return_parameter_declaration)
 @error(ERROR_SYNTAX)
 contract test {
     test(int x) byte { }
@@ -88,14 +88,14 @@ contract test {
 
 @test(self_accessor)
 contract test {
-    /*
-    string v;
-    test(int v) {
-        if (this.v == "") {
-            this.v = "self";
+    float x;
+    string y;
+    test(float x, string y) {
+        this.x = x;
+        if (this.y == "") {
+            this.y = "self";
         }
     }
-    */
 }
 
 @test(self_accessor_as_parameter)
@@ -113,4 +113,9 @@ contract test {
     test() {
         this = new test();
     }
+}
+
+@test(self_accessor_as_return)
+contract test {
+    func f1() test { return this; }
 }
