@@ -64,7 +64,7 @@ func (bc *DummyChain) BestBlockNo() uint64 {
 func (bc *DummyChain) newBState() *state.BlockState {
 	b := types.Block{
 		Header: &types.BlockHeader{
-			PrevBlockHash: []byte(bc.bestBlockId.String()),
+			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     time.Now().UnixNano(),
 		},
@@ -424,7 +424,10 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	}
 	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
 	if expectedErr != "" {
-		if err == nil || !strings.Contains(err.Error(), expectedErr) {
+		if err == nil {
+			return fmt.Errorf("no error, expected: %s", expectedErr)
+		}
+		if !strings.Contains(err.Error(), expectedErr) {
 			return err
 		}
 		return nil

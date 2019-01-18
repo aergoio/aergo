@@ -2,7 +2,9 @@ package contract
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -3108,4 +3110,102 @@ func TestReturnUData(t *testing.T) {
 	}
 }
 
-// end of test-cases
+func checkRandomFloatValue(v string) error {
+	n, _ := strconv.ParseFloat(v, 64)
+	if n < 0.0 || n >= 1.0 {
+		return errors.New("out of range")
+	}
+	return nil
+}
+func checkRandomIntValue(v string, min, max int) error {
+	n, _ := strconv.Atoi(v)
+	if n < min || n > max {
+		return errors.New("out of range")
+	}
+	return nil
+}
+
+func TestRandom(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	random := `
+function random(...)
+	return system.random(...)
+end
+abi.register(random)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "random", 0, random),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
+	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
+	err = bc.ConnectBlock(tx, tx1)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	err = checkRandomFloatValue(receipt.GetRet())
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+	receipt = bc.getReceipt(tx1.hash())
+	err = checkRandomFloatValue(receipt.GetRet())
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"random",
+			0,
+			`{"Name": "random", "Args":[0]}`).Fail("the maximum value must be greater than zero"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3, 10]}`)
+	err = bc.ConnectBlock(tx)
+	receipt = bc.getReceipt(tx.hash())
+	err = checkRandomIntValue(receipt.GetRet(), 3, 10)
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	err = bc.Query("random", `{"Name": "random", "Args":[1]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[4,4]}`, "", "4")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[0,4]}`, "system.random: the minimum value must be greater than zero", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[3,1]}`, "system.random: the maximum value must be greater than the minimum value", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
