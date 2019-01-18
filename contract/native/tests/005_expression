@@ -161,6 +161,105 @@ contract test {
     string s = 1 == 1 ? "true" : false;
 }
 
-@test(type_cast)
+@test(type_cast_from_constant)
 contract test {
+    bool b1 = (bool)false;
+    bool b2 = (bool)1;
+    bool b3 = (bool)0.89;
+    bool b4 = (bool)"1";
+    bool b5 = (bool)"true";
+
+    int16 i1 = (int16)8;
+    int16 i2 = (int16)true;
+    int16 i3 = (int16)4.3154;
+    int16 i4 = (int16)"-0945";
+
+    string s1 = (string)"self";
+    string s2 = (string)true;
+    string s3 = (string)124;
+    string s4 = (string)1.644;
+}
+
+@test(type_cast_from_variable)
+contract test {
+    bool b1;
+    int8 i1;
+    int64 i2;
+    uint16 u1;
+    uint64 u2;
+    float f;
+    double d;
+    string s;
+
+    bool v11 = (bool)b1;
+    bool v12 = (bool)i1;
+    bool v13 = (bool)i2;
+    bool v14 = (bool)u1;
+    bool v15 = (bool)u2;
+    bool v16 = (bool)f;
+    bool v17 = (bool)d;
+    bool v18 = (bool)s;
+
+    int8 v21 = (int8)b1;
+    int8 v22 = (int8)i1;
+    int8 v23 = (int8)i2;
+    int8 v24 = (int8)u1;
+    int8 v25 = (int8)u2;
+    int8 v26 = (int8)f;
+    int8 v27 = (int8)d;
+    int8 v28 = (int8)s;
+
+    int64 v31 = (int64)b1;
+    int64 v32 = (int64)i1;
+    int64 v33 = (int64)i2;
+    int64 v34 = (int64)u1;
+    int64 v35 = (int64)u2;
+    int64 v36 = (int64)f;
+    int64 v37 = (int64)d;
+    int64 v38 = (int64)s;
+
+    uint16 v41 = (uint16)b1;
+    uint16 v42 = (uint16)i1;
+    uint16 v43 = (uint16)i2;
+    uint16 v44 = (uint16)u1;
+    uint16 v45 = (uint16)u2;
+    uint16 v46 = (uint16)f;
+    uint16 v47 = (uint16)d;
+    uint16 v48 = (uint16)s;
+
+    uint64 v51 = (uint64)b1;
+    uint64 v52 = (uint64)i1;
+    uint64 v53 = (uint64)i2;
+    uint64 v54 = (uint64)u1;
+    uint64 v55 = (uint64)u2;
+    uint64 v56 = (uint64)f;
+    uint64 v57 = (uint64)d;
+    uint64 v58 = (uint64)s;
+
+    float v61 = (float)b1;
+    float v62 = (float)i1;
+    float v63 = (float)i2;
+    float v64 = (float)u1;
+    float v65 = (float)u2;
+    float v66 = (float)f;
+    float v67 = (float)d;
+    float v68 = (float)s;
+
+    double v71 = (double)b1;
+    double v72 = (double)i1;
+    double v73 = (double)i2;
+    double v74 = (double)u1;
+    double v75 = (double)u2;
+    double v76 = (double)f;
+    double v77 = (double)d;
+    double v78 = (double)s;
+
+    string v81 = (string)b1;
+    string v82 = (string)i1;
+    string v83 = (string)i2;
+    string v84 = (string)u1;
+    string v85 = (string)u2;
+    string v86 = (string)f;
+    string v87 = (string)d;
+    string v88 = (string)s;
 }

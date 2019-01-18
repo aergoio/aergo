@@ -321,7 +321,7 @@ eval_fn_t eval_fntab_[OP_CF_MAX + 1] = {
 };
 
 void
-value_eval(op_kind_t op, value_t *x, value_t *y, value_t *res)
+value_eval(value_t *x, op_kind_t op, value_t *y, value_t *res)
 {
     ASSERT1(op >= OP_ADD && op <= OP_CF_MAX, op);
 
@@ -446,29 +446,29 @@ value_cast_to_str(value_t *val)
     }
 }
 
+cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
+    NULL,
+    value_cast_to_bool,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_i64,
+    value_cast_to_f64,
+    value_cast_to_f64,
+    value_cast_to_str
+};
+
 void
-value_cast(value_t *val, meta_t *meta)
+value_cast(value_t *val, type_t type)
 {
-    switch (meta->type) {
-    case TYPE_BOOL:
-        value_cast_to_bool(val);
-        break;
+    ASSERT1(type > TYPE_NONE && type <= TYPE_STRING, type);
 
-    case TYPE_UINT64:
-        value_cast_to_i64(val);
-        break;
-
-    case TYPE_DOUBLE:
-        value_cast_to_f64(val);
-        break;
-
-    case TYPE_STRING:
-        value_cast_to_str(val);
-        break;
-
-    default:
-        ASSERT1(!"invalid type", meta->type);
-    }
+    cast_fntab_[type](val);
 }
 
 /* end of value.c */

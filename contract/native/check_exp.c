@@ -225,7 +225,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
         exp_set_lit(exp, &val_exp->u_lit.val);
         meta_set_undef(&exp->meta);
 
-        value_cast(&exp->u_lit.val, &exp->meta);
+        value_cast(&exp->u_lit.val, exp->meta.type);
     }
 
     return true;
@@ -280,7 +280,7 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         exp_set_lit(exp, NULL);
         meta_set_undef(&exp->meta);
 
-        value_eval(op, &val_exp->u_lit.val, NULL, &exp->u_lit.val);
+        value_eval(&val_exp->u_lit.val, op, NULL, &exp->u_lit.val);
     }
 
     return true;
@@ -492,7 +492,7 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
         exp_set_lit(exp, NULL);
         meta_set_undef(&exp->meta);
 
-        value_eval(op, &l_exp->u_lit.val, &r_exp->u_lit.val, &exp->u_lit.val);
+        value_eval(&l_exp->u_lit.val, op, &r_exp->u_lit.val, &exp->u_lit.val);
     }
 
     return true;

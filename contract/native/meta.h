@@ -37,7 +37,7 @@
     (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                 \
      is_int64_type(type))
 #define is_unsigned_type(type)                                                           \
-    (is_byte_type(type) ||   is_uint8_type(type) ||  is_uint16_type(type) ||             \
+    (is_byte_type(type) || is_uint8_type(type) || is_uint16_type(type) ||                \
      is_uint32_type(type) || is_uint64_type(type))
 
 #define is_none_meta(meta)          is_none_type((meta)->type)

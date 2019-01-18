@@ -79,6 +79,7 @@ typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
 typedef void (*eval_fn_t)(value_t *, value_t *, value_t *) ;
+typedef void (*cast_fn_t)(value_t *) ;
 
 struct value_s {
     type_t type;
@@ -98,8 +99,8 @@ bool value_fit(value_t *val, meta_t *meta);
 
 int value_cmp(value_t *x, value_t *y);
 
-void value_eval(op_kind_t op, value_t *x, value_t *y, value_t *res);
-void value_cast(value_t *val, meta_t *meta);
+void value_eval(value_t *x, op_kind_t op, value_t *y, value_t *res);
+void value_cast(value_t *val, type_t type);
 
 static inline void
 value_init(value_t *val)

@@ -122,6 +122,11 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertSInt32ToFloat64();
         else if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
             op = BinaryenExtendSInt32();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_BOOL:
@@ -135,6 +140,11 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertUInt32ToFloat64();
         else if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
             op = BinaryenExtendUInt32();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_INT64:
@@ -144,6 +154,11 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertSInt64ToFloat64();
         else if (!is_int64_meta(to_meta) && !is_uint64_meta(to_meta))
             op = BinaryenWrapInt64();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_UINT64:
@@ -153,6 +168,11 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertUInt64ToFloat64();
         else if (!is_int64_meta(to_meta) && !is_uint64_meta(to_meta))
             op = BinaryenWrapInt64();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_FLOAT:
@@ -162,10 +182,15 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenTruncUFloat32ToInt64();
         else if (is_signed_meta(to_meta))
             op = BinaryenTruncSFloat32ToInt32();
-        else if (is_unsigned_meta(to_meta))
+        else if (is_bool_meta(to_meta) || is_unsigned_meta(to_meta))
             op = BinaryenTruncUFloat32ToInt32();
         else if (is_double_meta(to_meta))
             op = BinaryenPromoteFloat32();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_DOUBLE:
@@ -175,14 +200,20 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenTruncUFloat64ToInt64();
         else if (is_signed_meta(to_meta))
             op = BinaryenTruncSFloat64ToInt32();
-        else if (is_unsigned_meta(to_meta))
+        else if (is_bool_meta(to_meta) || is_unsigned_meta(to_meta))
             op = BinaryenTruncUFloat64ToInt32();
         else if (is_float_meta(to_meta))
-            op = BinaryenPromoteFloat32();
+            op = BinaryenDemoteFloat64();
+        else if (is_string_meta(to_meta))
+            /* TOOD */
+            return NULL;
+        else
+            return value;
         break;
 
     case TYPE_STRING:
-        break;
+        /* TODO */
+        return NULL;
 
     default:
         ASSERT2(!"invalid conversion", exp->meta.type, to_meta->type);
