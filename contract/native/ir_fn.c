@@ -49,7 +49,8 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
     ir_abi_t *abi = fn->abi;
 
-    ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    //ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    ASSERT1(is_var_id(id), id->kind);
     ASSERT(abi != NULL);
 
     id->idx = abi->param_cnt + array_size(&fn->locals);

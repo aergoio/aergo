@@ -37,6 +37,29 @@ id_new_var(char *name, modifier_t mod, src_pos_t *pos)
 }
 
 ast_id_t *
+id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp, src_pos_t *pos)
+{
+    static int param_num = 1;
+    ast_id_t *id;
+
+    if (name == NULL) {
+        char gen_name[NAME_MAX_LEN + 1];
+
+        snprintf(gen_name, sizeof(gen_name), "param$%d", param_num++);
+
+        id = id_new_var(xstrdup(gen_name), MOD_PRIVATE, pos);
+    }
+    else {
+        id = id_new_var(name, MOD_PRIVATE, pos);
+    }
+
+    id->u_var.kind = kind;
+    id->u_var.type_exp = type_exp;
+
+    return id;
+}
+
+ast_id_t *
 id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_STRUCT, MOD_PRIVATE, name, pos);
@@ -60,6 +83,7 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
     return id;
 }
 
+/*
 ast_id_t *
 id_new_return(ast_exp_t *type_exp, src_pos_t *pos)
 {
@@ -76,7 +100,7 @@ id_new_return(ast_exp_t *type_exp, src_pos_t *pos)
 
     return id;
 }
-
+*/
 ast_id_t *
 id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
             ast_blk_t *blk, src_pos_t *pos)
@@ -100,8 +124,12 @@ id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 
     type_exp->u_type.name = name;
 
+    /*
     return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
                        id_new_return(type_exp, pos), blk, pos);
+                       */
+    return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
+                       id_new_param(PARAM_OUT, name, type_exp, pos), blk, pos);
 }
 
 ast_id_t *

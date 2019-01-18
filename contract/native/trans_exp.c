@@ -26,6 +26,9 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         if (is_global_id(id))
             /* The global variable always refers to the memory */
             exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
+        else if (is_out_param(id))
+            /* The out parameters always refers to the memory */
+            exp_set_stack(exp, id->idx, 0, 0);
         else
             exp_set_local(exp, id->idx);
     }
@@ -36,9 +39,11 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         exp->u_local.type = TYPE_INT32;
         
     }
+    /*
     else if (is_return_id(id)) {
         exp_set_stack(exp, id->idx, 0, 0);
     }
+    */
 }
 
 static void

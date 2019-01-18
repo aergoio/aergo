@@ -60,12 +60,16 @@ id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
     int dim_size;
-    array_t *size_exps;
+    array_t *size_exps = id->u_var.size_exps;
 
+    ASSERT1(is_var_id(id), id->kind);
+
+    /*
     if (is_var_id(id))
         size_exps = id->u_var.size_exps;
     else
         size_exps = id->u_ret.size_exps;
+        */
 
     meta_set_arr_dim(&id->meta, array_size(size_exps));
 
@@ -75,7 +79,8 @@ id_check_array(check_t *check, ast_id_t *id)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!is_param_id(id) && is_var_id(id) && id->u_var.dflt_exp == NULL)
+            //if (is_var_id(id) && !is_param_id(id) && id->u_var.dflt_exp == NULL)
+            if (!is_param_id(id) && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             /* -1 means that the size is determined by the initializer */
@@ -231,6 +236,7 @@ id_check_enum(check_t *check, ast_id_t *id)
     return true;
 }
 
+/*
 static bool
 id_check_return(check_t *check, ast_id_t *id)
 {
@@ -249,6 +255,7 @@ id_check_return(check_t *check, ast_id_t *id)
 
     return true;
 }
+*/
 
 static bool
 id_check_fn(check_t *check, ast_id_t *id)
@@ -413,18 +420,23 @@ id_check_tuple(check_t *check, ast_id_t *id)
         elem_id->mod = id->mod;
 
         if (is_var_id(elem_id)) {
-            /* The default expression for the tuple identifier is set in id_trans_var() */
-            ASSERT(elem_id->u_var.dflt_exp == NULL);
+            if (!is_param_id(elem_id)) {
+                /* The default expression for the tuple identifier is set in
+                 * id_trans_var() */
+                ASSERT(elem_id->u_var.dflt_exp == NULL);
 
-            if (elem_id->u_var.type_exp == NULL)
-                elem_id->u_var.type_exp = id->u_tup.type_exp;
+                if (elem_id->u_var.type_exp == NULL)
+                    elem_id->u_var.type_exp = id->u_tup.type_exp;
+            }
 
             id_check(check, elem_id);
         }
+        /*
         else {
             ASSERT1(is_return_id(elem_id), elem_id->kind);
             id_check(check, elem_id);
         }
+        */
 
         elem_id->up = id->up;
 
@@ -478,9 +490,11 @@ id_check(check_t *check, ast_id_t *id)
         id_check_enum(check, id);
         break;
 
+        /*
     case ID_RETURN:
         id_check_return(check, id);
         break;
+        */
 
     case ID_FN:
         id_check_fn(check, id);

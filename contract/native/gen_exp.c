@@ -587,12 +587,14 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     BinaryenExpressionRef value;
 
     ASSERT(id != NULL);
-    ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
+    ASSERT1(is_var_id(id), id->kind);
+    //ASSERT1(is_var_id(id) || is_return_id(id), id->kind);
 
     //if (is_param_id(id)) {
         ASSERT(id->idx >= 0);
 
-        if (is_return_id(id))
+        //if (is_return_id(id))
+        if (is_out_param(id))
             address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
         else
             address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));

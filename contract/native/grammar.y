@@ -593,7 +593,8 @@ param_decl:
     var_type declarator
     {
         $$ = $2;
-        $$->is_param = true;
+        //$$->is_param = true;
+        $$->u_var.kind = PARAM_IN;
         $$->u_var.type_exp = $1;
     }
 ;
@@ -727,16 +728,16 @@ return_decl:
         /* Later, the return statement will be transformed into
          * an assignment statement of the form "id = value",
          * so each return type is created with an identifier */
-        $$ = id_new_return($1, &@1);
+        $$ = id_new_param(PARAM_OUT, NULL, $1, &@1);
     }
 |   return_decl '[' size_opt ']'
     {
         $$ = $1;
 
-        if ($$->u_ret.size_exps == NULL)
-            $$->u_ret.size_exps = array_new();
+        if ($$->u_var.size_exps == NULL)
+            $$->u_var.size_exps = array_new();
 
-        exp_add($$->u_ret.size_exps, $3);
+        exp_add($$->u_var.size_exps, $3);
     }
 ;
 

@@ -84,12 +84,11 @@ typedef enum id_kind_e {
     ID_VAR          = 0,
     ID_STRUCT       = 1,
     ID_ENUM         = 2,
-    ID_RETURN       = 3,
-    ID_FN           = 4,
-    ID_CONT         = 5,
-    ID_ITF          = 6,
-    ID_LABEL        = 7,
-    ID_TUPLE        = 8,
+    ID_FN           = 3,
+    ID_CONT         = 4,
+    ID_ITF          = 5,
+    ID_LABEL        = 6,
+    ID_TUPLE        = 7,
     ID_MAX
 } id_kind_t;
 
@@ -201,12 +200,11 @@ typedef enum loop_kind_e {
     LOOP_MAX
 } loop_kind_t;
 
-typedef enum sym_kind_e {
-    SYM_NONE        = 0,
-    SYM_VAR,
-    SYM_REC,
-    SYM_FUNC,
-    SYM_MAX
-} sym_kind_t;
+typedef enum param_kind_e {
+    PARAM_NONE      = 0,
+    PARAM_IN,
+    PARAM_OUT,
+    PARAM_MAX
+} param_kind_t;
 
 #endif /* ! _ENUM_H */
