@@ -48,8 +48,9 @@ contract test {
 
 @test(array_assignment)
 contract test {
+    int j[2][3];
     test() {
-        int i[10];
+        int i[5] = new { 1, 2, 3, 4, 5 };
         i[0] = 0;
         i[0] += 1;
         i[0]++;
@@ -61,28 +62,30 @@ contract test {
         i[idx + 1] = i[0] + i[idx];
         i[idx + 2] = 7;
 
-        int j[10];
+        int k[][] = j;
+        int l[] = j[0];
+    }
+}
+
+@test(invalid_array_assignment)
+@error(ERROR_NOT_ALLOWED_ARRAY,3)
+contract test {
+    int i[2][2];
+    int j[2];
+    int k[2];
+    test() {
+        i[0] = j;
         j = i;
+        k = j;
     }
 }
 
 @test(mismatched_array_dimension)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
+    int i[2][2];
     test() {
-        int i[2][2];
-        int j[2];
-        j = i;
-    }
-}
-
-@test(mismatched_array_size)
-@error(ERROR_MISMATCHED_COUNT)
-contract test {
-    test() {
-        int i[2];
-        int j[1];
-        j = i;
+        int j[] = i;
     }
 }
 
@@ -120,13 +123,16 @@ contract test {
     type s1 struct { int a, b; }
     test() {
         s1 v1[2][2];
-        s1 v2[2][2];
-        s1 v3[2];
+        s1 v2[3];
+        s1 v3;
 
-        v1 = v2;
-        v1[0] = v3;
-        v1[1] = v3;
-        v3[0] = v1[0][0];
+        v1[0][1] = v3;
+        v2[1] = v3;
+        v3 = v1[1][0];
+        v3 = v2[2];
+        s1 v4[][] = v1;
+        s1 v5[] = v1[0];
+        s1 v6[] = v2;
     }
 }
 
@@ -160,13 +166,14 @@ contract test {
 contract test {
     test() {
         map(int, string) m1[2];
-        map(int, string) m2[2];
-        map(int, string) m3;
+        map(int, string) m2;
 
-        m1 = m2;
-        m1[0] = m3;
-        m1[1] = m3;
-        m3 = m2[0];
+        m1[0] = m2;
+        m1[1] = m2;
+        m2 = m1[0];
+
+        map(int, string) m3[] = m1;
+        m3[0] = m2;
     }
 }
 
