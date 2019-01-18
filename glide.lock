@@ -1,5 +1,5 @@
-hash: 28691f6ca181ff86e3e1ede2dd1c40ce8089af78497722be6e5c2abf05036994
-updated: 2018-12-22T17:46:40.304887+09:00
+hash: b7f70e5aee96254ff26258791c47523ef2276309c815359279f960bfd85a24b5
+updated: 2019-01-17T15:01:51.607773+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 4424ea594ae4917c6c7da300b98f92dd9ed260cb
@@ -94,7 +94,7 @@ imports:
   - sortkeys
   - types
 - name: github.com/golang/mock
-  version: c34cdb4725f4c3844d095133c6e40e448b86589b
+  version: 51421b967af1f557f93a59e0057aaf15ca02e29c
   subpackages:
   - gomock
 - name: github.com/golang/protobuf
