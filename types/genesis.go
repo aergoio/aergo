@@ -32,7 +32,7 @@ var (
 
 	defaultChainID = ChainID{
 		Version:     0,
-		Magic:       "AREGO.IO",
+		Magic:       "",
 		PublicNet:   false,
 		MainNet:     false,
 		Consensus:   "sbp",
