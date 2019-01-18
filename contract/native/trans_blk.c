@@ -19,12 +19,19 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
     trans->blk = blk;
     //trans->fn_idx = 0;
 
+    /*
     array_foreach(&blk->ids, i) {
         id_trans(trans, array_get_id(&blk->ids, i));
     }
+    */
 
-    array_foreach(&blk->stmts, i) {
-        stmt_trans(trans, array_get_stmt(&blk->stmts, i));
+    array_foreach(&blk->nodes, i) {
+        ast_node_t *node = array_get(&blk->nodes, i, ast_node_t);
+
+        if (is_id_node(node))
+            id_trans(trans, (ast_id_t *)node);
+        else
+            stmt_trans(trans, (ast_stmt_t *)node);
     }
 
     trans->blk = up;

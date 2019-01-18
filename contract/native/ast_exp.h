@@ -168,7 +168,7 @@ typedef struct exp_fn_s {
 */
 
 struct ast_exp_s {
-    exp_kind_t kind;
+    AST_NODE_DECL;
 
     union {
         exp_lit_t u_lit;
@@ -194,7 +194,7 @@ struct ast_exp_s {
     ast_id_t *id;       /* referenced identifier */
     meta_t meta;
 
-    AST_NODE_DECL;
+    src_pos_t pos;
 };
 
 ast_exp_t *exp_new_null(src_pos_t *pos);

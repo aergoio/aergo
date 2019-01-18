@@ -310,8 +310,8 @@ id_check_fn(check_t *check, ast_id_t *id)
     check->fn_id = NULL;
 
     if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
-        (id->u_fn.blk == NULL || is_empty_array(&id->u_fn.blk->stmts) ||
-         !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
+        (id->u_fn.blk == NULL || is_empty_array(&id->u_fn.blk->nodes) ||
+         !is_return_stmt(array_get_last(&id->u_fn.blk->nodes, ast_node_t))))
         RETURN(ERROR_MISSING_RETURN, &id->pos);
 
     return true;

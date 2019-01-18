@@ -112,7 +112,7 @@ typedef struct stmt_blk_s {
 } stmt_blk_t;
 
 struct ast_stmt_s {
-    stmt_kind_t kind;
+    AST_NODE_DECL;
 
     union {
         stmt_exp_t u_exp;
@@ -130,7 +130,7 @@ struct ast_stmt_s {
 
     ir_bb_t *label_bb;
 
-    AST_NODE_DECL;
+    src_pos_t pos;
 };
 
 ast_stmt_t *stmt_new_null(src_pos_t *pos);
@@ -143,7 +143,7 @@ ast_stmt_t *stmt_new_switch(ast_exp_t *cond_exp, ast_blk_t *blk, src_pos_t *pos)
 ast_stmt_t *stmt_new_case(ast_exp_t *val_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_return(ast_exp_t *arg_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_goto(char *label, src_pos_t *pos);
-ast_stmt_t *stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos);
+ast_stmt_t *stmt_new_jump(node_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_ddl(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_new_blk(ast_blk_t *blk, src_pos_t *pos);
 

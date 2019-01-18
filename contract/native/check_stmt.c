@@ -195,7 +195,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         not_exp = exp_new_unary(OP_NOT, true, cond_exp, &cond_exp->pos);
 
         break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
-        array_add_first(&blk->stmts, break_stmt);
+        array_add_first(&blk->nodes, break_stmt);
     }
 
     if (stmt->u_loop.init_id != NULL) {
@@ -208,7 +208,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
     }
 
     if (loop_exp != NULL)
-        array_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
+        array_add_last(&blk->nodes, stmt_new_exp(loop_exp, &loop_exp->pos));
 
     return true;
 }
@@ -288,7 +288,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
             id_exp = exp_new_id(var_id->name, pos);
             assign_exp = exp_new_op(OP_ASSIGN, id_exp, arr_exp, &loop_exp->pos);
 
-            array_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
+            array_add_first(&blk->nodes, stmt_new_exp(assign_exp, pos));
         }
 
         id_join_first(&blk->ids, elem_ids);
@@ -304,13 +304,13 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
         /* make "init_exp = loop_exp[i++]" */
         assign_exp = exp_new_op(OP_ASSIGN, init_exp, arr_exp, &loop_exp->pos);
 
-        array_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
+        array_add_first(&blk->nodes, stmt_new_exp(assign_exp, pos));
     }
 
     null_stmt = stmt_new_null(&stmt->pos);
     null_stmt->label = blk->loop_label;
 
-    array_add_first(&blk->stmts, null_stmt);
+    array_add_first(&blk->nodes, null_stmt);
 #endif
 
     return true;
@@ -322,7 +322,7 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
 
     if (stmt->u_loop.blk == NULL)
-        stmt->u_loop.blk = blk_new_loop(&stmt->pos);
+        stmt->u_loop.blk = blk_new_loop();
 
     switch (stmt->u_loop.kind) {
     case LOOP_FOR:
@@ -356,8 +356,8 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     blk = stmt->u_sw.blk;
     cond_exp = stmt->u_sw.cond_exp;
 
-    array_foreach(&blk->stmts, i) {
-        ast_stmt_t *elem_stmt = array_get_stmt(&blk->stmts, i);
+    array_foreach(&blk->nodes, i) {
+        ast_stmt_t *elem_stmt = array_get_stmt(&blk->nodes, i);
 
         if (is_case_stmt(elem_stmt)) {
             ast_exp_t *val_exp = elem_stmt->u_case.val_exp;
@@ -369,8 +369,8 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
                 stmt->u_sw.has_dflt = true;
             }
             else {
-                for (j = i + 1; j < array_size(&blk->stmts); j++) {
-                    ast_stmt_t *next_stmt = array_get_stmt(&blk->stmts, j);
+                for (j = i + 1; j < array_size(&blk->nodes); j++) {
+                    ast_stmt_t *next_stmt = array_get_stmt(&blk->nodes, j);
                     ast_exp_t *next_exp = next_stmt->u_case.val_exp;
 
                     if (!is_case_stmt(next_stmt))

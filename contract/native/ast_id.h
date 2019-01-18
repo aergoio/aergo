@@ -117,7 +117,7 @@ typedef struct id_tuple_s {
 } id_tuple_t;
 
 struct ast_id_s {
-    id_kind_t kind;
+    AST_NODE_DECL;
 
     modifier_t mod;     /* public or const */
     char *name;
@@ -146,7 +146,7 @@ struct ast_id_s {
     ast_id_t *up;
     ir_abi_t *abi;
 
-    AST_NODE_DECL;
+    src_pos_t pos;
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);

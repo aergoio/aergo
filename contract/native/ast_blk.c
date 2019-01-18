@@ -13,60 +13,58 @@
 #include "ast_blk.h"
 
 static ast_blk_t *
-ast_blk_new(blk_kind_t kind, src_pos_t *pos)
+ast_blk_new(blk_kind_t kind)
 {
     ast_blk_t *blk = xcalloc(sizeof(ast_blk_t));
-
-    ast_node_init(blk, *pos);
 
     blk->kind = kind;
 
     array_init(&blk->ids);
-    array_init(&blk->stmts);
+    array_init(&blk->nodes);
 
     return blk;
 }
 
 ast_blk_t *
-blk_new_normal(src_pos_t *pos)
+blk_new_normal(void)
 {
-    return ast_blk_new(BLK_NORMAL, pos);
+    return ast_blk_new(BLK_NORMAL);
 }
 
 ast_blk_t *
-blk_new_root(src_pos_t *pos)
+blk_new_root(void)
 {
-    return ast_blk_new(BLK_ROOT, pos);
+    return ast_blk_new(BLK_ROOT);
 }
 
 ast_blk_t *
-blk_new_contract(src_pos_t *pos)
+blk_new_contract(void)
 {
-    return ast_blk_new(BLK_CONT, pos);
+    return ast_blk_new(BLK_CONT);
 }
 
 ast_blk_t *
-blk_new_interface(src_pos_t *pos)
+blk_new_interface(void)
 {
-    return ast_blk_new(BLK_ITF, pos);
+    return ast_blk_new(BLK_ITF);
 }
 
 ast_blk_t *
-blk_new_fn(src_pos_t *pos)
+blk_new_fn(void)
 {
-    return ast_blk_new(BLK_FN, pos);
+    return ast_blk_new(BLK_FN);
 }
 
 ast_blk_t *
-blk_new_loop(src_pos_t *pos)
+blk_new_loop(void)
 {
-    return ast_blk_new(BLK_LOOP, pos);
+    return ast_blk_new(BLK_LOOP);
 }
 
 ast_blk_t *
-blk_new_switch(src_pos_t *pos)
+blk_new_switch(void)
 {
-    return ast_blk_new(BLK_SWITCH, pos);
+    return ast_blk_new(BLK_SWITCH);
 }
 
 ast_blk_t *

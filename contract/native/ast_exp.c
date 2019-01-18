@@ -10,13 +10,13 @@
 #include "ast_exp.h"
 
 static ast_exp_t *
-ast_exp_new(exp_kind_t kind, src_pos_t *pos)
+ast_exp_new(node_kind_t kind, src_pos_t *pos)
 {
     ast_exp_t *exp = xcalloc(sizeof(ast_exp_t));
 
-    ast_node_init(exp, *pos);
+    ast_node_init(exp, kind);
 
-    exp->kind = kind;
+    exp->pos = *pos;
 
     meta_init(&exp->meta, &exp->pos);
 

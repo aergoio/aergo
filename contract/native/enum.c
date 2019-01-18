@@ -82,30 +82,4 @@ int type_bytes_[TYPE_MAX] = {
     0                   /* TYPE_TUPLE */
 };
 
-char *id_kinds_[ID_MAX] = {
-    "variable",
-    "struct",
-    "enumeration",
-    "function",
-    "contract",
-    "label",
-    "tuple"
-};
-
-char *stmt_kinds_[STMT_MAX] = {
-    "null",
-    "exp",
-    "assign",
-    "if",
-    "loop",
-    "switch",
-    "case",
-    "continue",
-    "break",
-    "return",
-    "goto",
-    "sql",
-    "block"
-};
-
 /* end of enum.c */

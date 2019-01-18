@@ -34,6 +34,9 @@ id_trans_var(trans_t *trans, ast_id_t *id)
     else
 #endif
         fn_add_local(trans->fn, id);
+
+    if (id->u_var.dflt_exp != NULL)
+        stmt_trans(trans, stmt_make_assign(id, id->u_var.dflt_exp));
 }
 
 #if 0
@@ -180,9 +183,9 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     if (!is_empty_array(stmts)) {
         if (id->u_fn.blk == NULL)
-            id->u_fn.blk = blk_new_fn(&id->pos);
+            id->u_fn.blk = blk_new_fn();
 
-        array_join_first(&id->u_fn.blk->stmts, stmts);
+        array_join_first(&id->u_fn.blk->nodes, stmts);
     }
 }
 
@@ -425,6 +428,9 @@ id_trans_tuple(trans_t *trans, ast_id_t *id)
     array_foreach(id->u_tup.elem_ids, i) {
         id_trans_var(trans, array_get_id(id->u_tup.elem_ids, i));
     }
+
+    if (id->u_tup.dflt_exp != NULL)
+        stmt_trans(trans, stmt_make_assign(id, id->u_tup.dflt_exp));
 }
 
 void

@@ -12,13 +12,13 @@
 #include "ast_stmt.h"
 
 static ast_stmt_t *
-ast_stmt_new(stmt_kind_t kind, src_pos_t *pos)
+ast_stmt_new(node_kind_t kind, src_pos_t *pos)
 {
     ast_stmt_t *stmt = xcalloc(sizeof(ast_stmt_t));
 
-    ast_node_init(stmt, *pos);
+    ast_node_init(stmt, kind);
 
-    stmt->kind = kind;
+    stmt->pos = *pos;
 
     return stmt;
 }
@@ -122,7 +122,7 @@ stmt_new_goto(char *label, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos)
+stmt_new_jump(node_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(kind, pos);
 
