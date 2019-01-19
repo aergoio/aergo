@@ -15,7 +15,7 @@ check_init(check_t *check, ast_blk_t *root, flag_t flag)
 {
     ASSERT(root != NULL);
     ASSERT(root->up == NULL);
-    ASSERT1(is_empty_array(&root->nodes), array_size(&root->nodes));
+    ASSERT1(is_empty_array(&root->stmts), array_size(&root->stmts));
 
     check->flag = flag;
 

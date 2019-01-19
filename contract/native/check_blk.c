@@ -60,15 +60,8 @@ blk_check(check_t *check, ast_blk_t *blk)
         id_check(check, array_get_id(&blk->ids, i));
     }
 
-    array_foreach(&blk->nodes, i) {
-        ast_node_t *node = array_get(&blk->nodes, i, ast_node_t);
-
-        if (is_id_node(node))
-            continue;
-
-        ASSERT1(is_stmt_node(node), node->kind);
-
-        stmt_check(check, (ast_stmt_t *)node);
+    array_foreach(&blk->stmts, i) {
+        stmt_check(check, array_get_stmt(&blk->stmts, i));
     }
 
     if (!is_itf_blk(blk))

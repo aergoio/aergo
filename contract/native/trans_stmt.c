@@ -325,8 +325,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     trans->cont_bb = NULL;
     trans->break_bb = next_bb;
 
-    array_foreach(&blk->nodes, i) {
-        ast_stmt_t *case_stmt = array_get_stmt(&blk->nodes, i);
+    array_foreach(&blk->stmts, i) {
+        ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
 
         /* The case statement means the start of a case block or default block,
          * and the remaining statements are included in the corresponding block */

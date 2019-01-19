@@ -19,7 +19,7 @@ ast_new(void)
 
     src_pos_init(&pos, NULL, NULL);
 
-    ast->root = blk_new_root();
+    ast->root = blk_new_root(&pos);
 
     return ast;
 }

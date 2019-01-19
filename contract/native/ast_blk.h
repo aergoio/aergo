@@ -28,22 +28,29 @@ typedef struct ast_blk_s ast_blk_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
+#ifndef _AST_STMT_T
+#define _AST_STMT_T
+typedef struct ast_stmt_s ast_stmt_t;
+#endif /* ! _AST_STMT_T */
+
 struct ast_blk_s {
     blk_kind_t kind;
 
     array_t ids;
-    array_t nodes;
+    array_t stmts;
 
     ast_blk_t *up;
+
+    AST_NODE_DECL;
 };
 
-ast_blk_t *blk_new_normal(void);
-ast_blk_t *blk_new_root(void);
-ast_blk_t *blk_new_contract(void);
-ast_blk_t *blk_new_interface(void);
-ast_blk_t *blk_new_fn(void);
-ast_blk_t *blk_new_loop(void);
-ast_blk_t *blk_new_switch(void);
+ast_blk_t *blk_new_normal(src_pos_t *pos);
+ast_blk_t *blk_new_root(src_pos_t *pos);
+ast_blk_t *blk_new_contract(src_pos_t *pos);
+ast_blk_t *blk_new_interface(src_pos_t *pos);
+ast_blk_t *blk_new_fn(src_pos_t *pos);
+ast_blk_t *blk_new_loop(src_pos_t *pos);
+ast_blk_t *blk_new_switch(src_pos_t *pos);
 
 ast_blk_t *blk_search(ast_blk_t *blk, blk_kind_t kind);
 

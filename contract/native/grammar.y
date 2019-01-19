@@ -24,7 +24,7 @@ extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
-//static void decl_add(array_t *stmts, ast_id_t *id);
+static void decl_add(array_t *stmts, ast_id_t *id);
 
 %}
 
@@ -273,7 +273,7 @@ smart_contract:
 contract_decl:
     K_CONTRACT identifier impl_opt '{' '}'
     {
-        ast_blk_t *blk = blk_new_contract();
+        ast_blk_t *blk = blk_new_contract(&@4);
 
         /* add default constructor */
         id_add(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
@@ -316,12 +316,12 @@ impl_opt:
 contract_body:
     variable
     {
-        $$ = blk_new_contract();
+        $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
     }
 |   compound
     {
-        $$ = blk_new_contract();
+        $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
     }
 |   contract_body variable
@@ -607,32 +607,32 @@ block:
 blk_decl:
     var_qual
     {
-        $$ = blk_new_normal();
+        $$ = blk_new_normal(&@$);
 
         id_add(&$$->ids, $1);
-        node_add(&$$->nodes, $1);
+        decl_add(&$$->stmts, $1);
     }
 |   struct
     {
-        $$ = blk_new_normal();
+        $$ = blk_new_normal(&@$);
         id_add(&$$->ids, $1);
     }
 |   enumeration
     {
-        $$ = blk_new_normal();
+        $$ = blk_new_normal(&@$);
         id_add(&$$->ids, $1);
     }
 |   statement
     {
-        $$ = blk_new_normal();
-        node_add(&$$->nodes, $1);
+        $$ = blk_new_normal(&@$);
+        stmt_add(&$$->stmts, $1);
     }
 |   blk_decl var_qual
     {
         $$ = $1;
 
         id_add(&$$->ids, $2);
-        node_add(&$$->nodes, $2);
+        decl_add(&$$->stmts, $2);
     }
 |   blk_decl struct
     {
@@ -647,7 +647,7 @@ blk_decl:
 |   blk_decl statement
     {
         $$ = $1;
-        node_add(&$$->nodes, $2);
+        stmt_add(&$$->stmts, $2);
     }
 ;
 
@@ -751,7 +751,7 @@ interface_decl:
 interface_body:
     func_spec eol
     {
-        $$ = blk_new_interface();
+        $$ = blk_new_interface(&@$);
         id_add(&$$->ids, $1);
     }
 |   interface_body func_spec eol
@@ -928,13 +928,13 @@ switch_blk:
 case_blk:
     label_stmt
     {
-        $$ = blk_new_switch();
-        node_add(&$$->nodes, $1);
+        $$ = blk_new_switch(&@$);
+        stmt_add(&$$->stmts, $1);
     }
 |   case_blk statement
     {
         $$ = $1;
-        node_add(&$$->nodes, $2);
+        stmt_add(&$$->stmts, $2);
     }
 ;
 
@@ -1370,7 +1370,6 @@ yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)
     ERROR(ERROR_SYNTAX, yylloc, msg);
 }
 
-/*
 static void
 decl_add(array_t *stmts, ast_id_t *id)
 {
@@ -1418,6 +1417,5 @@ decl_add(array_t *stmts, ast_id_t *id)
 
     stmt_add(stmts, decl_stmt);
 }
-*/
 
 /* end of grammar.y */

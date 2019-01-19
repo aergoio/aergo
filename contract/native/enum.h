@@ -78,9 +78,10 @@ extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];
 extern int type_bytes_[TYPE_MAX];
 
-typedef enum node_kind_e {
-    ID_START        = 0,
-    ID_VAR          = ID_START,
+#define ID_KIND(id)             id_kinds_[(id)->kind]
+
+typedef enum id_kind_e {
+    ID_VAR          = 0,
     ID_STRUCT       = 1,
     ID_ENUM         = 2,
     ID_FN           = 3,
@@ -88,47 +89,53 @@ typedef enum node_kind_e {
     ID_ITF          = 5,
     ID_LABEL        = 6,
     ID_TUPLE        = 7,
-    ID_MAX          = ID_TUPLE,
+    ID_MAX
+} id_kind_t;
 
-    EXP_START       = 8,
-    EXP_NULL        = EXP_START,
-    EXP_LIT         = 9,
-    EXP_ID          = 10,
-    EXP_TYPE        = 11,
-    EXP_ARRAY       = 12,
-    EXP_CAST        = 13,
-    EXP_UNARY       = 14,
-    EXP_BINARY      = 15,
-    EXP_TERNARY     = 16,
-    EXP_ACCESS      = 17,
-    EXP_CALL        = 18,
-    EXP_SQL         = 19,
-    EXP_TUPLE       = 20,
-    EXP_INIT        = 21,
-    EXP_ALLOC       = 22,
-    EXP_GLOBAL      = 23,
-    EXP_LOCAL       = 24,
-    EXP_STACK       = 25,
-    EXP_MAX         = EXP_STACK,
+extern char *id_kinds_[ID_MAX];
 
-    STMT_START      = 26,
-    STMT_NULL       = 27,
-    STMT_EXP        = 28,
-    STMT_ASSIGN     = 29,
-    STMT_IF         = 30,
-    STMT_LOOP       = 31,
-    STMT_SWITCH     = 32,
-    STMT_CASE       = 33,
-    STMT_CONTINUE   = 34,
-    STMT_BREAK      = 35,
-    STMT_RETURN     = 36,
-    STMT_GOTO       = 37,
-    STMT_DDL        = 38,
-    STMT_BLK        = 39,
-    STMT_MAX        = STMT_BLK,
+typedef enum exp_kind_e {
+    EXP_NULL        = 0,
+    EXP_LIT         = 1,
+    EXP_ID          = 2,
+    EXP_TYPE        = 3,
+    EXP_ARRAY       = 4,
+    EXP_CAST        = 5,
+    EXP_UNARY       = 6,
+    EXP_BINARY      = 7,
+    EXP_TERNARY     = 8,
+    EXP_ACCESS      = 9,
+    EXP_CALL        = 10,
+    EXP_SQL         = 11,
+    EXP_TUPLE       = 12,
+    EXP_INIT        = 13,
+    EXP_ALLOC       = 14,
+    EXP_GLOBAL      = 15,
+    EXP_LOCAL       = 16,
+    EXP_STACK       = 17,
+    EXP_MAX
+} exp_kind_t;
 
-    NODE_MAX
-} node_kind_t;
+#define STMT_KIND(stmt)         stmt_kinds_[(stmt)->kind]
+
+typedef enum stmt_kind_e {
+    STMT_NULL       = 0,
+    STMT_EXP        = 1,
+    STMT_ASSIGN     = 2,
+    STMT_IF         = 3,
+    STMT_LOOP       = 4,
+    STMT_SWITCH     = 5,
+    STMT_CASE       = 6,
+    STMT_CONTINUE   = 7,
+    STMT_BREAK      = 8,
+    STMT_RETURN     = 9,
+    STMT_GOTO       = 10,
+    STMT_DDL        = 11,
+    STMT_BLK        = 12,
+    STMT_MAX
+} stmt_kind_t;
+
+extern char *stmt_kinds_[STMT_MAX];
 
 typedef enum blk_kind_e {
     BLK_NORMAL      = 0,

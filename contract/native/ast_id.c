@@ -13,15 +13,15 @@
 #include "ast_id.h"
 
 static ast_id_t *
-ast_id_new(node_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
+ast_id_new(id_kind_t kind, modifier_t mod, char *name, src_pos_t *pos)
 {
     ast_id_t *id = xcalloc(sizeof(ast_id_t));
 
-    ast_node_init(id, kind);
+    ast_node_init(id, *pos);
 
+    id->kind = kind;
     id->mod = mod;
     id->name = name;
-    id->pos = *pos;
 
     meta_init(&id->meta, &id->pos);
 
