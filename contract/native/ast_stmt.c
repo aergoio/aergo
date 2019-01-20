@@ -30,6 +30,16 @@ stmt_new_null(src_pos_t *pos)
 }
 
 ast_stmt_t *
+stmt_new_id(ast_id_t *id, src_pos_t *pos)
+{
+    ast_stmt_t *stmt = ast_stmt_new(STMT_ID, pos);
+
+    stmt->u_id.id = id;
+
+    return stmt;
+}
+
+ast_stmt_t *
 stmt_new_exp(ast_exp_t *exp, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_EXP, pos);

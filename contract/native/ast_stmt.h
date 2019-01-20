@@ -12,6 +12,7 @@
 #include "array.h"
 
 #define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
+#define is_id_stmt(stmt)            ((stmt)->kind == STMT_ID)
 #define is_exp_stmt(stmt)           ((stmt)->kind == STMT_EXP)
 #define is_assign_stmt(stmt)        ((stmt)->kind == STMT_ASSIGN)
 #define is_if_stmt(stmt)            ((stmt)->kind == STMT_IF)
@@ -51,6 +52,10 @@ typedef struct ast_id_s ast_id_t;
 #define _IR_BB_T
 typedef struct ir_bb_s ir_bb_t;
 #endif /* ! _IR_BB_T */
+
+typedef struct stmt_id_s {
+    ast_id_t *id;
+} stmt_id_t;
 
 typedef struct stmt_exp_s {
     ast_exp_t *exp;
@@ -115,6 +120,7 @@ struct ast_stmt_s {
     stmt_kind_t kind;
 
     union {
+        stmt_id_t u_id;
         stmt_exp_t u_exp;
         stmt_assign_t u_assign;
         stmt_if_t u_if;
@@ -134,6 +140,7 @@ struct ast_stmt_s {
 };
 
 ast_stmt_t *stmt_new_null(src_pos_t *pos);
+ast_stmt_t *stmt_new_id(ast_id_t *id, src_pos_t *pos);
 ast_stmt_t *stmt_new_exp(ast_exp_t *exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_assign(ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos);

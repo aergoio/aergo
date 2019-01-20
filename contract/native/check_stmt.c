@@ -12,6 +12,23 @@
 #include "check_stmt.h"
 
 static bool
+stmt_check_id(check_t *check, ast_stmt_t *stmt)
+{
+    ast_id_t *id = stmt->u_id.id;
+    ast_blk_t *blk = check->blk;
+
+    ASSERT1(is_id_stmt(stmt), stmt->kind);
+    ASSERT(id != NULL);
+    ASSERT(blk != NULL);
+
+    id_check(check, id);
+
+    id_add(&blk->ids, id);
+
+    return true;
+}
+
+static bool
 stmt_check_exp(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *exp = stmt->u_exp.exp;
@@ -557,9 +574,15 @@ stmt_check_blk(check_t *check, ast_stmt_t *stmt)
 void
 stmt_check(check_t *check, ast_stmt_t *stmt)
 {
+    ASSERT(stmt != NULL);
+
     switch (stmt->kind) {
     case STMT_NULL:
         return;
+
+    case STMT_ID:
+        stmt_check_id(check, stmt);
+        break;
 
     case STMT_EXP:
         stmt_check_exp(check, stmt);

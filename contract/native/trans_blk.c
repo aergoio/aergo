@@ -16,6 +16,8 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
     int i;
     ast_blk_t *up = trans->blk;
 
+    ASSERT(blk != NULL);
+
     trans->blk = blk;
     //trans->fn_idx = 0;
 

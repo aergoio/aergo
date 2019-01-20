@@ -24,7 +24,7 @@ extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
-static void decl_add(array_t *stmts, ast_id_t *id);
+//static void decl_add(array_t *stmts, ast_id_t *id);
 
 %}
 
@@ -609,18 +609,21 @@ blk_decl:
     {
         $$ = blk_new_normal(&@$);
 
-        id_add(&$$->ids, $1);
-        decl_add(&$$->stmts, $1);
+        //id_add(&$$->ids, $1);
+        //decl_add(&$$->stmts, $1);
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   struct
     {
         $$ = blk_new_normal(&@$);
-        id_add(&$$->ids, $1);
+        //id_add(&$$->ids, $1);
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   enumeration
     {
         $$ = blk_new_normal(&@$);
-        id_add(&$$->ids, $1);
+        //id_add(&$$->ids, $1);
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   statement
     {
@@ -631,18 +634,21 @@ blk_decl:
     {
         $$ = $1;
 
-        id_add(&$$->ids, $2);
-        decl_add(&$$->stmts, $2);
+        //id_add(&$$->ids, $2);
+        //decl_add(&$$->stmts, $2);
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl struct
     {
         $$ = $1;
-        id_add(&$$->ids, $2);
+        //id_add(&$$->ids, $2);
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl enumeration
     {
         $$ = $1;
-        id_add(&$$->ids, $2);
+        //id_add(&$$->ids, $2);
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl statement
     {
@@ -1370,6 +1376,7 @@ yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)
     ERROR(ERROR_SYNTAX, yylloc, msg);
 }
 
+/*
 static void
 decl_add(array_t *stmts, ast_id_t *id)
 {
@@ -1417,5 +1424,6 @@ decl_add(array_t *stmts, ast_id_t *id)
 
     stmt_add(stmts, decl_stmt);
 }
+*/
 
 /* end of grammar.y */

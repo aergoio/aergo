@@ -11,7 +11,7 @@
 #include "check_blk.h"
 
 static void
-check_unused_ids(check_t *check, array_t *ids)
+check_unused_ids(array_t *ids)
 {
     int i, j;
 
@@ -65,7 +65,7 @@ blk_check(check_t *check, ast_blk_t *blk)
     }
 
     if (!is_itf_blk(blk))
-        check_unused_ids(check, &blk->ids);
+        check_unused_ids(&blk->ids);
 
     check->blk = blk->up;
 }

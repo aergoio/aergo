@@ -430,6 +430,8 @@ id_trans_tuple(trans_t *trans, ast_id_t *id)
 void
 id_trans(trans_t *trans, ast_id_t *id)
 {
+    ASSERT(id != NULL);
+
     switch (id->kind) {
     case ID_VAR:
         id_trans_var(trans, id);

@@ -14,6 +14,23 @@
 #include "trans_stmt.h"
 
 static void
+stmt_trans_id(trans_t *trans, ast_stmt_t *stmt)
+{
+    ast_id_t *id = stmt->u_id.id;
+
+    /* The identifier itself is already transformed in blk_trans() */
+
+    if (is_var_id(id)) {
+        if (id->u_var.dflt_exp != NULL)
+            stmt_trans(trans, stmt_make_assign(id, id->u_var.dflt_exp));
+    }
+    else if (is_tuple_id(id)) {
+        if (id->u_tup.dflt_exp != NULL)
+            stmt_trans(trans, stmt_make_assign(id, id->u_tup.dflt_exp));
+    }
+}
+
+static void
 add_exp_stmt(trans_t *trans, ast_exp_t *exp)
 {
     if (is_null_exp(exp))
@@ -486,6 +503,8 @@ stmt_trans_blk(trans_t *trans, ast_stmt_t *stmt)
 void
 stmt_trans(trans_t *trans, ast_stmt_t *stmt)
 {
+    ASSERT(stmt != NULL);
+
     if (stmt->label_bb != NULL) {
         /* A labeled statement always creates a new basic block */
         if (trans->bb != NULL) {
@@ -501,6 +520,10 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
 
     switch (stmt->kind) {
     case STMT_NULL:
+        break;
+
+    case STMT_ID:
+        stmt_trans_id(trans, stmt);
         break;
 
     case STMT_EXP:
