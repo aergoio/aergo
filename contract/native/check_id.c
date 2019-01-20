@@ -268,6 +268,9 @@ id_check_fn(check_t *check, ast_id_t *id)
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up) || is_itf_id(id->up), id->up->kind);
 
+    if (is_ctor_id(id) && strcmp(id->name, id->up->name) != 0)
+        ERROR(ERROR_MISMATCHED_NAME, &id->pos, id->up->name, id->name);
+
     array_foreach(param_ids, i) {
         ast_id_t *param_id = array_get_id(param_ids, i);
 

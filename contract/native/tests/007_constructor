@@ -12,7 +12,7 @@ contract test2 {
 }
 
 @test(missing_construtor)
-@error(ERROR_SYNTAX)
+@error(ERROR_MISMATCHED_NAME)
 contract test {
     test2() { }
 }
@@ -24,7 +24,7 @@ contract test {
 }
 
 @test(multiple_constructor)
-@error(ERROR_SYNTAX)
+@error(ERROR_MISMATCHED_NAME)
 contract test {
     test(int x) { }
     test2(int x, string y) { }

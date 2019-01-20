@@ -85,6 +85,12 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
 static bool
 is_visible_id(ast_blk_t *blk, ast_id_t *id, char *name, int num, bool is_type)
 {
+    /*
+    if (is_type)
+        return is_type_id(id) && strcmp(name, id->name) == 0;
+
+    return strcmp(name, id->name) == 0;
+    */
     if (is_root_blk(blk))
         return strcmp(name, id->name) == 0;
 

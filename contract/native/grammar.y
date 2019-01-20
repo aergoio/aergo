@@ -289,10 +289,12 @@ contract_decl:
             ast_id_t *id = array_get_id(&$5->ids, i);
 
             if (is_ctor_id(id)) {
+                /*
                 if (strcmp($2, id->name) != 0)
                     ERROR(ERROR_SYNTAX, &id->pos, "syntax error, unexpected "
                           "identifier, expecting func");
                 else
+                    */
                     has_ctor = true;
             }
         }
