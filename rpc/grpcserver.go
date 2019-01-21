@@ -17,6 +17,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -117,6 +118,31 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 
 // GetChainInfo handles a getchaininfo RPC request.
 func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (*types.ChainInfo, error) {
+	chainInfo := &types.ChainInfo{}
+
+	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
+		id := genesisInfo.ID
+
+		chainInfo.Chainid = &types.ChainId{
+			Magic:     id.Magic,
+			Public:    id.PublicNet,
+			Mainnet:   id.MainNet,
+			Consensus: id.Consensus,
+		}
+
+		if fee, success := id.GetCoinbaseFee(); success {
+			chainInfo.Chainid.Coinbasefee = fee.Bytes()
+		}
+
+		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
+	}
+
+	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
+
+	if minStaking := types.GetStakingMinimum(); minStaking != nil {
+		chainInfo.Stakingminimum = minStaking.Bytes()
+	}
+
 	return nil, nil
 }
 

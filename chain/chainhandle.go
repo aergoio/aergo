@@ -63,6 +63,11 @@ func (cs *ChainService) getBestBlockNo() types.BlockNo {
 	return cs.cdb.getBestBlockNo()
 }
 
+// GetGenesisInfo returns the information on the genesis block.
+func (cs *ChainService) GetGenesisInfo() *types.Genesis {
+	return cs.cdb.GetGenesisInfo()
+}
+
 func (cs *ChainService) GetBestBlock() (*types.Block, error) {
 	return cs.cdb.GetBestBlock()
 }

@@ -37,6 +37,12 @@ func (_m *MockChainAccessor) GetBestBlock() (*types.Block, error) {
 	return r0, r1
 }
 
+// GetBlock should provides a genesis block info.
+func (_m *MockChainAccessor) GetGenesisInfo() *types.Genesis {
+	// Not implemented since it is not used in any test.
+	return nil
+}
+
 // GetBlock provides a mock function with given fields: blockHash
 func (_m *MockChainAccessor) GetBlock(blockHash []byte) (*types.Block, error) {
 	ret := _m.Called(blockHash)
@@ -61,7 +67,7 @@ func (_m *MockChainAccessor) GetBlock(blockHash []byte) (*types.Block, error) {
 }
 
 // GetBlock provides a mock function with given fields: blockHash
-func (_m *MockChainAccessor)GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+func (_m *MockChainAccessor) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
 	ret := _m.Called(blockNo)
 
 	var r0 []byte
