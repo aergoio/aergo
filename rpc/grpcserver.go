@@ -115,6 +115,11 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 	}, nil
 }
 
+// GetChainInfo handles a getchaininfo RPC request.
+func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (*types.ChainInfo, error) {
+	return nil, nil
+}
+
 // ListBlockMetadata handle rpc request
 func (rpc *AergoRPCService) ListBlockMetadata(ctx context.Context, in *types.ListParams) (*types.BlockMetadataList, error) {
 	blocks, err := rpc.getBlocks(ctx, in)

@@ -6,10 +6,11 @@ package mock_types
 
 import (
 	context "context"
+	reflect "reflect"
+
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
-	reflect "reflect"
 )
 
 // MockAergoRPCServiceClient is a mock of AergoRPCServiceClient interface
@@ -46,6 +47,11 @@ func (m *MockAergoRPCServiceClient) Blockchain(arg0 context.Context, arg1 *types
 	ret0, _ := ret[0].(*types.BlockchainStatus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
+}
+
+// GetChainInfo handles a getchaininfo RPC request.
+func (rpc *MockAergoRPCServiceClient) GetChainInfo(ctx context.Context, in *types.Empty, arg2 ...grpc.CallOption) (*types.ChainInfo, error) {
+	return nil, nil
 }
 
 // Blockchain indicates an expected call of Blockchain
