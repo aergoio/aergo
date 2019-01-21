@@ -12,7 +12,6 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -67,9 +66,7 @@ func execCommitTX(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.New("Failed request to aergo server\n" + err.Error())
 		}
-		for i, r := range msg.Results {
-			cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error, r.Detail)
-		}
+		cmd.Println(util.JSON(msg))
 	}
 	return nil
 }
