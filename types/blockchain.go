@@ -59,6 +59,11 @@ func init() {
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
+// GetStakingMinimum returns the minimum limit of staking.
+func GetStakingMinimum() *big.Int {
+	return StakingMinimum
+}
+
 func NewAvgTime(sizeMavg int) *AvgTime {
 	avgTime := &AvgTime{}
 	avgTime.mavg = NewMovingAverage(sizeMavg)
@@ -106,6 +111,7 @@ func getLastIndexOfBH() (lastIndex int) {
 
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
+	GetGenesisInfo() *Genesis
 	GetBestBlock() (*Block, error)
 	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)

@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	chainDBName = "chain"
-	genesisKey  = chainDBName + ".genesisInfo"
+	chainDBName       = "chain"
+	genesisKey        = chainDBName + ".genesisInfo"
+	genesisBalanceKey = chainDBName + ".genesisBalance"
 
 	TxBatchMax = 10000
 )
@@ -269,8 +270,12 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	block := genesis.Block()
 
 	tx := cdb.store.NewTx()
+
 	cdb.connectToChain(&tx, block)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
+	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
+		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
+	}
 
 	tx.Commit()
 
@@ -286,7 +291,7 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 		if block, err := cdb.GetBlockByNo(0); err == nil {
 			genesis.SetBlock(block)
 
-			// genesis.ID is overwritten by the xgenesis block's chain
+			// genesis.ID is overwritten by the genesis block's chain
 			// id. Prefer the latter since it is sort of protected the block
 			// chain system (all the chaild blocks connected to the genesis
 			// block).
@@ -299,6 +304,11 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 			}
 
 		}
+
+		if v := cdb.Get([]byte(genesisBalanceKey)); len(v) != 0 {
+			genesis.SetTotalBalance(v)
+		}
+
 		return genesis
 	}
 	return nil

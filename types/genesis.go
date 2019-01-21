@@ -223,7 +223,8 @@ type Genesis struct {
 	BPs       []string          `json:"bps"`
 
 	// followings are for internal use only
-	block *Block
+	totalBalance *big.Int
+	block        *Block
 }
 
 // Block returns Block corresponding to g. If g.block == nil, it genreates a
@@ -246,6 +247,27 @@ func (g *Genesis) Block() *Block {
 		}
 	}
 	return g.block
+}
+
+// AddBalance adds bal to g.totalBalance.
+func (g *Genesis) AddBalance(bal *big.Int) {
+	if g.totalBalance == nil {
+		g.totalBalance = big.NewInt(0)
+	}
+	g.totalBalance.Add(g.totalBalance, bal)
+}
+
+// TotalBalance returns the total initial balance of the chain.
+func (g *Genesis) TotalBalance() *big.Int {
+	return g.totalBalance
+}
+
+// SetTotalBalance sets g.totalBalance to v if g.totalBlance has no valid
+// value (nil).
+func (g *Genesis) SetTotalBalance(v []byte) {
+	if g.totalBalance == nil {
+		g.totalBalance = big.NewInt(0).SetBytes(v)
+	}
 }
 
 // SetBlock sets g.block to block if g.block == nil.

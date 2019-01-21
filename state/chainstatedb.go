@@ -119,6 +119,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
 				return err
 			}
+			genesis.AddBalance(v)
 		} else {
 			return fmt.Errorf("balance conversion failed for %s (address: %s)", balance, address)
 		}
