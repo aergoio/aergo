@@ -65,13 +65,13 @@ func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
 	for  _, hash := range data.Hashes {
 		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil {
-			// the block get from getMissing must exists. this error is fatal.
+			// the block hash from request must exists. this error is fatal.
 			bh.logger.Warn().Err(err).Str(LogBlkHash, enc.ToString(hash)).Str("req_id", requestID.String()).Msg("failed to get block while processing getBlock")
 			status = types.ResultStatus_INTERNAL
 			break
 		}
 		if foundBlock == nil {
-			// the block get from getMissing must exists. this error is fatal.
+			// the remote peer request not existing block
 			bh.logger.Debug().Str(LogBlkHash, enc.ToString(hash)).Str("req_id", requestID.String()).Msg("requested block hash is missing")
 			status = types.ResultStatus_NOT_FOUND
 			break

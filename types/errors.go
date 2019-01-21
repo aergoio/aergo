@@ -57,10 +57,4 @@ var (
 
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
-
-	//ErrVmStart
-	ErrVmStart = errors.New("cannot start a VM")
-
-	//ErrVmConstructorIsNotPayable
-	ErrVmConstructorIsNotPayable = errors.New("constructor is not payable")
 )

@@ -50,7 +50,7 @@ func TestVoteResult(t *testing.T) {
 		testResult[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
-	assert.NotNil(t, err, "argument should not nil")
+	assert.NotNil(t, err, "argument should not be nil")
 	err = InitVoteResult(scs, testResult)
 	assert.NoError(t, err, "failed to InitVoteResult")
 
@@ -144,7 +144,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
-	assert.Nil(t, result2.GetVotes()[0].Amount, "invalid amount in voting result")
+	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 }
 
 func buildVotingPayload(count int) []byte {

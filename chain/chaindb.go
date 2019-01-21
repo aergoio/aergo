@@ -215,7 +215,7 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
 		genesis := types.GetGenesisFromBytes(b)
-		if block, err := cdb.GetBlockByNo(0); err != nil {
+		if block, err := cdb.GetBlockByNo(0); err == nil {
 			genesis.SetBlock(block)
 
 			// genesis.ID is overwritten by the xgenesis block's chain

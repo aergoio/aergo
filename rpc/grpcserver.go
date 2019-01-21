@@ -698,10 +698,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 
 	ret := &types.PeerList{Peers: []*types.Peer{}}
 	for i, state := range rsp.States {
-		if rsp.Hiddens[i] {
-			continue
-		}
-		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i]}
+		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i], Hidden:rsp.Hiddens[i]}
 		ret.Peers = append(ret.Peers, peer)
 	}
 

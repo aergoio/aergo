@@ -2,7 +2,6 @@ package contract
 
 import "C"
 import (
-	"errors"
 	"strconv"
 
 	"github.com/aergoio/aergo/state"
@@ -27,8 +26,11 @@ type preLoadInfo struct {
 	replyCh     chan *loadedReply
 }
 
-var loadReqCh chan *preLoadReq
-var preLoadInfos [2]preLoadInfo
+var (
+	loadReqCh    chan *preLoadReq
+	preLoadInfos [2]preLoadInfo
+	PubNet       bool
+)
 
 const BlockFactory = 0
 const ChainService = 1
@@ -100,12 +102,10 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 		}
 	}
 	if err != nil {
-		if err == types.ErrVmStart {
-			return "", err
-		} else if _, ok := err.(DbSystemError); ok {
+		if isSystemError(err) {
 			return "", err
 		}
-		return "", VmError(err)
+		return "", newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
@@ -147,12 +147,8 @@ func preLoadWorker() {
 			continue
 		}
 		/* When deploy and call in same block and not deployed yet*/
-		if receiver.IsNew() {
+		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
 			replyCh <- &loadedReply{tx, nil, nil}
-			continue
-		}
-		if len(receiver.State().CodeHash) == 0 {
-			replyCh <- &loadedReply{tx, nil, errors.New("account is not a contract")}
 			continue
 		}
 		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())

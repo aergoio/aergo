@@ -6,13 +6,11 @@
 package system
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -107,25 +105,15 @@ func getVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
 	}
 	var vote types.Vote
 	if len(data) != 0 {
-		dec := gob.NewDecoder(bytes.NewBuffer(data))
-		err = dec.Decode(&vote)
-		if err != nil {
-			return nil, err
-		}
+		return deserializeVote(data), nil
 	}
 
 	return &vote, nil
 }
 
 func setVote(scs *state.ContractState, voter []byte, vote *types.Vote) error {
-	var data bytes.Buffer
 	key := append(votingkey, voter...)
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(vote)
-	if err != nil {
-		return err
-	}
-	return scs.SetData(key, data.Bytes())
+	return scs.SetData(key, serializeVote(vote))
 }
 
 func loadVoteResult(scs *state.ContractState) (map[string]*big.Int, error) {
@@ -135,14 +123,11 @@ func loadVoteResult(scs *state.ContractState) (map[string]*big.Int, error) {
 		return nil, err
 	}
 	if len(data) != 0 {
-		dec := gob.NewDecoder(bytes.NewBuffer(data))
-		var voteList types.VoteList
-		err = dec.Decode(&voteList)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range voteList.GetVotes() {
-			voteResult[base58.Encode(v.Candidate)] = v.GetAmountBigInt()
+		voteList := deserializeVoteList(data)
+		if voteList != nil {
+			for _, v := range voteList.GetVotes() {
+				voteResult[base58.Encode(v.Candidate)] = v.GetAmountBigInt()
+			}
 		}
 	}
 	return voteResult, nil
@@ -159,11 +144,7 @@ func syncVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	voteList := buildVoteList(voteResult)
 
 	//logger.Info().Msgf("VOTE set list %v", voteList.Votes)
-	data, err := common.GobEncode(voteList)
-	if err != nil {
-		return err
-	}
-	return scs.SetData(sortedlistkey, data)
+	return scs.SetData(sortedlistkey, serializeVoteList(voteList))
 }
 
 // BuildOrderedCandidates returns a candidate list ordered by votes.xs
@@ -213,14 +194,52 @@ func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	voteList := &types.VoteList{}
-	err = common.GobDecode(data, voteList)
-	if err != nil {
-		return nil, err
-	}
+	voteList := deserializeVoteList(data)
 	if n < len(voteList.Votes) {
 		voteList.Votes = voteList.Votes[:n]
 	}
 	return voteList, nil
+}
+
+func serializeVoteList(vl *types.VoteList) []byte {
+	var data []byte
+	for _, v := range vl.GetVotes() {
+		v := serializeVote(v)
+		vsize := make([]byte, 8)
+		binary.LittleEndian.PutUint64(vsize, uint64(len(v)))
+		data = append(data, vsize...)
+		data = append(data, v...)
+	}
+	return data
+}
+
+func serializeVote(v *types.Vote) []byte {
+	var ret []byte
+	if v != nil {
+		ret = append(ret, v.GetCandidate()...)
+		ret = append(ret, v.GetAmount()...)
+	}
+	return ret
+}
+
+func deserializeVote(data []byte) *types.Vote {
+	pos := len(data) % PeerIDLength
+	candidate := data[:len(data)-pos]
+	amount := data[len(data)-pos:]
+	if len(candidate)%PeerIDLength != 0 {
+		panic("voting data corruption")
+	}
+	return &types.Vote{Amount: amount, Candidate: candidate}
+}
+
+func deserializeVoteList(data []byte) *types.VoteList {
+	vl := &types.VoteList{Votes: []*types.Vote{}}
+	var end int
+	for offset := 0; offset < len(data); offset = end {
+		size := binary.LittleEndian.Uint64(data[offset : offset+8])
+		end = offset + 8 + int(size)
+		v := data[offset+8 : end]
+		vl.Votes = append(vl.Votes, deserializeVote(v))
+	}
+	return vl
 }

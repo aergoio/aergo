@@ -12,6 +12,10 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+type ResponseMessage interface {
+	GetStatus() ResultStatus
+}
+
 // AddressesToStringMap make map of string for logging or json encoding
 func AddressesToStringMap(addrs []*PeerAddress) []map[string]string {
 	arr := make([]map[string]string, len(addrs))

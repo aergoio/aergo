@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -234,8 +235,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		} else {
 			p2ps.NotifyNewBlock(*msg)
 		}
-	case *message.GetMissingBlocks:
-		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetTransactions:
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
@@ -274,6 +273,9 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
+			continue
+		}
+		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := FromPeerAddress(rPeerAddr)
@@ -336,7 +338,6 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetAncestorRequest] = newGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)

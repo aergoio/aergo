@@ -51,16 +51,16 @@ func init() {
 	voteCmd.Flags().StringVar(&to, "to", "", "Json array which has base58 address of candidates(peer) or input file path")
 	voteCmd.MarkFlagRequired("to")
 
-	stakingCmd.Flags().StringVar(&address, "address", "", "Account address")
-	stakingCmd.MarkFlagRequired("address")
-	stakingCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
-	stakingCmd.MarkFlagRequired("amount")
-	unstakingCmd.Flags().StringVar(&address, "address", "", "Account address")
-	unstakingCmd.MarkFlagRequired("address")
-	unstakingCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
-	unstakingCmd.MarkFlagRequired("amount")
+	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
+	stakeCmd.MarkFlagRequired("address")
+	stakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
+	stakeCmd.MarkFlagRequired("amount")
+	unstakeCmd.Flags().StringVar(&address, "address", "", "Account address")
+	unstakeCmd.MarkFlagRequired("address")
+	unstakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
+	unstakeCmd.MarkFlagRequired("amount")
 
-	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakingCmd, unstakingCmd)
+	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakeCmd, unstakeCmd)
 	rootCmd.AddCommand(accountCmd)
 }
 

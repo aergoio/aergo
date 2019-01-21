@@ -45,6 +45,15 @@ static void state_map_check_index(lua_State *L, int index)
     lua_pushstring(L, KEY_TYPE_NAME);
     lua_rawget(L, 1);
     if (lua_isnil(L, -1)) {
+        lua_pushcfunction(L, getItemWithPrefix);    /* f */
+        lua_getfield(L, 1, "id");                   /* f id */
+        if (!lua_isstring(L, -1)) {
+            luaL_error(L, "the value is not a state.map type");
+        }
+        lua_pushstring(L, STATE_VAR_META_TYPE);     /* f id prefix */
+        lua_call(L, 2, 1);                          /* t */
+    }
+    if (lua_isnil(L, -1)) {
         luaL_argcheck(L, (type == LUA_TNUMBER || type == LUA_TSTRING),
                       index, "number or string expected");
     } else {
@@ -53,6 +62,7 @@ static void state_map_check_index(lua_State *L, int index)
             luaL_typerror(L, 2, lua_typename(L, expected));
         }
     }
+    lua_pop(L, 1);
 }
 
 static void state_map_push_key(lua_State *L)
@@ -153,13 +163,22 @@ static int state_array_len(lua_State *L)
     return 1;
 }
 
-static state_array_t *state_array_checkarg(lua_State *L)
+static void state_array_load_len(lua_State *L, state_array_t *arr)
 {
-    int idx = luaL_checkint(L, -1) - 1;             /* a i */
-    state_array_t *arr = luaL_checkudata(L, -2, STATE_ARRAY_ID);
-    idx = luaL_checkint(L, -1) - 1;                 /* a i */
-    luaL_argcheck(L, 0 <= idx && idx < arr->len, 2, "index out of range");
-    return arr;
+    if (!arr->is_fixed && arr->len == 0) {
+        lua_pushcfunction(L, getItemWithPrefix);    /* a i f */
+        lua_pushstring(L, arr->id);                 /* a i f id */
+        lua_pushstring(L, STATE_VAR_META_LEN);      /* a i f id prefix */
+        lua_call(L, 2, 1);                          /* a i n */
+        arr->len = luaL_optinteger(L, -1, 0);
+        lua_pop(L, 1);
+    }
+}
+
+static void state_array_checkarg(lua_State *L, state_array_t *arr)
+{
+    int idx = luaL_checkint(L, -1);
+    luaL_argcheck(L, idx >= 1 && idx <= arr->len, 2, "index out of range");
 }
 
 static void state_array_push_key(lua_State *L, const char *id)
@@ -176,6 +195,9 @@ static int state_array_get(lua_State *L)
     const char *idx;
     state_array_t *arr;
 
+    arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
+    state_array_load_len(L, arr);
+
     method = lua_tostring(L, 2);
     if (method != NULL) {                           /* methods */
         if (strcmp(method, "append") == 0) {
@@ -189,7 +211,7 @@ static int state_array_get(lua_State *L)
             return 1;
         }
     }
-    arr = state_array_checkarg(L);                  /* a i */
+    state_array_checkarg(L, arr);                   /* a i */
     lua_pushcfunction(L, getItemWithPrefix);        /* a i f */
     state_array_push_key(L, arr->id);               /* a i f id-i */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* a i f id-i prefix */
@@ -202,9 +224,12 @@ static int state_array_set(lua_State *L)
     const char *idx;
     state_array_t *arr;
 
+    arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
+    state_array_load_len(L, arr);
+
     lua_pushvalue(L, 1);                            /* a i v a */
     lua_pushvalue(L, 2);                            /* a i v a i */
-    arr = state_array_checkarg(L);                  /* a i v a i */
+    state_array_checkarg(L, arr);                   /* a i v a i */
     lua_pop(L, 2);                                  /* a i v */
     lua_pushcfunction(L, setItemWithPrefix);        /* a i v f */
     state_array_push_key(L, arr->id);               /* a i v f id-i */
@@ -344,18 +369,6 @@ static int state_var(lua_State *L)
                         var_name, lua_typename(L, t));
                 lua_error(L);
             }
-            if (strcmp(lua_tostring(L, -1), "map") == 0) {
-                lua_pushcfunction(L, getItemWithPrefix);                /* T key value "type_name" f */
-                lua_pushstring(L, var_name);                            /* T key value "type_name" f id */
-                lua_pushstring(L, STATE_VAR_META_TYPE);                 /* T key value "type_name" f id prefix */
-                lua_call(L, 2, 1);                                      /* T key value "type_name" rv */
-                if (!lua_isnil(L, -1)) {
-                    lua_pushstring(L, KEY_TYPE_NAME);                   /* T key value "type_name" rv _type_ */
-                    lua_pushvalue(L, -2);                               /* T key value "type_name" rv _type_ rv */
-                    lua_rawset(L, 3);                                   /* T key value "type_name" rv */
-                }
-                lua_pop(L, 1);                                          /* T key value "type_name" */
-            }
             insert_var(L, var_name);
             lua_setglobal(L, var_name);                                 /* T key */
         } else if (LUA_TUSERDATA == t) {
@@ -364,14 +377,6 @@ static int state_var(lua_State *L)
             lua_pushstring(L, "array");                                 /* T key "type_name" */
             insert_var(L, var_name);
             lua_setglobal(L, var_name);                                 /* T key */
-            if (!arr->is_fixed) {
-                lua_pushcfunction(L, getItemWithPrefix);
-                lua_pushstring(L, arr->id);
-                lua_pushstring(L, STATE_VAR_META_LEN);
-                lua_call(L, 2, 1);
-                arr->len = luaL_optinteger(L, -1, 0);
-                lua_pop(L, 1);
-            }
         } else {
             lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
                             var_name, lua_typename(L, t));

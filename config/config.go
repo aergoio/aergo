@@ -97,18 +97,16 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 
 func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
-		GenesisFile: "",
+		GenesisFile:  "",
 		AllowPrivate: false,
 	}
 }
-
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
 		MaxBlockSize:    types.DefaultMaxBlockSize,
 		CoinbaseAccount: "",
 		MaxAnchorCount:  20,
-		UseFastSyncer:   false,
 		VerifierCount:   types.DefaultVerifierCnt,
 	}
 }

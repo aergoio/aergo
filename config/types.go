@@ -57,8 +57,8 @@ type RESTConfig struct {
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
-	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
-	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
+	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. This address is advertized to other peers."`
+	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect. This port is advertized to other peers."`
 	NPBindAddr      string   `mapstructure:"npbindaddr" description:"N2N bind address. If it was set, it only accept connection to this addresse only"`
 	NPBindPort      int      `mapstructure:"npbindport" description:"N2N bind port. It not set, bind port is same as netprotocolport. Set if server is configured with NAT and port is differ."`
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
@@ -88,7 +88,6 @@ type BlockchainConfig struct {
 	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
 	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
-	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
 	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
 }
 
@@ -185,7 +184,6 @@ genesisfile = "{{.Polaris.GenesisFile}}"
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
-usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
 
 [mempool]

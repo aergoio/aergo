@@ -37,7 +37,7 @@ func FailTestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil, nil)
+			target.remotePeers[peerID] = newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -79,7 +79,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
 			peerMeta := PeerMeta{ID: peerID}
-			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil,nil))
+			target.insertPeer(peerID, newRemotePeer(peerMeta, target, mockActorServ, logger, nil, nil, nil, nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -176,15 +176,3 @@ func TestPeerManager_init(t *testing.T) {
 	}
 }
 
-func TestPeerManager_addOutboundPeer(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		// TODO: test cases
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			
-		})
-	}
-}

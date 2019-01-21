@@ -8,9 +8,9 @@ package chain
 import (
 	"bytes"
 	"errors"
-	"github.com/aergoio/aergo/pkg/component"
 
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -31,7 +31,7 @@ var (
 
 func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainStateDB) *BlockValidator {
 	bv := BlockValidator{
-		signVerifier: NewSignVerifier(comm, VerifierCount, dfltUseMempool),
+		signVerifier: NewSignVerifier(comm, sdb, VerifierCount, dfltUseMempool),
 		sdb:          sdb,
 	}
 

@@ -109,8 +109,7 @@ func (storage *bufferedStorage) isDirty() bool {
 	return storage.dirty
 }
 
-func (storage *bufferedStorage) stage(dbtx *db.Transaction) error {
-	txn := (*dbtx).(trie.DbTx)
+func (storage *bufferedStorage) stage(txn trie.DbTx) error {
 	storage.trie.StageUpdates(txn)
 	if err := storage.buffer.stage(txn); err != nil {
 		return err

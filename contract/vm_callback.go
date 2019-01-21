@@ -1,7 +1,7 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
+#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
 #cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
@@ -21,6 +21,7 @@ import (
 	"strings"
 	"unsafe"
 
+	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -55,11 +56,11 @@ func addUpdateSize(s *StateSet, updateSize int64) error {
 func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[System.LuaSetDB]not found contract state")
+		luaPushStr(L, "[System.LuaSetDB] contract state not found")
 		return -1
 	}
 	if stateSet.isQuery == true {
-		luaPushStr(L, "[System.LuaSetDB]set not permitted in query")
+		luaPushStr(L, "[System.LuaSetDB] set not permitted in query")
 		return -1
 	}
 	val := []byte(C.GoString(value))
@@ -78,7 +79,7 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 func LuaGetDB(L *LState, service *C.int, key *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[System.LuaGetDB]not found contract state")
+		luaPushStr(L, "[System.LuaGetDB] contract state not found")
 		return -1
 	}
 
@@ -99,11 +100,11 @@ func LuaGetDB(L *LState, service *C.int, key *C.char) C.int {
 func LuaDelDB(L *LState, service *C.int, key *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[System.LuaDelDB]not found contract state")
+		luaPushStr(L, "[System.LuaDelDB] contract state not found")
 		return -1
 	}
 	if stateSet.isQuery {
-		luaPushStr(L, "[System.LuaDelDB]delete not permitted in query")
+		luaPushStr(L, "[System.LuaDelDB] delete not permitted in query")
 		return -1
 	}
 	if err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key))); err != nil {
@@ -117,6 +118,24 @@ func LuaDelDB(L *LState, service *C.int, key *C.char) C.int {
 	return 0
 }
 
+func getCallState(stateSet *StateSet, aid types.AccountID) (*CallState, error) {
+	callState := stateSet.callState[aid]
+	if callState == nil {
+		bs := stateSet.bs
+
+		prevState, err := bs.GetAccountState(aid)
+		if err != nil {
+			return nil, err
+		}
+
+		curState := types.Clone(*prevState).(types.State)
+		callState =
+			&CallState{prevState: prevState, curState: &curState}
+		stateSet.callState[aid] = callState
+	}
+	return callState, nil
+}
+
 //export LuaCallContract
 func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.char, args *C.char,
 	amount *C.char, gas uint64) C.int {
@@ -125,58 +144,43 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	ecid := C.GoString(contractId)
 
 	if len(ecid) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaCallContract]invalid contractId length :"+ecid)
+		luaPushStr(L, "[System.LuaCallContract] invalid contractId length: "+ecid)
 		return -1
 	}
 	cid, err := types.DecodeAddress(ecid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract]invalid contractId :"+err.Error())
+		luaPushStr(L, "[Contract.LuaCallContract] invalid contractId: "+err.Error())
 		return -1
 	}
 	aid := types.ToAccountID(cid)
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.LuaCallContract]not found contract state")
+		luaPushStr(L, "[Contract.LuaCallContract] contract state not found")
 		return -1
 	}
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract]value not proper format:"+err.Error())
+		luaPushStr(L, "[Contract.LuaCallContract] invalid amount: "+err.Error())
 		return -1
 	}
 
-	callState := stateSet.callState[aid]
-	if callState == nil {
-		bs := stateSet.bs
-
-		prevState, err := bs.GetAccountState(aid)
-		if err != nil {
-			luaPushStr(L, "[Contract.LuaCallContract]getAccount Error :"+err.Error())
-			return -1
-		}
-
-		curState := types.Clone(*prevState).(types.State)
-		contractState, err := bs.OpenContractState(aid, &curState)
-		if err != nil {
-			luaPushStr(L, "[Contract.LuaCallContract]getAccount Error"+err.Error())
-			return -1
-		}
-		callState =
-			&CallState{ctrState: contractState, prevState: prevState, curState: &curState}
-		stateSet.callState[aid] = callState
+	callState, err := getCallState(stateSet, aid)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract] getAccount error: "+err.Error())
+		return -1
 	}
 	if callState.ctrState == nil {
 		callState.ctrState, err = stateSet.bs.OpenContractState(aid, callState.curState)
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaCallContract]getAccount Error"+err.Error())
+			luaPushStr(L, "[Contract.LuaCallContract] getAccount error: "+err.Error())
 			return -1
 		}
 	}
 
 	callee := getContract(callState.ctrState, nil)
 	if callee == nil {
-		luaPushStr(L, "[Contract.LuaCallContract]cannot find contract "+C.GoString(contractId))
+		luaPushStr(L, "[Contract.LuaCallContract] cannot find contract "+C.GoString(contractId))
 		return -1
 	}
 
@@ -186,7 +190,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	defer ce.close()
 
 	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract]newExecutor Error :"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaCallContract] newExecutor error: "+ce.err.Error())
 		return -1
 	}
 
@@ -194,13 +198,13 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract] invalid args:"+err.Error())
+		luaPushStr(L, "[Contract.LuaCallContract] invalid arguments: "+err.Error())
 		return -1
 	}
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if stateSet.isQuery == true {
-			luaPushStr(L, "[Contract.LuaCallContract]send not permitted in query")
+			luaPushStr(L, "[Contract.LuaCallContract] send not permitted in query")
 			return -1
 		}
 		if sendBalance(L, senderState, callState.curState, amountBig) == false {
@@ -208,10 +212,10 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		}
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
-			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+			luaPushStr(L, "[System.LuaCallContract] database error: "+err.Error())
 		}
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
@@ -219,11 +223,19 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
-		luaPushStr(L, "[Contract.LuaCallContract] call err:"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaCallContract] call err: "+ce.err.Error())
 		return -1
 	}
 	stateSet.curContract = prevContractInfo
 	return ret
+}
+
+func getOnlyContractState(stateSet *StateSet, aid types.AccountID) (*state.ContractState, error) {
+	callState := stateSet.callState[aid]
+	if callState == nil || callState.ctrState == nil {
+		return stateSet.bs.OpenContractStateAccount(aid)
+	}
+	return callState.ctrState, nil
 }
 
 //export LuaDelegateCallContract
@@ -233,33 +245,36 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
 	if len(contractIdStr) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaDelegateCallContract]invalid contractId length :"+contractIdStr)
+		luaPushStr(L, "[System.LuaDelegateCallContract] invalid contractId length: "+contractIdStr)
 		return -1
 	}
 	cid, err := types.DecodeAddress(contractIdStr)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract]invalid contractId :"+err.Error())
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid contractId: "+err.Error())
 		return -1
 	}
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract]not found contract state")
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] contract state not found")
 		return -1
 	}
-	bs := stateSet.bs
 	aid := types.ToAccountID(cid)
-	contractState, err := bs.OpenContractStateAccount(aid)
+	contractState, err := getOnlyContractState(stateSet, aid)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDelegateCallContract]getContractState error"+err.Error())
+		return -1
+	}
 	contract := getContract(contractState, nil)
 	if contract == nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract]cannot find contract "+contractIdStr)
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] cannot find contract "+contractIdStr)
 		return -1
 	}
 	ce := newExecutor(contract, stateSet)
 	defer ce.close()
 
 	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract]newExecutor Error :"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] newExecutor error: "+ce.err.Error())
 		return -1
 	}
 
@@ -267,22 +282,22 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid args:"+err.Error())
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid arguments: "+err.Error())
 		return -1
 	}
 
 	if stateSet.lastRecoveryEntry != nil {
 		callState := stateSet.curContract.callState
-		err = setRecoveryPoint(aid, stateSet, nil, callState, zeroBig, callState.ctrState.Snapshot())
+		err = setRecoveryPoint(aid, stateSet, nil, callState, zeroBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
-			luaPushStr(L, "[System.LuaDelegateCallContract] DB err:"+err.Error())
+			luaPushStr(L, "[System.LuaDelegateCallContract] database error: "+err.Error())
 			return -1
 		}
 	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract] call err:"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] call error: "+ce.err.Error())
 		return -1
 	}
 	return ret
@@ -292,16 +307,16 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.LuaSendAmount]not found contract state")
+		luaPushStr(L, "[Contract.LuaSendAmount] contract state not found")
 		return -1
 	}
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaSendAmount]value not proper format:"+err.Error())
+		luaPushStr(L, "[Contract.LuaSendAmount] invalid amount: "+err.Error())
 		return -1
 	}
 	if stateSet.isQuery == true && amountBig.Cmp(zeroBig) > 0 {
-		luaPushStr(L, "[Contract.LuaSendAmount]send not permitted in query")
+		luaPushStr(L, "[Contract.LuaSendAmount] send not permitted in query")
 		return -1
 	}
 
@@ -318,35 +333,25 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		err = errors.New("invalid account length:" + ecid)
 	}
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaSendAmount]invalid contractId :"+err.Error())
+		luaPushStr(L, "[Contract.LuaSendAmount] invalid contractId: "+err.Error())
 		return -1
 	}
 
 	aid := types.ToAccountID(cid)
-	callState := stateSet.callState[aid]
-	if callState == nil {
-		bs := stateSet.bs
-
-		prevState, err := bs.GetAccountState(aid)
-		if err != nil {
-			luaPushStr(L, "[Contract.LuaSendAmount]getAccount Error :"+err.Error())
-			return -1
-		}
-
-		curState := types.Clone(*prevState).(types.State)
-		callState =
-			&CallState{prevState: prevState, curState: &curState}
-		stateSet.callState[aid] = callState
+	callState, err := getCallState(stateSet, aid)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaSendAmount] getAccount error: "+err.Error())
+		return -1
 	}
 	senderState := stateSet.curContract.callState.curState
 	if sendBalance(L, senderState, callState.curState, amountBig) == false {
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, 0)
+		err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
 		if err != nil {
 			stateSet.dbSystemError = true
-			luaPushStr(L, "[Contract.LuaSendAmount]DB error"+err.Error())
+			luaPushStr(L, "[Contract.LuaSendAmount] database error: "+err.Error())
 			return -1
 		}
 	}
@@ -358,7 +363,7 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 		return true
 	}
 	if sender.GetBalanceBigInt().Cmp(amount) < 0 {
-		luaPushStr(L, "[Contract.sendBalance]insufficient balance"+
+		luaPushStr(L, "[Contract.sendBalance] insufficient balance: "+
 			sender.GetBalanceBigInt().String()+" : "+amount.String())
 		return false
 	} else {
@@ -376,7 +381,7 @@ func LuaPrint(service *C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
-	callState *CallState, amount *big.Int, snapshot state.Snapshot) error {
+	callState *CallState, amount *big.Int, isSend bool) error {
 	var seq int
 	prev := stateSet.lastRecoveryEntry
 	if prev != nil {
@@ -388,11 +393,18 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 		seq,
 		amount,
 		senderState,
+		senderState.GetNonce(),
 		callState,
+		isSend,
 		nil,
-		snapshot,
+		-1,
 		prev,
 	}
+	stateSet.lastRecoveryEntry = recoveryEntry
+	if isSend {
+		return nil
+	}
+	recoveryEntry.stateRevision = callState.ctrState.Snapshot()
 	tx := callState.tx
 	if tx != nil {
 		saveName := fmt.Sprintf("%s_%p", aid.String(), &recoveryEntry)
@@ -402,7 +414,6 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 		}
 		recoveryEntry.sqlSaveName = &saveName
 	}
-	stateSet.lastRecoveryEntry = recoveryEntry
 	return nil
 }
 
@@ -410,7 +421,7 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.pcall]not found contract state")
+		luaPushStr(L, "[Contract.pcall] contract state not found")
 		return -1
 	}
 	if stateSet.isQuery == true {
@@ -418,9 +429,9 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 	}
 	curContract := stateSet.curContract
 	err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
-		curContract.callState, zeroBig, curContract.callState.ctrState.Snapshot())
+		curContract.callState, zeroBig, false)
 	if err != nil {
-		luaPushStr(L, "[Contract.pcall]DB error"+err.Error())
+		luaPushStr(L, "[Contract.pcall] database error: "+err.Error())
 		stateSet.dbSystemError = true
 		return -1
 	}
@@ -431,7 +442,7 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) C.int {
 func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.pcall]not found contract state")
+		luaPushStr(L, "[Contract.pcall] contract state not found")
 		return -1
 	}
 	item := stateSet.lastRecoveryEntry
@@ -439,7 +450,7 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 		if error {
 			if item.recovery() != nil {
 				stateSet.dbSystemError = true
-				luaPushStr(L, "[Contract.pcall]DB Error")
+				luaPushStr(L, "[Contract.pcall] database error")
 				return -1
 			}
 		}
@@ -451,7 +462,7 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) C.int {
 		}
 		item = item.prev
 		if item == nil {
-			luaPushStr(L, "[Contract.pcall]internal Error")
+			luaPushStr(L, "[Contract.pcall] internal error")
 			return -1
 		}
 	}
@@ -466,13 +477,13 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 	}
 	ecid := C.GoString(contractId)
 	if len(ecid) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaCallContract]invalid contractId length :"+ecid)
+		luaPushStr(L, "[System.LuaCallContract] invalid contractId length: "+ecid)
 		return -1
 	}
 
 	cid, err := types.DecodeAddress(ecid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaGetBalance]invalid contractId :"+err.Error())
+		luaPushStr(L, "[Contract.LuaGetBalance] invalid contractId: "+err.Error())
 		return -1
 	}
 
@@ -483,7 +494,7 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 
 		as, err := bs.GetAccountState(aid)
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaGetBalance]getAccount Error :"+err.Error())
+			luaPushStr(L, "[Contract.LuaGetBalance] getAccount error: "+err.Error())
 			return -1
 		}
 		luaPushStr(L, as.GetBalanceBigInt().String())
@@ -599,7 +610,7 @@ func LuaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) C.int {
 		var err error
 		data, err = hex.DecodeString(string(dataStr))
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaCryptoSha256]Hex Decoding error:"+err.Error())
+			luaPushStr(L, "[Contract.LuaCryptoSha256] hex decoding error: "+err.Error())
 			return -1
 		}
 	}
@@ -622,12 +633,12 @@ func decodeHex(hexStr string) ([]byte, error) {
 func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 	bMsg, err := decodeHex(C.GoString(msg))
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaEcVerify]invalid message format:"+err.Error())
+		luaPushStr(L, "[Contract.LuaEcVerify] invalid message format: "+err.Error())
 		return -1
 	}
 	bSig, err := decodeHex(C.GoString(sig))
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaEcVerify]invalid signature format:"+err.Error())
+		luaPushStr(L, "[Contract.LuaEcVerify] invalid signature format: "+err.Error())
 		return -1
 	}
 	address := C.GoString(addr)
@@ -640,12 +651,12 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 	if isAergo {
 		bAddress, err := types.DecodeAddress(address)
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaEcVerify]invalid aergo address:"+err.Error())
+			luaPushStr(L, "[Contract.LuaEcVerify] invalid aergo address: "+err.Error())
 			return -1
 		}
 		pubKey, err = btcec.ParsePubKey(bAddress, btcec.S256())
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaEcVerify]Error parse pubKey:"+err.Error())
+			luaPushStr(L, "[Contract.LuaEcVerify] error parsing pubKey: "+err.Error())
 			return -1
 		}
 	}
@@ -661,7 +672,7 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 		}
 		pub, _, err := btcec.RecoverCompact(btcec.S256(), bSig, bMsg)
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaEcVerify]Error recoverCompact:"+err.Error())
+			luaPushStr(L, "[Contract.LuaEcVerify] error recoverCompact: "+err.Error())
 			return -1
 		}
 		if pubKey != nil {
@@ -669,7 +680,7 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 		} else {
 			bAddress, err := decodeHex(address)
 			if err != nil {
-				luaPushStr(L, "[Contract.LuaEcVerify]invalid ethereum address:"+err.Error())
+				luaPushStr(L, "[Contract.LuaEcVerify] invalid Ethereum address: "+err.Error())
 				return -1
 			}
 			bPub := pub.SerializeUncompressed()
@@ -681,11 +692,11 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) C.int {
 	} else {
 		sign, err := btcec.ParseSignature(bSig, btcec.S256())
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaEcVerify]Error signature parsing:"+err.Error())
+			luaPushStr(L, "[Contract.LuaEcVerify] error parsing signature: "+err.Error())
 			return -1
 		}
 		if pubKey == nil {
-			luaPushStr(L, "[Contract.LuaEcVerify]not supported")
+			luaPushStr(L, "[Contract.LuaEcVerify] error recovering pubKey")
 			return -1
 		}
 		verifyResult = sign.Verify(bMsg, pubKey)
@@ -711,11 +722,11 @@ func transformAmount(amountStr string) (*big.Int, error) {
 	for _, pair := range res {
 		amountBig, _ := new(big.Int).SetString(strings.TrimSpace(amountStr[prev:pair[0]]), 10)
 		if amountBig == nil {
-			return nil, errors.New("converting error for BigNum:" + amountStr[prev:])
+			return nil, errors.New("converting error for BigNum: " + amountStr[prev:])
 		}
 		cmp := amountBig.Cmp(zeroBig)
 		if cmp < 0 {
-			return nil, errors.New("not allowed minus number")
+			return nil, errors.New("negative amount not allowed")
 		} else if cmp == 0 {
 			prev = pair[1]
 			continue
@@ -746,10 +757,10 @@ func transformAmount(amountStr string) (*big.Int, error) {
 	amountBig, _ := new(big.Int).SetString(num, 10)
 
 	if amountBig == nil {
-		return nil, errors.New("converting error for Integer:" + amountStr[prev:])
+		return nil, errors.New("converting error for Integer: " + amountStr[prev:])
 	}
 	if amountBig.Cmp(zeroBig) < 0 {
-		return nil, errors.New("not allowed minus number")
+		return nil, errors.New("negative amount not allowed")
 	}
 	if ret != nil {
 		ret = new(big.Int).Add(ret, amountBig)
@@ -757,4 +768,144 @@ func transformAmount(amountStr string) (*big.Int, error) {
 		ret = amountBig
 	}
 	return ret, nil
+}
+
+//export LuaDeployContract
+func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char, amount *C.char) C.int {
+	argsStr := C.GoString(args)
+	contractStr := C.GoString(contract)
+
+	stateSet := curStateSet[*service]
+	if stateSet == nil {
+		luaPushStr(L, "[Contract.LuaCallContract]not found contract state")
+		return -1
+	}
+	if stateSet.isQuery == true {
+		luaPushStr(L, "[Contract.LuaCallContract]send not permitted in query")
+		return -1
+	}
+	bs := stateSet.bs
+
+	// get code
+	var code []byte
+	var err error
+	if len(contractStr) == types.EncodedAddressLength {
+		cid, err := types.DecodeAddress(contractStr)
+		if err == nil {
+			aid := types.ToAccountID(cid)
+			contractState, err := getOnlyContractState(stateSet, aid)
+			if err != nil {
+				luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
+				return -1
+			}
+			code, err = contractState.GetCode()
+			if err != nil {
+				luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
+				return -1
+			} else if len(code) == 0 {
+				luaPushStr(L, "[Contract.LuaDeployContract]: not found code")
+				return -1
+			}
+		}
+	}
+
+	if len(code) == 0 {
+		l := luacUtil.NewLState()
+		if l == nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]compile error:"+err.Error())
+			return -1
+		}
+		defer luacUtil.CloseLState(l)
+		code, err = luacUtil.Compile(l, contractStr)
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]compile error:"+err.Error())
+			return -1
+		}
+	}
+
+	// create account
+	prevContractInfo := stateSet.curContract
+	creator := prevContractInfo.callState.curState
+	newContract, err := bs.CreateAccountStateV(CreateContractID(prevContractInfo.contractId, creator.GetNonce()))
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDeployContract]:"+err.Error())
+	}
+	contractState, err := bs.OpenContractState(newContract.AccountID(), newContract.State())
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDeployContract]:"+err.Error())
+	}
+
+	callState := &CallState{ctrState: contractState, prevState: &types.State{}, curState: newContract.State()}
+	stateSet.callState[newContract.AccountID()] = callState
+
+	amountBig, err := transformAmount(C.GoString(amount))
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract]value not proper format:"+err.Error())
+		return -1
+	}
+	runCode := getContract(contractState, code)
+	ce := newExecutor(runCode, stateSet)
+	defer ce.close()
+	if ce.err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract]newExecutor Error :"+ce.err.Error())
+		return -1
+	}
+	var ci types.CallInfo
+	err = getCallInfo(&ci.Args, []byte(argsStr), newContract.ID())
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract] invalid args:"+err.Error())
+		return -1
+	}
+	senderState := prevContractInfo.callState.curState
+	if amountBig.Cmp(zeroBig) > 0 {
+		if sendBalance(L, senderState, callState.curState, amountBig) == false {
+			return -1
+		}
+	}
+
+	if stateSet.lastRecoveryEntry != nil {
+		err = setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
+		if err != nil {
+			stateSet.dbSystemError = true
+			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+		}
+	}
+	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, newContract.ID(),
+		callState.curState.SqlRecoveryPoint, amountBig)
+
+	err = contractState.SetCode(code)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDeployContract]:"+err.Error())
+	}
+	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDeployContract]:"+err.Error())
+	}
+	// create a sql database for the contract
+	db := LuaGetDbHandle(&stateSet.service)
+	if db == nil {
+		stateSet.dbSystemError = true
+		luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+		return -1
+	}
+	senderState.Nonce += 1
+
+	luaPushStr(L, types.EncodeAddress(newContract.ID()))
+	ret := ce.constructCall(&ci, L)
+	if ce.err != nil {
+		stateSet.curContract = prevContractInfo
+		luaPushStr(L, "[Contract.LuaCallContract] call err:"+ce.err.Error())
+		return -1
+	}
+	stateSet.curContract = prevContractInfo
+	return ret + 1
+}
+
+//export IsPublic
+func IsPublic() C.int {
+	if PubNet {
+		return C.int(1)
+	} else {
+		return C.int(0)
+	}
 }

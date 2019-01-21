@@ -277,24 +277,26 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
             break;
         case LUA_TUSERDATA:
         {
-            bc_num bnum = Bgetbnum(L, n);
-            if (bnum->n_scale == 0) {
-                long d = bc_num2long(bnum);
-                if (d == 0 && bnum->n_len > 0) {
-                    char *s = bc_num2str(bnum);
-                    lua_pushfstring(L, "bignum value overflow for binding %s", s);
-                    free(s);
+            if (lua_isbignumber(L, n)) {
+                bc_num bnum = Bgetbnum(L, n);
+                if (bnum->n_scale == 0) {
+                    long d = bc_num2long(bnum);
+                    if (d == 0 && bnum->n_len > 0) {
+                        char *s = bc_num2str(bnum);
+                        lua_pushfstring(L, "bignum value overflow for binding %s", s);
+                        free(s);
+                    }
+                    rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
                 }
-                rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
+                else {
+                    double d;
+                    char *s = bc_num2str(bnum);
+                    sscanf(s, "%lf", &d);
+                    free(s);
+                    rc = sqlite3_bind_double(pstmt->s, i, d);
+                }
+                break;
             }
-            else {
-                double d;
-                char *s = bc_num2str(bnum);
-                sscanf(s, "%lf", &d);
-                free(s);
-                rc = sqlite3_bind_double(pstmt->s, i, d);
-            }
-            break;
         }
         default:
             lua_pushfstring(L, "unsupported type: %s", lua_typename(L, n));

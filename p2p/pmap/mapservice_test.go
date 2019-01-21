@@ -135,36 +135,65 @@ func TestPeerMapService_readRequest(t *testing.T) {
 }
 
 func TestPeerMapService_handleQuery(t *testing.T) {
+	mainnetbytes,err := ONEMainNet.Bytes()
+	if err != nil {
+		t.Error("mainnet var is not set properly", ONEMainNet)
+	}
+	dummyPeerID2, err := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+
+	goodPeerMeta := p2p.PeerMeta{ID:dummyPeerID2, IPAddress:"211.34.56.78",Port:7845}
+	good := goodPeerMeta.ToPeerAddress()
+	badPeerMeta := p2p.PeerMeta{ID:peer.ID("bad"), IPAddress:"211.34.56.78",Port:7845}
+	bad := badPeerMeta.ToPeerAddress()
 	type args struct {
-		container p2p.Message
-		query     *types.MapQuery
+		status *types.Status
+		addme bool
+		size int32
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *types.MapResponse
+
 		wantErr bool
+		wantMsg bool
 	}{
-		//
-		// TODO: Add test cases.
+		// check if parameter is bad
+		{"TMissingStat",args{nil, true, 9999}, true ,false},
+		// check if addMe is set or not
+		{"TOnlyQuery",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, false, 10}, false,false },
+		{"TOnlyQuery",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, false, 10}, false,false },
+		// TODO refator mapservice to run commented test
+		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false },
+		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true },
+		// TODO: Add more cases .
+		// check if failed to connect back or not
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockStream := mock_p2p.NewMockStream(ctrl)
+			mockStream.EXPECT().Write(gomock.Any()).MaxTimes(1).Return(100, nil)
+			mockStream.EXPECT().Close().MaxTimes(1).Return(nil)
+			pmapDummyNTC.chainID = &ONEMainNet
 			pmapDummyNTC.nt = mockNT
+			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any())
+			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(),PolarisPingSub, gomock.Any()).Return(mockStream, nil)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()
+			query := &types.MapQuery{Status:tt.args.status, AddMe:tt.args.addme, Size:tt.args.size}
 
-			got, err := pms.handleQuery(tt.args.container, tt.args.query)
+			got, err := pms.handleQuery(nil, query)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerMapService.handleQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PeerMapService.handleQuery() = %v, want %v", got, tt.want)
+			if !tt.wantErr && (len(got.Message)>0) != tt.wantMsg {
+				t.Errorf("PeerMapService.handleQuery() msg = %v, wantMsg %v", got.Message, tt.wantMsg)
+				return
 			}
+
 		})
 	}
 }

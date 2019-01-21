@@ -35,7 +35,7 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 	case types.AergoSystem:
 		err = system.ExecuteSystemTx(scs, txBody, sender, blockNo)
 	case types.AergoName:
-		err = name.ExecuteNameTx(scs, txBody)
+		err = name.ExecuteNameTx(scs, txBody, sender, receiver, blockNo)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient
@@ -72,6 +72,9 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 		return err
 	}
 	if err = states.Update(); err != nil {
+		return err
+	}
+	if err = states.Commit(); err != nil {
 		return err
 	}
 

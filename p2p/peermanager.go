@@ -7,11 +7,11 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/metric"
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	inet "github.com/libp2p/go-libp2p-net"
@@ -34,7 +34,8 @@ type PeerManager interface {
 	SelfNodeID() peer.ID
 
 	AddNewPeer(peer PeerMeta)
-	RemovePeer(peerID peer.ID)
+	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
+	RemovePeer(peer RemotePeer)
 	// NotifyPeerHandshake is called after remote peer is completed handshake and ready to receive or send
 	NotifyPeerHandshake(peerID peer.ID)
 	NotifyPeerAddressReceived([]PeerMeta)
@@ -50,8 +51,8 @@ type PeerManager interface {
  * It implements  Component interface
  */
 type peerManager struct {
-	nt       NetworkTransport
-	hsFactory HSHandlerFactory
+	nt             NetworkTransport
+	hsFactory      HSHandlerFactory
 	handlerFactory HandlerFactory
 	actorService   ActorService
 	signer         msgSigner
@@ -59,18 +60,20 @@ type peerManager struct {
 	rm             ReconnectManager
 	mm             metric.MetricsManager
 
+	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
 	designatedPeers map[peer.ID]PeerMeta
-	hiddenPeerSet map[peer.ID]bool
+	hiddenPeerSet   map[peer.ID]bool
 
+	manageNumber uint32
 	remotePeers map[peer.ID]*remotePeerImpl
 	peerPool    map[peer.ID]PeerMeta
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
 	mutex       *sync.Mutex
+	// peerCache is copy-on-write style
 	peerCache   []RemotePeer
 
 	addPeerChannel    chan PeerMeta
-	removePeerChannel chan peer.ID
 	fillPoolChannel   chan []PeerMeta
 	finishChannel     chan struct{}
 	eventListeners    []PeerEventListener
@@ -105,14 +108,13 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		mutex:          &sync.Mutex{},
 
 		designatedPeers: make(map[peer.ID]PeerMeta, len(cfg.P2P.NPAddPeers)),
-		hiddenPeerSet: make(map[peer.ID]bool,len(cfg.P2P.NPHiddenPeers)),
+		hiddenPeerSet:   make(map[peer.ID]bool, len(cfg.P2P.NPHiddenPeers)),
 
 		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
 		peerPool:    make(map[peer.ID]PeerMeta, p2pConf.NPPeerPool),
 		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		addPeerChannel:    make(chan PeerMeta, 2),
-		removePeerChannel: make(chan peer.ID),
 		fillPoolChannel:   make(chan []PeerMeta, 2),
 		eventListeners:    make([]PeerEventListener, 0, 4),
 		finishChannel:     make(chan struct{}),
@@ -144,33 +146,10 @@ func (pm *peerManager) init() {
 	for _, pidStr := range pm.conf.NPHiddenPeers {
 		pid, err := peer.IDB58Decode(pidStr)
 		if err != nil {
-			panic("Invalid pid in NPHiddenPeers : "+pidStr+" err "+err.Error())
+			panic("Invalid pid in NPHiddenPeers : " + pidStr + " err " + err.Error())
 		}
 		pm.hiddenPeerSet[pid] = true
 	}
-}
-
-func (pm *peerManager) getProtocolAddrs() (protocolAddr net.IP, protocolPort int) {
-	if len(pm.conf.NetProtocolAddr) != 0 {
-		protocolAddr = net.ParseIP(pm.conf.NetProtocolAddr)
-		if protocolAddr == nil {
-			panic("invalid NetProtocolAddr " + pm.conf.NetProtocolAddr)
-		}
-		if protocolAddr.IsUnspecified() {
-			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
-		}
-	} else {
-		extIP, err := externalIP()
-		if err != nil {
-			panic("error while finding IP address: " + err.Error())
-		}
-		protocolAddr = extIP
-	}
-	protocolPort = pm.conf.NetProtocolPort
-	if protocolPort <= 0 {
-		panic("invalid NetProtocolPort " + strconv.Itoa(pm.conf.NetProtocolPort))
-	}
-	return
 }
 
 func (pm *peerManager) Start() error {
@@ -194,7 +173,6 @@ func (pm *peerManager) Start() error {
 	return nil
 }
 
-
 func (pm *peerManager) Stop() error {
 	// TODO stop service
 	pm.finishChannel <- struct{}{}
@@ -204,13 +182,13 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		peerMeta,err := FromMultiAddrString(target)
+		peerMeta, err := ParseMultiAddrString(target)
 		if err != nil {
 			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue
 		}
-		peerMeta.Designated=true
-		peerMeta.Outbound=true
+		peerMeta.Designated = true
+		peerMeta.Outbound = true
 		pm.logger.Info().Str(LogPeerID, peerMeta.ID.Pretty()).Str("addr", peerMeta.IPAddress).Uint32("port", peerMeta.Port).Msg("Adding Designated peer")
 		pm.designatedPeers[peerMeta.ID] = peerMeta
 	}
@@ -229,32 +207,47 @@ MANLOOP:
 					pm.rm.CancelJob(meta.ID)
 				}
 			}
-		case id := <-pm.removePeerChannel:
-			if pm.removePeer(id) {
-				if meta, found := pm.designatedPeers[id]; found {
-					pm.rm.AddJob(meta)
-				}
-			}
 		case <-initialTimer.C:
 			initialTimer.Stop()
 			pm.checkAndCollectPeerListFromAll()
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
-		    //pm.logPeerMetrics()
+			//pm.logPeerMetrics()
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
 			addrTicker.Stop()
-			pm.nt.RemoveStreamHandler(aergoP2PSub)
-			pm.rm.Stop()
-			// TODO need to keep loop till all remote peer objects are removed, otherwise panic or channel deadlock can come.
 			break MANLOOP
 		}
 	}
+	// guarrenty no new peer connection will be made
+	pm.rm.Stop()
+	pm.nt.RemoveStreamHandler(aergoP2PSub)
+	pm.logger.Info().Msg("Finishing peerManager")
 
-	// cleanup peers
-	for peerID := range pm.remotePeers {
-		pm.removePeer(peerID)
+	go func() {
+		// closing all peer connections
+		for _, peer := range pm.peerCache {
+			peer.stop()
+		}
+	}()
+	timer := time.NewTimer(time.Second*30)
+	finishPoll := time.NewTicker(time.Second)
+	CLEANUPLOOP:
+	for {
+		select {
+			case <-finishPoll.C:
+				pm.mutex.Lock()
+				if len(pm.remotePeers) == 0 {
+					pm.mutex.Unlock()
+					pm.logger.Debug().Msg("All peers were finished peerManager")
+					break CLEANUPLOOP
+				}
+				pm.mutex.Unlock()
+			case <-timer.C:
+				pm.logger.Warn().Int("remained",len(pm.peerCache)).Msg("peermanager stop timeout. some peers were not finished.")
+				break CLEANUPLOOP
+		}
 	}
 }
 
@@ -279,14 +272,14 @@ func (pm *peerManager) addOutboundPeer(meta PeerMeta) bool {
 		return false
 	} else {
 		if meta.IPAddress != completeMeta.IPAddress {
-			pm.logger.Debug().Str("before",meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
+			pm.logger.Debug().Str("before", meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
 		}
 	}
 	return true
 }
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
-// remote peer setup some
+// remote peer. stream s will be owned to remotePeer if succeed to add perr.
 func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (PeerMeta, bool) {
 	var peerID = meta.ID
 	rd := metric.NewReader(s)
@@ -309,10 +302,10 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	_, receivedMeta.Designated = pm.designatedPeers[peerID]
 
 	// adding peer to peer list
-	newPeer, err := pm.registerPeer(peerID, receivedMeta, rw)
+	newPeer, err := pm.registerPeer(peerID, receivedMeta, s, rw)
 	if err != nil {
-			pm.sendGoAway(rw, err.Error() )
-			return meta, false
+		pm.sendGoAway(rw, err.Error())
+		return meta, false
 	}
 	newPeer.metric = pm.mm.Add(peerID, rd, wt)
 
@@ -328,7 +321,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	return receivedMeta, true
 }
 
-func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw MsgReadWriter) (*remotePeerImpl, error) {
+func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, s inet.Stream, rw MsgReadWriter) (*remotePeerImpl, error) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	preExistPeer, ok := pm.remotePeers[peerID]
@@ -336,23 +329,23 @@ func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw Ms
 		pm.logger.Info().Str(LogPeerID, peerID.Pretty()).Msg("Peer add collision. Outbound connection of higher hash will survive.")
 		iAmLower := ComparePeerID(pm.SelfNodeID(), receivedMeta.ID) <= 0
 		if iAmLower == receivedMeta.Outbound {
-			pm.logger.Info().Str("local_peer_id",pm.SelfNodeID().Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound",receivedMeta.Outbound).Msg("Close connection and keep earlier handshake connection.")
-			return nil, fmt.Errorf("Already handshake peer %s ",peerID.Pretty())
+			pm.logger.Info().Str("local_peer_id", pm.SelfNodeID().Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound", receivedMeta.Outbound).Msg("Close connection and keep earlier handshake connection.")
+			return nil, fmt.Errorf("Already handshake peer %s ", peerID.Pretty())
 		} else {
-			pm.logger.Info().Str("local_peer_id",pm.SelfNodeID().Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound",receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
-			// TODO send goaway messge to pre-exist peer
-			// disconnect lower valued connection
-			pm.deletePeer(receivedMeta.ID)
+			pm.logger.Info().Str("local_peer_id", pm.SelfNodeID().Pretty()).Str(LogPeerID, peerID.Pretty()).Bool("outbound", receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			// stopping lower valued connection
 			preExistPeer.stop()
 		}
 	}
 
-	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, rw)
+	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, s, rw)
+	outboundPeer.manageNum = pm.GetNextManageNum()
 	// insert Handlers
 	pm.handlerFactory.insertHandlers(outboundPeer)
+
 	go outboundPeer.runPeer()
 	pm.insertPeer(peerID, outboundPeer)
-	pm.logger.Info().Bool("outbound",receivedMeta.Outbound).Str(LogPeerID, peerID.Pretty()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is  added to peerService")
+	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(LogPeerID, peerID.Pretty()).Uint32("manage_num",outboundPeer.ManageNumber()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is  added to peerService")
 
 	return outboundPeer, nil
 }
@@ -360,18 +353,16 @@ func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, rw Ms
 // doPostHandshake is additional work after peer is added.
 func (pm *peerManager) doPostHandshake(peerID peer.ID, remoteStatus *types.Status) {
 
-	if chain.UseFastSyncer {
-		pm.logger.Debug().Uint64("target", remoteStatus.BestHeight).Msg("request new syncer")
-		pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: remoteStatus.BestHeight})
-	} else {
-		// sync block infos
-		pm.actorService.SendRequest(message.ChainSvc, &message.SyncBlockState{PeerID: peerID, BlockNo: remoteStatus.BestHeight, BlockHash: remoteStatus.BestBlockHash})
-	}
+	pm.logger.Debug().Uint64("target", remoteStatus.BestHeight).Msg("request new syncer")
+	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: remoteStatus.BestHeight})
 
 	// sync mempool tx infos
 	// TODO add tx handling
 }
 
+func (pm *peerManager) GetNextManageNum() uint32 {
+	return atomic.AddUint32(&pm.manageNumber,1)
+}
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting.
@@ -385,8 +376,8 @@ func (pm *peerManager) AddNewPeer(peer PeerMeta) {
 	pm.addPeerChannel <- peer
 }
 
-func (pm *peerManager) RemovePeer(peerID peer.ID) {
-	pm.removePeerChannel <- peerID
+func (pm *peerManager) RemovePeer(peer RemotePeer) {
+	pm.removePeer(peer)
 }
 
 func (pm *peerManager) NotifyPeerHandshake(peerID peer.ID) {
@@ -397,31 +388,40 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []PeerMeta) {
 	pm.fillPoolChannel <- metas
 }
 
-// removePeer remove and disconnect managed remote peer connection
+// removePeer unregister managed remote peer connection
 // It return true if peer is exist and managed by peermanager
-func (pm *peerManager) removePeer(peerID peer.ID) bool {
+func (pm *peerManager) removePeer(peer RemotePeer) bool {
+	peerID := peer.ID()
 	pm.mutex.Lock()
 	target, ok := pm.remotePeers[peerID]
 	if !ok {
 		pm.mutex.Unlock()
 		return false
 	}
+	if target.manageNum != peer.ManageNumber() {
+		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Str(LogPeerID, target.ID().Pretty()).Msg("remove peer is requested but already removed and other instance is on")
+		pm.mutex.Unlock()
+		return false
+	}
+	if target.State() == types.RUNNING {
+		pm.logger.Warn().Str(LogPeerID, target.ID().Pretty()).Msg("remove peer is requested but peer is still running")
+	}
 	pm.deletePeer(peerID)
-	// No internal module access this peer anymore, but remote message can be received.
-	target.stop()
+	pm.logger.Info().Uint32("manage_num",peer.ManageNumber()).Str(LogPeerID, target.ID().Pretty()).Msg("removed peer in peermanager")
 	pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
 	}
 
-	// also disconnect connection
-	pm.nt.ClosePeerConnection(peerID)
+	if meta, found := pm.designatedPeers[peer.ID()]; found {
+		pm.rm.AddJob(meta)
+	}
 	return true
 }
 
 func (pm *peerManager) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
-	tempMeta := PeerMeta{ID:peerID}
+	tempMeta := PeerMeta{ID: peerID}
 	completeMeta, added := pm.tryAddPeer(false, tempMeta, s)
 	if !added {
 		s.Close()
@@ -441,8 +441,9 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
 	}
 
-	for _, remotePeer := range pm.remotePeers {
-		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.meta.ID, Size: MaxAddrListSizePeer, Offset: 0})
+	// not strictly need to check peers. so use cache instead
+	for _, remotePeer := range pm.peerCache {
+		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.ID(), Size: MaxAddrListSizePeer, Offset: 0})
 	}
 }
 
@@ -533,19 +534,20 @@ func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*type
 	hiddens := make([]bool, 0, len(pm.remotePeers))
 	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
 	states := make([]types.PeerState, 0, len(pm.remotePeers))
-	for _, aPeer := range pm.remotePeers {
-		addr := aPeer.meta.ToPeerAddress()
-		hiddens = append(hiddens, aPeer.meta.Hidden)
+	for _, aPeer := range pm.peerCache {
+		meta := aPeer.Meta()
+		addr := meta.ToPeerAddress()
+		hiddens = append(hiddens, meta.Hidden)
 		peers = append(peers, &addr)
-		blks = append(blks, aPeer.lastNotice)
-		states = append(states, aPeer.state)
+		blks = append(blks, aPeer.LastNotice())
+		states = append(states, aPeer.State())
 	}
 	return peers, hiddens, blks, states
 }
 
 // this method should be called inside pm.mutex
 func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
-	if _,exist := pm.hiddenPeerSet[ID]; exist {
+	if _, exist := pm.hiddenPeerSet[ID]; exist {
 		peer.meta.Hidden = true
 	}
 	pm.remotePeers[ID] = peer
@@ -566,4 +568,3 @@ func (pm *peerManager) updatePeerCache() {
 	}
 	pm.peerCache = newSlice
 }
-

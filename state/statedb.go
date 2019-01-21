@@ -411,7 +411,30 @@ func (states *StateDB) Rollback(revision Snapshot) error {
 	return states.buffer.rollback(int(revision))
 }
 
-func (states *StateDB) updateStorage(dbtx *db.Transaction) error {
+// Update applies changes of state buffer to trie
+func (states *StateDB) Update() error {
+	states.lock.Lock()
+	defer states.lock.Unlock()
+
+	if err := states.update(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (states *StateDB) update() error {
+	// update storage and put state with changed storage root
+	if err := states.updateStorage(); err != nil {
+		return err
+	}
+	// export buffer and update to trie
+	if err := states.buffer.updateTrie(states.trie); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (states *StateDB) updateStorage() error {
 	before := states.buffer.snapshot()
 	for id, storage := range states.cache.storages {
 		// update storage
@@ -433,37 +456,6 @@ func (states *StateDB) updateStorage(dbtx *db.Transaction) error {
 			st.StorageRoot = storage.trie.Root
 			states.buffer.put(newValueEntry(types.HashID(id), st))
 		}
-		// stage changes
-		if err := storage.stage(dbtx); err != nil {
-			states.buffer.rollback(before)
-			return err
-		}
-	}
-	return nil
-}
-
-// Update applies changes of state buffer to trie
-func (states *StateDB) Update() error {
-	states.lock.Lock()
-	defer states.lock.Unlock()
-
-	dbtx := (*states.store).NewTx()
-	if err := states.update(&dbtx); err != nil {
-		dbtx.Discard()
-		return err
-	}
-	dbtx.Commit()
-	return nil
-}
-
-func (states *StateDB) update(dbtx *db.Transaction) error {
-	// update storage and put state with changed storage root
-	if err := states.updateStorage(dbtx); err != nil {
-		return err
-	}
-	// export buffer and update to trie
-	if err := states.buffer.updateTrie(states.trie); err != nil {
-		return err
 	}
 	return nil
 }
@@ -473,22 +465,19 @@ func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 
-	singleTxMode := false
-	if singleTxMode {
-		dbtx := (*states.store).NewTx()
-		if err := states.stage(dbtx.(trie.DbTx)); err != nil {
-			dbtx.Discard()
-			return err
-		}
-		dbtx.Commit()
-	} else {
-		bulk := (*states.store).NewBulk()
-		if err := states.stage(bulk.(trie.DbTx)); err != nil {
+	bulk := (*states.store).NewBulk()
+	for _, storage := range states.cache.storages {
+		// stage changes
+		if err := storage.stage(bulk); err != nil {
 			bulk.DiscardLast()
 			return err
 		}
-		bulk.Flush()
 	}
+	if err := states.stage(bulk); err != nil {
+		bulk.DiscardLast()
+		return err
+	}
+	bulk.Flush()
 	return nil
 }
 

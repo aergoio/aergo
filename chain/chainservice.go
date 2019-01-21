@@ -112,6 +112,8 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 
 	initChainEnv(core.cdb.GetGenesisInfo())
 
+	contract.StartLStateFactory()
+
 	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
@@ -149,10 +151,9 @@ type IChainHandler interface {
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
-	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
-	checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte)
+	setSync(val bool)
 }
 
 // ChainService manage connectivity of blocks
@@ -188,7 +189,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cfg.Blockchain.CoinbaseAccount,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer,
 		cfg.Blockchain.VerifierCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
@@ -249,19 +249,6 @@ func (cs *ChainService) AfterStart() {
 	cs.chainWorker.Start()
 }
 
-// ChainSync synchronize with peer
-func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
-	// handlt it like normal block (orphan)
-	logger.Debug().Msg("Best Block Request")
-	anchors := cs.getAnchorsFromHash(remoteBestHash)
-	hashes := make([]message.BlockHash, 0)
-	for _, a := range anchors {
-		hashes = append(hashes, message.BlockHash(a))
-		logger.Debug().Str("hash", enc.ToString(a)).Msg("request blocks for sync")
-	}
-	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
-}
-
 // BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
 	cs.Close()
@@ -287,7 +274,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
 		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
-		*message.GetMissing,
 		*message.GetAncestor,
 		*message.GetQuery:
 		cs.chainManager.Request(msg, context.Sender())
@@ -301,7 +287,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetABI,
 		*message.GetStateQuery,
-		*message.SyncBlockState,
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
@@ -460,15 +445,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		context.Respond(&rsp)
 
 		cm.TellTo(message.RPCSvc, block)
-	case *message.GetMissing:
-		stopHash := msg.StopHash
-		hashes := msg.Hashes
-		topHash, topNo, stopNo := cm.handleMissing(stopHash, hashes)
-		context.Respond(message.GetMissingRsp{
-			TopMatched: topHash,
-			TopNumber:  topNo,
-			StopNumber: stopNo,
-		})
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
@@ -600,8 +576,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			varId := bytes.NewBufferString("_sv_")
 			varId.WriteString(msg.VarName)
 			if len(msg.VarIndex) != 0 {
+				varId.WriteString("-")
 				varId.WriteString(msg.VarIndex)
-				varId.WriteString("_s")
 			}
 			varTrieKey := common.Hasher(varId.Bytes())
 			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
@@ -617,8 +593,6 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Result: stateQuery,
 			Err:    err,
 		})
-	case *message.SyncBlockState:
-		cw.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.N)
 		context.Respond(&message.GetVoteRsp{

@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
@@ -64,7 +65,18 @@ var (
 	TestnetMapServer = []string{
 		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
+
+	// Hardcoded chainID of ONE MAINNET and ONE TESTNET
+	ONEMainNet types.ChainID
+	ONETestNet types.ChainID
 )
+
+func init() {
+	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet:true,CoinbaseFee:"1000000000",Consensus:"dpos",Magic:"mainnet.aergo.io"}
+
+	ONETestNet = types.ChainID{PublicNet: true, MainNet:false,CoinbaseFee:"1000000000",Consensus:"dpos",Magic:"testnet.aergo.io"}
+}
 
 type mapService interface {
 	getPeerCheckers() []peerChecker
@@ -188,6 +200,7 @@ func (pms *PeerMapService) readRequest(meta p2p.PeerMeta, rd p2p.MsgReader) (p2p
 	return data, queryReq, nil
 }
 
+// handleQuery check query parameters, return registered peers, and register this peer if requested.
 func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQuery) (*types.MapResponse, error) {
 	if query.Status == nil {
 		return nil, fmt.Errorf("malformed query %v", query)
@@ -205,7 +218,6 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 
 	// make response
 	resp := &types.MapResponse{}
-	// TODO check more varification or request peer
 
 	// compare chainID
 	sameChain, err := pms.checkChain(query.Status.ChainID)
@@ -220,22 +232,23 @@ func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQu
 		resp.Message = "different chain"
 		return resp, nil
 	}
-	// must check peer is really capable to aergosvr
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
 
 	if query.AddMe {
 		// check Sender
+		// check peer is really capable to aergosvr
 		if !pms.checkConnectness(receivedMeta) {
 			pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, but cant connect back to peer")
-			resp.Status = types.ResultStatus_INVALID_ARGUMENT
-			resp.Message = "can't connect back"
+			resp.Status = types.ResultStatus_OK
+			resp.Message = "can't connect back, so not registered"
 			return resp, nil
 		}
 		pms.Logger.Debug().Str(p2p.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, and register peer to peer registry")
 		pms.registerPeer(receivedMeta)
 	}
 
+	resp.Status = types.ResultStatus_OK
 	return resp, nil
 }
 
@@ -263,6 +276,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
 		newState := &peerState{connected:now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
+		pms.Logger.Info().Str("meta", receivedMeta.String()).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
 		if prev.meta != receivedMeta {
@@ -278,7 +292,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
-	pms.Logger.Info().Str(p2p.LogPeerID, peerID.Pretty()).Msg("Unregister bad peer")
+	pms.Logger.Info().Str(p2p.LogPeerID, peerID.Pretty()).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
 
 }
@@ -436,7 +450,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
-	if !pms.allowPrivate && !isExternalAddr(meta.IPAddress) {
+	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
 		pms.Logger.Debug().Str("addr",meta.IPAddress).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("peer is private address")
 		return false
 	}

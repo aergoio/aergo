@@ -27,17 +27,6 @@ type GetBlockRsp struct {
 	Block *types.Block
 	Err   error
 }
-type GetMissing struct {
-	Hashes   [][]byte
-	StopHash []byte
-}
-type GetMissingRsp struct {
-	TopMatched BlockHash
-	TopNumber  types.BlockNo
-	StopNumber types.BlockNo
-	//Hashes   []BlockHash
-	//Blocknos []types.BlockNo
-}
 
 type GetBlockByNo struct {
 	BlockNo types.BlockNo

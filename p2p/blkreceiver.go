@@ -57,10 +57,17 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (
 		br.peer.consumeRequest(br.requestID)
 		return
 	}
-	// remote peer response failure
-	body :=  msgBody.(*types.GetBlockResponse)
-	if body.Status != types.ResultStatus_OK || len(body.Blocks) == 0 {
+	respBody, ok := msgBody.(types.ResponseMessage)
+	if !ok || respBody.GetStatus() != types.ResultStatus_OK {
 		br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
+		br.finished = true
+		br.peer.consumeRequest(br.requestID)
+		return
+	}
+	// remote peer response failure
+	body, ok :=  msgBody.(*types.GetBlockResponse)
+	if !ok || len(body.Blocks) == 0 {
+		br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.MissingHashError})
 		br.finished = true
 		br.peer.consumeRequest(br.requestID)
 		return

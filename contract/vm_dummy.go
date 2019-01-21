@@ -30,6 +30,10 @@ type DummyChain struct {
 	testReceiptDB db.DB
 }
 
+func init() {
+	StartLStateFactory()
+}
+
 func LoadDummyChain() (*DummyChain, error) {
 	bc := &DummyChain{sdb: state.NewChainStateDB()}
 	dataPath, err := ioutil.TempDir("", "data")
@@ -182,7 +186,12 @@ type luaTxDef struct {
 }
 
 func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	b, err := luac_util.Compile(code)
+	L := luac_util.NewLState()
+	if L == nil {
+		return &luaTxDef{cErr: newVmStartError()}
+	}
+	defer luac_util.CloseLState(L)
+	b, err := luac_util.Compile(L, code)
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}
