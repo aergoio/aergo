@@ -8,9 +8,13 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/multiformats/go-multiaddr"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -124,3 +128,67 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 	return ma, nil
 }
 
+func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
+	dat, err := ioutil.ReadFile(keyFile)
+	if err == nil {
+		priv, err := crypto.UnmarshalPrivateKey(dat)
+		if err != nil {
+			return nil,nil, fmt.Errorf("invalid keyfile. It's not private key file")
+		}
+		return priv, priv.GetPublic(), nil
+	} else {
+		return nil, nil, fmt.Errorf("Invalid keyfile path '"+ keyFile +"'. Check the key file exists.")
+	}
+}
+
+func GenerateKeyFile(dir, prefix string) (crypto.PrivKey, crypto.PubKey, error) {
+	// invariant: keyfile must not exists.
+	if _, err2 := os.Stat(dir); os.IsNotExist(err2) {
+		mkdirerr := os.MkdirAll(dir, os.ModePerm)
+		if mkdirerr != nil {
+			return nil, nil, mkdirerr
+		}
+	}
+	// file not exist and create new file
+	priv, pub, err := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = writeToKeyFiles(priv, pub, dir, prefix)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to generate files %s.{key,id}: %v", prefix, err.Error())
+	}
+
+	return priv, priv.GetPublic(), nil
+}
+
+
+func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string) error {
+
+	pkFile := filepath.Join(dir, prefix+DefaultPkKeyExt)
+//	pubFile := filepath.Join(dir, prefix+".pub")
+	idFile := filepath.Join(dir, prefix+DefaultPeerIDExt)
+
+	// Write private key file
+	pkf, err := os.Create(pkFile)
+	if err != nil {
+		return err
+	}
+	pkBytes, err := priv.Bytes()
+	if err != nil {
+		return err
+	}
+	pkf.Write(pkBytes)
+	pkf.Sync()
+
+	// Write id file
+	idf, err := os.Create(idFile)
+	if err != nil {
+		return err
+	}
+	pid, _ := peer.IDFromPublicKey(pub)
+	idBytes := []byte(peer.IDB58Encode(pid))
+	idf.Write(idBytes)
+	idf.Sync()
+	return nil
+}

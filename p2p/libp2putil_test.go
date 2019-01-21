@@ -6,13 +6,16 @@
 package p2p
 
 import (
+	"net"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
-	"net"
-	"reflect"
-	"testing"
 )
 
 func TestFromMultiAddr(t *testing.T) {
@@ -138,7 +141,7 @@ func TestParseMultiaddrWithResolve(t *testing.T) {
 				for _, wantIp := range tt.wantIps {
 					if reflect.DeepEqual(ip, wantIp) {
 						found = true
-						break;
+						break
 					}
 				}
 				if !found {
@@ -147,6 +150,73 @@ func TestParseMultiaddrWithResolve(t *testing.T) {
 				port, err := got.ValueForProtocol(multiaddr.P_TCP)
 				if !reflect.DeepEqual(port, tt.wantPort) {
 					t.Errorf("ParseMultiaddrWithResolve() = %v, want %v", port, tt.wantPort)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateKeyFile(t *testing.T) {
+	// this test should not be run by root
+	testDir := "_tmp"
+	existDir := "_tmp/holder.key"
+	if _, err := os.Stat(testDir); !os.IsNotExist(err) {
+		t.Skip("can't test since test dir already exists")
+	} else {
+		err := os.MkdirAll(testDir, os.ModePerm)
+		if err != nil {
+			t.Skip("can't test. permission error. "+err.Error())
+		}
+		defer func() {
+			os.RemoveAll(testDir)
+		}()
+		err = os.MkdirAll(existDir, os.ModePerm)
+		if err != nil {
+			t.Skip("can't test. permission error. "+err.Error())
+		}
+	}
+	type args struct {
+		dir    string
+		prefix string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"TSucc", args{filepath.Join(testDir,"abc"), "testkey"}, false},
+		{"TPermission", args{"/sbin/abc","testkey"}, true},
+		{"TDir", args{testDir, "holder"}, true},
+		//{"TNotExist", args{}, true},
+		//{"TInvalidKey", args{}, false},
+		//{"TInvalidKey", args{}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPriv, gotPub, err := GenerateKeyFile(tt.args.dir, tt.args.prefix)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateKeyFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			file := filepath.Join(tt.args.dir, tt.args.prefix+DefaultPkKeyExt)
+			if !tt.wantErr {
+				if !gotPriv.GetPublic().Equals(gotPub) {
+					t.Errorf("priv key and pub key check failed")
+					return
+				}
+
+				ldPriv, ldPub, actErr := LoadKeyFile(file)
+				if actErr !=nil {
+					t.Errorf("LoadKeyFile() should not return error, but get %v, ", actErr)
+				}
+				if !ldPriv.Equals(gotPriv)  {
+					t.Errorf("GenerateKeyFile() and LoadKeyFile() private key is differ." )
+					return
+				}
+				if !ldPub.Equals(gotPub)  {
+					t.Errorf("GenerateKeyFile() and LoadKeyFile() public key is differ." )
+					return
 				}
 			}
 		})
