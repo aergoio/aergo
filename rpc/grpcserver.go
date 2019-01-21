@@ -135,6 +135,10 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 		}
 
 		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
+
+		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
+			chainInfo.Maxtokens = totalBalance.Bytes()
+		}
 	}
 
 	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
@@ -143,7 +147,7 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 		chainInfo.Stakingminimum = minStaking.Bytes()
 	}
 
-	return nil, nil
+	return chainInfo, nil
 }
 
 // ListBlockMetadata handle rpc request
