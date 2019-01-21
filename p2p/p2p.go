@@ -8,7 +8,9 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"io/ioutil"
+	"os"
+	"os/user"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -66,26 +68,36 @@ func InitNodeInfo(cfg *config.P2PConfig, logger *log.Logger) {
 	var (
 		priv crypto.PrivKey
 		pub  crypto.PubKey
+		err  error
 	)
 
 	if cfg.NPKey != "" {
-		dat, err := ioutil.ReadFile(cfg.NPKey)
-		if err == nil {
-			priv, err = crypto.UnmarshalPrivateKey(dat)
+		priv, pub, err = LoadKeyFile(cfg.NPKey)
+		if err != nil {
+			panic("Failed to load Keyfile '" + cfg.NPKey + "' " + err.Error())
+		}
+	} else {
+		logger.Info().Msg("No private key file is configured, so use auto-generated pk file instead.")
+		usr, err := user.Current()
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Failed to get user's home")
+		}
+
+		autogenFilePath := filepath.Join(usr.HomeDir, DefaultPkKeyDirectory, DefaultPkKeyPrefix+DefaultPkKeyExt)
+		if _, err := os.Stat(autogenFilePath); os.IsNotExist(err) {
+			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
+			priv, pub, err = GenerateKeyFile(filepath.Join(usr.HomeDir, DefaultPkKeyDirectory), DefaultPkKeyPrefix)
 			if err != nil {
-				logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile. It's not private key file")
+				panic("Failed to generate new pk file: "+err.Error())
 			}
-			pub = priv.GetPublic()
 		} else {
-			logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile path")
+			logger.Info().Str("pk_file", autogenFilePath).Msg("Load existing generated private key file.")
+			priv, pub, err = LoadKeyFile(autogenFilePath)
+			if err != nil {
+				panic("Failed to load generated pk file '"+autogenFilePath+"' "+err.Error())
+			}
 		}
 	}
-
-	if priv == nil {
-		logger.Info().Msg("No valid private key file is found. use temporary pk instead")
-		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	}
-
 	id, _ := peer.IDFromPublicKey(pub)
 
 	ni = &nodeInfo{
