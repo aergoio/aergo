@@ -32,6 +32,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	gitRevision, gitBranch string
+)
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -106,7 +110,7 @@ func configureZipkin() {
 func rootRun(cmd *cobra.Command, args []string) {
 
 	svrlog = log.NewLogger("asvr")
-	svrlog.Info().Msg("AERGO SVR STARTED")
+	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
 
 	configureZipkin()
 
