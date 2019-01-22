@@ -161,6 +161,19 @@ func (dpos *DPoS) bpid() peer.ID {
 	return p2p.NodeID()
 }
 
+// VerifyTimestamp checks the validity of the block timestamp.
+func (dpos *DPoS) VerifyTimestamp(block *types.Block) bool {
+	ts := block.GetHeader().GetTimestamp()
+	isFuture := slot.NewFromUnixNano(ts).IsFuture()
+
+	if isFuture {
+		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
+			Time("timestamp", time.Unix(0, ts)).Msg("block has a future timestamp")
+	}
+
+	return !isFuture
+}
+
 // VerifySign reports the validity of the block signature.
 func (dpos *DPoS) VerifySign(block *types.Block) error {
 	valid, err := block.VerifySign()

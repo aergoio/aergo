@@ -74,6 +74,7 @@ type ChainDB interface {
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
 	IsTransactionValid(tx *types.Tx) bool
+	VerifyTimestamp(block *types.Block) bool
 	VerifySign(block *types.Block) error
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	Update(block *types.Block)

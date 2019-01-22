@@ -28,7 +28,8 @@ var (
 	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 
-	errBlockStale = errors.New("produced block becomes stale")
+	errBlockStale     = errors.New("produced block becomes stale")
+	errBlockTimestamp = errors.New("invalid timestamp")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -298,6 +299,16 @@ func (cp *chainProcessor) reorganize() error {
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
+
+	if !cs.VerifyTimestamp(newBlock) {
+		return &ErrBlock{
+			err: errBlockTimestamp,
+			block: &types.BlockInfo{
+				Hash: newBlock.BlockHash(),
+				No:   newBlock.BlockNo(),
+			},
+		}, false
+	}
 
 	var bestBlock *types.Block
 
