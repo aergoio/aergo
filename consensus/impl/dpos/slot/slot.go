@@ -2,6 +2,8 @@ package slot
 
 import (
 	"time"
+
+	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 )
 
 var (
@@ -104,7 +106,7 @@ func IsNextTo(s1, s2 *Slot) bool {
 }
 
 // IsFor reports whether s correponds to myBpIdx (block producer index).
-func (s *Slot) IsFor(bpIdx uint16) bool {
+func (s *Slot) IsFor(bpIdx bp.Index) bool {
 	return s.NextBpIndex() == int64(bpIdx)
 }
 
