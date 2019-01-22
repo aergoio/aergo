@@ -138,7 +138,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 	} else {
 		logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
 
-		if ancestor.No == finder.ctx.TargetNo {
+		if ancestor.No >= finder.ctx.TargetNo {
 			logger.Info().Msg("already synchronized")
 			return nil, ErrAlreadySyncDone
 		}
