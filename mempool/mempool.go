@@ -517,6 +517,13 @@ func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
 	if v, ok := mp.cache[types.ToTxID(hash)]; ok {
+		if v.HasVerifedAccount() {
+			clone := v.Clone()
+			if clone.RemoveVerifedAccount() {
+				clone.Hash = clone.CalculateTxHash()
+			}
+			return clone
+		}
 		return v
 	}
 	return nil
@@ -578,9 +585,20 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 }
 
 func (mp *MemPool) notifyNewTx(tx types.Tx) {
-	mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
-		Txs: []*types.Tx{&tx},
-	})
+	if tx.HasVerifedAccount() {
+		//this tx has cache of verfied account, remove this
+		clone := tx.Clone()
+		if clone.RemoveVerifedAccount() {
+			clone.Hash = clone.CalculateTxHash()
+		}
+		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
+			Txs: []*types.Tx{clone},
+		})
+	} else {
+		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
+			Txs: []*types.Tx{&tx},
+		})
+	}
 }
 
 func (mp *MemPool) loadTxs() {
