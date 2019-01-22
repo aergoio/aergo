@@ -61,10 +61,19 @@ func fromUnixNs(ns int64) *Slot {
 	}
 }
 
-// IsValidNow reports whether the Slot is still valid at the time when it's
+// IsValidNow reports whether s is still valid at the time when it's
 // called.
 func (s *Slot) IsValidNow() bool {
 	if s.nextIndex == Now().nextIndex {
+		return true
+	}
+	return false
+}
+
+// IsFuture reports whether s
+func (s *Slot) IsFuture() bool {
+	// Assume that the slot is future if the index difference >= 2.
+	if s.nextIndex >= Now().nextIndex+2 {
 		return true
 	}
 	return false

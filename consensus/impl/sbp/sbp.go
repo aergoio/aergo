@@ -116,6 +116,12 @@ func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 	return true
 }
 
+// VerifyTimestamp checks the validity of the block timestamp.
+func (s *SimpleBlockFactory) VerifyTimestamp(*types.Block) bool {
+	// SimpleBlockFactory don't need to check timestamp.
+	return true
+}
+
 // VerifySign checks the consensus level validity of a block.
 func (s *SimpleBlockFactory) VerifySign(*types.Block) error {
 	// SimpleBlockFactory has no block signature.

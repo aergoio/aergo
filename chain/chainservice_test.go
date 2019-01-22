@@ -27,6 +27,9 @@ func (stubC *StubConsensus) SetStateDB(sdb *state.ChainStateDB) {
 func (stubC *StubConsensus) IsTransactionValid(tx *types.Tx) bool {
 	return true
 }
+func (stubC *StubConsensus) VerifyTimestamp(block *types.Block) bool {
+	return true
+}
 func (stubC *StubConsensus) VerifySign(block *types.Block) error {
 	return nil
 }
