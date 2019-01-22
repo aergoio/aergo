@@ -24,8 +24,6 @@ extern void yylex_set_token(void *yyscanner, int token, YYLTYPE *yylloc);
 static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
-//static void decl_add(array_t *stmts, ast_id_t *id);
-
 %}
 
 %parse-param { parse_t *parse }
@@ -286,17 +284,8 @@ contract_decl:
         bool has_ctor = false;
 
         array_foreach(&$5->ids, i) {
-            ast_id_t *id = array_get_id(&$5->ids, i);
-
-            if (is_ctor_id(id)) {
-                /*
-                if (strcmp($2, id->name) != 0)
-                    ERROR(ERROR_SYNTAX, &id->pos, "syntax error, unexpected "
-                          "identifier, expecting func");
-                else
-                    */
-                    has_ctor = true;
-            }
+            if (is_ctor_id(array_get_id(&$5->ids, i)))
+                has_ctor = true;
         }
 
         if (!has_ctor)
@@ -610,21 +599,16 @@ blk_decl:
     var_qual
     {
         $$ = blk_new_normal(&@$);
-
-        //id_add(&$$->ids, $1);
-        //decl_add(&$$->stmts, $1);
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   struct
     {
         $$ = blk_new_normal(&@$);
-        //id_add(&$$->ids, $1);
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   enumeration
     {
         $$ = blk_new_normal(&@$);
-        //id_add(&$$->ids, $1);
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   statement
@@ -635,21 +619,16 @@ blk_decl:
 |   blk_decl var_qual
     {
         $$ = $1;
-
-        //id_add(&$$->ids, $2);
-        //decl_add(&$$->stmts, $2);
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl struct
     {
         $$ = $1;
-        //id_add(&$$->ids, $2);
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl enumeration
     {
         $$ = $1;
-        //id_add(&$$->ids, $2);
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   blk_decl statement
@@ -861,41 +840,35 @@ if_stmt:
 loop_stmt:
     K_FOR block
     {
-        $$ = stmt_new_loop(LOOP_FOR, NULL, NULL, $2, &@$);
+        $$ = stmt_new_loop(LOOP_FOR, NULL, NULL, NULL, $2, &@$);
     }
 |   K_FOR '(' ternary_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_FOR, $3, NULL, $5, &@$);
+        $$ = stmt_new_loop(LOOP_FOR, NULL, $3, NULL, $5, &@$);
     }
 |   K_FOR '(' init_stmt cond_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_FOR, $4, NULL, $6, &@$);
-        $$->u_loop.init_stmt = $3;
+        $$ = stmt_new_loop(LOOP_FOR, $3, $4, NULL, $6, &@$);
     }
 |   K_FOR '(' init_stmt cond_exp expression ')' block
     {
-        $$ = stmt_new_loop(LOOP_FOR, $4, $5, $7, &@$);
-        $$->u_loop.init_stmt = $3;
+        $$ = stmt_new_loop(LOOP_FOR, $3, $4, $5, $7, &@$);
     }
 |   K_FOR '(' var_decl cond_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_FOR, $4, NULL, $6, &@$);
-        $$->u_loop.init_id = $3;
+        $$ = stmt_new_loop(LOOP_FOR, stmt_new_id($3, &@3), $4, NULL, $6, &@$);
     }
 |   K_FOR '(' var_decl cond_exp expression ')' block
     {
-        $$ = stmt_new_loop(LOOP_FOR, $4, $5, $7, &@$);
-        $$->u_loop.init_id = $3;
+        $$ = stmt_new_loop(LOOP_FOR, stmt_new_id($3, &@3), $4, $5, $7, &@$);
     }
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
-        $$->u_loop.init_stmt = stmt_new_exp($3, &@3);
+        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_exp($3, &@3), NULL, $5, $7, &@$);
     }
 |   K_FOR '(' var_spec K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_ARRAY, NULL, $5, $7, &@$);
-        $$->u_loop.init_id = $3;
+        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_id($3, &@3), NULL, $5, $7, &@$);
     }
 |   K_FOR error '}'
     {
@@ -1377,55 +1350,5 @@ yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner, const char *msg)
 {
     ERROR(ERROR_SYNTAX, yylloc, msg);
 }
-
-/*
-static void
-decl_add(array_t *stmts, ast_id_t *id)
-{
-    ast_exp_t *var_exp;
-    ast_stmt_t *decl_stmt = NULL;
-
-    if (is_const_id(id))
-        return;
-
-    if (is_var_id(id)) {
-        if (id->u_var.dflt_exp != NULL) {
-            var_exp = exp_new_id(id->name, &id->pos);
-            decl_stmt = stmt_new_assign(var_exp, id->u_var.dflt_exp, &id->pos);
-
-            id->u_var.dflt_exp = NULL;
-        }
-        else {
-            decl_stmt = stmt_new_exp(exp_new_null(&id->pos), &id->pos);
-        }
-    }
-    else if (is_tuple_id(id)) {
-        if (id->u_var.dflt_exp != NULL) {
-            int i;
-            array_t *elem_ids = id->u_tup.elem_ids;
-            array_t *elem_exps = array_new();
-
-            array_foreach(elem_ids, i) {
-                ast_id_t *elem_id = array_get_id(elem_ids, i);
-
-                exp_add(elem_exps, exp_new_id(elem_id->name, &elem_id->pos));
-            }
-
-            var_exp = exp_new_tuple(elem_exps, &id->pos);
-            decl_stmt = stmt_new_assign(var_exp, id->u_tup.dflt_exp, &id->pos);
-
-            id->u_tup.dflt_exp = NULL;
-        }
-        else {
-            decl_stmt = stmt_new_exp(exp_new_null(&id->pos), &id->pos);
-        }
-    }
-    else {
-        ASSERT1(!"invalid identifier", id->kind);
-    }
-
-    stmt_add(stmts, decl_stmt);
-}
-*/
 
 /* end of grammar.y */

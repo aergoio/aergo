@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "gen.h"
+#include "gen_util.h"
 
 #include "ir_abi.h"
 

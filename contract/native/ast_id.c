@@ -83,24 +83,6 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
     return id;
 }
 
-/*
-ast_id_t *
-id_new_return(ast_exp_t *type_exp, src_pos_t *pos)
-{
-    static int ret_num = 1;
-    char name[NAME_MAX_LEN + 1];
-    ast_id_t *id;
-
-    snprintf(name, sizeof(name), "return$%d", ret_num++);
-
-    id = ast_id_new(ID_RETURN, MOD_PRIVATE, xstrdup(name), pos);
-
-    id->is_param = true;
-    id->u_ret.type_exp = type_exp;
-
-    return id;
-}
-*/
 ast_id_t *
 id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
             ast_blk_t *blk, src_pos_t *pos)
@@ -124,10 +106,6 @@ id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 
     type_exp->u_type.name = name;
 
-    /*
-    return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
-                       id_new_return(type_exp, pos), blk, pos);
-                       */
     return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
                        id_new_param(PARAM_OUT, name, type_exp, pos), blk, pos);
 }

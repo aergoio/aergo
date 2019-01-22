@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "array.h"
 #include "ast_exp.h"
 #include "ast_stmt.h"
 
@@ -14,46 +13,6 @@
 #include "check_stmt.h"
 
 #include "check_id.h"
-
-#if 0
-static bool
-id_check_type(check_t *check, meta_t *meta)
-{
-    if (is_none_meta(meta)) {
-        ast_id_t *id;
-
-        ASSERT(meta->name != NULL);
-
-        id = blk_search_id(check->blk, meta->name, meta->num, true);
-        if (id == NULL || !is_type_id(id))
-            RETURN(ERROR_UNDEFINED_TYPE, meta->pos, meta->name);
-
-        id_trycheck(check, id);
-
-        id->is_used = true;
-
-        meta_copy(meta, &id->meta);
-    }
-    else if (is_map_meta(meta)) {
-        meta_t *k_meta, *v_meta;
-
-        ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
-
-        k_meta = meta->elems[0];
-        v_meta = meta->elems[1];
-
-        CHECK(id_check_type(check, k_meta));
-        CHECK(id_check_type(check, v_meta));
-
-        if (!is_comparable_meta(k_meta))
-            RETURN(ERROR_NOT_COMPARABLE_TYPE, k_meta->pos, meta_to_str(k_meta));
-
-        ASSERT(!is_tuple_meta(v_meta));
-    }
-
-    return true;
-}
-#endif
 
 static bool
 id_check_array(check_t *check, ast_id_t *id)
@@ -64,13 +23,6 @@ id_check_array(check_t *check, ast_id_t *id)
 
     ASSERT1(is_var_id(id), id->kind);
 
-    /*
-    if (is_var_id(id))
-        size_exps = id->u_var.size_exps;
-    else
-        size_exps = id->u_ret.size_exps;
-        */
-
     meta_set_arr_dim(&id->meta, array_size(size_exps));
 
     array_foreach(size_exps, i) {
@@ -79,11 +31,10 @@ id_check_array(check_t *check, ast_id_t *id)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            //if (is_var_id(id) && !is_param_id(id) && id->u_var.dflt_exp == NULL)
             if (!is_param_id(id) && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
-            /* -1 means that the size is determined by the initializer */
+            /* "-1" means that the size is determined by the initializer */
             meta_set_dim_size(&id->meta, i, -1);
         }
         else {
@@ -198,7 +149,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         ast_id_t *elem_id = array_get_id(elem_ids, i);
         ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
-        /* check directly for value processing in the enumerator */
+        /* Check directly for processing value in the enumerator */
         elem_id->up = id;
         elem_id->is_checked = true;
 
@@ -236,27 +187,6 @@ id_check_enum(check_t *check, ast_id_t *id)
     return true;
 }
 
-/*
-static bool
-id_check_return(check_t *check, ast_id_t *id)
-{
-    ASSERT1(is_return_id(id), id->kind);
-    ASSERT(id->name != NULL);
-    ASSERT(id->up != NULL);
-    ASSERT(is_param_id(id));
-    ASSERT(id->u_ret.type_exp != NULL);
-
-    CHECK(exp_check(check, id->u_ret.type_exp));
-
-    meta_copy(&id->meta, &id->u_ret.type_exp->meta);
-
-    if (id->u_ret.size_exps != NULL)
-        CHECK(id_check_array(check, id));
-
-    return true;
-}
-*/
-
 static bool
 id_check_fn(check_t *check, ast_id_t *id)
 {
@@ -292,7 +222,7 @@ id_check_fn(check_t *check, ast_id_t *id)
     }
 
     if (check->impl_id != NULL) {
-        /* mark is_used flag */
+        /* Mark "is_used" flag */
         ast_blk_t *blk = check->impl_id->u_itf.blk;
 
         array_foreach(&blk->ids, i) {
@@ -334,7 +264,7 @@ id_check_contract(check_t *check, ast_id_t *id)
         if (exp_check(check, impl_exp)) {
             ast_id_t *impl_id = impl_exp->id;
 
-            /* unmark is_used flag */
+            /* Unmark "is_used" flag */
             ASSERT(impl_id != NULL);
             ASSERT1(is_itf_id(impl_id), impl_id->kind);
 
@@ -346,8 +276,8 @@ id_check_contract(check_t *check, ast_id_t *id)
         }
     }
 
-    /* It can be used the contract variable in the contract block,
-     * so the meta is set before blk_check() */
+    /* It can be used the contract variable in the block, so the meta is set before
+     * blk_check() */
     meta_set_object(&id->meta, id);
 
     check->cont_id = id;
@@ -434,12 +364,6 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
             id_check(check, elem_id);
         }
-        /*
-        else {
-            ASSERT1(is_return_id(elem_id), elem_id->kind);
-            id_check(check, elem_id);
-        }
-        */
 
         elem_id->up = id->up;
 
@@ -492,12 +416,6 @@ id_check(check_t *check, ast_id_t *id)
     case ID_ENUM:
         id_check_enum(check, id);
         break;
-
-        /*
-    case ID_RETURN:
-        id_check_return(check, id);
-        break;
-        */
 
     case ID_FN:
         id_check_fn(check, id);

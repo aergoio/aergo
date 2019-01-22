@@ -38,11 +38,16 @@
 
 #define array_foreach(array, i)         for ((i) = 0; (i) < array_size(array); (i)++)
 
-typedef struct array_s {
+#ifndef _ARRAY_T
+#define _ARRAY_T
+typedef struct array_s array_t;
+#endif /* ! _ARRAY_T */
+
+struct array_s {
     int cap;
     int size;
     void **items;
-} array_t;
+};
 
 void array_add(array_t *array, int idx, void *item);
 void array_sadd(array_t *array, void *item, int (*cmp_fn)(const void *, const void *));

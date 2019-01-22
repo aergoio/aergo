@@ -21,11 +21,9 @@ meta_to_str(meta_t *meta)
     strbuf_init(&buf);
 
     if (is_struct_meta(meta)) {
-        //ASSERT(meta->name != NULL);
         ASSERT(meta->type_id != NULL);
 
         strbuf_cat(&buf, "struct ");
-        //strbuf_cat(&buf, meta->name);
         strbuf_cat(&buf, meta->type_id->name);
     }
     else if (is_map_meta(meta)) {
@@ -82,7 +80,6 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
 
     meta_set(meta, TYPE_STRUCT);
 
-    //meta->name = id->name;
     meta->size = 0;
 
     meta->elem_cnt = array_size(id->u_struc.fld_ids);
@@ -134,33 +131,8 @@ meta_set_object(meta_t *meta, ast_id_t *id)
 {
     meta_set(meta, TYPE_OBJECT);
 
-    if (id != NULL) {
+    if (id != NULL)
         ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
-        //meta->name = id->name;
-        /*
-        meta->size = 0;
-
-        if (is_cont_id(id)) {
-            int i, align = 0;
-
-            for (i = 0; i < array_size(&id->u_cont.blk->ids); i++) {
-                ast_id_t *elem_id = array_get_id(&id->u_cont.blk->ids, i);
-
-                if (is_const_id(elem_id) || !is_var_id(elem_id))
-                    continue;
-
-                meta->size = ALIGN(meta->size, meta_align(&elem_id->meta));
-                meta->size += meta_size(&elem_id->meta);
-
-                if (align == 0)
-                    align = meta_align(&elem_id->meta);
-            }
-
-            if (align > 0)
-                meta->size = ALIGN(meta->size, align);
-        }
-        */
-    }
 
     meta->type_id = id;
 }
@@ -214,13 +186,6 @@ meta_cmp_struct(meta_t *x, meta_t *y)
 
         if (strcmp(x->type_id->name, y->type_id->name) != 0)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
-        /*
-        ASSERT(x->name != NULL);
-        ASSERT(y->name != NULL);
-
-        if (strcmp(x->name, y->name) != 0)
-            RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
-            */
     }
     else if (is_tuple_meta(y)) {
         int i;

@@ -8,10 +8,6 @@
 
 #include "common.h"
 
-#include "ast.h"
-#include "array.h"
-#include "value.h"
-
 #define is_none_type(type)          ((type) == TYPE_NONE)
 #define is_bool_type(type)          ((type) == TYPE_BOOL)
 #define is_byte_type(type)          ((type) == TYPE_BYTE)
@@ -71,12 +67,6 @@
 #define is_pointer_meta(meta)                                                            \
     (is_string_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
 
-/*
-#define is_primitive_meta(meta)                                                          \
-    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_PRIMITIVE)
-#define is_builtin_meta(meta)                                                            \
-    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_BUILTIN)
-    */
 #define is_comparable_meta(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
 #define is_compatible_meta(x, y)                                                         \
@@ -105,11 +95,6 @@
 #define meta_size(meta)             (meta)->size
 #define meta_align(meta)            (meta)->align
 
-/*
-#define meta_cnt(meta)                                                                   \
-    (is_void_meta(meta) ? 0 :                                                            \
-     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1))
-     */
 #define meta_cnt(meta)                                                                   \
     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
 
@@ -117,6 +102,11 @@
 #define _META_T
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
+
+#ifndef _ARRAY_T
+#define _ARRAY_T
+typedef struct array_s array_t;
+#endif /* ! _ARRAY_T */
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -130,9 +120,6 @@ struct meta_s {
     type_t type;
     int size;
 
-    //char *name;             /* name of struct, contract or interface */
-    ast_id_t *type_id;      /* identifier of struct, contract, interface */
-
     bool is_undef;          /* whether it is literal */
     int8_t align;
 
@@ -140,15 +127,16 @@ struct meta_s {
     int arr_dim;            /* dimension of array */
     int *dim_sizes;         /* size of each dimension */
 
+    int elem_cnt;
+    meta_t **elems;
+
+    ast_id_t *type_id;      /* identifier of struct, contract, interface */
+
     /* memory location to be stored */
     int base_idx;           /* variable index having base address */
     int rel_addr;           /* relative address */
     int rel_offset;         /* relative offset from "rel_addr" */
 
-    int elem_cnt;
-    meta_t **elems;
-
-    //int num;
     src_pos_t *pos;
 };
 
@@ -171,11 +159,10 @@ meta_init(meta_t *meta, src_pos_t *pos)
 
     memset(meta, 0x00, sizeof(meta_t));
 
-    //ast_node_init(meta, pos);
-
-    meta->pos = pos;
     meta->base_idx = -1;
     meta->rel_addr = -1;
+
+    meta->pos = pos;
 }
 
 static inline meta_t *
@@ -217,7 +204,6 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
     ASSERT(arr_dim > 0);
 
     meta->arr_dim = arr_dim;
-    //meta->arr_size = ALIGN(meta->size, TYPE_SIZE(meta->type));
     meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
 }
 
@@ -258,38 +244,6 @@ meta_set_rel_offset(meta_t *meta, uint32_t *offset)
     *offset = meta->rel_offset + meta_size(meta);
 }
 
-#if 0
-static inline uint32_t
-meta_size(meta_t *meta)
-{
-    int i;
-    uint32_t size = 0;
-
-    if (is_struct_meta(meta) || is_tuple_meta(meta)) {
-        int i;
-
-        for (i = 0; i < meta->elem_cnt; i++) {
-            size = ALIGN(size, meta_align(meta->elems[i]));
-            size += meta_size(meta->elems[i]);
-        }
-
-        size = ALIGN(size, meta_align(meta->elems[0]));
-    }
-    else {
-        size = ALIGN(TYPE_SIZE(meta->type), meta_align(meta));
-    }
-
-    if (is_array_meta(meta)) {
-        for (i = 0; i < meta->arr_dim; i++) {
-            ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
-            size *= meta->dim_sizes[i];
-        }
-    }
-
-    return size;
-}
-#endif
-
 static inline uint32_t
 meta_unit(meta_t *meta)
 {
@@ -311,18 +265,16 @@ meta_copy(meta_t *dest, meta_t *src)
 {
     dest->type = src->type;
     dest->size = src->size;
-    //dest->name = src->name;
-    dest->type_id = src->type_id;
     dest->is_undef = src->is_undef;
     dest->align = src->align;
     dest->arr_dim = src->arr_dim;
-    //dest->arr_size = src->arr_size;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;
     dest->elem_cnt = src->elem_cnt;
     dest->elems = src->elems;
+    dest->type_id = src->type_id;
 
-    /* deliberately excluded src_pos */
+    /* deliberately excluded pos */
 }
 
 #endif /* ! _META_H */

@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "ast_id.h"
 #include "ast_blk.h"
 #include "check_id.h"
 
@@ -16,30 +15,35 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    exp->usable_lval = false;
-
     switch (exp->u_lit.val.type) {
     case TYPE_BOOL:
         meta_set_bool(&exp->meta);
         break;
+
     case TYPE_UINT64:
         meta_set_uint64(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
+
     case TYPE_DOUBLE:
         meta_set_double(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
+
     case TYPE_STRING:
         meta_set_string(&exp->meta);
         break;
+
     case TYPE_OBJECT:
         meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
+
     default:
         ASSERT1(!"invalid value", exp->u_lit.val.type);
     }
+
+    exp->usable_lval = false;
 
     return true;
 }
@@ -182,7 +186,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (is_lit_exp(idx_exp)) {
             ASSERT(id_meta->dim_sizes != NULL);
 
-            /* dim_sizes[0] can be negative if array is used as a parameter */
+            /* The "dim_sizes[0]" can be negative if array is used as a parameter */
             if (id_meta->dim_sizes[0] > 0 &&
                 val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
@@ -566,11 +570,11 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     qual_id = qual_exp->id;
 
     if (qual_id == NULL ||
-        is_tuple_meta(qual_meta) || /* in case of new initializer */
+        is_tuple_meta(qual_meta) || /* In case of new initializer */
         (is_fn_id(qual_id) && !is_struct_meta(qual_meta) && !is_object_meta(qual_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
-    /* get the actual struct, contract or interface identifier */
+    /* Get the actual struct, contract or interface identifier */
     if (is_struct_meta(qual_meta) || is_object_meta(qual_meta)) {
         /* if "this.x" is used, "qual_id" is the contract identifier */
         ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id),
@@ -620,26 +624,6 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
     id_exp = exp->u_call.id_exp;
     param_exps = exp->u_call.param_exps;
-
-#if 0
-    if (is_id_exp(id_exp) && strcmp(id_exp->u_id.name, "map") == 0) {
-        /* In case of new map() */
-        if (param_exps != NULL) {
-            ast_exp_t *param_exp;
-
-            ASSERT1(array_size(param_exps) == 1, array_size(param_exps));
-            param_exp = array_get_exp(param_exps, 0);
-
-            CHECK(exp_check(check, param_exp));
-            ASSERT1(is_integer_meta(&param_exp->meta), param_exp->meta.type);
-        }
-
-        meta_set_map(&exp->meta, NULL, NULL);
-        meta_set_undef(&exp->meta);
-
-        return true;
-    }
-#endif
 
     CHECK(exp_check(check, id_exp));
 

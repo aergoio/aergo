@@ -31,32 +31,29 @@ stmt_trans_id(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-add_exp_stmt(trans_t *trans, ast_exp_t *exp)
-{
-    if (is_null_exp(exp))
-        return;
-
-    exp_trans(trans, exp);
-
-    /* For unary increase/decrease expressions, which are postfixes, add them as
-     * piggybacked statements */
-    bb_add_stmt(trans->bb, NULL);
-}
-
-static void
 stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *exp = stmt->u_exp.exp;
+
+    if (is_null_exp(exp))
+        return;
 
     if (is_tuple_exp(exp)) {
         int i;
 
         array_foreach(exp->u_tup.elem_exps, i) {
-            add_exp_stmt(trans, array_get_exp(exp->u_tup.elem_exps, i));
+            exp_trans(trans, array_get_exp(exp->u_tup.elem_exps, i));
+
+            /* For unary increase/decrease expressions, which are postfixes, add them as
+             * piggybacked statements */
+            bb_add_stmt(trans->bb, NULL);
         }
     }
     else {
-        add_exp_stmt(trans, exp);
+        exp_trans(trans, exp);
+
+        /* same as above */
+        bb_add_stmt(trans->bb, NULL);
     }
 }
 
@@ -90,9 +87,6 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
-    /* TODO: When assigning to a struct or array variable,
-     * we must replace it with an assignment for each field */
-
     exp_trans(trans, l_exp);
     exp_trans(trans, r_exp);
 
@@ -120,7 +114,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         }
 
         /* For a function that returns the multiple value mentioned above, an expression
-         * is generated for each right value in the transformer and finally a tuple
+         * is generated for each return value in the transformer and finally a tuple
          * expression is created. (see exp_trans_call()) */
         array_foreach(val_exps, i) {
             ASSERT1(var_idx < array_size(var_exps), var_idx);
@@ -254,9 +248,6 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
      *       '-----------' '------------'
      */
 
-    if (stmt->u_loop.init_stmt != NULL)
-        stmt_trans(trans, stmt->u_loop.init_stmt);
-
     /* previous basic block */
     bb_add_branch(prev_bb, NULL, cond_bb);
 
@@ -275,12 +266,6 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 
         fn_add_basic_blk(trans->fn, trans->bb);
     }
-#if 0
-    else {
-        /* Make loop using self block in case of an empty loop without loop_exp */
-        bb_add_branch(cond_bb, NULL, cond_bb);
-    }
-#endif
 
     trans->cont_bb = NULL;
     trans->break_bb = NULL;
@@ -407,32 +392,6 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
             stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
         }
     }
-
-#if 0
-    ASSERT(ret_id->up != NULL);
-    ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
-
-    if (is_ctor_id(ret_id->up) && arg_exp != NULL) {
-        //if (arg_exp != NULL) {
-            /* If "arg_exp" is not null, the "stmt" is added to exit_bb because
-             * it is a return statement for contract address added forced by
-             * id_trans_ctor() */
-            ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
-
-            bb_add_stmt(trans->fn->exit_bb, stmt);
-        }
-        else {
-            /* The constructor uses the return statement as is */
-            bb_add_stmt(trans->bb, stmt);
-        }
-    }
-    else if (arg_exp != NULL) {
-        /* Each return expression of a function corresponds to a local variable,
-         * so if there is return arguments, the return statement is transformed to
-         * an assign statement using the address value of each return argument */
-        stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
-    }
-#endif
 
     /* The current basic block branches directly to the exit block */
     bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);

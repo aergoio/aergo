@@ -7,6 +7,7 @@
 
 #include "ast_id.h"
 #include "gen_bb.h"
+#include "gen_util.h"
 
 #include "gen_fn.h"
 

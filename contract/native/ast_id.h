@@ -17,7 +17,6 @@
 #define is_var_id(id)               ((id)->kind == ID_VAR)
 #define is_struct_id(id)            ((id)->kind == ID_STRUCT)
 #define is_enum_id(id)              ((id)->kind == ID_ENUM)
-//#define is_return_id(id)            ((id)->kind == ID_RETURN)
 #define is_fn_id(id)                ((id)->kind == ID_FN)
 #define is_cont_id(id)              ((id)->kind == ID_CONT)
 #define is_itf_id(id)               ((id)->kind == ID_ITF)
@@ -34,18 +33,9 @@
 #define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))
 
-#if 0
-/* The object type is a local variable that stores the address */
-#define is_stack_id(id)                                                                  \
-    (!(id)->is_param &&                                                                  \
-     (is_array_meta(&(id)->meta) ||                                                      \
-      (!is_object_meta(&(id)->meta) && !is_primitive_meta(&(id)->meta))))
-#endif
-
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
-
-//#define is_param_id(id)             ((id)->is_param)
 #define is_param_id(id)             (is_var_id(id) && (id)->u_var.kind != PARAM_NONE)
+
 #define is_in_param(id)             (is_var_id(id) && (id)->u_var.kind == PARAM_IN)
 #define is_out_param(id)            (is_var_id(id) && (id)->u_var.kind == PARAM_OUT)
 
@@ -84,13 +74,6 @@ typedef struct id_enum_s {
     array_t *elem_ids;
 } id_enum_t;
 
-/*
-typedef struct id_return_s {
-    ast_exp_t *type_exp;
-    array_t *size_exps;
-} id_return_t;
-*/
-
 typedef struct id_fn_s {
     array_t *param_ids;
     ast_id_t *ret_id;
@@ -126,7 +109,6 @@ struct ast_id_s {
         id_var_t u_var;
         id_struct_t u_struc;
         id_enum_t u_enum;
-        //id_return_t u_ret;
         id_fn_t u_fn;
         id_cont_t u_cont;
         id_itf_t u_itf;
@@ -136,7 +118,6 @@ struct ast_id_s {
 
     bool is_used;       /* whether it is referenced */
     bool is_checked;    /* whether it is checked */
-    //bool is_param;      /* whether it is a parameter */
 
     meta_t meta;
     value_t *val;       /* constant value */
@@ -150,7 +131,6 @@ struct ast_id_s {
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
-//ast_id_t *id_new_return(ast_exp_t *type_exp, src_pos_t *pos);
 ast_id_t *id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp,
                        src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);

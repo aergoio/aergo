@@ -30,12 +30,7 @@
 #define is_global_exp(exp)          ((exp)->kind == EXP_GLOBAL)
 #define is_local_exp(exp)           ((exp)->kind == EXP_LOCAL)
 #define is_stack_exp(exp)           ((exp)->kind == EXP_STACK)
-//#define is_fn_exp(exp)              ((exp)->kind == EXP_FN)
 
-/*
-#define is_usable_lval(exp)                                                              \
-    ((exp)->id != NULL && !is_const_id((exp)->id) && is_var_id((exp)->id))
-    */
 #define is_usable_lval(exp)         (exp)->usable_lval
 
 #define is_usable_stmt(exp)                                                              \
@@ -60,6 +55,11 @@ typedef struct ast_exp_s ast_exp_t;
 #define _AST_ID_T
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
+
+#ifndef _ARRAY_T
+#define _ARRAY_T
+typedef struct array_s array_t;
+#endif /* ! _ARRAY_T */
 
 /* null, true, false, 1, 1.0, 0x1, "..." */
 typedef struct exp_lit_s {
@@ -191,7 +191,6 @@ struct ast_exp_s {
         exp_global_t u_glob;
         exp_local_t u_local;
         exp_stack_t u_stk;
-        //exp_fn_t u_fn;
     };
 
     ast_id_t *id;       /* referenced identifier */
@@ -229,12 +228,10 @@ ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 ast_exp_t *exp_new_global(char *name);
 ast_exp_t *exp_new_local(type_t type, int idx);
 ast_exp_t *exp_new_stack(type_t type, int base, int addr, int offset);
-//ast_exp_t *exp_new_fn(int base, int idx);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
 void exp_set_local(ast_exp_t *exp, int idx);
 void exp_set_stack(ast_exp_t *exp, int base, int addr, int offset);
-//void exp_set_fn(ast_exp_t *exp, int base, int idx);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

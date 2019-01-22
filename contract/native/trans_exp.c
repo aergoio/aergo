@@ -33,10 +33,6 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
-        /*
-        ASSERT(is_null_val(val));
-        value_set_i64(val, sgmt_add_raw(sgmt, "\0\0\0\0", 4));
-        */
         if (is_null_val(val))
             addr = sgmt_add_raw(sgmt, "\0\0\0\0", 4);
         else
@@ -57,7 +53,6 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
-        //if (is_global_id(id) || is_stack_id(id))
         if (is_global_id(id))
             /* The global variable always refers to the memory */
             exp_set_stack(exp, id->meta.base_idx, id->meta.rel_addr, id->meta.rel_offset);
@@ -69,18 +64,9 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id) || is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
-#if 0
-        /* The "id->idx" is the relative index of the function */
-        exp_set_fn(exp, trans->fn->heap_idx, id->idx);
-#endif
         exp_set_local(exp, trans->fn->heap_idx);
-        exp->u_local.type = TYPE_INT32;
+        exp->u_local.type = TYPE_UINT32;
     }
-    /*
-    else if (is_return_id(id)) {
-        exp_set_stack(exp, id->idx, 0, 0);
-    }
-    */
 }
 
 static void
@@ -127,18 +113,6 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 
         if (is_array_meta(&exp->meta))
             exp->u_stk.type = TYPE_UINT32;
-
-#if 0
-        if (!is_stack_exp(id_exp) || !is_lit_exp(idx_exp))
-            /* We must dynamically determine the address and offset */
-            return;
-
-        /* The following meta_size() is stripped size of array */
-        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&exp->meta);
-
-        exp_set_stack(exp, id_exp->u_stk.base, id_exp->u_stk.addr,
-                      id_exp->u_stk.offset + offset);
-#endif
     }
     else {
         /* TODO
@@ -255,13 +229,11 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, qual_exp);
 
     if (is_fn_id(fld_id)) {
-        //ASSERT1(is_local_exp(qual_exp), qual_exp->kind);
         /* It may be a stack expression, in the case of an access expression to the
          * return value of a function */
         if (is_stack_exp(qual_exp)) {
-            //exp_set_fn(exp, qual_exp->u_stk.base, fld_id->idx);
             exp_set_local(exp, qual_exp->u_stk.base);
-            exp->u_local.type = TYPE_INT32;
+            exp->u_local.type = TYPE_UINT32;
         }
         return;
     }
@@ -275,72 +247,12 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         exp_set_stack(exp, qual_exp->u_stk.base, qual_exp->u_stk.addr,
                       qual_exp->u_stk.offset + fld_id->meta.rel_offset);
     }
-
-#if 0
-    if (is_fn_id(fld_id)) {
-        if (is_itf_id(fld_id->up)) {
-            int i;
-            ast_id_t *cont_id = qual_id->meta.type_id;
-
-            ASSERT1(is_object_meta(&qual_id->meta), qual_id->meta.type);
-
-            ASSERT(cont_id != NULL);
-            ASSERT1(is_cont_id(cont_id), cont_id->kind);
-
-            array_foreach(&cont_id->u_cont.blk->ids, i) {
-                ast_id_t *fn_id = array_get_id(&cont_id->u_cont.blk->ids, i);
-
-                if (is_fn_id(fn_id) && strcmp(fld_id->name, fn_id->name) == 0) {
-                    exp->id = fn_id;
-                    break;
-                }
-            }
-        }
-    }
-    else if (is_stack_exp(id_exp)) {
-        exp_set_stack(exp, id_exp->u_stk.addr, id_exp->u_stk.offset + fld_id->meta.rel_offset);
-    }
-#endif
 }
-
-#if 0
-static void
-make_return_addr(ir_fn_t *fn, ast_id_t *ret_id)
-{
-    meta_t *meta = &ret_id->meta;
-
-    if (is_object_meta(meta) && is_cont_id(meta->type_id)) {
-        int i;
-        uint32_t size = 0;
-        ast_id_t *cont_id = meta->type_id;
-
-        for (i = 0; i < array_size(&cont_id->u_cont.blk->ids); i++) {
-            ast_id_t *var_id = array_get_id(&cont_id->u_cont.blk->ids, i);
-
-            if (is_const_id(var_id) || !is_var_id(var_id))
-                continue;
-
-            size = ALIGN(size, meta_align(&var_id->meta));
-            size += meta_size(&var_id->meta);
-        }
-
-        fn->usage = ALIGN(fn->usage, meta_align(meta));
-
-        meta->base_idx = fn->stack_idx;
-        meta->rel_addr = fn->usage;
-
-        fn->usage += size;
-    }
-    else {
-        fn_add_stack(fn, ret_id);
-    }
-}
-#endif
 
 static ast_exp_t *
 make_return_exp(ast_id_t *ret_id, int stack_idx)
 {
-    ast_exp_t *addr_exp = exp_new_local(TYPE_INT32, stack_idx);
+    ast_exp_t *addr_exp = exp_new_local(TYPE_UINT32, stack_idx);
 
     if (ret_id->meta.rel_addr > 0) {
         ast_exp_t *v_exp;
@@ -377,20 +289,11 @@ add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
 
         array_foreach(elem_ids, i) {
             ast_id_t *elem_id = array_get_id(elem_ids, i);
-            //ast_exp_t *ref_exp;
 
             ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
 
             fn_add_stack(fn, &elem_id->meta);
-            //make_return_addr(fn, elem_id);
 
-            /*
-               ref_exp = exp_new_stack(elem_id->meta.type, fn->stack_idx,
-               elem_id->meta.rel_addr, 0);
-               meta_copy(&ref_exp->meta, &elem_id->meta);
-
-               array_add_last(elem_exps, ref_exp);
-             */
             array_add_last(call_exp->u_call.param_exps,
                            make_return_exp(elem_id, fn->stack_idx));
 
@@ -406,7 +309,6 @@ add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
         ASSERT1(ret_id->meta.rel_offset == 0, ret_id->meta.rel_offset);
 
         fn_add_stack(fn, &ret_id->meta);
-        //make_return_addr(fn, ret_id);
 
         array_add_last(call_exp->u_call.param_exps,
                        make_return_exp(ret_id, fn->stack_idx));
@@ -451,26 +353,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         /* If the call expression is of type "x()", pass my first parameter as the first
          * parameter of the target */
-        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
+        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_UINT32, 0));
     }
-#if 0
-    if (is_fn_exp(id_exp)) {
-        /* If the call expression is of type "x()", pass my first parameter as the first
-         * parameter of the target */
-        ASSERT(trans->fn->heap_idx == 0);
-
-        array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_INT32, 0));
-    }
-    else {
-        ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
-
-        /* If the call expression is of type "x.y()", pass "x" as the first argument */
-        ASSERT1(is_access_exp(id_exp), id_exp->kind);
-        ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
-
-        array_add_first(exp->u_call.param_exps, qual_exp);
-    }
-#endif
 
     array_foreach(exp->u_call.param_exps, i) {
         exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
@@ -492,7 +376,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         add_return_param(trans, call_exp, exp);
 
-        /* if there is a return value, we have to clone it because the call expression
+        /* If there is a return value, we have to clone it because the call expression
          * itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
     }
@@ -522,7 +406,7 @@ static void
 exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    bool is_aggr_lit = true;
+    bool is_aggr_val = true;
     array_t *elem_exps = exp->u_init.elem_exps;
 
     array_foreach(elem_exps, i) {
@@ -531,10 +415,10 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, elem_exp);
 
         if (!is_lit_exp(elem_exp))
-            is_aggr_lit = false;
+            is_aggr_val = false;
     }
 
-    if (is_aggr_lit) {
+    if (is_aggr_val) {
         int offset = 0;
         uint32_t size = meta_size(&exp->meta);
         char *raw = xcalloc(size);
@@ -628,7 +512,6 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
     case EXP_GLOBAL:
     case EXP_LOCAL:
     case EXP_STACK:
-    //case EXP_FN:
         break;
 
     default:

@@ -24,86 +24,8 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-#if 0
-    /* The stack id satisfies all of the following conditions.
-     * 1. Not a parameter
-     * 2. An array or (not an object type nor a primitive type) */
-
-    if (is_stack_id(id))
-        fn_add_stack(trans->fn, &id->meta);
-    else
-#endif
-        fn_add_local(trans->fn, id);
+    fn_add_local(trans->fn, id);
 }
-
-#if 0
-static void
-add_init_stmt(trans_t *trans, ast_id_t *id, array_t *stmts)
-{
-    //meta_t *meta = &id->meta;
-    ast_exp_t *l_exp;
-    ir_fn_t *fn = trans->fn;
-
-    ASSERT1(is_var_id(id), id->kind);
-
-    ir_add_global(trans->ir, id, fn->heap_idx);
-
-    if (id->u_var.dflt_exp == NULL)
-        return;
-
-    /* FIXME
-    if (dflt_exp == NULL) {
-        dflt_exp = exp_new_lit(meta->pos);
-
-        if (is_array_meta(meta)) {
-            value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta->arr_size), meta->arr_size);
-        }
-        else if (is_bool_meta(meta)) {
-            value_set_bool(&dflt_exp->u_lit.val, false);
-        }
-        else if (is_fpoint_meta(meta)) {
-            value_set_f64(&dflt_exp->u_lit.val, 0.0);
-        }
-        else if (is_integer_meta(meta) || is_pointer_meta(meta)) {
-            value_set_i64(&dflt_exp->u_lit.val, 0);
-        }
-        else {
-            ASSERT1(is_struct_meta(meta), meta->type);
-            value_set_ptr(&dflt_exp->u_lit.val, xcalloc(meta_size(meta)),
-                          meta_size(meta));
-        }
-
-        meta_copy(&dflt_exp->meta, meta);
-        meta_set_undef(&dflt_exp->meta);
-    }
-    */
-
-    l_exp = exp_new_stack(id->meta.type, id->idx, 0, id->meta.rel_offset);
-    /*
-    id_exp = exp_new_id(id->name, &dflt_exp->pos);
-
-    id_exp->id = id;
-    meta_copy(&id_exp->meta, meta);
-
-    ASSERT2(meta_cmp(&id_exp->meta, &dflt_exp->meta), id_exp->meta.type,
-            dflt_exp->meta.type);
-            */
-
-    stmt_add(stmts, stmt_new_assign(l_exp, id->u_var.dflt_exp, &id->pos));
-}
-
-static void
-add_tmp_vars(ir_fn_t *fn)
-{
-    ASSERT(fn->abi != NULL);
-
-    /* It is used internally for binaryen, not for us (see fn_gen()) */
-    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
-
-    /* All stack variables access memory by adding relative offset to this value */
-    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
-}
-#endif
 
 static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
@@ -114,11 +36,6 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     array_t *stmts = array_new();
     ir_fn_t *fn = trans->fn;
     ir_t *ir = trans->ir;
-
-#if 0
-    ASSERT(id->u_fn.ret_id != NULL);
-    ASSERT1(is_return_id(id->u_fn.ret_id), id->u_fn.ret_id->kind);
-#endif
 
     /* The parameter of the constructor is immutable */
     fn->abi = abi_lookup(&ir->abis, id);
@@ -131,7 +48,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     fn_add_local(fn, addr_id);
     fn->heap_idx = addr_id->idx;
 
-    l_exp = exp_new_local(TYPE_INT32, addr_id->idx);
+    l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
     r_exp = exp_new_global("heap$offset");
 
     stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
@@ -148,7 +65,6 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
         if (is_var_id(var_id)) {
             ir_add_global(trans->ir, var_id, fn->heap_idx);
-            //fn_add_stack(fn, var_id);
 
             dflt_exp = var_id->u_var.dflt_exp;
         }
@@ -157,7 +73,6 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
                 ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
 
                 ir_add_global(trans->ir, elem_id, fn->heap_idx);
-                //fn_add_stack(fn, elem_id);
             }
 
             dflt_exp = var_id->u_tup.dflt_exp;
@@ -190,14 +105,11 @@ static void
 id_trans_param(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *param_id;
-    //ir_fn_t *fn = trans->fn;
-    //ir_t *ir = trans->ir;
 
     /* All functions that are not constructors must be added the contract address as
      * the first argument, and must also be added to the param_ids to reflect the abi */
 
     param_id = id_new_tmp_var("cont$addr");
-    //param_id->is_param = true;
     param_id->u_var.kind = PARAM_IN;
     param_id->up = id;
     meta_set_object(&param_id->meta, id->up);
@@ -216,7 +128,7 @@ set_stack_addr(trans_t *trans, src_pos_t *pos)
 
     /* At the beginning of "entry_bb", set the current stack offset to the local
      * variable */
-    l_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
+    l_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
 
     v_exp = exp_new_lit_i64(ALIGN64(fn->usage), pos);
     meta_set_int32(&v_exp->meta);
@@ -228,7 +140,7 @@ set_stack_addr(trans_t *trans, src_pos_t *pos)
     /* If there is any stack variable in the function, it has to be restored to the
      * original value at the end of "exit_bb" because "stack$offset" has been changed */
     l_exp = exp_new_global("stack$offset");
-    r_exp = exp_new_local(TYPE_INT32, fn->stack_idx);
+    r_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
 
     array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
 }
@@ -244,11 +156,6 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     trans->fn = fn;
 
-    /*
-    if (id->u_fn.blk == NULL)
-        id->u_fn.blk = blk_new_fn(&id->pos);
-        */
-
     if (is_ctor_id(id)) {
         id_trans_ctor(trans, id);
     }
@@ -258,7 +165,6 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         /* The "heap_idx" is always 0 because it is prepended to parameters */
         fn->heap_idx = 0;
         fn->abi = abi_lookup(&ir->abis, id);
-        //add_tmp_vars(fn);
     }
 
     id->abi = fn->abi;
@@ -267,7 +173,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
     /* All stack variables access memory by adding relative offset to this value */
-    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_INT32);
+    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_UINT32);
 
     trans->bb = fn->entry_bb;
 
@@ -286,7 +192,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     if (is_ctor_id(id)) {
         /* The contract address is returned at the end of "exit_bb" */
-        ast_exp_t *arg_exp = exp_new_local(TYPE_INT32, fn->heap_idx);
+        ast_exp_t *arg_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
 
         array_add_last(&fn->exit_bb->stmts, stmt_new_return(arg_exp, &id->pos));
     }
@@ -307,7 +213,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
-    //ASSERT1(ir->offset == 0, ir->offset);
+    ASSERT1(ir->offset == 0, ir->offset);
 
     if (id->u_cont.impl_exp != NULL) {
         /* Reorder functions according to the order in the interface
@@ -361,12 +267,6 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
             /* The "idx" is the relative index within the contract */
             fn_id->idx = fn_idx++;
     }
-
-#if 0
-    /* This value is used when the function argument is interface and
-     * the contract variable is passed as an argument */
-    id->idx = array_size(&ir->fns);
-#endif
 
     /* This value, like any other global variable, is stored in the stack area used by
      * the contract, and is stored in the first 4 bytes of the area. All functions

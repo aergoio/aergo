@@ -60,6 +60,10 @@ blk_check(check_t *check, ast_blk_t *blk)
         id_check(check, array_get_id(&blk->ids, i));
     }
 
+    /* TODO: Checking the return statement on a block for ignore warnings is not
+     * possible at this time because there is a return statement on a particular label
+     * in a switch-case statement (See 006_statement/switch_case) */
+
     array_foreach(&blk->stmts, i) {
         stmt_check(check, array_get_stmt(&blk->stmts, i));
     }

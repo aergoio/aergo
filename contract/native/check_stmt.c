@@ -215,14 +215,8 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         array_add_first(&blk->stmts, break_stmt);
     }
 
-    if (stmt->u_loop.init_id != NULL) {
-        ASSERT(stmt->u_loop.init_stmt == NULL);
-        array_add_first(&blk->ids, stmt->u_loop.init_id);
-    }
-    else if (stmt->u_loop.init_stmt != NULL) {
-        /* The "init_stmt" is handled by the transformer */
-        stmt_check(check, stmt->u_loop.init_stmt);
-    }
+    if (stmt->u_loop.init_stmt != NULL)
+        array_add_first(&blk->stmts, stmt->u_loop.init_stmt);
 
     if (loop_exp != NULL)
         array_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));

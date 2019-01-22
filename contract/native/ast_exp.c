@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "array.h"
 #include "util.h"
 
 #include "ast_exp.h"
@@ -279,22 +280,6 @@ exp_new_stack(type_t type, int base, int addr, int offset)
     return exp;
 }
 
-/*
-ast_exp_t *
-exp_new_fn(int base, int idx)
-{
-    ast_exp_t *exp = ast_exp_new(EXP_FN, &src_pos_null_);
-
-    ASSERT(base >= 0);
-    ASSERT(idx >= 0);
-
-    exp->u_fn.base = base;
-    exp->u_fn.idx = idx;
-
-    return exp;
-}
-*/
-
 void
 exp_set_lit(ast_exp_t *exp, value_t *val)
 {
@@ -329,19 +314,6 @@ exp_set_stack(ast_exp_t *exp, int base, int addr, int offset)
     exp->u_stk.addr = addr;
     exp->u_stk.offset = offset;
 }
-
-/*
-void
-exp_set_fn(ast_exp_t *exp, int base, int idx)
-{
-    ASSERT(base >= 0);
-    ASSERT(idx >= 0);
-
-    exp->kind = EXP_FN;
-    exp->u_fn.base = base;
-    exp->u_fn.idx = idx;
-}
-*/
 
 ast_exp_t *
 exp_clone(ast_exp_t *exp)
@@ -453,12 +425,6 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_stack(exp->u_stk.type, exp->u_stk.base, exp->u_stk.addr,
                             exp->u_stk.offset);
         break;
-
-        /*
-    case EXP_FN:
-        res = exp_new_fn(exp->u_fn.base, exp->u_fn.idx);
-        break;
-        */
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

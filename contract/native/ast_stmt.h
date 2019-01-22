@@ -76,7 +76,6 @@ typedef struct stmt_if_s {
 typedef struct stmt_loop_s {
     loop_kind_t kind;
 
-    ast_id_t *init_id;
     ast_stmt_t *init_stmt;
     ast_exp_t *cond_exp;
     ast_exp_t *loop_exp;
@@ -144,8 +143,8 @@ ast_stmt_t *stmt_new_id(ast_id_t *id, src_pos_t *pos);
 ast_stmt_t *stmt_new_exp(ast_exp_t *exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_assign(ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos);
-ast_stmt_t *stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
-                          ast_blk_t *blk, src_pos_t *pos);
+ast_stmt_t *stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp,
+                          ast_exp_t *loop_exp, ast_blk_t *blk, src_pos_t *pos);
 ast_stmt_t *stmt_new_switch(ast_exp_t *cond_exp, ast_blk_t *blk, src_pos_t *pos);
 ast_stmt_t *stmt_new_case(ast_exp_t *val_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_return(ast_exp_t *arg_exp, src_pos_t *pos);

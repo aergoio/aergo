@@ -36,12 +36,12 @@
         (val)->b = (v);                                                                  \
     } while (0)
 
-#define value_set_i64(val, v)                                                           \
+#define value_set_i64(val, v)                                                            \
     do {                                                                                 \
         (val)->type = TYPE_UINT64;                                                       \
         (val)->size = sizeof(uint64_t);                                                  \
-        (val)->ptr = &(val)->i64;                                                       \
-        (val)->i64 = (v);                                                               \
+        (val)->ptr = &(val)->i64;                                                        \
+        (val)->i64 = (v);                                                                \
     } while (0)
 
 #define value_set_f64(val, v)                                                            \

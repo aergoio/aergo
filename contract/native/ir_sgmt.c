@@ -7,8 +7,6 @@
 
 #include "ir_sgmt.h"
 
-char *null = "\0\0\0\0\0\0\0\0";
-
 static void
 sgmt_extend(ir_sgmt_t *sgmt)
 {
@@ -18,30 +16,6 @@ sgmt_extend(ir_sgmt_t *sgmt)
     sgmt->addrs = xrealloc(sgmt->addrs, sizeof(uint32_t) * sgmt->cap);
     sgmt->datas = xrealloc(sgmt->datas, sizeof(char *) * sgmt->cap);
 }
-
-/*
-int
-sgmt_add_global(ir_sgmt_t *sgmt, type_t type)
-{
-    int len = TYPE_SIZE(type);
-    uint32_t addr;
-
-    if (sgmt->size >= sgmt->cap)
-        sgmt_extend(sgmt);
-
-    sgmt->offset = ALIGN(sgmt->offset, TYPE_BYTE(type));
-    addr = sgmt->offset;
-
-    sgmt->lens[sgmt->size] = len;
-    sgmt->addrs[sgmt->size] = addr;
-    sgmt->datas[sgmt->size] = null;
-
-    sgmt->size++;
-    sgmt->offset += len;
-
-    return addr;
-}
-*/
 
 static int
 sgmt_lookup(ir_sgmt_t *sgmt, void *ptr, uint32_t len)

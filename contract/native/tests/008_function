@@ -197,11 +197,9 @@ contract test {
 contract test {
     func f1() double { }
     func f2() string {
-        return null;
-        f1();
+        double v = f1();
     }
     func f3() int {
-        return 0;
         int x;
     }
 }

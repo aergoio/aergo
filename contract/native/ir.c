@@ -30,30 +30,20 @@ ir_new(void)
 void
 ir_add_global(ir_t *ir, ast_id_t *id, int idx)
 {
-    /*
-    int addr;
-    ast_id_t *cont_id = id->up;
-
-    addr = sgmt_add_global(&ir->sgmt, id->meta.type);
-
-    if (cont_id->meta.rel_addr < 0)
-        cont_id->meta.rel_addr = addr;
-
-    id->meta.rel_addr = cont_id->meta.rel_addr;
-    id->meta.rel_offset = addr - cont_id->meta.rel_addr;
-    */
     ASSERT(idx >= 0);
 
     if (is_array_meta(&id->meta))
+        /* The array is always accessed as a reference */
         ir->offset = ALIGN32(ir->offset);
     else
         ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 
-    /* The global variable does not use "addr",
-     * but uses the local variable set to "base" as the address */
+    /* Global variables are always accessed with "base_idx(== heap$offset) + rel_addr",
+     * and offset is used only when accessing an array or struct element */
+
     id->meta.base_idx = idx;
-    id->meta.rel_addr = 0;
-    id->meta.rel_offset = ir->offset;
+    id->meta.rel_addr = ir->offset;
+    id->meta.rel_offset = 0;
 
     if (is_array_meta(&id->meta))
         ir->offset += sizeof(uint32_t);

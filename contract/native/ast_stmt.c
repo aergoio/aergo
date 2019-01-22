@@ -74,12 +74,13 @@ stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_loop(loop_kind_t kind, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
-              ast_blk_t *blk, src_pos_t *pos)
+stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp,
+              ast_exp_t *loop_exp, ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_LOOP, pos);
 
     stmt->u_loop.kind = kind;
+    stmt->u_loop.init_stmt = init_stmt;
     stmt->u_loop.cond_exp = cond_exp;
     stmt->u_loop.loop_exp = loop_exp;
     stmt->u_loop.blk = blk;
@@ -187,11 +188,6 @@ stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
 
         var_exp = exp_new_tuple(elem_exps, &val_exp->pos);
     }
-    /*
-    else if (is_return_id(var_id)) {
-        var_exp = exp_new_local(TYPE_INT32, var_id->idx);
-    }
-    */
     else {
         var_exp = exp_new_id(var_id->name, &var_id->pos);
 

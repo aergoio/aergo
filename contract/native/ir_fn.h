@@ -30,6 +30,11 @@ typedef struct ir_bb_s ir_bb_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
+#ifndef _META_T
+#define _META_T
+typedef struct meta_s meta_t;
+#endif /* ! _META_T */
+
 struct ir_fn_s {
     char *name;
     char *exp_name;         /* name to export */
