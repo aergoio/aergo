@@ -172,7 +172,7 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 
 func TestSyncerAlreadySynched(t *testing.T) {
 	//When sync is already done before finder runs
-	remoteChainLen := 1002
+	remoteChainLen := 1010
 	//localChainLen := 999
 	targetNo := uint64(1000)
 
@@ -188,13 +188,15 @@ func TestSyncerAlreadySynched(t *testing.T) {
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 	syncer.getAnchorsHookFn = func(stubSyncer *StubSyncer) {
 		stubSyncer.localChain.AddBlock(remoteChain.Blocks[1000])
+		stubSyncer.localChain.AddBlock(remoteChain.Blocks[1001])
+		stubSyncer.localChain.AddBlock(remoteChain.Blocks[1002])
 	}
 	syncer.start()
 
-	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: targetNo}
 	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
 
 	syncer.waitStop()
 
-	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
+	assert.Equal(t, 1002, syncer.localChain.Best, "sync failed")
 }
