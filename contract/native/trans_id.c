@@ -169,14 +169,14 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     /* Increase "heap$offset" by the amount of memory used by the global variables
      * defined in the contract */
-    l_exp = exp_new_global("heap$offset");
+    l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
 
     v_exp = exp_new_lit_i64(ir->offset, &id->pos);
     meta_set_int32(&v_exp->meta);
 
     r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
 
-    stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+    stmt_add(stmts, stmt_new_assign(exp_new_global("heap$offset"), r_exp, &id->pos));
 
     if (!is_empty_array(stmts)) {
         if (id->u_fn.blk == NULL)

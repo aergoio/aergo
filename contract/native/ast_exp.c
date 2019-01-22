@@ -17,6 +17,7 @@ ast_exp_new(exp_kind_t kind, src_pos_t *pos)
     ast_node_init(exp, *pos);
 
     exp->kind = kind;
+    exp->usable_lval = true;
 
     meta_init(&exp->meta, &exp->pos);
 

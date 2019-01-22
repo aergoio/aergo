@@ -10,6 +10,7 @@
 
 #include "gen_stmt.h"
 
+#if 0
 static void store_array(gen_t *gen, BinaryenExpressionRef var_addr, uint32_t var_offset,
                         meta_t *var_meta, BinaryenExpressionRef val_addr,
                         uint32_t val_offset, meta_t *val_meta);
@@ -40,14 +41,14 @@ store_struct(gen_t *gen, BinaryenExpressionRef var_addr, uint32_t var_offset,
         meta_t *elem_meta = var_meta->elems[i];
 
         if (is_array_meta(elem_meta))
-            store_array(gen, var_addr, var_offset + elem_meta->rel_offset, elem_meta, 
+            store_array(gen, var_addr, var_offset + elem_meta->rel_offset, elem_meta,
                         val_addr, val_offset + elem_meta->rel_offset, val_meta->elems[i]);
         else if (is_struct_meta(elem_meta))
-            store_struct(gen, var_addr, var_offset + elem_meta->rel_offset, elem_meta, 
+            store_struct(gen, var_addr, var_offset + elem_meta->rel_offset, elem_meta,
                          val_addr, val_offset + elem_meta->rel_offset,
                          val_meta->elems[i]);
         else
-            store_element(gen, elem_meta->type, var_addr, 
+            store_element(gen, elem_meta->type, var_addr,
                           var_offset + elem_meta->rel_offset, val_addr,
                           val_offset + elem_meta->rel_offset);
     }
@@ -68,10 +69,10 @@ store_array(gen_t *gen, BinaryenExpressionRef var_addr, uint32_t var_offset,
         for (j = 0; j < var_meta->dim_sizes[i]; j++) {
             if (is_struct_meta(var_meta)) {
                 if (is_array_meta(val_meta))
-                    store_struct(gen, var_addr, var_offset, var_meta, val_addr, 
+                    store_struct(gen, var_addr, var_offset, var_meta, val_addr,
                                  val_offset, val_meta);
                 else
-                    store_struct(gen, var_addr, var_offset, var_meta, val_addr, 
+                    store_struct(gen, var_addr, var_offset, var_meta, val_addr,
                                  val_offset, val_meta->elems[i]);
             }
             else {
@@ -84,6 +85,7 @@ store_array(gen_t *gen, BinaryenExpressionRef var_addr, uint32_t var_offset,
         }
     }
 }
+#endif
 
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
@@ -123,16 +125,23 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 #endif
 
     if (is_global_exp(l_exp)) {
-        ASSERT(l_exp->u_glob.name != NULL);
+        //ASSERT(l_exp->u_glob.name != NULL);
         return BinaryenSetGlobal(gen->module, l_exp->u_glob.name, value);
     }
 
     if (is_local_exp(l_exp)) {
-        ASSERT(l_exp->u_local.idx >= 0);
+        //ASSERT(l_exp->u_local.idx >= 0);
         return BinaryenSetLocal(gen->module, l_exp->u_local.idx, value);
     }
 
+    gen->is_lval = true;
+    address = exp_gen(gen, l_exp);
+    gen->is_lval = false;
+
     if (is_stack_exp(l_exp)) {
+        type_t type = l_exp->u_stk.type;
+
+        /*
         ASSERT(l_exp->u_stk.base >= 0);
         ASSERT(l_exp->u_stk.addr >= 0);
 
@@ -141,23 +150,28 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         if (l_exp->u_stk.addr > 0)
             address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                      i32_gen(gen, l_exp->u_stk.addr));
+                                     */
 
         /* TODO: need to impose some nice STORE instruction */
+        /*
         if (is_array_meta(&l_exp->meta)) {
-            store_array(gen, address, l_exp->u_stk.offset, &l_exp->meta, value, 0, 
+            store_array(gen, address, l_exp->u_stk.offset, &l_exp->meta, value, 0,
                         &r_exp->meta);
             return NULL;
         }
 
         if (is_struct_meta(&l_exp->meta)) {
-            store_struct(gen, address, l_exp->u_stk.offset, &l_exp->meta, value, 0, 
+            store_struct(gen, address, l_exp->u_stk.offset, &l_exp->meta, value, 0,
                          &r_exp->meta);
             return NULL;
         }
+        */
 
-        return BinaryenStore(gen->module, TYPE_BYTE(l_exp->u_stk.type),
-                             l_exp->u_stk.offset, 0, address, value,
-                             type_gen(l_exp->u_stk.type));
+        if (is_array_meta(&l_exp->meta))
+            type = TYPE_UINT32;
+
+        return BinaryenStore(gen->module, TYPE_BYTE(type), l_exp->u_stk.offset, 0,
+                             address, value, type_gen(type));
     }
 
     /*
@@ -175,9 +189,11 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     /* For an array whose index is a variable, we must dynamically determine the offset */
     ASSERT1(is_array_meta(&id->meta), id->meta.type);
 
+    /*
     gen->is_lval = true;
     address = exp_gen(gen, l_exp);
     gen->is_lval = false;
+    */
 
     return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
                          value, meta_gen(&l_exp->meta));

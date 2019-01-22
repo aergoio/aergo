@@ -12,14 +12,17 @@ contract test {
         i1 /= 2;
         i1 %= 10;
 
+        i2 = i1;
         i2 |= 0xff;
         i2 &= 0x01;
         i2 ^= 0x01;
 
-        string s = "first";
-        s += ", second";
+        string s1 = "first";
+        s1 += ", second";
 
-        i1, s = 1, "first";
+        string s2 = s1;
+
+        i1, s1 = 1, "first";
     }
 }
 
@@ -63,7 +66,7 @@ contract test {
         i[idx + 2] = 7;
 
         int k[][] = j;
-        int l[] = j[0];
+        int l[] = j[1];
     }
 }
 

@@ -161,7 +161,7 @@ contract test {
     string s = 1 == 1 ? "true" : false;
 }
 
-@test(type_cast_from_constant)
+@test(cast_from_constant)
 contract test {
     bool b1 = (bool)false;
     bool b2 = (bool)1;
@@ -180,7 +180,7 @@ contract test {
     string s4 = (string)1.644;
 }
 
-@test(type_cast_from_variable)
+@test(cast_from_variable)
 contract test {
     bool b1;
     int8 i1;

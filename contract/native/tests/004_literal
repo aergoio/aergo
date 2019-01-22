@@ -230,6 +230,7 @@ contract test {
         string c;
     }
     s1 v1 = new s1;
+    s1 v2 = new s1;
 }
 
 @test(struct_array_initializer)
@@ -267,7 +268,8 @@ contract test {
         int b;
         string c;
     }
-    s1 v2[2] = new s1[2];
+    s1 v1[2] = new s1[2];
+    s1 v2[3] = new s1[3];
 }
 
 @test(map_initializer)

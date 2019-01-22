@@ -32,8 +32,11 @@
 #define is_stack_exp(exp)           ((exp)->kind == EXP_STACK)
 //#define is_fn_exp(exp)              ((exp)->kind == EXP_FN)
 
+/*
 #define is_usable_lval(exp)                                                              \
     ((exp)->id != NULL && !is_const_id((exp)->id) && is_var_id((exp)->id))
+    */
+#define is_usable_lval(exp)         (exp)->usable_lval
 
 #define is_usable_stmt(exp)                                                              \
     (is_null_exp(exp) || is_call_exp(exp) ||                                             \
@@ -193,6 +196,8 @@ struct ast_exp_s {
 
     ast_id_t *id;       /* referenced identifier */
     meta_t meta;
+
+    bool usable_lval;
 
     AST_NODE_DECL;
 };

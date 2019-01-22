@@ -662,12 +662,16 @@ exp_gen_alloc(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_global(gen_t *gen, ast_exp_t *exp)
 {
+    ASSERT(exp->u_glob.name != NULL);
+
     return BinaryenGetGlobal(gen->module, exp->u_glob.name, BinaryenTypeInt32());
 }
 
 static BinaryenExpressionRef
 exp_gen_local(gen_t *gen, ast_exp_t *exp)
 {
+    ASSERT(exp->u_local.idx >= 0);
+
     return BinaryenGetLocal(gen->module, exp->u_local.idx, type_gen(exp->u_local.type));
 }
 
@@ -677,14 +681,22 @@ exp_gen_stack(gen_t *gen, ast_exp_t *exp)
     type_t type = exp->u_stk.type;
     BinaryenExpressionRef address;
 
+    ASSERT(exp->u_stk.base >= 0);
+    ASSERT(exp->u_stk.addr >= 0);
+
     address = BinaryenGetLocal(gen->module, exp->u_stk.base, BinaryenTypeInt32());
 
     if (exp->u_stk.addr > 0)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->u_stk.addr));
 
-    if (is_pointer_meta(&exp->meta))
+    if (gen->is_lval || is_array_meta(&exp->meta) || is_object_meta(&exp->meta)) {
+        if (exp->u_stk.offset > 0)
+            return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                                  i32_gen(gen, exp->u_stk.offset));
+
         return address;
+    }
 
     return BinaryenLoad(gen->module, TYPE_BYTE(type), is_signed_type(type),
                         exp->u_stk.offset, 0, type_gen(type), address);

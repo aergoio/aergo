@@ -16,6 +16,8 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
 {
     ASSERT1(is_lit_exp(exp), exp->kind);
 
+    exp->usable_lval = false;
+
     switch (exp->u_lit.val.type) {
     case TYPE_BOOL:
         meta_set_bool(&exp->meta);
@@ -77,6 +79,9 @@ exp_check_id(check_t *check, ast_exp_t *exp)
     else
         exp->id = id;
 
+    if (!is_var_id(id) || is_const_id(id))
+        exp->usable_lval = false;
+
     meta_copy(&exp->meta, &id->meta);
 
     return true;
@@ -135,6 +140,8 @@ exp_check_type(check_t *check, ast_exp_t *exp)
 
         meta_set(&exp->meta, exp->u_type.type);
     }
+
+    exp->usable_lval = false;
 
     return true;
 }
@@ -228,6 +235,8 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
         value_cast(&exp->u_lit.val, exp->meta.type);
     }
 
+    exp->usable_lval = false;
+
     return true;
 }
 
@@ -282,6 +291,8 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
 
         value_eval(&val_exp->u_lit.val, op, NULL, &exp->u_lit.val);
     }
+
+    exp->usable_lval = false;
 
     return true;
 }
@@ -495,6 +506,8 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
         value_eval(&l_exp->u_lit.val, op, &r_exp->u_lit.val, &exp->u_lit.val);
     }
 
+    exp->usable_lval = false;
+
     return true;
 }
 
@@ -531,6 +544,8 @@ exp_check_ternary(check_t *check, ast_exp_t *exp)
     meta_eval(in_meta, post_meta);
     meta_copy(&exp->meta, in_meta);
 
+    exp->usable_lval = false;
+
     return true;
 }
 
@@ -562,6 +577,9 @@ exp_check_access(check_t *check, ast_exp_t *exp)
                 qual_id->kind);
         ASSERT(qual_meta->type_id != NULL);
 
+        if (is_cont_id(qual_id))
+            qual_exp->usable_lval = true;
+
         qual_id = qual_meta->type_id;
     }
 
@@ -583,6 +601,8 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     }
 
     check->qual_id = NULL;
+
+    exp->usable_lval = qual_exp->usable_lval && fld_exp->usable_lval;
 
     return true;
 }
@@ -670,6 +690,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     exp->id = id;
     meta_copy(&exp->meta, &id->meta);
 
+    exp->usable_lval = false;
+
     return true;
 }
 
@@ -694,6 +716,8 @@ exp_check_sql(check_t *check, ast_exp_t *exp)
         ASSERT1(!"invalid sql", exp->u_sql.kind);
     }
 
+    exp->usable_lval = false;
+
     return true;
 }
 
@@ -707,7 +731,11 @@ exp_check_tuple(check_t *check, ast_exp_t *exp)
     ASSERT(elem_exps != NULL);
 
     array_foreach(elem_exps, i) {
-        CHECK(exp_check(check, array_get_exp(elem_exps, i)));
+        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+
+        CHECK(exp_check(check, elem_exp));
+
+        exp->usable_lval &= elem_exp->usable_lval;
     }
 
     meta_set_tuple(&exp->meta, elem_exps);
@@ -733,6 +761,8 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     }
 
     meta_set_tuple(&exp->meta, elem_exps);
+
+    exp->usable_lval = false;
 
     return true;
 }
@@ -786,6 +816,8 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
     else if (exp->meta.type <= TYPE_STRING || exp->meta.type == TYPE_OBJECT) {
         RETURN(ERROR_INVALID_INITIALIZER, &exp->pos);
     }
+
+    exp->usable_lval = false;
 
     return true;
 }

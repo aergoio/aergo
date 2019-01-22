@@ -30,6 +30,8 @@ gen_init(gen_t *gen, flag_t flag, ir_t *ir)
 
     gen->instr_cnt = 0;
     gen->instrs = NULL;
+
+    gen->is_lval = false;
 }
 
 static void

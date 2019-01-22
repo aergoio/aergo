@@ -125,6 +125,9 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         else
             exp_set_stack(exp, id_exp->u_local.idx, 0, offset);
 
+        if (is_array_meta(&exp->meta))
+            exp->u_stk.type = TYPE_UINT32;
+
 #if 0
         if (!is_stack_exp(id_exp) || !is_lit_exp(idx_exp))
             /* We must dynamically determine the address and offset */
@@ -474,13 +477,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     }
 
     if (fn->usage > 0) {
-        ast_exp_t *l_exp = exp_new_global("stack$offset");
+        ast_exp_t *l_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
         ast_exp_t *v_exp = exp_new_lit_i64(ALIGN64(fn->usage), &exp->pos);
         ast_exp_t *r_exp = exp_new_binary(OP_SUB, l_exp, v_exp, &exp->pos);
 
         meta_set_int32(&v_exp->meta);
 
-        bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+        bb_add_stmt(trans->bb,
+                    stmt_new_assign(exp_new_global("stack$offset"), r_exp, &exp->pos));
     }
 
     if (exp->id->u_fn.ret_id != NULL) {

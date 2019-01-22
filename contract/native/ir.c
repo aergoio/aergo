@@ -44,7 +44,10 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
     */
     ASSERT(idx >= 0);
 
-    ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
+    if (is_array_meta(&id->meta))
+        ir->offset = ALIGN32(ir->offset);
+    else
+        ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
 
     /* The global variable does not use "addr",
      * but uses the local variable set to "base" as the address */
@@ -52,7 +55,10 @@ ir_add_global(ir_t *ir, ast_id_t *id, int idx)
     id->meta.rel_addr = 0;
     id->meta.rel_offset = ir->offset;
 
-    ir->offset += meta_size(&id->meta);
+    if (is_array_meta(&id->meta))
+        ir->offset += sizeof(uint32_t);
+    else
+        ir->offset += TYPE_BYTE(id->meta.type);
 }
 
 void
