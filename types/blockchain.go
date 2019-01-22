@@ -608,17 +608,17 @@ func (tx *Tx) Clone() *Tx {
 		Nonce:     tx.Body.Nonce,
 		Account:   Clone(tx.Body.Account).([]byte),
 		Recipient: Clone(tx.Body.Recipient).([]byte),
-		Amount:    tx.Body.Amount,
+		Amount:    Clone(tx.Body.Amount).([]byte),
 		Payload:   Clone(tx.Body.Payload).([]byte),
 		Limit:     tx.Body.Limit,
-		Price:     tx.Body.Price,
-		Sign:      Clone(tx.Body.Sign).([]byte),
+		Price:     Clone(tx.Body.Price).([]byte),
 		Type:      tx.Body.Type,
+		Sign:      Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
 		Body: body,
 	}
-	res.Hash = tx.CalculateTxHash()
+	res.Hash = res.CalculateTxHash()
 	return res
 }
 
