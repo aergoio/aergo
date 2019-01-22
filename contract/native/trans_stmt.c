@@ -58,16 +58,24 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-resolve_rel(ast_exp_t *var_exp, ast_exp_t *val_exp)
+resolve_rel(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
     if (is_init_exp(val_exp)) {
-        ASSERT(var_exp->id != NULL);
+        ast_id_t *id = var_exp->id;
+
+        ASSERT(id != NULL);
 
         /* This is set here because we need the base address to store each value of
          * the initializer expression */
-        val_exp->id = var_exp->id;
+        if (is_out_param(id) || is_local_id(id)) {
+            val_exp->meta.base_idx = id->idx;
+        }
+        else {
+            val_exp->meta.base_idx = id->meta.base_idx;
+            val_exp->meta.rel_addr = id->meta.rel_addr;
+        }
     }
 
     if (val_exp->id != NULL && is_object_meta(meta) &&
@@ -107,7 +115,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                 var_exp = array_get_exp(var_exps, i);
                 val_exp = array_get_exp(val_exps, i);
 
-                resolve_rel(var_exp, val_exp);
+                resolve_rel(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
             return;
@@ -128,14 +136,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_exp = array_get_exp(var_exps, var_idx++);
                     elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
 
-                    resolve_rel(var_exp, elem_exp);
+                    resolve_rel(trans, var_exp, elem_exp);
                     bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
                 }
             }
             else {
                 var_exp = array_get_exp(var_exps, var_idx++);
 
-                resolve_rel(var_exp, val_exp);
+                resolve_rel(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
         }
@@ -143,7 +151,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     else {
         ASSERT(!is_tuple_exp(l_exp));
 
-        resolve_rel(l_exp, r_exp);
+        resolve_rel(trans, l_exp, r_exp);
         bb_add_stmt(trans->bb, stmt);
     }
 }

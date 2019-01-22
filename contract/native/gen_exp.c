@@ -539,37 +539,11 @@ static BinaryenExpressionRef
 exp_gen_init(gen_t *gen, ast_exp_t *exp)
 {
     int i;
-    ast_id_t *id = exp->id;
+    meta_t *meta = &exp->meta;
     array_t *elem_exps = exp->u_init.elem_exps;
-    BinaryenExpressionRef address;
     BinaryenExpressionRef value;
 
-    ASSERT(id != NULL);
-    ASSERT1(is_var_id(id), id->kind);
-    ASSERT(id->idx >= 0);
-
-    if (is_out_param(id))
-        address = BinaryenGetLocal(gen->module, id->idx, BinaryenTypeInt32());
-    else
-        address = BinaryenGetLocal(gen->module, id->idx, meta_gen(&id->meta));
-
-    if (is_array_meta(&id->meta) || is_struct_meta(&id->meta)) {
-        int offset = 0;
-
-        array_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
-            meta_t *elem_meta = &elem_exp->meta;
-
-            value = exp_gen(gen, elem_exp);
-            offset = ALIGN(offset, meta_align(elem_meta));
-
-            instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), offset,
-                                         0, address, value, meta_gen(elem_meta)));
-
-            offset += meta_size(elem_meta);
-        }
-    }
-    else if (is_map_meta(&id->meta)) {
+    if (is_map_meta(meta)) {
         /* elem_exps is the array of key-value pair */
         BinaryenExpressionRef args[2];
 
@@ -583,6 +557,39 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
             instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
                                         BinaryenTypeNone()));
+        }
+    }
+    else {
+        uint32_t offset = 0;
+        BinaryenExpressionRef address;
+
+        ASSERT(exp->meta.base_idx >= 0);
+        ASSERT1(is_tuple_meta(meta), meta->type);
+
+        address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
+
+        if (exp->meta.rel_addr > 0)
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                                     i32_gen(gen, exp->meta.rel_addr));
+
+        array_foreach(elem_exps, i) {
+            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+            meta_t *elem_meta = &elem_exp->meta;
+
+            if (is_init_exp(elem_exp)) {
+                elem_exp->meta.base_idx = exp->meta.base_idx;
+                elem_exp->meta.rel_addr = exp->meta.rel_addr + offset;
+            }
+
+            value = exp_gen(gen, elem_exp);
+            offset = ALIGN(offset, meta_align(elem_meta));
+
+            if (value != NULL)
+                instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), 
+                                             offset, 0, address, value, 
+                                             meta_gen(elem_meta)));
+
+            offset += meta_size(elem_meta);
         }
     }
 

@@ -326,14 +326,14 @@ contract test {
     int i3[3] = new { i1, 256, i2 };
 
     string s1 = "No.2";
-    string s2[1] = new { s1 };
+    string s2[3] = new { "No.1", s1, "No.3" };
 
     type s struct {
         int a;
         string b;
     }
-    s v1 = new { -17, s1 };
-    s v2[3] = new { { 1, "I am " + s1 }, { i1 - 126, v1.b }, { v1.a, "No.3" } };
+    s v1 = new { -8, s1 };
+    s v2[2] = new { { v1.a, s1 }, { i1 - 126, v1.b } };
 }
 
 @test(invalid_allocator_declaration)
