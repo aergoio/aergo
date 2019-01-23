@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -190,12 +189,12 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
+	idx := dpos.bpc.BpID2Index(id)
 	ns := block.GetHeader().GetTimestamp()
-	idx, ok := dpos.bpc.BpID2Index(id)
 	s := slot.NewFromUnixNano(ns)
 	// Check whether the BP ID is one of the current BP members and its
 	// corresponding BP index is consistent with the block timestamp.
-	if !ok || !s.IsFor(idx) {
+	if !s.IsFor(idx) {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf("BP %v (idx: %v) is not permitted for the time slot %v (%v)",
 				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex()),
@@ -205,13 +204,8 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	return nil
 }
 
-func (dpos *DPoS) bpIdx() uint16 {
-	idx, exist := dpos.bpc.BpID2Index(dpos.bpid())
-	if !exist {
-		logger.Fatal().Str("id", enc.ToString([]byte(dpos.bpid()))).Msg("BP has no correct BP membership")
-	}
-
-	return idx
+func (dpos *DPoS) bpIdx() bp.Index {
+	return dpos.bpc.BpID2Index(dpos.bpid())
 }
 
 func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {

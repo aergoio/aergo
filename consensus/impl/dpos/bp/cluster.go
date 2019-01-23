@@ -8,6 +8,7 @@ package bp
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -46,8 +47,8 @@ type ClusterMember interface {
 type Cluster struct {
 	sync.Mutex
 	size   uint16
-	member map[uint16]*blockProducer
-	index  map[peer.ID]uint16
+	member map[Index]*blockProducer
+	index  map[peer.ID]Index
 
 	cdb consensus.ChainDB
 }
@@ -117,8 +118,8 @@ func (c *Cluster) Update(ids []string) error {
 	c.Lock()
 	defer c.Unlock()
 
-	c.member = make(map[uint16]*blockProducer)
-	c.index = make(map[peer.ID]uint16)
+	bpMember := make(map[Index]*blockProducer)
+	bpIndex := make(map[peer.ID]Index)
 
 	for i, id := range ids {
 		bpID, err := peer.IDB58Decode(id)
@@ -126,14 +127,21 @@ func (c *Cluster) Update(ids []string) error {
 			return fmt.Errorf("invalid node ID[%d]: %s", i, err.Error())
 		}
 
-		index := uint16(i)
-		c.member[index] = newBlockProducer(bpID)
-		c.index[bpID] = index
+		var index Index
+		if index, err = newIndex(i); err != nil {
+			return err
+		}
+
+		bpMember[index] = newBlockProducer(bpID)
+		bpIndex[bpID] = index
 	}
 
-	if len(c.index) != int(c.size) {
+	if len(bpMember) != int(c.size) {
 		return errBpSize{required: c.size, given: uint16(len(ids))}
 	}
+
+	c.member = bpMember
+	c.index = bpIndex
 
 	logger.Debug().Msgf("BP list updated. member: %v", ids)
 
@@ -145,23 +153,48 @@ func (c *Cluster) Size() uint16 {
 	return c.size
 }
 
+// Index is a type for a block producer index.
+type Index uint16
+
+// indexNil is the nil value for BpIndex type
+const (
+	indexNil = Index(math.MaxUint16)
+	indexMax = indexNil - 1
+)
+
+func newIndex(i int) (Index, error) {
+	if i > int(indexMax) {
+		return indexNil, fmt.Errorf("BP index [%v] is too big", i)
+	}
+	return Index(i), nil
+}
+
+// IsNil reports whether idx is nil or not.
+func (idx Index) IsNil() bool {
+	return idx == indexNil
+}
+
 // BpIndex2ID returns the ID correspinding to idx.
-func (c *Cluster) BpIndex2ID(idx uint16) (peer.ID, bool) {
+func (c *Cluster) BpIndex2ID(bpIdx Index) (peer.ID, bool) {
 	c.Lock()
 	defer c.Unlock()
 
-	if bp, exist := c.member[idx]; exist {
+	if bp, exist := c.member[bpIdx]; exist {
 		return bp.id, exist
 	}
 	return peer.ID(""), false
 }
 
 // BpID2Index returns the index corresponding to id.
-func (c *Cluster) BpID2Index(id peer.ID) (uint16, bool) {
+func (c *Cluster) BpID2Index(id peer.ID) Index {
 	c.Lock()
 	defer c.Unlock()
 	idx, exist := c.index[id]
-	return idx, exist
+	if exist {
+		return idx
+	}
+
+	return indexNil
 }
 
 // Has reports whether c includes id or not
