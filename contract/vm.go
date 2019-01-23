@@ -142,7 +142,9 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 		prevBlockHash: prevBlockHash,
 		service:       C.int(service),
 	}
-	setRandomSeed(stateSet)
+	if blockHeight > 0 { // No Preload
+		setRandomSeed(stateSet)
+	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
@@ -534,9 +536,6 @@ func setRandomSeed(stateSet *StateSet) {
 	if stateSet.isQuery {
 		randSrc = rand.NewSource(stateSet.timestamp)
 	} else {
-		if len(stateSet.txHash) == 0 { // Preload
-			return
-		}
 		b, _ := new(big.Int).SetString(enc.ToString(stateSet.prevBlockHash[:7]), 62)
 		t, _ := new(big.Int).SetString(enc.ToString(stateSet.txHash[:7]), 62)
 		b.Add(b, t)
