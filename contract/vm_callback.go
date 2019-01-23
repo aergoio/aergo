@@ -922,7 +922,7 @@ func LuaRandom(L *LState, service C.int) C.int {
 			luaPushStr(L, "system.random: the maximum value must be greater than zero")
 			return -1
 		}
-		C.lua_pushinteger(L, C.long(stateSet.seed.Intn(int(n))) + C.long(1))
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(n))) + C.lua_Integer(1))
 	default:
 		min := C.luaL_checkinteger(L, 1)
 		max := C.luaL_checkinteger(L, 2)
@@ -934,7 +934,7 @@ func LuaRandom(L *LState, service C.int) C.int {
 			luaPushStr(L, "system.random: the maximum value must be greater than the minimum value")
 			return -1
 		}
-		C.lua_pushinteger(L, C.long(stateSet.seed.Intn(int(max+C.long(1)-min))) + min)
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(max+C.lua_Integer(1)-min))) + min)
 	}
 	return 1
 }
