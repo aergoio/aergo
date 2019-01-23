@@ -52,6 +52,8 @@ gen(ir_t *ir, flag_t flag, char *infile)
         fn_gen(&gen, array_get_fn(&ir->fns, i));
     }
 
+    //malloc_gen(&gen);
+
     table_gen(&gen, &ir->fns);
 
     sgmt_gen(&gen, &ir->sgmt);

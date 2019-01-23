@@ -121,10 +121,9 @@ contract test {
     }
 
     func f1(int x, string y) s { s v = new { x, y }; return v; }
-    //func f2(int x, string y) s { return new { x, y }; }
-    //func f3() map(int, string) { return new map(int, string); }
+    func f2(int x, string y) s { return new { x, y }; }
+    func f3() map(int, string) { return new map(int, string); }
 
-    /*
     test() {
         s v = f1(1, "1");
         int a = f1(2, "2").a;
@@ -133,7 +132,6 @@ contract test {
         map(int, string) m = f3();
         m[1] = f3()[1];
     }
-    */
 }
 
 @test(return_function_value)

@@ -110,9 +110,36 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 
     BinaryenAddGlobal(gen->module, "stack$offset", BinaryenTypeInt32(), 1,
                       i32_gen(gen, stack_size));
-
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, stack_size + 1));
+                      i32_gen(gen, stack_size));
+}
+
+void
+malloc_gen(gen_t *gen)
+{
+    BinaryenType type = BinaryenTypeInt32();
+    BinaryenType params[] = { BinaryenTypeInt32() };
+    BinaryenType locals[] = { BinaryenTypeInt32() };
+    BinaryenFunctionTypeRef spec;
+    BinaryenExpressionRef instrs[3];
+    BinaryenModuleRef module = gen->module;
+
+    BinaryenAddGlobal(module, "heap$offset", type, 1, i32_gen(gen, STACK_SIZE));
+
+    spec = BinaryenAddFunctionType(module, "system$malloc", type, params, 1);
+
+    instrs[0] = BinaryenSetLocal(module, 1,
+                                 BinaryenGetGlobal(module, "heap$offset", type));
+
+    instrs[1] = BinaryenSetGlobal(module, "heap$offset",
+                                  BinaryenBinary(module, BinaryenAddInt32(),
+                                                 BinaryenGetLocal(module, 1, type),
+                                                 BinaryenGetLocal(module, 0, type)));
+
+    instrs[2] = BinaryenReturn(module, BinaryenGetLocal(module, 1, type));
+
+    BinaryenAddFunction(module, "system$malloc", spec, locals, 1,
+                        BinaryenBlock(module, NULL, instrs, 3, BinaryenTypeInt32()));
 }
 
 /* end of gen_util.c */

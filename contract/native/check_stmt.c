@@ -479,6 +479,8 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "return", meta_cnt(fn_meta), 0);
     }
 
+    /* Because each "arg_exp" may already be set to "id", we have to set the function's
+     * ret_id itself in the statement */
     stmt->u_ret.ret_id = fn_id->u_fn.ret_id;
 
     return true;

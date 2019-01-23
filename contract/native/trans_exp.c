@@ -64,7 +64,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id) || is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
-        exp_set_local(exp, trans->fn->heap_idx);
+        exp_set_local(exp, trans->fn->cont_idx);
         exp->u_local.type = TYPE_UINT32;
     }
 }
@@ -349,7 +349,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     }
     else {
         ASSERT1(is_local_exp(id_exp), id_exp->kind);
-        ASSERT(trans->fn->heap_idx == 0);
+        ASSERT(trans->fn->cont_idx == 0);
 
         /* If the call expression is of type "x()", pass my first parameter as the first
          * parameter of the target */

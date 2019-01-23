@@ -47,7 +47,7 @@ struct ir_fn_s {
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;
 
-    int heap_idx;           /* local index of heap base address */
+    int cont_idx;           /* local index of contract address */
     int stack_idx;          /* local index of stack base address */
     int reloop_idx;         /* local index of relooper variable */
 

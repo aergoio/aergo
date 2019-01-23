@@ -46,7 +46,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     meta_set_int32(&addr_id->meta);
 
     fn_add_local(fn, addr_id);
-    fn->heap_idx = addr_id->idx;
+    fn->cont_idx = addr_id->idx;
 
     l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
     r_exp = exp_new_global("heap$offset");
@@ -58,13 +58,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
         ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
         ast_exp_t *dflt_exp = NULL;
 
-        if (is_const_id(id))
-            /* The constant is assumed to have already been replaced by a literal
-             * expression */
-            continue;
-
         if (is_var_id(var_id)) {
-            ir_add_global(trans->ir, var_id, fn->heap_idx);
+            ir_add_heap(trans->ir, &var_id->meta, fn->cont_idx);
 
             dflt_exp = var_id->u_var.dflt_exp;
         }
@@ -72,7 +67,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             array_foreach(var_id->u_tup.elem_ids, j) {
                 ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
 
-                ir_add_global(trans->ir, elem_id, fn->heap_idx);
+                ir_add_heap(trans->ir, &elem_id->meta, fn->cont_idx);
             }
 
             dflt_exp = var_id->u_tup.dflt_exp;
@@ -162,8 +157,8 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     else {
         id_trans_param(trans, id);
 
-        /* The "heap_idx" is always 0 because it is prepended to parameters */
-        fn->heap_idx = 0;
+        /* The "cont_idx" is always 0 because it is prepended to parameters */
+        fn->cont_idx = 0;
         fn->abi = abi_lookup(&ir->abis, id);
     }
 
@@ -192,9 +187,13 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     if (is_ctor_id(id)) {
         /* The contract address is returned at the end of "exit_bb" */
-        ast_exp_t *arg_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
+        ast_exp_t *arg_exp = exp_new_local(TYPE_UINT32, fn->cont_idx);
+        ast_stmt_t *ret_stmt = stmt_new_return(arg_exp, &id->pos);
 
-        array_add_last(&fn->exit_bb->stmts, stmt_new_return(arg_exp, &id->pos));
+        ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
+        ASSERT(ret_stmt->u_ret.ret_id != NULL);
+
+        array_add_last(&fn->exit_bb->stmts, ret_stmt);
     }
 
     trans->fn = NULL;

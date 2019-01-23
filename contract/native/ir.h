@@ -11,14 +11,10 @@
 #include "array.h"
 #include "ir_sgmt.h"
 
-#define LOCAL_HEAP_IDX          0
-#define LOCAL_STACK_IDX         1
-#define LOCAL_RELOOPER_IDX      2
-
-#ifndef _AST_ID_T
-#define _AST_ID_T
-typedef struct ast_id_s ast_id_t;
-#endif /* ! _AST_ID_T */
+#ifndef _META_T
+#define _META_T
+typedef struct meta_s meta_t;
+#endif /* ! _META_T */
 
 #ifndef _IR_FN_T
 #define _IR_FN_T
@@ -36,7 +32,7 @@ typedef struct ir_s {
 
 ir_t *ir_new(void);
 
-void ir_add_global(ir_t *ir, ast_id_t *id, int idx);
+void ir_add_heap(ir_t *ir, meta_t *meta, int idx);
 void ir_add_fn(ir_t *ir, ir_fn_t *fn);
 
 #endif /* no _IR_H */

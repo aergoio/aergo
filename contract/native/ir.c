@@ -28,27 +28,27 @@ ir_new(void)
 }
 
 void
-ir_add_global(ir_t *ir, ast_id_t *id, int idx)
+ir_add_heap(ir_t *ir, meta_t *meta, int idx)
 {
     ASSERT(idx >= 0);
 
-    if (is_array_meta(&id->meta))
+    if (is_array_meta(meta))
         /* The array is always accessed as a reference */
         ir->offset = ALIGN32(ir->offset);
     else
-        ir->offset = ALIGN(ir->offset, meta_align(&id->meta));
+        ir->offset = ALIGN(ir->offset, meta_align(meta));
 
     /* Global variables are always accessed with "base_idx(== heap$offset) + rel_addr",
      * and offset is used only when accessing an array or struct element */
 
-    id->meta.base_idx = idx;
-    id->meta.rel_addr = ir->offset;
-    id->meta.rel_offset = 0;
+    meta->base_idx = idx;
+    meta->rel_addr = ir->offset;
+    meta->rel_offset = 0;
 
-    if (is_array_meta(&id->meta))
+    if (is_array_meta(meta))
         ir->offset += sizeof(uint32_t);
     else
-        ir->offset += TYPE_BYTE(id->meta.type);
+        ir->offset += TYPE_BYTE(meta->type);
 }
 
 void

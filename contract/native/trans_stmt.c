@@ -384,8 +384,13 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
         ASSERT(ret_id != NULL);
         ASSERT(ret_id->up != NULL);
         ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
+        ASSERT(!is_ctor_id(ret_id->up));
 
-        if (is_ctor_id(ret_id->up)) {
+        exp_trans(trans, arg_exp);
+
+        bb_add_stmt(trans->bb, stmt);
+#if 0
+        if (!is_ctor_id(ret_id->up)) {
             /* If "arg_exp" is not null and "stmt" is constructor's return statement,
              * the "stmt" is added to exit_bb because it is a statement to return the
              * contract address added forced by id_trans_ctor() */
@@ -399,6 +404,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
              * an assign statement using the address value of each return argument */
             stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
         }
+#endif
     }
 
     /* The current basic block branches directly to the exit block */
