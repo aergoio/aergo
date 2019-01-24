@@ -472,20 +472,23 @@ func (tx *Tx) Validate() error {
 	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
+
 	amount := tx.GetBody().GetAmountBigInt()
 	if amount.Cmp(MaxAER) > 0 {
-		return ErrInsufficientBalance
+		return ErrTxInvalidAmount
 	}
-	/*
-		MaxAER is bigger than max of uint64
-		if tx.GetBody().GetLimit() > MaxAER {
-			return ErrInsufficientBalance
-		}
-	*/
 
 	price := tx.GetBody().GetPriceBigInt()
 	if price.Cmp(MaxAER) > 0 {
-		return ErrInsufficientBalance
+		return ErrTxInvalidPrice
+	}
+
+	if len(tx.GetBody().GetAccount()) > AddressLength {
+		return ErrTxInvalidAccount
+	}
+
+	if len(tx.GetBody().GetRecipient()) > AddressLength {
+		return ErrTxInvalidRecipient
 	}
 
 	switch tx.Body.Type {

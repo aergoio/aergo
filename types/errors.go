@@ -34,6 +34,10 @@ var (
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 
+	ErrTxInvalidAmount = errors.New("tx invalid amount")
+
+	ErrTxInvalidPrice = errors.New("tx invalid price")
+
 	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
 
 	ErrSignNotMatch = errors.New("signature not matched")
