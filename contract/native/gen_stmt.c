@@ -11,8 +11,10 @@
 
 #include "gen_stmt.h"
 
+/*
 static void store_array(gen_t *gen, BinaryenExpressionRef var_addr,
                         BinaryenExpressionRef val_addr, uint32_t offset, meta_t *meta);
+                        */
 
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
@@ -58,6 +60,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
                          value, meta_gen(&l_exp->meta));
 }
 
+#if 0
 static void
 store_elem(gen_t *gen, BinaryenExpressionRef address, BinaryenExpressionRef value,
            uint32_t offset, type_t type)
@@ -140,10 +143,15 @@ return_value(gen_t *gen, ast_id_t *id, ast_exp_t *exp)
     else
         store_elem(gen, address, value, 0, exp->meta.type);
 }
+#endif
 
 static BinaryenExpressionRef
 stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 {
+    return BinaryenReturn(gen->module, exp_gen(gen, stmt->u_ret.arg_exp));
+
+    // TODO multiple return values
+#if 0
     ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
 
     if (arg_exp != NULL) {
@@ -171,6 +179,7 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
     }
 
     return NULL;
+#endif
 }
 
 static BinaryenExpressionRef

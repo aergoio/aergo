@@ -21,7 +21,22 @@ abi_new(ast_id_t *id)
     snprintf(abi->name, sizeof(abi->name), "abi$%d", abi_num_++);
 
     abi->param_cnt = array_size(id->u_fn.param_ids);
+    abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
+    array_foreach(id->u_fn.param_ids, i) {
+        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+
+        abi->params[j] = meta_gen(&param_id->meta);
+        param_id->idx = j++;
+    }
+
+    if (ret_id != NULL)
+        abi->result = meta_gen(&ret_id->meta);
+    else
+        abi->result = BinaryenTypeNone();
+
+    // TODO multiple return values
+#if 0
     if (is_ctor_id(id)) {
         abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
@@ -69,6 +84,7 @@ abi_new(ast_id_t *id)
 
         abi->result = BinaryenTypeNone();
     }
+#endif
 
     abi->spec = NULL;
 
@@ -86,7 +102,8 @@ abi_lookup(array_t *abis, ast_id_t *id)
 
         if (abi->param_cnt == new_abi->param_cnt &&
             memcmp(abi->params, new_abi->params,
-                   sizeof(BinaryenType) * abi->param_cnt) == 0)
+                   sizeof(BinaryenType) * abi->param_cnt) == 0 &&
+            abi->result == new_abi->result)
             return abi;
     }
 

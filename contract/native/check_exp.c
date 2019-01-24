@@ -420,7 +420,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 }
 
 static bool
-exp_check_op_bool_cmp(check_t *check, ast_exp_t *exp)
+exp_check_op_andor(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *l_exp, *r_exp;
     meta_t *l_meta, *r_meta;
@@ -487,7 +487,7 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
 
     case OP_AND:
     case OP_OR:
-        CHECK(exp_check_op_bool_cmp(check, exp));
+        CHECK(exp_check_op_andor(check, exp));
         break;
 
     default:

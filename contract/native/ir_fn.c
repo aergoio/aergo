@@ -38,6 +38,7 @@ fn_new(ast_id_t *id)
     fn->cont_idx = -1;
     fn->stack_idx = -1;
     fn->reloop_idx = -1;
+    fn->ret_idx = -1;
 
     fn->usage = 0;
 
@@ -47,9 +48,12 @@ fn_new(ast_id_t *id)
 void
 fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
-    ir_abi_t *abi = fn->abi;
+    ir_abi_t *abi;
 
+    ASSERT(fn != NULL);
     ASSERT1(is_var_id(id), id->kind);
+
+    abi = fn->abi;
     ASSERT(abi != NULL);
 
     id->idx = abi->param_cnt + array_size(&fn->locals);
@@ -60,6 +64,7 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 void
 fn_add_stack(ir_fn_t *fn, meta_t *meta)
 {
+    ASSERT(fn != NULL);
     ASSERT(fn->stack_idx >= 0);
 
     fn->usage = ALIGN(fn->usage, meta_align(meta));
@@ -73,6 +78,8 @@ fn_add_stack(ir_fn_t *fn, meta_t *meta)
 void
 fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 {
+    ASSERT(fn != NULL);
+
     array_add_last(&fn->bbs, bb);
 }
 
@@ -80,8 +87,11 @@ int
 fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
 {
     ast_id_t *tmp_id;
-    ir_abi_t *abi = fn->abi;
+    ir_abi_t *abi;
 
+    ASSERT(fn != NULL);
+
+    abi = fn->abi;
     ASSERT(abi != NULL);
 
     tmp_id = id_new_tmp_var(name);

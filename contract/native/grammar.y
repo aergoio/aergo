@@ -692,6 +692,14 @@ return_list:
     return_decl
 |   return_list ',' return_decl
     {
+        yyerror(&@3, parse, yyscanner, "not supported yet");
+
+        /* TODO multiple return values
+         *
+         * Since WebAssembly does not support this syntax at present, it is better to
+         * implement it when it is formally supported than implementing arbitarily
+         */
+#if 0
         /* The reason for making the return list as tuple is because of
          * the convenience of meta comparison. If array_t is used,
          * it must be looped for each id and compared directly,
@@ -706,6 +714,7 @@ return_list:
         }
 
         id_add($$->u_tup.elem_ids, $3);
+#endif
     }
 ;
 

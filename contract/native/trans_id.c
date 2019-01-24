@@ -143,6 +143,7 @@ set_stack_addr(trans_t *trans, src_pos_t *pos)
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
+    ast_id_t *ret_id = id->u_fn.ret_id;
     ir_fn_t *fn = fn_new(id);
     ir_t *ir = trans->ir;
 
@@ -164,11 +165,15 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     id->abi = fn->abi;
 
-    /* It is used internally for binaryen, not for us (see fn_gen()) */
-    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
-
     /* All stack variables access memory by adding relative offset to this value */
     fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_UINT32);
+
+    if (ret_id != NULL)
+        /* All return values are stored in this variable */
+        fn->ret_idx = fn_add_tmp_var(fn, "return$val", ret_id->meta.type);
+
+    /* It is used internally for binaryen, not for us (see fn_gen()) */
+    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
     trans->bb = fn->entry_bb;
 
@@ -185,13 +190,18 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn_add_basic_blk(fn, fn->exit_bb);
 
-    if (is_ctor_id(id)) {
-        /* The contract address is returned at the end of "exit_bb" */
-        ast_exp_t *arg_exp = exp_new_local(TYPE_UINT32, fn->cont_idx);
-        ast_stmt_t *ret_stmt = stmt_new_return(arg_exp, &id->pos);
+    if (ret_id != NULL) {
+        /* The contract address or return value is returned at the end of "exit_bb" */
+        ast_exp_t *arg_exp;
+        ast_stmt_t *ret_stmt;
 
-        ret_stmt->u_ret.ret_id = id->u_fn.ret_id;
-        ASSERT(ret_stmt->u_ret.ret_id != NULL);
+        if (is_ctor_id(id))
+            arg_exp = exp_new_local(TYPE_UINT32, fn->cont_idx);
+        else
+            arg_exp = exp_new_local(ret_id->meta.type, fn->ret_idx);
+
+        ret_stmt = stmt_new_return(arg_exp, &id->pos);
+        ret_stmt->u_ret.ret_id = ret_id;
 
         array_add_last(&fn->exit_bb->stmts, ret_stmt);
     }
@@ -267,7 +277,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
             fn_id->idx = fn_idx++;
     }
 
-    /* This value, like any other global variable, is stored in the stack area used by
+    /* This value, like any other global variable, is stored in the heap area used by
      * the contract, and is stored in the first 4 bytes of the area. All functions
      * also access table by adding relative index to this value */
     idx_id = id_new_tmp_var("cont$idx");

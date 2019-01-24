@@ -249,6 +249,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     }
 }
 
+#if 0
 static ast_exp_t *
 make_return_exp(ast_id_t *ret_id, int stack_idx)
 {
@@ -316,11 +317,13 @@ add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
         exp_set_stack(ret_exp, fn->stack_idx, ret_id->meta.rel_addr, 0);
     }
 }
+#endif
 
 static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
     int i;
+    ast_id_t *fn_id = exp->id;
     ast_exp_t *id_exp = exp->u_call.id_exp;
     ir_fn_t *fn = trans->fn;
 
@@ -371,6 +374,24 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                     stmt_new_assign(exp_new_global("stack$offset"), r_exp, &exp->pos));
     }
 
+    if (fn_id->u_fn.ret_id != NULL) {
+        ast_exp_t *var_exp;
+        ast_id_t *tmp_id = id_new_tmp_var("temp$val");
+
+        tmp_id->up = fn_id;
+        meta_copy(&tmp_id->meta, &exp->meta);
+
+        fn_add_local(fn, tmp_id);
+
+        var_exp = exp_new_local(tmp_id->meta.type, tmp_id->idx);
+
+        /* If there is a return value, we have to clone it because the call expression
+         * itself is transformed */
+        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, exp_clone(exp), &exp->pos));
+
+        exp_set_local(exp, tmp_id->idx);
+    }
+#if 0
     if (exp->id->u_fn.ret_id != NULL) {
         ast_exp_t *call_exp = exp_clone(exp);
 
@@ -383,6 +404,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     else {
         bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
     }
+#endif
 }
 
 static void
@@ -438,13 +460,14 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         exp_set_lit(exp, NULL);
         value_set_ptr(&exp->u_lit.val, raw, size);
     }
+    else {
+        fn_add_stack(trans->fn, &exp->meta);
+    }
 }
 
 static void
 exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 {
-    ASSERT(trans->fn != NULL);
-
     fn_add_stack(trans->fn, &exp->meta);
 }
 

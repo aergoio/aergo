@@ -96,20 +96,21 @@ contract test {
 contract test {
     func f1() { return; }
     func f2() int { return 1; }
-    func f3() int, string { return 1 + 1, "value"; }
+    //func f3() int, string { return 1 + 1, "value"; }
     func f4() map(int, string) { return null; }
 }
 
 @test(return_primitive_value)
 contract test {
     func f1(int x) int { return x + 1; }
-    func f2(bool x, int y) bool, int { return !x, y << 1; }
-    int i;
+    func f2(double x) bool { return x == 1.0; }
+    //func f3(bool x, int y) bool, int { return !x, y << 1; }
+    int i = f1(5);
     bool b;
 
     test() {
-        i = f1(1);
-        b, i = f2(true, 2);
+        b = f2(1.0);
+        //b, i = f3(true, 2);
     }
 }
 
@@ -173,16 +174,25 @@ contract test {
         string b;
     }
 
-    func f1(int x) int, double { return x + 1, (double)x; }
-    func f2(int x, string y) s { return new { x, y }; }
+    //func f1(int x) int, double { return x + 1, (double)x; }
+    func f1(int x) uint { return (uint)x + 1; }
+    func f2(int x) double { return (double)x * 2.0; }
+    func f3(int x, string y) s { return new { x, y }; }
 
     test() {
-        int i;
+        uint i;
         double d;
+        i = f1(9);
+        d = f2(-5);
+
+        s v;
+        i, v = f1(3), f3(5, "tuple");
+        /*
         i, d = f1(0);
 
         s v;
         i, d, v = f1(1), f2(3, "3");
+        */
     }
 }
 

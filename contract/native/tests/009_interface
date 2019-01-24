@@ -126,18 +126,20 @@ interface spec {
 }
 contract test implements spec {
     public func f1() uint16 { return 32768; }
-    public func f2() int8, string { return 16, "aergo"; }
+    public func f2() string { return "aergo"; }
+    //public func f2() int8, string { return 16, "aergo"; }
 }
 contract main {
+    uint16 i;
+
     main() {
-        int8 i;
         string s;
 
         test a = new test();
-        i, s = a.f2();
+        i, s = a.f1(), a.f2();
 
         spec b = new test();
-        i, s = b.f2();
+        i, s = a.f1(), b.f2();
     }
 }
 

@@ -62,6 +62,7 @@ resolve_rel(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
+#if 0
     if (is_init_exp(val_exp)) {
         ast_id_t *id = var_exp->id;
 
@@ -77,6 +78,7 @@ resolve_rel(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
             val_exp->meta.rel_addr = id->meta.rel_addr;
         }
     }
+#endif
 
     if (val_exp->id != NULL && is_object_meta(meta) &&
         meta->type_id != NULL && is_itf_id(meta->type_id)) {
@@ -89,6 +91,43 @@ resolve_rel(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
     }
 }
 
+static void
+stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
+{
+    ast_exp_t *l_exp = stmt->u_assign.l_exp;
+    ast_exp_t *r_exp = stmt->u_assign.r_exp;
+
+    exp_trans(trans, l_exp);
+    exp_trans(trans, r_exp);
+
+    if (is_tuple_exp(l_exp)) {
+        /* Make each expression a separate assignment statement */
+        int i;
+        array_t *var_exps = l_exp->u_tup.elem_exps;
+        array_t *val_exps = r_exp->u_tup.elem_exps;
+
+        ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
+        ASSERT2(array_size(var_exps) == array_size(val_exps), array_size(var_exps),
+                array_size(val_exps));
+
+        array_foreach(val_exps, i) {
+            ast_exp_t *var_exp = array_get_exp(var_exps, i);
+            ast_exp_t *val_exp = array_get_exp(val_exps, i);
+
+            resolve_rel(trans, var_exp, val_exp);
+            bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
+        }
+    }
+    else {
+        ASSERT(!is_tuple_exp(r_exp));
+
+        resolve_rel(trans, l_exp, r_exp);
+        bb_add_stmt(trans->bb, stmt);
+    }
+}
+
+// TODO multiple return values
+#if 0
 static void
 stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
 {
@@ -155,6 +194,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         bb_add_stmt(trans->bb, stmt);
     }
 }
+#endif
 
 static void
 stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
@@ -377,18 +417,17 @@ static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
+    ir_fn_t *fn = trans->fn;
+
+    ASSERT(fn != NULL);
 
     if (arg_exp != NULL) {
-        ast_id_t *ret_id = stmt->u_ret.ret_id;
-
-        ASSERT(ret_id != NULL);
-        ASSERT(ret_id->up != NULL);
-        ASSERT1(is_fn_id(ret_id->up), ret_id->up->kind);
-        ASSERT(!is_ctor_id(ret_id->up));
+        ast_exp_t *var_exp = exp_new_local(TYPE_INT32, fn->ret_idx);
 
         exp_trans(trans, arg_exp);
 
-        bb_add_stmt(trans->bb, stmt);
+        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
+
 #if 0
         if (!is_ctor_id(ret_id->up)) {
             /* If "arg_exp" is not null and "stmt" is constructor's return statement,
@@ -408,9 +447,9 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     }
 
     /* The current basic block branches directly to the exit block */
-    bb_add_branch(trans->bb, NULL, trans->fn->exit_bb);
+    bb_add_branch(trans->bb, NULL, fn->exit_bb);
 
-    fn_add_basic_blk(trans->fn, trans->bb);
+    fn_add_basic_blk(fn, trans->bb);
     trans->bb = NULL;
 }
 

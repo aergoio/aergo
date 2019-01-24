@@ -251,14 +251,13 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_binary(gen_t *gen, ast_exp_t *exp)
+exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 {
-    meta_t *meta = &exp->meta;
     BinaryenOp op;
-    BinaryenExpressionRef l_exp, r_exp;
+    BinaryenExpressionRef left, right;
 
-    l_exp = exp_gen(gen, exp->u_bin.l_exp);
-    r_exp = exp_gen(gen, exp->u_bin.r_exp);
+    left = exp_gen(gen, exp->u_bin.l_exp);
+    right = exp_gen(gen, exp->u_bin.r_exp);
 
     switch (exp->u_bin.kind) {
     case OP_ADD:
@@ -331,7 +330,6 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
         break;
 
     case OP_BIT_AND:
-    case OP_AND:
         if (is_int64_meta(meta) || is_uint64_meta(meta))
             op = BinaryenAndInt64();
         else
@@ -339,7 +337,6 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
         break;
 
     case OP_BIT_OR:
-    case OP_OR:
         if (is_int64_meta(meta) || is_uint64_meta(meta))
             op = BinaryenOrInt64();
         else
@@ -369,6 +366,37 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
             op = BinaryenShlInt64();
         else
             op = BinaryenShlInt32();
+        break;
+
+    default:
+        ASSERT1(!"invalid operator", exp->u_bin.kind);
+    }
+
+    return BinaryenBinary(gen->module, op, left, right);
+}
+
+static BinaryenExpressionRef
+exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
+{
+    BinaryenOp op;
+    BinaryenExpressionRef left, right;
+
+    left = exp_gen(gen, exp->u_bin.l_exp);
+    right = exp_gen(gen, exp->u_bin.r_exp);
+
+    switch (exp->u_bin.kind) {
+    case OP_AND:
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenAndInt64();
+        else
+            op = BinaryenAndInt32();
+        break;
+
+    case OP_OR:
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenOrInt64();
+        else
+            op = BinaryenOrInt32();
         break;
 
     case OP_EQ:
@@ -457,7 +485,40 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
         ASSERT1(!"invalid operator", exp->u_bin.kind);
     }
 
-    return BinaryenBinary(gen->module, op, l_exp, r_exp);
+    return BinaryenBinary(gen->module, op, left, right);
+}
+
+static BinaryenExpressionRef
+exp_gen_binary(gen_t *gen, ast_exp_t *exp)
+{
+    switch (exp->u_bin.kind) {
+    case OP_ADD:
+    case OP_SUB:
+    case OP_MUL:
+    case OP_DIV:
+    case OP_MOD:
+    case OP_BIT_AND:
+    case OP_BIT_OR:
+    case OP_BIT_XOR:
+    case OP_RSHIFT:
+    case OP_LSHIFT:
+        return exp_gen_op_arith(gen, exp, &exp->meta);
+
+    case OP_AND:
+    case OP_OR:
+    case OP_EQ:
+    case OP_NE:
+    case OP_LT:
+    case OP_GT:
+    case OP_LE:
+    case OP_GE:
+        return exp_gen_op_cmp(gen, exp, &exp->u_bin.l_exp->meta);
+
+    default:
+        ASSERT1(!"invalid operator", exp->u_bin.kind);
+    }
+
+    return NULL;
 }
 
 static BinaryenExpressionRef
@@ -516,11 +577,12 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     abi = id->abi;
 
     if (is_ctor_id(id))
+        /* The constructor is called with an absolute index */
         return BinaryenCallIndirect(gen->module, i32_gen(gen, id->idx), arguments,
                                     abi->param_cnt, abi->name);
 
-    index = BinaryenBinary(gen->module, BinaryenAddInt32(), 
-                           BinaryenLoad(gen->module, sizeof(int32_t), 1, 0, 0, 
+    index = BinaryenBinary(gen->module, BinaryenAddInt32(),
+                           BinaryenLoad(gen->module, sizeof(int32_t), 1, 0, 0,
                                         BinaryenTypeInt32(),
                                         exp_gen(gen, exp->u_call.id_exp)),
                            i32_gen(gen, id->idx));
@@ -585,8 +647,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             offset = ALIGN(offset, meta_align(elem_meta));
 
             if (value != NULL)
-                instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), 
-                                             offset, 0, address, value, 
+                instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type),
+                                             offset, 0, address, value,
                                              meta_gen(elem_meta)));
 
             offset += meta_size(elem_meta);

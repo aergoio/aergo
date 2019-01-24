@@ -50,6 +50,7 @@ struct ir_fn_s {
     int cont_idx;           /* local index of contract address */
     int stack_idx;          /* local index of stack base address */
     int reloop_idx;         /* local index of relooper variable */
+    int ret_idx;            /* local index of return variable */
 
     uint32_t usage;         /* stack usage */
 };
