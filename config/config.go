@@ -57,6 +57,7 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		ProfilePort:    6060,
 		EnableTestmode: false,
 		Personal:       true,
+		AuthDir:        ctx.ExpandPathEnv("$HOME/auth"),
 	}
 }
 

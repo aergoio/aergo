@@ -63,7 +63,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
-	InitNodeInfo(tConfig.P2P, tLogger)
+	InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, tLogger)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
 		nil, nil, new(MockReconnectManager), nil,
@@ -133,7 +133,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 func TestPeerManager_init(t *testing.T) {
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	defaultCfg := tConfig.P2P
-	InitNodeInfo(defaultCfg, logger)
+	InitNodeInfo(&tConfig.BaseConfig, defaultCfg, logger)
 	localIP, _ := externalIP()
 
 	tests := []struct {

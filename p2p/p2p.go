@@ -9,7 +9,6 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"sync"
 	"time"
@@ -63,7 +62,7 @@ var (
 
 // InitNodeInfo initializes node-specific informations like node id.
 // Caution: this must be called before all the goroutines are started.
-func InitNodeInfo(cfg *config.P2PConfig, logger *log.Logger) {
+func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *log.Logger) {
 	// check Key and address
 	var (
 		priv crypto.PrivKey
@@ -71,22 +70,18 @@ func InitNodeInfo(cfg *config.P2PConfig, logger *log.Logger) {
 		err  error
 	)
 
-	if cfg.NPKey != "" {
-		priv, pub, err = LoadKeyFile(cfg.NPKey)
+	if p2pCfg.NPKey != "" {
+		priv, pub, err = LoadKeyFile(p2pCfg.NPKey)
 		if err != nil {
-			panic("Failed to load Keyfile '" + cfg.NPKey + "' " + err.Error())
+			panic("Failed to load Keyfile '" + p2pCfg.NPKey + "' " + err.Error())
 		}
 	} else {
 		logger.Info().Msg("No private key file is configured, so use auto-generated pk file instead.")
-		usr, err := user.Current()
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Failed to get user's home")
-		}
 
-		autogenFilePath := filepath.Join(usr.HomeDir, DefaultPkKeyDirectory, DefaultPkKeyPrefix+DefaultPkKeyExt)
+		autogenFilePath := filepath.Join(baseCfg.AuthDir, DefaultPkKeyPrefix+DefaultPkKeyExt)
 		if _, err := os.Stat(autogenFilePath); os.IsNotExist(err) {
 			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
-			priv, pub, err = GenerateKeyFile(filepath.Join(usr.HomeDir, DefaultPkKeyDirectory), DefaultPkKeyPrefix)
+			priv, pub, err = GenerateKeyFile(baseCfg.AuthDir, DefaultPkKeyPrefix)
 			if err != nil {
 				panic("Failed to generate new pk file: "+err.Error())
 			}
