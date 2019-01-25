@@ -9,6 +9,7 @@
 #include "ir_bb.h"
 #include "ir_abi.h"
 #include "gen.h"
+#include "gen_util.h"
 
 #include "ir_fn.h"
 
@@ -29,7 +30,7 @@ fn_new(ast_id_t *id)
 
     fn->abi = NULL;
 
-    vector_init(&fn->locals);
+    array_init(&fn->types, BinaryenType);
     vector_init(&fn->bbs);
 
     fn->entry_bb = bb_new();
@@ -77,17 +78,13 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
 void
 fn_add_local(ir_fn_t *fn, ast_id_t *id)
 {
-    ir_abi_t *abi;
-
     ASSERT(fn != NULL);
+    ASSERT(fn->abi != NULL);
     ASSERT1(is_var_id(id), id->kind);
 
-    abi = fn->abi;
-    ASSERT(abi != NULL);
+    id->idx = fn->abi->param_cnt + array_size(&fn->types);
 
-    id->idx = abi->param_cnt + vector_size(&fn->locals);
-
-    vector_add_last(&fn->locals, id);
+    array_add(&fn->types, meta_gen(&id->meta), BinaryenType);
 }
 
 void
@@ -133,19 +130,18 @@ int
 fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
 {
     ast_id_t *tmp_id;
-    ir_abi_t *abi;
 
     ASSERT(fn != NULL);
-
-    abi = fn->abi;
-    ASSERT(abi != NULL);
+    ASSERT(fn->abi != NULL);
 
     tmp_id = id_new_tmp_var(name);
     meta_set(&tmp_id->meta, type);
 
-    vector_add_last(&fn->locals, tmp_id);
+    tmp_id->idx = fn->abi->param_cnt + array_size(&fn->types);
 
-    return abi->param_cnt + vector_size(&fn->locals) - 1;
+    array_add(&fn->types, type_gen(type), BinaryenType);
+
+    return tmp_id->idx;
 }
 
 /* end of ir_fn.c */

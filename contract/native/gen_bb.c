@@ -17,20 +17,19 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     int i;
     BinaryenExpressionRef block;
 
-    ASSERT1(gen->instr_cnt == 0, gen->instr_cnt);
-    ASSERT(gen->instrs == NULL);
+    ASSERT1(array_size(&gen->instrs) == 0, array_size(&gen->instrs));
 
     vector_foreach(&bb->stmts, i) {
         instr_add(gen, stmt_gen(gen, vector_get_stmt(&bb->stmts, i)));
     }
 
-    block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
-                          BinaryenTypeNone());
+    block = BinaryenBlock(gen->module, NULL,
+                          (BinaryenExpressionRef *)array_items(&gen->instrs),
+                          array_size(&gen->instrs), BinaryenTypeNone());
 
     bb->rb = RelooperAddBlock(gen->relooper, block);
 
-    gen->instr_cnt = 0;
-    gen->instrs = NULL;
+    array_reset(&gen->instrs);
 }
 
 void

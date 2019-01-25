@@ -26,9 +26,6 @@
 typedef struct ir_sgmt_s ir_sgmt_t;
 #endif /* ! _IR_SGMT_T */
 
-void local_add(gen_t *gen, type_t type);
-void instr_add(gen_t *gen, BinaryenExpressionRef instr);
-
 BinaryenType type_gen(type_t type);
 
 void table_gen(gen_t *gen, vector_t *fns);

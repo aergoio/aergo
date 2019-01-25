@@ -47,7 +47,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_vector(gen_t *gen, ast_exp_t *exp)
+exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
     meta_t *meta = &exp->meta;
@@ -61,7 +61,7 @@ exp_gen_vector(gen_t *gen, ast_exp_t *exp)
 
         /* BinaryenLoad() takes an offset as uint32_t, and because "idx_exp" is a local
          * or stack expression, we do not know the offset, so we add the offset to the
-         * address and use BinaryenLoad(). See exp_trans_vector() for the following
+         * address and use BinaryenLoad(). See exp_trans_array() for the following
          * formula */
 
         if (is_stack_exp(id_exp))
@@ -735,8 +735,8 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_LIT:
         return exp_gen_lit(gen, exp);
 
-    case EXP_VECTOR:
-        return exp_gen_vector(gen, exp);
+    case EXP_ARRAY:
+        return exp_gen_array(gen, exp);
 
     case EXP_CAST:
         return exp_gen_cast(gen, exp);

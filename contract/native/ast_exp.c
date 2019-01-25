@@ -112,9 +112,9 @@ exp_new_type(type_t type, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_vector(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
+exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_VECTOR, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_ARRAY, pos);
 
     exp->u_arr.id_exp = id_exp;
     exp->u_arr.idx_exp = idx_exp;
@@ -335,8 +335,8 @@ exp_clone(ast_exp_t *exp)
         res->u_type.v_exp = exp_clone(exp->u_type.v_exp);
         break;
 
-    case EXP_VECTOR:
-        res = exp_new_vector(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
+    case EXP_ARRAY:
+        res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
                             &exp->pos);
         break;
 
@@ -451,7 +451,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             strcmp(x->u_type.name, y->u_type.name) == 0 &&
             exp_equals(x->u_type.k_exp, y->u_type.k_exp);
 
-    case EXP_VECTOR:
+    case EXP_ARRAY:
         return exp_equals(x->u_arr.id_exp, y->u_arr.id_exp) &&
             exp_equals(x->u_arr.idx_exp, y->u_arr.idx_exp);
 

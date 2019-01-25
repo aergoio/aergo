@@ -151,14 +151,14 @@ exp_check_type(check_t *check, ast_exp_t *exp)
 }
 
 static bool
-exp_check_vector(check_t *check, ast_exp_t *exp)
+exp_check_array(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
     meta_t *id_meta;
     ast_exp_t *idx_exp;
     meta_t *idx_meta;
 
-    ASSERT1(is_vector_exp(exp), exp->kind);
+    ASSERT1(is_array_exp(exp), exp->kind);
     ASSERT(exp->u_arr.id_exp != NULL);
 
     id_exp = exp->u_arr.id_exp;
@@ -824,8 +824,8 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_TYPE:
         return exp_check_type(check, exp);
 
-    case EXP_VECTOR:
-        return exp_check_vector(check, exp);
+    case EXP_ARRAY:
+        return exp_check_array(check, exp);
 
     case EXP_CAST:
         return exp_check_cast(check, exp);

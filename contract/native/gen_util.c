@@ -10,34 +10,6 @@
 
 #include "gen_util.h"
 
-void
-local_add(gen_t *gen, type_t type)
-{
-    /* TODO: need to improve */
-    if (gen->locals == NULL)
-        gen->locals = xmalloc(sizeof(BinaryenType));
-    else
-        gen->locals = xrealloc(gen->locals, sizeof(BinaryenType) * (gen->local_cnt + 1));
-
-    gen->locals[gen->local_cnt++] = type_gen(type);
-}
-
-void
-instr_add(gen_t *gen, BinaryenExpressionRef instr)
-{
-    if (instr == NULL)
-        return;
-
-    /* TODO: need to improve */
-    if (gen->instrs == NULL)
-        gen->instrs = xmalloc(sizeof(BinaryenExpressionRef));
-    else
-        gen->instrs = xrealloc(gen->instrs,
-                               sizeof(BinaryenExpressionRef) * (gen->instr_cnt + 1));
-
-    gen->instrs[gen->instr_cnt++] = instr;
-}
-
 BinaryenType
 type_gen(type_t type)
 {

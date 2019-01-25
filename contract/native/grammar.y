@@ -1230,7 +1230,7 @@ post_exp:
     prim_exp
 |   post_exp '[' ternary_exp ']'
     {
-        $$ = exp_new_vector($1, $3, &@$);
+        $$ = exp_new_array($1, $3, &@$);
     }
 |   post_exp '(' arg_list_opt ')'
     {

@@ -282,7 +282,7 @@ stmt_check_vector_loop(check_t *check, ast_stmt_t *stmt)
     id_add_last(&blk->ids, id);
 
     inc_exp = exp_new_op(OP_INC, exp_new_id(xstrdup(name), pos), NULL, pos);
-    arr_exp = exp_new_vector(loop_exp, inc_exp, &loop_exp->pos);
+    arr_exp = exp_new_array(loop_exp, inc_exp, &loop_exp->pos);
 
     if (stmt->u_loop.init_ids != NULL) {
         int i;

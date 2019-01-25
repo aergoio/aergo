@@ -97,7 +97,7 @@ typedef enum exp_kind_e {
     EXP_LIT,
     EXP_ID,
     EXP_TYPE,
-    EXP_VECTOR,
+    EXP_ARRAY,
     EXP_CAST,
     EXP_UNARY,
     EXP_BINARY,

@@ -22,11 +22,7 @@ gen_init(gen_t *gen, flag_t flag, ir_t *ir)
     gen->module = BinaryenModuleCreate();
     gen->relooper = NULL;
 
-    gen->local_cnt = 0;
-    gen->locals = NULL;
-
-    gen->instr_cnt = 0;
-    gen->instrs = NULL;
+    array_init(&gen->instrs, BinaryenExpressionRef);
 
     gen->is_lval = false;
 }

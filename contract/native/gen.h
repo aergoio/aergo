@@ -9,7 +9,14 @@
 #include "common.h"
 
 #include "ir.h"
+#include "array.h"
 #include "binaryen-c.h"
+
+#define instr_add(gen, instr)                                                            \
+    do {                                                                                 \
+        if ((instr) != NULL)                                                             \
+            array_add(&(gen)->instrs, instr, BinaryenExpressionRef);                     \
+    } while (0)
 
 typedef struct gen_s {
     flag_t flag;
@@ -19,11 +26,7 @@ typedef struct gen_s {
     BinaryenModuleRef module;
     RelooperRef relooper;
 
-    int local_cnt;
-    BinaryenType *locals;
-
-    int instr_cnt;
-    BinaryenExpressionRef *instrs;
+    array_t instrs;
 
     bool is_lval;
 } gen_t;

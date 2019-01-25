@@ -16,7 +16,7 @@
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
-#define is_vector_exp(exp)           ((exp)->kind == EXP_VECTOR)
+#define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_unary_exp(exp)           ((exp)->kind == EXP_UNARY)
 #define is_binary_exp(exp)          ((exp)->kind == EXP_BINARY)
@@ -80,10 +80,10 @@ typedef struct exp_type_s {
 } exp_type_t;
 
 /* id[idx] */
-typedef struct exp_vector_s {
+typedef struct exp_array_s {
     ast_exp_t *id_exp;
     ast_exp_t *idx_exp;
-} exp_vector_t;
+} exp_array_t;
 
 /* (type)val */
 typedef struct exp_cast_s {
@@ -170,7 +170,7 @@ struct ast_exp_s {
         exp_lit_t u_lit;
         exp_id_t u_id;
         exp_type_t u_type;
-        exp_vector_t u_arr;
+        exp_array_t u_arr;
         exp_cast_t u_cast;
         exp_call_t u_call;
         exp_access_t u_acc;
@@ -202,7 +202,7 @@ ast_exp_t *exp_new_lit_f64(double v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_str(char *v, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
-ast_exp_t *exp_new_vector(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
+ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps,
                         src_pos_t *pos);

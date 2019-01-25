@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "array.h"
 #include "vector.h"
 
 #ifndef _IR_FN_T
@@ -41,8 +42,8 @@ struct ir_fn_s {
 
     ir_abi_t *abi;
 
-    vector_t locals;         /* entire local variables */
-    vector_t bbs;            /* basic blocks */
+    array_t types;          /* register types */
+    vector_t bbs;           /* basic blocks */
 
     ir_bb_t *entry_bb;
     ir_bb_t *exit_bb;

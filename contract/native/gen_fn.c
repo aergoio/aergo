@@ -20,11 +20,6 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     ASSERT(abi != NULL);
 
-    /* local variables */
-    vector_foreach(&fn->locals, i) {
-        local_add(gen, vector_get_id(&fn->locals, i)->meta.type);
-    }
-
     gen->relooper = RelooperCreate();
 
     /* basic blocks */
@@ -40,14 +35,12 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx,
                                     gen->module);
 
-    BinaryenAddFunction(gen->module, fn->name, abi->spec, gen->locals, gen->local_cnt,
+    BinaryenAddFunction(gen->module, fn->name, abi->spec,
+                        (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
                         BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
 
     if (fn->exp_name != NULL)
         BinaryenAddFunctionExport(gen->module, fn->name, fn->exp_name);
-
-    gen->local_cnt = 0;
-    gen->locals = NULL;
 }
 
 void

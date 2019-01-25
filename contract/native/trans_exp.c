@@ -73,7 +73,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-exp_trans_vector(trans_t *trans, ast_exp_t *exp)
+exp_trans_array(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
     ast_exp_t *id_exp = exp->u_arr.id_exp;
@@ -575,8 +575,8 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_id(trans, exp);
         break;
 
-    case EXP_VECTOR:
-        exp_trans_vector(trans, exp);
+    case EXP_ARRAY:
+        exp_trans_array(trans, exp);
         break;
 
     case EXP_CAST:
