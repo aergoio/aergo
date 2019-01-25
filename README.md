@@ -101,7 +101,6 @@ MVP based, Forward compatibility, Iteration
 |-------|------|
 |  gRPC | 7845 |
 |  P2P  | 7846 |
-|  REST | 8080 |
 
 ## Installation
 
