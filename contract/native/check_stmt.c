@@ -141,7 +141,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
     }
 
-    if (is_vector_meta(&l_exp->meta))
+    if (is_array_meta(&l_exp->meta))
         RETURN(ERROR_NOT_ALLOWED_ARRAY, &l_exp->pos);
 
     CHECK(meta_cmp(l_meta, r_meta));
@@ -225,7 +225,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 }
 
 static bool
-stmt_check_vector_loop(check_t *check, ast_stmt_t *stmt)
+stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 {
     /*
     char name[128];
@@ -243,34 +243,34 @@ stmt_check_vector_loop(check_t *check, ast_stmt_t *stmt)
 
     /* vector-loop is converted like this:
      *
-     *      int vector_idx_xxx = 0;
+     *      int array_idx_xxx = 0;
      *
      *      init_exp;               // only if init_exp != NULL
      *
      *  for_loop_xxx:
-     *      if (vector_idx_xxx >= vector.size)
+     *      if (array_idx_xxx >= array.size)
      *          goto for_exit_xxx;
      *
-     *      variable = arr_exp[vector_idx_xxx];
+     *      variable = arr_exp[array_idx_xxx];
      *
      *      ...
      *
      *  for_cont_xxx:
-     *      vector_idx_xxx++;
+     *      array_idx_xxx++;
      *      goto for_loop_xxx;
      *
      *  for_exit_xxx:
      *      ;
      */
 
-    /* TODO: we need to know vector.size */
+    /* TODO: we need to know array.size */
     RETURN(ERROR_NOT_SUPPORTED, &stmt->pos);
 #if 0
     loop_exp = stmt->u_loop.loop_exp;
     ASSERT(loop_exp != NULL);
 
     /* make "int i = 0" */
-    snprintf(name, sizeof(name), "vector_idx_%d", blk->num);
+    snprintf(name, sizeof(name), "array_idx_%d", blk->num);
 
     id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
 
@@ -341,7 +341,7 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
         break;
 
     case LOOP_VECTOR:
-        stmt_check_vector_loop(check, stmt);
+        stmt_check_array_loop(check, stmt);
         break;
 
     default:

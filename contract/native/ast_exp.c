@@ -251,25 +251,25 @@ exp_new_global(char *name)
 }
 
 ast_exp_t *
-exp_new_local(type_t type, uint32_t idx)
+exp_new_register(type_t type, uint32_t idx)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_LOCAL, &null_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_REGISTER, &null_pos_);
 
-    exp->u_local.type = type;
-    exp->u_local.idx = idx;
+    exp->u_reg.type = type;
+    exp->u_reg.idx = idx;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_stack(type_t type, uint32_t base, uint32_t addr, uint32_t offset)
+exp_new_memory(type_t type, uint32_t base, uint32_t addr, uint32_t offset)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_STACK, &null_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_MEMORY, &null_pos_);
 
-    exp->u_stk.type = type;
-    exp->u_stk.base = base;
-    exp->u_stk.addr = addr;
-    exp->u_stk.offset = offset;
+    exp->u_mem.type = type;
+    exp->u_mem.base = base;
+    exp->u_mem.addr = addr;
+    exp->u_mem.offset = offset;
 
     return exp;
 }
@@ -286,21 +286,21 @@ exp_set_lit(ast_exp_t *exp, value_t *val)
 }
 
 void
-exp_set_local(ast_exp_t *exp, uint32_t idx)
+exp_set_register(ast_exp_t *exp, uint32_t idx)
 {
-    exp->kind = EXP_LOCAL;
-    exp->u_local.type = exp->meta.type;
-    exp->u_local.idx = idx;
+    exp->kind = EXP_REGISTER;
+    exp->u_reg.type = exp->meta.type;
+    exp->u_reg.idx = idx;
 }
 
 void
-exp_set_stack(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
+exp_set_memory(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
 {
-    exp->kind = EXP_STACK;
-    exp->u_stk.type = exp->meta.type;
-    exp->u_stk.base = base;
-    exp->u_stk.addr = addr;
-    exp->u_stk.offset = offset;
+    exp->kind = EXP_MEMORY;
+    exp->u_mem.type = exp->meta.type;
+    exp->u_mem.base = base;
+    exp->u_mem.addr = addr;
+    exp->u_mem.offset = offset;
 }
 
 ast_exp_t *
@@ -405,13 +405,13 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_global(exp->u_glob.name);
         break;
 
-    case EXP_LOCAL:
-        res = exp_new_local(exp->u_local.type, exp->u_local.idx);
+    case EXP_REGISTER:
+        res = exp_new_register(exp->u_reg.type, exp->u_reg.idx);
         break;
 
-    case EXP_STACK:
-        res = exp_new_stack(exp->u_stk.type, exp->u_stk.base, exp->u_stk.addr,
-                            exp->u_stk.offset);
+    case EXP_MEMORY:
+        res = exp_new_memory(exp->u_mem.type, exp->u_mem.base, exp->u_mem.addr,
+                            exp->u_mem.offset);
         break;
 
     default:

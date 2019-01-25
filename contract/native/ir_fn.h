@@ -61,7 +61,7 @@ struct ir_fn_s {
 ir_fn_t *fn_new(ast_id_t *id);
 
 void fn_add_global(ir_fn_t *fn, ast_id_t *id);
-void fn_add_local(ir_fn_t *fn, ast_id_t *id);
+void fn_add_register(ir_fn_t *fn, ast_id_t *id);
 
 void fn_add_heap(ir_fn_t *fn, meta_t *meta);
 void fn_add_stack(ir_fn_t *fn, meta_t *meta);

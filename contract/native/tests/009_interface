@@ -57,7 +57,7 @@ interface spec {
     func f1() int;
 }
 contract test {
-    spec x;
+    spec x = null;
 }
 
 @test(assignment_to_interface)

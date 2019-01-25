@@ -56,8 +56,8 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
     ASSERT(fn != NULL);
     ASSERT1(is_var_id(id), id->kind);
 
-    if (is_vector_meta(meta))
-        /* The vector is always accessed as a reference */
+    if (is_array_meta(meta))
+        /* The array is always accessed as a reference */
         fn->heap_usage = ALIGN32(fn->heap_usage);
     else
         fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
@@ -69,14 +69,14 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
 
-    if (is_vector_meta(meta))
+    if (is_array_meta(meta))
         fn->heap_usage += sizeof(uint32_t);
     else
         fn->heap_usage += TYPE_BYTE(meta->type);
 }
 
 void
-fn_add_local(ir_fn_t *fn, ast_id_t *id)
+fn_add_register(ir_fn_t *fn, ast_id_t *id)
 {
     ASSERT(fn != NULL);
     ASSERT(fn->abi != NULL);

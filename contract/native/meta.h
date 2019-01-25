@@ -73,7 +73,7 @@
     ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
      (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
-#define is_vector_meta(meta)         ((meta)->arr_dim > 0)
+#define is_array_meta(meta)         ((meta)->arr_dim > 0)
 #define is_undef_meta(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
@@ -123,8 +123,8 @@ struct meta_s {
     bool is_undef;          /* whether it is literal */
     int8_t align;
 
-    /* vector specifications */
-    int arr_dim;            /* dimension of vector */
+    /* array specifications */
+    int arr_dim;            /* dimension of array */
     int *dim_sizes;         /* size of each dimension */
 
     int elem_cnt;
@@ -247,7 +247,7 @@ meta_unit(meta_t *meta)
     int i;
     uint32_t size = meta_size(meta);
 
-    if (is_vector_meta(meta)) {
+    if (is_array_meta(meta)) {
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size /= meta->dim_sizes[i];

@@ -174,7 +174,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, idx_exp));
 
-    if (is_vector_meta(id_meta)) {
+    if (is_array_meta(id_meta)) {
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->dim_sizes != NULL);
 
@@ -186,13 +186,13 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (is_lit_exp(idx_exp)) {
             ASSERT(id_meta->dim_sizes != NULL);
 
-            /* The "dim_sizes[0]" can be negative if vector is used as a parameter */
+            /* The "dim_sizes[0]" can be negative if array is used as a parameter */
             if (id_meta->dim_sizes[0] > 0 &&
                 val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
-        /* Whenever an vector element is accessed, strip it by one dimension */
+        /* Whenever an array element is accessed, strip it by one dimension */
         meta_strip_arr_dim(&exp->meta);
     }
     else {
@@ -225,7 +225,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 
     meta_copy(&exp->meta, &exp->u_cast.to_meta);
 
-    if (is_vector_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
+    if (is_array_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
@@ -762,7 +762,7 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
 
     if (exp->u_alloc.size_exps != NULL) {
-        /* TODO: This is very similar to id_check_vector()... */
+        /* TODO: This is very similar to id_check_array()... */
         int i;
         int dim_size;
         vector_t *size_exps = exp->u_alloc.size_exps;

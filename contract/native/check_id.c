@@ -15,7 +15,7 @@
 #include "check_id.h"
 
 static bool
-id_check_vector(check_t *check, ast_id_t *id)
+id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
     int dim_size;
@@ -76,7 +76,7 @@ id_check_var(check_t *check, ast_id_t *id)
     meta_copy(&id->meta, &id->u_var.type_exp->meta);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_check_vector(check, id));
+        CHECK(id_check_array(check, id));
 
     if (id->u_var.dflt_exp != NULL) {
         ast_exp_t *dflt_exp = id->u_var.dflt_exp;

@@ -58,32 +58,21 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-resolve_itf_meta(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
+resolve_var_meta(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
-#if 0
-    if (is_init_exp(val_exp) || is_alloc_exp(val_exp)) {
-        ast_id_t *id = var_exp->id;
+    /* Here we override the meta of the variable declared in the form
+     * "interface variable = rvalue;" with the contract meta */
 
-        ASSERT(id != NULL);
+    /* If rvalue is the "null" literal, "val_exp->id" can be null */
+    if (val_exp->id == NULL || !is_object_meta(meta) || !is_itf_id(meta->type_id))
+        return;
 
-        /* This is set here because we need the base address to store each value of
-         * the initializer or allocator expression */
-        if (is_local_id(id))
-            val_exp->meta.base_idx = trans->fn->stack_idx;
-    }
-#endif
-
-    if (val_exp->id != NULL && is_object_meta(meta) &&
-        meta->type_id != NULL && is_itf_id(meta->type_id)) {
-        /* Override the meta of the variable declared as the interface type with the
-         * rvalue (== contract) meta */
-        if (is_fn_id(val_exp->id))
-            meta_set_object(meta, val_exp->id->up);
-        else
-            meta_set_object(meta, val_exp->id->meta.type_id);
-    }
+    if (is_fn_id(val_exp->id))
+        meta_set_object(meta, val_exp->id->up);
+    else
+        meta_set_object(meta, val_exp->id->meta.type_id);
 }
 
 static void
@@ -108,7 +97,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             ast_exp_t *var_exp = vector_get_exp(var_exps, i);
             ast_exp_t *val_exp = vector_get_exp(val_exps, i);
 
-            resolve_itf_meta(trans, var_exp, val_exp);
+            resolve_var_meta(trans, var_exp, val_exp);
 
             if (var_exp->id != NULL && is_global_id(var_exp->id)) {
                 trans->is_heap = true;
@@ -125,7 +114,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     else {
         ASSERT(!is_tuple_exp(r_exp));
 
-        resolve_itf_meta(trans, l_exp, r_exp);
+        resolve_var_meta(trans, l_exp, r_exp);
 
         if (l_exp->id != NULL && is_global_id(l_exp->id)) {
             trans->is_heap = true;
@@ -168,7 +157,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                 var_exp = vector_get_exp(var_exps, i);
                 val_exp = vector_get_exp(val_exps, i);
 
-                resolve_itf_meta(trans, var_exp, val_exp);
+                resolve_var_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
             return;
@@ -189,14 +178,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_exp = vector_get_exp(var_exps, var_idx++);
                     elem_exp = vector_get_exp(val_exp->u_tup.elem_exps, j);
 
-                    resolve_itf_meta(trans, var_exp, elem_exp);
+                    resolve_var_meta(trans, var_exp, elem_exp);
                     bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
                 }
             }
             else {
                 var_exp = vector_get_exp(var_exps, var_idx++);
 
-                resolve_itf_meta(trans, var_exp, val_exp);
+                resolve_var_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
         }
@@ -204,7 +193,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     else {
         ASSERT(!is_tuple_exp(l_exp));
 
-        resolve_itf_meta(trans, l_exp, r_exp);
+        resolve_var_meta(trans, l_exp, r_exp);
         bb_add_stmt(trans->bb, stmt);
     }
 }
@@ -336,7 +325,7 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-stmt_trans_vector_loop(trans_t *trans, ast_stmt_t *stmt)
+stmt_trans_array_loop(trans_t *trans, ast_stmt_t *stmt)
 {
     ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
 }
@@ -350,7 +339,7 @@ stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
         break;
 
     case LOOP_VECTOR:
-        stmt_trans_vector_loop(trans, stmt);
+        stmt_trans_array_loop(trans, stmt);
         break;
 
     default:
@@ -436,28 +425,16 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     ASSERT(fn != NULL);
 
     if (arg_exp != NULL) {
-        ast_exp_t *var_exp = exp_new_local(TYPE_INT32, fn->ret_idx);
+        ast_exp_t *var_exp;
+
+        ASSERT(stmt->u_ret.ret_id != NULL);
+        ASSERT(!is_ctor_id(stmt->u_ret.ret_id->up));
+
+        var_exp = exp_new_register(stmt->u_ret.ret_id->meta.type, fn->ret_idx);
 
         exp_trans(trans, arg_exp);
 
         bb_add_stmt(trans->bb, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
-
-#if 0
-        if (!is_ctor_id(ret_id->up)) {
-            /* If "arg_exp" is not null and "stmt" is constructor's return statement,
-             * the "stmt" is added to exit_bb because it is a statement to return the
-             * contract address added forced by id_trans_ctor() */
-            ASSERT1(is_local_exp(arg_exp), arg_exp->kind);
-
-            bb_add_stmt(trans->fn->exit_bb, stmt);
-        }
-        else {
-            /* Each return expression of a function corresponds to a local variable,
-             * so if there is return arguments, the return statement is transformed to
-             * an assign statement using the address value of each return argument */
-            stmt_trans(trans, stmt_make_assign(ret_id, arg_exp));
-        }
-#endif
     }
 
     /* The current basic block branches directly to the exit block */

@@ -310,11 +310,11 @@ meta_cmp_type(meta_t *x, meta_t *y)
 }
 
 static bool
-meta_cmp_vector(meta_t *x, int dim, meta_t *y)
+meta_cmp_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
-    if (is_vector_meta(y)) {
+    if (is_array_meta(y)) {
         CHECK(meta_cmp_type(x, y));
 
         if (x->arr_dim != y->arr_dim)
@@ -337,7 +337,7 @@ meta_cmp_vector(meta_t *x, int dim, meta_t *y)
 
         for (i = 0; i < y->elem_cnt; i++) {
             if (dim < x->arr_dim - 1)
-                CHECK(meta_cmp_vector(x, dim + 1, y->elems[i]));
+                CHECK(meta_cmp_array(x, dim + 1, y->elems[i]));
             else
                 CHECK(meta_cmp_type(x, y->elems[i]));
         }
@@ -352,8 +352,8 @@ meta_cmp_vector(meta_t *x, int dim, meta_t *y)
 bool
 meta_cmp(meta_t *x, meta_t *y)
 {
-    if (is_vector_meta(x))
-        return meta_cmp_vector(x, 0, y);
+    if (is_array_meta(x))
+        return meta_cmp_array(x, 0, y);
 
     return meta_cmp_type(x, y);
 }
@@ -405,7 +405,7 @@ meta_eval_type(meta_t *x, meta_t *y)
 }
 
 static void
-meta_eval_vector(meta_t *x, int dim, meta_t *y)
+meta_eval_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
@@ -414,7 +414,7 @@ meta_eval_vector(meta_t *x, int dim, meta_t *y)
 
     for (i = 0; i < y->elem_cnt; i++) {
         if (dim < x->arr_dim - 1)
-            meta_eval_vector(x, dim + 1, y->elems[i]);
+            meta_eval_array(x, dim + 1, y->elems[i]);
         else
             meta_eval_type(x, y->elems[i]);
     }
@@ -444,8 +444,8 @@ meta_eval_size(meta_t *meta)
 void
 meta_eval(meta_t *x, meta_t *y)
 {
-    if (is_vector_meta(x))
-        meta_eval_vector(x, 0, y);
+    if (is_array_meta(x))
+        meta_eval_array(x, 0, y);
     else
         meta_eval_type(x, y);
 

@@ -19,7 +19,7 @@
 #define f64_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
 
 #define meta_gen(meta)                                                                   \
-    (is_vector_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
+    (is_array_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
 
 #ifndef _IR_SGMT_T
 #define _IR_SGMT_T
