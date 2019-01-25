@@ -134,7 +134,7 @@ struct meta_s {
 
     /* memory location to be stored */
     uint32_t base_idx;      /* register index having base address */
-    uint32_t rel_addr;      /* relative address */
+    uint32_t rel_addr;      /* relative address from "base_idx" */
     uint32_t rel_offset;    /* relative offset from "rel_addr" */
 
     src_pos_t *pos;

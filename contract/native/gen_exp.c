@@ -631,9 +631,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         return NULL;
     }
 
-    ASSERT(exp->meta.base_idx >= 0);
-    ASSERT1(is_tuple_meta(meta), meta->type);
-
+    /* The heap or stack memory is already allocated in exp_trans_init() */
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
     if (exp->meta.rel_addr > 0)
@@ -644,6 +642,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
 
+        offset = ALIGN(offset, meta_align(elem_meta));
+
         if (is_init_exp(elem_exp)) {
             elem_exp->meta.base_idx = exp->meta.base_idx;
             elem_exp->meta.rel_addr = exp->meta.rel_addr + offset;
@@ -653,8 +653,6 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         else {
             value = exp_gen(gen, elem_exp);
             ASSERT(value != NULL);
-
-            offset = ALIGN(offset, meta_align(elem_meta));
 
             instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), offset,
                                          0, address, value, meta_gen(elem_meta)));

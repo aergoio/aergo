@@ -56,12 +56,15 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
-        if (is_global_id(id))
+        if (is_global_id(id)) {
+            ASSERT1(id->meta.rel_offset == 0, id->meta.rel_offset);
+
             /* The global variable always refers to the memory */
-            exp_set_memory(exp, id->meta.base_idx, id->meta.rel_addr,
-                           id->meta.rel_offset);
-        else
+            exp_set_memory(exp, id->meta.base_idx, id->meta.rel_addr, 0);
+        }
+        else {
             exp_set_register(exp, id->idx);
+        }
     }
     else if (is_fn_id(id) || is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
@@ -224,31 +227,34 @@ static void
 exp_trans_access(trans_t *trans, ast_exp_t *exp)
 {
     ast_exp_t *qual_exp = exp->u_acc.qual_exp;
-    //ast_id_t *qual_id = qual_exp->id;
     ast_id_t *fld_id = exp->id;
 
     exp_trans(trans, qual_exp);
 
     if (is_fn_id(fld_id)) {
-        /* It may be a stack expression, in the case of an access expression to the
-         * return value of a function */
-        if (is_memory_exp(qual_exp)) {
-            exp_set_register(exp, qual_exp->u_mem.base);
-            exp->u_reg.type = TYPE_UINT32;
-        }
+        ASSERT1(is_register_exp(qual_exp), qual_exp->kind);
         return;
     }
 
-    if (is_register_exp(qual_exp))
+    if (is_register_exp(qual_exp)) {
+        /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global
+         * variable belonging to the contract register */
         exp_set_memory(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr,
-                      fld_id->meta.rel_offset);
-    else if (is_memory_exp(qual_exp))
+                       fld_id->meta.rel_offset);
+    }
+    else if (is_memory_exp(qual_exp)) {
+        /* It is a memroy expression when referring to a global variable directly */
+        ASSERT1(qual_exp->u_mem.offset == 0, qual_exp->u_mem.offset);
+        ASSERT1(fld_id->meta.rel_addr == 0, fld_id->meta.rel_addr);
+
         exp_set_memory(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
-                      qual_exp->u_mem.offset + fld_id->meta.rel_offset);
-    else
+                       fld_id->meta.rel_offset);
+    }
+    else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can
-         * be a binary expression */
+         * be a binary expression (See exp_trans_call()) */
         ASSERT1(is_binary_exp(qual_exp), qual_exp->kind);
+    }
 }
 
 static void
@@ -271,13 +277,14 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 
     for (i = 0; i < meta->elem_cnt; i++) {
         meta_t *elem_meta = meta->elems[i];
+        uint32_t offset = elem_meta->rel_offset;
 
         if (is_array_meta(elem_meta))
-            copy_array(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
+            copy_array(trans, base_idx, rel_addr + offset, elem_meta);
         else if (is_struct_meta(elem_meta))
-            copy_struct(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
+            copy_struct(trans, base_idx, rel_addr + offset, elem_meta);
         else
-            copy_elem(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
+            copy_elem(trans, base_idx, rel_addr + offset, elem_meta);
     }
 }
 

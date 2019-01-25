@@ -62,8 +62,8 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
     else
         fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
 
-    /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
-     * used only when accessing an vector or struct element */
+    /* Global variables are always accessed with "base_idx + rel_addr", and offset is
+     * used only when accessing an array or struct element */
 
     meta->base_idx = fn->cont_idx;
     meta->rel_addr = fn->heap_usage;
@@ -94,9 +94,6 @@ fn_add_heap(ir_fn_t *fn, meta_t *meta)
 
     fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
 
-    /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
-     * used only when accessing an vector or struct element */
-
     meta->base_idx = fn->heap_idx;
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
@@ -114,6 +111,7 @@ fn_add_stack(ir_fn_t *fn, meta_t *meta)
 
     meta->base_idx = fn->stack_idx;
     meta->rel_addr = fn->stack_usage;
+    meta->rel_offset = 0;
 
     fn->stack_usage += meta_size(meta);
 }
