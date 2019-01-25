@@ -309,7 +309,7 @@ static int os_date(lua_State *L)
                 char buff[200];  /* Should be big enough for any conversion result. */
                 cc[1] = *(++s);
                 if (cc[1] == 'c') {
-                    reslen = strftime(buff, sizeof(buff), "%F %T", stm);
+                    reslen = strftime(buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", stm);
                 } else {
                     reslen = strftime(buff, sizeof(buff), cc, stm);
                 }
