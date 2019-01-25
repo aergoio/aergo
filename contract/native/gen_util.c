@@ -98,7 +98,6 @@ void
 sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 {
     int i;
-    int stack_size = UINT16_MAX;
     BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
     for (i = 0; i < sgmt->size; i++) {
@@ -109,9 +108,9 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
     BinaryenAddGlobal(gen->module, "stack$offset", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, stack_size));
+                      i32_gen(gen, STACK_SIZE - 1));
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, stack_size));
+                      i32_gen(gen, STACK_SIZE));
 }
 
 void

@@ -28,81 +28,16 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 }
 
 static void
-id_trans_ctor(trans_t *trans, ast_id_t *id)
-{
-    int i, j;
-    ast_id_t *addr_id;
-    ast_exp_t *l_exp, *r_exp, *v_exp;
-    array_t *stmts = array_new();
-    ir_fn_t *fn = trans->fn;
-    ir_t *ir = trans->ir;
-
-    /* The parameter of the constructor is immutable */
-    fn->abi = abi_lookup(&ir->abis, id);
-
-    /* All global variables access memory by adding relative offset to this value */
-    addr_id = id_new_tmp_var("cont$addr");
-    addr_id->up = id;
-    meta_set_int32(&addr_id->meta);
-
-    fn_add_local(fn, addr_id);
-    fn->cont_idx = addr_id->idx;
-
-    l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
-    r_exp = exp_new_global("heap$offset");
-
-    stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
-    /* We use the "stmts" array to keep the declaration order of variables */
-    array_foreach(&id->up->u_cont.blk->ids, i) {
-        ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
-        ast_exp_t *dflt_exp = NULL;
-
-        if (is_var_id(var_id)) {
-            ir_add_heap(trans->ir, &var_id->meta, fn->cont_idx);
-
-            dflt_exp = var_id->u_var.dflt_exp;
-        }
-        else if (is_tuple_id(var_id)) {
-            array_foreach(var_id->u_tup.elem_ids, j) {
-                ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
-
-                ir_add_heap(trans->ir, &elem_id->meta, fn->cont_idx);
-            }
-
-            dflt_exp = var_id->u_tup.dflt_exp;
-        }
-
-        if (dflt_exp != NULL)
-            stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
-    }
-
-    /* Increase "heap$offset" by the amount of memory used by the global variables
-     * defined in the contract */
-    l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
-
-    v_exp = exp_new_lit_i64(ir->offset, &id->pos);
-    meta_set_int32(&v_exp->meta);
-
-    r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
-
-    stmt_add(stmts, stmt_new_assign(exp_new_global("heap$offset"), r_exp, &id->pos));
-
-    if (!is_empty_array(stmts)) {
-        if (id->u_fn.blk == NULL)
-            id->u_fn.blk = blk_new_fn(&id->pos);
-
-        array_join_first(&id->u_fn.blk->stmts, stmts);
-    }
-}
-
-static void
 id_trans_param(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *param_id;
 
-    /* All functions that are not constructors must be added the contract address as
-     * the first argument, and must also be added to the param_ids to reflect the abi */
+    if (is_ctor_id(id))
+        return;
+
+    /* All functions that are not constructors must be added the contract address
+     * as the first argument, and must also be added to the param_ids to reflect
+     * the abi */
 
     param_id = id_new_tmp_var("cont$addr");
     param_id->u_var.kind = PARAM_IN;
@@ -116,28 +51,130 @@ id_trans_param(trans_t *trans, ast_id_t *id)
 }
 
 static void
-set_stack_addr(trans_t *trans, src_pos_t *pos)
+id_trans_ctor(trans_t *trans, ast_id_t *id)
+{
+    int i, j;
+    //ast_id_t *addr_id;
+    //ast_exp_t *l_exp, *r_exp, *v_exp;
+    array_t *stmts = array_new();
+    ir_fn_t *fn = trans->fn;
+    //ir_t *ir = trans->ir;
+
+#if 0
+    /* The parameter of the constructor is immutable */
+    fn->abi = abi_lookup(&ir->abis, id);
+
+    /* All global variables access memory by adding relative offset to this value */
+    addr_id = id_new_tmp_var("heap$addr");
+    addr_id->up = id;
+    meta_set_int32(&addr_id->meta);
+
+    fn_add_local(fn, addr_id);
+
+    fn->cont_idx = addr_id->idx;
+    fn->heap_idx = addr_id->idx;
+
+    l_exp = exp_new_local(TYPE_UINT32, addr_id->idx);
+    r_exp = exp_new_global("heap$offset");
+
+    stmt_add(stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
+#endif
+    fn->cont_idx = fn->heap_idx;
+
+    /* We use the "stmts" array to keep the declaration order of variables */
+    array_foreach(&id->up->u_cont.blk->ids, i) {
+        ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
+        ast_exp_t *dflt_exp = NULL;
+
+        if (is_var_id(var_id)) {
+            fn_add_global(fn, var_id);
+
+            dflt_exp = var_id->u_var.dflt_exp;
+        }
+        else if (is_tuple_id(var_id)) {
+            array_foreach(var_id->u_tup.elem_ids, j) {
+                ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
+
+                fn_add_global(fn, elem_id);
+            }
+
+            dflt_exp = var_id->u_tup.dflt_exp;
+        }
+
+        if (dflt_exp != NULL)
+            stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
+    }
+
+    if (!is_empty_array(stmts)) {
+        ast_exp_t *l_exp, *r_exp, *v_exp;
+
+        ASSERT(fn->heap_usage > 0);
+
+        /* Increase "heap$offset" by the amount of memory used by the global variables
+         * defined in the contract */
+        l_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
+
+        v_exp = exp_new_lit_i64(fn->heap_usage, &id->pos);
+        meta_set_int32(&v_exp->meta);
+
+        r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, &id->pos);
+
+        stmt_add(stmts, stmt_new_assign(exp_new_global("heap$offset"), r_exp, &id->pos));
+
+        if (id->u_fn.blk == NULL)
+            id->u_fn.blk = blk_new_fn(&id->pos);
+
+        array_join_first(&id->u_fn.blk->stmts, stmts);
+    }
+}
+
+static void
+set_memory_addr(trans_t *trans, src_pos_t *pos)
 {
     ast_exp_t *l_exp, *r_exp, *v_exp;
     ir_fn_t *fn = trans->fn;
 
-    /* At the beginning of "entry_bb", set the current stack offset to the local
-     * variable */
-    l_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
+    if (fn->stack_usage > 0) {
+        /* At the beginning of "entry_bb", set the current stack offset to the local
+         * variable */
+        l_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
 
-    v_exp = exp_new_lit_i64(ALIGN64(fn->usage), pos);
-    meta_set_int32(&v_exp->meta);
+        v_exp = exp_new_lit_i64(ALIGN64(fn->stack_usage), pos);
+        meta_set_int32(&v_exp->meta);
 
-    r_exp = exp_new_binary(OP_SUB, exp_new_global("stack$offset"), v_exp, pos);
+        r_exp = exp_new_binary(OP_SUB, exp_new_global("stack$offset"), v_exp, pos);
 
-    array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
 
-    /* If there is any stack variable in the function, it has to be restored to the
-     * original value at the end of "exit_bb" because "stack$offset" has been changed */
-    l_exp = exp_new_global("stack$offset");
-    r_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
+        /* If there is any stack variable in the function, it has to be restored to the
+         * original value at the end of "exit_bb" because "stack$offset" has been
+         * changed */
+        l_exp = exp_new_global("stack$offset");
+        r_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
 
-    array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+    }
+
+    if (fn->heap_usage > 0) {
+        /* At the beginning of "entry_bb", set the current heap offset to the local
+         * variable */
+        l_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
+        r_exp = exp_new_global("heap$offset");
+
+        array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+
+        /* Increase "heap$offset" by the amount of memory used by initializer or 
+         * allocator expressions defined in the function */
+        l_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
+
+        v_exp = exp_new_lit_i64(fn->heap_usage, pos);
+        meta_set_int32(&v_exp->meta);
+
+        r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, pos);
+
+        array_add_last(&fn->exit_bb->stmts,
+                       stmt_new_assign(exp_new_global("heap$offset"), r_exp, pos));
+    }
 }
 
 static void
@@ -152,18 +189,13 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     trans->fn = fn;
 
-    if (is_ctor_id(id)) {
-        id_trans_ctor(trans, id);
-    }
-    else {
-        id_trans_param(trans, id);
+    id_trans_param(trans, id);
 
-        /* The "cont_idx" is always 0 because it is prepended to parameters */
-        fn->cont_idx = 0;
-        fn->abi = abi_lookup(&ir->abis, id);
-    }
-
+    fn->abi = abi_lookup(&ir->abis, id);
     id->abi = fn->abi;
+
+    /* All heap variables access memory by adding relative offset to this value */
+    fn->heap_idx = fn_add_tmp_var(fn, "heap$addr", TYPE_UINT32);
 
     /* All stack variables access memory by adding relative offset to this value */
     fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_UINT32);
@@ -175,13 +207,18 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     /* It is used internally for binaryen, not for us (see fn_gen()) */
     fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
 
+    if (is_ctor_id(id))
+        id_trans_ctor(trans, id);
+    else
+        /* The "cont_idx" is always 0 because it is prepended to parameters */
+        fn->cont_idx = 0;
+
     trans->bb = fn->entry_bb;
 
     if (id->u_fn.blk != NULL)
         blk_trans(trans, id->u_fn.blk);
 
-    if (fn->usage > 0)
-        set_stack_addr(trans, &id->pos);
+    set_memory_addr(trans, &id->pos);
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, fn->exit_bb);

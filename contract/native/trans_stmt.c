@@ -58,25 +58,20 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-resolve_rel(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
+resolve_itf_meta(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
 #if 0
-    if (is_init_exp(val_exp)) {
+    if (is_init_exp(val_exp) || is_alloc_exp(val_exp)) {
         ast_id_t *id = var_exp->id;
 
         ASSERT(id != NULL);
 
         /* This is set here because we need the base address to store each value of
-         * the initializer expression */
-        if (is_out_param(id) || is_local_id(id)) {
-            val_exp->meta.base_idx = id->idx;
-        }
-        else {
-            val_exp->meta.base_idx = id->meta.base_idx;
-            val_exp->meta.rel_addr = id->meta.rel_addr;
-        }
+         * the initializer or allocator expression */
+        if (is_local_id(id))
+            val_exp->meta.base_idx = trans->fn->stack_idx;
     }
 #endif
 
@@ -98,7 +93,6 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     ast_exp_t *r_exp = stmt->u_assign.r_exp;
 
     exp_trans(trans, l_exp);
-    exp_trans(trans, r_exp);
 
     if (is_tuple_exp(l_exp)) {
         /* Make each expression a separate assignment statement */
@@ -114,14 +108,34 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             ast_exp_t *var_exp = array_get_exp(var_exps, i);
             ast_exp_t *val_exp = array_get_exp(val_exps, i);
 
-            resolve_rel(trans, var_exp, val_exp);
+            resolve_itf_meta(trans, var_exp, val_exp);
+
+            if (var_exp->id != NULL && is_global_id(var_exp->id)) {
+                trans->is_heap = true;
+                exp_trans(trans, val_exp);
+                trans->is_heap = false;
+            }
+            else {
+                exp_trans(trans, val_exp);
+            }
+
             bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, &stmt->pos));
         }
     }
     else {
         ASSERT(!is_tuple_exp(r_exp));
 
-        resolve_rel(trans, l_exp, r_exp);
+        resolve_itf_meta(trans, l_exp, r_exp);
+
+        if (l_exp->id != NULL && is_global_id(l_exp->id)) {
+            trans->is_heap = true;
+            exp_trans(trans, r_exp);
+            trans->is_heap = false;
+        }
+        else {
+            exp_trans(trans, r_exp);
+        }
+
         bb_add_stmt(trans->bb, stmt);
     }
 }
@@ -154,7 +168,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                 var_exp = array_get_exp(var_exps, i);
                 val_exp = array_get_exp(val_exps, i);
 
-                resolve_rel(trans, var_exp, val_exp);
+                resolve_itf_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
             return;
@@ -175,14 +189,14 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
                     var_exp = array_get_exp(var_exps, var_idx++);
                     elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
 
-                    resolve_rel(trans, var_exp, elem_exp);
+                    resolve_itf_meta(trans, var_exp, elem_exp);
                     bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
                 }
             }
             else {
                 var_exp = array_get_exp(var_exps, var_idx++);
 
-                resolve_rel(trans, var_exp, val_exp);
+                resolve_itf_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
             }
         }
@@ -190,7 +204,7 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     else {
         ASSERT(!is_tuple_exp(l_exp));
 
-        resolve_rel(trans, l_exp, r_exp);
+        resolve_itf_meta(trans, l_exp, r_exp);
         bb_add_stmt(trans->bb, stmt);
     }
 }

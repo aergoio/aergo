@@ -156,7 +156,7 @@ id_new_tuple(src_pos_t *pos)
 ast_id_t *
 id_new_tmp_var(char *name)
 {
-    return ast_id_new(ID_VAR, MOD_PRIVATE, name, &src_pos_null_);
+    return ast_id_new(ID_VAR, MOD_PRIVATE, name, &null_pos_);
 }
 
 ast_id_t *

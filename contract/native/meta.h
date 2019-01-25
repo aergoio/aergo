@@ -133,9 +133,9 @@ struct meta_s {
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
 
     /* memory location to be stored */
-    int base_idx;           /* variable index having base address */
-    int rel_addr;           /* relative address */
-    int rel_offset;         /* relative offset from "rel_addr" */
+    uint32_t base_idx;      /* register index having base address */
+    uint32_t rel_addr;      /* relative address */
+    uint32_t rel_offset;    /* relative offset from "rel_addr" */
 
     src_pos_t *pos;
 };
@@ -158,9 +158,6 @@ meta_init(meta_t *meta, src_pos_t *pos)
     ASSERT(pos != NULL);
 
     memset(meta, 0x00, sizeof(meta_t));
-
-    meta->base_idx = -1;
-    meta->rel_addr = -1;
 
     meta->pos = pos;
 }

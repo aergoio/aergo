@@ -48,17 +48,23 @@ struct ir_fn_s {
     ir_bb_t *exit_bb;
 
     int cont_idx;           /* local index of contract address */
+    int heap_idx;           /* local index of heap base address */
     int stack_idx;          /* local index of stack base address */
     int reloop_idx;         /* local index of relooper variable */
     int ret_idx;            /* local index of return variable */
 
-    uint32_t usage;         /* stack usage */
+    uint32_t heap_usage;
+    uint32_t stack_usage;
 };
 
 ir_fn_t *fn_new(ast_id_t *id);
 
+void fn_add_global(ir_fn_t *fn, ast_id_t *id);
 void fn_add_local(ir_fn_t *fn, ast_id_t *id);
+
+void fn_add_heap(ir_fn_t *fn, meta_t *meta);
 void fn_add_stack(ir_fn_t *fn, meta_t *meta);
+
 void fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb);
 
 int fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type);

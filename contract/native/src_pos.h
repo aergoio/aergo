@@ -26,7 +26,7 @@ typedef struct src_pos_s {
     pos_t rel;      /* relative position */
 } src_pos_t;
 
-extern src_pos_t src_pos_null_;
+extern src_pos_t null_pos_;
 
 void src_pos_print(src_pos_t *pos, char *buf);
 

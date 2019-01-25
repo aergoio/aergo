@@ -262,7 +262,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
     switch (exp->u_bin.kind) {
     case OP_ADD:
         if (is_string_meta(meta)) {
-            /* XXX we need to handle return address
+            /* XXX
             BinaryenExpressionRef args[2] = { l_exp, r_exp };
 
             return BinaryenCall(gen->module, xstrdup("concat$"), args, 2,
@@ -383,6 +383,11 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
     left = exp_gen(gen, exp->u_bin.l_exp);
     right = exp_gen(gen, exp->u_bin.r_exp);
+
+    if (is_string_meta(meta)) {
+        /* XXX */
+        return i32_gen(gen, 0);
+    }
 
     switch (exp->u_bin.kind) {
     case OP_AND:
@@ -534,11 +539,14 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *fld_id = exp->id;
     meta_t *meta = &exp->meta;
+    ast_exp_t *qual_exp = exp->u_acc.qual_exp;
     BinaryenExpressionRef address;
 
-    ASSERT1(is_local_exp(exp->u_acc.qual_exp), exp->u_acc.qual_exp->kind);
+    /* If qualifier is a function and returns an array or a struct, "qual_exp" can be
+     * a binary expression. Otherwise all are local expressions */
+    ASSERT1(is_local_exp(qual_exp) || is_binary_exp(qual_exp), qual_exp->kind);
 
-    address = exp_gen(gen, exp->u_acc.qual_exp);
+    address = exp_gen(gen, qual_exp);
 
     if (is_fn_id(fld_id))
         return address;
@@ -574,8 +582,6 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         arguments[j++] = exp_gen(gen, array_get_exp(exp->u_call.param_exps, i));
     }
 
-    abi = id->abi;
-
     if (is_ctor_id(id))
         /* The constructor is called with an absolute index */
         return BinaryenCallIndirect(gen->module, i32_gen(gen, id->idx), arguments,
@@ -601,9 +607,10 @@ static BinaryenExpressionRef
 exp_gen_init(gen_t *gen, ast_exp_t *exp)
 {
     int i;
+    uint32_t offset = 0;
     meta_t *meta = &exp->meta;
     array_t *elem_exps = exp->u_init.elem_exps;
-    BinaryenExpressionRef value;
+    BinaryenExpressionRef address, value;
 
     if (is_map_meta(meta)) {
         /* elem_exps is the array of key-value pair */
@@ -620,42 +627,43 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
                                         BinaryenTypeNone()));
         }
+
+        return NULL;
     }
-    else {
-        uint32_t offset = 0;
-        BinaryenExpressionRef address;
 
-        ASSERT(exp->meta.base_idx >= 0);
-        ASSERT1(is_tuple_meta(meta), meta->type);
+    ASSERT(exp->meta.base_idx >= 0);
+    ASSERT1(is_tuple_meta(meta), meta->type);
 
-        address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
+    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
-        if (exp->meta.rel_addr > 0)
-            address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                     i32_gen(gen, exp->meta.rel_addr));
+    if (exp->meta.rel_addr > 0)
+        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                                 i32_gen(gen, exp->meta.rel_addr));
 
-        array_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
-            meta_t *elem_meta = &elem_exp->meta;
+    array_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+        meta_t *elem_meta = &elem_exp->meta;
 
-            if (is_init_exp(elem_exp)) {
-                elem_exp->meta.base_idx = exp->meta.base_idx;
-                elem_exp->meta.rel_addr = exp->meta.rel_addr + offset;
-            }
+        if (is_init_exp(elem_exp)) {
+            elem_exp->meta.base_idx = exp->meta.base_idx;
+            elem_exp->meta.rel_addr = exp->meta.rel_addr + offset;
 
+            exp_gen(gen, elem_exp);
+        }
+        else {
             value = exp_gen(gen, elem_exp);
+            ASSERT(value != NULL);
+
             offset = ALIGN(offset, meta_align(elem_meta));
 
-            if (value != NULL)
-                instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type),
-                                             offset, 0, address, value,
-                                             meta_gen(elem_meta)));
-
-            offset += meta_size(elem_meta);
+            instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), offset,
+                                         0, address, value, meta_gen(elem_meta)));
         }
+
+        offset += meta_size(elem_meta);
     }
 
-    return NULL;
+    return address;
 }
 
 static BinaryenExpressionRef

@@ -7,7 +7,7 @@
 
 #include "src_pos.h"
 
-src_pos_t src_pos_null_ = {
+src_pos_t null_pos_ = {
     NULL, { NULL, 1, 1, 0, 1, 1, 0 }, { NULL, 1, 1, 0, 1, 1, 0 }
 };
 

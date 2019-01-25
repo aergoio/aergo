@@ -1,28 +1,26 @@
 @test(assignment)
 contract test {
-    int i1, i2;
-
+    int i1;
+    string s1;
     test() {
         i1 = 1;
-        i1, i2 = 1, 2;
-
         i1 += 1;
         i1 -= 1;
         i1 *= 1 + 1;
         i1 /= 2;
         i1 %= 10;
 
+        int i2;
         i2 = i1;
         i2 |= 0xff;
         i2 &= 0x01;
         i2 ^= 0x01;
 
-        string s1 = "first";
+        s1 = "first";
         s1 += ", second";
 
-        string s2 = s1;
-
-        i1, s1 = 1, "first";
+        string s2;
+        s2 = s1;
     }
 }
 

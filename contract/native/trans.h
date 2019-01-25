@@ -33,6 +33,8 @@ typedef struct trans_s {
 
     ir_bb_t *cont_bb;       /* for continue */
     ir_bb_t *break_bb;      /* for break */
+
+    bool is_heap;           /* whether allocate to heap */
 } trans_t;
 
 void trans(ast_t *ast, flag_t flag, ir_t **ir);

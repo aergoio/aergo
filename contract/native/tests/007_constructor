@@ -38,13 +38,11 @@ contract test {
 }
 
 @test(instantiate)
-contract callee { }
-
+contract callee {
+    callee() { test t = new test(); }
+}
 contract test {
-    test() {
-        test t = new test();
-        callee c = new callee();
-    }
+    test() { callee c = new callee(); }
 }
 
 @test(missing_parenthesis)

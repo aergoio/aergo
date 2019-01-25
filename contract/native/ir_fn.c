@@ -36,13 +36,42 @@ fn_new(ast_id_t *id)
     fn->exit_bb = bb_new();
 
     fn->cont_idx = -1;
+    fn->heap_idx = -1;
     fn->stack_idx = -1;
     fn->reloop_idx = -1;
     fn->ret_idx = -1;
 
-    fn->usage = 0;
+    fn->heap_usage = 0;
+    fn->stack_usage = 0;
 
     return fn;
+}
+
+void
+fn_add_global(ir_fn_t *fn, ast_id_t *id)
+{
+    meta_t *meta = &id->meta;
+
+    ASSERT(fn != NULL);
+    ASSERT1(is_var_id(id), id->kind);
+
+    if (is_array_meta(meta))
+        /* The array is always accessed as a reference */
+        fn->heap_usage = ALIGN32(fn->heap_usage);
+    else
+        fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
+
+    /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
+     * used only when accessing an array or struct element */
+
+    meta->base_idx = fn->cont_idx;
+    meta->rel_addr = fn->heap_usage;
+    meta->rel_offset = 0;
+
+    if (is_array_meta(meta))
+        fn->heap_usage += sizeof(uint32_t);
+    else
+        fn->heap_usage += TYPE_BYTE(meta->type);
 }
 
 void
@@ -62,17 +91,34 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
 }
 
 void
+fn_add_heap(ir_fn_t *fn, meta_t *meta)
+{
+    ASSERT(fn != NULL);
+
+    fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
+
+    /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
+     * used only when accessing an array or struct element */
+
+    meta->base_idx = fn->heap_idx;
+    meta->rel_addr = fn->heap_usage;
+    meta->rel_offset = 0;
+
+    fn->heap_usage += meta_size(meta);
+}
+
+void
 fn_add_stack(ir_fn_t *fn, meta_t *meta)
 {
     ASSERT(fn != NULL);
     ASSERT(fn->stack_idx >= 0);
 
-    fn->usage = ALIGN(fn->usage, meta_align(meta));
+    fn->stack_usage = ALIGN(fn->stack_usage, meta_align(meta));
 
     meta->base_idx = fn->stack_idx;
-    meta->rel_addr = fn->usage;
+    meta->rel_addr = fn->stack_usage;
 
-    fn->usage += meta_size(meta);
+    fn->stack_usage += meta_size(meta);
 }
 
 void
