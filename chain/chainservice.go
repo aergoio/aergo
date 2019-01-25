@@ -520,6 +520,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			scs, err := cw.sdb.GetStateDB().OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
 			if err != nil {
 				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+				context.Respond(message.GetStateRsp{
+					Account: msg.Account,
+					State:   nil,
+					Err:     err,
+				})
+				return
 			}
 			account = name.GetAddress(scs, msg.Account)
 		} else {
