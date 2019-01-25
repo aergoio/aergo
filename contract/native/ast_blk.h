@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
-#include "array.h"
+#include "vector.h"
 
 #define is_normal_blk(blk)          ((blk)->kind == BLK_NORMAL)
 #define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
@@ -31,8 +31,8 @@ typedef struct ast_id_s ast_id_t;
 struct ast_blk_s {
     blk_kind_t kind;
 
-    array_t ids;
-    array_t stmts;
+    vector_t ids;
+    vector_t stmts;
 
     ast_blk_t *up;
 

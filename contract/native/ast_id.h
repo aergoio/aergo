@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
-#include "array.h"
+#include "vector.h"
 #include "enum.h"
 #include "meta.h"
 #include "value.h"
@@ -62,20 +62,20 @@ typedef struct ir_abi_s ir_abi_t;
 typedef struct id_var_s {
     param_kind_t kind;
     ast_exp_t *type_exp;
-    array_t *size_exps;
+    vector_t *size_exps;
     ast_exp_t *dflt_exp;
 } id_var_t;
 
 typedef struct id_struct_s {
-    array_t *fld_ids;
+    vector_t *fld_ids;
 } id_struct_t;
 
 typedef struct id_enum_s {
-    array_t *elem_ids;
+    vector_t *elem_ids;
 } id_enum_t;
 
 typedef struct id_fn_s {
-    array_t *param_ids;
+    vector_t *param_ids;
     ast_id_t *ret_id;
     ast_blk_t *blk;
 } id_fn_t;
@@ -95,7 +95,7 @@ typedef struct id_label_s {
 
 typedef struct id_tuple_s {
     ast_exp_t *type_exp;
-    array_t *elem_ids;
+    vector_t *elem_ids;
     ast_exp_t *dflt_exp;
 } id_tuple_t;
 
@@ -133,11 +133,11 @@ struct ast_id_s {
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
 ast_id_t *id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp,
                        src_pos_t *pos);
-ast_id_t *id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos);
-ast_id_t *id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos);
-ast_id_t *id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
+ast_id_t *id_new_struct(char *name, vector_t *fld_ids, src_pos_t *pos);
+ast_id_t *id_new_enum(char *name, vector_t *elem_ids, src_pos_t *pos);
+ast_id_t *id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
                       ast_blk_t *blk, src_pos_t *pos);
-ast_id_t *id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_ctor(char *name, vector_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk,
                           src_pos_t *pos);
 ast_id_t *id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos);
@@ -149,10 +149,10 @@ ast_id_t *id_new_tmp_var(char *name);
 ast_id_t *id_search_fld(ast_id_t *id, char *name, bool is_self);
 ast_id_t *id_search_param(ast_id_t *id, char *name);
 
-void id_add(array_t *ids, ast_id_t *new_id);
-void id_join(array_t *ids, array_t *new_ids);
+void id_add(vector_t *ids, ast_id_t *new_id);
+void id_join(vector_t *ids, vector_t *new_ids);
 
-array_t *id_strip(ast_id_t *id);
+vector_t *id_strip(ast_id_t *id);
 
 bool id_cmp(ast_id_t *x, ast_id_t *y);
 

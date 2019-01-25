@@ -29,8 +29,8 @@ fn_new(ast_id_t *id)
 
     fn->abi = NULL;
 
-    array_init(&fn->locals);
-    array_init(&fn->bbs);
+    vector_init(&fn->locals);
+    vector_init(&fn->bbs);
 
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
@@ -55,20 +55,20 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
     ASSERT(fn != NULL);
     ASSERT1(is_var_id(id), id->kind);
 
-    if (is_array_meta(meta))
-        /* The array is always accessed as a reference */
+    if (is_vector_meta(meta))
+        /* The vector is always accessed as a reference */
         fn->heap_usage = ALIGN32(fn->heap_usage);
     else
         fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
 
     /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
-     * used only when accessing an array or struct element */
+     * used only when accessing an vector or struct element */
 
     meta->base_idx = fn->cont_idx;
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
 
-    if (is_array_meta(meta))
+    if (is_vector_meta(meta))
         fn->heap_usage += sizeof(uint32_t);
     else
         fn->heap_usage += TYPE_BYTE(meta->type);
@@ -85,9 +85,9 @@ fn_add_local(ir_fn_t *fn, ast_id_t *id)
     abi = fn->abi;
     ASSERT(abi != NULL);
 
-    id->idx = abi->param_cnt + array_size(&fn->locals);
+    id->idx = abi->param_cnt + vector_size(&fn->locals);
 
-    array_add_last(&fn->locals, id);
+    vector_add_last(&fn->locals, id);
 }
 
 void
@@ -98,7 +98,7 @@ fn_add_heap(ir_fn_t *fn, meta_t *meta)
     fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
 
     /* Heap variables are always accessed with "base_idx + rel_addr", and offset is
-     * used only when accessing an array or struct element */
+     * used only when accessing an vector or struct element */
 
     meta->base_idx = fn->heap_idx;
     meta->rel_addr = fn->heap_usage;
@@ -126,7 +126,7 @@ fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
 {
     ASSERT(fn != NULL);
 
-    array_add_last(&fn->bbs, bb);
+    vector_add_last(&fn->bbs, bb);
 }
 
 int
@@ -143,9 +143,9 @@ fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
     tmp_id = id_new_tmp_var(name);
     meta_set(&tmp_id->meta, type);
 
-    array_add_last(&fn->locals, tmp_id);
+    vector_add_last(&fn->locals, tmp_id);
 
-    return abi->param_cnt + array_size(&fn->locals) - 1;
+    return abi->param_cnt + vector_size(&fn->locals) - 1;
 }
 
 /* end of ir_fn.c */

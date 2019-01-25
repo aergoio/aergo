@@ -14,7 +14,7 @@
 
 #include "trans_exp.h"
 
-static void copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr,
+static void copy_vector(trans_t *trans, uint32_t base_idx, uint32_t rel_addr,
                        meta_t *meta);
 
 static void
@@ -73,7 +73,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-exp_trans_array(trans_t *trans, ast_exp_t *exp)
+exp_trans_vector(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
     ast_exp_t *id_exp = exp->u_arr.id_exp;
@@ -82,10 +82,10 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, id_exp);
     exp_trans(trans, idx_exp);
 
-    if (is_array_meta(&id->meta)) {
+    if (is_vector_meta(&id->meta)) {
         uint32_t offset;
 
-        /* In array expression, the offset is calculated as follows:
+        /* In vector expression, the offset is calculated as follows:
          *
          * Suppose that "int i[x][y][z]" is defined.
          *
@@ -105,7 +105,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        /* The following meta_size() is stripped size of array */
+        /* The following meta_size() is stripped size of vector */
         offset = val_i64(&idx_exp->u_lit.val) * meta_size(&exp->meta);
 
         if (is_stack_exp(id_exp))
@@ -114,7 +114,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         else
             exp_set_stack(exp, id_exp->u_local.idx, 0, offset);
 
-        if (is_array_meta(&exp->meta))
+        if (is_vector_meta(&exp->meta))
             exp->u_stk.type = TYPE_UINT32;
     }
     else {
@@ -248,7 +248,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         exp_set_stack(exp, qual_exp->u_stk.base, qual_exp->u_stk.addr,
                       qual_exp->u_stk.offset + fld_id->meta.rel_offset);
     else
-        /* If qualifier is a function and returns an array or a struct, "qual_exp" can
+        /* If qualifier is a function and returns an vector or a struct, "qual_exp" can
          * be a binary expression */
         ASSERT1(is_binary_exp(qual_exp), qual_exp->kind);
 }
@@ -289,20 +289,20 @@ add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
     /* The return value is always stored in stack memory */
     if (is_tuple_id(ret_id)) {
         int i;
-        array_t *elem_exps = array_new();
-        array_t *elem_ids = ret_id->u_tup.elem_ids;
+        vector_t *elem_exps = vector_new();
+        vector_t *elem_ids = ret_id->u_tup.elem_ids;
 
-        array_foreach(elem_ids, i) {
-            ast_id_t *elem_id = array_get_id(elem_ids, i);
+        vector_foreach(elem_ids, i) {
+            ast_id_t *elem_id = vector_get_id(elem_ids, i);
 
             ASSERT1(elem_id->meta.rel_offset == 0, elem_id->meta.rel_offset);
 
             fn_add_stack(fn, &elem_id->meta);
 
-            array_add_last(call_exp->u_call.param_exps,
+            vector_add_last(call_exp->u_call.param_exps,
                            make_return_exp(elem_id, fn->stack_idx));
 
-            array_add_last(elem_exps,
+            vector_add_last(elem_exps,
                            exp_new_stack(elem_id->meta.type, fn->stack_idx,
                                          elem_id->meta.rel_addr, 0));
         }
@@ -315,7 +315,7 @@ add_return_param(trans_t *trans, ast_exp_t *call_exp, ast_exp_t *ret_exp)
 
         fn_add_stack(fn, &ret_id->meta);
 
-        array_add_last(call_exp->u_call.param_exps,
+        vector_add_last(call_exp->u_call.param_exps,
                        make_return_exp(ret_id, fn->stack_idx));
 
         exp_set_stack(ret_exp, fn->stack_idx, ret_id->meta.rel_addr, 0);
@@ -344,8 +344,8 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
     for (i = 0; i < meta->elem_cnt; i++) {
         meta_t *elem_meta = meta->elems[i];
 
-        if (is_array_meta(elem_meta))
-            copy_array(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
+        if (is_vector_meta(elem_meta))
+            copy_vector(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
         else if (is_struct_meta(elem_meta))
             copy_struct(trans, base_idx, rel_addr + elem_meta->rel_offset, elem_meta);
         else
@@ -354,7 +354,7 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 }
 
 static void
-copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
+copy_vector(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 {
     int i, j;
     uint32_t offset = 0;
@@ -394,7 +394,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         /* Since non-constructor functions are added the contract base address as a first
          * argument, we must also add the address as a call argument here */
         if (exp->u_call.param_exps == NULL)
-            exp->u_call.param_exps = array_new();
+            exp->u_call.param_exps = vector_new();
 
         if (is_access_exp(id_exp)) {
             ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
@@ -403,7 +403,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             /* If the call expression is of type "x.y()", pass "x" as the first
              * argument */
-            array_add_first(exp->u_call.param_exps, qual_exp);
+            vector_add_first(exp->u_call.param_exps, qual_exp);
         }
         else {
             ASSERT1(is_local_exp(id_exp), id_exp->kind);
@@ -411,12 +411,12 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             /* If the call expression is of type "x()", pass my first parameter as the
              * first argument */
-            array_add_first(exp->u_call.param_exps, exp_new_local(TYPE_UINT32, 0));
+            vector_add_first(exp->u_call.param_exps, exp_new_local(TYPE_UINT32, 0));
         }
     }
 
-    array_foreach(exp->u_call.param_exps, i) {
-        exp_trans(trans, array_get_exp(exp->u_call.param_exps, i));
+    vector_foreach(exp->u_call.param_exps, i) {
+        exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
     }
 
     if (fn->stack_usage > 0) {
@@ -440,16 +440,16 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         /* We have to clone it because the call expression itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_assign(l_exp, exp_clone(exp), &exp->pos));
 
-        if (is_array_meta(&fn_id->meta) || is_struct_meta(&fn_id->meta)) {
-            /* If the return value is an array or struct, we must copy the value because
+        if (is_vector_meta(&fn_id->meta) || is_struct_meta(&fn_id->meta)) {
+            /* If the return value is an vector or struct, we must copy the value because
              * we do share memory space between the caller and the callee */
             if (trans->is_heap)
                 fn_add_heap(fn, &exp->meta);
             else
                 fn_add_stack(fn, &exp->meta);
 
-            if (is_array_meta(&fn_id->meta))
-                copy_array(trans, reg_idx, exp->meta.rel_addr, &exp->meta);
+            if (is_vector_meta(&fn_id->meta))
+                copy_vector(trans, reg_idx, exp->meta.rel_addr, &exp->meta);
             else
                 copy_struct(trans, reg_idx, exp->meta.rel_addr, &exp->meta);
 
@@ -498,10 +498,10 @@ static void
 exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    array_t *elem_exps = exp->u_tup.elem_exps;
+    vector_t *elem_exps = exp->u_tup.elem_exps;
 
-    array_foreach(elem_exps, i) {
-        exp_trans(trans, array_get_exp(elem_exps, i));
+    vector_foreach(elem_exps, i) {
+        exp_trans(trans, vector_get_exp(elem_exps, i));
     }
 }
 
@@ -510,10 +510,10 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     bool is_aggr_val = true;
-    array_t *elem_exps = exp->u_init.elem_exps;
+    vector_t *elem_exps = exp->u_init.elem_exps;
 
-    array_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+    vector_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
         exp_trans(trans, elem_exp);
 
@@ -526,8 +526,8 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         uint32_t size = meta_size(&exp->meta);
         char *raw = xcalloc(size);
 
-        array_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+        vector_foreach(elem_exps, i) {
+            ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
             value_t *elem_val = &elem_exp->u_lit.val;
 
             offset = ALIGN(offset, meta_align(&elem_exp->meta));
@@ -575,8 +575,8 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         exp_trans_id(trans, exp);
         break;
 
-    case EXP_ARRAY:
-        exp_trans_array(trans, exp);
+    case EXP_VECTOR:
+        exp_trans_vector(trans, exp);
         break;
 
     case EXP_CAST:

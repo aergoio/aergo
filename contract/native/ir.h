@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "array.h"
+#include "vector.h"
 #include "ir_sgmt.h"
 
 #ifndef _META_T
@@ -22,8 +22,8 @@ typedef struct ir_fn_s ir_fn_t;
 #endif /* ! _IR_FN_T */
 
 typedef struct ir_s {
-    array_t abis;
-    array_t fns;
+    vector_t abis;
+    vector_t fns;
 
     ir_sgmt_t sgmt;
 

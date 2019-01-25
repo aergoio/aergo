@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "array.h"
+#include "vector.h"
 #include "ir_abi.h"
 #include "ir_fn.h"
 #include "ir_bb.h"
@@ -45,9 +45,9 @@ id_trans_param(trans_t *trans, ast_id_t *id)
     meta_set_object(&param_id->meta, id->up);
 
     if (id->u_fn.param_ids == NULL)
-        id->u_fn.param_ids = array_new();
+        id->u_fn.param_ids = vector_new();
 
-    array_add_first(id->u_fn.param_ids, param_id);
+    vector_add_first(id->u_fn.param_ids, param_id);
 }
 
 static void
@@ -56,7 +56,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     int i, j;
     //ast_id_t *addr_id;
     //ast_exp_t *l_exp, *r_exp, *v_exp;
-    array_t *stmts = array_new();
+    vector_t *stmts = vector_new();
     ir_fn_t *fn = trans->fn;
     //ir_t *ir = trans->ir;
 
@@ -81,9 +81,9 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 #endif
     fn->cont_idx = fn->heap_idx;
 
-    /* We use the "stmts" array to keep the declaration order of variables */
-    array_foreach(&id->up->u_cont.blk->ids, i) {
-        ast_id_t *var_id = array_get_id(&id->up->u_cont.blk->ids, i);
+    /* We use the "stmts" vector to keep the declaration order of variables */
+    vector_foreach(&id->up->u_cont.blk->ids, i) {
+        ast_id_t *var_id = vector_get_id(&id->up->u_cont.blk->ids, i);
         ast_exp_t *dflt_exp = NULL;
 
         if (is_var_id(var_id)) {
@@ -92,8 +92,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             dflt_exp = var_id->u_var.dflt_exp;
         }
         else if (is_tuple_id(var_id)) {
-            array_foreach(var_id->u_tup.elem_ids, j) {
-                ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, j);
+            vector_foreach(var_id->u_tup.elem_ids, j) {
+                ast_id_t *elem_id = vector_get_id(var_id->u_tup.elem_ids, j);
 
                 fn_add_global(fn, elem_id);
             }
@@ -105,7 +105,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(var_id, dflt_exp));
     }
 
-    if (!is_empty_array(stmts)) {
+    if (!is_empty_vector(stmts)) {
         ast_exp_t *l_exp, *r_exp, *v_exp;
 
         ASSERT(fn->heap_usage > 0);
@@ -124,7 +124,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
         if (id->u_fn.blk == NULL)
             id->u_fn.blk = blk_new_fn(&id->pos);
 
-        array_join_first(&id->u_fn.blk->stmts, stmts);
+        vector_join_first(&id->u_fn.blk->stmts, stmts);
     }
 }
 
@@ -144,7 +144,7 @@ set_memory_addr(trans_t *trans, src_pos_t *pos)
 
         r_exp = exp_new_binary(OP_SUB, exp_new_global("stack$offset"), v_exp, pos);
 
-        array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
 
         /* If there is any stack variable in the function, it has to be restored to the
          * original value at the end of "exit_bb" because "stack$offset" has been
@@ -152,7 +152,7 @@ set_memory_addr(trans_t *trans, src_pos_t *pos)
         l_exp = exp_new_global("stack$offset");
         r_exp = exp_new_local(TYPE_UINT32, fn->stack_idx);
 
-        array_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
     }
 
     if (fn->heap_usage > 0) {
@@ -161,7 +161,7 @@ set_memory_addr(trans_t *trans, src_pos_t *pos)
         l_exp = exp_new_local(TYPE_UINT32, fn->heap_idx);
         r_exp = exp_new_global("heap$offset");
 
-        array_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
 
         /* Increase "heap$offset" by the amount of memory used by initializer or 
          * allocator expressions defined in the function */
@@ -172,7 +172,7 @@ set_memory_addr(trans_t *trans, src_pos_t *pos)
 
         r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, pos);
 
-        array_add_last(&fn->exit_bb->stmts,
+        vector_add_last(&fn->exit_bb->stmts,
                        stmt_new_assign(exp_new_global("heap$offset"), r_exp, pos));
     }
 }
@@ -240,7 +240,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         ret_stmt = stmt_new_return(arg_exp, &id->pos);
         ret_stmt->u_ret.ret_id = ret_id;
 
-        array_add_last(&fn->exit_bb->stmts, ret_stmt);
+        vector_add_last(&fn->exit_bb->stmts, ret_stmt);
     }
 
     trans->fn = NULL;
@@ -276,14 +276,14 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
 
         ASSERT1(is_itf_id(itf_id), itf_id->kind);
 
-        array_foreach(&itf_id->u_itf.blk->ids, i) {
-            ast_id_t *spec_id = array_get_id(&itf_id->u_itf.blk->ids, i);
+        vector_foreach(&itf_id->u_itf.blk->ids, i) {
+            ast_id_t *spec_id = vector_get_id(&itf_id->u_itf.blk->ids, i);
 
-            array_foreach(&blk->ids, j) {
-                ast_id_t *fn_id = array_get_id(&blk->ids, j);
+            vector_foreach(&blk->ids, j) {
+                ast_id_t *fn_id = vector_get_id(&blk->ids, j);
 
                 if (is_fn_id(fn_id) && strcmp(spec_id->name, fn_id->name) == 0) {
-                    array_move(&blk->ids, j, i);
+                    vector_move(&blk->ids, j, i);
                     break;
                 }
             }
@@ -293,22 +293,22 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     /* Move the constructor to the first position because it handles the memory
      * allocation of global variables. Even if the contract implements interface,
      * there is no problem because index 0 is empty. (see id_trans_interface()) */
-    array_foreach(&blk->ids, i) {
-        if (is_ctor_id(array_get_id(&blk->ids, i))) {
-            array_move(&blk->ids, i, 0);
+    vector_foreach(&blk->ids, i) {
+        if (is_ctor_id(vector_get_id(&blk->ids, i))) {
+            vector_move(&blk->ids, i, 0);
             break;
         }
     }
 
     /* Because the cross-reference is possible between functions, the index of the
      * function is numbered before transformation */
-    array_foreach(&blk->ids, i) {
-        ast_id_t *fn_id = array_get_id(&blk->ids, i);
+    vector_foreach(&blk->ids, i) {
+        ast_id_t *fn_id = vector_get_id(&blk->ids, i);
 
         if (is_ctor_id(fn_id))
             /* Since the constructor can be called from any location (including another
              * contracts), it should always be accessed with an absolute index */
-            fn_id->idx = array_size(&ir->fns);
+            fn_id->idx = vector_size(&ir->fns);
         else if (is_fn_id(fn_id))
             /* The "idx" is the relative index within the contract */
             fn_id->idx = fn_idx++;
@@ -319,11 +319,11 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
      * also access table by adding relative index to this value */
     idx_id = id_new_tmp_var("cont$idx");
     idx_id->up = id;
-    idx_id->u_var.dflt_exp = exp_new_lit_i64(array_size(&ir->fns), &idx_id->pos);
+    idx_id->u_var.dflt_exp = exp_new_lit_i64(vector_size(&ir->fns), &idx_id->pos);
     meta_set_int32(&idx_id->u_var.dflt_exp->meta);
     meta_set_int32(&idx_id->meta);
 
-    array_add_first(&id->u_cont.blk->ids, idx_id);
+    vector_add_first(&id->u_cont.blk->ids, idx_id);
 
     blk_trans(trans, id->u_cont.blk);
 
@@ -341,8 +341,8 @@ id_trans_interface(trans_t *trans, ast_id_t *id)
 
     ASSERT(blk != NULL);
 
-    array_foreach(&blk->ids, i) {
-        ast_id_t *fn_id = array_get_id(&blk->ids, i);
+    vector_foreach(&blk->ids, i) {
+        ast_id_t *fn_id = vector_get_id(&blk->ids, i);
 
         ASSERT1(is_fn_id(fn_id), fn_id->kind);
         ASSERT(!is_ctor_id(fn_id));
@@ -368,8 +368,8 @@ id_trans_tuple(trans_t *trans, ast_id_t *id)
 {
     int i;
 
-    array_foreach(id->u_tup.elem_ids, i) {
-        id_trans_var(trans, array_get_id(id->u_tup.elem_ids, i));
+    vector_foreach(id->u_tup.elem_ids, i) {
+        id_trans_var(trans, vector_get_id(id->u_tup.elem_ids, i));
     }
 }
 

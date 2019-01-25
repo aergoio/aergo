@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "array.h"
+#include "vector.h"
 
 #define HASH_BUCKET_SIZE            64
 
@@ -18,7 +18,7 @@ typedef struct hash_elem_s {
 } hash_elem_t;
 
 typedef struct hash_s {
-    array_t buckets[HASH_BUCKET_SIZE];
+    vector_t buckets[HASH_BUCKET_SIZE];
 } hash_t;
 
 void hash_add(hash_t *hash, char *key, void *val);
@@ -33,7 +33,7 @@ hash_init(hash_t *hash)
     ASSERT(hash != NULL);
 
     for (i = 0; i < HASH_BUCKET_SIZE; i++) {
-        array_init(&hash->buckets[i]);
+        vector_init(&hash->buckets[i]);
     }
 }
 

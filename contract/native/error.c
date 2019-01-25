@@ -144,16 +144,16 @@ void
 error_print(void)
 {
     int i;
-    array_t *array = stack_to_array(&errstack_, error_cmp);
+    vector_t *vector = stack_to_vector(&errstack_, error_cmp);
 
-    array_foreach(array, i) {
-        error_t *e = array_get(array, i, error_t);
+    vector_foreach(vector, i) {
+        error_t *e = vector_get(vector, i, error_t);
 
         fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n",
                 err_lvls_[e->level], e->path, e->line, e->desc);
     }
 
-    array_clear(array);
+    vector_clear(vector);
 }
 
 void

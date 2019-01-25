@@ -145,7 +145,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %union {
     bool flag;
     char *str;
-    array_t *array;
+    vector_t *vect;
 
     type_t type;
     op_kind_t op;
@@ -174,13 +174,13 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     var_init
 %type <id>      compound
 %type <id>      struct
-%type <array>   field_list
+%type <vect>    field_list
 %type <id>      enumeration
-%type <array>   enum_list
+%type <vect>    enum_list
 %type <id>      enumerator
 %type <id>      constructor
-%type <array>   param_list_opt
-%type <array>   param_list
+%type <vect>    param_list_opt
+%type <vect>    param_list
 %type <id>      param_decl
 %type <blk>     block
 %type <blk>     blk_decl
@@ -214,7 +214,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     new_exp
 %type <exp>     alloc_exp
 %type <exp>     initializer
-%type <array>   elem_list
+%type <vect>    elem_list
 %type <exp>     init_elem
 %type <exp>     ternary_exp
 %type <exp>     or_exp
@@ -236,8 +236,8 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <exp>     unary_exp
 %type <op>      unary_op
 %type <exp>     post_exp
-%type <array>   arg_list_opt
-%type <array>   arg_list
+%type <vect>    arg_list_opt
+%type <vect>    arg_list
 %type <exp>     prim_exp
 %type <exp>     literal
 %type <str>     non_reserved_token
@@ -283,8 +283,8 @@ contract_decl:
         int i;
         bool has_ctor = false;
 
-        array_foreach(&$5->ids, i) {
-            if (is_ctor_id(array_get_id(&$5->ids, i)))
+        vector_foreach(&$5->ids, i) {
+            if (is_ctor_id(vector_get_id(&$5->ids, i)))
                 has_ctor = true;
         }
 
@@ -435,7 +435,7 @@ declarator:
         $$ = $1;
 
         if ($$->u_var.size_exps == NULL)
-            $$->u_var.size_exps = array_new();
+            $$->u_var.size_exps = vector_new();
 
         exp_add($$->u_var.size_exps, $3);
     }
@@ -457,7 +457,7 @@ var_init:
             $$ = $1;
         }
         else {
-            $$ = exp_new_tuple(array_new(), &@1);
+            $$ = exp_new_tuple(vector_new(), &@1);
             exp_add($$->u_tup.elem_exps, $1);
         }
         exp_add($$->u_tup.elem_exps, $3);
@@ -489,7 +489,7 @@ struct:
 field_list:
     var_spec eol
     {
-        $$ = array_new();
+        $$ = vector_new();
 
         if (is_var_id($1))
             id_add($$, $1);
@@ -522,7 +522,7 @@ enumeration:
 enum_list:
     enumerator
     {
-        $$ = array_new();
+        $$ = vector_new();
         id_add($$, $1);
     }
 |   enum_list ',' enumerator
@@ -554,10 +554,10 @@ constructor:
     {
         $$ = id_new_ctor($1, $3, $5, &@1);
 
-        if (!is_empty_array(LABELS)) {
+        if (!is_empty_vector(LABELS)) {
             ASSERT($5 != NULL);
             id_join(&$5->ids, LABELS);
-            array_reset(LABELS);
+            vector_reset(LABELS);
         }
     }
 ;
@@ -570,7 +570,7 @@ param_list_opt:
 param_list:
     param_decl
     {
-        $$ = array_new();
+        $$ = vector_new();
         exp_add($$, $1);
     }
 |   param_list ',' param_decl
@@ -644,10 +644,10 @@ function:
         $$ = $1;
         $$->u_fn.blk = $2;
 
-        if (!is_empty_array(LABELS)) {
+        if (!is_empty_vector(LABELS)) {
             ASSERT($2 != NULL);
             id_join(&$2->ids, LABELS);
-            array_reset(LABELS);
+            vector_reset(LABELS);
         }
     }
 ;
@@ -701,7 +701,7 @@ return_list:
          */
 #if 0
         /* The reason for making the return list as tuple is because of
-         * the convenience of meta comparison. If array_t is used,
+         * the convenience of meta comparison. If vector_t is used,
          * it must be looped for each id and compared directly,
          * but for tuples, meta_cmp() is sufficient */
 
@@ -731,7 +731,7 @@ return_decl:
         $$ = $1;
 
         if ($$->u_var.size_exps == NULL)
-            $$->u_var.size_exps = array_new();
+            $$->u_var.size_exps = vector_new();
 
         exp_add($$->u_var.size_exps, $3);
     }
@@ -813,7 +813,7 @@ label_stmt:
     identifier ':' statement
     {
         $$ = $3;
-        array_add_last(LABELS, id_new_label($1, $3, &@1));
+        id_add(LABELS, id_new_label($1, $3, &@1));
     }
 |   K_CASE eq_exp ':'
     {
@@ -873,11 +873,11 @@ loop_stmt:
     }
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_exp($3, &@3), NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_exp($3, &@3), NULL, $5, $7, &@$);
     }
 |   K_FOR '(' var_spec K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_id($3, &@3), NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_id($3, &@3), NULL, $5, $7, &@$);
     }
 |   K_FOR error '}'
     {
@@ -992,7 +992,7 @@ expression:
             $$ = $1;
         }
         else {
-            $$ = exp_new_tuple(array_new(), &@1);
+            $$ = exp_new_tuple(vector_new(), &@1);
             exp_add($$->u_tup.elem_exps, $1);
         }
         exp_add($$->u_tup.elem_exps, $3);
@@ -1048,9 +1048,9 @@ alloc_exp:
         $$ = $1;
 
         if ($$->u_alloc.size_exps == NULL)
-            $$->u_alloc.size_exps = array_new();
+            $$->u_alloc.size_exps = vector_new();
 
-        array_add_last($$->u_alloc.size_exps, $3);
+        exp_add($$->u_alloc.size_exps, $3);
     }
 ;
 
@@ -1064,7 +1064,7 @@ initializer:
 elem_list:
     init_elem
     {
-        $$ = array_new();
+        $$ = vector_new();
         exp_add($$, $1);
     }
 |   elem_list ',' init_elem
@@ -1230,7 +1230,7 @@ post_exp:
     prim_exp
 |   post_exp '[' ternary_exp ']'
     {
-        $$ = exp_new_array($1, $3, &@$);
+        $$ = exp_new_vector($1, $3, &@$);
     }
 |   post_exp '(' arg_list_opt ')'
     {
@@ -1258,7 +1258,7 @@ arg_list_opt:
 arg_list:
     new_exp
     {
-        $$ = array_new();
+        $$ = vector_new();
         exp_add($$, $1);
     }
 |   arg_list ',' new_exp

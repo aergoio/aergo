@@ -9,7 +9,7 @@
 #include "common.h"
 
 #include "ast.h"
-#include "array.h"
+#include "vector.h"
 
 #define is_null_stmt(stmt)          ((stmt)->kind == STMT_NULL)
 #define is_id_stmt(stmt)            ((stmt)->kind == STMT_ID)
@@ -26,7 +26,7 @@
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
 
-#define stmt_add                    array_add_last
+#define stmt_add                    vector_add_last
 
 #ifndef _AST_STMT_T
 #define _AST_STMT_T
@@ -70,7 +70,7 @@ typedef struct stmt_if_s {
     ast_exp_t *cond_exp;
     ast_blk_t *if_blk;
     ast_blk_t *else_blk;
-    array_t elif_stmts;
+    vector_t elif_stmts;
 } stmt_if_t;
 
 typedef struct stmt_loop_s {

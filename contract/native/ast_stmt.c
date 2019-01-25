@@ -68,7 +68,7 @@ stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
     stmt->u_if.cond_exp = cond_exp;
     stmt->u_if.if_blk = if_blk;
     stmt->u_if.else_blk = NULL;
-    array_init(&stmt->u_if.elif_stmts);
+    vector_init(&stmt->u_if.elif_stmts);
 
     return stmt;
 }
@@ -169,21 +169,21 @@ stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
 
     if (is_tuple_id(var_id)) {
         int i;
-        array_t *elem_exps = array_new();
+        vector_t *elem_exps = vector_new();
         ast_exp_t *id_exp;
 
         /* Since the number of elements in "val_exp" may be smaller than
          * the number of elements in "var_id", it is made as a tuple expression
          * for asymmetry assignment processing */
-        array_foreach(var_id->u_tup.elem_ids, i) {
-            ast_id_t *elem_id = array_get_id(var_id->u_tup.elem_ids, i);
+        vector_foreach(var_id->u_tup.elem_ids, i) {
+            ast_id_t *elem_id = vector_get_id(var_id->u_tup.elem_ids, i);
 
             id_exp = exp_new_id(elem_id->name, &elem_id->pos);
 
             id_exp->id = elem_id;
             meta_copy(&id_exp->meta, &elem_id->meta);
 
-            array_add_last(elem_exps, id_exp);
+            vector_add_last(elem_exps, id_exp);
         }
 
         var_exp = exp_new_tuple(elem_exps, &val_exp->pos);

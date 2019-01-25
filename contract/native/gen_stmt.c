@@ -12,7 +12,7 @@
 #include "gen_stmt.h"
 
 /*
-static void store_array(gen_t *gen, BinaryenExpressionRef var_addr,
+static void store_vector(gen_t *gen, BinaryenExpressionRef var_addr,
                         BinaryenExpressionRef val_addr, uint32_t offset, meta_t *meta);
                         */
 
@@ -46,15 +46,15 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     if (is_stack_exp(l_exp)) {
         type_t type = l_exp->u_stk.type;
 
-        if (is_array_meta(&l_exp->meta))
+        if (is_vector_meta(&l_exp->meta))
             type = TYPE_UINT32;
 
         return BinaryenStore(gen->module, TYPE_BYTE(type), 0, 0, address, value,
                              type_gen(type));
     }
 
-    /* For an array whose index is a variable, we must dynamically determine the offset */
-    ASSERT1(is_array_meta(&id->meta), id->meta.type);
+    /* For an vector whose index is a variable, we must dynamically determine the offset */
+    ASSERT1(is_vector_meta(&id->meta), id->meta.type);
 
     return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
                          value, meta_gen(&l_exp->meta));
@@ -89,8 +89,8 @@ store_struct(gen_t *gen, BinaryenExpressionRef address, BinaryenExpressionRef va
     for (i = 0; i < meta->elem_cnt; i++) {
         meta_t *elem_meta = meta->elems[i];
 
-        if (is_array_meta(elem_meta))
-            store_array(gen, address, value, offset + elem_meta->rel_offset, elem_meta);
+        if (is_vector_meta(elem_meta))
+            store_vector(gen, address, value, offset + elem_meta->rel_offset, elem_meta);
         else if (is_struct_meta(elem_meta))
             store_struct(gen, address, value, offset + elem_meta->rel_offset, elem_meta);
         else
@@ -100,7 +100,7 @@ store_struct(gen_t *gen, BinaryenExpressionRef address, BinaryenExpressionRef va
 }
 
 static void
-store_array(gen_t *gen, BinaryenExpressionRef address, BinaryenExpressionRef value,
+store_vector(gen_t *gen, BinaryenExpressionRef address, BinaryenExpressionRef value,
             uint32_t offset, meta_t *meta)
 {
     int i, j;
@@ -136,8 +136,8 @@ return_value(gen_t *gen, ast_id_t *id, ast_exp_t *exp)
 
     value = exp_gen(gen, exp);
 
-    if (is_array_meta(&exp->meta))
-        store_array(gen, address, value, 0, &exp->meta);
+    if (is_vector_meta(&exp->meta))
+        store_vector(gen, address, value, 0, &exp->meta);
     else if (is_struct_meta(&exp->meta) || is_tuple_meta(&exp->meta))
         store_struct(gen, address, value, 0, &exp->meta);
     else
@@ -162,15 +162,15 @@ stmt_gen_return(gen_t *gen, ast_stmt_t *stmt)
 
         if (is_tuple_exp(arg_exp)) {
             int i;
-            array_t *elem_exps = arg_exp->u_tup.elem_exps;
-            array_t *elem_ids = ret_id->u_tup.elem_ids;
+            vector_t *elem_exps = arg_exp->u_tup.elem_exps;
+            vector_t *elem_ids = ret_id->u_tup.elem_ids;
 
             ASSERT1(is_tuple_id(ret_id), ret_id->kind);
-            ASSERT2(array_size(elem_exps) == array_size(elem_ids), array_size(elem_exps),
-                    array_size(elem_ids));
+            ASSERT2(vector_size(elem_exps) == vector_size(elem_ids), vector_size(elem_exps),
+                    vector_size(elem_ids));
 
-            array_foreach(elem_exps, i) {
-                return_value(gen, array_get_id(elem_ids, i), array_get_exp(elem_exps, i));
+            vector_foreach(elem_exps, i) {
+                return_value(gen, vector_get_id(elem_ids, i), vector_get_exp(elem_exps, i));
             }
         }
         else {

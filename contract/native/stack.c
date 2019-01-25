@@ -68,17 +68,17 @@ stack_pop(stack_t *stack)
     return item;
 }
 
-array_t *
-stack_to_array(stack_t *stack, int (*cmp_fn)(const void *, const void *))
+vector_t *
+stack_to_vector(stack_t *stack, int (*cmp_fn)(const void *, const void *))
 {
-    array_t *array = array_new();
+    vector_t *vector = vector_new();
     stack_node_t *n;
 
     stack_foreach(n, stack) {
-        array_sadd(array, n->item, cmp_fn);
+        vector_sadd(vector, n->item, cmp_fn);
     }
 
-    return array;
+    return vector;
 }
 
 /* end of stack.c */

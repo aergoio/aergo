@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#include "array.h"
+#include "vector.h"
 
 #define is_empty_stack(stack)   ((stack)->size == 0)
 
@@ -34,7 +34,7 @@ typedef struct stack_s {
 void stack_push(stack_t *stack, void *item);
 void *stack_pop(stack_t *stack);
 
-array_t *stack_to_array(stack_t *stack, int (*cmp_fn)(const void *, const void *));
+vector_t *stack_to_vector(stack_t *stack, int (*cmp_fn)(const void *, const void *));
 
 static inline void
 stack_init(stack_t *stack)

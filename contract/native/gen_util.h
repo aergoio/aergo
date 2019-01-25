@@ -19,7 +19,7 @@
 #define f64_gen(gen, v)     BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
 
 #define meta_gen(meta)                                                                   \
-    (is_array_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
+    (is_vector_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
 
 #ifndef _IR_SGMT_T
 #define _IR_SGMT_T
@@ -31,7 +31,7 @@ void instr_add(gen_t *gen, BinaryenExpressionRef instr);
 
 BinaryenType type_gen(type_t type);
 
-void table_gen(gen_t *gen, array_t *fns);
+void table_gen(gen_t *gen, vector_t *fns);
 void sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt);
 
 void malloc_gen(gen_t *gen);

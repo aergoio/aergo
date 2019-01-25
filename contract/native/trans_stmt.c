@@ -41,8 +41,8 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
     if (is_tuple_exp(exp)) {
         int i;
 
-        array_foreach(exp->u_tup.elem_exps, i) {
-            exp_trans(trans, array_get_exp(exp->u_tup.elem_exps, i));
+        vector_foreach(exp->u_tup.elem_exps, i) {
+            exp_trans(trans, vector_get_exp(exp->u_tup.elem_exps, i));
 
             /* For unary increase/decrease expressions, which are postfixes, add them as
              * piggybacked statements */
@@ -97,16 +97,16 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     if (is_tuple_exp(l_exp)) {
         /* Make each expression a separate assignment statement */
         int i;
-        array_t *var_exps = l_exp->u_tup.elem_exps;
-        array_t *val_exps = r_exp->u_tup.elem_exps;
+        vector_t *var_exps = l_exp->u_tup.elem_exps;
+        vector_t *val_exps = r_exp->u_tup.elem_exps;
 
         ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
-        ASSERT2(array_size(var_exps) == array_size(val_exps), array_size(var_exps),
-                array_size(val_exps));
+        ASSERT2(vector_size(var_exps) == vector_size(val_exps), vector_size(var_exps),
+                vector_size(val_exps));
 
-        array_foreach(val_exps, i) {
-            ast_exp_t *var_exp = array_get_exp(var_exps, i);
-            ast_exp_t *val_exp = array_get_exp(val_exps, i);
+        vector_foreach(val_exps, i) {
+            ast_exp_t *var_exp = vector_get_exp(var_exps, i);
+            ast_exp_t *val_exp = vector_get_exp(val_exps, i);
 
             resolve_itf_meta(trans, var_exp, val_exp);
 
@@ -157,16 +157,16 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         int i, j;
         int var_idx = 0;
         src_pos_t *pos = &stmt->pos;
-        array_t *var_exps = l_exp->u_tup.elem_exps;
-        array_t *val_exps = r_exp->u_tup.elem_exps;
+        vector_t *var_exps = l_exp->u_tup.elem_exps;
+        vector_t *val_exps = r_exp->u_tup.elem_exps;
         ast_exp_t *var_exp, *val_exp;
 
         /* If rvalue has a function that returns multiple values, the number of left
          * and right expressions may be different */
-        if (array_size(var_exps) == array_size(val_exps)) {
-            array_foreach(val_exps, i) {
-                var_exp = array_get_exp(var_exps, i);
-                val_exp = array_get_exp(val_exps, i);
+        if (vector_size(var_exps) == vector_size(val_exps)) {
+            vector_foreach(val_exps, i) {
+                var_exp = vector_get_exp(var_exps, i);
+                val_exp = vector_get_exp(val_exps, i);
 
                 resolve_itf_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
@@ -177,24 +177,24 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         /* For a function that returns the multiple value mentioned above, an expression
          * is generated for each return value in the transformer and finally a tuple
          * expression is created. (see exp_trans_call()) */
-        array_foreach(val_exps, i) {
-            ASSERT1(var_idx < array_size(var_exps), var_idx);
+        vector_foreach(val_exps, i) {
+            ASSERT1(var_idx < vector_size(var_exps), var_idx);
 
-            val_exp = array_get_exp(val_exps, i);
+            val_exp = vector_get_exp(val_exps, i);
 
             if (is_tuple_exp(val_exp)) {
                 ast_exp_t *elem_exp;
 
-                array_foreach(val_exp->u_tup.elem_exps, j) {
-                    var_exp = array_get_exp(var_exps, var_idx++);
-                    elem_exp = array_get_exp(val_exp->u_tup.elem_exps, j);
+                vector_foreach(val_exp->u_tup.elem_exps, j) {
+                    var_exp = vector_get_exp(var_exps, var_idx++);
+                    elem_exp = vector_get_exp(val_exp->u_tup.elem_exps, j);
 
                     resolve_itf_meta(trans, var_exp, elem_exp);
                     bb_add_stmt(trans->bb, stmt_new_assign(var_exp, elem_exp, pos));
                 }
             }
             else {
-                var_exp = array_get_exp(var_exps, var_idx++);
+                var_exp = vector_get_exp(var_exps, var_idx++);
 
                 resolve_itf_meta(trans, var_exp, val_exp);
                 bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
@@ -216,7 +216,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     int i;
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
-    array_t *elif_stmts = &stmt->u_if.elif_stmts;
+    vector_t *elif_stmts = &stmt->u_if.elif_stmts;
 
     /* The if statement is transformed to a combination of basic blocks, each condition
      * is used as a branch condition, and the else block is transformed by an
@@ -252,8 +252,8 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
         fn_add_basic_blk(trans->fn, trans->bb);
     }
 
-    array_foreach(elif_stmts, i) {
-        ast_stmt_t *elif_stmt = array_get_stmt(elif_stmts, i);
+    vector_foreach(elif_stmts, i) {
+        ast_stmt_t *elif_stmt = vector_get_stmt(elif_stmts, i);
 
         trans->bb = bb_new();
         bb_add_branch(prev_bb, elif_stmt->u_if.cond_exp, trans->bb);
@@ -336,7 +336,7 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-stmt_trans_array_loop(trans_t *trans, ast_stmt_t *stmt)
+stmt_trans_vector_loop(trans_t *trans, ast_stmt_t *stmt)
 {
     ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
 }
@@ -349,8 +349,8 @@ stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
         stmt_trans_for_loop(trans, stmt);
         break;
 
-    case LOOP_ARRAY:
-        stmt_trans_array_loop(trans, stmt);
+    case LOOP_VECTOR:
+        stmt_trans_vector_loop(trans, stmt);
         break;
 
     default:
@@ -389,8 +389,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     trans->cont_bb = NULL;
     trans->break_bb = next_bb;
 
-    array_foreach(&blk->stmts, i) {
-        ast_stmt_t *case_stmt = array_get_stmt(&blk->stmts, i);
+    vector_foreach(&blk->stmts, i) {
+        ast_stmt_t *case_stmt = vector_get_stmt(&blk->stmts, i);
 
         /* The case statement means the start of a case block or default block,
          * and the remaining statements are included in the corresponding block */

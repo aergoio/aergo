@@ -79,7 +79,7 @@ hash_add(hash_t *hash, char *key, void *item)
     hashval = hash_fn(key, strlen(key));
     bucket_idx = hashval % HASH_BUCKET_SIZE;
 
-    array_add_last(&hash->buckets[bucket_idx], elem);
+    vector_add_last(&hash->buckets[bucket_idx], elem);
 }
 
 void *
@@ -87,10 +87,10 @@ hash_search(hash_t *hash, char *key)
 {
     int i;
     uint32_t hashval = hash_fn(key, strlen(key));
-    array_t *bucket = &hash->buckets[hashval % HASH_BUCKET_SIZE];
+    vector_t *bucket = &hash->buckets[hashval % HASH_BUCKET_SIZE];
 
-    array_foreach(bucket, i) {
-        hash_elem_t *elem = array_get(bucket, i, hash_elem_t);
+    vector_foreach(bucket, i) {
+        hash_elem_t *elem = vector_get(bucket, i, hash_elem_t);
 
         if (strcmp(elem->key, key) == 0)
             return elem->item;

@@ -13,7 +13,7 @@
 #include "ir.h"
 #include "binaryen-c.h"
 
-#define has_piggyback(bb)           (array_size(&(bb)->pgbacks) > 0)
+#define has_piggyback(bb)           (vector_size(&(bb)->pgbacks) > 0)
 
 #ifndef _IR_BB_T
 #define _IR_BB_T
@@ -26,9 +26,9 @@ typedef struct ir_br_s {
 } ir_br_t;
 
 struct ir_bb_s {
-    array_t stmts;
-    array_t brs;
-    array_t pgbacks;
+    vector_t stmts;
+    vector_t brs;
+    vector_t pgbacks;
 
     RelooperBlockRef rb;
 };

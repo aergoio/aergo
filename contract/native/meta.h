@@ -73,7 +73,7 @@
     ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
      (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
-#define is_array_meta(meta)         ((meta)->arr_dim > 0)
+#define is_vector_meta(meta)         ((meta)->arr_dim > 0)
 #define is_undef_meta(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
@@ -103,10 +103,10 @@
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
-#ifndef _ARRAY_T
-#define _ARRAY_T
-typedef struct array_s array_t;
-#endif /* ! _ARRAY_T */
+#ifndef _VECTOR_T
+#define _VECTOR_T
+typedef struct vector_s vector_t;
+#endif /* ! _VECTOR_T */
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -123,8 +123,8 @@ struct meta_s {
     bool is_undef;          /* whether it is literal */
     int8_t align;
 
-    /* array specifications */
-    int arr_dim;            /* dimension of array */
+    /* vector specifications */
+    int arr_dim;            /* dimension of vector */
     int *dim_sizes;         /* size of each dimension */
 
     int elem_cnt;
@@ -143,7 +143,7 @@ struct meta_s {
 char *meta_to_str(meta_t *x);
 
 void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
-void meta_set_tuple(meta_t *meta, array_t *elem_exps);
+void meta_set_tuple(meta_t *meta, vector_t *elem_exps);
 
 void meta_set_struct(meta_t *meta, ast_id_t *id);
 void meta_set_object(meta_t *meta, ast_id_t *id);
@@ -247,7 +247,7 @@ meta_unit(meta_t *meta)
     int i;
     uint32_t size = meta_size(meta);
 
-    if (is_array_meta(meta)) {
+    if (is_vector_meta(meta)) {
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size /= meta->dim_sizes[i];

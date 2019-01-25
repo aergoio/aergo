@@ -28,6 +28,6 @@ typedef struct ir_abi_s {
     BinaryenFunctionTypeRef spec;
 } ir_abi_t;
 
-ir_abi_t *abi_lookup(array_t *abis, ast_id_t *id);
+ir_abi_t *abi_lookup(vector_t *abis, ast_id_t *id);
 
 #endif /* ! _IR_ABI_H */

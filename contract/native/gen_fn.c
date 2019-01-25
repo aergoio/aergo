@@ -21,20 +21,20 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
     ASSERT(abi != NULL);
 
     /* local variables */
-    array_foreach(&fn->locals, i) {
-        local_add(gen, array_get_id(&fn->locals, i)->meta.type);
+    vector_foreach(&fn->locals, i) {
+        local_add(gen, vector_get_id(&fn->locals, i)->meta.type);
     }
 
     gen->relooper = RelooperCreate();
 
     /* basic blocks */
-    array_foreach(&fn->bbs, i) {
-        bb_gen(gen, array_get_bb(&fn->bbs, i));
+    vector_foreach(&fn->bbs, i) {
+        bb_gen(gen, vector_get_bb(&fn->bbs, i));
     }
 
     /* branches */
-    array_foreach(&fn->bbs, i) {
-        br_gen(gen, array_get_bb(&fn->bbs, i));
+    vector_foreach(&fn->bbs, i) {
+        br_gen(gen, vector_get_bb(&fn->bbs, i));
     }
 
     body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx,

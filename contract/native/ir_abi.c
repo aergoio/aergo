@@ -20,11 +20,11 @@ abi_new(ast_id_t *id)
 
     snprintf(abi->name, sizeof(abi->name), "abi$%d", abi_num_++);
 
-    abi->param_cnt = array_size(id->u_fn.param_ids);
+    abi->param_cnt = vector_size(id->u_fn.param_ids);
     abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
-    array_foreach(id->u_fn.param_ids, i) {
-        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+    vector_foreach(id->u_fn.param_ids, i) {
+        ast_id_t *param_id = vector_get_id(id->u_fn.param_ids, i);
 
         abi->params[j] = meta_gen(&param_id->meta);
         param_id->idx = j++;
@@ -40,8 +40,8 @@ abi_new(ast_id_t *id)
     if (is_ctor_id(id)) {
         abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
-        array_foreach(id->u_fn.param_ids, i) {
-            ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+        vector_foreach(id->u_fn.param_ids, i) {
+            ast_id_t *param_id = vector_get_id(id->u_fn.param_ids, i);
 
             abi->params[j] = meta_gen(&param_id->meta);
             param_id->idx = j++;
@@ -52,15 +52,15 @@ abi_new(ast_id_t *id)
     else {
         if (ret_id != NULL) {
             if (is_tuple_id(ret_id))
-                abi->param_cnt += array_size(ret_id->u_tup.elem_ids);
+                abi->param_cnt += vector_size(ret_id->u_tup.elem_ids);
             else
                 abi->param_cnt++;
         }
 
         abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
-        array_foreach(id->u_fn.param_ids, i) {
-            ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+        vector_foreach(id->u_fn.param_ids, i) {
+            ast_id_t *param_id = vector_get_id(id->u_fn.param_ids, i);
 
             abi->params[j] = meta_gen(&param_id->meta);
             param_id->idx = j++;
@@ -69,8 +69,8 @@ abi_new(ast_id_t *id)
         /* The return value is always passed as an address */
         if (ret_id != NULL) {
             if (is_tuple_id(ret_id)) {
-                array_foreach(ret_id->u_tup.elem_ids, i) {
-                    ast_id_t *elem_id = array_get_id(ret_id->u_tup.elem_ids, i);
+                vector_foreach(ret_id->u_tup.elem_ids, i) {
+                    ast_id_t *elem_id = vector_get_id(ret_id->u_tup.elem_ids, i);
 
                     abi->params[j] = BinaryenTypeInt32();
                     elem_id->idx = j++;
@@ -92,13 +92,13 @@ abi_new(ast_id_t *id)
 }
 
 ir_abi_t *
-abi_lookup(array_t *abis, ast_id_t *id)
+abi_lookup(vector_t *abis, ast_id_t *id)
 {
     int i;
     ir_abi_t *new_abi = abi_new(id);
 
-    array_foreach(abis, i) {
-        ir_abi_t *abi = array_get_abi(abis, i);
+    vector_foreach(abis, i) {
+        ir_abi_t *abi = vector_get_abi(abis, i);
 
         if (abi->param_cnt == new_abi->param_cnt &&
             memcmp(abi->params, new_abi->params,
@@ -107,7 +107,7 @@ abi_lookup(array_t *abis, ast_id_t *id)
             return abi;
     }
 
-    array_add_last(abis, new_abi);
+    vector_add_last(abis, new_abi);
 
     return new_abi;
 }

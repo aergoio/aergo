@@ -47,21 +47,21 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_array(gen_t *gen, ast_exp_t *exp)
+exp_gen_vector(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
     meta_t *meta = &exp->meta;
 
     /* This function is used when the offset value needs to be computed dynamically */
 
-    if (is_array_meta(&id->meta)) {
+    if (is_vector_meta(&id->meta)) {
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
         BinaryenExpressionRef address, offset, index;
 
         /* BinaryenLoad() takes an offset as uint32_t, and because "idx_exp" is a local
          * or stack expression, we do not know the offset, so we add the offset to the
-         * address and use BinaryenLoad(). See exp_trans_array() for the following
+         * address and use BinaryenLoad(). See exp_trans_vector() for the following
          * formula */
 
         if (is_stack_exp(id_exp))
@@ -86,8 +86,8 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address, offset);
 
-        /* XXX: change is_array_meta() to assertion */
-        if (gen->is_lval || is_array_meta(meta))
+        /* XXX: change is_vector_meta() to assertion */
+        if (gen->is_lval || is_vector_meta(meta))
             return address;
 
         return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta),
@@ -542,7 +542,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     ast_exp_t *qual_exp = exp->u_acc.qual_exp;
     BinaryenExpressionRef address;
 
-    /* If qualifier is a function and returns an array or a struct, "qual_exp" can be
+    /* If qualifier is a function and returns an vector or a struct, "qual_exp" can be
      * a binary expression. Otherwise all are local expressions */
     ASSERT1(is_local_exp(qual_exp) || is_binary_exp(qual_exp), qual_exp->kind);
 
@@ -578,8 +578,8 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     /* Return values have already been added to "param_exps" in exp_trans_call() */
     arguments = xmalloc(sizeof(BinaryenExpressionRef) * abi->param_cnt);
 
-    array_foreach(exp->u_call.param_exps, i) {
-        arguments[j++] = exp_gen(gen, array_get_exp(exp->u_call.param_exps, i));
+    vector_foreach(exp->u_call.param_exps, i) {
+        arguments[j++] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
     }
 
     if (is_ctor_id(id))
@@ -609,20 +609,20 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     int i;
     uint32_t offset = 0;
     meta_t *meta = &exp->meta;
-    array_t *elem_exps = exp->u_init.elem_exps;
+    vector_t *elem_exps = exp->u_init.elem_exps;
     BinaryenExpressionRef address, value;
 
     if (is_map_meta(meta)) {
-        /* elem_exps is the array of key-value pair */
+        /* elem_exps is the vector of key-value pair */
         BinaryenExpressionRef args[2];
 
-        array_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+        vector_foreach(elem_exps, i) {
+            ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
             ASSERT1(is_tuple_exp(elem_exp), elem_exp->kind);
 
-            args[0] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 0));
-            args[1] = exp_gen(gen, array_get_exp(elem_exp->u_tup.elem_exps, 1));
+            args[0] = exp_gen(gen, vector_get_exp(elem_exp->u_tup.elem_exps, 0));
+            args[1] = exp_gen(gen, vector_get_exp(elem_exp->u_tup.elem_exps, 1));
 
             instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
                                         BinaryenTypeNone()));
@@ -640,8 +640,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->meta.rel_addr));
 
-    array_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+    vector_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
 
         if (is_init_exp(elem_exp)) {
@@ -714,7 +714,7 @@ exp_gen_stack(gen_t *gen, ast_exp_t *exp)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->u_stk.addr));
 
-    if (gen->is_lval || is_array_meta(&exp->meta) || is_object_meta(&exp->meta)) {
+    if (gen->is_lval || is_vector_meta(&exp->meta) || is_object_meta(&exp->meta)) {
         if (exp->u_stk.offset > 0)
             return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                   i32_gen(gen, exp->u_stk.offset));
@@ -735,8 +735,8 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_LIT:
         return exp_gen_lit(gen, exp);
 
-    case EXP_ARRAY:
-        return exp_gen_array(gen, exp);
+    case EXP_VECTOR:
+        return exp_gen_vector(gen, exp);
 
     case EXP_CAST:
         return exp_gen_cast(gen, exp);

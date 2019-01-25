@@ -44,12 +44,12 @@ gen(ir_t *ir, flag_t flag, char *infile)
 
     BinaryenSetDebugInfo(1);
 
-    array_foreach(&ir->abis, i) {
-        abi_gen(&gen, array_get_abi(&ir->abis, i));
+    vector_foreach(&ir->abis, i) {
+        abi_gen(&gen, vector_get_abi(&ir->abis, i));
     }
 
-    array_foreach(&ir->fns, i) {
-        fn_gen(&gen, array_get_fn(&ir->fns, i));
+    vector_foreach(&ir->fns, i) {
+        fn_gen(&gen, vector_get_fn(&ir->fns, i));
     }
 
     //malloc_gen(&gen);

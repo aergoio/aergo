@@ -20,8 +20,8 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     ASSERT1(gen->instr_cnt == 0, gen->instr_cnt);
     ASSERT(gen->instrs == NULL);
 
-    array_foreach(&bb->stmts, i) {
-        instr_add(gen, stmt_gen(gen, array_get_stmt(&bb->stmts, i)));
+    vector_foreach(&bb->stmts, i) {
+        instr_add(gen, stmt_gen(gen, vector_get_stmt(&bb->stmts, i)));
     }
 
     block = BinaryenBlock(gen->module, NULL, gen->instrs, gen->instr_cnt,
@@ -40,8 +40,8 @@ br_gen(gen_t *gen, ir_bb_t *bb)
 
     ASSERT(bb->rb != NULL);
 
-    array_foreach(&bb->brs, i) {
-        ir_br_t *br = array_get_br(&bb->brs, i);
+    vector_foreach(&bb->brs, i) {
+        ir_br_t *br = vector_get_br(&bb->brs, i);
         BinaryenExpressionRef cond = NULL;
 
         ASSERT(br->bb->rb != NULL);

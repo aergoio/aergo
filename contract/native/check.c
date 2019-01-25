@@ -15,7 +15,7 @@ check_init(check_t *check, ast_blk_t *root, flag_t flag)
 {
     ASSERT(root != NULL);
     ASSERT(root->up == NULL);
-    ASSERT1(is_empty_array(&root->stmts), array_size(&root->stmts));
+    ASSERT1(is_empty_vector(&root->stmts), vector_size(&root->stmts));
 
     check->flag = flag;
 
@@ -38,8 +38,8 @@ check(ast_t *ast, flag_t flag)
 
     check_init(&check, root, flag);
 
-    array_foreach(&root->ids, i) {
-        ast_id_t *id = array_get_id(&root->ids, i);
+    vector_foreach(&root->ids, i) {
+        ast_id_t *id = vector_get_id(&root->ids, i);
 
         ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
 

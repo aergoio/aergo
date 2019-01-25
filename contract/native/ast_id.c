@@ -60,7 +60,7 @@ id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos)
+id_new_struct(char *name, vector_t *fld_ids, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_STRUCT, MOD_PRIVATE, name, pos);
 
@@ -72,7 +72,7 @@ id_new_struct(char *name, array_t *fld_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
+id_new_enum(char *name, vector_t *elem_ids, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_ENUM, MOD_PRIVATE, name, pos);
 
@@ -84,7 +84,7 @@ id_new_enum(char *name, array_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
+id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
             ast_blk_t *blk, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FN, mod, name, pos);
@@ -100,7 +100,7 @@ id_new_func(char *name, modifier_t mod, array_t *param_ids, ast_id_t *ret_id,
 }
 
 ast_id_t *
-id_new_ctor(char *name, array_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
+id_new_ctor(char *name, vector_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
 {
     ast_exp_t *type_exp = exp_new_type(TYPE_NONE, pos);
 
@@ -148,7 +148,7 @@ id_new_tuple(src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_TUPLE, MOD_PRIVATE, NULL, pos);
 
-    id->u_tup.elem_ids = array_new();
+    id->u_tup.elem_ids = vector_new();
 
     return id;
 }
@@ -163,7 +163,7 @@ ast_id_t *
 id_search_fld(ast_id_t *id, char *name, bool is_self)
 {
     int i;
-    array_t *fld_ids = NULL;
+    vector_t *fld_ids = NULL;
 
     ASSERT(id != NULL);
     ASSERT(name != NULL);
@@ -181,8 +181,8 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
 
     ASSERT(fld_ids != NULL);
 
-    array_foreach(fld_ids, i) {
-        ast_id_t *fld_id = array_get_id(fld_ids, i);
+    vector_foreach(fld_ids, i) {
+        ast_id_t *fld_id = vector_get_id(fld_ids, i);
 
         if ((is_self || is_itf_id(id) || is_public_id(fld_id)) &&
             strcmp(fld_id->name, name) == 0)
@@ -201,8 +201,8 @@ id_search_param(ast_id_t *id, char *name)
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(name != NULL);
 
-    array_foreach(id->u_fn.param_ids, i) {
-        ast_id_t *param_id = array_get_id(id->u_fn.param_ids, i);
+    vector_foreach(id->u_fn.param_ids, i) {
+        ast_id_t *param_id = vector_get_id(id->u_fn.param_ids, i);
 
         if (strcmp(param_id->name, name) == 0)
             return param_id;
@@ -212,16 +212,16 @@ id_search_param(ast_id_t *id, char *name)
 }
 
 static bool
-check_dup(array_t *ids, ast_id_t *new_id)
+check_dup(vector_t *ids, ast_id_t *new_id)
 {
     int i, j;
 
-    array_foreach(ids, i) {
-        ast_id_t *id = array_get_id(ids, i);
+    vector_foreach(ids, i) {
+        ast_id_t *id = vector_get_id(ids, i);
 
         if (is_tuple_id(id)) {
-            array_foreach(id->u_tup.elem_ids, j) {
-                ast_id_t *var_id = array_get_id(id->u_tup.elem_ids, j);
+            vector_foreach(id->u_tup.elem_ids, j) {
+                ast_id_t *var_id = vector_get_id(id->u_tup.elem_ids, j);
 
                 if (strcmp(var_id->name, new_id->name) == 0) {
                     ERROR(ERROR_DUPLICATED_ID, &new_id->pos, new_id->name);
@@ -239,7 +239,7 @@ check_dup(array_t *ids, ast_id_t *new_id)
 }
 
 void
-id_add(array_t *ids, ast_id_t *new_id)
+id_add(vector_t *ids, ast_id_t *new_id)
 {
     int i;
 
@@ -247,46 +247,46 @@ id_add(array_t *ids, ast_id_t *new_id)
         return;
 
     if (is_tuple_id(new_id)) {
-        array_foreach(new_id->u_tup.elem_ids, i) {
-            check_dup(ids, array_get_id(new_id->u_tup.elem_ids, i));
+        vector_foreach(new_id->u_tup.elem_ids, i) {
+            check_dup(ids, vector_get_id(new_id->u_tup.elem_ids, i));
         }
     }
     else if (!check_dup(ids, new_id)) {
         return;
     }
 
-    array_add_last(ids, new_id);
+    vector_add_last(ids, new_id);
 }
 
 void
-id_join(array_t *ids, array_t *new_ids)
+id_join(vector_t *ids, vector_t *new_ids)
 {
     int i;
 
     if (new_ids == NULL)
         return;
 
-    array_foreach(new_ids, i) {
-        id_add(ids, array_get_id(new_ids, i));
+    vector_foreach(new_ids, i) {
+        id_add(ids, vector_get_id(new_ids, i));
     }
 }
 
-array_t *
+vector_t *
 id_strip(ast_id_t *id)
 {
     int i;
-    array_t *ids = array_new();
+    vector_t *ids = vector_new();
 
     ASSERT1(is_tuple_id(id), id->kind);
     ASSERT(id->u_tup.dflt_exp == NULL);
 
-    array_foreach(id->u_tup.elem_ids, i) {
-        ast_id_t *var_id = array_get_id(id->u_tup.elem_ids, i);
+    vector_foreach(id->u_tup.elem_ids, i) {
+        ast_id_t *var_id = vector_get_id(id->u_tup.elem_ids, i);
 
         var_id->mod = id->mod;
         var_id->u_var.type_exp = id->u_tup.type_exp;
 
-        array_add_last(ids, var_id);
+        vector_add_last(ids, var_id);
     }
 
     return ids;
@@ -303,12 +303,12 @@ id_cmp(ast_id_t *x, ast_id_t *y)
     if (x->mod != y->mod)
         return false;
 
-    if (array_size(x->u_fn.param_ids) != array_size(y->u_fn.param_ids))
+    if (vector_size(x->u_fn.param_ids) != vector_size(y->u_fn.param_ids))
         return false;
 
-    array_foreach(x->u_fn.param_ids, i) {
-        ast_id_t *x_param = array_get_id(x->u_fn.param_ids, i);
-        ast_id_t *y_param = array_get_id(y->u_fn.param_ids, i);
+    vector_foreach(x->u_fn.param_ids, i) {
+        ast_id_t *x_param = vector_get_id(x->u_fn.param_ids, i);
+        ast_id_t *y_param = vector_get_id(y->u_fn.param_ids, i);
 
         if (!meta_cmp(&x_param->meta, &y_param->meta)) {
             error_pop();

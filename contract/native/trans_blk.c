@@ -20,12 +20,12 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
 
     trans->blk = blk;
 
-    array_foreach(&blk->ids, i) {
-        id_trans(trans, array_get_id(&blk->ids, i));
+    vector_foreach(&blk->ids, i) {
+        id_trans(trans, vector_get_id(&blk->ids, i));
     }
 
-    array_foreach(&blk->stmts, i) {
-        stmt_trans(trans, array_get_stmt(&blk->stmts, i));
+    vector_foreach(&blk->stmts, i) {
+        stmt_trans(trans, vector_get_stmt(&blk->stmts, i));
     }
 
     trans->blk = up;

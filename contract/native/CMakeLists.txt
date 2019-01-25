@@ -49,7 +49,7 @@ set(libascl_SRCS
     assert.c
     error.c
     strbuf.c
-    array.c
+    vector.c
     stack.c
     src_pos.c
     enum.c

@@ -15,9 +15,9 @@ bb_new(void)
 {
     ir_bb_t *bb = xmalloc(sizeof(ir_bb_t));
 
-    array_init(&bb->stmts);
-    array_init(&bb->brs);
-    array_init(&bb->pgbacks);
+    vector_init(&bb->stmts);
+    vector_init(&bb->brs);
+    vector_init(&bb->pgbacks);
 
     bb->rb = NULL;
 
@@ -29,11 +29,11 @@ bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt)
 {
     ASSERT(bb != NULL);
 
-    array_add_last(&bb->stmts, stmt);
+    vector_add_last(&bb->stmts, stmt);
 
     if (has_piggyback(bb)) {
-        array_join_last(&bb->stmts, &bb->pgbacks);
-        array_reset(&bb->pgbacks);
+        vector_join_last(&bb->stmts, &bb->pgbacks);
+        vector_reset(&bb->pgbacks);
     }
 }
 
@@ -53,7 +53,7 @@ bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb)
 {
     ASSERT(bb != NULL);
 
-    array_add_last(&bb->brs, br_new(cond_exp, br_bb));
+    vector_add_last(&bb->brs, br_new(cond_exp, br_bb));
 }
 
 void
@@ -61,7 +61,7 @@ bb_add_piggyback(ir_bb_t *bb, ast_stmt_t *stmt)
 {
     ASSERT(stmt != NULL);
 
-    array_add_last(&bb->pgbacks, stmt);
+    vector_add_last(&bb->pgbacks, stmt);
 }
 
 /* end of ir_bb.c */

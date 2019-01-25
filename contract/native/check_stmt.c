@@ -41,8 +41,8 @@ stmt_check_exp(check_t *check, ast_stmt_t *stmt)
     if (is_tuple_exp(exp)) {
         int i;
 
-        array_foreach(exp->u_tup.elem_exps, i) {
-            ast_exp_t *elem_exp = array_get_exp(exp->u_tup.elem_exps, i);
+        vector_foreach(exp->u_tup.elem_exps, i) {
+            ast_exp_t *elem_exp = vector_get_exp(exp->u_tup.elem_exps, i);
 
             if (!is_usable_stmt(elem_exp)) {
                 elem_exp->kind = EXP_NULL;
@@ -63,13 +63,13 @@ check_overflow(ast_exp_t *l_exp, ast_exp_t *r_exp)
 {
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         int i;
-        array_t *var_exps = l_exp->u_tup.elem_exps;
-        array_t *val_exps = r_exp->u_tup.elem_exps;
+        vector_t *var_exps = l_exp->u_tup.elem_exps;
+        vector_t *val_exps = r_exp->u_tup.elem_exps;
 
-        if (array_size(var_exps) == array_size(val_exps)) {
-            array_foreach(var_exps, i) {
-                ast_exp_t *var_exp = array_get_exp(var_exps, i);
-                ast_exp_t *val_exp = array_get_exp(val_exps, i);
+        if (vector_size(var_exps) == vector_size(val_exps)) {
+            vector_foreach(var_exps, i) {
+                ast_exp_t *var_exp = vector_get_exp(var_exps, i);
+                ast_exp_t *val_exp = vector_get_exp(val_exps, i);
 
                 ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta), var_exp->meta.type,
                         val_exp->meta.type);
@@ -80,18 +80,18 @@ check_overflow(ast_exp_t *l_exp, ast_exp_t *r_exp)
         else {
             int var_idx = 0;
 
-            ASSERT2(array_size(var_exps) > array_size(val_exps), array_size(var_exps),
-                    array_size(val_exps));
+            ASSERT2(vector_size(var_exps) > vector_size(val_exps), vector_size(var_exps),
+                    vector_size(val_exps));
 
-            array_foreach(val_exps, i) {
-                ast_exp_t *val_exp = array_get_exp(val_exps, i);
+            vector_foreach(val_exps, i) {
+                ast_exp_t *val_exp = vector_get_exp(val_exps, i);
 
                 /* If the value expression is a tuple, it cannot be a literal */
                 if (is_tuple_meta(&val_exp->meta)) {
                     var_idx += val_exp->meta.elem_cnt;
                 }
                 else {
-                    ast_exp_t *var_exp = array_get_exp(var_exps, var_idx++);
+                    ast_exp_t *var_exp = vector_get_exp(var_exps, var_idx++);
 
                     ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta),
                             var_exp->meta.type, val_exp->meta.type);
@@ -128,10 +128,10 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
     CHECK(exp_check(check, r_exp));
 
     if (is_tuple_exp(l_exp)) {
-        array_t *var_exps = l_exp->u_tup.elem_exps;
+        vector_t *var_exps = l_exp->u_tup.elem_exps;
 
-        array_foreach(var_exps, i) {
-            ast_exp_t *var_exp = array_get_exp(var_exps, i);
+        vector_foreach(var_exps, i) {
+            ast_exp_t *var_exp = vector_get_exp(var_exps, i);
 
             if (!is_usable_lval(var_exp))
                 RETURN(ERROR_INVALID_LVALUE, &var_exp->pos);
@@ -141,7 +141,7 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
     }
 
-    if (is_array_meta(&l_exp->meta))
+    if (is_vector_meta(&l_exp->meta))
         RETURN(ERROR_NOT_ALLOWED_ARRAY, &l_exp->pos);
 
     CHECK(meta_cmp(l_meta, r_meta));
@@ -159,7 +159,7 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
     int i;
     ast_exp_t *cond_exp;
     meta_t *cond_meta;
-    array_t *elif_stmts;
+    vector_t *elif_stmts;
 
     ASSERT1(is_if_stmt(stmt), stmt->kind);
     ASSERT(stmt->u_if.cond_exp != NULL);
@@ -177,8 +177,8 @@ stmt_check_if(check_t *check, ast_stmt_t *stmt)
 
     elif_stmts = &stmt->u_if.elif_stmts;
 
-    array_foreach(elif_stmts, i) {
-        stmt_check_if(check, array_get_stmt(elif_stmts, i));
+    vector_foreach(elif_stmts, i) {
+        stmt_check_if(check, vector_get_stmt(elif_stmts, i));
     }
 
     if (stmt->u_if.else_blk != NULL)
@@ -212,20 +212,20 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         not_exp = exp_new_unary(OP_NOT, true, cond_exp, &cond_exp->pos);
 
         break_stmt = stmt_new_jump(STMT_BREAK, not_exp, &cond_exp->pos);
-        array_add_first(&blk->stmts, break_stmt);
+        vector_add_first(&blk->stmts, break_stmt);
     }
 
     if (stmt->u_loop.init_stmt != NULL)
-        array_add_first(&blk->stmts, stmt->u_loop.init_stmt);
+        vector_add_first(&blk->stmts, stmt->u_loop.init_stmt);
 
     if (loop_exp != NULL)
-        array_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
+        vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
 
     return true;
 }
 
 static bool
-stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
+stmt_check_vector_loop(check_t *check, ast_stmt_t *stmt)
 {
     /*
     char name[128];
@@ -241,36 +241,36 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     /* TODO: map & sql iteration */
 
-    /* array-loop is converted like this:
+    /* vector-loop is converted like this:
      *
-     *      int array_idx_xxx = 0;
+     *      int vector_idx_xxx = 0;
      *
      *      init_exp;               // only if init_exp != NULL
      *
      *  for_loop_xxx:
-     *      if (array_idx_xxx >= array.size)
+     *      if (vector_idx_xxx >= vector.size)
      *          goto for_exit_xxx;
      *
-     *      variable = arr_exp[array_idx_xxx];
+     *      variable = arr_exp[vector_idx_xxx];
      *
      *      ...
      *
      *  for_cont_xxx:
-     *      array_idx_xxx++;
+     *      vector_idx_xxx++;
      *      goto for_loop_xxx;
      *
      *  for_exit_xxx:
      *      ;
      */
 
-    /* TODO: we need to know array.size */
+    /* TODO: we need to know vector.size */
     RETURN(ERROR_NOT_SUPPORTED, &stmt->pos);
 #if 0
     loop_exp = stmt->u_loop.loop_exp;
     ASSERT(loop_exp != NULL);
 
     /* make "int i = 0" */
-    snprintf(name, sizeof(name), "array_idx_%d", blk->num);
+    snprintf(name, sizeof(name), "vector_idx_%d", blk->num);
 
     id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
 
@@ -282,24 +282,24 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     id_add_last(&blk->ids, id);
 
     inc_exp = exp_new_op(OP_INC, exp_new_id(xstrdup(name), pos), NULL, pos);
-    arr_exp = exp_new_array(loop_exp, inc_exp, &loop_exp->pos);
+    arr_exp = exp_new_vector(loop_exp, inc_exp, &loop_exp->pos);
 
     if (stmt->u_loop.init_ids != NULL) {
         int i;
-        array_t *elem_ids = stmt->u_loop.init_ids;
+        vector_t *elem_ids = stmt->u_loop.init_ids;
 
-        if (array_size(elem_ids) > 1)
-            RETURN(ERROR_NOT_SUPPORTED, &array_get_id(elem_ids, 1)->pos);
+        if (vector_size(elem_ids) > 1)
+            RETURN(ERROR_NOT_SUPPORTED, &vector_get_id(elem_ids, 1)->pos);
 
         /* make "variable = loop_exp[i++]" */
-        array_foreach(elem_ids, i) {
-            ast_id_t *var_id = array_get_id(elem_ids, i);
+        vector_foreach(elem_ids, i) {
+            ast_id_t *var_id = vector_get_id(elem_ids, i);
             ast_exp_t *id_exp;
 
             id_exp = exp_new_id(var_id->name, pos);
             assign_exp = exp_new_op(OP_ASSIGN, id_exp, arr_exp, &loop_exp->pos);
 
-            array_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
+            vector_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
         }
 
         id_join_first(&blk->ids, elem_ids);
@@ -315,13 +315,13 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
         /* make "init_exp = loop_exp[i++]" */
         assign_exp = exp_new_op(OP_ASSIGN, init_exp, arr_exp, &loop_exp->pos);
 
-        array_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
+        vector_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
     }
 
     null_stmt = stmt_new_null(&stmt->pos);
     null_stmt->label = blk->loop_label;
 
-    array_add_first(&blk->stmts, null_stmt);
+    vector_add_first(&blk->stmts, null_stmt);
 #endif
 
     return true;
@@ -340,8 +340,8 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
         stmt_check_for_loop(check, stmt);
         break;
 
-    case LOOP_ARRAY:
-        stmt_check_array_loop(check, stmt);
+    case LOOP_VECTOR:
+        stmt_check_vector_loop(check, stmt);
         break;
 
     default:
@@ -367,8 +367,8 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
     blk = stmt->u_sw.blk;
     cond_exp = stmt->u_sw.cond_exp;
 
-    array_foreach(&blk->stmts, i) {
-        ast_stmt_t *elem_stmt = array_get_stmt(&blk->stmts, i);
+    vector_foreach(&blk->stmts, i) {
+        ast_stmt_t *elem_stmt = vector_get_stmt(&blk->stmts, i);
 
         if (is_case_stmt(elem_stmt)) {
             ast_exp_t *val_exp = elem_stmt->u_case.val_exp;
@@ -380,8 +380,8 @@ stmt_check_switch(check_t *check, ast_stmt_t *stmt)
                 stmt->u_sw.has_dflt = true;
             }
             else {
-                for (j = i + 1; j < array_size(&blk->stmts); j++) {
-                    ast_stmt_t *next_stmt = array_get_stmt(&blk->stmts, j);
+                for (j = i + 1; j < vector_size(&blk->stmts); j++) {
+                    ast_stmt_t *next_stmt = vector_get_stmt(&blk->stmts, j);
                     ast_exp_t *next_exp = next_stmt->u_case.val_exp;
 
                     if (!is_case_stmt(next_stmt))
@@ -461,12 +461,12 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
             int i;
 
             ASSERT1(is_tuple_meta(fn_meta), fn_meta->type);
-            ASSERT2(array_size(arg_exp->u_tup.elem_exps) == fn_meta->elem_cnt,
-                    array_size(arg_exp->u_tup.elem_exps), fn_meta->elem_cnt);
+            ASSERT2(vector_size(arg_exp->u_tup.elem_exps) == fn_meta->elem_cnt,
+                    vector_size(arg_exp->u_tup.elem_exps), fn_meta->elem_cnt);
 
-            array_foreach(arg_exp->u_tup.elem_exps, i) {
+            vector_foreach(arg_exp->u_tup.elem_exps, i) {
                 meta_t *var_meta = fn_meta->elems[i];
-                ast_exp_t *val_exp = array_get_exp(arg_exp->u_tup.elem_exps, i);
+                ast_exp_t *val_exp = vector_get_exp(arg_exp->u_tup.elem_exps, i);
 
                 exp_check_overflow(val_exp, var_meta);
             }

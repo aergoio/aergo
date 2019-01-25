@@ -97,7 +97,7 @@ typedef enum exp_kind_e {
     EXP_LIT,
     EXP_ID,
     EXP_TYPE,
-    EXP_ARRAY,
+    EXP_VECTOR,
     EXP_CAST,
     EXP_UNARY,
     EXP_BINARY,
@@ -193,7 +193,7 @@ typedef enum sql_kind_e {
 
 typedef enum loop_kind_e {
     LOOP_FOR        = 0,
-    LOOP_ARRAY,
+    LOOP_VECTOR,
     LOOP_MAX
 } loop_kind_t;
 

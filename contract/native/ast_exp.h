@@ -16,7 +16,7 @@
 #define is_lit_exp(exp)             ((exp)->kind == EXP_LIT)
 #define is_id_exp(exp)              ((exp)->kind == EXP_ID)
 #define is_type_exp(exp)            ((exp)->kind == EXP_TYPE)
-#define is_array_exp(exp)           ((exp)->kind == EXP_ARRAY)
+#define is_vector_exp(exp)           ((exp)->kind == EXP_VECTOR)
 #define is_cast_exp(exp)            ((exp)->kind == EXP_CAST)
 #define is_unary_exp(exp)           ((exp)->kind == EXP_UNARY)
 #define is_binary_exp(exp)          ((exp)->kind == EXP_BINARY)
@@ -38,7 +38,7 @@
      (is_sql_exp(exp) && exp->u_sql.kind != SQL_QUERY) ||                                \
      (is_unary_exp(exp) && (exp->u_un.kind == OP_INC || exp->u_un.kind == OP_DEC)))
 
-#define exp_add                     array_add_last
+#define exp_add                     vector_add_last
 
 #define exp_check_overflow(exp, meta)                                                    \
     do {                                                                                 \
@@ -56,10 +56,10 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
-#ifndef _ARRAY_T
-#define _ARRAY_T
-typedef struct array_s array_t;
-#endif /* ! _ARRAY_T */
+#ifndef _VECTOR_T
+#define _VECTOR_T
+typedef struct vector_s vector_t;
+#endif /* ! _VECTOR_T */
 
 /* null, true, false, 1, 1.0, 0x1, "..." */
 typedef struct exp_lit_s {
@@ -80,10 +80,10 @@ typedef struct exp_type_s {
 } exp_type_t;
 
 /* id[idx] */
-typedef struct exp_array_s {
+typedef struct exp_vector_s {
     ast_exp_t *id_exp;
     ast_exp_t *idx_exp;
-} exp_array_t;
+} exp_vector_t;
 
 /* (type)val */
 typedef struct exp_cast_s {
@@ -95,7 +95,7 @@ typedef struct exp_cast_s {
 typedef struct exp_call_s {
     bool is_ctor;
     ast_exp_t *id_exp;
-    array_t *param_exps;
+    vector_t *param_exps;
 } exp_call_t;
 
 /* id.fld */
@@ -133,18 +133,18 @@ typedef struct exp_sql_s {
 
 /* (exp, exp, exp, ...) */
 typedef struct exp_tuple_s {
-    array_t *elem_exps;
+    vector_t *elem_exps;
 } exp_tuple_t;
 
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
-    array_t *elem_exps;
+    vector_t *elem_exps;
 } exp_init_t;
 
 /* new type, new type[] */
 typedef struct exp_alloc_s {
     ast_exp_t *type_exp;
-    array_t *size_exps;
+    vector_t *size_exps;
 } exp_alloc_t;
 
 typedef struct exp_global_s {
@@ -170,7 +170,7 @@ struct ast_exp_s {
         exp_lit_t u_lit;
         exp_id_t u_id;
         exp_type_t u_type;
-        exp_array_t u_arr;
+        exp_vector_t u_arr;
         exp_cast_t u_cast;
         exp_call_t u_call;
         exp_access_t u_acc;
@@ -202,9 +202,9 @@ ast_exp_t *exp_new_lit_f64(double v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_str(char *v, src_pos_t *pos);
 ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
-ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
+ast_exp_t *exp_new_vector(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
-ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, array_t *param_exps,
+ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps,
                         src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp,
@@ -214,8 +214,8 @@ ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
 ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
                            src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);
-ast_exp_t *exp_new_tuple(array_t *elem_exps, src_pos_t *pos);
-ast_exp_t *exp_new_init(array_t *elem_exps, src_pos_t *pos);
+ast_exp_t *exp_new_tuple(vector_t *elem_exps, src_pos_t *pos);
+ast_exp_t *exp_new_init(vector_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(char *name);

@@ -151,14 +151,14 @@ exp_check_type(check_t *check, ast_exp_t *exp)
 }
 
 static bool
-exp_check_array(check_t *check, ast_exp_t *exp)
+exp_check_vector(check_t *check, ast_exp_t *exp)
 {
     ast_exp_t *id_exp;
     meta_t *id_meta;
     ast_exp_t *idx_exp;
     meta_t *idx_meta;
 
-    ASSERT1(is_array_exp(exp), exp->kind);
+    ASSERT1(is_vector_exp(exp), exp->kind);
     ASSERT(exp->u_arr.id_exp != NULL);
 
     id_exp = exp->u_arr.id_exp;
@@ -174,7 +174,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, idx_exp));
 
-    if (is_array_meta(id_meta)) {
+    if (is_vector_meta(id_meta)) {
         ASSERT(id_meta->arr_dim > 0);
         ASSERT(id_meta->dim_sizes != NULL);
 
@@ -186,13 +186,13 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         if (is_lit_exp(idx_exp)) {
             ASSERT(id_meta->dim_sizes != NULL);
 
-            /* The "dim_sizes[0]" can be negative if array is used as a parameter */
+            /* The "dim_sizes[0]" can be negative if vector is used as a parameter */
             if (id_meta->dim_sizes[0] > 0 &&
                 val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0])
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
-        /* Whenever an array element is accessed, strip it by one dimension */
+        /* Whenever an vector element is accessed, strip it by one dimension */
         meta_strip_arr_dim(&exp->meta);
     }
     else {
@@ -225,7 +225,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 
     meta_copy(&exp->meta, &exp->u_cast.to_meta);
 
-    if (is_array_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
+    if (is_vector_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
@@ -616,9 +616,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
-    array_t *param_exps;
+    vector_t *param_exps;
     ast_id_t *id;
-    array_t *param_ids;
+    vector_t *param_ids;
 
     ASSERT1(is_call_exp(exp), exp->kind);
 
@@ -651,13 +651,13 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
     param_ids = id->u_fn.param_ids;
 
-    if (array_size(param_ids) != array_size(param_exps))
-        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", array_size(param_ids),
-               array_size(param_exps));
+    if (vector_size(param_ids) != vector_size(param_exps))
+        RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", vector_size(param_ids),
+               vector_size(param_exps));
 
-    array_foreach(param_exps, i) {
-        ast_id_t *param_id = array_get_id(param_ids, i);
-        ast_exp_t *param_exp = array_get_exp(param_exps, i);
+    vector_foreach(param_exps, i) {
+        ast_id_t *param_id = vector_get_id(param_ids, i);
+        ast_exp_t *param_exp = vector_get_exp(param_exps, i);
 
         CHECK(exp_check(check, param_exp));
         CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
@@ -709,13 +709,13 @@ static bool
 exp_check_tuple(check_t *check, ast_exp_t *exp)
 {
     int i;
-    array_t *elem_exps = exp->u_tup.elem_exps;
+    vector_t *elem_exps = exp->u_tup.elem_exps;
 
     ASSERT1(is_tuple_exp(exp), exp->kind);
     ASSERT(elem_exps != NULL);
 
-    array_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+    vector_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
         CHECK(exp_check(check, elem_exp));
 
@@ -731,13 +731,13 @@ static bool
 exp_check_init(check_t *check, ast_exp_t *exp)
 {
     int i;
-    array_t *elem_exps = exp->u_init.elem_exps;
+    vector_t *elem_exps = exp->u_init.elem_exps;
 
     ASSERT1(is_init_exp(exp), exp->kind);
     ASSERT(elem_exps != NULL);
 
-    array_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = array_get_exp(elem_exps, i);
+    vector_foreach(elem_exps, i) {
+        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
 
@@ -762,16 +762,16 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
 
     if (exp->u_alloc.size_exps != NULL) {
-        /* TODO: This is very similar to id_check_array()... */
+        /* TODO: This is very similar to id_check_vector()... */
         int i;
         int dim_size;
-        array_t *size_exps = exp->u_alloc.size_exps;
+        vector_t *size_exps = exp->u_alloc.size_exps;
 
-        meta_set_arr_dim(&exp->meta, array_size(size_exps));
+        meta_set_arr_dim(&exp->meta, vector_size(size_exps));
 
-        array_foreach(size_exps, i) {
+        vector_foreach(size_exps, i) {
             value_t *size_val = NULL;
-            ast_exp_t *size_exp = array_get_exp(size_exps, i);
+            ast_exp_t *size_exp = vector_get_exp(size_exps, i);
 
             CHECK(exp_check(check, size_exp));
 
@@ -824,8 +824,8 @@ exp_check(check_t *check, ast_exp_t *exp)
     case EXP_TYPE:
         return exp_check_type(check, exp);
 
-    case EXP_ARRAY:
-        return exp_check_array(check, exp);
+    case EXP_VECTOR:
+        return exp_check_vector(check, exp);
 
     case EXP_CAST:
         return exp_check_cast(check, exp);

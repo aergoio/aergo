@@ -15,18 +15,18 @@
 #include "check_id.h"
 
 static bool
-id_check_array(check_t *check, ast_id_t *id)
+id_check_vector(check_t *check, ast_id_t *id)
 {
     int i;
     int dim_size;
-    array_t *size_exps = id->u_var.size_exps;
+    vector_t *size_exps = id->u_var.size_exps;
 
     ASSERT1(is_var_id(id), id->kind);
 
-    meta_set_arr_dim(&id->meta, array_size(size_exps));
+    meta_set_arr_dim(&id->meta, vector_size(size_exps));
 
-    array_foreach(size_exps, i) {
-        ast_exp_t *size_exp = array_get_exp(size_exps, i);
+    vector_foreach(size_exps, i) {
+        ast_exp_t *size_exp = vector_get_exp(size_exps, i);
 
         CHECK(exp_check(check, size_exp));
 
@@ -76,7 +76,7 @@ id_check_var(check_t *check, ast_id_t *id)
     meta_copy(&id->meta, &id->u_var.type_exp->meta);
 
     if (id->u_var.size_exps != NULL)
-        CHECK(id_check_array(check, id));
+        CHECK(id_check_vector(check, id));
 
     if (id->u_var.dflt_exp != NULL) {
         ast_exp_t *dflt_exp = id->u_var.dflt_exp;
@@ -105,7 +105,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
     uint32_t offset = 0;
-    array_t *fld_ids;
+    vector_t *fld_ids;
 
     ASSERT1(is_struct_id(id), id->kind);
     ASSERT(id->name != NULL);
@@ -114,8 +114,8 @@ id_check_struct(check_t *check, ast_id_t *id)
     fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
 
-    array_foreach(fld_ids, i) {
-        ast_id_t *fld_id = array_get_id(fld_ids, i);
+    vector_foreach(fld_ids, i) {
+        ast_id_t *fld_id = vector_get_id(fld_ids, i);
 
         ASSERT1(is_var_id(fld_id), fld_id->kind);
 
@@ -136,7 +136,7 @@ id_check_enum(check_t *check, ast_id_t *id)
 {
     int i, j;
     int enum_val = 0;
-    array_t *elem_ids;
+    vector_t *elem_ids;
 
     ASSERT1(is_enum_id(id), id->kind);
     ASSERT(id->name != NULL);
@@ -145,8 +145,8 @@ id_check_enum(check_t *check, ast_id_t *id)
     elem_ids = id->u_enum.elem_ids;
     ASSERT(elem_ids != NULL);
 
-    array_foreach(elem_ids, i) {
-        ast_id_t *elem_id = array_get_id(elem_ids, i);
+    vector_foreach(elem_ids, i) {
+        ast_id_t *elem_id = vector_get_id(elem_ids, i);
         ast_exp_t *dflt_exp = elem_id->u_var.dflt_exp;
 
         /* Check directly for processing value in the enumerator */
@@ -170,7 +170,7 @@ id_check_enum(check_t *check, ast_id_t *id)
             elem_id->val = &dflt_exp->u_lit.val;
 
             for (j = 0; j < i; j++) {
-                ast_id_t *prev_id = array_get_id(elem_ids, j);
+                ast_id_t *prev_id = vector_get_id(elem_ids, j);
 
                 if (value_cmp(elem_id->val, prev_id->val) == 0)
                     RETURN(ERROR_DUPLICATED_ENUM, &dflt_exp->pos);
@@ -191,7 +191,7 @@ static bool
 id_check_fn(check_t *check, ast_id_t *id)
 {
     int i;
-    array_t *param_ids = id->u_fn.param_ids;
+    vector_t *param_ids = id->u_fn.param_ids;
 
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->name != NULL);
@@ -201,8 +201,8 @@ id_check_fn(check_t *check, ast_id_t *id)
     if (is_ctor_id(id) && strcmp(id->name, id->up->name) != 0)
         ERROR(ERROR_MISMATCHED_NAME, &id->pos, id->up->name, id->name);
 
-    array_foreach(param_ids, i) {
-        ast_id_t *param_id = array_get_id(param_ids, i);
+    vector_foreach(param_ids, i) {
+        ast_id_t *param_id = vector_get_id(param_ids, i);
 
         ASSERT1(is_var_id(param_id), param_id->kind);
         ASSERT(is_param_id(param_id));
@@ -225,8 +225,8 @@ id_check_fn(check_t *check, ast_id_t *id)
         /* Mark "is_used" flag */
         ast_blk_t *blk = check->impl_id->u_itf.blk;
 
-        array_foreach(&blk->ids, i) {
-            ast_id_t *spec_id = array_get_id(&blk->ids, i);
+        vector_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = vector_get_id(&blk->ids, i);
 
             if (strcmp(spec_id->name, id->name) == 0 && id_cmp(spec_id, id)) {
                 spec_id->is_used = true;
@@ -243,8 +243,8 @@ id_check_fn(check_t *check, ast_id_t *id)
     check->fn_id = NULL;
 
     if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
-        (id->u_fn.blk == NULL || is_empty_array(&id->u_fn.blk->stmts) ||
-         !is_return_stmt(array_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
+        (id->u_fn.blk == NULL || is_empty_vector(&id->u_fn.blk->stmts) ||
+         !is_return_stmt(vector_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
         RETURN(ERROR_MISSING_RETURN, &id->pos);
 
     return true;
@@ -268,8 +268,8 @@ id_check_contract(check_t *check, ast_id_t *id)
             ASSERT(impl_id != NULL);
             ASSERT1(is_itf_id(impl_id), impl_id->kind);
 
-            array_foreach(&impl_id->u_itf.blk->ids, i) {
-                array_get_id(&impl_id->u_itf.blk->ids, i)->is_used = false;
+            vector_foreach(&impl_id->u_itf.blk->ids, i) {
+                vector_get_id(&impl_id->u_itf.blk->ids, i)->is_used = false;
             }
 
             check->impl_id = impl_id;
@@ -290,8 +290,8 @@ id_check_contract(check_t *check, ast_id_t *id)
     if (check->impl_id != NULL) {
         ast_blk_t *blk = check->impl_id->u_itf.blk;
 
-        array_foreach(&blk->ids, i) {
-            ast_id_t *spec_id = array_get_id(&blk->ids, i);
+        vector_foreach(&blk->ids, i) {
+            ast_id_t *spec_id = vector_get_id(&blk->ids, i);
 
             if (!spec_id->is_used)
                 ERROR(ERROR_NOT_IMPLEMENTED, &id->pos, spec_id->name);
@@ -333,22 +333,22 @@ static bool
 id_check_tuple(check_t *check, ast_id_t *id)
 {
     int i;
-    array_t *elem_ids = id->u_tup.elem_ids;
+    vector_t *elem_ids = id->u_tup.elem_ids;
     ast_exp_t *dflt_exp = id->u_tup.dflt_exp;
 
     ASSERT1(is_tuple_id(id), id->kind);
 
     id->meta.type = TYPE_TUPLE;
 
-    id->meta.elem_cnt = array_size(elem_ids);
+    id->meta.elem_cnt = vector_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
     id->meta.size = 0;
 
     /* The meta size of the tuple identifier is never used, so we do not need to set
      * size here */
-    array_foreach(elem_ids, i) {
-        ast_id_t *elem_id = array_get_id(elem_ids, i);
+    vector_foreach(elem_ids, i) {
+        ast_id_t *elem_id = vector_get_id(elem_ids, i);
 
         elem_id->mod = id->mod;
 

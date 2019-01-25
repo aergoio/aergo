@@ -82,13 +82,13 @@ type_gen(type_t type)
 }
 
 void
-table_gen(gen_t *gen, array_t *fns)
+table_gen(gen_t *gen, vector_t *fns)
 {
     int i;
-    char **names = xmalloc(sizeof(char *) * array_size(fns));
+    char **names = xmalloc(sizeof(char *) * vector_size(fns));
 
-    array_foreach(fns, i) {
-        names[i] = array_get_fn(fns, i)->name;
+    vector_foreach(fns, i) {
+        names[i] = vector_get_fn(fns, i)->name;
     }
 
     BinaryenSetFunctionTable(gen->module, i, i, (const char **)names, i);

@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-#include "array.h"
+#include "vector.h"
 #include "util.h"
 
 #include "ast_exp.h"
@@ -112,9 +112,9 @@ exp_new_type(type_t type, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
+exp_new_vector(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_ARRAY, pos);
+    ast_exp_t *exp = ast_exp_new(EXP_VECTOR, pos);
 
     exp->u_arr.id_exp = id_exp;
     exp->u_arr.idx_exp = idx_exp;
@@ -135,7 +135,7 @@ exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_call(bool is_ctor, ast_exp_t *id_exp, array_t *param_exps, src_pos_t *pos)
+exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
@@ -206,7 +206,7 @@ exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_tuple(array_t *elem_exps, src_pos_t *pos)
+exp_new_tuple(vector_t *elem_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TUPLE, pos);
 
@@ -216,12 +216,12 @@ exp_new_tuple(array_t *elem_exps, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_init(array_t *elem_exps, src_pos_t *pos)
+exp_new_init(vector_t *elem_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_INIT, pos);
 
     if (elem_exps == NULL)
-        exp->u_init.elem_exps = array_new();
+        exp->u_init.elem_exps = vector_new();
     else
         exp->u_init.elem_exps = elem_exps;
 
@@ -308,8 +308,8 @@ exp_clone(ast_exp_t *exp)
 {
     int i;
     ast_exp_t *res = NULL;
-    array_t *elem_exps;
-    array_t *res_exps;
+    vector_t *elem_exps;
+    vector_t *res_exps;
 
     if (exp == NULL)
         return NULL;
@@ -335,8 +335,8 @@ exp_clone(ast_exp_t *exp)
         res->u_type.v_exp = exp_clone(exp->u_type.v_exp);
         break;
 
-    case EXP_ARRAY:
-        res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
+    case EXP_VECTOR:
+        res = exp_new_vector(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
                             &exp->pos);
         break;
 
@@ -368,9 +368,9 @@ exp_clone(ast_exp_t *exp)
 
     case EXP_CALL:
         elem_exps = exp->u_call.param_exps;
-        res_exps = array_new();
-        array_foreach(elem_exps, i) {
-            array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
+        res_exps = vector_new();
+        vector_foreach(elem_exps, i) {
+            vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
         }
         res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps,
                            &exp->pos);
@@ -382,9 +382,9 @@ exp_clone(ast_exp_t *exp)
 
     case EXP_TUPLE:
         elem_exps = exp->u_tup.elem_exps;
-        res_exps = array_new();
-        array_foreach(elem_exps, i) {
-            array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
+        res_exps = vector_new();
+        vector_foreach(elem_exps, i) {
+            vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
         }
         res = exp_new_tuple(res_exps, &exp->pos);
         break;
@@ -393,9 +393,9 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_alloc(exp->u_alloc.type_exp, &exp->pos);
         elem_exps = exp->u_alloc.size_exps;
         if (elem_exps != NULL) {
-            res_exps = array_new();
-            array_foreach(elem_exps, i) {
-                array_add_last(res_exps, exp_clone(array_get_exp(elem_exps, i)));
+            res_exps = vector_new();
+            vector_foreach(elem_exps, i) {
+                vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
             }
             res->u_alloc.size_exps = res_exps;
         }
@@ -451,7 +451,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             strcmp(x->u_type.name, y->u_type.name) == 0 &&
             exp_equals(x->u_type.k_exp, y->u_type.k_exp);
 
-    case EXP_ARRAY:
+    case EXP_VECTOR:
         return exp_equals(x->u_arr.id_exp, y->u_arr.id_exp) &&
             exp_equals(x->u_arr.idx_exp, y->u_arr.idx_exp);
 
@@ -478,12 +478,12 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             exp_equals(x->u_acc.fld_exp, y->u_acc.fld_exp);
 
     case EXP_CALL:
-        if (array_size(x->u_call.param_exps) != array_size(y->u_call.param_exps))
+        if (vector_size(x->u_call.param_exps) != vector_size(y->u_call.param_exps))
             return false;
 
-        array_foreach(x->u_call.param_exps, i) {
-            if (!exp_equals(array_get_exp(x->u_call.param_exps, i),
-                            array_get_exp(y->u_call.param_exps, i)))
+        vector_foreach(x->u_call.param_exps, i) {
+            if (!exp_equals(vector_get_exp(x->u_call.param_exps, i),
+                            vector_get_exp(y->u_call.param_exps, i)))
                 return false;
         }
         return exp_equals(x->u_acc.qual_exp, y->u_acc.qual_exp);
@@ -492,23 +492,23 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
         return x->u_sql.kind == y->u_sql.kind && strcmp(x->u_sql.sql, y->u_sql.sql) == 0;
 
     case EXP_TUPLE:
-        if (array_size(x->u_tup.elem_exps) != array_size(y->u_tup.elem_exps))
+        if (vector_size(x->u_tup.elem_exps) != vector_size(y->u_tup.elem_exps))
             return false;
 
-        array_foreach(x->u_tup.elem_exps, i) {
-            if (!exp_equals(array_get_exp(x->u_tup.elem_exps, i),
-                            array_get_exp(y->u_tup.elem_exps, i)))
+        vector_foreach(x->u_tup.elem_exps, i) {
+            if (!exp_equals(vector_get_exp(x->u_tup.elem_exps, i),
+                            vector_get_exp(y->u_tup.elem_exps, i)))
                 return false;
         }
         return true;
 
     case EXP_INIT:
-        if (array_size(x->u_init.elem_exps) != array_size(y->u_init.elem_exps))
+        if (vector_size(x->u_init.elem_exps) != vector_size(y->u_init.elem_exps))
             return false;
 
-        array_foreach(x->u_init.elem_exps, i) {
-            if (!exp_equals(array_get_exp(x->u_init.elem_exps, i),
-                            array_get_exp(y->u_init.elem_exps, i)))
+        vector_foreach(x->u_init.elem_exps, i) {
+            if (!exp_equals(vector_get_exp(x->u_init.elem_exps, i),
+                            vector_get_exp(y->u_init.elem_exps, i)))
                 return false;
         }
         return true;
