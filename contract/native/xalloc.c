@@ -76,12 +76,14 @@ xstrndup(char *str, int len)
 char *
 xstrncat(char *s1, int len1, char *s2, int len2)
 {
-    s1 = xrealloc(s1, len1 + len2 + 1);
+    char *buf = xmalloc(len1 + len2 + 1);
 
-    memcpy(s1 + len1, s2, len2);
-    s1[len1 + len2] = '\0';
+    memcpy(buf, s1, len1);
+    memcpy(buf + len1, s2, len2);
 
-    return s1;
+    buf[len1 + len2] = '\0';
+
+    return buf;
 }
 
 /* end of xalloc.c */

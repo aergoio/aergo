@@ -23,7 +23,7 @@
 #define val_bool(val)               ((val)->b)
 #define val_i64(val)                ((val)->is_neg ? -(val)->i64 : (val)->i64)
 #define val_f64(val)                ((val)->d)
-#define val_str(val)                ((val)->ptr)
+#define val_str(val)                ((char *)((val)->ptr))
 
 #define is_zero_val(val)                                                                 \
     (is_i64_val(val) ? (val)->i64 == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
@@ -113,6 +113,78 @@ static inline void
 value_set_neg(value_t *val, bool is_neg)
 {
     val->is_neg = is_neg;
+}
+
+static inline void *
+value_ptr(value_t *val, meta_t *meta)
+{
+    void *ptr;
+
+    /* TODO: Until value_t and meta_t are integrated, we have to do this. Because
+     *       meta_eval() determines the actual type of literal, there is no way to refer
+     *       to value at that time */
+
+    switch (val->type) {
+    case TYPE_BOOL:
+        ptr = xmalloc(sizeof(uint32_t));
+        *(uint32_t *)ptr = val_bool(val) ? 1 : 0;
+        return ptr;
+
+    case TYPE_UINT64:
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            return val->ptr;
+
+        ptr = xmalloc(sizeof(uint32_t));
+        *(uint32_t *)ptr = (uint32_t)val_i64(val);
+        return ptr;
+
+    case TYPE_DOUBLE:
+        if (is_double_meta(meta))
+            return val->ptr;
+
+        ptr = xmalloc(sizeof(float));
+        *(float *)ptr = (float)val_f64(val);
+        return ptr;
+
+    case TYPE_STRING:
+    case TYPE_OBJECT:
+        return val->ptr;
+
+    default:
+        ASSERT2(!"invalid value", val->type, meta->type);
+    }
+
+    return NULL;
+}
+
+static inline uint32_t
+value_size(value_t *val, meta_t *meta)
+{
+    switch (val->type) {
+    case TYPE_BOOL:
+        return sizeof(uint32_t);
+
+    case TYPE_UINT64:
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            return val->size;
+
+        return sizeof(uint32_t);
+
+    case TYPE_DOUBLE:
+        if (is_double_meta(meta))
+            return val->size;
+
+        return sizeof(float);
+
+    case TYPE_STRING:
+    case TYPE_OBJECT:
+        return val->size;
+
+    default:
+        ASSERT2(!"invalid value", val->type, meta->type);
+    }
+
+    return 0;
 }
 
 #endif /* ! _VALUE_H */

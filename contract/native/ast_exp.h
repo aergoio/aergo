@@ -186,10 +186,10 @@ struct ast_exp_s {
         exp_memory_t u_mem;
     };
 
-    ast_id_t *id;       /* referenced identifier */
+    ast_id_t *id;           /* referenced identifier */
     meta_t meta;
 
-    bool usable_lval;
+    bool usable_lval;       /* whether is used as lvalue */
 
     AST_NODE_DECL;
 };

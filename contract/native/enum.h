@@ -8,6 +8,13 @@
 
 #include "common.h"
 
+#define TYPE_NAME(type)         type_names_[(type)]
+#define TYPE_SIZE(type)         type_sizes_[(type)]
+#define TYPE_BYTE(type)         type_bytes_[(type)]
+#define TYPE_ALIGN              TYPE_SIZE
+
+#define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
+
 typedef enum flag_e {
     FLAG_NONE       = 0x00,
     FLAG_DEBUG      = 0x01,
@@ -38,13 +45,6 @@ typedef enum errlvl_e {
     LVL_MAX
 } errlvl_t;
 
-#define TYPE_NAME(type)         type_names_[(type)]
-#define TYPE_SIZE(type)         type_sizes_[(type)]
-#define TYPE_BYTE(type)         type_bytes_[(type)]
-#define TYPE_ALIGN              TYPE_SIZE
-
-#define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
-
 typedef enum type_e {
     TYPE_NONE       = 0,
     TYPE_BOOL       = 1,
@@ -74,10 +74,6 @@ typedef enum type_e {
     TYPE_MAX
 } type_t;
 
-extern char *type_names_[TYPE_MAX];
-extern int type_sizes_[TYPE_MAX];
-extern int type_bytes_[TYPE_MAX];
-
 typedef enum id_kind_e {
     ID_VAR          = 0,
     ID_STRUCT,
@@ -89,8 +85,6 @@ typedef enum id_kind_e {
     ID_TUPLE,
     ID_MAX
 } id_kind_t;
-
-extern char *id_kinds_[ID_MAX];
 
 typedef enum exp_kind_e {
     EXP_NULL        = 0,
@@ -131,8 +125,6 @@ typedef enum stmt_kind_e {
     STMT_BLK,
     STMT_MAX
 } stmt_kind_t;
-
-extern char *stmt_kinds_[STMT_MAX];
 
 typedef enum blk_kind_e {
     BLK_NORMAL      = 0,
@@ -203,5 +195,9 @@ typedef enum param_kind_e {
     PARAM_OUT,
     PARAM_MAX
 } param_kind_t;
+
+extern char *type_names_[TYPE_MAX];
+extern int type_sizes_[TYPE_MAX];
+extern int type_bytes_[TYPE_MAX];
 
 #endif /* ! _ENUM_H */

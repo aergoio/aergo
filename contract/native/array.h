@@ -16,6 +16,7 @@
 #define array_init(arr, type)                                                            \
     do {                                                                                 \
         ASSERT((arr) != NULL);                                                           \
+        ASSERT1(sizeof(type) % 4 == 0, sizeof(type));                                    \
         (arr)->cap = ARRAY_INIT_CAPACITY;                                                \
         (arr)->size = 0;                                                                 \
         (arr)->unit = sizeof(type);                                                      \

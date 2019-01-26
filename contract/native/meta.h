@@ -196,6 +196,32 @@ meta_set_undef(meta_t *meta)
 }
 
 static inline void
+meta_set_size(meta_t *meta)
+{
+    int i;
+
+    if (is_tuple_meta(meta)) {
+        meta->size = 0;
+
+        for (i = 0; i < meta->elem_cnt; i++) {
+            meta_t *elem_meta = meta->elems[i];
+
+            if (is_tuple_meta(elem_meta))
+                meta_set_size(elem_meta);
+
+            meta->size = ALIGN(meta->size, meta_align(elem_meta));
+            meta->size += meta_size(elem_meta);
+        }
+
+        meta->align = meta_align(meta->elems[0]);
+        meta->size = ALIGN(meta->size, meta->align);
+    }
+    else {
+        meta->size = TYPE_SIZE(meta->type);
+    }
+}
+
+static inline void
 meta_set_arr_dim(meta_t *meta, int arr_dim)
 {
     ASSERT(arr_dim > 0);
@@ -233,14 +259,6 @@ meta_strip_arr_dim(meta_t *meta)
         meta->dim_sizes = &meta->dim_sizes[1];
 }
 
-static inline void
-meta_set_rel_offset(meta_t *meta, uint32_t *offset)
-{
-    meta->rel_offset = ALIGN(*offset, meta_align(meta));
-
-    *offset = meta->rel_offset + meta_size(meta);
-}
-
 static inline uint32_t
 meta_unit(meta_t *meta)
 {
@@ -271,7 +289,7 @@ meta_copy(meta_t *dest, meta_t *src)
     dest->elems = src->elems;
     dest->type_id = src->type_id;
 
-    /* deliberately excluded pos */
+    /* deliberately excluded base_idx, rel_addr, rel_offset, pos */
 }
 
 #endif /* ! _META_H */

@@ -33,12 +33,6 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 
         return f32_gen(gen, val_f64(val));
 
-    case TYPE_OBJECT:
-        /* If there is a variable at some point in the initializer, some elements are
-         * represented by literal, and some elements may not. Therefore, the object
-         * literal is processed by the generator */
-        return i32_gen(gen, sgmt_add_raw(&gen->ir->sgmt, val_ptr(val), val_size(val)));
-
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
     }

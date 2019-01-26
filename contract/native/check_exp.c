@@ -406,6 +406,7 @@ exp_check_op_cmp(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, r_exp));
 
+    /* Comparisons are possible between variables of type object, struct or array */
     if (is_tuple_meta(l_meta))
         RETURN(ERROR_INVALID_OP_TYPE, &l_exp->pos, meta_to_str(l_meta));
     else if (is_tuple_meta(r_meta))
@@ -570,8 +571,8 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     qual_id = qual_exp->id;
 
     if (qual_id == NULL ||
-        is_tuple_meta(qual_meta) || /* In case of new initializer */
-        (is_fn_id(qual_id) && !is_struct_meta(qual_meta) && !is_object_meta(qual_meta)))
+        (!is_enum_id(qual_id) &&
+         !is_struct_meta(qual_meta) && !is_object_meta(qual_meta)))
         RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
     /* Get the actual struct, contract or interface identifier */
@@ -762,7 +763,6 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
 
     if (exp->u_alloc.size_exps != NULL) {
-        /* TODO: This is very similar to id_check_array()... */
         int i;
         int dim_size;
         vector_t *size_exps = exp->u_alloc.size_exps;
@@ -774,9 +774,6 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
             ast_exp_t *size_exp = vector_get_exp(size_exps, i);
 
             CHECK(exp_check(check, size_exp));
-
-            if (is_null_exp(size_exp))
-                RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             if (size_exp->id != NULL && is_const_id(size_exp->id))
                 /* constant variable */

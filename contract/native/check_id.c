@@ -116,6 +116,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
     vector_foreach(fld_ids, i) {
         ast_id_t *fld_id = vector_get_id(fld_ids, i);
+        meta_t *fld_meta = &fld_id->meta;
 
         ASSERT1(is_var_id(fld_id), fld_id->kind);
 
@@ -123,7 +124,8 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         flag_set(fld_id->mod, MOD_PUBLIC);
 
-        meta_set_rel_offset(&fld_id->meta, &offset);
+        fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
+        offset = fld_meta->rel_offset + meta_size(fld_meta);
     }
 
     meta_set_struct(&id->meta, id);

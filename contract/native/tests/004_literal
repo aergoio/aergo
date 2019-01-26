@@ -336,10 +336,26 @@ contract test {
     s v2[2] = new { { v1.a, s1 }, { i1 - 126, v1.b } };
 }
 
-@test(invalid_allocator_declaration)
+@test(not_array_allocator)
 @error(ERROR_INVALID_INITIALIZER)
 contract test {
     int i[2] = new int;
+}
+
+@test(missing_allocator_size)
+@error(ERROR_SYNTAX)
+contract test {
+    int i[2] = new int[];
+}
+
+@test(invalid_allocator_size)
+@error(ERROR_INVALID_SIZE_VAL,3)
+contract test {
+    int i[2] = new int[0];
+    int j[2] = new int["2"];
+
+    int x = 1;
+    int k[2] = new int[x + 1];
 }
 
 @test(mismatched_allocator_size)

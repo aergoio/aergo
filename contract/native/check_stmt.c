@@ -61,6 +61,34 @@ stmt_check_exp(check_t *check, ast_stmt_t *stmt)
 static void
 check_overflow(ast_exp_t *l_exp, ast_exp_t *r_exp)
 {
+    if (is_tuple_exp(l_exp)) {
+        int i;
+        vector_t *var_exps = l_exp->u_tup.elem_exps;
+        vector_t *val_exps = r_exp->u_tup.elem_exps;
+
+        ASSERT1(is_tuple_exp(r_exp), r_exp->kind);
+        ASSERT2(vector_size(var_exps) == vector_size(val_exps), vector_size(var_exps),
+                vector_size(val_exps));
+
+        vector_foreach(var_exps, i) {
+            ast_exp_t *var_exp = vector_get_exp(var_exps, i);
+            ast_exp_t *val_exp = vector_get_exp(val_exps, i);
+
+            ASSERT2(meta_cmp(&var_exp->meta, &val_exp->meta), var_exp->meta.type,
+                    val_exp->meta.type);
+
+            exp_check_overflow(val_exp, &var_exp->meta);
+        }
+    }
+    else {
+        exp_check_overflow(r_exp, &l_exp->meta);
+    }
+}
+// TODO: multiple return values
+#if 0
+static void
+check_overflow(ast_exp_t *l_exp, ast_exp_t *r_exp)
+{
     if (is_tuple_exp(l_exp) && is_tuple_exp(r_exp)) {
         int i;
         vector_t *var_exps = l_exp->u_tup.elem_exps;
@@ -105,6 +133,7 @@ check_overflow(ast_exp_t *l_exp, ast_exp_t *r_exp)
         exp_check_overflow(r_exp, &l_exp->meta);
     }
 }
+#endif
 
 static bool
 stmt_check_assign(check_t *check, ast_stmt_t *stmt)
@@ -457,6 +486,10 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
         meta_eval(fn_meta, &arg_exp->meta);
 
+        exp_check_overflow(arg_exp, fn_meta);
+
+        // TODO: multiple return values
+#if 0
         if (is_tuple_exp(arg_exp)) {
             int i;
 
@@ -474,6 +507,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
         else {
             exp_check_overflow(arg_exp, fn_meta);
         }
+#endif
     }
     else if (!is_void_meta(fn_meta) && !is_ctor_id(fn_id)) {
         RETURN(ERROR_MISMATCHED_COUNT, &stmt->pos, "return", meta_cnt(fn_meta), 0);

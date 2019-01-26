@@ -32,7 +32,9 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     case TYPE_STRING:
         addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val) + 1);
+
         value_set_i64(val, addr);
+        meta_set_uint32(&exp->meta);
         break;
 
     case TYPE_OBJECT:
@@ -40,7 +42,9 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
             addr = sgmt_add_raw(sgmt, "\0\0\0\0", 4);
         else
             addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val));
+
         value_set_i64(val, addr);
+        meta_set_uint32(&exp->meta);
         break;
 
     default:
@@ -433,6 +437,9 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     bool is_aggr_val = true;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
+    ASSERT1(is_map_meta(&exp->meta) || is_array_meta(&exp->meta) ||
+            is_struct_meta(&exp->meta), exp->meta.type);
+
     vector_foreach(elem_exps, i) {
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
@@ -449,18 +456,25 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 
         vector_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
-            value_t *elem_val = &elem_exp->u_lit.val;
+            meta_t *elem_meta = &elem_exp->meta;
+            void *val_ptr = value_ptr(&elem_exp->u_lit.val, elem_meta);
+            uint32_t val_size = value_size(&elem_exp->u_lit.val, elem_meta);
 
-            offset = ALIGN(offset, meta_align(&elem_exp->meta));
+            ASSERT2(val_size <= meta_size(elem_meta), val_size, meta_size(elem_meta));
+            ASSERT3(offset + val_size <= size, offset, val_size, size);
 
-            memcpy(raw + offset, val_ptr(elem_val), val_size(elem_val));
-            offset += meta_size(&elem_exp->meta);
+            offset = ALIGN(offset, meta_align(elem_meta));
+
+            memcpy(raw + offset, val_ptr, val_size);
+            offset += meta_size(elem_meta);
         }
 
         ASSERT2(offset <= size, offset, size);
 
         exp_set_lit(exp, NULL);
-        value_set_ptr(&exp->u_lit.val, raw, size);
+
+        value_set_i64(&exp->u_lit.val, sgmt_add_raw(&trans->ir->sgmt, raw, size));
+        meta_set_uint32(&exp->meta);
     }
     else if (trans->is_heap) {
         fn_add_heap(trans->fn, &exp->meta);

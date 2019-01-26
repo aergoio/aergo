@@ -26,7 +26,8 @@
             value_set_f64((res), val_f64(x) op val_f64(y));                              \
             break;                                                                       \
         case TYPE_STRING:                                                                \
-            value_set_str((res), xstrcat(val_str(x), val_str(y)));                       \
+            if (val_str(x) != NULL && val_str(y) != NULL)                                \
+                value_set_str((res), xstrcat(val_str(x), val_str(y)));                   \
             break;                                                                       \
         default:                                                                         \
             ASSERT1(!"invalid value", (x)->type);                                        \

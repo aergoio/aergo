@@ -12,9 +12,10 @@
 #include "array.h"
 #include "binaryen-c.h"
 
-#define instr_add(gen, instr)                                                            \
+#define instr_add(gen, stmt)                                                             \
     do {                                                                                 \
-        if ((instr) != NULL)                                                             \
+        BinaryenExpressionRef instr = (stmt);                                            \
+        if (instr != NULL)                                                               \
             array_add(&(gen)->instrs, instr, BinaryenExpressionRef);                     \
     } while (0)
 
