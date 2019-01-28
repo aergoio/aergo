@@ -9,13 +9,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/proto"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/gofrs/uuid"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"

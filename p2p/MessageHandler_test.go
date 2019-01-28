@@ -24,6 +24,11 @@ func (_m *MockMessageHandler) checkAuth(msgHeader Message, msgBody proto.Message
 	return r0
 }
 
+func (_m *MockMessageHandler) postHandle(msgHeader Message, msgBody proto.Message) {
+}
+func (_m *MockMessageHandler) preHandle() {
+}
+
 // handle provides a mock function with given fields: msgHeader, msgBody
 func (_m *MockMessageHandler) handle(msgHeader Message, msgBody proto.Message) {
 	_m.Called(msgHeader, msgBody)
