@@ -32,6 +32,7 @@ const (
 	DefaultEvictPeriod  = 12
 )
 
+type TxHash = []byte
 type AvgTime struct {
 	val  atomic.Value
 	mavg *MovingAverage
