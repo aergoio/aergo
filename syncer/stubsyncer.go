@@ -261,6 +261,10 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 
 	assert.True(syncer.t, stubPeer != nil, "peer exist")
 
+	if stubPeer.HookGetBlockChunkRsp != nil {
+		stubPeer.HookGetBlockChunkRsp(msg)
+		return
+	}
 	go func() {
 		if stubPeer.timeDelaySec > 0 {
 			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer sleep")
