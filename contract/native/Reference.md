@@ -34,11 +34,12 @@ exception               -
 
 ## Requirements
 
-ASCL로 작성된 프로그램은 다음 사항을 준수해야 한다.
+ASCL로 작성된 프로그램은 다음 사항을 유의해야 한다.
 
 * [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 형식으로 작성해야 한다.
 * 대소문자를 구분한다.
-* 모든 변수와 함수는 cross reference를 허용하지 않는다.
+* 전역 변수와 함수는 위치에 상관없이 사용할 수 있다.
+* 지역 변수는 forward declaration만 허용한다.
 
 > **TODO** hardware 혹은 OS 설명 필요
 
@@ -79,7 +80,7 @@ comments는 다음과 같은 두가지 형식을 지원한다.
 
 ### Constants
 
-상수는 프로그램에서 절대 변하지 않는 값을 나타내며, boolean, integer, floating-point, string 타입 상수등이 있다.
+상수는 프로그램내에서 절대 변하지 않는 값을 나타내며, boolean, integer, floating-point, string 타입 상수등이 있다.
 
 #### Boolean literals
 
@@ -148,7 +149,7 @@ string constant는 쌍따옴표를 사용하여 표기할 수 있다.
 
 ### Identifiers
 
-identifier는 변수나 타입의 이름으로 사용되며, 첫글자는 반드시 문자이거나 _(underscore)로 시작해야 한다.
+identifier는 변수나 함수, 타입의 이름으로 사용되며, 첫글자는 반드시 문자이거나 _(underscore)로 시작해야 한다. 그리고, identifier의 길이는 128bytes보다 작거나 같아야 한다.
 
 <pre>
 <a name="identifier">identifier</a> = <a href="#letter">letter</a> { <a href="#letter">letter</a> | <a href="#decimal_digit">decimal_digit</a> } ;
@@ -163,7 +164,7 @@ player_cnt
 
 ### Keywords
 
-keyword는 ASCL에서 미리 정의한 것으로 identifier 이름으로 사용할 수 없다.
+keyword는 ASCL에서 미리 정의한 것으로 identifier로 사용할 수 없다.
 
 #### Reserved words
 
@@ -214,7 +215,7 @@ null        this
 ```
 
 * null
-null은 map, contract등 object 타입 변수의 초기값으로 할당된다. ASCL에서 object 타입은 원칙적으로 비교 불가능하나, null과의 비교만 예외적으로 허용한다.
+null은 map, contract, interface등 object 타입 변수의 초기값으로 할당된다. ASCL에서 object 타입은 원칙적으로 비교 불가능하나, null과의 비교만 예외적으로 허용한다.
 
 ```
 map(int, string) m = null;
@@ -232,10 +233,10 @@ this는 contract에 정의한 state variable을 참조할 때 사용한다. 보�
 ```
 contract Testing {
     int test_no = 0;
-    func runTest(int test_no) { // assume that is passed test_no as 1
-        ... test_no ...         // using parameter test_no (== 1)
+    func runTest(int test_no) {     // assume that is passed test_no as 1
+        ... test_no ...             // using parameter test_no (== 1)
         or
-        ... this.test_no ...    // using state variable test_no (== 0)
+        ... this.test_no ...        // using state variable test_no (== 0)
     }
 }
 ```
@@ -378,7 +379,7 @@ enum City {
 
 #### Object types
 
-object 타입은 map과 contract 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, <a href="#new_func">new function</a>을 사용하여 빈 객체로 초기화할 수 있다.
+object 타입은 map과 contract, interface 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, <a href="#new_func">new function</a>을 사용하여 객체를 할당할 수 있다.
 
 ##### Map type
 
@@ -406,11 +407,26 @@ map(int, string) m = new map(10);
 
 ##### Contract type
 
-contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출해야 한다.
+contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출하거나 다른 contract 변수 혹은 함수의 반환값으로 할당해야 한다.
 
 ```
 MyContract myCon = null;
 MyContract myCon = new MyContract();
+MyContract myCon = ContractBuilder.build();
+```
+
+##### Interface type
+
+interface 타입은 interface를 구현한 contract 객체를 저장한다. contract 타입과 마찬가지로 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출하거나 함수의 반환값으로 contract를 받아와 할당해야 한다. 단, interface 타입간에는 할당할 수 없다.
+
+```
+interface CommonItf { ... }
+contract MyContract implements Common { ... }
+
+CommonItf con = null;
+CommonItf con = new MyContract();
+
+CommonItf con2 = con;       // raise error
 ```
 
 ### Type conversions
@@ -454,7 +470,7 @@ SmartContract = ( { <a href="#import_decl">ImportDecl</a> } | { <a href="#interf
 
 ### Import declarations
 
-import는 외부 smart contract 파일을 참조하기 위해 사용하는 구문이다. import하기 위한 파일은 local storage만 참조할 수 있고, 절대경로를 사용하거나 현재 contract 파일이 존재하는 위치로부터의 상대경로를 사용할 수 있다.
+import는 외부 smart contract 파일을 참조하기 위해 사용하는 구문이다. import하기 위한 파일은 반드시 local storage에 있어야 하고, 절대경로를 사용하거나 현재 contract 파일이 존재하는 위치로부터의 상대경로를 사용할 수 있다.
 
 <pre>
 <a name="import_decl">ImportDecl</a> = "import" <a href="#string_lit">string_lit</a> ;
@@ -468,21 +484,69 @@ import "/home/CommonContract"
 
 ### Interface declarations
 
-> **TODO** 구현 후 설명 필요
+interface는 함수의 specification을 작성하는 부분으로 다음과 같이 선언한다.
+
+<pre>
+<a name="interface_decl">InterfaceDecl</a> = "interface" <a href="#identifier">identifier</a> "{" { <a href="#func_spec">FunctionSpec</a> } "}" ;
+</pre>
+
+```
+interface Trade {
+    public func propose(int price, int64 amount) bool;
+    public func deal;
+}
+```
+
+interface는 다음과 같은 제약조건을 가진다.
+
+* <a href="#ctor_decl">constructor</a>는 정의할 수 없다.
+* <a href="#func_body">function body</a>는 정의할 수 없다.
+* <a href="#variable_decl">variable</a>이나 <a href="#struct_decl">struct</a>, <a href="#enum_decl">enum</a>등은 정의할 수 없다.
+
 
 ### Contract declarations
 
 contract는 실제 로직을 작성하는 부분으로 다음과 같이 선언한다.
 
 <pre>
-<a name="contract_decl">ContractDecl</a> = "contract" <a href="#identifier">identifier</a> "{" <a href="#contract_body">ContractBody</a> "}" ;
+<a name="contract_decl">ContractDecl</a> = "contract" <a href="#identifier">identifier</a> [ <a href="#impl_opt">Implements</a> ] "{" <a href="#contract_body">ContractBody</a> "}" ;
 <a name="contract_body">ContractBody</a> = { <a href="#variable_decl">VariableDecl</a> | <a href="#struct_decl">StructDecl</a> | <a href="#ctor_decl">ConstructorDecl</a> | <a href="#func_decl">FunctionDecl</a> } ;
 </pre>
 
 ```
 contract Buyer { ... }
-contract Dealer { ... }
+contract Seller { ... }
 ```
+
+### Interface implementations
+
+contract는 다음과 같이 interface를 구현할 수 있다.
+
+<pre>
+<a name="impl_opt">Implements</a>   = "implements" <a href="#identifier">identifier</a> ;
+</pre>
+
+```
+interface Trade { ... }
+
+contract Buyer implements Trade { ... }
+contract Seller implements Trade { ... }
+```
+
+하나의 contract에서는 하나의 interface만 구현할 수 있으나, 이는 추후에 확장될 수 있다. 이렇게 interface를 implmenetation한 경우 interface에 선언된 모든 함수를 반드시 정의해야 하고, 그렇지 않은 경우엔 compile 에러가 발생한다.
+
+```
+interface Trade {
+    public func propose(int price, int64 amount) bool;
+    public func deal;
+}
+
+contract Buyer implements Trade {
+    public func propose(int price, int64 amount) bool { ... }
+}
+```
+
+위 예제는 deal function을 구현하지 않았으므로 compile error가 발생한다.
 
 ### Variables
 
@@ -499,7 +563,7 @@ variable은 값을 저장하기 위한 공간으로 다음과 같이 선언한�
 
 #### Variable declarations
 
-variable은 타입과 이름을 차례로 정의하여 선언할 수 있다. variable 이름의 길이는 128byte와 작거나 같아야 한다.
+variable은 타입과 이름을 차례로 나열하여 선언할 수 있다.
 
 ```
 bool isMale;
@@ -557,7 +621,7 @@ int j;
 
 #### Type qualifiers
 
-type qualifier는 각 variable의 속성을 정의하는 것으로 다음과 같이 부여할 수 있다.
+type qualifier는 state variable의 속성을 정의하는 것으로 다음과 같이 부여할 수 있다.
 
 <pre>
 <a name="qualifier">qualifier</a> = [ "public" ] [ "const" ] ;
@@ -570,7 +634,7 @@ public      exported variable
 const       constant variable
 ```
 
-프로그램에서 정의한 모든 변수, 상수, 함수(constructor는 제외) 등은 기본적으로 외부 smart contract에서 참조할 수 없는 private 속성을 가진다. 하지만, public qualifier가 주어진 경우엔 exported symbol로 간주되어 임의의 smart contract에서 참조할 수 있다.
+프로그램에서 정의한 모든 state variables, constants, funtions(constructor는 제외) 등은 기본적으로 외부 smart contract에서 참조할 수 없는 private 속성을 가진다. 하지만, public qualifier가 주어진 경우엔 exported symbol로 간주되어 임의의 smart contract에서 참조할 수 있다.
 
 ```
 public int x;       // 외부 참조 가능
@@ -639,7 +703,7 @@ primary expression은 unary, binary, ternary expression의 operand로 사용된�
 
 ##### Identifier expressions
 
-identifier expression은 이름을 참조하기 위한 것으로 variable, struct, function, contract 등의 user-defined identifier와 predefined identifier를 사용할 수 있다. 만약 존재하지 않는 이름을 사용할 경우엔 에러가 발생한다.
+identifier expression은 이름을 참조하기 위한 것으로 variable, struct, enum, function, contract, interface 등의 user-defined identifier와 predefined identifier를 사용할 수 있다. 만약 존재하지 않는 이름을 사용할 경우엔 에러가 발생한다.
 
 <pre>
 <a name="id_exp">IdExp</a> = <a href="#identifier">identifier</a> ;
@@ -647,7 +711,7 @@ identifier expression은 이름을 참조하기 위한 것으로 variable, struc
 
 ##### Value expressions
 
-value expression은 boolean, integer, float, string constant다.
+value expression은 boolean, integer, floating point, string constant다.
 
 <pre>
 <a name="val_exp">ValueExp</a> = <a href="#bool_lit">bool_lit</a> | <a href="#integer_lit">integer_lit</a> | <a href="#float_lit">float_lit</a> | <a href="#string_lit">string_lit</a> ;
@@ -695,6 +759,7 @@ index expression은 array element에 접근하기 위한 것으로 index는 반�
 ids[0]
 counts[1 + 2 * 3]
 names[-1]           // raise error
+names[2.1]          // raise error
 ```
 
 ##### Call expressions
@@ -719,7 +784,7 @@ f(i, s);            // ok
 f(j, s);            // raise error
 ```
 
-일반적으로 argument가 parameter로 전달될 때는 값이 복사되어 전달되지만, 다음의 값들에 대해선 reference가 전달된다.
+일반적으로 argument가 parameter로 전달될 때는 값이 복사되어 전달되지만, 다음의 타입들에 대해선 reference가 전달된다.
 
 * array
 * struct
@@ -1295,12 +1360,11 @@ contract Exchange {
 
 #### Constructor parameters
 
-constructor parameter는 생략가능하고, ASCL에서 지원하는 모든 타입을 사용할 수 있다. 만약 const 속성을 갖는 경우 해당 parameter는 constructor block내에서 변경할 수 없다.
+constructor parameter는 생략가능하고, ASCL에서 지원하는 모든 타입을 사용할 수 있다.
 
 ```
 Exchange() ...
 Exchange(int identifier) ...
-Exchange(const double balance) ...
 
 struct ex_info {
     int identifier;
@@ -1335,16 +1399,21 @@ ex.listNewCoin(0, "Aergo");
 function은 일련의 task를 수행하기 위한 기본 단위다.
 
 <pre>
-<a name="func_decl">FunctionDecl</a>   = <a href="#mod">modifier</a> "func" <a href="#identifier">identifier</a> "(" [ <a href="#param_list">ParameterList</a> ] ")" [ <a href="#return_list">ReturnTypeList</a> ] <a href="#block_stmt">BlockStmt</a> ;
-<a name="return_list">ReturnTypeList</a> = <a href="#type">Type</a> { "," <a href="#type">Type</a> } ;
+<a name="func_decl">FunctionDecl</a>   = <a href="#func_spec">FunctionSpec</a> <a href="#func_body">FunctionBody</a> ;
+<a name="func_sepc">FunctionSpec</a>   = <a href="#mod">modifier</a> "func" <a href="#identifier">identifier</a> "(" [ <a href="#param_list">ParameterList</a> ] ")" [ <a href="#type">Type</a> ] ;
+<a name="func_body">FunctionBody</a>   = <a href="#block_stmt">BlockStmt</a> ;
 </pre>
 
-#### Function modifiers
+#### Function specifications
+
+function specification은 modifier와 이름, parameter list, return type list로 구성된다.
+
+##### Function modifiers
 
 function modifier는 각 function의 속성을 정의하는 것으로 다음과 같다.
 
 <pre>
-<a name="mod">modifier</a> = [ "public" ] { "payable" | "readonly" } ;
+<a name="mod">modifier</a> = [ "public" ] [ "payable" ] ;
 </pre>
 
 function도 variable과 마찬가지로 기본적으로 private 속성을 가지나, public을 정의한 경우 외부 smart contract에서 참조할 수 있다.
@@ -1353,27 +1422,19 @@ function도 variable과 마찬가지로 기본적으로 private 속성을 가지
 
 payable modifier는 token 전송을 위한 필수 modifier다. 이 modifer가 정의되지 않은 경우엔 모든 token 송수신이 거절된다.
 
-readonly modifier는 smart contract의 상태를 변경시키지 않는 함수를 정의한다. 다음은 상태를 변경시키는 행위의 유형이다.
-
-* state variable에 값을 할당한다.
-* external smart contract를 참조한다.
-* payable modifier가 있는 함수를 호출한다.
-* readonly modifier가 없는 함수를 호출한다.
+>readonly modifier는 smart contract의 상태를 변경시키지 않는 함수를 정의한다. 다음은 상태를 변경시키는 행위의 유형이다.
+>
+>* state variable에 값을 할당한다.
+>* external smart contract를 참조한다.
+>* payable modifier가 있는 함수를 호출한다.
+>* readonly modifier가 없는 함수를 호출한다.
 
 ```
 func f1 ...
-payable func f2 ...
-readonly func f3 ...
-payable readonly func f4 ...
-
-public func f5 ...
-public payable f6 ...
-public readonly payable f7 ...
+public func f2 ...
+payable func f3 ...
+public payable f4 ...
 ```
-
-#### Function specifications
-
-function specification은 이름과 parameter list, return type list로 구성된다.
 
 ##### Function name
 
@@ -1391,15 +1452,15 @@ function parameter는 constructor parameter와 동일하다.
 
 ##### Function returns
 
-function은 0개 이상의 value를 return할 수 있는데, 이때 반환하는 value의 타입을 function specification에 미리 정의해야 하며, ASCL에서 지원하는 모든 타입을 사용할 수 있다.
+function은 1개 이하의 value를 return할 수 있는데, 이때 반환하는 value의 타입을 function specification에 미리 정의해야 하며, ASCL에서 지원하는 모든 타입을 사용할 수 있다.
 
 ```
-func f1() int {
-    return 0;
+func f1() {
+    return;
 }
 
-func f2() int, string {
-    return 1, "first";
+func f2() int {
+    return 1;
 }
 ```
 
