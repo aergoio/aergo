@@ -88,7 +88,7 @@ fn_add_register(ir_fn_t *fn, ast_id_t *id)
 }
 
 void
-fn_add_heap(ir_fn_t *fn, meta_t *meta)
+fn_set_heap(ir_fn_t *fn, meta_t *meta)
 {
     ASSERT(fn != NULL);
 
@@ -97,12 +97,10 @@ fn_add_heap(ir_fn_t *fn, meta_t *meta)
     meta->base_idx = fn->heap_idx;
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
-
-    fn->heap_usage += meta_size(meta);
 }
 
 void
-fn_add_stack(ir_fn_t *fn, meta_t *meta)
+fn_set_stack(ir_fn_t *fn, meta_t *meta)
 {
     ASSERT(fn != NULL);
     ASSERT(fn->stack_idx >= 0);
@@ -112,8 +110,22 @@ fn_add_stack(ir_fn_t *fn, meta_t *meta)
     meta->base_idx = fn->stack_idx;
     meta->rel_addr = fn->stack_usage;
     meta->rel_offset = 0;
+}
 
-    fn->stack_usage += meta_size(meta);
+void
+fn_add_heap(ir_fn_t *fn, meta_t *meta)
+{
+    fn_set_heap(fn, meta);
+
+    fn->heap_usage += meta_bytes(meta);
+}
+
+void
+fn_add_stack(ir_fn_t *fn, meta_t *meta)
+{
+    fn_set_stack(fn, meta);
+
+    fn->stack_usage += meta_bytes(meta);
 }
 
 void

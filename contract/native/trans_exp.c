@@ -95,13 +95,13 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
          * Suppose that "int i[x][y][z]" is defined.
          *
          * First, when we access "i[a]", the formula for calculating the offset is
-         * (a * y * z * sizeof(int)).
+         * (a * sizeof(i[0])).
          *
          * Next, in the case of "i[a][b]",
-         * (a * y * z * sizeof(int)) + (b * z * sizeof(int)).
+         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])).
          *
          * Finally, in the case of "i[a][b][c]",
-         * (a * y * z * sizeof(int)) + (b * z * sizeof(int)) + (c * sizeof(int)). */
+         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])) + (c * sizeof(int)). */
 
         /* If "id_exp" is a call expression, it can be a memory expression */
         ASSERT1(is_memory_exp(id_exp) || is_register_exp(id_exp), id_exp->kind);
@@ -110,8 +110,9 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        /* The following meta_size() is stripped size of array */
-        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&exp->meta);
+        /* The following meta_bytes() is stripped size of array */
+        offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
+            meta_align(&id->meta);
 
         if (is_memory_exp(id_exp))
             exp_set_memory(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
@@ -297,7 +298,7 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 {
     int i, j;
     uint32_t offset = 0;
-    uint32_t unit_size = meta_unit(meta);
+    uint32_t unit_size = meta_size(meta);
 
     ASSERT(meta->arr_dim > 0);
 
@@ -435,10 +436,19 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     bool is_aggr_val = true;
+    meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
-    ASSERT1(is_map_meta(&exp->meta) || is_array_meta(&exp->meta) ||
-            is_struct_meta(&exp->meta), exp->meta.type);
+    ASSERT1(is_tuple_meta(meta), meta->type);
+    /*
+    ASSERT1(is_map_meta(meta) || is_array_meta(meta) ||
+            is_struct_meta(meta), meta->type);
+            */
+
+    if (trans->is_heap)
+        fn_set_heap(trans->fn, meta);
+    else
+        fn_set_stack(trans->fn, meta);
 
     vector_foreach(elem_exps, i) {
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
@@ -451,8 +461,15 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 
     if (is_aggr_val) {
         int offset = 0;
-        uint32_t size = meta_size(&exp->meta);
+        uint32_t size = meta_bytes(meta);
         char *raw = xcalloc(size);
+
+        if (is_array_meta(meta)) {
+            ASSERT(meta->dim_sizes[0] > 0);
+
+            memcpy(raw + offset, &meta->dim_sizes[0], sizeof(int));
+            offset += sizeof(uint32_t);
+        }
 
         vector_foreach(elem_exps, i) {
             ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
@@ -460,27 +477,29 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
             void *val_ptr = value_ptr(&elem_exp->u_lit.val, elem_meta);
             uint32_t val_size = value_size(&elem_exp->u_lit.val, elem_meta);
 
-            ASSERT2(val_size <= meta_size(elem_meta), val_size, meta_size(elem_meta));
+            ASSERT2(val_size <= meta_bytes(elem_meta), val_size, meta_bytes(elem_meta));
             ASSERT3(offset + val_size <= size, offset, val_size, size);
 
             offset = ALIGN(offset, meta_align(elem_meta));
 
             memcpy(raw + offset, val_ptr, val_size);
-            offset += meta_size(elem_meta);
+            offset += meta_bytes(elem_meta);
         }
 
         ASSERT2(offset <= size, offset, size);
 
         exp_set_lit(exp, NULL);
-
+        value_set_ptr(&exp->u_lit.val, raw, size);
+        /*
         value_set_i64(&exp->u_lit.val, sgmt_add_raw(&trans->ir->sgmt, raw, size));
-        meta_set_uint32(&exp->meta);
+        meta_set_uint32(meta);
+        */
     }
-    else if (trans->is_heap) {
-        fn_add_heap(trans->fn, &exp->meta);
-    }
-    else {
-        fn_add_stack(trans->fn, &exp->meta);
+    else if (!is_array_meta(meta) || meta->arr_dim < meta->max_dim) {
+        if (trans->is_heap)
+            fn_add_heap(trans->fn, meta);
+        else
+            fn_add_stack(trans->fn, meta);
     }
 }
 

@@ -49,22 +49,27 @@ contract test {
 
 @test(array_assignment)
 contract test {
-    int j[2][3];
+    int i[2][3];
     test() {
-        int i[5] = new { 1, 2, 3, 4, 5 };
-        i[0] = 0;
-        i[0] += 1;
-        i[0]++;
+        int j[5] = new { 1, 2, 3, 4, 5 };
+        j[0] = 0;
+        j[0] += 1;
+        j[0]++;
 
         int idx = 1;
-        i[idx] = i[0];
-        i[idx]--;
+        j[idx] = j[0];
+        j[idx]--;
 
-        i[idx + 1] = i[0] + i[idx];
-        i[idx + 2] = 7;
+        j[idx + 1] = j[0] + j[idx];
+        j[idx + 2] = 7;
 
-        int k[][] = j;
-        int l[] = j[1];
+        uint64 k[3][2] = new { { 1, 2 }, { 3, 4 }, { 5, 6 } };
+        k[0][1] = 7;
+        k[1][0] = 8;
+        k[2][1] = 9;
+
+        int l[][] = i;
+        int m[] = i[1];
     }
 }
 

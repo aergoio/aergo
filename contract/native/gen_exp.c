@@ -33,6 +33,9 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 
         return f32_gen(gen, val_f64(val));
 
+    case TYPE_OBJECT:
+        return i32_gen(gen, sgmt_add_raw(&gen->ir->sgmt, val_ptr(val), val_size(val)));
+
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
     }
@@ -72,7 +75,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
 
         offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
-                                i32_gen(gen, meta_size(&exp->meta)));
+                                i32_gen(gen, meta_bytes(&exp->meta)));
 
         if (id->meta.rel_addr > 0)
             offset = BinaryenBinary(gen->module, BinaryenAddInt32(),
@@ -628,9 +631,16 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     /* The heap or stack memory is already allocated in exp_trans_init() */
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
-    if (exp->meta.rel_addr > 0)
+    if (meta->rel_addr > 0)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                 i32_gen(gen, exp->meta.rel_addr));
+                                 i32_gen(gen, meta->rel_addr));
+
+    if (is_array_meta(meta)) {
+        instr_add(gen, BinaryenStore(gen->module, sizeof(uint32_t), offset, 0, address,
+                                     i32_gen(gen, meta->dim_sizes[0]),
+                                     BinaryenTypeInt32()));
+        offset += meta_align(meta);
+    }
 
     vector_foreach(elem_exps, i) {
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
@@ -652,7 +662,7 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
                                          0, address, value, meta_gen(elem_meta)));
         }
 
-        offset += meta_size(elem_meta);
+        offset += meta_bytes(elem_meta);
     }
 
     return address;

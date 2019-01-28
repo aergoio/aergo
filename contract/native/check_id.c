@@ -125,7 +125,7 @@ id_check_struct(check_t *check, ast_id_t *id)
         flag_set(fld_id->mod, MOD_PUBLIC);
 
         fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
-        offset = fld_meta->rel_offset + meta_size(fld_meta);
+        offset = fld_meta->rel_offset + meta_bytes(fld_meta);
     }
 
     meta_set_struct(&id->meta, id);
@@ -372,7 +372,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
         id->meta.elems[i] = &elem_id->meta;
 
         id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
-        id->meta.size += meta_size(&elem_id->meta);
+        id->meta.size += meta_bytes(&elem_id->meta);
 
         if (id->meta.align == 0)
             id->meta.align = meta_align(&elem_id->meta);

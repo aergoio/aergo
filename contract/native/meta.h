@@ -124,7 +124,8 @@ struct meta_s {
     int8_t align;
 
     /* array specifications */
-    int arr_dim;            /* dimension of array */
+    int max_dim;            /* maximum dimension */
+    int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
 
     int elem_cnt;
@@ -196,36 +197,11 @@ meta_set_undef(meta_t *meta)
 }
 
 static inline void
-meta_set_size(meta_t *meta)
-{
-    int i;
-
-    if (is_tuple_meta(meta)) {
-        meta->size = 0;
-
-        for (i = 0; i < meta->elem_cnt; i++) {
-            meta_t *elem_meta = meta->elems[i];
-
-            if (is_tuple_meta(elem_meta))
-                meta_set_size(elem_meta);
-
-            meta->size = ALIGN(meta->size, meta_align(elem_meta));
-            meta->size += meta_size(elem_meta);
-        }
-
-        meta->align = meta_align(meta->elems[0]);
-        meta->size = ALIGN(meta->size, meta->align);
-    }
-    else {
-        meta->size = TYPE_SIZE(meta->type);
-    }
-}
-
-static inline void
 meta_set_arr_dim(meta_t *meta, int arr_dim)
 {
     ASSERT(arr_dim > 0);
 
+    meta->max_dim = arr_dim;
     meta->arr_dim = arr_dim;
     meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
 }
@@ -238,8 +214,10 @@ meta_set_dim_size(meta_t *meta, int dim, int size)
 
     meta->dim_sizes[dim] = size;
 
+    /*
     if (size > 0)
         meta->size *= size;
+        */
 }
 
 static inline void
@@ -249,9 +227,11 @@ meta_strip_arr_dim(meta_t *meta)
 
     meta->arr_dim--;
 
+#if 0
     if (meta->dim_sizes[0] > 0)
         /* In case of a parameter, dim_size can be negative */
         meta->size /= meta->dim_sizes[0];
+#endif
 
     if (meta->arr_dim == 0)
         meta->dim_sizes = NULL;
@@ -260,15 +240,20 @@ meta_strip_arr_dim(meta_t *meta)
 }
 
 static inline uint32_t
-meta_unit(meta_t *meta)
+meta_bytes(meta_t *meta)
 {
     int i;
     uint32_t size = meta_size(meta);
 
-    if (is_array_meta(meta)) {
+    if (!is_tuple_meta(meta) && is_array_meta(meta)) {
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
-            size /= meta->dim_sizes[i];
+            size *= meta->dim_sizes[i];
+        }
+
+        size += meta_align(meta);
+        for (i = 1; i < meta->arr_dim; i++) {
+            size += meta->dim_sizes[i - 1] * meta_align(meta);
         }
     }
 

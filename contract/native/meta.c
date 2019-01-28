@@ -89,10 +89,10 @@ meta_set_struct(meta_t *meta, ast_id_t *id)
         meta->elems[i] = &vector_get_id(id->u_struc.fld_ids, i)->meta;
 
         ASSERT(meta_align(meta->elems[i]) > 0);
-        ASSERT(meta_size(meta->elems[i]) > 0);
+        ASSERT(meta_bytes(meta->elems[i]) > 0);
 
         meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
-        meta->size += meta_size(meta->elems[i]);
+        meta->size += meta_bytes(meta->elems[i]);
     }
 
     meta->align = meta_align(meta->elems[0]);
@@ -116,10 +116,10 @@ meta_set_tuple(meta_t *meta, vector_t *elem_exps)
         meta->elems[i] = &vector_get_exp(elem_exps, i)->meta;
 
         ASSERT(meta_align(meta->elems[i]) > 0);
-        ASSERT(meta_size(meta->elems[i]) > 0);
+        ASSERT(meta_bytes(meta->elems[i]) > 0);
 
         meta->size = ALIGN(meta->size, meta_align(meta->elems[i]));
-        meta->size += meta_size(meta->elems[i]);
+        meta->size += meta_bytes(meta->elems[i]);
     }
 
     meta->align = meta_align(meta->elems[0]);
@@ -358,6 +358,26 @@ meta_cmp(meta_t *x, meta_t *y)
     return meta_cmp_type(x, y);
 }
 
+static inline void
+meta_set_size(meta_t *meta)
+{
+    int i;
+
+    ASSERT(is_tuple_meta(meta));
+
+    meta->size = 0;
+
+    for (i = 0; i < meta->elem_cnt; i++) {
+        meta_t *elem_meta = meta->elems[i];
+
+        meta->size = ALIGN(meta->size, meta_align(elem_meta));
+        meta->size += meta_size(elem_meta);
+    }
+
+    meta->align = meta_align(meta->elems[0]);
+    meta->size = ALIGN(meta->size, meta->align);
+}
+
 static void
 meta_eval_type(meta_t *x, meta_t *y)
 {
@@ -365,16 +385,16 @@ meta_eval_type(meta_t *x, meta_t *y)
 
     if (is_undef_meta(x)) {
         x->type = y->type;
+        x->size = TYPE_SIZE(x->type);
         x->align = TYPE_ALIGN(x->type);
         x->is_undef = y->is_undef;
-        meta_set_size(y);
         return;
     }
     else if (is_undef_meta(y)) {
         y->type = x->type;
+        y->size = TYPE_SIZE(y->type);
         y->align = TYPE_ALIGN(y->type);
         y->is_undef = x->is_undef;
-        meta_set_size(y);
         return;
     }
 
@@ -389,8 +409,8 @@ meta_eval_type(meta_t *x, meta_t *y)
 
             meta_set_size(y->elems[i]);
 
-            y->elems[i]->type = x->type;
-            y->elems[i]->type_id = x->type_id;
+            //y->elems[i]->type = x->type;
+            //y->elems[i]->type_id = x->type_id;
         }
     }
     else if (is_tuple_meta(x)) {
@@ -408,8 +428,8 @@ meta_eval_type(meta_t *x, meta_t *y)
 
     meta_set_size(y);
 
-    y->type = x->type;
-    y->type_id = x->type_id;
+    //y->type = x->type;
+    //y->type_id = x->type_id;
 }
 
 static void
@@ -424,11 +444,16 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
 
         meta_set_size(y);
 
-        y->type = x->type;
-        y->type_id = x->type_id;
+        if (dim < x->arr_dim) {
+            y->max_dim = x->max_dim;
+            y->arr_dim = x->arr_dim - dim;
+            y->dim_sizes = &x->dim_sizes[dim];
 
-        y->arr_dim = x->arr_dim - dim;
-        y->dim_sizes = &x->dim_sizes[dim];
+            y->size += meta_align(x);
+        }
+
+        //y->type = x->type;
+        //y->type_id = x->type_id;
     }
     else {
         meta_eval_type(x, y);
@@ -443,10 +468,10 @@ meta_eval(meta_t *x, meta_t *y)
     else
         meta_eval_type(x, y);
 
-    if (is_map_meta(x))
+    if (is_map_meta(x) || !is_tuple_meta(y))
         return;
 
-    ASSERT2(x->size == y->size, x->size, y->size);
+    ASSERT2(meta_bytes(x) == y->size, meta_bytes(x), y->size);
 }
 
 /* end of meta.c */
