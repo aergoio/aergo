@@ -49,12 +49,9 @@ fn_new(ast_id_t *id)
 }
 
 void
-fn_add_global(ir_fn_t *fn, ast_id_t *id)
+fn_add_global(ir_fn_t *fn, meta_t *meta)
 {
-    meta_t *meta = &id->meta;
-
     ASSERT(fn != NULL);
-    ASSERT1(is_var_id(id), id->kind);
 
     if (is_array_meta(meta))
         /* The array is always accessed as a reference */
@@ -72,23 +69,26 @@ fn_add_global(ir_fn_t *fn, ast_id_t *id)
     if (is_array_meta(meta))
         fn->heap_usage += sizeof(uint32_t);
     else
-        fn->heap_usage += TYPE_BYTE(meta->type);
+        fn->heap_usage += TYPE_SIZE(meta->type);
 }
 
-void
-fn_add_register(ir_fn_t *fn, ast_id_t *id)
+uint32_t
+fn_add_register(ir_fn_t *fn, meta_t *meta)
 {
+    uint32_t reg_idx;
+
     ASSERT(fn != NULL);
     ASSERT(fn->abi != NULL);
-    ASSERT1(is_var_id(id), id->kind);
 
-    id->idx = fn->abi->param_cnt + array_size(&fn->types);
+    reg_idx = fn->abi->param_cnt + array_size(&fn->types);
 
-    array_add(&fn->types, meta_gen(&id->meta), BinaryenType);
+    array_add(&fn->types, meta_gen(meta), BinaryenType);
+
+    return reg_idx;
 }
 
 void
-fn_set_heap(ir_fn_t *fn, meta_t *meta)
+fn_add_heap(ir_fn_t *fn, uint32_t size, meta_t *meta)
 {
     ASSERT(fn != NULL);
 
@@ -97,10 +97,12 @@ fn_set_heap(ir_fn_t *fn, meta_t *meta)
     meta->base_idx = fn->heap_idx;
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
+
+    fn->heap_usage += size;
 }
 
 void
-fn_set_stack(ir_fn_t *fn, meta_t *meta)
+fn_add_stack(ir_fn_t *fn, uint32_t size, meta_t *meta)
 {
     ASSERT(fn != NULL);
     ASSERT(fn->stack_idx >= 0);
@@ -110,22 +112,8 @@ fn_set_stack(ir_fn_t *fn, meta_t *meta)
     meta->base_idx = fn->stack_idx;
     meta->rel_addr = fn->stack_usage;
     meta->rel_offset = 0;
-}
 
-void
-fn_add_heap(ir_fn_t *fn, meta_t *meta)
-{
-    fn_set_heap(fn, meta);
-
-    fn->heap_usage += meta_bytes(meta);
-}
-
-void
-fn_add_stack(ir_fn_t *fn, meta_t *meta)
-{
-    fn_set_stack(fn, meta);
-
-    fn->stack_usage += meta_bytes(meta);
+    fn->stack_usage += size;
 }
 
 void
@@ -134,24 +122,6 @@ fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb)
     ASSERT(fn != NULL);
 
     vector_add_last(&fn->bbs, bb);
-}
-
-int
-fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type)
-{
-    ast_id_t *tmp_id;
-
-    ASSERT(fn != NULL);
-    ASSERT(fn->abi != NULL);
-
-    tmp_id = id_new_tmp_var(name);
-    meta_set(&tmp_id->meta, type);
-
-    tmp_id->idx = fn->abi->param_cnt + array_size(&fn->types);
-
-    array_add(&fn->types, type_gen(type), BinaryenType);
-
-    return tmp_id->idx;
 }
 
 /* end of ir_fn.c */

@@ -737,12 +737,18 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     ASSERT1(is_init_exp(exp), exp->kind);
     ASSERT(elem_exps != NULL);
 
+    exp->u_init.is_aggr = true;
+
     vector_foreach(elem_exps, i) {
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
 
         ASSERT1(!is_tuple_exp(elem_exp), elem_exp->kind);
 
         CHECK(exp_check(check, elem_exp));
+
+        if (!is_lit_exp(elem_exp) &&
+            (!is_init_exp(elem_exp) || !elem_exp->u_init.is_aggr))
+            exp->u_init.is_aggr = false;
     }
 
     meta_set_tuple(&exp->meta, elem_exps);

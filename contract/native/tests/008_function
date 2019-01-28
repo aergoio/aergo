@@ -100,11 +100,12 @@ contract test {
     func f4() map(int, string) { return null; }
 }
 
-@test(return_primitive_value)
+@test(return_primitive)
 contract test {
     func f1(int x) int { return x + 1; }
     func f2(double x) bool { return x == 1.0; }
     //func f3(bool x, int y) bool, int { return !x, y << 1; }
+
     int i = f1(5);
     bool b;
 
@@ -114,7 +115,26 @@ contract test {
     }
 }
 
-@test(return_composite_value)
+@test(return_array)
+contract test {
+    //func f1() int[2] { return new int[2]; }
+    //func f2() uint16[2] { return new { 0, 32768 }; }
+    func f3() float[] { return new float[3]; }
+    //func f4() double[] { return new { -29.2134 }; }
+    //func f5(int size) string[] { return new string[size]; }
+
+    test() {
+        /*
+        int i[] = f1();
+        i[0] = 1;
+        */
+
+        float f[] = f2();
+        f[2] = 12.50;
+    }
+}
+
+@test(return_struct)
 contract test {
     type s struct {
         int a;
@@ -123,19 +143,25 @@ contract test {
 
     func f1(int x, string y) s { s v = new { x, y }; return v; }
     func f2(int x, string y) s { return new { x, y }; }
-    func f3() map(int, string) { return new map(int, string); }
 
     test() {
         s v = f1(1, "1");
         int a = f1(2, "2").a;
         string b = f2(2, "2").b;
-
-        map(int, string) m = f3();
-        m[1] = f3()[1];
     }
 }
 
-@test(return_function_value)
+@test(return_map)
+contract test {
+    func f() map(int, string) { return new map(int, string); }
+
+    test() {
+        map(int, string) m = f();
+        m[1] = f()[1];
+    }
+}
+
+@test(return_function)
 contract test {
     func f1(double x) double { return x * 2.0; }
     func f2(float x) double { return f1((double)x); }

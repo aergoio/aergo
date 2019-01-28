@@ -138,6 +138,7 @@ typedef struct exp_tuple_s {
 
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
+    bool is_aggr;
     vector_t *elem_exps;
 } exp_init_t;
 

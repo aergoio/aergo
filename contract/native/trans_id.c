@@ -24,7 +24,7 @@ id_trans_var(trans_t *trans, ast_id_t *id)
 
     ASSERT(trans->fn != NULL);
 
-    fn_add_register(trans->fn, id);
+    id->idx = fn_add_register(trans->fn, &id->meta);
 }
 
 static void
@@ -83,13 +83,13 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
         ast_exp_t *dflt_exp = NULL;
 
         if (is_var_id(elem_id)) {
-            fn_add_global(fn, elem_id);
+            fn_add_global(fn, &elem_id->meta);
 
             dflt_exp = elem_id->u_var.dflt_exp;
         }
         else if (is_tuple_id(elem_id)) {
             vector_foreach(elem_id->u_tup.elem_ids, j) {
-                fn_add_global(fn, vector_get_id(elem_id->u_tup.elem_ids, j));
+                fn_add_global(fn, &vector_get_id(elem_id->u_tup.elem_ids, j)->meta);
             }
 
             dflt_exp = elem_id->u_tup.dflt_exp;
@@ -99,50 +99,54 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(elem_id, dflt_exp));
     }
 
+    trans->bb = fn->entry_bb;
+
+    vector_foreach(stmts, i) {
+        stmt_trans(trans, vector_get_stmt(stmts, i));
+    }
+
+    trans->bb = NULL;
+
     if (fn->heap_usage > 0)
         /* Update "heap$offset" to prevent the heap from being overwritten by another
          * constructor */
-        update_heap_offset(fn, stmts, &id->pos);
-
-    if (!is_empty_vector(stmts)) {
-        if (id->u_fn.blk == NULL)
-            id->u_fn.blk = blk_new_fn(&id->pos);
-
-        vector_join_first(&id->u_fn.blk->stmts, stmts);
-    }
+        update_heap_offset(fn, &fn->entry_bb->stmts, &id->pos);
 }
 
 static void
 set_memory_addr(ir_fn_t *fn, uint32_t heap_start, src_pos_t *pos)
 {
-    ast_exp_t *l_exp, *r_exp, *v_exp;
+    ast_exp_t *glob_exp, *reg_exp;
 
     if (fn->stack_usage > 0) {
+        ast_exp_t *val_exp, *bin_exp;
+
+        glob_exp = exp_new_global("stack$offset");
+        reg_exp = exp_new_register(TYPE_UINT32, fn->stack_idx);
+
         /* At the beginning of "entry_bb", set the current stack offset to the register */
-        l_exp = exp_new_register(TYPE_UINT32, fn->stack_idx);
+        val_exp = exp_new_lit_i64(fn->stack_usage, pos);
+        meta_set_uint32(&val_exp->meta);
 
-        v_exp = exp_new_lit_i64(ALIGN64(fn->stack_usage), pos);
-        meta_set_int32(&v_exp->meta);
+        bin_exp = exp_new_binary(OP_SUB, glob_exp, val_exp, pos);
 
-        r_exp = exp_new_binary(OP_SUB, exp_new_global("stack$offset"), v_exp, pos);
-
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(glob_exp, reg_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, bin_exp, pos));
 
         /* If there is any stack variable in the function, it has to be restored to the
          * original value at the end of "exit_bb" because "stack$offset" has been
          * changed */
-        l_exp = exp_new_global("stack$offset");
-        r_exp = exp_new_register(TYPE_UINT32, fn->stack_idx);
+        bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
 
-        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(glob_exp, bin_exp, pos));
     }
 
     if (fn->heap_usage > 0) {
         /* At the beginning of "entry_bb", set the current heap offset to the register */
-        l_exp = exp_new_register(TYPE_UINT32, fn->heap_idx);
-        r_exp = exp_new_global("heap$offset");
+        glob_exp = exp_new_global("heap$offset");
+        reg_exp = exp_new_register(TYPE_UINT32, fn->heap_idx);
 
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, glob_exp, pos));
 
         if (fn->heap_usage - heap_start > 0)
             /* Increase "heap$offset" by the amount of memory used by initializer or
@@ -170,17 +174,17 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     id->abi = fn->abi;
 
     /* All heap variables access memory by adding relative offset to this register */
-    fn->heap_idx = fn_add_tmp_var(fn, "heap$addr", TYPE_UINT32);
+    fn->heap_idx = fn_add_register(fn, &addr_meta_);
 
     /* All stack variables access memory by adding relative offset to this register */
-    fn->stack_idx = fn_add_tmp_var(fn, "stack$addr", TYPE_UINT32);
+    fn->stack_idx = fn_add_register(fn, &addr_meta_);
 
     if (ret_id != NULL)
         /* All return values are stored in this register */
-        fn->ret_idx = fn_add_tmp_var(fn, "return$val", ret_id->meta.type);
+        fn->ret_idx = fn_add_register(fn, &ret_id->meta);
 
     /* It is used internally for binaryen, not for us (see fn_gen()) */
-    fn->reloop_idx = fn_add_tmp_var(fn, "relooper$helper", TYPE_INT32);
+    fn->reloop_idx = fn_add_register(fn, &addr_meta_);
 
     if (is_ctor_id(id)) {
         id_trans_ctor(trans, id);
@@ -214,6 +218,8 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
         if (is_ctor_id(id))
             arg_exp = exp_new_register(TYPE_UINT32, fn->cont_idx);
+        else if (is_array_meta(&ret_id->meta))
+            arg_exp = exp_new_register(TYPE_UINT32, fn->ret_idx);
         else
             arg_exp = exp_new_register(ret_id->meta.type, fn->ret_idx);
 

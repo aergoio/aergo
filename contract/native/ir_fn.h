@@ -60,17 +60,12 @@ struct ir_fn_s {
 
 ir_fn_t *fn_new(ast_id_t *id);
 
-void fn_add_global(ir_fn_t *fn, ast_id_t *id);
-void fn_add_register(ir_fn_t *fn, ast_id_t *id);
+void fn_add_global(ir_fn_t *fn, meta_t *meta);
+uint32_t fn_add_register(ir_fn_t *fn, meta_t *meta);
 
-void fn_set_heap(ir_fn_t *fn, meta_t *meta);
-void fn_set_stack(ir_fn_t *fn, meta_t *meta);
-
-void fn_add_heap(ir_fn_t *fn, meta_t *meta);
-void fn_add_stack(ir_fn_t *fn, meta_t *meta);
+void fn_add_heap(ir_fn_t *fn, uint32_t size, meta_t *meta);
+void fn_add_stack(ir_fn_t *fn, uint32_t size, meta_t *meta);
 
 void fn_add_basic_blk(ir_fn_t *fn, ir_bb_t *bb);
-
-int fn_add_tmp_var(ir_fn_t *fn, char *name, type_t type);
 
 #endif /* no _IR_FN_H */

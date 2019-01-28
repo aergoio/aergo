@@ -141,6 +141,8 @@ struct meta_s {
     src_pos_t *pos;
 };
 
+extern meta_t addr_meta_;
+
 char *meta_to_str(meta_t *x);
 
 void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
@@ -213,11 +215,6 @@ meta_set_dim_size(meta_t *meta, int dim, int size)
     ASSERT(meta->arr_dim > 0);
 
     meta->dim_sizes[dim] = size;
-
-    /*
-    if (size > 0)
-        meta->size *= size;
-        */
 }
 
 static inline void
@@ -226,12 +223,6 @@ meta_strip_arr_dim(meta_t *meta)
     ASSERT1(meta->arr_dim > 0, meta->arr_dim);
 
     meta->arr_dim--;
-
-#if 0
-    if (meta->dim_sizes[0] > 0)
-        /* In case of a parameter, dim_size can be negative */
-        meta->size /= meta->dim_sizes[0];
-#endif
 
     if (meta->arr_dim == 0)
         meta->dim_sizes = NULL;

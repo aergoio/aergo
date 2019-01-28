@@ -263,14 +263,14 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-copy_elem(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
+copy_elem(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
 {
     ast_exp_t *l_exp, *r_exp;
 
-    l_exp = exp_new_memory(meta->type, trans->fn->stack_idx, rel_addr, 0);
-    r_exp = exp_new_memory(meta->type, base_idx, rel_addr, 0);
+    l_exp = exp_new_memory(type, trans->fn->stack_idx, rel_addr, 0);
+    r_exp = exp_new_memory(type, base_idx, rel_addr, 0);
 
-    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, meta->pos));
+    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &null_pos_));
 }
 
 static void
@@ -289,7 +289,7 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
         else if (is_struct_meta(elem_meta))
             copy_struct(trans, base_idx, rel_addr + offset, elem_meta);
         else
-            copy_elem(trans, base_idx, rel_addr + offset, elem_meta);
+            copy_elem(trans, base_idx, rel_addr + offset, elem_meta->type);
     }
 }
 
@@ -302,6 +302,9 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 
     ASSERT(meta->arr_dim > 0);
 
+    copy_elem(trans, base_idx, rel_addr + offset, TYPE_UINT32);
+    offset += sizeof(uint32_t);
+
     for (i = 0; i < meta->arr_dim; i++) {
         ASSERT(meta->dim_sizes[i] > 0);
 
@@ -309,7 +312,7 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
             if (is_struct_meta(meta))
                 copy_struct(trans, base_idx, rel_addr + offset, meta);
             else
-                copy_elem(trans, base_idx, rel_addr + offset, meta);
+                copy_elem(trans, base_idx, rel_addr + offset, meta->type);
 
             offset += unit_size;
         }
@@ -320,11 +323,12 @@ static void
 exp_trans_call(trans_t *trans, ast_exp_t *exp)
 {
     int i;
+    meta_t *meta = &exp->meta;
     ast_exp_t *id_exp = exp->u_call.id_exp;
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
 
-    if (is_map_meta(&exp->meta))
+    if (is_map_meta(meta))
         /* TODO */
         return;
 
@@ -341,15 +345,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
 
-            /* If the call expression is of type "x.y()", pass "x" as the first
-             * argument */
+            /* If the expression is of type "x.y()", pass "x" as the first argument */
             vector_add_first(exp->u_call.param_exps, qual_exp);
         }
         else {
             ASSERT1(is_register_exp(id_exp), id_exp->kind);
-            ASSERT(trans->fn->cont_idx == 0);
+            ASSERT1(trans->fn->cont_idx == 0, trans->fn->cont_idx);
 
-            /* If the call expression is of type "x()", pass my first parameter as the
+            /* If the expression is of type "x()", pass my first parameter as the
              * first argument */
             vector_add_first(exp->u_call.param_exps, exp_new_register(TYPE_UINT32, 0));
         }
@@ -359,6 +362,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
     }
 
+#if 0
     if (fn->stack_usage > 0) {
         ast_exp_t *l_exp = exp_new_register(TYPE_UINT32, fn->stack_idx);
         ast_exp_t *v_exp = exp_new_lit_i64(ALIGN64(fn->stack_usage), &exp->pos);
@@ -369,13 +373,18 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         bb_add_stmt(trans->bb,
                     stmt_new_assign(exp_new_global("stack$offset"), r_exp, &exp->pos));
     }
+#endif
 
     if (fn_id->u_fn.ret_id != NULL) {
-        int reg_idx;
+        uint32_t reg_idx;
         ast_exp_t *l_exp;
+        type_t type = meta->type;
 
-        reg_idx = fn_add_tmp_var(fn, "func$val", exp->meta.type);
-        l_exp = exp_new_register(exp->meta.type, reg_idx);
+        if (is_array_meta(meta))
+            type = TYPE_UINT32;
+
+        reg_idx = fn_add_register(fn, meta);
+        l_exp = exp_new_register(type, reg_idx);
 
         /* We have to clone it because the call expression itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_assign(l_exp, exp_clone(exp), &exp->pos));
@@ -384,25 +393,25 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             /* If the return value is an array or struct, we must copy the value because
              * we do share memory space between the caller and the callee */
             if (trans->is_heap)
-                fn_add_heap(fn, &exp->meta);
+                fn_add_heap(fn, meta_bytes(meta), meta);
             else
-                fn_add_stack(fn, &exp->meta);
+                fn_add_stack(fn, meta_bytes(meta), meta);
 
             if (is_array_meta(&fn_id->meta))
-                copy_array(trans, reg_idx, exp->meta.rel_addr, &exp->meta);
+                copy_array(trans, reg_idx, meta->rel_addr, meta);
             else
-                copy_struct(trans, reg_idx, exp->meta.rel_addr, &exp->meta);
+                copy_struct(trans, reg_idx, meta->rel_addr, meta);
 
-            meta_set_uint32(&exp->meta);
+            meta_set_uint32(meta);
 
-            if (exp->meta.rel_addr > 0) {
+            if (meta->rel_addr > 0) {
                 exp->kind = EXP_BINARY;
                 exp->u_bin.kind = OP_ADD;
-                exp->u_bin.l_exp = exp_new_register(TYPE_UINT32, exp->meta.base_idx);
-                exp->u_bin.r_exp = exp_new_lit_i64(exp->meta.rel_addr, &exp->pos);
+                exp->u_bin.l_exp = exp_new_register(TYPE_UINT32, meta->base_idx);
+                exp->u_bin.r_exp = exp_new_lit_i64(meta->rel_addr, &exp->pos);
             }
             else {
-                exp_set_register(exp, exp->meta.base_idx);
+                exp_set_register(exp, meta->base_idx);
             }
         }
         else {
@@ -435,31 +444,30 @@ static void
 exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
-    bool is_aggr_val = true;
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
     ASSERT1(is_tuple_meta(meta), meta->type);
-    /*
-    ASSERT1(is_map_meta(meta) || is_array_meta(meta) ||
-            is_struct_meta(meta), meta->type);
-            */
 
-    if (trans->is_heap)
-        fn_set_heap(trans->fn, meta);
-    else
-        fn_set_stack(trans->fn, meta);
+    if (!exp->u_init.is_aggr) {
+        uint32_t size;
 
-    vector_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
+        if (is_array_meta(meta) && meta->arr_dim == meta->max_dim)
+            size = sizeof(uint32_t);
+        else
+            size = meta_bytes(meta);
 
-        exp_trans(trans, elem_exp);
-
-        if (!is_lit_exp(elem_exp))
-            is_aggr_val = false;
+        if (trans->is_heap)
+            fn_add_heap(trans->fn, size, meta);
+        else
+            fn_add_stack(trans->fn, size, meta);
     }
 
-    if (is_aggr_val) {
+    vector_foreach(elem_exps, i) {
+        exp_trans(trans, vector_get_exp(elem_exps, i));
+    }
+
+    if (exp->u_init.is_aggr) {
         int offset = 0;
         uint32_t size = meta_bytes(meta);
         char *raw = xcalloc(size);
@@ -490,26 +498,18 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 
         exp_set_lit(exp, NULL);
         value_set_ptr(&exp->u_lit.val, raw, size);
-        /*
-        value_set_i64(&exp->u_lit.val, sgmt_add_raw(&trans->ir->sgmt, raw, size));
-        meta_set_uint32(meta);
-        */
-    }
-    else if (!is_array_meta(meta) || meta->arr_dim < meta->max_dim) {
-        if (trans->is_heap)
-            fn_add_heap(trans->fn, meta);
-        else
-            fn_add_stack(trans->fn, meta);
     }
 }
 
 static void
 exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 {
+    meta_t *meta = &exp->meta;
+
     if (trans->is_heap)
-        fn_add_heap(trans->fn, &exp->meta);
+        fn_add_heap(trans->fn, meta_bytes(meta), meta);
     else
-        fn_add_stack(trans->fn, &exp->meta);
+        fn_add_stack(trans->fn, meta_bytes(meta), meta);
 }
 
 void

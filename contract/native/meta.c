@@ -12,6 +12,11 @@
 
 #include "meta.h"
 
+meta_t addr_meta_ = {
+    TYPE_UINT32, sizeof(uint32_t), false, sizeof(uint32_t),
+    0, 0, NULL, 0, NULL, NULL, 0, 0, 0, NULL
+};
+
 char *
 meta_to_str(meta_t *meta)
 {
@@ -408,28 +413,24 @@ meta_eval_type(meta_t *x, meta_t *y)
             }
 
             meta_set_size(y->elems[i]);
-
-            //y->elems[i]->type = x->type;
-            //y->elems[i]->type_id = x->type_id;
         }
     }
     else if (is_tuple_meta(x)) {
         ASSERT2(x->elem_cnt == y->elem_cnt, x->elem_cnt, y->elem_cnt);
+
         for (i = 0; i < x->elem_cnt; i++) {
             meta_eval(x->elems[i], y->elems[i]);
         }
     }
     else {
         ASSERT1(is_struct_meta(x), x->type);
+
         for (i = 0; i < y->elem_cnt; i++) {
             meta_eval(x->elems[i], y->elems[i]);
         }
     }
 
     meta_set_size(y);
-
-    //y->type = x->type;
-    //y->type_id = x->type_id;
 }
 
 static void
@@ -451,9 +452,6 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
 
             y->size += meta_align(x);
         }
-
-        //y->type = x->type;
-        //y->type_id = x->type_id;
     }
     else {
         meta_eval_type(x, y);
