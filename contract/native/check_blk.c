@@ -46,6 +46,15 @@ check_unused_ids(vector_t *ids)
     }
 }
 
+static void
+check_return_stmt(ast_id_t *id)
+{
+    if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
+        (id->u_fn.blk == NULL || is_empty_vector(&id->u_fn.blk->stmts) ||
+         !is_return_stmt(vector_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
+        ERROR(ERROR_MISSING_RETURN, &id->pos);
+}
+
 void
 blk_check(check_t *check, ast_blk_t *blk)
 {
@@ -60,12 +69,26 @@ blk_check(check_t *check, ast_blk_t *blk)
         id_check(check, vector_get_id(&blk->ids, i));
     }
 
-    /* TODO: Checking the return statement on a block for ignore warnings is not
-     * possible at this time because there is a return statement on a particular label
-     * in a switch-case statement (See 006_statement/switch_case) */
-
     vector_foreach(&blk->stmts, i) {
         stmt_check(check, vector_get_stmt(&blk->stmts, i));
+    }
+
+    vector_foreach(&blk->ids, i) {
+        ast_id_t *id = vector_get_id(&blk->ids, i);
+
+        if (!is_fn_id(id))
+            continue;
+
+        check->id = id;
+        check->fn_id = id;
+
+        if (id->u_fn.blk != NULL)
+            blk_check(check, id->u_fn.blk);
+
+        check->fn_id = NULL;
+        check->id = id->up;
+
+        check_return_stmt(id);
     }
 
     if (!is_itf_blk(blk))

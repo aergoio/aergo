@@ -82,25 +82,17 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
     return NULL;
 }
 
-static bool
-is_visible_id(ast_blk_t *blk, ast_id_t *id, char *name, int num, bool is_type)
+static inline bool
+is_visible_id(ast_blk_t *blk, ast_id_t *id, char *name, bool is_type)
 {
-    if (is_root_blk(blk))
-        return strcmp(name, id->name) == 0;
+    if (is_type)
+        return is_type_id(id) && strcmp(name, id->name) == 0;
 
-    if (is_cont_blk(blk)) {
-        if (is_type)
-            return is_type_id(id) && strcmp(name, id->name) == 0;
-
-        if (is_fn_id(id))
-            return strcmp(name, id->name) == 0;
-    }
-
-    return id->num < num && strcmp(name, id->name) == 0;
+    return strcmp(name, id->name) == 0;
 }
 
 ast_id_t *
-blk_search_id(ast_blk_t *blk, char *name, int num, bool is_type)
+blk_search_id(ast_blk_t *blk, char *name, bool is_type)
 {
     int i, j;
 
@@ -121,11 +113,11 @@ blk_search_id(ast_blk_t *blk, char *name, int num, bool is_type)
                 vector_foreach(id->u_tup.elem_ids, j) {
                     ast_id_t *elem_id = vector_get_id(id->u_tup.elem_ids, j);
 
-                    if (is_visible_id(blk, elem_id, name, num, is_type))
+                    if (is_visible_id(blk, elem_id, name, is_type))
                         return elem_id;
                 }
             }
-            else if (is_visible_id(blk, id, name, num, is_type)) {
+            else if (is_visible_id(blk, id, name, is_type)) {
                 return id;
             }
         }

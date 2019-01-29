@@ -25,6 +25,9 @@ id_trans_var(trans_t *trans, ast_id_t *id)
     ASSERT(trans->fn != NULL);
 
     id->idx = fn_add_register(trans->fn, &id->meta);
+
+    if (id->u_var.dflt_exp != NULL)
+        stmt_trans(trans, stmt_make_assign(id, id->u_var.dflt_exp));
 }
 
 static void

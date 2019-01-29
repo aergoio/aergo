@@ -32,8 +32,13 @@ stmt_new_null(src_pos_t *pos)
 ast_stmt_t *
 stmt_new_id(ast_id_t *id, src_pos_t *pos)
 {
-    ast_stmt_t *stmt = ast_stmt_new(STMT_ID, pos);
+    ast_stmt_t *stmt;
 
+    if (id == NULL)
+        /* The "id" may be null because of grammar error recovery */
+        return NULL;
+
+    stmt = ast_stmt_new(STMT_ID, pos);
     stmt->u_id.id = id;
 
     return stmt;

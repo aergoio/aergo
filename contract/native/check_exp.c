@@ -68,7 +68,7 @@ exp_check_id(check_t *check, ast_exp_t *exp)
             id = id_search_param(check->fn_id, name);
 
         if (id == NULL)
-            id = blk_search_id(check->blk, name, exp->num, false);
+            id = blk_search_id(check->blk, name, false);
     }
 
     if (id == NULL)
@@ -104,7 +104,7 @@ exp_check_type(check_t *check, ast_exp_t *exp)
         ASSERT(exp->u_type.k_exp == NULL);
         ASSERT(exp->u_type.v_exp == NULL);
 
-        id = blk_search_id(check->blk, name, exp->num, true);
+        id = blk_search_id(check->blk, name, true);
         if (id == NULL || !is_type_id(id))
             RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, name);
 
@@ -647,7 +647,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
         /* If the contract identifier is returned, it is searched by the constructor
          * name of another contract. Therefore, the constructor is searched again in
          * the contract block */
-        id = blk_search_id(id->u_cont.blk, id->name, id_exp->num, false);
+        id = blk_search_id(id->u_cont.blk, id->name, false);
         ASSERT(id != NULL);
 
         id_trycheck(check, id);

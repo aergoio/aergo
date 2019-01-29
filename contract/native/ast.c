@@ -9,8 +9,6 @@
 
 #include "ast.h"
 
-int node_num_ = 0;
-
 ast_t *
 ast_new(void)
 {

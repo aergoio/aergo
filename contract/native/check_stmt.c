@@ -256,7 +256,6 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 static bool
 stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 {
-    char name[NAME_MAX_LEN + 1];
     ast_id_t *iter_id;
     ast_exp_t *iter_exp;
     ast_exp_t *val_exp;
@@ -292,16 +291,11 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
      */
 
     /* Make "int arr_idx = 0" */
-    snprintf(name, sizeof(name), "array$idx$%d", stmt->num);
-
-    iter_id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
+    iter_id = id_new_var("array$idx", MOD_PRIVATE, pos);
 
     iter_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     iter_id->u_var.size_exps = NULL;
     iter_id->u_var.dflt_exp = exp_new_lit_i64(0, pos);
-
-    /* XXX: Please fix this... T_T */
-    node_num_++;
 
     /* Make "arr_idx" expression */
     iter_exp = exp_new_id(iter_id->name, pos);

@@ -177,14 +177,15 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      enumeration
 %type <vect>    enum_list
 %type <id>      enumerator
-%type <id>      constructor
+%type <id>      function
+%type <id>      func_spec
+%type <id>      ctor_spec
 %type <vect>    param_list_opt
 %type <vect>    param_list
 %type <id>      param_decl
 %type <blk>     block
 %type <blk>     blk_decl
-%type <id>      function
-%type <id>      func_spec
+%type <id>      udf_spec
 %type <mod>     modifier_opt
 %type <id>      return_opt
 %type <id>      return_list
@@ -307,9 +308,14 @@ contract_body:
     variable
     {
         $$ = blk_new_contract(&@$);
-        id_add(&$$->ids, $1);
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   compound
+    {
+        $$ = blk_new_contract(&@$);
+        id_add(&$$->ids, $1);
+    }
+|   function
     {
         $$ = blk_new_contract(&@$);
         id_add(&$$->ids, $1);
@@ -317,9 +323,14 @@ contract_body:
 |   contract_body variable
     {
         $$ = $1;
-        id_add(&$$->ids, $2);
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   contract_body compound
+    {
+        $$ = $1;
+        id_add(&$$->ids, $2);
+    }
+|   contract_body function
     {
         $$ = $1;
         id_add(&$$->ids, $2);
@@ -345,8 +356,8 @@ var_qual:
 ;
 
 var_decl:
-    var_spec eol
-|   var_spec '=' var_init eol
+    var_spec ';'
+|   var_spec '=' var_init ';'
     {
         $$ = $1;
 
@@ -466,18 +477,12 @@ var_init:
 compound:
     struct
 |   enumeration
-|   constructor
-|   function
 ;
 
 struct:
     K_TYPE identifier K_STRUCT '{' field_list '}'
     {
         $$ = id_new_struct($2, $5, &@$);
-        /* TODO: In the current structure, since identifier and statement are
-         * separated, we have to manage node_num heuristically. However, if the two
-         * nodes are merged in the future, they can be processed more consistently */
-        node_num_++;
     }
 |   K_TYPE error '}'
     {
@@ -486,7 +491,7 @@ struct:
 ;
 
 field_list:
-    var_spec eol
+    var_spec ';'
     {
         $$ = vector_new();
 
@@ -495,7 +500,7 @@ field_list:
         else
             id_join($$, id_strip($1));
     }
-|   field_list var_spec eol
+|   field_list var_spec ';'
     {
         $$ = $1;
 
@@ -510,7 +515,6 @@ enumeration:
     K_ENUM identifier '{' enum_list comma_opt '}'
     {
         $$ = id_new_enum($2, $4, &@$);
-        node_num_++;
     }
 |   K_ENUM error '}'
     {
@@ -548,16 +552,31 @@ comma_opt:
 |   ','
 ;
 
-constructor:
-    identifier '(' param_list_opt ')' block
+function:
+    func_spec block
     {
-        $$ = id_new_ctor($1, $3, $5, &@1);
+        $$ = $1;
+        $$->u_fn.blk = $2;
 
+        /* The label is added to the topmost block because it can be referenced
+         * regardless of the order of declaration. */
         if (!is_empty_vector(LABELS)) {
-            ASSERT($5 != NULL);
-            id_join(&$5->ids, LABELS);
+            ASSERT($2 != NULL);
+            id_join(&$2->ids, LABELS);
             vector_reset(LABELS);
         }
+    }
+;
+
+func_spec:
+    ctor_spec
+|   udf_spec
+;
+
+ctor_spec:
+    identifier '(' param_list_opt ')'
+    {
+        $$ = id_new_ctor($1, $3, NULL, &@1);
     }
 ;
 
@@ -637,21 +656,7 @@ blk_decl:
     }
 ;
 
-function:
-    func_spec block
-    {
-        $$ = $1;
-        $$->u_fn.blk = $2;
-
-        if (!is_empty_vector(LABELS)) {
-            ASSERT($2 != NULL);
-            id_join(&$2->ids, LABELS);
-            vector_reset(LABELS);
-        }
-    }
-;
-
-func_spec:
+udf_spec:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt
     {
         $$ = id_new_func($3, $1, $5, $7, NULL, &@3);
@@ -728,12 +733,12 @@ interface_decl:
 ;
 
 interface_body:
-    func_spec eol
+    udf_spec ';'
     {
         $$ = blk_new_interface(&@$);
         id_add(&$$->ids, $1);
     }
-|   interface_body func_spec eol
+|   interface_body udf_spec ';'
     {
         $$ = $1;
         id_add(&$$->ids, $2);
@@ -754,26 +759,26 @@ statement:
 ;
 
 empty_stmt:
-    eol
+    ';'
     {
         $$ = stmt_new_null(&@$);
     }
 ;
 
 exp_stmt:
-    expression eol
+    expression ';'
     {
         $$ = stmt_new_exp($1, &@$);
     }
-|   error eol           { $$ = NULL; }
+|   error ';'           { $$ = NULL; }
 ;
 
 assign_stmt:
-    expression '=' expression eol
+    expression '=' expression ';'
     {
         $$ = stmt_new_assign($1, $3, &@2);
     }
-|   unary_exp assign_op expression eol
+|   unary_exp assign_op expression ';'
     {
         $$ = stmt_new_assign($1, exp_new_binary($2, $1, $3, &@2), &@2);
     }
@@ -874,8 +879,8 @@ init_stmt:
 ;
 
 cond_exp:
-    eol                 { $$ = NULL; }
-|   ternary_exp eol
+    ';'                 { $$ = NULL; }
+|   ternary_exp ';'
 ;
 
 switch_stmt:
@@ -912,30 +917,30 @@ case_blk:
 ;
 
 jump_stmt:
-    K_CONTINUE eol
+    K_CONTINUE ';'
     {
         $$ = stmt_new_jump(STMT_CONTINUE, NULL, &@$);
     }
-|   K_BREAK eol
+|   K_BREAK ';'
     {
         $$ = stmt_new_jump(STMT_BREAK, NULL, &@$);
     }
-|   K_RETURN eol
+|   K_RETURN ';'
     {
         $$ = stmt_new_return(NULL, &@$);
     }
-|   K_RETURN expression eol
+|   K_RETURN expression ';'
     {
         $$ = stmt_new_return($2, &@$);
     }
-|   K_GOTO identifier eol
+|   K_GOTO identifier ';'
     {
         $$ = stmt_new_goto($2, &@2);
     }
 ;
 
 ddl_stmt:
-    ddl_prefix error eol
+    ddl_prefix error ';'
     {
         int len;
         char *ddl;
@@ -984,7 +989,7 @@ expression:
 
 sql_exp:
     new_exp
-|   sql_prefix error eol
+|   sql_prefix error ';'
     {
         int len;
         char *sql;
@@ -1329,10 +1334,6 @@ identifier:
         $$ = $1;
     }
 |   non_reserved_token
-;
-
-eol:
-    ';'                 { node_num_++; }
 ;
 
 %%

@@ -9,12 +9,10 @@
 #include "common.h"
 
 #define AST_NODE_DECL                                                                    \
-    int num;                                                                             \
     src_pos_t pos
 
 #define ast_node_init(node, npos)                                                        \
     do {                                                                                 \
-        (node)->num = node_num_;                                                         \
         (node)->pos = (npos);                                                            \
     } while (0)
 
@@ -29,8 +27,6 @@ typedef struct ast_s {
      * more natural for the variable. */
     ast_blk_t *root;
 } ast_t;
-
-extern int node_num_;
 
 ast_t *ast_new(void);
 

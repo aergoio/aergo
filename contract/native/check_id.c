@@ -237,17 +237,8 @@ id_check_fn(check_t *check, ast_id_t *id)
         }
     }
 
-    check->fn_id = id;
-
-    if (id->u_fn.blk != NULL)
-        blk_check(check, id->u_fn.blk);
-
-    check->fn_id = NULL;
-
-    if (id->u_fn.ret_id != NULL && !is_ctor_id(id) && !is_itf_id(id->up) &&
-        (id->u_fn.blk == NULL || is_empty_vector(&id->u_fn.blk->stmts) ||
-         !is_return_stmt(vector_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
-        RETURN(ERROR_MISSING_RETURN, &id->pos);
+    /* The body of the function is checked after resolution of all identifiers.
+     * (See blk_check()) */
 
     return true;
 }
@@ -340,6 +331,12 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
     ASSERT1(is_tuple_id(id), id->kind);
 
+    if (dflt_exp != NULL) {
+        ASSERT1(is_tuple_exp(dflt_exp), dflt_exp->kind);
+        ASSERT2(vector_size(elem_ids) == vector_size(dflt_exp->u_tup.elem_exps),
+                vector_size(elem_ids), vector_size(dflt_exp->u_tup.elem_exps));
+    }
+
     id->meta.type = TYPE_TUPLE;
 
     id->meta.elem_cnt = vector_size(elem_ids);
@@ -347,25 +344,19 @@ id_check_tuple(check_t *check, ast_id_t *id)
 
     id->meta.size = 0;
 
-    /* The meta size of the tuple identifier is never used, so we do not need to set
-     * size here */
     vector_foreach(elem_ids, i) {
         ast_id_t *elem_id = vector_get_id(elem_ids, i);
 
+        ASSERT1(is_var_id(elem_id), elem_id->kind);
+        ASSERT(elem_id->u_var.type_exp == NULL);
+
         elem_id->mod = id->mod;
+        elem_id->u_var.type_exp = id->u_tup.type_exp;
 
-        if (is_var_id(elem_id)) {
-            if (!is_param_id(elem_id)) {
-                /* The default expression for the tuple identifier is set in
-                 * id_trans_var() */
-                ASSERT(elem_id->u_var.dflt_exp == NULL);
+        if (dflt_exp != NULL)
+            elem_id->u_var.dflt_exp = vector_get_exp(dflt_exp->u_tup.elem_exps, i);
 
-                if (elem_id->u_var.type_exp == NULL)
-                    elem_id->u_var.type_exp = id->u_tup.type_exp;
-            }
-
-            id_check(check, elem_id);
-        }
+        id_check(check, elem_id);
 
         elem_id->up = id->up;
 
@@ -377,18 +368,11 @@ id_check_tuple(check_t *check, ast_id_t *id)
         if (id->meta.align == 0)
             id->meta.align = meta_align(&elem_id->meta);
 
-        if (is_const_id(elem_id) && dflt_exp == NULL)
+        if (is_const_id(elem_id) && elem_id->u_var.dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
 
     id->meta.size = ALIGN(id->meta.size, id->meta.align);
-
-    if (dflt_exp != NULL) {
-        CHECK(exp_check(check, dflt_exp));
-        CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
-
-        meta_eval(&id->meta, &dflt_exp->meta);
-    }
 
     return true;
 }
