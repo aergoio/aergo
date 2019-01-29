@@ -436,7 +436,7 @@ func (cs *ChainService) CountTxsInChain() int {
 	return txCount
 }
 
-type TxExecFn func(bState *state.BlockState, tx *types.Tx) error
+type TxExecFn func(bState *state.BlockState, tx types.Transaction) error
 type ValidatePostFn func() error
 type ValidateSignWaitFn func() error
 
@@ -496,7 +496,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 // NewTxExecutor returns a new TxExecFn.
 func NewTxExecutor(blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int) TxExecFn {
-	return func(bState *state.BlockState, tx *types.Tx) error {
+	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
 			return ErrGatherChain
@@ -523,7 +523,7 @@ func (e *blockExecutor) execute() error {
 				preLoadTx = e.txs[i+1]
 				contract.PreLoadRequest(e.BlockState, preLoadTx, contract.ChainService)
 			}
-			if err := e.execTx(e.BlockState, tx); err != nil {
+			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
@@ -619,7 +619,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	return nil
 }
 
-func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
+func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
 
 	txBody := tx.GetBody()
 
@@ -667,7 +667,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	case types.TxType_NORMAL:
 		txFee = CoinbaseFee()
 		sender.SubBalance(txFee)
-		rv, err = contract.Execute(bs, tx, blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)

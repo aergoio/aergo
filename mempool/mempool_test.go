@@ -45,10 +45,12 @@ func getAccount(tx *types.Tx) string {
 	return as
 }
 
-func simulateBlockGen(txs ...*types.Tx) error {
+func simulateBlockGen(txs ...types.Transaction) error {
 	lock.Lock()
+	inblock := make([]*types.Tx, 0)
 	for _, tx := range txs {
-		acc := getAccount(tx)
+		inblock = append(inblock, tx.GetTx())
+		acc := getAccount(tx.GetTx())
 		n := tx.GetBody().GetNonce()
 		nonce[acc] = n
 		_, ok := balance[acc]
@@ -61,7 +63,7 @@ func simulateBlockGen(txs ...*types.Tx) error {
 	pool.removeOnBlockArrival(
 		&types.Block{
 			Body: &types.BlockBody{
-				Txs: txs[:],
+				Txs: inblock,
 			}})
 
 	//bestBlockNo++
@@ -92,7 +94,7 @@ func deinitTest() {
 func sameTx(a *types.Tx, b *types.Tx) bool {
 	return types.ToTxID(a.Hash) == types.ToTxID(b.Hash)
 }
-func sameTxs(a []*types.Tx, b []*types.Tx) bool {
+func sameTxs(a []types.Transaction, b []types.Transaction) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -100,7 +102,7 @@ func sameTxs(a []*types.Tx, b []*types.Tx) bool {
 	for _, txa := range a {
 		check = false
 		for _, txb := range b {
-			if sameTx(txa, txb) {
+			if sameTx(txa.GetTx(), txb.GetTx()) {
 				check = true
 				break
 			}
@@ -111,7 +113,7 @@ func sameTxs(a []*types.Tx, b []*types.Tx) bool {
 	}
 	return check
 }
-func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
+func genTx(acc int, rec int, nonce uint64, amount uint64) types.Transaction {
 	tx := types.Tx{
 		Body: &types.TxBody{
 			Nonce:     nonce,
@@ -122,7 +124,7 @@ func genTx(acc int, rec int, nonce uint64, amount uint64) *types.Tx {
 	}
 	tx.Hash = tx.CalculateTxHash()
 	//key.SignTx(&tx, sign[acc])
-	return &tx
+	return types.NewTransaction(&tx)
 }
 
 /*
@@ -160,7 +162,7 @@ func TestInvalidTransaction(t *testing.T) {
 	err = pool.put(genTx(0, 1, 1, 1))
 	assert.EqualError(t, err, types.ErrTxAlreadyInMempool.Error(), "tx should be denied")
 
-	txs := []*types.Tx{genTx(0, 1, 1, 1)}
+	txs := []types.Transaction{genTx(0, 1, 1, 1)}
 	simulateBlockGen(txs...)
 
 	err = pool.put(genTx(0, 1, 1, 1))
@@ -260,12 +262,12 @@ func TestBasics2(t *testing.T) {
 		})
 		for j := 0; j < txCount; j++ {
 			tmp := genTx(i, 0, nonce[j], uint64(i+1))
-			txs = append(txs, tmp)
+			txs = append(txs, tmp.GetTx())
 		}
 	}
 
 	for _, tx := range txs {
-		err := pool.put(tx)
+		err := pool.put(types.NewTransaction(tx))
 		assert.NoError(t, err, "tx should be accepted")
 	}
 
@@ -279,7 +281,7 @@ func TestBasics2(t *testing.T) {
 func TestBasics(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 
 	accCount := 10
 	txCount := 10
@@ -312,7 +314,7 @@ func TestBasics(t *testing.T) {
 func TestDeleteOTxs(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 	for i := 0; i < 5; i++ {
 		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
 		txs = append(txs, tmp)
@@ -334,7 +336,7 @@ func TestDeleteOTxs(t *testing.T) {
 func TestBasicDeleteOnBlockConnect(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 
 	for i := 0; i < 100; i++ {
 		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
@@ -355,13 +357,13 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 		removed := txs[:10]
 
 		for _, tx := range removed {
-			found := pool.exists(tx.Hash)
+			found := pool.exists(tx.GetHash())
 			assert.Nil(t, found, "wrong transaction removed")
 		}
 
 		leftover := txs[10:]
 		for _, tx := range leftover {
-			found := pool.exists(tx.Hash)
+			found := pool.exists(tx.GetHash())
 			assert.NotNil(t, found, "wrong transaction removed")
 		}
 		txs = txs[10:]
@@ -376,7 +378,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 
 	initTest(t)
 	defer deinitTest()
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 
 	missing := map[int]bool{
 		7: true, 8: true, 9: true,
@@ -418,7 +420,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 		//t.Errorf("%d, %d, %d", i, p1, p2)
 		removed := txs[s:e]
 		for _, tx := range removed {
-			found := pool.exists(tx.Hash)
+			found := pool.exists(tx.GetHash())
 			assert.Nil(t, found, "wrong transaction removed")
 		}
 
@@ -428,7 +430,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 			if _, v := missing[int(n)]; v {
 				continue
 			}
-			if pool.exists(tx.Hash) == nil {
+			if pool.exists(tx.GetHash()) == nil {
 				t.Errorf("wrong tx removed [%s]", tx.GetBody().String())
 			}
 		}
@@ -439,7 +441,7 @@ func TestSwitchingBestBlock(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 	tx0 := genTx(0, 1, 1, 1)
 	tx1 := genTx(0, 1, 2, 1)
 	txs = append(txs, tx0, tx1)
@@ -512,7 +514,7 @@ func TestDumpAndLoad(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
-		txs = append(txs, tmp)
+		txs = append(txs, tmp.GetTx())
 		if err := pool.put(tmp); err != nil {
 			t.Errorf("put should succeed, %s", err)
 		}
@@ -584,7 +586,7 @@ func TestDeleteInvokePriceFilterOut(t *testing.T) {
 			t.Fatalf("pool should have %d tx(%d orphans) but(%d/%d)\n", total, orphan, w, o)
 		}
 	}
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 	txs = append(txs, genTx(0, 1, 1, defaultBalance-6))
 	txs = append(txs, genTx(0, 1, 2, 2))
 	txs = append(txs, genTx(0, 1, 3, 10))

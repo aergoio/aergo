@@ -173,7 +173,7 @@ func TestListPutRandom(t *testing.T) {
 	mpl := NewTxList(nil, NewState(0, 0))
 
 	count := 100
-	txs := make([]*types.Tx, count)
+	txs := make([]types.Transaction, count)
 	for i := 0; i < count; i++ {
 		txs[i] = genTx(0, 0, uint64(i+1), 0)
 	}

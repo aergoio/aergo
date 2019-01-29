@@ -29,14 +29,14 @@ var (
 )
 
 // FetchTXs requests to mempool and returns types.Tx array.
-func FetchTXs(hs component.ICompSyncRequester, maxBlockBodySize uint32) []*types.Tx {
+func FetchTXs(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
 	//bf.RequestFuture(message.MemPoolSvc, &message.MemPoolGenerateSampleTxs{MaxCount: 3}, time.Second)
 	result, err := hs.RequestFuture(message.MemPoolSvc,
 		&message.MemPoolGet{MaxBlockBodySize: maxBlockBodySize}, time.Second,
 		"consensus/util/info.FetchTXs").Result()
 	if err != nil {
 		logger.Info().Err(err).Msg("can't fetch transactions from mempool")
-		return make([]*types.Tx, 0)
+		return make([]types.Transaction, 0)
 	}
 
 	return result.(*message.MemPoolGetRsp).Txs
@@ -44,20 +44,20 @@ func FetchTXs(hs component.ICompSyncRequester, maxBlockBodySize uint32) []*types
 
 // TxOp is an interface used by GatherTXs for apply some transaction related operation.
 type TxOp interface {
-	Apply(bState *state.BlockState, tx *types.Tx) error
+	Apply(bState *state.BlockState, tx types.Transaction) error
 }
 
 // TxOpFn is the type of arguments for CompositeTxDo.
-type TxOpFn func(bState *state.BlockState, tx *types.Tx) error
+type TxOpFn func(bState *state.BlockState, tx types.Transaction) error
 
 // Apply applies f to tx.
-func (f TxOpFn) Apply(bState *state.BlockState, tx *types.Tx) error {
+func (f TxOpFn) Apply(bState *state.BlockState, tx types.Transaction) error {
 	return f(bState, tx)
 }
 
 // NewCompTxOp returns a function which applies each function in fn.
 func NewCompTxOp(fn ...TxOp) TxOp {
-	return TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
+	return TxOpFn(func(bState *state.BlockState, tx types.Transaction) error {
 		for _, f := range fn {
 			var err error
 			if err = f.Apply(bState, tx); err != nil {
@@ -75,8 +75,8 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	// Caution: the closure below captures the local variable 'size.' Generate
 	// it whenever needed. Don't reuse it!
 	size := 0
-	return TxOpFn(func(bState *state.BlockState, tx *types.Tx) error {
-		if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
+	return TxOpFn(func(bState *state.BlockState, tx types.Transaction) error {
+		if size += proto.Size(tx.GetTx()); uint32(size) > maxBlockBodySize {
 			return errBlockSizeLimit
 		}
 		return nil
@@ -100,7 +100,7 @@ func UnlockChain() {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]*types.Tx, error) {
+func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]types.Transaction, error) {
 	var (
 		nCollected int
 		nCand      int
@@ -120,7 +120,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	if nCand == 0 {
 		return txIn, nil
 	}
-	txRes := make([]*types.Tx, 0, nCand)
+	txRes := make([]types.Transaction, 0, nCand)
 
 	if logger.IsDebugEnabled() {
 		defer func() {
@@ -136,7 +136,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	var preLoadTx *types.Tx
 	for i, tx := range txIn {
 		if i != nCand-1 {
-			preLoadTx = txIn[i+1]
+			preLoadTx = txIn[i+1].GetTx()
 			contract.PreLoadRequest(bState, preLoadTx, contract.BlockFactory)
 		}
 
