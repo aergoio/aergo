@@ -259,6 +259,7 @@ meta_copy(meta_t *dest, meta_t *src)
     dest->size = src->size;
     dest->is_undef = src->is_undef;
     dest->align = src->align;
+    dest->max_dim = src->max_dim;
     dest->arr_dim = src->arr_dim;
     dest->dim_sizes = src->dim_sizes;
     dest->is_undef = src->is_undef;

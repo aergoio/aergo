@@ -54,20 +54,14 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     if (is_array_meta(&id->meta)) {
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        BinaryenExpressionRef address, offset, index;
+        BinaryenExpressionRef base, address, offset, index;
 
         /* BinaryenLoad() takes an offset as uint32_t, and because "idx_exp" is a local
          * or stack expression, we do not know the offset, so we add the offset to the
          * address and use BinaryenLoad(). See exp_trans_array() for the following
          * formula */
 
-        if (is_memory_exp(id_exp))
-            address = BinaryenGetLocal(gen->module, id_exp->u_mem.base,
-                                       BinaryenTypeInt32());
-        else
-            address = BinaryenGetLocal(gen->module, id_exp->u_reg.idx,
-                                       BinaryenTypeInt32());
-
+        base = exp_gen(gen, id_exp);
         index = exp_gen(gen, idx_exp);
 
         if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta))
@@ -75,13 +69,17 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
 
         offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
-                                i32_gen(gen, meta_bytes(&exp->meta)));
+                                i32_gen(gen, meta_bytes(meta)));
 
         if (id->meta.rel_addr > 0)
-            offset = BinaryenBinary(gen->module, BinaryenAddInt32(),
-                                    i32_gen(gen, id->meta.rel_addr), offset);
+            offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
+                                    i32_gen(gen, id->meta.rel_addr +
+                                            meta_align(&id->meta)));
+        else
+            offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
+                                    i32_gen(gen, meta_align(&id->meta)));
 
-        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address, offset);
+        address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, offset);
 
         /* XXX: change is_array_meta() to assertion */
         if (gen->is_lval || is_array_meta(meta))

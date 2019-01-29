@@ -103,12 +103,12 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
          * Finally, in the case of "i[a][b][c]",
          * (a * sizeof(i[0])) + (b * sizeof(i[0][0])) + (c * sizeof(int)). */
 
-        /* If "id_exp" is a call expression, it can be a memory expression */
-        ASSERT1(is_memory_exp(id_exp) || is_register_exp(id_exp), id_exp->kind);
-
         if (!is_lit_exp(idx_exp))
             /* We must dynamically determine the address and offset */
             return;
+
+        /* If "id_exp" is a call expression, it can be a memory expression */
+        ASSERT1(is_memory_exp(id_exp) || is_register_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
         offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
@@ -248,12 +248,14 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
                        fld_id->meta.rel_offset);
     }
     else if (is_memory_exp(qual_exp)) {
-        /* It is a memroy expression when referring to a global variable directly */
-        ASSERT1(qual_exp->u_mem.offset == 0, qual_exp->u_mem.offset);
-        ASSERT1(fld_id->meta.rel_addr == 0, fld_id->meta.rel_addr);
+        /* It can be a memroy expression when referring to a global variable directly */
+        ASSERT2(qual_exp->u_mem.offset == 0 || fld_id->meta.rel_offset == 0,
+                qual_exp->u_mem.offset, fld_id->meta.rel_offset);
+        ASSERT2(qual_exp->u_mem.base == trans->fn->cont_idx, qual_exp->u_mem.base,
+                trans->fn->cont_idx);
 
         exp_set_memory(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
-                       fld_id->meta.rel_offset);
+                       qual_exp->u_mem.offset + fld_id->meta.rel_offset);
     }
     else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can

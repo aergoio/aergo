@@ -275,16 +275,15 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
-stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
+stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
 {
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *cond_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
-    /* Each expression of the for-loop statement is separated, the initial expression
-     * is added to the end of prev_bb, the conditional expression is added at the
-     * beginning of cond_bb, and the afterthought expression is added at the end of
-     * the loop block
+    /* The initial expression is added to the end of prev_bb, the conditional expression
+     * is added at the beginning of cond_bb, and the afterthought expression is added at
+     * the end of the loop block
      *
      *         .---------------------.
      *         | prev_bb + init_stmt |
@@ -322,29 +321,6 @@ stmt_trans_for_loop(trans_t *trans, ast_stmt_t *stmt)
     trans->break_bb = NULL;
 
     trans->bb = next_bb;
-}
-
-static void
-stmt_trans_array_loop(trans_t *trans, ast_stmt_t *stmt)
-{
-    ERROR(ERROR_NOT_SUPPORTED, &stmt->pos);
-}
-
-static void
-stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
-{
-    switch (stmt->u_loop.kind) {
-    case LOOP_FOR:
-        stmt_trans_for_loop(trans, stmt);
-        break;
-
-    case LOOP_VECTOR:
-        stmt_trans_array_loop(trans, stmt);
-        break;
-
-    default:
-        ASSERT1(!"invalid loop", stmt->u_loop.kind);
-    }
 }
 
 static void

@@ -569,10 +569,23 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, qual_exp));
 
     qual_id = qual_exp->id;
+    if (qual_id == NULL)
+        RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
-    if (qual_id == NULL ||
-        (!is_enum_id(qual_id) &&
-         !is_struct_meta(qual_meta) && !is_object_meta(qual_meta)))
+    fld_exp = exp->u_acc.fld_exp;
+
+    if (is_array_meta(qual_meta)) {
+        if (!is_id_exp(fld_exp) || strcmp(fld_exp->u_id.name, "size") != 0)
+            RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
+
+        meta_set_int32(&exp->meta);
+
+        exp->id = qual_exp->id;
+        exp->usable_lval = false;
+        return true;
+    }
+
+    if (!is_enum_id(qual_id) && !is_struct_meta(qual_meta) && !is_object_meta(qual_meta))
         RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
     /* Get the actual struct, contract or interface identifier */
@@ -590,8 +603,6 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     ASSERT(qual_id != NULL);
     ASSERT1(is_type_id(qual_id) || is_enum_id(qual_id), qual_id->kind);
-
-    fld_exp = exp->u_acc.fld_exp;
 
     check->qual_id = qual_id;
 

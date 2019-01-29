@@ -256,102 +256,83 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 static bool
 stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 {
-    /*
-    char name[128];
-    ast_id_t *id;
-    ast_exp_t *inc_exp;
+    char name[NAME_MAX_LEN + 1];
+    ast_id_t *iter_id;
+    ast_exp_t *iter_exp;
+    ast_exp_t *val_exp;
     ast_exp_t *arr_exp;
-    ast_exp_t *assign_exp;
+    ast_exp_t *size_exp;
+    ast_exp_t *cmp_exp;
     ast_exp_t *loop_exp;
-    ast_stmt_t *null_stmt;
+    ast_stmt_t *init_stmt = stmt->u_loop.init_stmt;
+    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_blk_t *blk = stmt->u_loop.blk;
     src_pos_t *pos = &stmt->pos;
-    */
+
+    ASSERT(init_stmt != NULL);
+    ASSERT(cond_exp != NULL);
+    ASSERT(stmt->u_loop.loop_exp == NULL);
 
     /* TODO: map & sql iteration */
+    CHECK(exp_check(check, cond_exp));
 
-    /* vector-loop is converted like this:
+    if (is_map_meta(&cond_exp->meta))
+        RETURN(ERROR_NOT_SUPPORTED, &cond_exp->pos);
+
+    /* array-loop is converted like this:
      *
-     *      int array_idx_xxx = 0;
-     *
-     *      init_exp;               // only if init_exp != NULL
-     *
-     *  for_loop_xxx:
-     *      if (array_idx_xxx >= array.size)
-     *          goto for_exit_xxx;
-     *
-     *      variable = arr_exp[array_idx_xxx];
-     *
+     *  int arr_idx = 0;
+     *  loop {
+     *      if (arr_idx >= array.size)
+     *          break;
+     *      val = array[arr_idx];
      *      ...
-     *
-     *  for_cont_xxx:
-     *      array_idx_xxx++;
-     *      goto for_loop_xxx;
-     *
-     *  for_exit_xxx:
-     *      ;
+     *      arr_idx++;
+     *  }
      */
 
-    /* TODO: we need to know array.size */
-    RETURN(ERROR_NOT_SUPPORTED, &stmt->pos);
-#if 0
-    loop_exp = stmt->u_loop.loop_exp;
-    ASSERT(loop_exp != NULL);
+    /* Make "int arr_idx = 0" */
+    snprintf(name, sizeof(name), "array$idx$%d", stmt->num);
 
-    /* make "int i = 0" */
-    snprintf(name, sizeof(name), "array_idx_%d", blk->num);
+    iter_id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
 
-    id = id_new_var(xstrdup(name), MOD_PRIVATE, pos);
+    iter_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
+    iter_id->u_var.size_exps = NULL;
+    iter_id->u_var.dflt_exp = exp_new_lit_i64(0, pos);
 
-    id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
-    id->u_var.size_exps = NULL;
-    id->u_var.init_exp = exp_new_lit(pos);
-    value_set_i64(&id->u_var.init_exp->u_lit.val, 0);
+    /* XXX: Please fix this... T_T */
+    node_num_++;
 
-    id_add_last(&blk->ids, id);
+    /* Make "arr_idx" expression */
+    iter_exp = exp_new_id(iter_id->name, pos);
 
-    inc_exp = exp_new_op(OP_INC, exp_new_id(xstrdup(name), pos), NULL, pos);
-    arr_exp = exp_new_array(loop_exp, inc_exp, &loop_exp->pos);
-
-    if (stmt->u_loop.init_ids != NULL) {
-        int i;
-        vector_t *elem_ids = stmt->u_loop.init_ids;
-
-        if (vector_size(elem_ids) > 1)
-            RETURN(ERROR_NOT_SUPPORTED, &vector_get_id(elem_ids, 1)->pos);
-
-        /* make "variable = loop_exp[i++]" */
-        vector_foreach(elem_ids, i) {
-            ast_id_t *var_id = vector_get_id(elem_ids, i);
-            ast_exp_t *id_exp;
-
-            id_exp = exp_new_id(var_id->name, pos);
-            assign_exp = exp_new_op(OP_ASSIGN, id_exp, arr_exp, &loop_exp->pos);
-
-            vector_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
-        }
-
-        id_join_first(&blk->ids, elem_ids);
+    /* Make "array" expression */
+    if (is_id_stmt(init_stmt)) {
+        val_exp = exp_new_id(init_stmt->u_id.id->name, pos);
     }
     else {
-        ast_exp_t *init_exp = stmt->u_loop.init_exp;
-
-        ASSERT(init_exp != NULL);
-
-        if (is_tuple_exp(init_exp))
-            RETURN(ERROR_NOT_SUPPORTED, &init_exp->pos);
-
-        /* make "init_exp = loop_exp[i++]" */
-        assign_exp = exp_new_op(OP_ASSIGN, init_exp, arr_exp, &loop_exp->pos);
-
-        vector_add_first(&blk->stmts, stmt_new_exp(assign_exp, pos));
+        ASSERT1(is_exp_stmt(init_stmt), init_stmt->kind);
+        val_exp = init_stmt->u_exp.exp;
     }
 
-    null_stmt = stmt_new_null(&stmt->pos);
-    null_stmt->label = blk->loop_label;
+    /* Make "val = array[arr_idx]" statement */
+    arr_exp = exp_new_array(cond_exp, iter_exp, pos);
+    vector_add_first(&blk->stmts, stmt_new_assign(val_exp, arr_exp, pos));
 
-    vector_add_first(&blk->stmts, null_stmt);
-#endif
+    /* Make "break if arr_idx >= array.size" statement */
+    size_exp = exp_new_access(cond_exp, exp_new_id("size", pos), pos);
+    cmp_exp = exp_new_binary(OP_GE, iter_exp, size_exp, pos);
+
+    vector_add_first(&blk->stmts, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
+
+    if (is_id_stmt(init_stmt))
+        vector_add_first(&blk->stmts, init_stmt);
+
+    vector_add_first(&blk->stmts, stmt_new_id(iter_id, pos));
+
+    /* Make "arr_idx++" expression */
+    loop_exp = exp_new_unary(OP_INC, false, iter_exp, pos);
+    vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, pos));
 
     return true;
 }

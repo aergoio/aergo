@@ -150,16 +150,13 @@ contract test {
     int i[2][2] = new { { 1, 1 }, { 2, "2" } };
 }
 
-@test(excess_element_count)
-@error(ERROR_MISMATCHED_COUNT)
+@test(mismatched_element_count)
+@error(ERROR_MISMATCHED_COUNT,4)
 contract test {
     int i[1] = new { 1, 2 };
-}
-
-@test(shortage_element_count)
-@error(ERROR_MISMATCHED_COUNT)
-contract test {
-    int i[2] = new { 1 };
+    int j[2] = new { 1 };
+    int k[3][2] = new { { 1, 2 }, { 3 } };
+    int l[3][2] = new { { 1, 2 }, { 3, 4, 5 } };
 }
 
 @test(array_allocator)

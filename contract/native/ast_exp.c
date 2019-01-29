@@ -289,18 +289,26 @@ void
 exp_set_register(ast_exp_t *exp, uint32_t idx)
 {
     exp->kind = EXP_REGISTER;
-    exp->u_reg.type = exp->meta.type;
     exp->u_reg.idx = idx;
+
+    if (is_array_meta(&exp->meta))
+        exp->u_reg.type = TYPE_UINT32;
+    else
+        exp->u_reg.type = exp->meta.type;
 }
 
 void
 exp_set_memory(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
 {
     exp->kind = EXP_MEMORY;
-    exp->u_mem.type = exp->meta.type;
     exp->u_mem.base = base;
     exp->u_mem.addr = addr;
     exp->u_mem.offset = offset;
+
+    if (is_array_meta(&exp->meta))
+        exp->u_mem.type = TYPE_UINT32;
+    else
+        exp->u_mem.type = exp->meta.type;
 }
 
 ast_exp_t *

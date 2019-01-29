@@ -873,11 +873,11 @@ loop_stmt:
     }
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_exp($3, &@3), NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_exp($3, &@3), $5, NULL, $7, &@$);
     }
 |   K_FOR '(' var_spec K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_id($3, &@3), NULL, $5, $7, &@$);
+        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_id($3, &@3), $5, NULL, $7, &@$);
     }
 |   K_FOR error '}'
     {
