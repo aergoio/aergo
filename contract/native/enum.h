@@ -187,16 +187,9 @@ typedef enum sql_kind_e {
 
 typedef enum loop_kind_e {
     LOOP_FOR        = 0,
-    LOOP_VECTOR,
+    LOOP_ARRAY,
     LOOP_MAX
 } loop_kind_t;
-
-typedef enum param_kind_e {
-    PARAM_NONE      = 0,
-    PARAM_IN,
-    PARAM_OUT,
-    PARAM_MAX
-} param_kind_t;
 
 extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];

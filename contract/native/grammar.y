@@ -158,7 +158,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     meta_t *meta;
 }
 
-%type <id>      contract_decl
+%type <id>      contract
 %type <exp>     impl_opt
 %type <blk>     contract_body
 %type <id>      variable
@@ -190,7 +190,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <id>      return_opt
 %type <id>      return_list
 %type <id>      return_decl
-%type <id>      interface_decl
+%type <id>      interface
 %type <blk>     interface_body
 %type <stmt>    statement
 %type <stmt>    empty_stmt
@@ -243,32 +243,32 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <str>     non_reserved_token
 %type <str>     identifier
 
-%start  smart_contract
+%start  root
 
 %%
 
-smart_contract:
-    contract_decl
+root:
+    contract
     {
         AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
-|   interface_decl
+|   interface
     {
         AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
-|   smart_contract contract_decl
+|   root contract
     {
         id_add(&ROOT->ids, $2);
     }
-|   smart_contract interface_decl
+|   root interface
     {
         id_add(&ROOT->ids, $2);
     }
 ;
 
-contract_decl:
+contract:
     K_CONTRACT identifier impl_opt '{' '}'
     {
         ast_blk_t *blk = blk_new_contract(&@4);
@@ -602,8 +602,7 @@ param_decl:
     var_type declarator
     {
         $$ = $2;
-        //$$->is_param = true;
-        $$->u_var.kind = PARAM_IN;
+        $$->u_var.is_param = true;
         $$->u_var.type_exp = $1;
     }
 ;
@@ -619,14 +618,11 @@ blk_decl:
         $$ = blk_new_normal(&@$);
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
-|   struct
+|   compound
     {
         $$ = blk_new_normal(&@$);
-        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
-    }
-|   enumeration
-    {
-        $$ = blk_new_normal(&@$);
+        /* Unlike state variables, local variables are referenced according to their
+         * order of declaration. */
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   statement
@@ -639,12 +635,7 @@ blk_decl:
         $$ = $1;
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
-|   blk_decl struct
-    {
-        $$ = $1;
-        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
-    }
-|   blk_decl enumeration
+|   blk_decl compound
     {
         $$ = $1;
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
@@ -709,10 +700,7 @@ return_list:
 return_decl:
     var_type
     {
-        /* Later, the return statement will be transformed into
-         * an assignment statement of the form "id = value",
-         * so each return type is created with an identifier */
-        $$ = id_new_param(PARAM_OUT, NULL, $1, &@1);
+        $$ = id_new_param(NULL, $1, &@1);
     }
 |   return_decl '[' size_opt ']'
     {
@@ -725,7 +713,7 @@ return_decl:
     }
 ;
 
-interface_decl:
+interface:
     K_INTERFACE identifier '{' interface_body '}'
     {
         $$ = id_new_interface($2, $4, &@2);
@@ -861,11 +849,11 @@ loop_stmt:
     }
 |   K_FOR '(' expression K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_exp($3, &@3), $5, NULL, $7, &@$);
+        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_exp($3, &@3), $5, NULL, $7, &@$);
     }
 |   K_FOR '(' var_spec K_IN post_exp ')' block
     {
-        $$ = stmt_new_loop(LOOP_VECTOR, stmt_new_id($3, &@3), $5, NULL, $7, &@$);
+        $$ = stmt_new_loop(LOOP_ARRAY, stmt_new_id($3, &@3), $5, NULL, $7, &@$);
     }
 |   K_FOR error '}'
     {

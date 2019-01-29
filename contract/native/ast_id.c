@@ -37,7 +37,7 @@ id_new_var(char *name, modifier_t mod, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp, src_pos_t *pos)
+id_new_param(char *name, ast_exp_t *type_exp, src_pos_t *pos)
 {
     static int param_num = 1;
     ast_id_t *id;
@@ -53,7 +53,7 @@ id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp, src_pos_t *pos)
         id = id_new_var(name, MOD_PRIVATE, pos);
     }
 
-    id->u_var.kind = kind;
+    id->u_var.is_param = true;
     id->u_var.type_exp = type_exp;
 
     return id;
@@ -107,7 +107,7 @@ id_new_ctor(char *name, vector_t *param_ids, ast_blk_t *blk, src_pos_t *pos)
     type_exp->u_type.name = name;
 
     return id_new_func(name, MOD_PUBLIC | MOD_CTOR, param_ids,
-                       id_new_param(PARAM_OUT, name, type_exp, pos), blk, pos);
+                       id_new_param(name, type_exp, pos), blk, pos);
 }
 
 ast_id_t *

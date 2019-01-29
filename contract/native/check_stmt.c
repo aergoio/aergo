@@ -344,7 +344,7 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
         stmt_check_for_loop(check, stmt);
         break;
 
-    case LOOP_VECTOR:
+    case LOOP_ARRAY:
         stmt_check_array_loop(check, stmt);
         break;
 

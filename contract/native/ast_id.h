@@ -34,10 +34,7 @@
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))
 
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
-#define is_param_id(id)             (is_var_id(id) && (id)->u_var.kind != PARAM_NONE)
-
-#define is_in_param(id)             (is_var_id(id) && (id)->u_var.kind == PARAM_IN)
-#define is_out_param(id)            (is_var_id(id) && (id)->u_var.kind == PARAM_OUT)
+#define is_param_id(id)             (is_var_id(id) && (id)->u_var.is_param)
 
 #ifndef _AST_ID_T
 #define _AST_ID_T
@@ -60,7 +57,7 @@ typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
 
 typedef struct id_var_s {
-    param_kind_t kind;
+    bool is_param;
     ast_exp_t *type_exp;
     vector_t *size_exps;
     ast_exp_t *dflt_exp;
@@ -131,8 +128,7 @@ struct ast_id_s {
 };
 
 ast_id_t *id_new_var(char *name, modifier_t mod, src_pos_t *pos);
-ast_id_t *id_new_param(param_kind_t kind, char *name, ast_exp_t *type_exp,
-                       src_pos_t *pos);
+ast_id_t *id_new_param(char *name, ast_exp_t *type_exp, src_pos_t *pos);
 ast_id_t *id_new_struct(char *name, vector_t *fld_ids, src_pos_t *pos);
 ast_id_t *id_new_enum(char *name, vector_t *elem_ids, src_pos_t *pos);
 ast_id_t *id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
