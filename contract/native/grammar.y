@@ -108,7 +108,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_NULL          "null"
         K_PAYABLE       "payable"
         K_PUBLIC        "public"
-        K_READONLY      "readonly"
         K_RETURN        "return"
         K_SELECT        "select"
         K_STRING        "string"
@@ -662,24 +661,8 @@ func_spec:
 modifier_opt:
     /* empty */             { $$ = MOD_PRIVATE; }
 |   K_PUBLIC                { $$ = MOD_PUBLIC; }
-|   modifier_opt K_READONLY
-    {
-        if (IS_BIT_ON($1, MOD_READONLY))
-            ERROR(ERROR_SYNTAX, &@2, "syntax error, unexpected readonly, "
-                  "expecting func or payable");
-
-        $$ = $1;
-        BIT_SET($$, MOD_READONLY);
-    }
-|   modifier_opt K_PAYABLE
-    {
-        if (IS_BIT_ON($1, MOD_PAYABLE))
-            ERROR(ERROR_SYNTAX, &@2, "syntax error, unexpected payable, "
-                  "expecting func or readonly");
-
-        $$ = $1;
-        BIT_SET($$, MOD_PAYABLE);
-    }
+|   K_PAYABLE               { $$ = MOD_PAYABLE; }
+|   K_PUBLIC K_PAYABLE      { $$ = MOD_PUBLIC | MOD_PAYABLE; }
 ;
 
 return_opt:

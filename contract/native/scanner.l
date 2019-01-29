@@ -240,7 +240,6 @@ id                          {L}({L}|{D})*
 "null"                      yy_return(K_NULL);
 "payable"                   yy_return(K_PAYABLE);
 "public"                    yy_return(K_PUBLIC);
-"readonly"                  yy_return(K_READONLY);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);
 "struct"                    yy_return(K_STRUCT);

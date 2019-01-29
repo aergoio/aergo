@@ -25,7 +25,7 @@ definition              =
 termination             ;
 altenation              |
 optional             [ ... ]
-repetetion           { ... }
+repetition           { ... }
 grouping             ( ... )
 terminal string      " ... "
 special sequence     ? ... ?
@@ -36,10 +36,10 @@ exception               -
 
 ASCL로 작성된 프로그램은 다음 사항을 유의해야 한다.
 
-* [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 형식으로 작성해야 한다.
+* [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 인코딩으로 작성해야 한다.
 * 대소문자를 구분한다.
-* 전역 변수와 함수는 위치에 상관없이 사용할 수 있다.
-* 지역 변수는 forward declaration만 허용한다.
+* 변수는 forward declaration만 허용한다.
+* 함수는 선언한 위치와 상관없이 호출할 수 있다.
 
 > **TODO** hardware 혹은 OS 설명 필요
 
@@ -176,8 +176,7 @@ Basic reserved words
 break       case        const       continue    contract    default
 else        enum        false       for         func        goto
 if          import      in          new         null        payable
-public      readonly    return      struct      switch      true
-type
+public      return      struct      switch      true        type
 ```
 
 ```
@@ -193,10 +192,10 @@ create      delete      drop        insert      select      update
 ```
 Type identifiers
 ------------------------------------------------------
-bool
-float       double
+bool        byte
 int         int8        int16       int32       int64
 uint        uint8       uint16      uint32      uint64
+float       double
 string
 map
 account
@@ -220,10 +219,10 @@ null은 map, contract, interface등 object 타입 변수의 초기값으로 할�
 ```
 map(int, string) m = null;
 if (m == null) {
-    is_null = true;
+    isNull = true;
 }
 else {
-    is_null = false;
+    isNull = false;
 }
 ```
 
@@ -232,11 +231,11 @@ this는 contract에 정의한 state variable을 참조할 때 사용한다. 보�
 
 ```
 contract Testing {
-    int test_no = 0;
-    func runTest(int test_no) {     // assume that is passed test_no as 1
-        ... test_no ...             // using parameter test_no (== 1)
+    int testNo = 0;
+    func runTest(int testNo) {     // assume that is passed testNo as 1
+        ... testNo ...             // using parameter testNo (== 1)
         or
-        ... this.test_no ...        // using state variable test_no (== 0)
+        ... this.testNo ...        // using state variable testNo (== 0)
     }
 }
 ```
@@ -267,8 +266,8 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a> = "account" | "bool" | "byte" | "int8" | "int16" | "int32" | "int64" | "uint8" |
-                 "uint16" | "uint32" | "uint64" | "float" | "double" | "string" ;
+<a name="primitive_type">primitive_type</a> = "account" | "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "uint8" |
+                 "uint" | "uint16" | "uint32" | "uint64" | "float" | "double" | "string" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
 
@@ -282,7 +281,7 @@ boolean type은 true와 false 값을 저장할 수 있는 타입이다.
 
 ```
 bool isMale = true;
-bool is_received = false;
+bool isReceived = false;
 ```
 
 #### Numeric types
@@ -338,19 +337,19 @@ struct type은 1개 이상의 field들의 집합으로 다음과 같이 선언�
 
 <pre>
 <a name="struct_decl">StructDecl</a> = "type" <a href="#identifier">identifier</a> "struct" "{" { <a href="#field_decl">FieldDecl</a> ";" } "}" ;
-<a name="field_decl">FieldDecl</a>  = <a href="#type">Type</a> <a href="#identifier">identifier</a> ;
+<a name="field_decl">FieldDecl</a>  = <a href="#type">Type</a> <a href="#identifier">identifier</a> [ { <a href="#array_decl">ArrayDecl</a> } ] ;
 </pre>
 
 ```
-struct User {
+type User struct {
     int identifier;
     string name;
     string address;
 }
 
-struct Customer {
+type Customer struct {
     User user;          // nested struct
-    int purchase_count;
+    int purchaseCount;
 }
 ```
 
@@ -379,7 +378,7 @@ enum City {
 
 #### Object types
 
-object 타입은 map과 contract, interface 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, <a href="#new_func">new function</a>을 사용하여 객체를 할당할 수 있다.
+object 타입은 contract와 interface 타입이 있고, object 타입으로 정의된 variable은 초기화되지 않은 경우 null이 저장되고, <a href="#ctor_decl">constructor</a>를 사용하여 객체를 할당할 수 있다.
 
 ##### Map type
 
@@ -393,21 +392,18 @@ map type은 key, value를 쌍으로 갖는 hashmap이다. map에서 사용하는
 map(int, string)
 map(int, User)
 map(int, map(string, string))
+
+map(map(double, int), string)   // raise error
 ```
 
-map 타입은 <a href="#init_exp">initializer expression</a>를 이용하거나 <a href="#new_func">new function</a>을 사용하여 초기화할 수 있다.
+map 타입은 <a href="#init_exp">initializer expression</a>이나 <a href="#alloc_exp">allocator expression</a>을 사용하여 초기화할 수 있다.
 
-```
-map(int, string) m = null;
-map(int, string) m = new map();
-map(int, string) m = new map(10);
-```
 
 > **TODO** built-in 함수 구현 후 설명 필요
 
 ##### Contract type
 
-contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출하거나 다른 contract 변수 혹은 함수의 반환값으로 할당해야 한다.
+contract 타입은 contract 객체를 저장한다. contract 타입은 <a href="#init_exp">initializer expression</a>이나 <a href="#alloc_exp">allocator expression</a>을 사용할 수 없고, <a href="#ctor_decl">constructor</a>를 호출하거나 다른 contract 변수 혹은 함수의 반환값을 사용하여 초기화해야 한다.
 
 ```
 MyContract myCon = null;
@@ -417,7 +413,7 @@ MyContract myCon = ContractBuilder.build();
 
 ##### Interface type
 
-interface 타입은 interface를 구현한 contract 객체를 저장한다. contract 타입과 마찬가지로 <a href="#init_exp">initializer expression</a>을 사용할 수 없고, <a href="#new_func">new function</a>을 사용하여 <a href="#ctor_decl">constructor</a>를 호출하거나 함수의 반환값으로 contract를 받아와 할당해야 한다. 단, interface 타입간에는 할당할 수 없다.
+interface 타입은 interface를 구현한 contract 객체를 저장한다. contract 타입과 마찬가지로 <a href="#init_exp">initializer expression</a>이나 <a href="#alloc_exp">allocator expression</a>을 사용할 수 없고, <a href="#ctor_decl">constructor</a>를 호출하거나 함수의 반환값으로 contract를 받아와 초기화해야 한다. 단, interface 타입간의 assignment는 허용하지 않는다.
 
 ```
 interface CommonItf { ... }
@@ -468,7 +464,7 @@ Smart contract는 다음과 같이 import 선언부와 interface 선언부, cont
 SmartContract = ( { <a href="#import_decl">ImportDecl</a> } | { <a href="#interface_decl">InterfaceDecl</a> } | { <a href="#contract_decl">ContractDecl</a> } ) ;
 </pre>
 
-### Import declarations
+### Imports
 
 import는 외부 smart contract 파일을 참조하기 위해 사용하는 구문이다. import하기 위한 파일은 반드시 local storage에 있어야 하고, 절대경로를 사용하거나 현재 contract 파일이 존재하는 위치로부터의 상대경로를 사용할 수 있다.
 
@@ -482,7 +478,7 @@ import "../RootContract"
 import "/home/CommonContract"
 ```
 
-### Interface declarations
+### Interfaces
 
 interface는 함수의 specification을 작성하는 부분으로 다음과 같이 선언한다.
 
@@ -504,7 +500,7 @@ interface는 다음과 같은 제약조건을 가진다.
 * <a href="#variable_decl">variable</a>이나 <a href="#struct_decl">struct</a>, <a href="#enum_decl">enum</a>등은 정의할 수 없다.
 
 
-### Contract declarations
+### Contracts
 
 contract는 실제 로직을 작성하는 부분으로 다음과 같이 선언한다.
 
@@ -518,7 +514,23 @@ contract Buyer { ... }
 contract Seller { ... }
 ```
 
-### Interface implementations
+#### Contract instantiations
+
+contract를 사용하기 위해선 반드시 constructor를 호출하여 먼저 객체화 해야 한다.
+
+<pre>
+<a name="instantiation">Instantiation</a> = "new" "identifier" "(" [ <a href="#arg_list">ArgumentList</a> ] ")" ;
+</pre>
+
+```
+Buyer Tom = new Buyer();
+Seller Jane = new Seller();
+
+Tom.pay(Jane, 1000);
+Jane.transfer(Tom, "items");
+```
+
+#### Interface implementations
 
 contract는 다음과 같이 interface를 구현할 수 있다.
 
@@ -533,7 +545,10 @@ contract Buyer implements Trade { ... }
 contract Seller implements Trade { ... }
 ```
 
-하나의 contract에서는 하나의 interface만 구현할 수 있으나, 이는 추후에 확장될 수 있다. 이렇게 interface를 implmenetation한 경우 interface에 선언된 모든 함수를 반드시 정의해야 하고, 그렇지 않은 경우엔 compile 에러가 발생한다.
+interface를 implmenetation한 경우 다음의 규칙을 지켜야 하고, 그렇지 않은 경우엔 compile error가 발생한다.
+
+* interface에 선언된 모든 함수를 반드시 정의해야 한다.
+* interface에 선언된 함수와 specification이 일치해야 한다.
 
 ```
 interface Trade {
@@ -548,17 +563,20 @@ contract Buyer implements Trade {
 
 위 예제는 deal function을 구현하지 않았으므로 compile error가 발생한다.
 
+> 현재는 하나의 contract에서 하나의 interface만 구현할 수 있으나, 이는 추후에 확장될 수 있다.
+
 ### Variables
 
 variable은 값을 저장하기 위한 공간으로 다음과 같이 선언한다.
 
 <pre>
-<a name="variable_decl">VariableDecl</a>   = [ <a href="#qualifier">qualifier</a> ] <a href="#type">Type</a> <a href="#var_list">VariableList</a> [ "=" <a href="#init_list">InitalizerList</a> ] ";" ;
+<a name="variable_decl">VariableDecl</a>   = [ <a href="#qualifier">qualifier</a> ] <a href="#type">Type</a> <a href="#var_list">VariableList</a> [ "=" ( <a href="#init_list">InitalizerList</a> | <a href="#alloc_list">AllocatorList</a> ) ] ";" ;
 
 <a name="var_list">VariableList</a>   = <a href="#variable">Variable</a> { "," <a href="#variable">Variable</a> } ;
 <a name="variable">Variable</a>       = <a href="#identifier">identfier</a> [ <a href="#array_decl">ArrayDecl</a> ] ;
 
 <a name="init_list">InitalizerList</a> = <a href="#init_exp">Initializer</a> { "," <a href="#init_exp">Initializer</a> } ;
+<a name="alloc_list">AllocatorList</a>  = <a href="#alloc_exp">Allocator</a> { "," <a href="#alloc_exp">Allocator</a> } ;
 </pre>
 
 #### Variable declarations
@@ -567,7 +585,7 @@ variable은 타입과 이름을 차례로 나열하여 선언할 수 있다.
 
 ```
 bool isMale;
-int user_id;
+int userId;
 double profitRate;
 string address;
 ```
@@ -575,8 +593,8 @@ string address;
 또한, 다음과 같이 하나의 타입에 대응되는 2개 이상의 variable도 선언할 수도 있다.
 
 ```
-int user_id, dept_id;
-string name, dept_name, grade;
+int userId, deptId;
+string name, deptName, grade;
 ```
 
 단, 서로 다른 타입의 variable을 같은 라인에 선언하는 것은 불가능하다.
@@ -659,7 +677,7 @@ i = 1;              // raise error
 <a name="array_decl">ArrayDecl</a> = "[" <a href="#expression">Expression</a> "]" ;
 </pre>
 
-array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 <a href="#init_exp">initializer expression</a>이 정의된 경우엔 array 크기를 생략할 수 있다.
+array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반드시 0보다 크거나 같은 integer constant여야 한다. 단, 예외적으로 <a href="#init_exp">initializer expression</a>이나 <a href="#alloc_exp">allocator expression</a>이 정의된 경우엔 array 크기를 생략할 수 있다.
 
 또한, array는 N-dimension으로 선언할 수 있다.
 
@@ -673,7 +691,7 @@ const int MAX_SIZE = 16;
 int cars[MAX_SIZE];
 ```
 
-array의 element에 접근하기 위해선 <a href="#index_exp">index expression</a>을 사용해야 하고, 첫번째 element부터 마지막 element까지 차례로 0 ~ (size of array - 1)까지의 index를 사용한다.
+array의 element에 접근하기 위해선 <a href="#index_exp">index expression</a>을 사용해야 하고, 첫번째 element부터 마지막 element까지 차례로 0 ~ (size of array - 1) 범위의 index를 사용한다.
 
 ### Expressions
 
@@ -697,7 +715,7 @@ expression은 operator와 operands의 결합으로 이뤄진다.
 primary expression은 unary, binary, ternary expression의 operand로 사용된다.
 
 <pre>
-<a name="primary_exp">PrimaryExp</a> = <a href="#id_exp">IdExp</a> | <a href="#val_exp">ValueExp</a> | <a href="#cast_exp">CastExp</a> | <a href="#index_exp">IndexExp</a> | <a href="#call_exp">CallExp</a> | <a href="#access_exp">AccessExp</a> | <a href="#init_exp">InitExp</a> |
+<a name="primary_exp">PrimaryExp</a> = <a href="#id_exp">IdExp</a> | <a href="#val_exp">ValueExp</a> | <a href="#cast_exp">CastExp</a> | <a href="#index_exp">IndexExp</a> | <a href="#call_exp">CallExp</a> | <a href="#access_exp">AccessExp</a> | <a href="#init_exp">InitExp</a> | <a href="#alloc_exp">AllocExp</a> |
              <a href="#primary_exp">PrimaryExp</a> "++" | <a href="#primary_exp">PrimaryExp</a> "--" | "(" <a href="#exp">Expression</a> ")" ;
 </pre>
 
@@ -800,7 +818,7 @@ access expression은 struct field에 접근하거나 contract state variable을 
 </pre>
 
 ```
-struct coord {
+type coord struct {
     int x;
     int y;
     int z;
@@ -829,7 +847,7 @@ string classes[3] = new { "magician", "barbarian", "archer" };
 
 const int DIVISION = 2;
 const int WEEK = 7;
-double sales_per_week[DIVISION][WEEK] = new {
+double salesPerWeek[DIVISION][WEEK] = new {
     // first division
     { 1.3, 2.0, 2.1, 0.3, 1.8, 6.4, 5.7 },
     // second division
@@ -840,10 +858,10 @@ double sales_per_week[DIVISION][WEEK] = new {
 다음은 struct, map variable에 대한 initializer다.
 
 ```
-struct Singer {
+type Singer struct {
     string name;
-    int debut_year;
-    int album_cnt;
+    int debutYear;
+    int albumCnt;
 }
 Singer michael = new { "Michael Jackson", 1964, 11 };
 Single kpops[2] = new {
@@ -856,6 +874,36 @@ map(int, string) keystore = new {
     { 20181025, "3b6af44ef92fb973626925ddfd79a77dcd70456e" },
     { 20181357, "043ade3730e2172d917575132dff58f271ad59f4" },
 };
+```
+
+##### Allocator expression
+
+allocator expression은 array나 struct, map의 메모리 공간을 할당할 때 사용하며, "new type[...]" 형태로 표현한다.
+
+<pre>
+<a name="alloc_exp">AllocExp</a> = "new" <a href="#type">Type</a> [ { <a href="#array_decl">ArrayDecl</a> } ] ;
+</pre>
+
+다음은 array allocator다. multi-dimension인 경우엔 중첩해서 선언한다.
+
+```
+int levels[2] = new int[2];
+uint64 classes[] = new uint64[3];
+double areas[][] = new double[4][5];
+```
+
+다음은 struct, map variable에 대한 allocator다.
+
+```
+type Game struct {
+    uint8 category;
+    string name;
+}
+Game lol = new Game;
+Game shooting[2] = new Game[2];
+
+map(int, string) actors = new map(int, string);
+map(int, string) cities[5] = new map(int, string)[5];
 ```
 
 #### <a name="operator">Operators</a>
@@ -1341,15 +1389,15 @@ constructor는 생략가능하나 그렇지 않은 경우 반드시 1개만 있�
 
 ```
 contract Exchange {
-    int ex_id;
-    string ex_name;
+    int exId;
+    string exName;
     map(int, string) coins = {
         { 1, "Bitcoin" }, { 2, "Ethereum" }, { 3, "Ripple" }
     };
 
-    Exchange(int ex_id, string ex_name) {
-        this.ex_id = ex_id;
-        this.ex_name = ex_name;
+    Exchange(int exId, string exName) {
+        this.exId = exId;
+        this.exName = exName;
     }
 
     func listNewCoin(int identifier, string name) {
@@ -1366,12 +1414,12 @@ constructor parameter는 생략가능하고, ASCL에서 지원하는 모든 타�
 Exchange() ...
 Exchange(int identifier) ...
 
-struct ex_info {
+type exInfo struct {
     int identifier;
     string name;
     string address;
 }
-Exchange(ex_info info) ...
+Exchange(exInfo info) ...
 ```
 
 또한, array를 사용할 수도 있는데, undimensional array도 사용할 수 있다. 만약 array의 크기가 정의된 경우엔 반드시 같은 타입, 크기를 같는 array만 전달할 수 있고, 그렇지 않은 경우엔 타입이 같은 임의의 크기의 array를 전달할 수 있다.
@@ -1384,15 +1432,6 @@ Exchange(string names[]) ...    // allowed array having any elements
 #### Constructor returns
 
 constructor는 return type을 가질 수 없다.
-
-#### Constructor references
-
-constructor를 참조하기 위해서는 먼저 <a href="#new_func">new function</a>을 이용하여 객체화해야 한다.
-
-```
-Exchange ex = new Exchange(7, "Binance");
-ex.listNewCoin(0, "Aergo");
-```
 
 ### Functions
 
@@ -1466,16 +1505,9 @@ func f2() int {
 
 만약 return type이 정의되어 있으나, return statement가 없는 경우엔 에러가 발생한다.
 
-#### New functions
+##### Function overloading
 
 > **TODO** 구현 후 설명 필요
-
-<pre>
-<a name="new_func">NewFunc</a>     = <a href="#new_cont">NewContract</a> | <a href="#new_cont">NewMap</a> ;
-
-<a name="new_cont">NewContract</a> = "new" "identifier" "(" [ <a href="#arg_list">ArgumentList</a> ] ")" ;
-<a name="new_map">NewMap</a>      = "new" "map" "(" [ <a href="#integer_lit">integer_lit</a> ] ")" ;
-</pre>
 
 #### Built-in functions
 

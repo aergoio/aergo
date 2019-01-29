@@ -10,11 +10,7 @@ contract test {
 contract test {
     public func f1() { }
     public payable func f2() { }
-    public readonly func f3() { }
-    public readonly payable func f4() { }
-    readonly func f5() { }
-    readonly payable func f6() { }
-    payable func f7() { }
+    payable func f3() { }
 }
 
 @test(invalid_payable_modifier)
