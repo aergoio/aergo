@@ -20,7 +20,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     ASSERT(abi != NULL);
 
-    gen->relooper = RelooperCreate();
+    gen->relooper = RelooperCreate(gen->module);
 
     /* basic blocks */
     vector_foreach(&fn->bbs, i) {
@@ -32,8 +32,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
         br_gen(gen, vector_get_bb(&fn->bbs, i));
     }
 
-    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx,
-                                    gen->module);
+    body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx);
 
     BinaryenAddFunction(gen->module, fn->name, abi->spec,
                         (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
