@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/golang/protobuf/proto"
+	"github.com/libp2p/go-libp2p-net"
 	"sync"
 	"time"
 
@@ -29,6 +30,8 @@ func init() {
 type RemotePeer interface {
 	ID() peer.ID
 	Meta() PeerMeta
+	ManageNumber() uint32
+
 	State() types.PeerState
 	LastNotice() *types.NewBlockNotice
 
@@ -48,7 +51,6 @@ type RemotePeer interface {
 	updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	updateTxCache(hashes []TxHash) []TxHash
-
 
 	// TODO
 	MF() moFactory
@@ -72,6 +74,7 @@ type remotePeerImpl struct {
 	logger       *log.Logger
 	pingDuration time.Duration
 
+	manageNum uint32
 	meta      PeerMeta
 	state     types.PeerState
 	actorServ ActorService
@@ -102,19 +105,20 @@ type remotePeerImpl struct {
 	txNoticeQueue *p2putil.PressableQueue
 	maxTxNoticeHashSize int
 
+	s net.Stream
 	rw MsgReadWriter
 }
 
 var _ RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, rw MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, s net.Stream, rw MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
-		meta: meta, pm: pm, actorServ: actor, logger: log, mf: mf, signer: signer, rw: rw,
+		meta: meta, pm: pm, actorServ: actor, logger: log, mf: mf, signer: signer, s:s, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
-		stopChan:   make(chan struct{}),
+		stopChan:   make(chan struct{},1),
 		closeWrite: make(chan struct{}),
 
 		requests:    make(map[MsgID]*requestInfo),
@@ -151,6 +155,10 @@ func (p *remotePeerImpl) Meta() PeerMeta {
 	return p.meta
 }
 
+func (p *remotePeerImpl) ManageNumber() uint32 {
+	return p.manageNum
+}
+
 func (p *remotePeerImpl) MF() moFactory {
 	return p.mf
 }
@@ -158,18 +166,6 @@ func (p *remotePeerImpl) MF() moFactory {
 // State returns current state of peer
 func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
-}
-
-
-func (p *remotePeerImpl) checkState() error {
-	switch p.State() {
-	case types.HANDSHAKING:
-		return fmt.Errorf("not handshaked")
-	case types.STOPPED:
-		return fmt.Errorf("peer stopped")
-	default:
-		return nil
-	}
 }
 
 
@@ -204,7 +200,6 @@ func (p *remotePeerImpl) runPeer() {
 	go p.runRead()
 
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
-	defer txNoticeTicker.Stop()
 
 	// peer state is changed to RUNNIG after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
@@ -220,12 +215,15 @@ READNOPLOOP:
 		}
 	}
 
-	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
-	p.state.SetAndGet(types.STOPPED)
+	p.logger.Info().Uint32("manage_num",p.manageNum).Str(LogPeerID, p.meta.ID.Pretty()).Msg("Finishing peer")
+	txNoticeTicker.Stop()
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect
 	p.closeWrite <- struct{}{}
 	close(p.stopChan)
+	p.state.SetAndGet(types.STOPPED)
+
+	p.pm.RemovePeer(p)
 }
 
 func (p *remotePeerImpl) runWrite() {
@@ -249,24 +247,41 @@ WRITELOOP:
 		}
 	}
 	cleanupTicker.Stop()
+	p.cleanupWrite()
+	p.s.Close()
 
-	// closing channel is to golang runtime
+	// closing channel is up to golang runtime
 	// close(p.write)
 	// close(p.consumeChan)
 }
+
+func (p *remotePeerImpl) cleanupWrite() {
+	// 1. cleaning receive handlers. TODO add code
+
+	// 2. canceling not sent orders TODO add code
+
+	for {
+		select {
+		case m := <-p.dWrite:
+			m.IsRequest()
+		default:
+			return
+		}
+	}
+}
+
 
 func (p *remotePeerImpl) runRead() {
 	for {
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			p.logger.Error().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("Failed to read message")
-			p.pm.RemovePeer(p.ID())
+			p.stop()
 			return
 		}
-
 		if err = p.handleMsg(msg); err != nil {
 			p.logger.Error().Str(LogPeerID, p.ID().Pretty()).Err(err).Msg("Failed to handle message")
-			p.pm.RemovePeer(p.ID())
+			p.stop()
 			return
 		}
 	}
@@ -281,6 +296,11 @@ func (p *remotePeerImpl) handleMsg(msg Message) error {
 			err = fmt.Errorf("internal error")
 		}
 	}()
+
+	if p.State() > types.RUNNING {
+		p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Str("current_state", p.State().String()).Msg("peer is not running. silently drop input message")
+		return nil
+	}
 
 	handler, found := p.handlers[subProto]
 	if !found {
@@ -309,13 +329,16 @@ func (p *remotePeerImpl) handleMsg(msg Message) error {
 
 // Stop stops aPeer works
 func (p *remotePeerImpl) stop() {
-	p.stopChan <- struct{}{}
+	prevState := p.state.SetAndGet(types.STOPPING)
+	if prevState <= types.RUNNING {
+		p.stopChan <- struct{}{}
+	}
 }
 
 func (p *remotePeerImpl) sendMessage(msg msgOrder) {
-	if p.state.Get() != types.RUNNING {
+	if p.State() > types.RUNNING {
 		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
-			Str(LogMsgID, msg.GetMsgID().String()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+			Str(LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return
 	}
 	select {
@@ -324,14 +347,15 @@ func (p *remotePeerImpl) sendMessage(msg msgOrder) {
 		default:
 			p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
 				Str(LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
-			p.pm.RemovePeer(p.meta.ID)
+			// TODO find more elegant way to handled flooding queue. in lots of cases, pending for dropped tx notice or newblocknotice (not blockproducednotice) are not critical in lots of cases.
+			p.stop()
 	}
 }
 
 func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration) error {
-	if p.state.Get() != types.RUNNING {
+	if p.State() > types.RUNNING {
 		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
-			Str(LogMsgID, msg.GetMsgID().String()).Interface("peer_state", p.State()).Msg("Cancel sending messge, since peer is not running state")
+			Str(LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending messge, since peer is not running state")
 		return fmt.Errorf("not running")
 	}
 	select {
@@ -340,7 +364,8 @@ func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration)
 		case <- time.NewTimer(timeout).C :
 			p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, msg.GetProtocolID().String()).
 				Str(LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
-			p.pm.RemovePeer(p.meta.ID)
+			// TODO find more elegant way to handled flooding queue. in lots of cases, pending for dropped tx notice or newblocknotice (not blockproducednotice) are not critical in lots of cases.
+			p.stop()
 			return TimeoutError
 	}
 }
@@ -353,10 +378,6 @@ func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
 			p.sendTxNotices()
 			// this Offer is always succeeded by invariant
 			p.txNoticeQueue.Offer(hash)
-			//if !p.txNoticeQueue.Offer(hash) {
-			//	// TODO: temporary check in developement. remove this condition after test successes
-			//	panic("Serious bug occured.")
-			//}
 		}
 	}
 }
@@ -371,7 +392,7 @@ func (p *remotePeerImpl) consumeRequest(originalID MsgID) {
 }
 
 func (p *remotePeerImpl)notFoundReceiver(msg Message, msgBody proto.Message) bool {
-	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
+//	p.logger.Debug().Str(LogPeerID, p.ID().Pretty()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
 	return false
 }
 
@@ -395,7 +416,7 @@ func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
 func (p *remotePeerImpl) writeToPeer(m msgOrder) {
 	if err := m.SendTo(p) ; err != nil {
 		// write fail
-		p.pm.RemovePeer(p.ID())
+		p.stop()
 	}
 }
 
@@ -455,8 +476,8 @@ func (p *remotePeerImpl) sendPing() {
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *remotePeerImpl) goAwayMsg(msg string) {
 	p.logger.Info().Str(LogPeerID, p.meta.ID.Pretty()).Str("msg", msg).Msg("Peer is closing")
-	p.sendMessage(p.mf.newMsgRequestOrder(false, GoAway, &types.GoAwayNotice{Message: msg}))
-	p.pm.RemovePeer(p.meta.ID)
+	p.sendAndWaitMessage(p.mf.newMsgRequestOrder(false, GoAway, &types.GoAwayNotice{Message: msg}), time.Second)
+	p.stop()
 }
 
 func (p *remotePeerImpl) pruneRequests() {

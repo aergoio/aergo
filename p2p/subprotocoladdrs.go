@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 
@@ -77,6 +78,9 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
+			continue
+		}
+		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := FromPeerAddress(rPeerAddr)

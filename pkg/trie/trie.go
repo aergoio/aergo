@@ -306,23 +306,25 @@ func (s *Trie) maybeMoveUpShortcut(left, right, root []byte, batch [][]byte, iBa
 	} else if len(left) == 0 {
 		// If right is a shortcut move it up
 		if right[HashLength] == 1 {
-			return s.moveUpShortcut(right, root, batch, iBatch, 2*iBatch+2, height, ch)
+			s.moveUpShortcut(right, root, batch, iBatch, 2*iBatch+2, height, ch)
+			return true
 		}
 	} else if len(right) == 0 {
 		// If left is a shortcut move it up
 		if left[HashLength] == 1 {
-			return s.moveUpShortcut(left, root, batch, iBatch, 2*iBatch+1, height, ch)
+			s.moveUpShortcut(left, root, batch, iBatch, 2*iBatch+1, height, ch)
+			return true
 		}
 	}
 	return false
 }
 
-func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut, height int, ch chan<- (mresult)) bool {
+func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iShortcut, height int, ch chan<- (mresult)) {
 	// it doesn't matter if atomic update is true or false since the batch is node modified
 	_, _, shortcutKey, shortcutVal, _, err := s.loadChildren(shortcut, height-1, iShortcut, batch)
 	if err != nil {
 		ch <- mresult{nil, false, err}
-		return false
+		return
 	}
 	// when moving up the shortcut, it's hash will change because height is +1
 	newShortcut := s.hash(shortcutKey[:HashLength], shortcutVal[:HashLength], []byte{byte(height)})
@@ -353,7 +355,6 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 	}
 	// Return the left sibling node to move it up
 	ch <- mresult{newShortcut, true, nil}
-	return true
 }
 
 // maybeAddShortcutToKV adds a shortcut key to the keys array to be updated.
@@ -555,7 +556,7 @@ func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
 // interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
 func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height int) []byte {
 	var h []byte
-	// left and right cannot both be default. It is handled by moveUpShortcut()
+	// left and right cannot both be default. It is handled by maybeMoveUpShortcut()
 	if len(left) == 0 {
 		h = s.hash(DefaultLeaf, right[:HashLength])
 	} else if len(right) == 0 {

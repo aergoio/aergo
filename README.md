@@ -101,7 +101,6 @@ MVP based, Forward compatibility, Iteration
 |-------|------|
 |  gRPC | 7845 |
 |  P2P  | 7846 |
-|  REST | 8080 |
 
 ## Installation
 
@@ -114,7 +113,7 @@ MVP based, Forward compatibility, Iteration
 
 ### Build
 
-[gettig started_how to build](https://github.com/aergoio/aergo/wiki/getting-started_how-to-build)
+[Building from Source](https://docs.aergo.io/en/latest/contribution/building-from-source.html)
 
 ## Contribution
 

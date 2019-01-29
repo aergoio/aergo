@@ -39,7 +39,6 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 	return &Config{
 		BaseConfig: ctx.GetDefaultBaseConfig(),
 		RPC:        ctx.GetDefaultRPCConfig(),
-		REST:       ctx.GetDefaultRESTConfig(),
 		P2P:        ctx.GetDefaultP2PConfig(),
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
@@ -56,9 +55,9 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		DbType:         "badgerdb",
 		EnableProfile:  false,
 		ProfilePort:    6060,
-		EnableRest:     false,
 		EnableTestmode: false,
 		Personal:       true,
+		AuthDir:        ctx.ExpandPathEnv("$HOME/auth"),
 	}
 }
 
@@ -68,12 +67,6 @@ func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 		NetServicePort:  7845,
 		NetServiceTrace: false,
 		NSKey:           "",
-	}
-}
-
-func (ctx *ServerContext) GetDefaultRESTConfig() *RESTConfig {
-	return &RESTConfig{
-		RestPort: 8080,
 	}
 }
 
@@ -97,19 +90,18 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 
 func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
-		GenesisFile: "",
+		GenesisFile:  "",
 		AllowPrivate: false,
 	}
 }
 
-
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
-		MaxBlockSize:    types.DefaultMaxBlockSize,
-		CoinbaseAccount: "",
-		MaxAnchorCount:  20,
-		UseFastSyncer:   false,
-		VerifierCount:   types.DefaultVerifierCnt,
+		MaxBlockSize:     types.DefaultMaxBlockSize,
+		CoinbaseAccount:  "",
+		MaxAnchorCount:   20,
+		VerifierCount:    types.DefaultVerifierCnt,
+		ForceResetHeight: 0,
 	}
 }
 

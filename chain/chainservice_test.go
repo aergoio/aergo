@@ -2,12 +2,13 @@ package chain
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (
@@ -25,6 +26,12 @@ func (stubC *StubConsensus) SetStateDB(sdb *state.ChainStateDB) {
 }
 func (stubC *StubConsensus) IsTransactionValid(tx *types.Tx) bool {
 	return true
+}
+func (stubC *StubConsensus) VerifyTimestamp(block *types.Block) bool {
+	return true
+}
+func (stubC *StubConsensus) VerifySign(block *types.Block) error {
+	return nil
 }
 func (stubC *StubConsensus) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	return nil
@@ -217,7 +224,23 @@ func TestAddErroredBlock(t *testing.T) {
 	cs.errBlocks.Purge()
 	// check error when server is rebooted
 	err = cs.addBlock(newBlock, nil, testPeer)
-	assert.Equal(t, ErrBlockTooHighSideChain, err)
+	assert.Equal(t, ErrorBlockVerifyStateRoot, err)
+}
+
+func TestResetChain(t *testing.T) {
+	mainChainBest := 5
+	cs, mainChain := testAddBlock(t, mainChainBest)
+
+	resetHeight := uint64(3)
+	cs.cdb.ResetBest(resetHeight)
+
+	// check best
+	assert.Equal(t, resetHeight, cs.cdb.getBestBlockNo())
+
+	for i := uint64(mainChainBest); i > resetHeight; i-- {
+		err := cs.cdb.checkBlockDropped(mainChain.GetBlockByNo(i))
+		assert.NoError(t, err)
+	}
 }
 
 //TODO

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net"
 	"strconv"
 
 	"github.com/aergoio/aergo/types"
@@ -80,6 +79,7 @@ type InOutPeer struct {
 	Address   InOutPeerAddress
 	BestBlock InOutBlockIdx
 	State     string
+	Hidden    bool
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -234,12 +234,13 @@ func ConvBlock(b *types.Block) *InOutBlock {
 
 func ConvPeer(p *types.Peer) *InOutPeer {
 	out := &InOutPeer{}
-	out.Address.Address = net.IP(p.GetAddress().GetAddress()).String()
+	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
 	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
 	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()
+	out.Hidden = p.Hidden
 	return out
 }
 

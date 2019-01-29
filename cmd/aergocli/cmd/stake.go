@@ -11,31 +11,30 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
-var stakingCmd = &cobra.Command{
-	Use:   "staking",
-	Short: "Staking balance to aergo system",
-	RunE:  execStaking,
+var stakeCmd = &cobra.Command{
+	Use:   "stake",
+	Short: "Stake balance to aergo system",
+	RunE:  execStake,
 }
 
-func execStaking(cmd *cobra.Command, args []string) error {
-	return sendStaking(cmd, true)
+func execStake(cmd *cobra.Command, args []string) error {
+	return sendStake(cmd, true)
 }
 
-var unstakingCmd = &cobra.Command{
-	Use:   "unstaking",
-	Short: "Unstaking balance from aergo system",
-	RunE:  execUnstaking,
+var unstakeCmd = &cobra.Command{
+	Use:   "unstake",
+	Short: "Unstake balance from aergo system",
+	RunE:  execUnstake,
 }
 
-func execUnstaking(cmd *cobra.Command, args []string) error {
-	return sendStaking(cmd, false)
+func execUnstake(cmd *cobra.Command, args []string) error {
+	return sendStake(cmd, false)
 }
 
-func sendStaking(cmd *cobra.Command, s bool) error {
+func sendStake(cmd *cobra.Command, s bool) error {
 	account, err := types.DecodeAddress(address)
 	if err != nil {
 		return errors.New("Failed to parse --address flag (" + address + ")\n" + err.Error())
@@ -51,7 +50,7 @@ func sendStaking(cmd *cobra.Command, s bool) error {
 		return errors.New("Failed to parse --amount flag\n" + err.Error())
 	}
 	if amountBigInt.Cmp(types.StakingMinimum) < 0 {
-		return errors.New("Failed: minimum staking value is " + types.StakingMinimum.String())
+		return errors.New("Failed: minimum stake value is " + types.StakingMinimum.String())
 	}
 
 	tx := &types.Tx{
@@ -66,8 +65,9 @@ func sendStaking(cmd *cobra.Command, s bool) error {
 	}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		return err
+		cmd.Println(err.Error())
+		return nil
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
+	cmd.Println(util.JSON(msg))
 	return nil
 }

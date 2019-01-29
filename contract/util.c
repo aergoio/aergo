@@ -13,6 +13,12 @@ typedef struct tcall {
 	int size;
 } callinfo_t;
 
+typedef struct sort_key {
+    char *elem;
+    int start_idx;
+    int key_len;
+} sort_key_t;
+
 void lua_util_sbuf_init(sbuff_t *sbuf, int len)
 {
 	sbuf->idx = 0;
@@ -127,6 +133,21 @@ static void unregister_tcall(callinfo_t *callinfo)
 	callinfo->curidx--;
 }
 
+static int sort_key_compare (const void *first, const void*second)
+{
+    sort_key_t *key1 = (sort_key_t *)first, *key2 = (sort_key_t *)second;
+    if (key1->key_len == key2->key_len) {
+        return strcmp(key1->elem, key2->elem);
+    }
+    else {
+        int comp_len = (key1->key_len > key2->key_len ? key2->key_len : key1->key_len);
+        int ret = strncmp (key1->elem, key2->elem, comp_len);
+        if (ret == 0)
+            return (key1->key_len > key2->key_len ? 1 : 0);
+        return ret;
+    }
+}
+
 char *bignum_str = "{\"_bignum\":\"";
 
 static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_form, bool iskey,
@@ -237,20 +258,49 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 			src_val = "],";
 		}
 		else {
+		    sbuff_t sort_buf;
+		    int idx = 0, max_key = 5;
+		    int i;
+		    sort_key_t *sort_keys = malloc(sizeof(sort_key_t) * max_key);
+		    lua_util_sbuf_init(&sort_buf, 20);
+
 			copy_to_buffer ("{", 1, sbuf);
 			orig_bidx = (sbuf->idx);
 			lua_pushnil(L);
 			while (lua_next(L, table_idx) != 0) {
-				if (!lua_util_dump_json (L, -2, sbuf, json_form, true, pcallinfo)) {
+				if (idx == max_key) {
+				    max_key *= 2;
+				    sort_keys = realloc(sort_keys, sizeof(sort_key_t) * max_key);
+				}
+				sort_keys[idx].start_idx = sort_buf.idx;
+				if (!lua_util_dump_json (L, -2, &sort_buf, json_form, true, pcallinfo)) {
+					free(sort_keys);
+			        free(sort_buf.buf);
 					return false;
 				}
-				--(sbuf->idx);
-				copy_to_buffer (":", 1, sbuf);
-				if (!lua_util_dump_json (L, -1, sbuf, json_form, false, pcallinfo)) {
+				sort_keys[idx].key_len = sort_buf.idx - sort_keys[idx].start_idx - 1;
+				sort_buf.buf[sort_buf.idx - 1]=':';
+				if (!lua_util_dump_json (L, -1, &sort_buf, json_form, false, pcallinfo)) {
+					free(sort_keys);
+			        free(sort_buf.buf);
 					return false;
 				}
+				sort_buf.buf[sort_buf.idx - 1] = '\0';
 				lua_pop(L, 1);
+				++idx;
+
 			}
+			if (idx > 0) {
+				for (i = 0; i < idx; ++i)
+				    sort_keys[i].elem = sort_buf.buf + sort_keys[i].start_idx;
+                qsort(sort_keys, idx, sizeof(sort_key_t), sort_key_compare);
+                for (i = 0; i < idx; ++i) {
+                    copy_to_buffer(sort_keys[i].elem, strlen(sort_keys[i].elem), sbuf);
+                    copy_to_buffer(",", 1, sbuf);
+                }
+            }
+			free(sort_keys);
+			free(sort_buf.buf);
 			if (orig_bidx != sbuf->idx)
 				--(sbuf->idx);
 			src_val = "},";

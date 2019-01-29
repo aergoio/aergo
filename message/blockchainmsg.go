@@ -27,17 +27,6 @@ type GetBlockRsp struct {
 	Block *types.Block
 	Err   error
 }
-type GetMissing struct {
-	Hashes   [][]byte
-	StopHash []byte
-}
-type GetMissingRsp struct {
-	TopMatched BlockHash
-	TopNumber  types.BlockNo
-	StopNumber types.BlockNo
-	//Hashes   []BlockHash
-	//Blocknos []types.BlockNo
-}
 
 type GetBlockByNo struct {
 	BlockNo types.BlockNo
@@ -70,7 +59,7 @@ type GetStateAndProof struct {
 	Compressed bool
 }
 type GetStateAndProofRsp struct {
-	StateProof *types.StateProof
+	StateProof *types.AccountProof
 	Err        error
 }
 type GetTx struct {
@@ -108,8 +97,7 @@ type GetQueryRsp struct {
 }
 type GetStateQuery struct {
 	ContractAddress []byte
-	VarName         string
-	VarIndex        string
+	StorageKeys     []string
 	Root            []byte
 	Compressed      bool
 }

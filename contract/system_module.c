@@ -309,7 +309,7 @@ static int os_date(lua_State *L)
                 char buff[200];  /* Should be big enough for any conversion result. */
                 cc[1] = *(++s);
                 if (cc[1] == 'c') {
-                    reslen = strftime(buff, sizeof(buff), "%F %T", stm);
+                    reslen = strftime(buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", stm);
                 } else {
                     reslen = strftime(buff, sizeof(buff), cc, stm);
                 }
@@ -359,6 +359,21 @@ static int os_difftime(lua_State *L)
 
 /* end of datetime functions */
 
+static int lua_random(lua_State *L)
+{
+	int *service = (int *)getLuaExecContext(L);
+	int ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+    }
+    ret = LuaRandom(L, *service);
+	if (ret < 0) {
+		lua_error(L);
+	}
+    return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
@@ -375,6 +390,7 @@ static const luaL_Reg sys_lib[] = {
 	{"date", os_date},
 	{"time", os_time},
 	{"difftime", os_difftime},
+	{"random", lua_random},
 	{NULL, NULL}
 };
 

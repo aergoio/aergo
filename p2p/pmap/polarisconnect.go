@@ -54,14 +54,20 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 	if cfg.NPUsePolaris {
 		// private network does not use public polaris
 		if !pcs.PrivateChain {
-			pcs.Logger.Info().Msg("chain is public so use default polaris for testnet.")
-			// TODO select default built-in servers
-			servers := TestnetMapServer
-			if pcs.ntc.ChainID().MainNet {
+			servers := make([]string,0)
+			// add hardcoded built-in servers if net is ONE net.
+			if *pcs.ntc.ChainID() == ONEMainNet {
+				pcs.Logger.Info().Msg("chain is ONE Mainnet so use default polaris for mainnet")
 				servers = MainnetMapServer
+			} else if *pcs.ntc.ChainID() == ONETestNet {
+				pcs.Logger.Info().Msg("chain is ONE Testnet so use default polaris for testnet")
+				servers = TestnetMapServer
+			} else {
+				pcs.Logger.Info().Msg("chain is custom public network so only custom polaris in configuration file will be used")
 			}
+
 			for _, addrStr := range servers {
-				meta, err := p2p.FromMultiAddrString(addrStr)
+				meta, err := p2p.ParseMultiAddrString(addrStr)
 				if err != nil {
 					pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in base setting ")
 					continue
@@ -71,8 +77,9 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		} else {
 			pcs.Logger.Info().Msg("chain is private so only using polaris in config file")
 		}
+		// append custom polarises set in configuration file
 		for _, addrStr := range cfg.NPAddPolarises {
-			meta, err := p2p.FromMultiAddrString(addrStr)
+			meta, err := p2p.ParseMultiAddrString(addrStr)
 			if err != nil {
 				pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in config file ")
 				continue

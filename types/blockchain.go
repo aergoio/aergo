@@ -59,6 +59,11 @@ func init() {
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
+// GetStakingMinimum returns the minimum limit of staking.
+func GetStakingMinimum() *big.Int {
+	return StakingMinimum
+}
+
 func NewAvgTime(sizeMavg int) *AvgTime {
 	avgTime := &AvgTime{}
 	avgTime.mavg = NewMovingAverage(sizeMavg)
@@ -106,6 +111,7 @@ func getLastIndexOfBH() (lastIndex int) {
 
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
+	GetGenesisInfo() *Genesis
 	GetBestBlock() (*Block, error)
 	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)
@@ -445,6 +451,7 @@ func (tx *Tx) CalculateTxHash() []byte {
 	txBody := tx.Body
 	digest := sha256.New()
 	binary.Write(digest, binary.LittleEndian, txBody.Nonce)
+
 	digest.Write(txBody.Account)
 	digest.Write(txBody.Recipient)
 	digest.Write(txBody.Amount)
@@ -465,20 +472,23 @@ func (tx *Tx) Validate() error {
 	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
+
 	amount := tx.GetBody().GetAmountBigInt()
 	if amount.Cmp(MaxAER) > 0 {
-		return ErrInsufficientBalance
+		return ErrTxInvalidAmount
 	}
-	/*
-		MaxAER is bigger than max of uint64
-		if tx.GetBody().GetLimit() > MaxAER {
-			return ErrInsufficientBalance
-		}
-	*/
 
 	price := tx.GetBody().GetPriceBigInt()
 	if price.Cmp(MaxAER) > 0 {
-		return ErrInsufficientBalance
+		return ErrTxInvalidPrice
+	}
+
+	if len(tx.GetBody().GetAccount()) > AddressLength {
+		return ErrTxInvalidAccount
+	}
+
+	if len(tx.GetBody().GetRecipient()) > AddressLength {
+		return ErrTxInvalidRecipient
 	}
 
 	switch tx.Body.Type {
@@ -498,10 +508,16 @@ func (tx *Tx) Validate() error {
 				return ErrTooSmallAmount
 			}
 		case AergoName:
-			if tx.GetBody().GetPayload()[0] != 'c' && tx.GetBody().GetPayload()[0] != 'u' {
+			if tx.GetBody().GetPayload()[0] != 'c' &&
+				tx.GetBody().GetPayload()[0] != 'b' &&
+				tx.GetBody().GetPayload()[0] != 'u' {
 				return ErrTxFormatInvalid
 			}
+			if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetBody().GetAmountBigInt()) > 0 {
+				return ErrTooSmallAmount
+			}
 		default:
+			return ErrTxInvalidRecipient
 		}
 	default:
 		return ErrTxInvalidType
@@ -529,6 +545,11 @@ func (tx *Tx) ValidateWithSenderState(senderState *State, fee *big.Int) error {
 				return ErrInsufficientBalance
 			}
 		case AergoName:
+			if (tx.GetBody().GetPayload()[0] == 'c' ||
+				tx.GetBody().GetPayload()[0] == 'b') &&
+				amount.Cmp(balance) > 0 {
+				return ErrInsufficientBalance
+			}
 		default:
 			return ErrTxInvalidRecipient
 		}
@@ -544,6 +565,34 @@ func (tx *Tx) ValidateWithContractState(contractState *State) error {
 	//in system.ValidateSystemTx
 	//in name.ValidateNameTx
 	return nil
+}
+
+func (tx *Tx) SetVerifedAccount(account []byte) bool {
+	if len(account) != AddressLength {
+		return false
+	}
+	tx.Body.Account = append(account, tx.GetBody().GetAccount()...)
+	return true
+}
+
+func (tx *Tx) GetVerifedAccount() []byte {
+	account := tx.GetBody().GetAccount()
+	if len(account) > AddressLength {
+		return account[:AddressLength]
+	}
+	return nil
+}
+
+func (tx *Tx) HasVerifedAccount() bool {
+	return len(tx.GetBody().GetAccount()) > AddressLength
+}
+
+func (tx *Tx) RemoveVerifedAccount() bool {
+	if len(tx.Body.Account) < AddressLength {
+		return false
+	}
+	tx.Body.Account = tx.GetBody().GetAccount()[AddressLength:]
+	return true
 }
 
 func (tx *Tx) NeedNameVerify() bool {
@@ -568,17 +617,17 @@ func (tx *Tx) Clone() *Tx {
 		Nonce:     tx.Body.Nonce,
 		Account:   Clone(tx.Body.Account).([]byte),
 		Recipient: Clone(tx.Body.Recipient).([]byte),
-		Amount:    tx.Body.Amount,
+		Amount:    Clone(tx.Body.Amount).([]byte),
 		Payload:   Clone(tx.Body.Payload).([]byte),
 		Limit:     tx.Body.Limit,
-		Price:     tx.Body.Price,
-		Sign:      Clone(tx.Body.Sign).([]byte),
+		Price:     Clone(tx.Body.Price).([]byte),
 		Type:      tx.Body.Type,
+		Sign:      Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
 		Body: body,
 	}
-	res.Hash = tx.CalculateTxHash()
+	res.Hash = res.CalculateTxHash()
 	return res
 }
 

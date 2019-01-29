@@ -3,9 +3,10 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"time"
 )
 
 //StubSyncer receive Syncer, P2P, Chain Service actor message
@@ -100,6 +101,12 @@ func (tchain *StubBlockChain) GetBlocks(hashes []message.BlockHash) ([]*types.Bl
 	}
 
 	return resultBlocks, nil
+}
+
+func (tchain *StubBlockChain) GetGenesisInfo() *types.Genesis {
+	// Not implemented. It should be implemented later if any test is related
+	// to genesis info.
+	return nil
 }
 
 func (tchain *StubBlockChain) GetBestBlock() (*types.Block, error) {

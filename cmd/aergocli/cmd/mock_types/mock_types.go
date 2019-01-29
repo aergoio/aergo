@@ -6,10 +6,11 @@ package mock_types
 
 import (
 	context "context"
+	reflect "reflect"
+
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
-	reflect "reflect"
 )
 
 // MockAergoRPCServiceClient is a mock of AergoRPCServiceClient interface
@@ -37,6 +38,7 @@ func (m *MockAergoRPCServiceClient) EXPECT() *MockAergoRPCServiceClientMockRecor
 
 // Blockchain mocks base method
 func (m *MockAergoRPCServiceClient) Blockchain(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.BlockchainStatus, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -47,14 +49,21 @@ func (m *MockAergoRPCServiceClient) Blockchain(arg0 context.Context, arg1 *types
 	return ret0, ret1
 }
 
+// GetChainInfo handles a getchaininfo RPC request.
+func (rpc *MockAergoRPCServiceClient) GetChainInfo(ctx context.Context, in *types.Empty, arg2 ...grpc.CallOption) (*types.ChainInfo, error) {
+	return nil, nil
+}
+
 // Blockchain indicates an expected call of Blockchain
 func (mr *MockAergoRPCServiceClientMockRecorder) Blockchain(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Blockchain", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).Blockchain), varargs...)
 }
 
 // CommitTX mocks base method
 func (m *MockAergoRPCServiceClient) CommitTX(arg0 context.Context, arg1 *types.TxList, arg2 ...grpc.CallOption) (*types.CommitResultList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -67,12 +76,14 @@ func (m *MockAergoRPCServiceClient) CommitTX(arg0 context.Context, arg1 *types.T
 
 // CommitTX indicates an expected call of CommitTX
 func (mr *MockAergoRPCServiceClientMockRecorder) CommitTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).CommitTX), varargs...)
 }
 
 // CreateAccount mocks base method
 func (m *MockAergoRPCServiceClient) CreateAccount(arg0 context.Context, arg1 *types.Personal, arg2 ...grpc.CallOption) (*types.Account, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -85,12 +96,14 @@ func (m *MockAergoRPCServiceClient) CreateAccount(arg0 context.Context, arg1 *ty
 
 // CreateAccount indicates an expected call of CreateAccount
 func (mr *MockAergoRPCServiceClientMockRecorder) CreateAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).CreateAccount), varargs...)
 }
 
 // ExportAccount mocks base method
 func (m *MockAergoRPCServiceClient) ExportAccount(arg0 context.Context, arg1 *types.Personal, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -103,12 +116,14 @@ func (m *MockAergoRPCServiceClient) ExportAccount(arg0 context.Context, arg1 *ty
 
 // ExportAccount indicates an expected call of ExportAccount
 func (mr *MockAergoRPCServiceClientMockRecorder) ExportAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ExportAccount), varargs...)
 }
 
 // GetABI mocks base method
 func (m *MockAergoRPCServiceClient) GetABI(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.ABI, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -121,12 +136,14 @@ func (m *MockAergoRPCServiceClient) GetABI(arg0 context.Context, arg1 *types.Sin
 
 // GetABI indicates an expected call of GetABI
 func (mr *MockAergoRPCServiceClientMockRecorder) GetABI(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetABI", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetABI), varargs...)
 }
 
 // GetAccounts mocks base method
 func (m *MockAergoRPCServiceClient) GetAccounts(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.AccountList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -139,12 +156,14 @@ func (m *MockAergoRPCServiceClient) GetAccounts(arg0 context.Context, arg1 *type
 
 // GetAccounts indicates an expected call of GetAccounts
 func (mr *MockAergoRPCServiceClientMockRecorder) GetAccounts(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccounts", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetAccounts), varargs...)
 }
 
 // GetBlock mocks base method
 func (m *MockAergoRPCServiceClient) GetBlock(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.Block, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -157,12 +176,54 @@ func (m *MockAergoRPCServiceClient) GetBlock(arg0 context.Context, arg1 *types.S
 
 // GetBlock indicates an expected call of GetBlock
 func (mr *MockAergoRPCServiceClientMockRecorder) GetBlock(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlock), varargs...)
 }
 
+// GetBlockBody mocks base method
+func (m *MockAergoRPCServiceClient) GetBlockBody(arg0 context.Context, arg1 *types.BlockBodyParams, arg2 ...grpc.CallOption) (*types.BlockBodyPaged, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetBlockBody", varargs...)
+	ret0, _ := ret[0].(*types.BlockBodyPaged)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockBody indicates an expected call of GetBlockBody
+func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockBody(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockBody", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlockBody), varargs...)
+}
+
+// GetBlockMetadata mocks base method
+func (m *MockAergoRPCServiceClient) GetBlockMetadata(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.BlockMetadata, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetBlockMetadata", varargs...)
+	ret0, _ := ret[0].(*types.BlockMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockMetadata indicates an expected call of GetBlockMetadata
+func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockMetadata(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockMetadata", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlockMetadata), varargs...)
+}
+
 // GetBlockTX mocks base method
 func (m *MockAergoRPCServiceClient) GetBlockTX(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.TxInBlock, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -175,12 +236,14 @@ func (m *MockAergoRPCServiceClient) GetBlockTX(arg0 context.Context, arg1 *types
 
 // GetBlockTX indicates an expected call of GetBlockTX
 func (mr *MockAergoRPCServiceClientMockRecorder) GetBlockTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetBlockTX), varargs...)
 }
 
 // GetNameInfo mocks base method
 func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *types.Name, arg2 ...grpc.CallOption) (*types.NameInfo, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -193,12 +256,14 @@ func (m *MockAergoRPCServiceClient) GetNameInfo(arg0 context.Context, arg1 *type
 
 // GetNameInfo indicates an expected call of GetNameInfo
 func (mr *MockAergoRPCServiceClientMockRecorder) GetNameInfo(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNameInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetNameInfo), varargs...)
 }
 
 // GetPeers mocks base method
 func (m *MockAergoRPCServiceClient) GetPeers(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.PeerList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -211,12 +276,14 @@ func (m *MockAergoRPCServiceClient) GetPeers(arg0 context.Context, arg1 *types.E
 
 // GetPeers indicates an expected call of GetPeers
 func (mr *MockAergoRPCServiceClientMockRecorder) GetPeers(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetPeers), varargs...)
 }
 
 // GetReceipt mocks base method
 func (m *MockAergoRPCServiceClient) GetReceipt(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.Receipt, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -229,12 +296,14 @@ func (m *MockAergoRPCServiceClient) GetReceipt(arg0 context.Context, arg1 *types
 
 // GetReceipt indicates an expected call of GetReceipt
 func (mr *MockAergoRPCServiceClientMockRecorder) GetReceipt(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetReceipt), varargs...)
 }
 
 // GetStaking mocks base method
 func (m *MockAergoRPCServiceClient) GetStaking(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.Staking, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -247,12 +316,14 @@ func (m *MockAergoRPCServiceClient) GetStaking(arg0 context.Context, arg1 *types
 
 // GetStaking indicates an expected call of GetStaking
 func (mr *MockAergoRPCServiceClientMockRecorder) GetStaking(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStaking", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetStaking), varargs...)
 }
 
 // GetState mocks base method
 func (m *MockAergoRPCServiceClient) GetState(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.State, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -265,30 +336,34 @@ func (m *MockAergoRPCServiceClient) GetState(arg0 context.Context, arg1 *types.S
 
 // GetState indicates an expected call of GetState
 func (mr *MockAergoRPCServiceClientMockRecorder) GetState(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetState", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetState), varargs...)
 }
 
 // GetStateAndProof mocks base method
-func (m *MockAergoRPCServiceClient) GetStateAndProof(arg0 context.Context, arg1 *types.AccountAndRoot, arg2 ...grpc.CallOption) (*types.StateProof, error) {
+func (m *MockAergoRPCServiceClient) GetStateAndProof(arg0 context.Context, arg1 *types.AccountAndRoot, arg2 ...grpc.CallOption) (*types.AccountProof, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetStateAndProof", varargs...)
-	ret0, _ := ret[0].(*types.StateProof)
+	ret0, _ := ret[0].(*types.AccountProof)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetStateAndProof indicates an expected call of GetStateAndProof
 func (mr *MockAergoRPCServiceClientMockRecorder) GetStateAndProof(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStateAndProof", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetStateAndProof), varargs...)
 }
 
 // GetTX mocks base method
 func (m *MockAergoRPCServiceClient) GetTX(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.Tx, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -301,12 +376,14 @@ func (m *MockAergoRPCServiceClient) GetTX(arg0 context.Context, arg1 *types.Sing
 
 // GetTX indicates an expected call of GetTX
 func (mr *MockAergoRPCServiceClientMockRecorder) GetTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetTX), varargs...)
 }
 
 // GetVotes mocks base method
 func (m *MockAergoRPCServiceClient) GetVotes(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.VoteList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -319,12 +396,14 @@ func (m *MockAergoRPCServiceClient) GetVotes(arg0 context.Context, arg1 *types.S
 
 // GetVotes indicates an expected call of GetVotes
 func (mr *MockAergoRPCServiceClientMockRecorder) GetVotes(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVotes", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetVotes), varargs...)
 }
 
 // ImportAccount mocks base method
 func (m *MockAergoRPCServiceClient) ImportAccount(arg0 context.Context, arg1 *types.ImportFormat, arg2 ...grpc.CallOption) (*types.Account, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -337,12 +416,14 @@ func (m *MockAergoRPCServiceClient) ImportAccount(arg0 context.Context, arg1 *ty
 
 // ImportAccount indicates an expected call of ImportAccount
 func (mr *MockAergoRPCServiceClientMockRecorder) ImportAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ImportAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ImportAccount), varargs...)
 }
 
 // ListBlockHeaders mocks base method
 func (m *MockAergoRPCServiceClient) ListBlockHeaders(arg0 context.Context, arg1 *types.ListParams, arg2 ...grpc.CallOption) (*types.BlockHeaderList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -355,12 +436,14 @@ func (m *MockAergoRPCServiceClient) ListBlockHeaders(arg0 context.Context, arg1 
 
 // ListBlockHeaders indicates an expected call of ListBlockHeaders
 func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockHeaders(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockHeaders", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockHeaders), varargs...)
 }
 
 // ListBlockMetadata mocks base method
 func (m *MockAergoRPCServiceClient) ListBlockMetadata(arg0 context.Context, arg1 *types.ListParams, arg2 ...grpc.CallOption) (*types.BlockMetadataList, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -373,12 +456,14 @@ func (m *MockAergoRPCServiceClient) ListBlockMetadata(arg0 context.Context, arg1
 
 // ListBlockMetadata indicates an expected call of ListBlockMetadata
 func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockMetadata(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockMetadata", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockMetadata), varargs...)
 }
 
 // ListBlockMetadataStream mocks base method
 func (m *MockAergoRPCServiceClient) ListBlockMetadataStream(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (types.AergoRPCService_ListBlockMetadataStreamClient, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -391,12 +476,14 @@ func (m *MockAergoRPCServiceClient) ListBlockMetadataStream(arg0 context.Context
 
 // ListBlockMetadataStream indicates an expected call of ListBlockMetadataStream
 func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockMetadataStream(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockMetadataStream", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockMetadataStream), varargs...)
 }
 
 // ListBlockStream mocks base method
 func (m *MockAergoRPCServiceClient) ListBlockStream(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (types.AergoRPCService_ListBlockStreamClient, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -409,12 +496,14 @@ func (m *MockAergoRPCServiceClient) ListBlockStream(arg0 context.Context, arg1 *
 
 // ListBlockStream indicates an expected call of ListBlockStream
 func (mr *MockAergoRPCServiceClientMockRecorder) ListBlockStream(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBlockStream", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ListBlockStream), varargs...)
 }
 
 // LockAccount mocks base method
 func (m *MockAergoRPCServiceClient) LockAccount(arg0 context.Context, arg1 *types.Personal, arg2 ...grpc.CallOption) (*types.Account, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -427,12 +516,14 @@ func (m *MockAergoRPCServiceClient) LockAccount(arg0 context.Context, arg1 *type
 
 // LockAccount indicates an expected call of LockAccount
 func (mr *MockAergoRPCServiceClientMockRecorder) LockAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).LockAccount), varargs...)
 }
 
 // Metric mocks base method
 func (m *MockAergoRPCServiceClient) Metric(arg0 context.Context, arg1 *types.MetricsRequest, arg2 ...grpc.CallOption) (*types.Metrics, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -445,12 +536,14 @@ func (m *MockAergoRPCServiceClient) Metric(arg0 context.Context, arg1 *types.Met
 
 // Metric indicates an expected call of Metric
 func (mr *MockAergoRPCServiceClientMockRecorder) Metric(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metric", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).Metric), varargs...)
 }
 
 // NodeState mocks base method
 func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.NodeReq, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -463,12 +556,14 @@ func (m *MockAergoRPCServiceClient) NodeState(arg0 context.Context, arg1 *types.
 
 // NodeState indicates an expected call of NodeState
 func (mr *MockAergoRPCServiceClientMockRecorder) NodeState(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NodeState", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).NodeState), varargs...)
 }
 
 // QueryContract mocks base method
 func (m *MockAergoRPCServiceClient) QueryContract(arg0 context.Context, arg1 *types.Query, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -481,12 +576,14 @@ func (m *MockAergoRPCServiceClient) QueryContract(arg0 context.Context, arg1 *ty
 
 // QueryContract indicates an expected call of QueryContract
 func (mr *MockAergoRPCServiceClientMockRecorder) QueryContract(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryContract", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).QueryContract), varargs...)
 }
 
 // QueryContractState mocks base method
 func (m *MockAergoRPCServiceClient) QueryContractState(arg0 context.Context, arg1 *types.StateQuery, arg2 ...grpc.CallOption) (*types.StateQueryProof, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -499,12 +596,14 @@ func (m *MockAergoRPCServiceClient) QueryContractState(arg0 context.Context, arg
 
 // QueryContractState indicates an expected call of QueryContractState
 func (mr *MockAergoRPCServiceClientMockRecorder) QueryContractState(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryContractState", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).QueryContractState), varargs...)
 }
 
 // SendTX mocks base method
 func (m *MockAergoRPCServiceClient) SendTX(arg0 context.Context, arg1 *types.Tx, arg2 ...grpc.CallOption) (*types.CommitResult, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -517,12 +616,14 @@ func (m *MockAergoRPCServiceClient) SendTX(arg0 context.Context, arg1 *types.Tx,
 
 // SendTX indicates an expected call of SendTX
 func (mr *MockAergoRPCServiceClientMockRecorder) SendTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).SendTX), varargs...)
 }
 
 // SignTX mocks base method
 func (m *MockAergoRPCServiceClient) SignTX(arg0 context.Context, arg1 *types.Tx, arg2 ...grpc.CallOption) (*types.Tx, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -535,12 +636,14 @@ func (m *MockAergoRPCServiceClient) SignTX(arg0 context.Context, arg1 *types.Tx,
 
 // SignTX indicates an expected call of SignTX
 func (mr *MockAergoRPCServiceClientMockRecorder) SignTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).SignTX), varargs...)
 }
 
 // UnlockAccount mocks base method
 func (m *MockAergoRPCServiceClient) UnlockAccount(arg0 context.Context, arg1 *types.Personal, arg2 ...grpc.CallOption) (*types.Account, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -553,12 +656,14 @@ func (m *MockAergoRPCServiceClient) UnlockAccount(arg0 context.Context, arg1 *ty
 
 // UnlockAccount indicates an expected call of UnlockAccount
 func (mr *MockAergoRPCServiceClientMockRecorder) UnlockAccount(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnlockAccount", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).UnlockAccount), varargs...)
 }
 
 // VerifyTX mocks base method
 func (m *MockAergoRPCServiceClient) VerifyTX(arg0 context.Context, arg1 *types.Tx, arg2 ...grpc.CallOption) (*types.VerifyResult, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -571,6 +676,7 @@ func (m *MockAergoRPCServiceClient) VerifyTX(arg0 context.Context, arg1 *types.T
 
 // VerifyTX indicates an expected call of VerifyTX
 func (mr *MockAergoRPCServiceClientMockRecorder) VerifyTX(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyTX", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).VerifyTX), varargs...)
 }

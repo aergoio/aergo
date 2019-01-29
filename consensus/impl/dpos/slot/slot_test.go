@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSlotRotation(t *testing.T) {
-	const (
-		nSlots     = 5
-		bpInterval = 1
-	)
+const (
+	nSlots     = 5
+	bpInterval = 1
+)
 
+func TestSlotRotation(t *testing.T) {
 	Init(bpInterval, nSlots)
 
 	ticker := time.NewTicker(time.Second)
@@ -37,11 +37,25 @@ func TestSlotRotation(t *testing.T) {
 }
 
 func TestSlotConversion(t *testing.T) {
+	Init(bpInterval, nSlots)
+
 	slot := Now()
 	assert.Equal(t, nsToMs(slot.timeNs), slot.timeMs, "inconsistent slot members")
 	fmt.Println(slot.timeNs, slot.timeMs)
 }
 
 func TestSlotValidNow(t *testing.T) {
+	Init(bpInterval, nSlots)
+
 	assert.True(t, Now().IsValidNow(), "invalid slot")
+}
+
+func TestSlotFuture(t *testing.T) {
+	Init(bpInterval, nSlots)
+
+	assert.True(t, !Time(time.Now().Add(-time.Second)).IsFuture(), "must not be a future slot")
+	assert.True(t, !Now().IsFuture(), "must not be a future slot")
+	assert.True(t, !Time(time.Now().Add(time.Second)).IsFuture(), "must not be a future slot")
+	assert.True(t, Time(time.Now().Add(2*time.Second)).IsFuture(), "must be a future slot")
+	assert.True(t, Time(time.Now().Add(3*time.Second)).IsFuture(), "must be a future slot")
 }

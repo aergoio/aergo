@@ -85,7 +85,7 @@ func Test_calculateFieldDesc(t *testing.T) {
 			assert.Equal(t, test.expected, calculateFieldDescSize(test.valueSize) )
 			if test.valueSize <= len(sampleSlize) {
 				inputBytes := sampleSlize[:test.valueSize]
-				dummy := &types.GetMissingRequest{Stophash:inputBytes}
+				dummy := &types.GetBlockHeadersRequest{Hash:inputBytes}
 				realSize := proto.Size(dummy)
 				assert.Equal(t, realSize, calculateFieldDescSize(test.valueSize)+len(inputBytes))
 			} else {

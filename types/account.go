@@ -74,11 +74,17 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	if err != nil {
 		return nil, err
 	}
+	var decoded []byte
 	version := decodedBytes[0]
-	if version != AddressVersion {
+	switch version {
+	case AddressVersion:
+		decoded = decodedBytes[1:]
+		if len(decoded) != AddressLength {
+			return nil, errors.New("Invalid address length")
+		}
+	default:
 		return nil, errors.New("Invalid address version")
 	}
-	decoded := decodedBytes[1:]
 	return decoded, nil
 }
 

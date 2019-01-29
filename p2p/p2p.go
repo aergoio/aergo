@@ -7,7 +7,9 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/metric"
-	"io/ioutil"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -60,31 +62,37 @@ var (
 
 // InitNodeInfo initializes node-specific informations like node id.
 // Caution: this must be called before all the goroutines are started.
-func InitNodeInfo(cfg *config.P2PConfig, logger *log.Logger) {
+func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *log.Logger) {
 	// check Key and address
 	var (
 		priv crypto.PrivKey
 		pub  crypto.PubKey
+		err  error
 	)
 
-	if cfg.NPKey != "" {
-		dat, err := ioutil.ReadFile(cfg.NPKey)
-		if err == nil {
-			priv, err = crypto.UnmarshalPrivateKey(dat)
+	if p2pCfg.NPKey != "" {
+		priv, pub, err = LoadKeyFile(p2pCfg.NPKey)
+		if err != nil {
+			panic("Failed to load Keyfile '" + p2pCfg.NPKey + "' " + err.Error())
+		}
+	} else {
+		logger.Info().Msg("No private key file is configured, so use auto-generated pk file instead.")
+
+		autogenFilePath := filepath.Join(baseCfg.AuthDir, DefaultPkKeyPrefix+DefaultPkKeyExt)
+		if _, err := os.Stat(autogenFilePath); os.IsNotExist(err) {
+			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
+			priv, pub, err = GenerateKeyFile(baseCfg.AuthDir, DefaultPkKeyPrefix)
 			if err != nil {
-				logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile. It's not private key file")
+				panic("Failed to generate new pk file: "+err.Error())
 			}
-			pub = priv.GetPublic()
 		} else {
-			logger.Warn().Str("npkey", cfg.NPKey).Msg("invalid keyfile path")
+			logger.Info().Str("pk_file", autogenFilePath).Msg("Load existing generated private key file.")
+			priv, pub, err = LoadKeyFile(autogenFilePath)
+			if err != nil {
+				panic("Failed to load generated pk file '"+autogenFilePath+"' "+err.Error())
+			}
 		}
 	}
-
-	if priv == nil {
-		logger.Info().Msg("No valid private key file is found. use temporary pk instead")
-		priv, pub, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	}
-
 	id, _ := peer.IDFromPublicKey(pub)
 
 	ni = &nodeInfo{
@@ -234,8 +242,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		} else {
 			p2ps.NotifyNewBlock(*msg)
 		}
-	case *message.GetMissingBlocks:
-		p2ps.GetMissingBlocks(msg.ToWhom, msg.Hashes)
 	case *message.GetTransactions:
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
@@ -274,6 +280,9 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
+			continue
+		}
+		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := FromPeerAddress(rPeerAddr)
@@ -336,7 +345,6 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetMissingRequest] = newGetMissingReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 	peer.handlers[GetAncestorRequest] = newGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)

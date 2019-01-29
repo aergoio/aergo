@@ -37,6 +37,11 @@ func (states *StateDB) StageContractState(st *ContractState) error {
 	return nil
 }
 
+// GetSystemAccountState returns the ContractState of the AERGO system account.
+func (states *StateDB) GetSystemAccountState() (*ContractState, error) {
+	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+}
+
 type ContractState struct {
 	*types.State
 	account types.AccountID
@@ -91,7 +96,7 @@ func (st *ContractState) SetData(key, value []byte) error {
 	return nil
 }
 
-// GetData returns the value corresponding to the key from the storage.
+// GetData returns the value corresponding to the key from the buffered storage.
 func (st *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
 	if entry := st.storage.get(id); entry != nil {
@@ -100,7 +105,11 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 		}
 		return nil, nil
 	}
-	dkey, err := st.storage.trie.Get(id[:])
+	return st.getInitialData(id[:])
+}
+
+func (st *ContractState) getInitialData(id []byte) ([]byte, error) {
+	dkey, err := st.storage.trie.Get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +121,12 @@ func (st *ContractState) GetData(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+// GetInitialData returns the value corresponding to the key from the contract storage.
+func (st *ContractState) GetInitialData(key []byte) ([]byte, error) {
+	id := types.GetHashID(key)
+	return st.getInitialData(id[:])
 }
 
 // DeleteData remove key and value pair from the storage.

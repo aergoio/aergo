@@ -53,8 +53,8 @@ const (
 	GetBlocksResponse
 	GetBlockHeadersRequest
 	GetBlockHeadersResponse
-	GetMissingRequest
-	GetMissingResponse
+	GetMissingRequest  // Deprecated
+	GetMissingResponse // Deprecated
 	NewBlockNotice
 	GetAncestorRequest
 	GetAncestorResponse

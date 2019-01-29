@@ -103,7 +103,7 @@ func (_m *MockPeerManager) AddNewPeer(_a0 PeerMeta) {
 }
 
 // RemovePeer provides a mock function with given fields: _a0
-func (_m *MockPeerManager) RemovePeer(_a0 peer.ID) {
+func (_m *MockPeerManager) RemovePeer(_a0 RemotePeer) {
 	_m.Called(_a0)
 }
 

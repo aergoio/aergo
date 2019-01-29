@@ -10,10 +10,8 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
-	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -27,11 +25,11 @@ import (
 var (
 	ErrorNoAncestor          = errors.New("not found ancestor")
 	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
-	ErrBlockCachedErrLRU     = errors.New("block is stored in errored blocks cache")
+	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 
 	errBlockStale     = errors.New("produced block becomes stale")
-	errInvalidChainID = errors.New("invalid chain id")
+	errBlockTimestamp = errors.New("invalid timestamp")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -64,6 +62,11 @@ func (ec *ErrTx) Error() string {
 
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
 	return cs.cdb.getBestBlockNo()
+}
+
+// GetGenesisInfo returns the information on the genesis block.
+func (cs *ChainService) GetGenesisInfo() *types.Genesis {
+	return cs.cdb.GetGenesisInfo()
 }
 
 func (cs *ChainService) GetBestBlock() (*types.Block, error) {
@@ -120,13 +123,16 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 
 type chainProcessor struct {
 	*ChainService
-	block     *types.Block // starting block
-	lastBlock *types.Block
-	state     *state.BlockState
-	mainChain *list.List
-	isByBP    bool
+	block       *types.Block // starting block
+	lastBlock   *types.Block
+	state       *state.BlockState
+	mainChain   *list.List
+	isByBP      bool
+	isMainChain bool
 
-	add func(blk *types.Block) error
+	add   func(blk *types.Block) error
+	apply func(blk *types.Block) error
+	run   func() error
 }
 
 func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainService) (*chainProcessor, error) {
@@ -142,27 +148,43 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 		block:        block,
 		state:        state,
 		isByBP:       (state != nil),
+		isMainChain:  isMainChain,
 	}
 
-	if isMainChain {
-		cp.mainChain = list.New()
-		cp.add = func(blk *types.Block) error {
-			if err := cp.addCommon(blk); err != nil {
-				return err
-			}
-			// blk must be executed later if it belongs to the main chain.
-			cp.mainChain.PushBack(blk)
+	if cp.isMainChain {
+		cp.apply = cp.execute
+	} else {
+		cp.apply = cp.addBlock
+	}
 
-			return nil
+	if cp.isByBP {
+		cp.run = func() error {
+			blk := cp.block
+			cp.notifyBlockByBP(blk)
+			return cp.apply(blk)
 		}
 	} else {
-		cp.add = cp.addCommon
+		cp.run = func() error {
+			blk := cp.block
+
+			for blk != nil {
+				if err = cp.apply(blk); err != nil {
+					return err
+				}
+
+				// Remove a block depnding on blk from the orphan cache.
+				if blk, err = cp.resolveOrphan(blk); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 	}
 
 	return cp, nil
 }
 
-func (cp *chainProcessor) addCommon(blk *types.Block) error {
+func (cp *chainProcessor) addBlock(blk *types.Block) error {
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
@@ -173,7 +195,7 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 	dbTx.Commit()
 
 	if logger.IsDebugEnabled() {
-		logger.Debug().Bool("isMainChain", cp.isMain()).
+		logger.Debug().Bool("isMainChain", cp.isMainChain).
 			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
@@ -181,33 +203,6 @@ func (cp *chainProcessor) addCommon(blk *types.Block) error {
 			Msg("block added to the block indices")
 	}
 	cp.lastBlock = blk
-
-	return nil
-}
-
-func (cp *chainProcessor) prepare() error {
-	var err error
-
-	blk := cp.block
-
-	cp.notifyBlockByBP(blk)
-
-	for blk != nil {
-		// Add blk to the corresponding block chain.
-		if err := cp.add(blk); err != nil {
-			return err
-		}
-
-		//block created by BP must not have orphan
-		if cp.isByBP {
-			return nil
-		}
-
-		// Remove a block depnding on blk from the orphan cache.
-		if blk, err = cp.resolveOrphan(blk); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -224,52 +219,45 @@ func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
 	}
 }
 
-func (cp *chainProcessor) isMain() bool {
-	return cp.mainChain != nil
-}
-
 func (cp *chainProcessor) executeBlock(block *types.Block) error {
 	err := cp.ChainService.executeBlock(cp.state, block)
 	cp.state = nil
 	return err
 }
 
-func (cp *chainProcessor) execute() error {
-	if !cp.isMain() {
+func (cp *chainProcessor) execute(block *types.Block) error {
+	if !cp.isMainChain {
 		return nil
 	}
-	logger.Debug().Int("blocks to execute", cp.mainChain.Len()).Msg("start to execute")
+	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("start to execute")
 
 	var err error
-	for e := cp.mainChain.Front(); e != nil; e = e.Next() {
-		block := e.Value.(*types.Block)
 
-		err = cp.executeBlock(block)
-		if err != nil {
-			logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
-				Msg("failed to execute block")
-			return err
-		}
-		//SyncWithConsensus :ga
-		// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
-		// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
-		//	In this case, messages of mempool is synchronized in actor message queue.
-		var oldLatest types.BlockNo
-		if oldLatest, err = cp.connectToChain(block); err != nil {
-			return err
-		}
+	err = cp.executeBlock(block)
+	if err != nil {
+		logger.Error().Str("error", err.Error()).Str("hash", block.ID()).
+			Msg("failed to execute block")
+		return err
+	}
+	//SyncWithConsensus :ga
+	// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
+	// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
+	//	In this case, messages of mempool is synchronized in actor message queue.
+	var oldLatest types.BlockNo
+	if oldLatest, err = cp.connectToChain(block); err != nil {
+		return err
+	}
 
-		cp.notifyBlockByOther(block)
+	cp.notifyBlockByOther(block)
 
-		blockNo := block.BlockNo()
-		if logger.IsDebugEnabled() {
-			logger.Debug().
-				Uint64("old latest", oldLatest).
-				Uint64("new latest", blockNo).
-				Str("hash", block.ID()).
-				Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
-				Msg("block executed")
-		}
+	blockNo := block.BlockNo()
+	if logger.IsDebugEnabled() {
+		logger.Debug().
+			Uint64("old latest", oldLatest).
+			Uint64("new latest", blockNo).
+			Str("hash", block.ID()).
+			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
+			Msg("block executed")
 	}
 
 	return nil
@@ -293,7 +281,7 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 func (cp *chainProcessor) reorganize() error {
 	// - Reorganize if new bestblock then process Txs
 	// - Add block if new bestblock then update context connect next orphan
-	if cp.needReorg(cp.lastBlock) {
+	if !cp.isMainChain && cp.needReorg(cp.lastBlock) {
 		err := cp.reorg(cp.lastBlock)
 		if e, ok := err.(consensus.ErrorConsensus); ok {
 			logger.Info().Err(e).Msg("reorg stopped by consensus error")
@@ -311,6 +299,16 @@ func (cp *chainProcessor) reorganize() error {
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
 	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
+
+	if !cs.VerifyTimestamp(newBlock) {
+		return &ErrBlock{
+			err: errBlockTimestamp,
+			block: &types.BlockInfo{
+				Hash: newBlock.BlockHash(),
+				No:   newBlock.BlockNo(),
+			},
+		}, false
+	}
 
 	var bestBlock *types.Block
 
@@ -339,9 +337,8 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 			bestBlock.GetHeader().GetChainID(), newBlock.GetHeader().GetChainID()), false
 	}
 
-	// Check consensus header validity
-	if err := cs.IsBlockValid(newBlock, bestBlock); err != nil {
-		return err, false
+	if err := cs.VerifySign(newBlock); err != nil {
+		return err, true
 	}
 
 	// handle orphan
@@ -352,9 +349,9 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		if err == nil {
 			return ErrBlockOrphan, false
-		} else {
-			return err, false
 		}
+
+		return err, false
 	}
 
 	select {
@@ -369,10 +366,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		return err, true
 	}
 
-	if err := cp.prepare(); err != nil {
-		return err, true
-	}
-	if err := cp.execute(); err != nil {
+	if err := cp.run(); err != nil {
 		return err, true
 	}
 
@@ -388,19 +382,6 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 }
 
 func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
-	// check if block has already saved and has occurred error before
-	checkSideChainBlock := func() error {
-		best, err := cs.GetBestBlock()
-		if err != nil {
-			return err
-		}
-
-		if best.BlockNo() < newBlock.BlockNo() {
-			return ErrBlockTooHighSideChain
-		}
-		return nil
-	}
-
 	hashID := types.ToHashID(newBlock.BlockHash())
 
 	if cs.errBlocks.Contains(hashID) {
@@ -410,17 +391,18 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	_, err := cs.getBlock(newBlock.BlockHash())
 	if err == nil {
 		logger.Debug().Str("hash", newBlock.ID()).Msg("already exist")
-		if err := checkSideChainBlock(); err != nil {
-			return err
-		}
 		return ErrBlockExist
 	}
 
 	var needCache bool
 	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
-	if err != nil && needCache {
-		evicted := cs.errBlocks.Add(hashID, newBlock)
-		logger.Error().Err(err).Bool("evicted", evicted).Msg("add errored block to errBlocks lru")
+	if err != nil {
+		if needCache {
+			evicted := cs.errBlocks.Add(hashID, newBlock)
+			logger.Error().Err(err).Bool("evicted", evicted).Uint64("no", newBlock.GetHeader().BlockNo).
+				Str("hash", newBlock.ID()).Msg("add errored block to errBlocks lru")
+		}
+		// err must be returned regardless of the value of needCache.
 		return err
 	}
 
@@ -596,8 +578,24 @@ func (e *blockExecutor) commit() error {
 	return nil
 }
 
-//TODO Refactoring: batch
+// TODO: Refactoring: batch
 func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
+	// Caution: block must belong to the main chain.
+
+	var (
+		bestBlock *types.Block
+		err       error
+	)
+
+	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	// Check consensus info validity
+	if err = cs.IsBlockValid(block, bestBlock); err != nil {
+		return err
+	}
+
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
@@ -622,22 +620,25 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 }
 
 func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
+
+	txBody := tx.GetBody()
+
+	var account []byte
+	if tx.HasVerifedAccount() {
+		account = tx.GetVerifedAccount()
+		tx.RemoveVerifedAccount()
+		resolvedAccount := name.Resolve(bs, txBody.GetAccount())
+		if !bytes.Equal(account, resolvedAccount) {
+			return types.ErrSignNotMatch
+		}
+	} else {
+		account = name.Resolve(bs, txBody.GetAccount())
+	}
+
 	err := tx.Validate()
 	if err != nil {
 		return err
 	}
-	txBody := tx.GetBody()
-
-	account := name.Resolve(bs, txBody.Account)
-
-	//TODO : after make named account cache remove below
-	if tx.NeedNameVerify() {
-		err = key.VerifyTxWithAddress(tx, account)
-		if err != nil {
-			return err
-		}
-	}
-	//TODO : remove above
 
 	sender, err := bs.GetAccountStateV(account)
 	if err != nil {
@@ -676,7 +677,7 @@ func executeTx(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, pre
 	}
 
 	if err != nil {
-		if _, ok := err.(*contract.VmError); ok {
+		if contract.IsRuntimeError(err) {
 			sender.Reset()
 			sender.SubBalance(txFee)
 			sender.SetNonce(txBody.Nonce)
@@ -783,79 +784,13 @@ func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block,
 		return err
 	}
 
-	if cs.cfg.Blockchain.UseFastSyncer {
-		cs.RequestTo(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: block.GetHeader().GetBlockNo()})
-	} else {
-		// request missing
-		orphanNo := block.GetHeader().GetBlockNo()
-		bestNo := bestBlock.GetHeader().GetBlockNo()
-		if block.GetHeader().GetBlockNo() < bestBlock.GetHeader().GetBlockNo()+1 {
-			logger.Debug().Str("hash", block.ID()).Uint64("orphanNo", orphanNo).Uint64("bestNo", bestNo).
-				Msg("skip sync with too old block")
-			return nil
-		}
-		anchors := cs.getAnchorsFromHash(block.BlockHash())
-		hashes := make([]message.BlockHash, 0)
-		for _, a := range anchors {
-			hashes = append(hashes, message.BlockHash(a))
-		}
-		cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
-	}
+	cs.RequestTo(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: block.GetHeader().GetBlockNo()})
 
 	return nil
 }
 
 func (cs *ChainService) addOrphan(block *types.Block) error {
 	return cs.op.addOrphan(block)
-}
-
-// TODO adhoc flag refactor it
-const HashNumberUnknown = math.MaxUint64
-
-//
-func (cs *ChainService) handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo) {
-	// 1. check endpoint is on main chain (or, return nil)
-	logger.Debug().Str("stop_hash", enc.ToString(stopHash)).Int("len", len(Hashes)).Msg("handle missing")
-	var stopBlock *types.Block
-	var err error
-	if stopHash == nil {
-		stopBlock, err = cs.GetBestBlock()
-	} else {
-		stopBlock, err = cs.cdb.getBlock(stopHash)
-	}
-	if err != nil {
-		return nil, HashNumberUnknown, HashNumberUnknown
-	}
-
-	var mainhash []byte
-	var mainblock *types.Block
-	// 2. get the highest block of Hashes hash on main chain
-	for _, hash := range Hashes {
-		// need to be short
-		mainblock, err = cs.cdb.getBlock(hash)
-		if err != nil {
-			continue
-		}
-		// get main hash with same block height
-		mainhash, err = cs.cdb.getHashByNo(
-			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
-		if err != nil {
-			continue
-		}
-
-		if bytes.Equal(mainhash, mainblock.BlockHash()) {
-			break
-		}
-		mainblock = nil
-	}
-
-	// TODO: handle the case that can't find the hash in main chain
-	if mainblock == nil {
-		logger.Debug().Msg("Can't search same ancestor")
-		return nil, HashNumberUnknown, HashNumberUnknown
-	}
-
-	return mainblock.BlockHash(), mainblock.GetHeader().GetBlockNo(), stopBlock.GetHeader().GetBlockNo()
 }
 
 func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) {
@@ -894,20 +829,7 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
-func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte) {
-	myBestBlock, err := cs.GetBestBlock()
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get best block")
-		return
-	}
-	sameBestHash := bytes.Equal(myBestBlock.Hash, remoteBestHash)
-	if sameBestHash {
-		// two node has exact best block.
-		// TODO: myBestBlock.GetHeader().BlockNo == remoteBestHeight
-		logger.Debug().Str("peer", peerID.Pretty()).Msg("peer is in sync status")
-	} else if !sameBestHash && myBestBlock.GetHeader().BlockNo < remoteBestHeight {
-		cs.ChainSync(peerID, remoteBestHash)
-	}
-
-	return
+func (cs *ChainService) setSync(isSync bool) {
+	//don't use mempool if sync is in progress
+	cs.validator.signVerifier.SetSkipMempool(isSync)
 }

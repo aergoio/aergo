@@ -268,7 +268,6 @@ Gather:
 		}
 	}
 	elapsed := time.Since(start)
-	mp.Debug().Int("size", size).Uint32("max", maxBlockBodySize).Msg("chris2nd")
 	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
@@ -279,11 +278,8 @@ Gather:
 func (mp *MemPool) put(tx *types.Tx) error {
 	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
-	if tx.NeedNameVerify() {
-		acc = mp.getAddress(acc)
-		if acc == nil {
-			return types.ErrTxInvalidAccount
-		}
+	if tx.HasVerifedAccount() {
+		acc = tx.GetVerifedAccount()
 	}
 
 	mp.Lock()
@@ -443,6 +439,9 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 		if err != nil {
 			return err
 		}
+		if !tx.SetVerifedAccount(account) {
+			mp.Warn().Str("account", string(account)).Msg("could not set verifed account")
+		}
 	}
 	return nil
 }
@@ -475,9 +474,14 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		return err
 	}
 	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
-	if err != nil {
+	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+
+	//NOTE: don't overwrite err, if err == ErrTxNonceToohigh
+	//because err should be ErrNonceToohigh if following validation has passed
+	//this will be refactored soon
+
 	switch tx.GetBody().GetType() {
 	case types.TxType_NORMAL:
 		if tx.HasNameRecipient() {
@@ -499,24 +503,30 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(account, tx.GetBody(), scs, mp.bestBlockNo+1)
-			if err != nil {
+			if err := system.ValidateSystemTx(account, tx.GetBody(),
+				scs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		case types.AergoName:
-			err = name.ValidateNameTx(tx.Body, scs)
-			if err != nil {
+			if err := name.ValidateNameTx(tx.Body, scs); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 func (mp *MemPool) exists(hash []byte) *types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
 	if v, ok := mp.cache[types.ToTxID(hash)]; ok {
+		if v.HasVerifedAccount() {
+			clone := v.Clone()
+			if clone.RemoveVerifedAccount() {
+				clone.Hash = clone.CalculateTxHash()
+			}
+			return clone
+		}
 		return v
 	}
 	return nil
@@ -578,9 +588,20 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 }
 
 func (mp *MemPool) notifyNewTx(tx types.Tx) {
-	mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
-		Txs: []*types.Tx{&tx},
-	})
+	if tx.HasVerifedAccount() {
+		//this tx has cache of verfied account, remove this
+		clone := tx.Clone()
+		if clone.RemoveVerifedAccount() {
+			clone.Hash = clone.CalculateTxHash()
+		}
+		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
+			Txs: []*types.Tx{clone},
+		})
+	} else {
+		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
+			Txs: []*types.Tx{&tx},
+		})
+	}
 }
 
 func (mp *MemPool) loadTxs() {

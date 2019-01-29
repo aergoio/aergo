@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -18,12 +19,13 @@ var nameCmd = &cobra.Command{
 	Use:   "name [flags] subcommand",
 	Short: "Name command",
 }
+var spending string
 
 func init() {
 	rootCmd.AddCommand(nameCmd)
 	newCmd := &cobra.Command{
 		Use:                   "new",
-		Short:                 "Create account name",
+		Short:                 "Create account name. It spend at least 1 aergo",
 		RunE:                  execNameNew,
 		DisableFlagsInUseLine: true,
 	}
@@ -31,6 +33,7 @@ func init() {
 	newCmd.MarkFlagRequired("from")
 	newCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
 	newCmd.MarkFlagRequired("name")
+	newCmd.Flags().StringVar(&spending, "amount", "1aergo", "Spending for create name. at least 1 aergo")
 
 	updateCmd := &cobra.Command{
 		Use:                   "update",
@@ -44,6 +47,7 @@ func init() {
 	updateCmd.MarkFlagRequired("to")
 	updateCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
 	updateCmd.MarkFlagRequired("name")
+	updateCmd.Flags().StringVar(&spending, "amount", "1aergo", "Spending for create name. at least 1 aergo")
 
 	ownerCmd := &cobra.Command{
 		Use:                   "owner",
@@ -63,10 +67,18 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
 	payload := []byte{'c'}
+	if len(name) != types.NameLength {
+		return errors.New("The name must be 12 alphabetic characters\n")
+	}
+	amount, err := util.ParseUnit(spending)
+	if err != nil {
+		return errors.New("Wrong value in --amount flag\n" + err.Error())
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(types.AergoName),
+			Amount:    amount.Bytes(),
 			Payload:   append(payload, []byte(name)...),
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,
@@ -90,6 +102,13 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
+	if len(name) != types.NameLength {
+		return errors.New("The name must be 12 alphabetic characters\n")
+	}
+	amount, err := util.ParseUnit(spending)
+	if err != nil {
+		return errors.New("Wrong value in --amount flag\n" + err.Error())
+	}
 	payload := []byte{'u'}
 	payload = append(payload, []byte(name)...)
 	payload = append(payload, ',')
@@ -99,11 +118,13 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(types.AergoName),
+			Amount:    amount.Bytes(),
 			Payload:   payload,
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
+
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Printf("Failed request to aergo sever\n" + err.Error())

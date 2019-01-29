@@ -19,7 +19,6 @@ const pubNetMaxBlockSize = 4000000
 var (
 	CoinbaseAccount []byte
 	MaxAnchorCount  int
-	UseFastSyncer   bool
 	VerifierCount   int
 	coinbaseFee     *big.Int
 
@@ -33,7 +32,7 @@ var (
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, useFastSyncer bool, verifierCount int) error {
+func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
 	var err error
 
 	maxBlockSize = maxBlkSize
@@ -52,7 +51,6 @@ func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCoun
 	}
 
 	MaxAnchorCount = maxAnchorCount
-	UseFastSyncer = useFastSyncer
 	VerifierCount = verifierCount
 
 	return nil

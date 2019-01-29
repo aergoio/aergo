@@ -2,7 +2,9 @@ package contract
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -377,7 +379,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -395,7 +397,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -464,7 +466,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"0","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -489,7 +491,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 		"vote",
 		`{"Name":"getCandidates"}`,
 		"",
-		`[{"count":"2","name":"candidate1","id":0},{"count":"0","name":"candidate2","id":1},{"count":"0","name":"candidate3","id":2}]`,
+		`[{"count":"2","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -805,7 +807,7 @@ abi.register(init, nowNull, localtimeNull, get)`
 		"datetime",
 		`{"Name":"get"}`,
 		"",
-		`[{"bool":0},{"bool":1},{"date":"1970-01-01 02:46:40","bool":1},{"date":"2004-11-23","bool":0}]`,
+		`[{"bool":0},{"bool":1},{"bool":1,"date":"1970-01-01 02:46:40"},{"bool":0,"date":"2004-11-23"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -1016,7 +1018,7 @@ abi.register(createTable, query, insert, update, delete, count)`
 		"customer",
 		`{"Name":"query", "Args":["id2"]}`,
 		"",
-		`[{"passwd":"passwd2","id":"id2","birth":"20180524","name":"name2","mobile":"010-1234-5678"}]`,
+		`[{"birth":"20180524","id":"id2","mobile":"010-1234-5678","name":"name2","passwd":"passwd2"}]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -1768,11 +1770,11 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg2":{},"arg3":{},"arg1":1},"key2":[5,4,3]}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg1":1,"arg2":{},"arg3":{}},"key2":[5,4,3]}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg2\":{},\"arg3\":{},\"arg1\":1},\"key2\":[5,4,3]}"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg1\":1,\"arg2\":{},\"arg3\":{}},\"key2\":[5,4,3]}"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2250,7 +2252,7 @@ func TestArrayArg(t *testing.T) {
 	}
 	err = bc.Query("a", `{"Name": "mixed_args", "Args":[[1, 2, 3], {"name": "kslee", "age": 39}, 7]}`,
 		"",
-		`[[1,2,3],{"name":"kslee","age":39},7]`,
+		`[[1,2,3],{"age":39,"name":"kslee"},7]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -2261,7 +2263,6 @@ func TestArrayArg(t *testing.T) {
 "end"
 ]}`,
 		"",
-		`[[[1,2,3],["first","second"]],{"address":{"state":"XXX-do","city":"YYY-si"},"age":39,"name":"kslee"},"end"]`,
 		`[[[1,2,3],["first","second"]],{"address":{"city":"YYY-si","state":"XXX-do"},"age":39,"name":"kslee"},"end"]`,
 	)
 	if err != nil {
@@ -2273,7 +2274,7 @@ func TestArrayArg(t *testing.T) {
 "hmm..."
 ]}`,
 		"",
-		`[[{"name":"wook","age":50},{"name":"hook","age":42}],{"scores":[10,20,30,40,50],"age":39,"name":"kslee"},"hmm..."]`,
+		`[[{"age":50,"name":"wook"},{"age":42,"name":"hook"}],{"age":39,"name":"kslee","scores":[10,20,30,40,50]},"hmm..."]`,
 	)
 	if err != nil {
 		t.Error(err)
@@ -2770,7 +2771,7 @@ abi.payable(save)
 	if err == nil {
 		t.Error(err)
 	} else {
-		if !strings.Contains(err.Error(), types.ErrVmConstructorIsNotPayable.Error()) {
+		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
 			t.Error(err)
 		}
 	}
@@ -3078,4 +3079,133 @@ abi.register(createAndInsert)`
 	}
 }
 
-// end of test-cases
+func TestReturnUData(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+	function test_die()
+	return contract.call(system.getContractID(), "return_object")
+	end
+	function return_object()
+	return db.query("select 1")
+	end
+	abi.register(test_die, return_object)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "rs-return", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "rs-return", 0, `{"Name": "test_die", "Args":[]}`).Fail(`unsupport type: userdata`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func checkRandomFloatValue(v string) error {
+	n, _ := strconv.ParseFloat(v, 64)
+	if n < 0.0 || n >= 1.0 {
+		return errors.New("out of range")
+	}
+	return nil
+}
+func checkRandomIntValue(v string, min, max int) error {
+	n, _ := strconv.Atoi(v)
+	if n < min || n > max {
+		return errors.New("out of range")
+	}
+	return nil
+}
+
+func TestRandom(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	random := `
+function random(...)
+	return system.random(...)
+end
+abi.register(random)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "random", 0, random),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
+	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
+	err = bc.ConnectBlock(tx, tx1)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	err = checkRandomFloatValue(receipt.GetRet())
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+	receipt = bc.getReceipt(tx1.hash())
+	err = checkRandomFloatValue(receipt.GetRet())
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"random",
+			0,
+			`{"Name": "random", "Args":[0]}`).Fail("the maximum value must be greater than zero"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt = bc.getReceipt(tx.hash())
+	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3, 10]}`)
+	err = bc.ConnectBlock(tx)
+	receipt = bc.getReceipt(tx.hash())
+	err = checkRandomIntValue(receipt.GetRet(), 3, 10)
+	if err != nil {
+		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
+	}
+
+	err = bc.Query("random", `{"Name": "random", "Args":[1]}`, "", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[4,4]}`, "", "4")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[0,4]}`, "system.random: the minimum value must be greater than zero", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("random", `{"Name": "random", "Args":[3,1]}`, "system.random: the maximum value must be greater than the minimum value", "")
+	if err != nil {
+		t.Error(err)
+	}
+}

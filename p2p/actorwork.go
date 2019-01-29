@@ -161,29 +161,6 @@ func (p2ps *P2P) NotifyBlockProduced(newBlock message.NotifyNewBlock) bool {
 	return true
 }
 
-// GetMissingBlocks send request message to peer about blocks which my local peer doesn't have
-func (p2ps *P2P) GetMissingBlocks(peerID peer.ID, hashes []message.BlockHash) bool {
-	remotePeer, exists := p2ps.pm.GetPeer(peerID)
-	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
-		return false
-	}
-	//p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
-	if len(hashes) == 0 {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
-		return false
-	}
-
-	p2ps.sm.DoSync(remotePeer, hashes[1:], hashes[0])
-	//// create message data
-	//req := &types.GetMissingRequest{
-	//	Hashes:   bhashes[1:],
-	//	Stophash: bhashes[0]}
-	//
-	//remotePeer.sendMessage(p2ps.mf.newMsgRequestOrder(false, GetMissingRequest, req))
-	return true
-}
-
 // GetTXs send request message to peer and
 func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
@@ -240,7 +217,6 @@ func (p2ps *P2P) GetSyncAncestor(peerID peer.ID, hashes [][]byte) bool {
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
 		return false
 	}
-	//p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Send Get Missing Blocks")
 	if len(hashes) == 0 {
 		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
 		return false

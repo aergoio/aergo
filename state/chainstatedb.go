@@ -79,7 +79,7 @@ func (sdb *ChainStateDB) GetStateDB() *StateDB {
 
 // GetSystemAccountState returns the state of the aergo system account.
 func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
-	return sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	return sdb.GetStateDB().GetSystemAccountState()
 }
 
 // OpenNewStateDB returns new instance of statedb given state root hash
@@ -119,6 +119,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
 				return err
 			}
+			genesis.AddBalance(v)
 		} else {
 			return fmt.Errorf("balance conversion failed for %s (address: %s)", balance, address)
 		}

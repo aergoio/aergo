@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -45,13 +44,13 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core.
-func NewCore(dbType string, dataDir string, testModeOn bool) (*Core, error) {
+func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) (*Core, error) {
 	core := &Core{
 		cdb: NewChainDB(),
 		sdb: state.NewChainStateDB(),
 	}
 
-	err := core.init(dbType, dataDir, testModeOn)
+	err := core.init(dbType, dataDir, testModeOn, forceResetHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -60,11 +59,18 @@ func NewCore(dbType string, dataDir string, testModeOn bool) (*Core, error) {
 }
 
 // Init prepares Core (chain & state DB).
-func (core *Core) init(dbType string, dataDir string, testModeOn bool) error {
+func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) error {
 	// init chaindb
 	if err := core.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
+	}
+
+	if forceResetHeight > 0 {
+		if err := core.cdb.ResetBest(forceResetHeight); err != nil {
+			logger.Fatal().Err(err).Uint64("height", forceResetHeight).Msg("failed to reset chaindb")
+			return err
+		}
 	}
 
 	// init statedb
@@ -151,10 +157,9 @@ type IChainHandler interface {
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
-	handleMissing(stopHash []byte, Hashes [][]byte) (message.BlockHash, types.BlockNo, types.BlockNo)
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
-	checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte)
+	setSync(val bool)
 }
 
 // ChainService manage connectivity of blocks
@@ -181,7 +186,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	var err error
-	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode); err != nil {
+	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize DB")
 		panic(err)
 	}
@@ -190,7 +195,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cfg.Blockchain.CoinbaseAccount,
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
-		cfg.Blockchain.UseFastSyncer,
 		cfg.Blockchain.VerifierCount); err != nil {
 		logger.Error().Err(err).Msg("failed to init chainservice")
 		panic("invalid config: blockchain")
@@ -251,19 +255,6 @@ func (cs *ChainService) AfterStart() {
 	cs.chainWorker.Start()
 }
 
-// ChainSync synchronize with peer
-func (cs *ChainService) ChainSync(peerID peer.ID, remoteBestHash []byte) {
-	// handlt it like normal block (orphan)
-	logger.Debug().Msg("Best Block Request")
-	anchors := cs.getAnchorsFromHash(remoteBestHash)
-	hashes := make([]message.BlockHash, 0)
-	for _, a := range anchors {
-		hashes = append(hashes, message.BlockHash(a))
-		logger.Debug().Str("hash", enc.ToString(a)).Msg("request blocks for sync")
-	}
-	cs.RequestTo(message.P2PSvc, &message.GetMissingBlocks{ToWhom: peerID, Hashes: hashes})
-}
-
 // BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
 	cs.Close()
@@ -289,7 +280,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
 		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
-		*message.GetMissing,
 		*message.GetAncestor,
 		*message.GetQuery:
 		cs.chainManager.Request(msg, context.Sender())
@@ -303,7 +293,6 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetABI,
 		*message.GetStateQuery,
-		*message.SyncBlockState,
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
@@ -452,6 +441,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			bstate = msg.Bstate.(*state.BlockState)
 		}
 		err := cm.addBlock(block, bstate, msg.PeerID)
+		if err != nil {
+			logger.Error().Err(err).Uint64("no", block.GetHeader().BlockNo).Str("hash", block.ID()).Msg("failed to add block")
+		}
 
 		rsp := message.AddBlockRsp{
 			BlockNo:   block.GetHeader().GetBlockNo(),
@@ -462,15 +454,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		context.Respond(&rsp)
 
 		cm.TellTo(message.RPCSvc, block)
-	case *message.GetMissing:
-		stopHash := msg.StopHash
-		hashes := msg.Hashes
-		topHash, topNo, stopNo := cm.handleMissing(stopHash, hashes)
-		context.Respond(message.GetMissingRsp{
-			TopMatched: topHash,
-			TopNumber:  topNo,
-			StopNumber: stopNo,
-		})
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
@@ -498,6 +481,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
@@ -536,6 +520,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			scs, err := cw.sdb.GetStateDB().OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
 			if err != nil {
 				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+				context.Respond(message.GetStateRsp{
+					Account: msg.Account,
+					State:   nil,
+					Err:     err,
+				})
+				return
 			}
 			account = name.GetAddress(scs, msg.Account)
 		} else {
@@ -553,10 +543,11 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		id := types.ToAccountID(msg.Account)
-		stateProof, err := cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		stateProof, err := cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
+		stateProof.Key = msg.Account
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
 			Err:        err,
@@ -589,38 +580,35 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetStateQuery:
-		var varProof *types.ContractVarProof
-		var contractProof *types.StateProof
+		var varProofs []*types.ContractVarProof
+		var contractProof *types.AccountProof
 		var err error
 
 		id := types.ToAccountID(msg.ContractAddress)
-		contractProof, err = cw.sdb.GetStateDB().GetStateAndProof(id[:], msg.Root, msg.Compressed)
+		contractProof, err = cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
-			varId := bytes.NewBufferString("_sv_")
-			varId.WriteString(msg.VarName)
-			if len(msg.VarIndex) != 0 {
-				varId.WriteString(msg.VarIndex)
-				varId.WriteString("_s")
-			}
-			varTrieKey := common.Hasher(varId.Bytes())
-			varProof, err = cw.sdb.GetStateDB().GetVarAndProof(varTrieKey, contractTrieRoot, msg.Compressed)
-			if err != nil {
-				logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+			for _, storageKey := range msg.StorageKeys {
+				trieKey := common.Hasher([]byte(storageKey))
+				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(trieKey, contractTrieRoot, msg.Compressed)
+				varProof.Key = storageKey
+				varProofs = append(varProofs, varProof)
+				if err != nil {
+					logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+				}
 			}
 		}
+		contractProof.Key = msg.ContractAddress
 		stateQuery := &types.StateQueryProof{
 			ContractProof: contractProof,
-			VarProof:      varProof,
+			VarProofs:     varProofs,
 		}
 		context.Respond(message.GetStateQueryRsp{
 			Result: stateQuery,
 			Err:    err,
 		})
-	case *message.SyncBlockState:
-		cw.checkBlockHandshake(msg.PeerID, msg.BlockNo, msg.BlockHash)
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.N)
 		context.Respond(&message.GetVoteRsp{
@@ -645,6 +633,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Owner: owner,
 			Err:   err,
 		})
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)

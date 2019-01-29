@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -48,8 +47,9 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amountBigInt.Bytes()}}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		return errors.New("Failed request to aergo sever\n" + err.Error())
+		cmd.Println(err.Error())
+		return nil
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error)
+	cmd.Println(util.JSON(msg))
 	return nil
 }

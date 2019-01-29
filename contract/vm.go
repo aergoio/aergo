@@ -6,7 +6,7 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.0
+#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
 #cgo !windows CFLAGS: -DLJ_TARGET_POSIX
 #cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
 
@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"reflect"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -79,6 +81,7 @@ type StateSet struct {
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
 	dbUpdateTotalSize int64
+	seed              *rand.Rand
 }
 
 type recoveryEntry struct {
@@ -139,6 +142,9 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 		prevBlockHash: prevBlockHash,
 		service:       C.int(service),
 	}
+	if blockHeight > 0 { // No Preload
+		setRandomSeed(stateSet)
+	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
@@ -159,8 +165,10 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 		bs:          blockState,
 		node:        node,
 		confirmed:   confirmed,
+		timestamp:   time.Now().UnixNano(),
 		isQuery:     true,
 	}
+	setRandomSeed(stateSet)
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[types.ToAccountID(receiverId)] = callState
 
@@ -185,7 +193,7 @@ func newExecutor(contract []byte, stateSet *StateSet) *Executor {
 	}
 	if ce.L == nil {
 		ctrLog.Error().Str("error", "failed: create lua state")
-		ce.err = types.ErrVmStart
+		ce.err = newVmStartError()
 		return ce
 	}
 	if cErrMsg := C.vm_loadbuff(
@@ -357,7 +365,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 		return 0
 	}
 	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
-		ce.err = types.ErrVmConstructorIsNotPayable
+		ce.err = errVmConstructorIsNotPayable
 		return 0
 	}
 
@@ -523,6 +531,19 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	return ce.jsonRet, err
 }
 
+func setRandomSeed(stateSet *StateSet) {
+	var randSrc rand.Source
+	if stateSet.isQuery {
+		randSrc = rand.NewSource(stateSet.timestamp)
+	} else {
+		b, _ := new(big.Int).SetString(enc.ToString(stateSet.prevBlockHash[:7]), 62)
+		t, _ := new(big.Int).SetString(enc.ToString(stateSet.txHash[:7]), 62)
+		b.Add(b, t)
+		randSrc = rand.NewSource(b.Int64())
+	}
+	stateSet.seed = rand.New(randSrc)
+}
+
 func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState *state.ContractState,
 	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, error) {
 	var err error
@@ -540,6 +561,7 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.timestamp = ts
 	stateSet.curContract.rp = rp
 	stateSet.prevBlockHash = prevBlockHash
+	setRandomSeed(stateSet)
 
 	curStateSet[stateSet.service] = stateSet
 	ce.setCountHook(callMaxInstLimit)
@@ -675,12 +697,6 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
 			return string(ret), dbErr
-		}
-		if err == types.ErrVmStart {
-			return string(ret), err
-		}
-		if err == types.ErrVmConstructorIsNotPayable {
-			return string(ret), err
 		}
 		return string(ret), err
 	}

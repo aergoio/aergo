@@ -15,7 +15,6 @@ const (
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
-	REST       *RESTConfig       `mapstructure:"rest"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
@@ -31,9 +30,9 @@ type BaseConfig struct {
 	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
-	EnableRest     bool   `mapstructure:"enablerest" description:"enable rest port for testing"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
 	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
+	AuthDir        string `mapstructure:"authdir" description:"Directory to store files for auth"`
 }
 
 // RPCConfig defines configurations for rpc service
@@ -49,16 +48,11 @@ type RPCConfig struct {
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
-// RESTConfig defines configurations for rest server
-type RESTConfig struct {
-	RestPort int `mapstructure:"restport" description:"Rest port(default:8080)"`
-}
-
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
-	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. "`
-	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect."`
+	NetProtocolAddr string   `mapstructure:"netprotocoladdr" description:"N2N listen address to which other peer can connect. This address is advertized to other peers."`
+	NetProtocolPort int      `mapstructure:"netprotocolport" description:"N2N listen port to which other peer can connect. This port is advertized to other peers."`
 	NPBindAddr      string   `mapstructure:"npbindaddr" description:"N2N bind address. If it was set, it only accept connection to this addresse only"`
 	NPBindPort      int      `mapstructure:"npbindport" description:"N2N bind port. It not set, bind port is same as netprotocolport. Set if server is configured with NAT and port is differ."`
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
@@ -85,11 +79,11 @@ type PolarisConfig struct {
 
 // BlockchainConfig defines configurations for blockchain service
 type BlockchainConfig struct {
-	MaxBlockSize    uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
-	CoinbaseAccount string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
-	MaxAnchorCount  int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
-	UseFastSyncer   bool   `mapstructure:"usefastsyncer" description:"Enable FastSyncer"`
-	VerifierCount   int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	MaxBlockSize     uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
+	CoinbaseAccount  string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
+	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
+	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -137,9 +131,9 @@ datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
-enablerest = {{.BaseConfig.EnableRest}}
 enabletestmode = {{.BaseConfig.EnableTestmode}}
 personal = {{.BaseConfig.Personal}}
+authdir = "{{.BaseConfig.AuthDir}}"
 
 [rpc]
 netserviceaddr = "{{.RPC.NetServiceAddr}}"
@@ -149,9 +143,6 @@ nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
-
-[rest]
-restport = "{{.REST.RestPort}}"
 
 [p2p]
 # Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
@@ -185,8 +176,9 @@ genesisfile = "{{.Polaris.GenesisFile}}"
 maxblocksize = {{.Blockchain.MaxBlockSize}}
 coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
-usefastsyncer = "{{.Blockchain.UseFastSyncer}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
+forceresetheight = "{{.Blockchain.ForceResetHeight}}"
+
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

@@ -63,4 +63,10 @@ const (
 	cachePlaceHolder = true
 )
 
-
+// constants about private key
+const (
+	DefaultPkKeyPrefix    = "aergo-peer"
+	DefaultPkKeyExt    = ".key"
+	DefaultPubKeyExt    = ".pub"
+	DefaultPeerIDExt    = ".id"
+)

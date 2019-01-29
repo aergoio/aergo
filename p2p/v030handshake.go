@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	"io"
@@ -84,24 +85,29 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 			return nil, fmt.Errorf("unexpected message type")
 		}
 	}
-	statusResp := &types.Status{}
-	err = UnmarshalMessage(data.Payload(), statusResp)
+	remotePeerStatus := &types.Status{}
+	err = UnmarshalMessage(data.Payload(), remotePeerStatus)
 	if err != nil {
 		return nil, err
 	}
 
 	// check if chainID is same or not
 	remoteChainID := types.NewChainID()
-	err = remoteChainID.Read(statusResp.ChainID)
+	err = remoteChainID.Read(remotePeerStatus.ChainID)
 	if err != nil {
 		return nil, err
 	}
 	if !h.chainID.Equals(remoteChainID) {
 		return nil, fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
+	
+	peerAddress := remotePeerStatus.Sender
+	if peerAddress == nil || p2putil.CheckAdddressType(peerAddress.Address) == p2putil.AddressTypeError {
+		return nil, fmt.Errorf("invalid peer address : %s", peerAddress)
+	}
 
 	// check status message
-	return statusResp, nil
+	return remotePeerStatus, nil
 }
 
 // onConnect is handle handshake from inbound peer
@@ -143,6 +149,10 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 		return nil, fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
 
+	peerAddress := statusMsg.Sender
+	if peerAddress == nil || p2putil.CheckAdddressType(peerAddress.Address) == p2putil.AddressTypeError {
+		return nil, fmt.Errorf("invalid peer address : %s", peerAddress)
+	}
 
 	// send my status message as response
 	statusResp, err := createStatusMsg(h.pm, h.actorServ, h.chainID)

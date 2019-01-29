@@ -172,7 +172,10 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 		return nil
 	}
 
-	bf.processFailedTask(task, true)
+	if err := bf.processFailedTask(task, false); err != nil {
+		return err
+	}
+
 	return nil
 }
 

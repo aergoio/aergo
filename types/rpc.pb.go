@@ -3,13 +3,12 @@
 
 package types
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -112,6 +111,7 @@ func (*BlockchainStatus) ProtoMessage()    {}
 func (*BlockchainStatus) Descriptor() ([]byte, []int) {
 	return fileDescriptor_77a6da22d6a3feb1, []int{0}
 }
+
 func (m *BlockchainStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockchainStatus.Unmarshal(m, b)
 }
@@ -144,6 +144,149 @@ func (m *BlockchainStatus) GetBestHeight() uint64 {
 	return 0
 }
 
+type ChainId struct {
+	Magic                string   `protobuf:"bytes,1,opt,name=magic,proto3" json:"magic,omitempty"`
+	Public               bool     `protobuf:"varint,2,opt,name=public,proto3" json:"public,omitempty"`
+	Mainnet              bool     `protobuf:"varint,3,opt,name=mainnet,proto3" json:"mainnet,omitempty"`
+	Coinbasefee          []byte   `protobuf:"bytes,4,opt,name=coinbasefee,proto3" json:"coinbasefee,omitempty"`
+	Consensus            string   `protobuf:"bytes,5,opt,name=consensus,proto3" json:"consensus,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ChainId) Reset()         { *m = ChainId{} }
+func (m *ChainId) String() string { return proto.CompactTextString(m) }
+func (*ChainId) ProtoMessage()    {}
+func (*ChainId) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{1}
+}
+
+func (m *ChainId) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ChainId.Unmarshal(m, b)
+}
+func (m *ChainId) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ChainId.Marshal(b, m, deterministic)
+}
+func (m *ChainId) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ChainId.Merge(m, src)
+}
+func (m *ChainId) XXX_Size() int {
+	return xxx_messageInfo_ChainId.Size(m)
+}
+func (m *ChainId) XXX_DiscardUnknown() {
+	xxx_messageInfo_ChainId.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ChainId proto.InternalMessageInfo
+
+func (m *ChainId) GetMagic() string {
+	if m != nil {
+		return m.Magic
+	}
+	return ""
+}
+
+func (m *ChainId) GetPublic() bool {
+	if m != nil {
+		return m.Public
+	}
+	return false
+}
+
+func (m *ChainId) GetMainnet() bool {
+	if m != nil {
+		return m.Mainnet
+	}
+	return false
+}
+
+func (m *ChainId) GetCoinbasefee() []byte {
+	if m != nil {
+		return m.Coinbasefee
+	}
+	return nil
+}
+
+func (m *ChainId) GetConsensus() string {
+	if m != nil {
+		return m.Consensus
+	}
+	return ""
+}
+
+// ChainInfo returns chain configuration
+type ChainInfo struct {
+	Chainid              *ChainId `protobuf:"bytes,1,opt,name=chainid,proto3" json:"chainid,omitempty"`
+	Bpnumber             uint32   `protobuf:"varint,2,opt,name=bpnumber,proto3" json:"bpnumber,omitempty"`
+	Maxblocksize         uint64   `protobuf:"varint,3,opt,name=maxblocksize,proto3" json:"maxblocksize,omitempty"`
+	Maxtokens            []byte   `protobuf:"bytes,4,opt,name=maxtokens,proto3" json:"maxtokens,omitempty"`
+	Stakingminimum       []byte   `protobuf:"bytes,5,opt,name=stakingminimum,proto3" json:"stakingminimum,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ChainInfo) Reset()         { *m = ChainInfo{} }
+func (m *ChainInfo) String() string { return proto.CompactTextString(m) }
+func (*ChainInfo) ProtoMessage()    {}
+func (*ChainInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{2}
+}
+
+func (m *ChainInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ChainInfo.Unmarshal(m, b)
+}
+func (m *ChainInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ChainInfo.Marshal(b, m, deterministic)
+}
+func (m *ChainInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ChainInfo.Merge(m, src)
+}
+func (m *ChainInfo) XXX_Size() int {
+	return xxx_messageInfo_ChainInfo.Size(m)
+}
+func (m *ChainInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_ChainInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ChainInfo proto.InternalMessageInfo
+
+func (m *ChainInfo) GetChainid() *ChainId {
+	if m != nil {
+		return m.Chainid
+	}
+	return nil
+}
+
+func (m *ChainInfo) GetBpnumber() uint32 {
+	if m != nil {
+		return m.Bpnumber
+	}
+	return 0
+}
+
+func (m *ChainInfo) GetMaxblocksize() uint64 {
+	if m != nil {
+		return m.Maxblocksize
+	}
+	return 0
+}
+
+func (m *ChainInfo) GetMaxtokens() []byte {
+	if m != nil {
+		return m.Maxtokens
+	}
+	return nil
+}
+
+func (m *ChainInfo) GetStakingminimum() []byte {
+	if m != nil {
+		return m.Stakingminimum
+	}
+	return nil
+}
+
 type Input struct {
 	Hash                 []byte   `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
 	Address              [][]byte `protobuf:"bytes,2,rep,name=address,proto3" json:"address,omitempty"`
@@ -158,8 +301,9 @@ func (m *Input) Reset()         { *m = Input{} }
 func (m *Input) String() string { return proto.CompactTextString(m) }
 func (*Input) ProtoMessage()    {}
 func (*Input) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{1}
+	return fileDescriptor_77a6da22d6a3feb1, []int{3}
 }
+
 func (m *Input) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Input.Unmarshal(m, b)
 }
@@ -220,8 +364,9 @@ func (m *Output) Reset()         { *m = Output{} }
 func (m *Output) String() string { return proto.CompactTextString(m) }
 func (*Output) ProtoMessage()    {}
 func (*Output) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{2}
+	return fileDescriptor_77a6da22d6a3feb1, []int{4}
 }
+
 func (m *Output) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Output.Unmarshal(m, b)
 }
@@ -278,8 +423,9 @@ func (m *Empty) Reset()         { *m = Empty{} }
 func (m *Empty) String() string { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()    {}
 func (*Empty) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{3}
+	return fileDescriptor_77a6da22d6a3feb1, []int{5}
 }
+
 func (m *Empty) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Empty.Unmarshal(m, b)
 }
@@ -309,8 +455,9 @@ func (m *SingleBytes) Reset()         { *m = SingleBytes{} }
 func (m *SingleBytes) String() string { return proto.CompactTextString(m) }
 func (*SingleBytes) ProtoMessage()    {}
 func (*SingleBytes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{4}
+	return fileDescriptor_77a6da22d6a3feb1, []int{6}
 }
+
 func (m *SingleBytes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SingleBytes.Unmarshal(m, b)
 }
@@ -337,9 +484,9 @@ func (m *SingleBytes) GetValue() []byte {
 }
 
 type AccountAndRoot struct {
-	Account              []byte   `protobuf:"bytes,1,opt,name=Account,proto3" json:"Account,omitempty"`
-	Root                 []byte   `protobuf:"bytes,2,opt,name=Root,proto3" json:"Root,omitempty"`
-	Compressed           bool     `protobuf:"varint,3,opt,name=Compressed,proto3" json:"Compressed,omitempty"`
+	Account              []byte   `protobuf:"bytes,1,opt,name=Account,json=account,proto3" json:"Account,omitempty"`
+	Root                 []byte   `protobuf:"bytes,2,opt,name=Root,json=root,proto3" json:"Root,omitempty"`
+	Compressed           bool     `protobuf:"varint,3,opt,name=Compressed,json=compressed,proto3" json:"Compressed,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -349,8 +496,9 @@ func (m *AccountAndRoot) Reset()         { *m = AccountAndRoot{} }
 func (m *AccountAndRoot) String() string { return proto.CompactTextString(m) }
 func (*AccountAndRoot) ProtoMessage()    {}
 func (*AccountAndRoot) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{5}
+	return fileDescriptor_77a6da22d6a3feb1, []int{7}
 }
+
 func (m *AccountAndRoot) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccountAndRoot.Unmarshal(m, b)
 }
@@ -394,6 +542,7 @@ type Peer struct {
 	Address              *PeerAddress    `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 	Bestblock            *NewBlockNotice `protobuf:"bytes,2,opt,name=bestblock,proto3" json:"bestblock,omitempty"`
 	State                int32           `protobuf:"varint,3,opt,name=state,proto3" json:"state,omitempty"`
+	Hidden               bool            `protobuf:"varint,4,opt,name=hidden,proto3" json:"hidden,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -403,8 +552,9 @@ func (m *Peer) Reset()         { *m = Peer{} }
 func (m *Peer) String() string { return proto.CompactTextString(m) }
 func (*Peer) ProtoMessage()    {}
 func (*Peer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{6}
+	return fileDescriptor_77a6da22d6a3feb1, []int{8}
 }
+
 func (m *Peer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Peer.Unmarshal(m, b)
 }
@@ -444,6 +594,13 @@ func (m *Peer) GetState() int32 {
 	return 0
 }
 
+func (m *Peer) GetHidden() bool {
+	if m != nil {
+		return m.Hidden
+	}
+	return false
+}
+
 type PeerList struct {
 	Peers                []*Peer  `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -455,8 +612,9 @@ func (m *PeerList) Reset()         { *m = PeerList{} }
 func (m *PeerList) String() string { return proto.CompactTextString(m) }
 func (*PeerList) ProtoMessage()    {}
 func (*PeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{7}
+	return fileDescriptor_77a6da22d6a3feb1, []int{9}
 }
+
 func (m *PeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerList.Unmarshal(m, b)
 }
@@ -497,8 +655,9 @@ func (m *ListParams) Reset()         { *m = ListParams{} }
 func (m *ListParams) String() string { return proto.CompactTextString(m) }
 func (*ListParams) ProtoMessage()    {}
 func (*ListParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{8}
+	return fileDescriptor_77a6da22d6a3feb1, []int{10}
 }
+
 func (m *ListParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListParams.Unmarshal(m, b)
 }
@@ -552,6 +711,163 @@ func (m *ListParams) GetAsc() bool {
 	return false
 }
 
+type PageParams struct {
+	Offset               uint32   `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
+	Size                 uint32   `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PageParams) Reset()         { *m = PageParams{} }
+func (m *PageParams) String() string { return proto.CompactTextString(m) }
+func (*PageParams) ProtoMessage()    {}
+func (*PageParams) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{11}
+}
+
+func (m *PageParams) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PageParams.Unmarshal(m, b)
+}
+func (m *PageParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PageParams.Marshal(b, m, deterministic)
+}
+func (m *PageParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PageParams.Merge(m, src)
+}
+func (m *PageParams) XXX_Size() int {
+	return xxx_messageInfo_PageParams.Size(m)
+}
+func (m *PageParams) XXX_DiscardUnknown() {
+	xxx_messageInfo_PageParams.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PageParams proto.InternalMessageInfo
+
+func (m *PageParams) GetOffset() uint32 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *PageParams) GetSize() uint32 {
+	if m != nil {
+		return m.Size
+	}
+	return 0
+}
+
+type BlockBodyPaged struct {
+	Total                uint32     `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Offset               uint32     `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Size                 uint32     `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Body                 *BlockBody `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *BlockBodyPaged) Reset()         { *m = BlockBodyPaged{} }
+func (m *BlockBodyPaged) String() string { return proto.CompactTextString(m) }
+func (*BlockBodyPaged) ProtoMessage()    {}
+func (*BlockBodyPaged) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{12}
+}
+
+func (m *BlockBodyPaged) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BlockBodyPaged.Unmarshal(m, b)
+}
+func (m *BlockBodyPaged) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BlockBodyPaged.Marshal(b, m, deterministic)
+}
+func (m *BlockBodyPaged) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BlockBodyPaged.Merge(m, src)
+}
+func (m *BlockBodyPaged) XXX_Size() int {
+	return xxx_messageInfo_BlockBodyPaged.Size(m)
+}
+func (m *BlockBodyPaged) XXX_DiscardUnknown() {
+	xxx_messageInfo_BlockBodyPaged.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BlockBodyPaged proto.InternalMessageInfo
+
+func (m *BlockBodyPaged) GetTotal() uint32 {
+	if m != nil {
+		return m.Total
+	}
+	return 0
+}
+
+func (m *BlockBodyPaged) GetOffset() uint32 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *BlockBodyPaged) GetSize() uint32 {
+	if m != nil {
+		return m.Size
+	}
+	return 0
+}
+
+func (m *BlockBodyPaged) GetBody() *BlockBody {
+	if m != nil {
+		return m.Body
+	}
+	return nil
+}
+
+type BlockBodyParams struct {
+	Hashornumber         []byte      `protobuf:"bytes,1,opt,name=hashornumber,proto3" json:"hashornumber,omitempty"`
+	Paging               *PageParams `protobuf:"bytes,2,opt,name=paging,proto3" json:"paging,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *BlockBodyParams) Reset()         { *m = BlockBodyParams{} }
+func (m *BlockBodyParams) String() string { return proto.CompactTextString(m) }
+func (*BlockBodyParams) ProtoMessage()    {}
+func (*BlockBodyParams) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{13}
+}
+
+func (m *BlockBodyParams) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BlockBodyParams.Unmarshal(m, b)
+}
+func (m *BlockBodyParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BlockBodyParams.Marshal(b, m, deterministic)
+}
+func (m *BlockBodyParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BlockBodyParams.Merge(m, src)
+}
+func (m *BlockBodyParams) XXX_Size() int {
+	return xxx_messageInfo_BlockBodyParams.Size(m)
+}
+func (m *BlockBodyParams) XXX_DiscardUnknown() {
+	xxx_messageInfo_BlockBodyParams.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BlockBodyParams proto.InternalMessageInfo
+
+func (m *BlockBodyParams) GetHashornumber() []byte {
+	if m != nil {
+		return m.Hashornumber
+	}
+	return nil
+}
+
+func (m *BlockBodyParams) GetPaging() *PageParams {
+	if m != nil {
+		return m.Paging
+	}
+	return nil
+}
+
 type BlockHeaderList struct {
 	Blocks               []*Block `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -563,8 +879,9 @@ func (m *BlockHeaderList) Reset()         { *m = BlockHeaderList{} }
 func (m *BlockHeaderList) String() string { return proto.CompactTextString(m) }
 func (*BlockHeaderList) ProtoMessage()    {}
 func (*BlockHeaderList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{9}
+	return fileDescriptor_77a6da22d6a3feb1, []int{14}
 }
+
 func (m *BlockHeaderList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockHeaderList.Unmarshal(m, b)
 }
@@ -603,8 +920,9 @@ func (m *BlockMetadata) Reset()         { *m = BlockMetadata{} }
 func (m *BlockMetadata) String() string { return proto.CompactTextString(m) }
 func (*BlockMetadata) ProtoMessage()    {}
 func (*BlockMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{10}
+	return fileDescriptor_77a6da22d6a3feb1, []int{15}
 }
+
 func (m *BlockMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockMetadata.Unmarshal(m, b)
 }
@@ -655,8 +973,9 @@ func (m *BlockMetadataList) Reset()         { *m = BlockMetadataList{} }
 func (m *BlockMetadataList) String() string { return proto.CompactTextString(m) }
 func (*BlockMetadataList) ProtoMessage()    {}
 func (*BlockMetadataList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{11}
+	return fileDescriptor_77a6da22d6a3feb1, []int{16}
 }
+
 func (m *BlockMetadataList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockMetadataList.Unmarshal(m, b)
 }
@@ -695,8 +1014,9 @@ func (m *CommitResult) Reset()         { *m = CommitResult{} }
 func (m *CommitResult) String() string { return proto.CompactTextString(m) }
 func (*CommitResult) ProtoMessage()    {}
 func (*CommitResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{12}
+	return fileDescriptor_77a6da22d6a3feb1, []int{17}
 }
+
 func (m *CommitResult) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitResult.Unmarshal(m, b)
 }
@@ -747,8 +1067,9 @@ func (m *CommitResultList) Reset()         { *m = CommitResultList{} }
 func (m *CommitResultList) String() string { return proto.CompactTextString(m) }
 func (*CommitResultList) ProtoMessage()    {}
 func (*CommitResultList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{13}
+	return fileDescriptor_77a6da22d6a3feb1, []int{18}
 }
+
 func (m *CommitResultList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommitResultList.Unmarshal(m, b)
 }
@@ -786,8 +1107,9 @@ func (m *VerifyResult) Reset()         { *m = VerifyResult{} }
 func (m *VerifyResult) String() string { return proto.CompactTextString(m) }
 func (*VerifyResult) ProtoMessage()    {}
 func (*VerifyResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{14}
+	return fileDescriptor_77a6da22d6a3feb1, []int{19}
 }
+
 func (m *VerifyResult) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VerifyResult.Unmarshal(m, b)
 }
@@ -832,8 +1154,9 @@ func (m *Personal) Reset()         { *m = Personal{} }
 func (m *Personal) String() string { return proto.CompactTextString(m) }
 func (*Personal) ProtoMessage()    {}
 func (*Personal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{15}
+	return fileDescriptor_77a6da22d6a3feb1, []int{20}
 }
+
 func (m *Personal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Personal.Unmarshal(m, b)
 }
@@ -879,8 +1202,9 @@ func (m *ImportFormat) Reset()         { *m = ImportFormat{} }
 func (m *ImportFormat) String() string { return proto.CompactTextString(m) }
 func (*ImportFormat) ProtoMessage()    {}
 func (*ImportFormat) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{16}
+	return fileDescriptor_77a6da22d6a3feb1, []int{21}
 }
+
 func (m *ImportFormat) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ImportFormat.Unmarshal(m, b)
 }
@@ -932,8 +1256,9 @@ func (m *Staking) Reset()         { *m = Staking{} }
 func (m *Staking) String() string { return proto.CompactTextString(m) }
 func (*Staking) ProtoMessage()    {}
 func (*Staking) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{17}
+	return fileDescriptor_77a6da22d6a3feb1, []int{22}
 }
+
 func (m *Staking) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Staking.Unmarshal(m, b)
 }
@@ -978,8 +1303,9 @@ func (m *Vote) Reset()         { *m = Vote{} }
 func (m *Vote) String() string { return proto.CompactTextString(m) }
 func (*Vote) ProtoMessage()    {}
 func (*Vote) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{18}
+	return fileDescriptor_77a6da22d6a3feb1, []int{23}
 }
+
 func (m *Vote) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Vote.Unmarshal(m, b)
 }
@@ -1023,8 +1349,9 @@ func (m *VoteList) Reset()         { *m = VoteList{} }
 func (m *VoteList) String() string { return proto.CompactTextString(m) }
 func (*VoteList) ProtoMessage()    {}
 func (*VoteList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{19}
+	return fileDescriptor_77a6da22d6a3feb1, []int{24}
 }
+
 func (m *VoteList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteList.Unmarshal(m, b)
 }
@@ -1062,8 +1389,9 @@ func (m *NodeReq) Reset()         { *m = NodeReq{} }
 func (m *NodeReq) String() string { return proto.CompactTextString(m) }
 func (*NodeReq) ProtoMessage()    {}
 func (*NodeReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{20}
+	return fileDescriptor_77a6da22d6a3feb1, []int{25}
 }
+
 func (m *NodeReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NodeReq.Unmarshal(m, b)
 }
@@ -1107,8 +1435,9 @@ func (m *Name) Reset()         { *m = Name{} }
 func (m *Name) String() string { return proto.CompactTextString(m) }
 func (*Name) ProtoMessage()    {}
 func (*Name) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{21}
+	return fileDescriptor_77a6da22d6a3feb1, []int{26}
 }
+
 func (m *Name) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Name.Unmarshal(m, b)
 }
@@ -1146,8 +1475,9 @@ func (m *NameInfo) Reset()         { *m = NameInfo{} }
 func (m *NameInfo) String() string { return proto.CompactTextString(m) }
 func (*NameInfo) ProtoMessage()    {}
 func (*NameInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{22}
+	return fileDescriptor_77a6da22d6a3feb1, []int{27}
 }
+
 func (m *NameInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NameInfo.Unmarshal(m, b)
 }
@@ -1181,7 +1511,11 @@ func (m *NameInfo) GetOwner() []byte {
 }
 
 func init() {
+	proto.RegisterEnum("types.CommitStatus", CommitStatus_name, CommitStatus_value)
+	proto.RegisterEnum("types.VerifyStatus", VerifyStatus_name, VerifyStatus_value)
 	proto.RegisterType((*BlockchainStatus)(nil), "types.BlockchainStatus")
+	proto.RegisterType((*ChainId)(nil), "types.ChainId")
+	proto.RegisterType((*ChainInfo)(nil), "types.ChainInfo")
 	proto.RegisterType((*Input)(nil), "types.Input")
 	proto.RegisterType((*Output)(nil), "types.Output")
 	proto.RegisterType((*Empty)(nil), "types.Empty")
@@ -1190,6 +1524,9 @@ func init() {
 	proto.RegisterType((*Peer)(nil), "types.Peer")
 	proto.RegisterType((*PeerList)(nil), "types.PeerList")
 	proto.RegisterType((*ListParams)(nil), "types.ListParams")
+	proto.RegisterType((*PageParams)(nil), "types.PageParams")
+	proto.RegisterType((*BlockBodyPaged)(nil), "types.BlockBodyPaged")
+	proto.RegisterType((*BlockBodyParams)(nil), "types.BlockBodyParams")
 	proto.RegisterType((*BlockHeaderList)(nil), "types.BlockHeaderList")
 	proto.RegisterType((*BlockMetadata)(nil), "types.BlockMetadata")
 	proto.RegisterType((*BlockMetadataList)(nil), "types.BlockMetadataList")
@@ -1204,8 +1541,127 @@ func init() {
 	proto.RegisterType((*NodeReq)(nil), "types.NodeReq")
 	proto.RegisterType((*Name)(nil), "types.Name")
 	proto.RegisterType((*NameInfo)(nil), "types.NameInfo")
-	proto.RegisterEnum("types.CommitStatus", CommitStatus_name, CommitStatus_value)
-	proto.RegisterEnum("types.VerifyStatus", VerifyStatus_name, VerifyStatus_value)
+}
+
+func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
+
+var fileDescriptor_77a6da22d6a3feb1 = []byte{
+	// 1833 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x58, 0xdd, 0x72, 0xdb, 0xc6,
+	0x15, 0x26, 0x25, 0x52, 0x12, 0x0f, 0x49, 0x09, 0xde, 0xc8, 0xb6, 0xca, 0x66, 0x1c, 0x75, 0x9b,
+	0xc9, 0x28, 0xae, 0xad, 0xd8, 0x72, 0xd3, 0xf6, 0xa2, 0xd3, 0x14, 0x62, 0x28, 0x89, 0x53, 0x89,
+	0x52, 0x97, 0xb0, 0xab, 0xb4, 0x33, 0x65, 0x97, 0xc0, 0x92, 0xc4, 0x98, 0xc0, 0x22, 0xc0, 0xd2,
+	0xa2, 0xfa, 0x16, 0xbd, 0xea, 0xc3, 0xf4, 0x2d, 0xfa, 0x14, 0x7d, 0x8c, 0xce, 0xfe, 0x00, 0x04,
+	0x28, 0x38, 0x33, 0xc9, 0x95, 0x70, 0xce, 0x9e, 0x9f, 0x6f, 0xcf, 0xef, 0x52, 0xd0, 0x88, 0x23,
+	0xf7, 0x38, 0x8a, 0xb9, 0xe0, 0xa8, 0x2e, 0xee, 0x23, 0x96, 0x74, 0xac, 0xf1, 0x9c, 0xbb, 0xef,
+	0xdd, 0x19, 0xf5, 0x43, 0x7d, 0xd0, 0x69, 0x53, 0xd7, 0xe5, 0x8b, 0x50, 0x18, 0x12, 0x42, 0xee,
+	0x31, 0xf3, 0xdd, 0x88, 0x4e, 0x22, 0xf3, 0xd9, 0x0a, 0x98, 0x88, 0x7d, 0x63, 0x0c, 0xff, 0x0d,
+	0xac, 0xd3, 0xcc, 0xce, 0x50, 0x50, 0xb1, 0x48, 0xd0, 0x17, 0xb0, 0x37, 0x66, 0x89, 0x18, 0x29,
+	0x07, 0xa3, 0x19, 0x4d, 0x66, 0x07, 0xd5, 0xc3, 0xea, 0x51, 0x8b, 0xb4, 0x25, 0x5b, 0x89, 0x5f,
+	0xd0, 0x64, 0x86, 0x3e, 0x83, 0xa6, 0x92, 0x9b, 0x31, 0x7f, 0x3a, 0x13, 0x07, 0x1b, 0x87, 0xd5,
+	0xa3, 0x1a, 0x01, 0xc9, 0xba, 0x50, 0x1c, 0xfc, 0xaf, 0x2a, 0x6c, 0x77, 0xa5, 0xe1, 0xbe, 0x87,
+	0xf6, 0xa1, 0x1e, 0xd0, 0xa9, 0xef, 0x2a, 0x53, 0x0d, 0xa2, 0x09, 0xf4, 0x04, 0xb6, 0xa2, 0xc5,
+	0x78, 0xee, 0xbb, 0x4a, 0x7b, 0x87, 0x18, 0x0a, 0x1d, 0xc0, 0x76, 0x40, 0xfd, 0x30, 0x64, 0xe2,
+	0x60, 0x53, 0x1d, 0xa4, 0x24, 0x3a, 0x84, 0xa6, 0xcb, 0xfd, 0x70, 0x4c, 0x13, 0x36, 0x61, 0xec,
+	0xa0, 0xa6, 0x80, 0xe5, 0x59, 0xe8, 0x53, 0x68, 0xb8, 0x3c, 0x4c, 0x58, 0x98, 0x2c, 0x92, 0x83,
+	0xba, 0xf2, 0xb6, 0x62, 0xe0, 0xff, 0x54, 0xa1, 0xa1, 0x31, 0x85, 0x13, 0x8e, 0x8e, 0x60, 0x5b,
+	0xdd, 0xdc, 0xf7, 0x14, 0xae, 0xe6, 0xc9, 0xee, 0xb1, 0x8a, 0xee, 0xb1, 0x81, 0x4d, 0xd2, 0x63,
+	0xd4, 0x81, 0x9d, 0x71, 0x14, 0x2e, 0x82, 0x31, 0x8b, 0x15, 0xd6, 0x36, 0xc9, 0x68, 0x84, 0xa1,
+	0x15, 0xd0, 0xa5, 0x0a, 0x57, 0xe2, 0xff, 0x93, 0x29, 0xc8, 0x35, 0x52, 0xe0, 0x49, 0x54, 0x01,
+	0x5d, 0x0a, 0xfe, 0x9e, 0x85, 0x89, 0x41, 0xbd, 0x62, 0xa0, 0x2f, 0x60, 0x37, 0x11, 0xf4, 0xbd,
+	0x1f, 0x4e, 0x03, 0x3f, 0xf4, 0x83, 0x45, 0xa0, 0x80, 0xb7, 0xc8, 0x1a, 0x17, 0xbb, 0x50, 0xef,
+	0x87, 0xd1, 0x42, 0x20, 0x04, 0xb5, 0x5c, 0x62, 0xd4, 0xb7, 0x0c, 0x1a, 0xf5, 0xbc, 0x98, 0x25,
+	0xc9, 0xc1, 0xc6, 0xe1, 0xe6, 0x51, 0x8b, 0xa4, 0xa4, 0x0c, 0xfe, 0x07, 0x3a, 0x5f, 0x68, 0x64,
+	0x2d, 0xa2, 0x09, 0x19, 0xfc, 0xc4, 0x8d, 0xfd, 0x48, 0x18, 0x3c, 0x86, 0xc2, 0x13, 0xd8, 0xba,
+	0x5e, 0x08, 0xe9, 0x65, 0x1f, 0xea, 0x7e, 0xe8, 0xb1, 0xa5, 0x72, 0xd3, 0x26, 0x9a, 0x28, 0xfa,
+	0xa9, 0xfe, 0x74, 0x3f, 0xdb, 0x50, 0xef, 0x05, 0x91, 0xb8, 0xc7, 0xbf, 0x84, 0xe6, 0xd0, 0x0f,
+	0xa7, 0x73, 0x76, 0x7a, 0x2f, 0x58, 0xce, 0x4a, 0x35, 0x67, 0x05, 0xff, 0x1d, 0x76, 0x6d, 0x5d,
+	0xdf, 0x76, 0xe8, 0x11, 0xce, 0x85, 0xc4, 0x61, 0x38, 0x46, 0x72, 0xdb, 0x34, 0x80, 0x8c, 0x8e,
+	0x94, 0x30, 0xf0, 0x6a, 0xb1, 0x94, 0x7e, 0x06, 0xd0, 0xe5, 0x41, 0x24, 0x71, 0x32, 0xcf, 0x54,
+	0x15, 0xb8, 0x19, 0x07, 0xff, 0xbb, 0x0a, 0xb5, 0x1b, 0xc6, 0x62, 0xf4, 0x62, 0x75, 0x3d, 0x5d,
+	0x13, 0xc8, 0xd4, 0x84, 0x3c, 0xb5, 0xf5, 0xc9, 0xea, 0xca, 0x6f, 0xa0, 0x21, 0x2b, 0x5e, 0x25,
+	0x5a, 0xf9, 0x6b, 0x9e, 0x3c, 0x36, 0xf2, 0x03, 0x76, 0xa7, 0x9a, 0x65, 0xc0, 0x85, 0xef, 0x32,
+	0xb2, 0x92, 0x93, 0x37, 0x4c, 0x04, 0x15, 0x3a, 0x4e, 0x75, 0xa2, 0x09, 0x19, 0xa7, 0x99, 0xef,
+	0x79, 0x2c, 0x54, 0x71, 0xda, 0x21, 0x86, 0xc2, 0x2f, 0x61, 0x47, 0xba, 0xbe, 0xf4, 0x13, 0x81,
+	0x7e, 0x01, 0xf5, 0x88, 0xb1, 0x58, 0x42, 0xdb, 0x3c, 0x6a, 0x9e, 0x34, 0x73, 0xd0, 0x88, 0x3e,
+	0xc1, 0x1f, 0x00, 0xa4, 0xe8, 0x0d, 0x8d, 0x69, 0x90, 0x94, 0x16, 0x8a, 0x74, 0x94, 0xef, 0x59,
+	0x43, 0x49, 0xd9, 0xac, 0x7e, 0xdb, 0x44, 0x7d, 0x4b, 0x59, 0x3e, 0x99, 0x24, 0x4c, 0x27, 0xaf,
+	0x4d, 0x0c, 0x85, 0x2c, 0xd8, 0xa4, 0x89, 0xab, 0xca, 0x74, 0x87, 0xc8, 0x4f, 0xfc, 0x3b, 0x80,
+	0x1b, 0x3a, 0x65, 0xc6, 0xef, 0x4a, 0xaf, 0x5a, 0xd0, 0x4b, 0x7d, 0x6c, 0xac, 0x7c, 0xe0, 0x25,
+	0xec, 0xaa, 0x40, 0x9d, 0x72, 0xef, 0x5e, 0x9a, 0x50, 0xd3, 0x42, 0x70, 0x41, 0xe7, 0x69, 0xe1,
+	0x29, 0x22, 0x67, 0x73, 0xa3, 0xd4, 0x66, 0x1e, 0xf7, 0xe7, 0x50, 0x1b, 0x73, 0xef, 0x5e, 0xa1,
+	0x6e, 0x9e, 0x58, 0x26, 0x4e, 0x99, 0x1b, 0xa2, 0x4e, 0xf1, 0x3f, 0x60, 0x2f, 0xe7, 0x59, 0x01,
+	0xc7, 0xd0, 0x92, 0x41, 0xe2, 0xb1, 0x69, 0x76, 0x1d, 0xb8, 0x02, 0x0f, 0x7d, 0x09, 0x5b, 0x11,
+	0x9d, 0xfa, 0xe1, 0xd4, 0x64, 0xfc, 0x51, 0x9a, 0x86, 0xec, 0xfe, 0xc4, 0x08, 0xe0, 0xdf, 0x1a,
+	0x0f, 0x17, 0x8c, 0x7a, 0x26, 0x87, 0x9f, 0xc3, 0x96, 0x9e, 0x0b, 0x26, 0x89, 0xad, 0x3c, 0x38,
+	0x62, 0xce, 0xb0, 0x0f, 0x6d, 0xc5, 0xb8, 0x62, 0x82, 0x7a, 0x54, 0xd0, 0xd2, 0x4c, 0x3e, 0x97,
+	0x99, 0x94, 0x86, 0x0d, 0x10, 0x94, 0x37, 0xa5, 0x5d, 0x12, 0x23, 0x21, 0xdb, 0x45, 0x2c, 0x75,
+	0xbb, 0xe8, 0xb2, 0x4b, 0x49, 0x6c, 0xc3, 0xa3, 0x82, 0x2b, 0x85, 0xf2, 0xc5, 0x1a, 0xca, 0xfd,
+	0xbc, 0xe9, 0x54, 0x32, 0x43, 0xcb, 0xa0, 0xd5, 0xe5, 0x41, 0xe0, 0x0b, 0xc2, 0x92, 0xc5, 0xbc,
+	0x7c, 0x3e, 0x7d, 0x09, 0x75, 0x16, 0xc7, 0x5c, 0x63, 0xdd, 0x3d, 0xf9, 0x24, 0x1d, 0xb5, 0x4a,
+	0x4f, 0xef, 0x1e, 0xa2, 0x25, 0x64, 0xa6, 0x3d, 0x26, 0xa8, 0x3f, 0x57, 0x50, 0x1b, 0xc4, 0x50,
+	0xd8, 0x06, 0x2b, 0xef, 0x46, 0x01, 0x7d, 0x09, 0xdb, 0xb1, 0xa2, 0x52, 0xa4, 0x45, 0xc3, 0x5a,
+	0x92, 0xa4, 0x32, 0xd8, 0x81, 0xd6, 0x3b, 0x16, 0xfb, 0x93, 0x7b, 0x83, 0xf4, 0x67, 0xb0, 0x21,
+	0x96, 0xa6, 0xd3, 0x1b, 0x46, 0xd3, 0x59, 0x92, 0x0d, 0xb1, 0xfc, 0x18, 0x60, 0xad, 0x5e, 0x00,
+	0x8c, 0x1d, 0xd9, 0xa3, 0x71, 0xc2, 0x43, 0x3a, 0x97, 0x93, 0x26, 0xa2, 0x49, 0x12, 0xcd, 0x62,
+	0x9a, 0x30, 0xb3, 0xef, 0x72, 0x1c, 0xb9, 0x74, 0xcc, 0xa0, 0x32, 0x59, 0x4b, 0x97, 0x8e, 0x99,
+	0x66, 0xd9, 0x1c, 0xc3, 0x33, 0x68, 0xf5, 0x83, 0x88, 0xc7, 0xe2, 0x8c, 0xc7, 0x01, 0x95, 0x95,
+	0xb3, 0x79, 0xe7, 0x4f, 0xd6, 0xc6, 0x52, 0x6e, 0x74, 0x12, 0x79, 0x2c, 0x13, 0xcd, 0xe7, 0x9e,
+	0x74, 0xa8, 0xec, 0x37, 0x48, 0x4a, 0xca, 0x93, 0x90, 0xdd, 0xa9, 0x13, 0x1d, 0xd7, 0x94, 0xc4,
+	0x5f, 0xc3, 0xf6, 0x50, 0xaf, 0x1a, 0x19, 0x7b, 0x1a, 0xe4, 0xa6, 0xaa, 0xa1, 0x64, 0x4a, 0xef,
+	0x66, 0x2c, 0x34, 0x33, 0x43, 0x7d, 0xe3, 0xdf, 0x43, 0xed, 0x1d, 0x17, 0x7a, 0xe7, 0xd2, 0xd0,
+	0xf3, 0x3d, 0x39, 0xd4, 0xb4, 0xda, 0x8a, 0x91, 0xb3, 0xb8, 0x91, 0xb7, 0x28, 0x07, 0x9b, 0xd4,
+	0x4e, 0x07, 0xdb, 0x07, 0x2e, 0xd8, 0xfa, 0x60, 0x93, 0xe7, 0x44, 0x9f, 0x60, 0x1b, 0xb6, 0x07,
+	0xdc, 0x63, 0x84, 0x7d, 0xaf, 0x6a, 0xd9, 0x0f, 0x18, 0x5f, 0x64, 0xa3, 0xdf, 0x90, 0x7a, 0xfb,
+	0x07, 0x11, 0x0f, 0x59, 0xe6, 0x6e, 0xc5, 0xc0, 0x1d, 0xa8, 0x0d, 0x68, 0xc0, 0xe4, 0x5d, 0x42,
+	0x1a, 0xa4, 0xc9, 0x51, 0xdf, 0xd8, 0x86, 0x1d, 0x79, 0xa6, 0xde, 0x05, 0x9f, 0xe5, 0xce, 0x57,
+	0x60, 0xe4, 0xb1, 0x16, 0x96, 0x03, 0x8a, 0xdf, 0x85, 0xa6, 0xef, 0x5a, 0x44, 0x13, 0xcf, 0xff,
+	0x5b, 0x4d, 0xdb, 0xc0, 0x3c, 0xa5, 0x1a, 0x50, 0x77, 0x6e, 0x47, 0xd7, 0x7f, 0xb2, 0x2a, 0x68,
+	0x1f, 0x2c, 0xe7, 0x76, 0x34, 0xb8, 0x1e, 0x74, 0x7b, 0x23, 0xe7, 0xfa, 0x7a, 0x74, 0x79, 0xfd,
+	0x17, 0xab, 0x8a, 0x1e, 0xc3, 0x23, 0xe7, 0x76, 0x64, 0x5f, 0x92, 0x9e, 0xfd, 0xed, 0x77, 0xa3,
+	0xde, 0x6d, 0x7f, 0xe8, 0x0c, 0xad, 0x0d, 0xf4, 0x09, 0xec, 0x39, 0xb7, 0xa3, 0xfe, 0xe0, 0x9d,
+	0x7d, 0xd9, 0xff, 0x76, 0x74, 0x61, 0x0f, 0x2f, 0xac, 0xcd, 0x35, 0xe6, 0xb0, 0x7f, 0x3e, 0xb0,
+	0x6a, 0xc6, 0x40, 0xca, 0x3c, 0xbb, 0x26, 0x57, 0xb6, 0x63, 0xd5, 0xd1, 0xcf, 0xe1, 0xa9, 0x62,
+	0x0f, 0xdf, 0x9e, 0x9d, 0xf5, 0xbb, 0xfd, 0xde, 0xc0, 0x19, 0x9d, 0xda, 0x97, 0xf6, 0xa0, 0xdb,
+	0xb3, 0xb6, 0x8c, 0xce, 0x85, 0x3d, 0x1c, 0x0d, 0xed, 0xab, 0x9e, 0xc6, 0x64, 0x6d, 0x67, 0xa6,
+	0x9c, 0x1e, 0x19, 0xd8, 0x97, 0xa3, 0x1e, 0x21, 0xd7, 0xc4, 0x6a, 0x3c, 0x9f, 0xa4, 0x0d, 0x63,
+	0xee, 0xb4, 0x0f, 0xd6, 0xbb, 0x1e, 0xe9, 0x9f, 0x7d, 0x37, 0x1a, 0x3a, 0xb6, 0xf3, 0x76, 0xa8,
+	0xaf, 0x77, 0x08, 0x9f, 0x16, 0xb9, 0x12, 0xdf, 0x68, 0x70, 0xed, 0x8c, 0xae, 0x6c, 0xa7, 0x7b,
+	0x61, 0x55, 0xd1, 0x33, 0xe8, 0x14, 0x25, 0x0a, 0xd7, 0xdb, 0x38, 0xf9, 0x5f, 0x1b, 0xf6, 0x6c,
+	0x16, 0x4f, 0x39, 0xb9, 0xe9, 0x0e, 0x59, 0xfc, 0xc1, 0x77, 0x19, 0x7a, 0x0d, 0x0d, 0x99, 0xf2,
+	0xa1, 0xda, 0x8f, 0x69, 0x9b, 0x98, 0x22, 0xe8, 0x94, 0x34, 0x00, 0xae, 0xa0, 0xd7, 0xb0, 0x75,
+	0xa5, 0x5e, 0xb8, 0x28, 0xdd, 0xc3, 0x9a, 0x4c, 0x08, 0xfb, 0x7e, 0xc1, 0x12, 0xd1, 0xd9, 0x2d,
+	0xb2, 0x71, 0x05, 0x7d, 0x0d, 0xb0, 0x7a, 0x04, 0xa3, 0x74, 0x1c, 0xab, 0xb7, 0x49, 0xe7, 0x69,
+	0x7e, 0xec, 0xe5, 0x5e, 0xc9, 0xb8, 0x82, 0x5e, 0x41, 0xeb, 0x9c, 0x89, 0xd5, 0x63, 0xb2, 0xa8,
+	0x68, 0x15, 0x5e, 0x92, 0xe1, 0x84, 0xe3, 0x0a, 0xfa, 0x06, 0x2c, 0x59, 0xec, 0xb9, 0xe9, 0x9c,
+	0xa0, 0x74, 0x77, 0xac, 0x76, 0x76, 0xe7, 0xc9, 0xc3, 0x29, 0x2e, 0x4f, 0x71, 0x05, 0x9d, 0xc2,
+	0xa3, 0xcc, 0x40, 0xb6, 0x18, 0x4a, 0x2c, 0x1c, 0x94, 0x0d, 0x6b, 0x63, 0xe3, 0x35, 0xec, 0x65,
+	0x36, 0x86, 0x22, 0x66, 0x34, 0x58, 0x43, 0x5e, 0xd8, 0x47, 0xb8, 0xf2, 0xaa, 0x8a, 0x6c, 0x78,
+	0xfa, 0xc0, 0x6d, 0xa9, 0x6a, 0xe9, 0x92, 0x50, 0x26, 0x8e, 0x61, 0xe7, 0x9c, 0x69, 0x0b, 0xa8,
+	0x24, 0x71, 0xeb, 0x4e, 0xd1, 0x1f, 0xc0, 0x4a, 0xe5, 0x57, 0x1b, 0xb0, 0x44, 0xef, 0x23, 0x1e,
+	0xd1, 0x37, 0x2a, 0x39, 0xd9, 0x72, 0x47, 0x4f, 0xd6, 0x5f, 0x00, 0x26, 0x52, 0x8f, 0x1f, 0xf2,
+	0xa7, 0xcc, 0xc3, 0x15, 0x74, 0x04, 0xf5, 0x73, 0x26, 0x9c, 0xdb, 0x52, 0xaf, 0xab, 0x45, 0x81,
+	0x2b, 0xe8, 0xd7, 0x00, 0xa9, 0xab, 0x8f, 0x88, 0x5b, 0x99, 0x78, 0x3f, 0x4c, 0x2f, 0x78, 0xa2,
+	0xb4, 0x08, 0x73, 0x99, 0x1f, 0x89, 0x52, 0xad, 0xb4, 0x50, 0x8d, 0x0c, 0xae, 0xc8, 0x75, 0x7f,
+	0xce, 0x84, 0x7d, 0xda, 0x2f, 0x95, 0x87, 0x74, 0x8d, 0x9c, 0xf6, 0xb5, 0xec, 0x90, 0x85, 0x9e,
+	0x73, 0x8b, 0x56, 0x60, 0x3b, 0x65, 0xab, 0x11, 0xcb, 0xe6, 0xdd, 0x1a, 0xfa, 0xd3, 0xb0, 0x28,
+	0x5b, 0xb8, 0xe3, 0x0b, 0xd8, 0xd1, 0x43, 0xa0, 0xdc, 0x5e, 0x7e, 0xa3, 0xaa, 0x88, 0xec, 0x68,
+	0x0f, 0xce, 0x2d, 0x6a, 0x67, 0xd2, 0xb2, 0x84, 0xb2, 0x7e, 0x5a, 0x5f, 0xe3, 0xb8, 0x62, 0x4a,
+	0x44, 0xf7, 0xfa, 0x0f, 0x95, 0x88, 0x92, 0xc0, 0x15, 0xf4, 0x47, 0x55, 0x22, 0x8a, 0xb2, 0x43,
+	0xef, 0x26, 0xe6, 0x7c, 0x92, 0xf5, 0x7c, 0xf1, 0xa7, 0x42, 0x86, 0xd3, 0xb0, 0x95, 0xac, 0xca,
+	0x41, 0xbb, 0x1b, 0x33, 0xa9, 0x6f, 0x7e, 0x38, 0xec, 0x65, 0xef, 0x69, 0xbd, 0xcb, 0x3b, 0x6b,
+	0xab, 0x59, 0xb5, 0x4f, 0x53, 0xe6, 0x40, 0xd3, 0xc9, 0x5a, 0xfd, 0xa3, 0xa2, 0xb8, 0xb9, 0xd8,
+	0x2b, 0x68, 0x5e, 0x72, 0xf7, 0xfd, 0x8f, 0x70, 0x72, 0x02, 0xed, 0xb7, 0xe1, 0xfc, 0xc7, 0xe9,
+	0xfc, 0x06, 0xda, 0xfa, 0xb1, 0x90, 0xea, 0xa4, 0x97, 0xce, 0x3f, 0x21, 0xca, 0xf5, 0x7a, 0xcb,
+	0xbc, 0xde, 0x03, 0x5f, 0xe5, 0x83, 0xf6, 0x0d, 0xb4, 0xff, 0xbc, 0x60, 0xf1, 0x7d, 0x97, 0x87,
+	0x22, 0xa6, 0xae, 0xc8, 0x42, 0xa1, 0xb8, 0x1f, 0x51, 0xb2, 0x01, 0x15, 0x94, 0x74, 0xb6, 0x1f,
+	0xe5, 0x33, 0xab, 0xd5, 0x9f, 0x3c, 0x60, 0xa5, 0x49, 0xfb, 0x95, 0x2a, 0x13, 0xf9, 0x8b, 0x67,
+	0x3d, 0xfa, 0x7b, 0xb9, 0x5f, 0x43, 0xd9, 0xb0, 0x93, 0xc2, 0xf2, 0x15, 0x91, 0x94, 0xd6, 0xd4,
+	0x5e, 0xee, 0x9d, 0x61, 0x54, 0x74, 0x63, 0xa6, 0xaf, 0xa1, 0x1f, 0x6a, 0x4c, 0x23, 0x83, 0x2b,
+	0xe8, 0xa5, 0x2a, 0x8a, 0xec, 0xf9, 0x90, 0x7f, 0x30, 0x64, 0x2e, 0xd2, 0x53, 0x5c, 0x39, 0x3d,
+	0xfc, 0xeb, 0xb3, 0xa9, 0x2f, 0x66, 0x8b, 0xf1, 0xb1, 0xcb, 0x83, 0xaf, 0xa8, 0x5c, 0x7a, 0x3e,
+	0xd7, 0x7f, 0xbf, 0x52, 0xc2, 0xe3, 0x2d, 0xf5, 0xef, 0x99, 0x37, 0xff, 0x0f, 0x00, 0x00, 0xff,
+	0xff, 0xee, 0x4a, 0xa1, 0x49, 0xf8, 0x11, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1220,35 +1676,71 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AergoRPCServiceClient interface {
+	// Returns the current state of this node
 	NodeState(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*SingleBytes, error)
+	// Returns node metrics according to request
 	Metric(ctx context.Context, in *MetricsRequest, opts ...grpc.CallOption) (*Metrics, error)
+	// Returns current blockchain status (best block's height and hash)
 	Blockchain(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BlockchainStatus, error)
+	// Returns current blockchain's basic information
+	GetChainInfo(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChainInfo, error)
+	// Returns list of Blocks without body according to request
 	ListBlockHeaders(ctx context.Context, in *ListParams, opts ...grpc.CallOption) (*BlockHeaderList, error)
+	// Returns list of block metadata (hash, header, and number of transactions) according to request
 	ListBlockMetadata(ctx context.Context, in *ListParams, opts ...grpc.CallOption) (*BlockMetadataList, error)
+	// Returns a stream of new blocks as they get added to the blockchain
 	ListBlockStream(ctx context.Context, in *Empty, opts ...grpc.CallOption) (AergoRPCService_ListBlockStreamClient, error)
+	// Returns a stream of new block's metadata as they get added to the blockchain
 	ListBlockMetadataStream(ctx context.Context, in *Empty, opts ...grpc.CallOption) (AergoRPCService_ListBlockMetadataStreamClient, error)
+	// Return a single block incl. header and body, queried by hash or number
 	GetBlock(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Block, error)
+	// Return a single block's metdata (hash, header, and number of transactions), queried by hash or number
+	GetBlockMetadata(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*BlockMetadata, error)
+	// Return a single block's body, queried by hash or number and list parameters
+	GetBlockBody(ctx context.Context, in *BlockBodyParams, opts ...grpc.CallOption) (*BlockBodyPaged, error)
+	// Return a single transaction, queried by transaction hash
 	GetTX(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Tx, error)
+	// Return information about transaction in block, queried by transaction hash
 	GetBlockTX(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*TxInBlock, error)
+	// Return transaction receipt, queried by transaction hash
 	GetReceipt(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Receipt, error)
+	// Return ABI stored at contract address
 	GetABI(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*ABI, error)
+	// Sign and send a transaction from an unlocked account
 	SendTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*CommitResult, error)
-	CommitTX(ctx context.Context, in *TxList, opts ...grpc.CallOption) (*CommitResultList, error)
-	GetState(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*State, error)
-	GetStateAndProof(ctx context.Context, in *AccountAndRoot, opts ...grpc.CallOption) (*StateProof, error)
-	CreateAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
-	GetAccounts(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AccountList, error)
-	LockAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
-	UnlockAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
-	ImportAccount(ctx context.Context, in *ImportFormat, opts ...grpc.CallOption) (*Account, error)
-	ExportAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*SingleBytes, error)
+	// Sign transaction with unlocked account
 	SignTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*Tx, error)
+	// Verify validity of transaction
 	VerifyTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*VerifyResult, error)
+	// Commit a signed transaction
+	CommitTX(ctx context.Context, in *TxList, opts ...grpc.CallOption) (*CommitResultList, error)
+	// Return state of account
+	GetState(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*State, error)
+	// Return state of account, including merkle proof
+	GetStateAndProof(ctx context.Context, in *AccountAndRoot, opts ...grpc.CallOption) (*AccountProof, error)
+	// Create a new account in this node
+	CreateAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
+	// Return list of accounts in this node
+	GetAccounts(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AccountList, error)
+	// Lock account in this node
+	LockAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
+	// Unlock account in this node
+	UnlockAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*Account, error)
+	// Import account to this node
+	ImportAccount(ctx context.Context, in *ImportFormat, opts ...grpc.CallOption) (*Account, error)
+	// Export account stored in this node
+	ExportAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*SingleBytes, error)
+	// Query a contract method
 	QueryContract(ctx context.Context, in *Query, opts ...grpc.CallOption) (*SingleBytes, error)
+	// Query contract state
 	QueryContractState(ctx context.Context, in *StateQuery, opts ...grpc.CallOption) (*StateQueryProof, error)
+	// Return list of peers of this node and their state
 	GetPeers(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PeerList, error)
+	// Return list of votes
 	GetVotes(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*VoteList, error)
+	// Return staking information
 	GetStaking(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Staking, error)
+	// Return name information
 	GetNameInfo(ctx context.Context, in *Name, opts ...grpc.CallOption) (*NameInfo, error)
 }
 
@@ -1281,6 +1773,15 @@ func (c *aergoRPCServiceClient) Metric(ctx context.Context, in *MetricsRequest, 
 func (c *aergoRPCServiceClient) Blockchain(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BlockchainStatus, error) {
 	out := new(BlockchainStatus)
 	err := c.cc.Invoke(ctx, "/types.AergoRPCService/Blockchain", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aergoRPCServiceClient) GetChainInfo(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChainInfo, error) {
+	out := new(ChainInfo)
+	err := c.cc.Invoke(ctx, "/types.AergoRPCService/GetChainInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1378,6 +1879,24 @@ func (c *aergoRPCServiceClient) GetBlock(ctx context.Context, in *SingleBytes, o
 	return out, nil
 }
 
+func (c *aergoRPCServiceClient) GetBlockMetadata(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*BlockMetadata, error) {
+	out := new(BlockMetadata)
+	err := c.cc.Invoke(ctx, "/types.AergoRPCService/GetBlockMetadata", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aergoRPCServiceClient) GetBlockBody(ctx context.Context, in *BlockBodyParams, opts ...grpc.CallOption) (*BlockBodyPaged, error) {
+	out := new(BlockBodyPaged)
+	err := c.cc.Invoke(ctx, "/types.AergoRPCService/GetBlockBody", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aergoRPCServiceClient) GetTX(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Tx, error) {
 	out := new(Tx)
 	err := c.cc.Invoke(ctx, "/types.AergoRPCService/GetTX", in, out, opts...)
@@ -1423,6 +1942,24 @@ func (c *aergoRPCServiceClient) SendTX(ctx context.Context, in *Tx, opts ...grpc
 	return out, nil
 }
 
+func (c *aergoRPCServiceClient) SignTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*Tx, error) {
+	out := new(Tx)
+	err := c.cc.Invoke(ctx, "/types.AergoRPCService/SignTX", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aergoRPCServiceClient) VerifyTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*VerifyResult, error) {
+	out := new(VerifyResult)
+	err := c.cc.Invoke(ctx, "/types.AergoRPCService/VerifyTX", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aergoRPCServiceClient) CommitTX(ctx context.Context, in *TxList, opts ...grpc.CallOption) (*CommitResultList, error) {
 	out := new(CommitResultList)
 	err := c.cc.Invoke(ctx, "/types.AergoRPCService/CommitTX", in, out, opts...)
@@ -1441,8 +1978,8 @@ func (c *aergoRPCServiceClient) GetState(ctx context.Context, in *SingleBytes, o
 	return out, nil
 }
 
-func (c *aergoRPCServiceClient) GetStateAndProof(ctx context.Context, in *AccountAndRoot, opts ...grpc.CallOption) (*StateProof, error) {
-	out := new(StateProof)
+func (c *aergoRPCServiceClient) GetStateAndProof(ctx context.Context, in *AccountAndRoot, opts ...grpc.CallOption) (*AccountProof, error) {
+	out := new(AccountProof)
 	err := c.cc.Invoke(ctx, "/types.AergoRPCService/GetStateAndProof", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1498,24 +2035,6 @@ func (c *aergoRPCServiceClient) ImportAccount(ctx context.Context, in *ImportFor
 func (c *aergoRPCServiceClient) ExportAccount(ctx context.Context, in *Personal, opts ...grpc.CallOption) (*SingleBytes, error) {
 	out := new(SingleBytes)
 	err := c.cc.Invoke(ctx, "/types.AergoRPCService/ExportAccount", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aergoRPCServiceClient) SignTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*Tx, error) {
-	out := new(Tx)
-	err := c.cc.Invoke(ctx, "/types.AergoRPCService/SignTX", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aergoRPCServiceClient) VerifyTX(ctx context.Context, in *Tx, opts ...grpc.CallOption) (*VerifyResult, error) {
-	out := new(VerifyResult)
-	err := c.cc.Invoke(ctx, "/types.AergoRPCService/VerifyTX", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1578,35 +2097,71 @@ func (c *aergoRPCServiceClient) GetNameInfo(ctx context.Context, in *Name, opts 
 
 // AergoRPCServiceServer is the server API for AergoRPCService service.
 type AergoRPCServiceServer interface {
+	// Returns the current state of this node
 	NodeState(context.Context, *NodeReq) (*SingleBytes, error)
+	// Returns node metrics according to request
 	Metric(context.Context, *MetricsRequest) (*Metrics, error)
+	// Returns current blockchain status (best block's height and hash)
 	Blockchain(context.Context, *Empty) (*BlockchainStatus, error)
+	// Returns current blockchain's basic information
+	GetChainInfo(context.Context, *Empty) (*ChainInfo, error)
+	// Returns list of Blocks without body according to request
 	ListBlockHeaders(context.Context, *ListParams) (*BlockHeaderList, error)
+	// Returns list of block metadata (hash, header, and number of transactions) according to request
 	ListBlockMetadata(context.Context, *ListParams) (*BlockMetadataList, error)
+	// Returns a stream of new blocks as they get added to the blockchain
 	ListBlockStream(*Empty, AergoRPCService_ListBlockStreamServer) error
+	// Returns a stream of new block's metadata as they get added to the blockchain
 	ListBlockMetadataStream(*Empty, AergoRPCService_ListBlockMetadataStreamServer) error
+	// Return a single block incl. header and body, queried by hash or number
 	GetBlock(context.Context, *SingleBytes) (*Block, error)
+	// Return a single block's metdata (hash, header, and number of transactions), queried by hash or number
+	GetBlockMetadata(context.Context, *SingleBytes) (*BlockMetadata, error)
+	// Return a single block's body, queried by hash or number and list parameters
+	GetBlockBody(context.Context, *BlockBodyParams) (*BlockBodyPaged, error)
+	// Return a single transaction, queried by transaction hash
 	GetTX(context.Context, *SingleBytes) (*Tx, error)
+	// Return information about transaction in block, queried by transaction hash
 	GetBlockTX(context.Context, *SingleBytes) (*TxInBlock, error)
+	// Return transaction receipt, queried by transaction hash
 	GetReceipt(context.Context, *SingleBytes) (*Receipt, error)
+	// Return ABI stored at contract address
 	GetABI(context.Context, *SingleBytes) (*ABI, error)
+	// Sign and send a transaction from an unlocked account
 	SendTX(context.Context, *Tx) (*CommitResult, error)
-	CommitTX(context.Context, *TxList) (*CommitResultList, error)
-	GetState(context.Context, *SingleBytes) (*State, error)
-	GetStateAndProof(context.Context, *AccountAndRoot) (*StateProof, error)
-	CreateAccount(context.Context, *Personal) (*Account, error)
-	GetAccounts(context.Context, *Empty) (*AccountList, error)
-	LockAccount(context.Context, *Personal) (*Account, error)
-	UnlockAccount(context.Context, *Personal) (*Account, error)
-	ImportAccount(context.Context, *ImportFormat) (*Account, error)
-	ExportAccount(context.Context, *Personal) (*SingleBytes, error)
+	// Sign transaction with unlocked account
 	SignTX(context.Context, *Tx) (*Tx, error)
+	// Verify validity of transaction
 	VerifyTX(context.Context, *Tx) (*VerifyResult, error)
+	// Commit a signed transaction
+	CommitTX(context.Context, *TxList) (*CommitResultList, error)
+	// Return state of account
+	GetState(context.Context, *SingleBytes) (*State, error)
+	// Return state of account, including merkle proof
+	GetStateAndProof(context.Context, *AccountAndRoot) (*AccountProof, error)
+	// Create a new account in this node
+	CreateAccount(context.Context, *Personal) (*Account, error)
+	// Return list of accounts in this node
+	GetAccounts(context.Context, *Empty) (*AccountList, error)
+	// Lock account in this node
+	LockAccount(context.Context, *Personal) (*Account, error)
+	// Unlock account in this node
+	UnlockAccount(context.Context, *Personal) (*Account, error)
+	// Import account to this node
+	ImportAccount(context.Context, *ImportFormat) (*Account, error)
+	// Export account stored in this node
+	ExportAccount(context.Context, *Personal) (*SingleBytes, error)
+	// Query a contract method
 	QueryContract(context.Context, *Query) (*SingleBytes, error)
+	// Query contract state
 	QueryContractState(context.Context, *StateQuery) (*StateQueryProof, error)
+	// Return list of peers of this node and their state
 	GetPeers(context.Context, *Empty) (*PeerList, error)
+	// Return list of votes
 	GetVotes(context.Context, *SingleBytes) (*VoteList, error)
+	// Return staking information
 	GetStaking(context.Context, *SingleBytes) (*Staking, error)
+	// Return name information
 	GetNameInfo(context.Context, *Name) (*NameInfo, error)
 }
 
@@ -1664,6 +2219,24 @@ func _AergoRPCService_Blockchain_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AergoRPCServiceServer).Blockchain(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_GetChainInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).GetChainInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/types.AergoRPCService/GetChainInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).GetChainInfo(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1764,6 +2337,42 @@ func _AergoRPCService_GetBlock_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AergoRPCService_GetBlockMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SingleBytes)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).GetBlockMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/types.AergoRPCService/GetBlockMetadata",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).GetBlockMetadata(ctx, req.(*SingleBytes))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_GetBlockBody_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockBodyParams)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).GetBlockBody(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/types.AergoRPCService/GetBlockBody",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).GetBlockBody(ctx, req.(*BlockBodyParams))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AergoRPCService_GetTX_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SingleBytes)
 	if err := dec(in); err != nil {
@@ -1850,6 +2459,42 @@ func _AergoRPCService_SendTX_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AergoRPCServiceServer).SendTX(ctx, req.(*Tx))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_SignTX_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Tx)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).SignTX(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/types.AergoRPCService/SignTX",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).SignTX(ctx, req.(*Tx))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_VerifyTX_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Tx)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).VerifyTX(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/types.AergoRPCService/VerifyTX",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).VerifyTX(ctx, req.(*Tx))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2016,42 +2661,6 @@ func _AergoRPCService_ExportAccount_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AergoRPCService_SignTX_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Tx)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AergoRPCServiceServer).SignTX(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/types.AergoRPCService/SignTX",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AergoRPCServiceServer).SignTX(ctx, req.(*Tx))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AergoRPCService_VerifyTX_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Tx)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AergoRPCServiceServer).VerifyTX(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/types.AergoRPCService/VerifyTX",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AergoRPCServiceServer).VerifyTX(ctx, req.(*Tx))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _AergoRPCService_QueryContract_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Query)
 	if err := dec(in); err != nil {
@@ -2177,6 +2786,10 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _AergoRPCService_Blockchain_Handler,
 		},
 		{
+			MethodName: "GetChainInfo",
+			Handler:    _AergoRPCService_GetChainInfo_Handler,
+		},
+		{
 			MethodName: "ListBlockHeaders",
 			Handler:    _AergoRPCService_ListBlockHeaders_Handler,
 		},
@@ -2187,6 +2800,14 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlock",
 			Handler:    _AergoRPCService_GetBlock_Handler,
+		},
+		{
+			MethodName: "GetBlockMetadata",
+			Handler:    _AergoRPCService_GetBlockMetadata_Handler,
+		},
+		{
+			MethodName: "GetBlockBody",
+			Handler:    _AergoRPCService_GetBlockBody_Handler,
 		},
 		{
 			MethodName: "GetTX",
@@ -2207,6 +2828,14 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendTX",
 			Handler:    _AergoRPCService_SendTX_Handler,
+		},
+		{
+			MethodName: "SignTX",
+			Handler:    _AergoRPCService_SignTX_Handler,
+		},
+		{
+			MethodName: "VerifyTX",
+			Handler:    _AergoRPCService_VerifyTX_Handler,
 		},
 		{
 			MethodName: "CommitTX",
@@ -2243,14 +2872,6 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExportAccount",
 			Handler:    _AergoRPCService_ExportAccount_Handler,
-		},
-		{
-			MethodName: "SignTX",
-			Handler:    _AergoRPCService_SignTX_Handler,
-		},
-		{
-			MethodName: "VerifyTX",
-			Handler:    _AergoRPCService_VerifyTX_Handler,
 		},
 		{
 			MethodName: "QueryContract",
@@ -2290,105 +2911,4 @@ var _AergoRPCService_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Metadata: "rpc.proto",
-}
-
-func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
-
-var fileDescriptor_77a6da22d6a3feb1 = []byte{
-	// 1514 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x57, 0x7b, 0x73, 0xda, 0xc6,
-	0x16, 0x07, 0xdb, 0x60, 0x73, 0x00, 0x23, 0x6f, 0x1c, 0x87, 0xcb, 0xcd, 0x24, 0xbe, 0x7b, 0x3b,
-	0x1d, 0x37, 0x4d, 0x9c, 0x84, 0x34, 0xed, 0x3f, 0x9d, 0x76, 0x64, 0x82, 0x6d, 0xa6, 0x36, 0xb8,
-	0x2b, 0xc5, 0x25, 0xed, 0x4c, 0x35, 0x32, 0x2c, 0x46, 0x13, 0xd0, 0x12, 0x69, 0xf1, 0xa3, 0xff,
-	0xf4, 0x43, 0xf5, 0x9b, 0xf4, 0x13, 0x75, 0xf6, 0x21, 0x21, 0x61, 0x25, 0x33, 0xe9, 0x5f, 0xe8,
-	0x9c, 0xf3, 0x3b, 0x8f, 0xdd, 0xf3, 0x5a, 0xa0, 0x14, 0xcc, 0x06, 0xfb, 0xb3, 0x80, 0x71, 0x86,
-	0x0a, 0xfc, 0x76, 0x46, 0xc3, 0x86, 0x71, 0x31, 0x61, 0x83, 0xf7, 0x83, 0xb1, 0xeb, 0xf9, 0x4a,
-	0xd0, 0xa8, 0xba, 0x83, 0x01, 0x9b, 0xfb, 0x5c, 0x93, 0xe0, 0xb3, 0x21, 0xd5, 0xdf, 0xa5, 0x59,
-	0x73, 0xa6, 0x3f, 0x2b, 0x53, 0xca, 0x03, 0x4f, 0x1b, 0xc3, 0xbf, 0x81, 0x71, 0x10, 0xdb, 0xb1,
-	0xb8, 0xcb, 0xe7, 0x21, 0xfa, 0x12, 0x6a, 0x17, 0x34, 0xe4, 0x8e, 0x74, 0xe0, 0x8c, 0xdd, 0x70,
-	0x5c, 0xcf, 0xef, 0xe6, 0xf7, 0x2a, 0xa4, 0x2a, 0xd8, 0x12, 0x7e, 0xec, 0x86, 0x63, 0xf4, 0x18,
-	0xca, 0x12, 0x37, 0xa6, 0xde, 0xe5, 0x98, 0xd7, 0x57, 0x76, 0xf3, 0x7b, 0x6b, 0x04, 0x04, 0xeb,
-	0x58, 0x72, 0xf0, 0x00, 0x0a, 0x1d, 0x7f, 0x36, 0xe7, 0x08, 0xc1, 0x5a, 0xc2, 0x8c, 0xfc, 0x46,
-	0x75, 0x58, 0x77, 0x87, 0xc3, 0x80, 0x86, 0x61, 0x7d, 0x65, 0x77, 0x75, 0xaf, 0x42, 0x22, 0x12,
-	0x6d, 0x43, 0xe1, 0xca, 0x9d, 0xcc, 0x69, 0x7d, 0x55, 0xc2, 0x15, 0x81, 0x76, 0xa0, 0x18, 0x0e,
-	0x02, 0x6f, 0xc6, 0xeb, 0x6b, 0x92, 0xad, 0x29, 0x3c, 0x82, 0x62, 0x6f, 0xce, 0x85, 0x97, 0x6d,
-	0x28, 0x78, 0xfe, 0x90, 0xde, 0x48, 0x37, 0x55, 0xa2, 0x88, 0xb4, 0x9f, 0xfc, 0xbf, 0xf7, 0xb3,
-	0x0e, 0x85, 0xf6, 0x74, 0xc6, 0x6f, 0xf1, 0xff, 0xa1, 0x6c, 0x79, 0xfe, 0xe5, 0x84, 0x1e, 0xdc,
-	0x72, 0x9a, 0xb0, 0x92, 0x4f, 0x58, 0xc1, 0xbf, 0xc3, 0xa6, 0xa9, 0xb2, 0x61, 0xfa, 0x43, 0xc2,
-	0x18, 0x17, 0x71, 0x68, 0x8e, 0x46, 0x46, 0xa4, 0xb8, 0x1d, 0x81, 0xd0, 0xe1, 0xc9, 0x6f, 0xf4,
-	0x08, 0xa0, 0xc5, 0xa6, 0x33, 0x11, 0x27, 0x1d, 0xca, 0x00, 0x37, 0x48, 0x82, 0x83, 0xff, 0x84,
-	0xb5, 0x33, 0x4a, 0x03, 0xf4, 0x74, 0x71, 0x3a, 0x61, 0xb5, 0xdc, 0x44, 0xfb, 0xb2, 0x3c, 0xf6,
-	0x85, 0xd4, 0x54, 0x92, 0xc5, 0x89, 0x5f, 0x41, 0x49, 0xa4, 0x47, 0x26, 0x56, 0xba, 0x2b, 0x37,
-	0xef, 0x6b, 0x7c, 0x97, 0x5e, 0xcb, 0xcc, 0x76, 0x19, 0xf7, 0x06, 0x94, 0x2c, 0x70, 0xe2, 0x80,
-	0x21, 0x77, 0xb9, 0xba, 0xa6, 0x02, 0x51, 0x04, 0x7e, 0x06, 0x1b, 0xc2, 0xc5, 0x89, 0x17, 0x72,
-	0xf4, 0x3f, 0x28, 0xcc, 0x28, 0x0d, 0x44, 0x08, 0xab, 0x7b, 0xe5, 0x66, 0x39, 0x11, 0x02, 0x51,
-	0x12, 0x7c, 0x05, 0x20, 0xa0, 0x67, 0x6e, 0xe0, 0x4e, 0xc3, 0xcc, 0x7a, 0xd8, 0x81, 0x62, 0xaa,
-	0x90, 0x34, 0x25, 0xb0, 0xa1, 0xf7, 0x87, 0xf2, 0x5e, 0x25, 0xf2, 0x5b, 0x60, 0xd9, 0x68, 0x14,
-	0x52, 0x95, 0xa3, 0x2a, 0xd1, 0x14, 0x32, 0x60, 0xd5, 0x0d, 0x07, 0xf5, 0x82, 0xbc, 0x2e, 0xf1,
-	0x89, 0xbf, 0x83, 0x9a, 0x2a, 0x58, 0xea, 0x0e, 0x75, 0xb4, 0x5f, 0x40, 0x51, 0x1e, 0x2c, 0x0a,
-	0xb7, 0xa2, 0xc3, 0x95, 0x38, 0xa2, 0x65, 0xd8, 0x83, 0xaa, 0x64, 0x9c, 0x52, 0xee, 0x0e, 0x5d,
-	0xee, 0x66, 0xc6, 0xfc, 0x44, 0xc4, 0x2c, 0x0c, 0xeb, 0xcb, 0x44, 0x49, 0x53, 0xca, 0x25, 0xd1,
-	0x08, 0x91, 0x7f, 0x7e, 0xa3, 0xf2, 0xaf, 0x2e, 0x32, 0x22, 0xb1, 0x09, 0x5b, 0x29, 0x57, 0x32,
-	0xca, 0xa7, 0x4b, 0x51, 0x6e, 0x27, 0x4d, 0x47, 0xc8, 0x38, 0x5a, 0x0a, 0x95, 0x16, 0x9b, 0x4e,
-	0x3d, 0x4e, 0x68, 0x38, 0x9f, 0x64, 0x37, 0xdc, 0x57, 0x50, 0xa0, 0x41, 0xc0, 0x54, 0xac, 0x9b,
-	0xcd, 0x7b, 0xda, 0xa0, 0xd2, 0x53, 0xad, 0x4f, 0x14, 0x42, 0xdc, 0xef, 0x90, 0x72, 0xd7, 0x9b,
-	0xc8, 0x50, 0x4b, 0x44, 0x53, 0xd8, 0x04, 0x23, 0xe9, 0x46, 0x06, 0xfa, 0x0c, 0xd6, 0x03, 0x49,
-	0x45, 0x91, 0xa6, 0x0d, 0x2b, 0x24, 0x89, 0x30, 0xd8, 0x86, 0xca, 0x39, 0x0d, 0xbc, 0xd1, 0xad,
-	0x8e, 0xf4, 0x3f, 0xb0, 0xc2, 0x6f, 0x74, 0xed, 0x96, 0xb4, 0xa6, 0x7d, 0x43, 0x56, 0xf8, 0xcd,
-	0xc7, 0x02, 0x56, 0xea, 0xa9, 0x80, 0xb1, 0x2d, 0xaa, 0x31, 0x08, 0x99, 0xef, 0x4e, 0x44, 0xeb,
-	0xcc, 0xdc, 0x30, 0x9c, 0x8d, 0x03, 0x37, 0x54, 0x5d, 0x59, 0x22, 0x09, 0x0e, 0xda, 0x83, 0x75,
-	0x3d, 0x28, 0x75, 0xd6, 0x36, 0xb5, 0x61, 0xdd, 0x8f, 0x24, 0x12, 0xe3, 0x31, 0x54, 0x3a, 0xd3,
-	0x19, 0x0b, 0xf8, 0x21, 0x0b, 0xa6, 0xae, 0xa8, 0x9c, 0xd5, 0x6b, 0x6f, 0xb4, 0xd4, 0x68, 0x89,
-	0x59, 0x40, 0x84, 0x58, 0x24, 0x9a, 0x4d, 0x86, 0xc2, 0xa1, 0xb4, 0x5f, 0x22, 0x11, 0x29, 0x24,
-	0x3e, 0xbd, 0x96, 0x12, 0x75, 0xaf, 0x11, 0x89, 0x5f, 0xc3, 0xba, 0xc5, 0xdd, 0xf7, 0x9e, 0x7f,
-	0x29, 0xee, 0xde, 0x9d, 0x26, 0xc6, 0x84, 0xa6, 0x44, 0x4a, 0xaf, 0xc7, 0xd4, 0xd7, 0xdd, 0x21,
-	0xbf, 0xf1, 0xf7, 0xb0, 0x76, 0xce, 0x38, 0x45, 0x0f, 0xa1, 0x34, 0x70, 0xfd, 0xa1, 0x37, 0x14,
-	0x6d, 0xaa, 0xd4, 0x16, 0x8c, 0x84, 0xc5, 0x95, 0xa4, 0x45, 0xd1, 0xc2, 0x42, 0x3b, 0x6a, 0xe1,
-	0x2b, 0xc6, 0xe9, 0x72, 0x0b, 0x0b, 0x39, 0x51, 0x12, 0x6c, 0xc2, 0x7a, 0x97, 0x0d, 0x29, 0xa1,
-	0x1f, 0x64, 0x2d, 0x7b, 0x53, 0xca, 0xe6, 0xf1, 0x2c, 0xd3, 0xa4, 0x8c, 0x84, 0x4d, 0x67, 0xcc,
-	0xa7, 0xb1, 0xbb, 0x05, 0x03, 0x37, 0x60, 0xad, 0xeb, 0x4e, 0xa9, 0x38, 0x8b, 0xef, 0x4e, 0xa3,
-	0xe4, 0xc8, 0x6f, 0x6c, 0xc2, 0x86, 0x90, 0x75, 0xfc, 0x11, 0x43, 0x8f, 0x13, 0xf2, 0x45, 0x30,
-	0x42, 0xac, 0xc0, 0x62, 0x26, 0xb1, 0x6b, 0x5f, 0xf7, 0x5d, 0x85, 0x28, 0xe2, 0xc9, 0xdf, 0xf9,
-	0xa8, 0x0d, 0xf4, 0x26, 0x2b, 0x41, 0xc1, 0xee, 0x3b, 0xbd, 0x9f, 0x8c, 0x1c, 0xda, 0x06, 0xc3,
-	0xee, 0x3b, 0xdd, 0x5e, 0xb7, 0xd5, 0x76, 0xec, 0x5e, 0xcf, 0x39, 0xe9, 0xfd, 0x62, 0xe4, 0xd1,
-	0x7d, 0xd8, 0xb2, 0xfb, 0x8e, 0x79, 0x42, 0xda, 0xe6, 0x9b, 0x77, 0x4e, 0xbb, 0xdf, 0xb1, 0x6c,
-	0xcb, 0x58, 0x41, 0xf7, 0xa0, 0x66, 0xf7, 0x9d, 0x4e, 0xf7, 0xdc, 0x3c, 0xe9, 0xbc, 0x71, 0x8e,
-	0x4d, 0xeb, 0xd8, 0x58, 0x5d, 0x62, 0x5a, 0x9d, 0xa3, 0xae, 0xb1, 0xa6, 0x0d, 0x44, 0xcc, 0xc3,
-	0x1e, 0x39, 0x35, 0x6d, 0xa3, 0x80, 0xfe, 0x0b, 0x0f, 0x24, 0xdb, 0x7a, 0x7b, 0x78, 0xd8, 0x69,
-	0x75, 0xda, 0x5d, 0xdb, 0x39, 0x30, 0x4f, 0xcc, 0x6e, 0xab, 0x6d, 0x14, 0xb5, 0xce, 0xb1, 0x69,
-	0x39, 0x96, 0x79, 0xda, 0x56, 0x31, 0x19, 0xeb, 0xb1, 0x29, 0xbb, 0x4d, 0xba, 0xe6, 0x89, 0xd3,
-	0x26, 0xa4, 0x47, 0x8c, 0xd2, 0x93, 0x51, 0xd4, 0x30, 0xfa, 0x4c, 0xdb, 0x60, 0x9c, 0xb7, 0x49,
-	0xe7, 0xf0, 0x9d, 0x63, 0xd9, 0xa6, 0xfd, 0xd6, 0x52, 0xc7, 0xdb, 0x85, 0x87, 0x69, 0xae, 0x88,
-	0xcf, 0xe9, 0xf6, 0x6c, 0xe7, 0xd4, 0xb4, 0x5b, 0xc7, 0x46, 0x1e, 0x3d, 0x82, 0x46, 0x1a, 0x91,
-	0x3a, 0xde, 0x4a, 0xf3, 0xaf, 0x0a, 0xd4, 0x4c, 0x1a, 0x5c, 0x32, 0x72, 0xd6, 0xb2, 0x68, 0x70,
-	0xe5, 0x0d, 0x28, 0x7a, 0x09, 0x25, 0x91, 0x72, 0xe1, 0x99, 0xa2, 0xa8, 0x4d, 0x74, 0x11, 0x34,
-	0x32, 0x1a, 0x00, 0xe7, 0xd0, 0x4b, 0x28, 0x9e, 0xca, 0x07, 0x06, 0x8a, 0x36, 0x8b, 0x22, 0x43,
-	0x42, 0x3f, 0xcc, 0x69, 0xc8, 0x1b, 0x9b, 0x69, 0x36, 0xce, 0xa1, 0xd7, 0x00, 0x8b, 0x37, 0x08,
-	0x8a, 0xc6, 0xb1, 0x5c, 0xb6, 0x8d, 0x07, 0xc9, 0xb1, 0x97, 0x78, 0xa4, 0xe0, 0x1c, 0xfa, 0x11,
-	0x0c, 0x51, 0xba, 0x89, 0x59, 0x1b, 0xa2, 0x2d, 0x0d, 0x5f, 0xec, 0x9a, 0xc6, 0xce, 0xdd, 0x99,
-	0x2c, 0xa4, 0x38, 0x87, 0x0e, 0x60, 0x2b, 0x36, 0x10, 0x8f, 0xf9, 0x0c, 0x0b, 0xf5, 0xac, 0xd1,
-	0xab, 0x6d, 0xbc, 0x84, 0x5a, 0x6c, 0xc3, 0xe2, 0x01, 0x75, 0xa7, 0x4b, 0x07, 0x48, 0x6d, 0x17,
-	0x9c, 0x7b, 0x91, 0x47, 0x26, 0x3c, 0xb8, 0xe3, 0x36, 0x53, 0x35, 0x73, 0xe4, 0x4b, 0x13, 0xfb,
-	0xb0, 0x71, 0x44, 0x95, 0x05, 0x94, 0x91, 0x86, 0x65, 0xa7, 0x68, 0x0f, 0x0a, 0x47, 0x94, 0xdb,
-	0xfd, 0x4c, 0xf0, 0x62, 0xea, 0xe2, 0x1c, 0xfa, 0x06, 0x20, 0xb2, 0xfc, 0x11, 0xb8, 0x11, 0xc3,
-	0x3b, 0x7e, 0x64, 0xbf, 0x29, 0xb5, 0x08, 0x1d, 0x50, 0x6f, 0xc6, 0x33, 0xb5, 0xa2, 0xac, 0x6b,
-	0x0c, 0xce, 0x89, 0xdd, 0x79, 0x44, 0xb9, 0x79, 0xd0, 0xc9, 0xc4, 0x43, 0x34, 0x93, 0x0f, 0x3a,
-	0x0a, 0x6b, 0x51, 0x7f, 0x68, 0xf7, 0xd1, 0x22, 0xd8, 0x46, 0xd6, 0x9e, 0x91, 0x27, 0xd8, 0x50,
-	0x1c, 0xbb, 0x8f, 0xaa, 0x31, 0x5a, 0xdc, 0x78, 0x5c, 0x4c, 0xcb, 0x3b, 0x0c, 0xe7, 0xf4, 0x8d,
-	0xaa, 0x42, 0xff, 0xd4, 0x8d, 0x4a, 0x04, 0xce, 0xa1, 0x1f, 0xc0, 0x88, 0xf0, 0xa6, 0x3f, 0x3c,
-	0x0b, 0x18, 0x1b, 0xc5, 0x05, 0x9f, 0x7e, 0xf8, 0x35, 0xb6, 0x92, 0xaa, 0x12, 0x29, 0x6f, 0xac,
-	0xda, 0x0a, 0xa8, 0xd0, 0xd6, 0x8f, 0xc0, 0x5a, 0xfc, 0x68, 0x52, 0x6b, 0xac, 0xb1, 0xb4, 0x95,
-	0x64, 0xad, 0x95, 0xc5, 0x8d, 0x29, 0x3a, 0x5c, 0x2a, 0x16, 0x94, 0x86, 0xeb, 0x63, 0xbd, 0x80,
-	0xf2, 0x09, 0x1b, 0xbc, 0xff, 0x0c, 0x27, 0x4d, 0xa8, 0xbe, 0xf5, 0x27, 0x9f, 0xa7, 0xf3, 0x2d,
-	0x54, 0xd5, 0x9e, 0x8c, 0x74, 0xa2, 0xd4, 0x24, 0xb7, 0x67, 0xb6, 0x5e, 0xfb, 0x26, 0xa9, 0x77,
-	0xc7, 0x57, 0xf6, 0x8c, 0xd9, 0x85, 0xa2, 0xe5, 0x5d, 0xfa, 0xe9, 0x72, 0x48, 0x95, 0xf1, 0x53,
-	0xd8, 0x50, 0x43, 0x33, 0xbb, 0x64, 0x92, 0x2f, 0x10, 0x9c, 0x43, 0xaf, 0xa0, 0xfa, 0xf3, 0x9c,
-	0x06, 0xb7, 0x2d, 0xe6, 0xf3, 0xc0, 0x1d, 0xf0, 0xf8, 0x6a, 0x25, 0xf7, 0x23, 0x41, 0x98, 0x80,
-	0x52, 0x4a, 0xaa, 0x76, 0x52, 0xc9, 0x56, 0xea, 0x3b, 0x77, 0x58, 0x51, 0x11, 0x7c, 0x2d, 0x8b,
-	0x4e, 0x3c, 0x93, 0x97, 0xb3, 0x59, 0x4b, 0x3c, 0xa1, 0xe3, 0x49, 0x23, 0xc0, 0x62, 0x21, 0x87,
-	0x99, 0x15, 0x5a, 0x4b, 0xac, 0x6c, 0xad, 0xa2, 0xda, 0x32, 0x7a, 0x58, 0x7c, 0xaa, 0x2d, 0x35,
-	0x06, 0xe7, 0xd0, 0x33, 0x59, 0x64, 0xf1, 0x26, 0x4e, 0xee, 0xde, 0xd8, 0x45, 0x24, 0xc5, 0xb9,
-	0x83, 0xdd, 0x5f, 0x1f, 0x5d, 0x7a, 0x7c, 0x3c, 0xbf, 0xd8, 0x1f, 0xb0, 0xe9, 0x73, 0x57, 0xec,
-	0x0f, 0x8f, 0xa9, 0xdf, 0xe7, 0x12, 0x7c, 0x51, 0x94, 0x7f, 0x34, 0x5f, 0xfd, 0x13, 0x00, 0x00,
-	0xff, 0xff, 0x88, 0x12, 0x32, 0xee, 0xc2, 0x0e, 0x00, 0x00,
 }

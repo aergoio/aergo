@@ -2,13 +2,16 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/pkg/component"
+
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -195,6 +198,9 @@ func (stubSyncer *StubSyncer) handleActorMsg(inmsg interface{}) {
 
 	case *message.AddBlock:
 		stubSyncer.AddBlock(msg, nil)
+
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
+
 	default:
 		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 		stubSyncer.t.Fatal(str)
@@ -255,6 +261,10 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 
 	assert.True(syncer.t, stubPeer != nil, "peer exist")
 
+	if stubPeer.HookGetBlockChunkRsp != nil {
+		stubPeer.HookGetBlockChunkRsp(msg)
+		return
+	}
 	go func() {
 		if stubPeer.timeDelaySec > 0 {
 			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer sleep")

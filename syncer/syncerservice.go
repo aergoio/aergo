@@ -1,6 +1,8 @@
 package syncer
 
 import (
+	"runtime/debug"
+
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/pkg/component"
@@ -77,6 +79,7 @@ var (
 
 var (
 	ErrFinderInternal = errors.New("error finder internal")
+	ErrSyncerPanic    = errors.New("syncer panic")
 )
 
 type ErrSyncMsg struct {
@@ -173,6 +176,8 @@ func (syncer *Syncer) Receive(context actor.Context) {
 }
 
 func (syncer *Syncer) handleMessage(inmsg interface{}) {
+	defer syncer.RecoverSyncerSelf()
+
 	switch msg := inmsg.(type) {
 	case *message.SyncStart:
 		err := syncer.handleSyncStart(msg)
@@ -224,7 +229,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 		actor.NotInfluenceReceiveTimeout:
 		str := fmt.Sprintf("Received message. (%v) %s", reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(str)
-
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(str)
@@ -354,6 +359,14 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 	}
 }
 
+func (syncer *Syncer) RecoverSyncerSelf() {
+	if r := recover(); r != nil {
+		logger.Error().Str("dest", "SYNCER").Msg("syncer recovered it's panic")
+		debug.PrintStack()
+		syncer.Reset()
+	}
+}
+
 func stopSyncer(compRequester component.IComponentRequester, who string, err error) {
 	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
 
@@ -362,4 +375,16 @@ func stopSyncer(compRequester component.IComponentRequester, who string, err err
 
 func closeFetcher(compRequester component.IComponentRequester, who string) {
 	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
+}
+
+func RecoverSyncer(name string, compRequester component.IComponentRequester, finalize func()) {
+	if r := recover(); r != nil {
+		logger.Error().Str("child", name).Msg("syncer recovered child panic")
+		debug.PrintStack()
+		stopSyncer(compRequester, name, ErrSyncerPanic)
+	}
+
+	if finalize != nil {
+		finalize()
+	}
 }

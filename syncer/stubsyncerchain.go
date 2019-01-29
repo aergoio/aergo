@@ -3,6 +3,7 @@ package syncer
 import (
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"time"
 )
@@ -17,6 +18,8 @@ type StubPeer struct {
 	blockFetched bool //check if called while testing
 
 	timeDelaySec time.Duration
+
+	HookGetBlockChunkRsp func(msgReq *message.GetBlockChunks)
 }
 
 var (

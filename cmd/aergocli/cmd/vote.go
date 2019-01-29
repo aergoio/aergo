@@ -23,7 +23,7 @@ var revert bool
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
-	voteStatCmd.Flags().Uint64Var(&number, "count", 1, "the number of elected")
+	voteStatCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected (default: 23)")
 }
 
 var voteCmd = &cobra.Command{

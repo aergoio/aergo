@@ -58,7 +58,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, staked:%s, when:%d}\n",
+		cmd.Printf(`{"account":"%s", "staked":"%s", "when":%d}`+"\n",
 			address, amount, msg.GetWhen())
 
 		return
@@ -78,7 +78,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, nonce:%d, balance:%s}\n",
+		cmd.Printf(`{"account":"%s", "nonce":%d, "balance":"%s"}`+"\n",
 			address, msg.GetNonce(), balance)
 	} else {
 		// Get the state and proof at a specific root.
@@ -94,8 +94,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Printf("{account:%s, nonce:%d, balance:%s, included:%t, merkle proof length:%d, height:%d}\n",
+		cmd.Printf(`{"account":"%s", "nonce":%d, "balance":"%s", "included":%t, "merkle proof length":%d, "height":%d}`+"\n",
 			address, msg.GetState().GetNonce(), balance, msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
 	}
-
 }

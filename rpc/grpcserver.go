@@ -17,6 +17,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -113,6 +114,40 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
 	}, nil
+}
+
+// GetChainInfo handles a getchaininfo RPC request.
+func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (*types.ChainInfo, error) {
+	chainInfo := &types.ChainInfo{}
+
+	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
+		id := genesisInfo.ID
+
+		chainInfo.Chainid = &types.ChainId{
+			Magic:     id.Magic,
+			Public:    id.PublicNet,
+			Mainnet:   id.MainNet,
+			Consensus: id.Consensus,
+		}
+
+		if fee, success := id.GetCoinbaseFee(); success {
+			chainInfo.Chainid.Coinbasefee = fee.Bytes()
+		}
+
+		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
+
+		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
+			chainInfo.Maxtokens = totalBalance.Bytes()
+		}
+	}
+
+	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
+
+	if minStaking := types.GetStakingMinimum(); minStaking != nil {
+		chainInfo.Stakingminimum = minStaking.Bytes()
+	}
+
+	return chainInfo, nil
 }
 
 // ListBlockMetadata handle rpc request
@@ -348,6 +383,60 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 	return found, nil
 }
 
+// GetBlockMetadata handle rpc request getblock
+func (rpc *AergoRPCService) GetBlockMetadata(ctx context.Context, in *types.SingleBytes) (*types.BlockMetadata, error) {
+	block, err := rpc.GetBlock(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := &types.BlockMetadata{
+		Hash:    block.BlockHash(),
+		Header:  block.GetHeader(),
+		Txcount: int32(len(block.GetBody().GetTxs())),
+	}
+	return meta, nil
+}
+
+// GetBlockBody handle rpc request getblockbody
+func (rpc *AergoRPCService) GetBlockBody(ctx context.Context, in *types.BlockBodyParams) (*types.BlockBodyPaged, error) {
+	block, err := rpc.GetBlock(ctx, &types.SingleBytes{Value: in.Hashornumber})
+	if err != nil {
+		return nil, err
+	}
+	body := block.GetBody()
+
+	total := uint32(len(body.Txs))
+
+	var fetchSize uint32
+	if in.Paging.Size > uint32(1000) {
+		fetchSize = uint32(1000)
+	} else if in.Paging.Size == uint32(0) {
+		fetchSize = 100
+	} else {
+		fetchSize = in.Paging.Size
+	}
+
+	offset := in.Paging.Offset
+	if offset >= uint32(len(body.Txs)) {
+		body.Txs = []*types.Tx{}
+	} else {
+		limit := offset + fetchSize
+		if limit > uint32(len(body.Txs)) {
+			limit = uint32(len(body.Txs))
+		}
+		body.Txs = body.Txs[offset:limit]
+	}
+
+	response := &types.BlockBodyPaged{
+		Body:   body,
+		Total:  total,
+		Size:   fetchSize,
+		Offset: offset,
+	}
+	return response, nil
+}
+
 // GetTX handle rpc request gettx
 func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*types.Tx, error) {
 	result, err := rpc.actorHelper.CallRequestDefaultTimeout(message.MemPoolSvc,
@@ -499,7 +588,7 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 }
 
 // GetStateAndProof handle rpc request getstateproof
-func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.StateProof, error) {
+func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.AccountAndRoot) (*types.AccountProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetStateAndProof{Account: in.Account, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
 	if err != nil {
@@ -698,10 +787,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.Empty) (*typ
 
 	ret := &types.PeerList{Peers: []*types.Peer{}}
 	for i, state := range rsp.States {
-		if rsp.Hiddens[i] {
-			continue
-		}
-		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i]}
+		peer := &types.Peer{Address: rsp.Peers[i], State: int32(state), Bestblock: rsp.LastBlks[i], Hidden: rsp.Hiddens[i]}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -832,7 +918,7 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 // QueryContractState queries the state of a contract state variable without executing a contract function.
 func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.StateQuery) (*types.StateQueryProof, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetStateQuery{ContractAddress: in.ContractAddress, VarName: in.VarName, VarIndex: in.VarIndex, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
+		&message.GetStateQuery{ContractAddress: in.ContractAddress, StorageKeys: in.StorageKeys, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
 	if err != nil {
 		return nil, err
 	}

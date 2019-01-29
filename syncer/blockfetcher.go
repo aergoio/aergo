@@ -183,7 +183,7 @@ func (bf *BlockFetcher) Start() {
 	}
 
 	run := func() {
-		defer bf.waitGroup.Done()
+		defer RecoverSyncer(NameBlockFetcher, bf.compRequester, func() { bf.waitGroup.Done() })
 
 		logger.Debug().Msg("start block fetcher")
 
@@ -320,12 +320,6 @@ func (bf *BlockFetcher) schedule() error {
 }
 
 func (bf *BlockFetcher) checkTaskTimeout() error {
-	debugTimeOut := func(peer *SyncPeer, peers *PeerSet, cfg *SyncerConfig) {
-		if cfg != nil && cfg.debugContext != nil {
-			cfg.debugContext.logBadPeers[peer.No] = true
-		}
-	}
-
 	now := time.Now()
 	var next *list.Element
 
@@ -337,8 +331,6 @@ func (bf *BlockFetcher) checkTaskTimeout() error {
 		if !task.isTimeOut(now, bf.cfg.fetchTimeOut) {
 			continue
 		}
-
-		debugTimeOut(task.syncPeer, bf.peers, bf.cfg)
 
 		bf.runningQueue.Remove(e)
 
@@ -356,9 +348,18 @@ func (bf *BlockFetcher) checkTaskTimeout() error {
 }
 
 func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) error {
+	logBadPeer := func(peer *SyncPeer, peers *PeerSet, cfg *SyncerConfig) {
+		if cfg != nil && cfg.debugContext != nil {
+			cfg.debugContext.logBadPeers[peer.No] = true
+		}
+	}
+
 	logger.Error().Int("peerno", task.syncPeer.No).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail, move to retry queue")
 
 	failPeer := task.syncPeer
+
+	logBadPeer(failPeer, bf.peers, bf.cfg)
+
 	bf.peers.processPeerFail(failPeer, isErr)
 
 	task.retry++

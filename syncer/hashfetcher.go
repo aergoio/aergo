@@ -80,6 +80,9 @@ func (hf *HashFetcher) setTimeout(timeout time.Duration) {
 	hf.timeout = timeout
 }
 
+func (hf *HashFetcher) recover() {
+
+}
 func (hf *HashFetcher) Start() {
 	hf.waitGroup = &sync.WaitGroup{}
 	hf.waitGroup.Add(1)
@@ -87,7 +90,7 @@ func (hf *HashFetcher) Start() {
 	hf.isRunning = true
 
 	run := func() {
-		defer hf.waitGroup.Done()
+		defer RecoverSyncer(NameHashFetcher, hf.compRequester, func() { hf.waitGroup.Done() })
 
 		logger.Debug().Msg("start hash fetcher")
 

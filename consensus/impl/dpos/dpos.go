@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -80,15 +79,17 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb)
+		return New(cfg, hub, cdb, sdb)
 	}
 }
 
 // New returns a new DPos object
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (consensus.Consensus, error) {
-	bpc, err := bp.NewCluster(cfg, cdb)
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) (consensus.Consensus, error) {
+	bpc, err := bp.NewCluster(cdb)
 	if err != nil {
 		return nil, err
 	}
@@ -98,11 +99,11 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	quitC := make(chan interface{})
 
 	return &DPoS{
-		Status:       NewStatus(bpc, cdb),
+		Status:       NewStatus(bpc, cdb, sdb, cfg.Blockchain.ForceResetHeight),
 		ComponentHub: hub,
 		ChainDB:      cdb,
 		bpc:          bpc,
-		bf:           NewBlockFactory(hub, quitC),
+		bf:           NewBlockFactory(hub, sdb, quitC),
 		quit:         quitC,
 	}, nil
 }
@@ -143,13 +144,6 @@ func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
 }
 
-// SetStateDB sets sdb to the corresponding field of DPoS. This method is
-// called only once during the boot sequence.
-func (dpos *DPoS) SetStateDB(sdb *state.ChainStateDB) {
-	dpos.bf.sdb = sdb
-	dpos.Status.setStateDB(sdb)
-}
-
 // IsTransactionValid checks the DPoS consensus level validity of a transaction
 func (dpos *DPoS) IsTransactionValid(tx *types.Tx) bool {
 	// TODO: put a transaction validity check code here.
@@ -166,6 +160,28 @@ func (dpos *DPoS) bpid() peer.ID {
 	return p2p.NodeID()
 }
 
+// VerifyTimestamp checks the validity of the block timestamp.
+func (dpos *DPoS) VerifyTimestamp(block *types.Block) bool {
+	ts := block.GetHeader().GetTimestamp()
+	isFuture := slot.NewFromUnixNano(ts).IsFuture()
+
+	if isFuture {
+		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
+			Time("timestamp", time.Unix(0, ts)).Msg("block has a future timestamp")
+	}
+
+	return !isFuture
+}
+
+// VerifySign reports the validity of the block signature.
+func (dpos *DPoS) VerifySign(block *types.Block) error {
+	valid, err := block.VerifySign()
+	if !valid || err != nil {
+		return &consensus.ErrorConsensus{Msg: "bad block signature", Err: err}
+	}
+	return nil
+}
+
 // IsBlockValid checks the DPoS consensus level validity of a block
 func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	id, err := block.BPID()
@@ -173,33 +189,23 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
 	}
 
+	idx := dpos.bpc.BpID2Index(id)
 	ns := block.GetHeader().GetTimestamp()
-	idx, ok := dpos.bpc.BpID2Index(id)
 	s := slot.NewFromUnixNano(ns)
 	// Check whether the BP ID is one of the current BP members and its
 	// corresponding BP index is consistent with the block timestamp.
-	if !ok || !s.IsFor(idx) {
+	if !s.IsFor(idx) {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf("BP %v (idx: %v) is not permitted for the time slot %v (%v)",
 				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex()),
 		}
 	}
 
-	valid, err := block.VerifySign()
-	if !valid {
-		return &consensus.ErrorConsensus{Msg: "bad block signature", Err: err}
-	}
-
 	return nil
 }
 
-func (dpos *DPoS) bpIdx() uint16 {
-	idx, exist := dpos.bpc.BpID2Index(dpos.bpid())
-	if !exist {
-		logger.Fatal().Str("id", enc.ToString([]byte(dpos.bpid()))).Msg("BP has no correct BP membership")
-	}
-
-	return idx
+func (dpos *DPoS) bpIdx() bp.Index {
+	return dpos.bpc.BpID2Index(dpos.bpid())
 }
 
 func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
@@ -215,8 +221,6 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	}
 
 	block, _ := dpos.GetBestBlock()
-	logger.Debug().Str("best", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).
-		Msg("GetBestBlock from BP")
 	if block == nil {
 		return nil
 	}
