@@ -106,9 +106,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID}}
-	samplePeers[1] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID2}}
-	samplePeers[2] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID3}}
+	samplePeers[0] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID}, lastNotice:&LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID2}, lastNotice:&LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID3}, lastNotice:&LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{
@@ -121,11 +121,8 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 				pm.remotePeers[peer.ID()] = peer
 			}
 
-			actPeers, hiddens, actBklNotices, actStates := pm.GetPeerAddresses()
+			actPeers := pm.GetPeerAddresses()
 			assert.Equal(t, peersLen, len(actPeers))
-			assert.Equal(t, peersLen, len(hiddens))
-			assert.Equal(t, peersLen, len(actBklNotices))
-			assert.Equal(t, peersLen, len(actStates))
 		})
 	}
 }

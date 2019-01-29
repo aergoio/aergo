@@ -35,7 +35,7 @@ type RemotePeer interface {
 	ManageNumber() uint32
 
 	State() types.PeerState
-	LastNotice() *types.NewBlockNotice
+	LastNotice() *LastBlockStatus
 
 	runPeer()
 	stop()
@@ -50,12 +50,20 @@ type RemotePeer interface {
 	GetReceiver(id MsgID) ResponseReceiver
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
-	updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool
+	updateBlkCache(blkHash []byte, blkNumber uint64) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	updateTxCache(hashes []TxHash) []TxHash
+	// updateLastNotice change estimate of the last status of remote peer
+	updateLastNotice(blkHash []byte, blkNumber uint64)
 
 	// TODO
 	MF() moFactory
+}
+
+type LastBlockStatus struct {
+	CheckTime time.Time
+	BlockHash []byte
+	BlockNumber uint64
 }
 
 type requestInfo struct {
@@ -102,7 +110,7 @@ type remotePeerImpl struct {
 
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
-	lastNotice   *types.NewBlockNotice
+	lastNotice   *LastBlockStatus
 
 	txQueueLock         *sync.Mutex
 	txNoticeQueue       *p2putil.PressableQueue
@@ -121,6 +129,7 @@ func newRemotePeer(meta PeerMeta, pm PeerManager, actor ActorService, log *log.L
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
+		lastNotice: &LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
@@ -188,7 +197,7 @@ func (p *remotePeerImpl) GetBlocks(hashes []message.BlockHash, ttl time.Duration
 	panic("implement me")
 }
 
-func (p *remotePeerImpl) LastNotice() *types.NewBlockNotice {
+func (p *remotePeerImpl) LastNotice() *LastBlockStatus {
 	return p.lastNotice
 }
 
@@ -208,6 +217,7 @@ READNOPLOOP:
 	for {
 		select {
 		case <-pingTicker.C:
+			p.sendPing()
 			// no operation for now
 		case <-txNoticeTicker.C:
 			p.trySendTxNotices()
@@ -461,15 +471,15 @@ func (p *remotePeerImpl) sendTxNotices() {
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
 func (p *remotePeerImpl) sendPing() {
 	// find my best block
-	//bestBlock, err := extractBlockFromRequest(p.actorService.CallRequest(message.ChainSvc, &message.GetBestBlock{}))
-	//if err != nil {
-	//	p.logger.Error().Err(err).Msg("Failed to get best block")
-	//	return
-	//}
+	bestBlock, err := p.actorServ.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		p.logger.Warn().Err(err).Msg("cancel ping. failed to get bestblock")
+		return
+	}
 	// create message data
 	pingMsg := &types.Ping{
-		//BestBlockHash: bestBlock.BlkHash(),
-		//BestHeight:    bestBlock.GetHeader().GetBlockNo(),
+		BestBlockHash: bestBlock.BlockHash(),
+		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
 	p.sendMessage(p.mf.newMsgRequestOrder(true, PingRequest, pingMsg))
@@ -506,8 +516,10 @@ func (p *remotePeerImpl) pruneRequests() {
 	}
 }
 
-func (p *remotePeerImpl) updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool {
-	p.lastNotice = blkNotice
+func (p *remotePeerImpl) updateBlkCache(blkHash []byte, blkNumber uint64) bool {
+	p.updateLastNotice(blkHash, blkNumber)
+	var hash BlkHash
+	copy(hash[:], blkHash)
 	// lru cache can accept hashable key
 	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
 	return found
@@ -522,6 +534,10 @@ func (p *remotePeerImpl) updateTxCache(hashes []TxHash) []TxHash {
 		}
 	}
 	return added
+}
+
+func (p *remotePeerImpl) updateLastNotice(blkHash []byte, blkNumber uint64) {
+	p.lastNotice = &LastBlockStatus{time.Now(), blkHash, blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

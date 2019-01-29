@@ -248,10 +248,10 @@ func (bf *BlockFetcher) init() error {
 
 		msg := result.(*message.GetPeersRsp)
 
-		for i, peerElem := range msg.Peers {
-			state := msg.States[i]
+		for _, peerElem := range msg.Peers {
+			state := peerElem.State
 			if state.Get() == types.RUNNING {
-				bf.peers.addNew(peer.ID(peerElem.PeerID))
+				bf.peers.addNew(peer.ID(peerElem.Addr.PeerID))
 			}
 		}
 

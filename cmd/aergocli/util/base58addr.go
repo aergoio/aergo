@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/anaskhan96/base58check"
@@ -78,6 +79,7 @@ type InOutPeerAddress struct {
 type InOutPeer struct {
 	Address   InOutPeerAddress
 	BestBlock InOutBlockIdx
+	LastCheck time.Time
 	State     string
 	Hidden    bool
 }
@@ -237,6 +239,7 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
+	out.LastCheck = time.Unix(0, p.GetLashCheck())
 	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
 	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()

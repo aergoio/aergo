@@ -149,10 +149,8 @@ func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlkHash) }))
 
 	// lru cache can accept hashable key
-	var hash BlkHash
-	copy(hash[:], data.BlockHash)
-	if !remotePeer.updateBlkCache(hash, data) {
-		bh.sm.HandleNewBlockNotice(remotePeer, hash, data)
+	if !remotePeer.updateBlkCache(data.BlockHash, data.BlockNo) {
+		bh.sm.HandleNewBlockNotice(remotePeer, data)
 	}
 }
 

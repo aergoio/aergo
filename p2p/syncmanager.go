@@ -18,9 +18,9 @@ import (
 
 type SyncManager interface {
 	// handle notice from bp
-	HandleBlockProducedNotice(peer RemotePeer, hash BlkHash, block *types.Block)
+	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
 	// handle notice from other node
-	HandleNewBlockNotice(peer RemotePeer, hash BlkHash, data *types.NewBlockNotice)
+	HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice)
 	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
 	HandleNewTxNotice(peer RemotePeer, hashes []TxHash, data *types.NewTransactionsNotice)
 }
@@ -59,7 +59,8 @@ func (sm *syncManager) checkWorkToken() bool {
 	return !sm.syncing
 }
 
-func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, hash BlkHash, block *types.Block) {
+func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, block *types.Block) {
+	hash := MustParseBlkHash(block.GetHash())
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
 		sm.logger.Warn().Str(LogBlkHash, hash.String()).Str(LogPeerID, peer.ID().Pretty()).Msg("Duplacated blockProduced notice")
@@ -69,7 +70,8 @@ func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, hash BlkHash, 
 
 }
 
-func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, hash BlkHash, data *types.NewBlockNotice) {
+func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice) {
+	hash := MustParseBlkHash(data.BlockHash)
 	peerID := peer.ID()
 	//if !sm.checkWorkToken() {
 	//	// just ignore it
