@@ -67,6 +67,7 @@
 #define is_pointer_meta(meta)                                                            \
     (is_string_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
 
+#define is_primitive_meta(meta)     ((meta)->type <= TYPE_STRING)
 #define is_comparable_meta(meta)                                                         \
     ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
 #define is_compatible_meta(x, y)                                                         \

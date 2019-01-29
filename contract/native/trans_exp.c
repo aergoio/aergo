@@ -14,7 +14,7 @@
 
 #include "trans_exp.h"
 
-static void copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr,
+static void copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
                        meta_t *meta);
 
 static void
@@ -263,7 +263,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-copy_elem(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
+copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
 {
     ast_exp_t *l_exp, *r_exp;
 
@@ -285,34 +285,38 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
         uint32_t offset = elem_meta->rel_offset;
 
         if (is_array_meta(elem_meta))
-            copy_array(trans, base_idx, rel_addr + offset, elem_meta);
+            copy_array(trans, base_idx, rel_addr + offset, 0, elem_meta);
         else if (is_struct_meta(elem_meta))
             copy_struct(trans, base_idx, rel_addr + offset, elem_meta);
         else
-            copy_elem(trans, base_idx, rel_addr + offset, elem_meta->type);
+            copy_val(trans, base_idx, rel_addr + offset, elem_meta->type);
     }
 }
 
 static void
-copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
+copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
+           meta_t *meta)
 {
-    int i, j;
+    int i;
     uint32_t offset = 0;
     uint32_t unit_size = meta_size(meta);
 
+    ASSERT(dim_idx >= 0);
+    ASSERT(meta->dim_sizes[dim_idx] > 0);
     ASSERT(meta->arr_dim > 0);
 
-    copy_elem(trans, base_idx, rel_addr + offset, TYPE_UINT32);
-    offset += sizeof(uint32_t);
+    for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
+        if (dim_idx < meta->arr_dim - 1) {
+            copy_val(trans, base_idx, rel_addr + offset, TYPE_UINT32);
+            offset += sizeof(uint32_t);
 
-    for (i = 0; i < meta->arr_dim; i++) {
-        ASSERT(meta->dim_sizes[i] > 0);
-
-        for (j = 0; j < meta->dim_sizes[i]; j++) {
+            copy_array(trans, base_idx, rel_addr + offset, dim_idx + 1, meta);
+        }
+        else {
             if (is_struct_meta(meta))
                 copy_struct(trans, base_idx, rel_addr + offset, meta);
             else
-                copy_elem(trans, base_idx, rel_addr + offset, meta->type);
+                copy_val(trans, base_idx, rel_addr + offset, meta->type);
 
             offset += unit_size;
         }
@@ -362,19 +366,6 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
     }
 
-#if 0
-    if (fn->stack_usage > 0) {
-        ast_exp_t *l_exp = exp_new_register(TYPE_UINT32, fn->stack_idx);
-        ast_exp_t *v_exp = exp_new_lit_i64(ALIGN64(fn->stack_usage), &exp->pos);
-        ast_exp_t *r_exp = exp_new_binary(OP_SUB, l_exp, v_exp, &exp->pos);
-
-        meta_set_int32(&v_exp->meta);
-
-        bb_add_stmt(trans->bb,
-                    stmt_new_assign(exp_new_global("stack$offset"), r_exp, &exp->pos));
-    }
-#endif
-
     if (fn_id->u_fn.ret_id != NULL) {
         uint32_t reg_idx;
         ast_exp_t *l_exp;
@@ -398,7 +389,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 fn_add_stack(fn, meta_bytes(meta), meta);
 
             if (is_array_meta(&fn_id->meta))
-                copy_array(trans, reg_idx, meta->rel_addr, meta);
+                copy_array(trans, reg_idx, meta->rel_addr, 0, meta);
             else
                 copy_struct(trans, reg_idx, meta->rel_addr, meta);
 

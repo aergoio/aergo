@@ -761,19 +761,21 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 static bool
 exp_check_alloc(check_t *check, ast_exp_t *exp)
 {
+    meta_t *meta = &exp->meta;
+
     ASSERT1(is_alloc_exp(exp), exp->kind);
     ASSERT(exp->u_alloc.type_exp != NULL);
 
     CHECK(exp_check(check, exp->u_alloc.type_exp));
 
-    meta_copy(&exp->meta, &exp->u_alloc.type_exp->meta);
+    meta_copy(meta, &exp->u_alloc.type_exp->meta);
 
     if (exp->u_alloc.size_exps != NULL) {
         int i;
         int dim_size;
         vector_t *size_exps = exp->u_alloc.size_exps;
 
-        meta_set_arr_dim(&exp->meta, vector_size(size_exps));
+        meta_set_arr_dim(meta, vector_size(size_exps));
 
         vector_foreach(size_exps, i) {
             value_t *size_val = NULL;
@@ -797,10 +799,10 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
             if (dim_size <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_size(&exp->meta, i, dim_size);
+            meta_set_dim_size(meta, i, dim_size);
         }
     }
-    else if (exp->meta.type <= TYPE_STRING || exp->meta.type == TYPE_OBJECT) {
+    else if (is_primitive_meta(meta) || is_object_meta(meta)) {
         RETURN(ERROR_INVALID_INITIALIZER, &exp->pos);
     }
 

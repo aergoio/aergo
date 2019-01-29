@@ -117,20 +117,27 @@ contract test {
 
 @test(return_array)
 contract test {
-    //func f1() int[2] { return new int[2]; }
-    //func f2() uint16[2] { return new { 0, 32768 }; }
+    func f1() int[2] { return new int[2]; }
+    func f2() uint16[2] { return new { 0, 32768 }; }
     func f3() float[] { return new float[3]; }
-    //func f4() double[] { return new { -29.2134 }; }
-    //func f5(int size) string[] { return new string[size]; }
+    func f4() double[] { return new { -29.2134 }; }
+    func f5() string[][] { return new string[3][2]; }
 
     test() {
-        /*
         int i[] = f1();
-        i[0] = 1;
-        */
+        i[0] = -87;
 
-        float f[] = f2();
+        uint16 j[] = f2();
+        j[1] = 1027;
+
+        float f[] = f3();
         f[2] = 12.50;
+
+        double d[] = f4();
+        d[0] += 29.2133;
+
+        string s[][] = f5();
+        s[2][1] = "April";
     }
 }
 
