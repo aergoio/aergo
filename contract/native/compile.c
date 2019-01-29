@@ -17,15 +17,17 @@
 #include "compile.h"
 
 int
-compile(char *path, flag_t flag)
+compile(char *infile, flag_t flag)
 {
     strbuf_t src;
     ast_t *ast = NULL;
 
-    strbuf_init(&src);
-    preprocess(path, flag, &src);
+    ASSERT(infile != NULL);
 
-    parse(path, flag, &src, &ast);
+    strbuf_init(&src);
+    preprocess(infile, flag, &src);
+
+    parse(infile, flag, &src, &ast);
 
     /* empty contract can be null */
     if (ast != NULL) {
@@ -34,10 +36,10 @@ compile(char *path, flag_t flag)
         check(ast, flag);
         trans(ast, flag, &ir);
 
-        gen(ir, flag, path);
+        gen(ir, flag, infile);
     }
 
-    if (flag_off(flag, FLAG_TEST))
+    if (is_flag_off(flag, FLAG_TEST))
         error_print();
 
     return has_error();

@@ -122,7 +122,7 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         id_check(check, fld_id);
 
-        flag_set(fld_id->mod, MOD_PUBLIC);
+        BIT_SET(fld_id->mod, MOD_PUBLIC);
 
         fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
         offset = fld_meta->rel_offset + meta_bytes(fld_meta);

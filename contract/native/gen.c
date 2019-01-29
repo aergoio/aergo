@@ -10,9 +10,6 @@
 
 #include "gen.h"
 
-#define WASM_EXT        ".wasm"
-#define WASM_MAX_LEN    1024 * 1024
-
 static void
 gen_init(gen_t *gen, flag_t flag, ir_t *ir)
 {
@@ -30,15 +27,13 @@ gen_init(gen_t *gen, flag_t flag, ir_t *ir)
 void
 gen(ir_t *ir, flag_t flag, char *infile)
 {
-    int i, n;
+    int i;
     gen_t gen;
 
     if (has_error())
         return;
 
     gen_init(&gen, flag, ir);
-
-    BinaryenSetDebugInfo(1);
 
     vector_foreach(&ir->abis, i) {
         abi_gen(&gen, vector_get_abi(&ir->abis, i));
@@ -48,44 +43,26 @@ gen(ir_t *ir, flag_t flag, char *infile)
         fn_gen(&gen, vector_get_fn(&ir->fns, i));
     }
 
-    //malloc_gen(&gen);
-
     table_gen(&gen, &ir->fns);
-
     sgmt_gen(&gen, &ir->sgmt);
-
-    if (flag_on(flag, FLAG_WAT_DUMP))
-        BinaryenModulePrint(gen.module);
 
     ASSERT(BinaryenModuleValidate(gen.module));
 
-    if (flag_on(flag, FLAG_TEST)) {
-        // XXX: temporary
-        //BinaryenModuleInterpret(gen.module);
+    if (is_flag_on(flag, FLAG_DEBUG)) {
+        BinaryenSetDebugInfo(1);
     }
-    else {
-        int buf_size = WASM_MAX_LEN * 2;
-        char *buf = xmalloc(buf_size);
+    else if (flag.opt_lvl > 0) {
+        BinaryenSetOptimizeLevel(flag.opt_lvl);
+        BinaryenModuleOptimize(gen.module);
 
-        n = BinaryenModuleWrite(gen.module, buf, buf_size);
-        if (n <= WASM_MAX_LEN) {
-            char *ptr;
-            char outfile[PATH_MAX_LEN + 5];
-
-            strcpy(outfile, infile);
-
-            ptr = strrchr(outfile, '.');
-            if (ptr == NULL)
-                strcat(outfile, WASM_EXT);
-            else
-                strcpy(ptr, WASM_EXT);
-
-            write_file(outfile, buf, n);
-        }
-        else {
-            FATAL(ERROR_BINARY_OVERFLOW, n);
-        }
+        ASSERT(BinaryenModuleValidate(gen.module));
     }
+
+    if (is_flag_on(flag, FLAG_WAT_DUMP))
+        BinaryenModulePrint(gen.module);
+
+    if (is_flag_off(flag, FLAG_TEST))
+        wasm_gen(&gen, infile, flag.outfile);
 
     BinaryenModuleDispose(gen.module);
 }

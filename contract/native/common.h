@@ -37,6 +37,10 @@
 #define ALIGN32(v)          ALIGN(v, 4)
 #define ALIGN64(v)          ALIGN(v, 8)
 
+#define BIT_SET(x, y)       ((x) |= (y))
+#define IS_BIT_ON(x, y)     (((x) & (y)) == (y))
+#define IS_BIT_OFF(x, y)    (((x) & (y)) != (y))
+
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
 typedef unsigned char bool;
 #define true                1
@@ -46,7 +50,6 @@ typedef unsigned char bool;
 
 #include "xalloc.h"
 #include "assert.h"
-#include "flag.h"
 #include "src_pos.h"
 #include "error.h"
 

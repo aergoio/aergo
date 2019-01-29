@@ -250,7 +250,7 @@ preprocess(char *path, flag_t flag, strbuf_t *out)
 
     stack_pop(&imp);
 
-    if (flag_on(flag, FLAG_VERBOSE)) {
+    if (is_flag_on(flag, FLAG_VERBOSE)) {
         char file[PATH_MAX_LEN];
 
         snprintf(file, sizeof(file), "%s.i", path);

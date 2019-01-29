@@ -23,12 +23,12 @@
 #define is_label_id(id)             ((id)->kind == ID_LABEL)
 #define is_tuple_id(id)             ((id)->kind == ID_TUPLE)
 
-#define is_public_id(id)            flag_on((id)->mod, MOD_PUBLIC)
-#define is_private_id(id)           flag_on((id)->mod, MOD_PRIVATE)
-#define is_payable_id(id)           flag_on((id)->mod, MOD_PAYABLE)
-#define is_readonly_id(id)          flag_on((id)->mod, MOD_READONLY)
-#define is_const_id(id)             flag_on((id)->mod, MOD_CONST)
-#define is_ctor_id(id)              flag_on((id)->mod, MOD_CTOR)
+#define is_public_id(id)            IS_BIT_ON((id)->mod, MOD_PUBLIC)
+#define is_private_id(id)           IS_BIT_ON((id)->mod, MOD_PRIVATE)
+#define is_payable_id(id)           IS_BIT_ON((id)->mod, MOD_PAYABLE)
+#define is_readonly_id(id)          IS_BIT_ON((id)->mod, MOD_READONLY)
+#define is_const_id(id)             IS_BIT_ON((id)->mod, MOD_CONST)
+#define is_ctor_id(id)              IS_BIT_ON((id)->mod, MOD_CTOR)
 
 #define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))

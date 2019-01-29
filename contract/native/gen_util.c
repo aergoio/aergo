@@ -86,6 +86,37 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 }
 
 void
+wasm_gen(gen_t *gen, char *infile, char *outfile)
+{
+    int n;
+    int buf_size = WASM_MAX_LEN * 2;
+    char *buf = xmalloc(buf_size);
+
+    n = BinaryenModuleWrite(gen->module, buf, buf_size);
+    if (n <= WASM_MAX_LEN) {
+        char *ptr;
+        char path[PATH_MAX_LEN + 5];
+
+        if (outfile == NULL || outfile[0] == '\0') {
+            strcpy(path, infile);
+
+            ptr = strrchr(path, '.');
+            if (ptr == NULL)
+                strcat(path, WASM_EXT);
+            else
+                strcpy(ptr, WASM_EXT);
+
+            outfile = path;
+        }
+
+        write_file(outfile, buf, n);
+    }
+    else {
+        FATAL(ERROR_BINARY_OVERFLOW, n);
+    }
+}
+
+void
 malloc_gen(gen_t *gen)
 {
     BinaryenType type = BinaryenTypeInt32();

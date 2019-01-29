@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "flag.h"
 #include "ast.h"
 #include "ir.h"
 

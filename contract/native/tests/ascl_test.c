@@ -40,7 +40,7 @@ env_init(env_t *env)
 {
     memset(env, 0x00, sizeof(env_t));
 
-    env->flag = FLAG_TEST;
+    env->flag.val = FLAG_TEST;
     env->ec_cnt = 0;
     stack_init(&env->exp);
 }
@@ -52,7 +52,7 @@ env_reset(env_t *env)
     env->ec = NO_ERROR;
     env->ec_cnt = 0;
 
-    if (flag_off(env->flag, FLAG_VERBOSE)) {
+    if (is_flag_off(env->flag, FLAG_VERBOSE)) {
         char *item;
 
         while ((item = stack_pop(&env->exp)) != NULL) {
@@ -101,7 +101,7 @@ print_results(env_t *env)
 
     printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
 
-    if (flag_on(env->flag, FLAG_VERBOSE))
+    if (is_flag_on(env->flag, FLAG_VERBOSE))
         error_print();
 }
 

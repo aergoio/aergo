@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "flag.h"
 #include "ir.h"
 #include "array.h"
 #include "binaryen-c.h"

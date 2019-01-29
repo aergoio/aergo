@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "flag.h"
 #include "ast.h"
 
 #ifndef _AST_BLK_T

@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "flag.h"
 #include "strbuf.h"
 
 #include "ast_id.h"
