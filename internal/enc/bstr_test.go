@@ -16,6 +16,7 @@ func TestToString(t *testing.T) {
 		wantInverse bool
 	}{
 		{"TSingle", args{[]byte("A")},"28", true},
+		{"TEmpty", args{make([]byte,0)},"", false},
 		{"TNil", args{nil},"", false},
 		// TODO: Add test cases.
 	}
