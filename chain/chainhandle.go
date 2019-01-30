@@ -663,11 +663,12 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 
 	var txFee *big.Int
 	var rv string
+	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL:
 		txFee = CoinbaseFee()
 		sender.SubBalance(txFee)
-		rv, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
@@ -677,41 +678,44 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	}
 
 	if err != nil {
-		if contract.IsRuntimeError(err) {
-			sender.Reset()
-			sender.SubBalance(txFee)
-			sender.SetNonce(txBody.Nonce)
-			sErr := sender.PutState()
-			if sErr != nil {
-				return sErr
-			}
-			bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
-			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
-			return nil
+		if !contract.IsRuntimeError(err) {
+			return err
 		}
-		return err
-	}
-
-	sender.SetNonce(txBody.Nonce)
-	err = sender.PutState()
-	if err != nil {
-		return err
-	}
-	if sender.AccountID() != receiver.AccountID() {
-		err = receiver.PutState()
+		sender.Reset()
+		sender.SubBalance(txFee)
+		sender.SetNonce(txBody.Nonce)
+		sErr := sender.PutState()
+		if sErr != nil {
+			return sErr
+		}
+	} else {
+		sender.SetNonce(txBody.Nonce)
+		err = sender.PutState()
 		if err != nil {
 			return err
 		}
+		if sender.AccountID() != receiver.AccountID() {
+			err = receiver.PutState()
+			if err != nil {
+				return err
+			}
+		}
 	}
-
 	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
-	if receiver.IsNew() && txBody.Recipient == nil {
-		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
-		return nil
-
+	var receipt *types.Receipt
+	if err != nil {
+		receipt = types.NewReceipt(receiver.ID(), err.Error(), "")
+	} else if receiver.IsNew() && txBody.Recipient == nil {
+		receipt = types.NewReceipt(receiver.ID(), "CREATED", rv)
+	} else {
+		receipt = types.NewReceipt(receiver.ID(), "SUCCESS", rv)
 	}
-	bs.AddReceipt(types.NewReceipt(receiver.ID(), "SUCCESS", rv))
+	receipt.FeeUsed = txFee.Bytes()
+	receipt.TxHash = tx.GetHash()
+	receipt.Events = events
+
+	bs.AddReceipt(receipt)
 	return nil
 }
 

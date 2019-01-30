@@ -654,6 +654,8 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
+	receipts.SetBLockInfo(blockHash, blockNo)
+
 	var val bytes.Buffer
 	gob := gob.NewEncoder(&val)
 	gob.Encode(receipts)

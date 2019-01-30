@@ -8,6 +8,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/param"
 	"math/big"
 	"reflect"
 	"runtime"
@@ -118,6 +119,10 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	initChainEnv(core.cdb.GetGenesisInfo())
+	err := param.SetForkConfig(genesisBlock.GetHash())
+	if err != nil {
+		return nil, err
+	}
 
 	contract.StartLStateFactory()
 
@@ -459,6 +464,11 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		context.Respond(&rsp)
 
 		cm.TellTo(message.RPCSvc, block)
+		events := []*types.Event{}
+		for _, receipt := range bstate.Receipts() {
+			events = append(events, receipt.Events...)
+		}
+		cm.TellTo(message.RPCSvc, events)
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{

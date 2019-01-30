@@ -33,6 +33,11 @@ var (
 	logger = log.NewLogger("rpc")
 )
 
+type EventStream struct {
+	filter *types.FilterInfo
+	stream types.AergoRPCService_ListEventStreamServer
+}
+
 // AergoRPCService implements GRPC server which is defined in rpc.proto
 type AergoRPCService struct {
 	hub         *component.ComponentHub
@@ -44,6 +49,9 @@ type AergoRPCService struct {
 	blockStream             map[uint32]types.AergoRPCService_ListBlockStreamServer
 	blockMetadataStreamLock sync.RWMutex
 	blockMetadataStream     map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer
+
+	eventStreamLock sync.RWMutex
+	eventStream     map[*EventStream]*EventStream
 }
 
 // FIXME remove redundant constants
@@ -931,4 +939,41 @@ func toTimestamp(time time.Time) *timestamp.Timestamp {
 
 func fromTimestamp(timestamp *timestamp.Timestamp) time.Time {
 	return time.Unix(timestamp.Seconds, int64(timestamp.Nanos))
+}
+
+func (rpc *AergoRPCService) ListEventStream(in *types.FilterInfo, stream types.AergoRPCService_ListEventStreamServer) error {
+	rpc.eventStreamLock.Lock()
+	eventStream := &EventStream{in, stream}
+	rpc.eventStream[eventStream] = eventStream
+	rpc.eventStreamLock.Unlock()
+
+	for {
+		select {
+		case <-eventStream.stream.Context().Done():
+			rpc.eventStreamLock.Lock()
+			delete(rpc.eventStream, eventStream)
+			rpc.eventStreamLock.Lock()
+			return nil
+		}
+	}
+}
+
+func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error {
+	var err error
+	rpc.eventStreamLock.RLock()
+	defer rpc.eventStreamLock.RUnlock()
+
+	for _, es := range rpc.eventStream {
+		if es != nil {
+			for _, event := range events {
+				if event.Filter(es.filter) {
+					err = es.stream.Send(event)
+				}
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }

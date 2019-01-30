@@ -921,3 +921,22 @@ func LuaRandom(L *LState, service C.int) C.int {
 	}
 	return 1
 }
+
+//export LuaEvent
+func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) C.int {
+	stateSet := curStateSet[*service]
+	if stateSet.isQuery == true {
+		luaPushStr(L, "[Contract.Event] event not permitted in query")
+		return -1
+	}
+	stateSet.events = append(stateSet.events,
+		&types.Event{
+			ContractAddress: stateSet.curContract.contractId,
+			EventIdx:        stateSet.eventCount,
+			EventName:       C.GoString(eventName),
+			JsonArgs:        C.GoString(args),
+		})
+	stateSet.eventCount++
+
+	return 0
+}

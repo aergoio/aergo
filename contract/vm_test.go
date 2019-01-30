@@ -3134,6 +3134,7 @@ func TestReturnUData(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func checkRandomFloatValue(v string) error {
 	n, _ := strconv.ParseFloat(v, 64)
 	if n < 0.0 || n >= 1.0 {
@@ -3168,7 +3169,6 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-
 	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
 	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
 	err = bc.ConnectBlock(tx, tx1)
@@ -3192,6 +3192,7 @@ abi.register(random)`
 			"random",
 			0,
 			`{"Name": "random", "Args":[0]}`).Fail("the maximum value must be greater than zero"),
+
 	)
 	if err != nil {
 		t.Error(err)
@@ -3233,3 +3234,30 @@ abi.register(random)`
 		t.Error(err)
 	}
 }
+
+func TestEvent(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function test_ev()
+		contract.event("ev1", 1,"local", 2, "form")
+		contract.event("ev1", 3,"local", 4, "form")
+	end
+	abi.register(test_ev)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "event", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+}
+
+// end of test-cases
