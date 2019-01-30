@@ -342,8 +342,7 @@ id_check_tuple(check_t *check, ast_id_t *id)
     id->meta.elem_cnt = vector_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
-    id->meta.size = 0;
-
+    /* The meta size of the tuple identifier is not used and is not calculated. */
     vector_foreach(elem_ids, i) {
         ast_id_t *elem_id = vector_get_id(elem_ids, i);
 
@@ -357,22 +356,13 @@ id_check_tuple(check_t *check, ast_id_t *id)
             elem_id->u_var.dflt_exp = vector_get_exp(dflt_exp->u_tup.elem_exps, i);
 
         id_check(check, elem_id);
-
         elem_id->up = id->up;
 
         id->meta.elems[i] = &elem_id->meta;
 
-        id->meta.size = ALIGN(id->meta.size, meta_align(&elem_id->meta));
-        id->meta.size += meta_bytes(&elem_id->meta);
-
-        if (id->meta.align == 0)
-            id->meta.align = meta_align(&elem_id->meta);
-
         if (is_const_id(elem_id) && elem_id->u_var.dflt_exp == NULL)
             ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
-
-    id->meta.size = ALIGN(id->meta.size, id->meta.align);
 
     return true;
 }

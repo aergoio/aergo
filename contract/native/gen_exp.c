@@ -691,13 +691,13 @@ exp_gen_global(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_register(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetLocal(gen->module, exp->u_reg.idx, type_gen(exp->u_reg.type));
+    return BinaryenGetLocal(gen->module, exp->u_reg.idx, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef
 exp_gen_memory(gen_t *gen, ast_exp_t *exp)
 {
-    type_t type = exp->u_mem.type;
+    meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
     address = BinaryenGetLocal(gen->module, exp->u_mem.base, BinaryenTypeInt32());
@@ -706,7 +706,7 @@ exp_gen_memory(gen_t *gen, ast_exp_t *exp)
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                  i32_gen(gen, exp->u_mem.addr));
 
-    if (gen->is_lval || is_array_meta(&exp->meta) || is_object_meta(&exp->meta)) {
+    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
         if (exp->u_mem.offset > 0)
             return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                                   i32_gen(gen, exp->u_mem.offset));
@@ -714,8 +714,8 @@ exp_gen_memory(gen_t *gen, ast_exp_t *exp)
         return address;
     }
 
-    return BinaryenLoad(gen->module, TYPE_BYTE(type), is_signed_type(type),
-                        exp->u_mem.offset, 0, type_gen(type), address);
+    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_type(meta->type),
+                        exp->u_mem.offset, 0, meta_gen(meta), address);
 }
 
 BinaryenExpressionRef

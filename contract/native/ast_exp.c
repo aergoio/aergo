@@ -251,22 +251,20 @@ exp_new_global(char *name)
 }
 
 ast_exp_t *
-exp_new_register(type_t type, uint32_t idx)
+exp_new_register(uint32_t idx)
 {
     ast_exp_t *exp = ast_exp_new(EXP_REGISTER, &null_pos_);
 
-    exp->u_reg.type = type;
     exp->u_reg.idx = idx;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_memory(type_t type, uint32_t base, uint32_t addr, uint32_t offset)
+exp_new_memory(uint32_t base, uint32_t addr, uint32_t offset)
 {
     ast_exp_t *exp = ast_exp_new(EXP_MEMORY, &null_pos_);
 
-    exp->u_mem.type = type;
     exp->u_mem.base = base;
     exp->u_mem.addr = addr;
     exp->u_mem.offset = offset;
@@ -290,11 +288,6 @@ exp_set_register(ast_exp_t *exp, uint32_t idx)
 {
     exp->kind = EXP_REGISTER;
     exp->u_reg.idx = idx;
-
-    if (is_array_meta(&exp->meta))
-        exp->u_reg.type = TYPE_UINT32;
-    else
-        exp->u_reg.type = exp->meta.type;
 }
 
 void
@@ -304,11 +297,6 @@ exp_set_memory(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
     exp->u_mem.base = base;
     exp->u_mem.addr = addr;
     exp->u_mem.offset = offset;
-
-    if (is_array_meta(&exp->meta))
-        exp->u_mem.type = TYPE_UINT32;
-    else
-        exp->u_mem.type = exp->meta.type;
 }
 
 ast_exp_t *
@@ -414,12 +402,11 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_REGISTER:
-        res = exp_new_register(exp->u_reg.type, exp->u_reg.idx);
+        res = exp_new_register(exp->u_reg.idx);
         break;
 
     case EXP_MEMORY:
-        res = exp_new_memory(exp->u_mem.type, exp->u_mem.base, exp->u_mem.addr,
-                            exp->u_mem.offset);
+        res = exp_new_memory(exp->u_mem.base, exp->u_mem.addr, exp->u_mem.offset);
         break;
 
     default:

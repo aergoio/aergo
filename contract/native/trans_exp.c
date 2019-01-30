@@ -73,7 +73,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     else if (is_fn_id(id) || is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
         exp_set_register(exp, trans->fn->cont_idx);
-        exp->u_reg.type = TYPE_UINT32;
+        meta_set_uint32(&exp->meta);
     }
 }
 
@@ -119,9 +119,6 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
                            id_exp->u_mem.offset + offset);
         else
             exp_set_memory(exp, id_exp->u_reg.idx, 0, offset);
-
-        if (is_array_meta(&exp->meta))
-            exp->u_mem.type = TYPE_UINT32;
     }
     else {
         /* TODO
@@ -265,12 +262,15 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
+copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
 {
     ast_exp_t *l_exp, *r_exp;
 
-    l_exp = exp_new_memory(type, trans->fn->stack_idx, rel_addr, 0);
-    r_exp = exp_new_memory(type, base_idx, rel_addr, 0);
+    l_exp = exp_new_memory(trans->fn->stack_idx, rel_addr, 0);
+    meta_copy(&l_exp->meta, meta);
+
+    r_exp = exp_new_memory(base_idx, rel_addr, 0);
+    meta_copy(&r_exp->meta, meta);
 
     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &null_pos_));
 }
@@ -291,7 +291,7 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
         else if (is_struct_meta(elem_meta))
             copy_struct(trans, base_idx, rel_addr + offset, elem_meta);
         else
-            copy_val(trans, base_idx, rel_addr + offset, elem_meta->type);
+            copy_val(trans, base_idx, rel_addr + offset, elem_meta);
     }
 }
 
@@ -302,15 +302,18 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
     int i;
     uint32_t offset = 0;
     uint32_t unit_size = meta_size(meta);
+    meta_t hdr_meta;
 
     ASSERT(dim_idx >= 0);
     ASSERT(meta->dim_sizes[dim_idx] > 0);
     ASSERT(meta->arr_dim > 0);
 
+    meta_set_uint32(&hdr_meta);
+
     for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
         if (dim_idx < meta->arr_dim - 1) {
-            copy_val(trans, base_idx, rel_addr + offset, TYPE_UINT32);
-            offset += sizeof(uint32_t);
+            copy_val(trans, base_idx, rel_addr + offset, &hdr_meta);
+            offset += meta_size(&hdr_meta);
 
             copy_array(trans, base_idx, rel_addr + offset, dim_idx + 1, meta);
         }
@@ -318,7 +321,7 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
             if (is_struct_meta(meta))
                 copy_struct(trans, base_idx, rel_addr + offset, meta);
             else
-                copy_val(trans, base_idx, rel_addr + offset, meta->type);
+                copy_val(trans, base_idx, rel_addr + offset, meta);
 
             offset += unit_size;
         }
@@ -355,12 +358,17 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             vector_add_first(exp->u_call.param_exps, qual_exp);
         }
         else {
+            ast_exp_t *param_exp;
+
             ASSERT1(is_register_exp(id_exp), id_exp->kind);
             ASSERT1(trans->fn->cont_idx == 0, trans->fn->cont_idx);
 
             /* If the expression is of type "x()", pass my first parameter as the
              * first argument */
-            vector_add_first(exp->u_call.param_exps, exp_new_register(TYPE_UINT32, 0));
+            param_exp = exp_new_register(0);
+            meta_set_uint32(&param_exp->meta);
+
+            vector_add_first(exp->u_call.param_exps, param_exp);
         }
     }
 
@@ -369,18 +377,14 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     }
 
     if (fn_id->u_fn.ret_id != NULL) {
-        uint32_t reg_idx;
-        ast_exp_t *l_exp;
-        type_t type = meta->type;
+        uint32_t reg_idx = fn_add_register(fn, meta);
+        ast_exp_t *reg_exp;
 
-        if (is_array_meta(meta))
-            type = TYPE_UINT32;
-
-        reg_idx = fn_add_register(fn, meta);
-        l_exp = exp_new_register(type, reg_idx);
+        reg_exp = exp_new_register(reg_idx);
+        meta_copy(&reg_exp->meta, meta);
 
         /* We have to clone it because the call expression itself is transformed */
-        bb_add_stmt(trans->bb, stmt_new_assign(l_exp, exp_clone(exp), &exp->pos));
+        bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, exp_clone(exp), &exp->pos));
 
         if (is_array_meta(&fn_id->meta) || is_struct_meta(&fn_id->meta)) {
             /* If the return value is an array or struct, we must copy the value because
@@ -400,8 +404,9 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             if (meta->rel_addr > 0) {
                 exp->kind = EXP_BINARY;
                 exp->u_bin.kind = OP_ADD;
-                exp->u_bin.l_exp = exp_new_register(TYPE_UINT32, meta->base_idx);
+                exp->u_bin.l_exp = exp_new_register(meta->base_idx);
                 exp->u_bin.r_exp = exp_new_lit_i64(meta->rel_addr, &exp->pos);
+                meta_set_uint32(&exp->u_bin.l_exp->meta);
             }
             else {
                 exp_set_register(exp, meta->base_idx);

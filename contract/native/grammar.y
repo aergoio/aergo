@@ -700,6 +700,8 @@ return_list:
 return_decl:
     var_type
     {
+        /* We wanted to use a type expression, but we can not store size expressions
+         * and declare it as an identifier. */
         $$ = id_new_param(NULL, $1, &@1);
     }
 |   return_decl '[' size_opt ']'

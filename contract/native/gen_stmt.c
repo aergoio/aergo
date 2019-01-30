@@ -39,17 +39,17 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     gen->is_lval = false;
 
     if (is_memory_exp(l_exp)) {
-        type_t type = l_exp->u_mem.type;
-
         if (is_array_meta(&l_exp->meta))
-            type = TYPE_UINT32;
+            return BinaryenStore(gen->module, sizeof(uint32_t), 0, 0, address, value,
+                                 BinaryenTypeInt32());
 
-        return BinaryenStore(gen->module, TYPE_BYTE(type), 0, 0, address, value,
-                             type_gen(type));
+        return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
+                             value, meta_gen(&l_exp->meta));
     }
 
     /* For an array whose index is a variable, we must dynamically determine the offset */
     ASSERT1(is_array_meta(&id->meta), id->meta.type);
+    ASSERT(!is_array_meta(&l_exp->meta));
 
     return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
                          value, meta_gen(&l_exp->meta));

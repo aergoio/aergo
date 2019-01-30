@@ -153,12 +153,10 @@ typedef struct exp_global_s {
 } exp_global_t;
 
 typedef struct exp_register_s {
-    type_t type;
     uint32_t idx;
 } exp_register_t;
 
 typedef struct exp_memory_s {
-    type_t type;
     uint32_t base;
     uint32_t addr;
     uint32_t offset;
@@ -220,8 +218,8 @@ ast_exp_t *exp_new_init(vector_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(char *name);
-ast_exp_t *exp_new_register(type_t type, uint32_t idx);
-ast_exp_t *exp_new_memory(type_t type, uint32_t base, uint32_t addr, uint32_t offset);
+ast_exp_t *exp_new_register(uint32_t idx);
+ast_exp_t *exp_new_memory(uint32_t base, uint32_t addr, uint32_t offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
 void exp_set_register(ast_exp_t *exp, uint32_t idx);

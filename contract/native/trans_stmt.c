@@ -384,16 +384,18 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
     ASSERT(fn != NULL);
 
     if (arg_exp != NULL) {
-        ast_exp_t *var_exp;
+        ast_exp_t *reg_exp;
+        ast_id_t *ret_id = stmt->u_ret.ret_id;
 
-        ASSERT(stmt->u_ret.ret_id != NULL);
-        ASSERT(!is_ctor_id(stmt->u_ret.ret_id->up));
+        ASSERT(ret_id != NULL);
+        ASSERT(!is_ctor_id(ret_id->up));
 
-        var_exp = exp_new_register(stmt->u_ret.ret_id->meta.type, fn->ret_idx);
+        reg_exp = exp_new_register(fn->ret_idx);
+        meta_copy(&reg_exp->meta, &ret_id->meta);
 
         exp_trans(trans, arg_exp);
 
-        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, arg_exp, &stmt->pos));
+        bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, arg_exp, &stmt->pos));
     }
 
     /* The current basic block branches directly to the exit block */
