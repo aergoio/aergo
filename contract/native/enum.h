@@ -17,15 +17,13 @@
 
 typedef enum flag_val_e {
     FLAG_NONE       = 0x0000,
-    FLAG_DEBUG      = 0x0001,
-    FLAG_OPT_0      = 0x0002,
-    FLAG_OPT_1      = 0x0004,
-    FLAG_OPT_2      = 0x0008,
-    FLAG_VERBOSE    = 0x0010,
-    FLAG_LEX_DUMP   = 0x0020,
-    FLAG_YACC_DUMP  = 0x0040,
-    FLAG_WAT_DUMP   = 0x0080,
-    FLAG_TEST       = 0x0100
+    FLAG_COMPILE    = 0x0001,
+    FLAG_DEBUG      = 0x0002,
+    FLAG_VERBOSE    = 0x0004,
+    FLAG_LEX_DUMP   = 0x0008,
+    FLAG_YACC_DUMP  = 0x0010,
+    FLAG_WAT_DUMP   = 0x0020,
+    FLAG_TEST       = 0x0040
 } flag_val_t;
 
 typedef enum ec_e {

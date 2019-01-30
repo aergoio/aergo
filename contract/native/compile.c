@@ -34,9 +34,11 @@ compile(char *infile, flag_t flag)
         ir_t *ir = NULL;
 
         check(ast, flag);
-        trans(ast, flag, &ir);
 
-        gen(ir, flag, infile);
+        if (is_flag_off(flag, FLAG_COMPILE)) {
+            trans(ast, flag, &ir);
+            gen(ir, flag, infile);
+        }
     }
 
     if (is_flag_off(flag, FLAG_TEST))
