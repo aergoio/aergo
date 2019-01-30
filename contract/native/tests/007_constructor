@@ -39,19 +39,27 @@ contract test {
 
 @test(instantiate)
 contract callee {
-    callee() { test t = new test(); }
 }
 contract test {
-    test() { callee c = new callee(); }
-}
-
-@test(missing_parenthesis)
-@error(ERROR_INVALID_INITIALIZER)
-contract callee { }
-
-contract test {
+    callee c1 = new callee();
     test() {
-        callee c = new callee;
+        callee c2 = c1;
+        callee c3 = new callee();
+    }
+}
+
+@test(instantiate_with_array)
+contract callee {
+}
+contract test {
+    callee c1[] = new callee[2];
+    test() {
+        c1[0] = new callee();
+        c1[1] = new callee();
+
+        callee c2[2] = new callee[2];
+        c2[0] = c1[0];
+        c2[1] = c1[1];
     }
 }
 
@@ -62,6 +70,16 @@ contract test {
         test c = new f();
     }
     func f() test { return null; }
+}
+
+@test(missing_parenthesis)
+@error(ERROR_INVALID_INITIALIZER)
+contract callee { }
+
+contract test {
+    test() {
+        callee c = new callee;
+    }
 }
 
 @test(not_allowed_initializer)

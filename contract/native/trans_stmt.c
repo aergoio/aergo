@@ -14,6 +14,34 @@
 #include "trans_stmt.h"
 
 static void
+stmt_trans_id(trans_t *trans, ast_stmt_t *stmt)
+{
+    int i;
+    ast_id_t *id = stmt->u_id.id;
+
+    ASSERT(id != NULL);
+
+    if (is_global_id(id))
+        /* Initialization of the global variable will be done in the constructor */
+        return;
+
+    if (is_var_id(id)) {
+        if (id->u_var.dflt_exp != NULL)
+            stmt_trans(trans, stmt_make_assign(id, id->u_var.dflt_exp));
+    }
+    else if (is_tuple_id(id)) {
+        vector_foreach(id->u_tup.elem_ids, i) {
+            ast_id_t *elem_id = vector_get_id(id->u_tup.elem_ids, i);
+
+            ASSERT1(is_var_id(elem_id), elem_id->kind);
+
+            if (elem_id->u_var.dflt_exp != NULL)
+                stmt_trans(trans, stmt_make_assign(elem_id, elem_id->u_var.dflt_exp));
+        }
+    }
+}
+
+static void
 stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 {
     ast_exp_t *exp = stmt->u_exp.exp;
@@ -487,7 +515,7 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
         break;
 
     case STMT_ID:
-        /* The identifier itself is already transformed in id_trans_var() */
+        stmt_trans_id(trans, stmt);
         break;
 
     case STMT_EXP:

@@ -48,7 +48,7 @@ gen(ir_t *ir, flag_t flag, char *infile)
 
     ASSERT(BinaryenModuleValidate(gen.module));
 
-    if (is_flag_on(flag, FLAG_DEBUG)) {
+    if (is_flag_on(flag, FLAG_DEBUG | FLAG_TEST)) {
         BinaryenSetDebugInfo(1);
     }
     else if (flag.opt_lvl > 0) {

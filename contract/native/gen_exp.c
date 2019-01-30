@@ -56,10 +56,12 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
         BinaryenExpressionRef base, address, offset, index;
 
-        /* BinaryenLoad() takes an offset as uint32_t, and because "idx_exp" is a local
-         * or stack expression, we do not know the offset, so we add the offset to the
-         * address and use BinaryenLoad(). See exp_trans_array() for the following
-         * formula */
+        ASSERT(!is_lit_exp(idx_exp));
+
+        /* Because BinaryenLoad() takes an offset as uint32_t and "idx_exp" is a
+         * register or memory expression, we do not know the offset value, so we add
+         * the offset to the address and use BinaryenLoad(). See exp_trans_array() for
+         * the following formula. */
 
         base = exp_gen(gen, id_exp);
         index = exp_gen(gen, idx_exp);

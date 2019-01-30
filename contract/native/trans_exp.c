@@ -112,7 +112,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 
         /* The following meta_bytes() is stripped size of array */
         offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
-            meta_align(&id->meta);
+            id->meta.rel_addr + meta_align(&id->meta);
 
         if (is_memory_exp(id_exp))
             exp_set_memory(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
@@ -262,15 +262,15 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
+copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
 {
     ast_exp_t *l_exp, *r_exp;
 
     l_exp = exp_new_memory(trans->fn->stack_idx, rel_addr, 0);
-    meta_copy(&l_exp->meta, meta);
+    meta_set(&l_exp->meta, type);
 
     r_exp = exp_new_memory(base_idx, rel_addr, 0);
-    meta_copy(&r_exp->meta, meta);
+    meta_set(&r_exp->meta, type);
 
     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &null_pos_));
 }
@@ -291,7 +291,7 @@ copy_struct(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, meta_t *meta)
         else if (is_struct_meta(elem_meta))
             copy_struct(trans, base_idx, rel_addr + offset, elem_meta);
         else
-            copy_val(trans, base_idx, rel_addr + offset, elem_meta);
+            copy_val(trans, base_idx, rel_addr + offset, elem_meta->type);
     }
 }
 
@@ -302,18 +302,15 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
     int i;
     uint32_t offset = 0;
     uint32_t unit_size = meta_size(meta);
-    meta_t hdr_meta;
 
     ASSERT(dim_idx >= 0);
     ASSERT(meta->dim_sizes[dim_idx] > 0);
     ASSERT(meta->arr_dim > 0);
 
-    meta_set_uint32(&hdr_meta);
-
     for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
         if (dim_idx < meta->arr_dim - 1) {
-            copy_val(trans, base_idx, rel_addr + offset, &hdr_meta);
-            offset += meta_size(&hdr_meta);
+            copy_val(trans, base_idx, rel_addr + offset, TYPE_UINT32);
+            offset += sizeof(uint32_t);
 
             copy_array(trans, base_idx, rel_addr + offset, dim_idx + 1, meta);
         }
@@ -321,7 +318,7 @@ copy_array(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, int dim_idx,
             if (is_struct_meta(meta))
                 copy_struct(trans, base_idx, rel_addr + offset, meta);
             else
-                copy_val(trans, base_idx, rel_addr + offset, meta);
+                copy_val(trans, base_idx, rel_addr + offset, meta->type);
 
             offset += unit_size;
         }
@@ -343,33 +340,39 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
     exp_trans(trans, id_exp);
 
-    if (!is_ctor_id(exp->id)) {
-        /* Since non-constructor functions are added the contract base address as a first
-         * argument, we must also add the address as a call argument here */
-        if (exp->u_call.param_exps == NULL)
-            exp->u_call.param_exps = vector_new();
-
-        if (is_access_exp(id_exp)) {
-            ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
-
-            ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
-
-            /* If the expression is of type "x.y()", pass "x" as the first argument */
-            vector_add_first(exp->u_call.param_exps, qual_exp);
+    if (is_ctor_id(exp->id)) {
+        /* The constructor does not change the parameter, it always returns address. */
+        vector_foreach(exp->u_call.param_exps, i) {
+            exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
         }
-        else {
-            ast_exp_t *param_exp;
+        return;
+    }
 
-            ASSERT1(is_register_exp(id_exp), id_exp->kind);
-            ASSERT1(trans->fn->cont_idx == 0, trans->fn->cont_idx);
+    /* Since non-constructor functions are added the contract base address as a first
+     * parameter, we must also add the address as a call argument here. */
+    if (exp->u_call.param_exps == NULL)
+        exp->u_call.param_exps = vector_new();
 
-            /* If the expression is of type "x()", pass my first parameter as the
-             * first argument */
-            param_exp = exp_new_register(0);
-            meta_set_uint32(&param_exp->meta);
+    if (is_access_exp(id_exp)) {
+        ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
 
-            vector_add_first(exp->u_call.param_exps, param_exp);
-        }
+        ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
+
+        /* If the expression is of type "x.y()", pass "x" as the first argument. */
+        vector_add_first(exp->u_call.param_exps, qual_exp);
+    }
+    else {
+        ast_exp_t *param_exp;
+
+        ASSERT1(is_register_exp(id_exp), id_exp->kind);
+        ASSERT1(trans->fn->cont_idx == 0, trans->fn->cont_idx);
+
+        /* If the expression is of type "x()", pass my first parameter as the first
+         * argument. */
+        param_exp = exp_new_register(0);
+        meta_set_uint32(&param_exp->meta);
+
+        vector_add_first(exp->u_call.param_exps, param_exp);
     }
 
     vector_foreach(exp->u_call.param_exps, i) {
