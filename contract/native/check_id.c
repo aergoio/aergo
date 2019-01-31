@@ -156,6 +156,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         elem_id->is_checked = true;
 
         meta_set_int32(&elem_id->meta);
+        meta_set_undef(&elem_id->meta);
 
         if (dflt_exp == NULL) {
             elem_id->val = xmalloc(sizeof(value_t));

@@ -273,7 +273,21 @@ contract test {
 contract test {
     enum e { a }
     test() {
-        int32 i3 = e.a;
+        byte b = e.a;
+        uint8 i1 = e.a;
+        int32 i2 = e.a;
+        int64 i3 = e.a;
+    }
+}
+
+@test(incompatible_enum_access)
+@error(ERROR_MISMATCHED_TYPE,3)
+contract test {
+    enum e { a }
+    test() {
+        bool b = e.a;
+        float f = e.a;
+        double d = e.a;
     }
 }
 
