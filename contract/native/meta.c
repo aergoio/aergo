@@ -347,7 +347,7 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
                 CHECK(meta_cmp_type(x, y->elems[i]));
         }
     }
-    else {
+    else if (!is_undef_meta(y) || !is_object_meta(y)) {
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 

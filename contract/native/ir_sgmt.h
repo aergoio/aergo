@@ -32,7 +32,8 @@ sgmt_init(ir_sgmt_t *sgmt)
 {
     sgmt->cap = SGMT_INIT_CAPACITY;
     sgmt->size = 0;
-    sgmt->offset = 0;
+    /* Reserve the first 4 bytes for a null value. */
+    sgmt->offset = 4;
 
     sgmt->lens = xmalloc(sizeof(uint32_t) * sgmt->cap);
     sgmt->addrs = xmalloc(sizeof(uint32_t) * sgmt->cap);

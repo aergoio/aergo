@@ -11,6 +11,7 @@
 #include "ir_bb.h"
 #include "ir_fn.h"
 #include "ir_sgmt.h"
+#include "trans_stmt.h"
 
 #include "trans_exp.h"
 
@@ -31,19 +32,22 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         break;
 
     case TYPE_STRING:
+        /* Since "value_set_xxx()" is a macro, we must use the "addr" variable. */
         addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val) + 1);
-
         value_set_i64(val, addr);
         meta_set_uint32(&exp->meta);
         break;
 
     case TYPE_OBJECT:
-        if (is_null_val(val))
-            addr = sgmt_add_raw(sgmt, "\0\0\0\0", 4);
-        else
+        /* Same as above */
+        if (is_null_val(val)) {
+            /* An address value of zero always means a null value. */
+            value_set_i64(val, 0);
+        }
+        else {
             addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val));
-
-        value_set_i64(val, addr);
+            value_set_i64(val, addr);
+        }
         meta_set_uint32(&exp->meta);
         break;
 
@@ -56,15 +60,36 @@ static void
 exp_trans_id(trans_t *trans, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
+    ir_fn_t *fn = trans->fn;
 
     ASSERT(id != NULL);
 
     if (is_var_id(id)) {
         if (is_global_id(id)) {
-            ASSERT1(id->meta.rel_offset == 0, id->meta.rel_offset);
+            meta_t *meta = &id->meta;
 
-            /* The global variable always refers to the memory */
-            exp_set_memory(exp, id->meta.base_idx, id->meta.rel_addr, 0);
+            ASSERT1(meta->rel_offset == 0, meta->rel_offset);
+
+            if (is_pointer_meta(meta)) {
+                /* Process the address value of the global variable by putting it in
+                 * the local variable. */
+                uint32_t reg_idx = fn_add_register(fn, meta);
+                ast_exp_t *l_exp, *r_exp;
+
+                l_exp = exp_new_register(reg_idx);
+                meta_set_uint32(&l_exp->meta);
+
+                r_exp = exp_new_memory(meta->base_idx, meta->rel_addr, 0);
+                meta_set_uint32(&r_exp->meta);
+
+                stmt_trans(trans, stmt_new_assign(l_exp, r_exp, &exp->pos));
+
+                exp_set_register(exp, reg_idx);
+            }
+            else {
+                /* Refer to the memory directly. */
+                exp_set_memory(exp, meta->base_idx, meta->rel_addr, 0);
+            }
         }
         else {
             exp_set_register(exp, id->idx);
@@ -72,7 +97,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_fn_id(id) || is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
-        exp_set_register(exp, trans->fn->cont_idx);
+        exp_set_register(exp, fn->cont_idx);
         meta_set_uint32(&exp->meta);
     }
 }
@@ -83,6 +108,8 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     ast_id_t *id = exp->id;
     ast_exp_t *id_exp = exp->u_arr.id_exp;
     ast_exp_t *idx_exp = exp->u_arr.idx_exp;
+
+    ASSERT(id != NULL);
 
     exp_trans(trans, id_exp);
     exp_trans(trans, idx_exp);
@@ -107,12 +134,11 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        /* If "id_exp" is a call expression, it can be a memory expression */
         ASSERT1(is_memory_exp(id_exp) || is_register_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
         offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
-            id->meta.rel_addr + meta_align(&id->meta);
+            meta_align(&id->meta);
 
         if (is_memory_exp(id_exp))
             exp_set_memory(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
@@ -248,8 +274,6 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         /* It can be a memroy expression when referring to a global variable directly */
         ASSERT2(qual_exp->u_mem.offset == 0 || fld_id->meta.rel_offset == 0,
                 qual_exp->u_mem.offset, fld_id->meta.rel_offset);
-        ASSERT2(qual_exp->u_mem.base == trans->fn->cont_idx, qual_exp->u_mem.base,
-                trans->fn->cont_idx);
 
         exp_set_memory(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
                        qual_exp->u_mem.offset + fld_id->meta.rel_offset);

@@ -35,6 +35,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
+        ASSERT1(is_null_val(&exp->u_lit.val), val_size(&exp->u_lit.val));
         meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
