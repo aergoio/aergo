@@ -63,6 +63,13 @@ contract test {
     }
 }
 
+@test(instantiate_without_lvalue)
+contract callee {
+}
+contract test {
+    test() { new callee(); }
+}
+
 @test(instantiate_with_non_constructor)
 @error(ERROR_UNDEFINED_ID)
 contract test {

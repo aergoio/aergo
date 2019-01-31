@@ -53,18 +53,26 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
         int i;
 
         vector_foreach(exp->u_tup.elem_exps, i) {
-            exp_trans(trans, vector_get_exp(exp->u_tup.elem_exps, i));
+            ast_exp_t *elem_exp = vector_get_exp(exp->u_tup.elem_exps, i);
+
+            exp_trans(trans, elem_exp);
 
             /* For unary increase/decrease expressions, which are postfixes, add them as
              * piggybacked statements */
-            bb_add_stmt(trans->bb, NULL);
+            if (is_call_exp(elem_exp))
+                bb_add_stmt(trans->bb, stmt_new_exp(elem_exp, &elem_exp->pos));
+            else
+                bb_add_stmt(trans->bb, NULL);
         }
     }
     else {
         exp_trans(trans, exp);
 
         /* same as above */
-        bb_add_stmt(trans->bb, NULL);
+        if (is_call_exp(exp))
+            bb_add_stmt(trans->bb, stmt);
+        else
+            bb_add_stmt(trans->bb, NULL);
     }
 }
 

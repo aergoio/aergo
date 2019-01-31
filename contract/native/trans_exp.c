@@ -443,9 +443,11 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             exp_set_register(exp, reg_idx);
         }
     }
+    /*
     else {
         bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
     }
+    */
 }
 
 static void

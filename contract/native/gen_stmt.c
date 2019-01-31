@@ -12,6 +12,17 @@
 #include "gen_stmt.h"
 
 static BinaryenExpressionRef
+stmt_gen_exp(gen_t *gen, ast_stmt_t *stmt)
+{
+    ast_exp_t *exp = stmt->u_exp.exp;
+
+    if (is_call_exp(exp) && !is_void_meta(&exp->meta))
+        return BinaryenDrop(gen->module, exp_gen(gen, stmt->u_exp.exp));
+
+    return exp_gen(gen, stmt->u_exp.exp);
+}
+
+static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
     ast_exp_t *l_exp = stmt->u_assign.l_exp;
@@ -67,7 +78,7 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 {
     switch (stmt->kind) {
     case STMT_EXP:
-        return exp_gen(gen, stmt->u_exp.exp);
+        return stmt_gen_exp(gen, stmt);
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);
