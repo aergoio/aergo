@@ -305,17 +305,16 @@ func (syncer *StubSyncer) findStubPeer(peerID peer.ID) *StubPeer {
 
 func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 	count := len(stubPeers)
-	peerAddrs := make([]*types.PeerAddress, count)
-	blockNotices := make([]*types.NewBlockNotice, count)
-	states := make([]types.PeerState, count)
-
+	now := time.Now()
+	peers := make([]*message.PeerInfo, count)
 	for i, p := range stubPeers {
-		peerAddrs[i] = p.addr
-		blockNotices[i] = p.lastBlk
-		states[i] = p.state
+		peerInfo := &message.PeerInfo{
+			Addr: p.addr, CheckTime:now, State:p.state, LastBlockHash:p.lastBlk.BlockHash, LastBlockNumber:p.lastBlk.BlockNo,
+		}
+		peers[i] = peerInfo
 	}
 
-	return &message.GetPeersRsp{Peers: peerAddrs, LastBlks: blockNotices, States: states}
+	return &message.GetPeersRsp{Peers: peers}
 }
 
 //test block fetcher only

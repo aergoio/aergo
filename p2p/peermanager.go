@@ -43,7 +43,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
-	GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState)
+	GetPeerAddresses() []*message.PeerInfo
 }
 
 /**
@@ -302,7 +302,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	_, receivedMeta.Designated = pm.designatedPeers[peerID]
 
 	// adding peer to peer list
-	newPeer, err := pm.registerPeer(peerID, receivedMeta, s, rw)
+	newPeer, err := pm.registerPeer(peerID, receivedMeta, remoteStatus, s, rw)
 	if err != nil {
 		pm.sendGoAway(rw, err.Error())
 		return meta, false
@@ -321,7 +321,7 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta PeerMeta, s inet.Stream) (
 	return receivedMeta, true
 }
 
-func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, s inet.Stream, rw MsgReadWriter) (*remotePeerImpl, error) {
+func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, status *types.Status, s inet.Stream, rw MsgReadWriter) (*remotePeerImpl, error) {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	preExistPeer, ok := pm.remotePeers[peerID]
@@ -340,6 +340,8 @@ func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta PeerMeta, s ine
 
 	outboundPeer := newRemotePeer(receivedMeta, pm, pm.actorService, pm.logger, pm.mf, pm.signer, s, rw)
 	outboundPeer.manageNum = pm.GetNextManageNum()
+	outboundPeer.updateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
+
 	// insert Handlers
 	pm.handlerFactory.insertHandlers(outboundPeer)
 
@@ -529,20 +531,17 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
-func (pm *peerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState) {
-	peers := make([]*types.PeerAddress, 0, len(pm.remotePeers))
-	hiddens := make([]bool, 0, len(pm.remotePeers))
-	blks := make([]*types.NewBlockNotice, 0, len(pm.remotePeers))
-	states := make([]types.PeerState, 0, len(pm.remotePeers))
+func (pm *peerManager) GetPeerAddresses() []*message.PeerInfo {
+	peers := make([]*message.PeerInfo, 0, len(pm.peerCache))
 	for _, aPeer := range pm.peerCache {
 		meta := aPeer.Meta()
 		addr := meta.ToPeerAddress()
-		hiddens = append(hiddens, meta.Hidden)
-		peers = append(peers, &addr)
-		blks = append(blks, aPeer.LastNotice())
-		states = append(states, aPeer.State())
+		lastNoti := aPeer.LastNotice()
+		pi := &message.PeerInfo{
+			&addr,meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State()	}
+		peers = append(peers, pi)
 	}
-	return peers, hiddens, blks, states
+	return peers
 }
 
 // this method should be called inside pm.mutex

@@ -6,7 +6,9 @@
 package p2p
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -42,13 +44,17 @@ func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 func (ph *pingRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
-	//data := msgBody.(*types.Ping)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, nil)
+	pingData := msgBody.(*types.Ping)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, fmt.Sprintf("blockHash=%s blockNo=%d",enc.ToString(pingData.BestBlockHash),pingData.BestHeight))
+	if _, err := ParseToBlkHash(pingData.GetBestBlockHash()); err != nil {
+		ph.logger.Info().Str(LogPeerID,peerID.Pretty()).Msg("ping is old format or wrong")
+		return
+	}
+	remotePeer.updateLastNotice(pingData.BestBlockHash, pingData.BestHeight)
 
 	// generate response message
 	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Msg("Sending ping response")
 	resp := &types.Pong{}
-
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), PingResponse, resp))
 }
 
