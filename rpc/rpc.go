@@ -46,8 +46,8 @@ type RPC struct {
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
-		blockStream:         []types.AergoRPCService_ListBlockStreamServer{},
-		blockMetadataStream: []types.AergoRPCService_ListBlockMetadataStreamServer{},
+		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
+		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
 	}
 
 	tracer := opentracing.GlobalTracer()

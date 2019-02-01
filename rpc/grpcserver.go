@@ -13,6 +13,7 @@ import (
 	"errors"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -38,10 +39,11 @@ type AergoRPCService struct {
 	actorHelper p2p.ActorService
 	msgHelper   message.Helper
 
+	streamID                uint32
 	blockStreamLock         sync.RWMutex
-	blockStream             []types.AergoRPCService_ListBlockStreamServer
+	blockStream             map[uint32]types.AergoRPCService_ListBlockStreamServer
 	blockMetadataStreamLock sync.RWMutex
-	blockMetadataStream     []types.AergoRPCService_ListBlockMetadataStreamServer
+	blockMetadataStream     map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer
 }
 
 // FIXME remove redundant constants
@@ -275,25 +277,16 @@ func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.Block
 
 // real-time streaming most recent block header
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
+	streamId := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockStreamLock.Lock()
-	streamId := len(rpc.blockStream)
-	rpc.blockStream = append(rpc.blockStream, stream)
+	rpc.blockStream[streamId] = stream
 	rpc.blockStreamLock.Unlock()
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			rpc.blockStreamLock.Lock()
-			rpc.blockStream[streamId] = nil
-			if len(rpc.blockStream) > 1024 {
-				for i := 0; i < len(rpc.blockStream); i++ {
-					if rpc.blockStream[i] == nil {
-						rpc.blockStream = append(rpc.blockStream[:i], rpc.blockStream[i+1:]...)
-						i--
-						break
-					}
-				}
-			}
+			delete(rpc.blockStream, streamId)
 			rpc.blockStreamLock.Unlock()
 			return nil
 		}
@@ -301,25 +294,16 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 }
 
 func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream types.AergoRPCService_ListBlockMetadataStreamServer) error {
+	streamId := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockMetadataStreamLock.Lock()
-	streamId := len(rpc.blockMetadataStream)
-	rpc.blockMetadataStream = append(rpc.blockMetadataStream, stream)
+	rpc.blockMetadataStream[streamId] = stream
 	rpc.blockMetadataStreamLock.Unlock()
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			rpc.blockMetadataStreamLock.Lock()
-			rpc.blockMetadataStream[streamId] = nil
-			if len(rpc.blockMetadataStream) > 1024 {
-				for i := 0; i < len(rpc.blockMetadataStream); i++ {
-					if rpc.blockMetadataStream[i] == nil {
-						rpc.blockMetadataStream = append(rpc.blockMetadataStream[:i], rpc.blockMetadataStream[i+1:]...)
-						i--
-						break
-					}
-				}
-			}
+			delete(rpc.blockMetadataStream, streamId)
 			rpc.blockMetadataStreamLock.Unlock()
 			return nil
 		}
