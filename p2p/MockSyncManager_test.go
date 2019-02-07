@@ -12,13 +12,13 @@ type MockSyncManager struct {
 	mock.Mock
 }
 
-func (_m *MockSyncManager) HandleBlockProducedNotice(peer RemotePeer, hash BlkHash, block *types.Block) {
-	_m.Called(peer, hash, block)
+func (_m *MockSyncManager) HandleBlockProducedNotice(peer RemotePeer, block *types.Block) {
+	_m.Called(peer, block)
 }
 
 // HandleNewBlockNotice provides a mock function with given fields: peer, hash, data
-func (_m *MockSyncManager) HandleNewBlockNotice(peer RemotePeer, hash BlkHash, data *types.NewBlockNotice) {
-	_m.Called(peer, hash, data)
+func (_m *MockSyncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice) {
+	_m.Called(peer, data)
 }
 
 // HandleNewBlockNotice provides a mock function with given fields: peer, hash, data

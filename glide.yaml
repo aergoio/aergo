@@ -31,8 +31,16 @@ import:
   version: =2.0.1
 - package: github.com/libp2p/go-libp2p-protocol
   version: =1.0.0
+- package: github.com/libp2p/go-reuseport
+  version: =0.1.18
+- package: github.com/libp2p/go-reuseport-transport
+  version: =0.1.10
 - package: github.com/libp2p/go-libp2p-swarm
   version: =3.0.12
+- package: github.com/libp2p/go-libp2p-transport-upgrader
+  version: =0.1.10
+- package: github.com/libp2p/go-tcp-transport
+  version: =2.0.10
 - package: github.com/mr-tron/base58
   subpackages:
   - base58

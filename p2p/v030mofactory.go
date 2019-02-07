@@ -96,7 +96,7 @@ func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID SubP
 	copy(id[:],msgID[:])
 	copy(originalid[:],orgID[:])
 
-	msg := &V030Message{id: id, originalID:originalid,timestamp:time.Now().Unix(), subProtocol:protocolID,payload:bytes,length:uint32(len(bytes))}
+	msg := &V030Message{id: id, originalID:originalid,timestamp:time.Now().UnixNano(), subProtocol:protocolID,payload:bytes,length:uint32(len(bytes))}
 	mo.protocolID = protocolID
 	mo.needSign = true
 	mo.message = msg

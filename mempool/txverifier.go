@@ -22,7 +22,7 @@ func (s *TxVerifier) Receive(context actor.Context) {
 		var err error
 		if proto.Size(msg) > txMaxSize {
 			err = types.ErrTxSizeExceedLimit
-		} else if s.mp.exists(msg.GetHash()) != nil {
+		} else if s.mp.exist(msg.GetHash()) != nil {
 			err = types.ErrTxAlreadyInMempool
 		} else {
 			err = s.mp.verifyTx(msg)

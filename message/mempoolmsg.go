@@ -44,6 +44,15 @@ type MemPoolExistRsp struct {
 	Tx *types.Tx
 }
 
+const MaxReqestHashes = 1000
+
+type MemPoolExistEx struct {
+	Hashes [][]byte
+}
+type MemPoolExistExRsp struct {
+	Txs []*types.Tx
+}
+
 // MemPoolDel is interface of MemPool service for deleting transactions
 // including given transactions
 type MemPoolDel struct {

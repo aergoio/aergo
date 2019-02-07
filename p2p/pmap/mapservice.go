@@ -314,7 +314,7 @@ func createV030Message(msgID, orgID p2p.MsgID, subProtocol p2p.SubProtocol, inne
 		return nil, err
 	}
 
-	msg := p2p.NewV030Message(msgID, orgID, time.Now().Unix(), subProtocol, bytes)
+	msg := p2p.NewV030Message(msgID, orgID, time.Now().UnixNano(), subProtocol, bytes)
 	return msg, nil
 }
 
@@ -375,7 +375,7 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	pms.rwmutex.Lock()
 	pms.rwmutex.Unlock()
 	for _, rPeer := range pms.peerRegistry {
-		pList[addSize] = &types.PolarisPeer{Address:&rPeer.addr, Connected:rPeer.connected.Unix(), LastCheck:rPeer.lastCheck().Unix()}
+		pList[addSize] = &types.PolarisPeer{Address:&rPeer.addr, Connected:rPeer.connected.UnixNano(), LastCheck:rPeer.lastCheck().UnixNano()}
 		addSize++
 		if addSize >= listSize {
 			break

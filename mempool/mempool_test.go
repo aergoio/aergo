@@ -355,13 +355,13 @@ func TestBasicDeleteOnBlockConnect(t *testing.T) {
 		removed := txs[:10]
 
 		for _, tx := range removed {
-			found := pool.exists(tx.Hash)
+			found := pool.exist(tx.Hash)
 			assert.Nil(t, found, "wrong transaction removed")
 		}
 
 		leftover := txs[10:]
 		for _, tx := range leftover {
-			found := pool.exists(tx.Hash)
+			found := pool.exist(tx.Hash)
 			assert.NotNil(t, found, "wrong transaction removed")
 		}
 		txs = txs[10:]
@@ -418,7 +418,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 		//t.Errorf("%d, %d, %d", i, p1, p2)
 		removed := txs[s:e]
 		for _, tx := range removed {
-			found := pool.exists(tx.Hash)
+			found := pool.exist(tx.Hash)
 			assert.Nil(t, found, "wrong transaction removed")
 		}
 
@@ -428,7 +428,7 @@ func TestDeleteInvokeRearrange(t *testing.T) {
 			if _, v := missing[int(n)]; v {
 				continue
 			}
-			if pool.exists(tx.Hash) == nil {
+			if pool.exist(tx.Hash) == nil {
 				t.Errorf("wrong tx removed [%s]", tx.GetBody().String())
 			}
 		}
