@@ -87,7 +87,11 @@ func (h baseHelper) ExtractTxsFromResponse(rawResponse interface{}) ([]*types.Tx
 		if v.Err != nil {
 			return nil, v.Err
 		}
-		return v.Txs, nil
+		res := make([]*types.Tx, 0)
+		for _, x := range v.Txs {
+			res = append(res, x.GetTx())
+		}
+		return res, nil
 	case *MemPoolExistExRsp:
 		return v.Txs, nil
 	default:

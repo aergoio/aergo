@@ -58,7 +58,7 @@ type MemPool struct {
 	stateDB     *state.StateDB
 	verifier    *actor.PID
 	orphan      int
-	cache       map[types.TxID]*types.Tx
+	cache       map[types.TxID]types.Transaction
 	pool        map[types.AccountID]*TxList
 	dumpPath    string
 	status      int32
@@ -90,7 +90,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	actor := &MemPool{
 		cfg:         cfg,
 		sdb:         sdb,
-		cache:       map[types.TxID]*types.Tx{},
+		cache:       map[types.TxID]types.Transaction{},
 		pool:        map[types.AccountID]*TxList{},
 		dumpPath:    cfg.Mempool.DumpFilePath,
 		coinbasefee: fee,
@@ -253,17 +253,17 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 	}
 }
 
-func (mp *MemPool) get(maxBlockBodySize uint32) ([]*types.Tx, error) {
+func (mp *MemPool) get(maxBlockBodySize uint32) ([]types.Transaction, error) {
 	start := time.Now()
 	mp.RLock()
 	defer mp.RUnlock()
 	count := 0
 	size := 0
-	txs := make([]*types.Tx, 0)
+	txs := make([]types.Transaction, 0)
 Gather:
 	for _, list := range mp.pool {
 		for _, tx := range list.Get() {
-			if size += proto.Size(tx); uint32(size) > maxBlockBodySize {
+			if size += proto.Size(tx.GetTx()); uint32(size) > maxBlockBodySize {
 				break Gather
 			}
 			txs = append(txs, tx)
@@ -278,7 +278,7 @@ Gather:
 // check existence.
 // validate
 // add pool if possible, else pendings
-func (mp *MemPool) put(tx *types.Tx) error {
+func (mp *MemPool) put(tx types.Transaction) error {
 	id := types.ToTxID(tx.GetHash())
 	acc := tx.GetBody().GetAccount()
 	if tx.HasVerifedAccount() {
@@ -317,11 +317,11 @@ func (mp *MemPool) put(tx *types.Tx) error {
 	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
 
 	if !mp.testConfig {
-		mp.notifyNewTx(*tx)
+		mp.notifyNewTx(tx)
 	}
 	return nil
 }
-func (mp *MemPool) puts(txs ...*types.Tx) []error {
+func (mp *MemPool) puts(txs ...types.Transaction) []error {
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
 		errs[i] = mp.put(tx)
@@ -430,19 +430,19 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 }
 
 // signiture verification
-func (mp *MemPool) verifyTx(tx *types.Tx) error {
+func (mp *MemPool) verifyTx(tx types.Transaction) error {
 	err := tx.Validate()
 	if err != nil {
 		return err
 	}
-	if !tx.NeedNameVerify() {
-		err = key.VerifyTx(tx)
+	if !tx.GetTx().NeedNameVerify() {
+		err = key.VerifyTx(tx.GetTx())
 		if err != nil {
 			return err
 		}
 	} else {
 		account := mp.getAddress(tx.GetBody().GetAccount())
-		err = key.VerifyTxWithAddress(tx, account)
+		err = key.VerifyTxWithAddress(tx.GetTx(), account)
 		if err != nil {
 			return err
 		}
@@ -474,7 +474,7 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check if sender has enough balance
 // check if recipient is valid name
 // check tx account is lower than known value
-func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
+func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error {
 
 	ns, err := mp.getAccountState(account)
 	if err != nil {
@@ -491,7 +491,7 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 
 	switch tx.GetBody().GetType() {
 	case types.TxType_NORMAL:
-		if tx.HasNameRecipient() {
+		if tx.GetTx().HasNameRecipient() {
 			recipient := tx.GetBody().GetRecipient()
 			recipientAddr := mp.getAddress(recipient)
 			if recipientAddr == nil {
@@ -515,7 +515,7 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 				return err
 			}
 		case types.AergoName:
-			if err := name.ValidateNameTx(tx.Body, scs); err != nil {
+			if err := name.ValidateNameTx(tx.GetBody(), scs); err != nil {
 				return err
 			}
 		}
@@ -544,15 +544,7 @@ func (mp *MemPool) existEx(hash [][]byte) []*types.Tx {
 	ret := make([]*types.Tx, len(bucketHash))
 	for i, h := range bucketHash {
 		if v, ok := mp.cache[types.ToTxID(h)]; ok {
-			if v.HasVerifedAccount() {
-				clone := v.Clone()
-				if clone.RemoveVerifedAccount() {
-					clone.Hash = clone.CalculateTxHash()
-				}
-				ret[i] = clone
-			} else {
-				ret[i] = v
-			}
+			ret[i] = v.GetTx()
 		}
 	}
 	return ret
@@ -613,21 +605,10 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 	return state, nil
 }
 
-func (mp *MemPool) notifyNewTx(tx types.Tx) {
-	if tx.HasVerifedAccount() {
-		//this tx has cache of verfied account, remove this
-		clone := tx.Clone()
-		if clone.RemoveVerifedAccount() {
-			clone.Hash = clone.CalculateTxHash()
-		}
-		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
-			Txs: []*types.Tx{clone},
-		})
-	} else {
-		mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
-			Txs: []*types.Tx{&tx},
-		})
-	}
+func (mp *MemPool) notifyNewTx(tx types.Transaction) {
+	mp.RequestTo(message.P2PSvc, &message.NotifyNewTransactions{
+		Txs: []*types.Tx{tx.GetTx()},
+	})
 }
 
 func (mp *MemPool) loadTxs() {
@@ -666,7 +647,7 @@ func (mp *MemPool) loadTxs() {
 			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
 			continue
 		}
-		mp.put(&buf) // nolint: errcheck
+		mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 	}
 
 	mp.Info().Int("try", count).
@@ -708,7 +689,7 @@ func (mp *MemPool) dumpTxsToFile() {
 	count := 0
 	for _, list := range mp.pool {
 		for _, v := range list.GetAll() {
-			data, err := proto.Marshal(v)
+			data, err := proto.Marshal(v.GetTx())
 			if err != nil {
 				continue
 			}

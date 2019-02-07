@@ -25,9 +25,10 @@ func (s *TxVerifier) Receive(context actor.Context) {
 		} else if s.mp.exist(msg.GetHash()) != nil {
 			err = types.ErrTxAlreadyInMempool
 		} else {
-			err = s.mp.verifyTx(msg)
+			tx := types.NewTransaction(msg)
+			err = s.mp.verifyTx(tx)
 			if err == nil {
-				err = s.mp.put(msg)
+				err = s.mp.put(tx)
 			}
 		}
 		context.Respond(&message.MemPoolPutRsp{Err: err})
