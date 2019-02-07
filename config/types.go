@@ -68,6 +68,7 @@ type P2PConfig struct {
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
+	LogFullPeerID  bool     `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
