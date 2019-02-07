@@ -46,8 +46,8 @@ type RPC struct {
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
-		blockStream:         []types.AergoRPCService_ListBlockStreamServer{},
-		blockMetadataStream: []types.AergoRPCService_ListBlockMetadataStreamServer{},
+		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
+		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
 	}
 
 	tracer := opentracing.GlobalTracer()
@@ -125,9 +125,7 @@ func (ns *RPC) Receive(context actor.Context) {
 			Txcount: int32(len(msg.GetBody().GetTxs())),
 		}
 		server.BroadcastToListBlockMetadataStream(meta)
-	case *actor.Started:
-	case *actor.Stopping:
-	case *actor.Stopped:
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 		// Ignore actor lfiecycle messages
 	default:
 		ns.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())

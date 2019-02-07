@@ -25,12 +25,15 @@ import (
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
-	rest "github.com/aergoio/aergo/rest"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
+)
+
+var (
+	gitRevision, gitBranch string
 )
 
 func main() {
@@ -107,7 +110,7 @@ func configureZipkin() {
 func rootRun(cmd *cobra.Command, args []string) {
 
 	svrlog = log.NewLogger("asvr")
-	svrlog.Info().Msg("AERGO SVR STARTED")
+	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
 
 	configureZipkin()
 
@@ -123,7 +126,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
 
-	p2p.InitNodeInfo(cfg.P2P, svrlog)
+	p2p.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, svrlog)
 
 	compMng := component.NewComponentHub()
 
@@ -140,19 +143,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
 	}
 
-	var restSvc component.IComponent
-	if cfg.EnableRest {
-		svrlog.Info().Msg("Start REST server")
-		restSvc = rest.NewRestService(cfg, chainSvc)
-	} else {
-		svrlog.Info().Msg("Do not start REST server")
-	}
-
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, restSvc, pmapSvc)
+	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
 
-	consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
+	consensusSvc, err := impl.New(cfg, compMng, chainSvc)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)

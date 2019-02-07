@@ -230,10 +230,13 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Err: errs,
 		})
 	case *message.MemPoolExist:
-		tx := mp.exists(msg.Hash)
+		tx := mp.exist(msg.Hash)
 		context.Respond(&message.MemPoolExistRsp{
 			Tx: tx,
 		})
+	case *message.MemPoolExistEx:
+		txs := mp.existEx(msg.Hashes)
+		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
@@ -268,7 +271,6 @@ Gather:
 		}
 	}
 	elapsed := time.Since(start)
-	mp.Debug().Int("size", size).Uint32("max", maxBlockBodySize).Msg("chris2nd")
 	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
@@ -360,6 +362,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 // input tx based ? or pool based?
 // concurrency consideration,
 func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
+	var ag [2]time.Duration
 	start := time.Now()
 	mp.Lock()
 	defer mp.Unlock()
@@ -386,6 +389,8 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		}
 	}
 
+	ag[0] = time.Since(start)
+	start = time.Now()
 	for acc, list := range mp.pool {
 		if !all && dirty[acc] == false {
 			continue
@@ -415,10 +420,11 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			Msg("mismatch ditected")
 		mp.deadtx++
 	}
-	elapse := time.Since(start)
+	ag[1] = time.Since(start)
 	mp.Debug().Int("given", len(block.GetBody().GetTxs())).
 		Int("check", check).
-		Str("elapse", elapse.String()).
+		Str("elapse1", ag[0].String()).
+		Str("elapse2", ag[1].String()).
 		Msg("delete txs on block")
 	return nil
 }
@@ -475,9 +481,14 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		return err
 	}
 	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
-	if err != nil {
+	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+
+	//NOTE: don't overwrite err, if err == ErrTxNonceToohigh
+	//because err should be ErrNonceToohigh if following validation has passed
+	//this will be refactored soon
+
 	switch tx.GetBody().GetType() {
 	case types.TxType_NORMAL:
 		if tx.HasNameRecipient() {
@@ -499,34 +510,52 @@ func (mp *MemPool) validateTx(tx *types.Tx, account []byte) error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			err = system.ValidateSystemTx(account, tx.GetBody(), scs, mp.bestBlockNo+1)
-			if err != nil {
+			if err := system.ValidateSystemTx(account, tx.GetBody(),
+				scs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		case types.AergoName:
-			err = name.ValidateNameTx(tx.Body, scs)
-			if err != nil {
+			if err := name.ValidateNameTx(tx.Body, scs); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+	return err
 }
 
-func (mp *MemPool) exists(hash []byte) *types.Tx {
+func (mp *MemPool) exist(hash []byte) *types.Tx {
+	v := make([][]byte, 1)
+	v[0] = hash
+	txs := mp.existEx(v)
+	return txs[0]
+}
+func (mp *MemPool) existEx(hash [][]byte) []*types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
-	if v, ok := mp.cache[types.ToTxID(hash)]; ok {
-		if v.HasVerifedAccount() {
-			clone := v.Clone()
-			if clone.RemoveVerifedAccount() {
-				clone.Hash = clone.CalculateTxHash()
-			}
-			return clone
-		}
-		return v
+
+	var bucketHash []types.TxHash
+	bucketHash = hash
+
+	if len(bucketHash) > message.MaxReqestHashes {
+		mp.Warn().Int("size", len(bucketHash)).
+			Msg("too many hashes for MempoolExists")
+		return nil
 	}
-	return nil
+	ret := make([]*types.Tx, len(bucketHash))
+	for i, h := range bucketHash {
+		if v, ok := mp.cache[types.ToTxID(h)]; ok {
+			if v.HasVerifedAccount() {
+				clone := v.Clone()
+				if clone.RemoveVerifedAccount() {
+					clone.Hash = clone.CalculateTxHash()
+				}
+				ret[i] = clone
+			} else {
+				ret[i] = v
+			}
+		}
+	}
+	return ret
 }
 
 func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {

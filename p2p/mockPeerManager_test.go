@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"context"
+	"github.com/aergoio/aergo/message"
 
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -254,40 +255,19 @@ func (_m *MockPeerManager) GetPeers() []RemotePeer {
 }
 
 // GetPeerAddresses provides a mock function with given fields:
-func (_m *MockPeerManager) GetPeerAddresses() ([]*types.PeerAddress, []bool, []*types.NewBlockNotice, []types.PeerState) {
+func (_m *MockPeerManager) GetPeerAddresses() []*message.PeerInfo {
 	ret := _m.Called()
 
-	var r0 []*types.PeerAddress
-	if rf, ok := ret.Get(0).(func() []*types.PeerAddress); ok {
+	var r0 []*message.PeerInfo
+	if rf, ok := ret.Get(0).(func() []*message.PeerInfo); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*types.PeerAddress)
+			r0 = ret.Get(0).([]*message.PeerInfo)
 		}
 	}
 
-	var r1 []bool
-	if rf, ok := ret.Get(1).(func() []bool); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Get(1).([]bool)
-	}
-
-	var r2 []*types.NewBlockNotice
-	if rf, ok := ret.Get(2).(func() []*types.NewBlockNotice); ok {
-		r2 = rf()
-	} else {
-		r2 = ret.Get(2).([]*types.NewBlockNotice)
-	}
-	
-	var r3 []types.PeerState
-	if rf, ok := ret.Get(3).(func() []types.PeerState); ok {
-		r3 = rf()
-	} else {
-		r3 = ret.Get(3).([]types.PeerState)
-	}
-
-	return r0, r1, r2, r3
+	return r0
 }
 
 // GetStatus provides a mock function with given fields:

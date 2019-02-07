@@ -45,8 +45,8 @@ func (bh *blockProducedNoticeHandler) handle(msg Message, msgBody proto.Message)
 
 	// lru cache can accept hashable key
 	block := data.Block
-	var hash BlkHash
-	copy(hash[:], data.Block.Hash)
-	// TODO send to chainHandler or syncer
-	bh.sm.HandleBlockProducedNotice(bh.peer, hash, block)
+
+	// block by blockProduced notice must be new fresh block
+	remotePeer.updateLastNotice(data.GetBlock().GetHash(), data.BlockNo)
+	bh.sm.HandleBlockProducedNotice(bh.peer, block)
 }

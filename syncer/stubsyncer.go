@@ -2,13 +2,16 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/pkg/component"
+
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -195,6 +198,9 @@ func (stubSyncer *StubSyncer) handleActorMsg(inmsg interface{}) {
 
 	case *message.AddBlock:
 		stubSyncer.AddBlock(msg, nil)
+
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
+
 	default:
 		str := fmt.Sprintf("Missed message. (%v) %s", reflect.TypeOf(msg), msg)
 		stubSyncer.t.Fatal(str)
@@ -255,6 +261,10 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 
 	assert.True(syncer.t, stubPeer != nil, "peer exist")
 
+	if stubPeer.HookGetBlockChunkRsp != nil {
+		stubPeer.HookGetBlockChunkRsp(msg)
+		return
+	}
 	go func() {
 		if stubPeer.timeDelaySec > 0 {
 			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer sleep")
@@ -295,17 +305,16 @@ func (syncer *StubSyncer) findStubPeer(peerID peer.ID) *StubPeer {
 
 func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 	count := len(stubPeers)
-	peerAddrs := make([]*types.PeerAddress, count)
-	blockNotices := make([]*types.NewBlockNotice, count)
-	states := make([]types.PeerState, count)
-
+	now := time.Now()
+	peers := make([]*message.PeerInfo, count)
 	for i, p := range stubPeers {
-		peerAddrs[i] = p.addr
-		blockNotices[i] = p.lastBlk
-		states[i] = p.state
+		peerInfo := &message.PeerInfo{
+			Addr: p.addr, CheckTime:now, State:p.state, LastBlockHash:p.lastBlk.BlockHash, LastBlockNumber:p.lastBlk.BlockNo,
+		}
+		peers[i] = peerInfo
 	}
 
-	return &message.GetPeersRsp{Peers: peerAddrs, LastBlks: blockNotices, States: states}
+	return &message.GetPeersRsp{Peers: peers}
 }
 
 //test block fetcher only

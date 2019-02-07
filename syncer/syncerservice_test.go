@@ -170,6 +170,49 @@ func TestSyncer_sync_allPeerBad(t *testing.T) {
 	assert.NotEqual(t, int(targetNo), syncer.localChain.Best, "sync must fail")
 }
 
+func TestSyncerAllPeerBadByResponseError(t *testing.T) {
+	remoteChainLen := 1002
+	localChainLen := 10
+	targetNo := uint64(1000)
+
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
+
+	remoteChains := []*chain.StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
+
+	testCfg := *SyncerCfg
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
+	testCfg.debugContext.logBadPeers = make(map[int]bool)
+
+	testCfg.fetchTimeOut = time.Millisecond * 500
+
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
+
+	peers[0].HookGetBlockChunkRsp = func(msgReq *message.GetBlockChunks) {
+		rsp := &message.GetBlockChunksRsp{ToWhom: msgReq.ToWhom, Blocks: nil, Err: message.RemotePeerFailError}
+		syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
+	}
+
+	syncer.start()
+
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
+
+	syncer.waitStop()
+
+	//check if all peers is used
+	for i, peer := range peers {
+		assert.True(t, peer.blockFetched, fmt.Sprintf("%d is not used", i))
+	}
+
+	for _, peerNo := range []int{0} {
+		assert.True(t, testCfg.debugContext.logBadPeers[peerNo], "check bad peer")
+	}
+
+	assert.NotEqual(t, int(targetNo), syncer.localChain.Best, "sync must fail")
+}
+
 func TestSyncerAlreadySynched(t *testing.T) {
 	//When sync is already done before finder runs
 	remoteChainLen := 1010

@@ -53,7 +53,7 @@ func Test_ReadWrite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			samplePData := &types.NewTransactionsNotice{TxHashes: test.ids}
 			payload, _ := proto.Marshal(samplePData)
-			sample := &V030Message{subProtocol: NewTxNotice, id: sampleID, timestamp: time.Now().Unix(), length: uint32(len(payload)), payload: payload}
+			sample := &V030Message{subProtocol: NewTxNotice, id: sampleID, timestamp: time.Now().UnixNano(), length: uint32(len(payload)), payload: payload}
 
 			buf := bytes.NewBuffer(nil)
 			target := NewV030Writer(bufio.NewWriter(buf))
@@ -85,7 +85,7 @@ func TestV030Writer_WriteError(t *testing.T) {
 	//copy(sampleID[:], sampleUUID[:])
 	//samplePData := &types.NewTransactionsNotice{TxHashes:sampleTxs}
 	//payload, _ := proto.Marshal(samplePData)
-	//sample := &V030Message{subProtocol: NewTxNotice, id: sampleID, timestamp: time.Now().Unix(), length: uint32(len(payload)), payload: payload}
+	//sample := &V030Message{subProtocol: NewTxNotice, id: sampleID, timestamp: time.Now().UnixNano(), length: uint32(len(payload)), payload: payload}
 	//mockWriter := make(MockWriter)
 	//mockWriter.On("Write", mock.Anything).Return(fmt.Errorf("writer error"))
 	//target := NewV030Writer(bufio.NewWriter(mockWriter))
@@ -98,7 +98,7 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 	var sampleID MsgID
 	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
-	timestamp := time.Now().Unix()
+	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
 	payload, _ := proto.Marshal(smallPData)
@@ -144,7 +144,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	var sampleID MsgID
 	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
-	timestamp := time.Now().Unix()
+	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
 	payload, _ := proto.Marshal(smallPData)

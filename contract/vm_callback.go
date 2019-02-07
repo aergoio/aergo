@@ -909,3 +909,32 @@ func IsPublic() C.int {
 		return C.int(0)
 	}
 }
+
+//export LuaRandom
+func LuaRandom(L *LState, service C.int) C.int {
+	stateSet := curStateSet[service]
+	switch C.lua_gettop(L) {
+	case 0:
+		C.lua_pushnumber(L, C.double(stateSet.seed.Float64()))
+	case 1:
+		n := C.luaL_checkinteger(L, 1)
+		if n < 1 {
+			luaPushStr(L, "system.random: the maximum value must be greater than zero")
+			return -1
+		}
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(n))) + C.lua_Integer(1))
+	default:
+		min := C.luaL_checkinteger(L, 1)
+		max := C.luaL_checkinteger(L, 2)
+		if min < 1 {
+			luaPushStr(L, "system.random: the minimum value must be greater than zero")
+			return -1
+		}
+		if min > max {
+			luaPushStr(L, "system.random: the maximum value must be greater than the minimum value")
+			return -1
+		}
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(max+C.lua_Integer(1)-min))) + min)
+	}
+	return 1
+}

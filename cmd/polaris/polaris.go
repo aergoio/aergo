@@ -83,7 +83,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
 
-	p2p.InitNodeInfo(cfg.P2P, svrlog)
+	p2p.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, svrlog)
 
 	compMng := component.NewComponentHub()
 

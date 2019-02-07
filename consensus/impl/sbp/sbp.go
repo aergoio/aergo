@@ -59,14 +59,16 @@ type SimpleBlockFactory struct {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb)
+		return New(cfg.Consensus, hub, cdb, sdb)
 	}
 }
 
 // New returns a SimpleBlockFactory.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB) (*SimpleBlockFactory, error) {
+func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB,
+	sdb *state.ChainStateDB) (*SimpleBlockFactory, error) {
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
@@ -74,6 +76,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
+		sdb:              sdb,
 	}
 
 	s.txOp = chain.NewCompTxOp(
@@ -107,15 +110,15 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	}
 }
 
-// SetStateDB do nothing in the simple block factory, which do not execute
-// transactions at all.
-func (s *SimpleBlockFactory) SetStateDB(sdb *state.ChainStateDB) {
-	s.sdb = sdb
-}
-
 // IsTransactionValid checks the onsensus level validity of a transaction
 func (s *SimpleBlockFactory) IsTransactionValid(tx *types.Tx) bool {
 	// SimpleBlockFactory has no tx valid check.
+	return true
+}
+
+// VerifyTimestamp checks the validity of the block timestamp.
+func (s *SimpleBlockFactory) VerifyTimestamp(*types.Block) bool {
+	// SimpleBlockFactory don't need to check timestamp.
 	return true
 }
 

@@ -88,6 +88,8 @@ func (h baseHelper) ExtractTxsFromResponse(rawResponse interface{}) ([]*types.Tx
 			return nil, v.Err
 		}
 		return v.Txs, nil
+	case *MemPoolExistExRsp:
+		return v.Txs, nil
 	default:
 		panic(fmt.Sprintf("unexpected result type %s, expected %s", reflect.TypeOf(rawResponse),
 			"message.MemPoolGetRsp"))

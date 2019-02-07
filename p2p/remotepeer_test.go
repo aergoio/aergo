@@ -9,13 +9,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/proto"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/gofrs/uuid"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -406,10 +407,8 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
-			target.lastNotice = &types.NewBlockNotice{BlockHash: test.prevLastBlk[:]}
-
-			notice := &types.NewBlockNotice{BlockHash: test.hash[:]}
-			actual := target.updateBlkCache(test.hash, notice)
+			target.lastNotice = &LastBlockStatus{BlockHash: test.prevLastBlk[:], BlockNumber:0, CheckTime:time.Now()}
+			actual := target.updateBlkCache(test.hash[:], 0)
 			assert.Equal(t, test.expected, actual)
 			assert.True(t, bytes.Equal(test.hash[:], target.LastNotice().BlockHash))
 		})

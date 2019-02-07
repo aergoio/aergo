@@ -25,7 +25,7 @@ type V030Message struct {
 
 // NewV030Message create a new object
 func NewV030Message(msgID, originalID MsgID, timestamp int64, protocol SubProtocol, payload []byte) *V030Message {
-	return &V030Message{id: msgID, originalID:originalID,timestamp:time.Now().Unix(), subProtocol:protocol,payload:payload,length:uint32(len(payload))}
+	return &V030Message{id: msgID, originalID:originalID,timestamp:time.Now().UnixNano(), subProtocol:protocol,payload:payload,length:uint32(len(payload))}
 }
 
 func (m *V030Message) Subprotocol() SubProtocol {

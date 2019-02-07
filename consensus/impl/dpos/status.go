@@ -22,18 +22,14 @@ type Status struct {
 }
 
 // NewStatus returns a newly allocated Status.
-func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB) *Status {
+func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateDB, resetHeight types.BlockNo) *Status {
 	s := &Status{
 		libState: newLibStatus(consensusBlockCount(c.Size())),
-		bps:      bp.NewSnapshots(c, cdb),
+		bps:      bp.NewSnapshots(c, cdb, sdb),
 	}
-	s.init(cdb)
+	s.init(cdb, resetHeight)
 
 	return s
-}
-
-func (s *Status) setStateDB(sdb *state.ChainStateDB) {
-	s.bps.SetStateDB(sdb)
 }
 
 // load restores the last LIB status by using the informations loaded from the
@@ -152,7 +148,7 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 
 // init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
-func (s *Status) init(cdb consensus.ChainDB) {
+func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
 	if cdb == nil {
 		return
 	}
@@ -175,7 +171,7 @@ func (s *Status) init(cdb consensus.ChainDB) {
 		confirmsRequired: s.libState.confirmsRequired,
 	}
 
-	bsLoader.load()
+	bsLoader.load(resetHeight)
 }
 
 type bootLoader struct {
@@ -186,18 +182,37 @@ type bootLoader struct {
 	confirmsRequired uint16
 }
 
-func (bs *bootLoader) load() {
+func (bs *bootLoader) load(resetHeight types.BlockNo) {
 	if ls := bs.loadLibStatus(); ls != nil {
 		bs.ls = ls
 		logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status loaded from DB")
+
 		for id, p := range ls.Prpsd {
 			if p == nil {
 				continue
 			}
+
+			// Remove the too high pre-LIBs when the ForceResetHeight parameter is set.
+			if resetHeight > 0 && (p.Plib.BlockNo > resetHeight || p.PlibBy.BlockNo > resetHeight) {
+				delete(ls.Prpsd, id)
+			}
+
 			logger.Debug().Str("BPID", id).
 				Str("confirmed hash", p.Plib.Hash()).
 				Str("confirmedBy hash", p.PlibBy.Hash()).
 				Msg("pre-LIB entry")
+		}
+
+		// Reset the LIB when the ForceResetHeight parameter is set.
+		if resetHeight > 0 && ls.Lib.BlockNo > resetHeight {
+			ls.Lib = &blockInfo{
+				BlockHash: bs.genesisBlock().ID(),
+				BlockNo:   bs.genesisBlock().BlockNo(),
+			}
+
+			tx := bs.cdb.NewTx()
+			reset(tx)
+			tx.Commit()
 		}
 	}
 }

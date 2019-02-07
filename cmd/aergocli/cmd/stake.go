@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -66,8 +65,9 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
-		return err
+		cmd.Println(err.Error())
+		return nil
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
+	cmd.Println(util.JSON(msg))
 	return nil
 }

@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -74,8 +73,8 @@ type ChainDB interface {
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
-	SetStateDB(sdb *state.ChainStateDB)
 	IsTransactionValid(tx *types.Tx) bool
+	VerifyTimestamp(block *types.Block) bool
 	VerifySign(block *types.Block) error
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	Update(block *types.Block)

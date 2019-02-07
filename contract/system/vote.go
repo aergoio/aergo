@@ -189,6 +189,21 @@ func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
 	return getVoteResult(scs, n)
 }
 
+// GetRankers returns the IDs of the top n rankers.
+func GetRankers(ar AccountStateReader, n int) ([]string, error) {
+	vl, err := GetVoteResult(ar, n)
+	if err != nil {
+		return nil, err
+	}
+
+	bps := make([]string, 0, n)
+	for _, v := range vl.Votes {
+		bps = append(bps, enc.ToString(v.Candidate))
+	}
+
+	return bps, nil
+}
+
 func getVoteResult(scs *state.ContractState, n int) (*types.VoteList, error) {
 	data, err := scs.GetData(sortedlistkey)
 	if err != nil {

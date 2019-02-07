@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -312,14 +313,17 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
+	storageKey := bytes.NewBufferString("_sv_")
+	storageKey.WriteString(args[1])
+	if len(args) > 2 {
+		storageKey.WriteString("-")
+		storageKey.WriteString(args[2])
+	}
 	stateQuery := &types.StateQuery{
 		ContractAddress: contract,
-		VarName:         args[1],
+		StorageKeys:     []string{storageKey.String()},
 		Root:            root,
 		Compressed:      compressed,
-	}
-	if len(args) > 2 {
-		stateQuery.VarIndex = args[2]
 	}
 	ret, err := client.QueryContractState(context.Background(), stateQuery)
 	if err != nil {

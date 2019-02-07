@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/mr-tron/base58/base58"
@@ -34,7 +34,10 @@ func TestCommitTxWithMock(t *testing.T) {
 	).MaxTimes(1)
 
 	output, err = executeCommand(rootCmd, "committx", "--jsontx", "{\"Body\":{}}")
-	assert.Equal(t, "1 :  TX_INVALID_FORMAT tx invalid format", strings.Split(output, "\n")[0])
+	out := &types.CommitResultList{}
+	err = json.Unmarshal([]byte(output), out)
+	assert.NoError(t, err, "commit output is invalid")
+	assert.Equal(t, "tx invalid format", out.GetResults()[0].Detail)
 
 	mock.EXPECT().CommitTX(
 		gomock.Any(), // expect any value for first parameter
@@ -51,6 +54,7 @@ func TestCommitTxWithMock(t *testing.T) {
 	).MaxTimes(1)
 
 	output, err = executeCommand(rootCmd, "committx", "--jsontx", "{ \"Hash\": \"HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY\", \"Body\": {\"Nonce\": 2, \"Account\": \"AmNBZ8WQKP8DbuP9Q9W9vGFhiT8vQNcuSZ2SbBbVvbJWGV3Wh1mn\", \"Recipient\": \"AmLnVfGwq49etaa7dnzfGJTbaZWV7aVmrxFes4KmWukXwtooVZPJ\", \"Amount\": \"25000\", \"Payload\": \"\", \"Limit\": 100, \"Price\": \"1\", \"Type\": 0, \"Sign\": \"381yXYxTtq2tRPRQPF7tHH6Cq3y8PvcsFWztPwCRmmYfqnK83Z3a6Yj9fyy8Rpvrrw76Y52SNAP6Th3BYQjX1Bcmf6NQrDHQ\"}}")
+	err = json.Unmarshal([]byte(output), out)
 	assert.NoError(t, err, "should no error")
-	assert.Equal(t, "1 : HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY TX_OK \n", output)
+	assert.Equal(t, "HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY", base58.Encode(out.GetResults()[0].Hash))
 }

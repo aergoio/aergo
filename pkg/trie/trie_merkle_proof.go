@@ -28,7 +28,7 @@ func (s *Trie) MerkleProof(key []byte) ([][]byte, bool, []byte, []byte, error) {
 // (key,value) can be 1- (nil, value), value of the included key, 2- the kv of a LeafNode
 // on the path of the non-included key, 3- (nil, nil) for a non-included key
 // with a DefaultLeaf on the path
-func (s *Trie) MerkleProofCustomized(key, root []byte) ([][]byte, bool, []byte, []byte, error) {
+func (s *Trie) MerkleProofR(key, root []byte) ([][]byte, bool, []byte, []byte, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	s.atomicUpdate = false // so loadChildren doesnt return a copy
@@ -36,7 +36,7 @@ func (s *Trie) MerkleProofCustomized(key, root []byte) ([][]byte, bool, []byte, 
 }
 
 // MerkleProofCompressed returns a compressed merkle proof in the given trie
-func (s *Trie) MerkleProofCompressedCustomized(key, root []byte) ([]byte, [][]byte, int, bool, []byte, []byte, error) {
+func (s *Trie) MerkleProofCompressedR(key, root []byte) ([]byte, [][]byte, int, bool, []byte, []byte, error) {
 	return s.merkleProofCompressed(key, root)
 }
 
