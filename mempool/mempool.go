@@ -441,7 +441,9 @@ func (mp *MemPool) verifyTx(tx *types.Tx) error {
 			return err
 		}
 	} else {
+		mp.RLock()
 		account := mp.getAddress(tx.GetBody().GetAccount())
+		mp.RUnlock()
 		err = key.VerifyTxWithAddress(tx, account)
 		if err != nil {
 			return err
