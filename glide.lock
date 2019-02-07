@@ -1,5 +1,5 @@
-hash: b7f70e5aee96254ff26258791c47523ef2276309c815359279f960bfd85a24b5
-updated: 2019-02-07T11:05:19.3782464+09:00
+hash: d2146cd1403804841728437534b5c6fe807e2b2c800116e4bbca5d67e8b0a8ee
+updated: 2019-02-07T12:51:19.328620418+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 4424ea594ae4917c6c7da300b98f92dd9ed260cb
@@ -115,6 +115,10 @@ imports:
   version: 8e809c8a86450a29b90dcc9efbf062d0fe6d9746
   subpackages:
   - go/otgrpc
+- name: github.com/gxed/eventfd
+  version: 80a92cca79a8041496ccc9dd773fcb52a57ec6f9
+- name: github.com/gxed/GoEndian
+  version: 0f5c6873267e5abf306ffcdfcfa4bf77517ef4a7
 - name: github.com/gxed/hashland
   version: d9f6b97f8db22dd1e090fd0bbbe98f09cc7dd0a8
   subpackages:
@@ -229,7 +233,7 @@ imports:
 - name: github.com/libp2p/go-libp2p-transport
   version: 6846161212a6cf284dc25443db8c1aab6d7f805c
 - name: github.com/libp2p/go-libp2p-transport-upgrader
-  version: 208c6f3f849ab2418defe11c4b9329b955f25e94
+  version: 49139764f899e43870cd4c0485a8bbbb89f467db
 - name: github.com/libp2p/go-maddr-filter
   version: 666a1351c131174d1d4686d4bb2b2b48c87fd1fa
 - name: github.com/libp2p/go-mplex
@@ -237,13 +241,20 @@ imports:
 - name: github.com/libp2p/go-msgio
   version: f8aaa1f70c8b4d3bff511251db3d8fbac7ce2839
 - name: github.com/libp2p/go-reuseport
-  version: a07ef4346162a50aca9fbbff35d3558a831d6d3b
+  version: dd0c37d7767bc38280bd9813145b65f8bd560629
+  subpackages:
+  - poll
+  - singlepoll
 - name: github.com/libp2p/go-reuseport-transport
-  version: 98b2c72d32537d3e48ca636e63e180a5b06384a0
+  version: 5cdb097c8035e75fc59d12f22509aeb700a272d0
+- name: github.com/libp2p/go-sockaddr
+  version: a7494d4eefeb607c8bc491cf8850a6e8dbd41cab
+  subpackages:
+  - net
 - name: github.com/libp2p/go-stream-muxer
   version: 9c6bd93eecbbab56630bb2688bb435d9fd1dfeb1
 - name: github.com/libp2p/go-tcp-transport
-  version: 3dcae9c338897f3a13eaa03101df24d012a33281
+  version: 5e52db593970b614b25507ad331d098cdc25998b
 - name: github.com/libp2p/go-ws-transport
   version: f07aa0147210685ff230c8c9f6ebb35f146973e5
 - name: github.com/magiconair/properties
