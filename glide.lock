@@ -11,7 +11,7 @@ imports:
   - mailbox
   - router
 - name: github.com/aergoio/aergo-lib
-  version: 838fe43c6f59c8b02c82ac93b86dc803eeb3510d
+  version: f822f6e881ffc7eba41983b88be30217cf19cb79
   subpackages:
   - config
   - db
