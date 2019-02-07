@@ -62,16 +62,17 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 	bucket := message.MaxReqestHashes
 	var futures []interface{}
 
-	for idx = 0; idx < len(reqHashes)/bucket; idx++ {
-		hashes = append(hashes, reqHashes[idx:idx+bucket]...)
-		if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-			&message.MemPoolExistEx{Hashes: hashes}); err == nil {
-			futures = append(futures, f)
+	for _, h := range reqHashes {
+		hashes = append(hashes, h)
+		if len(hashes) == bucket {
+			if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
+				&message.MemPoolExistEx{Hashes: hashes}); err == nil {
+				futures = append(futures, f)
+			}
+			hashes = nil
 		}
-		hashes = nil
 	}
-	if idx*bucket < len(reqHashes) {
-		hashes = append(hashes, reqHashes[idx*bucket:]...)
+	if hashes != nil {
 		if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
 			&message.MemPoolExistEx{Hashes: hashes}); err == nil {
 			futures = append(futures, f)

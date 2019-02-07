@@ -22,7 +22,7 @@ const (
 	// txNoticeInterval is max wait time when not sufficient txs to notify is collected. i.e newTxNotice is sent to peer within this time.
 	txNoticeInterval = time.Second * 1
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
-	writeMsgBufferSize = 20
+	writeMsgBufferSize = 40
 
 	// time to determine which the remote designated peer is not working.
 	DesignatedNodeTTL = time.Minute * 60
@@ -66,8 +66,8 @@ const (
 
 // constants about private key
 const (
-	DefaultPkKeyPrefix    = "aergo-peer"
-	DefaultPkKeyExt       = ".key"
-	DefaultPubKeyExt      = ".pub"
-	DefaultPeerIDExt      = ".id"
+	DefaultPkKeyPrefix = "aergo-peer"
+	DefaultPkKeyExt    = ".key"
+	DefaultPubKeyExt   = ".pub"
+	DefaultPeerIDExt   = ".id"
 )
