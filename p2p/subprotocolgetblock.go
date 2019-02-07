@@ -43,10 +43,9 @@ const (
 )
 
 func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, len(data.Hashes))
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, len(data.Hashes))
 
 	requestID := msg.ID()
 	sliceCap := MaxBlockResponseCount
@@ -135,12 +134,11 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 }
 
 func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {
 		additional := fmt.Sprintf("hashNext=%t,%s", data.HasNext,PrintHashList(data.Blocks))
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, additional )
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, additional )
 }
 
 	// locate request data and remove it if found

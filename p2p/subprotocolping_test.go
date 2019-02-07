@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -91,6 +92,7 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 
 			mockPeer.On("MF").Return(dummyMF)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return(p2putil.ShortForm(dummyPeerID)+"@1")
 			mockPeer.On("updateLastNotice", tt.args.hash, tt.args.height)
 			mockPeer.On("sendMessage", mock.Anything)
 

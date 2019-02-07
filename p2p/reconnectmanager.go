@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -40,7 +41,7 @@ func (rm *reconnectManager) AddJob(meta PeerMeta) {
 	if _, exist := rm.jobs[meta.ID]; exist || rm.stop {
 		return
 	}
-	rm.logger.Debug().Str(LogPeerID, meta.ID.Pretty()).Msg("Starting reconnect job")
+	rm.logger.Debug().Str(LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Starting reconnect job")
 	jobRunner := newReconnectRunner(meta, rm, rm.pm, rm.logger)
 	go jobRunner.runJob()
 	rm.jobs[meta.ID] = jobRunner
@@ -54,7 +55,7 @@ func (rm *reconnectManager) CancelJob(pid peer.ID) {
 		rm.mutex.Unlock()
 		return
 	}
-	rm.logger.Debug().Str(LogPeerID, pid.Pretty()).Msg("Canceling reconnect job")
+	rm.logger.Debug().Str(LogPeerID, p2putil.ShortForm(pid)).Msg("Canceling reconnect job")
 	delete(rm.jobs, pid)
 	rm.mutex.Unlock()
 	job.cancel <- struct{}{}
@@ -79,6 +80,6 @@ func (rm *reconnectManager) Stop() {
 func (rm *reconnectManager) jobFinished(pid peer.ID) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
-	rm.logger.Debug().Str(LogPeerID, pid.Pretty()).Msg("Clearing finished reconnect job")
+	rm.logger.Debug().Str(LogPeerID, p2putil.ShortForm(pid)).Msg("Clearing finished reconnect job")
 	delete(rm.jobs, pid)
 }

@@ -25,6 +25,9 @@ import (
 // frequently used constants for indicating p2p log category
 const (
 	LogPeerID   = "peer_id"
+	// LogFullID is Full qualified peer id
+	LogFullID  = "full_id"
+	LogPeerName  = "peer_nm"
 	LogProtoID  = "protocol_id"
 	LogMsgID    = "msg_id"
 	LogBlkHash  = "blk_hash"
@@ -153,24 +156,22 @@ func externalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peerID peer.ID,
-	additional interface{}) {
+func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a message")
 	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).
 			Msg("Received a message")
 	}
 }
 
-func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peerID peer.ID,
-	additional interface{}) {
+func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a response message")
 	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).
 			Msg("Received a response message")
 	}
 }

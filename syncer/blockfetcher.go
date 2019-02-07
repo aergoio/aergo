@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -530,7 +531,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch b
 			if task.isPeerMatched(msg.ToWhom) {
 				bf.runningQueue.Remove(e)
 
-				logger.Debug().Str("peer", msg.ToWhom.Pretty()).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+				logger.Debug().Str("peer", p2putil.ShortForm(msg.ToWhom)).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
 				return task, nil
 			}
 		} else {
@@ -631,7 +632,7 @@ func (ps *PeerSet) addNew(peerID peer.ID) {
 	ps.pushFree(&SyncPeer{No: peerno, ID: peerID})
 	ps.total++
 
-	logger.Info().Str("peer", peerID.Pretty()).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
+	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
 }
 
 /*

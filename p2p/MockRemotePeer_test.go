@@ -153,6 +153,19 @@ func (_m *MockRemotePeer) Meta() PeerMeta {
 	return r0
 }
 
+func (_m *MockRemotePeer) Name() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 func (_m *MockRemotePeer) ManageNumber() uint32 {
 	ret := _m.Called()
 

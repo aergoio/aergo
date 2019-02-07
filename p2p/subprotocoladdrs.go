@@ -40,7 +40,7 @@ func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, nil)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
 
 	// check sender
 	maxPeers := data.MaxSize
@@ -102,10 +102,9 @@ func (ph *addressesResponseHandler) parsePayload(rawbytes []byte) (proto.Message
 }
 
 func (ph *addressesResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	debugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.GetPeers()))
+	debugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))
 
 	remotePeer.consumeRequest(msg.OriginalID())
 	if len(data.GetPeers()) > 0 {

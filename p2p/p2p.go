@@ -101,6 +101,8 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *
 		pubKey:  pub,
 		privKey: priv,
 	}
+
+	p2putil.UseFullID = p2pCfg.LogFullPeerID
 }
 
 // NodeID returns the node id.

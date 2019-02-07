@@ -35,10 +35,9 @@ func (bh *getHashRequestHandler) parsePayload(rawbytes []byte) (proto.Message, e
 }
 
 func (bh *getHashRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	chainAccessor := bh.actor.GetChainAccessor()
 
 	// check if requested too many hashes
@@ -129,10 +128,9 @@ func (bh *getHashResponseHandler) parsePayload(rawbytes []byte) (proto.Message, 
 
 
 func (bh *getHashResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Hashes),data.HasNext) )
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Hashes),data.HasNext) )
 
 	// locate request data and remove it if found
 	remotePeer.GetReceiver(msg.OriginalID())(msg, data)
@@ -161,10 +159,9 @@ func (bh *getHashByNoRequestHandler) parsePayload(rawbytes []byte) (proto.Messag
 
 
 func (bh *getHashByNoRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashByNo)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	chainAccessor := bh.actor.GetChainAccessor()
 
 	// check if remote peer has valid chain,
@@ -198,11 +195,9 @@ func (bh *getHashByNoResponseHandler) parsePayload(rawbytes []byte) (proto.Messa
 
 
 func (bh *getHashByNoResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
-	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashByNoResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("%s=%s",LogBlkHash,enc.ToString(data.BlockHash)) )
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("%s=%s",LogBlkHash,enc.ToString(data.BlockHash)) )
 
 	// locate request data and remove it if found
-	remotePeer.GetReceiver(msg.OriginalID())(msg, data)
+	bh.peer.GetReceiver(msg.OriginalID())(msg, data)
 }

@@ -47,6 +47,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			mockMF := &testDoubleFactory{}
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockPeer.On("sendAndWaitMessage", mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
 
 			callReqCount :=0
