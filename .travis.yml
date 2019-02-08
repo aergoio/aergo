@@ -13,7 +13,7 @@ before_install:
   - cmake .
 
 install:
-  - make release polaris colaris
+  - make all polaris colaris
 
 before_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then test-reporter before-build; fi
