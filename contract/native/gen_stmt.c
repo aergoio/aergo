@@ -17,9 +17,9 @@ stmt_gen_exp(gen_t *gen, ast_stmt_t *stmt)
     ast_exp_t *exp = stmt->u_exp.exp;
 
     if (is_call_exp(exp) && !is_void_meta(&exp->meta))
-        return BinaryenDrop(gen->module, exp_gen(gen, stmt->u_exp.exp));
+        return BinaryenDrop(gen->module, exp_gen(gen, exp));
 
-    return exp_gen(gen, stmt->u_exp.exp);
+    return exp_gen(gen, exp);
 }
 
 static BinaryenExpressionRef
