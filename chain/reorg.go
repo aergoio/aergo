@@ -288,7 +288,7 @@ func (reorg *reorganizer) rollbackChain() error {
 	}
 
 	reorg.cs.Update(brStartBlock)
-
+	reorg.cs.cdb.deleteReceipts(reorg.oldBlocks)
 	return nil
 }
 

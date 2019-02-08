@@ -121,6 +121,54 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 	return cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
 }
 
+func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
+	argFilter []types.ArgFilter) {
+	blkHash, err := cs.cdb.getHashByNo(blkNo)
+	if err != nil {
+		return
+	}
+	receipts, err := cs.cdb.getReceipts(blkHash, blkNo)
+	if err != nil {
+		return
+	}
+	for _, r := range receipts {
+		for _, e := range r.Events {
+			if e.Filter(filter, argFilter) {
+				*events = append(*events, e)
+			}
+		}
+	}
+}
+
+func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, error) {
+	from := filter.Blockfrom
+	to := filter.Blockto
+
+	if to == 0 {
+		to = cs.cdb.getBestBlockNo()
+	}
+
+	err := filter.ValidateCheck(to)
+	if err != nil {
+		return nil, err
+	}
+	argFilter, err := filter.GetExArgFilter()
+	if err != nil {
+		return nil, err
+	}
+	events := []*types.Event{}
+	if filter.Desc {
+		for i := to; i >= from && i != 0; i-- {
+			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+		}
+	} else {
+		for i := from; i <= to; i++ {
+			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+		}
+	}
+	return events, nil
+}
+
 type chainProcessor struct {
 	*ChainService
 	block       *types.Block // starting block

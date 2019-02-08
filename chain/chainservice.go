@@ -170,6 +170,7 @@ type IChainHandler interface {
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 	setSync(val bool)
+	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
 }
 
 // ChainService manage connectivity of blocks
@@ -306,7 +307,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
-		*message.GetNameInfo:
+		*message.GetNameInfo,
+		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -468,7 +470,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		for _, receipt := range bstate.Receipts() {
 			events = append(events, receipt.Events...)
 		}
-		cm.TellTo(message.RPCSvc, events)
+		if len(events) != 0 {
+			cm.TellTo(message.RPCSvc, events)
+		}
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
@@ -676,6 +680,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(&message.GetNameInfoRsp{
 			Owner: owner,
 			Err:   err,
+		})
+	case *message.ListEvents:
+		events, err := cw.listEvents(msg.Filter)
+		context.Respond(&message.ListEventsRsp{
+			Events: events,
+			Err:    err,
 		})
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:

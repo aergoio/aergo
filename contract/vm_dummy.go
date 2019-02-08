@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/param"
 	"io/ioutil"
 	"math/big"
 	"path"
@@ -46,6 +47,7 @@ func LoadDummyChain() (*DummyChain, error) {
 		return nil, err
 	}
 	genesis := types.GetTestGenesis()
+	param.SetForkConfig(genesis.Block().GetHash())
 	bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
@@ -229,7 +231,6 @@ func (l *luaTxDef) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 
@@ -331,7 +332,6 @@ func (l *luaTxCall) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 

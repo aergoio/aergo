@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/param"
 	"math/big"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/aergoio/aergo/internal/merkle"
@@ -279,13 +282,94 @@ func (ev Event) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (ev Event) Filter(filter *FilterInfo) bool {
-
+func (ev Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
 	}
 	if len(filter.EventName) != 0 && ev.EventName != filter.EventName {
 		return false
 	}
+	if argFilter != nil {
+		var args []interface{}
+		err := json.Unmarshal([]byte(ev.JsonArgs), &args)
+		if err != nil {
+			return false
+		}
+		argLen := len(args)
+		for _, filter := range argFilter {
+			if filter.argNo >= argLen {
+				continue
+			}
+			value := args[filter.argNo]
+			check := filter.value
+			if reflect.TypeOf(value) != reflect.TypeOf(check) {
+				return false
+			}
+			switch value.(type) {
+			case string:
+				if value.(string) != check.(string) {
+					return false
+				}
+			case float64:
+				if value.(float64) != check.(float64) {
+					return false
+				}
+			case bool:
+				if value.(bool) != check.(bool) {
+					return false
+				}
+			case json.Number:
+				if value.(json.Number) != check.(json.Number) {
+					return false
+				}
+			case nil:
+			default:
+				return false
+			}
+		}
+	}
 	return true
+}
+
+type ArgFilter struct {
+	argNo int
+	value interface{}
+}
+
+func (fi *FilterInfo) ValidateCheck(to uint64) error {
+	if fi.ContractAddress == nil || len(fi.ContractAddress) != AddressLength {
+		return errors.New("invalid contractAddress :" + string(fi.ContractAddress))
+	}
+	if fi.Blockfrom+1000 < to {
+		return errors.New("too large block range(max 1000) from :" + string(fi.Blockfrom) + " to :" + string(to))
+	}
+	return nil
+}
+
+func (fi *FilterInfo) GetExArgFilter() ([]ArgFilter, error) {
+	if len(fi.ArgFilter) == 0 {
+		return nil, nil
+	}
+
+	var argMap map[string]interface{}
+	err := json.Unmarshal(fi.ArgFilter, &argMap)
+	if err != nil {
+		return nil, errors.New("invalid json format:" + err.Error())
+	}
+
+	argFilter := make([]ArgFilter, len(argMap))
+	i := 0
+	for key, value := range argMap {
+		idx, err := strconv.ParseInt(key, 10, 32)
+		if err != nil || idx < 0 {
+			return nil, errors.New("invalid argument number:" + err.Error())
+		}
+		argFilter[i].argNo = int(idx)
+		argFilter[i].value = value
+		i++
+	}
+	if i > 0 {
+		return argFilter[:i], nil
+	}
+	return nil, nil
 }
