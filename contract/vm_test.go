@@ -2862,10 +2862,17 @@ function calladdBignum(addr, a)
 	return tostring(contract.call(addr, "add", a, 2) + 3)
 end
 
+function checkBignum()
+	a = 1
+	b = bignum.number(1)
+	
+	return bignum.isbignum(a), bignum.isbignum(b), bignum.isbignum("2333")
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2915,6 +2922,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"checkBignum"}`, "", `[false,true,false]`)
 	if err != nil {
 		t.Error(err)
 	}
