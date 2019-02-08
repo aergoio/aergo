@@ -28,7 +28,7 @@ before_deploy:
   - AERGO_VERSION="${TRAVIS_TAG:1}"
   - mkdir -p ${AERGO_VERSION}/bin
   - mkdir -p release
-  - mv bin/{aergocli,aergoluac,aergosvr,brick} ${AERGO_VERSION}/bin
+  - mv bin/{aergocli,aergoluac,aergosvr,brick,polaris,colaris} ${AERGO_VERSION}/bin
   - tar -zcvf release/aergo-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz ${AERGO_VERSION}
 
 deploy:
