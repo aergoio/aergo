@@ -13,7 +13,7 @@ before_install:
   - cmake .
 
 install:
-  - make
+  - make release polaris colaris
 
 before_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then test-reporter before-build; fi
@@ -25,11 +25,14 @@ after_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
 
 before_deploy:
-  - AERGO_VERSION="${TRAVIS_TAG:1}"
-  - mkdir -p ${AERGO_VERSION}/bin
+  - AERGO_VERSION="${TRAVIS_TAG:1}" 
   - mkdir -p release
-  - mv bin/{aergocli,aergoluac,aergosvr,brick,polaris,colaris} ${AERGO_VERSION}/bin
-  - tar -zcvf release/aergo-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz ${AERGO_VERSION}
+  - mkdir -p aergo-${AERGO_VERSION}/bin
+  - mv bin/{aergocli,aergoluac,aergosvr,brick} aergo-${AERGO_VERSION}/bin
+  - tar -zcvf release/aergo-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz aergo-${AERGO_VERSION}
+  - mkdir -p polaris-${AERGO_VERSION}/bin
+  - mv bin/{polaris,colaris} polaris-${AERGO_VERSION}/bin
+  - tar -zcvf release/polaris-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz polaris-${AERGO_VERSION}
 
 deploy:
   provider: releases
