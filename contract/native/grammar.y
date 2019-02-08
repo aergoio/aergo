@@ -404,8 +404,8 @@ prim_type:
     K_ACCOUNT           { $$ = TYPE_ACCOUNT; }
 |   K_BOOL              { $$ = TYPE_BOOL; }
 |   K_BYTE              { $$ = TYPE_BYTE; }
-|   K_FLOAT             { $$ = TYPE_FLOAT; }
-|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
+//|   K_FLOAT             { $$ = TYPE_FLOAT; }
+//|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
 |   K_INT               { $$ = TYPE_INT32; }
 |   K_INT16             { $$ = TYPE_INT16; }
 |   K_INT32             { $$ = TYPE_INT32; }

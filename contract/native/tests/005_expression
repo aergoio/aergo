@@ -8,10 +8,12 @@ contract test {
     int i6 = (2 * 3) / (5 + 1) % 1;
     int i7 = i1 + i2;
 
+    /*
     float f1 = 1.0 + (1.0 + .1);
     float f2 = 1.0e1 - 1.0;
     float f3 = 1.0 * 1.0;
     float f4 = 1.0 / 1.0;
+    */
 
     string s1 = "string" + "concat";
     string s2 = "string" + " " + "concat";
@@ -32,9 +34,9 @@ contract test {
 }
 
 @test(invalid_modulo_type)
-@error(ERROR_INVALID_OP_TYPE)
+//@error(ERROR_INVALID_OP_TYPE)
 contract test {
-    float f = 10.0 % 1.0;
+    //float f = 10.0 % 1.0;
 }
 
 @test(zero_divisor_in_modulo)
@@ -136,10 +138,12 @@ contract test {
 }
 
 @test(non_integer_operand_type)
-@error(ERROR_INVALID_OP_TYPE)
+//@error(ERROR_INVALID_OP_TYPE)
 contract test {
+    /*
     float f = 1.0;
     int i = f++;
+    */
 }
 
 @test(ternary_operator)
@@ -187,8 +191,8 @@ contract test {
     int64 i2;
     uint16 u1;
     uint64 u2;
-    float f;
-    double d;
+    //float f;
+    //double d;
     string s;
 
     bool v11 = (bool)b1;
@@ -196,8 +200,8 @@ contract test {
     bool v13 = (bool)i2;
     bool v14 = (bool)u1;
     bool v15 = (bool)u2;
-    bool v16 = (bool)f;
-    bool v17 = (bool)d;
+    //bool v16 = (bool)f;
+    //bool v17 = (bool)d;
     bool v18 = (bool)s;
 
     int8 v21 = (int8)b1;
@@ -205,8 +209,8 @@ contract test {
     int8 v23 = (int8)i2;
     int8 v24 = (int8)u1;
     int8 v25 = (int8)u2;
-    int8 v26 = (int8)f;
-    int8 v27 = (int8)d;
+    //int8 v26 = (int8)f;
+    //int8 v27 = (int8)d;
     int8 v28 = (int8)s;
 
     int64 v31 = (int64)b1;
@@ -214,8 +218,8 @@ contract test {
     int64 v33 = (int64)i2;
     int64 v34 = (int64)u1;
     int64 v35 = (int64)u2;
-    int64 v36 = (int64)f;
-    int64 v37 = (int64)d;
+    //int64 v36 = (int64)f;
+    //int64 v37 = (int64)d;
     int64 v38 = (int64)s;
 
     uint16 v41 = (uint16)b1;
@@ -223,8 +227,8 @@ contract test {
     uint16 v43 = (uint16)i2;
     uint16 v44 = (uint16)u1;
     uint16 v45 = (uint16)u2;
-    uint16 v46 = (uint16)f;
-    uint16 v47 = (uint16)d;
+    //uint16 v46 = (uint16)f;
+    //uint16 v47 = (uint16)d;
     uint16 v48 = (uint16)s;
 
     uint64 v51 = (uint64)b1;
@@ -232,10 +236,11 @@ contract test {
     uint64 v53 = (uint64)i2;
     uint64 v54 = (uint64)u1;
     uint64 v55 = (uint64)u2;
-    uint64 v56 = (uint64)f;
-    uint64 v57 = (uint64)d;
+    //uint64 v56 = (uint64)f;
+    //uint64 v57 = (uint64)d;
     uint64 v58 = (uint64)s;
 
+    /*
     float v61 = (float)b1;
     float v62 = (float)i1;
     float v63 = (float)i2;
@@ -253,13 +258,14 @@ contract test {
     double v76 = (double)f;
     double v77 = (double)d;
     double v78 = (double)s;
+    */
 
     string v81 = (string)b1;
     string v82 = (string)i1;
     string v83 = (string)i2;
     string v84 = (string)u1;
     string v85 = (string)u2;
-    string v86 = (string)f;
-    string v87 = (string)d;
+    //string v86 = (string)f;
+    //string v87 = (string)d;
     string v88 = (string)s;
 }

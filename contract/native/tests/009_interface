@@ -41,15 +41,15 @@ contract test implements spec {
 }
 
 @test(not_implemented_function)
-@error(ERROR_NOT_IMPLEMENTED,3)
+@error(ERROR_NOT_IMPLEMENTED,2)
 interface spec {
     func f1();
     func f2(int16 x);
-    func f3(int16 x) float;
+    //func f3(int16 x) float;
 }
 contract test implements spec {
     func f2(uint16 x) { }
-    func f3(int16 x) double { return 1.0; }
+    //func f3(int16 x) double { return 1.0; }
 }
 
 @test(interface_as_type)
@@ -89,18 +89,18 @@ contract main {
 
 @test(access_interface)
 interface spec {
-    public func f() double;
+    public func f() string;
 }
 contract test implements spec {
-    public func f() double { return 3.14; }
+    public func f() string { return "3.14"; }
 }
 contract main {
     main() {
         spec a = new test();
-        double b = a.f();
+        string b = a.f();
 
         spec x, y = new test(), new test();
-        double z = y.f();
+        string z = y.f();
     }
 }
 

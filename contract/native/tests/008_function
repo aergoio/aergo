@@ -76,12 +76,12 @@ contract test {
 
 @test(contract_as_parameter)
 contract test {
-    float v;
+    int16 v;
     func f1(test p) {
         p.v = p.f2();
     }
-    func f2() float {
-        return 1.0;
+    func f2() int16 {
+        return -10;
     }
     func f3() {
         f1(new test());
@@ -99,14 +99,14 @@ contract test {
 @test(return_primitive)
 contract test {
     func f1(int x) int { return x + 1; }
-    func f2(double x) bool { return x == 1.0; }
+    //func f2(double x) bool { return x == 1.0; }
     //func f3(bool x, int y) bool, int { return !x, y << 1; }
 
     int i = f1(5);
     bool b;
 
     test() {
-        b = f2(1.0);
+        //b = f2(1.0);
         //b, i = f3(true, 2);
     }
 }
@@ -115,8 +115,8 @@ contract test {
 contract test {
     func f1() int[2] { return new int[2]; }
     func f2() uint16[2] { return new { 0, 32768 }; }
-    func f3() float[] { return new float[3]; }
-    func f4() double[] { return new { -29.2134 }; }
+    //func f3() float[] { return new float[3]; }
+    //func f4() double[] { return new { -29.2134 }; }
     func f5() string[][] { return new string[3][2]; }
 
     test() {
@@ -126,11 +126,13 @@ contract test {
         uint16 j[] = f2();
         j[1] = 1027;
 
+        /*
         float f[] = f3();
         f[2] = 12.50;
 
         double d[] = f4();
         d[0] += 29.2133;
+        */
 
         string s[][] = f5();
         s[2][1] = "April";
@@ -166,12 +168,14 @@ contract test {
 
 @test(return_function)
 contract test {
+    /*
     func f1(double x) double { return x * 2.0; }
     func f2(float x) double { return f1((double)x); }
 
     test() {
         double v = f2(1.0);
     }
+    */
 }
 
 @test(return_contract)
@@ -205,14 +209,14 @@ contract test {
 
     //func f1(int x) int, double { return x + 1, (double)x; }
     func f1(int x) uint { return (uint)x + 1; }
-    func f2(int x) double { return (double)x * 2.0; }
+    //func f2(int x) double { return (double)x * 2.0; }
     func f3(int x, string y) s { return new { x, y }; }
 
     test() {
         uint i;
-        double d;
         i = f1(9);
-        d = f2(-5);
+        //double d;
+        //d = f2(-5);
 
         s v;
         i, v = f1(3), f3(5, "tuple");
@@ -232,11 +236,11 @@ contract test {
 }
 
 @test(missing_return_statement)
-@error(ERROR_MISSING_RETURN,3)
+@error(ERROR_MISSING_RETURN,2)
 contract test {
-    func f1() double { }
+    //func f1() double { }
     func f2() string {
-        double v = f1();
+        //double v = f1();
     }
     func f3() int {
         int x;

@@ -10,8 +10,8 @@ contract test {
     uint16 v8;
     uint32 v9;
     uint64 v10;
-    float v11;
-    double v12;
+    //float v11;
+    //double v12;
     bool v13;
     byte v14;
     string v15;
@@ -57,14 +57,15 @@ contract test {
 
 @test(constant_tuple_variables)
 contract test {
-    const double x, y = 0.1, 0.2;
+    const byte x, y = 0, 255;
+    //const double x, y = 0.1, 0.2;
 }
 
 @test(missing_constant_value)
 @error(ERROR_MISSING_CONST_VAL,3)
 contract test {
     const int v;
-    const float f1, f2;
+    const string s1, s2;
 }
 
 @test(type_modifier)
@@ -252,8 +253,8 @@ contract test {
     map(uint16, uint16) m7;
     map(uint32, uint32) m8;
     map(uint64, uint64) m9;
-    map(float, float) m10;
-    map(double, double) m11;
+    //map(float, float) m10;
+    //map(double, double) m11;
     map(bool, bool) m12;
     map(byte, byte) m13;
     map(string, string) m14;

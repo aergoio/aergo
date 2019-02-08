@@ -256,16 +256,17 @@ contract test {
         int a;
         string b;
         map(int, bool) c;
-        double d[2];
+        //double d[2];
     }
     test() {
-        s v = new { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
+        s v = new { 1, "1", { { 1, true } } };
+        //s v = new { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
         v.a++;
         v.a |= 0xabcd;
         v.b += "2";
         v.a, v.b = 2, "2";
         v.c[1] = false;
-        v.d[1] = -v.d[0];
+        //v.d[1] = -v.d[0];
     }
 }
 
@@ -281,13 +282,15 @@ contract test {
 }
 
 @test(incompatible_enum_access)
-@error(ERROR_MISMATCHED_TYPE,3)
+@error(ERROR_MISMATCHED_TYPE)
 contract test {
     enum e { a }
     test() {
         bool b = e.a;
+        /*
         float f = e.a;
         double d = e.a;
+        */
     }
 }
 

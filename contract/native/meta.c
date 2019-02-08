@@ -466,10 +466,12 @@ meta_eval(meta_t *x, meta_t *y)
     else
         meta_eval_type(x, y);
 
+    /* TODO: map vs tuple
     if (is_map_meta(x) || !is_tuple_meta(y))
         return;
 
     ASSERT2(meta_bytes(x) == y->size, meta_bytes(x), y->size);
+    */
 }
 
 /* end of meta.c */
