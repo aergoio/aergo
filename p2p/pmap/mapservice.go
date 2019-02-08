@@ -20,21 +20,11 @@ import (
 	"github.com/golang/protobuf/proto"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/libp2p/go-libp2p-protocol"
 	"math"
 	"sync"
 	"time"
 )
 
-// subprotocol for polaris
-const (
-	PolarisMapSub  protocol.ID = "/polaris/0.1"
-	PolarisPingSub protocol.ID = "/ping/0.1"
-)
-const (
-	MapQuery p2p.SubProtocol = 0x0100 + iota
-	MapResponse
-)
 
 // internal
 const (
@@ -55,10 +45,11 @@ var (
 	EmptyMsgID = p2p.MsgID(uuid.Nil)
 )
 
+
 var (
-	// 89.15 is floor of declination of Polaris
+	// 89.16 is ceiling of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8915/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
 
 	// 89.16 is ceiling of declination of Polaris
