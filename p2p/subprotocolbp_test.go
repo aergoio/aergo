@@ -41,9 +41,11 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return("16..aadecf@1")
+			mockPeer.On("updateLastNotice",mock.Anything, mock.AnythingOfType("uint64")).Return(false)
 			mockActor := new(MockActorService)
 			mockSM := new(MockSyncManager)
-			mockSM.On("HandleBlockProducedNotice",mock.Anything, mock.AnythingOfType("p2p.BlkHash"), mock.AnythingOfType("*types.Block"))
+			mockSM.On("HandleBlockProducedNotice",mock.Anything, mock.AnythingOfType("*types.Block"))
 
 			msg := &V030Message{subProtocol:BlockProducedNotice, id: sampleMsgID}
 			body := &types.BlockProducedNotice{Block:tt.payloadBlk}

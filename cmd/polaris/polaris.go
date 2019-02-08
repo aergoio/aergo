@@ -53,6 +53,8 @@ func init() {
 func initConfig() {
 	serverCtx := config.NewServerContext(homePath, configFilePath)
 	cfg = serverCtx.GetDefaultConfig().(*config.Config)
+	// change some different default props for polaris
+	arrangeDefaultCfgForPolaris(cfg)
 	err := serverCtx.LoadOrCreateConfig(cfg)
 	if err != nil {
 		fmt.Printf("Fail to load configuration file %v: %v", serverCtx.Vc.ConfigFileUsed(), err.Error())
@@ -64,7 +66,10 @@ func initConfig() {
 	cfg.Consensus.EnableBp = false
 }
 
-
+func arrangeDefaultCfgForPolaris(cfg *config.Config) {
+	cfg.RPC.NetServicePort = pmap.DefaultRPCPort
+	cfg.P2P.NetProtocolPort = pmap.DefaultSrvPort
+}
 
 func rootRun(cmd *cobra.Command, args []string) {
 

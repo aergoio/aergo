@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"bytes"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 	"time"
 
@@ -166,7 +167,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
-	logger.Debug().Str("peer", finder.ctx.PeerID.Pretty()).Msg("send GetAncestor message to peer")
+	logger.Debug().Str("peer", p2putil.ShortForm(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
 	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)

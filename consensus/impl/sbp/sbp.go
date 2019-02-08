@@ -38,7 +38,7 @@ func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
 	}
 }
 
-func (te *txExec) Apply(bState *state.BlockState, tx *types.Tx) error {
+func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 	err := te.execTx(bState, tx)
 	return err
 }
@@ -80,7 +80,7 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 	}
 
 	s.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(bState *state.BlockState, txIn *types.Tx) error {
+		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			select {
 			case <-s.quit:
 				return chain.ErrQuit

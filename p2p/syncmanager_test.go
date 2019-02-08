@@ -40,12 +40,13 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 			mockActor.On("SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 			if test.put != nil  {
 				target.blkCache.Add(*test.put, true)
 			}
-			target.HandleBlockProducedNotice(mockPeer, blkHash, sampleBlock )
+			target.HandleBlockProducedNotice(mockPeer, sampleBlock)
 			if test.wantActorCall {
 				mockActor.AssertCalled(t,"SendRequest", message.ChainSvc, mock.AnythingOfType("*message.AddBlock"))
 			} else {
@@ -123,14 +124,15 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 
-			hash, data := test.setup(t, mockActor, mockCA)
+			_, data := test.setup(t, mockActor, mockCA)
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 			target.syncing = test.syncing
 			if test.put != nil  {
 				target.blkCache.Add(*test.put, true)
 			}
-			target.HandleNewBlockNotice(mockPeer, hash, data )
+			target.HandleNewBlockNotice(mockPeer, data)
 			test.verify(t,mockActor,mockCA)
 		})
 	}

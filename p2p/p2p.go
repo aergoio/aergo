@@ -101,6 +101,8 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *
 		pubKey:  pub,
 		privKey: priv,
 	}
+
+	p2putil.UseFullID = p2pCfg.LogFullPeerID
 }
 
 // NodeID returns the node id.
@@ -250,8 +252,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
-		peers, hiddens, lastBlks, states := p2ps.pm.GetPeerAddresses()
-		context.Respond(&message.GetPeersRsp{Peers: peers, Hiddens:hiddens, LastBlks: lastBlks, States: states})
+		peers := p2ps.pm.GetPeerAddresses()
+		context.Respond(&message.GetPeersRsp{Peers: peers})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
 

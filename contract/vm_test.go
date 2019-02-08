@@ -2769,7 +2769,7 @@ abi.payable(save)
 		NewLuaTxDef("ktlee", "payable", 1, src),
 	)
 	if err == nil {
-		t.Error(err)
+		t.Error("expected: " + errVmConstructorIsNotPayable.Error())
 	} else {
 		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
 			t.Error(err)
@@ -2783,7 +2783,7 @@ abi.payable(save)
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "payable", 0, src),
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3049,7 +3049,19 @@ abi.payable(constructor)
 }
 
 func TestSqlVmPubNet(t *testing.T) {
+	flushLState := func() {
+		for i := 0; i <= MAX_LSTATE_SIZE; i++ {
+			s := GetLState()
+			FreeLState(s)
+		}
+	}
 	PubNet = true
+	flushLState()
+	defer func() {
+		PubNet = false
+		flushLState()
+	}()
+
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -3071,6 +3083,7 @@ abi.register(createAndInsert)`
 	if err != nil {
 		t.Error(err)
 	}
+
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).Fail(`attempt to index global 'db'`),
 	)

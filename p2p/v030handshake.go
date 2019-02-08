@@ -55,7 +55,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 
 	// TODO need to check auth at first...
 
-	h.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("Starting Handshake")
+	h.logger.Debug().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("Starting Handshake for outbound peer connection")
 	// send status
 	statusMsg, err := createStatusMsg(h.pm, h.actorServ, h.chainID)
 	if err != nil {
@@ -64,7 +64,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 	moFactory := &v030MOFactory{}
 	container := moFactory.newHandshakeMessage(StatusRequest, statusMsg)
 	if container == nil {
-		// h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
+		// h.logger.Warn().Str(LogPeerID, ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
 	}
 	if err = rw.WriteMsg(container); err != nil {
@@ -116,11 +116,12 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	peerID := h.peerID
 
 	// TODO need to check auth at first...
+	h.logger.Debug().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("Starting Handshake for inbound peer connection")
 
 	// first message must be status
 	data, err := rw.ReadMsg()
 	if err != nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to create p2p message")
+		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return nil, err
 	}
 
@@ -128,14 +129,14 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 		if data.Subprotocol() == GoAway {
 			return h.handleGoAway(peerID, data)
 		} else {
-			h.logger.Info().Str(LogPeerID, peerID.Pretty()).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			h.logger.Info().Str(LogPeerID, p2putil.ShortForm(peerID)).Str("expected", StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
 			return nil, fmt.Errorf("unexpected message type")
 		}
 	}
 
 	statusMsg := &types.Status{}
 	if err := UnmarshalMessage(data.Payload(), statusMsg); err != nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Failed to decode status message.")
+		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Failed to decode status message.")
 		return nil, err
 	}
 
@@ -163,11 +164,11 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	moFactory := &v030MOFactory{}
 	container := moFactory.newHandshakeMessage(StatusRequest, statusResp)
 	if container == nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Msg("failed to create p2p message")
+		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")
 	}
 	if err = rw.WriteMsg(container); err != nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("failed to send response status ")
+		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("failed to send response status ")
 		return nil, err
 	}
 	return statusMsg, nil
@@ -177,7 +178,7 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 func (h *V030Handshaker) handleGoAway(peerID peer.ID, data Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := UnmarshalMessage(data.Payload(), goAway); err != nil {
-		h.logger.Warn().Str(LogPeerID, peerID.Pretty()).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")
+		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")
 		return nil, err
 	}
 	return nil, fmt.Errorf("remote peer refuse handshake: %s",goAway.GetMessage())

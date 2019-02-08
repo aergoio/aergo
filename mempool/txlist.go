@@ -21,7 +21,7 @@ type TxList struct {
 	lastTime time.Time
 	account  []byte
 	ready    int
-	list     []*types.Tx // nonce-ordered tx list
+	list     []types.Transaction // nonce-ordered tx list
 }
 
 // NewTxList creates new TxList with given State
@@ -53,7 +53,7 @@ func (tl *TxList) Empty() bool {
 	return len(tl.list) == 0
 }
 
-func (tl *TxList) search(tx *types.Tx) (int, bool) {
+func (tl *TxList) search(tx types.Transaction) (int, bool) {
 	key := tx.GetBody().GetNonce()
 	ind := sort.Search(len(tl.list), func(i int) bool {
 		comp := tl.list[i].GetBody().GetNonce()
@@ -64,7 +64,7 @@ func (tl *TxList) search(tx *types.Tx) (int, bool) {
 	}
 	return ind, false
 }
-func (tl *TxList) compare(tx *types.Tx, index int) bool {
+func (tl *TxList) compare(tx types.Transaction, index int) bool {
 	if tx.GetBody().GetNonce() == tl.list[index].GetBody().GetNonce() {
 		return true
 	}
@@ -87,7 +87,7 @@ func (tl *TxList) continuous(index int) bool {
 // Put inserts transaction into TxList
 // if transaction is processible, it is appended to list
 // if not, transaction is managed as orphan
-func (tl *TxList) Put(tx *types.Tx) (int, error) {
+func (tl *TxList) Put(tx types.Transaction) (int, error) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -104,7 +104,7 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 	oldCnt := len(tl.list) - tl.ready
 
 	if index < len(tl.list) {
-		tl.list = append(tl.list[:index], append([]*types.Tx{tx},
+		tl.list = append(tl.list[:index], append([]types.Transaction{tx},
 			tl.list[index:]...)...)
 	} else {
 		tl.list = append(tl.list, tx)
@@ -124,7 +124,7 @@ func (tl *TxList) Put(tx *types.Tx) (int, error) {
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []*types.Tx) {
+func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []types.Transaction) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -141,7 +141,7 @@ func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []*
 	tl.base = st
 
 	oldCnt := len(tl.list) - tl.ready
-	var left []*types.Tx
+	var left []types.Transaction
 	removed := tl.list[:0]
 	for i, x := range tl.list {
 		err := x.ValidateWithSenderState(st, coinbasefee)
@@ -180,14 +180,14 @@ func (tl *TxList) FilterByPrice(balance uint64) error {
 */
 
 // Get returns processible transactions
-func (tl *TxList) Get() []*types.Tx {
+func (tl *TxList) Get() []types.Transaction {
 	tl.RLock()
 	defer tl.RUnlock()
 	return tl.list[:tl.ready]
 }
 
 // GetAll returns all transactions including orphans
-func (tl *TxList) GetAll() []*types.Tx {
+func (tl *TxList) GetAll() []types.Transaction {
 	tl.Lock()
 	defer tl.Unlock()
 	return tl.list

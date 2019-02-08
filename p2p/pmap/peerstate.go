@@ -69,7 +69,7 @@ func (hc *peerState) check(wg *sync.WaitGroup, timeout time.Duration) {
 }
 
 func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
-	hc.Logger.Debug().Str(p2p.LogPeerID, hc.meta.ID.Pretty()).Msg("staring up healthcheck")
+	hc.Logger.Debug().Str(p2p.LogPeerID, p2putil.ShortForm(hc.meta.ID)).Msg("staring up healthcheck")
 	hc.lCheckTime = time.Now()
 	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingSub, PolarisPingTTL)
 	if err != nil {
@@ -167,7 +167,7 @@ func (pc *pingChecker) DoCall(done chan<- interface{}) {
 		return
 	}
 
-	pc.Logger.Debug().Str(p2p.LogPeerID, pc.meta.ID.Pretty()).Interface("ping_resp", pingResp).Msg("Healthcheck finished successful")
+	pc.Logger.Debug().Str(p2p.LogPeerID, p2putil.ShortForm(pc.meta.ID)).Interface("ping_resp", pingResp).Msg("Healthcheck finished successful")
 	return
 
 }

@@ -75,12 +75,12 @@ func (_m *MockRemotePeer) stop() {
 }
 
 // updateBlkCache provides a mock function with given fields: hash
-func (_m *MockRemotePeer) updateBlkCache(hash BlkHash, blkNotice *types.NewBlockNotice) bool {
-	ret := _m.Called(hash, blkNotice)
+func (_m *MockRemotePeer) updateBlkCache(blkHash []byte, blkNumber uint64) bool {
+	ret := _m.Called(blkHash, blkNumber)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(BlkHash, *types.NewBlockNotice) bool); ok {
-		r0 = rf(hash, blkNotice)
+	if rf, ok := ret.Get(0).(func(blkHash []byte, blkNumber uint64) bool); ok {
+		r0 = rf(blkHash, blkNumber)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
@@ -102,6 +102,11 @@ func (_m *MockRemotePeer) updateTxCache(hashes []TxHash) []TxHash {
 	}
 
 	return r0
+}
+
+// updateBlkCache provides a mock function with given fields: hash
+func (_m *MockRemotePeer) updateLastNotice(blkHash []byte, blkNumber uint64) {
+	_m.Called(blkHash, blkNumber)
 }
 
 // ID provides a mock function with given fields:
@@ -148,6 +153,19 @@ func (_m *MockRemotePeer) Meta() PeerMeta {
 	return r0
 }
 
+func (_m *MockRemotePeer) Name() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 func (_m *MockRemotePeer) ManageNumber() uint32 {
 	ret := _m.Called()
 
@@ -177,14 +195,14 @@ func (_m *MockRemotePeer) State() types.PeerState {
 
 
 // LastNotice provides a mock function with given fields:
-func (_m *MockRemotePeer) LastNotice() *types.NewBlockNotice {
+func (_m *MockRemotePeer) LastNotice() *LastBlockStatus {
 	ret := _m.Called()
 
-	var r0 *types.NewBlockNotice
-	if rf, ok := ret.Get(0).(func() *types.NewBlockNotice); ok {
+	var r0 *LastBlockStatus
+	if rf, ok := ret.Get(0).(func() *LastBlockStatus); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(*types.NewBlockNotice)
+		r0 = ret.Get(0).(*LastBlockStatus)
 	}
 
 	return r0

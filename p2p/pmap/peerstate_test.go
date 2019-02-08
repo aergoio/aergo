@@ -76,7 +76,7 @@ func Test_pingChecker_DoCall(t *testing.T) {
 					pc.Cancel()
 					time.Sleep(time.Millisecond << 4)
 				}
-				ret := p2p.NewV030Message(EmptyMsgID, reqID, time.Now().Unix(), tt.args.respSub, []byte{})
+				ret := p2p.NewV030Message(EmptyMsgID, reqID, time.Now().UnixNano(), tt.args.respSub, []byte{})
 				return ret, tt.args.readRet2
 			})
 
@@ -148,7 +148,7 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 				if tt.args.readWait > 0 {
 					time.Sleep(time.Second)
 				}
-				ret := p2p.NewV030Message(EmptyMsgID, reqID, time.Now().Unix(), tt.args.respSub, []byte{})
+				ret := p2p.NewV030Message(EmptyMsgID, reqID, time.Now().UnixNano(), tt.args.respSub, []byte{})
 				return ret, tt.args.readRet2
 			})
 

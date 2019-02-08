@@ -362,7 +362,10 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 		},
 	)
 	if l.expectedErr != "" {
-		if err == nil || !strings.Contains(err.Error(), l.expectedErr) {
+		if err == nil {
+			return fmt.Errorf("no error, expected: %s", l.expectedErr)
+		}
+		if !strings.Contains(err.Error(), l.expectedErr) {
 			return err
 		}
 		return nil

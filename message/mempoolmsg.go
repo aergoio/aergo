@@ -29,7 +29,7 @@ type MemPoolGet struct {
 
 // MemPoolGetRsp defines struct of result for MemPoolGet
 type MemPoolGetRsp struct {
-	Txs []*types.Tx
+	Txs []types.Transaction
 	Err error
 }
 
@@ -42,6 +42,15 @@ type MemPoolExist struct {
 // MemPoolExistRsp defines struct of result for MemPoolExist
 type MemPoolExistRsp struct {
 	Tx *types.Tx
+}
+
+const MaxReqestHashes = 1000
+
+type MemPoolExistEx struct {
+	Hashes [][]byte
+}
+type MemPoolExistExRsp struct {
+	Txs []*types.Tx
 }
 
 // MemPoolDel is interface of MemPool service for deleting transactions

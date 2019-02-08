@@ -45,7 +45,7 @@ RETRYLOOP:
 			if found {
 				break RETRYLOOP
 			}
-			rj.logger.Debug().Str(LogPeerID, rj.meta.ID.Pretty()).Int("trial", rj.trial).Msg("Trying to connect")
+			rj.logger.Debug().Str("peer_meta", rj.meta.String()).Int("trial", rj.trial).Msg("Trying to connect")
 			rj.pm.AddNewPeer(rj.meta)
 			rj.trial++
 			timer.Reset(getNextInterval(rj.trial))

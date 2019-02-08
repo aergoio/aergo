@@ -16,8 +16,8 @@ const P2PSvc = "p2pSvc"
 
 // errors which async responses of p2p actor, such as GetBlockChunksRsp, can contains,
 var (
-	RemotePeerFailError = fmt.Errorf("remote peer return error")
-	PeerNotFoundError = fmt.Errorf("remote peer was not found")
+	RemotePeerFailError  = fmt.Errorf("remote peer return error")
+	PeerNotFoundError    = fmt.Errorf("remote peer was not found")
 	MissingHashError     = fmt.Errorf("some block hash not found")
 	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
 )
@@ -40,8 +40,8 @@ type GetAddressesMsg struct {
 // The actor returns true if sending is successful.
 type NotifyNewBlock struct {
 	Produced bool
-	BlockNo uint64
-	Block   *types.Block
+	BlockNo  uint64
+	Block    *types.Block
 }
 
 type BlockHash []byte
@@ -115,13 +115,18 @@ type GetBlockChunksRsp struct {
 type GetPeers struct {
 }
 
+type PeerInfo struct {
+	Addr            *types.PeerAddress
+	Hidden          bool
+	CheckTime       time.Time
+	LastBlockHash   []byte
+	LastBlockNumber uint64
+	State           types.PeerState
+}
+
 // GetPeersRsp contains peer meta information and current states.
 type GetPeersRsp struct {
-	Peers []*types.PeerAddress
-	Hiddens []bool
-	// last received block notice
-	LastBlks []*types.NewBlockNotice
-	States   []types.PeerState
+	Peers []*PeerInfo
 }
 
 type GetMetrics struct {
@@ -151,13 +156,12 @@ type GetHashesRsp struct {
 	Err      error
 }
 
-
 type GetHashByNo struct {
-	ToWhom   peer.ID
-	BlockNo  types.BlockNo
+	ToWhom  peer.ID
+	BlockNo types.BlockNo
 }
 
 type GetHashByNoRsp struct {
-	BlockHash   BlockHash
-	Err      error
+	BlockHash BlockHash
+	Err       error
 }

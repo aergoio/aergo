@@ -43,65 +43,87 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 }
 
 func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
+
 	remotePeer := th.peer
-	data := msgBody.(*types.GetTransactionsRequest)
-	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(data.Hashes))
+	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
+	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, len(reqHashes))
 
 	// TODO consider to make async if deadlock with remote peer can occurs
 	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
 	// find transactions from chainservice
 	idx := 0
 	status := types.ResultStatus_OK
-	hashes := make([][]byte, 0, 100)
-	txInfos := make([]*types.Tx, 0, 100)
+	var hashes []types.TxHash
+	var txInfos, txs []*types.Tx
 	payloadSize := EmptyGetBlockResponseSize
 	var txSize, fieldSize int
-	for _, hash := range data.Hashes {
-		tx, err := th.msgHelper.ExtractTxFromResponseAndError(th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-			&message.MemPoolExist{Hash: hash}))
-		if err != nil {
-			// response error to peer
-			resp := &types.GetTransactionsResponse{Status: types.ResultStatus_INTERNAL}
-			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
-			return
+
+	bucket := message.MaxReqestHashes
+	var futures []interface{}
+
+	for _, h := range reqHashes {
+		hashes = append(hashes, h)
+		if len(hashes) == bucket {
+			if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
+				&message.MemPoolExistEx{Hashes: hashes}); err == nil {
+				futures = append(futures, f)
+			}
+			hashes = nil
 		}
+	}
+	if hashes != nil {
+		if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
+			&message.MemPoolExistEx{Hashes: hashes}); err == nil {
+			futures = append(futures, f)
+		}
+	}
+	hashes = nil
+	idx = 0
+	for _, f := range futures {
+		if tmp, err := th.msgHelper.ExtractTxsFromResponseAndError(f, nil); err == nil {
+			txs = append(txs, tmp...)
+		}
+	}
+	for _, tx := range txs {
 		if tx == nil {
-			// ignore not existing hash
 			continue
 		}
+		hash := tx.GetHash()
 		txSize = proto.Size(tx)
+
 		fieldSize = txSize + calculateFieldDescSize(txSize)
-		fieldSize += len(hash)+calculateFieldDescSize(len(hash))
-		if (payloadSize + fieldSize)  > MaxPayloadLength {
+		fieldSize += len(hash) + calculateFieldDescSize(len(hash))
+
+		if (payloadSize + fieldSize) > MaxPayloadLength {
 			// send partial list
 			resp := &types.GetTransactionsResponse{
 				Status: status,
 				Hashes: hashes,
-				Txs:    txInfos, HasNext:true}
-			th.logger.Debug().Int(LogTxCount, len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending partial response")
-			remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
-			// reset list
-			hashes = make([][]byte, 0, 100)
-			txInfos = make([]*types.Tx, 0, 100)
-			payloadSize = EmptyGetBlockResponseSize
+				Txs:    txInfos, HasNext: true}
+			th.logger.Debug().Int(LogTxCount, len(hashes)).
+				Str("req_id", msg.ID().String()).Msg("Sending partial response")
+
+			remotePeer.sendMessage(remotePeer.MF().
+				newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
 		}
+
 		hashes = append(hashes, hash)
 		txInfos = append(txInfos, tx)
 		payloadSize += fieldSize
 		idx++
 	}
-
-	// send remained blocks
 	if 0 == idx {
 		status = types.ResultStatus_NOT_FOUND
 	}
-	th.logger.Debug().Int(LogTxCount, len(hashes)).Str("req_id",msg.ID().String()).Msg("Sending last part response")
+	th.logger.Debug().Int(LogTxCount, len(hashes)).
+		Str("req_id", msg.ID().String()).Msg("Sending last part response")
 	// generate response message
+
 	resp := &types.GetTransactionsResponse{
 		Status: status,
 		Hashes: hashes,
-		Txs:    txInfos, HasNext:false}
+		Txs:    txInfos, HasNext: false}
 
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
 }
@@ -117,9 +139,8 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 }
 
 func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
+	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
@@ -142,11 +163,11 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
+	remotePeer := th.peer
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
 	if th.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, bytesArrToString(data.TxHashes))
+		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, bytesArrToString(data.TxHashes))
 	}
 
 	if len(data.TxHashes) == 0 {

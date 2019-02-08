@@ -472,7 +472,12 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		address, err := getAddressNameResolved(cm.sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+			break
+		}
+		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -486,6 +491,18 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
 	}
+}
+
+func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, error) {
+	if len(account) <= types.NameLength {
+		scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
+			return nil, err
+		}
+		return name.GetAddress(scs, account), nil
+	}
+	return account, nil
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
@@ -511,38 +528,35 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetState:
-		var account []byte
-		if len(msg.Account) <= types.NameLength {
-			nameState, err := cw.sdb.GetStateDB().GetAccountState(types.ToAccountID([]byte(types.AergoName)))
-			if err != nil {
-				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
-			}
-			scs, err := cw.sdb.GetStateDB().OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
-			if err != nil {
-				logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
-				context.Respond(message.GetStateRsp{
-					Account: msg.Account,
-					State:   nil,
-					Err:     err,
-				})
-				return
-			}
-			account = name.GetAddress(scs, msg.Account)
-		} else {
-			account = msg.Account
+		address, err := getAddressNameResolved(cw.sdb, msg.Account)
+		if err != nil {
+			context.Respond(message.GetStateRsp{
+				Account: msg.Account,
+				State:   nil,
+				Err:     err,
+			})
+			return
 		}
-		id := types.ToAccountID(account)
+		id := types.ToAccountID(address)
 		accState, err := cw.sdb.GetStateDB().GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
 		}
 		context.Respond(message.GetStateRsp{
-			Account: account,
+			Account: address,
 			State:   accState,
 			Err:     err,
 		})
 	case *message.GetStateAndProof:
-		id := types.ToAccountID(msg.Account)
+		address, err := getAddressNameResolved(cw.sdb, msg.Account)
+		if err != nil {
+			context.Respond(message.GetStateAndProofRsp{
+				StateProof: nil,
+				Err:        err,
+			})
+			break
+		}
+		id := types.ToAccountID(address)
 		stateProof, err := cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
@@ -566,7 +580,15 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		address, err := getAddressNameResolved(cw.sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetABIRsp{
+				ABI: nil,
+				Err: err,
+			})
+			break
+		}
+		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err == nil {
 			abi, err := contract.GetABI(contractState)
 			context.Respond(message.GetABIRsp{
@@ -584,7 +606,15 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		var contractProof *types.AccountProof
 		var err error
 
-		id := types.ToAccountID(msg.ContractAddress)
+		address, err := getAddressNameResolved(cw.sdb, msg.ContractAddress)
+		if err != nil {
+			context.Respond(message.GetStateQueryRsp{
+				Result: nil,
+				Err:    err,
+			})
+			break
+		}
+		id := types.ToAccountID(address)
 		contractProof, err = cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")

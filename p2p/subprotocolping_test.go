@@ -1,21 +1,20 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
- */
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	"github.com/libp2p/go-libp2p-protocol"
 )
 
 func TestPingProtocol_onStatusRequest(t *testing.T) {
-	// TODO this test should be moved to handshake later.
-	t.SkipNow()
+	//// TODO this test should be moved to handshake later.
+	//t.SkipNow()
 	mockP2PS := &MockPeerManager{}
 	mockIStream := &MockStream{}
 	mockConn := &MockConn{}
@@ -66,6 +65,51 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 			// 	}
 
 			tt.expect()
+		})
+	}
+}
+
+func Test_pingRequestHandler_handle(t *testing.T) {
+	type args struct {
+		hash    []byte
+		height 	uint64
+	}
+	tests := []struct {
+		name   string
+		args   args
+
+		wantCallUpdate bool
+	}{
+		{"TSucc", args{dummyBlockHash, 10}, true},
+		{"TWrongHash", args{[]byte{}, 10},false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPM := new(MockPeerManager)
+			mockPeer := new(MockRemotePeer)
+			mockActor := new(MockActorService)
+			dummyMF := &v030MOFactory{}
+
+			mockPeer.On("MF").Return(dummyMF)
+			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return(p2putil.ShortForm(dummyPeerID)+"@1")
+			mockPeer.On("updateLastNotice", tt.args.hash, tt.args.height)
+			mockPeer.On("sendMessage", mock.Anything)
+
+			mockCA := new(MockChainAccessor)
+			mockActor.On("GetChainAccessor").Return(mockCA)
+
+			msg := &V030Message{subProtocol:PingRequest, id: sampleMsgID}
+			body := &types.Ping{BestBlockHash:tt.args.hash, BestHeight: tt.args.height}
+
+			ph := newPingReqHandler(mockPM, mockPeer, logger, mockActor)
+
+			ph.handle(msg, body)
+
+			if !tt.wantCallUpdate {
+				mockPeer.AssertNotCalled(t, "updateLastNotice",mock.Anything,mock.Anything)
+			}
+			// other call verifications are already checked by On() method
 		})
 	}
 }

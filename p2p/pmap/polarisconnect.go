@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-net"
@@ -129,7 +130,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 	for _, meta := range pcs.mapServers {
 		addrs, err := pcs.connectAndQuery(meta, msg.BestBlock.Hash, msg.BestBlock.Header.BlockNo)
 		if err != nil {
-			pcs.Logger.Warn().Err(err).Str("map_id", meta.ID.Pretty()).Msg("faild to get peer addresses")
+			pcs.Logger.Warn().Err(err).Str("map_id", p2putil.ShortForm(meta.ID)).Msg("faild to get peer addresses")
 			continue
 		}
 		// FIXME delete duplicated peers

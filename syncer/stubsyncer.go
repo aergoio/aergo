@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"reflect"
 	"strings"
 	"sync"
@@ -212,9 +213,9 @@ func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
 	go func() {
 		if syncer.cfg.debugContext.debugFinder {
 			if syncer.stubPeers[0].timeDelaySec > 0 {
-				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer sleep")
+				logger.Debug().Str("peer", p2putil.ShortForm(peer.ID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer sleep")
 				time.Sleep(syncer.stubPeers[0].timeDelaySec)
-				logger.Debug().Str("peer", peer.ID(syncer.stubPeers[0].addr.PeerID).Pretty()).Msg("slow target peer wakeup")
+				logger.Debug().Str("peer", p2putil.ShortForm(peer.ID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer wakeup")
 			}
 		}
 
@@ -267,9 +268,9 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 	}
 	go func() {
 		if stubPeer.timeDelaySec > 0 {
-			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer sleep")
+			logger.Debug().Str("peer", p2putil.ShortForm(peer.ID(stubPeer.addr.PeerID))).Msg("slow peer sleep")
 			time.Sleep(stubPeer.timeDelaySec)
-			logger.Debug().Str("peer", peer.ID(stubPeer.addr.PeerID).Pretty()).Msg("slow peer wakeup")
+			logger.Debug().Str("peer", p2putil.ShortForm(peer.ID(stubPeer.addr.PeerID))).Msg("slow peer wakeup")
 		}
 
 		//send reply
@@ -298,24 +299,23 @@ func (syncer *StubSyncer) findStubPeer(peerID peer.ID) *StubPeer {
 		}
 	}
 
-	logger.Error().Str("peer", peerID.Pretty()).Msg("can't find peer")
+	logger.Error().Str("peer", p2putil.ShortForm(peerID)).Msg("can't find peer")
 	panic("peer find fail")
 	return nil
 }
 
 func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 	count := len(stubPeers)
-	peerAddrs := make([]*types.PeerAddress, count)
-	blockNotices := make([]*types.NewBlockNotice, count)
-	states := make([]types.PeerState, count)
-
+	now := time.Now()
+	peers := make([]*message.PeerInfo, count)
 	for i, p := range stubPeers {
-		peerAddrs[i] = p.addr
-		blockNotices[i] = p.lastBlk
-		states[i] = p.state
+		peerInfo := &message.PeerInfo{
+			Addr: p.addr, CheckTime:now, State:p.state, LastBlockHash:p.lastBlk.BlockHash, LastBlockNumber:p.lastBlk.BlockNo,
+		}
+		peers[i] = peerInfo
 	}
 
-	return &message.GetPeersRsp{Peers: peerAddrs, LastBlks: blockNotices, States: states}
+	return &message.GetPeersRsp{Peers: peers}
 }
 
 //test block fetcher only

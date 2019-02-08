@@ -64,11 +64,14 @@ func MaxBlockBodySize() uint32 {
 
 // GenerateBlock generate & return a new block
 func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64) (*types.Block, error) {
-	txs, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
+	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
 	}
-
+	txs := make([]*types.Tx, 0)
+	for _, x := range transactions {
+		txs = append(txs, x.GetTx())
+	}
 	block := types.NewBlock(prevBlock, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
 	if len(txs) != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
