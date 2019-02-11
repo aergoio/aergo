@@ -70,19 +70,26 @@ void
 sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
 {
     int i;
-    BinaryenExpressionRef *addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
+    BinaryenExpressionRef *addrs;
+
+    if (sgmt->offset >= gen->flag.stack_size)
+        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size / 1024, sgmt->offset);
+
+    addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
     for (i = 0; i < sgmt->size; i++) {
         addrs[i] = i32_gen(gen, sgmt->addrs[i]);
     }
 
-    BinaryenSetMemory(gen->module, 1, sgmt->offset / UINT16_MAX + 1, "memory",
+    BinaryenSetMemory(gen->module, 1, sgmt->offset / WASM_MEM_UNIT + 1, "memory",
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
-    BinaryenAddGlobal(gen->module, "stack$offset", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, STACK_SIZE - 1));
+    BinaryenAddGlobal(gen->module, "stack$top", BinaryenTypeInt32(), 1,
+                      i32_gen(gen, sgmt->offset));
+    BinaryenAddGlobal(gen->module, "stack$max", BinaryenTypeInt32(), 0,
+                      i32_gen(gen, gen->flag.stack_size));
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, STACK_SIZE));
+                      i32_gen(gen, gen->flag.stack_size));
 }
 
 void
@@ -112,7 +119,7 @@ wasm_gen(gen_t *gen, char *infile, char *outfile)
         write_file(outfile, buf, n);
     }
     else {
-        FATAL(ERROR_BINARY_OVERFLOW, n);
+        FATAL(ERROR_BINARY_OVERFLOW, 1, n);
     }
 }
 
@@ -126,7 +133,7 @@ malloc_gen(gen_t *gen)
     BinaryenExpressionRef instrs[3];
     BinaryenModuleRef module = gen->module;
 
-    BinaryenAddGlobal(module, "heap$offset", type, 1, i32_gen(gen, STACK_SIZE));
+    BinaryenAddGlobal(module, "heap$offset", type, 1, i32_gen(gen, gen->flag.stack_size));
 
     spec = BinaryenAddFunctionType(module, "system$malloc", type, params, 1);
 

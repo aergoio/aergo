@@ -17,8 +17,6 @@ ir_new(void)
 
     sgmt_init(&ir->sgmt);
 
-    ir->offset = 0;
-
     return ir;
 }
 

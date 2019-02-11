@@ -41,6 +41,8 @@ env_init(env_t *env)
     memset(env, 0x00, sizeof(env_t));
 
     env->flag.val = FLAG_TEST;
+    env->flag.stack_size = UINT16_MAX;
+
     env->ec_cnt = 0;
     stack_init(&env->exp);
 }
@@ -237,12 +239,12 @@ get_opt(env_t *env, int argc, char **argv)
 
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0)
             flag_set(env->flag, FLAG_VERBOSE);
-        else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--lex-dump") == 0)
-            flag_set(env->flag, FLAG_LEX_DUMP);
-        else if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "--yacc-dump") == 0)
-            flag_set(env->flag, FLAG_YACC_DUMP);
-        else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--wat-dump") == 0)
-            flag_set(env->flag, FLAG_WAT_DUMP);
+        else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--print-lex") == 0)
+            flag_set(env->flag, FLAG_DUMP_LEX);
+        else if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "--print-yacc") == 0)
+            flag_set(env->flag, FLAG_DUMP_YACC);
+        else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--print-wat") == 0)
+            flag_set(env->flag, FLAG_DUMP_WAT);
         else
             FATAL(ERROR_INVALID_FLAG, argv[i]);
     }

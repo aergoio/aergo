@@ -56,7 +56,7 @@ gen(ir_t *ir, flag_t flag, char *infile)
         BinaryenModuleOptimize(gen.module);
     }
 
-    if (is_flag_on(flag, FLAG_WAT_DUMP))
+    if (is_flag_on(flag, FLAG_DUMP_WAT))
         BinaryenModulePrint(gen.module);
 
     ASSERT(BinaryenModuleValidate(gen.module));

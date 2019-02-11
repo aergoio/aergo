@@ -122,26 +122,25 @@ set_memory_addr(ir_fn_t *fn, uint32_t heap_start, src_pos_t *pos)
     if (fn->stack_usage > 0) {
         ast_exp_t *val_exp, *bin_exp;
 
-        glob_exp = exp_new_global("stack$offset");
+        glob_exp = exp_new_global("stack$top");
 
         reg_exp = exp_new_register(fn->stack_idx);
         meta_set_uint32(&reg_exp->meta);
 
-        /* At the beginning of "entry_bb", set the current stack offset to the register */
         val_exp = exp_new_lit_i64(fn->stack_usage, pos);
         meta_set_uint32(&val_exp->meta);
 
-        bin_exp = exp_new_binary(OP_SUB, glob_exp, val_exp, pos);
-
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(glob_exp, reg_exp, pos));
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, bin_exp, pos));
-
-        /* If there is any stack variable in the function, it has to be restored to the
-         * original value at the end of "exit_bb" because "stack$offset" has been
-         * changed */
         bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
 
-        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(glob_exp, bin_exp, pos));
+        /* At the beginning of "entry_bb", set the current stack offset to the register */
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(glob_exp, bin_exp, pos));
+        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, glob_exp, pos));
+
+        /* TODO: checking stack overflow */
+
+        /* If there is any stack variable in the function, it has to be restored to the
+         * original value at the end of "exit_bb" because "stack$top" has been changed */
+        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(glob_exp, reg_exp, pos));
     }
 
     if (fn->heap_usage > 0) {
@@ -252,7 +251,6 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
-    ASSERT1(ir->offset == 0, ir->offset);
 
     if (id->u_cont.impl_exp != NULL) {
         /* Reorder functions according to the order in the interface
@@ -319,8 +317,6 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     vector_add_first(&id->u_cont.blk->ids, idx_id);
 
     blk_trans(trans, id->u_cont.blk);
-
-    ir->offset = 0;
 }
 
 static void

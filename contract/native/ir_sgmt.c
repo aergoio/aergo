@@ -12,8 +12,8 @@ sgmt_extend(ir_sgmt_t *sgmt)
 {
     sgmt->cap += SGMT_INIT_CAPACITY;
 
-    sgmt->lens = xrealloc(sgmt->lens, sizeof(uint32_t) * sgmt->cap);
-    sgmt->addrs = xrealloc(sgmt->addrs, sizeof(uint32_t) * sgmt->cap);
+    sgmt->lens = xrealloc(sgmt->lens, sizeof(BinaryenIndex) * sgmt->cap);
+    sgmt->addrs = xrealloc(sgmt->addrs, sizeof(BinaryenIndex) * sgmt->cap);
     sgmt->datas = xrealloc(sgmt->datas, sizeof(char *) * sgmt->cap);
 }
 

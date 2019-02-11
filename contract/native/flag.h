@@ -16,7 +16,10 @@
 
 typedef struct flag_s {
     flag_val_t val;
-    int opt_lvl;
+
+    uint8_t opt_lvl;
+    uint32_t stack_size;
+
     char *outfile;
 } flag_t;
 

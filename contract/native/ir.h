@@ -26,8 +26,6 @@ typedef struct ir_s {
     vector_t fns;
 
     ir_sgmt_t sgmt;
-
-    uint32_t offset;
 } ir_t;
 
 ir_t *ir_new(void);

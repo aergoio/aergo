@@ -73,6 +73,7 @@ error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 /******************************************************************************
  * wasm generator
  *****************************************************************************/
-error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= 1MB, but %d bytes)")
+error(ERROR_STACK_OVERFLOW,         "stack overflows (<= %dKB, but %d bytes)")
+error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= %dMB, but %d bytes)")
 
 /* vim:set filetype=c: */

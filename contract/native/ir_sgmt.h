@@ -7,6 +7,7 @@
 #define _IR_SGMT_H
 
 #include "common.h"
+#include "binaryen-c.h"
 
 #define SGMT_INIT_CAPACITY          10
 
@@ -15,13 +16,14 @@
 typedef struct ir_sgmt_s ir_sgmt_t;
 #endif /* ! _IR_SGMT_T */
 
+/* Save data elements as an array to eliminate duplicate values. */
 struct ir_sgmt_s {
     int cap;
     int size;
-    uint32_t offset;
+    BinaryenIndex offset;
 
-    uint32_t *lens;
-    uint32_t *addrs;
+    BinaryenIndex *lens;
+    BinaryenIndex *addrs;
     char **datas;
 };
 
@@ -35,8 +37,8 @@ sgmt_init(ir_sgmt_t *sgmt)
     /* Reserve the first 4 bytes for a null value. */
     sgmt->offset = 4;
 
-    sgmt->lens = xmalloc(sizeof(uint32_t) * sgmt->cap);
-    sgmt->addrs = xmalloc(sizeof(uint32_t) * sgmt->cap);
+    sgmt->lens = xmalloc(sizeof(BinaryenIndex) * sgmt->cap);
+    sgmt->addrs = xmalloc(sizeof(BinaryenIndex) * sgmt->cap);
     sgmt->datas = xmalloc(sizeof(char *) * sgmt->cap);
 }
 

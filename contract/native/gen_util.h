@@ -11,7 +11,7 @@
 #include "gen.h"
 #include "binaryen-c.h"
 
-#define STACK_SIZE          65536
+#define WASM_MEM_UNIT       65536
 
 #define WASM_EXT            ".wasm"
 #define WASM_MAX_LEN        1024 * 1024
