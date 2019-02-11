@@ -9,8 +9,6 @@ debug.test
 Gopkg.lock
 *.o
 *.a
-*.yy.c
-*.tab.*
 *.output
 
 # vim swp file

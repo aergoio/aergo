@@ -7,14 +7,16 @@ cmake_minimum_required(VERSION 3.0)
 
 project(libascl C)
 
-find_package(BISON REQUIRED)
-find_package(FLEX REQUIRED)
+find_package(BISON QUIET)
+find_package(FLEX QUIET)
 
-bison_target(PARSER grammar.y ${CMAKE_CURRENT_SOURCE_DIR}/grammar.tab.c COMPILE_FLAGS -d)
-flex_target(SCANNER scanner.l ${CMAKE_CURRENT_SOURCE_DIR}/scanner.yy.c)
+if(BISON_FOUND AND FLEX_FOUND)
+    bison_target(PARSER grammar.y ${CMAKE_CURRENT_SOURCE_DIR}/grammar.tab.c COMPILE_FLAGS -d)
+    flex_target(SCANNER scanner.l ${CMAKE_CURRENT_SOURCE_DIR}/scanner.yy.c)
 
-add_flex_bison_dependency(SCANNER PARSER)
-set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "grammar.output")
+    add_flex_bison_dependency(SCANNER PARSER)
+    set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "grammar.output")
+endif()
 
 set(libascl_SRCS
     compile.c
@@ -57,8 +59,8 @@ set(libascl_SRCS
     value.c
     util.c
     xalloc.c
-    ${BISON_PARSER_OUTPUTS}
-    ${FLEX_SCANNER_OUTPUTS}
+    grammar.tab.c
+    scanner.yy.c
 )
 
 set(TEST_LIBS ascl CACHE STRING "ascl library")
