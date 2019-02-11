@@ -5,9 +5,9 @@
 package mock_p2p
 
 import (
-	p2p "github.com/aergoio/aergo/p2p"
-	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/golang/mock/gomock"
+	"reflect"
 )
 
 // MockMsgReader is a mock of MsgReader interface
@@ -34,9 +34,9 @@ func (m *MockMsgReader) EXPECT() *MockMsgReaderMockRecorder {
 }
 
 // ReadMsg mocks base method
-func (m *MockMsgReader) ReadMsg() (p2p.Message, error) {
+func (m *MockMsgReader) ReadMsg() (p2pcommon.Message, error) {
 	ret := m.ctrl.Call(m, "ReadMsg")
-	ret0, _ := ret[0].(p2p.Message)
+	ret0, _ := ret[0].(p2pcommon.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -70,7 +70,7 @@ func (m *MockMsgWriter) EXPECT() *MockMsgWriterMockRecorder {
 }
 
 // WriteMsg mocks base method
-func (m *MockMsgWriter) WriteMsg(msg p2p.Message) error {
+func (m *MockMsgWriter) WriteMsg(msg p2pcommon.Message) error {
 	ret := m.ctrl.Call(m, "WriteMsg", msg)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -105,9 +105,9 @@ func (m *MockMsgReadWriter) EXPECT() *MockMsgReadWriterMockRecorder {
 }
 
 // ReadMsg mocks base method
-func (m *MockMsgReadWriter) ReadMsg() (p2p.Message, error) {
+func (m *MockMsgReadWriter) ReadMsg() (p2pcommon.Message, error) {
 	ret := m.ctrl.Call(m, "ReadMsg")
-	ret0, _ := ret[0].(p2p.Message)
+	ret0, _ := ret[0].(p2pcommon.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -118,7 +118,7 @@ func (mr *MockMsgReadWriterMockRecorder) ReadMsg() *gomock.Call {
 }
 
 // WriteMsg mocks base method
-func (m *MockMsgReadWriter) WriteMsg(msg p2p.Message) error {
+func (m *MockMsgReadWriter) WriteMsg(msg p2pcommon.Message) error {
 	ret := m.ctrl.Call(m, "WriteMsg", msg)
 	ret0, _ := ret[0].(error)
 	return ret0

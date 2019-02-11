@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/mocks"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -126,7 +127,7 @@ func TestPolarisConnectSvc_onPing(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -165,7 +166,7 @@ func TestPeerMapService_connectAndQuery(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -174,7 +175,7 @@ func TestPeerMapService_connectAndQuery(t *testing.T) {
 		peerRegistry  map[peer.ID]*peerState
 	}
 	type args struct {
-		mapServerMeta p2p.PeerMeta
+		mapServerMeta p2pcommon.PeerMeta
 		bestHash      []byte
 		bestHeight    uint64
 	}
@@ -214,7 +215,7 @@ func TestPolarisConnectSvc_sendRequest(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -224,7 +225,7 @@ func TestPolarisConnectSvc_sendRequest(t *testing.T) {
 	}
 	type args struct {
 		status        *types.Status
-		mapServerMeta p2p.PeerMeta
+		mapServerMeta p2pcommon.PeerMeta
 		register      bool
 		size          int
 		wt            p2p.MsgWriter
@@ -259,7 +260,7 @@ func TestPolarisConnectSvc_readResponse(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -268,14 +269,14 @@ func TestPolarisConnectSvc_readResponse(t *testing.T) {
 		peerRegistry  map[peer.ID]*peerState
 	}
 	type args struct {
-		mapServerMeta p2p.PeerMeta
+		mapServerMeta p2pcommon.PeerMeta
 		rd            p2p.MsgReader
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    p2p.Message
+		want    p2pcommon.Message
 		want1   *types.MapResponse
 		wantErr bool
 	}{

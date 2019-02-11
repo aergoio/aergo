@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
@@ -39,7 +40,7 @@ func ToMultiAddr(ipAddr net.IP, port uint32) (multiaddr.Multiaddr, error) {
 }
 
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
-func PeerMetaToMultiAddr(m PeerMeta) (multiaddr.Multiaddr, error) {
+func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
 	ipAddr, err := p2putil.GetSingleIPAddress(m.IPAddress)
 	if err != nil {
 		return nil, err
@@ -47,8 +48,8 @@ func PeerMetaToMultiAddr(m PeerMeta) (multiaddr.Multiaddr, error) {
 	return ToMultiAddr(ipAddr, m.Port)
 }
 
-func FromMultiAddr(targetAddr multiaddr.Multiaddr) (PeerMeta, error) {
-	meta := PeerMeta{}
+func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
+	meta := p2pcommon.PeerMeta{}
 	splitted := strings.Split(targetAddr.String(), "/")
 	if len(splitted) != 7 {
 		return meta, fmt.Errorf("invalid NPAddPeer addr format %s", targetAddr.String())
@@ -68,7 +69,7 @@ func FromMultiAddr(targetAddr multiaddr.Multiaddr) (PeerMeta, error) {
 	if err != nil {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
 	}
-	meta = PeerMeta{
+	meta = p2pcommon.PeerMeta{
 		ID:        peerID,
 		Port:      uint32(peerPort),
 		IPAddress: peerAddrString,
@@ -76,10 +77,10 @@ func FromMultiAddr(targetAddr multiaddr.Multiaddr) (PeerMeta, error) {
 	return meta, nil
 }
 
-func ParseMultiAddrString(str string) (PeerMeta, error) {
+func ParseMultiAddrString(str string) (p2pcommon.PeerMeta, error) {
 	ma, err := ParseMultiaddrWithResolve(str)
 	if err != nil {
-		return PeerMeta{}, err
+		return p2pcommon.PeerMeta{}, err
 	}
 	return FromMultiAddr(ma)
 }

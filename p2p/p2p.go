@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 	"path/filepath"
@@ -279,7 +280,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := p2ps.pm.SelfNodeID()
-	peerMetas := make([]PeerMeta, 0, len(peers))
+	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
@@ -288,7 +289,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
-		meta := FromPeerAddress(rPeerAddr)
+		meta := p2pcommon.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {

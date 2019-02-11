@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -19,7 +20,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 	wrongBlock := &types.Block{Hash:nil,
 		Header:&types.BlockHeader{}, Body:&types.BlockBody{}}
 	type args struct {
-		msg     Message
+		msg     p2pcommon.Message
 		msgBody proto.Message
 	}
 	tests := []struct {

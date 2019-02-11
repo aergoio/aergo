@@ -1,4 +1,9 @@
-package p2p
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
+package p2pcommon
 
 import (
 	"strconv"

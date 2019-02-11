@@ -8,16 +8,17 @@ package p2p
 import (
 	"context"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	ifconnmgr "github.com/libp2p/go-libp2p-interface-connmgr"
+	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-interface-connmgr"
 	inet "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	"github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	msmux "github.com/multiformats/go-multistream"
 	"github.com/stretchr/testify/mock"
@@ -99,7 +100,7 @@ type MockPeerManager struct {
 }
 
 // AddNewPeer provides a mock function with given fields: _a0
-func (_m *MockPeerManager) AddNewPeer(_a0 PeerMeta) {
+func (_m *MockPeerManager) AddNewPeer(_a0 p2pcommon.PeerMeta) {
 	_m.Called(_a0)
 }
 
@@ -114,7 +115,7 @@ func (_m *MockPeerManager) NotifyPeerHandshake(_a0 peer.ID) {
 }
 
 // NotifyPeerAddressReceived provides a mock function with given fields: _a0
-func (_m *MockPeerManager) NotifyPeerAddressReceived(_a0 []PeerMeta) {
+func (_m *MockPeerManager) NotifyPeerAddressReceived(_a0 []p2pcommon.PeerMeta) {
 	_m.Called(_a0)
 }
 
@@ -430,14 +431,14 @@ func (_m *MockPeerManager) RemoveStreamHandler(pid protocol.ID) {
 }
 
 // SelfNodeID provides a mock function with given fields:
-func (_m *MockPeerManager) SelfMeta() PeerMeta {
+func (_m *MockPeerManager) SelfMeta() p2pcommon.PeerMeta {
 	ret := _m.Called()
 
-	var r0 PeerMeta
-	if rf, ok := ret.Get(0).(func() PeerMeta); ok {
+	var r0 p2pcommon.PeerMeta
+	if rf, ok := ret.Get(0).(func() p2pcommon.PeerMeta); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(PeerMeta)
+		r0 = ret.Get(0).(p2pcommon.PeerMeta)
 	}
 
 	return r0

@@ -6,11 +6,12 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -28,26 +29,26 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	mockPm := &MockPeerManager{}
 	dummyPeer := &remotePeerImpl{}
 	mockPm.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID == dummyPeerID })).Return(nil, false)
-	mockPm.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
+	mockPm.On("AddNewPeer", mock.AnythingOfType("p2pcommon.PeerMeta"))
 	mockPm2 := &MockPeerManager{}
 	mockPm2.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true)
-	mockPm2.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
+	mockPm2.On("AddNewPeer", mock.AnythingOfType("p2pcommon.PeerMeta"))
 	mockPm3 := &MockPeerManager{}
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(nil, false).Times(2)
 	mockPm3.On("GetPeer", mock.MatchedBy(func(ID peer.ID) bool { return ID != dummyPeerID })).Return(dummyPeer, true).Once()
-	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2p.PeerMeta"))
+	mockPm3.On("AddNewPeer", mock.AnythingOfType("p2pcommon.PeerMeta"))
 
 	dummyRM := newReconnectManager(log.NewLogger("test.p2p"))
 
 	tests := []struct {
 		name        string
 		pm          *MockPeerManager
-		meta        PeerMeta
+		meta        p2pcommon.PeerMeta
 		lookupCount int
 		addCount    int
 	}{
-		{"t1", mockPm2, PeerMeta{ID: "dgewge"}, 1, 0},
-		{"t2", mockPm3, PeerMeta{ID: "dgewge"}, 3, 2},
+		{"t1", mockPm2, p2pcommon.PeerMeta{ID: "dgewge"}, 1, 0},
+		{"t2", mockPm3, p2pcommon.PeerMeta{ID: "dgewge"}, 3, 2},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -61,7 +62,7 @@ func Test_reconnectRunner_runReconnect(t *testing.T) {
 	}
 
 	// testb infinity
-	rr := newReconnectRunner(PeerMeta{ID: dummyPeerID}, dummyRM, mockPm, logger)
+	rr := newReconnectRunner(p2pcommon.PeerMeta{ID: dummyPeerID}, dummyRM, mockPm, logger)
 	dummyRM.jobs[dummyPeerID] = rr
 	go func() {
 		time.Sleep(time.Second)

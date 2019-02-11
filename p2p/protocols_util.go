@@ -5,14 +5,17 @@
 
 package p2p
 
-import "strings"
+import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"strings"
+)
 
-var subProtocolMap map[string]SubProtocol
-var subProtocolCodeMap map[uint32]SubProtocol
+var subProtocolMap map[string]p2pcommon.SubProtocol
+var subProtocolCodeMap map[uint32]p2pcommon.SubProtocol
 
 func init() {
-	subProtocolMap = make(map[string]SubProtocol)
-	subProtocolCodeMap = make(map[uint32]SubProtocol)
+	subProtocolMap = make(map[string]p2pcommon.SubProtocol)
+	subProtocolCodeMap = make(map[uint32]p2pcommon.SubProtocol)
 	for i:=StatusRequest; i<=0x030 ; i++ {
 		if strings.HasPrefix(i.String(),"SubProtocol(") {
 			continue
@@ -22,12 +25,12 @@ func init() {
 	}
 }
 
-func ParseSubProtocol(str string) (SubProtocol, bool) {
+func ParseSubProtocol(str string) (p2pcommon.SubProtocol, bool) {
 	sp, found := subProtocolMap[str]
 	return sp, found
 }
 
-func FindSubProtocol(code uint32) (SubProtocol, bool) {
+func FindSubProtocol(code uint32) (p2pcommon.SubProtocol, bool) {
 	sp, found := subProtocolCodeMap[code]
 	return sp, found
 }

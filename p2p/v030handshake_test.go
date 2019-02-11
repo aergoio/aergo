@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/mock"
 	"reflect"
@@ -52,7 +53,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -121,7 +122,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA := new(MockChainAccessor)
 	mockPM := new(MockPeerManager)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}

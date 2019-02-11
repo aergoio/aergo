@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"strconv"
 	"sync"
@@ -68,11 +69,11 @@ func TestAddrUtil(t *testing.T) {
 func Test_debugLogReceiveMsg(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	peerID, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
-	peer := &remotePeerImpl{meta:PeerMeta{ID:peerID},name: p2putil.ShortForm(peerID)+"@1"}
+	peer := &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: peerID},name: p2putil.ShortForm(peerID)+"@1"}
 	msgID := uuid.Must(uuid.NewV4()).String()
 	dummyArray := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 	type args struct {
-		protocol   SubProtocol
+		protocol   p2pcommon.SubProtocol
 		additional interface{}
 	}
 	tests := []struct {

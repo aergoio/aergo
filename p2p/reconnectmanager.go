@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 
@@ -10,7 +11,7 @@ import (
 
 // ReconnectManager manage reconnect job schedule
 type ReconnectManager interface {
-	AddJob(meta PeerMeta)
+	AddJob(meta p2pcommon.PeerMeta)
 	// CancelJob cancel from outer module to reconnectRunner
 	CancelJob(pid peer.ID)
 	// jobFinished remove reconnectRunner, which finish job for itself.
@@ -35,7 +36,7 @@ func newReconnectManager(logger *log.Logger) *reconnectManager {
 }
 
 // AddJob add jobber to reconnect peer.
-func (rm *reconnectManager) AddJob(meta PeerMeta) {
+func (rm *reconnectManager) AddJob(meta p2pcommon.PeerMeta) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 	if _, exist := rm.jobs[meta.ID]; exist || rm.stop {

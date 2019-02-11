@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -26,7 +27,7 @@ type PolarisConnectSvc struct {
 
 	PrivateChain bool
 
-	mapServers []p2p.PeerMeta
+	mapServers []p2pcommon.PeerMeta
 	exposeself bool
 
 	ntc    p2p.NTContainer
@@ -146,7 +147,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 	return resp
 }
 
-func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
+func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
 	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, PolarisMapSub, PolarisConnectionTTL)
 	if err != nil {
 		return nil, err
@@ -179,8 +180,8 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2p.PeerMeta, bestHa
 	return nil, fmt.Errorf("remote error %s", resp.Status.String())
 }
 
-func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2p.PeerMeta, register bool, size int, wt p2p.MsgWriter) error {
-	msgID := p2p.NewMsgID()
+func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2p.MsgWriter) error {
+	msgID := p2pcommon.NewMsgID()
 	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
 	respMsg, err := createV030Message(msgID, EmptyMsgID, MapQuery, queryReq)
 	if err != nil {
@@ -192,7 +193,7 @@ func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2p.PeerMeta, rd p2p.MsgReader) (p2p.Message, *types.MapResponse, error) {
+func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd p2p.MsgReader) (p2pcommon.Message, *types.MapResponse, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -225,7 +226,7 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 	}
 	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
 	pingResp := &types.Ping{}
-	msgID := p2p.NewMsgID()
+	msgID := p2pcommon.NewMsgID()
 	respMsg, err := createV030Message(msgID, req.ID(), p2p.PingResponse, pingResp)
 	if err != nil {
 		return

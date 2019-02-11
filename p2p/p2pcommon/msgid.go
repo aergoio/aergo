@@ -1,4 +1,9 @@
-package p2p
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
+package p2pcommon
 
 import (
 	"fmt"
@@ -16,7 +21,6 @@ func NewMsgID() (m MsgID) {
 
 var (
 	EmptyID = MsgID(uuid.Nil)
-
 )
 
 func ParseBytesToMsgID(b []byte) (MsgID, error) {
@@ -24,13 +28,13 @@ func ParseBytesToMsgID(b []byte) (MsgID, error) {
 	if b == nil || len(b) != IDLength {
 		return m, fmt.Errorf("wrong format")
 	}
-	copy(m[:],b)
+	copy(m[:], b)
 	return m, nil
 }
 
 // MustParseBytes return msgid from byte slice
 func MustParseBytes(b []byte) MsgID {
-	if m, err := ParseBytesToMsgID(b) ; err == nil {
+	if m, err := ParseBytesToMsgID(b); err == nil {
 		return m
 	} else {
 		panic(err)
@@ -43,19 +47,4 @@ func (id MsgID) UUID() uuid.UUID {
 
 func (id MsgID) String() string {
 	return uuid.Must(uuid.FromBytes(id[:])).String()
-}
-//
-type Message interface {
-	Subprotocol() SubProtocol
-
-	// Length is lenght of payload
-	Length() uint32
-	Timestamp() int64
-	// ID is 16 bytes unique identifier
-	ID() MsgID
-	// OriginalID is message id of request which trigger this message. it will be all zero, if message is request or notice.
-	OriginalID() MsgID
-
-	// marshaled by google protocol buffer v3. object is determined by Subprotocol
-	Payload() []byte
 }

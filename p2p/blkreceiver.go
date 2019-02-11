@@ -8,6 +8,7 @@ package p2p
 import (
 	"bytes"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	"time"
@@ -16,7 +17,7 @@ import (
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type BlocksChunkReceiver struct {
-	requestID MsgID
+	requestID p2pcommon.MsgID
 
 	peer RemotePeer
 	actor ActorService
@@ -47,7 +48,7 @@ func (br *BlocksChunkReceiver) StartGet() {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *BlocksChunkReceiver) ReceiveResp(msg Message, msgBody proto.Message) (ret bool) {
+func (br *BlocksChunkReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
 	ret = true
 	// timeout
 	if br.finished || br.timeout.Before(time.Now()) {

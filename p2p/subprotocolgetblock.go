@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	"time"
@@ -42,7 +43,7 @@ const (
 	EmptyGetBlockResponseSize = 12 // roughly estimated maximum size if element is full
 )
 
-func (bh *blockRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *blockRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
 	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, len(data.Hashes))
@@ -133,7 +134,7 @@ func (bh *blockResponseHandler) parsePayload(rawbytes []byte) (proto.Message, er
 	return unmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *blockResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {

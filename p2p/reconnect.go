@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"math"
 	"time"
 
@@ -22,7 +23,7 @@ func init() {
 }
 
 type reconnectJob struct {
-	meta   PeerMeta
+	meta   p2pcommon.PeerMeta
 	trial  int
 	rm     ReconnectManager
 	pm     PeerManager
@@ -31,7 +32,7 @@ type reconnectJob struct {
 	cancel chan struct{}
 }
 
-func newReconnectRunner(meta PeerMeta, rm ReconnectManager, pm PeerManager, logger *log.Logger) *reconnectJob {
+func newReconnectRunner(meta p2pcommon.PeerMeta, rm ReconnectManager, pm PeerManager, logger *log.Logger) *reconnectJob {
 	return &reconnectJob{meta: meta, trial: 0, rm: rm, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
 }
 func (rj *reconnectJob) runJob() {

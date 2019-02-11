@@ -8,6 +8,7 @@ package p2p
 import (
 	"bufio"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"time"
 
 	"github.com/aergoio/aergo/types"
@@ -25,11 +26,11 @@ type pbMessage interface {
 
 type pbMessageOrder struct {
 	// reqID means that this message is response of the request of ID. Set empty if the messge is request.
-	request         bool
-	needSign        bool
-	protocolID      SubProtocol // protocolName and msg struct type MUST be matched.
+	request    bool
+	needSign   bool
+	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.
 
-	message Message
+	message p2pcommon.Message
 }
 
 var _ msgOrder = (*pbRequestOrder)(nil)
@@ -45,7 +46,7 @@ func setupMessageData(md *types.MsgHeader, reqID string, version string, ts int6
 	md.Timestamp = ts
 }
 
-func (pr *pbMessageOrder) GetMsgID() MsgID {
+func (pr *pbMessageOrder) GetMsgID() p2pcommon.MsgID {
 	return pr.message.ID()
 }
 
@@ -61,7 +62,7 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 	return pr.needSign
 }
 
-func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
+func (pr *pbMessageOrder) GetProtocolID() p2pcommon.SubProtocol {
 	return pr.protocolID
 }
 

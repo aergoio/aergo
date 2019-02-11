@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -42,7 +43,7 @@ const (
 )
 
 var (
-	EmptyMsgID = p2p.MsgID(uuid.Nil)
+	EmptyMsgID = p2pcommon.MsgID(uuid.Nil)
 )
 
 var (
@@ -75,7 +76,7 @@ func init() {
 
 type mapService interface {
 	getPeerCheckers() []peerChecker
-	registerPeer(receivedMeta p2p.PeerMeta) error
+	registerPeer(receivedMeta p2pcommon.PeerMeta) error
 	unregisterPeer(peerID peer.ID)
 }
 
@@ -147,7 +148,7 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 func (pms *PeerMapService) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
-	remotePeerMeta := p2p.PeerMeta{ID: peerID}
+	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
 	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
@@ -181,7 +182,7 @@ func (pms *PeerMapService) onConnect(s inet.Stream) {
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pms *PeerMapService) readRequest(meta p2p.PeerMeta, rd p2p.MsgReader) (p2p.Message, *types.MapQuery, error) {
+func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2p.MsgReader) (p2pcommon.Message, *types.MapQuery, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -196,11 +197,11 @@ func (pms *PeerMapService) readRequest(meta p2p.PeerMeta, rd p2p.MsgReader) (p2p
 }
 
 // handleQuery check query parameters, return registered peers, and register this peer if requested.
-func (pms *PeerMapService) handleQuery(container p2p.Message, query *types.MapQuery) (*types.MapResponse, error) {
+func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types.MapQuery) (*types.MapResponse, error) {
 	if query.Status == nil {
 		return nil, fmt.Errorf("malformed query %v", query)
 	}
-	receivedMeta := p2p.FromPeerAddress(query.Status.Sender)
+	receivedMeta := p2pcommon.FromPeerAddress(query.Status.Sender)
 	maxPeers := int(query.Size)
 	if maxPeers <= 0 {
 		return nil, fmt.Errorf("invalid argument count %d", maxPeers)
@@ -263,7 +264,7 @@ func (pms *PeerMapService) retrieveList(maxPeers int, exclude peer.ID) []*types.
 	return list
 }
 
-func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
+func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
 	peerID := receivedMeta.ID
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
@@ -292,8 +293,8 @@ func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
 
 }
 
-func (pms *PeerMapService) writeResponse(reqContainer p2p.Message, meta p2p.PeerMeta, resp *types.MapResponse, wt p2p.MsgWriter) error {
-	msgID := p2p.NewMsgID()
+func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2p.MsgWriter) error {
+	msgID := p2pcommon.NewMsgID()
 	respMsg, err := createV030Message(msgID, reqContainer.ID(), MapResponse, resp)
 	if err != nil {
 		return err
@@ -303,7 +304,7 @@ func (pms *PeerMapService) writeResponse(reqContainer p2p.Message, meta p2p.Peer
 }
 
 // TODO code duplication. it can result in a bug.
-func createV030Message(msgID, orgID p2p.MsgID, subProtocol p2p.SubProtocol, innerMsg proto.Message) (*p2p.V030Message, error) {
+func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubProtocol, innerMsg proto.Message) (*p2p.V030Message, error) {
 	bytes, err := p2p.MarshalMessage(innerMsg)
 	if err != nil {
 		return nil, err
@@ -348,7 +349,7 @@ func (pms *PeerMapService) onPing(s inet.Stream) {
 	}
 	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
 	pingResp := &types.Ping{}
-	msgID := p2p.NewMsgID()
+	msgID := p2pcommon.NewMsgID()
 	respMsg, err := createV030Message(msgID, req.ID(), p2p.PingResponse, pingResp)
 	if err != nil {
 		return
@@ -412,9 +413,9 @@ func (pms *PeerMapService) getPeerCheckers() []peerChecker {
 	return newSlice
 }
 
-func makeGoAwayMsg(message string) (p2p.Message, error) {
+func makeGoAwayMsg(message string) (p2pcommon.Message, error) {
 	awayMsg := &types.GoAwayNotice{Message: message}
-	msgID := p2p.NewMsgID()
+	msgID := p2pcommon.NewMsgID()
 	return createV030Message(msgID, EmptyMsgID, p2p.GoAway, awayMsg)
 }
 
@@ -443,7 +444,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 	return sameChain, nil
 }
 
-func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
+func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
 	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
 		pms.Logger.Debug().Str("peer_meta", meta.String()).Msg("peer is private address")
 		return false

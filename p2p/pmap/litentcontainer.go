@@ -7,6 +7,7 @@ package pmap
 
 import (
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"sync"
 	"time"
 
@@ -122,13 +123,13 @@ func (lntc *LiteContainerService) Receive(context actor.Context) {
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := lntc.nt.SelfNodeID()
-	peerMetas := make([]p2p.PeerMeta, 0, len(peers))
+	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
-		meta := p2p.FromPeerAddress(rPeerAddr)
+		meta := p2pcommon.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 }

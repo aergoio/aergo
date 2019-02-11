@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ func init() {
 
 type RemotePeer interface {
 	ID() peer.ID
-	Meta() PeerMeta
+	Meta() p2pcommon.PeerMeta
 	ManageNumber() uint32
 	Name() string
 
@@ -46,8 +47,8 @@ type RemotePeer interface {
 	pushTxsNotice(txHashes []types.TxID)
 	// utility method
 
-	consumeRequest(msgID MsgID)
-	GetReceiver(id MsgID) ResponseReceiver
+	consumeRequest(msgID p2pcommon.MsgID)
+	GetReceiver(id p2pcommon.MsgID) ResponseReceiver
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
 	updateBlkCache(blkHash []byte, blkNumber uint64) bool
@@ -74,9 +75,9 @@ type requestInfo struct {
 
 // ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
 // NOTE: the return value is temporal works for old implementation and will be remove later.
-type ResponseReceiver func(msg Message, msgBody proto.Message) bool
+type ResponseReceiver func(msg p2pcommon.Message, msgBody proto.Message) bool
 
-func dummyResponseReceiver(msg Message, msgBody proto.Message) bool {
+func dummyResponseReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
 	return false
 }
 
@@ -86,7 +87,7 @@ type remotePeerImpl struct {
 	pingDuration time.Duration
 
 	manageNum uint32
-	meta      PeerMeta
+	meta      p2pcommon.PeerMeta
 	name      string
 	state     types.PeerState
 	actorServ ActorService
@@ -102,10 +103,10 @@ type remotePeerImpl struct {
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
-	requests map[MsgID]*requestInfo
+	requests map[p2pcommon.MsgID]*requestInfo
 	reqMutex *sync.Mutex
 
-	handlers map[SubProtocol]MessageHandler
+	handlers map[p2pcommon.SubProtocol]MessageHandler
 
 	// TODO make automatic disconnect if remote peer cause too many wrong message
 
@@ -124,7 +125,7 @@ type remotePeerImpl struct {
 var _ RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta PeerMeta, manageNum uint32, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, s net.Stream, rw MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm PeerManager, actor ActorService, log *log.Logger, mf moFactory, signer msgSigner, s net.Stream, rw MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
 		meta: meta, manageNum:manageNum, pm: pm,
 		name: fmt.Sprintf("%s#%d", p2putil.ShortForm(meta.ID),manageNum),
@@ -136,10 +137,10 @@ func newRemotePeer(meta PeerMeta, manageNum uint32, pm PeerManager, actor ActorS
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
-		requests: make(map[MsgID]*requestInfo),
+		requests: make(map[p2pcommon.MsgID]*requestInfo),
 		reqMutex: &sync.Mutex{},
 
-		handlers: make(map[SubProtocol]MessageHandler),
+		handlers: make(map[p2pcommon.SubProtocol]MessageHandler),
 
 		txQueueLock:         &sync.Mutex{},
 		txNoticeQueue:       p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
@@ -166,7 +167,7 @@ func (p *remotePeerImpl) ID() peer.ID {
 	return p.meta.ID
 }
 
-func (p *remotePeerImpl) Meta() PeerMeta {
+func (p *remotePeerImpl) Meta() p2pcommon.PeerMeta {
 	return p.meta
 }
 
@@ -288,7 +289,7 @@ func (p *remotePeerImpl) runRead() {
 	}
 }
 
-func (p *remotePeerImpl) handleMsg(msg Message) error {
+func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	var err error
 	subProto := msg.Subprotocol()
 	defer func() {
@@ -390,18 +391,18 @@ func (p *remotePeerImpl) pushTxsNotice(txHashes []types.TxID) {
 }
 
 // consumeRequest remove request from request history.
-func (p *remotePeerImpl) consumeRequest(originalID MsgID) {
+func (p *remotePeerImpl) consumeRequest(originalID p2pcommon.MsgID) {
 	p.reqMutex.Lock()
 	delete(p.requests, originalID)
 	p.reqMutex.Unlock()
 }
 
-func (p *remotePeerImpl) notFoundReceiver(msg Message, msgBody proto.Message) bool {
+func (p *remotePeerImpl) notFoundReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
 //	p.logger.Debug().Str(LogPeerName, p.Name()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
 	return false
 }
 
-func (p *remotePeerImpl) GetReceiver(originalID MsgID) ResponseReceiver {
+func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) ResponseReceiver {
 	p.reqMutex.Lock()
 	defer p.reqMutex.Unlock()
 	req, found := p.requests[originalID]
@@ -413,7 +414,7 @@ func (p *remotePeerImpl) GetReceiver(originalID MsgID) ResponseReceiver {
 
 func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
 	// check address. and apply current
-	receivedMeta := FromPeerAddress(statusMsg.Sender)
+	receivedMeta := p2pcommon.FromPeerAddress(statusMsg.Sender)
 	p.meta.IPAddress = receivedMeta.IPAddress
 	p.meta.Port = receivedMeta.Port
 }

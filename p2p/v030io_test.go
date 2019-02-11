@@ -10,9 +10,10 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 	"github.com/gofrs/uuid"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
@@ -30,7 +31,7 @@ func init() {
 }
 
 func Test_ReadWrite(t *testing.T) {
-	var sampleID MsgID
+	var sampleID p2pcommon.MsgID
 	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 
@@ -95,7 +96,7 @@ func TestV030Writer_WriteError(t *testing.T) {
 
 
 func BenchmarkV030Writer_WriteMsg(b *testing.B) {
-	var sampleID MsgID
+	var sampleID p2pcommon.MsgID
 	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 	timestamp := time.Now().UnixNano()
@@ -141,7 +142,7 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 
 
 func BenchmarkV030Reader_ReadMsg(b *testing.B) {
-	var sampleID MsgID
+	var sampleID p2pcommon.MsgID
 	sampleUUID, _ := uuid.NewV4()
 	copy(sampleID[:], sampleUUID[:])
 	timestamp := time.Now().UnixNano()

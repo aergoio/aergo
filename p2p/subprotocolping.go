@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -41,7 +42,7 @@ func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.Ping{})
 }
 
-func (ph *pingRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (ph *pingRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, fmt.Sprintf("blockHash=%s blockNo=%d",enc.ToString(pingData.BestBlockHash),pingData.BestHeight))
@@ -67,7 +68,7 @@ func (ph *pingResponseHandler) parsePayload(rawbytes []byte) (proto.Message, err
 	return unmarshalAndReturn(rawbytes, &types.Pong{})
 }
 
-func (ph *pingResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (ph *pingResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
@@ -84,7 +85,7 @@ func (ph *goAwayHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
 	return unmarshalAndReturn(rawbytes, &types.GoAwayNotice{})
 }
 
-func (ph *goAwayHandler) handle(msg Message, msgBody proto.Message) {
+func (ph *goAwayHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	data := msgBody.(*types.GoAwayNotice)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), ph.peer, data.Message)
 

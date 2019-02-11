@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
@@ -19,7 +20,6 @@ const (
 	P2PVersion030 uint32 = 0x00000300
 
 	SigLength = 16
-	IDLength = 16
 
 	MaxPayloadLength = 1 << 23  // 8MB
 
@@ -32,13 +32,9 @@ const (
 	aergoP2PSub   protocol.ID = "/aergop2p/0.3"
 )
 
-
-// SubProtocol identifies the lower type of p2p message
-type SubProtocol uint32
-
 // NOTE: change const of protocols_test.go
 const (
-	_ SubProtocol = 0x00 + iota
+	_ p2pcommon.SubProtocol = 0x00 + iota
 	StatusRequest
 	PingRequest
 	PingResponse
@@ -47,7 +43,7 @@ const (
 	AddressesResponse
 )
 const (
-	GetBlocksRequest SubProtocol = 0x010 + iota
+	GetBlocksRequest p2pcommon.SubProtocol = 0x010 + iota
 	GetBlocksResponse
 	GetBlockHeadersRequest
 	GetBlockHeadersResponse
@@ -62,7 +58,7 @@ const (
 	GetHashByNoResponse
 )
 const (
-	GetTXsRequest SubProtocol = 0x020 + iota
+	GetTXsRequest p2pcommon.SubProtocol = 0x020 + iota
 	GetTXsResponse
 	NewTxNotice
 )
@@ -70,12 +66,8 @@ const (
 // subprotocols for block producers and their own trusted nodes
 const (
 	// BlockProducedNotice from block producer to trusted nodes and other bp nodes
-	BlockProducedNotice SubProtocol = 0x030 + iota
+	BlockProducedNotice p2pcommon.SubProtocol = 0x030 + iota
 )
 
 //go:generate stringer -type=SubProtocol
-
-func (i SubProtocol) Uint32() uint32 {
-	return uint32(i)
-}
 

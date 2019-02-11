@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -34,7 +35,7 @@ func (bh *getHashRequestHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.GetHashesRequest{})
 }
 
-func (bh *getHashRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getHashRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesRequest)
 	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -127,7 +128,7 @@ func (bh *getHashResponseHandler) parsePayload(rawbytes []byte) (proto.Message, 
 }
 
 
-func (bh *getHashResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getHashResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesResponse)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("blk_cnt=%d,hasNext=%t",len(data.Hashes),data.HasNext) )
@@ -158,7 +159,7 @@ func (bh *getHashByNoRequestHandler) parsePayload(rawbytes []byte) (proto.Messag
 }
 
 
-func (bh *getHashByNoRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getHashByNoRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashByNo)
 	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -194,7 +195,7 @@ func (bh *getHashByNoResponseHandler) parsePayload(rawbytes []byte) (proto.Messa
 }
 
 
-func (bh *getHashByNoResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getHashByNoResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetHashByNoResponse)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("%s=%s",LogBlkHash,enc.ToString(data.BlockHash)) )
 

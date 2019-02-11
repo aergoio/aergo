@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"net"
 	"os"
 	"path/filepath"
@@ -81,7 +82,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := PeerMeta{
+			m := p2pcommon.PeerMeta{
 				ID:        tt.fields.ID,
 				IPAddress: tt.fields.IPAddress,
 				Port:      tt.fields.Port,

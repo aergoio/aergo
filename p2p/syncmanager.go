@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
 	"sync"
@@ -21,7 +22,7 @@ type SyncManager interface {
 	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
 	// handle notice from other node
 	HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice)
-	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
+	HandleGetBlockResponse(peer RemotePeer, msg p2pcommon.Message, resp *types.GetBlockResponse)
 	HandleNewTxNotice(peer RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice)
 }
 
@@ -100,7 +101,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBloc
 }
 // HandleGetBlockResponse handle when remote peer send a block information.
 // TODO this method will be removed after newer syncer is developed
-func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse) {
+func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg p2pcommon.Message, resp *types.GetBlockResponse) {
 	blocks := resp.Blocks
 	peerID := peer.ID()
 

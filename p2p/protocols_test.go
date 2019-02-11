@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ func TestParseSubProtocol(t *testing.T) {
 	actualCount := 0
 
 	for i:=0 ; i < lastVal ; i++ {
-		input := SubProtocol(i)
+		input := p2pcommon.SubProtocol(i)
 		str := input.String()
 
 		actual, found := ParseSubProtocol(str)

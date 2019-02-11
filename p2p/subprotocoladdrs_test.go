@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/mock"
@@ -24,7 +25,7 @@ func init() {
 		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		peerid, _ := peer.IDFromPublicKey(pub)
 		// first 10 are visible, others are hidden
-		meta := PeerMeta{ID: peerid, Hidden:i>=10}
+		meta := p2pcommon.PeerMeta{ID: peerid, Hidden:i>=10}
 		samplePeer := &remotePeerImpl{meta:meta}
 		samplePeers[i] = samplePeer
 	}
@@ -42,7 +43,7 @@ func MakeSenderSlice(slis ...[]RemotePeer) []RemotePeer {
 
 func Test_addressesRequestHandler_handle(t *testing.T) {
 	dummySender := &types.PeerAddress{PeerID:[]byte(dummyPeerID),Port:7845}
-	senderPeer := &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID2}}
+	senderPeer := &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}}
 	tests := []struct {
 		name   string
 		gotPeers []RemotePeer
@@ -72,7 +73,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 					return len(p0.Peers) == tt.wantSize
 				})).Return(dummyMo)
 			ph := newAddressesReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &V030Message{id:NewMsgID()}
+			dummyMsg := &V030Message{id: p2pcommon.NewMsgID()}
 			msgBody := &types.AddressesRequest{Sender:dummySender, MaxSize:50}
 			ph.handle(dummyMsg, msgBody)
 
@@ -102,7 +103,7 @@ func Test_addressesResponseHandler_handle(t *testing.T) {
 		BaseMsgHandler BaseMsgHandler
 	}
 	type args struct {
-		msg     Message
+		msg     p2pcommon.Message
 		msgBody proto.Message
 	}
 	tests := []struct {

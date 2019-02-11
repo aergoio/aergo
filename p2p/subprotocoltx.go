@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -43,7 +44,7 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
 }
 
-func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (th *txRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 
 	remotePeer := th.peer
 	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
@@ -139,7 +140,7 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 	return unmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
 }
 
-func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (th *txResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetTransactionsResponse)
 	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
@@ -164,7 +165,7 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 	return unmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
 }
 
-func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
+func (th *newTxNoticeHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := th.peer
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log

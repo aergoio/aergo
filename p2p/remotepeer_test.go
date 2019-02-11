@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -30,7 +31,7 @@ import (
 const testDuration = time.Second >> 1
 
 var samplePeerID peer.ID
-var sampleMeta PeerMeta
+var sampleMeta p2pcommon.PeerMeta
 var sampleErr error
 
 var logger *log.Logger
@@ -40,7 +41,7 @@ func init() {
 
 	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
-	sampleMeta = PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 }
 
 // TODO refactor rw and modify this test
@@ -50,7 +51,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	dummyP2PServ := new(MockPeerManager)
 	mockMF := new(MockMoFactory)
 	dummyRW := new(MockMsgReadWriter)
-	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
+	target := newRemotePeer(p2pcommon.PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
@@ -64,7 +65,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 
 func TestRemotePeer_writeToPeer(t *testing.T) {
 	rand := uuid.Must(uuid.NewV4())
-	var sampleMsgID MsgID
+	var sampleMsgID p2pcommon.MsgID
 	copy(sampleMsgID[:], rand[:])
 	type args struct {
 		StreamResult error
@@ -123,7 +124,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 func TestRemotePeer_sendPing(t *testing.T) {
 	t.Skip("Send ping is not used for now, and will be reused after")
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
+	sampleSelf := p2pcommon.PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
@@ -188,7 +189,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 
 		p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
 		t.Run(tt.name, func(t *testing.T) {
-			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
+			mid1, mid2, midn := p2pcommon.NewMsgID(), p2pcommon.NewMsgID(), p2pcommon.NewMsgID()
 			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid1}}, nil}}
 			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid2}}, nil}}
 			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: midn}}, nil}}
@@ -202,7 +203,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 func TestRemotePeer_sendMessage(t *testing.T) {
 
 	type args struct {
-		msgID    MsgID
+		msgID    p2pcommon.MsgID
 		protocol protocol.ID
 		timeout  time.Duration
 	}
@@ -211,8 +212,8 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 		args    args
 		timeout bool
 	}{
-		{"TSucc", args{NewMsgID(), "p1", time.Millisecond * 100}, false},
-		{"TTimeout", args{NewMsgID(), "p1", time.Millisecond * 100}, true},
+		{"TSucc", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, false},
+		{"TTimeout", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -264,7 +265,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 }
 
 func TestRemotePeer_handleMsg(t *testing.T) {
-	sampleMsgID := NewMsgID()
+	sampleMsgID := p2pcommon.NewMsgID()
 	mockMO := new(MockMsgOrder)
 	mockMO.On("GetMsgID").Return(sampleMsgID)
 	mockMO.On("Subprotocol").Return(PingRequest)
@@ -296,7 +297,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := new(MockMessage)
 			if tt.args.nohandler {
-				msg.On("Subprotocol").Return(SubProtocol(3999999999))
+				msg.On("Subprotocol").Return(p2pcommon.SubProtocol(3999999999))
 			} else {
 				msg.On("Subprotocol").Return(PingRequest)
 			}
@@ -362,7 +363,7 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 			mockOrder.On("IsNeedSign").Return(true)
 			mockOrder.On("IsRequest", mockPeerManager).Return(true)
 			mockOrder.On("GetProtocolID").Return(NewTxNotice)
-			mockOrder.On("GetMsgID").Return(NewMsgID())
+			mockOrder.On("GetMsgID").Return(p2pcommon.NewMsgID())
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
 
@@ -474,7 +475,7 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 			mockMO.On("IsNeedSign").Return(true)
 			mockMO.On("IsRequest", mockPeerManager).Return(true)
 			mockMO.On("GetProtocolID").Return(NewTxNotice)
-			mockMO.On("GetMsgID").Return(NewMsgID())
+			mockMO.On("GetMsgID").Return(p2pcommon.NewMsgID())
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockMO)
 
@@ -494,11 +495,11 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 
 func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	idSize := 10
-	idList := make([]MsgID, idSize)
-	recvList := make(map[MsgID]ResponseReceiver)
+	idList := make([]p2pcommon.MsgID, idSize)
+	recvList := make(map[p2pcommon.MsgID]ResponseReceiver)
 	for i := 0; i < idSize; i++ {
-		idList[i] = NewMsgID()
-		recvList[idList[i]] = func(msg Message, msgBody proto.Message) bool {
+		idList[i] = p2pcommon.NewMsgID()
+		recvList[idList[i]] = func(msg p2pcommon.Message, msgBody proto.Message) bool {
 			logger.Debug().Int("seq", i).Msg("receiver called")
 			return true
 		}
@@ -506,14 +507,14 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	// GetReceiver should not return nil and consumeRequest must be thread-safe
 	tests := []struct {
 		name      string
-		toAdd     []MsgID
-		inID      MsgID
+		toAdd     []p2pcommon.MsgID
+		inID      p2pcommon.MsgID
 		contained bool
 	}{
 		// 1. not anything
 		{"TEmpty", idList[1:10], idList[0], false},
 		// 2. have request history but no receiver
-		{"TNOReceiver", idList[1:10], NewMsgID(), false},
+		{"TNOReceiver", idList[1:10], p2pcommon.NewMsgID(), false},
 		// 3. have request history with receiver
 		{"THave", idList[1:10], idList[1], true},
 		// 4. have multiple receivers
@@ -531,7 +532,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
-			dummyMsg := &V030Message{id: NewMsgID(), originalID: test.inID}
+			dummyMsg := &V030Message{id: p2pcommon.NewMsgID(), originalID: test.inID}
 			assert.Equal(t, test.contained, actual(dummyMsg, nil))
 
 			p.consumeRequest(test.inID)

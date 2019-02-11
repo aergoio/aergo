@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
@@ -116,5 +117,5 @@ func init() {
 	dummyMo.On("IsNeedSign").Return(true)
 	dummyMo.On("IsRequest").Return(true)
 	dummyMo.On("GetProtocolID").Return(NewTxNotice)
-	dummyMo.On("GetMsgID").Return(NewMsgID())
+	dummyMo.On("GetMsgID").Return(p2pcommon.NewMsgID())
 }

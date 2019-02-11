@@ -8,6 +8,7 @@ package p2p
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	"github.com/magiconair/properties/assert"
@@ -69,7 +70,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			})).Return(nil, nil)
 
 			h:=newBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &V030Message{id:NewMsgID()}
+			dummyMsg := &V030Message{id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes:make([][]byte, test.hashCnt)}
 			h.handle(dummyMsg, msgBody)
 
@@ -83,7 +84,7 @@ type testDoubleFactory struct {
 	v030MOFactory
 	lastStatus types.ResultStatus
 }
-func (f *testDoubleFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
+func (f *testDoubleFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
 	f.lastStatus = message.(*types.GetBlockResponse).Status
 	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
 }
@@ -110,7 +111,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 		// 1. not exist receiver and consumed message
 		//{"Tnothing",nil, true},
 		// 2. exist receiver and consume successfully
-		{"TexistAndConsume", func(msg Message, body proto.Message) bool {
+		{"TexistAndConsume", func(msg p2pcommon.Message, body proto.Message) bool {
 			return true
 		}, true, false},
 		// 2. exist receiver but not consumed
@@ -122,12 +123,12 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 			mockPM := new(MockPeerManager)
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("consumeRequest", mock.AnythingOfType("p2p.MsgID"))
+			mockPeer.On("consumeRequest", mock.AnythingOfType("p2pcommon.MsgID"))
 			mockActor := new(MockActorService)
 			mockSM := new(MockSyncManager)
 			mockSM.On("HandleGetBlockResponse",mockPeer, mock.Anything, mock.AnythingOfType("*types.GetBlockResponse"))
 
-			mockPeer.On("GetReceiver", mock.AnythingOfType("p2p.MsgID")).Return(test.receiver)
+			mockPeer.On("GetReceiver", mock.AnythingOfType("p2pcommon.MsgID")).Return(test.receiver)
 			msg := &V030Message{subProtocol:GetBlocksResponse, id: sampleMsgID}
 			body := &types.GetBlockResponse{Blocks:make([]*types.Block,2)}
 			h := newBlockRespHandler(mockPM, mockPeer, logger, mockActor, mockSM)

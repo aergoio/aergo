@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -35,8 +36,8 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	target.Host = &mockHost{peerstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
 	target.selfMeta.ID = peer.ID("gwegw")
 
-	sampleAddr1 := PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
-	sampleAddr2 := PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
+	sampleAddr1 := p2pcommon.PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
+	sampleAddr2 := p2pcommon.PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
 	target.GetOrCreateStream(sampleAddr1, aergoP2PSub)
 	target.GetOrCreateStream(sampleAddr1, aergoP2PSub)
 	time.Sleep(time.Second)

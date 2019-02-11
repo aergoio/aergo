@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"sync"
@@ -28,8 +29,8 @@ const (
 type peerState struct {
 	*PeerMapService
 
-	meta p2p.PeerMeta
-	addr types.PeerAddress
+	meta      p2pcommon.PeerMeta
+	addr      types.PeerAddress
 	connected time.Time
 
 	// temporary means it does not affect current peerregistry. TODO refactor more pretty way
@@ -93,10 +94,10 @@ func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 }
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
-func (hc *peerState) sendPing(wt p2p.MsgWriter) (p2p.MsgID, error) {
+func (hc *peerState) sendPing(wt p2p.MsgWriter) (p2pcommon.MsgID, error) {
 	// find my best block
 	ping := &types.Ping{}
-	msgID := p2p.NewMsgID()
+	msgID := p2pcommon.NewMsgID()
 	pingMsg, err := createV030Message(msgID, EmptyMsgID, p2p.PingRequest, ping)
 	if err != nil {
 		hc.Logger.Warn().Err(err).Msg("failed to create ping message")
@@ -114,7 +115,7 @@ func (hc *peerState) sendPing(wt p2p.MsgWriter) (p2p.MsgID, error) {
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (hc *peerState) receivePingResp(reqID p2p.MsgID, rd p2p.MsgReader) (p2p.Message, *types.Ping, error) {
+func (hc *peerState) receivePingResp(reqID p2pcommon.MsgID, rd p2p.MsgReader) (p2pcommon.Message, *types.Ping, error) {
 	resp, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err

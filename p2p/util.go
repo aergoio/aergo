@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"net"
 	"reflect"
 	"time"
@@ -156,7 +157,7 @@ func externalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peer RemotePeer, additional interface{}) {
+func debugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
 		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a message")
@@ -166,7 +167,7 @@ func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, 
 	}
 }
 
-func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peer RemotePeer, additional interface{}) {
+func debugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
 		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a response message")

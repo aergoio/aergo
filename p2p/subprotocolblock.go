@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -56,7 +57,7 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
 	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -119,7 +120,7 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 	return unmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, len(data.Hashes))
@@ -140,7 +141,7 @@ func (bh *newBlockNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, e
 	return unmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *newBlockNoticeHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
 	// remove to verbose log
@@ -180,7 +181,7 @@ func (bh *getAncestorRequestHandler) parsePayload(rawbytes []byte) (proto.Messag
 	return unmarshalAndReturn(rawbytes, &types.GetAncestorRequest{})
 }
 
-func (bh *getAncestorRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getAncestorRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorRequest)
 	status := types.ResultStatus_OK
@@ -228,7 +229,7 @@ func (bh *getAncestorResponseHandler) parsePayload(rawbytes []byte) (proto.Messa
 	return unmarshalAndReturn(rawbytes, &types.GetAncestorResponse{})
 }
 
-func (bh *getAncestorResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *getAncestorResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorResponse)
 	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))

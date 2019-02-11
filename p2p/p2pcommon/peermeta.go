@@ -1,15 +1,13 @@
-/**
- *  @file
- *  @copyright defined in aergo/LICENSE.txt
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package p2pcommon
 
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"time"
-
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -23,8 +21,8 @@ type PeerMeta struct {
 	Port       uint32
 	Designated bool // Designated means this peer is designated in config file and connect to in startup phase
 
-	Hidden    bool // Hidden means that meta info of this peer will not be sent to other peers when getting peer list
-	Outbound   bool
+	Hidden   bool // Hidden means that meta info of this peer will not be sent to other peers when getting peer list
+	Outbound bool
 }
 
 func (m PeerMeta) String() string {
@@ -43,12 +41,4 @@ func (m PeerMeta) ToPeerAddress() types.PeerAddress {
 	addr := types.PeerAddress{Address: m.IPAddress, Port: m.Port,
 		PeerID: []byte(m.ID)}
 	return addr
-}
-
-// TTL return node's ttl
-func (m PeerMeta) TTL() time.Duration {
-	if m.Designated {
-		return DesignatedNodeTTL
-	}
-	return DefaultNodeTTL
 }

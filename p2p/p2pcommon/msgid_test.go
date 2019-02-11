@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package p2pcommon
 
 import (
 	"github.com/gofrs/uuid"

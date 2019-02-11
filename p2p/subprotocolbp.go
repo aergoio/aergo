@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -30,7 +31,7 @@ func (bh *blockProducedNoticeHandler) parsePayload(rawbytes []byte) (proto.Messa
 	return unmarshalAndReturn(rawbytes, &types.BlockProducedNotice{})
 }
 
-func (bh *blockProducedNoticeHandler) handle(msg Message, msgBody proto.Message) {
+func (bh *blockProducedNoticeHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.BlockProducedNotice)
 	if data.Block == nil || len(data.Block.Hash) == 0 {

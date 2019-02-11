@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -175,7 +176,7 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 
 }
 
-func (h *V030Handshaker) handleGoAway(peerID peer.ID, data Message) (*types.Status, error) {
+func (h *V030Handshaker) handleGoAway(peerID peer.ID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := UnmarshalMessage(data.Payload(), goAway); err != nil {
 		h.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")

@@ -6,6 +6,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"strconv"
@@ -36,7 +37,7 @@ func FailTestGetPeers(t *testing.T) {
 	go func() {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
-			peerMeta := PeerMeta{ID: peerID}
+			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			target.remotePeers[peerID] = newRemotePeer(peerMeta, 0, target, mockActorServ, logger, nil, nil, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
@@ -78,7 +79,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	go func() {
 		for i := 0; i < iterSize; i++ {
 			peerID := peer.ID(strconv.Itoa(i))
-			peerMeta := PeerMeta{ID: peerID}
+			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			target.insertPeer(peerID, newRemotePeer(peerMeta, 0, target, mockActorServ, logger, nil, nil, nil, nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
@@ -106,9 +107,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID}, lastNotice:&LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID2}, lastNotice:&LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta:PeerMeta{ID:dummyPeerID3}, lastNotice:&LastBlockStatus{}}
+	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice:&LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice:&LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice:&LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{

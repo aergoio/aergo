@@ -7,6 +7,7 @@ package pmap
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"reflect"
 	"sync"
 	"testing"
@@ -45,7 +46,7 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		peerRegistry  map[peer.ID]p2p.PeerMeta
+		peerRegistry  map[peer.ID]p2pcommon.PeerMeta
 	}
 	tests := []struct {
 		name   string
@@ -77,9 +78,9 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 }
 
 func TestPeerMapService_readRequest(t *testing.T) {
-	dummyMeta := p2p.PeerMeta{ID: ""}
+	dummyMeta := p2pcommon.PeerMeta{ID: ""}
 	type args struct {
-		meta    p2p.PeerMeta
+		meta    p2pcommon.PeerMeta
 		readErr error
 	}
 	tests := []struct {
@@ -141,9 +142,9 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	}
 	dummyPeerID2, err := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
-	goodPeerMeta := p2p.PeerMeta{ID:dummyPeerID2, IPAddress:"211.34.56.78",Port:7845}
+	goodPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID2, IPAddress:"211.34.56.78",Port:7845}
 	good := goodPeerMeta.ToPeerAddress()
-	badPeerMeta := p2p.PeerMeta{ID:peer.ID("bad"), IPAddress:"211.34.56.78",Port:7845}
+	badPeerMeta := p2pcommon.PeerMeta{ID: peer.ID("bad"), IPAddress:"211.34.56.78",Port:7845}
 	bad := badPeerMeta.ToPeerAddress()
 	type args struct {
 		status *types.Status
@@ -198,14 +199,14 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	}
 }
 
-var metas []p2p.PeerMeta
+var metas []p2pcommon.PeerMeta
 
 func init() {
-	metas = make([]p2p.PeerMeta, 20)
+	metas = make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
 		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		peerid, _ := peer.IDFromPublicKey(pub)
-		metas[i] = p2p.PeerMeta{ID: peerid}
+		metas[i] = p2pcommon.PeerMeta{ID: peerid}
 	}
 }
 
@@ -214,7 +215,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []p2p.PeerMeta
+		args     []p2pcommon.PeerMeta
 		wantSize int
 		wantErr  bool
 	}{
@@ -235,7 +236,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 			wg.Add(1)
 			finWg.Add(len(tt.args))
 			for _, meta := range tt.args {
-				go func(in p2p.PeerMeta) {
+				go func(in p2pcommon.PeerMeta) {
 					wg.Wait()
 					pms.registerPeer(in)
 					finWg.Done()
@@ -257,7 +258,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 	allSize := len(metas)
 	tests := []struct {
 		name         string
-		args         []p2p.PeerMeta
+		args         []p2pcommon.PeerMeta
 		wantDecrease int
 		wantErr      bool
 	}{
@@ -280,7 +281,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 			wg.Add(1)
 			finWg.Add(len(tt.args))
 			for _, meta := range tt.args {
-				go func(in p2p.PeerMeta) {
+				go func(in p2pcommon.PeerMeta) {
 					wg.Wait()
 					pms.unregisterPeer(in.ID)
 					finWg.Done()
@@ -296,8 +297,8 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 	}
 }
 
-func MakeMetaSlice(slis ...[]p2p.PeerMeta) []p2p.PeerMeta {
-	result := make([]p2p.PeerMeta, 0, 10)
+func MakeMetaSlice(slis ...[]p2pcommon.PeerMeta) []p2pcommon.PeerMeta {
+	result := make([]p2pcommon.PeerMeta, 0, 10)
 	for _, sli := range slis {
 		result = append(result, sli...)
 	}
@@ -313,8 +314,8 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 		peerRegistry  map[peer.ID]*peerState
 	}
 	type args struct {
-		reqContainer p2p.Message
-		meta         p2p.PeerMeta
+		reqContainer p2pcommon.Message
+		meta         p2pcommon.PeerMeta
 		resp         *types.MapResponse
 		wt           p2p.MsgWriter
 	}
@@ -368,7 +369,7 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -403,7 +404,7 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -438,7 +439,7 @@ func TestPeerMapService_onConnect(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -477,7 +478,7 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -517,9 +518,9 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 
 func Test_createV030Message(t *testing.T) {
 	type args struct {
-		msgID       p2p.MsgID
-		orgID       p2p.MsgID
-		subProtocol p2p.SubProtocol
+		msgID       p2pcommon.MsgID
+		orgID       p2pcommon.MsgID
+		subProtocol p2pcommon.SubProtocol
 		innerMsg    proto.Message
 	}
 	tests := []struct {
@@ -549,7 +550,7 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
+		mapServers    []p2pcommon.PeerMeta
 		ntc           p2p.NTContainer
 		listen        bool
 		nt            p2p.NetworkTransport
@@ -589,7 +590,7 @@ func Test_makeGoAwayMsg(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    p2p.Message
+		want    p2pcommon.Message
 		wantErr bool
 	}{
 		// TODO: Add test cases.

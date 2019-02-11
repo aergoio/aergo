@@ -5,16 +5,18 @@
 
 package p2p
 
+import "github.com/aergoio/aergo/p2p/p2pcommon"
+
 // MsgReader read stream and return message object
 type MsgReader interface {
 	// ReadMsg return types.MsgHeader as header, proto.Message as data
 	// The header and/or data can be nil if error is not nil
-	ReadMsg() (Message, error)
+	ReadMsg() (p2pcommon.Message, error)
 }
 
 // MsgWriter write message to stream
 type MsgWriter interface {
-	WriteMsg(msg Message) error
+	WriteMsg(msg p2pcommon.Message) error
 }
 
 type MsgReadWriter interface {

@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -15,7 +16,7 @@ import (
 )
 
 func Test_pbRequestOrder_SendTo(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
 	tests := []struct {
@@ -57,7 +58,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbMessageOrder_SendTo(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory :=&v030MOFactory{}
 
 	tests := []struct {
@@ -78,7 +79,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
-			pr := factory.newMsgResponseOrder(NewMsgID(), PingResponse, &types.Pong{})
+			pr := factory.newMsgResponseOrder(p2pcommon.NewMsgID(), PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
@@ -96,7 +97,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
 	tests := []struct {
@@ -148,7 +149,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
-	sampleMeta := PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
 	sampleHashes := make([][]byte, 10)

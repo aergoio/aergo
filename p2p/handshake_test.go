@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
@@ -61,7 +62,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	mockPM := new(MockPeerManager)
 	mockCA := new(MockChainAccessor)
 	dummyBestBlock := &types.Block{Header:&types.BlockHeader{}}
-	dummyMeta := PeerMeta{ID: dummyPeerID}
+	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID}
 	mockPM.On("SelfMeta").Return(dummyMeta)
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}

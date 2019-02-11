@@ -2,6 +2,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/stretchr/testify/mock"
 	"time"
 )
@@ -14,7 +15,7 @@ type MockRemotePeer struct {
 }
 
 // consumeRequest provides a mock function with given fields: msgID
-func (_m *MockRemotePeer) consumeRequest(msgID MsgID) {
+func (_m *MockRemotePeer) consumeRequest(msgID p2pcommon.MsgID) {
 	_m.Called(msgID)
 }
 
@@ -33,11 +34,11 @@ func (_m *MockRemotePeer) sendMessage(msg msgOrder) {
 	_m.Called(msg)
 }
 
-func (_m *MockRemotePeer) GetReceiver(id MsgID) ResponseReceiver {
+func (_m *MockRemotePeer) GetReceiver(id p2pcommon.MsgID) ResponseReceiver {
 	ret := _m.Called(id)
 
 	var r0 ResponseReceiver
-	if rf, ok := ret.Get(0).(func(id MsgID) ResponseReceiver); ok {
+	if rf, ok := ret.Get(0).(func(id p2pcommon.MsgID) ResponseReceiver); ok {
 		r0 = rf(id)
 	} else {
 		rr0 := ret.Get(0)
@@ -140,14 +141,14 @@ func (_m *MockRemotePeer) MF() moFactory {
 }
 
 // Meta provides a mock function with given fields:
-func (_m *MockRemotePeer) Meta() PeerMeta {
+func (_m *MockRemotePeer) Meta() p2pcommon.PeerMeta {
 	ret := _m.Called()
 
-	var r0 PeerMeta
-	if rf, ok := ret.Get(0).(func() PeerMeta); ok {
+	var r0 p2pcommon.PeerMeta
+	if rf, ok := ret.Get(0).(func() p2pcommon.PeerMeta); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(PeerMeta)
+		r0 = ret.Get(0).(p2pcommon.PeerMeta)
 	}
 
 	return r0

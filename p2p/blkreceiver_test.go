@@ -102,7 +102,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.On("MF").Return(mockMF)
 			mockPeer.On("sendMessage", mock.Anything)
-			mockPeer.On("consumeRequest", mock.AnythingOfType("p2p.MsgID"))
+			mockPeer.On("consumeRequest", mock.AnythingOfType("p2pcommon.MsgID"))
 			mockMF.On("newMsgBlockRequestOrder",mock.Anything, mock.Anything, mock.Anything).Return(dummyMo)
 
 			//expire := time.Now().Add(test.ttl)

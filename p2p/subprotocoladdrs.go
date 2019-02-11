@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -36,7 +37,7 @@ func (ph *addressesRequestHandler) parsePayload(rawbytes []byte) (proto.Message,
 	return unmarshalAndReturn(rawbytes, &types.AddressesRequest{})
 }
 
-func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
+func (ph *addressesRequestHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
@@ -74,7 +75,7 @@ func (ph *addressesRequestHandler) handle(msg Message, msgBody proto.Message) {
 // TODO need refactoring. This code is not bounded to a specific peer but rather whole peer pool, and cause code duplication in p2p.go
 func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := ph.pm.SelfNodeID()
-	peerMetas := make([]PeerMeta, 0, len(peers))
+	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
@@ -83,7 +84,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
-		meta := FromPeerAddress(rPeerAddr)
+		meta := p2pcommon.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {
@@ -101,7 +102,7 @@ func (ph *addressesResponseHandler) parsePayload(rawbytes []byte) (proto.Message
 	return unmarshalAndReturn(rawbytes, &types.AddressesResponse{})
 }
 
-func (ph *addressesResponseHandler) handle(msg Message, msgBody proto.Message) {
+func (ph *addressesResponseHandler) handle(msg p2pcommon.Message, msgBody proto.Message) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
 	debugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))

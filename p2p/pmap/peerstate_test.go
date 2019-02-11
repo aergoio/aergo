@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/mocks"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -29,7 +30,7 @@ func Test_pingChecker_DoCall(t *testing.T) {
 		writeWait int
 		writeRet  error
 		readWait  int
-		respSub   p2p.SubProtocol
+		respSub   p2pcommon.SubProtocol
 		readRet2  error
 	}
 	tests := []struct {
@@ -63,15 +64,15 @@ func Test_pingChecker_DoCall(t *testing.T) {
 				rw:        rw,
 			}
 
-			var reqID p2p.MsgID
-			rw.EXPECT().WriteMsg(gomock.Any()).Do(func(msg p2p.Message) {
+			var reqID p2pcommon.MsgID
+			rw.EXPECT().WriteMsg(gomock.Any()).Do(func(msg p2pcommon.Message) {
 				reqID = msg.ID()
 				if tt.args.writeWait > 0 {
 					pc.Cancel()
 					time.Sleep(time.Millisecond << 4)
 				}
 			}).Return(tt.args.writeRet)
-			rw.EXPECT().ReadMsg().MaxTimes(1).DoAndReturn(func() (p2p.Message, error) {
+			rw.EXPECT().ReadMsg().MaxTimes(1).DoAndReturn(func() (p2pcommon.Message, error) {
 				if tt.args.readWait > 0 {
 					pc.Cancel()
 					time.Sleep(time.Millisecond << 4)
@@ -103,7 +104,7 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 		writeWait int
 		writeRet  error
 		readWait  int
-		respSub   p2p.SubProtocol
+		respSub   p2pcommon.SubProtocol
 		readRet2  error
 	}
 	tests := []struct {
@@ -137,14 +138,14 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 				rw:        rw,
 			}
 
-			var reqID p2p.MsgID
-			rw.EXPECT().WriteMsg(gomock.Any()).Do(func(msg p2p.Message) {
+			var reqID p2pcommon.MsgID
+			rw.EXPECT().WriteMsg(gomock.Any()).Do(func(msg p2pcommon.Message) {
 				reqID = msg.ID()
 				if tt.args.writeWait > 0 {
 					time.Sleep(time.Second)
 				}
 			}).Return(tt.args.writeRet)
-			rw.EXPECT().ReadMsg().MaxTimes(1).DoAndReturn(func() (p2p.Message, error) {
+			rw.EXPECT().ReadMsg().MaxTimes(1).DoAndReturn(func() (p2pcommon.Message, error) {
 				if tt.args.readWait > 0 {
 					time.Sleep(time.Second)
 				}
