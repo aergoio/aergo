@@ -127,8 +127,11 @@ func preLoadWorker() {
 		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
 
 		if len(replyCh) > 2 {
-			preload := <-replyCh
-			preload.ex.close()
+			select {
+			case preload := <-replyCh:
+				preload.ex.close()
+			default:
+			}
 		}
 
 		bs := reqInfo.bs
