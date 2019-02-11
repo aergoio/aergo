@@ -104,11 +104,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-
-	for _, r := range msg.Results {
-		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error, r.Detail)
-		return
-	}
+	cmd.Println(msg)
 }
 
 var voteStatCmd = &cobra.Command{

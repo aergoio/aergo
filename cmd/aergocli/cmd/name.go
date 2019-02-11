@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -89,7 +88,7 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Failed request to aergo sever\n" + err.Error())
 		return nil
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
+	cmd.Println(util.JSON(msg))
 	return nil
 }
 
@@ -130,7 +129,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Failed request to aergo sever\n" + err.Error())
 		return nil
 	}
-	cmd.Println(base58.Encode(msg.Hash), msg.Error, msg.Detail)
+	cmd.Println(util.JSON(msg))
 	return nil
 }
 
@@ -142,8 +141,8 @@ func execNameOwner(cmd *cobra.Command, args []string) {
 	}
 	owner := msg.Owner
 	if len(owner) > types.NameLength {
-		cmd.Println(msg.Name.Name, types.EncodeAddress(owner))
+		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + types.EncodeAddress(owner) + "\"}")
 	} else {
-		cmd.Println(msg.Name.Name, string(msg.Owner))
+		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + string(msg.Owner) + "\"}")
 	}
 }
