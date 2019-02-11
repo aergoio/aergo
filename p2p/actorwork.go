@@ -190,9 +190,9 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 
 // NotifyNewTX notice tx(s) id created
 func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	hashes := make([]TxHash, len(newTXs.Txs))
+	hashes := make([]types.TxID, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
-		copy(hashes[i][:], tx.Hash)
+		hashes[i] = types.ToTxID(tx.Hash)
 	}
 	// create message data
 	skipped, sent := 0, 0

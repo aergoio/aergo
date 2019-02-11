@@ -337,7 +337,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 func TestRemotePeer_sendTxNotices(t *testing.T) {
 	t.Skip("meanningless after 20181030 refactoring")
 	sampleSize := DefaultPeerTxQueueSize << 1
-	sampleHashes := make([]TxHash, sampleSize)
+	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 100
 	for i := 0; i < sampleSize; i++ {
 		sampleHashes[i] = generateHash(uint64(i))
@@ -377,8 +377,8 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 		})
 	}
 }
-func generateHash(i uint64) TxHash {
-	bs := TxHash{}
+func generateHash(i uint64) types.TxID {
+	bs := types.TxID{}
 	binary.LittleEndian.PutUint64(bs[:], i)
 	return bs
 }
@@ -387,9 +387,9 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		hash        BlkHash
-		inCache     []BlkHash
-		prevLastBlk BlkHash
+		hash        types.BlockID
+		inCache     []types.BlockID
+		prevLastBlk types.BlockID
 		expected    bool
 	}{
 		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
@@ -418,13 +418,13 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 	tests := []struct {
 		name     string
-		hashes   []TxHash
-		inCache  []TxHash
-		expected []TxHash
+		hashes   []types.TxID
+		inCache  []types.TxID
+		expected []types.TxID
 	}{
 		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
 		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
-		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]TxHash, 0)},
+		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -447,14 +447,14 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 
 func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 	sampleSize := 100
-	sampleHashes := make([]TxHash, sampleSize)
+	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 10
 	for i := 0; i < sampleSize; i++ {
 		sampleHashes[i] = generateHash(uint64(i))
 	}
 	tests := []struct {
 		name       string
-		in         []TxHash
+		in         []types.TxID
 		expectSend int
 	}{
 		// 1. single tx

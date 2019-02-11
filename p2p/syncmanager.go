@@ -22,7 +22,7 @@ type SyncManager interface {
 	// handle notice from other node
 	HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice)
 	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
-	HandleNewTxNotice(peer RemotePeer, hashes []TxHash, data *types.NewTransactionsNotice)
+	HandleNewTxNotice(peer RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice)
 }
 
 type syncManager struct {
@@ -60,7 +60,7 @@ func (sm *syncManager) checkWorkToken() bool {
 }
 
 func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, block *types.Block) {
-	hash := MustParseBlkHash(block.GetHash())
+	hash := types.MustParseBlockID(block.GetHash())
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
 		sm.logger.Warn().Str(LogBlkHash, hash.String()).Str(LogPeerName,peer.Name()).Msg("Duplacated blockProduced notice")
@@ -71,7 +71,7 @@ func (sm *syncManager) HandleBlockProducedNotice(peer RemotePeer, block *types.B
 }
 
 func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice) {
-	hash := MustParseBlkHash(data.BlockHash)
+	hash := types.MustParseBlockID(data.BlockHash)
 	peerID := peer.ID()
 	//if !sm.checkWorkToken() {
 	//	// just ignore it
@@ -114,12 +114,12 @@ func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 }
 
-func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, data *types.NewTransactionsNotice) {
+func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice) {
 	peerID := peer.ID()
 
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
 	toGet := make([]message.TXHash, 0, len(data.TxHashes))
-	for _, hashArr := range hashArrs {
+	for _, hashArr := range hashes {
 		ok, _ := sm.txCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 		if ok {
 			// Kickout duplicated notice log.
@@ -129,8 +129,7 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 			// this notice is already sent to chainservice
 			continue
 		}
-		hash := make([]byte, txhashLen)
-		copy(hash, hashArr[:])
+		hash := types.HashID(hashArr).Bytes()
 		toGet = append(toGet, hash)
 	}
 	if len(toGet) == 0 {
@@ -195,10 +194,10 @@ func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int) string {
 }
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
-func P2PTxHashArrToString(bbarray []TxHash) string {
+func P2PTxHashArrToString(bbarray []types.TxID) string {
 	return P2PTxHashArrToStringWithLimit(bbarray, 10)
 }
-func P2PTxHashArrToStringWithLimit(bbarray []TxHash, limit int) string {
+func P2PTxHashArrToStringWithLimit(bbarray []types.TxID, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	var arrSize = len(bbarray)

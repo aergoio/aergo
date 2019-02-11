@@ -44,7 +44,11 @@ func (bh *blockProducedNoticeHandler) handle(msg Message, msgBody proto.Message)
 
 	// lru cache can accept hashable key
 	block := data.Block
-
+	if _, err := types.ParseToBlockID(data.GetBlock().GetHash()) ; err != nil {
+		// TODO add penelty score
+		bh.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
+		return
+	}
 	// block by blockProduced notice must be new fresh block
 	remotePeer.updateLastNotice(data.GetBlock().GetHash(), data.BlockNo)
 	bh.sm.HandleBlockProducedNotice(bh.peer, block)

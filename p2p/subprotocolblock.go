@@ -146,6 +146,11 @@ func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	// remove to verbose log
 	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlkHash) }))
 
+	if _, err := types.ParseToBlockID(data.BlockHash) ; err != nil {
+		// TODO Add penelty score and break
+		bh.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
+		return
+	}
 	// lru cache can accept hashable key
 	if !remotePeer.updateBlkCache(data.BlockHash, data.BlockNo) {
 		bh.sm.HandleNewBlockNotice(remotePeer, data)

@@ -517,13 +517,3 @@ func (_m *MockPeerManager) Stop() error {
 
 	return r0
 }
-
-// NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, hash BlkHash, data *types.NewBlockNotice) {
-	_m.Called(peerID, hash, data)
-}
-
-// NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewTxNotice(peerID peer.ID, hash []TxHash, data *types.NewTransactionsNotice) {
-	_m.Called(peerID, hash, data)
-}

@@ -112,8 +112,7 @@ type pbBlkNoticeOrder struct {
 }
 
 func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
-	var blkhash BlkHash
-	copy(blkhash[:], pr.blkHash)
+	var blkhash = types.ToBlockID(pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it
 		// too many not-insteresting log,
@@ -136,8 +135,7 @@ type pbBpNoticeOrder struct {
 }
 
 func (pr *pbBpNoticeOrder) SendTo(p *remotePeerImpl) error {
-	var blkhash BlkHash
-	copy(blkhash[:], pr.block.Hash)
+	var blkhash = types.ToBlockID(pr.block.Hash)
 	p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {

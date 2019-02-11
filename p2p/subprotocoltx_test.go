@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/message/mocks"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -265,9 +266,9 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 func TestNewTxNoticeHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
-	var filledArrs []TxHash = make([]TxHash,1)
-	copy(filledArrs[0][:],dummyTxHash)
-	var emptyArrs []TxHash =make([]TxHash,0)
+	var filledArrs = make([]types.TxID,1)
+	filledArrs[0] = types.ToTxID(dummyTxHash)
+	var emptyArrs =make([]types.TxID,0)
 
 	tests := []struct {
 		name string
@@ -284,7 +285,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
 			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
-			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []types.TxID) bool {
 				return len(arg) == 1
 			}))
 			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
@@ -296,7 +297,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
 			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
-			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []types.TxID) bool {
 				return len(arg) == len(sampleTxs)
 			}))
 			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
@@ -318,6 +319,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return(p2putil.ShortForm(sampleMeta.ID)+"#1")
 			mockSM := new(MockSyncManager)
 
 			header, body := test.setup(t, mockPM, mockPeer, mockSM)

@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -175,9 +176,15 @@ func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
 		return
 	}
 	// lru cache can accept hashable key
-	hashes := make([]TxHash, len(data.TxHashes))
+	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
-		copy(hashes[i][:], hash)
+		if tid, err := types.ParseToTxID(hash); err != nil {
+			th.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			// TODO Add penelty score and break
+			break
+		} else {
+			hashes[i] = tid
+		}
 	}
 	added := th.peer.updateTxCache(hashes)
 	if len(added) > 0 {
