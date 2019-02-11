@@ -32,7 +32,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	dummyMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
 	mockMo := new(MockMsgOrder)
-	mockMo.On("GetProtocolID").Return(GetTxsResponse)
+	mockMo.On("GetProtocolID").Return(GetTXsResponse)
 	mockMo.On("GetMsgID").Return(sampleMsgID)
 	//mockSigner := new(mockMsgSigner)
 	//mockSigner.On("signMsg",mock.Anything).Return(nil)
@@ -48,7 +48,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExistEx")).Return(&message.MemPoolExistExRsp{Txs: dummyTxs}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
 			hashes := sampleTxs[:1]
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, 1, len(resp.Hashes))
@@ -69,7 +69,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExistEx")).Return(&message.MemPoolExistExRsp{Txs:dummyTxs}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(sampleTxs), len(resp.Hashes))
@@ -105,7 +105,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//	return false
 			//})).Return(&message.MemPoolExistExRsp{Txs:nil}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(dummyTxs), len(resp.Hashes))
@@ -124,7 +124,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//	return false
 			//	}), nil).Return(nil, nil)
 			//hashes := sampleTxs
-			//mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			//mockMF.On("newMsgResponseOrder",sampleMsgID,GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 			//		resp := args[2].(*types.GetTransactionsResponse)
 			//		assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 			//		assert.Equal(tt, len(sampleTxs)-1, len(resp.Hashes))
@@ -153,7 +153,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				return false
 			}), nil).Return(nil, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)
 				assert.Equal(tt, 0, len(resp.Hashes))
@@ -176,7 +176,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				return false})).Return(nil, fmt.Errorf("error"))
 			//msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				// TODO check if the changed behavior is fair or not.
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)

@@ -357,7 +357,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 
 	// TxHandlers
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetTXsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 
 	// BP protocol handlers

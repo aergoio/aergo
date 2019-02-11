@@ -65,7 +65,7 @@ const (
 )
 const (
 	GetTXsRequest SubProtocol = 0x020 + iota
-	GetTxsResponse
+	GetTXsResponse
 	NewTxNotice
 )
 

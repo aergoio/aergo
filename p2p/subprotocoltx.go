@@ -104,7 +104,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 				Str("req_id", msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.sendMessage(remotePeer.MF().
-				newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+				newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
 		}
 
@@ -125,12 +125,12 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func newTxRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTxsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
@@ -142,6 +142,7 @@ func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetTransactionsResponse)
 	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
+	th.peer.consumeRequest(msg.OriginalID())
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
 		th.logger.Debug().Int(LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")

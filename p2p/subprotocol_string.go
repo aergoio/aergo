@@ -7,7 +7,7 @@ import "strconv"
 const (
 	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
 	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
-	_SubProtocol_name_2 = "GetTXsRequestGetTxsResponseNewTxNotice"
+	_SubProtocol_name_2 = "GetTXsRequestGetTXsResponseNewTxNotice"
 	_SubProtocol_name_3 = "BlockProducedNotice"
 )
 
