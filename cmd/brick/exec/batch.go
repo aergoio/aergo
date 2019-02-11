@@ -13,7 +13,9 @@ func init() {
 	registerExec(&batch{})
 }
 
-type batch struct{}
+type batch struct {
+	level int
+}
 
 func (c *batch) Command() string {
 	return "batch"
@@ -70,22 +72,37 @@ func (c *batch) Run(args string) (string, error) {
 
 	batchFile.Close()
 
+	c.level++
+
+	stdOut := colorable.NewColorableStdout()
+
+	//tab := strings.Repeat("\t", c.level)
+
+	prefix := ""
+	if c.level != 1 {
+		prefix = fmt.Sprintf("%d-", c.level-1)
+	}
+
+	fmt.Fprintf(stdOut, "\n[%s]-------------------->\n", batchFile.Name())
+
 	for i, line := range cmdLines {
 		lineNum := i + 1
-		stdOut := colorable.NewColorableStdout()
+
 		cmd, args := context.ParseFirstWord(line)
 		if len(cmd) == 0 {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%3d\x1B[0m\n", lineNum)
+			fmt.Fprintf(stdOut, "\x1B[0;37m%s%d\x1B[0m\n", prefix, lineNum)
 			continue
 		} else if context.Comment == cmd {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[32m%s\x1B[0m\n", lineNum, line)
+			fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[32m%s\x1B[0m\n", prefix, lineNum, line)
 			continue
 		}
 
-		fmt.Fprintf(stdOut, "\x1B[0;37m%3d \x1B[34;1m%s \x1B[0m%s\n", lineNum, cmd, args)
+		fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[34;1m%s \x1B[0m%s\n", prefix, lineNum, cmd, args)
 		Broker(line)
-
 	}
+	c.level--
+
+	fmt.Fprintf(stdOut, "<--------------------[%s]\n", batchFile.Name())
 
 	return "batch exec is finished", nil
 }
