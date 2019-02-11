@@ -81,9 +81,8 @@ func (c *batch) Run(args string) (string, error) {
 	prefix := ""
 	if c.level != 1 {
 		prefix = fmt.Sprintf("%d-", c.level-1)
+		fmt.Fprintf(stdOut, "\n[%s]-------------------->\n", batchFile.Name())
 	}
-
-	fmt.Fprintf(stdOut, "\n[%s]-------------------->\n", batchFile.Name())
 
 	for i, line := range cmdLines {
 		lineNum := i + 1
@@ -102,7 +101,9 @@ func (c *batch) Run(args string) (string, error) {
 	}
 	c.level--
 
-	fmt.Fprintf(stdOut, "<--------------------[%s]\n", batchFile.Name())
+	if c.level != 1 {
+		fmt.Fprintf(stdOut, "<--------------------[%s]\n", batchFile.Name())
+	}
 
 	return "batch exec is finished", nil
 }
