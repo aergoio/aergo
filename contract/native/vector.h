@@ -18,6 +18,7 @@
 #define vector_get_id(vect, idx)        vector_get(vect, idx, ast_id_t)
 #define vector_get_exp(vect, idx)       vector_get(vect, idx, ast_exp_t)
 #define vector_get_stmt(vect, idx)      vector_get(vect, idx, ast_stmt_t)
+#define vector_get_md(vect, idx)        vector_get(vect, idx, ir_md_t)
 #define vector_get_abi(vect, idx)       vector_get(vect, idx, ir_abi_t)
 #define vector_get_fn(vect, idx)        vector_get(vect, idx, ir_fn_t)
 #define vector_get_bb(vect, idx)        vector_get(vect, idx, ir_bb_t)

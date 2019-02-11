@@ -19,8 +19,6 @@ typedef struct flag_s {
 
     uint8_t opt_lvl;
     uint32_t stack_size;
-
-    char *outfile;
 } flag_t;
 
 #endif /* ! _FLAG_H */

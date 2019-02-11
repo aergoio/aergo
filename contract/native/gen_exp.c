@@ -34,7 +34,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
         return f32_gen(gen, val_f64(val));
 
     case TYPE_OBJECT:
-        return i32_gen(gen, sgmt_add_raw(&gen->ir->sgmt, val_ptr(val), val_size(val)));
+        return i32_gen(gen, sgmt_add_raw(gen->sgmt, val_ptr(val), val_size(val)));
 
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
@@ -563,7 +563,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     int i, j = 0;
     ast_id_t *id = exp->id;
     ir_abi_t *abi = id->abi;
-    BinaryenExpressionRef index;
+    //BinaryenExpressionRef index;
     BinaryenExpressionRef *arguments;
 
     if (is_map_meta(&exp->meta))
@@ -579,6 +579,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         arguments[j++] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
     }
 
+#if 0
     if (is_ctor_id(id))
         /* The constructor is called with an absolute index */
         return BinaryenCallIndirect(gen->module, i32_gen(gen, id->idx), arguments,
@@ -591,6 +592,8 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
                            i32_gen(gen, id->idx));
 
     return BinaryenCallIndirect(gen->module, index, arguments, abi->param_cnt, abi->name);
+#endif
+    return BinaryenCall(gen->module, id->name, arguments, abi->param_cnt, abi->result);
 }
 
 static BinaryenExpressionRef

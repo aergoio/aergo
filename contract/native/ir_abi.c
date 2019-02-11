@@ -11,7 +11,7 @@
 
 static int abi_num_ = 0;
 
-static ir_abi_t *
+ir_abi_t *
 abi_new(ast_id_t *id)
 {
     int i, j = 0;
@@ -89,27 +89,6 @@ abi_new(ast_id_t *id)
     abi->spec = NULL;
 
     return abi;
-}
-
-ir_abi_t *
-abi_lookup(vector_t *abis, ast_id_t *id)
-{
-    int i;
-    ir_abi_t *new_abi = abi_new(id);
-
-    vector_foreach(abis, i) {
-        ir_abi_t *abi = vector_get_abi(abis, i);
-
-        if (abi->param_cnt == new_abi->param_cnt &&
-            memcmp(abi->params, new_abi->params,
-                   sizeof(BinaryenType) * abi->param_cnt) == 0 &&
-            abi->result == new_abi->result)
-            return abi;
-    }
-
-    vector_add_last(abis, new_abi);
-
-    return new_abi;
 }
 
 /* end of ir_abi.c */

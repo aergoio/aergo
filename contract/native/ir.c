@@ -12,18 +12,15 @@ ir_new(void)
 {
     ir_t *ir = xmalloc(sizeof(ir_t));
 
-    vector_init(&ir->abis);
-    vector_init(&ir->fns);
-
-    sgmt_init(&ir->sgmt);
+    vector_init(&ir->mds);
 
     return ir;
 }
 
 void
-ir_add_fn(ir_t *ir, ir_fn_t *fn)
+ir_add_md(ir_t *ir, ir_md_t *md)
 {
-    vector_add_last(&ir->fns, fn);
+    vector_add_last(&ir->mds, md);
 }
 
 /* end of ir.c */

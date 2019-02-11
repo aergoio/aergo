@@ -30,7 +30,6 @@ var (
 	printWat  bool
 	optLvl    uint8
 	stackSize uint32
-	output    string
 
 	rootCmd = &cobra.Command{
 		Use:   "aergoscc [flags] file",
@@ -64,7 +63,6 @@ var (
 				}
 				flags.opt_lvl = C.uint8_t(optLvl)
 				flags.stack_size = C.uint32_t(stackSize)
-				flags.outfile = C.CString(output)
 
 				err := C.compile(C.CString(args[0]), flags)
 				if err != 0 {
@@ -81,7 +79,6 @@ func init() {
 
 	rootCmd.Flags().BoolVarP(&debug, "debug", "g", false, "")
 	rootCmd.Flags().Uint8VarP(&optLvl, "optimize", "O", 2, "")
-	rootCmd.Flags().StringVarP(&output, "output", "o", "", "")
 	rootCmd.Flags().BoolVar(&printLex, "print-lex", false, "")
 	rootCmd.Flags().BoolVar(&printYacc, "print-yacc", false, "")
 	rootCmd.Flags().BoolVar(&printWat, "print-wat", false, "")
@@ -96,12 +93,11 @@ func init() {
 		fmt.Println("  --help                   Display this information")
 		fmt.Println("  --version                Display the version of the compiler")
 		fmt.Println("")
-		fmt.Println("  -g                       Generates debug information")
-		fmt.Println("  -O<level>                Sets the optimization level (default 2)")
+		fmt.Println("  -g                       Generate debug information")
+		fmt.Println("  -O<level>                Set the optimization level (default 2)")
 		fmt.Println("                           <level> should be 0, 1 or 2")
-		fmt.Println("  -o <file>                Writes the output into <file>")
-		fmt.Println("  --print-wat              Prints WebAssembly text format to stdout")
-		fmt.Println("  --stack-size <size>      Sets the maximum stack size (default 1048576)")
+		fmt.Println("  --print-wat              Print WebAssembly text format to stdout")
+		fmt.Println("  --stack-size <size>      Set the maximum stack size (default 1048576)")
 		fmt.Println("                           <size> should be a multiple of 64KB")
 		return nil
 	},

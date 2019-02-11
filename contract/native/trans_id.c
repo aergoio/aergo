@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "vector.h"
+#include "ir_md.h"
 #include "ir_abi.h"
 #include "ir_fn.h"
 #include "ir_bb.h"
@@ -164,18 +165,21 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 {
     uint32_t heap_start = 0;
     ast_id_t *ret_id = id->u_fn.ret_id;
-    ir_t *ir = trans->ir;
+    ir_md_t *md = trans->md;
     ir_fn_t *fn = fn_new(id);
 
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
+    ASSERT(md != NULL);
 
     trans->fn = fn;
 
     id_trans_param(trans, id);
 
-    fn->abi = abi_lookup(&ir->abis, id);
+    fn->abi = abi_new(id);
     id->abi = fn->abi;
+
+    md_add_abi(md, fn->abi);
 
     /* All heap variables access memory by adding relative offset to this register */
     fn->heap_idx = fn_add_register(fn, &addr_meta_);
@@ -238,7 +242,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     trans->fn = NULL;
     trans->bb = NULL;
 
-    ir_add_fn(ir, fn);
+    md_add_fn(md, fn);
 }
 
 static void
@@ -248,7 +252,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     int fn_idx = 1;
     ast_id_t *idx_id;
     ast_blk_t *blk = id->u_cont.blk;
-    ir_t *ir = trans->ir;
+    ir_md_t *md = md_new(id->name);
 
     ASSERT(blk != NULL);
 
@@ -299,7 +303,7 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         if (is_ctor_id(fn_id))
             /* Since the constructor can be called from any location (including another
              * contracts), it should always be accessed with an absolute index */
-            fn_id->idx = vector_size(&ir->fns);
+            fn_id->idx = vector_size(&md->fns);
         else if (is_fn_id(fn_id))
             /* The "idx" is the relative index within the contract */
             fn_id->idx = fn_idx++;
@@ -310,13 +314,19 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
      * also access table by adding relative index to this value */
     idx_id = id_new_tmp_var("cont$idx");
     idx_id->up = id;
-    idx_id->u_var.dflt_exp = exp_new_lit_i64(vector_size(&ir->fns), &idx_id->pos);
+    idx_id->u_var.dflt_exp = exp_new_lit_i64(vector_size(&md->fns), &idx_id->pos);
     meta_set_int32(&idx_id->u_var.dflt_exp->meta);
     meta_set_int32(&idx_id->meta);
 
     vector_add_first(&id->u_cont.blk->ids, idx_id);
 
+    trans->md = md;
+
     blk_trans(trans, id->u_cont.blk);
+
+    trans->md = NULL;
+
+    ir_add_md(trans->ir, md);
 }
 
 static void
@@ -326,7 +336,6 @@ id_trans_interface(trans_t *trans, ast_id_t *id)
     /* Index 0 is reserved for the constructor */
     int fn_idx = 1;
     ast_blk_t *blk = id->u_itf.blk;
-    ir_t *ir = trans->ir;
 
     ASSERT(blk != NULL);
 
@@ -342,7 +351,7 @@ id_trans_interface(trans_t *trans, ast_id_t *id)
         id_trans_param(trans, fn_id);
 
         fn_id->idx = fn_idx++;
-        fn_id->abi = abi_lookup(&ir->abis, fn_id);
+        fn_id->abi = abi_new(fn_id);
     }
 }
 

@@ -8,6 +8,7 @@
 #include "ast_id.h"
 #include "ast_blk.h"
 #include "ast_stmt.h"
+#include "ir_md.h"
 #include "ir_bb.h"
 #include "ir_fn.h"
 #include "ir_sgmt.h"
@@ -23,7 +24,9 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
     int addr;
     value_t *val = &exp->u_lit.val;
-    ir_sgmt_t *sgmt = &trans->ir->sgmt;
+    ir_md_t *md = trans->md;
+
+    ASSERT(md != NULL);
 
     switch (val->type) {
     case TYPE_BOOL:
@@ -33,7 +36,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     case TYPE_STRING:
         /* Since "value_set_xxx()" is a macro, we must use the "addr" variable. */
-        addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val) + 1);
+        addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val) + 1);
         value_set_i64(val, addr);
         meta_set_uint32(&exp->meta);
         break;
@@ -45,7 +48,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
             value_set_i64(val, 0);
         }
         else {
-            addr = sgmt_add_raw(sgmt, val_ptr(val), val_size(val));
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
             value_set_i64(val, addr);
         }
         meta_set_uint32(&exp->meta);
@@ -443,11 +446,6 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             exp_set_register(exp, reg_idx);
         }
     }
-    /*
-    else {
-        bb_add_stmt(trans->bb, stmt_new_exp(exp, &exp->pos));
-    }
-    */
 }
 
 static void

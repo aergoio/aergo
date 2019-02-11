@@ -33,6 +33,7 @@ set(libascl_SRCS
     check_stmt.c
     check_exp.c
     ir.c
+    ir_md.c
     ir_fn.c
     ir_abi.c
     ir_bb.c
@@ -43,6 +44,7 @@ set(libascl_SRCS
     trans_stmt.c
     trans_exp.c
     gen.c
+    gen_md.c
     gen_fn.c
     gen_bb.c
     gen_stmt.c

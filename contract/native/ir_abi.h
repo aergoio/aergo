@@ -16,7 +16,7 @@
 typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
 
-typedef struct ir_abi_s {
+struct ir_abi_s {
     char name[NAME_MAX_LEN + 1];
 
     /* parameter types (including return) */
@@ -26,8 +26,8 @@ typedef struct ir_abi_s {
     BinaryenType result;
 
     BinaryenFunctionTypeRef spec;
-} ir_abi_t;
+};
 
-ir_abi_t *abi_lookup(vector_t *abis, ast_id_t *id);
+ir_abi_t *abi_new(ast_id_t *id);
 
 #endif /* ! _IR_ABI_H */

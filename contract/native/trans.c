@@ -19,6 +19,7 @@ trans_init(trans_t *trans, flag_t flag)
 
     trans->blk = NULL;
 
+    trans->md = NULL;
     trans->fn = NULL;
     trans->bb = NULL;
 
