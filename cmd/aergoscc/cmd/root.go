@@ -34,19 +34,17 @@ var (
 	rootCmd = &cobra.Command{
 		Use:   "aergoscc [flags] file",
 		Short: "Aergo smart contract compiler",
-		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if version {
 				fmt.Println(fmt.Sprintf("Aergo smart contract compiler %s", githash))
 			} else if len(args) < 1 {
-				fmt.Println("Error: no input file")
+				fmt.Println("Error: no input files")
 				cmd.Usage()
+				os.Exit(1)
+			} else if stackSize%65536 != 0 {
+				fmt.Println("Error: stack size should be a multiple of 64KB")
+				os.Exit(1)
 			} else {
-				if stackSize%65536 != 0 {
-					fmt.Println("Error: stack size should be a multiple of 64KB")
-					os.Exit(1)
-				}
-
 				flags := C.flag_t{}
 
 				if debug {
@@ -64,7 +62,10 @@ var (
 				flags.opt_lvl = C.uint8_t(optLvl)
 				flags.stack_size = C.uint32_t(stackSize)
 
-				err := C.compile(C.CString(args[0]), flags)
+				err := C.int(0)
+				for _, arg := range args {
+					err |= C.compile(C.CString(arg), flags)
+				}
 				if err != 0 {
 					os.Exit(1)
 				}
@@ -87,7 +88,7 @@ func init() {
 
 	rootCmd.SetUsageFunc(func(cmd *cobra.Command) error {
 		fmt.Println("Usage:")
-		fmt.Println("  aergoscc [options] file")
+		fmt.Println("  aergoscc [options] file...")
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --help                   Display this information")
