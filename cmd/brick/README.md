@@ -27,6 +27,7 @@ powered by [go-prompt](https://github.com/c-bata/go-prompt)
 
 * load and execute bulk of commands from file
 * contract integration test
+* support incremental test
 
 ## Install
 
@@ -71,16 +72,16 @@ transfer aergo between two addresses. `send <sender_name> <receiver_name> <amoun
 deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <definition_file_path> [contructor_json_arg]`
 
 ``` lua
-2> deploy tester 1 helloContract `../example/hello.lua`
+2> deploy tester 0 helloContract ./example/hello.lua
   INF deploy a smart contract successfully cmd=deploy module=brick
 ```
 
 ### call
 
-call to execute a smart contract. `call <sender_name> <amount> <contract_name> <func_name> <call_json_str>`
+call to execute a smart contract. `call <sender_name> <amount> <contract_name> <func_name> <call_json_str> [expected_error]`
 
 ``` lua
-3> call tester 1 helloContract set_name `["aergo"]`
+3> call tester 0 helloContract set_name `["aergo"]`
   INF call a smart contract successfully cmd=call module=brick
 ```
 
@@ -107,14 +108,9 @@ query to a smart contract. `query <contract_name> <func_name> <query_json_str> [
 keeps commands in a text file and use at later. `batch <batch_file_path>`
 
 ``` lua
-5> batch `../cmd/brick/example/hello.brick`
-  INF inject an account successfully cmd=inject module=brick
-  INF 100 cmd=getstate module=brick
-  INF deploy a smart contract successfully cmd=deploy module=brick
-  INF query compare successfully cmd=query module=brick
-  INF call a smart contract successfully cmd=call module=brick
-  INF query compare successfully cmd=query module=brick
-  INF batch exec is finished cmd=batch module=brick
+4> batch ./example/hello.brick
+Batch is successfully finished
+8> 
 ```
 
 ### undo
@@ -144,31 +140,40 @@ In command line, users can run a brick batch file. A running result contains lin
 
 ``` bash
 $ ./brick ./example/hello.brick
-  0 # create an account and deposit coin
-  1 inject bj 100
-  INF inject an account successfully cmd=inject module=brick
-  2
-  3 # check balance
-  4 getstate bj
-  INF AmgiDbXB3x5Zv5cBBcmyzSJiqMbLXG1yZN2xE4gUuXMBaXPfGoun=[100] cmd=getstate module=brick
-  5
-  6 # delpoy helloworld smart contract
-  7 deploy bj 1 helloctr `./example/hello.lua`
-  INF deploy a smart contract successfully cmd=deploy module=brick
-  8
-  9 # query to contract, this will print "hello world"
- 10 query helloctr hello `[]` `"hello world"`
-  INF query compare successfully cmd=query module=brick
- 11
- 12 # call and execute contract
- 13 call bj 1 helloctr set_name `["aergo"]`
-  INF call a smart contract successfully cmd=call module=brick
- 14
- 15 # query again, this now will print "hello aergo"
- 16 query helloctr hello `[]` `"hello aergo"`
-  INF query compare successfully cmd=query module=brick
+Batch is successfully finished
   INF batch exec is finished cmd=batch module=brick
 ```
+User can check the detail results by setting `-v` options.
+
+``` bash
+$ ./brick ./example/hello.brick -v
+1 # create an account and deposit coin
+2 inject bj 100
+  INF inject an account successfully cmd=inject module=brick
+3
+4 # check balance
+5 getstate bj
+  INF AmgiDbXB3x5Zv5cBBcmyzSJiqMbLXG1yZN2xE4gUuXMBaXPfGoun = 100 cmd=getstate module=brick
+6
+7 # delpoy helloworld smart contract
+8 deploy bj 0 helloctr `./example/hello.lua`
+  INF deploy a smart contract successfully cmd=deploy module=brick
+9
+10 # query to contract, this will print "hello world"
+11 query helloctr hello `[]` `"hello world"`
+  INF query compare successfully cmd=query module=brick
+12
+13 # call and execute contract
+14 call bj 0 helloctr set_name `["aergo"]`
+  INF call a smart contract successfully cmd=call module=brick
+15
+16 # query again, this now will print "hello aergo"
+17 query helloctr hello `[]` `"hello aergo"`
+  INF query compare successfully cmd=query module=brick
+Batch is successfully finished
+  INF batch exec is finished cmd=batch module=brick
+```
+Or user can set the option `-w` to display the batch execution results continuously according to the file changes. This is an useful feature for the development phase.
 
 ## Debugging
 
