@@ -7,7 +7,6 @@
 
 #include "vector.h"
 #include "ir_md.h"
-#include "ir_abi.h"
 #include "ir_fn.h"
 #include "ir_bb.h"
 #include "trans_blk.h"
@@ -167,17 +166,18 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     uint32_t heap_start = 0;
     ast_id_t *ret_id = id->u_fn.ret_id;
     ir_md_t *md = trans->md;
-    ir_fn_t *fn = fn_new(id);
+    ir_fn_t *fn;
 
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
     ASSERT(md != NULL);
 
-    trans->fn = fn;
+    if (!is_public_id(id) && !id->is_used)
+        return;
 
     id_trans_param(trans, id);
 
-    fn->abi = abi_new(id);
+    fn = fn_new(id);
 
     /* All heap variables access memory by adding relative offset to this register */
     fn->heap_idx = fn_add_register(fn, &addr_meta_);
@@ -191,6 +191,8 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     /* It is used internally for binaryen, not for us (see fn_gen()) */
     fn->reloop_idx = fn_add_register(fn, &addr_meta_);
+
+    trans->fn = fn;
 
     if (is_ctor_id(id)) {
         id_trans_ctor(trans, id);

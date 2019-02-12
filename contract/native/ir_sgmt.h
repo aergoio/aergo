@@ -45,7 +45,7 @@ sgmt_init(ir_sgmt_t *sgmt)
 static inline ir_sgmt_t *
 sgmt_new(void)
 {
-    ir_sgmt_t *sgmt = xmalloc(sizeof(ir_sgmt_t));
+    ir_sgmt_t *sgmt = xcalloc(sizeof(ir_sgmt_t));
 
     sgmt_init(sgmt);
 

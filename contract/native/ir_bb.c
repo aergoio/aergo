@@ -13,13 +13,11 @@
 ir_bb_t *
 bb_new(void)
 {
-    ir_bb_t *bb = xmalloc(sizeof(ir_bb_t));
+    ir_bb_t *bb = xcalloc(sizeof(ir_bb_t));
 
     vector_init(&bb->stmts);
     vector_init(&bb->brs);
     vector_init(&bb->pgbacks);
-
-    bb->rb = NULL;
 
     return bb;
 }

@@ -12,7 +12,7 @@
 ir_md_t *
 md_new(char *name)
 {
-    ir_md_t *md = xmalloc(sizeof(ir_md_t));
+    ir_md_t *md = xcalloc(sizeof(ir_md_t));
 
     md->name = name;
 

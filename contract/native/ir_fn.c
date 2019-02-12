@@ -16,19 +16,16 @@
 ir_fn_t *
 fn_new(ast_id_t *id)
 {
-    char name[NAME_MAX_LEN * 2 + 2];
-    ir_fn_t *fn = xmalloc(sizeof(ir_fn_t));
+    ir_fn_t *fn = xcalloc(sizeof(ir_fn_t));
 
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
 
-    snprintf(name, sizeof(name), "%s$%s", id->up->name, id->name);
-
-    fn->name = xstrdup(name);
+    snprintf(fn->name, sizeof(fn->name), "%s$%s", id->up->name, id->name);
     fn->exp_name = is_public_id(id) ? id->name : NULL;
 
-    fn->abi = NULL;
+    fn->abi = abi_new(id);
 
     array_init(&fn->types, BinaryenType);
     vector_init(&fn->bbs);
@@ -41,9 +38,6 @@ fn_new(ast_id_t *id)
     fn->stack_idx = -1;
     fn->reloop_idx = -1;
     fn->ret_idx = -1;
-
-    fn->heap_usage = 0;
-    fn->stack_usage = 0;
 
     return fn;
 }

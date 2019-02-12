@@ -37,7 +37,7 @@ typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
 struct ir_fn_s {
-    char *name;
+    char name[NAME_MAX_LEN * 2 + 2];
     char *exp_name;         /* name to export */
 
     ir_abi_t *abi;
