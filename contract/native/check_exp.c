@@ -58,18 +58,19 @@ exp_check_id(check_t *check, ast_exp_t *exp)
     ASSERT1(is_id_exp(exp), exp->kind);
     ASSERT(name != NULL);
 
-    if (strcmp(name, "this") == 0) {
-        id = check->cont_id;
-    }
-    else if (check->qual_id != NULL) {
+    if (check->qual_id != NULL) {
         id = id_search_fld(check->qual_id, name, check->cont_id == check->qual_id);
     }
     else {
         if (check->fn_id != NULL)
             id = id_search_param(check->fn_id, name);
 
-        if (id == NULL)
+        if (id == NULL) {
             id = blk_search_id(check->blk, name, false);
+
+            if (id == NULL && strcmp(name, "this") == 0)
+                id = check->cont_id;
+        }
     }
 
     if (id == NULL)

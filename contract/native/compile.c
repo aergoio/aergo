@@ -5,8 +5,8 @@
 
 #include "common.h"
 
-#include "prep.h"
 #include "ast.h"
+#include "prep.h"
 #include "parse.h"
 #include "check.h"
 #include "ir.h"
@@ -17,26 +17,24 @@
 #include "compile.h"
 
 int
-compile(char *infile, flag_t flag)
+compile(char *path, flag_t flag)
 {
-    strbuf_t src;
     ast_t *ast = NULL;
 
-    ASSERT(infile != NULL);
+    ASSERT(path != NULL);
 
-    strbuf_init(&src);
-    preprocess(infile, flag, &src);
-
-    parse(infile, flag, &src, &ast);
+    parse(path, flag, &ast);
 
     /* empty contract can be null */
     if (ast != NULL) {
         ir_t *ir = NULL;
 
+        prep(ast, flag, path);
         check(ast, flag);
+
         trans(ast, flag, &ir);
 
-        gen(ir, flag, infile);
+        gen(ir, flag, path);
     }
 
     if (is_flag_off(flag, FLAG_TEST))

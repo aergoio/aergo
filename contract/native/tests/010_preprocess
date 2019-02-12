@@ -1,20 +1,39 @@
 @export(child)
-contract child { }
+contract child {
+    public func f() int { return 1; }
+}
 
 @test(import_child)
 import "child"
-contract parent { }
+contract parent {
+    parent() {
+        child c = new child();
+        int i = c.f();
+    }
+}
 
 @export(grand_child)
-contract grand_child { }
+contract grand_child {
+    public func f() int16 { return -1; }
+}
 
 @export(child)
 import "grand_child"
-contract child { }
+contract child {
+    public func f() string { return "ok"; }
+}
 
 @test(import_grand_child)
 import "child"
-contract test { }
+contract test {
+    test() {
+        child c = new child();
+        string s = c.f();
+
+        grand_child gc = new grand_child();
+        int16 i = gc.f();
+    }
+}
 
 @export(sub)
 import "main"
@@ -25,6 +44,6 @@ import "sub"
 contract main { }
 
 @test(cross_reference)
-@error(ERROR_CROSS_IMPORT)
+@error(ERROR_INFINITE_IMPORT)
 import "main"
 contract test { }

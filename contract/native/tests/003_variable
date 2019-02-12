@@ -281,3 +281,34 @@ contract test {
 contract test {
     map(map(int, int), string) m1;
 }
+
+@test(reserved_words)
+@error(ERROR_SYNTAX,22)
+contract test {
+    int break;
+    int case;
+    int const;
+    int continue;
+    int default;
+    int else;
+    int enum;
+    int false;
+    int for;
+    int func;
+    int goto;
+    int if;
+    int in;
+    int new;
+    int null;
+    int payable;
+    int public;
+    int return;
+    int struct;
+    int switch;
+    int true;
+    int type;
+
+    int contract;
+    int interface;
+    int import;
+}

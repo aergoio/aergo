@@ -110,6 +110,7 @@ struct ast_id_s {
 
     bool is_used;       /* whether it is referenced */
     bool is_checked;    /* whether it is checked */
+    bool is_imported;   /* whether it is imported */
 
     meta_t meta;
     value_t *val;       /* constant value */

@@ -173,10 +173,10 @@ keyword는 ASCL에서 미리 정의한 것으로 identifier로 사용할 수 없
 ```
 Basic reserved words
 -------------------------------------------------------------------
-break       case        const       continue    contract    default
-else        enum        false       for         func        goto
-if          import      in          new         null        payable
-public      return      struct      switch      true        type
+break       case        const       continue    default     else
+enum        false       for         func        goto        if
+in          new         null        payable     public      return
+struct      switch      true        type
 ```
 
 ```

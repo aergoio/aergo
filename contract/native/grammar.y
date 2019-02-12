@@ -14,7 +14,7 @@
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                                  \
     (Current) = YYRHSLOC(Rhs, (N) > 0 ? 1 : 0)
 
-#define AST             (*parse->ast)
+#define AST             (parse->ast)
 #define ROOT            AST->root
 #define LABELS          (&parse->labels)
 
@@ -94,6 +94,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_GOTO          "goto"
         K_IF            "if"
         K_IMPLEMENTS    "implements"
+        K_IMPORT        "import"
         K_IN            "in"
         K_INDEX         "index"
         K_INSERT        "insert"
@@ -155,9 +156,11 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     ast_blk_t *blk;
     ast_exp_t *exp;
     ast_stmt_t *stmt;
+    ast_imp_t *imp;
     meta_t *meta;
 }
 
+%type <imp>     import
 %type <id>      contract
 %type <exp>     impl_opt
 %type <blk>     contract_body
@@ -248,7 +251,12 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %%
 
 root:
-    contract
+    import
+    {
+        AST = ast_new();
+        imp_add(&AST->imps, $1);
+    }
+|   contract
     {
         AST = ast_new();
         id_add(&ROOT->ids, $1);
@@ -258,6 +266,10 @@ root:
         AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
+|   root import
+    {
+        imp_add(&AST->imps, $2);
+    }
 |   root contract
     {
         id_add(&ROOT->ids, $2);
@@ -265,6 +277,13 @@ root:
 |   root interface
     {
         id_add(&ROOT->ids, $2);
+    }
+;
+
+import:
+    K_IMPORT L_STR
+    {
+        $$ = imp_new($2, &@2);
     }
 ;
 
@@ -343,6 +362,11 @@ variable:
     {
         $$ = $2;
         $$->mod |= MOD_PUBLIC;
+    }
+|   var_type error ';'
+    {
+        yyerrok;
+        $$ = NULL;
     }
 ;
 
@@ -486,6 +510,7 @@ struct:
     }
 |   K_TYPE error '}'
     {
+        yyerrok;
         $$ = NULL;
     }
 ;
@@ -518,6 +543,7 @@ enumeration:
     }
 |   K_ENUM error '}'
     {
+        yyerrok;
         $$ = NULL;
     }
 ;
@@ -760,7 +786,11 @@ exp_stmt:
     {
         $$ = stmt_new_exp($1, &@$);
     }
-|   error ';'           { $$ = NULL; }
+|   error ';'
+    {
+        yyerrok;
+        $$ = NULL;
+    }
 ;
 
 assign_stmt:
@@ -820,6 +850,7 @@ if_stmt:
     }
 |   K_IF error '}'
     {
+        yyerrok;
         $$ = NULL;
     }
 ;
@@ -859,6 +890,7 @@ loop_stmt:
     }
 |   K_FOR error '}'
     {
+        yyerrok;
         $$ = NULL;
     }
 ;
@@ -884,6 +916,7 @@ switch_stmt:
     }
 |   K_SWITCH error '}'
     {
+        yyerrok;
         $$ = NULL;
     }
 ;
@@ -938,8 +971,8 @@ ddl_stmt:
         yyerrok;
         error_pop();
 
-        len = @$.abs.last_offset - @$.abs.first_offset;
-        ddl = xstrndup(parse->src + @$.abs.first_offset, len);
+        len = @$.last_offset - @$.first_offset;
+        ddl = xstrndup(parse->src + @$.first_offset, len);
 
         $$ = stmt_new_ddl(ddl, &@$);
 
@@ -987,8 +1020,8 @@ sql_exp:
         yyerrok;
         error_pop();
 
-        len = @$.abs.last_offset - @$.abs.first_offset;
-        sql = xstrndup(parse->src + @$.abs.first_offset, len);
+        len = @$.last_offset - @$.first_offset;
+        sql = xstrndup(parse->src + @$.first_offset, len);
 
         $$ = exp_new_sql($1, sql, &@$);
 
@@ -1311,7 +1344,9 @@ literal:
 
 non_reserved_token:
     K_CONTRACT          { $$ = xstrdup("contract"); }
+|   K_IMPORT            { $$ = xstrdup("import"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
+|   K_INTERFACE         { $$ = xstrdup("interface"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
 ;
 
@@ -1319,7 +1354,7 @@ identifier:
     ID
     {
         if (strlen($1) > NAME_MAX_LEN)
-            ERROR(ERROR_TOO_LONG_ID, &@1, NAME_MAX_LEN);
+            ERROR(ERROR_TOO_LONG_ID, &@1, NAME_MAX_LEN, strlen($1));
 
         $$ = $1;
     }

@@ -46,4 +46,14 @@ stack_init(stack_t *stack)
     stack->tail = NULL;
 }
 
+static inline stack_t *
+stack_new(void)
+{
+    stack_t *stack = xmalloc(sizeof(stack_t));
+
+    stack_init(stack);
+    
+    return stack;
+}
+
 #endif /* ! _STACK_H */

@@ -5,21 +5,20 @@
 
 #include "common.h"
 
+#include "util.h"
+
 #include "src_pos.h"
 
-src_pos_t null_pos_ = {
-    NULL, { NULL, 1, 1, 0, 1, 1, 0 }, { NULL, 1, 1, 0, 1, 1, 0 }
-};
+src_pos_t null_pos_ = { NULL, NULL, 1, 1, 0, 1, 1, 0 };
 
 void
-src_pos_print(src_pos_t *src_pos, char *buf)
+src_pos_print(src_pos_t *pos, char *buf, int buf_size)
 {
-#define SRC_POS_LINE_MAX      80
     int i;
     int idx = 0;
     int tok_len;
+    int line_max = (buf_size - 19) / 2;
     int adj_col, adj_offset, adj_len;
-    pos_t *pos = &src_pos->abs;
 
     adj_offset = pos->first_offset;
     adj_col = pos->first_col;
@@ -27,18 +26,18 @@ src_pos_print(src_pos_t *src_pos, char *buf)
     ASSERT(adj_offset >= 0);
     ASSERT(adj_col > 0);
 
-    tok_len = MIN(pos->last_offset - pos->first_offset, SRC_POS_LINE_MAX - 1);
+    tok_len = MIN(pos->last_offset - pos->first_offset, line_max - 1);
     ASSERT(tok_len >= 0);
 
-    if (adj_col + tok_len > SRC_POS_LINE_MAX) {
-        adj_col = SRC_POS_LINE_MAX - tok_len;
+    if (adj_col + tok_len > line_max) {
+        adj_col = line_max - tok_len;
         adj_offset += pos->first_col - adj_col;
     }
 
-    adj_len = MIN(strlen(src_pos->src + adj_offset), SRC_POS_LINE_MAX);
+    adj_len = MIN(strlen(pos->src + adj_offset), line_max);
 
     for (i = 0; i < adj_len; i++) {
-        char c = src_pos->src[i + adj_offset];
+        char c = pos->src[i + adj_offset];
 
         if (c == '\0' || c == '\n' || c == '\r')
             break;
@@ -49,7 +48,12 @@ src_pos_print(src_pos_t *src_pos, char *buf)
     buf[idx++] = '\n';
 
     for (i = 0; i < adj_col - 1; i++) {
-        buf[idx++] = ' ';
+        char c = pos->src[i + adj_offset];
+
+        if (c == '\t' || c == '\f')
+            buf[idx++] = c;
+        else
+            buf[idx++] = ' ';
     }
 
     strcpy(&buf[idx++], ANSI_GREEN"^"ANSI_NONE);

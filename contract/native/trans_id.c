@@ -116,8 +116,9 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 }
 
 static void
-set_memory_addr(ir_fn_t *fn, uint32_t heap_start, src_pos_t *pos)
+set_memory_addr(ir_fn_t *fn, ast_id_t *id, uint32_t heap_start)
 {
+    src_pos_t *pos = &id->pos;
     ast_exp_t *glob_exp, *reg_exp;
 
     if (fn->stack_usage > 0) {
@@ -144,7 +145,7 @@ set_memory_addr(ir_fn_t *fn, uint32_t heap_start, src_pos_t *pos)
         vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(glob_exp, reg_exp, pos));
     }
 
-    if (fn->heap_usage > 0) {
+    if (fn->heap_usage > 0 || is_ctor_id(id)) {
         /* At the beginning of "entry_bb", set the current heap offset to the register */
         glob_exp = exp_new_global("heap$offset");
 
@@ -207,7 +208,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     if (id->u_fn.blk != NULL)
         blk_trans(trans, id->u_fn.blk);
 
-    set_memory_addr(fn, heap_start, &id->pos);
+    set_memory_addr(fn, id, heap_start);
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, fn->exit_bb);
@@ -248,6 +249,18 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
     ast_blk_t *blk = id->u_cont.blk;
 
     ASSERT(blk != NULL);
+
+    if (id->is_imported) {
+        int i;
+
+        vector_foreach(&blk->ids, i) {
+            ast_id_t *elem_id = vector_get_id(&blk->ids, i);
+
+            if (is_fn_id(elem_id))
+                id_trans_param(trans, elem_id);
+        }
+        return;
+    }
 
     trans->id = id;
     trans->md = md_new(id->name);

@@ -10,6 +10,6 @@
 
 #include "flag.h"
 
-int compile(char *infile, flag_t flag);
+int compile(char *path, flag_t flag);
 
 #endif /* ! _COMPILE_H */

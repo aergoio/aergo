@@ -94,18 +94,18 @@ error_new(ec_t ec, errlvl_t lvl, src_pos_t *pos, char *desc)
     ASSERT1(ec > NO_ERROR && ec < ERROR_MAX, ec);
     ASSERT1(lvl >= LVL_FATAL && lvl < LVL_MAX, lvl);
     ASSERT(pos != NULL);
-    ASSERT(pos->rel.path != NULL);
-    ASSERT(pos->rel.first_line > 0);
-    ASSERT(pos->rel.first_col > 0);
+    ASSERT(pos->path != NULL);
+    ASSERT(pos->first_line > 0);
+    ASSERT(pos->first_col > 0);
     ASSERT(desc != NULL);
 
     error->code = ec;
     error->level = lvl;
-    error->path = pos->rel.path;
-    error->line = pos->rel.first_line;
-    error->col = pos->rel.first_col;
+    error->path = pos->path;
+    error->line = pos->first_line;
+    error->col = pos->first_col;
 
-    src_pos_print(pos, buf);
+    src_pos_print(pos, buf, sizeof(buf));
     snprintf(error->desc, sizeof(error->desc), "%s\n%s", desc, buf);
 
     return error;

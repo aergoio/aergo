@@ -18,7 +18,7 @@ error(ERROR_FILE_IO,                "%s: %s")
 /******************************************************************************
  * preprocessor
  *****************************************************************************/
-error(ERROR_CROSS_IMPORT,           "cross reference with import '%s'")
+error(ERROR_INFINITE_IMPORT,        "infinite loop for import '%s'")
 
 /******************************************************************************
  * parser
@@ -28,7 +28,7 @@ error(ERROR_UNTERMINATED_STRING,    "unterminated string")
 error(ERROR_UNTERMINATED_SQL,       "unterminated SQL")
 error(ERROR_UNKNOWN_CHAR,           "unknown character")
 error(ERROR_DUPLICATED_ID,          "duplicated identifier '%s'")
-error(ERROR_TOO_LONG_ID,            "identifier too long (less than or equal to %d bytes)")
+error(ERROR_TOO_LONG_ID,            "identifier too long (<= %d bytes, but %d bytes)")
 error(ERROR_SYNTAX,                 "%s")
 
 /******************************************************************************
@@ -73,7 +73,7 @@ error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 /******************************************************************************
  * wasm generator
  *****************************************************************************/
-error(ERROR_STACK_OVERFLOW,         "stack overflows (<= %dKB, but %d bytes)")
-error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= %dMB, but %d bytes)")
+error(ERROR_STACK_OVERFLOW,         "stack overflows (<= %d bytes, but %d bytes)")
+error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= %d bytes, but %d bytes)")
 
 /* vim:set filetype=c: */

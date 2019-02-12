@@ -15,6 +15,7 @@
 #include "ast_blk.h"
 #include "ast_exp.h"
 #include "ast_stmt.h"
+#include "ast_imp.h"
 
 typedef struct parse_s {
     char *path;
@@ -26,7 +27,7 @@ typedef struct parse_s {
     int pos;
 
     /* abstract syntax tree */
-    ast_t **ast;
+    ast_t *ast;
 
     /* for handling error token */
     int adj_token;
@@ -43,6 +44,6 @@ typedef struct parse_s {
 
 #include "grammar.tab.h"
 
-void parse(char *path, flag_t flag, strbuf_t *src, ast_t **ast);
+void parse(char *path, flag_t flag, ast_t **ast);
 
 #endif /* ! _PARSE_H */

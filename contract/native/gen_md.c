@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "util.h"
 #include "gen_fn.h"
 #include "gen_util.h"
 
@@ -36,7 +37,7 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
     BinaryenExpressionRef *addrs;
 
     if (sgmt->offset >= gen->flag.stack_size)
-        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size / 1024, sgmt->offset);
+        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size, sgmt->offset);
 
     addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
@@ -101,7 +102,7 @@ md_gen(gen_t *gen, ir_md_t *md)
             write_file(path, buf, n);
         }
         else {
-            FATAL(ERROR_BINARY_OVERFLOW, 1, n);
+            FATAL(ERROR_BINARY_OVERFLOW, WASM_MAX_LEN, n);
         }
     }
 

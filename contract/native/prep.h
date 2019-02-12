@@ -9,20 +9,8 @@
 #include "common.h"
 
 #include "flag.h"
-#include "strbuf.h"
+#include "ast.h"
 
-typedef struct scan_s {
-    char *path;
-    char *work_dir;
-
-    int offset;
-    strbuf_t in;
-
-    src_pos_t pos;
-
-    strbuf_t *out;
-} scan_t;
-
-void preprocess(char *path, flag_t flag, strbuf_t *out);
+void prep(ast_t *ast, flag_t flag, char *path);
 
 #endif /* ! _PREP_H */

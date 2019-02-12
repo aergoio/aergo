@@ -121,8 +121,6 @@
 %option noyylineno
 %option noyywrap
 
-%x DIRECTIVE
-
 ws                          [ \t\f\v]
 nl                          ([\r\n]|\r\n)
 
@@ -228,6 +226,7 @@ id                          {L}({L}|{D})*
 "goto"                      yy_return(K_GOTO);
 "if"                        yy_return(K_IF);
 "implements"                yy_return(K_IMPLEMENTS);
+"import"                    yy_return(K_IMPORT);
 "in"                        yy_return(K_IN);
 "int"                       yy_return(K_INT);
 "int16"                     yy_return(K_INT16);
@@ -260,18 +259,6 @@ id                          {L}({L}|{D})*
 "select"|"SELECT"           yy_return(K_SELECT);
 "table"|"TABLE"             yy_return(K_TABLE);
 "update"|"UPDATE"           yy_return(K_UPDATE);
-
-"#file"                     BEGIN(DIRECTIVE);
-<DIRECTIVE>{ws}+
-<DIRECTIVE>\"[^\"\n\r]+\"   src_pos_set_path(yylloc, xstrndup(yytext + 1, yyleng - 2));
-<DIRECTIVE>{D}+" "{D}+ {
-    int line = atoi(strtok(xstrndup(yytext, yyleng), " "));
-    int offset = atoi(strtok(NULL, " "));
-
-    src_pos_set_pos(yylloc, line, 1, offset);
-    src_pos_update_first(yylloc);
-}
-<DIRECTIVE>{nl}             BEGIN(INITIAL);
 
 {id}                        yy_return_text(ID);
 

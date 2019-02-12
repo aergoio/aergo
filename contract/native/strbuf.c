@@ -60,6 +60,8 @@ strbuf_load(strbuf_t *sb, char *path)
     FILE *fp = open_file(path, "r");
     char buf[STRBUF_INIT_SIZE];
 
+    strbuf_reset(sb);
+
     while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
         strbuf_ncat(sb, buf, n);
     }
