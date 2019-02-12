@@ -13,7 +13,7 @@
 #include "prep.h"
 
 static bool
-add_file(stack_t *refs, ast_imp_t *imp)
+push_imp(stack_t *refs, ast_imp_t *imp)
 {
     stack_node_t *node;
 
@@ -30,15 +30,17 @@ add_file(stack_t *refs, ast_imp_t *imp)
 }
 
 static void
-del_file(stack_t *refs)
+pop_imp(stack_t *refs)
 {
     stack_pop(refs);
 }
 
 static void
-add_imp(ast_id_t *id, vector_t *ids)
+attach(ast_id_t *id, vector_t *ids)
 {
     int i;
+
+    ASSERT(id->is_checked);
 
     vector_foreach(ids, i) {
         if (strcmp(vector_get_id(ids, i)->name, id->name) == 0)
@@ -58,7 +60,7 @@ subst(ast_t *ast, flag_t flag, stack_t *refs, vector_t *ids)
     vector_foreach(&ast->imps, i) {
         ast_imp_t *imp = vector_get_imp(&ast->imps, i);
 
-        if (add_file(refs, imp)) {
+        if (push_imp(refs, imp)) {
             ast_t *imp_ast = NULL;
 
             parse(imp->path, flag, &imp_ast);
@@ -72,11 +74,11 @@ subst(ast_t *ast, flag_t flag, stack_t *refs, vector_t *ids)
                 check(imp_ast, flag);
 
                 vector_foreach(&root->ids, j) {
-                    add_imp(vector_get_id(&root->ids, j), ids);
+                    attach(vector_get_id(&root->ids, j), ids);
                 }
             }
 
-            del_file(refs);
+            pop_imp(refs);
         }
     }
 }
