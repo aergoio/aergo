@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos"
+	"github.com/aergoio/aergo/consensus/impl/raft"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
 	"github.com/aergoio/aergo/pkg/component"
 )
@@ -47,6 +48,7 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 	impl := map[string]consensus.Constructor{
 		"dpos": dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
 		"sbp":  sbp.GetConstructor(cfg, hub, cdb, sdb),  // Simple BP
+		"raft": raft.GetConstructor(cfg, hub, cdb, sdb), // Raft BP
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
