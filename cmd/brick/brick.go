@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/cmd/brick/exec"
 	prompt "github.com/c-bata/go-prompt"
-	"github.com/mattn/go-colorable"
 )
 
 var logger = log.NewLogger("brick")
@@ -100,19 +99,14 @@ func main() {
 		if len(os.Args) > 2 {
 			if os.Args[2] == "-v" {
 				exec.EnableVerbose()
+			} else if os.Args[2] == "-w" {
+				exec.EnableWatch()
 			} else {
-				logger.Fatal().Msg("Invalid Parameter. Usage: brick filename [-v]")
+				fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
+				os.Exit(1)
 			}
 		}
 
 		exec.Execute(cmd, args)
-
-		stdOut := colorable.NewColorableStdout()
-		errCnt := exec.GetBatchErrorCount()
-		if errCnt == 0 {
-			fmt.Fprintf(stdOut, "\x1B[32;1mBatch is successfully finished\n")
-		} else {
-			fmt.Fprintf(stdOut, "\x1B[31;1mBatch is failed: Error %d\n", errCnt)
-		}
 	}
 }

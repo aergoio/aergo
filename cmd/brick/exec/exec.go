@@ -64,7 +64,7 @@ func Execute(cmd, args string) {
 	if executor == nil {
 		letBatchKnowErr = fmt.Errorf("command not found: %s", cmd)
 		batchErrorCount++
-		logger.Warn().Str("cmd", cmd).Msg("command not found")
+		logger.Error().Str("cmd", cmd).Msg("command not found")
 		return
 	}
 
@@ -85,12 +85,4 @@ func Execute(cmd, args string) {
 
 	//logger.Info().Str("result", result).Str("cmd", cmd).Msg("execution success")
 	logger.Info().Str("cmd", cmd).Msg(result)
-}
-
-func EnableVerbose() {
-	verboseBatch = true
-}
-
-func GetBatchErrorCount() int {
-	return batchErrorCount
 }
