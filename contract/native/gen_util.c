@@ -65,7 +65,7 @@ malloc_gen(gen_t *gen)
 
     BinaryenAddGlobal(module, "heap$offset", type, 1, i32_gen(gen, gen->flag.stack_size));
 
-    spec = BinaryenAddFunctionType(module, "system$malloc", type, params, 1);
+    spec = BinaryenAddFunctionType(module, "system$alloc", type, params, 1);
 
     instrs[0] = BinaryenSetLocal(module, 1,
                                  BinaryenGetGlobal(module, "heap$offset", type));
@@ -77,7 +77,7 @@ malloc_gen(gen_t *gen)
 
     instrs[2] = BinaryenReturn(module, BinaryenGetLocal(module, 1, type));
 
-    BinaryenAddFunction(module, "system$malloc", spec, locals, 1,
+    BinaryenAddFunction(module, "system$alloc", spec, locals, 1,
                         BinaryenBlock(module, NULL, instrs, 3, BinaryenTypeInt32()));
 }
 

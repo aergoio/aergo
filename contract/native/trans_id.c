@@ -100,6 +100,11 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(elem_id, dflt_exp));
     }
 
+    if (fn->heap_usage > 0)
+        /* Update "heap$offset" to prevent the heap from being overwritten by another
+         * constructor */
+        update_heap_offset(fn, &fn->entry_bb->stmts, &id->pos);
+
     trans->bb = fn->entry_bb;
 
     vector_foreach(stmts, i) {
@@ -107,11 +112,6 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     }
 
     trans->bb = NULL;
-
-    if (fn->heap_usage > 0)
-        /* Update "heap$offset" to prevent the heap from being overwritten by another
-         * constructor */
-        update_heap_offset(fn, &fn->entry_bb->stmts, &id->pos);
 }
 
 static void

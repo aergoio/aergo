@@ -563,7 +563,6 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     int i, j = 0;
     char qname[NAME_MAX_LEN * 2 + 2];
     ast_id_t *id = exp->id;
-    //BinaryenExpressionRef index;
     BinaryenIndex param_cnt;
     BinaryenExpressionRef *arguments;
 
@@ -575,21 +574,6 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     vector_foreach(exp->u_call.param_exps, i) {
         arguments[j++] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
     }
-
-#if 0
-    if (is_ctor_id(id))
-        /* The constructor is called with an absolute index */
-        return BinaryenCallIndirect(gen->module, i32_gen(gen, id->idx), arguments,
-                                    abi->param_cnt, abi->name);
-
-    index = BinaryenBinary(gen->module, BinaryenAddInt32(),
-                           BinaryenLoad(gen->module, sizeof(int32_t), 1, 0, 0,
-                                        BinaryenTypeInt32(),
-                                        exp_gen(gen, exp->u_call.id_exp)),
-                           i32_gen(gen, id->idx));
-
-    return BinaryenCallIndirect(gen->module, index, arguments, abi->param_cnt, abi->name);
-#endif
 
     snprintf(qname, sizeof(qname), "%s$%s", id->up->name, id->name);
 
@@ -707,20 +691,12 @@ exp_gen_memory(gen_t *gen, ast_exp_t *exp)
 
     address = BinaryenGetLocal(gen->module, exp->u_mem.base, BinaryenTypeInt32());
 
-    if (exp->u_mem.addr > 0)
-        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                 i32_gen(gen, exp->u_mem.addr));
-
-    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
-        if (exp->u_mem.offset > 0)
-            return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                  i32_gen(gen, exp->u_mem.offset));
-
-        return address;
-    }
+    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta))
+        return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                              i32_gen(gen, exp->u_mem.addr + exp->u_mem.offset));
 
     return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_type(meta->type),
-                        exp->u_mem.offset, 0, meta_gen(meta), address);
+                        exp->u_mem.addr + exp->u_mem.offset, 0, meta_gen(meta), address);
 }
 
 BinaryenExpressionRef

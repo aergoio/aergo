@@ -74,7 +74,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 
             ASSERT1(meta->rel_offset == 0, meta->rel_offset);
 
-            if (is_pointer_meta(meta)) {
+            if (is_array_meta(meta) || is_struct_meta(meta) || is_object_meta(meta)) {
                 /* Process the address value of the global variable by putting it in
                  * the local variable. */
                 uint32_t reg_idx = fn_add_register(fn, meta);
