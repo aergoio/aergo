@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/rs/zerolog"
+
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
 )
@@ -81,11 +83,18 @@ func (c *callContract) Run(args string) (string, error) {
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
 	callTx := contract.NewLuaTxCall(accountName, contractName, amount, formattedQuery)
+
+	logLevel := zerolog.GlobalLevel()
+
 	if expectedResult != "" {
 		callTx.Fail(expectedResult)
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
 	err := context.Get().ConnectBlock(callTx)
 
+	if expectedResult != "" {
+		zerolog.SetGlobalLevel(logLevel) // restore log level
+	}
 	if err != nil {
 		return "", err
 	}

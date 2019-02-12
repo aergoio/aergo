@@ -1,15 +1,17 @@
 package exec
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/aergoio/aergo-lib/log"
-
 	"github.com/aergoio/aergo/cmd/brick/context"
 )
 
 var logger = log.NewLogger("brick")
+
+var storedCmdLine = ""
 
 type Executor interface {
 	Command() string
@@ -60,21 +62,35 @@ func Execute(cmd, args string) {
 	executor := GetExecutor(cmd)
 
 	if executor == nil {
+		letBatchKnowErr = fmt.Errorf("command not found: %s", cmd)
+		batchErrorCount++
 		logger.Warn().Str("cmd", cmd).Msg("command not found")
 		return
 	}
 
 	if err := executor.Validate(args); err != nil {
+		letBatchKnowErr = err
+		batchErrorCount++
 		logger.Error().Err(err).Str("cmd", cmd).Msg("validation fail")
 		return
 	}
 
 	result, err := executor.Run(args)
 	if err != nil {
+		letBatchKnowErr = err
+		batchErrorCount++
 		logger.Error().Err(err).Str("cmd", cmd).Msg("execution fail")
 		return
 	}
 
 	//logger.Info().Str("result", result).Str("cmd", cmd).Msg("execution success")
 	logger.Info().Str("cmd", cmd).Msg(result)
+}
+
+func EnableVerbose() {
+	verboseBatch = true
+}
+
+func GetBatchErrorCount() int {
+	return batchErrorCount
 }

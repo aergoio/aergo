@@ -7,7 +7,13 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/mattn/go-colorable"
+	"github.com/rs/zerolog"
 )
+
+var verboseBatch = false
+
+var letBatchKnowErr error
+var batchErrorCount = 0
 
 func init() {
 	registerExec(&batch{})
@@ -56,7 +62,6 @@ func (c *batch) parse(args string) (string, error) {
 }
 
 func (c *batch) Run(args string) (string, error) {
-
 	batchFilePath, _ := c.parse(args)
 
 	batchFile, err := os.Open(batchFilePath)
@@ -76,12 +81,17 @@ func (c *batch) Run(args string) (string, error) {
 
 	stdOut := colorable.NewColorableStdout()
 
-	//tab := strings.Repeat("\t", c.level)
-
 	prefix := ""
-	if c.level != 1 {
+
+	// set highest log level to turn off verbose
+	if false == verboseBatch {
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		fmt.Fprintf(stdOut, "> %s\n", batchFile.Name())
+	}
+
+	if c.level != 1 && verboseBatch {
 		prefix = fmt.Sprintf("%d-", c.level-1)
-		fmt.Fprintf(stdOut, "\n[%s]-------------------->\n", batchFile.Name())
+		fmt.Fprintf(stdOut, "\n<<<<<<< %s\n", batchFile.Name())
 	}
 
 	for i, line := range cmdLines {
@@ -89,21 +99,34 @@ func (c *batch) Run(args string) (string, error) {
 
 		cmd, args := context.ParseFirstWord(line)
 		if len(cmd) == 0 {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%s%d\x1B[0m\n", prefix, lineNum)
+			if verboseBatch {
+				fmt.Fprintf(stdOut, "\x1B[0;37m%s%d\x1B[0m\n", prefix, lineNum)
+			}
 			continue
 		} else if context.Comment == cmd {
-			fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[32m%s\x1B[0m\n", prefix, lineNum, line)
+			if verboseBatch {
+				fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[32m%s\x1B[0m\n", prefix, lineNum, line)
+			}
 			continue
 		}
+		if verboseBatch {
+			fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[34;1m%s \x1B[0m%s\n", prefix, lineNum, cmd, args)
+		}
 
-		fmt.Fprintf(stdOut, "\x1B[0;37m%s%d \x1B[34;1m%s \x1B[0m%s\n", prefix, lineNum, cmd, args)
 		Broker(line)
-	}
-	c.level--
 
-	if c.level != 1 {
-		fmt.Fprintf(stdOut, "<--------------------[%s]\n", batchFile.Name())
+		if letBatchKnowErr != nil {
+			// if there is error during execution, then print line for error trace
+			fmt.Fprintf(stdOut, "\x1B[0;37m%s:%d \x1B[34;1m%s \x1B[0m%s\n\n", batchFile.Name(), lineNum, cmd, args)
+			letBatchKnowErr = nil
+		}
 	}
+
+	if c.level != 1 && verboseBatch {
+		fmt.Fprintf(stdOut, ">>>>>>> %s\n", batchFile.Name())
+	}
+
+	c.level--
 
 	return "batch exec is finished", nil
 }
