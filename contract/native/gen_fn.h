@@ -12,7 +12,7 @@
 #include "ir_fn.h"
 #include "gen.h"
 
-void abi_gen(gen_t *gen, ir_abi_t *abi);
+BinaryenFunctionTypeRef abi_gen(gen_t *gen, ir_abi_t *abi);
 
 void fn_gen(gen_t *gen, ir_fn_t *fn);
 

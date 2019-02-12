@@ -561,19 +561,16 @@ static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i, j = 0;
+    char qname[NAME_MAX_LEN * 2 + 2];
     ast_id_t *id = exp->id;
-    ir_abi_t *abi = id->abi;
     //BinaryenExpressionRef index;
+    BinaryenIndex param_cnt;
     BinaryenExpressionRef *arguments;
 
-    if (is_map_meta(&exp->meta))
-        /* TODO */
-        return i32_gen(gen, 0);
+    ASSERT(id->up != NULL);
 
-    ASSERT(abi != NULL);
-    ASSERT(id->idx >= 0);
-
-    arguments = xmalloc(sizeof(BinaryenExpressionRef) * abi->param_cnt);
+    param_cnt = vector_size(exp->u_call.param_exps);
+    arguments = xmalloc(sizeof(BinaryenExpressionRef) * param_cnt);
 
     vector_foreach(exp->u_call.param_exps, i) {
         arguments[j++] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
@@ -593,7 +590,10 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
 
     return BinaryenCallIndirect(gen->module, index, arguments, abi->param_cnt, abi->name);
 #endif
-    return BinaryenCall(gen->module, id->name, arguments, abi->param_cnt, abi->result);
+
+    snprintf(qname, sizeof(qname), "%s$%s", id->up->name, id->name);
+
+    return BinaryenCall(gen->module, qname, arguments, param_cnt, meta_gen(&id->meta));
 }
 
 static BinaryenExpressionRef

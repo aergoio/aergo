@@ -9,8 +9,9 @@
 #include "ast_blk.h"
 #include "ast_stmt.h"
 #include "ir_md.h"
-#include "ir_bb.h"
+#include "ir_abi.h"
 #include "ir_fn.h"
+#include "ir_bb.h"
 #include "ir_sgmt.h"
 #include "trans_stmt.h"
 
@@ -98,7 +99,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
             exp_set_register(exp, id->idx);
         }
     }
-    else if (is_fn_id(id) || is_cont_id(id)) {
+    else if (is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
         exp_set_register(exp, fn->cont_idx);
         meta_set_uint32(&exp->meta);
@@ -361,13 +362,12 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
 
-    if (is_map_meta(meta))
-        /* TODO */
-        return;
-
     exp_trans(trans, id_exp);
 
-    if (is_ctor_id(exp->id)) {
+    if (fn_id->up != trans->id)
+        md_add_abi(trans->md, abi_new(fn_id));
+
+    if (is_ctor_id(fn_id)) {
         /* The constructor does not change the parameter, it always returns address. */
         vector_foreach(exp->u_call.param_exps, i) {
             exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
@@ -383,6 +383,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     if (is_access_exp(id_exp)) {
         ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
 
+        ASSERT1(is_register_exp(qual_exp), qual_exp->kind);
         ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
 
         /* If the expression is of type "x.y()", pass "x" as the first argument. */
@@ -391,8 +392,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     else {
         ast_exp_t *param_exp;
 
-        ASSERT1(is_register_exp(id_exp), id_exp->kind);
-        ASSERT1(trans->fn->cont_idx == 0, trans->fn->cont_idx);
+        ASSERT1(fn->cont_idx == 0, fn->cont_idx);
 
         /* If the expression is of type "x()", pass my first parameter as the first
          * argument. */

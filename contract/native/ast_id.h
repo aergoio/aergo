@@ -51,11 +51,6 @@ typedef struct ast_exp_s ast_exp_t;
 typedef struct ast_stmt_s ast_stmt_t;
 #endif /* ! _AST_STMT_T */
 
-#ifndef _IR_ABI_T
-#define _IR_ABI_T
-typedef struct ir_abi_s ir_abi_t;
-#endif /* ! _IR_ABI_T */
-
 typedef struct id_var_s {
     bool is_param;
     ast_exp_t *type_exp;
@@ -122,7 +117,6 @@ struct ast_id_s {
     int idx;            /* local or function index */
 
     ast_id_t *up;
-    ir_abi_t *abi;
 
     AST_NODE_DECL;
 };

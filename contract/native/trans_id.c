@@ -177,9 +177,6 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     id_trans_param(trans, id);
 
     fn->abi = abi_new(id);
-    id->abi = fn->abi;
-
-    md_add_abi(md, fn->abi);
 
     /* All heap variables access memory by adding relative offset to this register */
     fn->heap_idx = fn_add_register(fn, &addr_meta_);
@@ -248,110 +245,39 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
-    int i, j;
-    int fn_idx = 1;
-    ast_id_t *idx_id;
     ast_blk_t *blk = id->u_cont.blk;
-    ir_md_t *md = md_new(id->name);
 
     ASSERT(blk != NULL);
 
-    if (id->u_cont.impl_exp != NULL) {
-        /* Reorder functions according to the order in the interface
-         *
-         * The reason for reordering the functions is that if the parameter of the
-         * function is an interface and there are several contracts that implement the
-         * interface, there is no way to know the location of the function belonging to
-         * the contract used as the argument.
-         *
-         * By making the index of the function equal between the interface and the
-         * contract, the function can be called through the index of the interface
-         * function */
-        ast_id_t *itf_id = id->u_cont.impl_exp->id;
+    trans->id = id;
+    trans->md = md_new(id->name);
 
-        ASSERT1(is_itf_id(itf_id), itf_id->kind);
+    blk_trans(trans, blk);
 
-        vector_foreach(&itf_id->u_itf.blk->ids, i) {
-            ast_id_t *spec_id = vector_get_id(&itf_id->u_itf.blk->ids, i);
-
-            vector_foreach(&blk->ids, j) {
-                ast_id_t *fn_id = vector_get_id(&blk->ids, j);
-
-                if (is_fn_id(fn_id) && strcmp(spec_id->name, fn_id->name) == 0) {
-                    vector_move(&blk->ids, j, i);
-                    break;
-                }
-            }
-        }
-    }
-
-    /* Move the constructor to the first position because it handles the memory
-     * allocation of global variables. Even if the contract implements interface,
-     * there is no problem because index 0 is empty. (see id_trans_interface()) */
-    vector_foreach(&blk->ids, i) {
-        if (is_ctor_id(vector_get_id(&blk->ids, i))) {
-            vector_move(&blk->ids, i, 0);
-            break;
-        }
-    }
-
-    /* Because the cross-reference is possible between functions, the index of the
-     * function is numbered before transformation */
-    vector_foreach(&blk->ids, i) {
-        ast_id_t *fn_id = vector_get_id(&blk->ids, i);
-
-        if (is_ctor_id(fn_id))
-            /* Since the constructor can be called from any location (including another
-             * contracts), it should always be accessed with an absolute index */
-            fn_id->idx = vector_size(&md->fns);
-        else if (is_fn_id(fn_id))
-            /* The "idx" is the relative index within the contract */
-            fn_id->idx = fn_idx++;
-    }
-
-    /* This value, like any other global variable, is stored in the heap area used by
-     * the contract, and is stored in the first 4 bytes of the area. All functions
-     * also access table by adding relative index to this value */
-    idx_id = id_new_tmp_var("cont$idx");
-    idx_id->up = id;
-    idx_id->u_var.dflt_exp = exp_new_lit_i64(vector_size(&md->fns), &idx_id->pos);
-    meta_set_int32(&idx_id->u_var.dflt_exp->meta);
-    meta_set_int32(&idx_id->meta);
-
-    vector_add_first(&id->u_cont.blk->ids, idx_id);
-
-    trans->md = md;
-
-    blk_trans(trans, id->u_cont.blk);
+    ir_add_md(trans->ir, trans->md);
 
     trans->md = NULL;
-
-    ir_add_md(trans->ir, md);
+    trans->id = NULL;
 }
 
 static void
 id_trans_interface(trans_t *trans, ast_id_t *id)
 {
     int i;
-    /* Index 0 is reserved for the constructor */
-    int fn_idx = 1;
     ast_blk_t *blk = id->u_itf.blk;
 
     ASSERT(blk != NULL);
 
     vector_foreach(&blk->ids, i) {
-        ast_id_t *fn_id = vector_get_id(&blk->ids, i);
+        ast_id_t *elem_id = vector_get_id(&blk->ids, i);
 
-        ASSERT1(is_fn_id(fn_id), fn_id->kind);
-        ASSERT(!is_ctor_id(fn_id));
+        ASSERT1(is_fn_id(elem_id), elem_id->kind);
+        ASSERT(!is_ctor_id(elem_id));
 
         /* If the interface type is used as a parameter, we can invoke it with the
-         * interface function, so transform the parameter here and set abi */
+         * interface function, so transform the parameter here */
 
-        id_trans_param(trans, fn_id);
-
-        fn_id->idx = fn_idx++;
-        fn_id->abi = abi_new(fn_id);
+        id_trans_param(trans, elem_id);
     }
 }
 

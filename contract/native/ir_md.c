@@ -35,7 +35,9 @@ md_add_abi(ir_md_t *md, ir_abi_t *abi)
         if (old_abi->param_cnt == abi->param_cnt &&
             memcmp(old_abi->params, abi->params,
                    sizeof(BinaryenType) * old_abi->param_cnt) == 0 &&
-            old_abi->result == abi->result)
+            old_abi->result == abi->result &&
+            strcmp(old_abi->module, abi->module) == 0 &&
+            strcmp(old_abi->name, abi->name) == 0)
             return;
     }
 

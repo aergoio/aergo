@@ -17,7 +17,8 @@ typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
 
 struct ir_abi_s {
-    char name[NAME_MAX_LEN + 1];
+    char *module;
+    char *name;
 
     /* parameter types (including return) */
     int param_cnt;

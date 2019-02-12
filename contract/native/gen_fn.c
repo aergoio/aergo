@@ -11,6 +11,13 @@
 
 #include "gen_fn.h"
 
+BinaryenFunctionTypeRef
+abi_gen(gen_t *gen, ir_abi_t *abi)
+{
+    return BinaryenAddFunctionType(gen->module, NULL, abi->result, abi->params,
+                                   abi->param_cnt);
+}
+
 void
 fn_gen(gen_t *gen, ir_fn_t *fn)
 {
@@ -34,19 +41,12 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx);
 
-    BinaryenAddFunction(gen->module, fn->name, abi->spec,
+    BinaryenAddFunction(gen->module, fn->name, abi_gen(gen, abi),
                         (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
                         BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
 
     if (fn->exp_name != NULL)
         BinaryenAddFunctionExport(gen->module, fn->name, fn->exp_name);
-}
-
-void
-abi_gen(gen_t *gen, ir_abi_t *abi)
-{
-    abi->spec = BinaryenAddFunctionType(gen->module, abi->name, abi->result, abi->params,
-                                        abi->param_cnt);
 }
 
 /* end of gen_fn.c */

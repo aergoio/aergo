@@ -14,16 +14,19 @@
 #define WASM_MAX_LEN        1024 * 1024
 
 static void
-table_gen(gen_t *gen, vector_t *fns)
+import_gen(gen_t *gen, vector_t *abis)
 {
     int i;
-    char **names = xmalloc(sizeof(char *) * vector_size(fns));
+    char qname[NAME_MAX_LEN * 2 + 2];
 
-    vector_foreach(fns, i) {
-        names[i] = vector_get_fn(fns, i)->name;
+    vector_foreach(abis, i) {
+        ir_abi_t *abi = vector_get_abi(abis, i);
+
+        snprintf(qname, sizeof(qname), "%s$%s", abi->module, abi->name);
+
+        BinaryenAddFunctionImport(gen->module, qname, abi->module, abi->name,
+                                  abi_gen(gen, abi));
     }
-
-    BinaryenSetFunctionTable(gen->module, i, i, (const char **)names, i);
 }
 
 static void
@@ -45,7 +48,7 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
     BinaryenAddGlobal(gen->module, "stack$top", BinaryenTypeInt32(), 1,
-                      i32_gen(gen, sgmt->offset));
+                      i32_gen(gen, ALIGN64(sgmt->offset)));
     BinaryenAddGlobal(gen->module, "stack$max", BinaryenTypeInt32(), 0,
                       i32_gen(gen, gen->flag.stack_size));
     BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
@@ -59,15 +62,12 @@ md_gen(gen_t *gen, ir_md_t *md)
 
     gen->module = BinaryenModuleCreate();
 
-    vector_foreach(&md->abis, i) {
-        abi_gen(gen, vector_get_abi(&md->abis, i));
-    }
+    import_gen(gen, &md->abis);
 
     vector_foreach(&md->fns, i) {
         fn_gen(gen, vector_get_fn(&md->fns, i));
     }
 
-    table_gen(gen, &md->fns);
     sgmt_gen(gen, &md->sgmt);
 
     if (is_flag_on(gen->flag, FLAG_DEBUG) || is_flag_on(gen->flag, FLAG_TEST)) {

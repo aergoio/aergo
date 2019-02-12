@@ -27,6 +27,7 @@ typedef struct trans_s {
 
     ir_t *ir;
 
+    ast_id_t *id;           /* current contract */
     ast_blk_t *blk;         /* current block */
 
     ir_md_t *md;            /* current module */

@@ -9,8 +9,6 @@
 
 #include "ir_abi.h"
 
-static int abi_num_ = 0;
-
 ir_abi_t *
 abi_new(ast_id_t *id)
 {
@@ -18,7 +16,11 @@ abi_new(ast_id_t *id)
     ast_id_t *ret_id = id->u_fn.ret_id;
     ir_abi_t *abi = xcalloc(sizeof(ir_abi_t));
 
-    snprintf(abi->name, sizeof(abi->name), "abi$%d", abi_num_++);
+    ASSERT(id != NULL);
+    ASSERT(id->up != NULL);
+
+    abi->module = id->up->name;
+    abi->name = id->name;
 
     abi->param_cnt = vector_size(id->u_fn.param_ids);
     abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
