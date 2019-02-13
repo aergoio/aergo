@@ -28,8 +28,8 @@
 #define is_init_exp(exp)            ((exp)->kind == EXP_INIT)
 #define is_alloc_exp(exp)           ((exp)->kind == EXP_ALLOC)
 #define is_global_exp(exp)          ((exp)->kind == EXP_GLOBAL)
-#define is_register_exp(exp)        ((exp)->kind == EXP_REGISTER)
-#define is_memory_exp(exp)          ((exp)->kind == EXP_MEMORY)
+#define is_reg_exp(exp)             ((exp)->kind == EXP_REG)
+#define is_mem_exp(exp)             ((exp)->kind == EXP_MEM)
 
 #define is_usable_lval(exp)         (exp)->usable_lval
 
@@ -152,15 +152,15 @@ typedef struct exp_global_s {
     char *name;
 } exp_global_t;
 
-typedef struct exp_register_s {
+typedef struct exp_reg_s {
     uint32_t idx;
-} exp_register_t;
+} exp_reg_t;
 
-typedef struct exp_memory_s {
+typedef struct exp_mem_s {
     uint32_t base;
     uint32_t addr;
     uint32_t offset;
-} exp_memory_t;
+} exp_mem_t;
 
 struct ast_exp_s {
     exp_kind_t kind;
@@ -181,8 +181,8 @@ struct ast_exp_s {
         exp_init_t u_init;
         exp_alloc_t u_alloc;
         exp_global_t u_glob;
-        exp_register_t u_reg;
-        exp_memory_t u_mem;
+        exp_reg_t u_reg;
+        exp_mem_t u_mem;
     };
 
     ast_id_t *id;           /* referenced identifier */
@@ -218,12 +218,12 @@ ast_exp_t *exp_new_init(vector_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(char *name);
-ast_exp_t *exp_new_register(uint32_t idx);
-ast_exp_t *exp_new_memory(uint32_t base, uint32_t addr, uint32_t offset);
+ast_exp_t *exp_new_reg(uint32_t idx);
+ast_exp_t *exp_new_mem(uint32_t base, uint32_t addr, uint32_t offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
-void exp_set_register(ast_exp_t *exp, uint32_t idx);
-void exp_set_memory(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset);
+void exp_set_reg(ast_exp_t *exp, uint32_t idx);
+void exp_set_mem(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 

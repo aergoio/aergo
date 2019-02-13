@@ -426,7 +426,7 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
         ASSERT(ret_id != NULL);
         ASSERT(!is_ctor_id(ret_id->up));
 
-        reg_exp = exp_new_register(fn->ret_idx);
+        reg_exp = exp_new_reg(fn->ret_idx);
         meta_copy(&reg_exp->meta, &ret_id->meta);
 
         exp_trans(trans, arg_exp);

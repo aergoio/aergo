@@ -78,8 +78,8 @@ typedef struct value_s value_t;
 typedef struct meta_s meta_t;
 #endif /* ! _META_T */
 
-typedef void (*eval_fn_t)(value_t *, value_t *, value_t *) ;
-typedef void (*cast_fn_t)(value_t *) ;
+typedef void (*eval_fn_t)(value_t *, value_t *, value_t *);
+typedef void (*cast_fn_t)(value_t *);
 
 struct value_s {
     type_t type;

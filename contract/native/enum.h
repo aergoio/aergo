@@ -102,8 +102,8 @@ typedef enum exp_kind_e {
     EXP_INIT,
     EXP_ALLOC,
     EXP_GLOBAL,
-    EXP_REGISTER,
-    EXP_MEMORY,
+    EXP_REG,
+    EXP_MEM,
     EXP_MAX
 } exp_kind_t;
 

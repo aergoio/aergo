@@ -197,14 +197,14 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         /* Whenever an array element is accessed, strip it by one dimension */
         meta_strip_arr_dim(&exp->meta);
     }
-    else {
-        if (!is_map_meta(id_meta))
-            RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
-
+    else if (is_map_meta(id_meta)) {
         CHECK(meta_cmp(id_meta->elems[0], idx_meta));
 
         meta_eval(id_meta->elems[0], idx_meta);
         meta_copy(&exp->meta, id_meta->elems[1]);
+    }
+    else {
+        RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
     }
 
     return true;

@@ -251,9 +251,9 @@ exp_new_global(char *name)
 }
 
 ast_exp_t *
-exp_new_register(uint32_t idx)
+exp_new_reg(uint32_t idx)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_REGISTER, &null_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_REG, &null_pos_);
 
     exp->u_reg.idx = idx;
 
@@ -261,9 +261,9 @@ exp_new_register(uint32_t idx)
 }
 
 ast_exp_t *
-exp_new_memory(uint32_t base, uint32_t addr, uint32_t offset)
+exp_new_mem(uint32_t base, uint32_t addr, uint32_t offset)
 {
-    ast_exp_t *exp = ast_exp_new(EXP_MEMORY, &null_pos_);
+    ast_exp_t *exp = ast_exp_new(EXP_MEM, &null_pos_);
 
     exp->u_mem.base = base;
     exp->u_mem.addr = addr;
@@ -284,16 +284,16 @@ exp_set_lit(ast_exp_t *exp, value_t *val)
 }
 
 void
-exp_set_register(ast_exp_t *exp, uint32_t idx)
+exp_set_reg(ast_exp_t *exp, uint32_t idx)
 {
-    exp->kind = EXP_REGISTER;
+    exp->kind = EXP_REG;
     exp->u_reg.idx = idx;
 }
 
 void
-exp_set_memory(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
+exp_set_mem(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
 {
-    exp->kind = EXP_MEMORY;
+    exp->kind = EXP_MEM;
     exp->u_mem.base = base;
     exp->u_mem.addr = addr;
     exp->u_mem.offset = offset;
@@ -401,12 +401,12 @@ exp_clone(ast_exp_t *exp)
         res = exp_new_global(exp->u_glob.name);
         break;
 
-    case EXP_REGISTER:
-        res = exp_new_register(exp->u_reg.idx);
+    case EXP_REG:
+        res = exp_new_reg(exp->u_reg.idx);
         break;
 
-    case EXP_MEMORY:
-        res = exp_new_memory(exp->u_mem.base, exp->u_mem.addr, exp->u_mem.offset);
+    case EXP_MEM:
+        res = exp_new_mem(exp->u_mem.base, exp->u_mem.addr, exp->u_mem.offset);
         break;
 
     default:

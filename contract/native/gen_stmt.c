@@ -42,10 +42,10 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     if (is_global_exp(l_exp))
         return BinaryenSetGlobal(gen->module, l_exp->u_glob.name, value);
 
-    if (is_register_exp(l_exp))
+    if (is_reg_exp(l_exp))
         return BinaryenSetLocal(gen->module, l_exp->u_reg.idx, value);
 
-    if (is_memory_exp(l_exp)) {
+    if (is_mem_exp(l_exp)) {
         address = BinaryenGetLocal(gen->module, l_exp->u_mem.base, BinaryenTypeInt32());
 
         if (is_array_meta(&l_exp->meta))

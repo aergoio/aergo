@@ -80,28 +80,28 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
                 uint32_t reg_idx = fn_add_register(fn, meta);
                 ast_exp_t *l_exp, *r_exp;
 
-                l_exp = exp_new_register(reg_idx);
+                l_exp = exp_new_reg(reg_idx);
                 meta_set_uint32(&l_exp->meta);
 
-                r_exp = exp_new_memory(meta->base_idx, meta->rel_addr, 0);
+                r_exp = exp_new_mem(meta->base_idx, meta->rel_addr, 0);
                 meta_set_uint32(&r_exp->meta);
 
                 stmt_trans(trans, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
-                exp_set_register(exp, reg_idx);
+                exp_set_reg(exp, reg_idx);
             }
             else {
                 /* Refer to the memory directly. */
-                exp_set_memory(exp, meta->base_idx, meta->rel_addr, 0);
+                exp_set_mem(exp, meta->base_idx, meta->rel_addr, 0);
             }
         }
         else {
-            exp_set_register(exp, id->idx);
+            exp_set_reg(exp, id->idx);
         }
     }
     else if (is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
-        exp_set_register(exp, fn->cont_idx);
+        exp_set_reg(exp, fn->cont_idx);
         meta_set_uint32(&exp->meta);
     }
 }
@@ -138,17 +138,17 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        ASSERT1(is_memory_exp(id_exp) || is_register_exp(id_exp), id_exp->kind);
+        ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
         offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
             meta_align(&id->meta);
 
-        if (is_memory_exp(id_exp))
-            exp_set_memory(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
+        if (is_mem_exp(id_exp))
+            exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
                            id_exp->u_mem.offset + offset);
         else
-            exp_set_memory(exp, id_exp->u_reg.idx, 0, offset);
+            exp_set_mem(exp, id_exp->u_reg.idx, 0, offset);
     }
     else {
         /* TODO
@@ -230,7 +230,7 @@ exp_trans_binary(trans_t *trans, ast_exp_t *exp)
          * int addr = fn_add_stack();
          * ast_exp_t *call exp = exp_new_call("$concat", &exp->pos);
          * bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
-         * return exp_new_memory(addr, offset, &exp->pos);
+         * return exp_new_mem(addr, offset, &exp->pos);
         */
     }
 }
@@ -264,22 +264,22 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, qual_exp);
 
     if (is_fn_id(fld_id)) {
-        ASSERT1(is_register_exp(qual_exp), qual_exp->kind);
+        ASSERT1(is_reg_exp(qual_exp), qual_exp->kind);
         return;
     }
 
-    if (is_register_exp(qual_exp)) {
+    if (is_reg_exp(qual_exp)) {
         /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global
          * variable belonging to the contract register */
-        exp_set_memory(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr,
+        exp_set_mem(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr,
                        fld_id->meta.rel_offset);
     }
-    else if (is_memory_exp(qual_exp)) {
+    else if (is_mem_exp(qual_exp)) {
         /* It can be a memroy expression when referring to a global variable directly */
         ASSERT2(qual_exp->u_mem.offset == 0 || fld_id->meta.rel_offset == 0,
                 qual_exp->u_mem.offset, fld_id->meta.rel_offset);
 
-        exp_set_memory(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
+        exp_set_mem(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
                        qual_exp->u_mem.offset + fld_id->meta.rel_offset);
     }
     else {
@@ -294,10 +294,10 @@ copy_val(trans_t *trans, uint32_t base_idx, uint32_t rel_addr, type_t type)
 {
     ast_exp_t *l_exp, *r_exp;
 
-    l_exp = exp_new_memory(trans->fn->stack_idx, rel_addr, 0);
+    l_exp = exp_new_mem(trans->fn->stack_idx, rel_addr, 0);
     meta_set(&l_exp->meta, type);
 
-    r_exp = exp_new_memory(base_idx, rel_addr, 0);
+    r_exp = exp_new_mem(base_idx, rel_addr, 0);
     meta_set(&r_exp->meta, type);
 
     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &null_pos_));
@@ -383,7 +383,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     if (is_access_exp(id_exp)) {
         ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
 
-        ASSERT1(is_register_exp(qual_exp), qual_exp->kind);
+        ASSERT1(is_reg_exp(qual_exp), qual_exp->kind);
         ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
 
         /* If the expression is of type "x.y()", pass "x" as the first argument. */
@@ -396,7 +396,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         /* If the expression is of type "x()", pass my first parameter as the first
          * argument. */
-        param_exp = exp_new_register(0);
+        param_exp = exp_new_reg(0);
         meta_set_uint32(&param_exp->meta);
 
         vector_add_first(exp->u_call.param_exps, param_exp);
@@ -410,7 +410,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         uint32_t reg_idx = fn_add_register(fn, meta);
         ast_exp_t *reg_exp;
 
-        reg_exp = exp_new_register(reg_idx);
+        reg_exp = exp_new_reg(reg_idx);
         meta_copy(&reg_exp->meta, meta);
 
         /* We have to clone it because the call expression itself is transformed */
@@ -434,16 +434,16 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             if (meta->rel_addr > 0) {
                 exp->kind = EXP_BINARY;
                 exp->u_bin.kind = OP_ADD;
-                exp->u_bin.l_exp = exp_new_register(meta->base_idx);
+                exp->u_bin.l_exp = exp_new_reg(meta->base_idx);
                 exp->u_bin.r_exp = exp_new_lit_i64(meta->rel_addr, &exp->pos);
                 meta_set_uint32(&exp->u_bin.l_exp->meta);
             }
             else {
-                exp_set_register(exp, meta->base_idx);
+                exp_set_reg(exp, meta->base_idx);
             }
         }
         else {
-            exp_set_register(exp, reg_idx);
+            exp_set_reg(exp, reg_idx);
         }
     }
 }
@@ -599,8 +599,8 @@ exp_trans(trans_t *trans, ast_exp_t *exp)
         break;
 
     case EXP_GLOBAL:
-    case EXP_REGISTER:
-    case EXP_MEMORY:
+    case EXP_REG:
+    case EXP_MEM:
         break;
 
     default:

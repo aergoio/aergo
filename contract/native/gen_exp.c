@@ -542,7 +542,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     /* If qualifier is a function and returns an array or a struct, "qual_exp" can be
      * a binary expression. Otherwise all are register expressions */
 
-    ASSERT1(is_register_exp(qual_exp) || is_binary_exp(qual_exp), qual_exp->kind);
+    ASSERT1(is_reg_exp(qual_exp) || is_binary_exp(qual_exp), qual_exp->kind);
 
     address = exp_gen(gen, qual_exp);
 
@@ -678,13 +678,13 @@ exp_gen_global(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_register(gen_t *gen, ast_exp_t *exp)
+exp_gen_reg(gen_t *gen, ast_exp_t *exp)
 {
     return BinaryenGetLocal(gen->module, exp->u_reg.idx, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef
-exp_gen_memory(gen_t *gen, ast_exp_t *exp)
+exp_gen_mem(gen_t *gen, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
@@ -741,11 +741,11 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     case EXP_GLOBAL:
         return exp_gen_global(gen, exp);
 
-    case EXP_REGISTER:
-        return exp_gen_register(gen, exp);
+    case EXP_REG:
+        return exp_gen_reg(gen, exp);
 
-    case EXP_MEMORY:
-        return exp_gen_memory(gen, exp);
+    case EXP_MEM:
+        return exp_gen_mem(gen, exp);
 
     default:
         ASSERT1(!"invalid expression", exp->kind);

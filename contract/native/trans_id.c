@@ -56,7 +56,7 @@ update_heap_offset(ir_fn_t *fn, vector_t *stmts, src_pos_t *pos)
 
     /* Increase "heap$offset" by the amount of memory used by initializer or allocator
      * expressions defined in the function */
-    l_exp = exp_new_register(fn->heap_idx);
+    l_exp = exp_new_reg(fn->heap_idx);
     meta_set_uint32(&l_exp->meta);
 
     v_exp = exp_new_lit_i64(fn->heap_usage, pos);
@@ -125,7 +125,7 @@ set_memory_addr(ir_fn_t *fn, ast_id_t *id, uint32_t heap_start)
 
         glob_exp = exp_new_global("stack$top");
 
-        reg_exp = exp_new_register(fn->stack_idx);
+        reg_exp = exp_new_reg(fn->stack_idx);
         meta_set_uint32(&reg_exp->meta);
 
         val_exp = exp_new_lit_i64(fn->stack_usage, pos);
@@ -148,7 +148,7 @@ set_memory_addr(ir_fn_t *fn, ast_id_t *id, uint32_t heap_start)
         /* At the beginning of "entry_bb", set the current heap offset to the register */
         glob_exp = exp_new_global("heap$offset");
 
-        reg_exp = exp_new_register(fn->heap_idx);
+        reg_exp = exp_new_reg(fn->heap_idx);
         meta_set_uint32(&reg_exp->meta);
 
         vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, glob_exp, pos));
@@ -225,11 +225,11 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         ast_stmt_t *ret_stmt;
 
         if (is_ctor_id(id)) {
-            arg_exp = exp_new_register(fn->cont_idx);
+            arg_exp = exp_new_reg(fn->cont_idx);
             meta_set_uint32(&arg_exp->meta);
         }
         else {
-            arg_exp = exp_new_register(fn->ret_idx);
+            arg_exp = exp_new_reg(fn->ret_idx);
             meta_copy(&arg_exp->meta, &ret_id->meta);
         }
 
