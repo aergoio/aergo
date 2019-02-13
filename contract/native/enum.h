@@ -179,6 +179,7 @@ typedef enum sql_kind_e {
     SQL_INSERT,
     SQL_UPDATE,
     SQL_DELETE,
+    SQL_REPLACE,
     SQL_MAX
 } sql_kind_t;
 

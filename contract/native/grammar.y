@@ -73,6 +73,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 
 /* keyword */
 %token  K_ACCOUNT       "account"
+        K_ALTER         "alter"
         K_BOOL          "bool"
         K_BREAK         "break"
         K_BYTE          "byte"
@@ -109,6 +110,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_NULL          "null"
         K_PAYABLE       "payable"
         K_PUBLIC        "public"
+        K_REPLACE       "replace"
         K_RETURN        "return"
         K_SELECT        "select"
         K_STRING        "string"
@@ -123,6 +125,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_UINT64        "uint64"
         K_UINT8         "uint8"
         K_UPDATE        "update"
+        K_VIEW          "view"
 
 %token  END 0           "EOF"
 
@@ -982,10 +985,13 @@ ddl_stmt:
 ;
 
 ddl_prefix:
-    K_CREATE K_INDEX
-|   K_CREATE K_TABLE
-|   K_DROP K_INDEX
+    K_CREATE K_TABLE
+|   K_ALTER K_TABLE
 |   K_DROP K_TABLE
+|   K_CREATE K_INDEX
+|   K_DROP K_INDEX
+|   K_CREATE K_VIEW
+|   K_DROP K_VIEW
 ;
 
 blk_stmt:
@@ -1033,6 +1039,7 @@ sql_exp:
 sql_prefix:
     K_DELETE            { $$ = SQL_DELETE; }
 |   K_INSERT            { $$ = SQL_INSERT; }
+|   K_REPLACE           { $$ = SQL_REPLACE; }
 |   K_SELECT            { $$ = SQL_QUERY; }
 |   K_UPDATE            { $$ = SQL_UPDATE; }
 ;
@@ -1348,6 +1355,7 @@ non_reserved_token:
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_INTERFACE         { $$ = xstrdup("interface"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
+|   K_VIEW              { $$ = xstrdup("view"); }
 ;
 
 identifier:

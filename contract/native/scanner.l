@@ -134,6 +134,18 @@ octal                       (0[0-7]*)
 hexa                        (0[xX]{H}+)
 float                       (({D}+{E})|({D}*"."{D}+|{D}+"."{D}*){E}?)
 
+alter                       [aA][lL][tT][eE][rR]
+create                      [cC][rR][eE][aA][tT][eE]
+delete                      [dD][eE][lL][eE][tT][eE]
+drop                        [dD][rR][oO][pP]
+index                       [iI][nN][dD][eE][xX]
+insert                      [iI][nN][sS][eE][rR][tT]
+replace                     [rR][eE][pP][lL][aA][cC][eE]
+select                      [sS][eE][lL][eE][cC][tT]
+table                       [tT][aA][bB][lL][eE]
+update                      [uP][pP][dD][aA][tT][eE]
+view                        [vV][iI][eE][wW]
+
 id                          {L}({L}|{D})*
 
 %%
@@ -251,14 +263,17 @@ id                          {L}({L}|{D})*
 "uint64"                    yy_return(K_UINT64);
 "uint8"                     yy_return(K_UINT8);
 
-"create"|"CREATE"           yy_return(K_CREATE);
-"delete"|"DELETE"           yy_return(K_DELETE);
-"drop"|"DROP"               yy_return(K_DROP);
-"index"|"INDEX"             yy_return(K_INDEX);
-"insert"|"INSERT"           yy_return(K_INSERT);
-"select"|"SELECT"           yy_return(K_SELECT);
-"table"|"TABLE"             yy_return(K_TABLE);
-"update"|"UPDATE"           yy_return(K_UPDATE);
+{alter}                     yy_return(K_ALTER);
+{create}                    yy_return(K_CREATE);
+{delete}                    yy_return(K_DELETE);
+{drop}                      yy_return(K_DROP);
+{index}                     yy_return(K_INDEX);
+{insert}                    yy_return(K_INSERT);
+{replace}                   yy_return(K_REPLACE);
+{select}                    yy_return(K_SELECT);
+{table}                     yy_return(K_TABLE);
+{update}                    yy_return(K_UPDATE);
+{view}                      yy_return(K_VIEW);
 
 {id}                        yy_return_text(ID);
 

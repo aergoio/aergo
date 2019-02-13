@@ -600,10 +600,11 @@ contract test {
         create table t (c1 number);
         create table t (
             c1 number,
-            c2 varchar(100)
+            c2 text
         );
         create index idx on t (c1);
         drop table t;
+        create view v as select * from t;
     }
 }
 
@@ -611,7 +612,7 @@ contract test {
 @error(ERROR_SYNTAX)
 contract test {
     test() {
-        create view v as select * from t;
+        create user person identified by person;
     }
 }
 
