@@ -182,7 +182,8 @@ struct      switch      true        type
 ```
 SQL reserved words
 -------------------------------------------------------------------
-create      delete      drop        insert      select      update
+alter       create      delete      drop        insert      replace
+select      update
 ```
 
 #### <a name="predefined_id">Predefined identifiers</a>

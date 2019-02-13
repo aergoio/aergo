@@ -707,6 +707,7 @@ exp_check_sql(check_t *check, ast_exp_t *exp)
     case SQL_INSERT:
     case SQL_UPDATE:
     case SQL_DELETE:
+    case SQL_REPLACE:
         meta_set_int32(&exp->meta);
         break;
 
