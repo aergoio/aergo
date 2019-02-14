@@ -139,10 +139,7 @@ func execNameOwner(cmd *cobra.Command, args []string) {
 		cmd.Println(err.Error())
 		return
 	}
-	owner := msg.Owner
-	if len(owner) > types.NameLength {
-		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + types.EncodeAddress(owner) + "\"}")
-	} else {
-		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + string(msg.Owner) + "\"}")
-	}
+	cmd.Println("{\n \"" + msg.Name.Name + "\": {\n  " +
+		"\"Owner\": \"" + types.EncodeAddress(msg.Owner) + "\",\n  " +
+		"\"Destination\": \"" + types.EncodeAddress(msg.Destination) + "\"\n  }\n}")
 }
