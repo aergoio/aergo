@@ -16,12 +16,11 @@ package raft
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/coreos/etcd/etcdserver/stats"
@@ -35,6 +34,13 @@ import (
 	"github.com/coreos/etcd/wal/walpb"
 )
 
+//noinspection ALL
+var raftLogger raftlib.Logger
+
+func init() {
+	raftLogger = NewRaftLogger(logger)
+}
+
 // A key-value stream backed by raft
 type raftServer struct {
 	proposeC    <-chan string            // proposed messages (k,v)
@@ -42,7 +48,7 @@ type raftServer struct {
 	commitC     chan *string             // entries committed to log (k,v)
 	errorC      chan error               // errors from raft session
 
-	id          int      // client ID for raft session
+	id          uint64   // client ID for raft session
 	peers       []string // raft peer URLs
 	join        bool     // node is joining an existing cluster
 	waldir      string   // path to WAL directory
@@ -67,22 +73,31 @@ type raftServer struct {
 	stopc     chan struct{} // signals proposal channel closed
 	httpstopc chan struct{} // signals http server to shutdown
 	httpdonec chan struct{} // signals http server shutdown complete
+
+	leaderStatus LeaderStatus
+}
+
+type LeaderStatus struct {
+	leader        uint64
+	leaderChanged uint64
 }
 
 var defaultSnapCount uint64 = 10000
+var snapshotCatchUpEntriesN uint64 = 10000
 
 // newRaftServer initiates a raft instance and returns a committed log entry
 // channel and error channel. Proposals for log updates are sent over the
 // provided the proposal channel. All log entries are replayed over the
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
-func newRaftServer(id int, peers []string, join bool, getSnapshot func() ([]byte, error), proposeC <-chan string,
+func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir string,
+	getSnapshot func() ([]byte, error), proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange) *raftServer {
 
 	commitC := make(chan *string)
 	errorC := make(chan error)
 
-	rc := &raftServer{
+	rs := &raftServer{
 		proposeC:    proposeC,
 		confChangeC: confChangeC,
 		commitC:     commitC,
@@ -90,8 +105,8 @@ func newRaftServer(id int, peers []string, join bool, getSnapshot func() ([]byte
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("raftexample-%d", id),
-		snapdir:     fmt.Sprintf("raftexample-%d-snap", id),
+		waldir:      waldir,
+		snapdir:     snapdir,
 		getSnapshot: getSnapshot,
 		snapCount:   defaultSnapCount,
 		stopc:       make(chan struct{}),
@@ -101,11 +116,307 @@ func newRaftServer(id int, peers []string, join bool, getSnapshot func() ([]byte
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
 	}
-	go rc.startRaft()
-	return rc
+	go rs.startRaft()
+
+	return rs
 }
 
-func (rc *raftServer) saveSnap(snap raftpb.Snapshot) error {
+func (rs *raftServer) startRaft() {
+	if !fileutil.Exist(rs.snapdir) {
+		if err := os.MkdirAll(rs.snapdir, 0750); err != nil {
+			raftLogger.Fatalf("cannot create dir for snapshot (%v)", err)
+		}
+	}
+	rs.snapshotter = snap.New(rs.snapdir)
+	rs.snapshotterReady <- rs.snapshotter
+
+	oldwal := wal.Exist(rs.waldir)
+	rs.wal = rs.replayWAL()
+
+	rpeers := make([]raftlib.Peer, len(rs.peers))
+	for i := range rpeers {
+		rpeers[i] = raftlib.Peer{ID: uint64(i + 1)}
+	}
+	c := &raftlib.Config{
+		ID:              uint64(rs.id),
+		ElectionTick:    10,
+		HeartbeatTick:   1,
+		Storage:         rs.raftStorage,
+		MaxSizePerMsg:   1024 * 1024,
+		MaxInflightMsgs: 256,
+		Logger:          raftLogger,
+	}
+
+	if oldwal {
+		rs.node = raftlib.RestartNode(c)
+	} else {
+		startPeers := rpeers
+		if rs.join {
+			startPeers = nil
+		}
+		rs.node = raftlib.StartNode(c, startPeers)
+	}
+
+	rs.transport = &rafthttp.Transport{
+		ID:          types.ID(rs.id),
+		ClusterID:   0x1000,
+		Raft:        rs,
+		ServerStats: stats.NewServerStats("", ""),
+		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.id, 10)),
+		ErrorC:      make(chan error),
+	}
+
+	rs.transport.Start()
+	for i := range rs.peers {
+		if uint64(i+1) != rs.id {
+			rs.transport.AddPeer(types.ID(i+1), []string{rs.peers[i]})
+		}
+	}
+
+	go rs.serveRaft()
+	go rs.serveChannels()
+}
+
+// stop closes http, closes all channels, and stops raft.
+func (rs *raftServer) stop() {
+	rs.stopHTTP()
+	close(rs.commitC)
+	close(rs.errorC)
+	rs.node.Stop()
+}
+
+func (rs *raftServer) stopHTTP() {
+	rs.transport.Stop()
+	close(rs.httpstopc)
+	<-rs.httpdonec
+}
+
+func (rs *raftServer) writeError(err error) {
+	rs.stopHTTP()
+	close(rs.commitC)
+	rs.errorC <- err
+	close(rs.errorC)
+	rs.node.Stop()
+}
+
+func (rs *raftServer) serveChannels() {
+	snapshot, err := rs.raftStorage.Snapshot()
+	if err != nil {
+		panic(err)
+	}
+	rs.confState = snapshot.Metadata.ConfState
+	rs.snapshotIndex = snapshot.Metadata.Index
+	rs.appliedIndex = snapshot.Metadata.Index
+
+	defer rs.wal.Close()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	// send proposals over raft
+	go func() {
+		var confChangeCount uint64 = 0
+
+		for rs.proposeC != nil && rs.confChangeC != nil {
+			select {
+			case prop, ok := <-rs.proposeC:
+				if !ok {
+					rs.proposeC = nil
+				} else {
+					// blocks until accepted by raft state machine
+					rs.node.Propose(context.TODO(), []byte(prop))
+				}
+
+			case cc, ok := <-rs.confChangeC:
+				if !ok {
+					rs.confChangeC = nil
+				} else {
+					confChangeCount += 1
+					cc.ID = confChangeCount
+					rs.node.ProposeConfChange(context.TODO(), cc)
+				}
+			}
+		}
+		// client closed channel; shutdown raft if not already
+		close(rs.stopc)
+	}()
+
+	// event loop on raft state machine updates
+	for {
+		select {
+		case <-ticker.C:
+			rs.node.Tick()
+
+			// store raft entries to wal, then publish over commit channel
+		case rd := <-rs.node.Ready():
+			if rd.SoftState != nil {
+				rs.updateLeader(rd.SoftState)
+			}
+
+			rs.wal.Save(rd.HardState, rd.Entries)
+			if !raftlib.IsEmptySnap(rd.Snapshot) {
+				panic("snapshot occurred!!")
+				rs.saveSnap(rd.Snapshot)
+				rs.raftStorage.ApplySnapshot(rd.Snapshot)
+				rs.publishSnapshot(rd.Snapshot)
+			}
+			rs.raftStorage.Append(rd.Entries)
+			rs.transport.Send(rd.Messages)
+			if ok := rs.publishEntries(rs.entriesToApply(rd.CommittedEntries)); !ok {
+				rs.stop()
+				return
+			}
+			rs.maybeTriggerSnapshot()
+			rs.node.Advance()
+
+		case err := <-rs.transport.ErrorC:
+			rs.writeError(err)
+			return
+
+		case <-rs.stopc:
+			rs.stop()
+			return
+		}
+	}
+}
+
+func (rs *raftServer) serveRaft() {
+	urlData, err := url.Parse(rs.peers[rs.id-1])
+	if err != nil {
+		raftLogger.Fatalf("Failed parsing URL (%v)", err)
+	}
+
+	ln, err := newStoppableListener(urlData.Host, rs.httpstopc)
+	if err != nil {
+		raftLogger.Fatalf("Failed to listen rafthttp (%v)", err)
+	}
+
+	err = (&http.Server{Handler: rs.transport.Handler()}).Serve(ln)
+	select {
+	case <-rs.httpstopc:
+	default:
+		raftLogger.Fatalf("Failed to serve rafthttp (%v)", err)
+	}
+	close(rs.httpdonec)
+}
+
+func (rs *raftServer) loadSnapshot() *raftpb.Snapshot {
+	snapshot, err := rs.snapshotter.Load()
+	if err != nil && err != snap.ErrNoSnapshot {
+		raftLogger.Fatalf("error loading snapshot (%v)", err)
+	}
+	return snapshot
+}
+
+// openWAL returns a WAL ready for reading.
+func (rs *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
+	if !wal.Exist(rs.waldir) {
+		if err := os.MkdirAll(rs.waldir, 0750); err != nil {
+			raftLogger.Fatalf("cannot create dir for wal (%v)", err)
+		}
+
+		w, err := wal.Create(rs.waldir, nil)
+		if err != nil {
+			raftLogger.Fatalf("create wal error (%v)", err)
+		}
+
+		raftLogger.Infof("create wal directory %s", rs.waldir)
+		w.Close()
+	}
+
+	walsnap := walpb.Snapshot{}
+	if snapshot != nil {
+		walsnap.Index, walsnap.Term = snapshot.Metadata.Index, snapshot.Metadata.Term
+	}
+	raftLogger.Infof("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
+	w, err := wal.Open(rs.waldir, walsnap)
+	if err != nil {
+		raftLogger.Fatalf("error loading wal (%v)", err)
+	}
+
+	raftLogger.Info("openwal done")
+	return w
+}
+
+// replayWAL replays WAL entries into the raft instance.
+func (rs *raftServer) replayWAL() *wal.WAL {
+	raftLogger.Infof("replaying WAL of member %d", rs.id)
+	snapshot := rs.loadSnapshot()
+	w := rs.openWAL(snapshot)
+	_, st, ents, err := w.ReadAll()
+	if err != nil {
+		raftLogger.Fatalf("failed to read WAL (%v)", err)
+	}
+	rs.raftStorage = raftlib.NewMemoryStorage()
+	if snapshot != nil {
+		rs.raftStorage.ApplySnapshot(*snapshot)
+	}
+	rs.raftStorage.SetHardState(st)
+
+	// append to storage so raft starts at the right place in log
+	rs.raftStorage.Append(ents)
+	// send nil once lastIndex is published so client knows commit channel is current
+	if len(ents) > 0 {
+		rs.lastIndex = ents[len(ents)-1].Index
+	} else {
+		//commitChannel used for syncing startup
+		rs.commitC <- nil
+	}
+
+	raftLogger.Info("replaying WAL done")
+
+	return w
+}
+
+func (rs *raftServer) maybeTriggerSnapshot() {
+	if rs.appliedIndex-rs.snapshotIndex <= rs.snapCount {
+		return
+	}
+
+	raftLogger.Infof("start snapshot [applied index: %d | last snapshot index: %d]", rs.appliedIndex, rs.snapshotIndex)
+	data, err := rs.getSnapshot()
+	if err != nil {
+		raftLogger.Panic(err)
+	}
+	snapshot, err := rs.raftStorage.CreateSnapshot(rs.appliedIndex, &rs.confState, data)
+	if err != nil {
+		panic(err)
+	}
+	if err := rs.saveSnap(snapshot); err != nil {
+		panic(err)
+	}
+
+	compactIndex := uint64(1)
+	if rs.appliedIndex > snapshotCatchUpEntriesN {
+		compactIndex = rs.appliedIndex - snapshotCatchUpEntriesN
+	}
+	if err := rs.raftStorage.Compact(compactIndex); err != nil {
+		panic(err)
+	}
+
+	raftLogger.Infof("compacted raftLogger.at index %d", compactIndex)
+	rs.snapshotIndex = rs.appliedIndex
+}
+
+func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
+	if raftlib.IsEmptySnap(snapshotToSave) {
+		return
+	}
+
+	raftLogger.Infof("publishing snapshot at index %d", rs.snapshotIndex)
+	defer raftLogger.Infof("finished publishing snapshot at index %d", rs.snapshotIndex)
+
+	if snapshotToSave.Metadata.Index <= rs.appliedIndex {
+		raftLogger.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snapshotToSave.Metadata.Index, rs.appliedIndex)
+	}
+	rs.commitC <- nil // trigger kvstore to load snapshot
+
+	rs.confState = snapshotToSave.Metadata.ConfState
+	rs.snapshotIndex = snapshotToSave.Metadata.Index
+	rs.appliedIndex = snapshotToSave.Metadata.Index
+}
+
+func (rs *raftServer) saveSnap(snap raftpb.Snapshot) error {
 	// must save the snapshot index to the WAL before saving the
 	// snapshot to maintain the invariant that we only Open the
 	// wal at previously-saved snapshot indexes.
@@ -113,32 +424,32 @@ func (rc *raftServer) saveSnap(snap raftpb.Snapshot) error {
 		Index: snap.Metadata.Index,
 		Term:  snap.Metadata.Term,
 	}
-	if err := rc.wal.SaveSnapshot(walSnap); err != nil {
+	if err := rs.wal.SaveSnapshot(walSnap); err != nil {
 		return err
 	}
-	if err := rc.snapshotter.SaveSnap(snap); err != nil {
+	if err := rs.snapshotter.SaveSnap(snap); err != nil {
 		return err
 	}
-	return rc.wal.ReleaseLockTo(snap.Metadata.Index)
+	return rs.wal.ReleaseLockTo(snap.Metadata.Index)
 }
 
-func (rc *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
+func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
 	if len(ents) == 0 {
 		return
 	}
 	firstIdx := ents[0].Index
-	if firstIdx > rc.appliedIndex+1 {
-		log.Fatalf("first index of committed entry[%d] should <= progress.appliedIndex[%d] 1", firstIdx, rc.appliedIndex)
+	if firstIdx > rs.appliedIndex+1 {
+		raftLogger.Fatalf("first index of committed entry[%d] should <= progress.appliedIndex[%d] 1", firstIdx, rs.appliedIndex)
 	}
-	if rc.appliedIndex-firstIdx+1 < uint64(len(ents)) {
-		nents = ents[rc.appliedIndex-firstIdx+1:]
+	if rs.appliedIndex-firstIdx+1 < uint64(len(ents)) {
+		nents = ents[rs.appliedIndex-firstIdx+1:]
 	}
 	return nents
 }
 
 // publishEntries writes committed log entries to commit channel and returns
 // whether all entries could be published.
-func (rc *raftServer) publishEntries(ents []raftpb.Entry) bool {
+func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	for i := range ents {
 		switch ents[i].Type {
 		case raftpb.EntryNormal:
@@ -148,37 +459,37 @@ func (rc *raftServer) publishEntries(ents []raftpb.Entry) bool {
 			}
 			s := string(ents[i].Data)
 			select {
-			case rc.commitC <- &s:
-			case <-rc.stopc:
+			case rs.commitC <- &s:
+			case <-rs.stopc:
 				return false
 			}
 
 		case raftpb.EntryConfChange:
 			var cc raftpb.ConfChange
 			cc.Unmarshal(ents[i].Data)
-			rc.confState = *rc.node.ApplyConfChange(cc)
+			rs.confState = *rs.node.ApplyConfChange(cc)
 			switch cc.Type {
 			case raftpb.ConfChangeAddNode:
 				if len(cc.Context) > 0 {
-					rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
+					rs.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 				}
 			case raftpb.ConfChangeRemoveNode:
-				if cc.NodeID == uint64(rc.id) {
-					log.Println("I've been removed from the cluster! Shutting down.")
+				if cc.NodeID == uint64(rs.id) {
+					raftLogger.Info("I've been removed from the cluster! Shutting down.")
 					return false
 				}
-				rc.transport.RemovePeer(types.ID(cc.NodeID))
+				rs.transport.RemovePeer(types.ID(cc.NodeID))
 			}
 		}
 
 		// after commit, update appliedIndex
-		rc.appliedIndex = ents[i].Index
+		rs.appliedIndex = ents[i].Index
 
 		// special nil commit to signal replay has finished
-		if ents[i].Index == rc.lastIndex {
+		if ents[i].Index == rs.lastIndex {
 			select {
-			case rc.commitC <- nil:
-			case <-rc.stopc:
+			case rs.commitC <- nil:
+			case <-rs.stopc:
 				return false
 			}
 		}
@@ -186,293 +497,37 @@ func (rc *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	return true
 }
 
-func (rc *raftServer) loadSnapshot() *raftpb.Snapshot {
-	snapshot, err := rc.snapshotter.Load()
-	if err != nil && err != snap.ErrNoSnapshot {
-		log.Fatalf("raftexample: error loading snapshot (%v)", err)
-	}
-	return snapshot
+func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
+	return rs.node.Step(ctx, m)
 }
+func (rs *raftServer) IsIDRemoved(id uint64) bool                              { return false }
+func (rs *raftServer) ReportUnreachable(id uint64)                             {}
+func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {}
 
-// openWAL returns a WAL ready for reading.
-func (rc *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
-	if !wal.Exist(rc.waldir) {
-		if err := os.Mkdir(rc.waldir, 0750); err != nil {
-			log.Fatalf("raftexample: cannot create dir for wal (%v)", err)
-		}
-
-		w, err := wal.Create(rc.waldir, nil)
-		if err != nil {
-			log.Fatalf("raftexample: create wal error (%v)", err)
-		}
-		w.Close()
-	}
-
-	walsnap := walpb.Snapshot{}
-	if snapshot != nil {
-		walsnap.Index, walsnap.Term = snapshot.Metadata.Index, snapshot.Metadata.Term
-	}
-	log.Printf("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
-	w, err := wal.Open(rc.waldir, walsnap)
-	if err != nil {
-		log.Fatalf("raftexample: error loading wal (%v)", err)
-	}
-
-	return w
-}
-
-// replayWAL replays WAL entries into the raft instance.
-func (rc *raftServer) replayWAL() *wal.WAL {
-	log.Printf("replaying WAL of member %d", rc.id)
-	snapshot := rc.loadSnapshot()
-	w := rc.openWAL(snapshot)
-	_, st, ents, err := w.ReadAll()
-	if err != nil {
-		log.Fatalf("raftexample: failed to read WAL (%v)", err)
-	}
-	rc.raftStorage = raftlib.NewMemoryStorage()
-	if snapshot != nil {
-		rc.raftStorage.ApplySnapshot(*snapshot)
-	}
-	rc.raftStorage.SetHardState(st)
-
-	// append to storage so raft starts at the right place in log
-	rc.raftStorage.Append(ents)
-	// send nil once lastIndex is published so client knows commit channel is current
-	if len(ents) > 0 {
-		rc.lastIndex = ents[len(ents)-1].Index
-	} else {
-		rc.commitC <- nil
-	}
-	return w
-}
-
-func (rc *raftServer) writeError(err error) {
-	rc.stopHTTP()
-	close(rc.commitC)
-	rc.errorC <- err
-	close(rc.errorC)
-	rc.node.Stop()
-}
-
-func (rc *raftServer) startRaft() {
-	if !fileutil.Exist(rc.snapdir) {
-		if err := os.Mkdir(rc.snapdir, 0750); err != nil {
-			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
+func (rs *raftServer) WaitStartup() {
+	logger.Debug().Msg("raft start wait")
+	for s := range rs.commitC {
+		if s == nil {
+			break
 		}
 	}
-	rc.snapshotter = snap.New(rc.snapdir)
-	rc.snapshotterReady <- rc.snapshotter
-
-	oldwal := wal.Exist(rc.waldir)
-	rc.wal = rc.replayWAL()
-
-	rpeers := make([]raftlib.Peer, len(rc.peers))
-	for i := range rpeers {
-		rpeers[i] = raftlib.Peer{ID: uint64(i + 1)}
-	}
-	c := &raftlib.Config{
-		ID:              uint64(rc.id),
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         rc.raftStorage,
-		MaxSizePerMsg:   1024 * 1024,
-		MaxInflightMsgs: 256,
-	}
-
-	if oldwal {
-		rc.node = raftlib.RestartNode(c)
-	} else {
-		startPeers := rpeers
-		if rc.join {
-			startPeers = nil
-		}
-		rc.node = raftlib.StartNode(c, startPeers)
-	}
-
-	rc.transport = &rafthttp.Transport{
-		ID:          types.ID(rc.id),
-		ClusterID:   0x1000,
-		Raft:        rc,
-		ServerStats: stats.NewServerStats("", ""),
-		LeaderStats: stats.NewLeaderStats(strconv.Itoa(rc.id)),
-		ErrorC:      make(chan error),
-	}
-
-	rc.transport.Start()
-	for i := range rc.peers {
-		if i+1 != rc.id {
-			rc.transport.AddPeer(types.ID(i+1), []string{rc.peers[i]})
-		}
-	}
-
-	go rc.serveRaft()
-	go rc.serveChannels()
+	logger.Debug().Msg("raft start succeed")
 }
 
-// stop closes http, closes all channels, and stops raft.
-func (rc *raftServer) stop() {
-	rc.stopHTTP()
-	close(rc.commitC)
-	close(rc.errorC)
-	rc.node.Stop()
-}
+func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
+	if softState.Lead != rs.GetLeader() {
+		atomic.StoreUint64(&rs.leaderStatus.leader, softState.Lead)
 
-func (rc *raftServer) stopHTTP() {
-	rc.transport.Stop()
-	close(rc.httpstopc)
-	<-rc.httpdonec
-}
+		rs.leaderStatus.leaderChanged++
 
-func (rc *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
-	if raftlib.IsEmptySnap(snapshotToSave) {
-		return
-	}
-
-	log.Printf("publishing snapshot at index %d", rc.snapshotIndex)
-	defer log.Printf("finished publishing snapshot at index %d", rc.snapshotIndex)
-
-	if snapshotToSave.Metadata.Index <= rc.appliedIndex {
-		log.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snapshotToSave.Metadata.Index, rc.appliedIndex)
-	}
-	rc.commitC <- nil // trigger kvstore to load snapshot
-
-	rc.confState = snapshotToSave.Metadata.ConfState
-	rc.snapshotIndex = snapshotToSave.Metadata.Index
-	rc.appliedIndex = snapshotToSave.Metadata.Index
-}
-
-var snapshotCatchUpEntriesN uint64 = 10000
-
-func (rc *raftServer) maybeTriggerSnapshot() {
-	if rc.appliedIndex-rc.snapshotIndex <= rc.snapCount {
-		return
-	}
-
-	log.Printf("start snapshot [applied index: %d | last snapshot index: %d]", rc.appliedIndex, rc.snapshotIndex)
-	data, err := rc.getSnapshot()
-	if err != nil {
-		log.Panic(err)
-	}
-	snapshot, err := rc.raftStorage.CreateSnapshot(rc.appliedIndex, &rc.confState, data)
-	if err != nil {
-		panic(err)
-	}
-	if err := rc.saveSnap(snapshot); err != nil {
-		panic(err)
-	}
-
-	compactIndex := uint64(1)
-	if rc.appliedIndex > snapshotCatchUpEntriesN {
-		compactIndex = rc.appliedIndex - snapshotCatchUpEntriesN
-	}
-	if err := rc.raftStorage.Compact(compactIndex); err != nil {
-		panic(err)
-	}
-
-	log.Printf("compacted log at index %d", compactIndex)
-	rc.snapshotIndex = rc.appliedIndex
-}
-
-func (rc *raftServer) serveChannels() {
-	snapshot, err := rc.raftStorage.Snapshot()
-	if err != nil {
-		panic(err)
-	}
-	rc.confState = snapshot.Metadata.ConfState
-	rc.snapshotIndex = snapshot.Metadata.Index
-	rc.appliedIndex = snapshot.Metadata.Index
-
-	defer rc.wal.Close()
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	// send proposals over raft
-	go func() {
-		var confChangeCount uint64 = 0
-
-		for rc.proposeC != nil && rc.confChangeC != nil {
-			select {
-			case prop, ok := <-rc.proposeC:
-				if !ok {
-					rc.proposeC = nil
-				} else {
-					// blocks until accepted by raft state machine
-					rc.node.Propose(context.TODO(), []byte(prop))
-				}
-
-			case cc, ok := <-rc.confChangeC:
-				if !ok {
-					rc.confChangeC = nil
-				} else {
-					confChangeCount += 1
-					cc.ID = confChangeCount
-					rc.node.ProposeConfChange(context.TODO(), cc)
-				}
-			}
-		}
-		// client closed channel; shutdown raft if not already
-		close(rc.stopc)
-	}()
-
-	// event loop on raft state machine updates
-	for {
-		select {
-		case <-ticker.C:
-			rc.node.Tick()
-
-			// store raft entries to wal, then publish over commit channel
-		case rd := <-rc.node.Ready():
-			rc.wal.Save(rd.HardState, rd.Entries)
-			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				rc.saveSnap(rd.Snapshot)
-				rc.raftStorage.ApplySnapshot(rd.Snapshot)
-				rc.publishSnapshot(rd.Snapshot)
-			}
-			rc.raftStorage.Append(rd.Entries)
-			rc.transport.Send(rd.Messages)
-			if ok := rc.publishEntries(rc.entriesToApply(rd.CommittedEntries)); !ok {
-				rc.stop()
-				return
-			}
-			rc.maybeTriggerSnapshot()
-			rc.node.Advance()
-
-		case err := <-rc.transport.ErrorC:
-			rc.writeError(err)
-			return
-
-		case <-rc.stopc:
-			rc.stop()
-			return
-		}
+		logger.Info().Msg("leader changed")
 	}
 }
 
-func (rc *raftServer) serveRaft() {
-	urlData, err := url.Parse(rc.peers[rc.id-1])
-	if err != nil {
-		log.Fatalf("raftexample: Failed parsing URL (%v)", err)
-	}
-
-	ln, err := newStoppableListener(urlData.Host, rc.httpstopc)
-	if err != nil {
-		log.Fatalf("raftexample: Failed to listen rafthttp (%v)", err)
-	}
-
-	err = (&http.Server{Handler: rc.transport.Handler()}).Serve(ln)
-	select {
-	case <-rc.httpstopc:
-	default:
-		log.Fatalf("raftexample: Failed to serve rafthttp (%v)", err)
-	}
-	close(rc.httpdonec)
+func (rs *raftServer) GetLeader() uint64 {
+	return atomic.LoadUint64(&rs.leaderStatus.leader)
 }
 
-func (rc *raftServer) Process(ctx context.Context, m raftpb.Message) error {
-	return rc.node.Step(ctx, m)
+func (rs *raftServer) IsLeader() bool {
+	return rs.id == rs.GetLeader()
 }
-func (rc *raftServer) IsIDRemoved(id uint64) bool                              { return false }
-func (rc *raftServer) ReportUnreachable(id uint64)                             {}
-func (rc *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {}

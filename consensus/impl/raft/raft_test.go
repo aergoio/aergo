@@ -16,7 +16,6 @@ package raft
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
@@ -30,6 +29,8 @@ type cluster struct {
 	proposeC    []chan string
 	confChangeC []chan raftpb.ConfChange
 }
+
+var dataDirBase = "./rafttest"
 
 // newCluster creates a cluster of n nodes
 func newCluster(n int) *cluster {
@@ -46,13 +47,16 @@ func newCluster(n int) *cluster {
 		confChangeC: make([]chan raftpb.ConfChange, len(peers)),
 	}
 
+	os.RemoveAll(dataDirBase)
+
 	for i := range clus.peers {
-		os.RemoveAll(fmt.Sprintf("raftexample-%d", i+1))
-		os.RemoveAll(fmt.Sprintf("raftexample-%d-snap", i+1))
+		waldir := fmt.Sprintf("%s/%d/wal", dataDirBase, i+1)
+		snapdir := fmt.Sprintf("%s/%d/snap", dataDirBase, i+1)
+
 		clus.proposeC[i] = make(chan string, 1)
 		clus.confChangeC[i] = make(chan raftpb.ConfChange, 1)
 
-		rs := newRaftServer(i+1, clus.peers, false, nil, clus.proposeC[i], clus.confChangeC[i])
+		rs := newRaftServer(uint64(i+1), clus.peers, false, waldir, snapdir, nil, clus.proposeC[i], clus.confChangeC[i])
 		clus.commitC[i] = rs.commitC
 		clus.errorC[i] = rs.errorC
 	}
@@ -82,16 +86,16 @@ func (clus *cluster) Close() (err error) {
 		if erri := <-clus.errorC[i]; erri != nil {
 			err = erri
 		}
-		// clean intermediates
-		os.RemoveAll(fmt.Sprintf("raftexample-%d", i+1))
-		os.RemoveAll(fmt.Sprintf("raftexample-%d-snap", i+1))
 	}
+
+	os.RemoveAll(dataDirBase)
+
 	return err
 }
 
 func (clus *cluster) closeNoErrors(t *testing.T) {
 	if err := clus.Close(); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 }
 
@@ -113,15 +117,15 @@ func TestProposeOnCommit(t *testing.T) {
 				if !ok {
 					pC = nil
 				}
-				log.Printf("raft node [%d][%d] commit", i, n)
+				t.Logf("raft node [%d][%d] commit", i, n)
 				select {
 				case pC <- *s:
 					continue
 				case err := <-eC:
-					log.Fatalf("eC message (%v)", err)
+					t.Fatalf("eC message (%v)", err)
 				}
 			}
-			log.Printf("raft node [%d] done", i)
+			t.Logf("raft node [%d] done", i)
 			donec <- struct{}{}
 			for range cC {
 				// acknowledge the commits from other nodes so
@@ -161,7 +165,7 @@ func TestCloseProposerInflight(t *testing.T) {
 
 	// wait for one message
 	if c, ok := <-clus.commitC[0]; *c != "foo" || !ok {
-		log.Fatalf("Commit failed")
+		t.Fatalf("Commit failed")
 	}
 }
 

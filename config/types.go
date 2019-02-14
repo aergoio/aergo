@@ -68,7 +68,7 @@ type P2PConfig struct {
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
-	LogFullPeerID  bool     `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
+	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
@@ -98,8 +98,10 @@ type MempoolConfig struct {
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool  `mapstructure:"enablebp" description:"enable block production"`
-	BlockInterval int64 `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	EnableBp      bool     `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval int64    `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	RaftID        uint64   `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
+	RaftBpUrls    []string `mapstructure:"raftbpurls" description:"list of raft bp urls."`
 }
 
 type MonitorConfig struct {

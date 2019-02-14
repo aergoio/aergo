@@ -1,8 +1,9 @@
 package raft
 
 import (
+	"errors"
+	"fmt"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -68,13 +69,45 @@ type BlockFactory struct {
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg.Consensus, hub, cdb, sdb)
+		return New(cfg, hub, cdb, sdb)
 	}
 }
 
+var (
+	ErrInvalidRaftID = errors.New("invalid raft id")
+	ErrDupRaftUrl    = errors.New("duplicated raft bp urls")
+)
+
+func checkConfig(cfg *config.Config) error {
+	//check Url
+	// - each url is unique
+	// - format is valid url
+	//check ID
+	// - 1 <= ID <= len(RaftBpUrls)
+	consCfg := cfg.Consensus
+	lenBpUrls := len(consCfg.RaftBpUrls)
+
+	urlMap := make(map[string]bool)
+	for _, url := range consCfg.RaftBpUrls {
+		//TODO url is valid
+		if _, ok := urlMap[url]; ok {
+			return ErrDupRaftUrl
+		} else {
+			urlMap[url] = true
+		}
+	}
+
+	raftID := cfg.Consensus.RaftID
+	if raftID <= 0 || raftID > uint64(lenBpUrls) {
+		return ErrInvalidRaftID
+	}
+	return nil
+}
+
 // New returns a BlockFactory.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB,
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (*BlockFactory, error) {
+
 	r := &BlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
@@ -85,15 +118,21 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 		sdb:              sdb,
 	}
 
+	if err := checkConfig(cfg); err != nil {
+		return nil, err
+	}
+
 	proposeC := make(chan string, 1)
 	confChangeC := make(chan raftpb.ConfChange, 1)
 
-	//TODO peers, id from config
-	peers := ""
-	peersList := strings.Split(peers, ",")
-	id := 1
+	peersList := cfg.Consensus.RaftBpUrls
+	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
+	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	r.raftServer = newRaftServer(id, peersList, false, nil, proposeC, confChangeC)
+	r.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir, nil, proposeC, confChangeC)
+	// after openWal, send dummy to commitCh
+	// TODO remove commitCh, we maybe don't need it
+	r.raftServer.WaitStartup()
 
 	r.txOp = chain.NewCompTxOp(
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
@@ -116,6 +155,10 @@ func (r *BlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (r *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
+	if !r.raftServer.IsLeader() {
+		logger.Debug().Msg("skip producing block because this bp is not leader")
+		return
+	}
 
 	if b, _ := r.GetBestBlock(); b != nil {
 		if r.prevBlock != nil && r.prevBlock.BlockNo() == b.BlockNo() {
