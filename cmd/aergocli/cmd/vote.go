@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
@@ -104,7 +105,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	cmd.Println(msg)
+	cmd.Println(util.JSON(msg))
 }
 
 var voteStatCmd = &cobra.Command{

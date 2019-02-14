@@ -35,7 +35,7 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 	case types.AergoSystem:
 		err = system.ExecuteSystemTx(scs, txBody, sender, blockNo)
 	case types.AergoName:
-		err = name.ExecuteNameTx(scs, txBody, sender, receiver, blockNo)
+		err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient

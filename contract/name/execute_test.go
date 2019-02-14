@@ -24,15 +24,32 @@ func TestExcuteNameTx(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := ExecuteNameTx(scs, txBody, sender, receiver, 0)
+	err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.NoError(t, err, "execute name tx")
 
 	commitContractState(t, bs, scs)
-
 	scs = openContractState(t, bs)
+
 	ret := GetAddress(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey address")
+	ret = GetOwner(scs, []byte(name))
+	assert.Equal(t, txBody.Account, ret, "pubkey owner")
 
+	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	assert.Error(t, err, "execute name tx")
+
+	buyer := types.ToAddress("AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay")
+	txBody.Payload = buildNamePayload(name, 'u', buyer)
+	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 1)
+	assert.NoError(t, err, "execute name tx")
+
+	commitContractState(t, bs, scs)
+	scs = openContractState(t, bs)
+
+	ret = GetAddress(scs, []byte(name))
+	assert.Equal(t, buyer, ret, "pubkey address")
+	ret = GetOwner(scs, []byte(name))
+	assert.Equal(t, buyer, ret, "pubkey owner")
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {

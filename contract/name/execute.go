@@ -10,14 +10,14 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func ExecuteNameTx(scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
+func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
 	nameCmd, err := getNameCmd(txBody.GetPayload())
 
 	switch nameCmd {
 	case 'c':
 		err = CreateName(scs, txBody, sender, receiver)
 	case 'u':
-		err = UpdateName(scs, txBody, sender, receiver)
+		err = UpdateName(bs, scs, txBody, sender, receiver)
 	default:
 		err = errors.New("could not execute unknown cmd")
 	}
@@ -82,7 +82,7 @@ func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
 			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
 		}
 		if (!bytes.Equal(tx.Account, name)) &&
-			(!bytes.Equal(tx.Account, getAddress(scs, name))) {
+			(!bytes.Equal(tx.Account, getOwner(scs, name, false))) {
 			return fmt.Errorf("owner not matched : %s", name)
 		}
 	}

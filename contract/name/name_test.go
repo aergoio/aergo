@@ -55,7 +55,7 @@ func TestName(t *testing.T) {
 	assert.Equal(t, owner, ret, "registed owner")
 
 	tx.Payload = buildNamePayload(name, 'u', buyer)
-	err = UpdateName(scs, tx, sender, receiver)
+	err = UpdateName(bs, scs, tx, sender, receiver)
 	assert.NoError(t, err, "update name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -93,20 +93,21 @@ func TestNameRecursive(t *testing.T) {
 	ret := getAddress(scs, []byte(name2))
 	assert.Equal(t, owner, ret, "registed owner")
 	name1Owner := GetOwner(scs, []byte(name1))
-	t.Logf("name1 owner is %s", types.EncodeAddress(name1Owner.Address))
-	assert.Equal(t, owner, name1Owner.Address, "check registed pubkey owner")
+	t.Logf("name1 owner is %s", types.EncodeAddress(name1Owner))
+	assert.Equal(t, owner, name1Owner, "check registed pubkey owner")
 	name2Owner := GetOwner(scs, []byte(name2))
-	t.Logf("name2 owner is %s", string(name2Owner.Address))
-	assert.Equal(t, []byte(name1), name2Owner.Address, "check registed named owner")
+	t.Logf("name2 owner is %s", types.EncodeAddress(name2Owner))
+	assert.Equal(t, owner, name2Owner, "check registed named owner")
 
 	tx.Payload = buildNamePayload(name1, 'u', buyer)
 
-	err = UpdateName(scs, tx, sender, receiver)
+	err = UpdateName(bs, scs, tx, sender, receiver)
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
 	assert.Equal(t, buyer, ret, "registed owner")
 }
+
 func TestNameNil(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -131,4 +132,54 @@ func buildNamePayload(name string, operation byte, buyer []byte) []byte {
 		payload = append(payload, buyer...)
 	}
 	return payload
+}
+
+func TestNameMap(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	name1 := "AB1234567890"
+	name2 := "1234567890CD"
+	owner := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
+	destination := types.ToAddress("AmhhvY54uW2ZbcyeADPs6MKtj6CrTYcuhHpxn1VxPST1usEY1rDm")
+
+	bs := sdb.NewBlockState(sdb.GetRoot())
+	scs := openContractState(t, bs)
+
+	testNameMap := &NameMap{Owner: owner, Destination: destination, Version: 1}
+	err := setNameMap(scs, []byte(name1), testNameMap)
+	assert.NoError(t, err, "error return in setNameMap")
+
+	err = setNameMap(scs, []byte(name2), testNameMap)
+	assert.NoError(t, err, "error return in setNameMap")
+
+	res := getNameMap(scs, []byte(name1), false)
+	assert.Equal(t, testNameMap.Owner, res.Owner, "Owner")
+	assert.Equal(t, testNameMap.Destination, res.Destination, "Destination")
+	assert.Equal(t, testNameMap.Version, res.Version, "Version")
+
+	res = getNameMap(scs, []byte(name2), false)
+	assert.Equal(t, testNameMap.Owner, res.Owner, "Owner")
+	assert.Equal(t, testNameMap.Destination, res.Destination, "Destination")
+	assert.Equal(t, testNameMap.Version, res.Version, "Version")
+
+	resOwner := getOwner(scs, []byte(name1), false)
+	assert.Equal(t, testNameMap.Owner, resOwner, "getOwner")
+
+	scs = nextBlockContractState(t, bs, scs)
+
+	res = getNameMap(scs, []byte(name1), true)
+	assert.Equal(t, testNameMap.Owner, res.Owner, "Owner")
+	assert.Equal(t, testNameMap.Destination, res.Destination, "Destination")
+	assert.Equal(t, testNameMap.Version, res.Version, "Version")
+
+	res = getNameMap(scs, []byte(name2), true)
+	assert.Equal(t, testNameMap.Owner, res.Owner, "Owner")
+	assert.Equal(t, testNameMap.Destination, res.Destination, "Destination")
+	assert.Equal(t, testNameMap.Version, res.Version, "Version")
+
+	resOwner = GetOwner(scs, []byte(name1))
+	assert.Equal(t, testNameMap.Owner, resOwner, "GetOwner")
+	resAddr := getAddress(scs, []byte(name1))
+	assert.Equal(t, testNameMap.Destination, resAddr, "getAddress")
+
 }

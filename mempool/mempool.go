@@ -469,7 +469,7 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
 	}
-	return name.GetAddress(scs, account)
+	return name.GetOwner(scs, account)
 }
 
 // check tx sanity
