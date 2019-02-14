@@ -2,8 +2,16 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"strings"
 )
+
+//governance type transaction which has aergo.system in recipient
+const BPVote = "BPVoteV1"
+const NameCreate = "createNameV1"
+const NameUpdate = "updateNameV1"
 
 type Transaction interface {
 	GetTx() *Tx
@@ -88,19 +96,59 @@ func (tx *transaction) Validate() error {
 				return ErrTooSmallAmount
 			}
 		case AergoName:
-			if tx.GetBody().GetPayload()[0] != 'c' &&
-				tx.GetBody().GetPayload()[0] != 'b' &&
-				tx.GetBody().GetPayload()[0] != 'u' {
-				return ErrTxFormatInvalid
-			}
-			if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetBody().GetAmountBigInt()) > 0 {
-				return ErrTooSmallAmount
-			}
+			return validateNameTx(tx.GetBody())
 		default:
 			return ErrTxInvalidRecipient
 		}
 	default:
 		return ErrTxInvalidType
+	}
+	return nil
+}
+
+func validateNameTx(tx *TxBody) error {
+	var ci CallInfo
+	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
+		return ErrTxInvalidPayload
+	}
+	if len(ci.Args) < 1 {
+		return fmt.Errorf("invalid arguments in %s", ci)
+	}
+	nameParam, ok := ci.Args[0].(string)
+	if !ok {
+		return fmt.Errorf("invalid arguments in %s", nameParam)
+	}
+
+	if len(nameParam) > NameLength {
+		return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+	}
+	if len(nameParam) != NameLength {
+		return fmt.Errorf("not supported yet")
+	}
+	if err := validateAllowedChar([]byte(nameParam)); err != nil {
+		return err
+	}
+	switch ci.Name {
+	case NameCreate:
+		if len(ci.Args) != 1 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+	case NameUpdate:
+		if len(ci.Args) != 2 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+		to, err := DecodeAddress(ci.Args[1].(string))
+		if err != nil {
+			return fmt.Errorf("invalid receiver in %s", ci)
+		}
+		if len(to) > AddressLength {
+			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+	default:
+		return ErrTxInvalidPayload
+	}
+	if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetAmountBigInt()) > 0 {
+		return ErrTooSmallAmount
 	}
 	return nil
 }
@@ -125,17 +173,20 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int)
 				return ErrInsufficientBalance
 			}
 		case AergoName:
-			if (tx.GetBody().GetPayload()[0] == 'c' ||
-				tx.GetBody().GetPayload()[0] == 'b') &&
-				amount.Cmp(balance) > 0 {
-				return ErrInsufficientBalance
-			}
+			return validateNameTxWithSenderState(senderState, tx.GetBody())
 		default:
 			return ErrTxInvalidRecipient
 		}
 	}
 	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
 		return ErrTxNonceToohigh
+	}
+	return nil
+}
+
+func validateNameTxWithSenderState(s *State, tx *TxBody) error {
+	if tx.GetAmountBigInt().Cmp(s.GetBalanceBigInt()) > 0 {
+		return ErrInsufficientBalance
 	}
 	return nil
 }
@@ -187,4 +238,18 @@ func (tx *transaction) Clone() *transaction {
 	}
 	res.Tx.Hash = res.CalculateTxHash()
 	return res
+}
+
+const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
+
+func validateAllowedChar(param []byte) error {
+	if param == nil {
+		return fmt.Errorf("invalid parameter in NameTx")
+	}
+	for _, char := range string(param) {
+		if !strings.Contains(allowedNameChar, strings.ToLower(string(char))) {
+			return fmt.Errorf("not allowed character in %s", string(param))
+		}
+	}
+	return nil
 }

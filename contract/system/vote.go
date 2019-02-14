@@ -18,7 +18,6 @@ import (
 )
 
 var votingkey = []byte("voting")
-var totalkey = []byte("totalvote")
 var sortedlistkey = []byte("sortedlist")
 
 const PeerIDLength = 39

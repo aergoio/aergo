@@ -1,6 +1,7 @@
 package name
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -34,9 +35,9 @@ func TestName(t *testing.T) {
 	defer deinitTest()
 	name := "AB1234567890"
 	owner := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
-	buyer := types.ToAddress("AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay")
+	buyer := "AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay"
 
-	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name, 'c', nil)}
+	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name, types.NameCreate, "")}
 	tx.Recipient = []byte(types.AergoName)
 
 	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
@@ -44,24 +45,24 @@ func TestName(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := CreateName(scs, tx, sender, receiver)
+	err := CreateName(scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx, sender, receiver)
+	_, err = ValidateNameTx(tx, sender, scs)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))
 	assert.Equal(t, owner, ret, "registed owner")
 
-	tx.Payload = buildNamePayload(name, 'u', buyer)
-	err = UpdateName(bs, scs, tx, sender, receiver)
+	tx.Payload = buildNamePayload(name, types.NameUpdate, buyer)
+	err = UpdateName(bs, scs, tx, sender, receiver, name, buyer)
 	assert.NoError(t, err, "update name")
 
 	scs = nextBlockContractState(t, bs, scs)
 
 	ret = getAddress(scs, []byte(name))
-	assert.Equal(t, buyer, ret, "registed owner")
+	assert.Equal(t, buyer, types.EncodeAddress(ret), "registed owner")
 }
 
 func TestNameRecursive(t *testing.T) {
@@ -70,23 +71,23 @@ func TestNameRecursive(t *testing.T) {
 	name1 := "AB1234567890"
 	name2 := "1234567890CD"
 	owner := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
-	buyer := types.ToAddress("AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay")
+	buyer := "AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay"
 
-	tx := &types.TxBody{Account: owner, Recipient: []byte(types.AergoName), Payload: buildNamePayload(name1, 'c', nil)}
+	tx := &types.TxBody{Account: owner, Recipient: []byte(types.AergoName), Payload: buildNamePayload(name1, types.NameCreate, "")}
 
 	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	err := CreateName(scs, tx, sender, receiver)
+	err := CreateName(scs, tx, sender, receiver, name1)
 	assert.NoError(t, err, "create name")
 
 	tx.Account = []byte(name1)
 	tx.Recipient = []byte(types.AergoName)
-	tx.Payload = buildNamePayload(name2, 'c', nil)
+	tx.Payload = buildNamePayload(name2, types.NameCreate, "")
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx, sender, receiver)
+	err = CreateName(scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "redirect name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -99,13 +100,13 @@ func TestNameRecursive(t *testing.T) {
 	t.Logf("name2 owner is %s", types.EncodeAddress(name2Owner))
 	assert.Equal(t, owner, name2Owner, "check registed named owner")
 
-	tx.Payload = buildNamePayload(name1, 'u', buyer)
+	tx.Payload = buildNamePayload(name1, types.NameUpdate, buyer)
 
-	err = UpdateName(bs, scs, tx, sender, receiver)
+	err = UpdateName(bs, scs, tx, sender, receiver, name1, buyer)
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
-	assert.Equal(t, buyer, ret, "registed owner")
+	assert.Equal(t, buyer, types.EncodeAddress(ret), "registed owner")
 }
 
 func TestNameNil(t *testing.T) {
@@ -116,20 +117,25 @@ func TestNameNil(t *testing.T) {
 
 	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
-	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, 'c', nil)}
+	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
 	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 
-	err = CreateName(scs, tx, sender, receiver)
+	err = CreateName(scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "create name")
 }
 
-func buildNamePayload(name string, operation byte, buyer []byte) []byte {
-	payload := []byte{operation}
-	payload = append(payload, []byte(name)...)
-	if payload[0] == 'u' {
-		payload = append(payload, ',')
-		payload = append(payload, buyer...)
+func buildNamePayload(name string, operation string, buyer string) []byte {
+	var ci types.CallInfo
+	ci.Name = operation
+	if buyer != "" {
+		ci.Args = append(ci.Args, name, buyer)
+	} else {
+		ci.Args = append(ci.Args, name)
+	}
+	payload, err := json.Marshal(ci)
+	if err != nil {
+		return nil
 	}
 	return payload
 }

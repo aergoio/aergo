@@ -18,21 +18,11 @@ type NameMap struct {
 	Destination []byte
 }
 
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V) error {
-	if err := ValidateNameTx(tx, scs); err != nil {
-		return err
-	}
-	if len(tx.Payload[1:]) != types.NameLength {
-		return fmt.Errorf("not supported yet")
-	}
+func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
 	amount := tx.GetAmountBigInt()
-	if sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
-		return types.ErrInsufficientBalance
-	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-
-	return createName(scs, tx.Payload[1:], sender.ID())
+	return createName(scs, []byte(name), sender.ID())
 }
 
 func createName(scs *state.ContractState, name []byte, owner []byte) error {
@@ -41,37 +31,32 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 }
 
 //UpdateName is avaliable after bid implement
-func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V) error {
-	if err := ValidateNameTx(tx, scs); err != nil {
-		return err
-	}
-	name, to := parseUpdatePayload(tx.Payload[1:])
-	if len(getAddress(scs, name)) <= types.NameLength {
+func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
+	sender, receiver *state.V, name, to string) error {
+	amount := tx.GetAmountBigInt()
+	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
-	to = GetAddress(scs, to)
-	amount := tx.GetAmountBigInt()
-	if sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
-		return types.ErrInsufficientBalance
-	}
+	destination, _ := types.DecodeAddress(to)
+	destination = GetAddress(scs, destination)
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(to))
+	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
 	creator, err := contract.GetData([]byte("Creator"))
 	if err != nil {
-		return types.ErrTxInvalidRecipient
+		return err
 	}
-	ownerAddr := to
+	ownerAddr := destination
 	if creator != nil {
 		ownerAddr, err = types.DecodeAddress(string(creator))
 		if err != nil {
 			return types.ErrTxInvalidRecipient
 		}
 	}
-	return updateName(scs, name, ownerAddr, to)
+	return updateName(scs, []byte(name), ownerAddr, destination)
 }
 
 func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) error {
