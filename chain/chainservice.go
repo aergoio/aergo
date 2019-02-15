@@ -506,7 +506,6 @@ func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, er
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
-	logger.Debug().Msg("chain worker")
 	switch msg := context.Message().(type) {
 	case *message.GetBlock:
 		bid := types.ToBlockID(msg.BlockHash)
