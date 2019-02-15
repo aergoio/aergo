@@ -75,7 +75,7 @@ func execListEvent(cmd *cobra.Command, args []string) {
 
 	events, err := client.ListEvents(context.Background(), filter)
 	if err != nil {
-		cmd.Printf("Failed: %s", err.Error())
+		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 	for _, ev := range events.GetEvents() {
@@ -102,7 +102,7 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 	for {
 		ev, err := stream.Recv()
 		if err != nil {
-			cmd.Printf("Failed: %s", err.Error())
+			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
 		cmd.Println(util.JSON(ev))

@@ -107,7 +107,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
-	_, i, err := cs.cdb.getTx(txHash)
+	tx, i, err := cs.cdb.getTx(txHash)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,13 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 		return nil, errors.New("cannot find a receipt")
 	}
 
-	return cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
+	r, err := cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
+	if err != nil {
+		return r, err
+	}
+	r.From = tx.GetBody().GetAccount()
+	r.To = tx.GetBody().GetRecipient()
+	return r, nil
 }
 
 func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
@@ -131,9 +137,16 @@ func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, f
 	if err != nil {
 		return
 	}
-	for _, r := range receipts {
+	if receipts.BloomFilter(filter) == false {
+		return
+	}
+	for idx, r := range receipts.Get() {
+		if r.BloomFilter(filter) == false {
+			continue
+		}
 		for _, e := range r.Events {
 			if e.Filter(filter, argFilter) {
+				e.SetMemoryInfo(r, blkHash, blkNo, int32(idx))
 				*events = append(*events, e)
 			}
 		}
@@ -654,7 +667,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
-	if len(ex.BlockState.Receipts()) != 0 {
+	if len(ex.BlockState.Receipts().Get()) != 0 {
 		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
 	}
 

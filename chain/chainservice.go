@@ -456,10 +456,12 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Uint64("no", block.GetHeader().BlockNo).Str("hash", block.ID()).Msg("failed to add block")
 		}
+		blkNo := block.GetHeader().GetBlockNo()
+		blkHash := block.BlockHash()
 
 		rsp := message.AddBlockRsp{
-			BlockNo:   block.GetHeader().GetBlockNo(),
-			BlockHash: block.BlockHash(),
+			BlockNo:   blkNo,
+			BlockHash: blkHash,
 			Err:       err,
 		}
 
@@ -467,8 +469,11 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 		cm.TellTo(message.RPCSvc, block)
 		events := []*types.Event{}
-		for _, receipt := range bstate.Receipts() {
-			events = append(events, receipt.Events...)
+		for idx, receipt := range bstate.Receipts().Get() {
+			for _, e := range receipt.Events {
+				e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
+				events = append(events, e)
+			}
 		}
 		if len(events) != 0 {
 			cm.TellTo(message.RPCSvc, events)
