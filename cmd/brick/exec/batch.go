@@ -81,7 +81,6 @@ func (c *batch) parse(args string) (string, error) {
 
 func (c *batch) Run(args string) (string, error) {
 	batchFilePath, _ := c.parse(args)
-	batchErrorCount = 0
 	stdOut := colorable.NewColorableStdout()
 
 	var err error
@@ -163,7 +162,8 @@ func (c *batch) Run(args string) (string, error) {
 			} else {
 				fmt.Fprintf(stdOut, "\x1B[31;1mBatch is failed: Error %d\x1B[0m\n", batchErrorCount)
 			}
-
+			// reset params
+			batchErrorCount = 0
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
