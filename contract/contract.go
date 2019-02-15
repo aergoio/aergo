@@ -117,6 +117,11 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {
+	replyCh := preLoadInfos[preLoadService].replyCh
+	if len(replyCh) > 2 {
+		preload := <-replyCh
+		preload.ex.close()
+	}
 	loadReqCh <- &preLoadReq{preLoadService, bs, tx}
 }
 
@@ -126,21 +131,12 @@ func preLoadWorker() {
 		reqInfo := <-loadReqCh
 		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
 
-		if len(replyCh) > 2 {
-			select {
-			case preload := <-replyCh:
-				preload.ex.close()
-			default:
-			}
-		}
-
 		bs := reqInfo.bs
 		tx := reqInfo.tx
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
-		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 ||
-			txBody.Payload == nil {
+		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
 			continue
 		}
 
