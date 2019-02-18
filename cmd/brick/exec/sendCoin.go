@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -63,15 +64,25 @@ func (c *sendCoin) parse(args string) (string, string, uint64, error) {
 func (c *sendCoin) Run(args string) (string, error) {
 	senderName, receiverName, amount, _ := c.parse(args)
 
+	// assuming target is contract
 	err := context.Get().ConnectBlock(
-		contract.NewLuaTxSend(senderName, receiverName, amount),
+		contract.NewLuaTxCall(senderName, receiverName, amount, ""),
 	)
 
-	if err != nil {
+	if err != nil && strings.HasPrefix(err.Error(), "cannot find contract") {
+		// retry to normal address
+		err := context.Get().ConnectBlock(
+			contract.NewLuaTxSend(senderName, receiverName, amount),
+		)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
 		return "", err
 	}
 
 	Index(context.AccountSymbol, receiverName)
 
 	return "send aergo successfully", nil
+
 }
