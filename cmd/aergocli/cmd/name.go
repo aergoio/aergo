@@ -68,7 +68,6 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
 
-	//payload := []byte{'c'}
 	if len(name) != types.NameLength {
 		return errors.New("The name must be 12 alphabetic characters\n")
 	}

@@ -9,9 +9,11 @@ import (
 )
 
 //governance type transaction which has aergo.system in recipient
-const BPVote = "BPVoteV1"
-const NameCreate = "createNameV1"
-const NameUpdate = "updateNameV1"
+const VoteBP = "v1voteBP"
+const Stake = "v1stake"
+const Unstake = "v1unstake"
+const NameCreate = "v1createName"
+const NameUpdate = "v1updateName"
 
 type Transaction interface {
 	GetTx() *Tx
