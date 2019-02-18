@@ -520,7 +520,7 @@ func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Msg("leader changed")
+		logger.Info().Uint64("ID", rs.id).Uint64("leader", softState.Lead).Msg("leader changed")
 	}
 }
 

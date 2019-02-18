@@ -178,7 +178,7 @@ func (s *SimpleBlockFactory) Start() {
 					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
 				)
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

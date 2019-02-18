@@ -220,7 +220,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.GetHeader().GetPrevBlockHash()),
 	)
 
-	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts)
+	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)
 	if err != nil {
 		return nil, nil, err
 	}

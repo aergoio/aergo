@@ -102,6 +102,7 @@ type ConsensusConfig struct {
 	BlockInterval int64    `mapstructure:"blockinterval" description:"block production interval (sec)"`
 	RaftID        uint64   `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
 	RaftBpUrls    []string `mapstructure:"raftbpurls" description:"list of raft bp urls."`
+	RaftSkipEmpty bool     `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
 }
 
 type MonitorConfig struct {

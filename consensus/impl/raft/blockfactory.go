@@ -25,7 +25,11 @@ const (
 	slotQueueMax = 100
 )
 
-var logger *log.Logger
+var (
+	logger             *log.Logger
+	RaftBpTick         = time.Second
+	RaftSkipEmptyBlock = false
+)
 
 func init() {
 	logger = log.NewLogger("raft")
@@ -59,9 +63,8 @@ type BlockFactory struct {
 	txOp             chain.TxOp
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
-	prevBlock        *types.Block
+	prevBlock        *types.Block // best block of last job
 
-	//TODO refactoring
 	raftServer *raftServer
 }
 
@@ -101,6 +104,8 @@ func checkConfig(cfg *config.Config) error {
 	if raftID <= 0 || raftID > uint64(lenBpUrls) {
 		return ErrInvalidRaftID
 	}
+
+	RaftSkipEmptyBlock = cfg.Consensus.RaftSkipEmpty
 	return nil
 }
 
@@ -108,18 +113,38 @@ func checkConfig(cfg *config.Config) error {
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (*BlockFactory, error) {
 
-	r := &BlockFactory{
+	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
 		jobQueue:         make(chan interface{}, slotQueueMax),
-		blockInterval:    consensus.BlockInterval,
+		blockInterval:    RaftBpTick,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
 		sdb:              sdb,
 	}
 
+	if err := bf.initRaftServer(cfg); err != nil {
+		logger.Error().Err(err).Msg("failed to init raft server")
+		return bf, err
+	}
+
+	bf.txOp = chain.NewCompTxOp(
+		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
+			select {
+			case <-bf.quit:
+				return chain.ErrQuit
+			default:
+				return nil
+			}
+		}),
+	)
+
+	return bf, nil
+}
+
+func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
 	if err := checkConfig(cfg); err != nil {
-		return nil, err
+		return err
 	}
 
 	proposeC := make(chan string, 1)
@@ -129,118 +154,108 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	r.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir, nil, proposeC, confChangeC)
-	// after openWal, send dummy to commitCh
-	// TODO remove commitCh, we maybe don't need it
-	r.raftServer.WaitStartup()
+	bf.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir, nil, proposeC, confChangeC)
 
-	r.txOp = chain.NewCompTxOp(
-		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
-			select {
-			case <-r.quit:
-				return chain.ErrQuit
-			default:
-				return nil
-			}
-		}),
-	)
+	bf.raftServer.WaitStartup()
 
-	return r, nil
+	return nil
 }
 
 // Ticker returns a time.Ticker for the main consensus loop.
-func (r *BlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(r.blockInterval)
+func (bf *BlockFactory) Ticker() *time.Ticker {
+	return time.NewTicker(bf.blockInterval)
 }
 
 // QueueJob send a block triggering information to jq.
-func (r *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
-	if !r.raftServer.IsLeader() {
+func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
+	if !bf.raftServer.IsLeader() {
 		logger.Debug().Msg("skip producing block because this bp is not leader")
 		return
 	}
 
-	if b, _ := r.GetBestBlock(); b != nil {
-		if r.prevBlock != nil && r.prevBlock.BlockNo() == b.BlockNo() {
+	if b, _ := bf.GetBestBlock(); b != nil {
+		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
 			logger.Debug().Msg("previous block not connected. skip to generate block")
 			return
 		}
-		r.prevBlock = b
+		bf.prevBlock = b
 		jq <- b
 	}
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
-func (r *BlockFactory) IsTransactionValid(tx *types.Tx) bool {
+func (bf *BlockFactory) IsTransactionValid(tx *types.Tx) bool {
 	// BlockFactory has no tx valid check.
 	return true
 }
 
 // VerifyTimestamp checks the validity of the block timestamp.
-func (r *BlockFactory) VerifyTimestamp(*types.Block) bool {
+func (bf *BlockFactory) VerifyTimestamp(*types.Block) bool {
 	// BlockFactory don't need to check timestamp.
 	return true
 }
 
 // VerifySign checks the consensus level validity of a block.
-func (r *BlockFactory) VerifySign(*types.Block) error {
+func (bf *BlockFactory) VerifySign(*types.Block) error {
 	// BlockFactory has no block signature.
 	return nil
 }
 
 // IsBlockValid checks the consensus level validity of a block.
-func (r *BlockFactory) IsBlockValid(*types.Block, *types.Block) error {
+func (bf *BlockFactory) IsBlockValid(*types.Block, *types.Block) error {
 	// BlockFactory has no block valid check.
 	return nil
 }
 
 // QuitChan returns the channel from which consensus-related goroutines check
 // when shutdown is initiated.
-func (r *BlockFactory) QuitChan() chan interface{} {
-	return r.quit
+func (bf *BlockFactory) QuitChan() chan interface{} {
+	return bf.quit
 }
 
 // Update has nothging to do.
-func (r *BlockFactory) Update(block *types.Block) {
+func (bf *BlockFactory) Update(block *types.Block) {
 }
 
 // Save has nothging to do.
-func (r *BlockFactory) Save(tx db.Transaction) error {
+func (bf *BlockFactory) Save(tx db.Transaction) error {
 	return nil
 }
 
 // BlockFactory returns r itself.
-func (r *BlockFactory) BlockFactory() consensus.BlockFactory {
-	return r
+func (bf *BlockFactory) BlockFactory() consensus.BlockFactory {
+	return bf
 }
 
 // NeedReorganization has nothing to do.
-func (r *BlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
+func (bf *BlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
 
-// Start run a simple block factory service.
-func (r *BlockFactory) Start() {
+// Start run a raft block factory service.
+func (bf *BlockFactory) Start() {
 	defer logger.Info().Msg("shutdown initiated. stop the service")
 
 	runtime.LockOSThread()
 
 	for {
 		select {
-		case e := <-r.jobQueue:
+		case e := <-bf.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				blockState := r.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
+				blockState := bf.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
 
 				ts := time.Now().UnixNano()
 
 				txOp := chain.NewCompTxOp(
-					r.txOp,
+					bf.txOp,
 					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
 				)
 
-				block, err := chain.GenerateBlock(r, prevBlock, blockState, txOp, ts)
+				block, err := chain.GenerateBlock(bf, prevBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 				if err == chain.ErrQuit {
 					return
+				} else if err == chain.ErrBlockEmpty {
+					continue
 				} else if err != nil {
 					logger.Info().Err(err).Msg("failed to produce block")
 					continue
@@ -249,15 +264,23 @@ func (r *BlockFactory) Start() {
 					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(r, block, blockState)
+				if !bf.raftServer.IsLeader() {
+					logger.Info().Msg("skip producing block because this bp is not leader")
+					continue
+				}
+
+				//if bestblock is changed, connecting block failed. new block is generated in next tick
+				if err := chain.ConnectBlock(bf, block, blockState); err != nil {
+					logger.Error().Msg(err.Error())
+				}
 			}
-		case <-r.quit:
+		case <-bf.quit:
 			return
 		}
 	}
 }
 
 // JobQueue returns the queue for block production triggering.
-func (r *BlockFactory) JobQueue() chan<- interface{} {
-	return r.jobQueue
+func (bf *BlockFactory) JobQueue() chan<- interface{} {
+	return bf.jobQueue
 }
