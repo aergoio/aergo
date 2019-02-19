@@ -3,6 +3,9 @@ package raft
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p"
+	"github.com/libp2p/go-libp2p-crypto"
 	"runtime"
 	"time"
 
@@ -13,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -58,10 +60,12 @@ type BlockFactory struct {
 	*component.ComponentHub
 	consensus.ChainDB
 	jobQueue         chan interface{}
+	quit             chan interface{}
 	blockInterval    time.Duration
 	maxBlockBodySize uint32
+	ID               string
+	privKey          crypto.PrivKey
 	txOp             chain.TxOp
-	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block // best block of last job
 
@@ -120,6 +124,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		blockInterval:    RaftBpTick,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
+		ID:               p2p.NodeSID(),
+		privKey:          p2p.NodePrivKey(),
 		sdb:              sdb,
 	}
 
@@ -174,6 +180,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	}
 
 	if b, _ := bf.GetBestBlock(); b != nil {
+		//TODO is it ok if last job was failed?
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
 			logger.Debug().Msg("previous block not connected. skip to generate block")
 			return
@@ -196,14 +203,21 @@ func (bf *BlockFactory) VerifyTimestamp(*types.Block) bool {
 }
 
 // VerifySign checks the consensus level validity of a block.
-func (bf *BlockFactory) VerifySign(*types.Block) error {
-	// BlockFactory has no block signature.
+func (bf *BlockFactory) VerifySign(block *types.Block) error {
+	valid, err := block.VerifySign()
+	if !valid || err != nil {
+		return &consensus.ErrorConsensus{Msg: "bad block signature", Err: err}
+	}
 	return nil
 }
 
 // IsBlockValid checks the consensus level validity of a block.
-func (bf *BlockFactory) IsBlockValid(*types.Block, *types.Block) error {
+func (bf *BlockFactory) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
 	// BlockFactory has no block valid check.
+	_, err := block.BPID()
+	if err != nil {
+		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
+	}
 	return nil
 }
 
@@ -260,9 +274,17 @@ func (bf *BlockFactory) Start() {
 					logger.Info().Err(err).Msg("failed to produce block")
 					continue
 				}
-				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
-					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
-					Err(err).Msg("block produced")
+
+				if err = block.Sign(bf.privKey); err != nil {
+					logger.Error().Err(err).Msg("failed to sign in block")
+					continue
+				}
+
+				logger.Info().Str("BP", bf.ID).Str("id", block.ID()).
+					Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+					Uint64("no", block.GetHeader().GetBlockNo()).
+					Str("hash", block.ID()).
+					Msg("block produced")
 
 				if !bf.raftServer.IsLeader() {
 					logger.Info().Msg("skip producing block because this bp is not leader")
