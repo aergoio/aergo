@@ -93,7 +93,7 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	gh, _ := core.cdb.getHashByNo(0)
 	if len(gh) == 0 {
 		latest := core.cdb.getBestBlockNo()
-		logger.Info().Uint64("nom", latest).Msg("current latest")
+		logger.Info().Uint64("num", latest).Msg("current latest")
 		if latest == 0 {
 			if genesis == nil {
 				genesis = types.GetDefaultGenesis()
@@ -114,16 +114,21 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 			logger.Info().Msg("genesis block is generated")
 		}
 	}
+
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	initChainEnv(core.cdb.GetGenesisInfo())
 
 	contract.StartLStateFactory()
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).
 		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
 
 	return genesisBlock, nil
+}
+
+func (core *Core) GetGenesisInfo() *types.Genesis {
+	return core.cdb.GetGenesisInfo()
 }
 
 // Close closes chain & state DB.
