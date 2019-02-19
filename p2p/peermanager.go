@@ -44,7 +44,7 @@ type PeerManager interface {
 	// GetPeer return registered(handshaked) remote peer object
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
-	GetPeerAddresses() []*message.PeerInfo
+	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
 }
 
 /**
@@ -534,14 +534,28 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
-func (pm *peerManager) GetPeerAddresses() []*message.PeerInfo {
+func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {
 	peers := make([]*message.PeerInfo, 0, len(pm.peerCache))
+	if showSelf {
+		meta := pm.SelfMeta()
+		addr := meta.ToPeerAddress()
+		bestBlk, err := pm.actorService.GetChainAccessor().GetBestBlock()
+		if err != nil {
+			return nil
+		}
+		selfpi := &message.PeerInfo{
+			&addr,meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
+		peers = append(peers, selfpi)
+	}
 	for _, aPeer := range pm.peerCache {
 		meta := aPeer.Meta()
+		if noHidden && meta.Hidden {
+			continue
+		}
 		addr := meta.ToPeerAddress()
 		lastNoti := aPeer.LastNotice()
 		pi := &message.PeerInfo{
-			&addr,meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State()	}
+			&addr,meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers

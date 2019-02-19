@@ -113,6 +113,8 @@ type GetBlockChunksRsp struct {
 // GetPeers requests p2p actor to get remote peers that is connected.
 // The actor returns *GetPeersRsp
 type GetPeers struct {
+	NoHidden bool
+	ShowSelf bool
 }
 
 type PeerInfo struct {
@@ -122,6 +124,7 @@ type PeerInfo struct {
 	LastBlockHash   []byte
 	LastBlockNumber uint64
 	State           types.PeerState
+	Self 			bool
 }
 
 // GetPeersRsp contains peer meta information and current states.

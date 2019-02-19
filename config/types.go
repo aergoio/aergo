@@ -58,7 +58,7 @@ type P2PConfig struct {
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
-	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect to at startup"`
+	NPAddPeers      []string `mapstructure:"npaddpeers" description'':"Add peers to connect to at startup"`
 	NPHiddenPeers   []string `mapstructure:"nphiddenpeers" description:"List of peerids which will not show to other peers"`
 	NPDiscoverPeers bool     `mapstructure:"npdiscoverpeers" description:"Whether to discover from polaris or other nodes and connects"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
