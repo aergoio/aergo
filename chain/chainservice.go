@@ -285,8 +285,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
 		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
-		*message.GetAncestor,
-		*message.GetQuery:
+		*message.GetAncestor:
 		cs.chainManager.Request(msg, context.Sender())
 
 		//pass to chainWorker
@@ -297,6 +296,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetTx,
 		*message.GetReceipt,
 		*message.GetABI,
+		*message.GetQuery,
 		*message.GetStateQuery,
 		*message.GetElected,
 		*message.GetVote,
@@ -474,23 +474,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			Ancestor: ancestor,
 			Err:      err,
 		})
-	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		address, err := getAddressNameResolved(cm.sdb, msg.Contract)
-		if err != nil {
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-			break
-		}
-		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cm.sdb.OpenNewStateDB(cm.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
-		}
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
@@ -604,6 +587,23 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 				ABI: nil,
 				Err: err,
 			})
+		}
+	case *message.GetQuery:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		address, err := getAddressNameResolved(cw.sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+			break
+		}
+		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
 		var varProofs []*types.ContractVarProof
