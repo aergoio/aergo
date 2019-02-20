@@ -1,0 +1,46 @@
+datadir = "/aergo/data"
+enableprofile = false
+profileport = 6060
+enablerest = false
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 7845
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[rest]
+restport = "8080"
+
+[p2p]
+netprotocoladdr = ""
+netprotocolport = 7846
+npbindaddr = "0.0.0.0"
+npbindport = 7846
+nptls = false
+npcert = ""
+npkey = ""
+npmaxpeers = "100"
+nppeerpool = "100"
+npaddpeers = [
+    "/ip4/13.124.81.52/tcp/7846/p2p/16Uiu2HAmMpx6WBWGkvmjQqRQLFsG2czfVhCijJH8hEJurouHJHiL",
+    "/ip4/13.209.186.203/tcp/7846/p2p/16Uiu2HAmHpXhHzExXpg8Cw3RDUErPM5HBpJdpkJC8wnTzrfm3Gy5"
+]
+npexposeself = false
+npusepolaris = false
+
+[blockchain]
+usefastsyncer = true
+blockchainplaceholder = false
+
+[mempool]
+showmetrics = false
+dumpfilepath = "/aergo/mempool.dump"
+enablefadeout = true
+fadeoutperiod = 12
+verifiers = 16
+
+[consensus]
+enablebp = false

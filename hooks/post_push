@@ -1,0 +1,11 @@
+#!/bin/bash
+
+BUILD_TAG=$(echo $SOURCE_BRANCH | sed -e 's/^v//')
+if [[ "$BUILD_TAG" =~ ^([0-9]+).([0-9]+).([0-9]+)$ ]]; then
+	MAJOR_TAG=$(echo "$BUILD_TAG" | sed -e 's/\.[0-9]*$//')
+	docker tag  $DOCKER_REPO:$BUILD_TAG $DOCKER_REPO:$MAJOR_TAG
+	docker push $DOCKER_REPO:$MAJOR_TAG
+	docker tag  $DOCKER_REPO:$BUILD_TAG $DOCKER_REPO:latest
+	docker push $DOCKER_REPO:latest
+fi
+

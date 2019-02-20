@@ -1,0 +1,28 @@
+level = "info"  # default log level
+formatter = "console"  # format: console, console_no_color, json
+caller = true  # enabling source file and line printer
+timefieldformat = "Jan _2 15:04:05"
+
+[chain]
+level = "info"  # optional, log level for 'chain' module
+
+[dpos]
+level = "info"
+
+[p2p]
+level = "info"
+
+[consensus]
+level = "info"
+
+[mempool]
+level = "info"
+
+[contract]
+level = "info"
+
+[syncer]
+level = "debug"
+
+[bp]
+level = "info"

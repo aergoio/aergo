@@ -1,0 +1,41 @@
+{
+    "chain_id":{
+        "magic":"testnet.aergo.io",
+        "public":true,
+        "mainnet":false,
+        "coinbasefee":"1000000000",
+        "consensus":"dpos"
+    },
+    "timestamp": 1545980400000000000,
+    "balance": {
+        "AmMK3LZiR1oEf66xzXir7mA5SUVVHSinWUYmh5FwueoVmciH3CuJ": "498700000000000000000000000",
+        "AmNmkKXKgwXGLBc5oFhi1MuxNxnJLwvWUPHV5wr5unHVNwX1MfXe": "100000000000000000000000",
+        "AmLsSfxo9aQRZJBvMBoLFb9QZABQK2RiG3Uq1JBhyAfbDYPf31J2": "100000000000000000000000",
+        "AmPJRLHDKtzLpsaC8ubmPuRkxnMCyBSq5wBwYNDD6DJdgiRhAhYR": "100000000000000000000000",
+        "AmNSmkDtwwSSrGHk4EP8yLP7YaC629fjnPg977JJfLpTe9zXtpsd": "100000000000000000000000",
+        "AmMR1CLHNnBCq7itY5XRX4LqLs5Ve1nZKxAcBRVZtwcsRdrytFqk": "100000000000000000000000",
+        "AmMvmu6HxRhYMjVgih4sXSYyDiM8HpuvZFnP9VHUtUd95qTUENR6": "100000000000000000000000",
+        "AmP5vYXeHBjGuvqDaGrZBoHyTHEJcUztUDvTam2HzqvA9jseqekd": "100000000000000000000000",
+        "AmNEfsKt1v2gosbu6eMg7fGBchkJzvEcmbG8A4EeMyusAU3M38mk": "100000000000000000000000",
+        "AmNJRh4ntQWT145jQwDHQGuHYdATmMWCEbENW2DN7mztfr5pqPbP": "100000000000000000000000",
+        "AmLvTAXSTVAs7tgASWnmZwgtyq7cLdtaoNqxrm11K91Jpc3XrHex": "100000000000000000000000",
+        "AmLqZFnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f": "100000000000000000000000",
+        "AmMLFNs1f5kFxxoG2Pq8wkFi5mJATQve7ZPPBZngHRjo2myU41k6": "100000000000000000000000",
+        "AmPxDZYmc7f6cTEzv8rTkbDxYtziTkRQEBbCW9r5GgVntpSmgXWb": "100000000000000000000000"
+    },
+    "bps": [
+        "16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n",
+        "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw",
+        "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9",
+        "16Uiu2HAmRNY6CEDMQKuUkUbix7QDpp1fFAg3yRVMoJJDNztbGzdH",
+        "16Uiu2HAm18LyTb9WWVNWcj5Gn83fUP4ckqxgy9AzHgzYsXpiZ8JA",
+        "16Uiu2HAmNaert6HsSaW1bbs8Jb3hUq2nW6iyiMgj1hBwTg5FkBsP",
+        "16Uiu2HAmV6iVGuN31sZTz2GDicFPpBr6eaHn1mVM499BGwSBf6Nb",
+        "16Uiu2HAm7mv81gkeLMtw27b5doXHvhELQnHwfHhBfZLGqrLjZLVZ",
+        "16Uiu2HAm4NtvcqNKFWU1z3oMRB3Zuge8jvZi3ybn6xBtZkLAEvUW",
+        "16Uiu2HAmPWKwaBEoDctNQ9ivifr7v6Zco6EAjfvtcS1wd8Tr4LPH",
+        "16Uiu2HAmRag42cakyfikeUTCgTLoGDnPuZdkiPFwZs5u6zp4DJxM",
+        "16Uiu2HAm8GKcvkW9nHGMYf8vzFnEdQnkU5vfskNnLxK1UuJn2pS4",
+        "16Uiu2HAm7TFW1PavXGNKDwyeMaL9CxYVSpYpzs8t2BVV3nf8qtBx"
+    ]
+}
