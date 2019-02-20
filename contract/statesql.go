@@ -159,7 +159,7 @@ func conn(dbName string) (*DB, error) {
 }
 
 func dataSrc(dbName string) string {
-	return fmt.Sprintf("file:%s/%s.db?branches=on&max_db_size=%d", database.DataDir, dbName, 1024*1024*1024*1024)
+	return fmt.Sprintf("file:%s/%s.db?branches=on", database.DataDir, dbName)
 }
 
 func readOnlyConn(dbName string) (*DB, error) {
